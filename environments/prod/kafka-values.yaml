@@ -1,0 +1,58 @@
+# Configurações de produção para Kafka
+kafka:
+  clusterName: "neural-hive-kafka-prod"
+  namespace: "neural-hive-kafka"
+
+# Configurações otimizadas para produção
+topicDefaults:
+  partitions: 6
+  replicationFactor: 3
+  retentionMs: 604800000  # 7 dias
+  compressionType: "snappy"
+
+  # Configurações exactly-once otimizadas
+  minInsyncReplicas: 2
+  uncleanLeaderElectionEnable: false
+  maxMessageBytes: 1048576
+
+# Volumes maiores para produção
+topics:
+  business:
+    partitions: 8  # Maior throughput
+    config:
+      "segment.bytes": "2147483648"  # 2GB segments
+
+  technical:
+    partitions: 12  # Volume alto esperado
+    config:
+      "segment.bytes": "2147483648"
+
+  infrastructure:
+    partitions: 6
+    config:
+      "retention.ms": "1209600000"  # 14 dias para auditoria
+
+  security:
+    partitions: 4
+    config:
+      "retention.ms": "2629746000"  # 30 dias compliance
+
+# Recursos de produção
+resources:
+  kafka:
+    limits:
+      cpu: "4000m"
+      memory: "8Gi"
+    requests:
+      cpu: "2000m"
+      memory: "4Gi"
+
+  zookeeper:
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+    requests:
+      cpu: "1000m"
+      memory: "2Gi"
+
+environment: "prod"

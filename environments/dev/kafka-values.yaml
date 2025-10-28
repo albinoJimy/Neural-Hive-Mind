@@ -1,0 +1,203 @@
+# Dev Environment Values for Kafka Topics
+# Override values for development environment
+
+# Development environment setting
+environment: "dev"
+
+# Dev-specific cluster configuration
+kafka:
+  clusterName: "neural-hive-kafka"
+  namespace: "neural-hive-kafka"
+
+# Lower requirements for dev environment
+topicDefaults:
+  partitions: 3
+  replicationFactor: 1  # Single replica for dev
+  retentionMs: 86400000  # 1 day retention for dev
+  compressionType: "snappy"
+  cleanupPolicy: "delete"
+
+  # EOS settings for dev - adjusted for single replica
+  minInsyncReplicas: 1  # Must be <= replicationFactor
+  uncleanLeaderElectionEnable: false
+  maxMessageBytes: 4194304  # 4MB
+
+  # Performance settings for dev
+  segmentMs: 86400000      # 24 hours
+  segmentBytes: 268435456  # 256MB (smaller for dev)
+  indexIntervalBytes: 4096
+
+# Topic overrides for development
+topics:
+  business:
+    name: "intentions.business"
+    description: "Intenções relacionadas a processos de negócio (dev)"
+    partitions: 3
+    replicationFactor: 1
+    config:
+      "retention.ms": "86400000"  # 1 day
+      "compression.type": "snappy"
+      "cleanup.policy": "delete"
+      "min.insync.replicas": "1"
+      "unclean.leader.election.enable": "false"
+      "max.message.bytes": "4194304"
+      "segment.ms": "86400000"
+      "segment.bytes": "268435456"
+    labels:
+      "neural-hive-mind.org/domain": "business"
+      "neural-hive-mind.org/intent-type": "business-process"
+      "neural-hive-mind.org/environment": "dev"
+
+  technical:
+    name: "intentions.technical"
+    description: "Intenções relacionadas a operações técnicas (dev)"
+    partitions: 3
+    replicationFactor: 1
+    config:
+      "retention.ms": "86400000"  # 1 day
+      "compression.type": "snappy"
+      "cleanup.policy": "delete"
+      "min.insync.replicas": "1"
+      "unclean.leader.election.enable": "false"
+      "max.message.bytes": "4194304"
+      "segment.ms": "86400000"
+      "segment.bytes": "268435456"
+    labels:
+      "neural-hive-mind.org/domain": "technical"
+      "neural-hive-mind.org/intent-type": "technical-operation"
+      "neural-hive-mind.org/environment": "dev"
+
+  infrastructure:
+    name: "intentions.infrastructure"
+    description: "Intenções relacionadas a infraestrutura e DevOps (dev)"
+    partitions: 3
+    replicationFactor: 1
+    config:
+      "retention.ms": "86400000"  # 1 day (shorter for dev)
+      "compression.type": "snappy"
+      "cleanup.policy": "delete"
+      "min.insync.replicas": "1"
+      "unclean.leader.election.enable": "false"
+      "max.message.bytes": "4194304"
+      "segment.ms": "86400000"
+      "segment.bytes": "268435456"
+    labels:
+      "neural-hive-mind.org/domain": "infrastructure"
+      "neural-hive-mind.org/intent-type": "infrastructure-management"
+      "neural-hive-mind.org/environment": "dev"
+
+  security:
+    name: "intentions.security"
+    description: "Intenções relacionadas a segurança e compliance (dev)"
+    partitions: 2  # Even smaller for dev
+    replicationFactor: 1
+    config:
+      "retention.ms": "172800000"  # 2 days for dev (vs 30 days prod)
+      "compression.type": "snappy"
+      "cleanup.policy": "delete"
+      "min.insync.replicas": "1"
+      "unclean.leader.election.enable": "false"
+      "max.message.bytes": "4194304"
+      "segment.ms": "86400000"
+      "segment.bytes": "268435456"
+    labels:
+      "neural-hive-mind.org/domain": "security"
+      "neural-hive-mind.org/intent-type": "security-operation"
+      "neural-hive-mind.org/compliance": "required"
+      "neural-hive-mind.org/environment": "dev"
+
+  # Internal processing topics for dev
+  dead-letter:
+    name: "intentions.dead-letter"
+    description: "Tópico para mensagens que falharam no processamento (dev)"
+    partitions: 1  # Single partition for dev
+    replicationFactor: 1
+    config:
+      "retention.ms": "172800000"  # 2 days for troubleshooting
+      "compression.type": "snappy"
+      "cleanup.policy": "delete"
+      "min.insync.replicas": "1"
+      "unclean.leader.election.enable": "false"
+      "max.message.bytes": "4194304"
+    labels:
+      "neural-hive-mind.org/type": "dead-letter-queue"
+      "neural-hive-mind.org/monitoring": "critical"
+      "neural-hive-mind.org/environment": "dev"
+
+  audit:
+    name: "intentions.audit"
+    description: "Tópico para auditoria de todas as intenções processadas (dev)"
+    partitions: 2
+    replicationFactor: 1
+    config:
+      "retention.ms": "259200000"  # 3 days for dev audit
+      "compression.type": "lz4"      # Better compression for logs
+      "cleanup.policy": "delete"
+      "min.insync.replicas": "1"
+      "unclean.leader.election.enable": "false"
+      "max.message.bytes": "4194304"  # 4MB for logs
+    labels:
+      "neural-hive-mind.org/type": "audit-log"
+      "neural-hive-mind.org/compliance": "required"
+      "neural-hive-mind.org/retention": "short-term"
+      "neural-hive-mind.org/environment": "dev"
+
+  # Add validation topic for Comment 2 implementation
+  validation:
+    name: "intentions.validation"
+    description: "Tópico para intenções com baixa confiança que requerem validação manual"
+    partitions: 2
+    replicationFactor: 1
+    config:
+      "retention.ms": "259200000"  # 3 days for manual validation
+      "compression.type": "snappy"
+      "cleanup.policy": "delete"
+      "min.insync.replicas": "1"
+      "unclean.leader.election.enable": "false"
+      "max.message.bytes": "4194304"
+    labels:
+      "neural-hive-mind.org/type": "validation-queue"
+      "neural-hive-mind.org/monitoring": "critical"
+      "neural-hive-mind.org/environment": "dev"
+
+# Monitoring configuration for dev
+monitoring:
+  enabled: true
+  labels:
+    "neural-hive-mind.org/monitoring": "enabled"
+    "neural-hive-mind.org/environment": "dev"
+
+# Security configuration for dev (simplified)
+security:
+  enabled: true
+  tls:
+    enabled: false  # Disabled for dev simplicity
+  sasl:
+    enabled: false  # Disabled for dev simplicity
+
+  # User definitions for ACLs (simplified for dev)
+  users:
+    gatewayProducer: "dev-gateway-producer"
+    consumers:  # Minimal consumers for dev testing
+      - name: "dev-intentions-processor"
+        topics: ["intentions.business", "intentions.technical", "intentions.validation"]
+        consumerGroup: "dev-processor-group"
+
+# Governance for dev
+governance:
+  enabled: true
+  labels:
+    "neural-hive-mind.org/managed-by": "helm"
+    "neural-hive-mind.org/environment": "dev"
+  annotations:
+    "neural-hive-mind.org/created-by": "helm"
+    "neural-hive-mind.org/purpose": "event-streaming-dev"
+
+# No cleanup in dev (keep data for debugging)
+cleanup:
+  enabled: false
+
+# Relaxed validation for dev
+validation:
+  enabled: true
+  strictMode: false  # More lenient for dev

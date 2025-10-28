@@ -1,0 +1,329 @@
+syntax = "proto3";
+
+package orchestrator;
+
+option go_package = "github.com/neural-hive-mind/orchestrator/proto";
+
+// Extensões propostas para orchestrator.proto
+// Estas extensões permitem ao Optimizer Agents ajustar SLOs dinamicamente
+
+// Serviço para otimização de SLOs
+service OrchestratorOptimization {
+  // Obter SLOs atuais
+  rpc GetCurrentSLOs(GetCurrentSLOsRequest) returns (GetCurrentSLOsResponse);
+
+  // Atualizar SLOs
+  rpc UpdateSLOs(UpdateSLOsRequest) returns (UpdateSLOsResponse);
+
+  // Validar ajuste de SLO antes de aplicar
+  rpc ValidateSLOAdjustment(ValidateSLOAdjustmentRequest) returns (ValidateSLOAdjustmentResponse);
+
+  // Reverter SLOs para versão anterior
+  rpc RollbackSLOs(RollbackSLOsRequest) returns (RollbackSLOsResponse);
+
+  // Obter métricas de compliance de SLO
+  rpc GetSLOComplianceMetrics(GetSLOComplianceMetricsRequest) returns (GetSLOComplianceMetricsResponse);
+
+  // Obter error budget restante
+  rpc GetErrorBudget(GetErrorBudgetRequest) returns (GetErrorBudgetResponse);
+
+  // Obter histórico de ajustes de SLO
+  rpc GetSLOHistory(GetSLOHistoryRequest) returns (GetSLOHistoryResponse);
+}
+
+// Mensagens para GetCurrentSLOs
+message GetCurrentSLOsRequest {
+  // Filtrar por serviço específico (opcional)
+  optional string service = 1;
+}
+
+message GetCurrentSLOsResponse {
+  // Mapa de SLOs: service -> SLOConfig
+  map<string, SLOConfig> slos = 1;
+
+  // Timestamp da última atualização
+  int64 last_updated_at = 2;
+}
+
+message SLOConfig {
+  // Latência alvo em ms
+  double target_latency_ms = 1;
+
+  // Disponibilidade alvo (0-1)
+  double target_availability = 2;
+
+  // Taxa de erro alvo (0-1)
+  double target_error_rate = 3;
+
+  // Throughput mínimo (requests/sec)
+  optional double min_throughput = 4;
+
+  // Percentil de latência (ex: 0.95 para P95)
+  double latency_percentile = 5;
+
+  // Janela de tempo para cálculo (segundos)
+  int64 time_window_seconds = 6;
+
+  // Metadados adicionais
+  map<string, string> metadata = 7;
+}
+
+// Mensagens para UpdateSLOs
+message UpdateSLOsRequest {
+  // SLOs atualizados: service -> SLOConfig
+  map<string, SLOConfig> slo_updates = 1;
+
+  // Justificativa da mudança
+  string justification = 2;
+
+  // ID da otimização
+  string optimization_id = 3;
+
+  // Se deve validar antes de aplicar
+  bool validate_before_apply = 4;
+
+  // Aplicar gradualmente (rollout%)
+  optional double gradual_rollout_percentage = 5;
+}
+
+message UpdateSLOsResponse {
+  // Se foi bem-sucedido
+  bool success = 1;
+
+  // Mensagem de resultado
+  string message = 2;
+
+  // SLOs anteriores (para rollback)
+  map<string, SLOConfig> previous_slos = 3;
+
+  // SLOs aplicados
+  map<string, SLOConfig> applied_slos = 4;
+
+  // Timestamp da aplicação
+  int64 applied_at = 5;
+
+  // Se foi aplicado gradualmente
+  bool is_gradual_rollout = 6;
+}
+
+// Mensagens para ValidateSLOAdjustment
+message ValidateSLOAdjustmentRequest {
+  // SLOs propostos: service -> SLOConfig
+  map<string, SLOConfig> proposed_slos = 1;
+
+  // Considerar error budget atual
+  bool check_error_budget = 2;
+}
+
+message ValidateSLOAdjustmentResponse {
+  // Se os SLOs são válidos
+  bool is_valid = 1;
+
+  // Mensagem de validação
+  string message = 2;
+
+  // Erros de validação (se houver)
+  repeated SLOValidationError errors = 3;
+
+  // Avisos (não bloqueiam aplicação)
+  repeated string warnings = 4;
+
+  // Impacto estimado por serviço
+  map<string, ImpactAssessment> impact_assessment = 5;
+}
+
+message SLOValidationError {
+  // Serviço com erro
+  string service = 1;
+
+  // Campo com erro
+  string field = 2;
+
+  // Descrição do erro
+  string description = 3;
+
+  // Valor proposto
+  string proposed_value = 4;
+
+  // Limite permitido
+  string allowed_range = 5;
+}
+
+message ImpactAssessment {
+  // Serviço afetado
+  string service = 1;
+
+  // Impacto na disponibilidade (delta %)
+  double availability_impact = 2;
+
+  // Impacto na latência (delta %)
+  double latency_impact = 3;
+
+  // Risco estimado (0-1)
+  double estimated_risk = 4;
+
+  // Serviços dependentes afetados
+  repeated string affected_dependencies = 5;
+}
+
+// Mensagens para RollbackSLOs
+message RollbackSLOsRequest {
+  // ID da otimização a reverter
+  string optimization_id = 1;
+
+  // Serviços específicos (ou todos se vazio)
+  repeated string services = 2;
+
+  // Se deve forçar rollback mesmo com dependências
+  bool force = 3;
+}
+
+message RollbackSLOsResponse {
+  // Se foi bem-sucedido
+  bool success = 1;
+
+  // Mensagem de resultado
+  string message = 2;
+
+  // SLOs restaurados: service -> SLOConfig
+  map<string, SLOConfig> restored_slos = 3;
+
+  // Timestamp do rollback
+  int64 rolled_back_at = 4;
+}
+
+// Mensagens para GetSLOComplianceMetrics
+message GetSLOComplianceMetricsRequest {
+  // Serviço
+  string service = 1;
+
+  // Intervalo de tempo (ex: "1h", "24h")
+  string time_range = 2;
+}
+
+message GetSLOComplianceMetricsResponse {
+  // Serviço
+  string service = 1;
+
+  // Percentual de compliance (0-1)
+  double compliance_percentage = 2;
+
+  // Latência média (ms)
+  double average_latency_ms = 3;
+
+  // Latência P95 (ms)
+  double p95_latency_ms = 4;
+
+  // Latência P99 (ms)
+  double p99_latency_ms = 5;
+
+  // Disponibilidade (0-1)
+  double availability = 6;
+
+  // Taxa de erro (0-1)
+  double error_rate = 7;
+
+  // Throughput médio (req/s)
+  double average_throughput = 8;
+
+  // Violações de SLO no período
+  int64 slo_violations = 9;
+
+  // Detalhamento de compliance por métrica
+  map<string, MetricCompliance> metric_compliance = 10;
+}
+
+message MetricCompliance {
+  // Nome da métrica
+  string metric_name = 1;
+
+  // Valor alvo
+  double target_value = 2;
+
+  // Valor atual
+  double current_value = 3;
+
+  // Compliance (0-1)
+  double compliance = 4;
+
+  // Em violação
+  bool in_violation = 5;
+}
+
+// Mensagens para GetErrorBudget
+message GetErrorBudgetRequest {
+  // Serviço
+  string service = 1;
+}
+
+message GetErrorBudgetResponse {
+  // Serviço
+  string service = 1;
+
+  // Error budget restante (%)
+  double remaining_budget_percentage = 2;
+
+  // Error budget consumido
+  double consumed_budget = 3;
+
+  // Error budget total
+  double total_budget = 4;
+
+  // Quando o budget será resetado (timestamp)
+  int64 budget_reset_at = 5;
+
+  // Taxa de consumo atual (por hora)
+  double burn_rate_per_hour = 6;
+
+  // Tempo estimado até esgotar budget (segundos)
+  optional int64 estimated_depletion_seconds = 7;
+}
+
+// Mensagens para GetSLOHistory
+message GetSLOHistoryRequest {
+  // Filtrar por serviço (opcional)
+  optional string service = 1;
+
+  // Limite de resultados
+  int32 limit = 2;
+
+  // Offset para paginação
+  int32 offset = 3;
+}
+
+message GetSLOHistoryResponse {
+  // Histórico de ajustes
+  repeated SLOAdjustment adjustments = 1;
+
+  // Total de registros
+  int64 total = 2;
+}
+
+message SLOAdjustment {
+  // ID da otimização
+  string optimization_id = 1;
+
+  // Timestamp
+  int64 adjusted_at = 2;
+
+  // Serviço
+  string service = 3;
+
+  // SLO antes
+  SLOConfig slo_before = 4;
+
+  // SLO depois
+  SLOConfig slo_after = 5;
+
+  // Justificativa
+  string justification = 6;
+
+  // Compliance antes
+  optional double compliance_before = 7;
+
+  // Compliance depois
+  optional double compliance_after = 8;
+
+  // Se foi revertido
+  bool was_rolled_back = 9;
+}

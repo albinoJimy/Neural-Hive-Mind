@@ -1,0 +1,66 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: data-quality-check
+  namespace: memory-layer-api
+  labels:
+    neural-hive.io/component: data-quality
+    neural-hive.io/layer: conhecimento-dados
+    app.kubernetes.io/name: data-quality-check
+    app.kubernetes.io/part-of: neural-hive-mind
+spec:
+  schedule: "0 */6 * * *"  # A cada 6 horas
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels:
+        neural-hive.io/component: data-quality
+        app.kubernetes.io/name: data-quality-check-job
+    spec:
+      backoffLimit: 3
+      template:
+        metadata:
+          labels:
+            neural-hive.io/component: data-quality
+            app.kubernetes.io/name: data-quality-check-job
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: memory-sync-sa
+          containers:
+            - name: quality-check-job
+              image: neural-hive-mind/memory-layer-api:1.0.0
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: MONGODB_URI
+                  valueFrom:
+                    secretKeyRef:
+                      name: memory-layer-api-secrets
+                      key: mongodb_uri
+                - name: MONGODB_DATABASE
+                  value: "neural_hive"
+                - name: SAMPLE_SIZE
+                  value: "1000"
+                - name: QUALITY_THRESHOLD
+                  value: "95.0"
+                - name: LOG_LEVEL
+                  value: "INFO"
+              resources:
+                requests:
+                  cpu: 200m
+                  memory: 256Mi
+                limits:
+                  cpu: 1
+                  memory: 1Gi
+              volumeMounts:
+                - name: policies
+                  mountPath: /etc/memory-layer/policies
+                  readOnly: true
+              command:
+                - python
+                - /app/src/jobs/check_data_quality.py
+          volumes:
+            - name: policies
+              configMap:
+                name: memory-layer-policies

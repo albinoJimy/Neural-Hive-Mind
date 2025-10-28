@@ -1,0 +1,222 @@
+{
+  "dashboard": {
+    "title": "Specialists - Explainability (SHAP/LIME)",
+    "tags": ["specialists", "explainability", "shap", "lime"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Explainability Method Usage",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (method) (rate(specialist_explainability_method_total[5m]))",
+            "legendFormat": "{{ method }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "SHAP Computation Time (P50, P95, P99)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(specialist_explainability_computation_seconds_bucket{method='shap'}[5m]))",
+            "legendFormat": "P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(specialist_explainability_computation_seconds_bucket{method='shap'}[5m]))",
+            "legendFormat": "P95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(specialist_explainability_computation_seconds_bucket{method='shap'}[5m]))",
+            "legendFormat": "P99"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+        "yaxes": [
+          {
+            "format": "s",
+            "label": "Duration"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "LIME Computation Time (P50, P95, P99)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(specialist_explainability_computation_seconds_bucket{method='lime'}[5m]))",
+            "legendFormat": "P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(specialist_explainability_computation_seconds_bucket{method='lime'}[5m]))",
+            "legendFormat": "P95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(specialist_explainability_computation_seconds_bucket{method='lime'}[5m]))",
+            "legendFormat": "P99"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
+        "yaxes": [
+          {
+            "format": "s",
+            "label": "Duration"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Explainability Error Rate by Method",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(specialist_explainability_errors_total{method='shap'}[5m]) / rate(specialist_explainability_method_total{method='shap'}[5m])",
+            "legendFormat": "SHAP"
+          },
+          {
+            "expr": "rate(specialist_explainability_errors_total{method='lime'}[5m]) / rate(specialist_explainability_method_total{method='lime'}[5m])",
+            "legendFormat": "LIME"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "yaxes": [
+          {
+            "format": "percentunit",
+            "label": "Error Rate"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Feature Count Distribution",
+        "type": "heatmap",
+        "targets": [
+          {
+            "expr": "rate(specialist_explainability_feature_count_bucket[5m])",
+            "format": "heatmap"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 6,
+        "title": "Ledger V2 Persistence Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(specialist_explainability_ledger_v2_persistence_total{status='success'}[5m])",
+            "legendFormat": "Success Rate"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 16}
+      },
+      {
+        "id": 7,
+        "title": "Narrative Generation Time (P95)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(specialist_narrative_generation_seconds_bucket[5m]))",
+            "legendFormat": "P95"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 16}
+      },
+      {
+        "id": 8,
+        "title": "SHAP Timeout Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(specialist_explainability_errors_total{method='shap', error_type='timeout'}[5m]) / rate(specialist_explainability_method_total{method='shap'}[5m])",
+            "legendFormat": "Timeout Rate"
+          }
+        ],
+        "thresholds": [
+          {"value": 0, "color": "green"},
+          {"value": 0.1, "color": "yellow"},
+          {"value": 0.2, "color": "red"}
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 16}
+      },
+      {
+        "id": 9,
+        "title": "Heuristic Fallback Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(specialist_explainability_method_total{method='heuristic'}[5m]) / rate(specialist_explainability_method_total[5m])",
+            "legendFormat": "Fallback Rate"
+          }
+        ],
+        "thresholds": [
+          {"value": 0, "color": "green"},
+          {"value": 0.3, "color": "yellow"},
+          {"value": 0.5, "color": "red"}
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 16}
+      },
+      {
+        "id": 10,
+        "title": "SHAP Errors by Type",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "sum by (error_type) (rate(specialist_explainability_errors_total{method='shap'}[5m]))",
+            "format": "table"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20}
+      },
+      {
+        "id": 11,
+        "title": "LIME Errors by Type",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "sum by (error_type) (rate(specialist_explainability_errors_total{method='lime'}[5m]))",
+            "format": "table"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20}
+      },
+      {
+        "id": 12,
+        "title": "Explainability Computation by Specialist",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum by (specialist_type) (rate(specialist_explainability_method_total[5m]))",
+            "legendFormat": "{{ specialist_type }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 28}
+      },
+      {
+        "id": 13,
+        "title": "Feature Count by Method",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(specialist_explainability_feature_count_bucket{method='shap'}[5m]))",
+            "legendFormat": "SHAP (median)"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(specialist_explainability_feature_count_bucket{method='lime'}[5m]))",
+            "legendFormat": "LIME (median)"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 28}
+      }
+    ],
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    }
+  }
+}

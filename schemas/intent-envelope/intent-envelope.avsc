@@ -1,0 +1,371 @@
+{
+  "type": "record",
+  "name": "IntentEnvelope",
+  "namespace": "org.neural_hive_mind.intent",
+  "doc": "Envelope para encapsulamento de intenções no Neural Hive-Mind com serialização Avro otimizada para Kafka",
+  "fields": [
+    {
+      "name": "id",
+      "type": "string",
+      "doc": "Identificador único da intenção (UUID v4)"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0.0",
+      "doc": "Versão do schema (semver)"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ID para correlação de intenções relacionadas"
+    },
+    {
+      "name": "traceId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ID de trace OpenTelemetry"
+    },
+    {
+      "name": "spanId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ID de span OpenTelemetry"
+    },
+    {
+      "name": "actor",
+      "type": {
+        "type": "record",
+        "name": "Actor",
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "doc": "Identificador único do ator"
+          },
+          {
+            "name": "actorType",
+            "type": {
+              "type": "enum",
+              "name": "ActorType",
+              "symbols": ["HUMAN", "SYSTEM", "SERVICE", "BOT"]
+            },
+            "doc": "Tipo do ator que originou a intenção"
+          },
+          {
+            "name": "name",
+            "type": ["null", "string"],
+            "default": null,
+            "doc": "Nome do ator"
+          }
+        ]
+      },
+      "doc": "Ator que originou a intenção"
+    },
+    {
+      "name": "intent",
+      "type": {
+        "type": "record",
+        "name": "Intent",
+        "fields": [
+          {
+            "name": "text",
+            "type": "string",
+            "doc": "Texto da intenção"
+          },
+          {
+            "name": "domain",
+            "type": {
+              "type": "enum",
+              "name": "IntentDomain",
+              "symbols": ["BUSINESS", "TECHNICAL", "INFRASTRUCTURE", "SECURITY"]
+            },
+            "doc": "Domínio da intenção conforme particionamento"
+          },
+          {
+            "name": "classification",
+            "type": ["null", "string"],
+            "default": null,
+            "doc": "Classificação específica da intenção"
+          },
+          {
+            "name": "originalLanguage",
+            "type": ["null", "string"],
+            "default": null,
+            "doc": "Código ISO 639-1 do idioma original"
+          },
+          {
+            "name": "processedText",
+            "type": ["null", "string"],
+            "default": null,
+            "doc": "Texto processado (PII removido, normalizado)"
+          },
+          {
+            "name": "entities",
+            "type": {
+              "type": "array",
+              "items": {
+                "type": "record",
+                "name": "Entity",
+                "fields": [
+                  {
+                    "name": "entityType",
+                    "type": "string",
+                    "doc": "Tipo da entidade"
+                  },
+                  {
+                    "name": "value",
+                    "type": "string",
+                    "doc": "Valor da entidade"
+                  },
+                  {
+                    "name": "confidence",
+                    "type": "double",
+                    "doc": "Confiança da extração (0-1)"
+                  },
+                  {
+                    "name": "start",
+                    "type": ["null", "int"],
+                    "default": null,
+                    "doc": "Posição inicial no texto"
+                  },
+                  {
+                    "name": "end",
+                    "type": ["null", "int"],
+                    "default": null,
+                    "doc": "Posição final no texto"
+                  }
+                ]
+              }
+            },
+            "default": [],
+            "doc": "Entidades extraídas do texto"
+          },
+          {
+            "name": "keywords",
+            "type": {
+              "type": "array",
+              "items": "string"
+            },
+            "default": [],
+            "doc": "Palavras-chave identificadas"
+          }
+        ]
+      },
+      "doc": "Detalhes da intenção"
+    },
+    {
+      "name": "confidence",
+      "type": "double",
+      "doc": "Score de confiança da classificação (0-1)"
+    },
+    {
+      "name": "context",
+      "type": ["null", {
+        "type": "record",
+        "name": "Context",
+        "fields": [
+          {
+            "name": "sessionId",
+            "type": ["null", "string"],
+            "default": null,
+            "doc": "ID da sessão do usuário"
+          },
+          {
+            "name": "userId",
+            "type": ["null", "string"],
+            "default": null,
+            "doc": "ID do usuário autenticado"
+          },
+          {
+            "name": "tenantId",
+            "type": ["null", "string"],
+            "default": null,
+            "doc": "ID do tenant/organização"
+          },
+          {
+            "name": "channel",
+            "type": ["null", {
+              "type": "enum",
+              "name": "Channel",
+              "symbols": ["WEB", "MOBILE", "API", "VOICE", "CHAT"]
+            }],
+            "default": null,
+            "doc": "Canal de origem da intenção"
+          },
+          {
+            "name": "userAgent",
+            "type": ["null", "string"],
+            "default": null,
+            "doc": "User-Agent do cliente"
+          },
+          {
+            "name": "clientIp",
+            "type": ["null", "string"],
+            "default": null,
+            "doc": "IP do cliente (anonimizado)"
+          },
+          {
+            "name": "geolocation",
+            "type": ["null", {
+              "type": "record",
+              "name": "Geolocation",
+              "fields": [
+                {
+                  "name": "country",
+                  "type": ["null", "string"],
+                  "default": null
+                },
+                {
+                  "name": "region",
+                  "type": ["null", "string"],
+                  "default": null
+                },
+                {
+                  "name": "city",
+                  "type": ["null", "string"],
+                  "default": null
+                },
+                {
+                  "name": "timezone",
+                  "type": ["null", "string"],
+                  "default": null
+                }
+              ]
+            }],
+            "default": null,
+            "doc": "Localização geográfica"
+          }
+        ]
+      }],
+      "default": null,
+      "doc": "Contexto da intenção"
+    },
+    {
+      "name": "constraints",
+      "type": ["null", {
+        "type": "record",
+        "name": "Constraint",
+        "fields": [
+          {
+            "name": "priority",
+            "type": {
+              "type": "enum",
+              "name": "Priority",
+              "symbols": ["LOW", "NORMAL", "HIGH", "CRITICAL"]
+            },
+            "default": "NORMAL",
+            "doc": "Prioridade de processamento"
+          },
+          {
+            "name": "deadline",
+            "type": ["null", {
+              "type": "long",
+              "logicalType": "timestamp-millis"
+            }],
+            "default": null,
+            "doc": "Prazo limite para processamento (timestamp Unix em ms)"
+          },
+          {
+            "name": "maxRetries",
+            "type": "int",
+            "default": 3,
+            "doc": "Número máximo de tentativas"
+          },
+          {
+            "name": "timeoutMs",
+            "type": ["null", "long"],
+            "default": null,
+            "doc": "Timeout em millisegundos"
+          },
+          {
+            "name": "requiredCapabilities",
+            "type": {
+              "type": "array",
+              "items": "string"
+            },
+            "default": [],
+            "doc": "Capacidades necessárias para processamento"
+          },
+          {
+            "name": "securityLevel",
+            "type": {
+              "type": "enum",
+              "name": "SecurityLevel",
+              "symbols": ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"]
+            },
+            "default": "INTERNAL",
+            "doc": "Nível de segurança necessário"
+          }
+        ]
+      }],
+      "default": null,
+      "doc": "Restrições e requisitos para processamento"
+    },
+    {
+      "name": "qos",
+      "type": ["null", {
+        "type": "record",
+        "name": "QualityOfService",
+        "fields": [
+          {
+            "name": "deliveryMode",
+            "type": {
+              "type": "enum",
+              "name": "DeliveryMode",
+              "symbols": ["AT_MOST_ONCE", "AT_LEAST_ONCE", "EXACTLY_ONCE"]
+            },
+            "default": "EXACTLY_ONCE",
+            "doc": "Modo de entrega"
+          },
+          {
+            "name": "durability",
+            "type": {
+              "type": "enum",
+              "name": "Durability",
+              "symbols": ["TRANSIENT", "PERSISTENT"]
+            },
+            "default": "PERSISTENT",
+            "doc": "Durabilidade da mensagem"
+          },
+          {
+            "name": "consistency",
+            "type": {
+              "type": "enum",
+              "name": "Consistency",
+              "symbols": ["EVENTUAL", "STRONG"]
+            },
+            "default": "STRONG",
+            "doc": "Nível de consistência requerido"
+          }
+        ]
+      }],
+      "default": null,
+      "doc": "Garantias de qualidade de serviço"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Timestamp de criação (Unix timestamp em millisegundos)"
+    },
+    {
+      "name": "schemaVersion",
+      "type": "int",
+      "default": 1,
+      "doc": "Versão do schema para evolução"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Metadados adicionais chave-valor"
+    }
+  ]
+}

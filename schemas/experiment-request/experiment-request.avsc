@@ -1,0 +1,205 @@
+{
+  "namespace": "com.neuralhivemind.experiments",
+  "type": "record",
+  "name": "ExperimentRequest",
+  "doc": "Schema for experiment requests submitted to the Experiment Engine",
+  "fields": [
+    {
+      "name": "experiment_id",
+      "type": "string",
+      "doc": "Unique identifier for the experiment (UUID)"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "doc": "Schema version (semver)",
+      "default": "1.0.0"
+    },
+    {
+      "name": "correlation_id",
+      "type": "string",
+      "doc": "Correlation ID for tracing"
+    },
+    {
+      "name": "trace_id",
+      "type": "string",
+      "doc": "OpenTelemetry trace ID"
+    },
+    {
+      "name": "span_id",
+      "type": "string",
+      "doc": "OpenTelemetry span ID"
+    },
+    {
+      "name": "hypothesis",
+      "type": "string",
+      "doc": "Hypothesis to be tested"
+    },
+    {
+      "name": "objective",
+      "type": "string",
+      "doc": "Objective of the experiment"
+    },
+    {
+      "name": "experiment_type",
+      "type": {
+        "type": "enum",
+        "name": "ExperimentType",
+        "symbols": [
+          "A_B_TEST",
+          "CANARY",
+          "SHADOW",
+          "MULTI_ARMED_BANDIT"
+        ]
+      },
+      "doc": "Type of experiment"
+    },
+    {
+      "name": "target_component",
+      "type": "string",
+      "doc": "Target component for the experiment"
+    },
+    {
+      "name": "baseline_configuration",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "doc": "Current configuration (baseline)"
+    },
+    {
+      "name": "experimental_configuration",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "doc": "Proposed configuration"
+    },
+    {
+      "name": "success_criteria",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "SuccessCriterion",
+          "fields": [
+            {
+              "name": "metric_name",
+              "type": "string",
+              "doc": "Name of the metric"
+            },
+            {
+              "name": "operator",
+              "type": {
+                "type": "enum",
+                "name": "ComparisonOperator",
+                "symbols": ["GT", "LT", "EQ", "GTE", "LTE"]
+              },
+              "doc": "Comparison operator"
+            },
+            {
+              "name": "threshold",
+              "type": "double",
+              "doc": "Threshold value"
+            },
+            {
+              "name": "confidence_level",
+              "type": "double",
+              "doc": "Required confidence level (0.0-1.0)"
+            }
+          ]
+        }
+      },
+      "doc": "Success criteria for the experiment"
+    },
+    {
+      "name": "guardrails",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "Guardrail",
+          "fields": [
+            {
+              "name": "metric_name",
+              "type": "string",
+              "doc": "Name of the metric to monitor"
+            },
+            {
+              "name": "max_degradation_percentage",
+              "type": "double",
+              "doc": "Maximum allowed degradation percentage"
+            },
+            {
+              "name": "abort_threshold",
+              "type": "double",
+              "doc": "Threshold to abort experiment"
+            }
+          ]
+        }
+      },
+      "doc": "Safety guardrails"
+    },
+    {
+      "name": "traffic_percentage",
+      "type": "double",
+      "doc": "Percentage of traffic for experiment (0.0-1.0)"
+    },
+    {
+      "name": "duration_seconds",
+      "type": "long",
+      "doc": "Maximum duration of the experiment in seconds"
+    },
+    {
+      "name": "sample_size",
+      "type": "int",
+      "doc": "Required sample size for statistical significance"
+    },
+    {
+      "name": "randomization_strategy",
+      "type": {
+        "type": "enum",
+        "name": "RandomizationStrategy",
+        "symbols": ["RANDOM", "STRATIFIED", "BLOCKED"]
+      },
+      "doc": "Randomization strategy for experiment"
+    },
+    {
+      "name": "ethical_approval_required",
+      "type": "boolean",
+      "default": false,
+      "doc": "Whether ethical approval is required"
+    },
+    {
+      "name": "approved_by_compliance",
+      "type": "boolean",
+      "default": false,
+      "doc": "Whether approved by compliance team"
+    },
+    {
+      "name": "rollback_on_failure",
+      "type": "boolean",
+      "default": true,
+      "doc": "Whether to rollback automatically on failure"
+    },
+    {
+      "name": "created_at",
+      "type": "long",
+      "doc": "Timestamp when experiment was created (Unix millis)"
+    },
+    {
+      "name": "created_by",
+      "type": "string",
+      "doc": "Agent that created the experiment (e.g., optimizer-agents)"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional metadata"
+    }
+  ]
+}

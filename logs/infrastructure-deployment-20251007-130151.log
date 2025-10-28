@@ -1,0 +1,8 @@
+
+[0;35m═══════════════════════════════════════════════════════════════[0m
+[0;35m  Checking Prerequisites[0m
+[0;35m═══════════════════════════════════════════════════════════════[0m
+
+[0;34m[INFO][0m Checking Minikube status...
+./scripts/deploy/deploy-infrastructure-local.sh: line 197: minikube: command not found
+[0;31m[ERROR][0m Minikube is not running. Please start Minikube first.

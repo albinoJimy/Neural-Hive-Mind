@@ -1,0 +1,269 @@
+{
+  "dashboard": {
+    "title": "Model Comparison Dashboard",
+    "tags": ["neural-hive", "specialists", "ab-testing", "ensemble"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "A/B Test Traffic Distribution",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (variant) (specialist_ab_test_variant_usage_total)",
+            "legendFormat": "{{ variant }}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8}
+      },
+      {
+        "id": 2,
+        "title": "A/B Test Confidence Score Comparison",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.5, sum by (variant, le) (rate(specialist_ab_test_variant_confidence_score_bucket[5m])))",
+            "legendFormat": "{{ variant }} - p50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum by (variant, le) (rate(specialist_ab_test_variant_confidence_score_bucket[5m])))",
+            "legendFormat": "{{ variant }} - p95",
+            "refId": "B"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "yaxes": [
+          {
+            "label": "Confidence Score",
+            "min": 0,
+            "max": 1
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "A/B Test Consensus Agreement Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "specialist_ab_test_variant_consensus_agreement",
+            "legendFormat": "{{ variant }}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "yaxes": [
+          {
+            "label": "Agreement Rate",
+            "min": 0,
+            "max": 1
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "A/B Test Processing Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.5, sum by (variant, le) (rate(specialist_ab_test_variant_processing_time_seconds_bucket[5m])))",
+            "legendFormat": "{{ variant }} - p50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum by (variant, le) (rate(specialist_ab_test_variant_processing_time_seconds_bucket[5m])))",
+            "legendFormat": "{{ variant }} - p95",
+            "refId": "B"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+        "yaxes": [
+          {
+            "label": "Processing Time (seconds)"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "A/B Test Recommendation Distribution",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "sum by (variant, recommendation) (specialist_ab_test_variant_recommendation_distribution)",
+            "legendFormat": "{{ variant }} - {{ recommendation }}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8}
+      },
+      {
+        "id": 6,
+        "title": "Ensemble Model Weight Distribution",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "specialist_ensemble_model_weight",
+            "legendFormat": "{{ model_name }}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8}
+      },
+      {
+        "id": 7,
+        "title": "Ensemble Prediction Variance",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.5, sum by (specialist_type, le) (rate(specialist_ensemble_prediction_variance_bucket[5m])))",
+            "legendFormat": "{{ specialist_type }} - p50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum by (specialist_type, le) (rate(specialist_ensemble_prediction_variance_bucket[5m])))",
+            "legendFormat": "{{ specialist_type }} - p95",
+            "refId": "B"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 24, "w": 12, "h": 8},
+        "yaxes": [
+          {
+            "label": "Prediction Variance"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Model Performance Over Time (Confidence)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "avg by (variant) (rate(specialist_ab_test_variant_confidence_score_sum[5m]) / rate(specialist_ab_test_variant_confidence_score_count[5m]))",
+            "legendFormat": "{{ variant }} - avg confidence",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 24, "w": 12, "h": 8},
+        "yaxes": [
+          {
+            "label": "Average Confidence",
+            "min": 0,
+            "max": 1
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "A/B Test Sample Size",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum by (variant) (specialist_ab_test_variant_usage_total)",
+            "legendFormat": "{{ variant }}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 32, "w": 6, "h": 4},
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "fields": "",
+            "calcs": ["lastNotNull"]
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "A/B Test Traffic Split Configuration",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "specialist_ab_test_traffic_split",
+            "legendFormat": "Traffic Split",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"x": 6, "y": 32, "w": 6, "h": 4},
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "justifyMode": "center",
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "fields": "",
+            "calcs": ["lastNotNull"]
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "Model Risk Score Comparison",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.5, sum by (variant, le) (rate(specialist_ab_test_variant_risk_score_bucket[5m])))",
+            "legendFormat": "{{ variant }} - p50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum by (variant, le) (rate(specialist_ab_test_variant_risk_score_bucket[5m])))",
+            "legendFormat": "{{ variant }} - p95",
+            "refId": "B"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 32, "w": 12, "h": 8},
+        "yaxes": [
+          {
+            "label": "Risk Score",
+            "min": 0,
+            "max": 1
+          }
+        ]
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "specialist_type",
+          "type": "query",
+          "datasource": "Prometheus",
+          "query": "label_values(specialist_ab_test_variant_usage_total, specialist_type)",
+          "multi": false,
+          "includeAll": false,
+          "allValue": null,
+          "current": {},
+          "options": [],
+          "refresh": 1
+        }
+      ]
+    },
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"]
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "Model Deployments",
+          "datasource": "Prometheus",
+          "enable": true,
+          "iconColor": "red",
+          "query": "changes(specialist_model_loaded_timestamp[1h]) > 0"
+        }
+      ]
+    }
+  }
+}

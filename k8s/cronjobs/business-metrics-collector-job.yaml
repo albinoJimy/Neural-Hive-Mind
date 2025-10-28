@@ -1,0 +1,222 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: business-metrics-collector
+  namespace: neural-hive-mind
+  labels:
+    app: neural-hive
+    component: business-metrics
+    layer: observability
+spec:
+  # Executa a cada hora
+  schedule: "0 * * * *"
+
+  # Timezone (se suportado pelo cluster)
+  # timeZone: "America/Sao_Paulo"
+
+  # Limite de histórico de jobs
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+
+  # Deadline para conclusão do job (10 minutos)
+  startingDeadlineSeconds: 600
+
+  # Não executar em paralelo
+  concurrencyPolicy: Forbid
+
+  jobTemplate:
+    metadata:
+      labels:
+        app: neural-hive
+        component: business-metrics
+        layer: observability
+    spec:
+      # Número máximo de tentativas
+      backoffLimit: 3
+
+      # Timeout do job (15 minutos)
+      activeDeadlineSeconds: 900
+
+      template:
+        metadata:
+          labels:
+            app: neural-hive
+            component: business-metrics
+            layer: observability
+          annotations:
+            prometheus.io/scrape: "false"  # Job batch não expõe /metrics
+        spec:
+          restartPolicy: OnFailure
+
+          # Service Account (se necessário)
+          # serviceAccountName: business-metrics-collector
+
+          containers:
+          - name: business-metrics-collector
+            # Usar mesma image dos especialistas
+            image: neural-hive/specialist-business:latest
+            imagePullPolicy: IfNotPresent
+
+            command:
+            - python
+            - -m
+            - neural_hive_specialists.scripts.run_business_metrics_collector
+
+            args:
+            - --window-hours
+            - "24"
+            - --enable-anomaly-detection
+            - --verbose
+
+            env:
+            # MongoDB Ledger
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-credentials
+                  key: uri
+            - name: MONGODB_DATABASE
+              value: "neural_hive"
+
+            # MongoDB Consensus
+            - name: CONSENSUS_MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: consensus-mongodb-credentials
+                  key: uri
+                  optional: true
+            - name: CONSENSUS_MONGODB_DATABASE
+              value: "neural_hive"
+            - name: CONSENSUS_COLLECTION_NAME
+              value: "consensus_decisions"
+
+            # Business Metrics Config
+            - name: ENABLE_BUSINESS_METRICS
+              value: "true"
+            - name: BUSINESS_METRICS_WINDOW_HOURS
+              value: "24"
+
+            # Business Value Tracking (opcional)
+            - name: ENABLE_BUSINESS_VALUE_TRACKING
+              value: "false"
+            - name: EXECUTION_TICKET_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: business-metrics-config
+                  key: execution-ticket-api-url
+                  optional: true
+
+            # Anomaly Detection
+            - name: ENABLE_ANOMALY_DETECTION
+              value: "true"
+            - name: ANOMALY_CONTAMINATION
+              value: "0.1"
+            - name: ANOMALY_N_ESTIMATORS
+              value: "100"
+            - name: ANOMALY_MODEL_PATH
+              value: "/data/models/anomaly_detector_{specialist_type}.pkl"
+            - name: ANOMALY_ALERT_THRESHOLD
+              value: "-0.3"
+
+            # ClickHouse (opcional)
+            - name: CLICKHOUSE_URI
+              valueFrom:
+                secretKeyRef:
+                  name: clickhouse-credentials
+                  key: uri
+                  optional: true
+            - name: ENABLE_METRICS_HISTORY
+              value: "false"
+
+            # Prometheus Pushgateway
+            - name: PUSHGATEWAY_URL
+              value: "http://prometheus-pushgateway.observability.svc.cluster.local:9091"
+
+            # Redis (necessário para métricas)
+            - name: REDIS_URI
+              valueFrom:
+                secretKeyRef:
+                  name: redis-credentials
+                  key: uri
+
+            # Neo4j (necessário para métricas)
+            - name: NEO4J_URI
+              valueFrom:
+                secretKeyRef:
+                  name: neo4j-credentials
+                  key: uri
+            - name: NEO4J_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: neo4j-credentials
+                  key: username
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: neo4j-credentials
+                  key: password
+
+            resources:
+              requests:
+                cpu: "200m"
+                memory: "512Mi"
+              limits:
+                cpu: "1000m"
+                memory: "1Gi"
+
+            # Volume para modelos treinados (opcional)
+            volumeMounts:
+            - name: models-volume
+              mountPath: /data/models
+              readOnly: false
+
+          volumes:
+          - name: models-volume
+            persistentVolumeClaim:
+              claimName: anomaly-models-pvc
+              optional: true
+
+          # Node affinity (opcional - executar em nodes específicos)
+          # affinity:
+          #   nodeAffinity:
+          #     preferredDuringSchedulingIgnoredDuringExecution:
+          #     - weight: 100
+          #       preference:
+          #         matchExpressions:
+          #         - key: workload-type
+          #           operator: In
+          #           values:
+          #           - batch
+
+---
+# ConfigMap para configuração
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: business-metrics-config
+  namespace: neural-hive-mind
+  labels:
+    app: neural-hive
+    component: business-metrics
+data:
+  # execution-ticket-api-url: "http://execution-ticket-service.neural-hive-mind.svc.cluster.local:8080"
+  window-hours: "24"
+  collection-interval-minutes: "60"
+
+---
+# PVC para modelos treinados (opcional)
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: anomaly-models-pvc
+#   namespace: neural-hive-mind
+#   labels:
+#     app: neural-hive
+#     component: business-metrics
+# spec:
+#   accessModes:
+#   - ReadWriteOnce
+#   resources:
+#     requests:
+#       storage: 1Gi
+#   storageClassName: standard

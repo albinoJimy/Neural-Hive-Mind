@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package analyst_agent;
+
+service AnalystAgentService {
+  rpc GetInsight(GetInsightRequest) returns (GetInsightResponse);
+  rpc QueryInsights(QueryInsightsRequest) returns (QueryInsightsResponse);
+  rpc ExecuteAnalysis(ExecuteAnalysisRequest) returns (ExecuteAnalysisResponse);
+  rpc GetStatistics(GetStatisticsRequest) returns (GetStatisticsResponse);
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message GetInsightRequest {
+  string insight_id = 1;
+}
+
+message GetInsightResponse {
+  Insight insight = 1;
+  bool found = 2;
+}
+
+message QueryInsightsRequest {
+  string insight_type = 1;
+  string priority = 2;
+  int64 start_timestamp = 3;
+  int64 end_timestamp = 4;
+  int32 limit = 5;
+  int32 offset = 6;
+}
+
+message QueryInsightsResponse {
+  repeated Insight insights = 1;
+  int32 total_count = 2;
+}
+
+message ExecuteAnalysisRequest {
+  string analysis_type = 1;
+  map<string, string> parameters = 2;
+}
+
+message ExecuteAnalysisResponse {
+  string analysis_id = 1;
+  map<string, double> results = 2;
+  double confidence = 3;
+}
+
+message GetStatisticsRequest {
+  int64 start_timestamp = 1;
+  int64 end_timestamp = 2;
+}
+
+message GetStatisticsResponse {
+  map<string, int32> insights_by_type = 1;
+  map<string, int32> insights_by_priority = 2;
+  double avg_confidence = 3;
+  double avg_impact = 4;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  bool healthy = 1;
+  string status = 2;
+}
+
+message Insight {
+  string insight_id = 1;
+  string version = 2;
+  string correlation_id = 3;
+  string trace_id = 4;
+  string span_id = 5;
+  string insight_type = 6;
+  string priority = 7;
+  string title = 8;
+  string summary = 9;
+  string detailed_analysis = 10;
+  repeated string data_sources = 11;
+  map<string, double> metrics = 12;
+  double confidence_score = 13;
+  double impact_score = 14;
+  repeated Recommendation recommendations = 15;
+  int64 created_at = 16;
+  string hash = 17;
+}
+
+message Recommendation {
+  string action = 1;
+  string priority = 2;
+  double estimated_impact = 3;
+}

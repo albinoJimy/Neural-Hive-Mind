@@ -1,0 +1,141 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: mcp-tool-catalog-alerts
+  namespace: neural-hive-monitoring
+  labels:
+    app.kubernetes.io/name: mcp-tool-catalog
+    app.kubernetes.io/component: alerting
+    prometheus: neural-hive
+spec:
+  groups:
+  - name: mcp-tool-catalog
+    interval: 30s
+    rules:
+
+    # Crítico: Serviço Down
+    - alert: MCPToolCatalogDown
+      expr: up{job="mcp-tool-catalog"} == 0
+      for: 1m
+      labels:
+        severity: critical
+        component: mcp-tool-catalog
+      annotations:
+        summary: "MCP Tool Catalog Service is down"
+        description: "MCP Tool Catalog has been down for more than 1 minute."
+        runbook_url: "https://docs.neuralhivemind.com/runbooks/mcp-tool-catalog-down"
+        dashboard_url: "https://grafana.neuralhivemind.com/d/mcp-tool-catalog"
+
+    # Warning: Alta Latência de Seleção
+    - alert: MCPHighSelectionLatency
+      expr: histogram_quantile(0.95, rate(mcp_tool_selection_duration_seconds_bucket[5m])) > 5
+      for: 5m
+      labels:
+        severity: warning
+        component: mcp-tool-catalog
+      annotations:
+        summary: "High tool selection latency (p95 > 5s)"
+        description: "95th percentile of tool selection duration is {{ $value }}s."
+        runbook_url: "https://docs.neuralhivemind.com/runbooks/high-selection-latency"
+
+    # Warning: Genetic Algorithm Timeout
+    - alert: MCPGeneticAlgorithmTimeout
+      expr: rate(mcp_genetic_algorithm_runs_total{timeout="true"}[5m]) > 0.1
+      for: 5m
+      labels:
+        severity: warning
+        component: mcp-tool-catalog
+      annotations:
+        summary: "Genetic algorithm timeouts detected"
+        description: "{{ $value | humanizePercentage }} of GA runs are timing out."
+        runbook_url: "https://docs.neuralhivemind.com/runbooks/ga-timeout"
+
+    # Info: Baixa Taxa de Cache Hit
+    - alert: MCPLowCacheHitRate
+      expr: |
+        rate(mcp_cache_hits_total[5m]) /
+        (rate(mcp_cache_hits_total[5m]) + rate(mcp_cache_misses_total[5m])) < 0.5
+      for: 10m
+      labels:
+        severity: info
+        component: mcp-tool-catalog
+      annotations:
+        summary: "Low cache hit rate (< 50%)"
+        description: "Cache hit rate is {{ $value | humanizePercentage }}. Consider increasing cache TTL."
+
+    # Warning: Alta Taxa de Falha de Ferramentas
+    - alert: MCPToolExecutionFailureRate
+      expr: |
+        rate(mcp_tool_executions_total{status="failure"}[5m]) /
+        rate(mcp_tool_executions_total[5m]) > 0.2
+      for: 5m
+      labels:
+        severity: warning
+        component: mcp-tool-catalog
+      annotations:
+        summary: "High tool execution failure rate (> 20%)"
+        description: "{{ $value | humanizePercentage }} of tool executions are failing."
+        runbook_url: "https://docs.neuralhivemind.com/runbooks/tool-failures"
+
+    # Warning: Ferramentas Unhealthy
+    - alert: MCPUnhealthyTools
+      expr: mcp_healthy_tools_total / mcp_registered_tools_total < 0.8
+      for: 10m
+      labels:
+        severity: warning
+        component: mcp-tool-catalog
+      annotations:
+        summary: "Too many unhealthy tools (< 80%)"
+        description: "Only {{ $value | humanizePercentage }} of tools are healthy."
+        runbook_url: "https://docs.neuralhivemind.com/runbooks/unhealthy-tools"
+
+    # Warning: Kafka Consumer Lag
+    - alert: MCPKafkaConsumerLag
+      expr: kafka_consumer_lag{topic="mcp.tool.selection.requests"} > 100
+      for: 5m
+      labels:
+        severity: warning
+        component: mcp-tool-catalog
+      annotations:
+        summary: "High Kafka consumer lag (> 100 messages)"
+        description: "Consumer lag is {{ $value }} messages on topic mcp.tool.selection.requests."
+        runbook_url: "https://docs.neuralhivemind.com/runbooks/kafka-lag"
+
+    # Warning: Alto Uso de Memória
+    - alert: MCPHighMemoryUsage
+      expr: |
+        container_memory_usage_bytes{pod=~"mcp-tool-catalog.*"} /
+        container_spec_memory_limit_bytes > 0.9
+      for: 5m
+      labels:
+        severity: warning
+        component: mcp-tool-catalog
+      annotations:
+        summary: "High memory usage (> 90%)"
+        description: "Pod {{ $labels.pod }} is using {{ $value | humanizePercentage }} of memory limit."
+        runbook_url: "https://docs.neuralhivemind.com/runbooks/high-memory"
+
+    # Critical: Pod CrashLooping
+    - alert: MCPPodCrashLooping
+      expr: rate(kube_pod_container_status_restarts_total{pod=~"mcp-tool-catalog.*"}[15m]) > 0
+      for: 5m
+      labels:
+        severity: critical
+        component: mcp-tool-catalog
+      annotations:
+        summary: "Pod is crash looping"
+        description: "Pod {{ $labels.pod }} has restarted {{ $value }} times in the last 15 minutes."
+        runbook_url: "https://docs.neuralhivemind.com/runbooks/pod-crashloop"
+
+    # Info: Baixa Diversidade de Ferramentas Selecionadas
+    - alert: MCPLowToolDiversity
+      expr: |
+        sum(rate(mcp_tool_executions_total[1h])) by (category) /
+        sum(rate(mcp_tool_executions_total[1h])) < 0.1
+      for: 1h
+      labels:
+        severity: info
+        component: mcp-tool-catalog
+      annotations:
+        summary: "Low tool diversity in category {{ $labels.category }}"
+        description: "Category {{ $labels.category }} represents only {{ $value | humanizePercentage }} of selections."

@@ -1,0 +1,153 @@
+{
+  "type": "record",
+  "name": "ToolDescriptor",
+  "namespace": "com.neuralhivemind.mcp",
+  "doc": "Descriptor for MCP tool in catalog with capabilities, reputation, and integration details",
+  "fields": [
+    {
+      "name": "tool_id",
+      "type": "string",
+      "doc": "Unique identifier for the tool (UUID)"
+    },
+    {
+      "name": "tool_name",
+      "type": "string",
+      "doc": "Human-readable name of the tool"
+    },
+    {
+      "name": "category",
+      "type": {
+        "type": "enum",
+        "name": "ToolCategory",
+        "symbols": [
+          "ANALYSIS",
+          "GENERATION",
+          "TRANSFORMATION",
+          "VALIDATION",
+          "AUTOMATION",
+          "INTEGRATION"
+        ]
+      },
+      "doc": "Primary category of the tool"
+    },
+    {
+      "name": "capabilities",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "doc": "List of capabilities provided by this tool (e.g., code_analysis, security_scan)"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "doc": "Semantic version of the tool"
+    },
+    {
+      "name": "reputation_score",
+      "type": "double",
+      "doc": "Reputation score (0.0-1.0) based on historical success rate, updated via exponential moving average"
+    },
+    {
+      "name": "average_execution_time_ms",
+      "type": "long",
+      "doc": "Average execution time in milliseconds"
+    },
+    {
+      "name": "cost_score",
+      "type": "double",
+      "doc": "Cost score (0.0-1.0), lower is cheaper (open-source=0.1, commercial=0.8)"
+    },
+    {
+      "name": "required_parameters",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "doc": "Required parameters for tool execution"
+    },
+    {
+      "name": "output_format",
+      "type": "string",
+      "doc": "Expected output format (json, sarif, text, xml)"
+    },
+    {
+      "name": "integration_type",
+      "type": {
+        "type": "enum",
+        "name": "IntegrationType",
+        "symbols": [
+          "CLI",
+          "REST_API",
+          "GRPC",
+          "LIBRARY",
+          "CONTAINER"
+        ]
+      },
+      "doc": "How this tool is integrated and executed"
+    },
+    {
+      "name": "endpoint_url",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Endpoint URL for REST_API or GRPC types"
+    },
+    {
+      "name": "authentication_method",
+      "type": {
+        "type": "enum",
+        "name": "AuthenticationMethod",
+        "symbols": [
+          "NONE",
+          "API_KEY",
+          "OAUTH2",
+          "MTLS",
+          "SPIFFE"
+        ]
+      },
+      "doc": "Authentication method required for tool access"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "doc": "Additional metadata (documentation, homepage, license, etc.)"
+    },
+    {
+      "name": "created_at",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Timestamp when tool was registered"
+    },
+    {
+      "name": "updated_at",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Timestamp when tool was last updated"
+    },
+    {
+      "name": "trace_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "OpenTelemetry trace ID for correlation"
+    },
+    {
+      "name": "span_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "OpenTelemetry span ID for correlation"
+    },
+    {
+      "name": "schema_version",
+      "type": "int",
+      "default": 1,
+      "doc": "Schema version for evolution tracking"
+    }
+  ]
+}

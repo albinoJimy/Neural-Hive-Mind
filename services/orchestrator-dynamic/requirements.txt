@@ -1,0 +1,51 @@
+# Framework web e servidor ASGI
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Temporal SDK para workflows e activities
+temporalio>=1.5.0
+
+# Cliente Kafka assíncrono
+aiokafka>=0.10.0
+
+# Driver PostgreSQL para state store Temporal
+psycopg2-binary>=2.9.9
+
+# Validação e configuração
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# Logging estruturado
+structlog>=23.2.0
+
+# Métricas Prometheus
+prometheus-client>=0.19.0
+
+# OpenTelemetry para tracing
+opentelemetry-api>=1.21.0
+opentelemetry-sdk>=1.21.0
+opentelemetry-instrumentation-fastapi>=0.42b0
+opentelemetry-instrumentation-kafka-python>=0.42b0
+opentelemetry-exporter-otlp>=1.21.0
+
+# Redis para cache e feromônios
+redis[hiredis]>=5.0.0
+
+# MongoDB para auditoria
+pymongo>=4.6.0
+motor>=3.3.0
+
+# Bibliotecas internas (instalar via path local ou registry privado)
+# neural-hive-observability>=1.0.0
+# neural-hive-risk-scoring>=1.0.0
+# Para desenvolvimento local, usar: pip install -e ../../libraries/neural_hive_integration
+# Para produção com registry privado: neural_hive_integration>=1.0.0
+-e ../../libraries/neural_hive_integration
+
+# Dependências de desenvolvimento
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-mock>=3.12.0
+black>=23.12.0
+flake8>=6.1.0
+mypy>=1.7.0

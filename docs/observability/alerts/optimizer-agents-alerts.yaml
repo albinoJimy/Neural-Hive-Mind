@@ -1,0 +1,192 @@
+groups:
+  - name: optimizer_agents_critical
+    interval: 30s
+    rules:
+      - alert: OptimizerAgentsDown
+        expr: up{job="optimizer-agents"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: optimizer-agents
+        annotations:
+          summary: "Optimizer Agents is down"
+          description: "Optimizer Agents instance {{ $labels.instance }} has been down for more than 2 minutes."
+
+      - alert: HighOptimizationFailureRate
+        expr: rate(optimizations_applied_total{status="failed"}[5m]) / rate(optimizations_applied_total[5m]) > 0.3
+        for: 5m
+        labels:
+          severity: critical
+          component: optimizer-agents
+        annotations:
+          summary: "High optimization failure rate"
+          description: "Optimization failure rate is {{ $value | humanizePercentage }} (threshold: 30%)."
+
+      - alert: ExperimentStuckInProgress
+        expr: experiments_active > 0 and rate(experiments_submitted_total[30m]) == 0
+        for: 30m
+        labels:
+          severity: critical
+          component: optimizer-agents
+        annotations:
+          summary: "Experiment stuck in progress"
+          description: "{{ $value }} experiments are active but no new experiments submitted in 30 minutes."
+
+      - alert: QLearningNotUpdating
+        expr: rate(q_table_updates_total[15m]) == 0 and rate(hypotheses_generated_total[15m]) > 0
+        for: 15m
+        labels:
+          severity: critical
+          component: optimizer-agents
+        annotations:
+          summary: "Q-learning table not updating"
+          description: "Q-table has not been updated in 15 minutes despite generating hypotheses."
+
+  - name: optimizer_agents_warning
+    interval: 1m
+    rules:
+      - alert: LowOptimizationSuccessRate
+        expr: avg(optimization_success_rate) < 0.8
+        for: 10m
+        labels:
+          severity: warning
+          component: optimizer-agents
+        annotations:
+          summary: "Low optimization success rate"
+          description: "Optimization success rate is {{ $value | humanizePercentage }} (threshold: 80%)."
+
+      - alert: HighExperimentFailureRate
+        expr: rate(experiments_failed_total[10m]) / rate(experiments_submitted_total[10m]) > 0.2
+        for: 10m
+        labels:
+          severity: warning
+          component: optimizer-agents
+        annotations:
+          summary: "High experiment failure rate"
+          description: "Experiment failure rate is {{ $value | humanizePercentage }} (threshold: 20%)."
+
+      - alert: ExcessiveRollbacks
+        expr: rate(rollbacks_total[1h]) > 0.1
+        for: 15m
+        labels:
+          severity: warning
+          component: optimizer-agents
+        annotations:
+          summary: "Excessive rollbacks detected"
+          description: "Rollback rate is {{ $value }} per second (threshold: 0.1/s)."
+
+      - alert: LowImprovementRate
+        expr: avg(average_improvement_percentage) < 0.03
+        for: 30m
+        labels:
+          severity: warning
+          component: optimizer-agents
+        annotations:
+          summary: "Low average improvement rate"
+          description: "Average improvement is {{ $value | humanizePercentage }} (threshold: 3%)."
+
+      - alert: HighEpsilonValue
+        expr: epsilon_value > 0.3
+        for: 24h
+        labels:
+          severity: warning
+          component: optimizer-agents
+        annotations:
+          summary: "Epsilon value not decaying"
+          description: "Epsilon (exploration rate) is {{ $value | humanizePercentage }} after 24h (expected < 30%)."
+
+      - alert: KafkaConsumerLagHigh
+        expr: kafka_consumer_lag{service="optimizer-agents"} > 1000
+        for: 10m
+        labels:
+          severity: warning
+          component: optimizer-agents
+        annotations:
+          summary: "High Kafka consumer lag"
+          description: "Consumer lag for {{ $labels.topic }} is {{ $value }} messages (threshold: 1000)."
+
+  - name: optimizer_agents_info
+    interval: 5m
+    rules:
+      - alert: NewOptimizationApplied
+        expr: increase(optimizations_applied_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: info
+          component: optimizer-agents
+        annotations:
+          summary: "New optimization applied"
+          description: "{{ $value }} optimizations applied in the last 5 minutes."
+
+      - alert: ExperimentCompleted
+        expr: increase(experiments_succeeded_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: info
+          component: optimizer-agents
+        annotations:
+          summary: "Experiment completed successfully"
+          description: "{{ $value }} experiments completed successfully in the last 5 minutes."
+
+      - alert: HighImprovement
+        expr: avg(average_improvement_percentage) > 0.15
+        for: 10m
+        labels:
+          severity: info
+          component: optimizer-agents
+        annotations:
+          summary: "High improvement rate detected"
+          description: "Average improvement is {{ $value | humanizePercentage }} (threshold: 15%)."
+
+      - alert: QTableGrowth
+        expr: increase(q_table_size[1h]) > 10
+        for: 0m
+        labels:
+          severity: info
+          component: optimizer-agents
+        annotations:
+          summary: "Q-table growing"
+          description: "Q-table gained {{ $value }} new states in the last hour."
+
+  - name: optimizer_agents_performance
+    interval: 1m
+    rules:
+      - alert: SlowOptimizationProcessing
+        expr: histogram_quantile(0.95, rate(optimization_processing_duration_seconds_bucket[5m])) > 30
+        for: 10m
+        labels:
+          severity: warning
+          component: optimizer-agents
+        annotations:
+          summary: "Slow optimization processing"
+          description: "P95 optimization processing duration is {{ $value }}s (threshold: 30s)."
+
+      - alert: SlowExperimentDuration
+        expr: histogram_quantile(0.95, rate(experiment_duration_seconds_bucket[5m])) > 7200
+        for: 15m
+        labels:
+          severity: info
+          component: optimizer-agents
+        annotations:
+          summary: "Long experiment duration"
+          description: "P95 experiment duration is {{ $value }}s (threshold: 2h)."
+
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{pod=~"optimizer-agents.*"}[5m]) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          component: optimizer-agents
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage for {{ $labels.pod }} is {{ $value | humanizePercentage }} (threshold: 80%)."
+
+      - alert: HighMemoryUsage
+        expr: container_memory_working_set_bytes{pod=~"optimizer-agents.*"} / container_spec_memory_limit_bytes{pod=~"optimizer-agents.*"} > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          component: optimizer-agents
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage for {{ $labels.pod }} is {{ $value | humanizePercentage }} (threshold: 85%)."

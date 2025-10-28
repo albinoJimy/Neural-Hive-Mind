@@ -1,0 +1,174 @@
+# OPA Gatekeeper Helm Values - Production Environment
+
+# Production replica configuration for high availability
+replicaCount: 3
+auditReplicaCount: 2
+
+# Resource limits for production workload
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+auditResources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# Image configuration
+image:
+  repository: openpolicyagent/gatekeeper
+  tag: ""  # Use chart's default
+  pullPolicy: Always
+
+# Production constraint violation enforcement
+constraintViolationsLimit: 50
+auditInterval: 300  # 5 minutes
+auditMatchKindOnly: false
+
+# Production enforcement mode - start in warn mode
+enforcementMode: warn
+
+# Auto-enforcement configuration for production (slower transition)
+autoEnforce:
+  enabled: true
+  afterDays: 7  # Transition to enforce mode after 7 days
+  excludeNamespaces:
+    - kube-system
+    - kube-public
+    - gatekeeper-system
+    - cosign-system
+
+# Violation logging for production
+violationLog:
+  enabled: true
+  level: info
+  retentionDays: 90  # Longer retention for compliance
+
+# Metrics and monitoring
+metrics:
+  enabled: true
+  port: 8888
+
+# Production webhook configuration
+webhook:
+  port: 8443
+  # Strict failure policy for production
+  failurePolicy: Fail
+  namespaceSelector:
+    matchExpressions:
+    - key: name
+      operator: NotIn
+      values:
+      - kube-system
+      - kube-public
+      - gatekeeper-system
+      - cosign-system
+
+# Production node selection and distribution
+nodeSelector:
+  kubernetes.io/os: linux
+
+# Distribute pods across availability zones
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchLabels:
+            app: gatekeeper-controller-manager
+        topologyKey: topology.kubernetes.io/zone
+
+tolerations: []
+
+# Security context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsGroup: 999
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Pod security context
+podSecurityContext:
+  fsGroup: 999
+  supplementalGroups:
+  - 999
+
+# Production exemptions (minimal)
+exemptNamespaces:
+  - kube-system
+  - kube-public
+  - gatekeeper-system
+  - cosign-system
+  - kube-node-lease
+
+# Production environment variables
+env:
+  - name: GATEKEEPER_AUDIT_INTERVAL
+    value: "300"
+  - name: LOG_LEVEL
+    value: "INFO"
+  - name: CONSTRAINT_VIOLATIONS_LIMIT
+    value: "50"
+
+# Enable validation of Gatekeeper resources with strict policy
+validatingAdmissionWebhook:
+  failurePolicy: Fail
+  namespaceSelector:
+    matchExpressions:
+    - key: admission.gatekeeper.sh/ignore
+      operator: DoesNotExist
+
+# Mutating admission webhook (enabled for production policies)
+mutatingAdmissionWebhook:
+  enabled: true
+
+# Enable OPA built-in functions
+enableOpaBuiltins: true
+
+# Production alerting configuration
+alerting:
+  enabled: true
+  webhookUrl: "ALERTING_WEBHOOK_PLACEHOLDER"
+  severityThreshold: "medium"
+
+# Pod disruption budget for high availability
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Network policy for additional security
+networkPolicy:
+  enabled: true
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: TCP
+      port: 8443  # Webhook port
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 8888  # Metrics port
+
+# Backup and recovery configuration
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retentionDays: 30

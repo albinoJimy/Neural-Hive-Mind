@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sigstore-policy-controller.fullname" . }}
+  namespace: {{ .Values.webhook.namespace }}
+  labels:
+    {{- include "sigstore-policy-controller.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "sigstore-policy-controller.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "sigstore-policy-controller.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "sigstore-policy-controller.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: policy-controller
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        env:
+        - name: SYSTEM_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: CONFIG_LOGGING_NAME
+          value: config-logging
+        - name: CONFIG_OBSERVABILITY_NAME
+          value: config-observability
+        - name: METRICS_DOMAIN
+          value: sigstore.dev/policy-controller
+        - name: WEBHOOK_NAME
+          value: {{ .Values.webhook.name }}
+        {{- if .Values.cosign.rekorURL }}
+        - name: REKOR_URL
+          value: {{ .Values.cosign.rekorURL }}
+        {{- end }}
+        {{- if .Values.cosign.fulcioURL }}
+        - name: FULCIO_URL
+          value: {{ .Values.cosign.fulcioURL }}
+        {{- end }}
+        ports:
+        - name: https-webhook
+          containerPort: {{ .Values.webhook.port }}
+          protocol: TCP
+        - name: metrics
+          containerPort: {{ .Values.monitoring.metrics.port }}
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: https-webhook
+            scheme: HTTPS
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: https-webhook
+            scheme: HTTPS
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        volumeMounts:
+        - name: webhook-certs
+          mountPath: /etc/ssl/certs
+          readOnly: true
+      volumes:
+      - name: webhook-certs
+        secret:
+          secretName: {{ .Values.tls.secretName }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

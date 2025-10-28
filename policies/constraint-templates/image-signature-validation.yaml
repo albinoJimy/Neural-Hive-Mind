@@ -1,0 +1,144 @@
+# ConstraintTemplate para validação de assinatura de imagens
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: neuralhiveimagesignature
+  labels:
+    neuralhive/policy: security
+    neuralhive/component: supply-chain
+spec:
+  crd:
+    spec:
+      names:
+        kind: NeuralHiveImageSignature
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            enforcementMode:
+              type: string
+              enum: ["warn", "enforce"]
+              default: "warn"
+            allowedRegistries:
+              type: array
+              items:
+                type: string
+              default:
+                - "public.ecr.aws/"
+                - "docker.io/"
+                - "gcr.io/"
+                - "ghcr.io/"
+            trustedRegistries:
+              type: array
+              items:
+                type: string
+              description: "Registries confiáveis que não requerem verificação de assinatura"
+            requireSignature:
+              type: boolean
+              default: true
+            allowedTags:
+              type: array
+              items:
+                type: string
+              description: "Tags permitidas além de SHA256 digests"
+
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package neuralhiveimagesignature
+
+        import future.keywords.contains
+        import future.keywords.if
+        import future.keywords.in
+
+        violation[{"msg": msg}] {
+          container := input_containers[_]
+          image := container.image
+          not from_allowed_registry(image)
+          allowed := concat(", ", input.parameters.allowedRegistries)
+          msg := sprintf("Container '%v' usa imagem de registry não autorizado: %v. Registries permitidos: [%v]", [container.name, image, allowed])
+        }
+
+        violation[{"msg": msg}] {
+          container := input_containers[_]
+          image := container.image
+          has_disallowed_tag(image)
+          msg := sprintf("Container '%v' deve usar tag específica ou SHA256 digest, não 'latest' ou sem tag: %v", [container.name, image])
+        }
+
+        violation[{"msg": msg}] {
+          input.parameters.requireSignature == true
+          container := input_containers[_]
+          image := container.image
+          not is_trusted_registry(image)
+          not has_sha256_digest(image)
+          msg := sprintf("Container '%v' usa imagem não assinada (requer SHA256 digest): %v", [container.name, image])
+        }
+
+        # Obter containers de todos os tipos de workload
+        input_containers[container] {
+          container := input.review.object.spec.containers[_]
+        }
+
+        input_containers[container] {
+          container := input.review.object.spec.initContainers[_]
+        }
+
+        input_containers[container] {
+          container := input.review.object.spec.ephemeralContainers[_]
+        }
+
+        # Para Deployments, StatefulSets, DaemonSets, Jobs, CronJobs
+        input_containers[container] {
+          container := input.review.object.spec.template.spec.containers[_]
+        }
+
+        input_containers[container] {
+          container := input.review.object.spec.template.spec.initContainers[_]
+        }
+
+        # Para CronJobs
+        input_containers[container] {
+          container := input.review.object.spec.jobTemplate.spec.template.spec.containers[_]
+        }
+
+        input_containers[container] {
+          container := input.review.object.spec.jobTemplate.spec.template.spec.initContainers[_]
+        }
+
+        # Verificar registry autorizado
+        from_allowed_registry(image) {
+          registry := input.parameters.allowedRegistries[_]
+          startswith(image, registry)
+        }
+
+        # Registries do sistema sempre permitidos
+        from_allowed_registry(image) {
+          startswith(image, "k8s.gcr.io/")
+        }
+
+        from_allowed_registry(image) {
+          startswith(image, "registry.k8s.io/")
+        }
+
+        # Registry confiável não requer assinatura
+        is_trusted_registry(image) {
+          count(input.parameters.trustedRegistries) > 0
+          registry := input.parameters.trustedRegistries[_]
+          startswith(image, registry)
+        }
+
+        # Verificar tags não permitidas
+        has_disallowed_tag(image) {
+          endswith(image, ":latest")
+        }
+
+        has_disallowed_tag(image) {
+          not contains(image, ":")
+          not contains(image, "@")
+        }
+
+        # Verificar SHA256 digest
+        has_sha256_digest(image) {
+          contains(image, "@sha256:")
+        }

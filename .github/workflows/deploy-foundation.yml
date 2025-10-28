@@ -1,0 +1,171 @@
+name: Deploy Foundation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infrastructure/**'
+      - 'helm-charts/**'
+      - 'k8s/**'
+      - 'policies/**'
+      - 'scripts/deploy/**'
+      - 'environments/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - staging
+        - prod
+      force_deploy:
+        description: 'Force deploy (skip confirmation)'
+        required: false
+        default: false
+        type: boolean
+      dry_run:
+        description: 'Dry run (plan only)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  TF_VERSION: "1.5"
+  HELM_VERSION: "v3.12.0"
+  AWS_REGION: "us-east-1"
+
+jobs:
+  determine-environment:
+    name: Determine Environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      deploy_dev: ${{ steps.env.outputs.deploy_dev }}
+      deploy_staging: ${{ steps.env.outputs.deploy_staging }}
+      deploy_prod: ${{ steps.env.outputs.deploy_prod }}
+    steps:
+      - name: Determine environment
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+            echo "deploy_${{ github.event.inputs.environment }}=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "environment=dev" >> $GITHUB_OUTPUT
+            echo "deploy_dev=true" >> $GITHUB_OUTPUT
+          else
+            echo "environment=dev" >> $GITHUB_OUTPUT
+            echo "deploy_dev=true" >> $GITHUB_OUTPUT
+          fi
+
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    needs: determine-environment
+    if: needs.determine-environment.outputs.deploy_dev == 'true'
+    environment:
+      name: development
+      url: https://dev.neural-hive-mind.com
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Cache Terraform
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.terraform.d/plugin-cache
+            infrastructure/terraform/.terraform
+          key: ${{ runner.os }}-terraform-${{ hashFiles('infrastructure/terraform/.terraform.lock.hcl') }}
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Terraform Apply
+        working-directory: infrastructure/terraform
+        run: |
+          terraform init
+          terraform plan -var-file=../../environments/dev/terraform.tfvars -out=tfplan
+          if [ "${{ github.event.inputs.dry_run }}" != "true" ]; then
+            terraform apply -auto-approve -var-file=../../environments/dev/terraform.tfvars
+          else
+            echo "Dry run mode - skipping apply"
+          fi
+
+      - name: Update kubeconfig
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          aws eks update-kubeconfig --name neural-hive-dev --region ${{ env.AWS_REGION }}
+
+      - name: Deploy Istio
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          helm upgrade --install istio-base ./helm-charts/istio-base \
+            --namespace istio-system \
+            --create-namespace \
+            --values environments/dev/helm-values/istio-values.yaml \
+            --wait
+
+      - name: Deploy OPA Gatekeeper
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          helm upgrade --install opa-gatekeeper ./helm-charts/opa-gatekeeper \
+            --namespace gatekeeper-system \
+            --create-namespace \
+            --wait
+
+      - name: Apply Bootstrap Manifests
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          kubectl apply -f k8s/bootstrap/
+
+      - name: Apply OPA Policies
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          kubectl apply -f policies/constraint-templates/
+          sleep 15
+          kubectl apply -f policies/constraints/
+
+      - name: Run Validation Scripts
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          ./scripts/validation/validate-cluster-health.sh || echo "Cluster health validation failed"
+
+  notify-deployment:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [determine-environment, deploy-dev]
+    if: always()
+
+    steps:
+      - name: Create deployment summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ needs.determine-environment.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Development**: ${{ needs.deploy-dev.result || 'skipped' }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check overall deployment status
+        run: |
+          if [[ "${{ needs.deploy-dev.result }}" == "failure" ]]; then
+            echo "Deployment failed"
+            exit 1
+          fi

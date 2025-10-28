@@ -1,0 +1,76 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: memory-cleanup-retention
+  namespace: memory-layer-api
+  labels:
+    neural-hive.io/component: memory-cleanup
+    neural-hive.io/layer: conhecimento-dados
+    app.kubernetes.io/name: memory-cleanup
+    app.kubernetes.io/part-of: neural-hive-mind
+spec:
+  schedule: "0 3 * * *"  # Diariamente às 3h UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels:
+        neural-hive.io/component: memory-cleanup
+        app.kubernetes.io/name: memory-cleanup-job
+    spec:
+      backoffLimit: 3
+      template:
+        metadata:
+          labels:
+            neural-hive.io/component: memory-cleanup
+            app.kubernetes.io/name: memory-cleanup-job
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: memory-sync-sa
+          containers:
+            - name: cleanup-job
+              image: neural-hive-mind/memory-layer-api:1.0.0
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: MONGODB_URI
+                  valueFrom:
+                    secretKeyRef:
+                      name: memory-layer-api-secrets
+                      key: mongodb_uri
+                - name: CLICKHOUSE_HOST
+                  value: "clickhouse-http.clickhouse-cluster.svc.cluster.local"
+                - name: CLICKHOUSE_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: memory-layer-api-secrets
+                      key: clickhouse_password
+                - name: NEO4J_URI
+                  value: "bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687"
+                - name: NEO4J_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: memory-layer-api-secrets
+                      key: neo4j_password
+                - name: DRY_RUN
+                  value: "false"
+                - name: LOG_LEVEL
+                  value: "INFO"
+              resources:
+                requests:
+                  cpu: 200m
+                  memory: 256Mi
+                limits:
+                  cpu: 1
+                  memory: 1Gi
+              volumeMounts:
+                - name: policies
+                  mountPath: /etc/memory-layer/policies
+                  readOnly: true
+              command:
+                - python
+                - /app/src/jobs/enforce_retention.py
+          volumes:
+            - name: policies
+              configMap:
+                name: memory-layer-policies

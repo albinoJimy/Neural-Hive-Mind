@@ -1,0 +1,321 @@
+# Configurações do Memory Layer API
+image:
+  repository: neural-hive-mind/memory-layer-api
+  pullPolicy: IfNotPresent
+  tag: "1.0.0"
+
+replicaCount: 2
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Configurações do serviço
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+  metricsPort: 8080
+  annotations:
+    neural-hive-mind.org/component: "memory-layer-api"
+
+# Configurações de ingress
+ingress:
+  enabled: false
+  className: "istio"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: memory-api.neural-hive-mind.org
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: memory-layer-api-tls
+      hosts:
+        - memory-api.neural-hive-mind.org
+
+# Resources
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
+# Autoscaling
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Node selection
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [memory-layer-api]
+          topologyKey: kubernetes.io/hostname
+
+# Security context
+podSecurityContext:
+  fsGroup: 1001
+  runAsGroup: 1001
+  runAsUser: 1001
+  runAsNonRoot: true
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+
+# Health checks
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Configurações da aplicação
+config:
+  environment: "prod"
+  logLevel: "INFO"
+  debug: false
+
+  # Redis (Curto Prazo)
+  redis:
+    clusterNodes: "neural-hive-cache.redis-cluster.svc.cluster.local:6379"
+    sslEnabled: false
+    defaultTtl: 300
+    maxTtl: 900
+
+  # MongoDB (Operacional)
+  mongodb:
+    uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+    database: "neural_hive"
+    contextCollection: "operational_context"
+    lineageCollection: "data_lineage"
+    qualityCollection: "data_quality_metrics"
+    retentionDays: 30
+
+  # Neo4j (Semântico)
+  neo4j:
+    uri: "bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687"
+    user: "neo4j"
+    database: "neo4j"
+    queryTimeout: 50
+
+  # ClickHouse (Histórico)
+  clickhouse:
+    host: "clickhouse-http.clickhouse-cluster.svc.cluster.local"
+    port: 8123
+    user: "default"
+    database: "neural_hive"
+    retentionMonths: 18
+
+  # Observabilidade
+  otel:
+    endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+  prometheus:
+    port: 8080
+  jaeger:
+    samplingRate: 1.0
+
+  # Roteamento de Queries
+  routing:
+    hotDataThresholdSeconds: 300
+    warmDataThresholdDays: 30
+    coldDataThresholdMonths: 18
+
+  # Data Quality
+  quality:
+    checkEnabled: true
+    completenessThreshold: 0.95
+    accuracyThreshold: 0.95
+    freshnessThresholdHours: 24
+
+  # Feature Flags
+  features:
+    enableCache: true
+    enableLineageTracking: true
+    enableQualityMonitoring: true
+    enableAutoRouting: true
+
+# Secrets
+secrets:
+  # Redis
+  redis:
+    password: ""
+
+  # MongoDB
+  mongodb:
+    uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+
+  # Neo4j
+  neo4j:
+    password: "change-in-production"
+
+  # ClickHouse
+  clickhouse:
+    password: "change-in-production"
+
+# Service Monitor para Prometheus
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  path: /metrics
+  labels:
+    neural-hive-mind.org/monitoring: "enabled"
+
+# Network Policy
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: istio-system
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+        - podSelector:
+            matchLabels:
+              neural-hive-mind.org/memory-access: "enabled"
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: redis-cluster
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: mongodb-cluster
+      ports:
+        - protocol: TCP
+          port: 27017
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: neo4j-cluster
+      ports:
+        - protocol: TCP
+          port: 7687
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: clickhouse-cluster
+      ports:
+        - protocol: TCP
+          port: 8123
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Istio configuration
+istio:
+  enabled: true
+  sidecar:
+    inject: true
+  virtualService:
+    enabled: false
+  gateway:
+    enabled: false
+
+# Environment específicos
+environments:
+  dev:
+    replicaCount: 1
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+    config:
+      debug: true
+      logLevel: "DEBUG"
+
+  staging:
+    replicaCount: 2
+    config:
+      logLevel: "INFO"
+
+  prod:
+    replicaCount: 2
+    config:
+      logLevel: "WARNING"
+
+# CronJobs configuration
+sync:
+  enabled: true
+  schedule: "0 */6 * * *"  # A cada 6 horas
+  batchSize: 1000
+  lookbackHours: 24
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+retention:
+  enabled: true
+  schedule: "0 2 * * *"  # Diariamente às 2h AM
+  dryRun: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+quality:
+  enabled: true
+  schedule: "0 */4 * * *"  # A cada 4 horas
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Service Account
+serviceAccount:
+  create: false
+  annotations: {}
+  name: ""

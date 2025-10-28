@@ -1,0 +1,191 @@
+{
+  "type": "record",
+  "name": "ScoutSignal",
+  "namespace": "com.neuralhive.exploration",
+  "doc": "Schema for Scout Agent exploration signals - detects emerging patterns, anomalies, and opportunities",
+  "fields": [
+    {
+      "name": "signal_id",
+      "type": "string",
+      "doc": "Unique identifier for this signal (UUID v4)"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "correlation_id",
+      "type": "string",
+      "doc": "Correlation ID for tracing related events"
+    },
+    {
+      "name": "trace_id",
+      "type": "string",
+      "doc": "OpenTelemetry trace ID"
+    },
+    {
+      "name": "span_id",
+      "type": "string",
+      "doc": "OpenTelemetry span ID"
+    },
+    {
+      "name": "scout_agent_id",
+      "type": "string",
+      "doc": "ID of the Scout Agent that detected this signal"
+    },
+    {
+      "name": "signal_type",
+      "type": {
+        "type": "enum",
+        "name": "SignalType",
+        "symbols": [
+          "ANOMALY_POSITIVE",
+          "ANOMALY_NEGATIVE",
+          "PATTERN_EMERGING",
+          "OPPORTUNITY",
+          "THREAT",
+          "TREND"
+        ]
+      },
+      "doc": "Type of signal detected"
+    },
+    {
+      "name": "exploration_domain",
+      "type": {
+        "type": "enum",
+        "name": "ExplorationDomain",
+        "symbols": [
+          "BUSINESS",
+          "TECHNICAL",
+          "BEHAVIOR",
+          "INFRASTRUCTURE",
+          "SECURITY"
+        ]
+      },
+      "doc": "Domain of exploration"
+    },
+    {
+      "name": "source",
+      "type": {
+        "type": "record",
+        "name": "SignalSource",
+        "fields": [
+          {
+            "name": "channel",
+            "type": {
+              "type": "enum",
+              "name": "ChannelType",
+              "symbols": [
+                "CORE",
+                "EDGE",
+                "WEB",
+                "MOBILE",
+                "IOT",
+                "API"
+              ]
+            },
+            "doc": "Channel type where signal was detected"
+          },
+          {
+            "name": "device_id",
+            "type": ["null", "string"],
+            "default": null,
+            "doc": "Device identifier (for edge/mobile/IoT signals)"
+          },
+          {
+            "name": "geolocation",
+            "type": [
+              "null",
+              {
+                "type": "record",
+                "name": "Geolocation",
+                "fields": [
+                  {
+                    "name": "latitude",
+                    "type": "double",
+                    "doc": "Latitude coordinate"
+                  },
+                  {
+                    "name": "longitude",
+                    "type": "double",
+                    "doc": "Longitude coordinate"
+                  }
+                ]
+              }
+            ],
+            "default": null,
+            "doc": "Geographic location of signal source"
+          }
+        ]
+      },
+      "doc": "Source information for the signal"
+    },
+    {
+      "name": "curiosity_score",
+      "type": "double",
+      "doc": "Adaptive curiosity score (0-1) calculated by CuriosityScorer"
+    },
+    {
+      "name": "confidence",
+      "type": "double",
+      "doc": "Confidence in the detection (0-1)"
+    },
+    {
+      "name": "relevance_score",
+      "type": "double",
+      "doc": "Relevance to the system (0-1)"
+    },
+    {
+      "name": "risk_score",
+      "type": "double",
+      "doc": "Risk associated with this signal (0-1)"
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "doc": "Human-readable description of the signal"
+    },
+    {
+      "name": "raw_data",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "doc": "Raw data that triggered the signal (key-value pairs)"
+    },
+    {
+      "name": "features",
+      "type": {
+        "type": "array",
+        "items": "double"
+      },
+      "doc": "Numerical feature vector for ML embeddings and similarity analysis"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "doc": "Additional metadata (tags, labels, context)"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "doc": "Signal detection timestamp (Unix epoch milliseconds)"
+    },
+    {
+      "name": "expires_at",
+      "type": "long",
+      "doc": "Signal expiration timestamp (Unix epoch milliseconds)"
+    },
+    {
+      "name": "requires_validation",
+      "type": "boolean",
+      "default": false,
+      "doc": "Whether this signal requires validation by Analyst Agents"
+    }
+  ]
+}

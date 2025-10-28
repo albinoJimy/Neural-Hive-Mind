@@ -1,0 +1,153 @@
+groups:
+- name: neural-hive.specialists-availability
+  rules:
+  - alert: SpecialistDown
+    # Query uses neural_hive_component label with fallback to job/namespace if label is missing
+    expr: up{neural_hive_component=~"specialist-(business|technical|behavior|evolution|architecture)"} == 0 or on() vector(0) * up{job=~"specialist-(business|technical|behavior|evolution|architecture)",namespace=~"specialist.*"} == 0
+    for: 2m
+    labels:
+      severity: critical
+      neural_hive_component: "{{ $labels.neural_hive_component | default $labels.job }}"
+      neural_hive_layer: camada-cognitiva
+    annotations:
+      summary: "Specialist pod está inativo"
+      description: "Specialist {{ $labels.neural_hive_component | default $labels.job }} está down há mais de 2 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/specialist-down"
+
+  - alert: SpecialistHighErrorRate
+    expr: rate(neural_hive_specialist_errors_total{specialist=~"business|technical|behavior|evolution|architecture"}[5m]) / rate(neural_hive_specialist_evaluations_total{specialist=~"business|technical|behavior|evolution|architecture"}[5m]) > 0.05
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: "specialist-{{ $labels.specialist }}"
+      neural_hive_layer: camada-cognitiva
+    annotations:
+      summary: "Specialist com alta taxa de erro"
+      description: "Specialist {{ $labels.specialist }} com {{ $value | humanizePercentage }} de erro rate"
+      runbook_url: "https://docs.neural-hive.local/runbooks/specialist-high-error-rate"
+
+  - alert: SpecialistGrpcConnectionFailed
+    expr: increase(neural_hive_specialist_grpc_connection_failures_total{specialist=~"business|technical|behavior|evolution|architecture"}[5m]) > 10
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: "specialist-{{ $labels.specialist }}"
+      neural_hive_layer: camada-cognitiva
+    annotations:
+      summary: "Falhas de conexão gRPC no specialist"
+      description: "Specialist {{ $labels.specialist }} com {{ $value }} falhas gRPC nos últimos 5 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/specialist-grpc-failures"
+
+- name: neural-hive.specialists-performance
+  rules:
+  - alert: SpecialistHighLatency
+    expr: rate(neural_hive_specialist_evaluation_duration_seconds_sum{specialist=~"business|technical|behavior|evolution|architecture"}[5m]) / rate(neural_hive_specialist_evaluation_duration_seconds_count{specialist=~"business|technical|behavior|evolution|architecture"}[5m]) > 5
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: "specialist-{{ $labels.specialist }}"
+      neural_hive_layer: camada-cognitiva
+    annotations:
+      summary: "Specialist com alta latência"
+      description: "Specialist {{ $labels.specialist }} com latência média de {{ $value | humanizeDuration }} (>5s)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/specialist-high-latency"
+
+  - alert: SpecialistEvaluationTimeout
+    expr: increase(neural_hive_specialist_evaluation_timeouts_total{specialist=~"business|technical|behavior|evolution|architecture"}[5m]) > 3
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: "specialist-{{ $labels.specialist }}"
+      neural_hive_layer: camada-cognitiva
+    annotations:
+      summary: "Specialist com timeouts de avaliação"
+      description: "Specialist {{ $labels.specialist }} teve {{ $value }} timeouts nos últimos 5 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/specialist-timeouts"
+
+  - alert: SpecialistLowThroughput
+    expr: rate(neural_hive_specialist_evaluations_total{specialist=~"business|technical|behavior|evolution|architecture"}[1m]) * 60 < 10
+    for: 10m
+    labels:
+      severity: info
+      neural_hive_component: "specialist-{{ $labels.specialist }}"
+      neural_hive_layer: camada-cognitiva
+    annotations:
+      summary: "Specialist com baixo throughput"
+      description: "Specialist {{ $labels.specialist }} processando apenas {{ $value }} avaliações/min (<10)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/specialist-low-throughput"
+
+- name: neural-hive.specialists-quality
+  rules:
+  - alert: SpecialistLowConfidence
+    expr: avg by (specialist) (neural_hive_specialist_opinion_confidence{specialist=~"business|technical|behavior|evolution|architecture"}) < 0.6
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: "specialist-{{ $labels.specialist }}"
+      neural_hive_layer: camada-cognitiva
+    annotations:
+      summary: "Specialist com baixa confiança"
+      description: "Specialist {{ $labels.specialist }} com confiança média de {{ $value | humanizePercentage }} (<60%)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/specialist-low-confidence"
+
+  - alert: SpecialistOpinionPersistenceFailed
+    expr: increase(neural_hive_specialist_opinion_persistence_failures_total{specialist=~"business|technical|behavior|evolution|architecture"}[5m]) > 5
+    for: 5m
+    labels:
+      severity: critical
+      neural_hive_component: "specialist-{{ $labels.specialist }}"
+      neural_hive_layer: camada-cognitiva
+    annotations:
+      summary: "Falha ao persistir opinião no MongoDB"
+      description: "Specialist {{ $labels.specialist }} com {{ $value }} falhas ao persistir opiniões no MongoDB"
+      runbook_url: "https://docs.neural-hive.local/runbooks/specialist-persistence-failure"
+
+  - alert: SpecialistDisagreementHigh
+    expr: stddev by (plan_id) (neural_hive_specialist_opinion_score) > 0.8
+    for: 15m
+    labels:
+      severity: info
+      neural_hive_component: specialists
+      neural_hive_layer: camada-cognitiva
+    annotations:
+      summary: "Alto desacordo entre specialists"
+      description: "Desvio padrão de {{ $value }} nas opiniões dos specialists para plan {{ $labels.plan_id }}"
+      runbook_url: "https://docs.neural-hive.local/runbooks/specialist-disagreement"
+
+- name: neural-hive.specialists-resources
+  rules:
+  - alert: SpecialistHighCpuUsage
+    expr: rate(container_cpu_usage_seconds_total{pod=~"specialist-(business|technical|behavior|evolution|architecture).*"}[5m]) > 0.8
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: "{{ $labels.pod }}"
+      neural_hive_layer: camada-cognitiva
+    annotations:
+      summary: "Specialist com alto uso de CPU"
+      description: "Pod {{ $labels.pod }} usando {{ $value | humanizePercentage }} de CPU"
+      runbook_url: "https://docs.neural-hive.local/runbooks/high-cpu-usage"
+
+  - alert: SpecialistHighMemoryUsage
+    expr: container_memory_working_set_bytes{pod=~"specialist-(business|technical|behavior|evolution|architecture).*"} / container_spec_memory_limit_bytes{pod=~"specialist-(business|technical|behavior|evolution|architecture).*"} > 0.85
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: "{{ $labels.pod }}"
+      neural_hive_layer: camada-cognitiva
+    annotations:
+      summary: "Specialist com alto uso de memória"
+      description: "Pod {{ $labels.pod }} usando {{ $value | humanizePercentage }} de memória"
+      runbook_url: "https://docs.neural-hive.local/runbooks/high-memory-usage"
+
+  - alert: SpecialistOOMKilled
+    expr: increase(kube_pod_container_status_restarts_total{pod=~"specialist-(business|technical|behavior|evolution|architecture).*", reason="OOMKilled"}[5m]) > 0
+    for: 1m
+    labels:
+      severity: critical
+      neural_hive_component: "{{ $labels.pod }}"
+      neural_hive_layer: camada-cognitiva
+    annotations:
+      summary: "Specialist foi OOMKilled"
+      description: "Pod {{ $labels.pod }} foi terminado por falta de memória"
+      runbook_url: "https://docs.neural-hive.local/runbooks/oom-killed"

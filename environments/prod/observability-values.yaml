@@ -1,0 +1,350 @@
+# Configurações de observabilidade para ambiente de produção
+# Alta disponibilidade, retention otimizada, sampling otimizado para performance
+
+global:
+  domain: neural-hive.local
+  environment: production
+
+# OpenTelemetry Collector - configurações para produção
+otelCollector:
+  replicas: 3  # HA para produção
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - neural-hive-otel-collector
+        topologyKey: kubernetes.io/hostname
+
+  config:
+    processors:
+      tail_sampling:
+        policies:
+        - name: prod_sampling
+          type: probabilistic
+          probabilistic:
+            sampling_percentage: 5  # 5% para produção otimizada
+
+# Prometheus - configurações de produção
+prometheus:
+  prometheus:
+    prometheusSpec:
+      replicas: 3  # HA com quorum
+      retention: 30d  # 30 dias para produção
+      retentionSize: 90GB
+
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: gp3-ssd  # SSD para performance
+            resources:
+              requests:
+                storage: 100Gi
+
+      resources:
+        limits:
+          cpu: 2000m
+          memory: 8Gi
+        requests:
+          cpu: 1000m
+          memory: 4Gi
+
+      # Configurações de HA
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                - prometheus
+            topologyKey: kubernetes.io/hostname
+
+  # AlertManager - configuração de produção
+  alertmanager:
+    alertmanagerSpec:
+      replicas: 3  # HA com gossip cluster
+
+      resources:
+        limits:
+          cpu: 500m
+          memory: 1Gi
+        requests:
+          cpu: 250m
+          memory: 512Mi
+
+      # Clustering para HA
+      additionalPeers:
+      - alertmanager-neural-hive-prometheus-alertmanager-0.alertmanager-operated:9094
+      - alertmanager-neural-hive-prometheus-alertmanager-1.alertmanager-operated:9094
+      - alertmanager-neural-hive-prometheus-alertmanager-2.alertmanager-operated:9094
+
+      config:
+        global:
+          resolve_timeout: 5m
+
+        route:
+          group_wait: 30s
+          group_interval: 5m
+          repeat_interval: 1h
+
+        receivers:
+        - name: 'neural-hive-critical'
+          pagerduty_configs:
+          - service_key: 'PAGERDUTY_SERVICE_KEY'
+            description: '{{ .GroupLabels.alertname }}: {{ .CommonAnnotations.summary }}'
+            details:
+              environment: production
+              component: '{{ .GroupLabels.neural_hive_component }}'
+              layer: '{{ .GroupLabels.neural_hive_layer }}'
+          slack_configs:
+          - api_url: 'https://hooks.slack.com/services/PROD/WEBHOOK'
+            channel: '#neural-hive-critical'
+            color: 'danger'
+            title: '🚨 PROD CRITICAL: Neural Hive-Mind'
+            text: |
+              **Environment**: Production
+              **Severity**: Critical
+              **Alert**: {{ .GroupLabels.alertname }}
+              **Component**: {{ .GroupLabels.neural_hive_component }}
+              **Layer**: {{ .GroupLabels.neural_hive_layer }}
+
+              {{ range .Alerts }}
+              **Summary**: {{ .Annotations.summary }}
+              **Description**: {{ .Annotations.description }}
+              **Runbook**: {{ .Annotations.runbook_url }}
+              {{ end }}
+
+        - name: 'neural-hive-slo'
+          slack_configs:
+          - api_url: 'https://hooks.slack.com/services/PROD/WEBHOOK'
+            channel: '#neural-hive-slo'
+            color: 'warning'
+            title: '📊 PROD SLO Violation: Neural Hive-Mind'
+            text: |
+              **SLO Violated**: {{ .GroupLabels.slo }}
+              **Environment**: Production
+
+              {{ range .Alerts }}
+              **Current Value**: {{ .Annotations.current_value }}
+              **SLO Target**: {{ .Annotations.slo_target }}
+              **Error Budget**: {{ .Annotations.error_budget }}
+              {{ end }}
+
+# Grafana - configuração de produção
+grafana:
+  replicas: 3  # HA para produção
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+  persistence:
+    enabled: true
+    storageClassName: gp3-ssd
+    size: 20Gi
+
+  # Anti-affinity para HA
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+              - grafana
+          topologyKey: kubernetes.io/hostname
+
+  # Plugins completos para produção
+  plugins:
+  - grafana-piechart-panel
+  - grafana-worldmap-panel
+  - grafana-clock-panel
+  - natel-discrete-panel
+  - vonage-status-panel
+  - grafana-polystat-panel
+  - petrslavotinek-carpetplot-panel
+  - briangann-gauge-panel
+
+  grafana.ini:
+    server:
+      domain: grafana.neural-hive.local
+      root_url: https://grafana.neural-hive.local
+
+    security:
+      cookie_secure: true
+      cookie_samesite: strict
+      content_type_protection: true
+      x_content_type_options: true
+      x_xss_protection: true
+      strict_transport_security: true
+
+    log:
+      level: warn  # Apenas warnings em produção
+
+    # Auth via SSO (exemplo OIDC)
+    auth.generic_oauth:
+      enabled: true
+      name: OAuth
+      allow_sign_up: true
+      client_id: grafana-neural-hive
+      scopes: openid profile email groups
+      email_attribute_path: email
+      login_attribute_path: preferred_username
+      name_attribute_path: name
+      auth_url: https://auth.neural-hive.local/oauth2/authorize
+      token_url: https://auth.neural-hive.local/oauth2/token
+      api_url: https://auth.neural-hive.local/oauth2/userinfo
+
+# Jaeger - configuração de produção
+jaeger:
+  strategy: production  # Componentes separados para escala
+
+  collector:
+    replicas: 3
+
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+
+  query:
+    replicas: 2
+
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+
+  storage:
+    type: elasticsearch
+    elasticsearch:
+      host: elasticsearch.elastic-system.svc.cluster.local
+      port: 9200
+      indexPrefix: neural-hive-jaeger-prod
+
+  sampling:
+    default_strategy:
+      type: probabilistic
+      param: 0.05  # 5% sampling para produção
+
+# Configurações de segurança para produção
+security:
+  networkPolicy:
+    enabled: true
+
+  podSecurityPolicy:
+    enabled: true
+
+  rbac:
+    enabled: true
+    restrictive: true
+
+# Backup e disaster recovery
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # 2 AM diário
+  retention: 90  # 90 dias
+
+  storage:
+    type: s3
+    bucket: neural-hive-backups-prod
+    region: us-west-2
+    encryption: true
+
+# Thanos para long-term storage
+thanos:
+  enabled: true
+
+  compact:
+    enabled: true
+    retention: 2y  # 2 anos de retenção
+
+  store:
+    enabled: true
+
+  query:
+    enabled: true
+    replicas: 2
+
+# Configurações de performance
+performance:
+  # Métricas otimizadas para produção
+  metrics:
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+
+  # Query performance
+  queryTimeout: 120s
+  maxConcurrentQueries: 50
+
+# SLOs rigorosos para produção
+slos:
+  availability:
+    target: 0.999  # 99.9%
+
+  latency:
+    barramento: 0.15  # 150ms
+    captura: 0.2      # 200ms
+    geracao: 0.12     # 120ms
+
+  error_rate:
+    max: 0.001  # 0.1%
+
+# Alertas críticos para produção
+alerts:
+  enabled: true
+
+  # Escalation para equipe SRE
+  escalation:
+    enabled: true
+    levels:
+    - level: 1
+      delay: 5m
+      channels: ['#neural-hive-alerts']
+    - level: 2
+      delay: 15m
+      channels: ['#neural-hive-critical', 'pagerduty']
+    - level: 3
+      delay: 30m
+      channels: ['#neural-hive-escalation', 'pagerduty-manager']
+
+# Compliance e auditoria
+compliance:
+  enabled: true
+
+  # Logs de auditoria
+  audit:
+    enabled: true
+    retention: 1y
+
+  # GDPR compliance
+  gdpr:
+    dataRetention: 2y
+    anonymization: true

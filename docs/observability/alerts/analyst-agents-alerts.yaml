@@ -1,0 +1,173 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: analyst-agents-alerts
+  namespace: neural-hive
+  labels:
+    app: analyst-agents
+    prometheus: neural-hive
+spec:
+  groups:
+    - name: analyst-agents.critical
+      interval: 30s
+      rules:
+        - alert: AnalystAgentsDown
+          expr: up{job="analyst-agents"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            component: analyst-agents
+          annotations:
+            summary: "Analyst Agents está down"
+            description: "O serviço Analyst Agents está inacessível há mais de 2 minutos."
+
+        - alert: AnalystAgentsHighErrorRate
+          expr: |
+            sum(rate(processing_errors_total{job="analyst-agents"}[5m])) > 10
+          for: 5m
+          labels:
+            severity: critical
+            component: analyst-agents
+          annotations:
+            summary: "Alta taxa de erros no Analyst Agents"
+            description: "Taxa de erros acima de 10/s nos últimos 5 minutos: {{ $value }}/s"
+
+        - alert: AnalystAgentsKafkaConsumerLag
+          expr: |
+            kafka_consumer_lag_gauge{job="analyst-agents"} > 1000
+          for: 10m
+          labels:
+            severity: critical
+            component: analyst-agents
+          annotations:
+            summary: "Alto lag no consumer Kafka"
+            description: "Consumer lag acima de 1000 mensagens no tópico {{$labels.topic}}, partição {{$labels.partition}}: {{ $value }}"
+
+        - alert: AnalystAgentsMongoDBDown
+          expr: |
+            mongodb_operations_total{job="analyst-agents"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            component: analyst-agents
+          annotations:
+            summary: "MongoDB inacessível"
+            description: "Nenhuma operação MongoDB nos últimos 5 minutos. Conexão pode estar down."
+
+    - name: analyst-agents.warning
+      interval: 1m
+      rules:
+        - alert: AnalystAgentsHighLatency
+          expr: |
+            histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="analyst-agents"}[5m])) > 2
+          for: 5m
+          labels:
+            severity: warning
+            component: analyst-agents
+          annotations:
+            summary: "Alta latência na API REST"
+            description: "P95 de latência acima de 2s no endpoint {{$labels.endpoint}}: {{ $value }}s"
+
+        - alert: AnalystAgentsLowCacheHitRate
+          expr: |
+            sum(rate(cache_operations_total{job="analyst-agents",result="hit"}[5m])) /
+            sum(rate(cache_operations_total{job="analyst-agents"}[5m])) < 0.5
+          for: 15m
+          labels:
+            severity: warning
+            component: analyst-agents
+          annotations:
+            summary: "Baixa taxa de cache hit"
+            description: "Cache hit rate abaixo de 50% nos últimos 15 minutos: {{ $value | humanizePercentage }}"
+
+        - alert: AnalystAgentsHighMemoryUsage
+          expr: |
+            container_memory_working_set_bytes{pod=~"analyst-agents.*"} /
+            container_spec_memory_limit_bytes{pod=~"analyst-agents.*"} > 0.85
+          for: 10m
+          labels:
+            severity: warning
+            component: analyst-agents
+          annotations:
+            summary: "Alto uso de memória"
+            description: "Pod {{$labels.pod}} usando mais de 85% da memória alocada: {{ $value | humanizePercentage }}"
+
+        - alert: AnalystAgentsHighCPUUsage
+          expr: |
+            rate(container_cpu_usage_seconds_total{pod=~"analyst-agents.*"}[5m]) > 0.8
+          for: 10m
+          labels:
+            severity: warning
+            component: analyst-agents
+          annotations:
+            summary: "Alto uso de CPU"
+            description: "Pod {{$labels.pod}} usando mais de 80% de CPU: {{ $value | humanizePercentage }}"
+
+        - alert: AnalystAgentsSlowQueryEngine
+          expr: |
+            histogram_quantile(0.95, rate(query_duration_seconds_bucket{job="analyst-agents"}[5m])) > 5
+          for: 5m
+          labels:
+            severity: warning
+            component: analyst-agents
+          annotations:
+            summary: "Query Engine lento"
+            description: "P95 de duração de queries acima de 5s na fonte {{$labels.source}}: {{ $value }}s"
+
+    - name: analyst-agents.info
+      interval: 2m
+      rules:
+        - alert: AnalystAgentsFewInsights
+          expr: |
+            rate(insights_generated_total{job="analyst-agents"}[10m]) < 0.1
+          for: 30m
+          labels:
+            severity: info
+            component: analyst-agents
+          annotations:
+            summary: "Poucos insights sendo gerados"
+            description: "Taxa de geração de insights abaixo de 0.1/s nos últimos 30 minutos: {{ $value }}/s"
+
+        - alert: AnalystAgentsAnomalySpike
+          expr: |
+            rate(anomalies_detected_total{job="analyst-agents"}[5m]) > 5
+          for: 10m
+          labels:
+            severity: info
+            component: analyst-agents
+          annotations:
+            summary: "Spike de anomalias detectadas"
+            description: "Taxa de detecção de anomalias acima de 5/s: {{ $value }}/s. Possível incidente no sistema."
+
+        - alert: AnalystAgentsInsightsCacheGrowth
+          expr: |
+            delta(insights_cached_gauge{job="analyst-agents"}[30m]) > 1000
+          for: 30m
+          labels:
+            severity: info
+            component: analyst-agents
+          annotations:
+            summary: "Crescimento rápido do cache de insights"
+            description: "Cache cresceu mais de 1000 insights nos últimos 30 minutos: {{ $value }}"
+
+        - alert: AnalystAgentsEmbeddingServiceSlow
+          expr: |
+            histogram_quantile(0.95, rate(embedding_duration_seconds_bucket{job="analyst-agents"}[5m])) > 1
+          for: 10m
+          labels:
+            severity: info
+            component: analyst-agents
+          annotations:
+            summary: "Embedding Service lento"
+            description: "P95 de geração de embeddings acima de 1s: {{ $value }}s"
+
+        - alert: AnalystAgentsCausalAnalysisSlow
+          expr: |
+            histogram_quantile(0.95, rate(causal_analysis_duration_seconds_bucket{job="analyst-agents"}[5m])) > 3
+          for: 10m
+          labels:
+            severity: info
+            component: analyst-agents
+          annotations:
+            summary: "Causal Analyzer lento"
+            description: "P95 de análise causal acima de 3s: {{ $value }}s"

@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "code-forge.configMapName" . }}
+  labels:
+    {{- include "code-forge.labels" . | nindent 4 }}
+data:
+  SERVICE_NAME: {{ .Values.config.SERVICE_NAME | quote }}
+  NAMESPACE: {{ .Values.config.NAMESPACE | quote }}
+  CLUSTER: {{ .Values.config.CLUSTER | quote }}
+
+  # Kafka Configuration
+  KAFKA_BOOTSTRAP_SERVERS: {{ .Values.config.KAFKA_BOOTSTRAP_SERVERS | quote }}
+  KAFKA_TICKETS_TOPIC: {{ .Values.config.KAFKA_TICKETS_TOPIC | quote }}
+  KAFKA_RESULTS_TOPIC: {{ .Values.config.KAFKA_RESULTS_TOPIC | quote }}
+  KAFKA_CONSUMER_GROUP_ID: {{ .Values.config.KAFKA_CONSUMER_GROUP_ID | quote }}
+
+  # PostgreSQL Configuration
+  POSTGRES_HOST: {{ .Values.config.POSTGRES_HOST | quote }}
+  POSTGRES_PORT: {{ .Values.config.POSTGRES_PORT | quote }}
+  POSTGRES_DB: {{ .Values.config.POSTGRES_DB | quote }}
+
+  # MongoDB Configuration
+  MONGODB_HOST: {{ .Values.config.MONGODB_HOST | quote }}
+  MONGODB_PORT: {{ .Values.config.MONGODB_PORT | quote }}
+  MONGODB_DB: {{ .Values.config.MONGODB_DB | quote }}
+
+  # Redis Configuration
+  REDIS_HOST: {{ .Values.config.REDIS_HOST | quote }}
+  REDIS_PORT: {{ .Values.config.REDIS_PORT | quote }}
+
+  # Service Registry Configuration
+  SERVICE_REGISTRY_HOST: {{ .Values.config.SERVICE_REGISTRY_HOST | quote }}
+  SERVICE_REGISTRY_PORT: {{ .Values.config.SERVICE_REGISTRY_PORT | quote }}
+
+  # Execution Ticket Service
+  EXECUTION_TICKET_SERVICE_URL: {{ .Values.config.EXECUTION_TICKET_SERVICE_URL | quote }}
+
+  # Templates Configuration
+  TEMPLATES_GIT_REPO: {{ .Values.config.TEMPLATES_GIT_REPO | quote }}
+  TEMPLATES_GIT_BRANCH: {{ .Values.config.TEMPLATES_GIT_BRANCH | quote }}
+  TEMPLATES_LOCAL_PATH: {{ .Values.config.TEMPLATES_LOCAL_PATH | quote }}
+
+  # Pipeline Configuration
+  MAX_CONCURRENT_PIPELINES: {{ .Values.config.MAX_CONCURRENT_PIPELINES | quote }}
+  PIPELINE_TIMEOUT_SECONDS: {{ .Values.config.PIPELINE_TIMEOUT_SECONDS | quote }}
+  AUTO_APPROVAL_THRESHOLD: {{ .Values.config.AUTO_APPROVAL_THRESHOLD | quote }}
+  MIN_QUALITY_SCORE: {{ .Values.config.MIN_QUALITY_SCORE | quote }}
+  MIN_TEST_COVERAGE: {{ .Values.config.MIN_TEST_COVERAGE | quote }}
+
+  # Observability Configuration
+  OTEL_EXPORTER_ENDPOINT: {{ .Values.config.OTEL_EXPORTER_ENDPOINT | quote }}
+  LOG_LEVEL: {{ .Values.config.LOG_LEVEL | quote }}
+  LOG_FORMAT: {{ .Values.config.LOG_FORMAT | quote }}

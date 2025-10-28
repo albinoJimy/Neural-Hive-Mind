@@ -1,0 +1,301 @@
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: redissecurityvalidation
+  labels:
+    neural-hive.io/component: governance
+    neural-hive.io/layer: policy
+    neural-hive.io/security-domain: redis
+spec:
+  crd:
+    spec:
+      names:
+        kind: RedisSecurityValidation
+      validation:
+        type: object
+        properties:
+          # Ambientes que requerem TLS obrigatório
+          tlsRequiredEnvironments:
+            type: array
+            description: "Ambientes que requerem TLS obrigatório para Redis"
+            items:
+              type: string
+            default:
+              - "prod"
+              - "staging"
+
+          # Namespaces governados para Redis
+          governedNamespaces:
+            type: array
+            description: "Namespaces que requerem validação Redis rigorosa"
+            items:
+              type: string
+            default:
+              - "redis-cluster"
+              - "gateway-intencoes"
+              - "neural-hive-services"
+
+          # Namespaces autorizados para acesso Redis
+          authorizedNamespaces:
+            type: array
+            description: "Namespaces autorizados para acesso ao Redis"
+            items:
+              type: string
+            default:
+              - "gateway-intencoes"
+              - "neural-hive-services"
+              - "auth"
+
+          # Padrões de configuração insegura
+          insecurePatterns:
+            type: array
+            description: "Padrões que indicam configuração insegura"
+            items:
+              type: string
+            default:
+              - "changeme"
+              - "password123"
+              - "admin"
+              - "redis"
+
+          # Tipos de Secret permitidos para Redis
+          allowedSecretTypes:
+            type: array
+            description: "Tipos de Secret permitidos para credenciais Redis"
+            items:
+              type: string
+            default:
+              - "Opaque"
+
+          # Modo de enforcement
+          enforcementMode:
+            type: string
+            description: "Modo de enforcement (warn, deny)"
+            enum: ["warn", "deny"]
+            default: "deny"
+
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package redissecurityvalidation
+
+        import rego.v1
+
+        # Obter parâmetros da constraint
+        tls_required_envs := object.get(input.parameters, "tlsRequiredEnvironments", ["prod", "staging"])
+        governed_namespaces := object.get(input.parameters, "governedNamespaces", [])
+        authorized_namespaces := object.get(input.parameters, "authorizedNamespaces", [])
+        insecure_patterns := object.get(input.parameters, "insecurePatterns", [])
+        allowed_secret_types := object.get(input.parameters, "allowedSecretTypes", ["Opaque"])
+        enforcement_mode := object.get(input.parameters, "enforcementMode", "deny")
+
+        # Verificar se está em namespace governado
+        is_governed_namespace if {
+            input.review.object.metadata.namespace in governed_namespaces
+        }
+
+        # Verificar se é ambiente que requer TLS
+        is_tls_required_env if {
+            env := object.get(input.review.object.metadata.labels, "neural-hive.io/environment", "")
+            env in tls_required_envs
+        }
+
+        # VIOLATION: Services Redis sem autenticação obrigatória
+        violation[{"msg": msg, "severity": severity}] if {
+            input.review.object.kind == "Service"
+            is_governed_namespace
+
+            # Service expõe porta Redis (6379)
+            some port in input.review.object.spec.ports
+            port.port == 6379
+
+            # Não tem annotation de autenticação obrigatória
+            auth_annotation := object.get(input.review.object.metadata.annotations, "redis.security/auth", "")
+            auth_annotation != "required"
+
+            msg := sprintf("Service Redis %s deve ter annotation 'redis.security/auth: required'", [
+                input.review.object.metadata.name
+            ])
+            severity := enforcement_mode == "deny"
+        }
+
+        # VIOLATION: Services Redis sem TLS em ambientes críticos
+        violation[{"msg": msg, "severity": severity}] if {
+            input.review.object.kind == "Service"
+            is_governed_namespace
+            is_tls_required_env
+
+            # Service Redis
+            some port in input.review.object.spec.ports
+            port.port == 6379
+
+            # Não tem annotation de TLS
+            tls_annotation := object.get(input.review.object.metadata.annotations, "redis.security/tls", "")
+            tls_annotation != "required"
+
+            env := object.get(input.review.object.metadata.labels, "neural-hive.io/environment", "")
+            msg := sprintf("Service Redis %s em ambiente '%s' deve ter annotation 'redis.security/tls: required'", [
+                input.review.object.metadata.name,
+                env
+            ])
+            severity := enforcement_mode == "deny"
+        }
+
+        # VIOLATION: Secrets Redis com tipo inadequado
+        violation[{"msg": msg, "severity": severity}] if {
+            input.review.object.kind == "Secret"
+            is_governed_namespace
+
+            # Secret contém credenciais Redis
+            some key in object.keys(input.review.object.data)
+            contains(lower(key), "redis")
+
+            # Tipo não é permitido
+            not input.review.object.type in allowed_secret_types
+
+            msg := sprintf("Secret %s com credenciais Redis deve ser tipo %v", [
+                input.review.object.metadata.name,
+                allowed_secret_types
+            ])
+            severity := enforcement_mode == "deny"
+        }
+
+        # VIOLATION: ConfigMaps com configuração Redis insegura
+        violation[{"msg": msg, "severity": severity}] if {
+            input.review.object.kind == "ConfigMap"
+            is_governed_namespace
+
+            # ConfigMap contém configuração Redis
+            some key in object.keys(input.review.object.data)
+            contains(lower(key), "redis")
+
+            config_content := input.review.object.data[key]
+
+            # Verifica padrões inseguros
+            some pattern in insecure_patterns
+            contains(lower(config_content), pattern)
+
+            msg := sprintf("ConfigMap %s contém configuração Redis com padrão inseguro '%s'", [
+                input.review.object.metadata.name,
+                pattern
+            ])
+            severity := enforcement_mode == "deny"
+        }
+
+        # VIOLATION: RedisCluster sem autenticação
+        violation[{"msg": msg, "severity": severity}] if {
+            input.review.object.kind == "RedisCluster"
+
+            # Não tem secret de autenticação configurado
+            not input.review.object.spec.kubernetesConfig.redisSecret
+
+            msg := sprintf("RedisCluster %s deve ter autenticação configurada", [
+                input.review.object.metadata.name
+            ])
+            severity := enforcement_mode == "deny"
+        }
+
+        # VIOLATION: RedisCluster sem TLS em ambientes críticos
+        violation[{"msg": msg, "severity": severity}] if {
+            input.review.object.kind == "RedisCluster"
+            is_tls_required_env
+
+            # TLS não configurado
+            tls_enabled := object.get(input.review.object.spec, "TLS", {})
+            not tls_enabled.enabled == true
+
+            env := object.get(input.review.object.metadata.labels, "neural-hive.io/environment", "")
+            msg := sprintf("RedisCluster %s em ambiente '%s' deve ter TLS habilitado", [
+                input.review.object.metadata.name,
+                env
+            ])
+            severity := enforcement_mode == "deny"
+        }
+
+        # VIOLATION: Services Redis sem especificação de namespaces autorizados
+        violation[{"msg": msg, "severity": false}] if {
+            input.review.object.kind == "Service"
+            input.review.object.metadata.namespace == "redis-cluster"
+
+            # Service Redis
+            some port in input.review.object.spec.ports
+            port.port == 6379
+
+            # Não tem annotation de namespaces autorizados
+            authorized_ns := object.get(input.review.object.metadata.annotations, "neural-hive.io/authorized-namespaces", "")
+            authorized_ns == ""
+
+            msg := sprintf("Service Redis %s deve especificar namespaces autorizados via annotation 'neural-hive.io/authorized-namespaces'", [
+                input.review.object.metadata.name
+            ])
+        }
+
+        # VIOLATION: Secrets Redis confidenciais sem encryption extra
+        violation[{"msg": msg, "severity": severity}] if {
+            input.review.object.kind == "Secret"
+
+            # Secret com dados Redis confidenciais
+            some key in object.keys(input.review.object.data)
+            key in {"password", "auth-token", "tls-key", "redis-password"}
+
+            # Classificado como confidencial
+            classification := object.get(input.review.object.metadata.labels, "neural-hive.io/data-classification", "")
+            classification in {"confidential", "restricted"}
+
+            # Não tem annotation de encryption
+            encrypted := object.get(input.review.object.metadata.annotations, "neural-hive.io/encrypted", "false")
+            encrypted != "true"
+
+            msg := sprintf("Secret Redis %s classificado como '%s' deve ter encryption extra", [
+                input.review.object.metadata.name,
+                classification
+            ])
+            severity := enforcement_mode == "deny"
+        }
+
+        # VIOLATION: RedisCluster sem resource limits
+        violation[{"msg": msg, "severity": false}] if {
+            input.review.object.kind == "RedisCluster"
+
+            # Não tem resource limits definidos
+            limits := object.get(input.review.object.spec.kubernetesConfig.resources, "limits", {})
+            count(limits) == 0
+
+            msg := sprintf("RedisCluster %s deveria ter resource limits definidos para evitar impacto em outros workloads", [
+                input.review.object.metadata.name
+            ])
+        }
+
+        # VIOLATION: RedisCluster em produção sem backup
+        violation[{"msg": msg, "severity": false}] if {
+            input.review.object.kind == "RedisCluster"
+            is_tls_required_env
+
+            # Backup não habilitado
+            backup_enabled := object.get(input.review.object.metadata.annotations, "neural-hive.io/backup", "")
+            backup_enabled != "enabled"
+
+            env := object.get(input.review.object.metadata.labels, "neural-hive.io/environment", "")
+            msg := sprintf("RedisCluster %s em ambiente '%s' deveria ter backup habilitado", [
+                input.review.object.metadata.name,
+                env
+            ])
+        }
+
+        # VIOLATION: NetworkPolicies permissivas para Redis
+        violation[{"msg": msg, "severity": severity}] if {
+            input.review.object.kind == "NetworkPolicy"
+
+            # Policy afeta pods Redis
+            some selector_label, selector_value in input.review.object.spec.podSelector.matchLabels
+            contains(lower(selector_value), "redis")
+
+            # Permite acesso irrestrito
+            some rule in input.review.object.spec.ingress
+            count(rule.from) == 0
+
+            msg := sprintf("NetworkPolicy %s não deve permitir acesso irrestrito ao Redis", [
+                input.review.object.metadata.name
+            ])
+            severity := enforcement_mode == "deny"
+        }

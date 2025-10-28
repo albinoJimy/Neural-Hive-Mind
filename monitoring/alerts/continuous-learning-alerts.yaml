@@ -1,0 +1,304 @@
+groups:
+  - name: continuous_learning_alerts
+    interval: 30s
+    rules:
+      # Taxa baixa de submissões de feedback
+      - alert: LowFeedbackSubmissionRate
+        expr: |
+          sum by (specialist_type) (rate(neural_hive_feedback_submissions_total[1h])) < 0.001
+        for: 2h
+        labels:
+          severity: warning
+          component: continuous_learning
+          subsystem: feedback
+        annotations:
+          summary: "Taxa de submissões de feedback baixa para {{ $labels.specialist_type }}"
+          description: |
+            O especialista {{ $labels.specialist_type }} está recebendo menos de 1 feedback por hora.
+
+            Taxa atual: {{ $value | humanize }} submissões/segundo
+
+            Ações:
+            1. Verificar se endpoint /api/v1/feedback está acessível
+            2. Revisar logs do FastAPI para erros de autenticação
+            3. Verificar se revisores humanos estão ativos
+            4. Validar configuração de JWT (FEEDBACK_REQUIRE_AUTHENTICATION)
+
+            Specialist: {{ $labels.specialist_type }}
+            Namespace: {{ $labels.namespace }}
+
+      # Rating médio muito baixo (indicador de qualidade)
+      - alert: LowAverageFeedbackRating
+        expr: |
+          neural_hive_feedback_avg_rating < 0.5
+        for: 1h
+        labels:
+          severity: warning
+          component: continuous_learning
+          subsystem: feedback
+        annotations:
+          summary: "Rating médio de feedback baixo para {{ $labels.specialist_type }}"
+          description: |
+            O rating médio de feedback para {{ $labels.specialist_type }} está abaixo de 0.5 (50%).
+
+            Rating médio atual: {{ $value | humanizePercentage }}
+
+            Ações:
+            1. Revisar opiniões recentes deste especialista
+            2. Verificar se modelo precisa de re-treinamento urgente
+            3. Analisar padrões de rejeição (feedback_recommendation='reject')
+            4. Considerar rollback de modelo se rating < 0.3
+
+            Specialist: {{ $labels.specialist_type }}
+            Namespace: {{ $labels.namespace }}
+
+      # Falha em trigger de re-treinamento
+      - alert: RetrainingTriggerFailed
+        expr: |
+          (
+            sum by (specialist_type) (increase(neural_hive_retraining_triggers_total{status="failed"}[15m]))
+          ) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: continuous_learning
+          subsystem: retraining
+        annotations:
+          summary: "Falha em trigger de re-treinamento para {{ $labels.specialist_type }}"
+          description: |
+            Um ou mais triggers de re-treinamento falharam para {{ $labels.specialist_type }}.
+
+            Triggers falhados: {{ $value }}
+
+            Ações:
+            1. Verificar logs do RetrainingTrigger
+            2. Verificar conectividade com MLflow tracking server
+            3. Validar URI do projeto MLflow (RETRAINING_MLFLOW_PROJECT_URI)
+            4. Verificar se experiment existe no MLflow
+            5. Consultar collection 'retraining_triggers' no MongoDB
+
+            Query MongoDB:
+            db.retraining_triggers.find({status: 'failed'}).sort({triggered_at: -1}).limit(5)
+
+            Specialist: {{ $labels.specialist_type }}
+            Namespace: {{ $labels.namespace }}
+
+      # Duração muito alta de run MLflow (P95)
+      - alert: MLflowRunDurationVeryHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum by (specialist_type, le) (rate(neural_hive_retraining_mlflow_run_duration_seconds_bucket[30m]))
+          ) > 3600
+        for: 10m
+        labels:
+          severity: warning
+          component: continuous_learning
+          subsystem: retraining
+        annotations:
+          summary: "Duração P95 de runs MLflow muito alta para {{ $labels.specialist_type }}"
+          description: |
+            O percentil 95 da duração de runs está acima de 60 minutos, indicando possíveis runs presos ou muito lentos.
+
+            Duração P95: {{ $value | humanizeDuration }}
+
+            Ações:
+            1. Executar script de monitoramento manualmente:
+               python libraries/python/neural_hive_specialists/scripts/monitor_retraining_runs.py
+            2. Verificar status do run no MLflow UI
+            3. Verificar logs do MLflow tracking server
+            4. Considerar matar run se timeout configurado foi excedido
+            5. Verificar se CronJob de monitoramento está rodando
+
+            Query para verificar trigger:
+            db.retraining_triggers.find({
+              specialist_type: "{{ $labels.specialist_type }}",
+              status: "running"
+            })
+
+            Specialist: {{ $labels.specialist_type }}
+            Namespace: {{ $labels.namespace }}
+
+      # Alta taxa de erros na API de feedback
+      - alert: FeedbackAPIHighErrorRate
+        expr: |
+          (
+            sum by (error_type) (rate(neural_hive_feedback_api_errors_total[5m]))
+            /
+            sum(rate(neural_hive_feedback_submissions_total[5m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: continuous_learning
+          subsystem: feedback
+        annotations:
+          summary: "Alta taxa de erros na API de feedback: {{ $labels.error_type }}"
+          description: |
+            A API de feedback está apresentando alta taxa de erros do tipo {{ $labels.error_type }}.
+
+            Taxa de erro: {{ $value | humanizePercentage }}
+
+            Ações por tipo de erro:
+            - validation: Verificar schema de request, revisar validações Pydantic
+            - not_found: Verificar se opinion_ids estão corretos, validar collection 'cognitive_ledger'
+            - service_unavailable: Verificar circuit breaker, conectividade MongoDB
+            - internal_error: Revisar logs detalhados do FastAPI
+
+            Tipo de erro: {{ $labels.error_type }}
+            Namespace: {{ $labels.namespace }}
+
+      # Alta taxa de erros de detecção de PII
+      - alert: HighPIIDetectionErrorRate
+        expr: |
+          (
+            sum by (error_type) (rate(neural_hive_compliance_pii_detection_errors_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: continuous_learning
+          subsystem: compliance
+        annotations:
+          summary: "Alta taxa de erros na detecção de PII: {{ $labels.error_type }}"
+          description: |
+            O sistema de detecção de PII está apresentando alta taxa de erros.
+
+            Taxa de erro: {{ $value }} erros/segundo
+
+            Ações:
+            1. Verificar se Microsoft Presidio está instalado (pip list | grep presidio)
+            2. Verificar configuração PII_DETECTOR_ENABLED e PII_ANONYMIZATION_STRATEGY
+            3. Testar detecção manualmente com PIIDetector.detect()
+            4. Verificar se modelo NER está carregado (spacy)
+            5. Em caso de erro crítico, feedback_notes será armazenado sem anonimização
+
+            Tipo de erro: {{ $labels.error_type }}
+            Namespace: {{ $labels.namespace }}
+
+      # Circuit breaker aberto no FeedbackCollector
+      - alert: FeedbackCollectorCircuitBreakerOpen
+        expr: |
+          (
+            sum by (specialist_type) (rate(neural_hive_feedback_api_errors_total{error_type="service_unavailable"}[5m]))
+          ) > 0.5
+        for: 2m
+        labels:
+          severity: critical
+          component: continuous_learning
+          subsystem: feedback
+        annotations:
+          summary: "Circuit breaker do FeedbackCollector provavelmente aberto"
+          description: |
+            Alta taxa de erros 503 (service_unavailable) indica que o circuit breaker está aberto.
+
+            Taxa de erro: {{ $value }} erros/segundo
+
+            Ações:
+            1. Verificar conectividade com MongoDB
+            2. Verificar logs do FeedbackCollector para PyMongoError
+            3. Circuit breaker abrirá após 5 falhas consecutivas
+            4. Timeout de reset: 60 segundos
+            5. Verificar se MongoDB está aceitando conexões
+
+            Configuração:
+            - fail_max: 5
+            - reset_timeout: 60s
+            - name: feedback_mongo
+
+            Specialist: {{ $labels.specialist_type }}
+            Namespace: {{ $labels.namespace }}
+
+      # Threshold de feedback atingido mas sem trigger
+      - alert: FeedbackThresholdMetButNoTrigger
+        expr: |
+          (
+            neural_hive_feedback_count_current >= 100
+          )
+          and
+          (
+            sum by (specialist_type) (increase(neural_hive_retraining_triggers_total[1h])) == 0
+          )
+        for: 15m
+        labels:
+          severity: warning
+          component: continuous_learning
+          subsystem: retraining
+        annotations:
+          summary: "Threshold de feedback atingido mas nenhum trigger disparado para {{ $labels.specialist_type }}"
+          description: |
+            O especialista {{ $labels.specialist_type }} atingiu o threshold de feedback mas nenhum trigger foi disparado.
+
+            Feedback count atual: {{ $value }}
+            Threshold configurado: 100
+
+            Ações:
+            1. Verificar se ENABLE_RETRAINING_TRIGGER está habilitado
+            2. Verificar logs do RetrainingTrigger.check_and_trigger()
+            3. Verificar se janela de tempo está correta (RETRAINING_FEEDBACK_WINDOW_DAYS)
+            4. Validar último trigger na collection 'retraining_triggers'
+            5. Executar verificação manual: trigger.check_and_trigger(specialist_type)
+
+            Specialist: {{ $labels.specialist_type }}
+            Namespace: {{ $labels.namespace }}
+
+      # Duração muito alta de run MLflow
+      - alert: MLflowRunDurationTooHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum by (specialist_type, le) (rate(neural_hive_retraining_mlflow_run_duration_seconds_bucket[1h]))
+          ) > 1800
+        for: 30m
+        labels:
+          severity: warning
+          component: continuous_learning
+          subsystem: retraining
+        annotations:
+          summary: "Duração P95 de runs MLflow muito alta para {{ $labels.specialist_type }}"
+          description: |
+            O percentil 95 da duração de runs está acima de 30 minutos.
+
+            Duração P95: {{ $value | humanizeDuration }}
+
+            Ações:
+            1. Analisar tamanho do dataset de treinamento
+            2. Verificar se máquina MLflow tem recursos adequados (CPU/RAM)
+            3. Considerar otimizar hiperparâmetros para treinamento mais rápido
+            4. Verificar se há contenção de I/O durante treinamento
+            5. Analisar métricas de pipeline no MLflow UI
+
+            Specialist: {{ $labels.specialist_type }}
+            Namespace: {{ $labels.namespace }}
+
+      # Nenhuma submissão de feedback em 24h (alerta crítico)
+      - alert: NoFeedbackSubmissionsIn24Hours
+        expr: |
+          sum(increase(neural_hive_feedback_submissions_total[24h])) == 0
+        for: 1h
+        labels:
+          severity: critical
+          component: continuous_learning
+          subsystem: feedback
+        annotations:
+          summary: "Nenhuma submissão de feedback nas últimas 24 horas"
+          description: |
+            O sistema não recebeu nenhum feedback humano nas últimas 24 horas.
+
+            Ações:
+            1. Verificar se endpoint /api/v1/feedback está respondendo
+            2. Testar submissão manual via curl
+            3. Verificar autenticação JWT e roles permitidas
+            4. Verificar se revisores humanos têm acesso ao sistema
+            5. Verificar logs do FastAPI para erros não capturados
+
+            Teste manual:
+            curl -X POST http://specialist-service/api/v1/feedback \
+              -H "Authorization: Bearer <TOKEN>" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "opinion_id": "opinion-test",
+                "human_rating": 0.9,
+                "human_recommendation": "approve",
+                "feedback_notes": "Teste"
+              }'
+
+            Namespace: {{ $labels.namespace }}

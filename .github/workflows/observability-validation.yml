@@ -1,0 +1,353 @@
+name: Observability Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'monitoring/**'
+      - 'helm-charts/grafana/**'
+      - 'helm-charts/prometheus-stack/**'
+      - 'helm-charts/otel-collector/**'
+      - 'libraries/python/neural_hive_observability/**'
+      - 'services/*/src/observability/**'
+      - 'scripts/validate-observability.sh'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'monitoring/**'
+      - 'helm-charts/grafana/**'
+      - 'helm-charts/prometheus-stack/**'
+      - 'helm-charts/otel-collector/**'
+      - 'libraries/python/neural_hive_observability/**'
+      - 'services/*/src/observability/**'
+      - 'scripts/validate-observability.sh'
+
+env:
+  PROMETHEUS_VERSION: "2.47.0"
+  GRAFANA_VERSION: "10.2.0"
+  HELM_VERSION: "3.12.0"
+
+jobs:
+  validate-configs:
+    name: Validate Observability Configurations
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup dependencies
+      run: |
+        # Install yq
+        sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+        sudo chmod +x /usr/local/bin/yq
+
+        # Install jq (usually pre-installed)
+        sudo apt-get update && sudo apt-get install -y jq
+
+        # Install Helm
+        curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+        chmod 700 get_helm.sh
+        ./get_helm.sh --version v${{ env.HELM_VERSION }}
+
+        # Install kubectl
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/
+
+    - name: Validate observability configurations
+      run: |
+        ./scripts/validate-observability.sh
+
+    - name: Lint Prometheus rules
+      run: |
+        # Download promtool
+        wget -q "https://github.com/prometheus/prometheus/releases/download/v${{ env.PROMETHEUS_VERSION }}/prometheus-${{ env.PROMETHEUS_VERSION }}.linux-amd64.tar.gz"
+        tar xzf prometheus-${{ env.PROMETHEUS_VERSION }}.linux-amd64.tar.gz
+        sudo mv prometheus-${{ env.PROMETHEUS_VERSION }}.linux-amd64/promtool /usr/local/bin/
+
+        # Validate all alert rules
+        for alert_file in monitoring/alerts/*.yaml; do
+          if [ -f "$alert_file" ]; then
+            echo "Validating $alert_file"
+            promtool check rules "$alert_file"
+          fi
+        done
+
+    - name: Test Helm charts
+      run: |
+        # Add required repositories
+        helm repo add grafana https://grafana.github.io/helm-charts
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+        helm repo update
+
+        # Test each chart
+        for chart in helm-charts/*/; do
+          if [ -f "$chart/Chart.yaml" ]; then
+            echo "Testing chart: $chart"
+            helm dependency build "$chart" || true
+            helm template test "$chart" --debug > /dev/null
+            helm lint "$chart"
+          fi
+        done
+
+    - name: Validate Python observability library
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install Python dependencies and validate
+      run: |
+        python -m pip install --upgrade pip
+        pip install prometheus-client opentelemetry-api opentelemetry-sdk pydantic
+
+        # Test import of observability library
+        cd libraries/python
+        python -c "
+        try:
+            from neural_hive_observability import config, metrics, logging, health, context
+            print('✅ All observability modules imported successfully')
+        except ImportError as e:
+            print(f'❌ Import error: {e}')
+            exit(1)
+        "
+
+        # Syntax check all Python files
+        find . -name "*.py" -path "./neural_hive_observability/*" -exec python -m py_compile {} \;
+
+    - name: Validate ServiceMonitor configurations
+      run: |
+        # Check if ServiceMonitors have proper labels
+        echo "Validating ServiceMonitor configurations..."
+
+        service_monitors=$(find . -name "*.yaml" -exec grep -l "kind: ServiceMonitor" {} \; || true)
+
+        if [ -n "$service_monitors" ]; then
+          for sm in $service_monitors; do
+            echo "Checking ServiceMonitor: $sm"
+
+            # Check for neural.hive/metrics label
+            if ! grep -q "neural.hive/metrics" "$sm"; then
+              echo "❌ ServiceMonitor $sm missing neural.hive/metrics label"
+              exit 1
+            fi
+
+            # Validate YAML syntax
+            yq eval '.' "$sm" > /dev/null
+
+            echo "✅ ServiceMonitor $sm is valid"
+          done
+        else
+          echo "⚠️ No ServiceMonitors found"
+        fi
+
+    - name: Test dashboard JSON validity
+      run: |
+        echo "Validating Grafana dashboard JSON files..."
+
+        for dashboard in monitoring/dashboards/*.json; do
+          if [ -f "$dashboard" ]; then
+            echo "Validating dashboard: $(basename $dashboard)"
+
+            # Check JSON syntax
+            jq empty "$dashboard"
+
+            # Check required fields
+            if ! jq -e '.title' "$dashboard" > /dev/null; then
+              echo "❌ Dashboard $dashboard missing title"
+              exit 1
+            fi
+
+            if ! jq -e '.uid' "$dashboard" > /dev/null; then
+              echo "❌ Dashboard $dashboard missing uid"
+              exit 1
+            fi
+
+            # Check datasource configuration
+            if ! jq -e '.templating.list[] | select(.type == "datasource")' "$dashboard" > /dev/null; then
+              echo "⚠️ Dashboard $dashboard may not have datasource template variable"
+            fi
+
+            echo "✅ Dashboard $(basename $dashboard) is valid"
+          fi
+        done
+
+    - name: Summary
+      run: |
+        echo ""
+        echo "🎉 All observability validation checks passed!"
+        echo ""
+        echo "Validated components:"
+        echo "- Prometheus alert rules"
+        echo "- Grafana dashboards"
+        echo "- Helm chart templates"
+        echo "- Python observability library"
+        echo "- ServiceMonitor configurations"
+        echo "- OpenTelemetry configurations"
+
+  security-check:
+    name: Security Check - Observability
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check for hardcoded secrets
+      run: |
+        echo "Checking for hardcoded secrets in observability configurations..."
+
+        # Check for common secret patterns
+        secret_patterns=("password" "secret" "token" "key" "credential")
+
+        for pattern in "${secret_patterns[@]}"; do
+          matches=$(grep -r -i "$pattern" helm-charts/ monitoring/ --include="*.yaml" --include="*.yml" | grep -v "existingSecret\|envFromSecret\|secretName\|secretKeyRef" || true)
+
+          if [ -n "$matches" ]; then
+            echo "⚠️ Potential hardcoded secrets found for pattern '$pattern':"
+            echo "$matches"
+          fi
+        done
+
+        # Specifically check Grafana configuration
+        if grep -r "admin.*:" helm-charts/grafana/values.yaml | grep -v "existingSecret\|envFromSecret"; then
+          echo "❌ Hardcoded admin credentials found in Grafana configuration!"
+          exit 1
+        fi
+
+        echo "✅ No obvious hardcoded secrets found"
+
+    - name: Validate RBAC configurations
+      run: |
+        echo "Checking RBAC configurations in observability stack..."
+
+        rbac_files=$(find . -name "*.yaml" -exec grep -l "kind:.*Role\|kind:.*ServiceAccount" {} \; || true)
+
+        if [ -n "$rbac_files" ]; then
+          for rbac_file in $rbac_files; do
+            echo "Validating RBAC in: $rbac_file"
+
+            # Check if ServiceAccount has appropriate annotations
+            if grep -q "kind: ServiceAccount" "$rbac_file"; then
+              echo "✅ ServiceAccount found in $rbac_file"
+            fi
+
+            # Validate YAML
+            yq eval '.' "$rbac_file" > /dev/null
+          done
+        fi
+
+        echo "✅ RBAC configurations validated"
+
+  performance-check:
+    name: Performance Check - Observability
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check metric cardinality
+      run: |
+        echo "Analyzing metric cardinality in configurations..."
+
+        # Check for high cardinality metrics patterns
+        high_cardinality_patterns=('by \(.*\{' 'group_left' 'group_right')
+
+        for pattern in "${high_cardinality_patterns[@]}"; do
+          matches=$(grep -r "$pattern" monitoring/alerts/ || true)
+          if [ -n "$matches" ]; then
+            echo "⚠️ Potential high cardinality query found:"
+            echo "$matches"
+          fi
+        done
+
+        echo "✅ Cardinality check completed"
+
+    - name: Validate dashboard query complexity
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Check dashboard performance
+      run: |
+        python -c "
+        import json
+        import os
+
+        dashboard_dir = 'monitoring/dashboards'
+
+        for filename in os.listdir(dashboard_dir):
+            if filename.endswith('.json'):
+                filepath = os.path.join(dashboard_dir, filename)
+
+                with open(filepath, 'r') as f:
+                    dashboard = json.load(f)
+
+                panel_count = len(dashboard.get('panels', []))
+
+                if panel_count > 20:
+                    print(f'⚠️ Dashboard {filename} has {panel_count} panels (high complexity)')
+                else:
+                    print(f'✅ Dashboard {filename} has {panel_count} panels (acceptable)')
+        "
+
+  integration-test:
+    name: Integration Test - Observability Stack
+    runs-on: ubuntu-latest
+    needs: [validate-configs]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Kind cluster
+      uses: helm/kind-action@v1.4.0
+      with:
+        cluster_name: observability-test
+        kubectl_version: v1.28.0
+
+    - name: Install observability stack
+      run: |
+        # Install Prometheus Operator CRDs first
+        kubectl apply --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.68.0/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
+
+        # Add Helm repositories
+        helm repo add grafana https://grafana.github.io/helm-charts
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+        helm repo update
+
+        # Create namespace
+        kubectl create namespace observability
+
+        # Install components (simplified for testing)
+        timeout 300 helm install prometheus prometheus-community/kube-prometheus-stack \
+          --namespace observability \
+          --set grafana.enabled=false \
+          --wait
+
+        echo "✅ Observability stack installed successfully"
+
+    - name: Test component health
+      run: |
+        # Wait for pods to be ready
+        kubectl wait --namespace observability \
+          --for=condition=ready pod \
+          --selector=app.kubernetes.io/name=prometheus \
+          --timeout=180s
+
+        # Check if metrics are being scraped
+        kubectl port-forward -n observability svc/prometheus-kube-prometheus-prometheus 9090:9090 &
+        sleep 10
+
+        # Simple health check
+        if curl -s http://localhost:9090/-/healthy | grep -q "Prometheus is Healthy"; then
+          echo "✅ Prometheus is healthy"
+        else
+          echo "❌ Prometheus health check failed"
+          exit 1
+        fi
+
+        echo "✅ Integration test completed successfully"

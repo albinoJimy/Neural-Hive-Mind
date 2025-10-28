@@ -1,0 +1,333 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "neural-hive-grafana.fullname" . }}-datasources
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "neural-hive-grafana.labels" . | nindent 4 }}
+    grafana_datasource: "1"
+    neural.hive/component: datasource-config
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+    # Prometheus - principal fonte de métricas
+    - name: Prometheus
+      type: prometheus
+      uid: prometheus
+      access: proxy
+      url: http://{{ .Values.datasources.prometheus.service | default "prometheus-kube-prometheus-prometheus" }}.{{ .Release.Namespace }}.svc.cluster.local:9090
+      isDefault: true
+      jsonData:
+        httpMethod: POST
+        manageAlerts: false
+        prometheusType: Prometheus
+        prometheusVersion: 2.47.0
+        cacheLevel: 'High'
+        disableRecordingRules: false
+        incrementalQueryOverlapWindow: 10m
+        exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: jaeger
+          urlDisplayLabel: 'View in Jaeger'
+        - name: traceID
+          datasourceUid: jaeger
+          urlDisplayLabel: 'View Trace'
+      editable: true
+
+    # Jaeger - distributed tracing
+    - name: Jaeger
+      type: jaeger
+      uid: jaeger
+      access: proxy
+      url: http://{{ .Values.datasources.jaeger.service | default "jaeger-query" }}.{{ .Release.Namespace }}.svc.cluster.local:16686
+      jsonData:
+        {{- if .Values.featureFlags.enableLoki }}
+        tracesToLogs:
+          datasourceUid: loki
+          tags:
+          - key: 'service.name'
+            value: 'service'
+          - key: 'neural.hive.intent.id'
+            value: 'intent_id'
+          - key: 'neural.hive.plan.id'
+            value: 'plan_id'
+          filterByTraceID: true
+          filterBySpanID: false
+          mapTagNamesEnabled: true
+          mappedTags:
+          - key: 'neural.hive.component'
+            value: 'component'
+          - key: 'neural.hive.layer'
+            value: 'layer'
+          - key: 'neural.hive.domain'
+            value: 'domain'
+        {{- end }}
+        nodeGraph:
+          enabled: true
+        spanBar:
+          type: 'Tag'
+          tag: 'http.method'
+      editable: true
+
+    {{- if .Values.featureFlags.enableLoki }}
+    # Loki - logs aggregation (se disponível)
+    - name: Loki
+      type: loki
+      uid: loki
+      access: proxy
+      url: http://loki-gateway.{{ .Release.Namespace }}.svc.cluster.local
+      jsonData:
+        maxLines: 1000
+        derivedFields:
+        # Correlação com traces Jaeger
+        - datasourceUid: jaeger
+          matcherRegex: "trace_id=(\\w+)"
+          name: TraceID
+          url: "$${__value.raw}"
+          urlDisplayLabel: 'View in Jaeger'
+        # Correlação com intent_id
+        - datasourceUid: prometheus
+          matcherRegex: "intent_id=([\\w-]+)"
+          name: IntentID
+          url: "$${__value.raw}"
+          urlDisplayLabel: 'View Intent Metrics'
+        # Correlação com plan_id
+        - datasourceUid: prometheus
+          matcherRegex: "plan_id=([\\w-]+)"
+          name: PlanID
+          url: "$${__value.raw}"
+          urlDisplayLabel: 'View Plan Metrics'
+      editable: true
+    {{- end }}
+
+    {{- if .Values.featureFlags.enableTempo }}
+    # Tempo - distributed tracing alternativo (se disponível)
+    - name: Tempo
+      type: tempo
+      uid: tempo
+      access: proxy
+      url: http://tempo-query-frontend.{{ .Release.Namespace }}.svc.cluster.local:3200
+      jsonData:
+        httpMethod: GET
+        {{- if .Values.featureFlags.enableLoki }}
+        tracesToLogs:
+          datasourceUid: loki
+          tags: ['job', 'instance', 'pod', 'namespace']
+          mappedTags: [{ key: 'service.name', value: 'service' }]
+          mapTagNamesEnabled: false
+          spanStartTimeShift: '1h'
+          spanEndTimeShift: '1h'
+          filterByTraceID: false
+          filterBySpanID: false
+        {{- end }}
+        nodeGraph:
+          enabled: true
+        search:
+          hide: false
+        {{- if .Values.featureFlags.enableLoki }}
+        lokiSearch:
+          datasourceUid: loki
+        {{- end }}
+      editable: true
+    {{- end }}
+
+    # TestData para desenvolvimento e demonstrações
+    - name: TestData
+      type: testdata
+      uid: testdata
+      access: proxy
+      orgId: 1
+      editable: true
+      jsonData: {}
+      secureJsonData: {}
+
+    # CloudWatch (se usando AWS)
+    {{- if .Values.aws.enabled }}
+    - name: CloudWatch
+      type: cloudwatch
+      uid: cloudwatch
+      access: proxy
+      jsonData:
+        authType: default
+        defaultRegion: {{ .Values.aws.region | default "us-west-2" }}
+      editable: true
+    {{- end }}
+
+    # PostgreSQL para dados aplicacionais (se disponível)
+    {{- if .Values.postgresql.enabled }}
+    - name: PostgreSQL
+      type: postgres
+      uid: postgresql
+      access: proxy
+      url: {{ .Values.postgresql.host }}:{{ .Values.postgresql.port | default 5432 }}
+      database: {{ .Values.postgresql.database }}
+      user: {{ .Values.postgresql.username }}
+      jsonData:
+        sslmode: require
+        maxOpenConns: 100
+        maxIdleConns: 100
+        maxIdleConnsAuto: true
+        connMaxLifetime: 14400
+        postgresVersion: 15
+        timescaledb: false
+      editable: true
+    {{- end }}
+
+    # InfluxDB para time-series específicas (se disponível)
+    {{- if .Values.influxdb.enabled }}
+    - name: InfluxDB
+      type: influxdb
+      uid: influxdb
+      access: proxy
+      url: {{ .Values.influxdb.url }}
+      database: {{ .Values.influxdb.database }}
+      user: {{ .Values.influxdb.username }}
+      jsonData:
+        version: Flux
+        organization: neural-hive
+        defaultBucket: {{ .Values.influxdb.bucket }}
+        tlsSkipVerify: false
+      editable: true
+    {{- end }}
+
+    # Elasticsearch para logs avançados (se disponível)
+    {{- if .Values.elasticsearch.enabled }}
+    - name: Elasticsearch
+      type: elasticsearch
+      uid: elasticsearch
+      access: proxy
+      url: {{ .Values.elasticsearch.url }}
+      database: {{ .Values.elasticsearch.index | default "neural-hive-*" }}
+      jsonData:
+        index: {{ .Values.elasticsearch.index | default "neural-hive-*" }}
+        timeField: "@timestamp"
+        esVersion: "8.0.0"
+        includeFrozen: false
+        logMessageField: message
+        logLevelField: level
+        maxConcurrentShardRequests: 5
+      editable: true
+    {{- end }}
+
+---
+# ConfigMap para configuração de alerting
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "neural-hive-grafana.fullname" . }}-alerting
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "neural-hive-grafana.labels" . | nindent 4 }}
+data:
+  alerting.yaml: |
+    apiVersion: 1
+
+    # Contact points para notificações
+    contactPoints:
+    - name: neural-hive-slack
+      type: slack
+      settings:
+        url: {{ .Values.alerting.slack.webhookUrl | default "https://hooks.slack.com/services/PLACEHOLDER" }}
+        channel: {{ .Values.alerting.slack.channel | default "#neural-hive-alerts" }}
+        username: Grafana
+        title: "Neural Hive-Mind Alert"
+        text: |
+          **Alert:** {{ `{{ .CommonLabels.alertname }}` }}
+          **Status:** {{ `{{ .Status }}` }}
+          **Environment:** {{ .Values.global.environment }}
+
+          {{ `{{ range .Alerts }}` }}
+          **Summary:** {{ `{{ .Annotations.summary }}` }}
+          **Description:** {{ `{{ .Annotations.description }}` }}
+          **Component:** {{ `{{ .Labels.neural_hive_component }}` }}
+          **Layer:** {{ `{{ .Labels.neural_hive_layer }}` }}
+          {{ `{{ end }}` }}
+
+    - name: neural-hive-teams
+      type: teams
+      settings:
+        url: {{ .Values.alerting.teams.webhookUrl | default "https://outlook.office.com/webhook/PLACEHOLDER" }}
+        title: "Neural Hive-Mind Alert"
+        message: |
+          **Alert Status:** {{ `{{ .Status }}` }}
+          **Environment:** {{ .Values.global.environment }}
+          **Alert Count:** {{ `{{ len .Alerts }}` }}
+
+          {{ `{{ range .Alerts }}` }}
+          - **Alert:** {{ `{{ .Labels.alertname }}` }}
+          - **Component:** {{ `{{ .Labels.neural_hive_component }}` }}
+          - **Summary:** {{ `{{ .Annotations.summary }}` }}
+          {{ `{{ end }}` }}
+
+    # Notification policies
+    policies:
+    - receiver: neural-hive-slack
+      group_by: ['neural_hive_component', 'neural_hive_layer']
+      group_wait: 10s
+      group_interval: 5m
+      repeat_interval: 1h
+      matchers:
+      - neural_hive_component =~ ".*"
+
+      routes:
+      - receiver: neural-hive-teams
+        matchers:
+        - severity = "critical"
+        group_wait: 0s
+        repeat_interval: 15m
+
+---
+# ConfigMap para configuração de notificação
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "neural-hive-grafana.fullname" . }}-notification-templates
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "neural-hive-grafana.labels" . | nindent 4 }}
+data:
+  neural-hive-alert.tmpl: |
+    {{ `{{ define "neural-hive.title" }}` }}
+    Neural Hive-Mind Alert: {{ `{{ .CommonLabels.alertname }}` }}
+    {{ `{{ end }}` }}
+
+    {{ `{{ define "neural-hive.text" }}` }}
+    🤖 **Neural Hive-Mind System Alert** 🤖
+
+    **Environment:** {{ .Values.global.environment }}
+    **Cluster:** {{ .Values.global.cluster | default "neural-hive-main" }}
+    **Timestamp:** {{ `{{ .Alerts | len }}` }} alert(s) at {{ `{{ range .Alerts }}{{ .StartsAt.Format "2006-01-02 15:04:05" }}{{ end }}` }}
+
+    {{ `{{ range .Alerts }}` }}
+    ---
+    **Alert:** {{ `{{ .Labels.alertname }}` }}
+    **Status:** {{ `{{ .Status }}` }}
+    **Severity:** {{ `{{ .Labels.severity | default "unknown" }}` }}
+    **Component:** {{ `{{ .Labels.neural_hive_component | default "unknown" }}` }}
+    **Layer:** {{ `{{ .Labels.neural_hive_layer | default "unknown" }}` }}
+
+    **Summary:** {{ `{{ .Annotations.summary }}` }}
+    **Description:** {{ `{{ .Annotations.description }}` }}
+
+    {{ `{{ if .Annotations.runbook_url }}` }}
+    **Runbook:** {{ `{{ .Annotations.runbook_url }}` }}
+    {{ `{{ end }}` }}
+
+    {{ `{{ if .Labels.neural_hive_intent_id }}` }}
+    **Intent ID:** {{ `{{ .Labels.neural_hive_intent_id }}` }}
+    {{ `{{ end }}` }}
+
+    {{ `{{ if .Labels.neural_hive_plan_id }}` }}
+    **Plan ID:** {{ `{{ .Labels.neural_hive_plan_id }}` }}
+    {{ `{{ end }}` }}
+
+    **Labels:**
+    {{ `{{ range .Labels.SortedPairs }}` }}
+    • {{ `{{ .Name }}`: {{ `{{ .Value }}` }}
+    {{ `{{ end }}` }}
+    {{ `{{ end }}` }}
+
+    📊 **Dashboard:** https://grafana.{{ .Values.global.domain }}/d/neural-hive-overview/neural-hive-overview
+    🔍 **Prometheus:** https://prometheus.{{ .Values.global.domain }}
+    {{ `{{ end }}` }}

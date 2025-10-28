@@ -1,0 +1,222 @@
+## Valores padrão para semantic-translation-engine
+
+# Configuração de imagem
+image:
+  repository: neural-hive-mind/semantic-translation-engine
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+# Deployment
+replicaCount: 2
+
+autoscaling:
+  enabled: false  # Desabilitado por padrão para manter comportamento atual
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+# Recursos
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2
+    memory: 4Gi
+
+# Service
+service:
+  type: ClusterIP
+  port: 8000
+
+# Configurações da aplicação
+config:
+  environment: production
+  logLevel: INFO
+
+  # Kafka
+  kafka:
+    bootstrapServers: "neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092"
+    consumerGroupId: "semantic-translation-engine"
+    topics:
+      - "intentions.business"
+      - "intentions.technical"
+      - "intentions.infrastructure"
+      - "intentions.security"
+    plansTopic: "plans.ready"
+    securityProtocol: "SASL_SSL"
+    saslMechanism: "SCRAM-SHA-512"
+
+  # Neo4j
+  neo4j:
+    uri: "bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687"
+    user: "neo4j"
+    database: "neo4j"
+    queryTimeoutMs: 50
+    maxConnectionPoolSize: 50
+
+  # MongoDB
+  mongodb:
+    uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+    database: "neural_hive"
+    contextCollection: "operational_context"
+    ledgerCollection: "cognitive_ledger"
+    maxPoolSize: 100
+
+  # Redis
+  redis:
+    clusterNodes: "neural-hive-cache.redis-cluster.svc.cluster.local:6379"
+    clusterEnabled: true
+    sslEnabled: true
+    defaultTtl: 600
+    cacheEnabled: true
+
+  # Observabilidade
+  openTelemetry:
+    endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+    samplingRate: 1.0
+
+  # Risk Scoring
+  riskScoring:
+    weightPriority: 0.3
+    weightSecurity: 0.4
+    weightComplexity: 0.3
+    thresholdHigh: 0.7
+    thresholdCritical: 0.9
+
+  # Feature Flags
+  features:
+    knowledgeGraphEnabled: true
+    ledgerEnabled: true
+    explainabilityEnabled: true
+    circuitBreakerEnabled: true
+
+# Secrets (fornecer via values override ou External Secrets)
+secrets:
+  kafkaSaslUsername: ""
+  kafkaSaslPassword: ""
+  neo4jPassword: ""
+  mongodbPassword: ""
+  redisPassword: ""
+
+# Observabilidade
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+istio:
+  enabled: true
+  mtls:
+    mode: STRICT
+
+serviceAccount:
+  create: true
+  name: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8000"
+  prometheus.io/path: "/metrics"
+
+podLabels:
+  app.kubernetes.io/component: semantic-translator
+  neural-hive.io/layer: cognitiva
+  neural-hive.io/domain: plan-generation
+
+# Segurança
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+networkPolicy:
+  enabled: false
+  ingress:
+  - namespace: observability
+    ports: [8080]
+  - namespace: istio-system
+    ports: [8000]
+  egress:
+  - namespaceSelector: {}
+    ports:
+    - port: 53
+      protocol: UDP
+  - namespaceSelector:
+      matchLabels: kafka
+    ports:
+    - port: 9092
+  - namespaceSelector:
+      matchLabels: neo4j-cluster
+    ports:
+    - port: 7687
+  - namespaceSelector:
+      matchLabels: mongodb-cluster
+    ports:
+    - port: 27017
+  - namespaceSelector:
+      matchLabels: redis-cluster
+    ports:
+    - port: 6379
+  - namespaceSelector:
+      matchLabels: observability
+    ports:
+    - port: 4317
+
+tolerations: []
+
+nodeSelector: {}
+
+# Affinity
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: semantic-translation-engine
+          topologyKey: topology.kubernetes.io/zone
+
+# Health checks
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+  initialDelaySeconds: 20
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 2
+
+# Labels
+labels:
+  neural-hive.io/component: semantic-translator
+  neural-hive.io/layer: cognitiva
+  neural-hive.io/domain: plan-generation

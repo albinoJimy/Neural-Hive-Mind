@@ -1,0 +1,49 @@
+{
+  "backup_id": "87862924-0ee7-4c0f-ba03-c4dd739c7c5c",
+  "specialist_type": "technical",
+  "tenant_id": null,
+  "backup_timestamp": "2025-10-11T18:05:17.830995",
+  "backup_version": "1.0.0",
+  "components": {
+    "config": {
+      "included": false,
+      "size_bytes": 0,
+      "checksum": null,
+      "file_count": 0,
+      "metadata": {}
+    },
+    "model": {
+      "included": true,
+      "size_bytes": 900,
+      "checksum": "bcbda99754ad2f1a0db8564e7efbcb3b75d77cd9374628988fdf2f9144084ee8",
+      "file_count": 1,
+      "metadata": {}
+    },
+    "metrics": {
+      "included": true,
+      "size_bytes": 63,
+      "checksum": "5ca448d823c927b47bc2dc551c06318466f2ac9c019e931591de1cf987dfeee6",
+      "file_count": 1,
+      "metadata": {}
+    },
+    "cache": {
+      "included": true,
+      "size_bytes": 34,
+      "checksum": "5c9eb3b3cee97c2e86977d5990e34d2e92c7422f605b2dfe2a8e4354e3455168",
+      "file_count": 1,
+      "metadata": {}
+    }
+  },
+  "checksums": {
+    "model": "bcbda99754ad2f1a0db8564e7efbcb3b75d77cd9374628988fdf2f9144084ee8",
+    "metrics": "5ca448d823c927b47bc2dc551c06318466f2ac9c019e931591de1cf987dfeee6",
+    "cache": "5c9eb3b3cee97c2e86977d5990e34d2e92c7422f605b2dfe2a8e4354e3455168"
+  },
+  "total_size_bytes": 997,
+  "compression_level": 6,
+  "created_by": "neural-hive-disaster-recovery",
+  "metadata": {
+    "environment": "test",
+    "service_name": "test-service"
+  }
+}

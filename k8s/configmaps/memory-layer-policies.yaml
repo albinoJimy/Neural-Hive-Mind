@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: memory-layer-policies
+  namespace: memory-layer-api
+  labels:
+    neural-hive.io/component: memory-layer
+    neural-hive.io/layer: conhecimento-dados
+    app.kubernetes.io/name: memory-layer-api
+    app.kubernetes.io/part-of: neural-hive-mind
+data:
+  retention-policies.yaml: |
+    # Políticas de retenção por camada de memória
+    redis:
+      default_ttl_seconds: 300
+      max_ttl_seconds: 900
+      data_types:
+        context: 300
+        query_cache: 600
+        session: 900
+
+    mongodb:
+      default_retention_days: 30
+      cleanup_enabled: true
+      data_types:
+        operational_context: 30
+        cognitive_ledger: 365  # 1 ano para auditoria
+        specialist_opinions: 90
+        consensus_decisions: 365
+        data_quality_metrics: 90
+        data_lineage: 730  # 2 anos
+
+    clickhouse:
+      default_retention_months: 18
+      partition_by: month
+      data_types:
+        cognitive_plans_history: 18
+        consensus_decisions_history: 24  # 2 anos
+        telemetry_events: 12
+        audit_events: 60  # 5 anos
+
+    neo4j:
+      versioning_enabled: true
+      max_versions_per_ontology: 10
+      archive_old_versions: true
+
+  quality-thresholds.yaml: |
+    # Thresholds de qualidade de dados
+    thresholds:
+      completeness_min: 95.0
+      accuracy_min: 95.0
+      timeliness_max_hours: 24
+      uniqueness_min: 99.0
+      consistency_min: 98.0
+      overall_min: 95.0
+
+    anomaly_detection:
+      enabled: true
+      std_dev_threshold: 3.0
+      window_hours: 24
+
+    freshness:
+      critical_max_hours: 1
+      warning_max_hours: 6
+      info_max_hours: 24

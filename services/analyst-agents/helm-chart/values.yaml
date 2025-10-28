@@ -1,0 +1,75 @@
+replicaCount: 2
+
+image:
+  repository: neural-hive/analyst-agents
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  ports:
+    http: 8000
+    grpc: 50051
+    metrics: 8000
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+env:
+  SERVICE_NAME: analyst-agents
+  SERVICE_VERSION: 1.0.0
+  ENVIRONMENT: production
+  LOG_LEVEL: INFO
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  MONGODB_URI: mongodb://mongodb:27017
+  REDIS_HOST: redis
+  NEO4J_URI: bolt://neo4j:7687
+  CLICKHOUSE_HOST: clickhouse
+  ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+  PROMETHEUS_URL: http://prometheus:9090
+  MEMORY_LAYER_API_URL: http://memory-layer-api:8000
+  QUEEN_AGENT_GRPC_HOST: queen-agent
+  SERVICE_REGISTRY_GRPC_HOST: service-registry
+
+secrets:
+  mongodb_uri: ""
+  redis_password: ""
+  neo4j_password: ""
+  clickhouse_password: ""
+  elasticsearch_password: ""
+
+serviceAccount:
+  create: true
+  name: analyst-agents
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - analyst-agents
+          topologyKey: kubernetes.io/hostname
+
+nodeSelector: {}
+tolerations: []

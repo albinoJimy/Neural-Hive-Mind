@@ -1,0 +1,255 @@
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: datagovernancevalidation
+  labels:
+    neural-hive.io/component: governance
+    neural-hive.io/layer: policy
+spec:
+  crd:
+    spec:
+      names:
+        kind: DataGovernanceValidation
+      validation:
+        type: object
+        properties:
+          # Labels obrigatórias de governança
+          requiredLabels:
+            type: array
+            description: "Lista de labels obrigatórias para governança de dados"
+            items:
+              type: string
+            default:
+              - "neural-hive.io/data-owner"
+              - "neural-hive.io/data-classification"
+              - "neural-hive.io/sla-tier"
+
+          # Classificações válidas
+          allowedClassifications:
+            type: array
+            description: "Classificações de dados permitidas"
+            items:
+              type: string
+            default:
+              - "public"
+              - "internal"
+              - "confidential"
+              - "restricted"
+
+          # SLA tiers válidos
+          allowedSlaTiers:
+            type: array
+            description: "SLA tiers permitidos"
+            items:
+              type: string
+            default:
+              - "bronze"
+              - "silver"
+              - "gold"
+              - "platinum"
+
+          # Recursos que precisam de governança
+          governedResources:
+            type: array
+            description: "Tipos de recursos que requerem governança"
+            items:
+              type: string
+            default:
+              - "Service"
+              - "ConfigMap"
+              - "Secret"
+              - "ApiAsset"
+              - "DataAsset"
+
+          # Namespaces governados
+          governedNamespaces:
+            type: array
+            description: "Namespaces que requerem governança rigorosa"
+            items:
+              type: string
+            default:
+              - "gateway-intencoes"
+              - "redis-cluster"
+              - "auth"
+              - "neural-hive-services"
+
+          # Padrão para data owner
+          dataOwnerPattern:
+            type: string
+            description: "Padrão regex para data owner"
+            default: "^team-.+"
+
+          # Validação de PII obrigatória
+          requirePiiValidation:
+            type: boolean
+            description: "Exigir documentação de campos PII para dados confidenciais"
+            default: true
+
+          # Modo de enforcement
+          enforcementMode:
+            type: string
+            description: "Modo de enforcement (warn, deny)"
+            enum: ["warn", "deny"]
+            default: "warn"
+
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package datagovernancevalidation
+
+        import rego.v1
+
+        # Obter parâmetros da constraint
+        required_labels := object.get(input.parameters, "requiredLabels", [])
+        allowed_classifications := object.get(input.parameters, "allowedClassifications", [])
+        allowed_sla_tiers := object.get(input.parameters, "allowedSlaTiers", [])
+        governed_resources := object.get(input.parameters, "governedResources", [])
+        governed_namespaces := object.get(input.parameters, "governedNamespaces", [])
+        data_owner_pattern := object.get(input.parameters, "dataOwnerPattern", "^team-.+")
+        require_pii := object.get(input.parameters, "requirePiiValidation", true)
+        enforcement_mode := object.get(input.parameters, "enforcementMode", "warn")
+
+        # Verificar se recurso precisa de governança
+        requires_governance if {
+            input.review.object.kind in governed_resources
+            input.review.object.metadata.namespace in governed_namespaces
+        }
+
+        # VIOLATION: Labels obrigatórias ausentes
+        violation[{"msg": msg, "severity": severity}] if {
+            requires_governance
+
+            resource_labels := object.get(input.review.object.metadata, "labels", {})
+            missing_labels := [label | label := required_labels[_]; not resource_labels[label]]
+            count(missing_labels) > 0
+
+            msg := sprintf("Recurso %s/%s deve ter labels de governança: %v", [
+                input.review.object.kind,
+                input.review.object.metadata.name,
+                missing_labels
+            ])
+            severity := enforcement_mode == "deny"
+        }
+
+        # VIOLATION: Classificação inválida
+        violation[{"msg": msg, "severity": severity}] if {
+            requires_governance
+
+            classification := object.get(input.review.object.metadata.labels, "neural-hive.io/data-classification", "")
+            classification != ""
+            not classification in allowed_classifications
+
+            msg := sprintf("Recurso %s/%s tem classificação inválida '%s'. Permitidas: %v", [
+                input.review.object.kind,
+                input.review.object.metadata.name,
+                classification,
+                allowed_classifications
+            ])
+            severity := enforcement_mode == "deny"
+        }
+
+        # VIOLATION: SLA tier inválido
+        violation[{"msg": msg, "severity": severity}] if {
+            requires_governance
+
+            sla_tier := object.get(input.review.object.metadata.labels, "neural-hive.io/sla-tier", "")
+            sla_tier != ""
+            not sla_tier in allowed_sla_tiers
+
+            msg := sprintf("Recurso %s/%s tem SLA tier inválido '%s'. Permitidos: %v", [
+                input.review.object.kind,
+                input.review.object.metadata.name,
+                sla_tier,
+                allowed_sla_tiers
+            ])
+            severity := enforcement_mode == "deny"
+        }
+
+        # VIOLATION: Data owner inválido
+        violation[{"msg": msg, "severity": severity}] if {
+            requires_governance
+
+            owner := object.get(input.review.object.metadata.labels, "neural-hive.io/data-owner", "")
+            owner != ""
+            not regex.match(data_owner_pattern, owner)
+
+            msg := sprintf("Recurso %s/%s tem data-owner inválido '%s'. Deve seguir padrão: %s", [
+                input.review.object.kind,
+                input.review.object.metadata.name,
+                owner,
+                data_owner_pattern
+            ])
+            severity := enforcement_mode == "deny"
+        }
+
+        # VIOLATION: PII não documentado em recursos confidenciais
+        violation[{"msg": msg, "severity": false}] if {
+            require_pii
+            input.review.object.kind == "ApiAsset"
+
+            classification := object.get(input.review.object.spec, "classification", "")
+            classification in ["confidential", "restricted"]
+
+            pii_fields := object.get(input.review.object.spec, "pii_fields", [])
+            count(pii_fields) == 0
+
+            msg := sprintf("ApiAsset %s classificado como '%s' deve documentar campos PII", [
+                input.review.object.metadata.name,
+                classification
+            ])
+        }
+
+        # VIOLATION: Services públicos com dados confidenciais
+        violation[{"msg": msg, "severity": false}] if {
+            input.review.object.kind == "Service"
+            input.review.object.spec.type in ["LoadBalancer", "NodePort"]
+
+            classification := object.get(input.review.object.metadata.labels, "neural-hive.io/data-classification", "")
+            classification in ["confidential", "restricted"]
+
+            msg := sprintf("Service %s exposto publicamente não deveria ter classificação '%s'", [
+                input.review.object.metadata.name,
+                classification
+            ])
+        }
+
+        # VIOLATION: Secrets confidenciais sem encryption extra
+        violation[{"msg": msg, "severity": severity}] if {
+            input.review.object.kind == "Secret"
+
+            classification := object.get(input.review.object.metadata.labels, "neural-hive.io/data-classification", "")
+            classification in ["confidential", "restricted"]
+
+            encrypted := object.get(input.review.object.metadata.annotations, "neural-hive.io/encrypted", "false")
+            encrypted != "true"
+
+            msg := sprintf("Secret %s classificado como '%s' deve ter encryption adicional", [
+                input.review.object.metadata.name,
+                classification
+            ])
+            severity := enforcement_mode == "deny"
+        }
+
+        # VIOLATION: ConfigMaps com dados sensíveis
+        violation[{"msg": msg, "severity": severity}] if {
+            input.review.object.kind == "ConfigMap"
+
+            # Padrões de dados sensíveis
+            sensitive_patterns := ["password", "secret", "key", "token", "credential"]
+
+            # Verificar se alguma chave contém padrões sensíveis
+            some key in object.keys(input.review.object.data)
+            some pattern in sensitive_patterns
+            contains(lower(key), pattern)
+
+            msg := sprintf("ConfigMap %s não deve conter dados sensíveis na chave '%s'", [
+                input.review.object.metadata.name,
+                key
+            ])
+            severity := enforcement_mode == "deny"
+        }
+
+        # Helper para regex match
+        regex_match(pattern, string) if {
+            regex.match(pattern, string)
+        }

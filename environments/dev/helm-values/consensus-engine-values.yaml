@@ -1,0 +1,73 @@
+replicaCount: 1
+
+image:
+  tag: latest
+  pullPolicy: Always
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: 1
+    memory: 2Gi
+
+config:
+  environment: dev
+  logLevel: DEBUG
+
+  kafka:
+    bootstrapServers: "neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092"
+    consumerGroupId: "consensus-engine-dev"
+    plansTopicConsume: "plans.ready"
+    consensusTopicProduce: "plans.consensus"
+    securityProtocol: "PLAINTEXT"
+
+  specialists:
+    business: "specialist-business.specialist-business.svc.cluster.local:50051"
+    technical: "specialist-technical.specialist-technical.svc.cluster.local:50051"
+    behavior: "specialist-behavior.specialist-behavior.svc.cluster.local:50051"
+    evolution: "specialist-evolution.specialist-evolution.svc.cluster.local:50051"
+    architecture: "specialist-architecture.specialist-architecture.svc.cluster.local:50051"
+    grpcTimeoutMs: 5000
+    grpcMaxRetries: 3
+
+  mongodb:
+    uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+    database: "neural_hive_dev"
+    consensusCollection: "consensus_decisions"
+
+  redis:
+    clusterNodes: "neural-hive-cache.redis-cluster.svc.cluster.local:6379"
+    sslEnabled: false
+    pheromoneTtl: 3600
+    pheromoneDecayRate: 0.1
+
+  otel:
+    endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+    samplingRate: 1.0
+
+  consensus:
+    minConfidenceScore: 0.8
+    maxDivergenceThreshold: 0.05
+    highRiskThreshold: 0.7
+    criticalRiskThreshold: 0.9
+    bayesianPriorWeight: 0.1
+    votingWeightDecay: 0.95
+    requireUnanimousForCritical: true
+    fallbackToDeterministic: true
+
+  features:
+    enableBayesianAveraging: true
+    enablePheromones: true
+    enableFallback: true
+    enableParallelInvocation: true
+
+serviceMonitor:
+  enabled: true
+  interval: 60s
+
+networkPolicy:
+  enabled: true
+
+environment: dev

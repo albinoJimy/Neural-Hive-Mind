@@ -1,0 +1,15 @@
+apiVersion: v2
+name: mcp-tool-catalog
+description: MCP Tool Catalog Service with Genetic Algorithm Selection for Neural Hive-Mind
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - mcp
+  - tools
+  - genetic-algorithm
+  - code-generation
+  - neural-hive-mind
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: team@neuralhivemind.com

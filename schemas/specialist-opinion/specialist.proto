@@ -1,0 +1,144 @@
+syntax = "proto3";
+
+package neural_hive.specialist;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+// Serviço principal do especialista
+service SpecialistService {
+  // Avaliar plano cognitivo e retornar parecer
+  rpc EvaluatePlan(EvaluatePlanRequest) returns (EvaluatePlanResponse);
+
+  // Health check do especialista
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+
+  // Obter capacidades e metadados do especialista
+  rpc GetCapabilities(GetCapabilitiesRequest) returns (GetCapabilitiesResponse);
+}
+
+// Request para avaliação de plano
+message EvaluatePlanRequest {
+  string plan_id = 1;
+  string intent_id = 2;
+  string correlation_id = 3;
+  string trace_id = 4;
+  string span_id = 5;
+
+  // Plano cognitivo serializado (JSON ou Avro)
+  bytes cognitive_plan = 6;
+  string plan_version = 7;
+
+  // Contexto adicional
+  map<string, string> context = 8;
+
+  // Timeout sugerido em ms
+  int32 timeout_ms = 9;
+}
+
+// Response com parecer do especialista
+message EvaluatePlanResponse {
+  string opinion_id = 1;
+  string specialist_type = 2;  // business, technical, behavior, evolution, architecture
+  string specialist_version = 3;
+
+  // Parecer estruturado
+  SpecialistOpinion opinion = 4;
+
+  // Metadados de processamento
+  int64 processing_time_ms = 5;
+  google.protobuf.Timestamp evaluated_at = 6;
+}
+
+// Parecer estruturado do especialista
+message SpecialistOpinion {
+  // Score de confiança (0.0-1.0)
+  double confidence_score = 1;
+
+  // Score de risco (0.0-1.0)
+  double risk_score = 2;
+
+  // Recomendação (approve, reject, review_required, conditional)
+  string recommendation = 3;
+
+  // Justificativa estruturada
+  string reasoning_summary = 4;
+  repeated ReasoningFactor reasoning_factors = 5;
+
+  // Explicabilidade
+  string explainability_token = 6;
+  ExplainabilityMetadata explainability = 7;
+
+  // Sugestões de mitigação
+  repeated MitigationSuggestion mitigations = 8;
+
+  // Metadados adicionais
+  map<string, string> metadata = 9;
+}
+
+// Fator de raciocínio
+message ReasoningFactor {
+  string factor_name = 1;
+  double weight = 2;
+  double score = 3;
+  string description = 4;
+}
+
+// Metadados de explicabilidade
+message ExplainabilityMetadata {
+  string method = 1;  // shap, lime, rule_based, heuristic
+  repeated FeatureImportance feature_importances = 2;
+  string model_version = 3;
+  string model_type = 4;
+}
+
+// Importância de features
+message FeatureImportance {
+  string feature_name = 1;
+  double importance = 2;
+  string contribution = 3;  // positive, negative, neutral
+}
+
+// Sugestão de mitigação
+message MitigationSuggestion {
+  string mitigation_id = 1;
+  string description = 2;
+  string priority = 3;  // high, medium, low
+  double estimated_impact = 4;
+  repeated string required_actions = 5;
+}
+
+// Health check
+message HealthCheckRequest {
+  string service_name = 1;
+}
+
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+    SERVICE_UNKNOWN = 3;
+  }
+  ServingStatus status = 1;
+  map<string, string> details = 2;
+}
+
+// Capacidades do especialista
+message GetCapabilitiesRequest {}
+
+message GetCapabilitiesResponse {
+  string specialist_type = 1;
+  string version = 2;
+  repeated string supported_domains = 3;
+  repeated string supported_plan_versions = 4;
+  CapabilityMetrics metrics = 5;
+  map<string, string> configuration = 6;
+}
+
+message CapabilityMetrics {
+  double average_processing_time_ms = 1;
+  double accuracy_score = 2;
+  int32 total_evaluations = 3;
+  google.protobuf.Timestamp last_model_update = 4;
+}

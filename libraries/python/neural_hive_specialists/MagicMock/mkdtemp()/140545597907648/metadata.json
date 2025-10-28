@@ -1,0 +1,50 @@
+{
+  "backup_id": "69b5fd98-90c5-4cfa-b1b9-486968500db1",
+  "specialist_type": "technical",
+  "tenant_id": null,
+  "backup_timestamp": "2025-10-11T18:07:13.944479",
+  "backup_version": "1.0.0",
+  "components": {
+    "ledger": {
+      "included": true,
+      "size_bytes": 4,
+      "checksum": "c8549d3fc9d8688b9315d15eedae5c9e93bd08d7268d584a73d6c933a3261407",
+      "file_count": 1,
+      "metadata": {}
+    },
+    "model": {
+      "included": true,
+      "size_bytes": 4,
+      "checksum": "c8549d3fc9d8688b9315d15eedae5c9e93bd08d7268d584a73d6c933a3261407",
+      "file_count": 1,
+      "metadata": {}
+    },
+    "metrics": {
+      "included": true,
+      "size_bytes": 63,
+      "checksum": "740cf49527f00c3fffcf63cedb35feabd101e41277a6ad148412f9515a0c0656",
+      "file_count": 1,
+      "metadata": {}
+    },
+    "cache": {
+      "included": true,
+      "size_bytes": 34,
+      "checksum": "5c9eb3b3cee97c2e86977d5990e34d2e92c7422f605b2dfe2a8e4354e3455168",
+      "file_count": 1,
+      "metadata": {}
+    }
+  },
+  "checksums": {
+    "ledger": "c8549d3fc9d8688b9315d15eedae5c9e93bd08d7268d584a73d6c933a3261407",
+    "model": "c8549d3fc9d8688b9315d15eedae5c9e93bd08d7268d584a73d6c933a3261407",
+    "metrics": "740cf49527f00c3fffcf63cedb35feabd101e41277a6ad148412f9515a0c0656",
+    "cache": "5c9eb3b3cee97c2e86977d5990e34d2e92c7422f605b2dfe2a8e4354e3455168"
+  },
+  "total_size_bytes": 105,
+  "compression_level": 6,
+  "created_by": "neural-hive-disaster-recovery",
+  "metadata": {
+    "environment": "test",
+    "service_name": "test-service"
+  }
+}

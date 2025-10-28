@@ -1,0 +1,192 @@
+groups:
+- name: neural-hive.consensus-availability
+  rules:
+  - alert: ConsensusEngineDown
+    expr: up{neural_hive_component="consensus-engine"} == 0
+    for: 2m
+    labels:
+      severity: critical
+      neural_hive_component: consensus-engine
+      neural_hive_layer: governanca
+    annotations:
+      summary: "Consensus Engine está inativo"
+      description: "Consensus Engine está down há mais de 2 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/consensus-engine-down"
+      dashboard_url: "https://grafana.neural-hive.local/d/consensus-governance"
+
+  - alert: ConsensusKafkaConsumerLag
+    expr: kafka_consumer_lag_max{consumer_group="consensus-engine"} > 100
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: consensus-engine
+      neural_hive_layer: governanca
+    annotations:
+      summary: "Consensus Engine com lag no Kafka"
+      description: "Consumer lag de {{ $value }} mensagens no tópico {{ $labels.topic }}"
+      runbook_url: "https://docs.neural-hive.local/runbooks/kafka-consumer-lag"
+
+  - alert: ConsensusKafkaConnectionFailed
+    expr: increase(neural_hive_consensus_kafka_connection_failures_total[5m]) > 0
+    for: 1m
+    labels:
+      severity: critical
+      neural_hive_component: consensus-engine
+      neural_hive_layer: governanca
+    annotations:
+      summary: "Consensus Engine perdeu conexão com Kafka"
+      description: "Falha de conexão com Kafka detectada"
+      runbook_url: "https://docs.neural-hive.local/runbooks/kafka-connection-failure"
+
+- name: neural-hive.consensus-performance
+  rules:
+  - alert: ConsensusHighLatency
+    expr: rate(neural_hive_consensus_duration_seconds_sum[5m]) / rate(neural_hive_consensus_duration_seconds_count[5m]) > 10
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: consensus-engine
+      neural_hive_layer: governanca
+    annotations:
+      summary: "Consensus Engine com alta latência"
+      description: "Latência média de decisão: {{ $value | humanizeDuration }} (>10s)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/consensus-high-latency"
+
+  - alert: ConsensusBayesianAggregationFailed
+    expr: increase(neural_hive_consensus_bayesian_failures_total[5m]) > 5
+    for: 5m
+    labels:
+      severity: critical
+      neural_hive_component: consensus-engine
+      neural_hive_layer: governanca
+    annotations:
+      summary: "Falha na agregação Bayesiana"
+      description: "{{ $value }} falhas de agregação Bayesiana nos últimos 5 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/bayesian-aggregation-failure"
+
+  - alert: ConsensusLowThroughput
+    expr: rate(neural_hive_consensus_decisions_total[1m]) * 60 < 5
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: consensus-engine
+      neural_hive_layer: governanca
+    annotations:
+      summary: "Consensus Engine com baixo throughput"
+      description: "Apenas {{ $value }} decisões/min sendo processadas (<5)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/consensus-low-throughput"
+
+- name: neural-hive.consensus-quality
+  rules:
+  - alert: ConsensusLowConfidence
+    expr: avg(neural_hive_consensus_confidence) < 0.7
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: consensus-engine
+      neural_hive_layer: governanca
+    annotations:
+      summary: "Consensus com baixa confiança"
+      description: "Confiança média do consensus: {{ $value | humanizePercentage }} (<70%)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/consensus-low-confidence"
+
+  - alert: ConsensusDecisionPersistenceFailed
+    expr: increase(neural_hive_consensus_decision_persistence_failures_total[5m]) > 3
+    for: 5m
+    labels:
+      severity: critical
+      neural_hive_component: consensus-engine
+      neural_hive_layer: governanca
+    annotations:
+      summary: "Falha ao persistir decisão no MongoDB"
+      description: "{{ $value }} falhas ao persistir decisões no ledger cognitivo"
+      runbook_url: "https://docs.neural-hive.local/runbooks/decision-persistence-failure"
+
+  - alert: ConsensusPheromonePublishFailed
+    expr: increase(neural_hive_consensus_pheromone_publish_failures_total[5m]) > 5
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: consensus-engine
+      neural_hive_layer: governanca
+    annotations:
+      summary: "Falha ao publicar feromônios no Redis"
+      description: "{{ $value }} falhas ao publicar feromônios nos últimos 5 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/pheromone-publish-failure"
+
+- name: neural-hive.consensus-governance
+  rules:
+  - alert: ConsensusExplainabilityMissing
+    expr: sum(neural_hive_explainability_tokens_generated_total) / sum(neural_hive_consensus_decisions_total) < 0.99
+    for: 5m
+    labels:
+      severity: critical
+      neural_hive_component: consensus-engine
+      neural_hive_layer: governanca
+    annotations:
+      summary: "Cobertura de explicabilidade abaixo do limite"
+      description: "Explicabilidade em {{ $value | humanizePercentage }} (<99% requerido)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/explainability-missing"
+      dashboard_url: "https://grafana.neural-hive.local/d/governance-executive-dashboard"
+
+  - alert: ConsensusLedgerIntegrityFailed
+    expr: increase(neural_hive_ledger_hash_verification_failures_total[5m]) > 0
+    for: 1m
+    labels:
+      severity: critical
+      neural_hive_component: consensus-engine
+      neural_hive_layer: governanca
+    annotations:
+      summary: "Falha na verificação de integridade do ledger"
+      description: "Hash SHA-256 não confere no ledger cognitivo"
+      runbook_url: "https://docs.neural-hive.local/runbooks/ledger-integrity-failure"
+
+  - alert: ConsensusAuditTrailIncomplete
+    expr: increase(neural_hive_audit_trail_gaps_total[5m]) > 0
+    for: 1m
+    labels:
+      severity: warning
+      neural_hive_component: consensus-engine
+      neural_hive_layer: governanca
+    annotations:
+      summary: "Lacunas detectadas no audit trail"
+      description: "Audit trail incompleto - governança pode estar comprometida"
+      runbook_url: "https://docs.neural-hive.local/runbooks/audit-trail-incomplete"
+
+- name: neural-hive.consensus-pheromones
+  rules:
+  - alert: PheromonePublishRateLow
+    expr: rate(neural_hive_pheromones_published_total[10m]) < 0.5 * rate(neural_hive_pheromones_published_total[1h] offset 1h)
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: consensus-engine
+      neural_hive_layer: governanca
+    annotations:
+      summary: "Taxa de publicação de feromônios caiu"
+      description: "Taxa de feromônios caiu >50% comparado à última hora"
+      runbook_url: "https://docs.neural-hive.local/runbooks/pheromone-rate-drop"
+
+  - alert: PheromoneRedisConnectionFailed
+    expr: increase(neural_hive_pheromone_redis_connection_failures_total[5m]) > 0
+    for: 1m
+    labels:
+      severity: critical
+      neural_hive_component: consensus-engine
+      neural_hive_layer: governanca
+    annotations:
+      summary: "Falha na conexão com Redis para feromônios"
+      description: "Consensus Engine não consegue publicar feromônios no Redis"
+      runbook_url: "https://docs.neural-hive.local/runbooks/redis-connection-failure"
+
+  - alert: PheromoneEvaporationStalled
+    expr: time() - neural_hive_pheromone_last_evaporation_timestamp > 900
+    for: 15m
+    labels:
+      severity: warning
+      neural_hive_component: consensus-engine
+      neural_hive_layer: governanca
+    annotations:
+      summary: "Processo de evaporação de feromônios travado"
+      description: "Última evaporação há {{ $value | humanizeDuration }} (>15min)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/pheromone-evaporation-stalled"

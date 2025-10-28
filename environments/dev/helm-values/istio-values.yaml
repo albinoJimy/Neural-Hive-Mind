@@ -1,0 +1,202 @@
+# Configurações Istio para ambiente DEV - Neural Hive-Mind
+# Otimizado para desenvolvimento e debugging
+
+global:
+  # Resource limits reduzidos para desenvolvimento
+  proxy:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+    # Logging verboso para debugging em dev
+    logLevel: debug
+    componentLogLevel: "misc:info"
+
+    # Access logs habilitados para troubleshooting
+    accessLogFile: /dev/stdout
+    accessLogFormat: |
+      [%START_TIME%] "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%"
+      %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT%
+      %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% "%REQ(X-FORWARDED-FOR)%"
+      "%REQ(USER-AGENT)%" "%REQ(X-REQUEST-ID)%" "%REQ(:AUTHORITY)%" "%UPSTREAM_HOST%"
+      "UPSTREAM_CLUSTER:%UPSTREAM_CLUSTER%" "DOWNSTREAM_REMOTE_ADDRESS:%DOWNSTREAM_REMOTE_ADDRESS%"
+
+  # Configurações de tracing para desenvolvimento
+  tracer:
+    zipkin:
+      address: "otel-collector.neural-hive-observability:9411"
+
+istiod:
+  # Control plane com configurações de desenvolvimento
+  pilot:
+    # Auto-scaling desabilitado em dev
+    autoscaleEnabled: false
+    # Apenas 1 replica para desenvolvimento
+    replicaCount: 1
+
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+
+    # Configurações de debugging
+    env:
+      # Habilitar protocolo sniffing para desenvolvimento
+      PILOT_ENABLE_PROTOCOL_SNIFFING_FOR_INBOUND: true
+      PILOT_ENABLE_PROTOCOL_SNIFFING_FOR_OUTBOUND: true
+
+      # Tracing 100% em desenvolvimento
+      PILOT_TRACE_SAMPLING: "100.0"
+
+      # Debug adicional
+      PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION: false
+      PILOT_ENABLE_WORKLOAD_ENTRY_HEALTHCHECKS: true
+
+      # Verificações de certificado mais relaxadas
+      VERIFY_CERTIFICATE_AT_CLIENT: false
+      ENABLE_AUTO_MTLS: true
+
+      # Log level verboso
+      PILOT_LOG_LEVEL: "debug"
+
+  # Telemetry configurada para desenvolvimento
+  telemetry:
+    v2:
+      enabled: true
+      # Configurações para debugging
+      prometheus:
+        configOverride:
+          # Métricas com mais detalhes
+          metric_expiry_duration: 5m
+          metric_rotation_interval: 1m
+          # Incluir métricas de debug
+          inbound_sidecar:
+            disable_host_header_fallback: false
+          outbound_sidecar:
+            disable_host_header_fallback: false
+
+# Configurações de gateway para desenvolvimento
+gateways:
+  istio-ingressgateway:
+    # Apenas 1 replica em desenvolvimento
+    replicaCount: 1
+
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+    # Service type LoadBalancer para acesso fácil
+    serviceType: LoadBalancer
+
+    # Ports adicionais para desenvolvimento
+    service:
+      ports:
+        - port: 15020
+          targetPort: 15020
+          name: status-port
+        - port: 15021
+          targetPort: 15021
+          name: health-check-port
+        - port: 15090
+          targetPort: 15090
+          name: http-envoy-prom
+
+# Sidecar injection mais permissiva em dev
+sidecarInjectorWebhook:
+  # Injeção automática em namespaces de desenvolvimento
+  enableNamespacesByDefault:
+    - neural-hive-cognition
+    - neural-hive-orchestration
+    - neural-hive-execution
+    - neural-hive-observability
+    - default  # Para testes ad-hoc
+
+  # Resources menores para sidecars em dev
+  templates:
+    sidecar:
+      resources:
+        requests:
+          cpu: 25m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+
+# Configurações específicas de desenvolvimento
+meshConfig:
+  # Access logs habilitados
+  accessLogFile: /dev/stdout
+
+  # Configurações relaxadas para desenvolvimento
+  defaultConfig:
+    # Hold application startup para debug
+    holdApplicationUntilProxyStarts: true
+    # Drain mais rápido em dev
+    drainDuration: 15s
+    # Concorrência menor para economizar recursos
+    concurrency: 1
+    # Stats mais verbosos
+    proxyStatsMatcher:
+      inclusionRegexps:
+        - ".*"
+      exclusionRegexps:
+        - "cluster.outbound|443||kubernetes.*"
+
+  # Providers de observabilidade para desenvolvimento
+  extensionProviders:
+    - name: otel-dev
+      envoyOtelAls:
+        service: opentelemetry-collector.neural-hive-observability.svc.cluster.local
+        port: 4317
+        logFormat:
+          jsonFormat:
+            timestamp: "%START_TIME%"
+            method: "%REQ(:METHOD)%"
+            path: "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%"
+            protocol: "%PROTOCOL%"
+            responseCode: "%RESPONSE_CODE%"
+            responseFlags: "%RESPONSE_FLAGS%"
+            duration: "%DURATION%"
+
+  # Circuit breaker mais permissivo para desenvolvimento
+  defaultDestinationRulePolicy:
+    trafficPolicy:
+      connectionPool:
+        tcp:
+          maxConnections: 10  # Menor para dev
+        http:
+          http2MaxRequests: 10
+          maxRequestsPerConnection: 1
+      outlierDetection:
+        consecutiveErrors: 10  # Mais permissivo
+        interval: 60s
+        baseEjectionTime: 10s
+        maxEjectionPercent: 30
+        minHealthPercent: 50
+
+# Debugging features habilitadas
+values:
+  # Habilitar debug endpoints
+  global:
+    proxy:
+      privileged: true
+      enableCoreDump: true
+
+  pilot:
+    env:
+      EXTERNAL_ISTIOD: false
+      PILOT_DEBUG_ENDPOINTS: true
+
+# Environment marker
+environment: "dev"

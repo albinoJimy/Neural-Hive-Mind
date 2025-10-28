@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+package optimizer_agent;
+
+service OptimizerAgent {
+  // Trigger manual de otimização
+  rpc TriggerOptimization(TriggerOptimizationRequest) returns (TriggerOptimizationResponse);
+
+  // Obter status de otimização
+  rpc GetOptimizationStatus(GetOptimizationStatusRequest) returns (GetOptimizationStatusResponse);
+
+  // Listar otimizações
+  rpc ListOptimizations(ListOptimizationsRequest) returns (ListOptimizationsResponse);
+
+  // Rollback de otimização
+  rpc RollbackOptimization(RollbackOptimizationRequest) returns (RollbackOptimizationResponse);
+
+  // Obter estatísticas
+  rpc GetStatistics(GetStatisticsRequest) returns (GetStatisticsResponse);
+
+  // Health check
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message TriggerOptimizationRequest {
+  string component = 1;
+  string optimization_type = 2; // WEIGHT_RECALIBRATION, SLO_ADJUSTMENT, etc.
+  map<string, string> context = 3;
+}
+
+message TriggerOptimizationResponse {
+  string experiment_id = 1;
+  string status = 2;
+  string message = 3;
+}
+
+message GetOptimizationStatusRequest {
+  string optimization_id = 1;
+}
+
+message GetOptimizationStatusResponse {
+  string optimization_id = 1;
+  string status = 2;
+  double improvement_percentage = 3;
+  map<string, double> metrics = 4;
+}
+
+message ListOptimizationsRequest {
+  string component = 1;
+  string optimization_type = 2;
+  int32 limit = 3;
+  int32 skip = 4;
+}
+
+message ListOptimizationsResponse {
+  repeated OptimizationSummary optimizations = 1;
+  int32 total = 2;
+}
+
+message OptimizationSummary {
+  string optimization_id = 1;
+  string optimization_type = 2;
+  string component = 3;
+  double improvement_percentage = 4;
+  string status = 5;
+  int64 applied_at = 6;
+}
+
+message RollbackOptimizationRequest {
+  string optimization_id = 1;
+  string reason = 2;
+}
+
+message RollbackOptimizationResponse {
+  string status = 1;
+  string message = 2;
+}
+
+message GetStatisticsRequest {
+  int32 days = 1;
+}
+
+message GetStatisticsResponse {
+  int32 total_optimizations = 1;
+  double success_rate = 2;
+  double average_improvement = 3;
+  map<string, int32> by_type = 4;
+  map<string, int32> by_component = 5;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  string status = 1;
+  string version = 2;
+}

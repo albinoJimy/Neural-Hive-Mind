@@ -1,0 +1,61 @@
+# Constraint para aplicar validação de assinatura de imagens
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: NeuralHiveImageSignature
+metadata:
+  name: enforce-signed-images
+  labels:
+    neuralhive/policy: security
+    neuralhive/enforcement: active
+spec:
+  enforcementAction: warn # Começar com warn, evoluir para enforce
+  match:
+    kinds:
+      - apiGroups: ["", "apps", "batch"]
+        kinds:
+          - Pod
+          - Deployment
+          - StatefulSet
+          - DaemonSet
+          - Job
+          - CronJob
+          - ReplicaSet
+    namespaceSelector:
+      matchLabels:
+        neural-hive.io/secured: "true"
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+      - istio-system
+      - gatekeeper-system
+      - cosign-system
+  parameters:
+    enforcementMode: warn
+    allowedRegistries:
+      # Registries públicos permitidos
+      - "public.ecr.aws/"
+      - "docker.io/"
+      - "gcr.io/"
+      - "ghcr.io/"
+      - "quay.io/"
+      # Registry privado do Neural Hive-Mind (será substituído pelo script de deploy)
+      - "ECR_REGISTRY_URL_PLACEHOLDER/"
+    trustedRegistries:
+      # Registries que não requerem verificação de assinatura (componentes de sistema)
+      - "k8s.gcr.io/"
+      - "registry.k8s.io/"
+      - "gcr.io/istio-release/"
+      - "docker.io/istio/"
+      - "gcr.io/projectsigstore/"  # Sigstore components
+      - "openpolicyagent/"          # OPA components
+      - "jetstack/"                 # cert-manager components
+    requireSignature: true
+    allowedTags:
+      - "v*"
+      - "release-*"
+      - "stable"
+    # Configuração para transição automática warn→enforce
+    autoTransition:
+      enabled: true
+      afterDays: 7
+      annotation: "gatekeeper.sh/policy-transition-date"

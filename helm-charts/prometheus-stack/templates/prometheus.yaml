@@ -1,0 +1,292 @@
+{{- if .Values.prometheus.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: {{ include "neural-hive-prometheus-stack.fullname" . }}-prometheus
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "neural-hive-prometheus-stack.labels" . | nindent 4 }}
+    neural.hive/component: prometheus
+    neural.hive/layer: observabilidade
+spec:
+  replicas: {{ .Values.prometheus.prometheus.prometheusSpec.replicas }}
+
+  # Service Account
+  serviceAccountName: {{ include "neural-hive-prometheus-stack.fullname" . }}-prometheus
+
+  # Service Monitor Selector
+  serviceMonitorSelector:
+    matchLabels:
+      neural.hive/metrics: "enabled"
+
+  # Pod Monitor Selector
+  podMonitorSelector:
+    matchLabels:
+      neural.hive/instrumented: "true"
+
+  # Rule Selector
+  ruleSelector:
+    matchLabels:
+      prometheus: {{ include "neural-hive-prometheus-stack.fullname" . }}
+      role: alert-rules
+
+  # Retention
+  retention: {{ .Values.prometheus.prometheus.prometheusSpec.retention }}
+  retentionSize: {{ .Values.prometheus.prometheus.prometheusSpec.retentionSize }}
+
+  # Storage
+  storage:
+    volumeClaimTemplate:
+      metadata:
+        name: prometheus-storage
+      spec:
+        storageClassName: {{ .Values.prometheus.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName }}
+        accessModes:
+        {{- range .Values.prometheus.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.accessModes }}
+        - {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.prometheus.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage }}
+
+  # Resources
+  resources:
+    {{- toYaml .Values.prometheus.prometheus.prometheusSpec.resources | nindent 4 }}
+
+  # Security Context
+  securityContext:
+    {{- toYaml .Values.prometheus.prometheus.prometheusSpec.securityContext | nindent 4 }}
+
+  # Affinity
+  affinity:
+    {{- toYaml .Values.prometheus.prometheus.prometheusSpec.affinity | nindent 4 }}
+
+  # Tolerations
+  {{- with .Values.tolerations }}
+  tolerations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  # Node Selector
+  {{- with .Values.nodeSelector }}
+  nodeSelector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  # Additional Scrape Configs
+  additionalScrapeConfigs:
+    name: {{ include "neural-hive-prometheus-stack.fullname" . }}-scrape-config
+    key: additional-scrape-configs.yaml
+
+  # External Labels
+  externalLabels:
+    cluster: {{ .Values.global.cluster }}
+    environment: {{ .Values.global.environment }}
+    neural_hive_instance: {{ .Release.Name }}
+
+  # Alerting
+  alerting:
+    alertmanagers:
+    - namespace: {{ .Release.Namespace }}
+      name: {{ include "neural-hive-prometheus-stack.fullname" . }}-alertmanager
+      port: web
+
+  # Enable features
+  enableFeatures:
+  - memory-snapshot-on-shutdown
+  - expand-external-labels
+  - new-service-discovery-manager
+
+  # WAL Compression
+  walCompression: true
+
+  # Query
+  query:
+    timeout: 300s
+    maxConcurrency: 20
+    maxSamples: 50000000
+
+  # Shards
+  shards: 1
+
+  # Image
+  image:
+    repository: quay.io/prometheus/prometheus
+    tag: v2.47.0
+    sha: ""
+
+  # Log Level
+  logLevel: info
+  logFormat: logfmt
+
+  # Port Name
+  portName: web
+
+  # Listen Local
+  listenLocal: false
+
+  # Container Port
+  web:
+    port: 9090
+
+  # Thanos
+  {{- if .Values.thanos.enabled }}
+  thanos:
+    image: quay.io/thanos/thanos:v0.32.5
+    version: v0.32.5
+    objectStorageConfig:
+      name: thanos-storage-config
+      key: object-store.yaml
+  {{- end }}
+
+---
+# ConfigMap para scrape configs adicionais
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "neural-hive-prometheus-stack.fullname" . }}-scrape-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "neural-hive-prometheus-stack.labels" . | nindent 4 }}
+data:
+  additional-scrape-configs.yaml: |
+    # Neural Hive-Mind Services
+    - job_name: 'neural-hive-services'
+      kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+          - neural-hive
+          - gateway
+          - default
+      relabel_configs:
+      # Manter apenas pods com annotation neural.hive/metrics=enabled
+      - source_labels: [__meta_kubernetes_pod_annotation_neural_hive_metrics]
+        action: keep
+        regex: enabled
+      # Usar porta da annotation se especificada
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        target_label: __address__
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: ${1}:${2}
+      # Path customizado
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      # Labels do Neural Hive-Mind
+      - source_labels: [__meta_kubernetes_pod_label_neural_hive_component]
+        target_label: neural_hive_component
+      - source_labels: [__meta_kubernetes_pod_label_neural_hive_layer]
+        target_label: neural_hive_layer
+      - source_labels: [__meta_kubernetes_pod_label_neural_hive_domain]
+        target_label: neural_hive_domain
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod_name
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: kubernetes_namespace
+      # Relabel para métricas específicas
+      metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'neural_hive_.*'
+        target_label: __tmp_neural_hive_metric
+        replacement: 'true'
+      - source_labels: [intent_id]
+        regex: '(.+)'
+        target_label: neural_hive_intent_id
+        replacement: '${1}'
+      - source_labels: [plan_id]
+        regex: '(.+)'
+        target_label: neural_hive_plan_id
+        replacement: '${1}'
+
+    # OpenTelemetry Collector
+    - job_name: 'opentelemetry-collector'
+      static_configs:
+      - targets: ['opentelemetry-collector.{{ .Release.Namespace }}.svc.cluster.local:8888']
+      scrape_interval: 15s
+      metrics_path: /metrics
+      static_labels:
+        job: opentelemetry-collector
+        neural_hive_component: telemetry-collector
+        neural_hive_layer: observabilidade
+
+    # Gateway de Intenções específico
+    - job_name: 'neural-hive-gateway'
+      static_configs:
+      - targets: ['gateway-intencoes-service.gateway.svc.cluster.local:8000']
+      scrape_interval: 10s
+      metrics_path: '/metrics'
+      static_labels:
+        neural_hive_component: gateway
+        neural_hive_layer: experiencia
+        neural_hive_domain: captura-intencoes
+
+    # Istio Service Mesh
+    - job_name: 'istio-mesh'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - istio-system
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: istio-proxy;http-monitoring
+      - source_labels: [__address__, __meta_kubernetes_endpoint_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:15090
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_service_name]
+        action: replace
+        target_label: service_name
+
+    # Kafka Cluster
+    - job_name: 'kafka-cluster'
+      static_configs:
+      - targets:
+        - 'kafka-0.kafka.svc.cluster.local:9308'
+        - 'kafka-1.kafka.svc.cluster.local:9308'
+        - 'kafka-2.kafka.svc.cluster.local:9308'
+      scrape_interval: 30s
+      static_labels:
+        neural_hive_component: kafka
+        neural_hive_layer: orquestracao
+
+    # Kubernetes API Server
+    - job_name: 'kubernetes-apiservers'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names: [default]
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: default;kubernetes;https
+
+    # Kubelet metrics
+    - job_name: 'kubernetes-nodes-kubelet'
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      kubernetes_sd_configs:
+      - role: node
+      relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+
+{{- end }}

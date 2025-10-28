@@ -1,0 +1,422 @@
+# Alertas de Multi-Tenancy - Neural Hive Mind
+#
+# Este arquivo define alertas para monitoramento de multi-tenancy,
+# incluindo rate limiting, latência, taxa de erro e cardinality.
+#
+# Deploy:
+#   kubectl apply -f monitoring/alerts/multi-tenancy-alerts.yaml
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: multi-tenancy-alerts
+  namespace: neural-hive-mind
+  labels:
+    app: neural-hive
+    component: alerting
+data:
+  multi-tenancy-alerts.yaml: |
+    groups:
+    - name: neural_hive_multi_tenancy
+      interval: 30s
+      rules:
+
+      # ============================================================================
+      # Alertas de Rate Limiting
+      # ============================================================================
+
+      - alert: TenantRateLimitExceeded
+        expr: |
+          sum(rate(envoy_cluster_upstream_rq_429[5m])) by (tenant_id) > 5
+        for: 2m
+        labels:
+          severity: warning
+          component: rate-limiting
+          layer: gateway
+        annotations:
+          summary: "Tenant {{ $labels.tenant_id }} excedendo rate limit"
+          description: |
+            O tenant {{ $labels.tenant_id }} está excedendo o rate limit há mais de 2 minutos.
+
+            Taxa atual: {{ $value | humanize }} reqs/s rejeitadas
+
+            Ações recomendadas:
+            - Verificar se é tráfego legítimo ou ataque
+            - Considerar aumentar o rate limit para este tenant
+            - Contatar o cliente se necessário
+
+      - alert: TenantRateLimitCritical
+        expr: |
+          sum(rate(envoy_cluster_upstream_rq_429[5m])) by (tenant_id) > 20
+        for: 1m
+        labels:
+          severity: critical
+          component: rate-limiting
+          layer: gateway
+        annotations:
+          summary: "Tenant {{ $labels.tenant_id }} com rate limit crítico"
+          description: |
+            O tenant {{ $labels.tenant_id }} está sendo fortemente limitado ({{ $value | humanize }} reqs/s rejeitadas).
+
+            Possível DDoS ou configuração incorreta do cliente.
+
+            Ações imediatas:
+            - Verificar logs do tenant
+            - Bloquear se for ataque
+            - Aumentar limite temporariamente se for legítimo
+
+      # ============================================================================
+      # Alertas de Latência
+      # ============================================================================
+
+      - alert: TenantHighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum by (tenant_id, le) (
+              rate(neural_hive_tenant_evaluation_duration_seconds_bucket[5m])
+            )
+          ) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          component: specialist
+          layer: application
+        annotations:
+          summary: "Latência P95 alta para tenant {{ $labels.tenant_id }}"
+          description: |
+            O tenant {{ $labels.tenant_id }} está com latência P95 de {{ $value | humanizePercentage }}s.
+
+            Limite aceitável: 1.0s
+            Valor atual: {{ $value | humanizePercentage }}s
+
+            Ações recomendadas:
+            - Verificar modelo ML específico do tenant
+            - Checar cache hit rate do tenant
+            - Analisar complexidade dos planos cognitivos
+
+      - alert: TenantVeryHighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum by (tenant_id, le) (
+              rate(neural_hive_tenant_evaluation_duration_seconds_bucket[5m])
+            )
+          ) > 2.0
+        for: 3m
+        labels:
+          severity: critical
+          component: specialist
+          layer: application
+        annotations:
+          summary: "Latência P95 CRÍTICA para tenant {{ $labels.tenant_id }}"
+          description: |
+            O tenant {{ $labels.tenant_id }} está com latência P95 crítica de {{ $value | humanizePercentage }}s.
+
+            Impacto no SLA: Alto risco de violação
+
+            Ações imediatas:
+            - Escalar especialistas para este tenant
+            - Verificar modelo ML (timeout?)
+            - Alertar time de operações
+
+      - alert: TenantLatencySpike
+        expr: |
+          (
+            histogram_quantile(0.95,
+              sum by (tenant_id, le) (
+                rate(neural_hive_tenant_evaluation_duration_seconds_bucket[5m])
+              )
+            )
+            /
+            histogram_quantile(0.95,
+              sum by (tenant_id, le) (
+                rate(neural_hive_tenant_evaluation_duration_seconds_bucket[1h] offset 1h)
+              )
+            )
+          ) > 2.0
+        for: 2m
+        labels:
+          severity: warning
+          component: specialist
+          layer: application
+        annotations:
+          summary: "Spike de latência para tenant {{ $labels.tenant_id }}"
+          description: |
+            O tenant {{ $labels.tenant_id }} teve um aumento de {{ $value | humanizePercentage }}x na latência P95.
+
+            Possíveis causas:
+            - Mudança no padrão de requests
+            - Degradação de infraestrutura
+            - Cold start de modelo ML
+
+      # ============================================================================
+      # Alertas de Taxa de Erro
+      # ============================================================================
+
+      - alert: TenantHighErrorRate
+        expr: |
+          (
+            sum(rate(neural_hive_tenant_errors_total[5m])) by (tenant_id)
+            /
+            sum(rate(neural_hive_tenant_evaluations_total[5m])) by (tenant_id)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: specialist
+          layer: application
+        annotations:
+          summary: "Taxa de erro alta para tenant {{ $labels.tenant_id }}"
+          description: |
+            O tenant {{ $labels.tenant_id }} está com {{ $value | humanizePercentage }}% de taxa de erro.
+
+            Limite aceitável: 5%
+            Valor atual: {{ $value | humanizePercentage }}%
+
+            Ações recomendadas:
+            - Analisar tipos de erro (error_type label)
+            - Verificar validação de tenants
+            - Checar configuração do tenant
+
+      - alert: TenantCriticalErrorRate
+        expr: |
+          (
+            sum(rate(neural_hive_tenant_errors_total[5m])) by (tenant_id)
+            /
+            sum(rate(neural_hive_tenant_evaluations_total[5m])) by (tenant_id)
+          ) > 0.20
+        for: 2m
+        labels:
+          severity: critical
+          component: specialist
+          layer: application
+        annotations:
+          summary: "Taxa de erro CRÍTICA para tenant {{ $labels.tenant_id }}"
+          description: |
+            O tenant {{ $labels.tenant_id }} está com {{ $value | humanizePercentage }}% de taxa de erro.
+
+            Impacto: Serviço degradado para este tenant
+
+            Ações imediatas:
+            - Verificar se tenant está ativo
+            - Validar modelo ML do tenant
+            - Escalar para engenharia
+
+      # ============================================================================
+      # Alertas de Cache
+      # ============================================================================
+
+      - alert: TenantLowCacheHitRate
+        expr: |
+          (
+            sum(rate(neural_hive_tenant_cache_hits_total[10m])) by (tenant_id)
+            /
+            (
+              sum(rate(neural_hive_tenant_cache_hits_total[10m])) by (tenant_id)
+              +
+              sum(rate(neural_hive_tenant_cache_misses_total[10m])) by (tenant_id)
+            )
+          ) < 0.30
+        for: 10m
+        labels:
+          severity: info
+          component: cache
+          layer: data
+        annotations:
+          summary: "Cache hit rate baixo para tenant {{ $labels.tenant_id }}"
+          description: |
+            O tenant {{ $labels.tenant_id }} está com cache hit rate de {{ $value | humanizePercentage }}%.
+
+            Esperado: > 30%
+            Atual: {{ $value | humanizePercentage }}%
+
+            Possíveis causas:
+            - Padrões de request não repetitivos
+            - TTL de cache muito baixo
+            - Tenant novo (ainda populando cache)
+
+      - alert: TenantCacheHitRateDrop
+        expr: |
+          (
+            sum(rate(neural_hive_tenant_cache_hits_total[5m])) by (tenant_id)
+            /
+            (
+              sum(rate(neural_hive_tenant_cache_hits_total[5m])) by (tenant_id)
+              +
+              sum(rate(neural_hive_tenant_cache_misses_total[5m])) by (tenant_id)
+            )
+          )
+          <
+          0.5 * (
+            sum(rate(neural_hive_tenant_cache_hits_total[1h] offset 1h)) by (tenant_id)
+            /
+            (
+              sum(rate(neural_hive_tenant_cache_hits_total[1h] offset 1h)) by (tenant_id)
+              +
+              sum(rate(neural_hive_tenant_cache_misses_total[1h] offset 1h)) by (tenant_id)
+            )
+          )
+        for: 5m
+        labels:
+          severity: warning
+          component: cache
+          layer: data
+        annotations:
+          summary: "Queda de cache hit rate para tenant {{ $labels.tenant_id }}"
+          description: |
+            O cache hit rate do tenant {{ $labels.tenant_id }} caiu 50% em relação à última hora.
+
+            Possíveis causas:
+            - Mudança no padrão de requests
+            - Invalidação em massa do cache
+            - Problema no Redis
+
+      # ============================================================================
+      # Alertas de Cardinality
+      # ============================================================================
+
+      - alert: TenantCardinalityCapApproaching
+        expr: |
+          count(
+            count by (tenant_id) (
+              neural_hive_tenant_evaluations_total{tenant_id!="other"}
+            )
+          ) > 45
+        for: 5m
+        labels:
+          severity: warning
+          component: metrics
+          layer: observability
+        annotations:
+          summary: "Cardinality de tenants se aproximando do limite"
+          description: |
+            O número de tenants rastreados ({{ $value }}) está se aproximando do limite de 50.
+
+            Limite configurado: 50
+            Atual: {{ $value }}
+
+            Tenants adicionais serão agregados em 'other'.
+
+            Ações recomendadas:
+            - Aumentar max_tenants no SpecialistConfig
+            - Revisar se todos os tenants são necessários
+
+      - alert: TenantCardinalityCapReached
+        expr: |
+          sum(rate(neural_hive_tenant_evaluations_total{tenant_id="other"}[5m])) > 1
+        for: 2m
+        labels:
+          severity: warning
+          component: metrics
+          layer: observability
+        annotations:
+          summary: "Cardinality cap atingido - tenants sendo agregados em 'other'"
+          description: |
+            Tenants estão sendo agregados no label 'other' devido ao cardinality cap.
+
+            Taxa de requests agregados: {{ $value | humanize }} reqs/s
+
+            Perda de visibilidade para estes tenants.
+
+            Ações:
+            - Aumentar max_tenants urgentemente
+            - Verificar quais tenants estão em 'other'
+
+      # ============================================================================
+      # Alertas de Tenant Inativo
+      # ============================================================================
+
+      - alert: InactiveTenantAttempts
+        expr: |
+          sum(rate(neural_hive_tenant_errors_total{error_type="tenant_inactive"}[5m])) by (tenant_id) > 1
+        for: 3m
+        labels:
+          severity: info
+          component: validation
+          layer: application
+        annotations:
+          summary: "Tentativas de acesso com tenant inativo: {{ $labels.tenant_id }}"
+          description: |
+            Há tentativas de acesso usando o tenant inativo {{ $labels.tenant_id }}.
+
+            Taxa: {{ $value | humanize }} tentativas/s
+
+            Possíveis causas:
+            - Cliente não foi notificado da desativação
+            - Cliente esqueceu de atualizar configuração
+            - Tentativa maliciosa
+
+      - alert: UnknownTenantAttempts
+        expr: |
+          sum(rate(neural_hive_tenant_errors_total{error_type="tenant_unknown"}[5m])) by (tenant_id) > 5
+        for: 2m
+        labels:
+          severity: warning
+          component: validation
+          layer: application
+        annotations:
+          summary: "Tentativas de acesso com tenant desconhecido"
+          description: |
+            Há múltiplas tentativas de acesso usando tenants desconhecidos.
+
+            Taxa: {{ $value | humanize }} tentativas/s
+
+            Possíveis causas:
+            - Ataque de força bruta
+            - Erro de configuração no cliente
+            - Tenant ainda não configurado
+
+      # ============================================================================
+      # Alertas de Volume Anormal
+      # ============================================================================
+
+      - alert: TenantTrafficSpike
+        expr: |
+          (
+            sum(rate(neural_hive_tenant_evaluations_total[5m])) by (tenant_id)
+            /
+            avg_over_time(
+              sum(rate(neural_hive_tenant_evaluations_total[5m])) by (tenant_id)[1h:5m]
+            )
+          ) > 3.0
+        for: 5m
+        labels:
+          severity: warning
+          component: specialist
+          layer: application
+        annotations:
+          summary: "Spike de tráfego para tenant {{ $labels.tenant_id }}"
+          description: |
+            O tenant {{ $labels.tenant_id }} teve um aumento de {{ $value | humanizePercentage }}x no tráfego.
+
+            Possíveis causas:
+            - Evento legítimo (campanha, launch)
+            - Ataque DDoS
+            - Loop de requests
+
+      - alert: TenantTrafficDrop
+        expr: |
+          (
+            sum(rate(neural_hive_tenant_evaluations_total[5m])) by (tenant_id)
+            /
+            avg_over_time(
+              sum(rate(neural_hive_tenant_evaluations_total[5m])) by (tenant_id)[1h:5m]
+            )
+          ) < 0.1
+          and
+          sum(rate(neural_hive_tenant_evaluations_total[5m])) by (tenant_id) > 0
+        for: 10m
+        labels:
+          severity: info
+          component: specialist
+          layer: application
+        annotations:
+          summary: "Queda de tráfego para tenant {{ $labels.tenant_id }}"
+          description: |
+            O tenant {{ $labels.tenant_id }} teve uma queda de 90% no tráfego.
+
+            Tráfego atual: {{ $value | humanize }} reqs/s
+
+            Possíveis causas:
+            - Manutenção planejada
+            - Problema no cliente
+            - Cliente migrou para outro provider

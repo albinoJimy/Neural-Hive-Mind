@@ -1,0 +1,90 @@
+name: MLflow Model Promotion
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_name:
+        description: 'Nome do modelo a promover'
+        required: true
+        type: string
+      model_version:
+        description: 'Versão do modelo'
+        required: true
+        type: string
+      min_precision:
+        description: 'Precisão mínima (0.0-1.0)'
+        required: false
+        default: '0.7'
+        type: string
+      min_recall:
+        description: 'Recall mínimo (0.0-1.0)'
+        required: false
+        default: '0.7'
+        type: string
+      min_f1:
+        description: 'F1-score mínimo (0.0-1.0)'
+        required: false
+        default: '0.7'
+        type: string
+      target_stage:
+        description: 'Stage de destino'
+        required: false
+        default: 'Production'
+        type: choice
+        options:
+          - Staging
+          - Production
+
+jobs:
+  validate-and-promote:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v3
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install mlflow>=2.9.0 structlog
+
+      - name: Validar modelo
+        id: validate
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        run: |
+          python scripts/mlflow/validate_model.py \
+            --model-name "${{ github.event.inputs.model_name }}" \
+            --model-version "${{ github.event.inputs.model_version }}" \
+            --min-precision ${{ github.event.inputs.min_precision }} \
+            --min-recall ${{ github.event.inputs.min_recall }} \
+            --min-f1 ${{ github.event.inputs.min_f1 }} \
+            --tracking-uri "$MLFLOW_TRACKING_URI"
+
+      - name: Promover modelo
+        if: steps.validate.outcome == 'success'
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        run: |
+          python scripts/mlflow/promote_model.py \
+            --model-name "${{ github.event.inputs.model_name }}" \
+            --model-version "${{ github.event.inputs.model_version }}" \
+            --target-stage "${{ github.event.inputs.target_stage }}" \
+            --tracking-uri "$MLFLOW_TRACKING_URI"
+
+      - name: Notificar sucesso
+        if: success()
+        run: |
+          echo "✅ Modelo ${{ github.event.inputs.model_name }} v${{ github.event.inputs.model_version }} promovido com sucesso para ${{ github.event.inputs.target_stage }}"
+
+      - name: Notificar falha
+        if: failure()
+        run: |
+          echo "❌ Falha ao promover modelo ${{ github.event.inputs.model_name }} v${{ github.event.inputs.model_version }}"
+          echo "Verifique os logs acima para detalhes sobre métricas que não atingiram os thresholds"
+          exit 1

@@ -1,0 +1,14 @@
+apiVersion: v2
+name: optimizer-agents
+description: Optimizer Agents - Continuous Improvement and Policy Recalibration
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: team@neuralhivemind.io
+keywords:
+  - optimizer
+  - reinforcement-learning
+  - experiments
+  - continuous-improvement

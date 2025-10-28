@@ -1,0 +1,66 @@
+{
+  "backup_id": "1d69d31d-938e-4782-8f2f-72ba46635603",
+  "specialist_type": "technical",
+  "tenant_id": null,
+  "backup_timestamp": "2025-10-11T18:06:12.698283",
+  "backup_version": "1.0.0",
+  "components": {
+    "metrics": {
+      "included": true,
+      "size_bytes": 4,
+      "checksum": "7b3d979ca8330a94fa7e9e1b466d8b99e0bcdea1ec90596c0dcc8d7ef6b4300c",
+      "file_count": 1,
+      "metadata": {}
+    },
+    "model": {
+      "included": true,
+      "size_bytes": 4,
+      "checksum": "7b3d979ca8330a94fa7e9e1b466d8b99e0bcdea1ec90596c0dcc8d7ef6b4300c",
+      "file_count": 1,
+      "metadata": {}
+    },
+    "feature_store": {
+      "included": true,
+      "size_bytes": 4,
+      "checksum": "7b3d979ca8330a94fa7e9e1b466d8b99e0bcdea1ec90596c0dcc8d7ef6b4300c",
+      "file_count": 1,
+      "metadata": {}
+    },
+    "cache": {
+      "included": true,
+      "size_bytes": 4,
+      "checksum": "7b3d979ca8330a94fa7e9e1b466d8b99e0bcdea1ec90596c0dcc8d7ef6b4300c",
+      "file_count": 1,
+      "metadata": {}
+    },
+    "ledger": {
+      "included": true,
+      "size_bytes": 4,
+      "checksum": "7b3d979ca8330a94fa7e9e1b466d8b99e0bcdea1ec90596c0dcc8d7ef6b4300c",
+      "file_count": 1,
+      "metadata": {}
+    },
+    "config": {
+      "included": true,
+      "size_bytes": 4,
+      "checksum": "7b3d979ca8330a94fa7e9e1b466d8b99e0bcdea1ec90596c0dcc8d7ef6b4300c",
+      "file_count": 1,
+      "metadata": {}
+    }
+  },
+  "checksums": {
+    "metrics": "7b3d979ca8330a94fa7e9e1b466d8b99e0bcdea1ec90596c0dcc8d7ef6b4300c",
+    "model": "7b3d979ca8330a94fa7e9e1b466d8b99e0bcdea1ec90596c0dcc8d7ef6b4300c",
+    "feature_store": "7b3d979ca8330a94fa7e9e1b466d8b99e0bcdea1ec90596c0dcc8d7ef6b4300c",
+    "cache": "7b3d979ca8330a94fa7e9e1b466d8b99e0bcdea1ec90596c0dcc8d7ef6b4300c",
+    "ledger": "7b3d979ca8330a94fa7e9e1b466d8b99e0bcdea1ec90596c0dcc8d7ef6b4300c",
+    "config": "7b3d979ca8330a94fa7e9e1b466d8b99e0bcdea1ec90596c0dcc8d7ef6b4300c"
+  },
+  "total_size_bytes": 24,
+  "compression_level": 6,
+  "created_by": "neural-hive-disaster-recovery",
+  "metadata": {
+    "environment": "test",
+    "service_name": "test-service"
+  }
+}

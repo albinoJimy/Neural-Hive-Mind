@@ -1,0 +1,14 @@
+# Test results and reports
+tests/results/*.json
+tests/results/*.md
+tests/results/*.log
+tests/results/*.txt
+!tests/results/.gitkeep
+
+# Temporary test artifacts
+*.test.tmp
+*.test.log
+test-*.tmp
+
+# Port-forward PIDs
+*.pf.pid

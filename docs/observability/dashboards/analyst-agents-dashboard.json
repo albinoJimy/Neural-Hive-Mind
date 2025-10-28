@@ -1,0 +1,275 @@
+{
+  "dashboard": {
+    "title": "Analyst Agents - Insights Multi-Fonte",
+    "tags": ["neural-hive", "analyst-agents", "insights", "analytics"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Overview - Insights Gerados",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(insights_generated_total[5m]))",
+            "legendFormat": "Insights/s"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Insights por Tipo",
+        "type": "piechart",
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0},
+        "targets": [
+          {
+            "expr": "sum by (type) (insights_generated_total)",
+            "legendFormat": "{{type}}"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Insights por Prioridade",
+        "type": "bargauge",
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "sum by (priority) (insights_generated_total)",
+            "legendFormat": "{{priority}}"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Taxa de Anomalias Detectadas",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0},
+        "targets": [
+          {
+            "expr": "rate(anomalies_detected_total[5m])",
+            "legendFormat": "{{method}}"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Kafka Consumers - Lag",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "kafka_consumer_lag_gauge",
+            "legendFormat": "{{topic}}-{{partition}}"
+          }
+        ],
+        "yaxes": [
+          {"label": "Lag (messages)", "format": "short"}
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Kafka Consumers - Taxa de Consumo",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "rate(kafka_messages_consumed_total[5m])",
+            "legendFormat": "{{topic}}"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Query Engine - Performance",
+        "type": "heatmap",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14},
+        "targets": [
+          {
+            "expr": "rate(query_duration_seconds_bucket[5m])",
+            "legendFormat": "{{source}}"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Query Engine - Taxa de Sucesso",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14},
+        "targets": [
+          {
+            "expr": "sum by (source, status) (rate(queries_executed_total[5m]))",
+            "legendFormat": "{{source}} - {{status}}"
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Analytics Engine - Duração por Tipo",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 22},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(insight_generation_duration_seconds_bucket[5m]))",
+            "legendFormat": "P95 - {{type}}"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(insight_generation_duration_seconds_bucket[5m]))",
+            "legendFormat": "P50 - {{type}}"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Cache - Hit Rate",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 6, "x": 12, "y": 22},
+        "targets": [
+          {
+            "expr": "sum(rate(cache_operations_total{result=\"hit\"}[5m])) / sum(rate(cache_operations_total[5m])) * 100",
+            "legendFormat": "Hit Rate %"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Cache - Insights Cacheados",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 6, "x": 18, "y": 22},
+        "targets": [
+          {
+            "expr": "insights_cached_gauge",
+            "legendFormat": "Cached Insights"
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "API REST - Request Rate",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 28},
+        "targets": [
+          {
+            "expr": "sum by (endpoint, method) (rate(http_requests_total[5m]))",
+            "legendFormat": "{{method}} {{endpoint}}"
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "title": "API REST - Latência (P95)",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 28},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{endpoint}}"
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "title": "Erros - Taxa de Erro Total",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 34},
+        "targets": [
+          {
+            "expr": "sum(rate(processing_errors_total[5m]))",
+            "legendFormat": "Total Errors/s"
+          }
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [10], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "name": "High Error Rate"
+        }
+      },
+      {
+        "id": 15,
+        "title": "Database - MongoDB Operations",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 6, "x": 12, "y": 34},
+        "targets": [
+          {
+            "expr": "rate(mongodb_operations_total[5m])",
+            "legendFormat": "{{operation}}"
+          }
+        ]
+      },
+      {
+        "id": 16,
+        "title": "Database - Redis Operations",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 6, "x": 18, "y": 34},
+        "targets": [
+          {
+            "expr": "rate(cache_operations_total[5m])",
+            "legendFormat": "{{operation}} - {{result}}"
+          }
+        ]
+      },
+      {
+        "id": 17,
+        "title": "Embedding Service - Operações",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 40},
+        "targets": [
+          {
+            "expr": "rate(embedding_operations_total[5m])",
+            "legendFormat": "{{operation}}"
+          }
+        ]
+      },
+      {
+        "id": 18,
+        "title": "Causal Analyzer - Análises",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 40},
+        "targets": [
+          {
+            "expr": "rate(causal_analysis_total[5m])",
+            "legendFormat": "{{analysis_type}}"
+          }
+        ]
+      },
+      {
+        "id": 19,
+        "title": "Pods - CPU Usage",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 46},
+        "targets": [
+          {
+            "expr": "rate(container_cpu_usage_seconds_total{pod=~\"analyst-agents.*\"}[5m])",
+            "legendFormat": "{{pod}}"
+          }
+        ]
+      },
+      {
+        "id": 20,
+        "title": "Pods - Memory Usage",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 46},
+        "targets": [
+          {
+            "expr": "container_memory_working_set_bytes{pod=~\"analyst-agents.*\"} / 1024 / 1024",
+            "legendFormat": "{{pod}}"
+          }
+        ],
+        "yaxes": [
+          {"label": "Memory (MB)", "format": "short"}
+        ]
+      }
+    ]
+  }
+}

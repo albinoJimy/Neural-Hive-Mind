@@ -1,0 +1,298 @@
+{
+  "type": "record",
+  "name": "StrategicDecision",
+  "namespace": "com.neuralhive.strategic",
+  "doc": "Schema para decisões estratégicas do Queen Agent",
+  "fields": [
+    {
+      "name": "decision_id",
+      "type": "string",
+      "doc": "Identificador único da decisão estratégica (UUID)"
+    },
+    {
+      "name": "decision_type",
+      "type": {
+        "type": "enum",
+        "name": "DecisionType",
+        "symbols": [
+          "PRIORITIZATION",
+          "CONFLICT_RESOLUTION",
+          "REPLANNING",
+          "EXCEPTION_APPROVAL",
+          "QOS_ADJUSTMENT",
+          "RESOURCE_REALLOCATION"
+        ]
+      },
+      "doc": "Tipo de decisão estratégica"
+    },
+    {
+      "name": "correlation_id",
+      "type": "string",
+      "doc": "ID de correlação para rastreabilidade"
+    },
+    {
+      "name": "trace_id",
+      "type": "string",
+      "doc": "Trace ID do OpenTelemetry"
+    },
+    {
+      "name": "span_id",
+      "type": "string",
+      "doc": "Span ID do OpenTelemetry"
+    },
+    {
+      "name": "triggered_by",
+      "type": {
+        "type": "record",
+        "name": "TriggeredBy",
+        "fields": [
+          {
+            "name": "event_type",
+            "type": "string",
+            "doc": "Tipo de evento que acionou a decisão"
+          },
+          {
+            "name": "source_id",
+            "type": "string",
+            "doc": "ID da fonte que acionou (ex: decision_id do Consensus Engine)"
+          },
+          {
+            "name": "timestamp",
+            "type": "long",
+            "logicalType": "timestamp-millis",
+            "doc": "Timestamp do evento de acionamento"
+          }
+        ]
+      },
+      "doc": "Informações sobre o que acionou a decisão"
+    },
+    {
+      "name": "context",
+      "type": {
+        "type": "record",
+        "name": "DecisionContext",
+        "fields": [
+          {
+            "name": "active_plans",
+            "type": {
+              "type": "array",
+              "items": "string"
+            },
+            "doc": "IDs dos planos cognitivos ativos"
+          },
+          {
+            "name": "critical_incidents",
+            "type": {
+              "type": "array",
+              "items": "string"
+            },
+            "doc": "IDs de incidentes críticos ativos"
+          },
+          {
+            "name": "sla_violations",
+            "type": {
+              "type": "array",
+              "items": "string"
+            },
+            "doc": "IDs de violações de SLA"
+          },
+          {
+            "name": "resource_saturation",
+            "type": "double",
+            "doc": "Percentual de saturação de recursos (0-1)"
+          }
+        ]
+      },
+      "doc": "Contexto estratégico no momento da decisão"
+    },
+    {
+      "name": "analysis",
+      "type": {
+        "type": "record",
+        "name": "DecisionAnalysis",
+        "fields": [
+          {
+            "name": "neo4j_query_results",
+            "type": {
+              "type": "map",
+              "values": "string"
+            },
+            "doc": "Resultados de queries Neo4j (JSON serializado)"
+          },
+          {
+            "name": "pheromone_signals",
+            "type": {
+              "type": "map",
+              "values": "double"
+            },
+            "doc": "Sinais de feromônios por domínio"
+          },
+          {
+            "name": "metrics_snapshot",
+            "type": {
+              "type": "map",
+              "values": "double"
+            },
+            "doc": "Snapshot de métricas do Prometheus"
+          },
+          {
+            "name": "conflict_domains",
+            "type": {
+              "type": "array",
+              "items": "string"
+            },
+            "doc": "Domínios em conflito identificados"
+          }
+        ]
+      },
+      "doc": "Análise realizada para a decisão"
+    },
+    {
+      "name": "decision",
+      "type": {
+        "type": "record",
+        "name": "DecisionAction",
+        "fields": [
+          {
+            "name": "action",
+            "type": "string",
+            "doc": "Ação a ser tomada"
+          },
+          {
+            "name": "target_entities",
+            "type": {
+              "type": "array",
+              "items": "string"
+            },
+            "doc": "IDs das entidades alvo (workflows, planos, agentes)"
+          },
+          {
+            "name": "parameters",
+            "type": {
+              "type": "map",
+              "values": "string"
+            },
+            "doc": "Parâmetros da ação (JSON serializado)"
+          },
+          {
+            "name": "rationale",
+            "type": "string",
+            "doc": "Justificativa da decisão"
+          }
+        ]
+      },
+      "doc": "Decisão tomada e ação recomendada"
+    },
+    {
+      "name": "confidence_score",
+      "type": "double",
+      "doc": "Score de confiança na decisão (0-1)"
+    },
+    {
+      "name": "risk_assessment",
+      "type": {
+        "type": "record",
+        "name": "RiskAssessment",
+        "fields": [
+          {
+            "name": "risk_score",
+            "type": "double",
+            "doc": "Score de risco (0-1)"
+          },
+          {
+            "name": "risk_factors",
+            "type": {
+              "type": "array",
+              "items": "string"
+            },
+            "doc": "Fatores de risco identificados"
+          },
+          {
+            "name": "mitigations",
+            "type": {
+              "type": "array",
+              "items": "string"
+            },
+            "doc": "Mitigações recomendadas"
+          }
+        ]
+      },
+      "doc": "Avaliação de risco da decisão"
+    },
+    {
+      "name": "guardrails_validated",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "doc": "Lista de guardrails éticos validados"
+    },
+    {
+      "name": "actions_taken",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "ActionTaken",
+          "fields": [
+            {
+              "name": "action_type",
+              "type": "string",
+              "doc": "Tipo de ação executada"
+            },
+            {
+              "name": "target_service",
+              "type": "string",
+              "doc": "Serviço alvo da ação"
+            },
+            {
+              "name": "status",
+              "type": "string",
+              "doc": "Status da execução"
+            },
+            {
+              "name": "timestamp",
+              "type": "long",
+              "logicalType": "timestamp-millis",
+              "doc": "Timestamp da execução"
+            }
+          ]
+        }
+      },
+      "doc": "Ações já executadas"
+    },
+    {
+      "name": "explainability_token",
+      "type": "string",
+      "doc": "Token para explicabilidade da decisão"
+    },
+    {
+      "name": "reasoning_summary",
+      "type": "string",
+      "doc": "Resumo da lógica de decisão em linguagem natural"
+    },
+    {
+      "name": "created_at",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Timestamp de criação da decisão"
+    },
+    {
+      "name": "expires_at",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Timestamp de expiração da decisão"
+    },
+    {
+      "name": "hash",
+      "type": "string",
+      "doc": "Hash SHA-256 para integridade da decisão"
+    },
+    {
+      "name": "schema_version",
+      "type": "int",
+      "default": 1,
+      "doc": "Versão do schema"
+    }
+  ]
+}

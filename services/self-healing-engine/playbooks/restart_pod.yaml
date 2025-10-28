@@ -1,0 +1,36 @@
+playbook_id: "restart-pod-v1"
+playbook_name: "restart_pod"
+playbook_type: "KUBERNETES"
+version: "1.0.0"
+description: "Restart a Kubernetes pod by deleting it (Kubernetes will recreate)"
+parameters_schema:
+  type: object
+  properties:
+    pod_name:
+      type: string
+      description: "Name of the pod to restart"
+    namespace:
+      type: string
+      description: "Namespace of the pod"
+  required: [pod_name, namespace]
+required_capabilities: ["kubernetes.pods.delete", "kubernetes.pods.get"]
+timeout_seconds: 120
+max_retries: 2
+rollback_playbook: null
+validation_checks:
+  - "pod_running"
+  - "pod_ready"
+status: "AVAILABLE"
+steps:
+  - name: "Delete pod"
+    action: "delete_pod"
+    parameters:
+      pod_name: "{{ pod_name }}"
+      namespace: "{{ namespace }}"
+  - name: "Wait for pod to be recreated"
+    action: "wait_for_pod"
+    parameters:
+      pod_name: "{{ pod_name }}"
+      namespace: "{{ namespace }}"
+      timeout: 90
+      condition: "ready"

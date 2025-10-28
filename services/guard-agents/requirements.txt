@@ -1,0 +1,36 @@
+# Core Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# gRPC
+grpcio==1.75.1
+grpcio-tools==1.75.1
+grpcio-health-checking==1.75.1
+
+# Kafka
+aiokafka==0.8.1
+confluent-kafka[avro]==2.3.0
+
+# Databases
+motor==3.3.2
+redis[hiredis]==5.0.1
+
+# Kubernetes Client
+kubernetes==28.1.0
+
+# Observability
+prometheus-client==0.19.0
+opentelemetry-api==1.21.0
+opentelemetry-sdk==1.21.0
+opentelemetry-instrumentation-fastapi==0.42b0
+opentelemetry-instrumentation-grpc==0.42b0
+opentelemetry-exporter-otlp==1.21.0
+structlog==23.2.0
+
+# Utilities
+httpx==0.25.1
+python-json-logger==2.0.7
+python-dotenv==1.0.0
+pyyaml==6.0.1

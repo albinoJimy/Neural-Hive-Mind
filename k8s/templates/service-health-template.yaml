@@ -1,0 +1,299 @@
+# Neural Hive-Mind Service Health Check Template
+# This template provides standardized Kubernetes health check configuration
+# for all Neural Hive-Mind services.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: SERVICE_NAME
+  namespace: neural-hive
+  labels:
+    app.kubernetes.io/name: SERVICE_NAME
+    app.kubernetes.io/component: SERVICE_COMPONENT
+    neural.hive/component: SERVICE_COMPONENT
+    neural.hive/layer: SERVICE_LAYER
+    neural.hive/version: SERVICE_VERSION
+spec:
+  replicas: 2  # Adjust based on service requirements
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: SERVICE_NAME
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: SERVICE_NAME
+        app.kubernetes.io/component: SERVICE_COMPONENT
+        neural.hive/component: SERVICE_COMPONENT
+        neural.hive/layer: SERVICE_LAYER
+        neural.hive/version: SERVICE_VERSION
+        # Required for service mesh
+        neural.hive/instrumented: "true"
+      annotations:
+        # Prometheus scraping
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "SERVICE_PORT"
+        # Neural Hive annotations
+        neural.hive/component: SERVICE_COMPONENT
+        neural.hive/layer: SERVICE_LAYER
+    spec:
+      containers:
+      - name: SERVICE_NAME
+        image: SERVICE_IMAGE
+        ports:
+        - name: http
+          containerPort: SERVICE_PORT
+          protocol: TCP
+        - name: metrics
+          containerPort: SERVICE_PORT
+          protocol: TCP
+
+        # Environment variables
+        env:
+        - name: NEURAL_HIVE_SERVICE_NAME
+          value: SERVICE_NAME
+        - name: NEURAL_HIVE_COMPONENT
+          value: SERVICE_COMPONENT
+        - name: NEURAL_HIVE_LAYER
+          value: SERVICE_LAYER
+        - name: NEURAL_HIVE_VERSION
+          value: SERVICE_VERSION
+        - name: OTEL_SERVICE_NAME
+          value: SERVICE_NAME
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: "neural.hive.component=SERVICE_COMPONENT,neural.hive.layer=SERVICE_LAYER"
+
+        # Liveness Probe - Checks if the application is alive
+        # If this fails, Kubernetes will restart the container
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 30    # Wait 30s after container starts
+          periodSeconds: 10          # Check every 10 seconds
+          timeoutSeconds: 5          # Timeout after 5 seconds
+          successThreshold: 1        # Must succeed once
+          failureThreshold: 3        # Fail after 3 consecutive failures
+
+        # Readiness Probe - Checks if the application is ready to serve traffic
+        # If this fails, Kubernetes will stop sending traffic to this pod
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 5     # Start checking after 5 seconds
+          periodSeconds: 5           # Check every 5 seconds
+          timeoutSeconds: 3          # Timeout after 3 seconds
+          successThreshold: 1        # Must succeed once to be ready
+          failureThreshold: 3        # Fail after 3 consecutive failures
+
+        # Startup Probe - For slow-starting containers
+        # This disables liveness and readiness probes until it succeeds
+        startupProbe:
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 10    # Start checking after 10 seconds
+          periodSeconds: 10          # Check every 10 seconds
+          timeoutSeconds: 5          # Timeout after 5 seconds
+          successThreshold: 1        # Must succeed once
+          failureThreshold: 6        # Allow up to 60 seconds (6 * 10s) for startup
+
+        # Resource limits and requests
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+          requests:
+            cpu: 500m
+            memory: 1Gi
+
+        # Security context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10001
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+
+      # Pod-level security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+
+      # Service account for RBAC
+      serviceAccountName: SERVICE_NAME
+
+      # Anti-affinity for HA - prefer different nodes
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                  - SERVICE_NAME
+              topologyKey: kubernetes.io/hostname
+
+      # Termination grace period
+      terminationGracePeriodSeconds: 30
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: SERVICE_NAME
+  namespace: neural-hive
+  labels:
+    app.kubernetes.io/name: SERVICE_NAME
+    app.kubernetes.io/component: SERVICE_COMPONENT
+    neural.hive/component: SERVICE_COMPONENT
+    neural.hive/layer: SERVICE_LAYER
+  annotations:
+    neural.hive/component: SERVICE_COMPONENT
+    neural.hive/layer: SERVICE_LAYER
+    # Service monitor label for Prometheus
+    neural.hive/metrics: "enabled"
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+  - name: metrics
+    port: SERVICE_PORT
+    targetPort: metrics
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: SERVICE_NAME
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: SERVICE_NAME
+  namespace: neural-hive
+  labels:
+    app.kubernetes.io/name: SERVICE_NAME
+    app.kubernetes.io/component: SERVICE_COMPONENT
+    neural.hive/component: SERVICE_COMPONENT
+    neural.hive/layer: SERVICE_LAYER
+  annotations:
+    neural.hive/component: SERVICE_COMPONENT
+    neural.hive/layer: SERVICE_LAYER
+
+---
+# ServiceMonitor for Prometheus scraping
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: SERVICE_NAME
+  namespace: neural-hive
+  labels:
+    app.kubernetes.io/name: SERVICE_NAME
+    app.kubernetes.io/component: SERVICE_COMPONENT
+    neural.hive/component: SERVICE_COMPONENT
+    neural.hive/layer: SERVICE_LAYER
+    neural.hive/metrics: "enabled"
+spec:
+  selector:
+    matchLabels:
+      neural.hive/metrics: "enabled"
+      app.kubernetes.io/name: SERVICE_NAME
+  endpoints:
+  - port: metrics
+    interval: 30s
+    scrapeTimeout: 10s
+    path: /metrics
+    honorLabels: true
+
+---
+# PodDisruptionBudget for HA
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: SERVICE_NAME
+  namespace: neural-hive
+  labels:
+    app.kubernetes.io/name: SERVICE_NAME
+    app.kubernetes.io/component: SERVICE_COMPONENT
+    neural.hive/component: SERVICE_COMPONENT
+    neural.hive/layer: SERVICE_LAYER
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: SERVICE_NAME
+
+---
+# NetworkPolicy for service communication
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: SERVICE_NAME
+  namespace: neural-hive
+  labels:
+    app.kubernetes.io/name: SERVICE_NAME
+    app.kubernetes.io/component: SERVICE_COMPONENT
+    neural.hive/component: SERVICE_COMPONENT
+    neural.hive/layer: SERVICE_LAYER
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: SERVICE_NAME
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow traffic from other Neural Hive services
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: neural-hive
+    ports:
+    - protocol: TCP
+      port: SERVICE_PORT
+  # Allow traffic from observability namespace (Prometheus, etc.)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: observability
+    ports:
+    - protocol: TCP
+      port: SERVICE_PORT
+  egress:
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # Allow traffic to other Neural Hive services
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: neural-hive
+  # Allow traffic to observability services
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: observability
+  # Allow traffic to external services (customize as needed)
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS
+    - protocol: TCP
+      port: 80   # HTTP

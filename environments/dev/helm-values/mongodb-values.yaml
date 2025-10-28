@@ -1,0 +1,114 @@
+# Valores MongoDB para ambiente DEV - Neural Hive-Mind
+
+cluster:
+  name: neural-hive-mongodb-dev
+  namespace: mongodb-cluster
+  version: "7.0.5"
+  members: 3  # Mínimo para ReplicaSet
+
+storage:
+  size: 20Gi  # Menor que prod
+  storageClass: gp3-ssd
+  accessMode: ReadWriteOnce
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 1Gi
+  limits:
+    cpu: 1
+    memory: 4Gi
+
+security:
+  auth:
+    enabled: true
+    existingSecret: ""
+    # password deve ser fornecido via override ou variável de ambiente
+  tls:
+    enabled: false  # Simplificar em dev
+
+backup:
+  enabled: false  # Desabilitar em dev
+  schedule: "0 2 * * *"
+  retention: 3
+
+metrics:
+  enabled: true
+  image: percona/mongodb_exporter:0.40
+  port: 9216
+  serviceMonitor:
+    enabled: true
+    interval: 60s  # Menos frequente em dev
+    scrapeTimeout: 10s
+    namespace: mongodb-cluster
+
+service:
+  type: ClusterIP
+  port: 27017
+  annotations:
+    neural-hive.io/service-type: database
+    neural-hive.io/component: operational-context
+    neural-hive.io/environment: dev
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9216"
+  prometheus.io/path: "/metrics"
+  neural-hive.io/environment: dev
+
+podLabels:
+  app.kubernetes.io/name: mongodb
+  app.kubernetes.io/component: database
+  neural-hive.io/layer: memory
+  neural-hive.io/component: operational-context
+  neural-hive.io/environment: dev
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - mongodb
+          topologyKey: topology.kubernetes.io/zone
+
+tolerations: []
+
+nodeSelector: {}
+
+istio:
+  injection: true
+
+environment: dev
+
+healthCheck:
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 3
+
+rbac:
+  create: true
+
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-observability
+      ports:
+        - protocol: TCP
+          port: 9216
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              neural-hive.io/layer: cognitive
+      ports:
+        - protocol: TCP
+          port: 27017

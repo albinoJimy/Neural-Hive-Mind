@@ -1,0 +1,37 @@
+# Core dependencies
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Kafka
+aiokafka>=0.8.0
+avro-python3>=1.10.0
+
+# gRPC (Service Registry client)
+grpcio>=1.59.0
+grpcio-tools>=1.59.0
+protobuf>=4.24.0
+
+# Temporal (optional)
+temporalio>=1.5.0
+
+# HTTP clients
+httpx>=0.25.0
+
+# Observability
+structlog>=23.1.0
+prometheus-client>=0.18.0
+opentelemetry-api>=1.20.0
+opentelemetry-sdk>=1.20.0
+opentelemetry-instrumentation-fastapi>=0.41b0
+opentelemetry-exporter-otlp>=1.20.0
+
+# Utilities
+python-json-logger>=2.0.0
+tenacity>=8.2.0
+
+# Integration library
+# Para desenvolvimento local, usar: pip install -e ../../libraries/neural_hive_integration
+# Para produção com registry privado: neural_hive_integration>=1.0.0
+-e ../../libraries/neural_hive_integration

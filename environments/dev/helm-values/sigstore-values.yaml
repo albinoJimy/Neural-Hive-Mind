@@ -1,0 +1,106 @@
+# Sigstore Policy Controller Helm Values - Development Environment
+
+# Service Account configuration with IRSA
+serviceAccount:
+  create: true
+  name: sigstore-policy-controller
+  annotations:
+    # This will be replaced by the deployment script with the actual IRSA role ARN
+    eks.amazonaws.com/role-arn: "SIGSTORE_IRSA_ROLE_ARN_PLACEHOLDER"
+
+# Development-specific configuration
+replicaCount: 1
+
+# Resource limits optimized for development
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Logging configuration for development
+logging:
+  level: debug
+  format: json
+
+# Image verification configuration
+image:
+  repository: gcr.io/projectsigstore/policy-controller
+  tag: ""  # Use chart's default
+  pullPolicy: IfNotPresent
+
+# Security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+# Pod security context
+podSecurityContext:
+  fsGroup: 65534
+  seccompProfile:
+    type: RuntimeDefault
+
+# Node selection for development
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Metrics and monitoring
+metrics:
+  enabled: true
+  port: 9090
+
+# Webhook configuration
+webhook:
+  port: 9443
+  namespaceSelector:
+    # In dev, we might want to exclude some namespaces for easier testing
+    matchExpressions:
+    - key: name
+      operator: NotIn
+      values:
+      - kube-system
+      - kube-public
+      - cosign-system
+      - gatekeeper-system
+      - istio-system
+      - monitoring
+
+# Development-specific environment variables
+env:
+  - name: CLUSTER_NAME
+    value: "CLUSTER_NAME_PLACEHOLDER"
+  - name: AWS_REGION
+    value: "us-east-1"
+  - name: LOG_LEVEL
+    value: "debug"
+
+# TLS configuration
+tls:
+  # Let cert-manager handle certificate creation
+  certManager: true
+
+# Development cluster image policy (more permissive)
+clusterImagePolicy:
+  enabled: true
+  name: dev-image-policy
+  spec:
+    images:
+    - glob: "**"  # All images initially
+    authorities:
+    - keyless:
+        url: https://fulcio.sigstore.dev
+        identities:
+        - issuer: https://github.com/login/oauth
+          subject: ".*"  # More permissive for development
+        - issuer: https://oauth2.sigstore.dev/auth
+          subject: ".*"
+    - static:
+        action: warn  # Warn about unsigned images in dev but don't block

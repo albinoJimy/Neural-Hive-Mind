@@ -1,0 +1,257 @@
+{
+  "namespace": "com.neuralhivemind.orchestration",
+  "type": "record",
+  "name": "ExecutionTicket",
+  "doc": "Schema representando uma unidade atômica de trabalho gerada pelo Orquestrador Dinâmico a partir de um Cognitive Plan, seguindo o Fluxo C do documento-06. Este ticket contém todas as informações necessárias para execução distribuída de uma tarefa específica.",
+  "fields": [
+    {
+      "name": "ticket_id",
+      "type": "string",
+      "doc": "UUID único do ticket de execução"
+    },
+    {
+      "name": "plan_id",
+      "type": "string",
+      "doc": "Referência ao Cognitive Plan que originou este ticket"
+    },
+    {
+      "name": "intent_id",
+      "type": "string",
+      "doc": "Referência à intenção original do usuário"
+    },
+    {
+      "name": "decision_id",
+      "type": "string",
+      "doc": "Referência à Consolidated Decision que aprovou o plano"
+    },
+    {
+      "name": "correlation_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ID de correlação para rastreabilidade entre serviços"
+    },
+    {
+      "name": "trace_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ID de trace OpenTelemetry para rastreamento distribuído"
+    },
+    {
+      "name": "span_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ID de span OpenTelemetry para contexto de execução"
+    },
+    {
+      "name": "task_id",
+      "type": "string",
+      "doc": "Identificador da tarefa no DAG do plano cognitivo"
+    },
+    {
+      "name": "task_type",
+      "type": {
+        "type": "enum",
+        "name": "TaskType",
+        "symbols": ["BUILD", "DEPLOY", "TEST", "VALIDATE", "EXECUTE", "COMPENSATE"]
+      },
+      "doc": "Tipo da tarefa a ser executada"
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "doc": "Descrição legível da tarefa"
+    },
+    {
+      "name": "dependencies",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "default": [],
+      "doc": "Lista de ticket_ids que devem ser concluídos antes desta tarefa"
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "TicketStatus",
+        "symbols": ["PENDING", "RUNNING", "COMPLETED", "FAILED", "COMPENSATING", "COMPENSATED"]
+      },
+      "default": "PENDING",
+      "doc": "Status atual do ticket de execução"
+    },
+    {
+      "name": "priority",
+      "type": {
+        "type": "enum",
+        "name": "Priority",
+        "symbols": ["LOW", "NORMAL", "HIGH", "CRITICAL"]
+      },
+      "doc": "Prioridade de execução herdada do Intent Envelope"
+    },
+    {
+      "name": "risk_band",
+      "type": {
+        "type": "enum",
+        "name": "RiskBand",
+        "symbols": ["low", "medium", "high", "critical"]
+      },
+      "doc": "Banda de risco herdada do Cognitive Plan"
+    },
+    {
+      "name": "sla",
+      "type": {
+        "type": "record",
+        "name": "SLA",
+        "fields": [
+          {
+            "name": "deadline",
+            "type": "long",
+            "logicalType": "timestamp-millis",
+            "doc": "Prazo limite para conclusão (timestamp em milissegundos)"
+          },
+          {
+            "name": "timeout_ms",
+            "type": "long",
+            "doc": "Timeout em milissegundos para execução da tarefa"
+          },
+          {
+            "name": "max_retries",
+            "type": "int",
+            "doc": "Número máximo de tentativas permitidas"
+          }
+        ]
+      },
+      "doc": "Definições de SLA para esta tarefa"
+    },
+    {
+      "name": "qos",
+      "type": {
+        "type": "record",
+        "name": "QoS",
+        "fields": [
+          {
+            "name": "delivery_mode",
+            "type": {
+              "type": "enum",
+              "name": "DeliveryMode",
+              "symbols": ["AT_MOST_ONCE", "AT_LEAST_ONCE", "EXACTLY_ONCE"]
+            },
+            "doc": "Modo de entrega garantido"
+          },
+          {
+            "name": "consistency",
+            "type": {
+              "type": "enum",
+              "name": "Consistency",
+              "symbols": ["EVENTUAL", "STRONG"]
+            },
+            "doc": "Nível de consistência requerido"
+          },
+          {
+            "name": "durability",
+            "type": {
+              "type": "enum",
+              "name": "Durability",
+              "symbols": ["TRANSIENT", "PERSISTENT"]
+            },
+            "doc": "Modo de durabilidade dos dados"
+          }
+        ]
+      },
+      "doc": "Definições de Quality of Service"
+    },
+    {
+      "name": "parameters",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Parâmetros específicos da tarefa em formato chave-valor"
+    },
+    {
+      "name": "required_capabilities",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "default": [],
+      "doc": "Lista de capacidades necessárias para execução desta tarefa"
+    },
+    {
+      "name": "security_level",
+      "type": {
+        "type": "enum",
+        "name": "SecurityLevel",
+        "symbols": ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"]
+      },
+      "doc": "Nível de segurança requerido para execução"
+    },
+    {
+      "name": "created_at",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Timestamp de criação do ticket"
+    },
+    {
+      "name": "started_at",
+      "type": ["null", "long"],
+      "logicalType": "timestamp-millis",
+      "default": null,
+      "doc": "Timestamp de início da execução"
+    },
+    {
+      "name": "completed_at",
+      "type": ["null", "long"],
+      "logicalType": "timestamp-millis",
+      "default": null,
+      "doc": "Timestamp de conclusão da execução"
+    },
+    {
+      "name": "estimated_duration_ms",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "Duração estimada em milissegundos"
+    },
+    {
+      "name": "actual_duration_ms",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "Duração real em milissegundos"
+    },
+    {
+      "name": "retry_count",
+      "type": "int",
+      "default": 0,
+      "doc": "Contador de tentativas de execução"
+    },
+    {
+      "name": "error_message",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Mensagem de erro caso a execução tenha falhado"
+    },
+    {
+      "name": "compensation_ticket_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ID do ticket de compensação caso esta tarefa precise ser revertida"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Metadados adicionais para contexto e auditoria"
+    },
+    {
+      "name": "schema_version",
+      "type": "int",
+      "default": 1,
+      "doc": "Versão do schema para controle de evolução"
+    }
+  ]
+}

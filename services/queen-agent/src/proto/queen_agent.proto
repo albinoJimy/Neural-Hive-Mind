@@ -1,0 +1,170 @@
+syntax = "proto3";
+
+package queen_agent;
+
+// Serviço Queen Agent - Coordenador Estratégico
+service QueenAgent {
+  // Buscar decisão estratégica por ID
+  rpc GetStrategicDecision(GetStrategicDecisionRequest) returns (StrategicDecisionResponse);
+
+  // Listar decisões estratégicas recentes
+  rpc ListStrategicDecisions(ListStrategicDecisionsRequest) returns (ListStrategicDecisionsResponse);
+
+  // Obter status geral do sistema
+  rpc GetSystemStatus(GetSystemStatusRequest) returns (SystemStatusResponse);
+
+  // Solicitar aprovação de exceção
+  rpc RequestExceptionApproval(RequestExceptionRequest) returns (RequestExceptionResponse);
+
+  // Aprovar exceção
+  rpc ApproveException(ApproveExceptionRequest) returns (ApproveExceptionResponse);
+
+  // Rejeitar exceção
+  rpc RejectException(RejectExceptionRequest) returns (RejectExceptionResponse);
+
+  // Obter conflitos ativos
+  rpc GetActiveConflicts(GetActiveConflictsRequest) returns (GetActiveConflictsResponse);
+
+  // Submeter insight de Analyst Agent
+  rpc SubmitInsight(SubmitInsightRequest) returns (SubmitInsightResponse);
+}
+
+// Mensagens de Request/Response
+
+message GetStrategicDecisionRequest {
+  string decision_id = 1;
+}
+
+message StrategicDecisionResponse {
+  string decision_id = 1;
+  string decision_type = 2;
+  double confidence_score = 3;
+  double risk_score = 4;
+  string reasoning_summary = 5;
+  int64 created_at = 6;
+  repeated string target_entities = 7;
+  string action = 8;
+}
+
+message ListStrategicDecisionsRequest {
+  optional string decision_type = 1;
+  optional int64 start_date = 2;
+  optional int64 end_date = 3;
+  int32 limit = 4;
+  int32 offset = 5;
+}
+
+message ListStrategicDecisionsResponse {
+  repeated StrategicDecisionResponse decisions = 1;
+  int32 total = 2;
+}
+
+message GetSystemStatusRequest {}
+
+message SystemStatusResponse {
+  double system_score = 1;
+  double sla_compliance = 2;
+  double error_rate = 3;
+  double resource_saturation = 4;
+  int32 active_incidents = 5;
+  int64 timestamp = 6;
+}
+
+message RequestExceptionRequest {
+  string exception_type = 1;
+  string plan_id = 2;
+  string justification = 3;
+  repeated string guardrails_affected = 4;
+  int64 expires_at = 5;
+}
+
+message RequestExceptionResponse {
+  string exception_id = 1;
+  string status = 2;
+}
+
+message ApproveExceptionRequest {
+  string exception_id = 1;
+  string decision_id = 2;
+  repeated string conditions = 3;
+}
+
+message ApproveExceptionResponse {
+  string exception_id = 1;
+  string status = 2;
+  int64 approved_at = 3;
+}
+
+message RejectExceptionRequest {
+  string exception_id = 1;
+  string reason = 2;
+}
+
+message RejectExceptionResponse {
+  string exception_id = 1;
+  string status = 2;
+  int64 rejected_at = 3;
+}
+
+message GetActiveConflictsRequest {}
+
+message ConflictInfo {
+  string decision_id = 1;
+  string conflicts_with = 2;
+  int64 created_at = 3;
+}
+
+message GetActiveConflictsResponse {
+  repeated ConflictInfo conflicts = 1;
+}
+
+// Mensagens para SubmitInsight
+
+message Recommendation {
+  string action = 1;
+  string priority = 2;
+  double estimated_impact = 3;
+}
+
+message RelatedEntity {
+  string entity_type = 1;
+  string entity_id = 2;
+  string relationship = 3;
+}
+
+message TimeWindow {
+  int64 start_timestamp = 1;
+  int64 end_timestamp = 2;
+}
+
+message SubmitInsightRequest {
+  string insight_id = 1;
+  string version = 2;
+  string correlation_id = 3;
+  string trace_id = 4;
+  string span_id = 5;
+  string insight_type = 6;
+  string priority = 7;
+  string title = 8;
+  string summary = 9;
+  string detailed_analysis = 10;
+  repeated string data_sources = 11;
+  map<string, double> metrics = 12;
+  double confidence_score = 13;
+  double impact_score = 14;
+  repeated Recommendation recommendations = 15;
+  repeated RelatedEntity related_entities = 16;
+  TimeWindow time_window = 17;
+  int64 created_at = 18;
+  optional int64 valid_until = 19;
+  repeated string tags = 20;
+  map<string, string> metadata = 21;
+  string hash = 22;
+  int32 schema_version = 23;
+}
+
+message SubmitInsightResponse {
+  bool accepted = 1;
+  string insight_id = 2;
+  string message = 3;
+}

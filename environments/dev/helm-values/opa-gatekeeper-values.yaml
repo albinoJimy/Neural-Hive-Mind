@@ -1,0 +1,134 @@
+# OPA Gatekeeper Helm Values - Development Environment
+
+# Development replica configuration
+replicaCount: 1
+auditReplicaCount: 1
+
+# Resource limits optimized for development
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+auditResources:
+  limits:
+    cpu: 300m
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 128Mi
+
+# Image configuration
+image:
+  repository: openpolicyagent/gatekeeper
+  tag: ""  # Use chart's default
+  pullPolicy: IfNotPresent
+
+# Development-specific constraint violation enforcement
+constraintViolationsLimit: 20
+auditInterval: 60
+auditMatchKindOnly: false
+
+# Development enforcement mode - start in warn mode
+enforcementMode: warn
+
+# Auto-enforcement configuration for development (faster transition)
+autoEnforce:
+  enabled: true
+  afterDays: 3  # Transition to enforce mode after 3 days
+  excludeNamespaces:
+    - kube-system
+    - kube-public
+    - gatekeeper-system
+    - cosign-system
+    - istio-system
+    - monitoring
+
+# Violation logging for development
+violationLog:
+  enabled: true
+  level: debug
+  retentionDays: 30
+
+# Metrics and monitoring
+metrics:
+  enabled: true
+  port: 8888
+
+# Development webhook configuration
+webhook:
+  port: 8443
+  # More permissive failure policy for development
+  failurePolicy: Ignore
+  namespaceSelector:
+    matchExpressions:
+    - key: name
+      operator: NotIn
+      values:
+      - kube-system
+      - kube-public
+      - gatekeeper-system
+      - cosign-system
+
+# Node selection for development
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Security context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsGroup: 999
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Pod security context
+podSecurityContext:
+  fsGroup: 999
+  supplementalGroups:
+  - 999
+
+# Development-specific exemptions
+exemptNamespaces:
+  - kube-system
+  - kube-public
+  - gatekeeper-system
+  - cosign-system
+  - istio-system
+  - monitoring
+  - kube-node-lease
+
+# Development environment variables
+env:
+  - name: GATEKEEPER_AUDIT_INTERVAL
+    value: "60"
+  - name: LOG_LEVEL
+    value: "DEBUG"
+  - name: CONSTRAINT_VIOLATIONS_LIMIT
+    value: "20"
+
+# Enable validation of Gatekeeper resources
+validatingAdmissionWebhook:
+  failurePolicy: Ignore
+  namespaceSelector:
+    matchExpressions:
+    - key: admission.gatekeeper.sh/ignore
+      operator: DoesNotExist
+
+# Mutating admission webhook (disabled in dev for simplicity)
+mutatingAdmissionWebhook:
+  enabled: false
+
+# Enable OPA built-in functions
+enableOpaBuiltins: true
+
+# Development dashboard configuration
+dashboard:
+  enabled: true

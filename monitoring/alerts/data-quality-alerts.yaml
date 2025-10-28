@@ -1,0 +1,317 @@
+groups:
+- name: neural-hive.data-quality-overall
+  rules:
+  - alert: DataQualityScoreLow
+    expr: avg(neural_hive_data_quality_score) < 0.9
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: memory-layer
+      neural_hive_layer: conhecimento-dados
+    annotations:
+      summary: "Score de qualidade de dados baixo"
+      description: "Score de qualidade: {{ $value | humanizePercentage }} (<90%)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/data-quality-low"
+      dashboard_url: "https://grafana.neural-hive.local/d/memory-layer-data-quality"
+
+  - alert: DataCompletenessLow
+    expr: neural_hive_data_completeness < 0.95
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: memory-layer
+      neural_hive_layer: conhecimento-dados
+    annotations:
+      summary: "Completude de dados abaixo do esperado"
+      description: "Completude: {{ $value | humanizePercentage }} (<95%)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/data-completeness-low"
+
+  - alert: DataConsistencyCheckFailed
+    expr: increase(neural_hive_data_consistency_check_failures_total[10m]) > 5
+    for: 10m
+    labels:
+      severity: critical
+      neural_hive_component: memory-layer
+      neural_hive_layer: conhecimento-dados
+    annotations:
+      summary: "Falhas nas verificações de consistência"
+      description: "{{ $value }} falhas de consistência nos últimos 10 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/consistency-check-failed"
+
+  - alert: DataLineageIncomplete
+    expr: neural_hive_data_lineage_completeness < 0.98
+    for: 15m
+    labels:
+      severity: warning
+      neural_hive_component: memory-layer
+      neural_hive_layer: conhecimento-dados
+    annotations:
+      summary: "Rastreamento de linhagem incompleto"
+      description: "Linhagem de dados: {{ $value | humanizePercentage }} (<98%)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/data-lineage-incomplete"
+
+- name: neural-hive.hot-layer-quality
+  rules:
+  - alert: RedisCacheHitRateLow
+    expr: rate(redis_keyspace_hits_total[5m]) / (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m])) < 0.7
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: redis
+      neural_hive_layer: conhecimento-dados
+      data_layer: hot
+    annotations:
+      summary: "Taxa de hit do cache Redis baixa"
+      description: "Cache hit rate: {{ $value | humanizePercentage }} (<70%)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/redis-low-hit-rate"
+
+  - alert: RedisMemoryPressureHigh
+    expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.85
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: redis
+      neural_hive_layer: conhecimento-dados
+      data_layer: hot
+    annotations:
+      summary: "Redis com alta pressão de memória"
+      description: "Redis usando {{ $value | humanizePercentage }} de memória (>85%)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/redis-memory-pressure"
+
+  - alert: RedisPheromoneDataCorrupted
+    expr: increase(neural_hive_pheromone_validation_failures_total[5m]) > 0
+    for: 1m
+    labels:
+      severity: critical
+      neural_hive_component: redis
+      neural_hive_layer: conhecimento-dados
+      data_layer: hot
+    annotations:
+      summary: "Dados de feromônios corrompidos no Redis"
+      description: "Validação de feromônios falhou - possível corrupção de dados"
+      runbook_url: "https://docs.neural-hive.local/runbooks/pheromone-data-corrupted"
+
+  - alert: RedisKeyExpirationAnomalous
+    expr: abs(rate(redis_expired_keys_total[5m]) - avg_over_time(rate(redis_expired_keys_total[5m])[1h:5m])) / avg_over_time(rate(redis_expired_keys_total[5m])[1h:5m]) > 0.5
+    for: 10m
+    labels:
+      severity: info
+      neural_hive_component: redis
+      neural_hive_layer: conhecimento-dados
+      data_layer: hot
+    annotations:
+      summary: "Padrão anômalo de expiração de chaves Redis"
+      description: "Taxa de expiração desviou >50% da baseline"
+      runbook_url: "https://docs.neural-hive.local/runbooks/redis-expiration-anomaly"
+
+- name: neural-hive.warm-layer-quality
+  rules:
+  - alert: MongoDBWriteLatencyHigh
+    expr: histogram_quantile(0.95, sum by (le) (rate(mongodb_op_latencies_histogram_bucket{operation="write"}[5m]))) > 0.5
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: mongodb
+      neural_hive_layer: conhecimento-dados
+      data_layer: warm
+    annotations:
+      summary: "MongoDB com alta latência de escrita"
+      description: "Latência P95 de escrita: {{ $value | humanizeDuration }} (>500ms)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/mongodb-write-latency"
+
+  - alert: MongoDBDocumentValidationFailed
+    expr: increase(mongodb_document_validation_failures_total[5m]) > 10
+    for: 5m
+    labels:
+      severity: critical
+      neural_hive_component: mongodb
+      neural_hive_layer: conhecimento-dados
+      data_layer: warm
+    annotations:
+      summary: "Falhas de validação de documentos MongoDB"
+      description: "{{ $value }} documentos falharam na validação nos últimos 5 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/mongodb-validation-failed"
+
+  - alert: MongoDBCognitiveLedgerCorrupted
+    expr: increase(neural_hive_ledger_hash_verification_failures_total[5m]) > 0
+    for: 1m
+    labels:
+      severity: critical
+      neural_hive_component: mongodb
+      neural_hive_layer: conhecimento-dados
+      data_layer: warm
+    annotations:
+      summary: "Ledger cognitivo corrompido"
+      description: "Hash SHA-256 não confere - integridade do ledger comprometida"
+      runbook_url: "https://docs.neural-hive.local/runbooks/ledger-corrupted"
+
+  - alert: MongoDBIndexEfficiencyLow
+    expr: mongodb_index_usage_efficiency < 0.8
+    for: 15m
+    labels:
+      severity: warning
+      neural_hive_component: mongodb
+      neural_hive_layer: conhecimento-dados
+      data_layer: warm
+    annotations:
+      summary: "Eficiência de índices MongoDB baixa"
+      description: "Eficiência de índices: {{ $value | humanizePercentage }} (<80%)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/mongodb-index-efficiency"
+
+- name: neural-hive.cold-layer-quality
+  rules:
+  - alert: ClickHouseQueryPerformanceDegraded
+    expr: rate(clickhouse_query_duration_seconds_sum[5m]) / rate(clickhouse_query_duration_seconds_count[5m]) > 2 * avg_over_time((rate(clickhouse_query_duration_seconds_sum[5m]) / rate(clickhouse_query_duration_seconds_count[5m]))[1h:5m])
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: clickhouse
+      neural_hive_layer: conhecimento-dados
+      data_layer: cold
+    annotations:
+      summary: "Degradação de performance de queries ClickHouse"
+      description: "Latência aumentou >100% comparado à baseline"
+      runbook_url: "https://docs.neural-hive.local/runbooks/clickhouse-performance-degraded"
+
+  - alert: ClickHouseDataCompressionLow
+    expr: clickhouse_compression_ratio < 5
+    for: 30m
+    labels:
+      severity: info
+      neural_hive_component: clickhouse
+      neural_hive_layer: conhecimento-dados
+      data_layer: cold
+    annotations:
+      summary: "Taxa de compressão ClickHouse baixa"
+      description: "Razão de compressão: {{ $value }}:1 (<5:1)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/clickhouse-compression-low"
+
+  - alert: ClickHousePartitionUnhealthy
+    expr: clickhouse_partition_health_status == 0
+    for: 5m
+    labels:
+      severity: critical
+      neural_hive_component: clickhouse
+      neural_hive_layer: conhecimento-dados
+      data_layer: cold
+    annotations:
+      summary: "Partição ClickHouse não saudável"
+      description: "Partição {{ $labels.partition }} não passou nas verificações de saúde"
+      runbook_url: "https://docs.neural-hive.local/runbooks/clickhouse-partition-unhealthy"
+
+  - alert: ClickHouseRetentionPolicyViolated
+    expr: increase(clickhouse_retention_policy_violations_total[1h]) > 0
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: clickhouse
+      neural_hive_layer: conhecimento-dados
+      data_layer: cold
+    annotations:
+      summary: "Violação de política de retenção ClickHouse"
+      description: "Dados fora da política de retenção detectados"
+      runbook_url: "https://docs.neural-hive.local/runbooks/clickhouse-retention-violated"
+
+- name: neural-hive.semantic-layer-quality
+  rules:
+  - alert: Neo4jGraphQueryLatencyHigh
+    expr: rate(neo4j_cypher_query_execution_duration_seconds_sum[5m]) / rate(neo4j_cypher_query_execution_duration_seconds_count[5m]) > 2
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: neo4j
+      neural_hive_layer: conhecimento-dados
+      data_layer: semantic
+    annotations:
+      summary: "Neo4j com alta latência de queries"
+      description: "Latência média de queries: {{ $value | humanizeDuration }} (>2s)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/neo4j-query-latency"
+
+  - alert: Neo4jOntologyInconsistent
+    expr: neural_hive_ontology_consistency_score < 0.95
+    for: 10m
+    labels:
+      severity: critical
+      neural_hive_component: neo4j
+      neural_hive_layer: conhecimento-dados
+      data_layer: semantic
+    annotations:
+      summary: "Inconsistência na ontologia Neo4j"
+      description: "Score de consistência: {{ $value | humanizePercentage }} (<95%)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/neo4j-ontology-inconsistent"
+
+  - alert: Neo4jGraphTraversalSlow
+    expr: rate(neo4j_graph_traversal_duration_seconds_sum[5m]) / rate(neo4j_graph_traversal_duration_seconds_count[5m]) > 1.5 * avg_over_time((rate(neo4j_graph_traversal_duration_seconds_sum[5m]) / rate(neo4j_graph_traversal_duration_seconds_count[5m]))[1h:5m])
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: neo4j
+      neural_hive_layer: conhecimento-dados
+      data_layer: semantic
+    annotations:
+      summary: "Traversal de grafo Neo4j lento"
+      description: "Performance de traversal degradou >50%"
+      runbook_url: "https://docs.neural-hive.local/runbooks/neo4j-traversal-slow"
+
+  - alert: Neo4jRelationshipIntegrityFailed
+    expr: increase(neo4j_relationship_integrity_failures_total[5m]) > 0
+    for: 1m
+    labels:
+      severity: critical
+      neural_hive_component: neo4j
+      neural_hive_layer: conhecimento-dados
+      data_layer: semantic
+    annotations:
+      summary: "Falha de integridade de relacionamentos Neo4j"
+      description: "Relacionamentos órfãos ou inválidos detectados"
+      runbook_url: "https://docs.neural-hive.local/runbooks/neo4j-relationship-integrity"
+
+- name: neural-hive.data-quality-jobs
+  rules:
+  - alert: DataQualityCheckJobFailed
+    expr: increase(neural_hive_data_quality_check_job_failures_total[1h]) > 0
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: data-quality-checker
+      neural_hive_layer: conhecimento-dados
+    annotations:
+      summary: "Job de verificação de qualidade falhou"
+      description: "Job de qualidade de dados falhou na última execução"
+      runbook_url: "https://docs.neural-hive.local/runbooks/quality-check-job-failed"
+
+  - alert: DataQualityCheckStale
+    expr: time() - neural_hive_data_quality_last_check_timestamp > 43200
+    for: 1h
+    labels:
+      severity: warning
+      neural_hive_component: data-quality-checker
+      neural_hive_layer: conhecimento-dados
+    annotations:
+      summary: "Verificação de qualidade está desatualizada"
+      description: "Última verificação há {{ $value | humanizeDuration }} (>12h)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/quality-check-stale"
+
+  - alert: DataAnomalyDetectionHigh
+    expr: increase(neural_hive_data_anomalies_detected_total[1h]) > 20
+    for: 1h
+    labels:
+      severity: info
+      neural_hive_component: data-quality-checker
+      neural_hive_layer: conhecimento-dados
+    annotations:
+      summary: "Alto número de anomalias de dados detectadas"
+      description: "{{ $value }} anomalias detectadas na última hora (>20)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/data-anomalies-high"
+
+  - alert: DataRemediationFailed
+    expr: increase(neural_hive_data_remediation_failures_total[1h]) > 5
+    for: 1h
+    labels:
+      severity: warning
+      neural_hive_component: data-quality-checker
+      neural_hive_layer: conhecimento-dados
+    annotations:
+      summary: "Falhas na remediação automática de dados"
+      description: "{{ $value }} tentativas de remediação falharam na última hora"
+      runbook_url: "https://docs.neural-hive.local/runbooks/data-remediation-failed"

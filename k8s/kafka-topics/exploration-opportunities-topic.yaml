@@ -1,0 +1,27 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: exploration-opportunities
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: neural-hive-kafka
+    neural-hive.io/layer: exploration
+    neural-hive.io/component: scout-agents
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    # Retention: 7 days (604800000 ms)
+    retention.ms: 604800000
+    # Compression
+    compression.type: snappy
+    # Reliability
+    min.insync.replicas: 2
+    # Cleanup policy
+    cleanup.policy: delete
+    # Max message size: 1MB
+    max.message.bytes: 1048576
+    # Segment size: 512MB
+    segment.bytes: 536870912
+    # Index interval
+    segment.index.bytes: 10485760

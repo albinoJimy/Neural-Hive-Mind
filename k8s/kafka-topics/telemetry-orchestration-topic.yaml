@@ -1,0 +1,21 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: telemetry-orchestration
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: neural-hive-kafka
+    app.kubernetes.io/name: kafka-topic
+    app.kubernetes.io/component: messaging
+    neural-hive.io/layer: observability
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: 1209600000  # 14 dias
+    segment.ms: 3600000  # 1 hora
+    compression.type: zstd
+    min.insync.replicas: 2
+    cleanup.policy: delete
+    max.message.bytes: 2097152  # 2MB
+    message.timestamp.type: CreateTime

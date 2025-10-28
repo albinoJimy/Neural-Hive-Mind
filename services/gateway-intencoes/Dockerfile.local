@@ -1,0 +1,83 @@
+# Gateway de Intenções - Neural Hive-Mind (Local Dev)
+FROM python:3.11-slim
+
+# Definir versão e metadados
+ARG VERSION=local
+ARG BUILD_DATE
+ARG VCS_REF
+
+LABEL org.opencontainers.image.title="Gateway de Intenções - Neural Hive-Mind (Local)" \
+      org.opencontainers.image.description="Gateway para captura e processamento de intenções - Versão Local" \
+      org.opencontainers.image.version="${VERSION}" \
+      neural-hive-mind.org/component="gateway-intencoes" \
+      neural-hive-mind.org/layer="application"
+
+# Instalar dependências mínimas do sistema
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    ffmpeg \
+    git \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Criar usuário não-root
+RUN groupadd -r appgroup && useradd -r -g appgroup -u 1001 appuser
+
+# Definir diretório de trabalho
+WORKDIR /app
+
+# Copiar requirements simplificado
+COPY services/gateway-intencoes/requirements.txt /tmp/requirements-full.txt
+
+# Criar requirements simplificado removendo dependências pesadas
+RUN pip install --no-cache-dir --upgrade pip && \
+    grep -v "torch\|whisper\|transformers" /tmp/requirements-full.txt > /tmp/requirements-simple.txt && \
+    pip install --no-cache-dir -r /tmp/requirements-simple.txt
+
+# Instalar PyTorch CPU-only (muito mais leve e rápido)
+RUN pip install --no-cache-dir torch==2.1.2 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cpu
+
+# Instalar whisper e transformers depois do PyTorch
+RUN pip install --no-cache-dir openai-whisper==20231117 transformers==4.36.2
+
+# Copiar código da aplicação
+COPY services/gateway-intencoes/src/ ./src/
+
+# Criar diretórios necessários
+RUN mkdir -p /app/logs /app/temp /app/models /app/schemas
+
+# Copiar schema Avro
+COPY schemas/intent-envelope/intent-envelope.avsc /app/schemas/intent-envelope.avsc
+
+# Download de modelos ML antes de mudar usuário
+ENV XDG_CACHE_HOME="/app/models" HF_HOME="/app/models"
+RUN python -c "import whisper; whisper.load_model('tiny')" && \
+    python -m spacy download pt_core_news_sm
+
+# Ajustar permissões DEPOIS de baixar modelos
+RUN chown -R appuser:appgroup /app && \
+    chmod -R 755 /app
+
+# Configurações de segurança
+USER appuser
+
+# Variáveis de ambiente
+ENV PYTHONPATH="/app/src" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    TMPDIR="/app/temp" \
+    XDG_CACHE_HOME="/app/models" \
+    HF_HOME="/app/models"
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Expor porta
+EXPOSE 8000
+
+# Comando padrão
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

@@ -1,0 +1,268 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: neural-hive-governance-alerts
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: neural-hive-governance-alerts
+    app.kubernetes.io/part-of: neural-hive-observability
+    neural.hive/component: alerting
+    neural.hive/layer: governanca
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+  - name: governance-auditability
+    rules:
+    # Auditabilidade: 100% dos registros devem ter hash
+    - alert: AuditabilityScoreLow
+      expr: (rate(neural_hive_ledger_writes_total[5m]) / (rate(neural_hive_ledger_writes_total[5m]) + 0.01)) * 100 < 95
+      for: 5m
+      labels:
+        severity: critical
+        neural_hive_component: ledger
+        neural_hive_layer: governanca
+        category: auditability
+      annotations:
+        summary: "Score de auditabilidade abaixo do SLO"
+        description: "Score de auditabilidade está em {{ $value }}%, abaixo do SLO de 100%"
+        runbook_url: "https://docs.neural-hive.local/governance/auditability-low"
+
+    - alert: LedgerWriteFailure
+      expr: increase(neural_hive_ledger_write_failures_total[5m]) > 0
+      for: 0m
+      labels:
+        severity: high
+        neural_hive_component: ledger
+        neural_hive_layer: governanca
+        category: auditability
+      annotations:
+        summary: "Falha na escrita do ledger de auditoria"
+        description: "{{ $value }} falhas na escrita do ledger nos últimos 5 minutos"
+        runbook_url: "https://docs.neural-hive.local/governance/ledger-write-failure"
+
+  - name: governance-explainability
+    rules:
+    # Explicabilidade: 100% das decisões devem ter explainability_token
+    - alert: ExplainabilityCoverageLow
+      expr: (rate(neural_hive_explainability_tokens_generated_total[5m]) / (rate(neural_hive_consensus_decisions_total[5m]) + 0.01)) * 100 < 99
+      for: 5m
+      labels:
+        severity: critical
+        neural_hive_component: explainability
+        neural_hive_layer: governanca
+        category: explainability
+      annotations:
+        summary: "Cobertura de explicabilidade abaixo do SLO"
+        description: "Cobertura de explicabilidade está em {{ $value }}%, abaixo do SLO de 100%"
+        runbook_url: "https://docs.neural-hive.local/governance/explainability-low"
+
+    - alert: ExplainabilityAPIDown
+      expr: up{job="explainability-api"} == 0
+      for: 2m
+      labels:
+        severity: critical
+        neural_hive_component: explainability-api
+        neural_hive_layer: governanca
+        category: availability
+      annotations:
+        summary: "Explainability API está down"
+        description: "A Explainability API está indisponível há {{ $value }} minutos"
+        runbook_url: "https://docs.neural-hive.local/governance/explainability-api-down"
+
+    - alert: ExplainabilityQueryFailureHigh
+      expr: rate(neural_hive_explainability_queries_total{status="error"}[5m]) > 0.1
+      for: 3m
+      labels:
+        severity: warning
+        neural_hive_component: explainability-api
+        neural_hive_layer: governanca
+        category: reliability
+      annotations:
+        summary: "Alta taxa de falhas em consultas de explicabilidade"
+        description: "Taxa de falhas em consultas de explicabilidade: {{ $value }} req/s"
+        runbook_url: "https://docs.neural-hive.local/governance/explainability-query-failure"
+
+  - name: governance-risk-scoring
+    rules:
+    # Risk Scoring: Monitorar scores anômalos
+    - alert: CriticalRiskScoreHigh
+      expr: sum(neural_hive_risk_score{risk_band="critical"}) > 10
+      for: 5m
+      labels:
+        severity: high
+        neural_hive_component: risk-scoring
+        neural_hive_layer: governanca
+        category: risk
+      annotations:
+        summary: "Quantidade alta de entidades com risk score crítico"
+        description: "{{ $value }} entidades com risk score CRITICAL detectadas"
+        runbook_url: "https://docs.neural-hive.local/governance/critical-risk-high"
+
+    - alert: RiskScoringFailure
+      expr: increase(neural_hive_risk_scoring_failures_total[5m]) > 0
+      for: 0m
+      labels:
+        severity: warning
+        neural_hive_component: risk-scoring
+        neural_hive_layer: governanca
+        category: risk
+      annotations:
+        summary: "Falha no cálculo de risk scoring"
+        description: "{{ $value }} falhas no cálculo de risk score nos últimos 5 minutos"
+        runbook_url: "https://docs.neural-hive.local/governance/risk-scoring-failure"
+
+  - name: governance-pheromones
+    rules:
+    # Pheromones: Monitorar comunicação do enxame
+    - alert: PheromonePublishingStalled
+      expr: rate(neural_hive_pheromones_published_total[5m]) == 0
+      for: 10m
+      labels:
+        severity: warning
+        neural_hive_component: consensus-engine
+        neural_hive_layer: governanca
+        category: pheromones
+      annotations:
+        summary: "Publicação de feromônios estagnada"
+        description: "Nenhum feromônio publicado nos últimos 10 minutos"
+        runbook_url: "https://docs.neural-hive.local/governance/pheromone-stalled"
+
+    - alert: PheromoneFailureRateHigh
+      expr: rate(neural_hive_pheromone_failures_total[5m]) > 1
+      for: 3m
+      labels:
+        severity: warning
+        neural_hive_component: consensus-engine
+        neural_hive_layer: governanca
+        category: pheromones
+      annotations:
+        summary: "Alta taxa de falhas na publicação de feromônios"
+        description: "Taxa de falhas: {{ $value }} falhas/s nos últimos 5 minutos"
+        runbook_url: "https://docs.neural-hive.local/governance/pheromone-failure-high"
+
+  - name: governance-consensus
+    rules:
+    # Consenso: Monitorar divergência e confiança
+    - alert: SpecialistDivergenceHigh
+      expr: histogram_quantile(0.95, neural_hive_specialist_divergence_bucket) > 0.05
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: consensus-engine
+        neural_hive_layer: governanca
+        category: consensus
+      annotations:
+        summary: "Divergência entre especialistas acima do SLO"
+        description: "Divergência p95 está em {{ $value }}, acima do SLO de 5%"
+        runbook_url: "https://docs.neural-hive.local/governance/divergence-high"
+
+    - alert: AggregatedConfidenceLow
+      expr: histogram_quantile(0.50, neural_hive_aggregated_confidence_bucket) < 0.8
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: consensus-engine
+        neural_hive_layer: governanca
+        category: consensus
+      annotations:
+        summary: "Confiança agregada abaixo do SLO"
+        description: "Confiança agregada p50 está em {{ $value }}, abaixo do SLO de 0.8"
+        runbook_url: "https://docs.neural-hive.local/governance/confidence-low"
+
+    - alert: ConsensusLatencyHigh
+      expr: histogram_quantile(0.95, neural_hive_consensus_duration_seconds_bucket) > 0.12
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: consensus-engine
+        neural_hive_layer: governanca
+        category: performance
+      annotations:
+        summary: "Latência de consenso acima do SLO"
+        description: "Latência de consenso p95 está em {{ $value }}s, acima do SLO de 120ms"
+        runbook_url: "https://docs.neural-hive.local/governance/consensus-latency-high"
+
+    - alert: FallbackRateHigh
+      expr: (rate(neural_hive_fallback_decisions_total[5m]) / (rate(neural_hive_consensus_decisions_total[5m]) + 0.01)) * 100 > 3
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: consensus-engine
+        neural_hive_layer: governanca
+        category: consensus
+      annotations:
+        summary: "Taxa de fallback determinístico acima do SLO"
+        description: "Taxa de fallback está em {{ $value }}%, acima do SLO de 3%"
+        runbook_url: "https://docs.neural-hive.local/governance/fallback-rate-high"
+
+  - name: governance-compliance
+    rules:
+    # Compliance: Monitorar violações OPA Gatekeeper
+    - alert: ComplianceViolationsCritical
+      expr: sum(gatekeeper_constraint_violations{enforcement_action="deny"}) > 0
+      for: 0m
+      labels:
+        severity: critical
+        neural_hive_component: gatekeeper
+        neural_hive_layer: governanca
+        category: compliance
+      annotations:
+        summary: "Violações críticas de compliance detectadas"
+        description: "{{ $value }} violações de compliance com enforcement_action=deny detectadas"
+        runbook_url: "https://docs.neural-hive.local/governance/compliance-violations-critical"
+
+    - alert: ComplianceViolationsWarning
+      expr: sum(gatekeeper_constraint_violations{enforcement_action="warn"}) > 50
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: gatekeeper
+        neural_hive_layer: governanca
+        category: compliance
+      annotations:
+        summary: "Número elevado de violações de compliance (warn)"
+        description: "{{ $value }} violações de compliance com enforcement_action=warn detectadas"
+        runbook_url: "https://docs.neural-hive.local/governance/compliance-violations-warning"
+
+    - alert: ComplianceScoreLow
+      expr: (1 - (sum(gatekeeper_constraint_violations{enforcement_action="deny"}) / (sum(gatekeeper_constraint_violations) + 1))) * 100 < 98
+      for: 5m
+      labels:
+        severity: high
+        neural_hive_component: gatekeeper
+        neural_hive_layer: governanca
+        category: compliance
+      annotations:
+        summary: "Score de compliance abaixo do esperado"
+        description: "Score de compliance está em {{ $value }}%, abaixo do SLO de 100%"
+        runbook_url: "https://docs.neural-hive.local/governance/compliance-score-low"
+
+  - name: governance-self-healing
+    rules:
+    # Autocura: Monitorar ações de self-healing
+    - alert: SelfHealingActionsFailing
+      expr: rate(neural_hive_self_healing_actions_total{status="failure"}[5m]) > 0.5
+      for: 3m
+      labels:
+        severity: warning
+        neural_hive_component: self-healing
+        neural_hive_layer: governanca
+        category: autocura
+      annotations:
+        summary: "Alta taxa de falhas em ações de autocura"
+        description: "Taxa de falhas em self-healing: {{ $value }} falhas/s"
+        runbook_url: "https://docs.neural-hive.local/governance/self-healing-failure"
+
+    - alert: SelfHealingActionsHigh
+      expr: rate(neural_hive_self_healing_actions_total[5m]) > 5
+      for: 10m
+      labels:
+        severity: warning
+        neural_hive_component: self-healing
+        neural_hive_layer: governanca
+        category: autocura
+      annotations:
+        summary: "Volume alto de ações de autocura"
+        description: "Taxa de ações de self-healing: {{ $value }} ações/s - pode indicar problema sistêmico"
+        runbook_url: "https://docs.neural-hive.local/governance/self-healing-high"

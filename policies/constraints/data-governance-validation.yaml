@@ -1,0 +1,66 @@
+# Constraint para validação de governança de dados
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: DataGovernanceValidation
+metadata:
+  name: data-governance-validation
+  labels:
+    neural-hive.io/policy: governance
+    neural-hive.io/enforcement: active
+spec:
+  enforcementAction: warn # Começar com warn, mudar para deny após validação
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds:
+          - Service
+          - ConfigMap
+          - Secret
+      - apiGroups: ["apps"]
+        kinds:
+          - Deployment
+          - StatefulSet
+      - apiGroups: ["neural-hive.io"]
+        kinds:
+          - ApiAsset
+          - DataAsset
+    namespaces:
+      - "gateway-intencoes"
+      - "redis-cluster"
+      - "auth"
+      - "neural-hive-services"
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+      - istio-system
+      - gatekeeper-system
+      - cert-manager
+  parameters:
+    requiredLabels:
+      - "neural-hive.io/data-owner"
+      - "neural-hive.io/data-classification"
+      - "neural-hive.io/sla-tier"
+    allowedClassifications:
+      - "public"
+      - "internal"
+      - "confidential"
+      - "restricted"
+    allowedSlaTiers:
+      - "bronze"
+      - "silver"
+      - "gold"
+      - "platinum"
+    governedResources:
+      - "Service"
+      - "ConfigMap"
+      - "Secret"
+      - "ApiAsset"
+      - "DataAsset"
+    governedNamespaces:
+      - "gateway-intencoes"
+      - "redis-cluster"
+      - "auth"
+      - "neural-hive-services"
+    dataOwnerPattern: "^team-.+"
+    requirePiiValidation: true
+    enforcementMode: "warn"

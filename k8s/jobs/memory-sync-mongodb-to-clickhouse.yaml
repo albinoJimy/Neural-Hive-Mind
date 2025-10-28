@@ -1,0 +1,69 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: memory-sync-mongodb-to-clickhouse
+  namespace: memory-layer-api
+  labels:
+    neural-hive.io/component: memory-sync
+    neural-hive.io/layer: conhecimento-dados
+    app.kubernetes.io/name: memory-sync
+    app.kubernetes.io/part-of: neural-hive-mind
+spec:
+  schedule: "0 2 * * *"  # Diariamente às 2h UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels:
+        neural-hive.io/component: memory-sync
+        app.kubernetes.io/name: memory-sync-job
+    spec:
+      backoffLimit: 3
+      template:
+        metadata:
+          labels:
+            neural-hive.io/component: memory-sync
+            app.kubernetes.io/name: memory-sync-job
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: memory-sync-sa
+          containers:
+            - name: sync-job
+              image: neural-hive-mind/memory-sync:1.0.0
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: MONGODB_URI
+                  valueFrom:
+                    secretKeyRef:
+                      name: memory-layer-api-secrets
+                      key: mongodb_uri
+                - name: CLICKHOUSE_HOST
+                  value: "clickhouse-http.clickhouse-cluster.svc.cluster.local"
+                - name: CLICKHOUSE_PORT
+                  value: "8123"
+                - name: CLICKHOUSE_USER
+                  value: "default"
+                - name: CLICKHOUSE_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: memory-layer-api-secrets
+                      key: clickhouse_password
+                - name: CLICKHOUSE_DATABASE
+                  value: "neural_hive"
+                - name: BATCH_SIZE
+                  value: "1000"
+                - name: DATE_RANGE_DAYS
+                  value: "1"  # Sincronizar último dia
+                - name: LOG_LEVEL
+                  value: "INFO"
+              resources:
+                requests:
+                  cpu: 500m
+                  memory: 512Mi
+                limits:
+                  cpu: 2
+                  memory: 2Gi
+              command:
+                - python
+                - /app/src/jobs/sync_mongodb_to_clickhouse.py

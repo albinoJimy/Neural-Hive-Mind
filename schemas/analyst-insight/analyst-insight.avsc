@@ -1,0 +1,206 @@
+{
+  "type": "record",
+  "name": "AnalystInsight",
+  "namespace": "com.neuralhive.insights",
+  "doc": "Schema para insights gerados pelos Analyst Agents",
+  "fields": [
+    {
+      "name": "insight_id",
+      "type": "string",
+      "doc": "UUID único do insight"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "doc": "Versão do schema"
+    },
+    {
+      "name": "correlation_id",
+      "type": "string",
+      "doc": "ID de correlação para rastreamento"
+    },
+    {
+      "name": "trace_id",
+      "type": "string",
+      "doc": "OpenTelemetry trace ID"
+    },
+    {
+      "name": "span_id",
+      "type": "string",
+      "doc": "OpenTelemetry span ID"
+    },
+    {
+      "name": "insight_type",
+      "type": {
+        "type": "enum",
+        "name": "InsightType",
+        "symbols": ["STRATEGIC", "OPERATIONAL", "PREDICTIVE", "CAUSAL", "ANOMALY"]
+      },
+      "doc": "Tipo de insight"
+    },
+    {
+      "name": "priority",
+      "type": {
+        "type": "enum",
+        "name": "Priority",
+        "symbols": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+      },
+      "doc": "Prioridade do insight"
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "doc": "Título do insight"
+    },
+    {
+      "name": "summary",
+      "type": "string",
+      "doc": "Resumo executivo"
+    },
+    {
+      "name": "detailed_analysis",
+      "type": "string",
+      "doc": "Análise detalhada"
+    },
+    {
+      "name": "data_sources",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "doc": "Fontes de dados utilizadas"
+    },
+    {
+      "name": "metrics",
+      "type": {
+        "type": "map",
+        "values": "double"
+      },
+      "doc": "Métricas relevantes"
+    },
+    {
+      "name": "confidence_score",
+      "type": "double",
+      "doc": "Score de confiança (0-1)"
+    },
+    {
+      "name": "impact_score",
+      "type": "double",
+      "doc": "Score de impacto (0-1)"
+    },
+    {
+      "name": "recommendations",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "Recommendation",
+          "fields": [
+            {
+              "name": "action",
+              "type": "string",
+              "doc": "Ação recomendada"
+            },
+            {
+              "name": "priority",
+              "type": "string",
+              "doc": "Prioridade da ação"
+            },
+            {
+              "name": "estimated_impact",
+              "type": "double",
+              "doc": "Impacto estimado"
+            }
+          ]
+        }
+      },
+      "doc": "Recomendações acionáveis"
+    },
+    {
+      "name": "related_entities",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "RelatedEntity",
+          "fields": [
+            {
+              "name": "entity_type",
+              "type": "string",
+              "doc": "Tipo da entidade"
+            },
+            {
+              "name": "entity_id",
+              "type": "string",
+              "doc": "ID da entidade"
+            },
+            {
+              "name": "relationship",
+              "type": "string",
+              "doc": "Tipo de relacionamento"
+            }
+          ]
+        }
+      },
+      "doc": "Entidades relacionadas"
+    },
+    {
+      "name": "time_window",
+      "type": {
+        "type": "record",
+        "name": "TimeWindow",
+        "fields": [
+          {
+            "name": "start_timestamp",
+            "type": "long",
+            "doc": "Timestamp de início (milissegundos)"
+          },
+          {
+            "name": "end_timestamp",
+            "type": "long",
+            "doc": "Timestamp de fim (milissegundos)"
+          }
+        ]
+      },
+      "doc": "Janela temporal da análise"
+    },
+    {
+      "name": "created_at",
+      "type": "long",
+      "doc": "Timestamp de criação (milissegundos)"
+    },
+    {
+      "name": "valid_until",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "Timestamp de validade (milissegundos)"
+    },
+    {
+      "name": "tags",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "doc": "Tags para categorização"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "doc": "Metadados adicionais"
+    },
+    {
+      "name": "hash",
+      "type": "string",
+      "doc": "SHA-256 hash para integridade"
+    },
+    {
+      "name": "schema_version",
+      "type": "int",
+      "default": 1,
+      "doc": "Versão do schema"
+    }
+  ]
+}

@@ -1,0 +1,158 @@
+# Configuração de Bootstrap para Ambiente de Desenvolvimento
+# Neural Hive-Mind Development Environment
+
+apiVersion: v1
+kind: Config
+metadata:
+  name: neural-hive-dev-bootstrap
+  environment: development
+
+bootstrap_config:
+  # Configurações de ResourceQuotas para desenvolvimento
+  dev_cognition_cpu_requests_quota: "2"
+  dev_cognition_memory_requests_quota: "4Gi"
+  dev_cognition_cpu_limits_quota: "4"
+  dev_cognition_memory_limits_quota: "8Gi"
+  dev_cognition_pvc_quota: "5"
+
+  dev_orchestration_cpu_requests_quota: "1"
+  dev_orchestration_memory_requests_quota: "2Gi"
+  dev_orchestration_cpu_limits_quota: "2"
+  dev_orchestration_memory_limits_quota: "4Gi"
+  dev_orchestration_pvc_quota: "3"
+
+  dev_execution_cpu_requests_quota: "4"
+  dev_execution_memory_requests_quota: "8Gi"
+  dev_execution_cpu_limits_quota: "8"
+  dev_execution_memory_limits_quota: "16Gi"
+  dev_execution_pvc_quota: "10"
+
+  dev_observability_cpu_requests_quota: "1"
+  dev_observability_memory_requests_quota: "2Gi"
+  dev_observability_cpu_limits_quota: "2"
+  dev_observability_memory_limits_quota: "4Gi"
+  dev_observability_pvc_quota: "3"
+
+  dev_security_cpu_requests_quota: "500m"
+  dev_security_memory_requests_quota: "1Gi"
+  dev_security_cpu_limits_quota: "1"
+  dev_security_memory_limits_quota: "2Gi"
+
+  dev_infrastructure_cpu_requests_quota: "200m"
+  dev_infrastructure_memory_requests_quota: "512Mi"
+  dev_infrastructure_cpu_limits_quota: "500m"
+  dev_infrastructure_memory_limits_quota: "1Gi"
+
+  dev_auth_cpu_requests_quota: "500m"
+  dev_auth_memory_requests_quota: "1Gi"
+  dev_auth_cpu_limits_quota: "1"
+  dev_auth_memory_limits_quota: "2Gi"
+  dev_auth_pvc_quota: "2"
+
+  # Configurações de LimitRanges para desenvolvimento
+  dev_cognition_cpu_default_limit: "500m"
+  dev_cognition_memory_default_limit: "1Gi"
+  dev_cognition_cpu_default_request: "100m"
+  dev_cognition_memory_default_request: "256Mi"
+  dev_cognition_cpu_max_limit: "2"
+  dev_cognition_memory_max_limit: "4Gi"
+
+  dev_orchestration_cpu_default_limit: "300m"
+  dev_orchestration_memory_default_limit: "512Mi"
+  dev_orchestration_cpu_default_request: "50m"
+  dev_orchestration_memory_default_request: "128Mi"
+  dev_orchestration_cpu_max_limit: "1"
+  dev_orchestration_memory_max_limit: "2Gi"
+
+  dev_execution_cpu_default_limit: "1"
+  dev_execution_memory_default_limit: "2Gi"
+  dev_execution_cpu_default_request: "200m"
+  dev_execution_memory_default_request: "512Mi"
+  dev_execution_cpu_max_limit: "4"
+  dev_execution_memory_max_limit: "8Gi"
+
+  dev_observability_cpu_default_limit: "200m"
+  dev_observability_memory_default_limit: "512Mi"
+  dev_observability_cpu_default_request: "50m"
+  dev_observability_memory_default_request: "128Mi"
+  dev_observability_cpu_max_limit: "1"
+  dev_observability_memory_max_limit: "2Gi"
+
+  dev_auth_cpu_default_limit: "300m"
+  dev_auth_memory_default_limit: "512Mi"
+  dev_auth_cpu_default_request: "100m"
+  dev_auth_memory_default_request: "256Mi"
+  dev_auth_cpu_max_limit: "1"
+  dev_auth_memory_max_limit: "2Gi"
+
+# Configurações específicas de desenvolvimento
+development:
+  # Pod Security Standards mais permissivos para debug
+  pod_security_standards:
+    restricted_namespaces:
+      - neural-hive-cognition
+      - neural-hive-orchestration
+      - neural-hive-execution
+    baseline_namespaces:
+      - neural-hive-system
+      - neural-hive-observability
+      - cosign-system
+      - gatekeeper-system
+      - cert-manager
+      - auth
+
+  # Configurações de debug
+  debug_mode: true
+  verbose_logging: true
+
+  # Configurações de data governance relaxadas
+  data_governance:
+    retention_policies:
+      default: "30d"
+      minimum: "7d"
+      maximum: "90d"
+
+    compliance_requirements:
+      - lgpd
+
+    validation_mode: "warn"  # warn vs enforce
+
+  # Service accounts adicionais para desenvolvimento
+  additional_service_accounts:
+    - name: debug-tools
+      namespace: neural-hive-system
+      permissions:
+        - pods/exec
+        - pods/log
+        - configmaps
+
+    - name: test-runner
+      namespace: neural-hive-system
+      permissions:
+        - pods
+        - jobs
+        - deployments
+
+  # Network policies relaxadas para desenvolvimento
+  network_policies:
+    default_deny: false
+    allow_ingress_from_external: true
+    allow_debug_access: true
+
+  # Monitoring e observabilidade
+  monitoring:
+    prometheus_retention: "7d"
+    log_level: "debug"
+    trace_sampling_rate: 0.1
+
+  # Configurações de storage
+  storage:
+    default_storage_class: "local-path"
+    backup_enabled: false
+    encryption_required: false
+
+  # Configurações de autenticação mais permissivas
+  authentication:
+    session_timeout: "8h"
+    require_mfa: false
+    allow_local_users: true

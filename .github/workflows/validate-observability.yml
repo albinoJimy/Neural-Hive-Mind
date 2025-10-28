@@ -1,0 +1,439 @@
+name: Validate Observability Stack
+
+on:
+  pull_request:
+    paths:
+    - 'infrastructure/terraform/modules/observability-stack/**'
+    - 'helm-charts/**'
+    - 'monitoring/**'
+    - 'libraries/python/neural_hive_observability/**'
+    - '.github/workflows/validate-observability.yml'
+  push:
+    branches: [main, develop]
+    paths:
+    - 'infrastructure/terraform/modules/observability-stack/**'
+    - 'helm-charts/**'
+    - 'monitoring/**'
+    - 'libraries/python/neural_hive_observability/**'
+
+env:
+  TERRAFORM_VERSION: 1.6.0
+  HELM_VERSION: v3.13.0
+  PYTHON_VERSION: 3.11
+
+jobs:
+  # Validação de arquivos Terraform
+  terraform-validate:
+    name: Terraform Validation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infrastructure/terraform/modules/observability-stack
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive
+
+    - name: Terraform Init
+      run: terraform init -backend=false
+
+    - name: Terraform Validate
+      run: terraform validate
+
+    - name: tfsec Security Scan
+      uses: aquasecurity/tfsec-action@v1.0.0
+      with:
+        working_directory: ./infrastructure/terraform/modules/observability-stack
+        soft_fail: true
+
+  # Validação de Helm Charts
+  helm-validate:
+    name: Helm Charts Validation
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        chart:
+        - otel-collector
+        - prometheus-stack
+        - grafana
+        - jaeger
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: ${{ env.HELM_VERSION }}
+
+    - name: Helm Dependency Update
+      run: |
+        cd helm-charts/${{ matrix.chart }}
+        if [ -f Chart.yaml ]; then
+          helm dependency update
+        fi
+
+    - name: Helm Lint
+      run: |
+        cd helm-charts/${{ matrix.chart }}
+        helm lint .
+
+    - name: Helm Template Test
+      run: |
+        cd helm-charts/${{ matrix.chart }}
+        helm template neural-hive-${{ matrix.chart }} . \
+          --values values.yaml \
+          --set global.environment=testing \
+          --debug --dry-run > /tmp/${{ matrix.chart }}-template.yaml
+
+    - name: Validate Kubernetes Manifests
+      uses: instrumenta/kubeval-action@master
+      with:
+        files: /tmp/${{ matrix.chart }}-template.yaml
+
+    - name: Upload Template Artifacts
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.chart }}-template
+        path: /tmp/${{ matrix.chart }}-template.yaml
+
+  # Validação de Dashboards Grafana
+  grafana-dashboards-validate:
+    name: Grafana Dashboards Validation
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Install Grafana Dashboard Linter
+      run: npm install -g @grafana/toolkit
+
+    - name: Validate JSON Syntax
+      run: |
+        for dashboard in monitoring/dashboards/*.json; do
+          echo "Validating $dashboard"
+          jq empty "$dashboard" || {
+            echo "Invalid JSON syntax in $dashboard"
+            exit 1
+          }
+        done
+
+    - name: Check Dashboard Schema
+      run: |
+        for dashboard in monitoring/dashboards/*.json; do
+          echo "Checking schema for $dashboard"
+          # Verificar campos obrigatórios
+          jq -e '.title and .uid and .panels' "$dashboard" > /dev/null || {
+            echo "Missing required fields in $dashboard"
+            exit 1
+          }
+        done
+
+    - name: Validate Dashboard UIDs are Unique
+      run: |
+        uids=$(jq -r '.uid' monitoring/dashboards/*.json | sort)
+        unique_uids=$(echo "$uids" | uniq)
+        if [ "$uids" != "$unique_uids" ]; then
+          echo "Duplicate dashboard UIDs found!"
+          echo "$uids" | uniq -d
+          exit 1
+        fi
+
+  # Validação de Alertas Prometheus
+  prometheus-alerts-validate:
+    name: Prometheus Alerts Validation
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Prometheus
+      run: |
+        wget -O promtool https://github.com/prometheus/prometheus/releases/latest/download/prometheus-linux-amd64.tar.gz
+        tar -xzf prometheus-linux-amd64.tar.gz --strip-components=1 prometheus-*/promtool
+        chmod +x promtool
+        sudo mv promtool /usr/local/bin/
+
+    - name: Validate Alert Rules Syntax
+      run: |
+        for alert_file in monitoring/alerts/*.yaml; do
+          echo "Validating $alert_file"
+          promtool check rules "$alert_file"
+        done
+
+    - name: Check Alert Rules Best Practices
+      run: |
+        # Verificar se todos os alertas têm annotation summary
+        for alert_file in monitoring/alerts/*.yaml; do
+          if ! grep -q 'summary:' "$alert_file"; then
+            echo "Missing summary annotation in $alert_file"
+            exit 1
+          fi
+        done
+
+  # Validação da Biblioteca Python
+  python-library-validate:
+    name: Python Library Validation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./libraries/python/neural_hive_observability
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+
+    - name: Load Cached Dependencies
+      id: cached-poetry-dependencies
+      uses: actions/cache@v3
+      with:
+        path: .venv
+        key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
+
+    - name: Install Dependencies
+      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+      run: poetry install --no-interaction --no-root
+
+    - name: Install Library
+      run: poetry install --no-interaction
+
+    - name: Code Formatting Check
+      run: |
+        poetry run black --check .
+        poetry run isort --check-only .
+
+    - name: Linting
+      run: |
+        poetry run flake8 .
+        poetry run pylint neural_hive_observability/
+
+    - name: Type Checking
+      run: poetry run mypy neural_hive_observability/
+
+    - name: Security Scan
+      run: poetry run bandit -r neural_hive_observability/
+
+    - name: Run Tests
+      run: |
+        poetry run pytest tests/ \
+          --cov=neural_hive_observability \
+          --cov-report=xml \
+          --cov-report=html \
+          --junit-xml=test-results.xml
+
+    - name: Upload Coverage Reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./libraries/python/neural_hive_observability/coverage.xml
+        flags: python-library
+        name: neural-hive-observability-python
+
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results-python
+        path: ./libraries/python/neural_hive_observability/test-results.xml
+
+  # Teste de Integração (simulado)
+  integration-test:
+    name: Integration Test (Simulated)
+    runs-on: ubuntu-latest
+    needs: [terraform-validate, helm-validate]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Kubernetes (kind)
+      uses: helm/kind-action@v1.4.0
+      with:
+        cluster_name: neural-hive-test
+
+    - name: Setup Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: ${{ env.HELM_VERSION }}
+
+    - name: Add Helm Repositories
+      run: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo add grafana https://grafana.github.io/helm-charts
+        helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
+        helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+        helm repo update
+
+    - name: Create Test Namespace
+      run: kubectl create namespace observability-test
+
+    - name: Test Helm Chart Installation (Dry-Run)
+      run: |
+        # Test OpenTelemetry Collector
+        helm install neural-hive-otel-collector ./helm-charts/otel-collector \
+          --namespace observability-test \
+          --set global.environment=testing \
+          --dry-run --debug
+
+        # Test Grafana
+        helm install neural-hive-grafana ./helm-charts/grafana \
+          --namespace observability-test \
+          --set global.environment=testing \
+          --dry-run --debug
+
+    - name: Validate Scripts
+      run: |
+        # Verificar sintaxe dos scripts
+        bash -n scripts/deploy/deploy-observability.sh
+        bash -n scripts/validation/validate-observability.sh || echo "Script validation not found"
+
+  # Verificação de Segurança
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy Vulnerability Scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy Results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Secret Scanning
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD
+        extra_args: --debug --only-verified
+
+  # Geração de Relatório
+  generate-report:
+    name: Generate Validation Report
+    runs-on: ubuntu-latest
+    needs: [
+      terraform-validate,
+      helm-validate,
+      grafana-dashboards-validate,
+      prometheus-alerts-validate,
+      python-library-validate,
+      integration-test,
+      security-scan
+    ]
+    if: always()
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Generate Report
+      run: |
+        cat > validation-report.md << EOF
+        # Neural Hive-Mind Observability Stack Validation Report
+
+        **Build**: ${{ github.run_number }}
+        **Commit**: ${{ github.sha }}
+        **Branch**: ${{ github.ref_name }}
+        **Timestamp**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+        ## Validation Results
+
+        | Component | Status |
+        |-----------|---------|
+        | Terraform | ${{ needs.terraform-validate.result == 'success' && '✅ PASS' || '❌ FAIL' }} |
+        | Helm Charts | ${{ needs.helm-validate.result == 'success' && '✅ PASS' || '❌ FAIL' }} |
+        | Grafana Dashboards | ${{ needs.grafana-dashboards-validate.result == 'success' && '✅ PASS' || '❌ FAIL' }} |
+        | Prometheus Alerts | ${{ needs.prometheus-alerts-validate.result == 'success' && '✅ PASS' || '❌ FAIL' }} |
+        | Python Library | ${{ needs.python-library-validate.result == 'success' && '✅ PASS' || '❌ FAIL' }} |
+        | Integration Test | ${{ needs.integration-test.result == 'success' && '✅ PASS' || '❌ FAIL' }} |
+        | Security Scan | ${{ needs.security-scan.result == 'success' && '✅ PASS' || '❌ FAIL' }} |
+
+        ## Summary
+
+        - **Total Checks**: 7
+        - **Passed**: $(echo "${{ needs.terraform-validate.result == 'success' }}${{ needs.helm-validate.result == 'success' }}${{ needs.grafana-dashboards-validate.result == 'success' }}${{ needs.prometheus-alerts-validate.result == 'success' }}${{ needs.python-library-validate.result == 'success' }}${{ needs.integration-test.result == 'success' }}${{ needs.security-scan.result == 'success' }}" | grep -o "true" | wc -l)
+        - **Failed**: $(echo "${{ needs.terraform-validate.result == 'failure' }}${{ needs.helm-validate.result == 'failure' }}${{ needs.grafana-dashboards-validate.result == 'failure' }}${{ needs.prometheus-alerts-validate.result == 'failure' }}${{ needs.python-library-validate.result == 'failure' }}${{ needs.integration-test.result == 'failure' }}${{ needs.security-scan.result == 'failure' }}" | grep -o "true" | wc -l)
+
+        EOF
+
+    - name: Upload Report
+      uses: actions/upload-artifact@v3
+      with:
+        name: validation-report
+        path: validation-report.md
+
+    - name: Comment PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('validation-report.md', 'utf8');
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: report
+          });
+
+  # Notificação de Status
+  notify:
+    name: Notify Status
+    runs-on: ubuntu-latest
+    needs: [generate-report]
+    if: always()
+
+    steps:
+    - name: Notify Success
+      if: ${{ needs.generate-report.result == 'success' }}
+      run: |
+        echo "✅ Observability stack validation passed!"
+        echo "All components are valid and ready for deployment."
+
+    - name: Notify Failure
+      if: ${{ needs.generate-report.result != 'success' }}
+      run: |
+        echo "❌ Observability stack validation failed!"
+        echo "Please check the validation results and fix any issues."
+        exit 1

@@ -1,0 +1,106 @@
+{
+  "realm": "neural-hive",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "rememberMe": true,
+  "verifyEmail": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "accessTokenLifespan": 3600,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 2592000,
+  "accessCodeLifespan": 60,
+  "accessCodeLifespanUserAction": 300,
+  "accessCodeLifespanLogin": 1800,
+  "clients": [
+    {
+      "clientId": "gateway-intencoes",
+      "name": "Gateway de Captura de Intenções",
+      "description": "Cliente OAuth2 para o gateway de captura de intenções do Neural Hive-Mind",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "redirectUris": [
+        "http://localhost:8000/*",
+        "http://gateway-intencoes.default.svc.cluster.local/*",
+        "http://gateway-intencoes/*"
+      ],
+      "webOrigins": ["+"],
+      "attributes": {
+        "access.token.lifespan": "3600",
+        "client.secret.creation.time": "1696118400"
+      },
+      "protocolMappers": [
+        {
+          "name": "user-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "id",
+            "claim.name": "user_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "email",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "email",
+            "claim.name": "email",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "user",
+        "description": "Usuário padrão do sistema"
+      },
+      {
+        "name": "admin",
+        "description": "Administrador do sistema"
+      }
+    ]
+  },
+  "users": [
+    {
+      "username": "dev-user",
+      "enabled": true,
+      "email": "dev@neuralhive.local",
+      "firstName": "Developer",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "dev123456",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["user"],
+      "clientRoles": {
+        "gateway-intencoes": ["user"]
+      }
+    }
+  ]
+}

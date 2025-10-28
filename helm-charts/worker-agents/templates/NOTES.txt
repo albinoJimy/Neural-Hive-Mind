@@ -1,0 +1,26 @@
+Worker Agents deployed successfully!
+
+Get the status of your deployment:
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "worker-agents.name" . }}
+
+View logs:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "worker-agents.name" . }} -f
+
+Access metrics (port-forward):
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "worker-agents.fullname" . }} {{ .Values.config.observability.prometheusPort }}:{{ .Values.config.observability.prometheusPort }}
+  Then visit: http://localhost:{{ .Values.config.observability.prometheusPort }}/metrics
+
+Access health endpoint (port-forward):
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "worker-agents.fullname" . }} {{ .Values.config.observability.httpPort }}:{{ .Values.config.observability.httpPort }}
+  Health: http://localhost:{{ .Values.config.observability.httpPort }}/health
+  Ready: http://localhost:{{ .Values.config.observability.httpPort }}/ready
+  Status: http://localhost:{{ .Values.config.observability.httpPort }}/api/v1/status
+
+Configuration:
+  - Namespace: {{ .Values.config.namespace }}
+  - Cluster: {{ .Values.config.cluster }}
+  - Supported Task Types: {{ join ", " .Values.config.supportedTaskTypes }}
+  - Max Concurrent Tasks: {{ .Values.config.maxConcurrentTasks }}
+  - Kafka Topics: {{ .Values.config.kafka.ticketsTopic }} (consumer), {{ .Values.config.kafka.resultsTopic }} (producer)
+
+Documentation: https://github.com/neural-hive-mind/worker-agents

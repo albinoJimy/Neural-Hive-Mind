@@ -1,0 +1,173 @@
+{
+  "type": "record",
+  "name": "ConsolidatedDecision",
+  "namespace": "com.neuralhivemind.consensus",
+  "doc": "Decisão consolidada do mecanismo de consenso multi-agente",
+  "fields": [
+    {
+      "name": "decision_id",
+      "type": "string",
+      "doc": "ID único da decisão consolidada"
+    },
+    {
+      "name": "plan_id",
+      "type": "string",
+      "doc": "ID do plano cognitivo avaliado"
+    },
+    {
+      "name": "intent_id",
+      "type": "string",
+      "doc": "ID da intenção original"
+    },
+    {
+      "name": "correlation_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ID de correlação para rastreamento"
+    },
+    {
+      "name": "trace_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Trace ID OpenTelemetry"
+    },
+    {
+      "name": "span_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Span ID OpenTelemetry"
+    },
+    {
+      "name": "final_decision",
+      "type": {
+        "type": "enum",
+        "name": "DecisionType",
+        "symbols": ["approve", "reject", "review_required", "conditional"]
+      },
+      "doc": "Decisão final consolidada"
+    },
+    {
+      "name": "consensus_method",
+      "type": {
+        "type": "enum",
+        "name": "ConsensusMethod",
+        "symbols": ["bayesian", "voting", "unanimous", "fallback"]
+      },
+      "doc": "Método de consenso utilizado"
+    },
+    {
+      "name": "aggregated_confidence",
+      "type": "double",
+      "doc": "Score de confiança agregado (0.0-1.0)"
+    },
+    {
+      "name": "aggregated_risk",
+      "type": "double",
+      "doc": "Score de risco agregado (0.0-1.0)"
+    },
+    {
+      "name": "specialist_votes",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "SpecialistVote",
+          "fields": [
+            {"name": "specialist_type", "type": "string"},
+            {"name": "opinion_id", "type": "string"},
+            {"name": "confidence_score", "type": "double"},
+            {"name": "risk_score", "type": "double"},
+            {"name": "recommendation", "type": "string"},
+            {"name": "weight", "type": "double"},
+            {"name": "processing_time_ms", "type": "long"}
+          ]
+        }
+      },
+      "doc": "Votos individuais dos especialistas"
+    },
+    {
+      "name": "consensus_metrics",
+      "type": {
+        "type": "record",
+        "name": "ConsensusMetrics",
+        "fields": [
+          {"name": "divergence_score", "type": "double"},
+          {"name": "convergence_time_ms", "type": "long"},
+          {"name": "unanimous", "type": "boolean"},
+          {"name": "fallback_used", "type": "boolean"},
+          {"name": "pheromone_strength", "type": "double"},
+          {"name": "bayesian_confidence", "type": "double"},
+          {"name": "voting_confidence", "type": "double"}
+        ]
+      },
+      "doc": "Métricas do processo de consenso"
+    },
+    {
+      "name": "explainability_token",
+      "type": "string",
+      "doc": "Token para recuperar explicação detalhada"
+    },
+    {
+      "name": "reasoning_summary",
+      "type": "string",
+      "doc": "Resumo da justificativa da decisão"
+    },
+    {
+      "name": "compliance_checks",
+      "type": {
+        "type": "map",
+        "values": "boolean"
+      },
+      "doc": "Verificações de compliance executadas"
+    },
+    {
+      "name": "guardrails_triggered",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "doc": "Lista de guardrails acionados"
+    },
+    {
+      "name": "requires_human_review",
+      "type": "boolean",
+      "doc": "Indica se requer revisão humana"
+    },
+    {
+      "name": "created_at",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Timestamp de criação da decisão"
+    },
+    {
+      "name": "valid_until",
+      "type": ["null", {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }],
+      "default": null,
+      "doc": "Timestamp de validade da decisão"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "doc": "Metadados adicionais"
+    },
+    {
+      "name": "hash",
+      "type": "string",
+      "doc": "Hash SHA-256 para verificação de integridade"
+    },
+    {
+      "name": "schema_version",
+      "type": "int",
+      "default": 1,
+      "doc": "Versão do schema"
+    }
+  ]
+}

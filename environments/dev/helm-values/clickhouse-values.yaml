@@ -1,0 +1,127 @@
+# Valores ClickHouse para ambiente DEV - Neural Hive-Mind
+
+cluster:
+  name: neural-hive-clickhouse-dev
+  namespace: clickhouse-cluster
+  version: "23.8"
+  shards: 2  # Menos shards em dev
+  replicas: 2
+
+zookeeper:
+  enabled: true
+  nodes: 3
+  storage:
+    size: 5Gi
+    storageClass: gp3-ssd
+
+storage:
+  size: 30Gi
+  storageClass: gp3-ssd
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 2Gi
+  limits:
+    cpu: 2
+    memory: 8Gi
+
+zookeeperResources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi
+
+config:
+  compression: ZSTD(3)
+  maxMemoryUsage: 4Gi
+  maxThreads: 4
+  queryLogEnabled: true
+  ttlDays: 90  # Menor retenção em dev
+
+users:
+  existingSecret: ""
+
+security:
+  tls:
+    enabled: false  # Simplificar em dev
+
+backup:
+  enabled: false
+
+metrics:
+  enabled: true
+  port: 9363
+  serviceMonitor:
+    enabled: true
+    interval: 60s
+    scrapeTimeout: 10s
+    namespace: clickhouse-cluster
+
+services:
+  http:
+    port: 8123
+    type: ClusterIP
+  native:
+    port: 9000
+    type: ClusterIP
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9363"
+  prometheus.io/path: "/metrics"
+  neural-hive.io/environment: dev
+
+podLabels:
+  app.kubernetes.io/name: clickhouse
+  app.kubernetes.io/component: analytics
+  neural-hive.io/layer: memory
+  neural-hive.io/component: historical-analytics
+  neural-hive.io/environment: dev
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - clickhouse
+          topologyKey: topology.kubernetes.io/zone
+
+tolerations: []
+
+nodeSelector: {}
+
+istio:
+  injection: true
+
+environment: dev
+
+rbac:
+  create: true
+
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-observability
+      ports:
+        - protocol: TCP
+          port: 9363
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              neural-hive.io/layer: cognitive
+      ports:
+        - protocol: TCP
+          port: 8123
+        - protocol: TCP
+          port: 9000

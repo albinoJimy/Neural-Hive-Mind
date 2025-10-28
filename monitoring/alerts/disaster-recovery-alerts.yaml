@@ -1,0 +1,384 @@
+---
+# Disaster Recovery Alert Rules for Prometheus
+# Neural Hive Mind - Specialist Backup and Recovery Monitoring
+#
+# Deploy to Prometheus:
+#   kubectl apply -f disaster-recovery-alerts.yaml
+#
+# Reload Prometheus:
+#   kubectl exec -n observability prometheus-0 -- kill -HUP 1
+
+groups:
+  - name: disaster_recovery
+    interval: 60s
+    rules:
+      # =========================================================================
+      # Backup Alerts
+      # =========================================================================
+
+      - alert: BackupFailed
+        expr: |
+          neural_hive_dr_backup_total{status="failed"} > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: disaster-recovery
+          team: sre
+        annotations:
+          summary: "Backup failed for {{ $labels.specialist_type }} specialist"
+          description: |
+            Backup job failed for specialist type {{ $labels.specialist_type }}.
+            This means we may not have a recent backup for disaster recovery.
+
+            Current failed count: {{ $value }}
+
+            **Actions:**
+            1. Check backup job logs: `kubectl logs -n neural-hive-mind -l app=disaster-recovery,component=backup --tail=200`
+            2. Verify storage credentials and connectivity
+            3. Check disk space in backup pods
+            4. Retry backup manually if needed
+
+            **Runbook:** /docs/operations/DISASTER_RECOVERY_RUNBOOK.md#backup-falhando
+          runbook_url: https://github.com/your-org/neural-hive-mind/blob/main/docs/operations/DISASTER_RECOVERY_RUNBOOK.md#backup-falhando
+
+      - alert: BackupNotRunRecently
+        expr: |
+          (time() - neural_hive_dr_backup_last_success_timestamp) > 90000
+        for: 5m
+        labels:
+          severity: critical
+          component: disaster-recovery
+          team: sre
+        annotations:
+          summary: "Backup not run recently for {{ $labels.specialist_type }} specialist"
+          description: |
+            No successful backup for specialist {{ $labels.specialist_type }} in over 25 hours.
+            Last successful backup: {{ $value | humanizeDuration }} ago
+
+            **Expected:** Backups run daily at 2h UTC
+            **Actual:** Last backup was {{ $value | humanizeDuration }} ago
+
+            **Actions:**
+            1. Check if CronJob is suspended: `kubectl get cronjob disaster-recovery-backup-job -n neural-hive-mind`
+            2. Check recent job executions: `kubectl get jobs -n neural-hive-mind -l app=disaster-recovery,component=backup`
+            3. Review job logs for failures
+            4. Trigger manual backup if needed
+
+            **Runbook:** /docs/operations/DISASTER_RECOVERY_RUNBOOK.md#backup-manual
+          runbook_url: https://github.com/your-org/neural-hive-mind/blob/main/docs/operations/DISASTER_RECOVERY_RUNBOOK.md#backup-manual
+
+      - alert: BackupDurationAnomaly
+        expr: |
+          (
+            neural_hive_dr_backup_duration_seconds >
+            (
+              avg_over_time(neural_hive_dr_backup_duration_seconds[7d]) * 2
+            )
+          ) and (
+            neural_hive_dr_backup_duration_seconds > 600
+          )
+        for: 10m
+        labels:
+          severity: warning
+          component: disaster-recovery
+          team: sre
+        annotations:
+          summary: "Backup duration anomaly for {{ $labels.specialist_type }}"
+          description: |
+            Backup for {{ $labels.specialist_type }} took {{ $value }}s, which is significantly longer than usual.
+            Average duration (7d): {{ printf "neural_hive_dr_backup_duration_seconds{specialist_type='%s'}" $labels.specialist_type | query | first | value }}s
+
+            This could indicate:
+            - Performance degradation
+            - Data size increase
+            - Storage issues
+
+            **Actions:**
+            1. Monitor next backup duration
+            2. Check backup size trends
+            3. Investigate storage performance
+            4. Review specialist data growth
+
+            **Dashboard:** Disaster Recovery Monitoring
+          dashboard_url: https://grafana.example.com/d/disaster-recovery
+
+      - alert: BackupSizeAnomaly
+        expr: |
+          abs(
+            (neural_hive_dr_backup_size_bytes - avg_over_time(neural_hive_dr_backup_size_bytes[7d]))
+            / avg_over_time(neural_hive_dr_backup_size_bytes[7d])
+          ) > 0.5
+        for: 15m
+        labels:
+          severity: warning
+          component: disaster-recovery
+          team: sre
+        annotations:
+          summary: "Backup size anomaly for {{ $labels.specialist_type }}"
+          description: |
+            Backup size for {{ $labels.specialist_type }} is significantly different from average.
+            Current size: {{ $value | humanize }}B
+            Average size (7d): {{ printf "avg_over_time(neural_hive_dr_backup_size_bytes{specialist_type='%s'}[7d])" $labels.specialist_type | query | first | value | humanize }}B
+
+            This could indicate:
+            - Unexpected data growth
+            - Data loss (if smaller)
+            - Backup corruption (if much smaller)
+
+            **Actions:**
+            1. Verify backup integrity with test
+            2. Check specialist data trends
+            3. Review backup manifest
+            4. Investigate data changes
+
+            **Runbook:** /docs/operations/DISASTER_RECOVERY_RUNBOOK.md#procedimentos-de-backup
+          runbook_url: https://github.com/your-org/neural-hive-mind/blob/main/docs/operations/DISASTER_RECOVERY_RUNBOOK.md#procedimentos-de-backup
+
+      # =========================================================================
+      # Recovery Test Alerts
+      # =========================================================================
+
+      - alert: RecoveryTestFailed
+        expr: |
+          neural_hive_dr_recovery_test_last_status == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: disaster-recovery
+          team: sre
+        annotations:
+          summary: "Recovery test failed for {{ $labels.specialist_type }}"
+          description: |
+            Last recovery test failed for {{ $labels.specialist_type }} specialist.
+            This means our backups may not be recoverable!
+
+            Last test timestamp: {{ printf "neural_hive_dr_recovery_test_last_timestamp{specialist_type='%s'}" $labels.specialist_type | query | first | value | humanizeTimestamp }}
+
+            **Critical Actions Required:**
+            1. Review test logs immediately
+            2. Manually test backup restore
+            3. Identify root cause (corruption, config, etc.)
+            4. Fix issues and re-test
+            5. Consider alternative backups if needed
+
+            **Runbook:** /docs/operations/DISASTER_RECOVERY_RUNBOOK.md#testes-de-recovery
+          runbook_url: https://github.com/your-org/neural-hive-mind/blob/main/docs/operations/DISASTER_RECOVERY_RUNBOOK.md#testes-de-recovery
+
+      - alert: RecoveryTestNotRunRecently
+        expr: |
+          (time() - neural_hive_dr_recovery_test_last_timestamp) > 691200
+        for: 1h
+        labels:
+          severity: warning
+          component: disaster-recovery
+          team: sre
+        annotations:
+          summary: "Recovery test not run recently for {{ $labels.specialist_type }}"
+          description: |
+            No recovery test for {{ $labels.specialist_type }} in over 8 days.
+            Last test: {{ $value | humanizeDuration }} ago
+
+            **Expected:** Recovery tests run weekly (Sundays 3h UTC)
+
+            **Actions:**
+            1. Check recovery test CronJob status
+            2. Review recent test job executions
+            3. Trigger manual recovery test
+            4. Verify test results
+
+            **Runbook:** /docs/operations/DISASTER_RECOVERY_RUNBOOK.md#teste-manual
+          runbook_url: https://github.com/your-org/neural-hive-mind/blob/main/docs/operations/DISASTER_RECOVERY_RUNBOOK.md#teste-manual
+
+      # =========================================================================
+      # Storage Alerts
+      # =========================================================================
+
+      - alert: StorageUploadErrors
+        expr: |
+          rate(neural_hive_dr_storage_upload_errors_total[5m]) > 0
+        for: 10m
+        labels:
+          severity: critical
+          component: disaster-recovery
+          team: sre
+        annotations:
+          summary: "Storage upload errors for {{ $labels.specialist_type }} ({{ $labels.storage_provider }})"
+          description: |
+            Backup storage uploads are failing for {{ $labels.specialist_type }}.
+            Provider: {{ $labels.storage_provider }}
+            Error rate: {{ $value }} errors/sec
+
+            This means backups are not being saved to remote storage!
+
+            **Actions:**
+            1. Check storage credentials
+            2. Verify network connectivity to {{ $labels.storage_provider }}
+            3. Check storage bucket/container permissions
+            4. Review storage provider status page
+            5. Check storage quota/limits
+
+            **Runbook:** /docs/operations/DISASTER_RECOVERY_RUNBOOK.md#troubleshooting
+          runbook_url: https://github.com/your-org/neural-hive-mind/blob/main/docs/operations/DISASTER_RECOVERY_RUNBOOK.md#troubleshooting
+
+      - alert: StorageDownloadErrors
+        expr: |
+          rate(neural_hive_dr_storage_download_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: disaster-recovery
+          team: sre
+        annotations:
+          summary: "Storage download errors for {{ $labels.specialist_type }} ({{ $labels.storage_provider }})"
+          description: |
+            Failed to download backups from storage for {{ $labels.specialist_type }}.
+            Provider: {{ $labels.storage_provider }}
+            Error rate: {{ $value }} errors/sec
+
+            This prevents us from restoring backups!
+
+            **Actions:**
+            1. Check storage credentials
+            2. Verify network connectivity
+            3. Check if backup files exist in storage
+            4. Verify file permissions
+            5. Check storage provider status
+
+            **Runbook:** /docs/operations/DISASTER_RECOVERY_RUNBOOK.md#restore-falhando
+          runbook_url: https://github.com/your-org/neural-hive-mind/blob/main/docs/operations/DISASTER_RECOVERY_RUNBOOK.md#restore-falhando
+
+      # =========================================================================
+      # Component-Specific Alerts
+      # =========================================================================
+
+      - alert: ModelBackupComponentFailed
+        expr: |
+          neural_hive_dr_backup_component_size_bytes{component="model"} == 0
+        for: 10m
+        labels:
+          severity: warning
+          component: disaster-recovery
+          team: ml-engineering
+        annotations:
+          summary: "Model backup component empty for {{ $labels.specialist_type }}"
+          description: |
+            Model component in backup for {{ $labels.specialist_type }} has size 0.
+            This likely means the model backup failed.
+
+            **Actions:**
+            1. Check MLflow connectivity
+            2. Verify model exists in MLflow
+            3. Review backup logs for model component
+            4. Retry backup if needed
+
+            **Runbook:** /docs/operations/DISASTER_RECOVERY_RUNBOOK.md#backup-parcial
+          runbook_url: https://github.com/your-org/neural-hive-mind/blob/main/docs/operations/DISASTER_RECOVERY_RUNBOOK.md#backup-parcial
+
+      - alert: LedgerBackupComponentFailed
+        expr: |
+          neural_hive_dr_backup_component_size_bytes{component="ledger"} == 0
+        for: 10m
+        labels:
+          severity: warning
+          component: disaster-recovery
+          team: sre
+        annotations:
+          summary: "Ledger backup component empty for {{ $labels.specialist_type }}"
+          description: |
+            Ledger component in backup for {{ $labels.specialist_type }} has size 0.
+            This likely means the ledger backup failed.
+
+            **Actions:**
+            1. Check MongoDB connectivity
+            2. Verify ledger collection exists
+            3. Review backup logs for ledger component
+            4. Retry backup if needed
+
+            **Runbook:** /docs/operations/DISASTER_RECOVERY_RUNBOOK.md#componente-ledger-mongodb
+          runbook_url: https://github.com/your-org/neural-hive-mind/blob/main/docs/operations/DISASTER_RECOVERY_RUNBOOK.md#componente-ledger-mongodb
+
+      # =========================================================================
+      # Backup Retention Alerts
+      # =========================================================================
+
+      - alert: OldBackupsNotCleanedUp
+        expr: |
+          count by (specialist_type) (
+            (time() - neural_hive_dr_backup_last_success_timestamp) > 7776000
+          ) > 5
+        for: 24h
+        labels:
+          severity: info
+          component: disaster-recovery
+          team: sre
+        annotations:
+          summary: "Too many old backups for {{ $labels.specialist_type }}"
+          description: |
+            More than 5 backups older than 90 days exist for {{ $labels.specialist_type }}.
+            Count: {{ $value }} old backups
+
+            **Actions:**
+            1. Run manual cleanup: `python run_disaster_recovery_backup.py --cleanup`
+            2. Verify backup retention policy (should be 90 days)
+            3. Check if cleanup is running in backup jobs
+            4. Consider S3/GCS lifecycle policies
+
+            **Runbook:** /docs/operations/DISASTER_RECOVERY_RUNBOOK.md#backups-nao-sendo-limpos
+          runbook_url: https://github.com/your-org/neural-hive-mind/blob/main/docs/operations/DISASTER_RECOVERY_RUNBOOK.md#backups-nao-sendo-limpos
+
+      # =========================================================================
+      # Restore Alerts
+      # =========================================================================
+
+      - alert: RestoreOperationInProgress
+        expr: |
+          neural_hive_dr_restore_total > 0
+        for: 1m
+        labels:
+          severity: info
+          component: disaster-recovery
+          team: sre
+        annotations:
+          summary: "Restore operation in progress for {{ $labels.specialist_type }}"
+          description: |
+            A restore operation is currently running for {{ $labels.specialist_type }}.
+            Status: {{ $labels.status }}
+
+            This is informational - monitor progress and validate after completion.
+
+            **Actions:**
+            1. Monitor restore progress
+            2. Check logs for any errors
+            3. Validate service after restore completes
+            4. Verify data integrity
+
+            **Playbook:** /docs/operations/DISASTER_RECOVERY_PLAYBOOK.md
+          playbook_url: https://github.com/your-org/neural-hive-mind/blob/main/docs/operations/DISASTER_RECOVERY_PLAYBOOK.md
+
+      - alert: RestoreTakingTooLong
+        expr: |
+          neural_hive_dr_restore_duration_seconds > 1800
+        for: 5m
+        labels:
+          severity: warning
+          component: disaster-recovery
+          team: sre
+        annotations:
+          summary: "Restore taking too long for {{ $labels.specialist_type }}"
+          description: |
+            Restore for {{ $labels.specialist_type }} has been running for over 30 minutes.
+            Current duration: {{ $value }}s
+
+            This may indicate:
+            - Large backup size
+            - Slow storage download
+            - Performance issues
+
+            **Actions:**
+            1. Monitor logs for progress
+            2. Check storage download speed
+            3. Verify network connectivity
+            4. Consider timeout increase if needed
+
+            **Runbook:** /docs/operations/DISASTER_RECOVERY_RUNBOOK.md#restore-falhando
+          runbook_url: https://github.com/your-org/neural-hive-mind/blob/main/docs/operations/DISASTER_RECOVERY_RUNBOOK.md#restore-falhando

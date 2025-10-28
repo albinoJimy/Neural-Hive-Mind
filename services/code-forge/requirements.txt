@@ -1,0 +1,77 @@
+# Code Forge - Neural Code Generation Pipeline Dependencies
+
+# Web Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# gRPC
+grpcio>=1.59.0
+grpcio-tools>=1.59.0
+
+# Kafka
+aiokafka>=0.8.1
+
+# Data Validation
+pydantic>=2.4.0
+pydantic-settings>=2.0.3
+
+# Database - PostgreSQL
+sqlalchemy>=2.0.0
+asyncpg>=0.29.0
+alembic>=1.12.0
+
+# Database - MongoDB
+motor>=3.3.0
+pymongo>=4.6.0
+
+# Database - Redis
+redis[hiredis]>=5.0.0
+
+# HTTP Client
+httpx>=0.25.0
+
+# OpenTelemetry
+opentelemetry-api>=1.21.0
+opentelemetry-sdk>=1.21.0
+opentelemetry-instrumentation-fastapi>=0.42b0
+opentelemetry-instrumentation-grpc>=0.42b0
+opentelemetry-instrumentation-httpx>=0.42b0
+opentelemetry-instrumentation-sqlalchemy>=0.42b0
+opentelemetry-exporter-otlp>=1.21.0
+
+# Prometheus
+prometheus-client>=0.18.0
+
+# Logging
+structlog>=23.2.0
+python-json-logger>=2.0.7
+
+# Template Engine
+jinja2>=3.1.2
+
+# Git Operations
+gitpython>=3.1.40
+
+# YAML/JSON
+pyyaml>=6.0.1
+orjson>=3.9.10
+
+# Security
+python-jose[cryptography]>=3.3.0
+cryptography>=41.0.0
+
+# Utility
+python-dateutil>=2.8.2
+aiofiles>=23.2.1
+tenacity>=8.2.3
+
+# Integration library
+# Para desenvolvimento local, usar: pip install -e ../../libraries/neural_hive_integration
+# Para produção com registry privado: neural_hive_integration>=1.0.0
+-e ../../libraries/neural_hive_integration
+
+# Testing
+pytest>=7.4.3
+pytest-asyncio>=0.21.1
+pytest-cov>=4.1.0
+httpx>=0.25.0

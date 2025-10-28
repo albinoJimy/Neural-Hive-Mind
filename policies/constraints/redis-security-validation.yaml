@@ -1,0 +1,58 @@
+# Constraint para validação de segurança Redis
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: RedisSecurityValidation
+metadata:
+  name: redis-security-validation
+  labels:
+    neural-hive.io/policy: security
+    neural-hive.io/enforcement: active
+    neural-hive.io/security-domain: redis
+spec:
+  enforcementAction: deny # Segurança Redis é crítica, usar deny diretamente
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds:
+          - Service
+          - ConfigMap
+          - Secret
+      - apiGroups: ["networking.k8s.io"]
+        kinds:
+          - NetworkPolicy
+      - apiGroups: ["redis.redis.opstreelabs.in"]
+        kinds:
+          - RedisCluster
+    namespaces:
+      - "redis-cluster"
+      - "gateway-intencoes"
+      - "neural-hive-services"
+      - "auth"
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+      - istio-system
+      - gatekeeper-system
+      - cert-manager
+  parameters:
+    tlsRequiredEnvironments:
+      - "prod"
+      - "staging"
+    governedNamespaces:
+      - "redis-cluster"
+      - "gateway-intencoes"
+      - "neural-hive-services"
+    authorizedNamespaces:
+      - "gateway-intencoes"
+      - "neural-hive-services"
+      - "auth"
+    insecurePatterns:
+      - "changeme"
+      - "password123"
+      - "admin"
+      - "redis"
+      - "123456"
+      - "secret"
+    allowedSecretTypes:
+      - "Opaque"
+    enforcementMode: "deny"

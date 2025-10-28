@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: specialist-tenant-configs
+  namespace: default
+  labels:
+    app: neural-hive
+    component: specialists
+    config-type: multi-tenancy
+data:
+  tenant-configs.json: |
+    {
+      "default": {
+        "tenant_id": "default",
+        "tenant_name": "Default Tenant",
+        "is_active": true,
+        "mlflow_model_name": null,
+        "mlflow_model_stage": null,
+        "min_confidence_score": null,
+        "high_risk_threshold": null,
+        "enable_explainability": null,
+        "rate_limit_per_second": 100,
+        "metadata": {}
+      },
+      "tenant-enterprise-A": {
+        "tenant_id": "tenant-enterprise-A",
+        "tenant_name": "Enterprise Customer A",
+        "is_active": true,
+        "mlflow_model_name": "technical-tenant-a-model",
+        "mlflow_model_stage": "Production",
+        "min_confidence_score": 0.85,
+        "high_risk_threshold": 0.6,
+        "enable_explainability": true,
+        "rate_limit_per_second": 500,
+        "metadata": {
+          "tier": "premium",
+          "contract_start": "2024-01-01",
+          "sla_level": "gold"
+        }
+      },
+      "tenant-startup-B": {
+        "tenant_id": "tenant-startup-B",
+        "tenant_name": "Startup Customer B",
+        "is_active": true,
+        "mlflow_model_name": null,
+        "mlflow_model_stage": null,
+        "min_confidence_score": 0.75,
+        "high_risk_threshold": 0.7,
+        "enable_explainability": false,
+        "rate_limit_per_second": 50,
+        "metadata": {
+          "tier": "basic",
+          "trial_expires": "2024-06-01"
+        }
+      },
+      "tenant-inactive-C": {
+        "tenant_id": "tenant-inactive-C",
+        "tenant_name": "Inactive Customer C",
+        "is_active": false,
+        "mlflow_model_name": null,
+        "mlflow_model_stage": null,
+        "rate_limit_per_second": 0,
+        "metadata": {
+          "deactivated_at": "2024-01-10",
+          "reason": "contract_expired"
+        }
+      }
+    }

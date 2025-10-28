@@ -1,0 +1,15 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: guard-agents
+  namespace: {{ .Values.config.namespace }}
+  labels:
+    app: guard-agents
+    neural-hive.io/component: guard-agents
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      app: guard-agents
+{{- end }}

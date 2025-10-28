@@ -1,0 +1,215 @@
+# Templates de LimitRanges específicos por ambiente e workload
+# Neural Hive-Mind Bootstrap Configuration
+
+# Templates para ambiente de desenvolvimento
+---
+# Dev - Cognition Layer Limits
+dev_cognition_cpu_default_limit: "500m"
+dev_cognition_memory_default_limit: "1Gi"
+dev_cognition_cpu_default_request: "100m"
+dev_cognition_memory_default_request: "256Mi"
+dev_cognition_cpu_max_limit: "2"
+dev_cognition_memory_max_limit: "4Gi"
+
+# Dev - Orchestration Layer Limits
+dev_orchestration_cpu_default_limit: "300m"
+dev_orchestration_memory_default_limit: "512Mi"
+dev_orchestration_cpu_default_request: "50m"
+dev_orchestration_memory_default_request: "128Mi"
+dev_orchestration_cpu_max_limit: "1"
+dev_orchestration_memory_max_limit: "2Gi"
+
+# Dev - Execution Layer Limits
+dev_execution_cpu_default_limit: "1"
+dev_execution_memory_default_limit: "2Gi"
+dev_execution_cpu_default_request: "200m"
+dev_execution_memory_default_request: "512Mi"
+dev_execution_cpu_max_limit: "4"
+dev_execution_memory_max_limit: "8Gi"
+
+# Dev - Observability Layer Limits
+dev_observability_cpu_default_limit: "200m"
+dev_observability_memory_default_limit: "512Mi"
+dev_observability_cpu_default_request: "50m"
+dev_observability_memory_default_request: "128Mi"
+dev_observability_cpu_max_limit: "1"
+dev_observability_memory_max_limit: "2Gi"
+
+# Dev - Auth Layer Limits
+dev_auth_cpu_default_limit: "300m"
+dev_auth_memory_default_limit: "512Mi"
+dev_auth_cpu_default_request: "100m"
+dev_auth_memory_default_request: "256Mi"
+dev_auth_cpu_max_limit: "1"
+dev_auth_memory_max_limit: "2Gi"
+
+# Templates para ambiente de staging
+---
+# Staging - Cognition Layer Limits
+staging_cognition_cpu_default_limit: "1"
+staging_cognition_memory_default_limit: "2Gi"
+staging_cognition_cpu_default_request: "200m"
+staging_cognition_memory_default_request: "512Mi"
+staging_cognition_cpu_max_limit: "4"
+staging_cognition_memory_max_limit: "8Gi"
+
+# Staging - Orchestration Layer Limits
+staging_orchestration_cpu_default_limit: "500m"
+staging_orchestration_memory_default_limit: "1Gi"
+staging_orchestration_cpu_default_request: "100m"
+staging_orchestration_memory_default_request: "256Mi"
+staging_orchestration_cpu_max_limit: "2"
+staging_orchestration_memory_max_limit: "4Gi"
+
+# Staging - Execution Layer Limits
+staging_execution_cpu_default_limit: "2"
+staging_execution_memory_default_limit: "4Gi"
+staging_execution_cpu_default_request: "500m"
+staging_execution_memory_default_request: "1Gi"
+staging_execution_cpu_max_limit: "8"
+staging_execution_memory_max_limit: "16Gi"
+
+# Staging - Observability Layer Limits
+staging_observability_cpu_default_limit: "500m"
+staging_observability_memory_default_limit: "1Gi"
+staging_observability_cpu_default_request: "100m"
+staging_observability_memory_default_request: "256Mi"
+staging_observability_cpu_max_limit: "2"
+staging_observability_memory_max_limit: "4Gi"
+
+# Staging - Auth Layer Limits
+staging_auth_cpu_default_limit: "500m"
+staging_auth_memory_default_limit: "1Gi"
+staging_auth_cpu_default_request: "200m"
+staging_auth_memory_default_request: "512Mi"
+staging_auth_cpu_max_limit: "2"
+staging_auth_memory_max_limit: "4Gi"
+
+# Templates para ambiente de produção
+---
+# Prod - Cognition Layer Limits
+prod_cognition_cpu_default_limit: "2"
+prod_cognition_memory_default_limit: "4Gi"
+prod_cognition_cpu_default_request: "500m"
+prod_cognition_memory_default_request: "1Gi"
+prod_cognition_cpu_max_limit: "8"
+prod_cognition_memory_max_limit: "16Gi"
+
+# Prod - Orchestration Layer Limits
+prod_orchestration_cpu_default_limit: "1"
+prod_orchestration_memory_default_limit: "2Gi"
+prod_orchestration_cpu_default_request: "200m"
+prod_orchestration_memory_default_request: "512Mi"
+prod_orchestration_cpu_max_limit: "4"
+prod_orchestration_memory_max_limit: "8Gi"
+
+# Prod - Execution Layer Limits
+prod_execution_cpu_default_limit: "4"
+prod_execution_memory_default_limit: "8Gi"
+prod_execution_cpu_default_request: "1"
+prod_execution_memory_default_request: "2Gi"
+prod_execution_cpu_max_limit: "16"
+prod_execution_memory_max_limit: "32Gi"
+
+# Prod - Observability Layer Limits
+prod_observability_cpu_default_limit: "1"
+prod_observability_memory_default_limit: "2Gi"
+prod_observability_cpu_default_request: "200m"
+prod_observability_memory_default_request: "512Mi"
+prod_observability_cpu_max_limit: "4"
+prod_observability_memory_max_limit: "8Gi"
+
+# Prod - Auth Layer Limits
+prod_auth_cpu_default_limit: "1"
+prod_auth_memory_default_limit: "2Gi"
+prod_auth_cpu_default_request: "500m"
+prod_auth_memory_default_request: "1Gi"
+prod_auth_cpu_max_limit: "4"
+prod_auth_memory_max_limit: "8Gi"
+
+# Configurações de QoS por ambiente
+---
+# QoS Classes Configuration
+dev_qos_guaranteed_workloads:
+  - neural-hive-system
+  - auth
+
+dev_qos_burstable_workloads:
+  - neural-hive-cognition
+  - neural-hive-orchestration
+  - neural-hive-execution
+
+dev_qos_besteffort_workloads:
+  - neural-hive-observability
+
+staging_qos_guaranteed_workloads:
+  - neural-hive-system
+  - auth
+  - cosign-system
+  - gatekeeper-system
+
+staging_qos_burstable_workloads:
+  - neural-hive-cognition
+  - neural-hive-orchestration
+  - neural-hive-execution
+  - neural-hive-observability
+
+staging_qos_besteffort_workloads: []
+
+prod_qos_guaranteed_workloads:
+  - neural-hive-system
+  - auth
+  - cosign-system
+  - gatekeeper-system
+  - cert-manager
+
+prod_qos_burstable_workloads:
+  - neural-hive-cognition
+  - neural-hive-orchestration
+  - neural-hive-execution
+  - neural-hive-observability
+
+prod_qos_besteffort_workloads: []
+
+# Configurações de storage por ambiente
+---
+# Storage Limits por ambiente
+dev_storage_defaults:
+  pvc_default_size: "10Gi"
+  pvc_max_size: "100Gi"
+  pvc_min_size: "1Gi"
+
+staging_storage_defaults:
+  pvc_default_size: "50Gi"
+  pvc_max_size: "500Gi"
+  pvc_min_size: "5Gi"
+
+prod_storage_defaults:
+  pvc_default_size: "100Gi"
+  pvc_max_size: "1Ti"
+  pvc_min_size: "10Gi"
+
+# Configurações de ephemeral storage por workload
+dev_ephemeral_storage:
+  cognition: "5Gi"
+  orchestration: "2Gi"
+  execution: "10Gi"
+  observability: "5Gi"
+  security: "1Gi"
+  auth: "2Gi"
+
+staging_ephemeral_storage:
+  cognition: "10Gi"
+  orchestration: "5Gi"
+  execution: "20Gi"
+  observability: "10Gi"
+  security: "2Gi"
+  auth: "5Gi"
+
+prod_ephemeral_storage:
+  cognition: "20Gi"
+  orchestration: "10Gi"
+  execution: "50Gi"
+  observability: "20Gi"
+  security: "5Gi"
+  auth: "10Gi"

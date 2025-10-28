@@ -1,0 +1,45 @@
+replicaCount: 1
+
+image:
+  tag: latest
+  pullPolicy: Always
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: 1
+    memory: 2Gi
+
+config:
+  environment: dev
+  logLevel: DEBUG
+
+  mlflow:
+    trackingUri: "http://mlflow.mlflow.svc.cluster.local:5000"
+    experimentName: "evolution-specialist-dev"
+    modelStage: "Staging"
+
+  mongodb:
+    uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+    database: "neural_hive_dev"
+
+  neo4j:
+    uri: "bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687"
+
+  redis:
+    clusterNodes: "neural-hive-cache.redis-cluster.svc.cluster.local:6379"
+    sslEnabled: false
+
+  otel:
+    endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+
+serviceMonitor:
+  enabled: true
+  interval: 60s
+
+networkPolicy:
+  enabled: true
+
+environment: dev

@@ -1,0 +1,137 @@
+name: Test Neural Hive Specialists
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd="echo 'db.runCommand({ping:1}).ok' | mongosh --quiet localhost/test || exit 1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="/bin/sh -c 'redis-cli ping || exit 1'"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('libraries/python/neural_hive_specialists/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Instalar dependências
+        working-directory: libraries/python/neural_hive_specialists
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install -e ".[explainability]"
+
+      - name: Gerar protobufs
+        run: make proto-gen
+
+      - name: Executar testes unitários
+        working-directory: libraries/python/neural_hive_specialists
+        timeout-minutes: 10
+        run: pytest tests/ -m "unit" --cov --cov-report=xml --cov-report=term
+
+      - name: Executar testes de integração
+        working-directory: libraries/python/neural_hive_specialists
+        timeout-minutes: 15
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+          REDIS_CLUSTER_NODES: localhost:6379
+        run: pytest tests/ -m "integration" --cov --cov-append --cov-report=xml
+
+      - name: Executar testes de contrato gRPC
+        working-directory: libraries/python/neural_hive_specialists
+        timeout-minutes: 10
+        run: pytest tests/ -m "contract" --cov --cov-append --cov-report=xml
+
+      - name: Upload coverage para Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./libraries/python/neural_hive_specialists/coverage.xml
+          flags: specialists-python${{ matrix.python-version }}
+          name: neural-hive-specialists-py${{ matrix.python-version }}
+          fail_ci_if_error: false
+
+      - name: Gerar relatório HTML de cobertura
+        if: always()
+        working-directory: libraries/python/neural_hive_specialists
+        run: pytest tests/ --cov --cov-report=html:htmlcov
+
+      - name: Upload relatório HTML
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report-py${{ matrix.python-version }}
+          path: libraries/python/neural_hive_specialists/htmlcov/
+
+      - name: Comentar PR com cobertura
+        if: github.event_name == 'pull_request'
+        uses: py-cov-action/python-coverage-comment-action@v3
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+          MINIMUM_GREEN: 90
+          MINIMUM_ORANGE: 85
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependências de linting
+        run: |
+          pip install flake8 black mypy
+
+      - name: Executar flake8
+        working-directory: libraries/python/neural_hive_specialists
+        run: flake8 neural_hive_specialists/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Verificar formatação com black
+        working-directory: libraries/python/neural_hive_specialists
+        run: black --check neural_hive_specialists/
+
+      - name: Executar mypy (type checking)
+        working-directory: libraries/python/neural_hive_specialists
+        continue-on-error: true
+        run: mypy neural_hive_specialists/ --ignore-missing-imports

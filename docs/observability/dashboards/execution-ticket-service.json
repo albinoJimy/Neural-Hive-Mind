@@ -1,0 +1,150 @@
+{
+  "dashboard": {
+    "title": "Execution Ticket Service",
+    "tags": ["neural-hive-mind", "orchestration", "tickets"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "title": "Tickets Consumed (Rate)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(tickets_consumed_total{service=\"execution-ticket-service\"}[5m])",
+            "legendFormat": "Consumed"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "title": "Tickets by Status",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "tickets_by_status{service=\"execution-ticket-service\"}",
+            "legendFormat": "{{status}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "title": "API Request Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(api_requests_total{service=\"execution-ticket-service\"}[5m])",
+            "legendFormat": "{{method}} {{endpoint}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "title": "API Latency (P95)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(api_request_duration_seconds_bucket{service=\"execution-ticket-service\"}[5m]))",
+            "legendFormat": "P95"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "title": "Webhooks Sent vs Failed",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(webhooks_sent_total{service=\"execution-ticket-service\"}[5m])",
+            "legendFormat": "Sent"
+          },
+          {
+            "expr": "rate(webhooks_failed_total{service=\"execution-ticket-service\"}[5m])",
+            "legendFormat": "Failed"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "title": "Webhook Queue Size",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "webhook_queue_size{service=\"execution-ticket-service\"}",
+            "legendFormat": "Queue Size"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      },
+      {
+        "title": "JWT Tokens Generated",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(jwt_tokens_generated_total{service=\"execution-ticket-service\"}[5m])",
+            "legendFormat": "Tokens/sec"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+      },
+      {
+        "title": "Database Operations",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(postgres_queries_total{service=\"execution-ticket-service\"}[5m])",
+            "legendFormat": "PostgreSQL {{operation}}"
+          },
+          {
+            "expr": "rate(mongodb_operations_total{service=\"execution-ticket-service\"}[5m])",
+            "legendFormat": "MongoDB {{operation}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+      },
+      {
+        "title": "Kafka Consumer Lag",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "kafka_consumer_lag{service=\"execution-ticket-service\"}",
+            "legendFormat": "Lag"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 32}
+      },
+      {
+        "title": "Processing Errors",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(tickets_processing_errors_total{service=\"execution-ticket-service\"}[5m])",
+            "legendFormat": "Errors/sec"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 32}
+      },
+      {
+        "title": "CPU Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(container_cpu_usage_seconds_total{pod=~\"execution-ticket-service-.*\"}[5m])",
+            "legendFormat": "{{pod}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 40}
+      },
+      {
+        "title": "Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "container_memory_usage_bytes{pod=~\"execution-ticket-service-.*\"}",
+            "legendFormat": "{{pod}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 40}
+      }
+    ]
+  }
+}

@@ -1,0 +1,68 @@
+# FastAPI e servidor
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Cliente Kafka
+confluent-kafka==2.3.0
+
+# Cache Redis Cluster
+redis[hiredis]>=5.0.0
+
+# Processamento de áudio (ASR)
+openai-whisper==20231117
+torch==2.1.2
+torchaudio==2.1.2
+
+# Processamento de linguagem natural (NLU)
+spacy==3.7.2
+transformers==4.36.2
+nltk==3.8.1
+
+# Validação e serialização
+pydantic[email]==2.5.2
+pydantic-settings==2.1.0
+jsonschema==4.20.0
+
+# Esquemas Avro
+avro==1.11.3
+fastavro==1.9.4
+
+# Observabilidade
+# neural-hive-observability==1.0.0  # Biblioteca padronizada do Neural Hive-Mind - TEMPORARIAMENTE DESABILITADA
+opentelemetry-api==1.21.0
+opentelemetry-sdk==1.21.0
+opentelemetry-instrumentation-fastapi==0.42b0
+opentelemetry-instrumentation-kafka-python==0.42b0
+opentelemetry-exporter-otlp==1.21.0
+prometheus-client==0.19.0
+structlog==23.2.0
+
+# Segurança e autenticação
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+cryptography==41.0.7
+
+# Utilitários
+httpx==0.25.2
+aiofiles==23.2.1
+asyncio-mqtt==0.16.1
+numpy==1.24.4
+pandas==2.1.4
+
+# Desenvolvimento e testes
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-xdist==3.5.0
+testcontainers==3.7.1
+
+# Tipos e linting
+mypy==1.7.1
+types-redis==4.6.0.11
+types-requests==2.31.0.20231231
+
+# Logging e configuração
+python-dotenv==1.0.0
+click==8.1.7
+rich==13.7.0

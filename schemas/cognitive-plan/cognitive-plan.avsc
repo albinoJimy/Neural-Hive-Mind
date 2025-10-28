@@ -1,0 +1,157 @@
+{
+  "type": "record",
+  "name": "CognitivePlan",
+  "namespace": "com.neuralhivemind.cognitiva",
+  "doc": "Plano Cognitivo gerado pelo Motor de Tradução Semântica (Fluxo B)",
+  "fields": [
+    {
+      "name": "plan_id",
+      "type": "string",
+      "doc": "ID único do plano"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0.0",
+      "doc": "Versão do plano"
+    },
+    {
+      "name": "intent_id",
+      "type": "string",
+      "doc": "ID da intenção que originou o plano"
+    },
+    {
+      "name": "correlation_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ID de correlação"
+    },
+    {
+      "name": "trace_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Trace ID OpenTelemetry"
+    },
+    {
+      "name": "span_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Span ID OpenTelemetry"
+    },
+    {
+      "name": "tasks",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "TaskNode",
+          "doc": "Nó individual do DAG de tarefas",
+          "fields": [
+            {"name": "task_id", "type": "string"},
+            {"name": "task_type", "type": "string"},
+            {"name": "description", "type": "string"},
+            {"name": "dependencies", "type": {"type": "array", "items": "string"}, "default": []},
+            {"name": "estimated_duration_ms", "type": ["null", "long"], "default": null},
+            {"name": "required_capabilities", "type": {"type": "array", "items": "string"}, "default": []},
+            {"name": "parameters", "type": {"type": "map", "values": "string"}, "default": {}},
+            {"name": "metadata", "type": {"type": "map", "values": "string"}, "default": {}}
+          ]
+        }
+      },
+      "doc": "Lista de tarefas do plano"
+    },
+    {
+      "name": "execution_order",
+      "type": {"type": "array", "items": "string"},
+      "doc": "Ordem topológica de execução"
+    },
+    {
+      "name": "risk_score",
+      "type": "double",
+      "doc": "Score de risco (0-1)"
+    },
+    {
+      "name": "risk_band",
+      "type": {
+        "type": "enum",
+        "name": "RiskBand",
+        "symbols": ["low", "medium", "high", "critical"]
+      },
+      "doc": "Classificação de risco"
+    },
+    {
+      "name": "risk_factors",
+      "type": {"type": "map", "values": "double"},
+      "doc": "Fatores de risco individuais"
+    },
+    {
+      "name": "explainability_token",
+      "type": "string",
+      "doc": "Token para recuperar explicação detalhada"
+    },
+    {
+      "name": "reasoning_summary",
+      "type": "string",
+      "doc": "Resumo da justificativa"
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "PlanStatus",
+        "symbols": ["draft", "validated", "approved", "rejected"]
+      },
+      "default": "draft",
+      "doc": "Status do plano"
+    },
+    {
+      "name": "created_at",
+      "type": {"type": "long", "logicalType": "timestamp-millis"},
+      "doc": "Timestamp de criação"
+    },
+    {
+      "name": "valid_until",
+      "type": ["null", {"type": "long", "logicalType": "timestamp-millis"}],
+      "default": null,
+      "doc": "Validade do plano"
+    },
+    {
+      "name": "estimated_total_duration_ms",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "Duração total estimada"
+    },
+    {
+      "name": "complexity_score",
+      "type": "double",
+      "doc": "Score de complexidade"
+    },
+    {
+      "name": "original_domain",
+      "type": "string",
+      "doc": "Domínio da intenção original"
+    },
+    {
+      "name": "original_priority",
+      "type": "string",
+      "doc": "Prioridade original"
+    },
+    {
+      "name": "original_security_level",
+      "type": "string",
+      "doc": "Nível de segurança original"
+    },
+    {
+      "name": "metadata",
+      "type": {"type": "map", "values": "string"},
+      "default": {},
+      "doc": "Metadados adicionais"
+    },
+    {
+      "name": "schema_version",
+      "type": "int",
+      "default": 1,
+      "doc": "Versão do schema"
+    }
+  ]
+}

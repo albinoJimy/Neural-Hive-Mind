@@ -1,0 +1,241 @@
+---
+# CronJob para executar políticas de retenção de dados (LGPD/GDPR)
+# Schedule: Diariamente às 2h UTC
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: specialist-retention-policy-job
+  namespace: neural-hive-mind
+  labels:
+    app: specialist-retention
+    component: compliance
+    managed-by: neural-hive
+spec:
+  # Executar diariamente às 2h UTC
+  schedule: "0 2 * * *"
+
+  # Política de concorrência: não permitir execuções simultâneas
+  concurrencyPolicy: Forbid
+
+  # Manter histórico dos últimos 3 jobs bem-sucedidos e 3 falhados
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+
+  # Suspender execução (útil para manutenção)
+  suspend: false
+
+  jobTemplate:
+    metadata:
+      labels:
+        app: specialist-retention
+        component: compliance
+    spec:
+      # Tempo máximo de execução: 1 hora
+      activeDeadlineSeconds: 3600
+
+      # Número de tentativas em caso de falha
+      backoffLimit: 2
+
+      template:
+        metadata:
+          labels:
+            app: specialist-retention
+            component: compliance
+          annotations:
+            # Annotations para Prometheus monitoring
+            prometheus.io/scrape: "true"
+            prometheus.io/port: "8000"
+        spec:
+          # Service account com permissões para acessar MongoDB
+          serviceAccountName: specialist-retention-sa
+
+          # Restart policy: nunca reiniciar automaticamente
+          restartPolicy: OnFailure
+
+          containers:
+          - name: retention-policy-runner
+            # Usar mesma imagem dos especialistas
+            image: neural-hive/specialist-base:latest
+            imagePullPolicy: IfNotPresent
+
+            # Comando para executar script de retenção
+            command:
+              - python
+              - -m
+              - neural_hive_specialists.scripts.run_retention_policies
+
+            # Arguments opcionais (descomente para usar)
+            # args:
+            #   - --verbose
+            #   - --policy-name
+            #   - high_risk_extended
+
+            # Environment variables
+            env:
+              # MongoDB Configuration
+              - name: MONGODB_URI
+                valueFrom:
+                  secretKeyRef:
+                    name: mongodb-credentials
+                    key: uri
+
+              - name: MONGODB_DATABASE
+                valueFrom:
+                  configMapKeyRef:
+                    name: specialist-config
+                    key: mongodb_database
+                    optional: true
+
+              # Compliance Configuration
+              - name: ENABLE_PII_DETECTION
+                value: "true"
+
+              - name: ENABLE_FIELD_ENCRYPTION
+                value: "true"
+
+              - name: ENABLE_AUDIT_LOGGING
+                value: "true"
+
+              # Encryption Key
+              - name: ENCRYPTION_KEY_PATH
+                value: "/etc/neural-hive/encryption.key"
+
+              # Retention Configuration
+              - name: ENABLE_AUTOMATED_RETENTION
+                value: "true"
+
+              - name: DEFAULT_RETENTION_DAYS
+                value: "365"
+
+              # Job Metadata
+              - name: SPECIALIST_TYPE
+                value: "retention-job"
+
+              - name: JOB_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
+
+              - name: JOB_NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.namespace
+
+            # Resource limits
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+
+            # Volume mounts
+            volumeMounts:
+              # Chave de criptografia
+              - name: encryption-key
+                mountPath: /etc/neural-hive
+                readOnly: true
+
+          # Volumes
+          volumes:
+            # Secret com chave de criptografia
+            - name: encryption-key
+              secret:
+                secretName: neural-hive-encryption-key
+                defaultMode: 0400  # Read-only pelo owner
+
+---
+# ServiceAccount para o CronJob
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: specialist-retention-sa
+  namespace: neural-hive-mind
+  labels:
+    app: specialist-retention
+    component: compliance
+
+---
+# ConfigMap com configurações customizáveis
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: retention-policy-config
+  namespace: neural-hive-mind
+  labels:
+    app: specialist-retention
+    component: compliance
+data:
+  # Schedule do CronJob (pode ser alterado sem recriar o CronJob)
+  schedule: "0 2 * * *"
+
+  # Retention days por tipo de recomendação
+  retention_days_reject: "365"      # 1 ano para rejeições
+  retention_days_approve: "90"      # 90 dias para aprovações
+  retention_days_conditional: "90"  # 90 dias para aprovações condicionais
+  retention_days_review: "180"      # 6 meses para revisões
+
+  # Políticas customizadas (JSON)
+  custom_policies: |
+    [
+      {
+        "name": "high_risk_extended",
+        "retention_days": 365,
+        "apply_to_recommendations": ["reject"],
+        "mask_sensitive_fields": true,
+        "delete_after_retention": false
+      },
+      {
+        "name": "standard_retention",
+        "retention_days": 90,
+        "apply_to_recommendations": ["approve", "conditional"],
+        "mask_sensitive_fields": true,
+        "delete_after_retention": false
+      },
+      {
+        "name": "review_required_extended",
+        "retention_days": 180,
+        "apply_to_recommendations": ["review_required"],
+        "mask_sensitive_fields": true,
+        "delete_after_retention": false
+      }
+    ]
+
+---
+# Secret placeholder para chave de criptografia
+# IMPORTANTE: Este secret deve ser criado manualmente com a chave gerada
+apiVersion: v1
+kind: Secret
+metadata:
+  name: neural-hive-encryption-key
+  namespace: neural-hive-mind
+  labels:
+    app: specialist-retention
+    component: compliance
+type: Opaque
+stringData:
+  # Substituir com chave real gerada por generate_encryption_key.py
+  # kubectl create secret generic neural-hive-encryption-key \
+  #   --from-file=encryption.key=/path/to/encryption.key \
+  #   --namespace=neural-hive-mind
+  encryption.key: "PLACEHOLDER_REPLACE_WITH_REAL_KEY"
+
+---
+# ServiceMonitor para Prometheus (se usando Prometheus Operator)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: specialist-retention-metrics
+  namespace: neural-hive-mind
+  labels:
+    app: specialist-retention
+    component: compliance
+spec:
+  selector:
+    matchLabels:
+      app: specialist-retention
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics

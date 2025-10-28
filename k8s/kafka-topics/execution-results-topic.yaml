@@ -1,0 +1,30 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: execution-results
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: neural-hive-kafka
+    neural-hive.io/component: orchestration
+    neural-hive.io/phase: phase-2
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    retention.ms: 604800000  # 7 dias
+    segment.bytes: 1073741824  # 1GB
+    compression.type: lz4
+    min.insync.replicas: 2
+    cleanup.policy: delete
+---
+# Annotations para documentação
+# Este tópico é consumido pelo Orchestrator para feedback de execução
+# Schema esperado: ExecutionResult
+# Campos principais:
+#   - ticket_id: ID do ticket executado
+#   - status: COMPLETED, FAILED, COMPENSATING
+#   - result: Resultado da execução
+#   - error_message: Mensagem de erro (opcional)
+#   - actual_duration_ms: Duração real da execução
+#   - agent_id: ID do Worker Agent que executou
+#   - timestamp: Unix millis

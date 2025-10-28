@@ -1,0 +1,100 @@
+# Local development values for service-registry
+# Override production values for local Kubernetes clusters
+
+# Reduced replica count for local development
+replicaCount: 1
+
+image:
+  pullPolicy: IfNotPresent
+
+# Reduced resources for local development (~50% of production)
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Disable autoscaling for local development
+autoscaling:
+  enabled: false
+
+# Disable pod disruption budget for local development
+podDisruptionBudget:
+  enabled: false
+
+# Disable service monitor for local development
+serviceMonitor:
+  enabled: false
+
+# Disable network policies for local development
+networkPolicy:
+  enabled: false
+
+# Disable Istio for local development
+istio:
+  enabled: false
+
+# Application configuration
+config:
+  environment: dev
+  logLevel: DEBUG
+  debug: true
+
+  serviceName: service-registry
+  serviceVersion: 1.0.0
+
+  # etcd configuration for local
+  etcd:
+    endpoints:
+      - http://etcd:2379
+    prefix: /neural-hive/agents
+    timeoutSeconds: 5
+
+  # Health check configuration
+  healthCheck:
+    intervalSeconds: 60
+
+  # Heartbeat configuration
+  heartbeat:
+    timeoutSeconds: 120
+
+  # Redis configuration - no password for local
+  redis:
+    clusterNodes:
+      - neural-hive-cache.redis-cluster.svc.cluster.local:6379
+    password: ""
+
+  # OpenTelemetry configuration
+  otel:
+    exporterEndpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
+
+# Use default service account for local
+serviceAccount:
+  create: false
+  name: default
+
+# Simplified secrets for local development
+secrets:
+  mongodbPassword: ""
+  redisPassword: ""
+
+# Relaxed probes for local development
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3

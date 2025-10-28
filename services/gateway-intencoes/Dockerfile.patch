@@ -1,0 +1,12 @@
+# Dockerfile de patch rápido - aplica apenas mudanças de código sobre imagem existente
+FROM neural-hive-mind/gateway-intencoes:local
+
+# Copiar arquivos atualizados
+COPY services/gateway-intencoes/src/main.py /app/src/main.py
+COPY services/gateway-intencoes/src/kafka/producer.py /app/src/kafka/producer.py
+COPY services/gateway-intencoes/src/cache/redis_client.py /app/src/cache/redis_client.py
+
+# Ajustar permissões
+USER root
+RUN chown appuser:appgroup /app/src/main.py /app/src/kafka/producer.py /app/src/cache/redis_client.py
+USER appuser

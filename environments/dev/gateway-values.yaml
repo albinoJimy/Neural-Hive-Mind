@@ -1,0 +1,112 @@
+# Dev Environment Values for Gateway de Intenções
+# Override values for development environment
+
+# Development-specific replica and autoscaling
+replicaCount: 1
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+
+# Lower resource requirements for dev
+resources:
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
+# Development-specific configuration
+config:
+  environment: "dev"
+  logLevel: "DEBUG"
+  debug: true
+
+  # Dev Kafka endpoints (assuming local/dev cluster)
+  kafka:
+    bootstrapServers: "neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092"
+    schemaRegistryUrl: "http://schema-registry.neural-hive-kafka.svc.cluster.local:8081"
+
+  # ASR Pipeline - keep lightweight for dev
+  asr:
+    modelName: "base"
+    device: "cpu"
+
+  # NLU Pipeline - lower threshold for dev testing
+  nlu:
+    languageModel: "pt_core_news_sm"
+    confidenceThreshold: 0.6  # Lower for dev testing
+
+  # Development limits
+  limits:
+    maxAudioSizeMb: 5  # Smaller for dev
+    maxTextLength: 5000
+
+  # CORS - more permissive for dev
+  cors:
+    allowedOrigins: ["*"]
+    allowedHosts: ["*"]
+
+# Disable Istio for dev to simplify testing
+istio:
+  enabled: false
+  sidecar:
+    inject: false
+  virtualService:
+    enabled: false
+  gateway:
+    enabled: false
+
+# Ingress disabled for dev (use port-forward)
+ingress:
+  enabled: false
+
+# Simplified node selection for dev
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Simplified security for dev
+networkPolicy:
+  enabled: false
+
+# Lower PDB requirements for dev
+podDisruptionBudget:
+  enabled: false
+
+# Keep monitoring enabled but simpler
+serviceMonitor:
+  enabled: true
+  interval: 60s
+  path: /metrics
+  labels:
+    neural-hive-mind.org/monitoring: "enabled"
+
+# Dev secrets (should be changed)
+secrets:
+  jwtSecretKey: "dev-secret-key-change-me"
+
+# Health checks with shorter intervals for dev
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 20
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Observability for dev
+observability:
+  jaeger:
+    endpoint: "http://jaeger-collector.monitoring.svc.cluster.local:14268/api/traces"

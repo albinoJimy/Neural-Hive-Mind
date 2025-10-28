@@ -1,0 +1,267 @@
+groups:
+- name: business_metrics_alerts
+  interval: 30s
+  rules:
+
+  # ============================================================================
+  # Concordância com Consenso
+  # ============================================================================
+
+  - alert: LowConsensusAgreementRate
+    expr: neural_hive_business_consensus_agreement_rate{specialist_type=~".*"} < 0.7
+    for: 1h
+    labels:
+      severity: warning
+      neural_hive_component: business-metrics
+      neural_hive_layer: observability
+    annotations:
+      summary: "Taxa de concordância com consenso baixa para {{ $labels.specialist_type }}"
+      description: |
+        O especialista {{ $labels.specialist_type }} tem taxa de concordância de {{ $value | humanizePercentage }}
+        com decisões finais do consenso (threshold: 70%).
+
+        Isso pode indicar:
+        - Modelo do especialista desalinhado com consenso
+        - Heurísticas precisam revisão
+        - Dados de treinamento desatualizados
+
+        Ação sugerida: Revisar modelo e heurísticas do especialista.
+      runbook_url: "https://docs.neural-hive.com/runbooks/business-metrics/low-agreement"
+
+  - alert: VeryLowConsensusAgreement
+    expr: neural_hive_business_consensus_agreement_rate{specialist_type=~".*"} < 0.5
+    for: 30m
+    labels:
+      severity: critical
+      neural_hive_component: business-metrics
+      neural_hive_layer: observability
+      pagerduty: "true"
+    annotations:
+      summary: "Taxa de concordância CRÍTICA para {{ $labels.specialist_type }}"
+      description: |
+        O especialista {{ $labels.specialist_type }} tem taxa de concordância de apenas {{ $value | humanizePercentage }}
+        com decisões finais do consenso (threshold crítico: 50%).
+
+        Ação urgente: Revisar imediatamente modelo do especialista.
+      runbook_url: "https://docs.neural-hive.com/runbooks/business-metrics/critical-agreement"
+
+  # ============================================================================
+  # False Positives / Negatives
+  # ============================================================================
+
+  - alert: HighFalsePositiveRate
+    expr: neural_hive_business_false_positive_rate{specialist_type=~".*"} > 0.2
+    for: 1h
+    labels:
+      severity: warning
+      neural_hive_component: business-metrics
+      neural_hive_layer: observability
+    annotations:
+      summary: "Taxa alta de falsos positivos para {{ $labels.specialist_type }}"
+      description: |
+        O especialista {{ $labels.specialist_type }} tem taxa de falsos positivos de {{ $value | humanizePercentage }}
+        (aprovando planos que o consenso rejeita).
+
+        FP Rate > 20% indica que o especialista é muito permissivo.
+
+        Ação: Revisar thresholds de aprovação e critérios de avaliação.
+      runbook_url: "https://docs.neural-hive.com/runbooks/business-metrics/high-fp"
+
+  - alert: HighFalseNegativeRate
+    expr: neural_hive_business_false_negative_rate{specialist_type=~".*"} > 0.2
+    for: 1h
+    labels:
+      severity: warning
+      neural_hive_component: business-metrics
+      neural_hive_layer: observability
+    annotations:
+      summary: "Taxa alta de falsos negativos para {{ $labels.specialist_type }}"
+      description: |
+        O especialista {{ $labels.specialist_type }} tem taxa de falsos negativos de {{ $value | humanizePercentage }}
+        (rejeitando planos que o consenso aprova).
+
+        FN Rate > 20% indica que o especialista é muito restritivo.
+
+        Ação: Revisar critérios de rejeição e sensibilidade.
+      runbook_url: "https://docs.neural-hive.com/runbooks/business-metrics/high-fn"
+
+  # ============================================================================
+  # Precision / Recall / F1
+  # ============================================================================
+
+  - alert: LowPrecisionScore
+    expr: neural_hive_business_precision_score{specialist_type=~".*"} < 0.7
+    for: 1h
+    labels:
+      severity: warning
+      neural_hive_component: business-metrics
+      neural_hive_layer: observability
+    annotations:
+      summary: "Precision baixa para {{ $labels.specialist_type }}"
+      description: |
+        O especialista {{ $labels.specialist_type }} tem precision de {{ $value | humanizePercentage }}
+        (muitos falsos positivos).
+
+        Precision < 70% indica baixa confiabilidade em aprovações.
+
+        TP / (TP + FP) = {{ $value }}
+      runbook_url: "https://docs.neural-hive.com/runbooks/business-metrics/low-precision"
+
+  - alert: LowRecallScore
+    expr: neural_hive_business_recall_score{specialist_type=~".*"} < 0.7
+    for: 1h
+    labels:
+      severity: warning
+      neural_hive_component: business-metrics
+      neural_hive_layer: observability
+    annotations:
+      summary: "Recall baixo para {{ $labels.specialist_type }}"
+      description: |
+        O especialista {{ $labels.specialist_type }} tem recall de {{ $value | humanizePercentage }}
+        (muitos falsos negativos).
+
+        Recall < 70% indica que muitos planos válidos são rejeitados.
+
+        TP / (TP + FN) = {{ $value }}
+      runbook_url: "https://docs.neural-hive.com/runbooks/business-metrics/low-recall"
+
+  - alert: LowF1Score
+    expr: neural_hive_business_f1_score{specialist_type=~".*"} < 0.7
+    for: 1h
+    labels:
+      severity: warning
+      neural_hive_component: business-metrics
+      neural_hive_layer: observability
+    annotations:
+      summary: "F1 Score baixo para {{ $labels.specialist_type }}"
+      description: |
+        O especialista {{ $labels.specialist_type }} tem F1 Score de {{ $value | humanizePercentage }}
+        (performance geral baixa).
+
+        F1 < 70% indica desbalanceamento entre precision e recall.
+
+        F1 = 2 * (Precision * Recall) / (Precision + Recall) = {{ $value }}
+      runbook_url: "https://docs.neural-hive.com/runbooks/business-metrics/low-f1"
+
+  # ============================================================================
+  # Anomaly Detection
+  # ============================================================================
+
+  - alert: MetricsAnomalyDetected
+    expr: increase(neural_hive_anomaly_detected_total{specialist_type=~".*", severity="warning"}[5m]) > 0
+    for: 0m
+    labels:
+      severity: warning
+      neural_hive_component: business-metrics
+      neural_hive_layer: observability
+    annotations:
+      summary: "Anomalia detectada em métricas de {{ $labels.specialist_type }}"
+      description: |
+        O Isolation Forest detectou comportamento anômalo nas métricas do especialista {{ $labels.specialist_type }}.
+
+        Severidade: {{ $labels.severity }}
+
+        Possíveis causas:
+        - Mudanças súbitas em padrões de avaliação
+        - Deploy de novo modelo
+        - Dados de entrada com distribuição diferente
+
+        Ação: Investigar métricas detalhadas no Grafana.
+      dashboard_url: "https://grafana.neural-hive.com/d/business-metrics"
+      runbook_url: "https://docs.neural-hive.com/runbooks/business-metrics/anomaly"
+
+  - alert: MetricsCriticalAnomalyDetected
+    expr: increase(neural_hive_anomaly_detected_total{specialist_type=~".*", severity="critical"}[5m]) > 0
+    for: 0m
+    labels:
+      severity: critical
+      neural_hive_component: business-metrics
+      neural_hive_layer: observability
+      pagerduty: "true"
+    annotations:
+      summary: "ANOMALIA CRÍTICA detectada em {{ $labels.specialist_type }}"
+      description: |
+        O Isolation Forest detectou anomalia CRÍTICA nas métricas do especialista {{ $labels.specialist_type }}.
+
+        Anomaly score < -0.5 indica desvio severo do comportamento esperado.
+
+        Ação urgente: Revisar especialista imediatamente.
+      dashboard_url: "https://grafana.neural-hive.com/d/business-metrics"
+      runbook_url: "https://docs.neural-hive.com/runbooks/business-metrics/critical-anomaly"
+
+  # ============================================================================
+  # Business Value
+  # ============================================================================
+
+  - alert: LowBusinessValueGeneration
+    expr: rate(neural_hive_business_value_generated_total{specialist_type=~".*"}[1h]) == 0
+    for: 2h
+    labels:
+      severity: info
+      neural_hive_component: business-metrics
+      neural_hive_layer: observability
+    annotations:
+      summary: "Nenhum valor de negócio gerado por {{ $labels.specialist_type }}"
+      description: |
+        O especialista {{ $labels.specialist_type }} não gerou valor de negócio nas últimas 2 horas.
+
+        Possíveis causas:
+        - Sem planos aprovados
+        - Tickets não executados
+        - Execuções falharam
+
+        Isso é informativo, não necessariamente um problema.
+      runbook_url: "https://docs.neural-hive.com/runbooks/business-metrics/low-value"
+
+  # ============================================================================
+  # Métricas Desatualizadas
+  # ============================================================================
+
+  - alert: BusinessMetricsStale
+    expr: (time() - neural_hive_business_metrics_last_update_timestamp{specialist_type=~".*"}) > 7200
+    for: 0m
+    labels:
+      severity: warning
+      neural_hive_component: business-metrics
+      neural_hive_layer: observability
+    annotations:
+      summary: "Business metrics desatualizadas para {{ $labels.specialist_type }}"
+      description: |
+        As business metrics do especialista {{ $labels.specialist_type }} não são atualizadas há mais de 2 horas.
+
+        Última atualização: {{ $value | humanizeDuration }} atrás
+
+        Possíveis causas:
+        - CronJob não executando
+        - Falhas no BusinessMetricsCollector
+        - Conectividade com MongoDB
+
+        Ação: Verificar logs do CronJob business-metrics-collector.
+      runbook_url: "https://docs.neural-hive.com/runbooks/business-metrics/stale"
+
+  # ============================================================================
+  # Job de Coleta Falhando
+  # ============================================================================
+
+  - alert: BusinessMetricsCollectionFailing
+    expr: |
+      (
+        kube_job_status_failed{job_name=~"business-metrics-collector.*"} > 0
+      ) or (
+        kube_job_status_succeeded{job_name=~"business-metrics-collector.*"} == 0
+        and
+        time() - kube_job_created{job_name=~"business-metrics-collector.*"} > 900
+      )
+    for: 0m
+    labels:
+      severity: warning
+      neural_hive_component: business-metrics
+      neural_hive_layer: observability
+    annotations:
+      summary: "Job de coleta de business metrics falhando"
+      description: |
+        O CronJob business-metrics-collector está falhando ou não concluindo.
+
+        Ação: Verificar logs do job:
+        kubectl logs -l component=business-metrics -n neural-hive-mind --tail=100
+      runbook_url: "https://docs.neural-hive.com/runbooks/business-metrics/job-failing"

@@ -1,0 +1,20 @@
+apiVersion: v2
+name: consensus-engine
+description: Mecanismo de Consenso Multi-Agente - Neural Hive-Mind Fase 1
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+keywords:
+  - neural-hive-mind
+  - consensus
+  - bayesian
+  - voting-ensemble
+  - pheromones
+  - phase-1
+
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: team@neural-hive-mind.org
+
+dependencies: []

@@ -1,0 +1,165 @@
+{
+  "type": "record",
+  "name": "ToolSelectionRequest",
+  "namespace": "com.neuralhivemind.mcp",
+  "doc": "Request for intelligent tool selection via genetic algorithm",
+  "fields": [
+    {
+      "name": "request_id",
+      "type": "string",
+      "doc": "Unique identifier for this request (UUID)"
+    },
+    {
+      "name": "ticket_id",
+      "type": "string",
+      "doc": "Reference to ExecutionTicket that triggered this request"
+    },
+    {
+      "name": "plan_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Reference to CognitivePlan for traceability"
+    },
+    {
+      "name": "intent_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Reference to IntentEnvelope for traceability"
+    },
+    {
+      "name": "decision_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Reference to ConsolidatedDecision for traceability"
+    },
+    {
+      "name": "correlation_id",
+      "type": "string",
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "trace_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "OpenTelemetry trace ID"
+    },
+    {
+      "name": "span_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "OpenTelemetry span ID"
+    },
+    {
+      "name": "artifact_type",
+      "type": {
+        "type": "enum",
+        "name": "ArtifactType",
+        "symbols": [
+          "CODE",
+          "IAC",
+          "TEST",
+          "POLICY",
+          "DOCUMENTATION"
+        ]
+      },
+      "doc": "Type of artifact to be generated"
+    },
+    {
+      "name": "language",
+      "type": "string",
+      "doc": "Programming language or technology (e.g., python, terraform, java)"
+    },
+    {
+      "name": "complexity_score",
+      "type": "double",
+      "doc": "Complexity score (0.0-1.0) based on task size, dependencies, risk"
+    },
+    {
+      "name": "required_categories",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "enum",
+          "name": "ToolCategory",
+          "symbols": [
+            "ANALYSIS",
+            "GENERATION",
+            "TRANSFORMATION",
+            "VALIDATION",
+            "AUTOMATION",
+            "INTEGRATION"
+          ]
+        }
+      },
+      "doc": "Required tool categories (ANALYSIS, GENERATION, VALIDATION, etc.)"
+    },
+    {
+      "name": "constraints",
+      "type": {
+        "type": "record",
+        "name": "SelectionConstraints",
+        "fields": [
+          {
+            "name": "max_execution_time_ms",
+            "type": ["null", "long"],
+            "default": null,
+            "doc": "Maximum allowed total execution time"
+          },
+          {
+            "name": "max_cost_score",
+            "type": ["null", "double"],
+            "default": null,
+            "doc": "Maximum allowed cost score"
+          },
+          {
+            "name": "min_reputation_score",
+            "type": ["null", "double"],
+            "default": null,
+            "doc": "Minimum required reputation score"
+          }
+        ]
+      },
+      "doc": "Constraints for tool selection"
+    },
+    {
+      "name": "context",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "doc": "Additional context from ExecutionTicket (parameters, metadata)"
+    },
+    {
+      "name": "preferred_tools",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "default": [],
+      "doc": "Tool IDs to prefer in selection (soft constraint)"
+    },
+    {
+      "name": "excluded_tools",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "default": [],
+      "doc": "Tool IDs to exclude from selection"
+    },
+    {
+      "name": "created_at",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Timestamp when request was created"
+    },
+    {
+      "name": "schema_version",
+      "type": "int",
+      "default": 1,
+      "doc": "Schema version for evolution tracking"
+    }
+  ]
+}

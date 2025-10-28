@@ -1,0 +1,35 @@
+domain: specialists
+descriptors:
+  # Rate limit global para todos os especialistas
+  - key: generic_key
+    value: global
+    rate_limit:
+      unit: second
+      requests_per_unit: 1000
+
+  # Rate limit padrão por tenant (100 req/s)
+  - key: tenant_id
+    rate_limit:
+      unit: second
+      requests_per_unit: 100
+
+  # Rate limit para tenant premium A (500 req/s)
+  - key: tenant_id
+    value: tenant-enterprise-A
+    rate_limit:
+      unit: second
+      requests_per_unit: 500
+
+  # Rate limit por tipo de especialista (200 req/s)
+  - key: specialist_type
+    rate_limit:
+      unit: second
+      requests_per_unit: 200
+
+  # Rate limit combinado: tenant + specialist_type
+  - key: tenant_id
+    descriptors:
+      - key: specialist_type
+        rate_limit:
+          unit: second
+          requests_per_unit: 50

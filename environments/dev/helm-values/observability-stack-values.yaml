@@ -1,0 +1,279 @@
+# Valores consolidados para stack de observabilidade - Ambiente Dev
+# Este arquivo define configurações otimizadas para desenvolvimento
+
+global:
+  domain: neural-hive.local
+  environment: development
+  cluster: neural-hive-dev
+
+# Configurações específicas para desenvolvimento
+development:
+  # Recursos reduzidos para dev
+  resources:
+    prometheus:
+      limits:
+        cpu: 500m
+        memory: 2Gi
+      requests:
+        cpu: 250m
+        memory: 1Gi
+
+    grafana:
+      limits:
+        cpu: 200m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+    jaeger:
+      limits:
+        cpu: 300m
+        memory: 1Gi
+      requests:
+        cpu: 150m
+        memory: 512Mi
+
+    otel_collector:
+      limits:
+        cpu: 200m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+  # Retention reduzido para dev
+  retention:
+    prometheus: 7d
+    jaeger: 24h
+    grafana_dashboards: 30d
+
+  # Storage reduzido
+  storage:
+    prometheus_size: 10Gi
+    grafana_size: 2Gi
+    jaeger_size: 5Gi
+    storage_class: standard
+
+  # Replicas reduzidas para dev
+  replicas:
+    prometheus: 1
+    grafana: 1
+    jaeger_collector: 1
+    jaeger_query: 1
+    otel_collector: 1
+    alertmanager: 1
+
+  # Features habilitadas para desenvolvimento
+  features:
+    # TestData datasource para testes
+    enable_test_datasource: true
+    # Debug logging habilitado
+    enable_debug_logging: true
+    # Relaxed security para facilitar desenvolvimento
+    relaxed_security: true
+    # Profiling endpoints habilitados
+    enable_profiling: true
+    # Auto-reload para dashboards
+    enable_auto_reload: true
+
+  # Configurações de mock para testes
+  mock_services:
+    enabled: true
+    # Mock do gateway para testes de correlação
+    mock_gateway:
+      enabled: true
+      port: 8080
+      endpoints:
+        - path: /api/v1/intentions
+          method: POST
+          response: '{"status": "success", "intent_id": "test-123"}'
+
+  # Sampling alto para debugging
+  sampling:
+    default_rate: 1.0  # 100% sampling em dev
+    error_rate: 1.0
+    high_value_rate: 1.0
+
+  # Configurações de desenvolvimento específicas
+  development_config:
+    # Hot reload de configurações
+    hot_reload: true
+    # Logs verbosos
+    verbose_logging: true
+    # Métricas de debug
+    debug_metrics: true
+    # Validação relaxada
+    relaxed_validation: true
+
+# Override configurações específicas por componente
+
+# Prometheus configurado para dev
+prometheus:
+  server:
+    retention: 7d
+    storage:
+      size: 10Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 2Gi
+      requests:
+        cpu: 250m
+        memory: 1Gi
+
+  # Configurações de scraping para dev
+  scraping:
+    interval: 30s  # Intervalo maior para reduzir carga
+    timeout: 10s
+
+  # Alertas desabilitados ou reduzidos em dev
+  alerting:
+    enabled: false  # Alertas desabilitados em dev
+
+# Grafana configurado para dev
+grafana:
+  replicas: 1
+  persistence:
+    size: 2Gi
+
+  # Plugins de desenvolvimento
+  plugins:
+    - grafana-piechart-panel
+    - grafana-clock-panel
+    - grafana-simple-json-datasource
+
+  # Configurações específicas de dev
+  grafana_ini:
+    server:
+      serve_from_sub_path: false
+    security:
+      admin_password: "admin123!"  # Senha simples para dev
+      disable_gravatar: false
+    auth:
+      disable_login_form: false
+    auth.anonymous:
+      enabled: true  # Anonymous access em dev
+      org_role: Editor
+
+  # Datasources de desenvolvimento
+  additional_datasources:
+    - name: TestData-Dev
+      type: testdata
+      access: proxy
+      isDefault: false
+
+# Jaeger configurado para dev (allInOne)
+jaeger:
+  strategy: allInOne  # Estratégia simples para dev
+  allInOne:
+    enabled: true
+    resources:
+      limits:
+        cpu: 300m
+        memory: 1Gi
+      requests:
+        cpu: 150m
+        memory: 512Mi
+
+  # Storage em memória para dev
+  storage:
+    type: memory
+
+  # Sampling para dev
+  sampling:
+    strategies: |
+      {
+        "default_strategy": {
+          "type": "probabilistic",
+          "param": 1.0
+        }
+      }
+
+# OpenTelemetry Collector para dev
+otel_collector:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 200m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+  # Configuração otimizada para dev
+  config:
+    # Batch menor para ver dados mais rapidamente
+    batch_size: 512
+    # Debug exporters habilitados
+    exporters:
+      debug:
+        verbosity: detailed
+      logging:
+        loglevel: debug
+
+# Network policies relaxadas para dev
+network_policies:
+  enabled: false  # Desabilitadas para facilitar desenvolvimento
+
+# Ingress configurações para dev
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"  # HTTP OK em dev
+
+  hosts:
+    grafana: grafana-dev.neural-hive.local
+    jaeger: jaeger-dev.neural-hive.local
+    prometheus: prometheus-dev.neural-hive.local
+
+# Backup desabilitado em dev
+backup:
+  enabled: false
+
+# Service monitors com labels específicos de dev
+service_monitors:
+  labels:
+    environment: development
+    monitoring: enabled
+
+# Configurações de teste específicas
+testing:
+  # Inject test data automaticamente
+  auto_inject_test_data: true
+
+  # Test queries para validação
+  test_queries:
+    - name: test_metrics
+      query: up{job="kubernetes-nodes"}
+      expected_result_count: 1
+
+  # Mock endpoints para testes de correlação
+  mock_endpoints:
+    enabled: true
+    base_url: http://mock-service:8080
+
+# SLOs relaxados para desenvolvimento
+slos:
+  # Targets mais baixos para não alertar em dev
+  latency_target_ms: 500  # 500ms em dev vs 150ms em prod
+  availability_target: 95.0  # 95% em dev vs 99.9% em prod
+
+# Configurações de observabilidade específicas do Neural Hive
+neural_hive:
+  # Correlação habilitada com debugging
+  correlation:
+    enabled: true
+    debug_headers: true
+    log_correlation_ids: true
+
+  # Baggage propagation com verbose logging
+  baggage:
+    verbose_propagation: true
+    log_baggage_values: true
+
+  # Métricas de debug habilitadas
+  debug_metrics:
+    enabled: true
+    expose_internal_metrics: true

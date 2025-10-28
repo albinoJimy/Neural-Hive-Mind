@@ -1,0 +1,483 @@
+"""
+Flow C Orchestrator - Complete implementation of Flow C (C1-C6).
+
+Coordinates Intent → Decision → Orchestration → Tickets → Workers → Code Forge → Deploy → Telemetry.
+"""
+
+import structlog
+import asyncio
+from typing import Dict, Any, List
+from datetime import datetime, timedelta
+from opentelemetry import trace
+from prometheus_client import Counter, Histogram
+
+from neural_hive_integration.clients.orchestrator_client import OrchestratorClient
+from neural_hive_integration.clients.service_registry_client import ServiceRegistryClient, AgentInfo
+from neural_hive_integration.clients.execution_ticket_client import ExecutionTicketClient
+from neural_hive_integration.clients.worker_agent_client import WorkerAgentClient
+from neural_hive_integration.clients.code_forge_client import CodeForgeClient
+from neural_hive_integration.clients.sla_management_client import SLAManagementClient
+from neural_hive_integration.models.flow_c_context import FlowCContext, FlowCStep, FlowCResult
+from neural_hive_integration.telemetry.flow_c_telemetry import FlowCTelemetryPublisher
+
+logger = structlog.get_logger()
+tracer = trace.get_tracer(__name__)
+
+# Metrics
+flow_c_duration = Histogram(
+    "neural_hive_flow_c_duration_seconds",
+    "Flow C end-to-end duration",
+    buckets=[60, 300, 900, 1800, 3600, 7200, 14400],  # 1min to 4h
+)
+flow_c_steps_duration = Histogram(
+    "neural_hive_flow_c_steps_duration_seconds",
+    "Flow C individual step duration",
+    ["step"],
+)
+flow_c_success = Counter("neural_hive_flow_c_success_total", "Flow C successful executions")
+flow_c_failures = Counter("neural_hive_flow_c_failures_total", "Flow C failed executions", ["reason"])
+flow_c_sla_violations = Counter("neural_hive_flow_c_sla_violations_total", "Flow C SLA violations")
+
+
+class FlowCOrchestrator:
+    """Orchestrator for complete Flow C integration (C1-C6)."""
+
+    def __init__(self):
+        self.orchestrator_client = OrchestratorClient()
+        self.service_registry = ServiceRegistryClient()
+        self.ticket_client = ExecutionTicketClient()
+        self.sla_client = SLAManagementClient()
+        self.telemetry = FlowCTelemetryPublisher()
+        self.logger = logger.bind(service="flow_c_orchestrator")
+
+    async def initialize(self):
+        """Initialize all clients."""
+        await self.sla_client.initialize()
+        await self.telemetry.initialize()
+
+    async def close(self):
+        """Close all clients."""
+        await self.orchestrator_client.close()
+        await self.service_registry.close()
+        await self.ticket_client.close()
+        await self.sla_client.close()
+        await self.telemetry.close()
+
+    @tracer.start_as_current_span("flow_c.execute")
+    async def execute_flow_c(self, consolidated_decision: Dict[str, Any]) -> FlowCResult:
+        """
+        Execute complete Flow C (C1-C6).
+
+        Flow:
+        C1: Validate consolidated decision
+        C2: Start Temporal workflow and generate tickets
+        C3: Discover available workers
+        C4: Assign tickets to workers
+        C5: Monitor execution and collect results
+        C6: Publish telemetry
+
+        Args:
+            consolidated_decision: Consolidated decision from Phase 1
+
+        Returns:
+            Flow C execution result
+        """
+        start_time = datetime.utcnow()
+        steps: List[FlowCStep] = []
+
+        # Create context
+        context = FlowCContext(
+            intent_id=consolidated_decision["intent_id"],
+            plan_id=consolidated_decision["plan_id"],
+            decision_id=consolidated_decision["decision_id"],
+            correlation_id=consolidated_decision.get("correlation_id", ""),
+            trace_id=format(trace.get_current_span().get_span_context().trace_id, '032x'),
+            span_id=format(trace.get_current_span().get_span_context().span_id, '016x'),
+            started_at=start_time,
+            sla_deadline=start_time + timedelta(hours=4),
+            priority=consolidated_decision.get("priority", 5),
+            risk_band=consolidated_decision.get("risk_band", "medium"),
+        )
+
+        self.logger.info(
+            "starting_flow_c",
+            intent_id=context.intent_id,
+            plan_id=context.plan_id,
+            decision_id=context.decision_id,
+        )
+
+        try:
+            # C1: Validate Decision
+            step_c1 = await self._execute_c1_validate(consolidated_decision, context)
+            steps.append(step_c1)
+
+            # C2: Start Workflow and Generate Tickets
+            step_c2_start = datetime.utcnow()
+            workflow_id, tickets = await self._execute_c2_generate_tickets(
+                consolidated_decision, context
+            )
+            step_c2_end = datetime.utcnow()
+            step_c2 = FlowCStep(
+                step_name="C2",
+                status="completed",
+                started_at=step_c2_start,
+                completed_at=step_c2_end,
+                duration_ms=int((step_c2_end - step_c2_start).total_seconds() * 1000),
+                metadata={"workflow_id": workflow_id, "tickets_count": len(tickets)},
+            )
+            steps.append(step_c2)
+
+            # C3: Discover Workers
+            step_c3_start = datetime.utcnow()
+            workers = await self._execute_c3_discover_workers(tickets, context)
+            step_c3_end = datetime.utcnow()
+            step_c3 = FlowCStep(
+                step_name="C3",
+                status="completed",
+                started_at=step_c3_start,
+                completed_at=step_c3_end,
+                duration_ms=int((step_c3_end - step_c3_start).total_seconds() * 1000),
+                metadata={"workers_found": len(workers)},
+            )
+            steps.append(step_c3)
+
+            # C4: Assign Tickets to Workers
+            step_c4_start = datetime.utcnow()
+            assignments = await self._execute_c4_assign_tickets(tickets, workers, context)
+            step_c4_end = datetime.utcnow()
+            step_c4 = FlowCStep(
+                step_name="C4",
+                status="completed",
+                started_at=step_c4_start,
+                completed_at=step_c4_end,
+                duration_ms=int((step_c4_end - step_c4_start).total_seconds() * 1000),
+                metadata={"assignments_count": len(assignments)},
+            )
+            steps.append(step_c4)
+
+            # C5: Monitor Execution
+            step_c5_start = datetime.utcnow()
+            results = await self._execute_c5_monitor_execution(tickets, context)
+            step_c5_end = datetime.utcnow()
+            step_c5 = FlowCStep(
+                step_name="C5",
+                status="completed",
+                started_at=step_c5_start,
+                completed_at=step_c5_end,
+                duration_ms=int((step_c5_end - step_c5_start).total_seconds() * 1000),
+                metadata={"completed": results["completed"], "failed": results["failed"]},
+            )
+            steps.append(step_c5)
+
+            # C6: Publish Telemetry
+            step_c6_start = datetime.utcnow()
+            await self._execute_c6_publish_telemetry(context, workflow_id, tickets, results)
+            step_c6_end = datetime.utcnow()
+            step_c6 = FlowCStep(
+                step_name="C6",
+                status="completed",
+                started_at=step_c6_start,
+                completed_at=step_c6_end,
+                duration_ms=int((step_c6_end - step_c6_start).total_seconds() * 1000),
+            )
+            steps.append(step_c6)
+
+            # Calculate metrics
+            end_time = datetime.utcnow()
+            total_duration = int((end_time - start_time).total_seconds() * 1000)
+
+            # Check SLA
+            if end_time > context.sla_deadline:
+                flow_c_sla_violations.inc()
+                self.logger.warning("flow_c_sla_violated", duration_ms=total_duration)
+
+            result = FlowCResult(
+                success=True,
+                steps=steps,
+                total_duration_ms=total_duration,
+                tickets_generated=len(tickets),
+                tickets_completed=results["completed"],
+                tickets_failed=results["failed"],
+                telemetry_published=True,
+            )
+
+            flow_c_success.inc()
+            flow_c_duration.observe(total_duration / 1000)
+
+            self.logger.info(
+                "flow_c_completed",
+                duration_ms=total_duration,
+                tickets_completed=results["completed"],
+            )
+
+            return result
+
+        except Exception as e:
+            flow_c_failures.labels(reason=type(e).__name__).inc()
+            self.logger.error("flow_c_failed", error=str(e))
+
+            return FlowCResult(
+                success=False,
+                steps=steps,
+                total_duration_ms=0,
+                tickets_generated=0,
+                tickets_completed=0,
+                tickets_failed=0,
+                telemetry_published=False,
+                error=str(e),
+            )
+
+    async def _execute_c1_validate(
+        self, decision: Dict[str, Any], context: FlowCContext
+    ) -> FlowCStep:
+        """C1: Validate consolidated decision."""
+        step_start = datetime.utcnow()
+
+        with flow_c_steps_duration.labels(step="C1").time():
+            # Validate required fields
+            required_fields = ["intent_id", "plan_id", "decision_id", "cognitive_plan"]
+            for field in required_fields:
+                if field not in decision:
+                    raise ValueError(f"Missing required field: {field}")
+
+            await self.telemetry.publish_event(
+                event_type="step_completed",
+                step="C1",
+                intent_id=context.intent_id,
+                plan_id=context.plan_id,
+                decision_id=context.decision_id,
+                workflow_id="",
+                ticket_ids=[],
+                duration_ms=0,
+                status="completed",
+                metadata={},
+            )
+
+            step_end = datetime.utcnow()
+            return FlowCStep(
+                step_name="C1",
+                status="completed",
+                started_at=step_start,
+                completed_at=step_end,
+                duration_ms=int((step_end - step_start).total_seconds() * 1000),
+            )
+
+    async def _execute_c2_generate_tickets(
+        self, decision: Dict[str, Any], context: FlowCContext
+    ) -> tuple[str, List[Dict[str, Any]]]:
+        """C2: Start workflow and generate execution tickets."""
+        with flow_c_steps_duration.labels(step="C2").time():
+            # Start Temporal workflow
+            workflow_id = await self.orchestrator_client.start_workflow(
+                cognitive_plan=decision["cognitive_plan"],
+                correlation_id=context.correlation_id,
+                priority=context.priority,
+                sla_deadline_seconds=14400,
+            )
+
+            # Wait for ticket generation (simulated)
+            await asyncio.sleep(2)
+
+            # Query workflow for tickets
+            tickets = []
+            # TODO: Get actual tickets from workflow state
+            # For now, extract from cognitive_plan if available
+            cognitive_plan = decision.get("cognitive_plan", {})
+            tasks = cognitive_plan.get("tasks", [])
+
+            if not tasks:
+                # Fallback: criar ticket genérico
+                tasks = [{"type": "code_generation", "description": "Generate code based on plan"}]
+
+            for i, task in enumerate(tasks):
+                ticket_data = {
+                    "plan_id": context.plan_id,
+                    "task_type": task.get("type", "code_generation"),
+                    "required_capabilities": task.get("capabilities", ["python", "fastapi"]),
+                    "payload": {
+                        "template_id": task.get("template_id", "default_template"),
+                        "parameters": task.get("parameters", {}),
+                        "description": task.get("description", ""),
+                    },
+                    "sla_deadline": context.sla_deadline.isoformat(),
+                    "priority": context.priority,
+                }
+                ticket = await self.ticket_client.create_ticket(ticket_data)
+
+                # Adicionar ticket_id ao payload para workers/Code Forge
+                ticket_dict = ticket.model_dump()
+                ticket_dict["payload"]["ticket_id"] = ticket.ticket_id
+                tickets.append(ticket_dict)
+
+            return workflow_id, tickets
+
+    async def _execute_c3_discover_workers(
+        self, tickets: List[Dict[str, Any]], context: FlowCContext
+    ) -> List[AgentInfo]:
+        """C3: Discover available workers via Service Registry."""
+        with flow_c_steps_duration.labels(step="C3").time():
+            # Collect all required capabilities
+            all_capabilities = set()
+            for ticket in tickets:
+                all_capabilities.update(ticket.get("required_capabilities", []))
+
+            # Discover workers
+            workers = await self.service_registry.discover_agents(
+                capabilities=list(all_capabilities),
+                filters={"status": "healthy"},
+            )
+
+            if not workers:
+                self.logger.warning("no_workers_available")
+
+            return workers
+
+    async def _execute_c4_assign_tickets(
+        self,
+        tickets: List[Dict[str, Any]],
+        workers: List[AgentInfo],
+        context: FlowCContext,
+    ) -> List[Dict[str, Any]]:
+        """C4: Assign tickets to workers via direct gRPC/HTTP calls."""
+        with flow_c_steps_duration.labels(step="C4").time():
+            assignments = []
+
+            if not workers:
+                self.logger.error("no_workers_available_for_assignment")
+                return assignments
+
+            for idx, ticket in enumerate(tickets):
+                # Round-robin assignment
+                worker = workers[idx % len(workers)]
+
+                # Criar cliente para o worker específico
+                worker_client = WorkerAgentClient(base_url=worker.endpoint)
+
+                try:
+                    # Criar TaskAssignment
+                    from neural_hive_integration.clients.worker_agent_client import TaskAssignment
+
+                    task = TaskAssignment(
+                        task_id=f"task_{ticket['ticket_id']}",
+                        ticket_id=ticket["ticket_id"],
+                        task_type=ticket.get("task_type", "code_generation"),
+                        payload=ticket.get("payload", {}),
+                        sla_deadline=ticket.get("sla_deadline", context.sla_deadline.isoformat()),
+                    )
+
+                    # Despachar tarefa para o worker
+                    await worker_client.assign_task(task)
+
+                    # Atualizar status do ticket para 'assigned'
+                    await self.ticket_client.update_ticket_status(
+                        ticket_id=ticket["ticket_id"],
+                        status="assigned",
+                        assigned_worker=worker.agent_id,
+                    )
+
+                    assignments.append({
+                        "ticket_id": ticket["ticket_id"],
+                        "worker_id": worker.agent_id,
+                        "task_id": task.task_id,
+                    })
+
+                    self.logger.info(
+                        "ticket_assigned",
+                        ticket_id=ticket["ticket_id"],
+                        worker_id=worker.agent_id,
+                    )
+                except Exception as e:
+                    self.logger.error(
+                        "failed_to_assign_ticket",
+                        ticket_id=ticket["ticket_id"],
+                        worker_id=worker.agent_id,
+                        error=str(e),
+                    )
+                finally:
+                    await worker_client.close()
+
+            return assignments
+
+    async def _execute_c5_monitor_execution(
+        self, tickets: List[Dict[str, Any]], context: FlowCContext
+    ) -> Dict[str, int]:
+        """C5: Monitor ticket execution até deadline SLA ou conclusão."""
+        with flow_c_steps_duration.labels(step="C5").time():
+            completed = 0
+            failed = 0
+
+            # Calcular deadline baseado no SLA (4h) menos tempo já decorrido
+            remaining_time = (context.sla_deadline - datetime.utcnow()).total_seconds()
+            poll_interval = 60  # Polling a cada 60s para pipelines longos
+            max_iterations = int(remaining_time / poll_interval) if remaining_time > 0 else 240  # Max 4h
+
+            self.logger.info(
+                "monitoring_execution",
+                tickets_count=len(tickets),
+                max_iterations=max_iterations,
+                poll_interval=poll_interval,
+                remaining_sla_seconds=remaining_time,
+            )
+
+            # Poll ticket status até conclusão ou deadline
+            for iteration in range(max_iterations):
+                statuses = []
+                for ticket in tickets:
+                    try:
+                        ticket_obj = await self.ticket_client.get_ticket(ticket["ticket_id"])
+                        statuses.append(ticket_obj.status)
+                    except Exception as e:
+                        self.logger.error(
+                            "failed_to_get_ticket_status",
+                            ticket_id=ticket["ticket_id"],
+                            error=str(e),
+                        )
+                        statuses.append("unknown")
+
+                # Verificar se todos os tickets foram concluídos
+                if all(s in ["completed", "failed"] for s in statuses):
+                    completed = statuses.count("completed")
+                    failed = statuses.count("failed")
+                    self.logger.info(
+                        "all_tickets_completed",
+                        completed=completed,
+                        failed=failed,
+                        iteration=iteration,
+                    )
+                    break
+
+                # Verificar se deadline foi ultrapassado
+                if datetime.utcnow() >= context.sla_deadline:
+                    self.logger.warning("sla_deadline_reached_during_monitoring")
+                    completed = statuses.count("completed")
+                    failed = statuses.count("failed")
+                    break
+
+                await asyncio.sleep(poll_interval)
+
+            return {"completed": completed, "failed": failed}
+
+    async def _execute_c6_publish_telemetry(
+        self,
+        context: FlowCContext,
+        workflow_id: str,
+        tickets: List[Dict[str, Any]],
+        results: Dict[str, int],
+    ) -> None:
+        """C6: Publish telemetry events."""
+        with flow_c_steps_duration.labels(step="C6").time():
+            await self.telemetry.publish_event(
+                event_type="flow_completed",
+                step="C6",
+                intent_id=context.intent_id,
+                plan_id=context.plan_id,
+                decision_id=context.decision_id,
+                workflow_id=workflow_id,
+                ticket_ids=[t["ticket_id"] for t in tickets],
+                duration_ms=0,
+                status="completed",
+                metadata={
+                    "tickets_completed": results["completed"],
+                    "tickets_failed": results["failed"],
+                },
+            )

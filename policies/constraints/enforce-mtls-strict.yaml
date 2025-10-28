@@ -1,0 +1,48 @@
+# Constraint para aplicar política de mTLS STRICT
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: NeuralHiveMTLSRequired
+metadata:
+  name: enforce-mtls-strict
+  labels:
+    neuralhive/policy: security
+    neuralhive/enforcement: active
+spec:
+  enforcementAction: warn # Começar com warn, mudar para enforce após validação
+  match:
+    kinds:
+      - apiGroups: ["apps", "batch"]
+        kinds:
+          - Deployment
+          - StatefulSet
+          - DaemonSet
+          - Job
+          - CronJob
+      - apiGroups: ["security.istio.io"]
+        kinds:
+          - PeerAuthentication
+    namespaceSelector:
+      matchLabels:
+        neural-hive.io/secured: "true"
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+      - istio-system
+      - gatekeeper-system
+      - cosign-system
+  parameters:
+    enforcementMode: warn
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+      - istio-system
+      - gatekeeper-system
+      - cosign-system
+      - cert-manager
+      - ingress-nginx
+    # Configuração para transição automática warn→enforce
+    autoTransition:
+      enabled: true
+      afterDays: 7
+      annotation: "gatekeeper.sh/policy-transition-date"

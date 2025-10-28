@@ -1,0 +1,92 @@
+🎉 Gateway de Intenções implantado com sucesso!
+
+Release: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+Chart Version: {{ .Chart.Version }}
+App Version: {{ .Chart.AppVersion }}
+
+═══════════════════════════════════════════════════════════════
+
+📊 STATUS DO DEPLOYMENT
+
+Verificar pods:
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "gateway-intencoes.name" . }}
+
+Logs:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "gateway-intencoes.name" . }} -f
+
+═══════════════════════════════════════════════════════════════
+
+🌐 ENDPOINTS DISPONÍVEIS
+
+Port-forward para acesso local:
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "gateway-intencoes.fullname" . }} 8080:80
+
+Endpoints:
+  • Health Check:  http://localhost:8080/health
+  • Readiness:     http://localhost:8080/ready
+  • Métricas:      http://localhost:8080/metrics
+  • API Base:      http://localhost:8080/api/v1/
+
+Endpoints Específicos:
+  • ASR:           POST http://localhost:8080/api/v1/asr
+  • NLU:           POST http://localhost:8080/api/v1/nlu
+  • Intenções:     POST http://localhost:8080/api/v1/intentions
+
+═══════════════════════════════════════════════════════════════
+
+📈 MONITORAMENTO
+
+ServiceMonitor: {{ if .Values.serviceMonitor.enabled }}✓ Habilitado{{ else }}✗ Desabilitado{{ end }}
+{{- if .Values.autoscaling.enabled }}
+Autoscaling: ✓ Habilitado ({{ .Values.autoscaling.minReplicas }}-{{ .Values.autoscaling.maxReplicas }} réplicas)
+{{- else }}
+Réplicas: {{ .Values.replicaCount }} (fixo)
+{{- end }}
+{{- if .Values.networkPolicy.enabled }}
+NetworkPolicy: ✓ Habilitado
+{{- end }}
+
+═══════════════════════════════════════════════════════════════
+
+⚙️  CONFIGURAÇÃO
+
+Kafka Bootstrap Servers: {{ .Values.config.kafka.bootstrapServers }}
+Redis Cluster: {{ .Values.config.redis.clusterNodes }}
+Keycloak URL: {{ .Values.config.keycloak.url }}
+Environment: {{ .Values.config.environment }}
+
+═══════════════════════════════════════════════════════════════
+
+🚀 PRÓXIMOS PASSOS
+
+1. Testar endpoint de health:
+   curl http://localhost:8080/health
+
+2. Enviar requisição de teste para ASR:
+   curl -X POST http://localhost:8080/api/v1/asr \
+     -H "Content-Type: application/json" \
+     -d '{"audio": "base64_encoded_audio"}'
+
+3. Verificar métricas no Prometheus:
+   http://localhost:9090/targets
+
+4. Verificar traces no Jaeger:
+   http://localhost:16686
+
+═══════════════════════════════════════════════════════════════
+
+💻 AMBIENTE LOCAL
+
+Em ambiente local (Minikube/Kind/Docker Desktop), alguns recursos podem
+estar desabilitados para compatibilidade:
+  • HPA (autoscaling.enabled: false)
+  • PDB (podDisruptionBudget.enabled: false)
+  • NetworkPolicy (networkPolicy.enabled: false)
+
+═══════════════════════════════════════════════════════════════
+
+🗑️  DESINSTALAÇÃO
+
+Para remover este release:
+  helm uninstall {{ .Release.Name }} -n {{ .Release.Namespace }}

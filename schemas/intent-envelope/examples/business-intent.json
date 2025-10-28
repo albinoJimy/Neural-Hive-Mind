@@ -1,0 +1,106 @@
+{
+  "@context": "https://neural-hive-mind.org/schemas/intent-envelope/context/v1",
+  "@type": "IntentEnvelope",
+  "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+  "version": "1.0.0",
+  "correlationId": "c9bf9e57-1685-4c89-bafb-ff5af830be8a",
+  "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "spanId": "00f067aa0ba902b7",
+
+  "actor": {
+    "@type": "Actor",
+    "id": "user-12345",
+    "actorType": "human",
+    "name": "Maria Silva"
+  },
+
+  "intent": {
+    "@type": "Intent",
+    "text": "Preciso criar uma nova funcionalidade de relatórios financeiros para o Q4 com dashboards interativos e exportação para Excel",
+    "domain": "business",
+    "classification": "feature-request",
+    "originalLanguage": "pt-BR",
+    "processedText": "Preciso criar uma nova funcionalidade de relatórios financeiros para o Q4 com dashboards interativos e exportação para Excel",
+    "entities": [
+      {
+        "type": "FEATURE_TYPE",
+        "value": "relatórios financeiros",
+        "confidence": 0.92,
+        "start": 44,
+        "end": 64
+      },
+      {
+        "type": "TIME_PERIOD",
+        "value": "Q4",
+        "confidence": 0.89,
+        "start": 73,
+        "end": 75
+      },
+      {
+        "type": "TECHNOLOGY",
+        "value": "dashboards interativos",
+        "confidence": 0.87,
+        "start": 80,
+        "end": 102
+      },
+      {
+        "type": "OUTPUT_FORMAT",
+        "value": "Excel",
+        "confidence": 0.95,
+        "start": 120,
+        "end": 125
+      }
+    ],
+    "keywords": [
+      "funcionalidade",
+      "relatórios",
+      "financeiros",
+      "Q4",
+      "dashboards",
+      "exportação",
+      "Excel"
+    ]
+  },
+
+  "confidence": 0.91,
+
+  "context": {
+    "@type": "Context",
+    "sessionId": "sess_8a7b6c5d4e3f2g1h",
+    "userId": "user-12345",
+    "tenantId": "acme-corp",
+    "channel": "web",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "clientIp": "192.168.1.***",
+    "geolocation": {
+      "country": "BR",
+      "region": "SP",
+      "city": "São Paulo",
+      "timezone": "America/Sao_Paulo"
+    }
+  },
+
+  "constraints": {
+    "@type": "Constraint",
+    "priority": "high",
+    "deadline": "2025-12-31T23:59:59Z",
+    "maxRetries": 3,
+    "timeout": "PT30M",
+    "requiredCapabilities": [
+      "business-analysis",
+      "ui-design",
+      "data-visualization",
+      "excel-integration"
+    ],
+    "securityLevel": "confidential"
+  },
+
+  "qos": {
+    "@type": "QualityOfService",
+    "deliveryMode": "exactly-once",
+    "durability": "persistent",
+    "consistency": "strong"
+  },
+
+  "timestamp": "2025-01-01T10:30:00.000Z"
+}

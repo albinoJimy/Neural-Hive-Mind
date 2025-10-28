@@ -1,0 +1,267 @@
+{
+  "type": "record",
+  "name": "RemediationAction",
+  "namespace": "io.neuralhive.remediation",
+  "doc": "Schema for automated remediation actions executed by Self-Healing Engine",
+  "fields": [
+    {
+      "name": "action_id",
+      "type": "string",
+      "doc": "Unique identifier for the remediation action (UUID)"
+    },
+    {
+      "name": "incident_id",
+      "type": "string",
+      "doc": "Reference to the security incident"
+    },
+    {
+      "name": "action_type",
+      "type": {
+        "type": "enum",
+        "name": "ActionType",
+        "symbols": [
+          "RESTART_POD",
+          "SCALE_UP",
+          "SCALE_DOWN",
+          "ROLLBACK_DEPLOYMENT",
+          "ISOLATE_POD",
+          "REVOKE_ACCESS",
+          "APPLY_POLICY",
+          "EXECUTE_PLAYBOOK"
+        ]
+      },
+      "doc": "Type of remediation action"
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "ActionStatus",
+        "symbols": ["PENDING", "EXECUTING", "COMPLETED", "FAILED", "ROLLED_BACK"]
+      },
+      "doc": "Current status of the action"
+    },
+    {
+      "name": "correlation_id",
+      "type": "string",
+      "doc": "Correlation ID for tracing"
+    },
+    {
+      "name": "trace_id",
+      "type": "string",
+      "doc": "OpenTelemetry trace ID"
+    },
+    {
+      "name": "span_id",
+      "type": "string",
+      "doc": "OpenTelemetry span ID"
+    },
+    {
+      "name": "playbook_name",
+      "type": "string",
+      "doc": "Name of the playbook to execute"
+    },
+    {
+      "name": "playbook_version",
+      "type": "string",
+      "doc": "Version of the playbook"
+    },
+    {
+      "name": "target_entities",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "TargetEntity",
+          "fields": [
+            {
+              "name": "entity_type",
+              "type": "string"
+            },
+            {
+              "name": "entity_id",
+              "type": "string"
+            },
+            {
+              "name": "entity_name",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "doc": "Target entities for remediation"
+    },
+    {
+      "name": "parameters",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "doc": "Parameters for the remediation action"
+    },
+    {
+      "name": "execution_mode",
+      "type": {
+        "type": "enum",
+        "name": "ExecutionMode",
+        "symbols": ["AUTOMATIC", "MANUAL_APPROVAL_REQUIRED"]
+      },
+      "doc": "Execution mode (automatic or manual approval required)"
+    },
+    {
+      "name": "created_at",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Timestamp when action was created"
+    },
+    {
+      "name": "started_at",
+      "type": ["null", {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }],
+      "default": null,
+      "doc": "Timestamp when execution started"
+    },
+    {
+      "name": "completed_at",
+      "type": ["null", {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }],
+      "default": null,
+      "doc": "Timestamp when execution completed"
+    },
+    {
+      "name": "timeout_ms",
+      "type": "long",
+      "doc": "Timeout in milliseconds"
+    },
+    {
+      "name": "max_retries",
+      "type": "int",
+      "doc": "Maximum number of retry attempts"
+    },
+    {
+      "name": "retry_count",
+      "type": "int",
+      "default": 0,
+      "doc": "Current retry count"
+    },
+    {
+      "name": "success",
+      "type": ["null", "boolean"],
+      "default": null,
+      "doc": "Whether the action was successful"
+    },
+    {
+      "name": "result_summary",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Summary of the execution result"
+    },
+    {
+      "name": "error_message",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Error message if execution failed"
+    },
+    {
+      "name": "metrics_before",
+      "type": {
+        "type": "map",
+        "values": "double"
+      },
+      "default": {},
+      "doc": "Metrics snapshot before remediation"
+    },
+    {
+      "name": "metrics_after",
+      "type": {
+        "type": "map",
+        "values": "double"
+      },
+      "default": {},
+      "doc": "Metrics snapshot after remediation"
+    },
+    {
+      "name": "validation_checks",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "ValidationCheck",
+          "fields": [
+            {
+              "name": "check_name",
+              "type": "string"
+            },
+            {
+              "name": "passed",
+              "type": "boolean"
+            },
+            {
+              "name": "details",
+              "type": ["null", "string"],
+              "default": null
+            }
+          ]
+        }
+      },
+      "default": [],
+      "doc": "Validation checks executed after remediation"
+    },
+    {
+      "name": "sla_restored",
+      "type": ["null", "boolean"],
+      "default": null,
+      "doc": "Whether SLA was restored"
+    },
+    {
+      "name": "mttd_seconds",
+      "type": ["null", "double"],
+      "default": null,
+      "doc": "Mean Time To Detect in seconds"
+    },
+    {
+      "name": "mttr_seconds",
+      "type": ["null", "double"],
+      "default": null,
+      "doc": "Mean Time To Recover in seconds"
+    },
+    {
+      "name": "approved_by",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Who approved the action (if manual approval required)"
+    },
+    {
+      "name": "approval_timestamp",
+      "type": ["null", {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }],
+      "default": null,
+      "doc": "When the action was approved"
+    },
+    {
+      "name": "rollback_action_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ID of rollback action if executed"
+    },
+    {
+      "name": "hash",
+      "type": "string",
+      "doc": "SHA-256 hash for integrity verification"
+    },
+    {
+      "name": "schema_version",
+      "type": "int",
+      "default": 1,
+      "doc": "Schema version for backward compatibility"
+    }
+  ]
+}

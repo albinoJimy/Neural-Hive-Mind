@@ -1,0 +1,37 @@
+playbook_id: "scale-up-deployment-v1"
+playbook_name: "scale_up_deployment"
+playbook_type: "KUBERNETES"
+version: "1.0.0"
+description: "Scale up a Kubernetes deployment by increasing replicas"
+parameters_schema:
+  type: object
+  properties:
+    deployment_name:
+      type: string
+    namespace:
+      type: string
+    target_replicas:
+      type: integer
+      minimum: 1
+  required: [deployment_name, namespace, target_replicas]
+required_capabilities: ["kubernetes.deployments.scale"]
+timeout_seconds: 180
+max_retries: 2
+rollback_playbook: "scale_down_deployment"
+validation_checks:
+  - "deployment_ready"
+  - "pods_running"
+status: "AVAILABLE"
+steps:
+  - name: "Scale deployment"
+    action: "scale_deployment"
+    parameters:
+      deployment_name: "{{ deployment_name }}"
+      namespace: "{{ namespace }}"
+      replicas: "{{ target_replicas }}"
+  - name: "Wait for deployment to be ready"
+    action: "wait_for_deployment"
+    parameters:
+      deployment_name: "{{ deployment_name }}"
+      namespace: "{{ namespace }}"
+      timeout: 120

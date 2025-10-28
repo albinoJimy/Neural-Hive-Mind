@@ -1,0 +1,151 @@
+# Valores Neo4j para ambiente DEV - Neural Hive-Mind
+
+neo4j:
+  name: neural-hive-neo4j-dev
+  namespace: neo4j-cluster
+  edition: community
+
+cluster:
+  mode: CORE
+  coreServers: 3
+  readReplicas: 1  # Menos replicas em dev
+
+image:
+  repository: neo4j
+  tag: 5.15.0-community
+  pullPolicy: IfNotPresent
+
+storage:
+  core:
+    size: 20Gi
+    storageClass: gp3-ssd
+  replica:
+    size: 10Gi
+    storageClass: gp3-ssd
+
+resources:
+  core:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: 2
+      memory: 8Gi
+  replica:
+    requests:
+      cpu: 300m
+      memory: 1Gi
+    limits:
+      cpu: 1
+      memory: 4Gi
+
+config:
+  heap:
+    initial: 1G
+    max: 2G
+  pagecache: 1G
+  dbms:
+    default_listen_address: 0.0.0.0
+    connector:
+      bolt:
+        enabled: true
+      http:
+        enabled: true
+    security:
+      auth_enabled: true
+    logs:
+      query:
+        enabled: true
+
+plugins:
+  apoc: true
+  graphDataScience: true
+  neosemantics: true
+
+security:
+  auth:
+    enabled: true
+    existingSecret: ""
+  ssl:
+    bolt:
+      enabled: false  # Simplificar em dev
+    https:
+      enabled: false
+
+backup:
+  enabled: false
+
+metrics:
+  enabled: true
+  port: 2004
+  serviceMonitor:
+    enabled: true
+    interval: 60s
+    scrapeTimeout: 10s
+    namespace: neo4j-cluster
+
+services:
+  bolt:
+    port: 7687
+    type: ClusterIP
+  http:
+    port: 7474
+    type: ClusterIP
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "2004"
+  prometheus.io/path: "/metrics"
+  neural-hive.io/environment: dev
+
+podLabels:
+  app.kubernetes.io/name: neo4j
+  app.kubernetes.io/component: graph-database
+  neural-hive.io/layer: knowledge
+  neural-hive.io/component: semantic-graph
+  neural-hive.io/environment: dev
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - neo4j
+          topologyKey: topology.kubernetes.io/zone
+
+tolerations: []
+
+nodeSelector: {}
+
+istio:
+  injection: true
+
+environment: dev
+
+rbac:
+  create: true
+
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-observability
+      ports:
+        - protocol: TCP
+          port: 2004
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              neural-hive.io/layer: cognitive
+      ports:
+        - protocol: TCP
+          port: 7687
+        - protocol: TCP
+          port: 7474

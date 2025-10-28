@@ -1,0 +1,165 @@
+# Queen Agent Helm Chart Values
+
+replicaCount: 2
+
+image:
+  repository: neural-hive/queen-agent
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  ports:
+    http: 8000
+    grpc: 50053
+    metrics: 9090
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  path: /metrics
+
+networkPolicy:
+  enabled: true
+
+istio:
+  enabled: true
+  mtls: STRICT
+
+# Configurações do serviço
+config:
+  SERVICE_NAME: queen-agent
+  SERVICE_VERSION: "1.0.0"
+  ENVIRONMENT: production
+  LOG_LEVEL: INFO
+
+  # FastAPI
+  FASTAPI_HOST: "0.0.0.0"
+  FASTAPI_PORT: "8000"
+
+  # gRPC
+  GRPC_PORT: "50053"
+
+  # Kafka
+  KAFKA_BOOTSTRAP_SERVERS: "neural-hive-kafka-bootstrap:9092"
+  KAFKA_CONSUMER_GROUP: "queen-agent-group"
+  KAFKA_TOPICS_CONSENSUS: "plans.consensus"
+  KAFKA_TOPICS_TELEMETRY: "telemetry.aggregated"
+  KAFKA_TOPICS_INCIDENTS: "incidents.critical"
+  KAFKA_TOPICS_STRATEGIC: "strategic.decisions"
+  KAFKA_AUTO_OFFSET_RESET: "earliest"
+
+  # MongoDB
+  MONGODB_DATABASE: "neural_hive"
+  MONGODB_COLLECTION_LEDGER: "strategic_decisions_ledger"
+  MONGODB_COLLECTION_EXCEPTIONS: "exception_approvals"
+
+  # Redis
+  REDIS_SSL_ENABLED: "true"
+  REDIS_PHEROMONE_PREFIX: "pheromone:strategic:"
+  REDIS_CACHE_TTL_SECONDS: "300"
+
+  # Neo4j
+  NEO4J_DATABASE: "neo4j"
+  NEO4J_MAX_CONNECTION_POOL_SIZE: "50"
+
+  # Prometheus
+  PROMETHEUS_URL: "http://prometheus-server:9090"
+  PROMETHEUS_QUERY_TIMEOUT_SECONDS: "30"
+
+  # Orchestrator Integration
+  ORCHESTRATOR_GRPC_HOST: "orchestrator-dynamic"
+  ORCHESTRATOR_GRPC_PORT: "50051"
+
+  # Service Registry Integration
+  SERVICE_REGISTRY_GRPC_HOST: "service-registry"
+  SERVICE_REGISTRY_GRPC_PORT: "50051"
+
+  # Decision Engine
+  DECISION_CONFIDENCE_THRESHOLD: "0.7"
+  CONFLICT_RESOLUTION_TIMEOUT_SECONDS: "60"
+  REPLANNING_COOLDOWN_SECONDS: "300"
+  MAX_CONCURRENT_DECISIONS: "5"
+
+  # Observability
+  OTEL_EXPORTER_ENDPOINT: "http://jaeger-collector:4317"
+  METRICS_PORT: "9090"
+
+# Secrets (devem ser criados externamente ou via External Secrets Operator)
+secrets:
+  # MongoDB
+  MONGODB_URI: ""  # mongodb://username:password@host:27017
+
+  # Redis
+  REDIS_CLUSTER_NODES: ""  # host1:6379,host2:6379,host3:6379
+  REDIS_PASSWORD: ""
+
+  # Neo4j
+  NEO4J_URI: ""  # bolt://neo4j:7687
+  NEO4J_USER: "neo4j"
+  NEO4J_PASSWORD: ""
+
+# Health checks
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Security
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  readOnlyRootFilesystem: false
+
+# Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Node affinity
+affinity: {}
+
+# Tolerations
+tolerations: []
+
+# Node selector
+nodeSelector: {}

@@ -1,0 +1,16 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: strategic-decisions
+  namespace: neural-hive-kafka
+  labels:
+    strimzi.io/cluster: neural-hive-kafka
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    retention.ms: 2592000000  # 30 dias
+    segment.ms: 86400000      # 1 dia
+    compression.type: snappy
+    min.insync.replicas: 2
+    cleanup.policy: delete

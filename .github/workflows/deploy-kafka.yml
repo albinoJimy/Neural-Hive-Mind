@@ -1,0 +1,318 @@
+name: Deploy Kafka Infrastructure
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'infrastructure/terraform/modules/kafka-cluster/**'
+      - 'helm-charts/kafka-topics/**'
+      - '.github/workflows/deploy-kafka.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infrastructure/terraform/modules/kafka-cluster/**'
+      - 'helm-charts/kafka-topics/**'
+
+env:
+  TF_VERSION: '1.6.0'
+  HELM_VERSION: '3.13.0'
+
+jobs:
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    outputs:
+      plan-cache-key: ${{ steps.cache.outputs.cache-hit }}
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Terraform Format Check
+        working-directory: infrastructure/terraform/modules/kafka-cluster
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        working-directory: infrastructure/terraform/modules/kafka-cluster
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=kafka-cluster/terraform.tfstate" \
+            -backend-config="region=us-east-1"
+
+      - name: Terraform Validate
+        working-directory: infrastructure/terraform/modules/kafka-cluster
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: infrastructure/terraform/modules/kafka-cluster
+        run: |
+          terraform plan \
+            -var="environment=${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}" \
+            -var="cluster_name=neural-hive-kafka" \
+            -var="replicas=${{ github.ref == 'refs/heads/main' && '3' || '1' }}" \
+            -var="storage_size=${{ github.ref == 'refs/heads/main' && '100Gi' || '10Gi' }}" \
+            -out=tfplan
+
+      - name: Cache Terraform Plan
+        id: cache
+        uses: actions/cache@v3
+        with:
+          path: infrastructure/terraform/modules/kafka-cluster/tfplan
+          key: tf-plan-${{ github.sha }}
+
+  helm-lint:
+    name: Helm Lint Kafka Topics
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Lint Kafka Topics Chart
+        run: |
+          helm lint helm-charts/kafka-topics/
+
+      - name: Template Kafka Topics Chart
+        run: |
+          helm template kafka-topics helm-charts/kafka-topics/ \
+            --values helm-charts/kafka-topics/values.yaml \
+            --output-dir /tmp/kafka-topics-template
+
+      - name: Verificar templates gerados
+        run: |
+          find /tmp/kafka-topics-template -name "*.yaml" -exec echo "=== {} ===" \; -exec cat {} \;
+
+  security-scan:
+    name: Security Scan Terraform
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Run Checkov scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: infrastructure/terraform/modules/kafka-cluster/
+          framework: terraform
+          output_format: sarif
+          output_file_path: checkov-results.sarif
+
+      - name: Upload Checkov scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: checkov-results.sarif
+
+  terraform-apply-dev:
+    name: Deploy to Development
+    if: github.ref == 'refs/heads/develop'
+    needs: [terraform-plan, helm-lint, security-scan]
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: '1.28.0'
+
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig --region us-east-1 --name neural-hive-dev
+
+      - name: Restore Terraform Plan
+        uses: actions/cache@v3
+        with:
+          path: infrastructure/terraform/modules/kafka-cluster/tfplan
+          key: tf-plan-${{ github.sha }}
+
+      - name: Terraform Apply
+        working-directory: infrastructure/terraform/modules/kafka-cluster
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=kafka-cluster-dev/terraform.tfstate" \
+            -backend-config="region=us-east-1"
+          terraform apply -auto-approve tfplan
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Install Strimzi Operator
+        run: |
+          helm repo add strimzi https://strimzi.io/charts/
+          helm repo update
+          helm upgrade --install strimzi-kafka-operator strimzi/strimzi-kafka-operator \
+            --namespace kafka-operator \
+            --create-namespace \
+            --version 0.38.0 \
+            --wait
+
+      - name: Deploy Kafka Topics
+        run: |
+          helm upgrade --install kafka-topics helm-charts/kafka-topics/ \
+            --namespace neural-hive-kafka \
+            --create-namespace \
+            --values environments/dev/kafka-values.yaml \
+            --wait \
+            --timeout 10m
+
+      - name: Verify Deployment
+        run: |
+          kubectl get kafkas -n neural-hive-kafka
+          kubectl get kafkatopics -n neural-hive-kafka
+
+  terraform-apply-prod:
+    name: Deploy to Production
+    if: github.ref == 'refs/heads/main'
+    needs: [terraform-plan, helm-lint, security-scan]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: '1.28.0'
+
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig --region us-east-1 --name neural-hive-prod
+
+      - name: Restore Terraform Plan
+        uses: actions/cache@v3
+        with:
+          path: infrastructure/terraform/modules/kafka-cluster/tfplan
+          key: tf-plan-${{ github.sha }}
+
+      - name: Manual Approval Gate
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.TOKEN }}
+          approvers: ${{ secrets.PROD_APPROVERS }}
+          minimum-approvals: 2
+          issue-title: "Deploy Kafka to Production"
+          issue-body: |
+            **Environment:** Production
+            **Commit:** ${{ github.sha }}
+            **Changes:** Kafka cluster and topics deployment
+
+            Please review the Terraform plan and approve if ready for production deployment.
+
+      - name: Terraform Apply
+        working-directory: infrastructure/terraform/modules/kafka-cluster
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=kafka-cluster-prod/terraform.tfstate" \
+            -backend-config="region=us-east-1"
+          terraform apply -auto-approve tfplan
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Install Strimzi Operator
+        run: |
+          helm repo add strimzi https://strimzi.io/charts/
+          helm repo update
+          helm upgrade --install strimzi-kafka-operator strimzi/strimzi-kafka-operator \
+            --namespace kafka-operator \
+            --create-namespace \
+            --version 0.38.0 \
+            --wait
+
+      - name: Deploy Kafka Topics
+        run: |
+          helm upgrade --install kafka-topics helm-charts/kafka-topics/ \
+            --namespace neural-hive-kafka \
+            --values environments/prod/kafka-values.yaml \
+            --wait \
+            --timeout 15m
+
+      - name: Verify Deployment
+        run: |
+          kubectl get kafkas -n neural-hive-kafka
+          kubectl get kafkatopics -n neural-hive-kafka
+          kubectl get pods -n neural-hive-kafka
+
+      - name: Run Health Checks
+        run: |
+          # Wait for Kafka cluster to be ready
+          kubectl wait --for=condition=Ready kafka/neural-hive-kafka -n neural-hive-kafka --timeout=600s
+
+          # Verify topics are created
+          kubectl get kafkatopics -n neural-hive-kafka -o wide
+
+          # Check Kafka metrics
+          kubectl port-forward svc/neural-hive-kafka-kafka-brokers 9308:9308 -n neural-hive-kafka &
+          sleep 10
+          curl -f http://localhost:9308/metrics || echo "Metrics endpoint check failed"
+
+  notify:
+    name: Notify Deployment Status
+    needs: [terraform-apply-dev, terraform-apply-prod]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Success
+        if: ${{ needs.terraform-apply-dev.result == 'success' || needs.terraform-apply-prod.result == 'success' }}
+        run: |
+          echo "✅ Kafka Infrastructure deployed successfully!"
+          echo "Environment: ${{ github.ref == 'refs/heads/main' && 'Production' || 'Development' }}"
+          echo "Commit: ${{ github.sha }}"
+
+      - name: Notify Failure
+        if: ${{ needs.terraform-apply-dev.result == 'failure' || needs.terraform-apply-prod.result == 'failure' }}
+        run: |
+          echo "❌ Kafka Infrastructure deployment failed!"
+          echo "Environment: ${{ github.ref == 'refs/heads/main' && 'Production' || 'Development' }}"
+          echo "Commit: ${{ github.sha }}"
+          exit 1

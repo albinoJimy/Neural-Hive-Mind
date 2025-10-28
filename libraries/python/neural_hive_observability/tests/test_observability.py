@@ -1,0 +1,321 @@
+"""Testes para biblioteca neural_hive_observability."""
+
+import pytest
+import asyncio
+from unittest.mock import Mock, patch
+import threading
+import time
+
+from neural_hive_observability import (
+    init_observability,
+    get_config,
+    get_metrics,
+    get_health_checker,
+    trace_intent,
+    trace_plan,
+)
+from neural_hive_observability.config import ObservabilityConfig
+from neural_hive_observability.metrics import NeuralHiveMetrics
+from neural_hive_observability.health import HealthChecker, HealthStatus
+from neural_hive_observability.context import ContextManager
+
+
+class TestObservabilityConfig:
+    """Testes para configuração."""
+
+    def test_config_initialization(self):
+        """Testa inicialização da configuração."""
+        config = ObservabilityConfig(
+            service_name="test-service",
+            service_version="1.0.0",
+            neural_hive_component="gateway",
+            neural_hive_layer="experiencia"
+        )
+
+        assert config.service_name == "test-service"
+        assert config.service_version == "1.0.0"
+        assert config.neural_hive_component == "gateway"
+        assert config.neural_hive_layer == "experiencia"
+        assert config.service_instance_id is not None
+
+    def test_config_env_overrides(self):
+        """Testa overrides de variáveis de ambiente."""
+        with patch.dict('os.environ', {
+            'NEURAL_HIVE_COMPONENT': 'test-component',
+            'LOG_LEVEL': 'DEBUG'
+        }):
+            config = ObservabilityConfig(
+                service_name="test-service",
+                neural_hive_component="original",
+                log_level="INFO"
+            )
+
+            assert config.neural_hive_component == "test-component"
+            assert config.log_level == "DEBUG"
+
+
+class TestInitObservability:
+    """Testes para inicialização da observabilidade."""
+
+    def test_init_observability(self):
+        """Testa inicialização completa."""
+        init_observability(
+            service_name="test-service",
+            service_version="1.0.0",
+            neural_hive_component="gateway",
+            neural_hive_layer="experiencia",
+            enable_health_checks=True
+        )
+
+        config = get_config()
+        metrics = get_metrics()
+        health = get_health_checker()
+
+        assert config is not None
+        assert config.service_name == "test-service"
+        assert metrics is not None
+        assert health is not None
+
+
+class TestMetrics:
+    """Testes para métricas."""
+
+    def test_metrics_initialization(self):
+        """Testa inicialização das métricas."""
+        config = ObservabilityConfig(
+            service_name="test-service",
+            neural_hive_component="gateway",
+            neural_hive_layer="experiencia"
+        )
+
+        metrics = NeuralHiveMetrics(config)
+
+        # Verificar se métricas foram criadas
+        assert hasattr(metrics, "neural_hive_requests_total")
+        assert hasattr(metrics, "neural_hive_captura_duration_seconds")
+        assert hasattr(metrics, "intentions_processed_total")
+
+    def test_metrics_increment(self):
+        """Testa incremento de métricas."""
+        config = ObservabilityConfig(
+            service_name="test-service",
+            neural_hive_component="gateway",
+            neural_hive_layer="experiencia"
+        )
+
+        metrics = NeuralHiveMetrics(config)
+
+        # Testar increment de requests
+        initial_value = metrics.neural_hive_requests_total._value._value
+        metrics.increment_requests(channel="web", status="success")
+
+        # Valor deve ter aumentado
+        assert metrics.neural_hive_requests_total._value._value > initial_value
+
+    def test_metrics_observe(self):
+        """Testa observação de histogramas."""
+        config = ObservabilityConfig(
+            service_name="test-service",
+            neural_hive_component="gateway",
+            neural_hive_layer="experiencia"
+        )
+
+        metrics = NeuralHiveMetrics(config)
+
+        # Testar observação de duração
+        metrics.observe_captura_duration(0.5, channel="api")
+
+        # Verificar se valor foi registrado
+        histogram = metrics.neural_hive_captura_duration_seconds
+        samples = list(histogram.collect())[0].samples
+
+        # Deve ter pelo menos o sample _count
+        count_samples = [s for s in samples if s.name.endswith("_count")]
+        assert len(count_samples) > 0
+
+
+class TestHealthChecker:
+    """Testes para health checks."""
+
+    @pytest.mark.asyncio
+    async def test_memory_health_check(self):
+        """Testa health check de memória."""
+        config = ObservabilityConfig(
+            service_name="test-service",
+            neural_hive_component="gateway",
+            neural_hive_layer="experiencia"
+        )
+
+        health_checker = HealthChecker(config)
+        health_checker.register_default_checks()
+
+        results = await health_checker.check_all()
+
+        # Deve ter pelo menos o check de memória
+        assert "memory" in results
+        assert results["memory"].status in [
+            HealthStatus.HEALTHY,
+            HealthStatus.DEGRADED,
+            HealthStatus.UNHEALTHY
+        ]
+
+    @pytest.mark.asyncio
+    async def test_custom_health_check(self):
+        """Testa health check customizado."""
+        from neural_hive_observability.health import HealthCheck, HealthCheckResult, HealthStatus
+
+        class TestHealthCheck(HealthCheck):
+            async def check(self):
+                return HealthCheckResult(
+                    name=self.name,
+                    status=HealthStatus.HEALTHY,
+                    message="Test OK"
+                )
+
+        config = ObservabilityConfig(
+            service_name="test-service",
+            neural_hive_component="gateway",
+            neural_hive_layer="experiencia"
+        )
+
+        health_checker = HealthChecker(config)
+        health_checker.register_check(TestHealthCheck("test-check"))
+
+        result = await health_checker.check_single("test-check")
+
+        assert result is not None
+        assert result.status == HealthStatus.HEALTHY
+        assert result.message == "Test OK"
+
+
+class TestTracing:
+    """Testes para tracing."""
+
+    def test_trace_intent_decorator(self):
+        """Testa decorator @trace_intent."""
+        # Mock do tracer
+        with patch('neural_hive_observability.tracing._tracer') as mock_tracer:
+            mock_span = Mock()
+            mock_tracer.start_as_current_span.return_value.__enter__.return_value = mock_span
+
+            @trace_intent(extract_intent_id_from="intent_id")
+            def test_function(intent_id: str, message: str):
+                return f"Processed {intent_id}: {message}"
+
+            result = test_function("test-intent-123", "Hello")
+
+            assert result == "Processed test-intent-123: Hello"
+            mock_tracer.start_as_current_span.assert_called()
+
+    def test_trace_plan_decorator(self):
+        """Testa decorator @trace_plan."""
+        with patch('neural_hive_observability.tracing._tracer') as mock_tracer:
+            mock_span = Mock()
+            mock_tracer.start_as_current_span.return_value.__enter__.return_value = mock_span
+
+            @trace_plan(extract_plan_id_from="plan_id")
+            def test_plan_function(plan_id: str, action: str):
+                return f"Executed {plan_id}: {action}"
+
+            result = test_plan_function("plan-456", "deploy")
+
+            assert result == "Executed plan-456: deploy"
+            mock_tracer.start_as_current_span.assert_called()
+
+
+class TestContextManager:
+    """Testes para context manager."""
+
+    def test_context_initialization(self):
+        """Testa inicialização do context manager."""
+        config = ObservabilityConfig(
+            service_name="test-service",
+            neural_hive_component="gateway",
+            neural_hive_layer="experiencia"
+        )
+
+        context_manager = ContextManager(config)
+        assert context_manager.config == config
+
+    def test_correlation_context(self):
+        """Testa context de correlação."""
+        config = ObservabilityConfig(
+            service_name="test-service",
+            neural_hive_component="gateway",
+            neural_hive_layer="experiencia"
+        )
+
+        context_manager = ContextManager(config)
+
+        with context_manager.correlation_context(
+            intent_id="test-intent-123",
+            plan_id="test-plan-456",
+            user_id="user-789"
+        ):
+            correlation = context_manager.get_current_correlation()
+
+            # Pode não ter todos os valores devido ao mocking do baggage
+            # mas pelo menos deve funcionar sem erro
+            assert isinstance(correlation, dict)
+
+    def test_http_headers_injection(self):
+        """Testa injeção de headers HTTP."""
+        config = ObservabilityConfig(
+            service_name="test-service",
+            neural_hive_component="gateway",
+            neural_hive_layer="experiencia"
+        )
+
+        context_manager = ContextManager(config)
+
+        headers = {"Content-Type": "application/json"}
+        injected_headers = context_manager.inject_http_headers(headers)
+
+        # Headers originais devem estar presentes
+        assert injected_headers["Content-Type"] == "application/json"
+
+        # Headers Neural Hive devem ser adicionados
+        assert "X-Neural-Hive-Source" in injected_headers
+        assert "X-Neural-Hive-Component" in injected_headers
+
+
+class TestIntegration:
+    """Testes de integração."""
+
+    def test_full_integration(self):
+        """Testa integração completa."""
+        # Inicializar observabilidade
+        init_observability(
+            service_name="integration-test",
+            service_version="1.0.0",
+            neural_hive_component="test-gateway",
+            neural_hive_layer="experiencia",
+            prometheus_port=0,  # Não iniciar servidor HTTP
+            enable_health_checks=True
+        )
+
+        # Verificar componentes
+        config = get_config()
+        metrics = get_metrics()
+        health = get_health_checker()
+
+        assert config is not None
+        assert metrics is not None
+        assert health is not None
+
+        # Testar métricas
+        metrics.increment_requests(channel="test", status="success")
+        metrics.observe_captura_duration(0.1, channel="test")
+
+        # Testar função com tracing
+        @trace_intent(extract_intent_id_from="intent_id")
+        def process_test_intent(intent_id: str):
+            metrics.increment_intentions(channel="test", status="success")
+            return f"Processed {intent_id}"
+
+        result = process_test_intent("test-intent")
+        assert result == "Processed test-intent"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

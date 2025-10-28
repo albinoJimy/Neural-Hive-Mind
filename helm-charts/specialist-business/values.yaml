@@ -1,0 +1,185 @@
+replicaCount: 2
+
+autoscaling:
+  enabled: false  # Desabilitado por padrão para compatibilidade com local
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: false  # Desabilitado por padrão para compatibilidade com local
+  minAvailable: 1
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+secrets:
+  mongodbUri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+  neo4jPassword: "neo4j-password-changeme"
+  redisPassword: ""
+
+image:
+  repository: localhost:5000/specialist-business
+  tag: latest
+  pullPolicy: IfNotPresent
+
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2
+    memory: 4Gi
+
+service:
+  type: ClusterIP
+  ports:
+    grpc:
+      port: 50051
+      targetPort: 50051
+      protocol: TCP
+    http:
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+    metrics:
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+
+config:
+  environment: production
+  logLevel: INFO
+
+  mlflow:
+    trackingUri: "http://mlflow.mlflow.svc.cluster.local:5000"
+    experimentName: "business-specialist"
+    modelName: "business-evaluator"
+    modelStage: "Production"
+
+  mongodb:
+    uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+    database: "neural_hive"
+    opinionsCollection: "specialist_opinions"
+
+  neo4j:
+    uri: "bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687"
+    user: "neo4j"
+    database: "neo4j"
+
+  redis:
+    clusterNodes: "neural-hive-cache.redis-cluster.svc.cluster.local:6379"
+    sslEnabled: false
+    cacheTtl: 300
+
+  otel:
+    endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+
+  grpc:
+    port: 50051
+    maxWorkers: 10
+    maxMessageLength: 4194304
+
+  http:
+    port: 8000
+
+  prometheus:
+    port: 8080
+
+  thresholds:
+    minConfidenceScore: 0.8
+    highRiskThreshold: 0.7
+
+  timeouts:
+    evaluationMs: 5000
+    modelInferenceMs: 3000
+
+  features:
+    enableExplainability: true
+    enableCaching: true
+    enableModelMonitoring: true
+
+  business:
+    processMiningEnabled: true
+    costAnalysisEnabled: true
+    kpiThresholdHigh: 0.8
+    kpiThresholdLow: 0.5
+
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+  labels:
+    prometheus: neural-hive
+
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+    - Egress
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - specialist-business
+          topologyKey: topology.kubernetes.io/zone
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+labels:
+  app.kubernetes.io/name: specialist-business
+  app.kubernetes.io/component: business-specialist
+  app.kubernetes.io/part-of: neural-hive-mind
+  neural-hive.io/component: business-specialist
+  neural-hive.io/layer: cognitiva
+  neural-hive.io/domain: business-analysis
+
+annotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/metrics"

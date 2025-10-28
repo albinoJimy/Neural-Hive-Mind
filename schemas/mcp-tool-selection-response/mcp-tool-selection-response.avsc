@@ -1,0 +1,137 @@
+{
+  "type": "record",
+  "name": "ToolSelectionResponse",
+  "namespace": "com.neuralhivemind.mcp",
+  "doc": "Response from genetic algorithm tool selection with selected tools and reasoning",
+  "fields": [
+    {
+      "name": "response_id",
+      "type": "string",
+      "doc": "Unique identifier for this response (UUID)"
+    },
+    {
+      "name": "request_id",
+      "type": "string",
+      "doc": "Reference to ToolSelectionRequest"
+    },
+    {
+      "name": "selected_tools",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "SelectedTool",
+          "fields": [
+            {
+              "name": "tool_id",
+              "type": "string",
+              "doc": "Tool unique identifier"
+            },
+            {
+              "name": "tool_name",
+              "type": "string",
+              "doc": "Tool name"
+            },
+            {
+              "name": "category",
+              "type": "string",
+              "doc": "Tool category"
+            },
+            {
+              "name": "execution_order",
+              "type": "int",
+              "doc": "Order in which tool should be executed (1-based)"
+            },
+            {
+              "name": "fitness_score",
+              "type": "double",
+              "doc": "Individual fitness score for this tool"
+            },
+            {
+              "name": "reasoning",
+              "type": "string",
+              "doc": "Explanation of why this tool was selected"
+            }
+          ]
+        }
+      },
+      "doc": "List of tools selected by genetic algorithm"
+    },
+    {
+      "name": "total_fitness_score",
+      "type": "double",
+      "doc": "Aggregated fitness score for the entire combination"
+    },
+    {
+      "name": "selection_method",
+      "type": {
+        "type": "enum",
+        "name": "SelectionMethod",
+        "symbols": [
+          "GENETIC_ALGORITHM",
+          "HEURISTIC",
+          "CACHED",
+          "FALLBACK"
+        ]
+      },
+      "doc": "Method used for tool selection"
+    },
+    {
+      "name": "generations_evolved",
+      "type": "int",
+      "doc": "Number of generations evolved in genetic algorithm (0 if not used)"
+    },
+    {
+      "name": "population_size",
+      "type": "int",
+      "doc": "Population size used in genetic algorithm"
+    },
+    {
+      "name": "convergence_time_ms",
+      "type": "long",
+      "doc": "Time taken for algorithm to converge"
+    },
+    {
+      "name": "alternative_combinations",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "items": "string"
+        }
+      },
+      "default": [],
+      "doc": "Top 3 alternative tool combinations (array of tool_id arrays)"
+    },
+    {
+      "name": "reasoning_summary",
+      "type": "string",
+      "doc": "High-level explanation of selection decisions"
+    },
+    {
+      "name": "confidence_score",
+      "type": "double",
+      "doc": "Confidence in selection quality (0.0-1.0)"
+    },
+    {
+      "name": "cached",
+      "type": "boolean",
+      "default": false,
+      "doc": "Whether result came from Redis cache"
+    },
+    {
+      "name": "created_at",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Timestamp when response was generated"
+    },
+    {
+      "name": "schema_version",
+      "type": "int",
+      "default": 1,
+      "doc": "Schema version for evolution tracking"
+    }
+  ]
+}

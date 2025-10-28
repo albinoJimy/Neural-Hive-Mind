@@ -1,0 +1,228 @@
+# Redis Cluster Configuration para Neural Hive-Mind
+
+# Configuração Geral
+nameOverride: ""
+fullnameOverride: ""
+
+# Configuração do Redis Operator
+operator:
+  install: true
+  namespace: redis-operator
+  version: "0.15.1"
+
+# Configuração do Cluster Redis
+cluster:
+  name: neural-hive-cache
+  namespace: redis-cluster
+
+  # Configuração de Cluster
+  clusterSize: 6  # 3 masters + 3 replicas
+  redisVersion: "7.0.5"
+
+  # Configuração de Storage
+  storage:
+    size: 10Gi
+    storageClass: "gp3-ssd"
+    accessMode: ReadWriteOnce
+
+  # Configuração de Recursos
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2
+      memory: 4Gi
+
+  # Configuração Redis
+  config:
+    # Políticas de Memória
+    maxmemory-policy: allkeys-lru
+    timeout: "300"
+    tcp-keepalive: "60"
+
+    # Persistência
+    save: "900 1 300 10 60 10000"  # RDB snapshots
+    appendonly: "yes"              # AOF
+    appendfsync: "everysec"
+    auto-aof-rewrite-percentage: "100"
+    auto-aof-rewrite-min-size: "64mb"
+
+    # TTL e Notificações
+    notify-keyspace-events: "Ex"   # Para TTL events
+
+    # Rede
+    tcp-backlog: "511"
+
+    # Logging
+    loglevel: "notice"
+
+    # Cliente
+    maxclients: "10000"
+
+# Configuração de Segurança
+security:
+  auth:
+    enabled: true
+    existingSecret: ""
+    secretKey: "password"
+    # Se existingSecret vazio, será criado automaticamente
+    password: ""  # Definir via values-<env>.yaml
+
+  tls:
+    enabled: true
+    cert: ""
+    key: ""
+    ca: ""
+
+# Configuração de Service
+service:
+  type: ClusterIP
+  port: 6379
+  annotations:
+    neural-hive.io/service-type: "cache"
+    redis.security/auth: "required"
+
+# Configuração de Métricas
+metrics:
+  enabled: true
+  image:
+    repository: quay.io/opstree/redis-exporter
+    tag: "1.44.0"
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 9121
+    annotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9121"
+      prometheus.io/path: "/metrics"
+
+  serviceMonitor:
+    enabled: true
+    namespace: monitoring
+    labels:
+      app: redis-cluster
+      release: prometheus
+    interval: 30s
+    scrapeTimeout: 10s
+
+# Configuração de Backup
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Diário às 2h
+  retention: 7           # Reter 7 backups
+  storage:
+    size: 50Gi
+    storageClass: "gp3-ssd"
+
+# Configuração de Pod
+podAnnotations:
+  neural-hive.io/monitoring: "enabled"
+  neural-hive.io/backup: "enabled"
+  neural-hive.io/data-classification: "internal"
+
+podLabels:
+  neural-hive.io/layer: "memory"
+  neural-hive.io/component: "cache"
+
+# Configuração de Anti-Affinity
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app: redis-cluster
+          topologyKey: topology.kubernetes.io/zone
+
+# Configuração de Tolerations (se necessário)
+tolerations: []
+
+# Configuração de Node Selector
+nodeSelector: {}
+
+# Configuração de Istio Service Mesh
+istio:
+  injection: false  # Redis não precisa de sidecar
+
+# Configuração de Environment Specific
+environment: prod
+
+# Labels Globais
+labels:
+  app.kubernetes.io/name: redis-cluster
+  app.kubernetes.io/part-of: neural-hive-mind
+  app.kubernetes.io/managed-by: helm
+  neural-hive.io/data-owner: "team-sre"
+  neural-hive.io/sla-tier: "gold"
+
+# Configurações Específicas por Ambiente
+dev:
+  cluster:
+    clusterSize: 3  # 3 nodes mínimo
+  storage:
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  backup:
+    enabled: false
+  config:
+    save: ""  # Desabilitar RDB em dev
+    appendonly: "no"  # Desabilitar AOF em dev
+
+staging:
+  cluster:
+    clusterSize: 3
+  storage:
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 2Gi
+
+# Health Checks
+healthcheck:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Configuração de Scripts de Manutenção
+maintenance:
+  scripts:
+    enabled: true
+    configMapName: redis-maintenance-scripts
+
+# Configuração de RBAC
+rbac:
+  create: true
+  serviceAccountName: ""
+
+# Configuração de Network Policy
+networkPolicy:
+  enabled: false
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: gateway-intencoes
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 6379
+        - protocol: TCP
+          port: 9121

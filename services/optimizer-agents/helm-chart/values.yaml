@@ -1,0 +1,117 @@
+replicaCount: 2
+
+image:
+  repository: registry.neuralhivemind.io/optimizer-agents
+  pullPolicy: IfNotPresent
+  tag: "1.0.0"
+
+service:
+  type: ClusterIP
+  ports:
+    grpc: 50051
+    http: 8000
+    metrics: 8080
+
+serviceAccount:
+  create: true
+  name: optimizer-agents
+  annotations: {}
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+probes:
+  liveness:
+    enabled: true
+    path: /health/live
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  readiness:
+    enabled: true
+    path: /health/ready
+    initialDelaySeconds: 15
+    periodSeconds: 5
+
+env:
+  ENVIRONMENT: "production"
+  DEBUG: "false"
+  LOG_LEVEL: "INFO"
+  SERVICE_NAME: "optimizer-agents"
+  SERVICE_VERSION: "1.0.0"
+
+  # Kafka
+  KAFKA_BOOTSTRAP_SERVERS: "kafka.kafka.svc.cluster.local:9092"
+  KAFKA_CONSUMER_GROUP_ID: "optimizer-agents"
+  KAFKA_INSIGHTS_TOPIC: "insights.generated"
+  KAFKA_TELEMETRY_TOPIC: "telemetry.aggregated"
+  KAFKA_OPTIMIZATION_TOPIC: "optimization.applied"
+  KAFKA_EXPERIMENTS_TOPIC: "experiments.results"
+
+  # gRPC Endpoints
+  CONSENSUS_ENGINE_ENDPOINT: "consensus-engine.consensus-engine.svc.cluster.local:50051"
+  ORCHESTRATOR_ENDPOINT: "orchestrator-dynamic.orchestrator-dynamic.svc.cluster.local:50051"
+  ANALYST_AGENTS_ENDPOINT: "analyst-agents.analyst-agents.svc.cluster.local:50051"
+  QUEEN_AGENT_ENDPOINT: "queen-agent.queen-agent.svc.cluster.local:50051"
+  SERVICE_REGISTRY_ENDPOINT: "service-registry.service-registry.svc.cluster.local:50051"
+
+  # MongoDB
+  MONGODB_DATABASE: "neural_hive"
+  MONGODB_OPTIMIZATION_COLLECTION: "optimization_ledger"
+  MONGODB_EXPERIMENTS_COLLECTION: "experiments_ledger"
+
+  # Redis
+  REDIS_CLUSTER_NODES: "redis-cluster.redis.svc.cluster.local:6379"
+
+  # MLflow
+  MLFLOW_TRACKING_URI: "http://mlflow.mlflow.svc.cluster.local:5000"
+  MLFLOW_EXPERIMENT_NAME: "optimizer-agents"
+
+  # Argo Workflows
+  ARGO_SERVER_ENDPOINT: "argo-server.argo.svc.cluster.local:2746"
+  ARGO_NAMESPACE: "argo"
+
+  # Observability
+  OTEL_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+  PROMETHEUS_PORT: "8080"
+  JAEGER_SAMPLING_RATE: "1.0"
+
+  # Optimization Config
+  MIN_IMPROVEMENT_THRESHOLD: "0.05"
+  MAX_WEIGHT_ADJUSTMENT: "0.2"
+  EXPERIMENT_TIMEOUT_SECONDS: "3600"
+  ENABLE_AUTO_APPROVAL: "false"
+  REQUIRE_QUEEN_APPROVAL: "true"
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - optimizer-agents
+          topologyKey: kubernetes.io/hostname
+
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s

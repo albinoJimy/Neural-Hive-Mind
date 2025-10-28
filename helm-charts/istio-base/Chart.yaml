@@ -1,0 +1,24 @@
+apiVersion: v2
+name: istio-neural-hive
+description: Configuração Istio customizada para Neural Hive-Mind com mTLS STRICT
+type: application
+version: 1.0.0
+appVersion: "1.20.0"
+
+dependencies:
+  - name: base
+    version: "1.20.0"
+    repository: https://istio-release.storage.googleapis.com/charts
+
+  - name: istiod
+    version: "1.20.0"
+    repository: https://istio-release.storage.googleapis.com/charts
+
+maintainers:
+  - name: Neural Hive Platform Team
+    email: platform@neuralhive.ai
+
+annotations:
+  category: ServiceMesh
+  neuralhive/phase: foundation
+  neuralhive/layer: infrastructure

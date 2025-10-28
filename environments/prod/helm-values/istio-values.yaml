@@ -1,0 +1,322 @@
+# Configurações Istio para ambiente PRODUCTION - Neural Hive-Mind
+# Otimizado para alta disponibilidade, performance e segurança
+
+global:
+  # Resource limits otimizados para produção
+  proxy:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+    # Logging restrito em produção
+    logLevel: info
+    componentLogLevel: "misc:error,ads:warn,xds:warn"
+
+    # Access logs seletivos - apenas erros e requests lentos
+    accessLogFile: /dev/stdout
+    accessLogEncoding: JSON
+    accessLogFormat: |
+      {
+        "timestamp": "%START_TIME%",
+        "method": "%REQ(:METHOD)%",
+        "path": "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%",
+        "protocol": "%PROTOCOL%",
+        "response_code": "%RESPONSE_CODE%",
+        "response_flags": "%RESPONSE_FLAGS%",
+        "bytes_received": "%BYTES_RECEIVED%",
+        "bytes_sent": "%BYTES_SENT%",
+        "duration": "%DURATION%",
+        "upstream_service_time": "%RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)%",
+        "x_forwarded_for": "%REQ(X-FORWARDED-FOR)%",
+        "user_agent": "%REQ(USER-AGENT)%",
+        "request_id": "%REQ(X-REQUEST-ID)%",
+        "authority": "%REQ(:AUTHORITY)%",
+        "upstream_host": "%UPSTREAM_HOST%",
+        "upstream_cluster": "%UPSTREAM_CLUSTER%"
+      }
+
+  # Tracing com sampling reduzido para produção
+  tracer:
+    zipkin:
+      address: "otel-collector.neural-hive-observability:9411"
+
+  # mTLS rigoroso em produção
+  mtls:
+    auto: true
+
+  # Network policies rigorosas
+  defaultPodDisruptionBudget:
+    enabled: true
+
+istiod:
+  # Control plane com alta disponibilidade
+  pilot:
+    autoscaleEnabled: true
+    autoscaleMin: 3  # Mínimo 3 replicas
+    autoscaleMax: 8  # Até 8 replicas
+    replicaCount: 3  # Padrão 3 para HA
+
+    cpu:
+      targetAverageUtilization: 50  # Scale mais conservador
+
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+
+    # Pod Disruption Budget
+    podDisruptionBudget:
+      minAvailable: 2
+
+    # Affinity para distribuição em zonas
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app: istiod
+            topologyKey: topology.kubernetes.io/zone
+
+    # Configurações de produção
+    env:
+      # Desabilitar protocolo sniffing para performance
+      PILOT_ENABLE_PROTOCOL_SNIFFING_FOR_INBOUND: false
+      PILOT_ENABLE_PROTOCOL_SNIFFING_FOR_OUTBOUND: false
+
+      # Tracing reduzido - 1% sampling
+      PILOT_TRACE_SAMPLING: "1.0"
+
+      # Segurança rigorosa
+      PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION: false
+      PILOT_ENABLE_WORKLOAD_ENTRY_HEALTHCHECKS: true
+      VERIFY_CERTIFICATE_AT_CLIENT: true
+      ENABLE_AUTO_MTLS: true
+
+      # Log level production
+      PILOT_LOG_LEVEL: "warn"
+
+      # Performance otimizations
+      PILOT_PUSH_THROTTLE: "100"
+      PILOT_DEBOUNCE_AFTER: "100ms"
+      PILOT_DEBOUNCE_MAX: "10s"
+
+  # Telemetry otimizada para produção
+  telemetry:
+    v2:
+      enabled: true
+      prometheus:
+        configOverride:
+          # Retenção otimizada para produção
+          metric_expiry_duration: 10m
+          metric_rotation_interval: 5m
+          # Performance optimizations
+          inbound_sidecar:
+            disable_host_header_fallback: true
+          outbound_sidecar:
+            disable_host_header_fallback: true
+
+# Gateway de produção com alta disponibilidade
+gateways:
+  istio-ingressgateway:
+    # Múltiplas replicas para HA
+    replicaCount: 3
+
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: 2000m
+        memory: 2Gi
+
+    # HPA para gateway
+    autoscaleEnabled: true
+    autoscaleMin: 3
+    autoscaleMax: 10
+
+    # Service interno apenas (ALB/NLB via AWS LoadBalancer Controller)
+    serviceType: ClusterIP
+
+    # Pod Disruption Budget
+    podDisruptionBudget:
+      minAvailable: 2
+
+    # Affinity para distribuição
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app: istio-ingressgateway
+            topologyKey: topology.kubernetes.io/zone
+
+    # Configurações de rede
+    service:
+      # Apenas ports necessários
+      ports:
+        - port: 80
+          targetPort: 8080
+          name: http2
+        - port: 443
+          targetPort: 8443
+          name: https
+        - port: 15021
+          targetPort: 15021
+          name: status-port
+
+# Sidecar injection restrita em produção
+sidecarInjectorWebhook:
+  # Apenas namespaces específicos
+  enableNamespacesByDefault: []
+
+  # Configurações de webhook
+  webhookConfig:
+    # Fail closed em produção
+    failurePolicy: Fail
+    # Timeout mais longo para stability
+    timeoutSeconds: 30
+
+  # Resources otimizados para sidecars
+  templates:
+    sidecar:
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 200m
+          memory: 256Mi
+
+# Configurações de mesh para produção
+meshConfig:
+  # Access logs apenas para erros
+  accessLogFile: ""
+
+  # Configurações de produção
+  defaultConfig:
+    # Hold application startup
+    holdApplicationUntilProxyStarts: true
+    # Drain periods otimizados
+    drainDuration: 30s
+    terminationDrainDuration: 5s
+    # Concorrência otimizada
+    concurrency: 2
+    # Stats mínimos necessários
+    proxyStatsMatcher:
+      inclusionRegexps:
+        - "cluster.outbound|.*|.*|.*outlier_detection.*"
+        - "cluster.inbound|.*|.*|.*outlier_detection.*"
+        - "listener.*"
+        - "server.*"
+      exclusionRegexps:
+        - "cluster.outbound|443||kubernetes.*"
+
+  # Extension providers para produção
+  extensionProviders:
+    - name: otel-production
+      envoyOtelAls:
+        service: opentelemetry-collector.neural-hive-observability.svc.cluster.local
+        port: 4317
+        # Apenas logs de erro em produção
+        logFormat:
+          jsonFormat:
+            timestamp: "%START_TIME%"
+            responseCode: "%RESPONSE_CODE%"
+            duration: "%DURATION%"
+
+    - name: prometheus-production
+      prometheus:
+        service: prometheus.neural-hive-observability.svc.cluster.local
+        port: 9090
+        # Métricas críticas apenas
+        configOverride:
+          inboundSidecar:
+            metrics:
+              - name: requests_total
+              - name: request_duration_milliseconds
+              - name: tcp_connections_opened_total
+
+  # Circuit breaker robusto para produção
+  defaultDestinationRulePolicy:
+    trafficPolicy:
+      connectionPool:
+        tcp:
+          maxConnections: 100
+          connectTimeout: 10s
+          tcpKeepalive:
+            time: 7200s
+            interval: 75s
+        http:
+          http2MaxRequests: 100
+          maxRequestsPerConnection: 1
+          maxRetries: 3
+          consecutiveGatewayErrors: 5
+          h2UpgradePolicy: UPGRADE
+
+      outlierDetection:
+        consecutiveErrors: 5
+        consecutive5xxErrors: 5
+        consecutiveGatewayErrors: 5
+        interval: 30s
+        baseEjectionTime: 30s
+        maxEjectionPercent: 50
+        minHealthPercent: 30
+        splitExternalLocalOriginErrors: true
+
+      # Retry policy
+      retryPolicy:
+        attempts: 3
+        perTryTimeout: 5s
+        retryOn: gateway-error,connect-failure,refused-stream
+        retryRemoteLocalities: true
+
+# Configurações de segurança para produção
+values:
+  global:
+    # Security hardening
+    jwtPolicy: first-party-jwt
+
+    # Proxy configurações de segurança
+    proxy:
+      # Privilégios mínimos
+      privileged: false
+      # ReadOnly root filesystem
+      readOnlyRootFilesystem: true
+      # Run as non-root
+      runAsNonRoot: true
+      runAsUser: 1337
+      runAsGroup: 1337
+      # Security context
+      seccompProfile:
+        type: RuntimeDefault
+      # Capabilities dropping
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+
+  # CNI configurações
+  cni:
+    enabled: true
+    # Run CNI como privileged apenas se necessário
+    privileged: false
+
+  # Pilot hardening
+  pilot:
+    env:
+      EXTERNAL_ISTIOD: false
+      # Disable debug endpoints em produção
+      PILOT_DEBUG_ENDPOINTS: false
+      # Enable security features
+      PILOT_ENABLE_BOOTSTRAP_EXTENSION_PROVIDER: true
+
+# Environment marker
+environment: "production"

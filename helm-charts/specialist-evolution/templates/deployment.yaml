@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "specialist-evolution.fullname" . }}
+  labels:
+    {{- include "specialist-evolution.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: {{ .Values.deployment.strategy.type }}
+    {{- if eq .Values.deployment.strategy.type "RollingUpdate" }}
+    rollingUpdate:
+      maxSurge: {{ .Values.deployment.strategy.rollingUpdate.maxSurge }}
+      maxUnavailable: {{ .Values.deployment.strategy.rollingUpdate.maxUnavailable }}
+    {{- end }}
+  selector:
+    matchLabels:
+      {{- include "specialist-evolution.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.config.prometheus.port }}"
+        prometheus.io/path: "/metrics"
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "specialist-evolution.selectorLabels" . | nindent 8 }}
+        {{- with .Values.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: specialist-evolution
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- with .Values.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        ports:
+        - name: grpc
+          containerPort: {{ .Values.config.grpc.port }}
+          protocol: TCP
+        - name: http
+          containerPort: {{ .Values.config.http.port }}
+          protocol: TCP
+        - name: metrics
+          containerPort: {{ .Values.config.prometheus.port }}
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: {{ .Values.config.environment | quote }}
+        - name: LOG_LEVEL
+          value: {{ .Values.config.logLevel | quote }}
+        - name: MLFLOW_TRACKING_URI
+          value: {{ .Values.config.mlflow.trackingUri | quote }}
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "specialist-evolution.secretName" . }}
+              key: mongodb_uri
+        - name: MONGODB_DATABASE
+          value: {{ .Values.config.mongodb.database | quote }}
+        - name: NEO4J_URI
+          value: {{ .Values.config.neo4j.uri | quote }}
+        - name: NEO4J_USER
+          value: {{ .Values.config.neo4j.user | quote }}
+        - name: NEO4J_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "specialist-evolution.secretName" . }}
+              key: neo4j_password
+        - name: NEO4J_DATABASE
+          value: {{ .Values.config.neo4j.database | quote }}
+        - name: REDIS_CLUSTER_NODES
+          value: {{ .Values.config.redis.clusterNodes | quote }}
+        - name: REDIS_SSL_ENABLED
+          value: {{ .Values.config.redis.sslEnabled | quote }}
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: {{ .Values.config.otel.endpoint | quote }}
+        - name: GRPC_PORT
+          value: {{ .Values.config.grpc.port | quote }}
+        - name: HTTP_PORT
+          value: {{ .Values.config.http.port | quote }}
+        - name: PROMETHEUS_PORT
+          value: {{ .Values.config.prometheus.port | quote }}
+        livenessProbe:
+          {{- toYaml .Values.livenessProbe | nindent 10 }}
+        readinessProbe:
+          {{- toYaml .Values.readinessProbe | nindent 10 }}
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

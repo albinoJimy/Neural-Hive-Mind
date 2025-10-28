@@ -1,0 +1,65 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: retraining-trigger-checker
+  namespace: neural-hive-mind
+  labels:
+    app: neural-hive
+    component: retraining-trigger
+    layer: ml-ops
+spec:
+  # Executar semanalmente às 3h UTC de domingo
+  schedule: "0 3 * * 0"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: neural-hive
+            component: retraining-trigger
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: retraining-trigger-checker
+              image: neural-hive/specialist-base:latest
+              imagePullPolicy: IfNotPresent
+              command:
+                - python
+                - -m
+                - neural_hive_specialists.scripts.run_retraining_trigger
+              args:
+                - --verbose
+              env:
+                - name: MONGODB_URI
+                  valueFrom:
+                    secretKeyRef:
+                      name: mongodb-secret
+                      key: uri
+                - name: MONGODB_DATABASE
+                  value: "neural_hive"
+                - name: MLFLOW_TRACKING_URI
+                  valueFrom:
+                    configMapKeyRef:
+                      name: mlflow-config
+                      key: tracking-uri
+                - name: ENABLE_RETRAINING_TRIGGER
+                  value: "true"
+                - name: RETRAINING_FEEDBACK_THRESHOLD
+                  value: "100"
+                - name: RETRAINING_FEEDBACK_WINDOW_DAYS
+                  value: "7"
+                - name: RETRAINING_MLFLOW_PROJECT_URI
+                  value: "./ml_pipelines/training"
+                - name: PUSHGATEWAY_URL
+                  value: "http://prometheus-pushgateway.observability.svc.cluster.local:9091"
+              resources:
+                requests:
+                  memory: "256Mi"
+                  cpu: "100m"
+                limits:
+                  memory: "512Mi"
+                  cpu: "500m"

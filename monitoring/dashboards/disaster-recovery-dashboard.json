@@ -1,0 +1,696 @@
+{
+  "dashboard": {
+    "title": "Disaster Recovery Monitoring",
+    "tags": ["disaster-recovery", "backup", "neural-hive"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "1m",
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["30s", "1m", "5m", "15m", "30m", "1h"]
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "datasource",
+          "type": "datasource",
+          "query": "prometheus",
+          "current": {
+            "value": "Prometheus",
+            "text": "Prometheus"
+          }
+        },
+        {
+          "name": "specialist_type",
+          "type": "query",
+          "datasource": "${datasource}",
+          "query": "label_values(neural_hive_dr_backup_total, specialist_type)",
+          "multi": true,
+          "includeAll": true,
+          "current": {
+            "value": ["$__all"],
+            "text": "All"
+          },
+          "refresh": 2
+        },
+        {
+          "name": "tenant_id",
+          "type": "query",
+          "datasource": "${datasource}",
+          "query": "label_values(neural_hive_dr_backup_last_success_timestamp, tenant_id)",
+          "multi": false,
+          "includeAll": false,
+          "current": {
+            "value": "default",
+            "text": "default"
+          },
+          "refresh": 2
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "Backups",
+          "datasource": "${datasource}",
+          "enable": true,
+          "expr": "changes(neural_hive_dr_backup_last_success_timestamp[5m]) > 0",
+          "iconColor": "green",
+          "tagKeys": "specialist_type"
+        },
+        {
+          "name": "Recovery Tests",
+          "datasource": "${datasource}",
+          "enable": true,
+          "expr": "changes(neural_hive_dr_recovery_test_last_timestamp[5m]) > 0",
+          "iconColor": "blue",
+          "tagKeys": "specialist_type"
+        },
+        {
+          "name": "Alerts",
+          "datasource": "${datasource}",
+          "enable": true,
+          "expr": "ALERTS{alertname=~\"Backup.*|Recovery.*|Storage.*\"}",
+          "iconColor": "red",
+          "tagKeys": "alertname,severity"
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Backup Status Overview",
+        "type": "row",
+        "gridPos": {"x": 0, "y": 0, "w": 24, "h": 1},
+        "collapsed": false
+      },
+      {
+        "id": 2,
+        "title": "Last Backup Status",
+        "type": "stat",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 0, "y": 1, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "time() - neural_hive_dr_backup_last_success_timestamp{specialist_type=~\"$specialist_type\", tenant_id=\"$tenant_id\"}",
+            "legendFormat": "{{specialist_type}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "none",
+          "colorMode": "background",
+          "textMode": "value_and_name",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "green"},
+                {"value": 86400, "color": "yellow"},
+                {"value": 90000, "color": "red"}
+              ]
+            },
+            "mappings": []
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Last Backup Size",
+        "type": "stat",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 6, "y": 1, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "neural_hive_dr_backup_size_bytes{specialist_type=~\"$specialist_type\", tenant_id=\"$tenant_id\"}",
+            "legendFormat": "{{specialist_type}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "textMode": "value_and_name",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Last Recovery Test Status",
+        "type": "stat",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 12, "y": 1, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "neural_hive_dr_recovery_test_last_status{specialist_type=~\"$specialist_type\"}",
+            "legendFormat": "{{specialist_type}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "none",
+          "colorMode": "background",
+          "textMode": "name",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 1, "color": "green"}
+              ]
+            },
+            "mappings": [
+              {"value": 0, "text": "FAILED"},
+              {"value": 1, "text": "SUCCESS"}
+            ]
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Time Since Last Recovery Test",
+        "type": "stat",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 18, "y": 1, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "time() - neural_hive_dr_recovery_test_last_timestamp{specialist_type=~\"$specialist_type\"}",
+            "legendFormat": "{{specialist_type}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "none",
+          "colorMode": "background",
+          "textMode": "value_and_name",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "green"},
+                {"value": 604800, "color": "yellow"},
+                {"value": 691200, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "Backup Trends",
+        "type": "row",
+        "gridPos": {"x": 0, "y": 5, "w": 24, "h": 1},
+        "collapsed": false
+      },
+      {
+        "id": 11,
+        "title": "Backup Size Over Time",
+        "type": "timeseries",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 0, "y": 6, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "neural_hive_dr_backup_size_bytes{specialist_type=~\"$specialist_type\", tenant_id=\"$tenant_id\"}",
+            "legendFormat": "{{specialist_type}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 10,
+              "showPoints": "always"
+            }
+          }
+        },
+        "options": {
+          "tooltip": {
+            "mode": "multi"
+          },
+          "legend": {
+            "displayMode": "table",
+            "placement": "bottom",
+            "calcs": ["last", "mean", "max"]
+          }
+        }
+      },
+      {
+        "id": 12,
+        "title": "Backup Duration Over Time",
+        "type": "timeseries",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 12, "y": 6, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "neural_hive_dr_backup_duration_seconds{specialist_type=~\"$specialist_type\"}",
+            "legendFormat": "{{specialist_type}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 10,
+              "showPoints": "always"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "green"},
+                {"value": 300, "color": "yellow"},
+                {"value": 600, "color": "red"}
+              ]
+            }
+          }
+        },
+        "options": {
+          "tooltip": {
+            "mode": "multi"
+          },
+          "legend": {
+            "displayMode": "table",
+            "placement": "bottom",
+            "calcs": ["last", "mean", "max"]
+          }
+        }
+      },
+      {
+        "id": 13,
+        "title": "Backup Success Rate (24h)",
+        "type": "gauge",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 0, "y": 14, "w": 8, "h": 6},
+        "targets": [
+          {
+            "expr": "sum by (specialist_type) (rate(neural_hive_dr_backup_total{status=\"success\", specialist_type=~\"$specialist_type\"}[24h])) / sum by (specialist_type) (rate(neural_hive_dr_backup_total{specialist_type=~\"$specialist_type\"}[24h])) * 100",
+            "legendFormat": "{{specialist_type}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 90, "color": "yellow"},
+                {"value": 99, "color": "green"}
+              ]
+            }
+          }
+        },
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        }
+      },
+      {
+        "id": 14,
+        "title": "Recovery Test Success Rate (30d)",
+        "type": "gauge",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 8, "y": 14, "w": 8, "h": 6},
+        "targets": [
+          {
+            "expr": "avg_over_time(neural_hive_dr_recovery_test_last_status{specialist_type=~\"$specialist_type\"}[30d]) * 100",
+            "legendFormat": "{{specialist_type}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 85, "color": "yellow"},
+                {"value": 95, "color": "green"}
+              ]
+            }
+          }
+        },
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        }
+      },
+      {
+        "id": 15,
+        "title": "Total Backups (7d)",
+        "type": "stat",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 16, "y": 14, "w": 8, "h": 6},
+        "targets": [
+          {
+            "expr": "sum by (specialist_type) (increase(neural_hive_dr_backup_total{specialist_type=~\"$specialist_type\"}[7d]))",
+            "legendFormat": "{{specialist_type}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "options": {
+          "graphMode": "area",
+          "textMode": "value_and_name",
+          "colorMode": "value"
+        }
+      },
+      {
+        "id": 20,
+        "title": "Component Breakdown",
+        "type": "row",
+        "gridPos": {"x": 0, "y": 20, "w": 24, "h": 1},
+        "collapsed": false
+      },
+      {
+        "id": 21,
+        "title": "Backup Size by Component",
+        "type": "barchart",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 0, "y": 21, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "neural_hive_dr_backup_component_size_bytes{specialist_type=~\"$specialist_type\"}",
+            "legendFormat": "{{component}} ({{specialist_type}})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient",
+          "showValue": "always"
+        }
+      },
+      {
+        "id": 22,
+        "title": "Backup Duration by Component",
+        "type": "barchart",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 12, "y": 21, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "neural_hive_dr_backup_component_duration_seconds{specialist_type=~\"$specialist_type\"}",
+            "legendFormat": "{{component}} ({{specialist_type}})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient",
+          "showValue": "always"
+        }
+      },
+      {
+        "id": 30,
+        "title": "Storage & Errors",
+        "type": "row",
+        "gridPos": {"x": 0, "y": 29, "w": 24, "h": 1},
+        "collapsed": false
+      },
+      {
+        "id": 31,
+        "title": "Storage Upload Errors",
+        "type": "stat",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 0, "y": 30, "w": 8, "h": 4},
+        "targets": [
+          {
+            "expr": "sum by (specialist_type, storage_provider) (increase(neural_hive_dr_storage_upload_errors_total{specialist_type=~\"$specialist_type\"}[24h]))",
+            "legendFormat": "{{specialist_type}} ({{storage_provider}})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "green"},
+                {"value": 1, "color": "yellow"},
+                {"value": 5, "color": "red"}
+              ]
+            }
+          }
+        },
+        "options": {
+          "graphMode": "area",
+          "textMode": "value_and_name",
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": 32,
+        "title": "Storage Download Errors",
+        "type": "stat",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 8, "y": 30, "w": 8, "h": 4},
+        "targets": [
+          {
+            "expr": "sum by (specialist_type, storage_provider) (increase(neural_hive_dr_storage_download_errors_total{specialist_type=~\"$specialist_type\"}[24h]))",
+            "legendFormat": "{{specialist_type}} ({{storage_provider}})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "green"},
+                {"value": 1, "color": "yellow"},
+                {"value": 5, "color": "red"}
+              ]
+            }
+          }
+        },
+        "options": {
+          "graphMode": "area",
+          "textMode": "value_and_name",
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": 33,
+        "title": "Restore Operations (24h)",
+        "type": "stat",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 16, "y": 30, "w": 8, "h": 4},
+        "targets": [
+          {
+            "expr": "sum by (specialist_type, status) (increase(neural_hive_dr_restore_total{specialist_type=~\"$specialist_type\"}[24h]))",
+            "legendFormat": "{{specialist_type}} ({{status}})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "green"}
+              ]
+            }
+          }
+        },
+        "options": {
+          "graphMode": "none",
+          "textMode": "value_and_name",
+          "colorMode": "value"
+        }
+      },
+      {
+        "id": 34,
+        "title": "Storage Error Rate",
+        "type": "timeseries",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 0, "y": 34, "w": 24, "h": 6},
+        "targets": [
+          {
+            "expr": "rate(neural_hive_dr_storage_upload_errors_total{specialist_type=~\"$specialist_type\"}[5m])",
+            "legendFormat": "Upload Errors - {{specialist_type}}",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(neural_hive_dr_storage_download_errors_total{specialist_type=~\"$specialist_type\"}[5m])",
+            "legendFormat": "Download Errors - {{specialist_type}}",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "fillOpacity": 20
+            }
+          }
+        },
+        "options": {
+          "tooltip": {
+            "mode": "multi"
+          },
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
+        }
+      },
+      {
+        "id": 40,
+        "title": "Alerts & Actions",
+        "type": "row",
+        "gridPos": {"x": 0, "y": 40, "w": 24, "h": 1},
+        "collapsed": false
+      },
+      {
+        "id": 41,
+        "title": "Active DR Alerts",
+        "type": "table",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 0, "y": 41, "w": 24, "h": 8},
+        "targets": [
+          {
+            "expr": "ALERTS{alertname=~\"Backup.*|Recovery.*|Storage.*\", alertstate=\"firing\"}",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "__name__": true,
+                "Time": true,
+                "Value": true,
+                "alertstate": true
+              },
+              "indexByName": {
+                "alertname": 0,
+                "severity": 1,
+                "specialist_type": 2,
+                "summary": 3
+              },
+              "renameByName": {
+                "alertname": "Alert",
+                "severity": "Severity",
+                "specialist_type": "Specialist",
+                "summary": "Summary"
+              }
+            }
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "align": "left"
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "Severity"},
+              "properties": [
+                {
+                  "id": "custom.displayMode",
+                  "value": "color-background"
+                },
+                {
+                  "id": "mappings",
+                  "value": [
+                    {"value": "critical", "text": "CRITICAL", "color": "dark-red"},
+                    {"value": "warning", "text": "WARNING", "color": "dark-orange"},
+                    {"value": "info", "text": "INFO", "color": "dark-blue"}
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "overwrite": true,
+  "folderId": 0,
+  "message": "Disaster Recovery Monitoring Dashboard - Initial version"
+}

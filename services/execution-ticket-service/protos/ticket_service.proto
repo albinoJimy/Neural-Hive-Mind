@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package ticket_service;
+
+// Serviço de Execution Tickets
+service TicketService {
+  // Buscar ticket por ID
+  rpc GetTicket(GetTicketRequest) returns (GetTicketResponse);
+
+  // Listar tickets com filtros
+  rpc ListTickets(ListTicketsRequest) returns (ListTicketsResponse);
+
+  // Atualizar status do ticket
+  rpc UpdateTicketStatus(UpdateTicketStatusRequest) returns (UpdateTicketStatusResponse);
+
+  // Gerar token JWT para ticket
+  rpc GenerateToken(GenerateTokenRequest) returns (GenerateTokenResponse);
+}
+
+// Request para GetTicket
+message GetTicketRequest {
+  string ticket_id = 1;
+}
+
+// Response para GetTicket
+message GetTicketResponse {
+  ExecutionTicketProto ticket = 1;
+}
+
+// Request para ListTickets
+message ListTicketsRequest {
+  string plan_id = 1;
+  string status = 2;
+  int32 offset = 3;
+  int32 limit = 4;
+}
+
+// Response para ListTickets
+message ListTicketsResponse {
+  repeated ExecutionTicketProto tickets = 1;
+  int32 total = 2;
+}
+
+// Request para UpdateTicketStatus
+message UpdateTicketStatusRequest {
+  string ticket_id = 1;
+  string status = 2;
+  string error_message = 3;
+}
+
+// Response para UpdateTicketStatus
+message UpdateTicketStatusResponse {
+  ExecutionTicketProto ticket = 1;
+}
+
+// Request para GenerateToken
+message GenerateTokenRequest {
+  string ticket_id = 1;
+}
+
+// Response para GenerateToken
+message GenerateTokenResponse {
+  string access_token = 1;
+  int64 expires_at = 2;
+}
+
+// Execution Ticket Proto (simplificado)
+message ExecutionTicketProto {
+  string ticket_id = 1;
+  string plan_id = 2;
+  string intent_id = 3;
+  string task_id = 4;
+  string task_type = 5;
+  string description = 6;
+  string status = 7;
+  string priority = 8;
+  int64 created_at = 9;
+}

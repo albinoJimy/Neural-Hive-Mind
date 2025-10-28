@@ -1,0 +1,122 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neural-test-service
+  namespace: neural-hive-system
+  labels:
+    app: neural-test-service
+    version: v1
+    neural-hive.io/component: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: neural-test-service
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: neural-test-service
+        version: v1
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      containers:
+      - name: test-service
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+          name: http
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        env:
+        - name: NGINX_HOST
+          value: "neural-hive-local"
+        - name: NGINX_PORT
+          value: "80"
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /usr/share/nginx/html/index.html
+          subPath: index.html
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: neural-test-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: neural-test-service
+  namespace: neural-hive-system
+  labels:
+    app: neural-test-service
+    service: neural-test-service
+spec:
+  selector:
+    app: neural-test-service
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: neural-test-config
+  namespace: neural-hive-system
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Neural Hive-Mind - Teste Local</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                text-align: center;
+                padding: 50px;
+            }
+            .container {
+                background: rgba(255,255,255,0.1);
+                border-radius: 15px;
+                padding: 30px;
+                max-width: 600px;
+                margin: 0 auto;
+            }
+            .status { color: #4CAF50; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🧠 Neural Hive-Mind</h1>
+            <h2>Ambiente Local</h2>
+            <p class="status">✅ Serviço de Teste Funcionando</p>
+            <p>Kubernetes Cluster: Ativo</p>
+            <p>Istio Service Mesh: Configurado</p>
+            <p>Namespace: neural-hive-system</p>
+            <hr>
+            <p><small>Versão: 1.0.0-local | Data: $(date)</small></p>
+        </div>
+    </body>
+    </html>

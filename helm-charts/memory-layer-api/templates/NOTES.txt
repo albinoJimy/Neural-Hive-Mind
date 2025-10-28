@@ -1,0 +1,121 @@
+🎉 Memory Layer API implantada com sucesso!
+
+Release: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+Chart Version: {{ .Chart.Version }}
+App Version: {{ .Chart.AppVersion }}
+
+═══════════════════════════════════════════════════════════════
+
+📊 STATUS DO DEPLOYMENT
+
+Verificar pods:
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "memory-layer-api.name" . }}
+
+Logs:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "memory-layer-api.name" . }} -f
+
+═══════════════════════════════════════════════════════════════
+
+🌐 ENDPOINTS DISPONÍVEIS
+
+Port-forward para acesso local:
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "memory-layer-api.fullname" . }} 8000:80 8080:8080
+
+Endpoints:
+  • Health Check:  http://localhost:8000/health
+  • Readiness:     http://localhost:8000/ready
+  • Métricas:      http://localhost:8080/metrics
+
+Endpoints de API:
+  • Contexto:      GET/POST http://localhost:8000/api/v1/context
+  • Linhagem:      GET http://localhost:8000/api/v1/lineage
+  • Qualidade:     GET http://localhost:8000/api/v1/quality
+
+═══════════════════════════════════════════════════════════════
+
+📈 MONITORAMENTO
+
+ServiceMonitor: {{ if .Values.serviceMonitor.enabled }}✓ Habilitado{{ else }}✗ Desabilitado{{ end }}
+{{- if .Values.autoscaling.enabled }}
+Autoscaling: ✓ Habilitado ({{ .Values.autoscaling.minReplicas }}-{{ .Values.autoscaling.maxReplicas }} réplicas)
+{{- else }}
+Réplicas: {{ .Values.replicaCount }} (fixo)
+{{- end }}
+{{- if .Values.networkPolicy.enabled }}
+NetworkPolicy: ✓ Habilitado
+{{- end }}
+
+═══════════════════════════════════════════════════════════════
+
+💾 CAMADAS DE MEMÓRIA
+
+Redis (Curto Prazo):
+  Cluster Nodes: {{ .Values.config.redis.clusterNodes }}
+  TTL: {{ .Values.config.redis.defaultTtl }}s
+
+MongoDB (Operacional):
+  URI: {{ .Values.config.mongodb.uri }}
+  Database: {{ .Values.config.mongodb.database }}
+  Retention: {{ .Values.config.mongodb.retentionDays }} dias
+
+Neo4j (Semântico):
+  URI: {{ .Values.config.neo4j.uri }}
+  Database: {{ .Values.config.neo4j.database }}
+
+ClickHouse (Histórico):
+  Host: {{ .Values.config.clickhouse.host }}
+  Database: {{ .Values.config.clickhouse.database }}
+  Retention: {{ .Values.config.clickhouse.retentionMonths }} meses
+
+═══════════════════════════════════════════════════════════════
+
+🔄 ROTEAMENTO DE QUERIES
+
+Hot Data Threshold: {{ .Values.config.routing.hotDataThresholdSeconds }}s
+Warm Data Threshold: {{ .Values.config.routing.warmDataThresholdDays }} dias
+Cold Data Threshold: {{ .Values.config.routing.coldDataThresholdMonths }} meses
+
+═══════════════════════════════════════════════════════════════
+
+✅ DATA QUALITY
+
+Quality Checks: {{ if .Values.config.quality.checkEnabled }}✓ Habilitado{{ else }}✗ Desabilitado{{ end }}
+{{- if .Values.config.quality.checkEnabled }}
+Completeness Threshold: {{ .Values.config.quality.completenessThreshold }}
+Accuracy Threshold: {{ .Values.config.quality.accuracyThreshold }}
+Freshness Threshold: {{ .Values.config.quality.freshnessThresholdHours }}h
+{{- end }}
+
+═══════════════════════════════════════════════════════════════
+
+🚀 PRÓXIMOS PASSOS
+
+1. Testar endpoint de health:
+   curl http://localhost:8000/health
+
+2. Verificar conectividade com datastores:
+   kubectl exec -it -n {{ .Release.Namespace }} deploy/{{ include "memory-layer-api.fullname" . }} -- \
+     python -c "import redis; print(redis.Redis(host='redis', port=6379).ping())"
+
+3. Validar roteamento de queries:
+   curl http://localhost:8000/api/v1/context?age=recent
+
+4. Verificar métricas de qualidade:
+   curl http://localhost:8000/api/v1/quality
+
+═══════════════════════════════════════════════════════════════
+
+💻 AMBIENTE LOCAL
+
+Em ambiente local (Minikube/Kind/Docker Desktop), alguns recursos podem
+estar desabilitados para compatibilidade:
+  • NetworkPolicy (networkPolicy.enabled: false)
+  • Datastores externos podem precisar ser mockados
+
+═══════════════════════════════════════════════════════════════
+
+🗑️  DESINSTALAÇÃO
+
+Para remover este release:
+  helm uninstall {{ .Release.Name }} -n {{ .Release.Namespace }}

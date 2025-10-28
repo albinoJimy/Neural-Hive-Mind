@@ -1,0 +1,30 @@
+apiVersion: v2
+name: neural-hive-otel-collector
+description: OpenTelemetry Collector configurado para Neural Hive-Mind com correlação distribuída
+type: application
+version: 1.0.0
+appVersion: "0.89.0"
+home: https://github.com/neural-hive-mind/observability
+sources:
+  - https://github.com/open-telemetry/opentelemetry-collector
+  - https://github.com/neural-hive-mind/observability
+keywords:
+  - observability
+  - telemetry
+  - metrics
+  - tracing
+  - logging
+  - opentelemetry
+  - neural-hive-mind
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: observability@neural-hive.local
+annotations:
+  category: Observability
+  neural.hive/component: telemetry-collector
+  neural.hive/layer: observabilidade
+dependencies:
+  - name: opentelemetry-collector
+    version: "0.66.0"
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+    condition: collector.enabled

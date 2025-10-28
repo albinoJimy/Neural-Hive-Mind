@@ -1,0 +1,206 @@
+{
+  "namespace": "com.neuralhivemind.optimization",
+  "type": "record",
+  "name": "OptimizationEvent",
+  "doc": "Event schema for optimization actions applied by Optimizer Agents",
+  "fields": [
+    {
+      "name": "optimization_id",
+      "type": "string",
+      "doc": "Unique identifier for the optimization (UUID)"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "doc": "Schema version (semver)",
+      "default": "1.0.0"
+    },
+    {
+      "name": "correlation_id",
+      "type": "string",
+      "doc": "Correlation ID for tracing related events"
+    },
+    {
+      "name": "trace_id",
+      "type": "string",
+      "doc": "OpenTelemetry trace ID"
+    },
+    {
+      "name": "span_id",
+      "type": "string",
+      "doc": "OpenTelemetry span ID"
+    },
+    {
+      "name": "optimization_type",
+      "type": {
+        "type": "enum",
+        "name": "OptimizationType",
+        "symbols": [
+          "WEIGHT_RECALIBRATION",
+          "SLO_ADJUSTMENT",
+          "HEURISTIC_UPDATE",
+          "POLICY_CHANGE"
+        ]
+      },
+      "doc": "Type of optimization applied"
+    },
+    {
+      "name": "target_component",
+      "type": "string",
+      "doc": "Target component (e.g., consensus-engine, orchestrator-dynamic)"
+    },
+    {
+      "name": "experiment_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Reference to the experiment that validated this optimization"
+    },
+    {
+      "name": "hypothesis",
+      "type": "string",
+      "doc": "Hypothesis that was tested"
+    },
+    {
+      "name": "baseline_metrics",
+      "type": {
+        "type": "map",
+        "values": "double"
+      },
+      "doc": "Metrics before optimization"
+    },
+    {
+      "name": "optimized_metrics",
+      "type": {
+        "type": "map",
+        "values": "double"
+      },
+      "doc": "Metrics after optimization"
+    },
+    {
+      "name": "improvement_percentage",
+      "type": "double",
+      "doc": "Percentage improvement achieved"
+    },
+    {
+      "name": "causal_analysis",
+      "type": {
+        "type": "record",
+        "name": "CausalAnalysis",
+        "fields": [
+          {
+            "name": "method",
+            "type": "string",
+            "doc": "Causal analysis method used (e.g., granger, correlation)"
+          },
+          {
+            "name": "confidence",
+            "type": "double",
+            "doc": "Confidence score (0.0-1.0)"
+          },
+          {
+            "name": "confounders",
+            "type": {
+              "type": "array",
+              "items": "string"
+            },
+            "doc": "Identified confounding variables"
+          },
+          {
+            "name": "effect_size",
+            "type": "double",
+            "doc": "Effect size of the causal relationship"
+          }
+        ]
+      },
+      "doc": "Causal analysis evidence"
+    },
+    {
+      "name": "adjustments",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "Adjustment",
+          "fields": [
+            {
+              "name": "parameter_name",
+              "type": "string",
+              "doc": "Name of adjusted parameter"
+            },
+            {
+              "name": "old_value",
+              "type": "string",
+              "doc": "Previous value"
+            },
+            {
+              "name": "new_value",
+              "type": "string",
+              "doc": "New value"
+            },
+            {
+              "name": "justification",
+              "type": "string",
+              "doc": "Justification for the adjustment"
+            }
+          ]
+        }
+      },
+      "doc": "List of adjustments applied"
+    },
+    {
+      "name": "approval_status",
+      "type": {
+        "type": "enum",
+        "name": "ApprovalStatus",
+        "symbols": [
+          "AUTO_APPROVED",
+          "QUEEN_APPROVED",
+          "PENDING_REVIEW"
+        ]
+      },
+      "doc": "Approval status of the optimization"
+    },
+    {
+      "name": "approved_by",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Agent that approved the optimization (e.g., queen-agent)"
+    },
+    {
+      "name": "rollback_plan",
+      "type": "string",
+      "doc": "Plan to rollback in case of degradation"
+    },
+    {
+      "name": "applied_at",
+      "type": "long",
+      "doc": "Timestamp when optimization was applied (Unix millis)"
+    },
+    {
+      "name": "valid_until",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "Expiration timestamp for the optimization (Unix millis)"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional metadata"
+    },
+    {
+      "name": "hash",
+      "type": "string",
+      "doc": "SHA-256 hash for integrity verification"
+    },
+    {
+      "name": "schema_version",
+      "type": "int",
+      "default": 1,
+      "doc": "Version of the schema structure"
+    }
+  ]
+}

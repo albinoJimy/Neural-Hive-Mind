@@ -1,0 +1,138 @@
+---
+# CronJob para executar teste de recovery de disaster recovery
+# Schedule: Semanalmente aos domingos às 4h UTC
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: disaster-recovery-test-job
+  namespace: neural-hive-mind
+  labels:
+    app: disaster-recovery
+    component: test
+    layer: infrastructure
+    managed-by: neural-hive
+spec:
+  # Executar semanalmente aos domingos às 4h UTC
+  schedule: "0 4 * * 0"
+
+  # Política de concorrência: não permitir execuções simultâneas
+  concurrencyPolicy: Forbid
+
+  # Manter histórico dos últimos 5 jobs bem-sucedidos e 5 falhados
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 5
+
+  # Suspender execução (útil para manutenção)
+  suspend: false
+
+  jobTemplate:
+    metadata:
+      labels:
+        app: disaster-recovery
+        component: test
+    spec:
+      # Tempo máximo de execução: 1 hora
+      activeDeadlineSeconds: 3600
+
+      # Número de tentativas em caso de falha
+      backoffLimit: 1
+
+      template:
+        metadata:
+          labels:
+            app: disaster-recovery
+            component: test
+          annotations:
+            # Annotations para Prometheus monitoring
+            prometheus.io/scrape: "true"
+            prometheus.io/port: "8000"
+        spec:
+          # Service account com permissões para acessar storage
+          serviceAccountName: disaster-recovery-sa
+
+          # Restart policy: não reiniciar em caso de falha (CronJob tentará novamente)
+          restartPolicy: Never
+
+          containers:
+          - name: disaster-recovery-test
+            # Usar mesma imagem dos especialistas
+            image: neural-hive/specialist-base:latest
+            imagePullPolicy: IfNotPresent
+
+            # Comando para executar script de teste
+            command:
+              - python
+              - -m
+              - neural_hive_specialists.scripts.run_disaster_recovery_test
+
+            # Arguments
+            args:
+              - --specialist-type
+              - business  # Testar specialist-business como exemplo
+              - --verbose
+              - --alert-on-failure
+              - --pushgateway-url
+              - http://prometheus-pushgateway.observability.svc.cluster.local:9091
+
+            # Resources (teste é mais leve que backup)
+            resources:
+              requests:
+                cpu: 250m
+                memory: 512Mi
+              limits:
+                cpu: 1000m
+                memory: 2Gi
+
+            # Environment variables
+            env:
+              # Disaster Recovery Configuration
+              - name: ENABLE_DISASTER_RECOVERY
+                value: "true"
+
+              - name: BACKUP_STORAGE_PROVIDER
+                value: "s3"  # ou 'gcs', 'local'
+
+              - name: BACKUP_S3_BUCKET
+                value: "neural-hive-backups-prod"
+
+              - name: BACKUP_S3_REGION
+                value: "us-west-2"
+
+              - name: BACKUP_S3_PREFIX
+                value: "specialists/backups"
+
+              # AWS Credentials (opcional, usar IAM role quando possível)
+              - name: AWS_ACCESS_KEY_ID
+                valueFrom:
+                  secretKeyRef:
+                    name: aws-credentials
+                    key: access_key_id
+                    optional: true
+
+              - name: AWS_SECRET_ACCESS_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: aws-credentials
+                    key: secret_access_key
+                    optional: true
+
+              # Environment
+              - name: ENVIRONMENT
+                value: "production"
+
+              - name: SERVICE_NAME
+                value: "disaster-recovery-test"
+
+              - name: SPECIALIST_TYPE
+                value: "business"
+
+            # Volume mounts para workspace temporário
+            volumeMounts:
+              - name: test-workspace
+                mountPath: /tmp
+
+          volumes:
+            # EmptyDir para workspace temporário de testes
+            - name: test-workspace
+              emptyDir:
+                sizeLimit: 5Gi

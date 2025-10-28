@@ -1,0 +1,99 @@
+{
+  "type": "record",
+  "name": "ValidationResult",
+  "namespace": "com.neuralhivemind.execution.codeforge",
+  "doc": "Represents the result of a validation (SAST, DAST, tests, linting)",
+  "fields": [
+    {
+      "name": "validation_type",
+      "type": {
+        "type": "enum",
+        "name": "ValidationType",
+        "symbols": [
+          "SAST",
+          "DAST",
+          "UNIT_TEST",
+          "INTEGRATION_TEST",
+          "LINT",
+          "SECURITY_SCAN",
+          "COMPLIANCE_CHECK"
+        ]
+      },
+      "doc": "Type of validation performed"
+    },
+    {
+      "name": "tool_name",
+      "type": "string",
+      "doc": "Name of the validation tool (SonarQube, Snyk, Trivy, pytest, etc.)"
+    },
+    {
+      "name": "tool_version",
+      "type": "string",
+      "doc": "Version of the validation tool"
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "ValidationStatus",
+        "symbols": [
+          "PASSED",
+          "FAILED",
+          "WARNING",
+          "SKIPPED"
+        ]
+      },
+      "doc": "Overall status of the validation"
+    },
+    {
+      "name": "score",
+      "type": ["null", "double"],
+      "default": null,
+      "doc": "Quality score from the validation tool (0.0-1.0)"
+    },
+    {
+      "name": "issues_count",
+      "type": "int",
+      "doc": "Total number of issues found"
+    },
+    {
+      "name": "critical_issues",
+      "type": "int",
+      "doc": "Number of critical severity issues"
+    },
+    {
+      "name": "high_issues",
+      "type": "int",
+      "doc": "Number of high severity issues"
+    },
+    {
+      "name": "medium_issues",
+      "type": "int",
+      "doc": "Number of medium severity issues"
+    },
+    {
+      "name": "low_issues",
+      "type": "int",
+      "doc": "Number of low severity issues"
+    },
+    {
+      "name": "report_uri",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "URI to the full validation report"
+    },
+    {
+      "name": "executed_at",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Timestamp when validation was executed"
+    },
+    {
+      "name": "duration_ms",
+      "type": "long",
+      "doc": "Duration of the validation in milliseconds"
+    }
+  ]
+}

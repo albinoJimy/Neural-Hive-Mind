@@ -1,0 +1,142 @@
+# Sigstore Policy Controller Helm Values - Production Environment
+
+# Service Account configuration with IRSA
+serviceAccount:
+  create: true
+  name: sigstore-policy-controller
+  annotations:
+    # This will be replaced by the deployment script with the actual IRSA role ARN
+    eks.amazonaws.com/role-arn: "SIGSTORE_IRSA_ROLE_ARN_PLACEHOLDER"
+
+# Production configuration with high availability
+replicaCount: 2
+
+# Resource limits for production workload
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+# Logging configuration for production
+logging:
+  level: info
+  format: json
+
+# Image verification configuration
+image:
+  repository: gcr.io/projectsigstore/policy-controller
+  tag: ""  # Use chart's default
+  pullPolicy: Always
+
+# Security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+# Pod security context
+podSecurityContext:
+  fsGroup: 65534
+  seccompProfile:
+    type: RuntimeDefault
+
+# Production node selection and distribution
+nodeSelector:
+  kubernetes.io/os: linux
+
+# Distribute pods across availability zones
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: policy-controller
+        topologyKey: topology.kubernetes.io/zone
+
+tolerations: []
+
+# Metrics and monitoring
+metrics:
+  enabled: true
+  port: 9090
+
+# Webhook configuration
+webhook:
+  port: 9443
+  namespaceSelector:
+    # In production, exclude only system namespaces
+    matchExpressions:
+    - key: name
+      operator: NotIn
+      values:
+      - kube-system
+      - kube-public
+      - cosign-system
+      - gatekeeper-system
+
+# Production environment variables
+env:
+  - name: CLUSTER_NAME
+    value: "CLUSTER_NAME_PLACEHOLDER"
+  - name: AWS_REGION
+    value: "us-east-1"
+  - name: LOG_LEVEL
+    value: "info"
+
+# TLS configuration
+tls:
+  # Let cert-manager handle certificate creation
+  certManager: true
+
+# Production cluster image policy (strict)
+clusterImagePolicy:
+  enabled: true
+  name: prod-image-policy
+  spec:
+    images:
+    - glob: "ECR_REGISTRY_URL_PLACEHOLDER/*"  # Only our ECR registry
+    - glob: "gcr.io/projectsigstore/*"        # Sigstore components
+    - glob: "gcr.io/istio-release/*"          # Istio components from gcr.io
+    - glob: "docker.io/istio/*"               # Istio components from Docker Hub
+    - glob: "docker.io/openpolicyagent/*"     # OPA components from Docker Hub
+    authorities:
+    - keyless:
+        url: https://fulcio.sigstore.dev
+        identities:
+        - issuer: https://github.com/login/oauth
+          subject: "^https://github.com/neural-hive-mind/.*"  # Only our organization
+        - issuer: https://oauth2.sigstore.dev/auth
+          subject: "^.*@neural-hive-mind\\.com$"  # Only our domain
+    - static:
+        action: fail  # Reject unsigned images in production
+
+# Pod disruption budget for high availability
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Network policy for additional security
+networkPolicy:
+  enabled: true
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: TCP
+      port: 9443  # Webhook port
+  egress:
+  - to: []  # Allow all egress (needed for external Sigstore services)
+    ports:
+    - protocol: TCP
+      port: 443

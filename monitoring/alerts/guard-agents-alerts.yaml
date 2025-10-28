@@ -1,0 +1,200 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: neural-hive-guard-agents-alerts
+  namespace: observability
+  labels:
+    neural.hive/component: guard-agents
+    neural.hive/layer: resilience
+spec:
+  groups:
+  - name: guard-agents.detection
+    rules:
+    - alert: GuardAgentDown
+      expr: up{neural_hive_component="guard-agents"} == 0
+      for: 3m
+      labels:
+        severity: critical
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Guard Agent está inativo"
+        description: "Guard Agent não está respondendo há mais de 3 minutos"
+        runbook_url: "https://docs.neural-hive.local/runbooks/guard-agent-down"
+
+    - alert: HighIncidentDetectionRate
+      expr: rate(guard_agent_threats_detected_total[5m]) > 100
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Taxa alta de detecção de incidentes"
+        description: "Mais de 100 incidentes detectados nos últimos 5 minutos"
+
+    - alert: MTTDExceeded
+      expr: guard_agent_mttd_seconds > 15
+      for: 2m
+      labels:
+        severity: high
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "MTTD excedido"
+        description: "Mean Time To Detect está acima de 15 segundos"
+
+    - alert: HighFalsePositiveRate
+      expr: rate(guard_agent_false_positives_total[10m]) / rate(guard_agent_threats_detected_total[10m]) > 0.05
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Taxa alta de falsos positivos"
+        description: "Taxa de falsos positivos está acima de 5%"
+
+    - alert: NoIncidentsDetected
+      expr: rate(guard_agent_threats_detected_total[1h]) == 0
+      for: 1h
+      labels:
+        severity: info
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Nenhum incidente detectado"
+        description: "Nenhum incidente foi detectado na última hora - pode indicar problema de detecção"
+
+  - name: guard-agents.remediation
+    rules:
+    - alert: MTTRExceeded
+      expr: guard_agent_mttr_seconds > 90
+      for: 2m
+      labels:
+        severity: high
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "MTTR excedido"
+        description: "Mean Time To Recover está acima de 90 segundos"
+
+    - alert: HighRemediationFailureRate
+      expr: rate(guard_agent_remediations_coordinated_total{status="failed"}[10m]) / rate(guard_agent_remediations_coordinated_total[10m]) > 0.15
+      for: 5m
+      labels:
+        severity: high
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Taxa alta de falha em remediação"
+        description: "Taxa de falha em remediações está acima de 15%"
+
+    - alert: RemediationBacklog
+      expr: guard_agent_remediation_queue_depth > 50
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Backlog de remediações"
+        description: "Mais de 50 remediações pendentes"
+
+    - alert: PlaybookExecutionTimeout
+      expr: histogram_quantile(0.95, rate(guard_agent_remediation_duration_seconds_bucket[5m])) > 300
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Timeout de execução de playbook"
+        description: "P95 de duração de execução de playbook está acima de 5 minutos"
+
+  - name: guard-agents.enforcement
+    rules:
+    - alert: PolicyEnforcementFailure
+      expr: rate(guard_agent_policies_enforced_total{status="failed"}[5m]) > 0
+      for: 2m
+      labels:
+        severity: critical
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Falha ao enforçar política"
+        description: "Falhas detectadas ao aplicar políticas de segurança"
+
+    - alert: HighPolicyViolationRate
+      expr: rate(guard_agent_policy_violations_total[5m]) > 20
+      for: 5m
+      labels:
+        severity: high
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Taxa alta de violação de políticas"
+        description: "Mais de 20 violações de política nos últimos 5 minutos"
+
+    - alert: OPAGatekeeperDown
+      expr: up{job="opa-gatekeeper"} == 0
+      for: 3m
+      labels:
+        severity: critical
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "OPA Gatekeeper inativo"
+        description: "OPA Gatekeeper não está respondendo"
+
+  - name: guard-agents.sla
+    rules:
+    - alert: SLABreachRate
+      expr: rate(guard_agent_sla_breaches_total[10m]) / rate(guard_agent_incidents_processed_total[10m]) > 0.01
+      for: 5m
+      labels:
+        severity: high
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Taxa de violação de SLA"
+        description: "Taxa de violação de SLA está acima de 1%"
+
+    - alert: AutocorrectionRateLow
+      expr: rate(guard_agent_incidents_autocorrected_total[10m]) / rate(guard_agent_incidents_processed_total[10m]) < 0.85
+      for: 10m
+      labels:
+        severity: warning
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Taxa de autocorreção baixa"
+        description: "Taxa de autocorreção está abaixo de 85%"
+
+    - alert: HighEscalationRate
+      expr: rate(guard_agent_incidents_escalated_total[10m]) / rate(guard_agent_incidents_processed_total[10m]) > 0.10
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Taxa alta de escalação"
+        description: "Taxa de escalação para humanos está acima de 10%"
+
+  - name: guard-agents.integration
+    rules:
+    - alert: KafkaConsumerLag
+      expr: guard_agent_consumer_lag > 1000
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Lag de consumer Kafka"
+        description: "Lag do consumer Kafka está acima de 1000 mensagens"
+
+    - alert: ServiceRegistryUnreachable
+      expr: rate(guard_agent_registry_calls_total{status="failed"}[5m]) > 0
+      for: 3m
+      labels:
+        severity: high
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Service Registry inalcançável"
+        description: "Falhas ao comunicar com Service Registry"
+
+    - alert: SelfHealingEngineDown
+      expr: up{neural_hive_component="self-healing-engine"} == 0
+      for: 3m
+      labels:
+        severity: critical
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Self-Healing Engine inativo"
+        description: "Self-Healing Engine não está respondendo"

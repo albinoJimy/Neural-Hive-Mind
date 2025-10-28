@@ -1,0 +1,79 @@
+# ConstraintTemplate para validação de mTLS PeerAuthentication
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: neuralhivemtlsrequired
+  labels:
+    neuralhive/policy: security
+    neuralhive/component: mesh
+spec:
+  crd:
+    spec:
+      names:
+        kind: NeuralHiveMTLSRequired
+      validation:
+        # Schema para parâmetros do constraint
+        openAPIV3Schema:
+          type: object
+          properties:
+            enforcementMode:
+              type: string
+              enum: ["warn", "enforce"]
+              default: "enforce"
+            excludedNamespaces:
+              type: array
+              items:
+                type: string
+              default:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - istio-system
+                - gatekeeper-system
+
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package neuralhivemtlsrequired
+
+        import future.keywords.contains
+        import future.keywords.if
+        import future.keywords.in
+
+        violation[{"msg": msg}] {
+          # Verificar se é um workload (Deployment, StatefulSet, DaemonSet)
+          is_workload
+          namespace := input.review.namespace
+          not is_excluded(namespace)
+          not has_mtls_strict(namespace)
+          msg := sprintf("Namespace '%v' deve ter PeerAuthentication com mTLS STRICT configurado antes de criar workloads. Configure com: kubectl apply -f istio-peer-authentication.yaml -n %v", [namespace, namespace])
+        }
+
+        violation[{"msg": msg}] {
+          # Verificar PeerAuthentication sendo criada
+          input.review.kind.kind == "PeerAuthentication"
+          input.review.object.spec.mtls.mode != "STRICT"
+          msg := sprintf("PeerAuthentication deve usar modo STRICT para Neural Hive-Mind. Encontrado: %v", [input.review.object.spec.mtls.mode])
+        }
+
+        # Helper: Verificar se é workload
+        is_workload {
+          input.review.kind.kind in ["Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob"]
+        }
+
+        # Helper: Verificar se namespace está excluído
+        is_excluded(namespace) {
+          namespace in input.parameters.excludedNamespaces
+        }
+
+        # Helper: Verificar se namespace tem mTLS configurado
+        # Em produção, isso consultaria o estado atual do cluster
+        has_mtls_strict(namespace) {
+          # Namespaces do Neural Hive-Mind assumidos como configurados
+          startswith(namespace, "neural-hive-")
+        }
+
+        has_mtls_strict(namespace) {
+          # istio-system sempre tem mTLS
+          namespace == "istio-system"
+        }

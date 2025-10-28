@@ -1,0 +1,327 @@
+{
+  "dashboard": {
+    "title": "Continuous Learning - Feedback & Retraining",
+    "tags": ["specialists", "continuous-learning", "feedback", "retraining", "mlflow"],
+    "timezone": "browser",
+    "templating": {
+      "list": [
+        {
+          "name": "specialist_type",
+          "type": "query",
+          "query": "label_values(neural_hive_feedback_submissions_total, specialist_type)",
+          "multi": true,
+          "includeAll": true
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Feedback Submissions Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum by (specialist_type) (rate(neural_hive_feedback_submissions_total{specialist_type=~\"$specialist_type\"}[5m]))",
+            "legendFormat": "{{ specialist_type }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "yaxes": [
+          {
+            "format": "ops",
+            "label": "Submissions/sec"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Feedback Count by Specialist",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "neural_hive_feedback_count_current{specialist_type=~\"$specialist_type\"}",
+            "legendFormat": "{{ specialist_type }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "orientation": "auto"
+        }
+      },
+      {
+        "id": 3,
+        "title": "Feedback Ratings Distribution (P50, P95, P99)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum by (specialist_type, le) (rate(neural_hive_feedback_rating_distribution_bucket{specialist_type=~\"$specialist_type\"}[5m])))",
+            "legendFormat": "{{ specialist_type }} P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum by (specialist_type, le) (rate(neural_hive_feedback_rating_distribution_bucket{specialist_type=~\"$specialist_type\"}[5m])))",
+            "legendFormat": "{{ specialist_type }} P95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum by (specialist_type, le) (rate(neural_hive_feedback_rating_distribution_bucket{specialist_type=~\"$specialist_type\"}[5m])))",
+            "legendFormat": "{{ specialist_type }} P99"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "yaxes": [
+          {
+            "format": "percentunit",
+            "label": "Rating (0.0-1.0)",
+            "min": 0,
+            "max": 1
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Average Feedback Rating",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "neural_hive_feedback_avg_rating{specialist_type=~\"$specialist_type\"}",
+            "legendFormat": "{{ specialist_type }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "options": {
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": 0, "color": "red"},
+              {"value": 0.5, "color": "yellow"},
+              {"value": 0.8, "color": "green"}
+            ]
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Feedback Recommendations Distribution",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (human_recommendation) (neural_hive_feedback_recommendation_distribution{specialist_type=~\"$specialist_type\"})",
+            "legendFormat": "{{ human_recommendation }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 16}
+      },
+      {
+        "id": 6,
+        "title": "Retraining Threshold Progress",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "neural_hive_feedback_count_current{specialist_type=~\"$specialist_type\"}",
+            "legendFormat": "Current: {{ specialist_type }}"
+          },
+          {
+            "expr": "neural_hive_retraining_feedback_threshold{specialist_type=~\"$specialist_type\"}",
+            "legendFormat": "Threshold: {{ specialist_type }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 16},
+        "yaxes": [
+          {
+            "format": "short",
+            "label": "Feedback Count"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Retraining Triggers Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum by (specialist_type) (rate(neural_hive_retraining_triggers_total{specialist_type=~\"$specialist_type\"}[1h]))",
+            "legendFormat": "{{ specialist_type }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 16},
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "orientation": "auto"
+        }
+      },
+      {
+        "id": 8,
+        "title": "Retraining Triggers by Status",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (status) (neural_hive_retraining_triggers_total{specialist_type=~\"$specialist_type\"})",
+            "legendFormat": "{{ status }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 24}
+      },
+      {
+        "id": 9,
+        "title": "MLflow Run Duration (P50, P95, P99)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum by (specialist_type, le) (rate(neural_hive_retraining_mlflow_run_duration_seconds_bucket{specialist_type=~\"$specialist_type\"}[5m])))",
+            "legendFormat": "{{ specialist_type }} P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum by (specialist_type, le) (rate(neural_hive_retraining_mlflow_run_duration_seconds_bucket{specialist_type=~\"$specialist_type\"}[5m])))",
+            "legendFormat": "{{ specialist_type }} P95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum by (specialist_type, le) (rate(neural_hive_retraining_mlflow_run_duration_seconds_bucket{specialist_type=~\"$specialist_type\"}[5m])))",
+            "legendFormat": "{{ specialist_type }} P99"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 16, "x": 8, "y": 24},
+        "yaxes": [
+          {
+            "format": "s",
+            "label": "Duration"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "PII Entities Detected",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum by (entity_type) (rate(neural_hive_compliance_pii_entities_detected_total[5m]))",
+            "legendFormat": "{{ entity_type }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 32},
+        "yaxes": [
+          {
+            "format": "ops",
+            "label": "Detections/sec"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "PII Anonymization Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum by (strategy) (rate(neural_hive_compliance_pii_anonymization_total[5m]))",
+            "legendFormat": "{{ strategy }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 32},
+        "yaxes": [
+          {
+            "format": "ops",
+            "label": "Anonymizations/sec"
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "Feedback API Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum by (error_type) (rate(neural_hive_feedback_api_errors_total[5m]))",
+            "legendFormat": "{{ error_type }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 40},
+        "yaxes": [
+          {
+            "format": "ops",
+            "label": "Errors/sec"
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "title": "PII Detection Errors",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum by (error_type) (rate(neural_hive_compliance_pii_detection_errors_total[5m]))",
+            "legendFormat": "{{ error_type }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 40},
+        "yaxes": [
+          {
+            "format": "ops",
+            "label": "Errors/sec"
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "title": "Feedback Submissions by Role",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum by (submitted_by_role) (rate(neural_hive_feedback_submissions_total{specialist_type=~\"$specialist_type\"}[5m]))",
+            "legendFormat": "{{ submitted_by_role }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 48},
+        "yaxes": [
+          {
+            "format": "ops",
+            "label": "Submissions/sec"
+          }
+        ]
+      },
+      {
+        "id": 15,
+        "title": "Retraining Success Rate",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "rate(neural_hive_retraining_triggers_total{status=\"success\"}[1h]) / rate(neural_hive_retraining_triggers_total[1h])",
+            "legendFormat": "Success Rate"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 48},
+        "options": {
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"value": 0, "color": "red"},
+              {"value": 0.7, "color": "yellow"},
+              {"value": 0.9, "color": "green"}
+            ]
+          },
+          "unit": "percentunit"
+        }
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "name": "Retraining Triggered",
+          "datasource": "Prometheus",
+          "expr": "changes(neural_hive_retraining_triggers_total[1m]) > 0",
+          "iconColor": "blue",
+          "tagKeys": "specialist_type,status"
+        }
+      ]
+    },
+    "refresh": "30s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    }
+  }
+}

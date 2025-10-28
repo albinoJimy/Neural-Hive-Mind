@@ -1,0 +1,161 @@
+syntax = "proto3";
+
+package neural_hive.service_registry;
+
+// Enumeração de tipos de agentes
+enum AgentType {
+  AGENT_TYPE_UNSPECIFIED = 0;
+  WORKER = 1;
+  SCOUT = 2;
+  GUARD = 3;
+}
+
+// Enumeração de status de saúde
+enum AgentStatus {
+  AGENT_STATUS_UNSPECIFIED = 0;
+  HEALTHY = 1;
+  UNHEALTHY = 2;
+  DEGRADED = 3;
+}
+
+// Telemetria do agente
+message AgentTelemetry {
+  double success_rate = 1;
+  int64 avg_duration_ms = 2;
+  int64 total_executions = 3;
+  int64 failed_executions = 4;
+  int64 last_execution_at = 5;
+}
+
+// Informações do agente
+message AgentInfo {
+  string agent_id = 1;
+  AgentType agent_type = 2;
+  repeated string capabilities = 3;
+  map<string, string> metadata = 4;
+  AgentTelemetry telemetry = 5;
+  AgentStatus status = 6;
+  int64 registered_at = 7;
+  int64 last_seen = 8;
+  string namespace = 9;
+  string cluster = 10;
+  string version = 11;
+  int32 schema_version = 12;
+}
+
+// Requisição de registro
+message RegisterRequest {
+  AgentType agent_type = 1;
+  repeated string capabilities = 2;
+  map<string, string> metadata = 3;
+  string namespace = 4;
+  string cluster = 5;
+  string version = 6;
+}
+
+// Resposta de registro
+message RegisterResponse {
+  string agent_id = 1;
+  string registration_token = 2;
+  int64 registered_at = 3;
+}
+
+// Requisição de heartbeat
+message HeartbeatRequest {
+  string agent_id = 1;
+  AgentTelemetry telemetry = 2;
+}
+
+// Resposta de heartbeat
+message HeartbeatResponse {
+  AgentStatus status = 1;
+  int64 last_seen = 2;
+}
+
+// Requisição de deregistro
+message DeregisterRequest {
+  string agent_id = 1;
+}
+
+// Resposta de deregistro
+message DeregisterResponse {
+  bool success = 1;
+}
+
+// Requisição de descoberta
+message DiscoverRequest {
+  repeated string capabilities = 1;
+  map<string, string> filters = 2;
+  int32 max_results = 3;
+}
+
+// Resposta de descoberta
+message DiscoverResponse {
+  repeated AgentInfo agents = 1;
+  bool ranked = 2;
+}
+
+// Requisição para obter um agente específico
+message GetAgentRequest {
+  string agent_id = 1;
+}
+
+// Resposta com informações do agente
+message GetAgentResponse {
+  AgentInfo agent = 1;
+}
+
+// Requisição para listar agentes
+message ListAgentsRequest {
+  AgentType agent_type = 1;
+  map<string, string> filters = 2;
+}
+
+// Resposta com lista de agentes
+message ListAgentsResponse {
+  repeated AgentInfo agents = 1;
+}
+
+// Requisição para observar mudanças
+message WatchAgentsRequest {
+  AgentType agent_type = 1;
+}
+
+// Evento de mudança de agente
+message AgentChangeEvent {
+  enum EventType {
+    EVENT_TYPE_UNSPECIFIED = 0;
+    REGISTERED = 1;
+    UPDATED = 2;
+    DEREGISTERED = 3;
+    STATUS_CHANGED = 4;
+  }
+
+  EventType event_type = 1;
+  AgentInfo agent = 2;
+  int64 timestamp = 3;
+}
+
+// Serviço de registro
+service ServiceRegistry {
+  // Registrar um novo agente
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+
+  // Enviar heartbeat
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+
+  // Deregistrar agente
+  rpc Deregister(DeregisterRequest) returns (DeregisterResponse);
+
+  // Descobrir agentes baseado em capabilities
+  rpc DiscoverAgents(DiscoverRequest) returns (DiscoverResponse);
+
+  // Obter informações de um agente específico
+  rpc GetAgent(GetAgentRequest) returns (GetAgentResponse);
+
+  // Listar todos os agentes
+  rpc ListAgents(ListAgentsRequest) returns (ListAgentsResponse);
+
+  // Observar mudanças em agentes (server streaming)
+  rpc WatchAgents(WatchAgentsRequest) returns (stream AgentChangeEvent);
+}

@@ -1,0 +1,46 @@
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Data Validation
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Observability
+prometheus-client==0.19.0
+prometheus-api-client==0.5.3
+opentelemetry-api==1.21.0
+opentelemetry-sdk==1.21.0
+opentelemetry-instrumentation-fastapi==0.42b0
+structlog==23.2.0
+
+# Database
+asyncpg==0.29.0
+
+# Cache
+redis[hiredis]==5.0.1
+
+# Messaging
+aiokafka==0.10.0
+
+# gRPC
+grpcio==1.60.0
+grpcio-tools==1.60.0
+
+# Kubernetes
+kopf==1.37.0
+kubernetes==28.1.0
+
+# HTTP Client
+httpx==0.25.2
+
+# Utilities
+python-dateutil==2.8.2
+numpy==1.26.2
+
+# Development
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.12.0
+flake8==6.1.0
+mypy==1.7.1

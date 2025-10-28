@@ -1,0 +1,73 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Values.cluster.name }}
+  namespace: {{ .Values.cluster.namespace }}
+  labels:
+    {{- include "mongodb.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mongodb
+      app.kubernetes.io/instance: {{ .Values.cluster.name }}
+
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Permitir tráfego de métricas do Prometheus
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-observability
+      ports:
+        - protocol: TCP
+          port: {{ .Values.metrics.port }}
+
+    # Permitir tráfego de aplicações autorizadas
+    {{- range .Values.networkPolicy.ingress }}
+    - from:
+        {{- toYaml .from | nindent 8 }}
+      ports:
+        {{- toYaml .ports | nindent 8 }}
+    {{- end }}
+
+    # Permitir comunicação inter-cluster MongoDB
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mongodb
+              app.kubernetes.io/instance: {{ .Values.cluster.name }}
+      ports:
+        - protocol: TCP
+          port: 27017
+
+  egress:
+    # Permitir DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+
+    # Permitir comunicação inter-cluster MongoDB
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mongodb
+              app.kubernetes.io/instance: {{ .Values.cluster.name }}
+      ports:
+        - protocol: TCP
+          port: 27017
+
+    # Permitir acesso a serviços externos (se necessário)
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+{{- end }}

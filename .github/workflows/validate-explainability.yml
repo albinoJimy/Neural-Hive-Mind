@@ -1,0 +1,183 @@
+name: Validate Explainability
+
+on:
+  pull_request:
+    paths:
+      - 'libraries/python/neural_hive_specialists/explainability/**'
+      - 'libraries/python/neural_hive_specialists/tests/test_*explainability*.py'
+      - 'libraries/python/neural_hive_specialists/tests/test_*shap*.py'
+      - 'libraries/python/neural_hive_specialists/tests/test_*lime*.py'
+      - 'libraries/python/neural_hive_specialists/tests/test_*narrative*.py'
+      - 'data/shap_background_*.parquet'
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  validate-background-dataset:
+    name: Validate SHAP Background Dataset
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.modified, 'data/shap_background')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pandas pyarrow structlog
+
+      - name: Validate background datasets
+        run: |
+          for dataset in data/shap_background_*.parquet; do
+            if [ -f "$dataset" ]; then
+              echo "Validating $dataset"
+              python scripts/explainability/validate_background_dataset.py \
+                --dataset-path "$dataset" \
+                --min-samples 50 \
+                --min-variance 0.001 \
+                --output-report "${dataset%.parquet}_report.json"
+            fi
+          done
+
+      - name: Upload validation reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: background-dataset-reports
+          path: data/*_report.json
+
+  test-explainability-integration:
+    name: Test SHAP/LIME Integration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          cd libraries/python/neural_hive_specialists
+          pip install -e .
+          pip install pytest pytest-cov pytest-asyncio
+          pip install shap lime scikit-learn
+
+      - name: Run explainability integration tests
+        run: |
+          cd libraries/python/neural_hive_specialists
+          pytest tests/test_*explainability*.py \
+                 tests/test_shap*.py \
+                 tests/test_lime*.py \
+                 tests/test_narrative*.py \
+                 -v \
+                 --cov=neural_hive_specialists/explainability \
+                 --cov-report=xml \
+                 --cov-report=html \
+                 -m integration
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: libraries/python/neural_hive_specialists/coverage.xml
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./libraries/python/neural_hive_specialists/coverage.xml
+          flags: explainability
+
+  benchmark-shap-lime-performance:
+    name: Benchmark SHAP/LIME Performance
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          cd libraries/python/neural_hive_specialists
+          pip install -e .
+          pip install pytest-benchmark
+          pip install shap lime scikit-learn
+
+      - name: Run performance benchmarks
+        run: |
+          cd libraries/python/neural_hive_specialists
+          pytest tests/test_benchmark_shap.py \
+                 tests/test_benchmark_lime.py \
+                 -m benchmark \
+                 --benchmark-only \
+                 --benchmark-json=benchmark_results.json
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v3
+        with:
+          name: explainability-benchmarks
+          path: libraries/python/neural_hive_specialists/benchmark_results.json
+
+      - name: Check performance thresholds
+        run: |
+          python -c "
+import json
+with open('libraries/python/neural_hive_specialists/benchmark_results.json') as f:
+    results = json.load(f)
+    for benchmark in results['benchmarks']:
+        if 'shap' in benchmark['name'].lower():
+            if benchmark['stats']['mean'] > 5.0:  # 5 segundos
+                print(f\"SHAP benchmark {benchmark['name']} too slow: {benchmark['stats']['mean']:.2f}s\")
+                exit(1)
+        if 'lime' in benchmark['name'].lower():
+            if benchmark['stats']['mean'] > 5.0:  # 5 segundos
+                print(f\"LIME benchmark {benchmark['name']} too slow: {benchmark['stats']['mean']:.2f}s\")
+                exit(1)
+print('All benchmarks passed performance thresholds')
+          "
+
+  quality-gate:
+    name: Explainability Quality Gate
+    runs-on: ubuntu-latest
+    needs: [test-explainability-integration]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download coverage report
+        uses: actions/download-artifact@v3
+        with:
+          name: coverage-report
+          path: libraries/python/neural_hive_specialists/
+
+      - name: Check test coverage
+        run: |
+          cd libraries/python/neural_hive_specialists
+          # Verificar que cobertura de testes >= 80%
+          if [ -f coverage.xml ]; then
+            coverage_percent=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(float(root.attrib['line-rate']) * 100)")
+            echo "Coverage: ${coverage_percent}%"
+            if (( $(echo "$coverage_percent < 80" | bc -l) )); then
+              echo "Test coverage too low: ${coverage_percent}%"
+              exit 1
+            fi
+            echo "Test coverage OK: ${coverage_percent}%"
+          else
+            echo "Coverage file not found"
+            exit 1
+          fi

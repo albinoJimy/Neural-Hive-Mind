@@ -1,0 +1,135 @@
+groups:
+  - name: flow_c_integration
+    interval: 30s
+    rules:
+      # Latência alta no Flow C (p95 > 3h)
+      - alert: FlowCHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(neural_hive_flow_c_duration_seconds_bucket[5m])
+          ) > 10800
+        for: 5m
+        labels:
+          severity: warning
+          component: flow-c
+          team: platform
+        annotations:
+          summary: "Flow C com alta latência (p95 > 3h)"
+          description: "O Flow C está executando com p95 de {{ $value | humanizeDuration }} (> 3h). SLO é 4h."
+          runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-high-latency"
+          dashboard_url: "https://grafana.neural-hive.io/d/flow-c-orchestration"
+
+      # Taxa de sucesso baixa (<99%)
+      - alert: FlowCLowSuccessRate
+        expr: |
+          (
+            rate(neural_hive_flow_c_success_total[10m])
+            /
+            (rate(neural_hive_flow_c_success_total[10m]) + rate(neural_hive_flow_c_failures_total[10m]))
+          ) < 0.99
+        for: 10m
+        labels:
+          severity: critical
+          component: flow-c
+          team: platform
+        annotations:
+          summary: "Flow C com taxa de sucesso abaixo de 99%"
+          description: "Taxa de sucesso atual: {{ $value | humanizePercentage }}. SLO requer >99%."
+          runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-low-success-rate"
+          dashboard_url: "https://grafana.neural-hive.io/d/flow-c-orchestration"
+
+      # Timeout em etapa específica
+      - alert: FlowCStepTimeout
+        expr: |
+          histogram_quantile(0.99,
+            rate(neural_hive_flow_c_steps_duration_seconds_bucket[5m])
+          ) > 3600
+        for: 5m
+        labels:
+          severity: warning
+          component: flow-c
+          team: platform
+        annotations:
+          summary: "Etapa do Flow C com timeout (p99 > 1h)"
+          description: "Step {{ $labels.step }} com p99 de {{ $value | humanizeDuration }}."
+          runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-step-timeout"
+          dashboard_url: "https://grafana.neural-hive.io/d/flow-c-orchestration"
+
+      # Nenhum ticket gerado
+      - alert: FlowCNoTicketsGenerated
+        expr: |
+          rate(neural_hive_flow_c_success_total[10m]) > 0
+          and
+          sum(rate(neural_hive_execution_tickets_created_total{source="flow_c"}[10m])) == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: flow-c
+          team: platform
+        annotations:
+          summary: "Flow C executando mas não gerando tickets"
+          description: "Flow C processando decisões mas nenhum ticket sendo criado."
+          runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-no-tickets"
+          dashboard_url: "https://grafana.neural-hive.io/d/flow-c-orchestration"
+
+      # Workers indisponíveis
+      - alert: FlowCWorkersUnavailable
+        expr: |
+          (
+            count(neural_hive_service_registry_agents_total{agent_type="worker", status="healthy"}) or vector(0)
+          ) == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: flow-c
+          team: platform
+        annotations:
+          summary: "Nenhum worker disponível para Flow C"
+          description: "Service Registry não reporta workers saudáveis. Flow C não poderá despachar tarefas."
+          runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-no-workers"
+          dashboard_url: "https://grafana.neural-hive.io/d/flow-c-orchestration"
+
+      # Buffer de telemetria cheio
+      - alert: FlowCTelemetryBufferFull
+        expr: |
+          neural_hive_flow_c_telemetry_buffer_size > 1000
+        for: 5m
+        labels:
+          severity: warning
+          component: flow-c
+          team: platform
+        annotations:
+          summary: "Buffer de telemetria do Flow C acumulando eventos"
+          description: "Buffer com {{ $value }} eventos. Kafka pode estar indisponível."
+          runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-telemetry-buffer"
+          dashboard_url: "https://grafana.neural-hive.io/d/flow-c-orchestration"
+
+      # Violações de SLA
+      - alert: FlowCSLAViolations
+        expr: |
+          rate(neural_hive_flow_c_sla_violations_total[30m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: flow-c
+          team: platform
+        annotations:
+          summary: "Flow C violando SLO de 4 horas"
+          description: "{{ $value }} violações de SLA nos últimos 30min."
+          runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-sla-violations"
+          dashboard_url: "https://grafana.neural-hive.io/d/flow-c-orchestration"
+
+      # Falhas de descoberta de workers
+      - alert: FlowCWorkerDiscoveryFailures
+        expr: |
+          rate(neural_hive_service_registry_calls_total{operation="discover", status="error"}[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          component: flow-c
+          team: platform
+        annotations:
+          summary: "Falhas na descoberta de workers pelo Flow C"
+          description: "Taxa de erro: {{ $value | humanizePercentage }} nas chamadas ao Service Registry."
+          runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-discovery-failures"
+          dashboard_url: "https://grafana.neural-hive.io/d/flow-c-orchestration"

@@ -1,0 +1,106 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: neural-hive-self-healing-engine-alerts
+  namespace: observability
+  labels:
+    neural.hive/component: self-healing-engine
+    neural.hive/layer: resilience
+spec:
+  groups:
+  - name: self-healing.execution
+    rules:
+    - alert: SelfHealingEngineDown
+      expr: up{neural_hive_component="self-healing-engine"} == 0
+      for: 3m
+      labels:
+        severity: critical
+        neural_hive_component: self-healing-engine
+      annotations:
+        summary: "Self-Healing Engine está inativo"
+        description: "Self-Healing Engine não está respondendo há mais de 3 minutos"
+        runbook_url: "https://docs.neural-hive.local/runbooks/self-healing-engine-down"
+
+    - alert: HighPlaybookFailureRate
+      expr: rate(healing_engine_playbook_executions_total{status="failed"}[10m]) / rate(healing_engine_playbook_executions_total[10m]) > 0.20
+      for: 5m
+      labels:
+        severity: high
+        neural_hive_component: self-healing-engine
+      annotations:
+        summary: "Taxa alta de falha em playbooks"
+        description: "Taxa de falha em execução de playbooks está acima de 20%"
+
+    - alert: PlaybookExecutionStuck
+      expr: time() - healing_engine_playbook_execution_started_timestamp > 600
+      for: 1m
+      labels:
+        severity: warning
+        neural_hive_component: self-healing-engine
+      annotations:
+        summary: "Execução de playbook travada"
+        description: "Execução de playbook em andamento há mais de 10 minutos"
+
+    - alert: NoPlaybooksAvailable
+      expr: healing_engine_playbooks_available == 0
+      for: 1m
+      labels:
+        severity: critical
+        neural_hive_component: self-healing-engine
+      annotations:
+        summary: "Nenhum playbook disponível"
+        description: "Self-Healing Engine não possui playbooks disponíveis"
+
+  - name: self-healing.performance
+    rules:
+    - alert: SlowPlaybookExecution
+      expr: histogram_quantile(0.95, rate(healing_engine_playbook_duration_seconds_bucket[5m])) > 300
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: self-healing-engine
+      annotations:
+        summary: "Execução lenta de playbooks"
+        description: "P95 de duração de execução de playbooks está acima de 5 minutos"
+
+    - alert: HighConcurrentExecutions
+      expr: healing_engine_concurrent_executions / healing_engine_max_concurrent_executions > 0.80
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: self-healing-engine
+      annotations:
+        summary: "Alta concorrência de execuções"
+        description: "Execuções concorrentes estão acima de 80% da capacidade"
+
+    - alert: PlaybookQueueBacklog
+      expr: healing_engine_execution_queue_depth > 100
+      for: 5m
+      labels:
+        severity: high
+        neural_hive_component: self-healing-engine
+      annotations:
+        summary: "Backlog de execuções"
+        description: "Mais de 100 execuções de playbook na fila"
+
+  - name: self-healing.validation
+    rules:
+    - alert: ValidationChecksFailing
+      expr: rate(healing_engine_validation_checks_failed_total[10m]) / rate(healing_engine_validation_checks_total[10m]) > 0.30
+      for: 5m
+      labels:
+        severity: high
+        neural_hive_component: self-healing-engine
+      annotations:
+        summary: "Checks de validação falhando"
+        description: "Mais de 30% dos checks de validação estão falhando"
+
+    - alert: RollbackRateHigh
+      expr: rate(healing_engine_playbook_executions_total{status="rolled_back"}[10m]) / rate(healing_engine_playbook_executions_total[10m]) > 0.10
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: self-healing-engine
+      annotations:
+        summary: "Taxa alta de rollback"
+        description: "Taxa de rollback de playbooks está acima de 10%"

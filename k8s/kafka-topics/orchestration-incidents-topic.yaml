@@ -1,0 +1,21 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: orchestration-incidents
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: neural-hive-kafka
+    app.kubernetes.io/name: kafka-topic
+    app.kubernetes.io/component: messaging
+    neural-hive.io/layer: resilience
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    retention.ms: 2592000000  # 30 dias
+    segment.ms: 86400000  # 1 dia
+    compression.type: lz4
+    min.insync.replicas: 2
+    cleanup.policy: delete
+    max.message.bytes: 524288  # 512KB
+    message.timestamp.type: CreateTime

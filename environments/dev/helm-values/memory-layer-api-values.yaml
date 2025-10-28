@@ -1,0 +1,116 @@
+# Memory Layer API - Valores para ambiente de desenvolvimento
+
+replicaCount: 1
+
+image:
+  repository: neural-hive-mind/memory-layer-api
+  pullPolicy: IfNotPresent
+  tag: "1.0.0"
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+
+config:
+  environment: "dev"
+  logLevel: "DEBUG"
+  debug: true
+
+  # Redis
+  redis:
+    clusterNodes: "neural-hive-cache.redis-cluster.svc.cluster.local:6379"
+    sslEnabled: false
+    defaultTtl: 300
+    maxTtl: 900
+
+  # MongoDB
+  mongodb:
+    uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+    database: "neural_hive"
+    contextCollection: "operational_context"
+    lineageCollection: "data_lineage"
+    qualityCollection: "data_quality_metrics"
+    retentionDays: 7  # Retenção menor em dev
+
+  # Neo4j
+  neo4j:
+    uri: "bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687"
+    user: "neo4j"
+    database: "neo4j"
+    queryTimeout: 50
+
+  # ClickHouse
+  clickhouse:
+    host: "clickhouse-http.clickhouse-cluster.svc.cluster.local"
+    port: 8123
+    user: "default"
+    database: "neural_hive"
+    retentionMonths: 3  # Retenção menor em dev
+
+  # Observabilidade
+  otel:
+    endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+  prometheus:
+    port: 8080
+  jaeger:
+    samplingRate: 1.0
+
+  # Roteamento de Queries
+  routing:
+    hotDataThresholdSeconds: 300
+    warmDataThresholdDays: 30
+    coldDataThresholdMonths: 3
+
+  # Data Quality
+  quality:
+    checkEnabled: true
+    completenessThreshold: 0.90  # Threshold menor em dev
+    accuracyThreshold: 0.90
+    freshnessThresholdHours: 48
+
+  # Feature Flags
+  features:
+    enableCache: true
+    enableLineageTracking: true
+    enableQualityMonitoring: true
+    enableAutoRouting: true
+
+secrets:
+  # Redis
+  redis:
+    password: ""
+
+  # MongoDB
+  mongodb:
+    uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+
+  # Neo4j
+  neo4j:
+    password: "dev-password"
+
+  # ClickHouse
+  clickhouse:
+    password: "dev-password"
+
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  path: /metrics
+
+networkPolicy:
+  enabled: false  # Desabilitado em dev para facilitar debugging
+
+podDisruptionBudget:
+  enabled: false  # Desabilitado em dev
+
+istio:
+  enabled: false  # Desabilitado em dev
+  sidecar:
+    inject: false

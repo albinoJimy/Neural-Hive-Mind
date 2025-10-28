@@ -1,0 +1,179 @@
+groups:
+  - name: explainability_alerts
+    interval: 30s
+    rules:
+      # Alta taxa de timeouts SHAP
+      - alert: HighSHAPTimeoutRate
+        expr: |
+          (
+            rate(specialist_explainability_errors_total{method="shap", error_type="timeout"}[5m])
+            /
+            rate(specialist_explainability_method_total{method="shap"}[5m])
+          ) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          component: explainability
+          method: shap
+        annotations:
+          summary: "Alta taxa de timeouts SHAP no especialista {{ $labels.specialist_type }}"
+          description: |
+            {{ $value | humanizePercentage }} das computações SHAP estão dando timeout.
+
+            Ações:
+            1. Verificar SHAP_TIMEOUT_SECONDS (atual: 5s)
+            2. Reduzir SHAP_MAX_BACKGROUND_SAMPLES
+            3. Verificar complexidade do modelo
+
+            Specialist: {{ $labels.specialist_type }}
+            Namespace: {{ $labels.namespace }}
+
+      # Alta taxa de erros LIME
+      - alert: HighLIMEErrorRate
+        expr: |
+          (
+            rate(specialist_explainability_errors_total{method="lime"}[5m])
+            /
+            rate(specialist_explainability_method_total{method="lime"}[5m])
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: explainability
+          method: lime
+        annotations:
+          summary: "Alta taxa de erros LIME no especialista {{ $labels.specialist_type }}"
+          description: |
+            {{ $value | humanizePercentage }} das computações LIME estão falhando.
+
+            Specialist: {{ $labels.specialist_type }}
+
+      # Tempo de computação SHAP muito alto
+      - alert: SlowSHAPComputation
+        expr: |
+          histogram_quantile(0.95,
+            rate(specialist_explainability_computation_seconds_bucket{method="shap"}[5m])
+          ) > 4.0
+        for: 10m
+        labels:
+          severity: warning
+          component: explainability
+          method: shap
+        annotations:
+          summary: "Computação SHAP lenta no especialista {{ $labels.specialist_type }}"
+          description: |
+            P95 do tempo de computação SHAP: {{ $value | humanizeDuration }}
+            Threshold: 4s
+
+            Ações:
+            1. Verificar tamanho do background dataset
+            2. Considerar usar modelo mais simples
+            3. Aumentar recursos computacionais
+
+      # Fallback para heurísticas muito frequente
+      - alert: FrequentHeuristicFallback
+        expr: |
+          (
+            rate(specialist_explainability_method_total{method="heuristic"}[10m])
+            /
+            rate(specialist_explainability_method_total[10m])
+          ) > 0.5
+        for: 15m
+        labels:
+          severity: warning
+          component: explainability
+        annotations:
+          summary: "Uso excessivo de fallback heurístico no especialista {{ $labels.specialist_type }}"
+          description: |
+            {{ $value | humanizePercentage }} das explicações estão usando fallback heurístico.
+
+            Causas possíveis:
+            1. Modelo ML não disponível
+            2. SHAP/LIME dando timeout constantemente
+            3. Erros de inferência
+
+            Specialist: {{ $labels.specialist_type }}
+
+      # Falhas de persistência no ledger v2
+      - alert: ExplainabilityLedgerV2PersistenceFailures
+        expr: |
+          rate(specialist_explainability_ledger_v2_persistence_total{status="error"}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          component: explainability
+          subsystem: ledger_v2
+        annotations:
+          summary: "Falhas de persistência no ExplainabilityLedgerV2"
+          description: |
+            Taxa de falhas: {{ $value | humanize }} erros/s
+
+            Ações:
+            1. Verificar conectividade com MongoDB
+            2. Verificar validação de schema
+            3. Verificar logs do especialista
+
+            Specialist: {{ $labels.specialist_type }}
+
+      # Poucas features sendo explicadas
+      - alert: LowFeatureExplainabilityCount
+        expr: |
+          histogram_quantile(0.50,
+            rate(specialist_explainability_feature_count_bucket[10m])
+          ) < 5
+        for: 15m
+        labels:
+          severity: info
+          component: explainability
+        annotations:
+          summary: "Poucas features sendo explicadas no especialista {{ $labels.specialist_type }}"
+          description: |
+            Mediana de features explicadas: {{ $value | humanize }}
+            Esperado: >= 5
+
+            Possíveis causas:
+            1. Feature extractor não configurado
+            2. Planos cognitivos muito simples
+            3. Modelo com poucas features
+
+      # Tempo de geração de narrativa alto
+      - alert: SlowNarrativeGeneration
+        expr: |
+          histogram_quantile(0.95,
+            rate(specialist_narrative_generation_seconds_bucket[5m])
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: info
+          component: explainability
+          subsystem: narrative
+        annotations:
+          summary: "Geração de narrativas lenta no especialista {{ $labels.specialist_type }}"
+          description: |
+            P95 do tempo de geração: {{ $value | humanizeDuration }}
+            Threshold: 500ms
+
+            Specialist: {{ $labels.specialist_type }}
+
+      # Background dataset não configurado
+      - alert: MissingSHAPBackgroundDataset
+        expr: |
+          (
+            rate(specialist_explainability_errors_total{method="shap", error_type="no_background_dataset"}[10m])
+            /
+            rate(specialist_explainability_method_total{method="shap"}[10m])
+          ) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          component: explainability
+          method: shap
+        annotations:
+          summary: "Background dataset SHAP não configurado para {{ $labels.specialist_type }}"
+          description: |
+            {{ $value | humanizePercentage }} das computações SHAP estão sem background dataset.
+
+            Ações:
+            1. Gerar background dataset: scripts/explainability/generate_shap_background_dataset.py
+            2. Configurar SHAP_BACKGROUND_DATASET_PATH
+            3. Reiniciar especialista

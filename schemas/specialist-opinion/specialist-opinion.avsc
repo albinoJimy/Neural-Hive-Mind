@@ -1,0 +1,244 @@
+{
+  "type": "record",
+  "name": "SpecialistOpinion",
+  "namespace": "com.neuralhive.specialist",
+  "doc": "Schema Avro para persistência de pareceres de especialistas neurais no ledger cognitivo",
+  "fields": [
+    {
+      "name": "opinion_id",
+      "type": "string",
+      "doc": "Identificador único do parecer (UUID)"
+    },
+    {
+      "name": "specialist_type",
+      "type": {
+        "type": "enum",
+        "name": "SpecialistType",
+        "symbols": ["business", "technical", "behavior", "evolution", "architecture"]
+      },
+      "doc": "Tipo do especialista que gerou o parecer"
+    },
+    {
+      "name": "specialist_version",
+      "type": "string",
+      "doc": "Versão do especialista"
+    },
+    {
+      "name": "plan_id",
+      "type": "string",
+      "doc": "Identificador do plano cognitivo avaliado"
+    },
+    {
+      "name": "intent_id",
+      "type": "string",
+      "doc": "Identificador da intenção original"
+    },
+    {
+      "name": "correlation_id",
+      "type": "string",
+      "doc": "Identificador de correlação para rastreamento"
+    },
+    {
+      "name": "confidence_score",
+      "type": "double",
+      "doc": "Score de confiança do parecer (0.0-1.0)"
+    },
+    {
+      "name": "risk_score",
+      "type": "double",
+      "doc": "Score de risco identificado (0.0-1.0)"
+    },
+    {
+      "name": "recommendation",
+      "type": {
+        "type": "enum",
+        "name": "RecommendationType",
+        "symbols": ["approve", "reject", "review_required", "conditional"]
+      },
+      "doc": "Recomendação do especialista"
+    },
+    {
+      "name": "reasoning_summary",
+      "type": "string",
+      "doc": "Resumo narrativo da justificativa"
+    },
+    {
+      "name": "reasoning_factors",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "ReasoningFactor",
+          "fields": [
+            {
+              "name": "factor_name",
+              "type": "string",
+              "doc": "Nome do fator de raciocínio"
+            },
+            {
+              "name": "weight",
+              "type": "double",
+              "doc": "Peso do fator na decisão (0.0-1.0)"
+            },
+            {
+              "name": "score",
+              "type": "double",
+              "doc": "Score do fator (0.0-1.0)"
+            },
+            {
+              "name": "description",
+              "type": "string",
+              "doc": "Descrição do fator"
+            }
+          ]
+        }
+      },
+      "doc": "Fatores estruturados de raciocínio"
+    },
+    {
+      "name": "explainability_token",
+      "type": "string",
+      "doc": "Token para recuperação de explicação detalhada"
+    },
+    {
+      "name": "explainability",
+      "type": {
+        "type": "record",
+        "name": "ExplainabilityMetadata",
+        "fields": [
+          {
+            "name": "method",
+            "type": {
+              "type": "enum",
+              "name": "ExplainabilityMethod",
+              "symbols": ["shap", "lime", "rule_based", "heuristic"]
+            },
+            "doc": "Método de explicabilidade utilizado"
+          },
+          {
+            "name": "feature_importances",
+            "type": {
+              "type": "array",
+              "items": {
+                "type": "record",
+                "name": "FeatureImportance",
+                "fields": [
+                  {
+                    "name": "feature_name",
+                    "type": "string",
+                    "doc": "Nome da feature"
+                  },
+                  {
+                    "name": "importance",
+                    "type": "double",
+                    "doc": "Importância da feature"
+                  },
+                  {
+                    "name": "contribution",
+                    "type": {
+                      "type": "enum",
+                      "name": "Contribution",
+                      "symbols": ["positive", "negative", "neutral"]
+                    },
+                    "doc": "Tipo de contribuição"
+                  }
+                ]
+              }
+            },
+            "doc": "Importâncias de features"
+          },
+          {
+            "name": "model_version",
+            "type": "string",
+            "doc": "Versão do modelo utilizado"
+          },
+          {
+            "name": "model_type",
+            "type": "string",
+            "doc": "Tipo do modelo (sklearn, pytorch, heuristic, etc.)"
+          }
+        ]
+      },
+      "doc": "Metadados de explicabilidade"
+    },
+    {
+      "name": "mitigations",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "MitigationSuggestion",
+          "fields": [
+            {
+              "name": "mitigation_id",
+              "type": "string",
+              "doc": "Identificador da mitigação"
+            },
+            {
+              "name": "description",
+              "type": "string",
+              "doc": "Descrição da mitigação sugerida"
+            },
+            {
+              "name": "priority",
+              "type": {
+                "type": "enum",
+                "name": "Priority",
+                "symbols": ["high", "medium", "low"]
+              },
+              "doc": "Prioridade da mitigação"
+            },
+            {
+              "name": "estimated_impact",
+              "type": "double",
+              "doc": "Impacto estimado da mitigação (0.0-1.0)"
+            },
+            {
+              "name": "required_actions",
+              "type": {
+                "type": "array",
+                "items": "string"
+              },
+              "doc": "Ações necessárias para implementar a mitigação"
+            }
+          ]
+        }
+      },
+      "default": [],
+      "doc": "Sugestões de mitigação de riscos"
+    },
+    {
+      "name": "evaluated_at",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Timestamp da avaliação (milliseconds desde epoch)"
+    },
+    {
+      "name": "processing_time_ms",
+      "type": "long",
+      "doc": "Tempo de processamento em milliseconds"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Metadados adicionais específicos do especialista"
+    },
+    {
+      "name": "hash",
+      "type": "string",
+      "doc": "Hash SHA-256 do parecer para auditoria"
+    },
+    {
+      "name": "schema_version",
+      "type": "int",
+      "default": 1,
+      "doc": "Versão do schema para evolução"
+    }
+  ]
+}

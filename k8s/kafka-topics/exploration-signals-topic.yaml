@@ -1,0 +1,27 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: exploration-signals
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: neural-hive-kafka
+    neural-hive.io/layer: exploration
+    neural-hive.io/component: scout-agents
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    # Retention: 3.5 days (302400000 ms)
+    retention.ms: 302400000
+    # Compression
+    compression.type: snappy
+    # Reliability
+    min.insync.replicas: 2
+    # Cleanup policy
+    cleanup.policy: delete
+    # Max message size: 512KB (signals are smaller than execution tickets)
+    max.message.bytes: 524288
+    # Segment size: 512MB
+    segment.bytes: 536870912
+    # Index interval
+    segment.index.bytes: 10485760

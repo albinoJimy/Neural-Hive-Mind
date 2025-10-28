@@ -1,0 +1,291 @@
+{{- range $key, $topic := .Values.topics }}
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: {{ $topic.name }}
+  namespace: {{ $.Values.kafka.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ $.Chart.Name }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/version: {{ $.Chart.AppVersion }}
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+    helm.sh/chart: {{ $.Chart.Name }}-{{ $.Chart.Version | replace "+" "_" }}
+    {{- if $.Values.governance.enabled }}
+    {{- range $k, $v := $.Values.governance.labels }}
+    {{ $k }}: {{ $v | quote }}
+    {{- end }}
+    {{- end }}
+    {{- if $.Values.monitoring.enabled }}
+    {{- range $k, $v := $.Values.monitoring.labels }}
+    {{ $k }}: {{ $v | quote }}
+    {{- end }}
+    {{- end }}
+    {{- with $topic.labels }}
+    {{- range $k, $v := . }}
+    {{ $k }}: {{ $v | quote }}
+    {{- end }}
+    {{- end }}
+  annotations:
+    {{- if $.Values.governance.enabled }}
+    {{- range $k, $v := $.Values.governance.annotations }}
+    {{ $k }}: {{ $v | quote }}
+    {{- end }}
+    {{- end }}
+    "neural-hive-mind.org/topic-key": {{ $key | quote }}
+    "neural-hive-mind.org/description": {{ $topic.description | quote }}
+    {{- if $topic.annotations }}
+    {{- range $k, $v := $topic.annotations }}
+    {{ $k }}: {{ $v | quote }}
+    {{- end }}
+    {{- end }}
+spec:
+  topicName: {{ $topic.name }}
+  partitions: {{ $topic.partitions | default $.Values.topicDefaults.partitions }}
+  replicas: {{ $topic.replicationFactor | default $.Values.topicDefaults.replicationFactor }}
+  config:
+    # Configurações padrão para exactly-once delivery
+    min.insync.replicas: {{ $topic.config.minInsyncReplicas | default $.Values.topicDefaults.minInsyncReplicas | quote }}
+    unclean.leader.election.enable: {{ $topic.config.uncleanLeaderElectionEnable | default $.Values.topicDefaults.uncleanLeaderElectionEnable | quote }}
+
+    # Configurações de retenção
+    retention.ms: {{ index $topic.config "retention.ms" | default $.Values.topicDefaults.retentionMs | quote }}
+
+    # Configurações de compressão
+    compression.type: {{ index $topic.config "compression.type" | default $.Values.topicDefaults.compressionType | quote }}
+
+    # Configurações de limpeza
+    cleanup.policy: {{ index $topic.config "cleanup.policy" | default $.Values.topicDefaults.cleanupPolicy | quote }}
+
+    # Configurações de segmento
+    segment.ms: {{ index $topic.config "segment.ms" | default $.Values.topicDefaults.segmentMs | quote }}
+    segment.bytes: {{ index $topic.config "segment.bytes" | default $.Values.topicDefaults.segmentBytes | quote }}
+
+    # Configurações de mensagem
+    max.message.bytes: {{ index $topic.config "max.message.bytes" | default $.Values.topicDefaults.maxMessageBytes | quote }}
+
+    # Configurações de índice
+    index.interval.bytes: {{ index $topic.config "index.interval.bytes" | default $.Values.topicDefaults.indexIntervalBytes | quote }}
+
+    {{- if $topic.config }}
+    {{- range $k, $v := $topic.config }}
+    {{- if not (has $k (list "minInsyncReplicas" "uncleanLeaderElectionEnable" "retention.ms" "compression.type" "cleanup.policy" "segment.ms" "segment.bytes" "max.message.bytes" "index.interval.bytes")) }}
+    {{ $k }}: {{ $v | quote }}
+    {{- end }}
+    {{- end }}
+    {{- end }}
+{{- end }}
+
+{{- if .Values.validation.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-topic-validation
+  namespace: {{ .Values.kafka.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    neural-hive-mind.org/component: "topic-validation"
+data:
+  validation-rules.yaml: |
+    topics:
+      {{- range $key, $topic := .Values.topics }}
+      {{ $key }}:
+        name: {{ $topic.name }}
+        partitions: {{ $topic.partitions | default $.Values.topicDefaults.partitions }}
+        replicas: {{ $topic.replicationFactor | default $.Values.topicDefaults.replicationFactor }}
+        required_configs:
+          - min.insync.replicas
+          - unclean.leader.election.enable
+          - retention.ms
+          - compression.type
+        domain: {{ index $topic.labels "neural-hive-mind.org/domain" | default "unknown" }}
+      {{- end }}
+
+    validation_rules:
+      min_partitions: 1
+      max_partitions: 50
+      min_replicas: 1
+      max_replicas: 5
+      required_labels:
+        - neural-hive-mind.org/domain
+      allowed_compression_types:
+        - uncompressed
+        - snappy
+        - lz4
+        - gzip
+        - zstd
+      min_retention_ms: 3600000    # 1 hora
+      max_retention_ms: 31536000000  # 1 ano
+{{- end }}
+
+{{- if .Values.monitoring.enabled }}
+---
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Release.Name }}-topics-monitor
+  namespace: {{ .Values.kafka.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    neural-hive-mind.org/monitoring: "topics"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kafka
+      app.kubernetes.io/instance: {{ .Values.kafka.clusterName }}
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+  namespaceSelector:
+    matchNames:
+    - {{ .Values.kafka.namespace }}
+{{- end }}
+
+{{- if .Values.security.enabled }}
+---
+# Topic Manager User - Limited permissions for topic management
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: {{ .Release.Name }}-topic-manager
+  namespace: {{ .Values.kafka.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    strimzi.io/cluster: {{ .Values.kafka.clusterName }}
+    neural-hive-mind.org/role: "topic-manager"
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    type: simple
+    acls:
+      # Cluster permissions for topic management
+      - resource:
+          type: cluster
+        operation: Create
+        host: "*"
+      - resource:
+          type: cluster
+        operation: Alter
+        host: "*"
+      # Specific topic permissions - limited scope
+      {{- range $key, $topic := $.Values.topics }}
+      - resource:
+          type: topic
+          name: {{ $topic.name }}
+          patternType: literal
+        operation: Create
+        host: "*"
+      - resource:
+          type: topic
+          name: {{ $topic.name }}
+          patternType: literal
+        operation: Alter
+        host: "*"
+      - resource:
+          type: topic
+          name: {{ $topic.name }}
+          patternType: literal
+        operation: Describe
+        host: "*"
+      - resource:
+          type: topic
+          name: {{ $topic.name }}
+          patternType: literal
+        operation: DescribeConfigs
+        host: "*"
+      {{- end }}
+
+---
+# Gateway Producer User - Write permissions only
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: {{ .Values.security.users.gatewayProducer | default (printf "%s-gateway-producer" .Release.Name) }}
+  namespace: {{ .Values.kafka.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    strimzi.io/cluster: {{ .Values.kafka.clusterName }}
+    neural-hive-mind.org/role: "gateway-producer"
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    type: simple
+    acls:
+      # Write permissions for main domain topics
+      {{- range $key, $topic := $.Values.topics }}
+      {{- if ne $key "audit" }}{{/* Gateway doesn't write directly to audit */}}
+      - resource:
+          type: topic
+          name: {{ $topic.name }}
+          patternType: literal
+        operation: Write
+        host: "*"
+      - resource:
+          type: topic
+          name: {{ $topic.name }}
+          patternType: literal
+        operation: Describe
+        host: "*"
+      {{- end }}
+      {{- end }}
+      # Idempotent producer permissions
+      - resource:
+          type: cluster
+        operation: IdempotentWrite
+        host: "*"
+
+{{- if .Values.security.users.consumers }}
+{{- range .Values.security.users.consumers }}
+---
+# Consumer User - Read permissions only
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: {{ .name }}
+  namespace: {{ $.Values.kafka.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ $.Chart.Name }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    strimzi.io/cluster: {{ $.Values.kafka.clusterName }}
+    neural-hive-mind.org/role: "consumer"
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    type: simple
+    acls:
+      # Read permissions for specified topics
+      {{- range .topics }}
+      - resource:
+          type: topic
+          name: {{ . }}
+          patternType: literal
+        operation: Read
+        host: "*"
+      - resource:
+          type: topic
+          name: {{ . }}
+          patternType: literal
+        operation: Describe
+        host: "*"
+      {{- end }}
+      # Consumer group permissions
+      - resource:
+          type: group
+          name: {{ .consumerGroup | default .name }}
+          patternType: literal
+        operation: Read
+        host: "*"
+{{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,267 @@
+groups:
+  - name: neural_hive_slos
+    interval: 30s
+    rules:
+      # SLO: Ledger Health Score > 0.7
+      - alert: LedgerHealthScoreLow
+        expr: neural_hive_ledger_health_score < 0.7
+        for: 5m
+        labels:
+          severity: warning
+          component: ledger
+        annotations:
+          summary: "Ledger health score below SLO threshold"
+          description: "Ledger health score is {{ $value | humanizePercentage }}, below the SLO of 70%"
+
+      # SLO: Ledger Health Score crítico < 0.5
+      - alert: LedgerHealthScoreCritical
+        expr: neural_hive_ledger_health_score < 0.5
+        for: 2m
+        labels:
+          severity: critical
+          component: ledger
+        annotations:
+          summary: "Ledger health score critically low"
+          description: "Ledger health score is {{ $value | humanizePercentage }}, system may be degraded"
+
+      # SLO: Consensus Rate > 0.6
+      - alert: ConsensusRateLow
+        expr: neural_hive_consensus_rate < 0.6
+        for: 10m
+        labels:
+          severity: warning
+          component: consensus
+        annotations:
+          summary: "Consensus rate below target"
+          description: "Consensus rate is {{ $value | humanizePercentage }}, indicating disagreement among specialists"
+
+      # SLO: High Risk Rate < 15%
+      - alert: HighRiskRateElevated
+        expr: neural_hive_high_risk_opinions_rate > 15
+        for: 15m
+        labels:
+          severity: warning
+          component: risk_management
+        annotations:
+          summary: "Elevated high-risk opinion rate"
+          description: "{{ $value | humanize }}% of opinions are high-risk (>0.7), above 15% threshold"
+
+      # SLO: High Risk Rate crítico > 30%
+      - alert: HighRiskRateCritical
+        expr: neural_hive_high_risk_opinions_rate > 30
+        for: 5m
+        labels:
+          severity: critical
+          component: risk_management
+        annotations:
+          summary: "Critical high-risk opinion rate"
+          description: "{{ $value | humanize }}% of opinions are high-risk, immediate review required"
+
+      # SLO: Specialist Confidence > 0.5
+      - alert: SpecialistConfidenceLow
+        expr: neural_hive_avg_confidence_by_specialist < 0.5
+        for: 10m
+        labels:
+          severity: warning
+          component: specialist
+        annotations:
+          summary: "Specialist confidence below threshold"
+          description: "{{ $labels.specialist_type }} confidence is {{ $value | humanizePercentage }}, below 50% threshold"
+
+      # SLO: Model Inference Success Rate > 95%
+      - alert: ModelInferenceFailureRateHigh
+        expr: |
+          (
+            sum(rate(technical_model_inference_total{status!="success"}[5m])) by (specialist_type)
+            /
+            sum(rate(technical_model_inference_total[5m])) by (specialist_type)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: ml_model
+        annotations:
+          summary: "High model inference failure rate"
+          description: "{{ $labels.specialist_type }} model inference failure rate is {{ $value | humanizePercentage }}"
+
+      # SLO: Model Inference Latency P95 < 3s
+      - alert: ModelInferenceLatencyHigh
+        expr: |
+          histogram_quantile(0.95, sum(rate(technical_model_inference_duration_seconds_bucket[5m])) by (le, specialist_type)) > 3
+        for: 5m
+        labels:
+          severity: warning
+          component: ml_model
+        annotations:
+          summary: "High model inference latency"
+          description: "{{ $labels.specialist_type }} P95 inference latency is {{ $value }}s, above 3s SLO"
+
+      # SLO: Feature Extraction Duration P95 < 1s
+      - alert: FeatureExtractionSlow
+        expr: |
+          histogram_quantile(0.95, sum(rate(technical_feature_extraction_duration_seconds_bucket[5m])) by (le, specialist_type)) > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: feature_extraction
+        annotations:
+          summary: "Slow feature extraction"
+          description: "{{ $labels.specialist_type }} P95 feature extraction is {{ $value }}s, above 1s SLO"
+
+      # SLO: Buffered Rate < 10%
+      - alert: BufferedOpinionsRateHigh
+        expr: neural_hive_buffered_opinions_rate > 10
+        for: 10m
+        labels:
+          severity: warning
+          component: availability
+        annotations:
+          summary: "High buffered opinions rate"
+          description: "{{ $labels.specialist_type }} has {{ $value }}% buffered opinions, indicating availability issues"
+
+      # SLO: Opinion Latency P95 < 5s
+      - alert: OpinionLatencyHigh
+        expr: neural_hive_opinion_latency_p95_ms > 5000
+        for: 5m
+        labels:
+          severity: warning
+          component: performance
+        annotations:
+          summary: "High opinion processing latency"
+          description: "{{ $labels.specialist_type }} P95 latency is {{ $value }}ms, above 5s SLO"
+
+      # Circuit Breaker aberto por muito tempo
+      - alert: CircuitBreakerOpenTooLong
+        expr: neural_hive_circuit_breaker_state{} == 1
+        for: 10m
+        labels:
+          severity: warning
+          component: circuit_breaker
+        annotations:
+          summary: "Circuit breaker open for extended period"
+          description: "{{ $labels.specialist_type }}/{{ $labels.client_name }} circuit breaker open for >10min"
+
+      # Taxa de fallback alta
+      - alert: FallbackRateHigh
+        expr: rate(neural_hive_fallback_invocations_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: resilience
+        annotations:
+          summary: "High fallback invocation rate"
+          description: "{{ $labels.specialist_type }}/{{ $labels.client_name }} fallback rate is {{ $value }}/s"
+
+      # Ledger growth anormalmente alto
+      - alert: LedgerGrowthRateAnomaly
+        expr: |
+          (
+            neural_hive_ledger_growth_rate_per_hour
+            /
+            avg_over_time(neural_hive_ledger_growth_rate_per_hour[6h])
+          ) > 2
+        for: 15m
+        labels:
+          severity: info
+          component: ledger
+        annotations:
+          summary: "Abnormal ledger growth rate"
+          description: "Ledger growing at {{ $value }}x the 6h average rate"
+
+      # Ledger growth anormalmente baixo
+      - alert: LedgerGrowthRateLow
+        expr: neural_hive_ledger_growth_rate_per_hour < 1
+        for: 30m
+        labels:
+          severity: warning
+          component: ledger
+        annotations:
+          summary: "Low ledger growth rate"
+          description: "Ledger growth rate is {{ $value }} opinions/hour, may indicate ingestion issues"
+
+      # Specialist agreement muito baixo
+      - alert: SpecialistDisagreementHigh
+        expr: neural_hive_specialist_agreement_score < 0.4
+        for: 15m
+        labels:
+          severity: info
+          component: consensus
+        annotations:
+          summary: "High specialist disagreement"
+          description: "{{ $labels.specialist_a }} and {{ $labels.specialist_b }} agreement is {{ $value | humanizePercentage }}"
+
+      # Masked documents rate alta (possível problema de compliance)
+      - alert: MaskedDocumentsRateHigh
+        expr: neural_hive_masked_documents_rate > 50
+        for: 5m
+        labels:
+          severity: info
+          component: compliance
+        annotations:
+          summary: "High masked documents rate"
+          description: "{{ $value }}% of documents are masked, verify retention policies"
+
+  - name: neural_hive_availability
+    interval: 30s
+    rules:
+      # Avaliações totalmente paradas
+      - alert: NoEvaluationsProcessed
+        expr: rate(neural_hive_specialist_evaluations_total[5m]) == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: availability
+        annotations:
+          summary: "No evaluations being processed"
+          description: "{{ $labels.specialist_type }} has not processed any evaluations in 5 minutes"
+
+      # Taxa de erro muito alta
+      - alert: EvaluationErrorRateHigh
+        expr: |
+          (
+            sum(rate(neural_hive_specialist_evaluations_total{status="error"}[5m])) by (specialist_type)
+            /
+            sum(rate(neural_hive_specialist_evaluations_total[5m])) by (specialist_type)
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          component: availability
+        annotations:
+          summary: "High evaluation error rate"
+          description: "{{ $labels.specialist_type }} error rate is {{ $value | humanizePercentage }}"
+
+  - name: neural_hive_security
+    interval: 60s
+    rules:
+      # Falhas de autenticação altas
+      - alert: AuthenticationFailureRateHigh
+        expr: |
+          (
+            sum(rate(neural_hive_auth_attempts_total{status="failure"}[5m])) by (specialist_type)
+            /
+            sum(rate(neural_hive_auth_attempts_total[5m])) by (specialist_type)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "High authentication failure rate"
+          description: "{{ $labels.specialist_type }} auth failure rate is {{ $value | humanizePercentage }}"
+
+      # Spike súbito de tentativas de autenticação (possível ataque)
+      - alert: AuthenticationSpikeDetected
+        expr: |
+          (
+            rate(neural_hive_auth_attempts_total[1m])
+            /
+            avg_over_time(rate(neural_hive_auth_attempts_total[1m])[30m:1m])
+          ) > 3
+        for: 2m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "Spike in authentication attempts detected"
+          description: "{{ $labels.specialist_type }} auth attempts are {{ $value }}x higher than 30min average"

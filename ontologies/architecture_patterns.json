@@ -1,0 +1,41 @@
+{
+  "version": "1.0.0",
+  "patterns": {
+    "microservices": {
+      "id": "PAT-MICRO",
+      "indicators": ["service", "api", "endpoint", "rest"],
+      "quality_score": 0.8,
+      "complexity_multiplier": 1.3
+    },
+    "layered_architecture": {
+      "id": "PAT-LAYER",
+      "indicators": ["controller", "service", "repository", "model"],
+      "quality_score": 0.9,
+      "complexity_multiplier": 1.0
+    },
+    "event_driven": {
+      "id": "PAT-EVENT",
+      "indicators": ["event", "queue", "publish", "subscribe"],
+      "quality_score": 0.85,
+      "complexity_multiplier": 1.5
+    },
+    "cqrs": {
+      "id": "PAT-CQRS",
+      "indicators": ["command", "query", "read", "write"],
+      "quality_score": 0.75,
+      "complexity_multiplier": 1.7
+    }
+  },
+  "anti_patterns": {
+    "god_object": {
+      "id": "ANTI-GOD",
+      "indicators": ["manager", "handler", "util"],
+      "penalty": -0.3
+    },
+    "spaghetti_code": {
+      "id": "ANTI-SPAG",
+      "indicators": ["complex", "nested", "deep"],
+      "penalty": -0.4
+    }
+  }
+}

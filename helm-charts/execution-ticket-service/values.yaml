@@ -1,0 +1,124 @@
+replicaCount: 2
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+
+image:
+  repository: localhost:5000/execution-ticket-service
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  annotations: {}
+  ports:
+    http: 8000
+    grpc: 50052
+    metrics: 9090
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9090"
+  prometheus.io/path: "/metrics"
+
+podLabels:
+  app.kubernetes.io/name: execution-ticket-service
+  app.kubernetes.io/component: orchestration
+  neural-hive.io/layer: orchestration
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+config:
+  enabled: true
+  serviceName: execution-ticket-service
+  environment: development
+  logLevel: INFO
+
+  postgres:
+    host: postgresql
+    port: 5432
+    database: neural_hive_tickets
+    user: postgres
+    sslMode: require
+
+  mongodb:
+    uri: mongodb://mongodb:27017
+    database: neural_hive_orchestration
+
+  kafka:
+    bootstrapServers: kafka:9092
+    consumerGroupId: execution-ticket-service
+    ticketsTopic: execution.tickets
+
+  jwt:
+    algorithm: HS256
+    expirationSeconds: 3600
+
+  webhooks:
+    enabled: true
+    timeoutSeconds: 10
+    maxRetries: 3
+
+  grpc:
+    port: 50052
+    maxWorkers: 10
+
+  observability:
+    otelExporterEndpoint: http://otel-collector:4317
+    prometheusPort: 9090
+
+secrets:
+  create: true
+  existingSecret: ""
+  postgresPassword: "<change-me>"
+  mongodbUri: "mongodb://mongodb:27017"
+  jwtSecretKey: "<change-me>"
+  postgresPasswordKey: postgres-password
+  mongodbUriKey: mongodb-uri
+  jwtSecretKeyKey: jwt-secret-key
+
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+networkPolicy:
+  enabled: false
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - execution-ticket-service
+        topologyKey: kubernetes.io/hostname
+
+tolerations: []
+
+nodeSelector: {}

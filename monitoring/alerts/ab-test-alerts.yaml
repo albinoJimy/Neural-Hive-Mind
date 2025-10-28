@@ -1,0 +1,234 @@
+# Alertas para A/B Testing de Specialists
+# Estes alertas monitoram a saúde e desempenho dos testes A/B
+
+groups:
+  - name: ab_testing_alerts
+    interval: 30s
+    rules:
+
+      # Alerta quando variante tem sample size muito baixo
+      - alert: ABTestInsufficientSampleSize
+        expr: |
+          specialist_ab_test_variant_usage_total < 30
+        for: 1h
+        labels:
+          severity: warning
+          component: ab_testing
+        annotations:
+          summary: "A/B test variant {{ $labels.variant }} has insufficient sample size"
+          description: |
+            Variant {{ $labels.variant }} for specialist {{ $labels.specialist_type }}
+            has only {{ $value }} samples. Minimum recommended is 30 samples for statistical analysis.
+
+      # Alerta quando há discrepância significativa no tráfego
+      - alert: ABTestTrafficImbalance
+        expr: |
+          abs(
+            (specialist_ab_test_variant_usage_total{variant="model_a"} /
+             (specialist_ab_test_variant_usage_total{variant="model_a"} +
+              specialist_ab_test_variant_usage_total{variant="model_b"}))
+            - specialist_ab_test_traffic_split
+          ) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          component: ab_testing
+        annotations:
+          summary: "A/B test traffic distribution deviates from configured split"
+          description: |
+            Traffic distribution for specialist {{ $labels.specialist_type }}
+            deviates more than 10% from configured split.
+            This might indicate hash function bias or configuration issue.
+
+      # Alerta quando variante B tem confidence significativamente menor
+      - alert: ABTestModelBPerformanceDegradation
+        expr: |
+          (
+            avg_over_time(specialist_ab_test_variant_confidence_score_sum{variant="model_b"}[5m]) /
+            avg_over_time(specialist_ab_test_variant_confidence_score_count{variant="model_b"}[5m])
+          ) <
+          (
+            avg_over_time(specialist_ab_test_variant_confidence_score_sum{variant="model_a"}[5m]) /
+            avg_over_time(specialist_ab_test_variant_confidence_score_count{variant="model_a"}[5m])
+          ) * 0.9
+        for: 15m
+        labels:
+          severity: warning
+          component: ab_testing
+        annotations:
+          summary: "Model B (challenger) has significantly lower confidence than baseline"
+          description: |
+            Challenger model for specialist {{ $labels.specialist_type }}
+            has confidence score >10% lower than baseline.
+            Current avg confidence: {{ $value | humanizePercentage }}
+            Consider stopping the A/B test if degradation persists.
+
+      # Alerta quando variante B tem latência significativamente maior
+      - alert: ABTestModelBLatencyIncrease
+        expr: |
+          (
+            avg_over_time(specialist_ab_test_variant_processing_time_seconds_sum{variant="model_b"}[5m]) /
+            avg_over_time(specialist_ab_test_variant_processing_time_seconds_count{variant="model_b"}[5m])
+          ) >
+          (
+            avg_over_time(specialist_ab_test_variant_processing_time_seconds_sum{variant="model_a"}[5m]) /
+            avg_over_time(specialist_ab_test_variant_processing_time_seconds_count{variant="model_a"}[5m])
+          ) * 1.2
+        for: 10m
+        labels:
+          severity: warning
+          component: ab_testing
+        annotations:
+          summary: "Model B (challenger) has significantly higher latency than baseline"
+          description: |
+            Challenger model for specialist {{ $labels.specialist_type }}
+            has latency >20% higher than baseline.
+            Current avg latency: {{ $value }}s
+            This might impact user experience.
+
+      # Alerta quando agreement rate cai drasticamente
+      - alert: ABTestLowConsensusAgreement
+        expr: |
+          specialist_ab_test_variant_consensus_agreement < 0.6
+        for: 20m
+        labels:
+          severity: warning
+          component: ab_testing
+        annotations:
+          summary: "A/B test variant has low consensus agreement rate"
+          description: |
+            Variant {{ $labels.variant }} for specialist {{ $labels.specialist_type }}
+            has consensus agreement rate of {{ $value | humanizePercentage }}.
+            This indicates model predictions deviate from final consensus.
+
+      # Alerta quando há diferença significativa no agreement entre variantes
+      - alert: ABTestAgreementRateDivergence
+        expr: |
+          abs(
+            specialist_ab_test_variant_consensus_agreement{variant="model_a"} -
+            specialist_ab_test_variant_consensus_agreement{variant="model_b"}
+          ) > 0.15
+        for: 15m
+        labels:
+          severity: info
+          component: ab_testing
+        annotations:
+          summary: "Significant divergence in consensus agreement between A/B variants"
+          description: |
+            Variants for specialist {{ $labels.specialist_type }} show
+            agreement rate difference >15%.
+            Model A: {{ $labels.model_a_agreement }}
+            Model B: {{ $labels.model_b_agreement }}
+            This might indicate different prediction behavior.
+
+      # Alerta quando taxa de erro é alta em uma variante
+      - alert: ABTestHighErrorRate
+        expr: |
+          rate(specialist_prediction_errors_total{ab_test_variant!=""}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: ab_testing
+        annotations:
+          summary: "High error rate detected in A/B test variant"
+          description: |
+            Variant {{ $labels.ab_test_variant }} for specialist {{ $labels.specialist_type }}
+            has error rate of {{ $value | humanizePercentage }}.
+            Consider rolling back if errors persist.
+
+      # Alerta quando modelo B está pronto para deploy (statistically significant)
+      - alert: ABTestModelBReadyForPromotion
+        expr: |
+          (
+            (
+              avg_over_time(specialist_ab_test_variant_confidence_score_sum{variant="model_b"}[1h]) /
+              avg_over_time(specialist_ab_test_variant_confidence_score_count{variant="model_b"}[1h])
+            ) >
+            (
+              avg_over_time(specialist_ab_test_variant_confidence_score_sum{variant="model_a"}[1h]) /
+              avg_over_time(specialist_ab_test_variant_confidence_score_count{variant="model_a"}[1h])
+            ) * 1.05
+          )
+          and
+          (specialist_ab_test_variant_usage_total{variant="model_b"} > 100)
+          and
+          (specialist_ab_test_variant_usage_total{variant="model_a"} > 100)
+        for: 2h
+        labels:
+          severity: info
+          component: ab_testing
+        annotations:
+          summary: "Model B shows consistent improvement and may be ready for promotion"
+          description: |
+            Challenger model for specialist {{ $labels.specialist_type }}
+            shows >5% confidence improvement over baseline with sufficient samples.
+            Sample sizes: A={{ $labels.sample_a }}, B={{ $labels.sample_b }}
+            Consider running statistical analysis and promoting to production.
+            Run: python scripts/analyze_ab_test_results.py --specialist-type {{ $labels.specialist_type }}
+
+      # Alerta quando há picos de rejeição em uma variante
+      - alert: ABTestHighRejectionRate
+        expr: |
+          (
+            specialist_ab_test_variant_recommendation_distribution{recommendation="reject"} /
+            specialist_ab_test_variant_usage_total
+          ) > 0.3
+        for: 30m
+        labels:
+          severity: warning
+          component: ab_testing
+        annotations:
+          summary: "High rejection rate in A/B test variant"
+          description: |
+            Variant {{ $labels.variant }} for specialist {{ $labels.specialist_type }}
+            has rejection rate of {{ $value | humanizePercentage }}.
+            This is significantly higher than expected.
+
+      # Alerta quando test está rodando por muito tempo sem conclusão
+      - alert: ABTestRunningTooLong
+        expr: |
+          time() - specialist_ab_test_started_timestamp > (7 * 24 * 3600)
+        for: 1h
+        labels:
+          severity: info
+          component: ab_testing
+        annotations:
+          summary: "A/B test has been running for more than 7 days"
+          description: |
+            A/B test for specialist {{ $labels.specialist_type }}
+            has been running for {{ $value | humanizeDuration }}.
+            Consider analyzing results and making a decision:
+            python scripts/analyze_ab_test_results.py --specialist-type {{ $labels.specialist_type }}
+
+      # Alerta quando não há tráfego recente
+      - alert: ABTestNoRecentTraffic
+        expr: |
+          rate(specialist_ab_test_variant_usage_total[10m]) == 0
+        for: 30m
+        labels:
+          severity: warning
+          component: ab_testing
+        annotations:
+          summary: "No traffic observed in A/B test"
+          description: |
+            No requests observed for specialist {{ $labels.specialist_type }}
+            A/B test in the last 30 minutes.
+            Check if specialist is receiving traffic.
+
+      # Alerta quando risk score médio é muito alto
+      - alert: ABTestHighRiskScore
+        expr: |
+          (
+            avg_over_time(specialist_ab_test_variant_risk_score_sum[15m]) /
+            avg_over_time(specialist_ab_test_variant_risk_score_count[15m])
+          ) > 0.7
+        for: 20m
+        labels:
+          severity: warning
+          component: ab_testing
+        annotations:
+          summary: "High average risk score in A/B test variant"
+          description: |
+            Variant {{ $labels.variant }} for specialist {{ $labels.specialist_type }}
+            has average risk score of {{ $value | humanizePercentage }}.
+            Review model behavior and consider adjusting thresholds.

@@ -1,0 +1,106 @@
+{
+  "@context": "https://neural-hive-mind.org/schemas/intent-envelope/context/v1",
+  "@type": "IntentEnvelope",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "version": "1.0.0",
+  "correlationId": "tech-optimization-2025-001",
+  "traceId": "1234567890abcdef1234567890abcdef",
+  "spanId": "abcdef1234567890",
+
+  "actor": {
+    "@type": "Actor",
+    "id": "dev-team-lead-001",
+    "actorType": "human",
+    "name": "João Santos"
+  },
+
+  "intent": {
+    "@type": "Intent",
+    "text": "Otimizar performance da API de usuários que está com latência alta (>500ms P95) e implementar cache Redis para reduzir carga no banco PostgreSQL",
+    "domain": "technical",
+    "classification": "performance-optimization",
+    "originalLanguage": "pt-BR",
+    "processedText": "Otimizar performance da API de usuários que está com latência alta (>500ms P95) e implementar cache Redis para reduzir carga no banco PostgreSQL",
+    "entities": [
+      {
+        "type": "API_ENDPOINT",
+        "value": "API de usuários",
+        "confidence": 0.94,
+        "start": 23,
+        "end": 37
+      },
+      {
+        "type": "PERFORMANCE_METRIC",
+        "value": "latência alta (>500ms P95)",
+        "confidence": 0.96,
+        "start": 52,
+        "end": 79
+      },
+      {
+        "type": "TECHNOLOGY",
+        "value": "cache Redis",
+        "confidence": 0.98,
+        "start": 95,
+        "end": 107
+      },
+      {
+        "type": "DATABASE",
+        "value": "PostgreSQL",
+        "confidence": 0.97,
+        "start": 139,
+        "end": 149
+      }
+    ],
+    "keywords": [
+      "otimizar",
+      "performance",
+      "API",
+      "latência",
+      "cache",
+      "Redis",
+      "PostgreSQL"
+    ]
+  },
+
+  "confidence": 0.88,
+
+  "context": {
+    "@type": "Context",
+    "sessionId": "tech-session-xyz789",
+    "userId": "dev-team-lead-001",
+    "tenantId": "engineering-dept",
+    "channel": "api",
+    "userAgent": "Postman/9.31.0",
+    "clientIp": "10.0.1.***",
+    "geolocation": {
+      "country": "BR",
+      "region": "RJ",
+      "city": "Rio de Janeiro",
+      "timezone": "America/Sao_Paulo"
+    }
+  },
+
+  "constraints": {
+    "@type": "Constraint",
+    "priority": "critical",
+    "deadline": "2025-01-15T18:00:00Z",
+    "maxRetries": 5,
+    "timeout": "PT2H",
+    "requiredCapabilities": [
+      "performance-tuning",
+      "database-optimization",
+      "caching-strategies",
+      "api-development"
+    ],
+    "securityLevel": "internal"
+  },
+
+  "qos": {
+    "@type": "QualityOfService",
+    "deliveryMode": "exactly-once",
+    "durability": "persistent",
+    "consistency": "strong"
+  },
+
+  "timestamp": "2025-01-01T14:45:30.123Z"
+}

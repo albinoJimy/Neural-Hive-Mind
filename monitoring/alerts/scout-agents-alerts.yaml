@@ -1,0 +1,176 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: scout-agents-alerts
+  namespace: observability
+  labels:
+    prometheus: kube-prometheus
+    neural-hive.io/layer: exploration
+    neural-hive.io/component: scout-agents
+spec:
+  groups:
+    - name: scout-agents-availability
+      interval: 30s
+      rules:
+        - alert: ScoutAgentDown
+          expr: up{job="scout-agents"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            component: scout-agents
+            layer: exploration
+          annotations:
+            summary: "Scout Agent está down"
+            description: "Nenhum pod do Scout Agent está respondendo por mais de 5 minutos"
+            runbook_url: "https://docs.neuralhive.io/runbooks/scout-agents-down"
+
+        - alert: ScoutAgentNotRegistered
+          expr: scout_agent_registered_total == 0
+          for: 10m
+          labels:
+            severity: warning
+            component: scout-agents
+          annotations:
+            summary: "Scout Agent não registrado no Service Registry"
+            description: "Scout Agent não conseguiu se registrar no Service Registry"
+
+        - alert: ScoutAgentHeartbeatFailing
+          expr: rate(scout_agent_heartbeat_total{status="failure"}[5m]) > 0.5
+          for: 5m
+          labels:
+            severity: warning
+            component: scout-agents
+          annotations:
+            summary: "Heartbeats do Scout Agent falhando"
+            description: "Mais de 50% dos heartbeats estão falhando nos últimos 5 minutos"
+
+    - name: scout-agents-performance
+      interval: 30s
+      rules:
+        - alert: ScoutAgentHighDetectionLatency
+          expr: histogram_quantile(0.95, rate(scout_agent_detection_duration_seconds_bucket[5m])) > 0.5
+          for: 10m
+          labels:
+            severity: warning
+            component: scout-agents
+          annotations:
+            summary: "Latência de detecção elevada"
+            description: "P95 da latência de detecção está acima de 500ms por mais de 10 minutos"
+
+        - alert: ScoutAgentLowDetectionRate
+          expr: rate(scout_agent_signals_detected_total[5m]) < 0.017
+          for: 15m
+          labels:
+            severity: info
+            component: scout-agents
+          annotations:
+            summary: "Taxa de detecção baixa"
+            description: "Menos de 1 sinal por minuto detectado nos últimos 15 minutos"
+
+        - alert: ScoutAgentHighQueueSize
+          expr: scout_agent_queue_size > 1000
+          for: 5m
+          labels:
+            severity: warning
+            component: scout-agents
+          annotations:
+            summary: "Fila interna saturada"
+            description: "Fila interna de sinais está acima de 1000 por mais de 5 minutos"
+
+        - alert: ScoutAgentRateLimitExceeded
+          expr: rate(scout_agent_rate_limit_exceeded_total[1m]) > 10
+          for: 5m
+          labels:
+            severity: warning
+            component: scout-agents
+          annotations:
+            summary: "Rate limit excedido frequentemente"
+            description: "Rate limit sendo excedido mais de 10 vezes por minuto"
+
+    - name: scout-agents-integration
+      interval: 30s
+      rules:
+        - alert: ScoutAgentKafkaPublishFailing
+          expr: rate(scout_agent_kafka_publish_total{status="failure"}[5m]) / rate(scout_agent_kafka_publish_total[5m]) > 0.05
+          for: 5m
+          labels:
+            severity: critical
+            component: scout-agents
+          annotations:
+            summary: "Falha na publicação Kafka"
+            description: "Mais de 5% das publicações no Kafka estão falhando"
+
+        - alert: ScoutAgentPheromonePublishFailing
+          expr: rate(scout_agent_pheromones_published_total[5m]) == 0
+          for: 10m
+          labels:
+            severity: warning
+            component: scout-agents
+          annotations:
+            summary: "Nenhum feromônio sendo publicado"
+            description: "Scout Agent não está publicando feromônios há mais de 10 minutos"
+
+        - alert: ScoutAgentMemoryLayerUnreachable
+          expr: rate(scout_agent_memory_layer_requests_total{status="failure"}[5m]) / rate(scout_agent_memory_layer_requests_total[5m]) > 0.1
+          for: 5m
+          labels:
+            severity: critical
+            component: scout-agents
+          annotations:
+            summary: "Memory Layer API inacessível"
+            description: "Mais de 10% das requisições ao Memory Layer API estão falhando"
+
+    - name: scout-agents-resources
+      interval: 30s
+      rules:
+        - alert: ScoutAgentHighCPU
+          expr: rate(container_cpu_usage_seconds_total{pod=~"scout-agents-.*"}[5m]) > 0.9
+          for: 10m
+          labels:
+            severity: warning
+            component: scout-agents
+          annotations:
+            summary: "CPU usage elevado"
+            description: "CPU usage acima de 90% por mais de 10 minutos"
+
+        - alert: ScoutAgentHighMemory
+          expr: container_memory_usage_bytes{pod=~"scout-agents-.*"} / container_spec_memory_limit_bytes{pod=~"scout-agents-.*"} > 0.9
+          for: 10m
+          labels:
+            severity: warning
+            component: scout-agents
+          annotations:
+            summary: "Memory usage elevado"
+            description: "Memory usage acima de 90% por mais de 10 minutos"
+
+        - alert: ScoutAgentOOMKilled
+          expr: increase(kube_pod_container_status_restarts_total{pod=~"scout-agents-.*"}[5m]) > 0
+          labels:
+            severity: critical
+            component: scout-agents
+          annotations:
+            summary: "Pod reiniciado (possível OOM)"
+            description: "Pod do Scout Agent foi reiniciado nos últimos 5 minutos"
+
+    - name: scout-agents-quality
+      interval: 60s
+      rules:
+        - alert: ScoutAgentLowCuriosityScore
+          expr: avg(scout_agent_curiosity_score) < 0.3
+          for: 30m
+          labels:
+            severity: info
+            component: scout-agents
+          annotations:
+            summary: "Curiosity score médio baixo"
+            description: "Score médio de curiosidade está abaixo de 0.3 por mais de 30 minutos"
+
+        - alert: ScoutAgentHighDiscardRate
+          expr: rate(scout_agent_signals_discarded_total[5m]) / rate(scout_agent_signals_detected_total[5m]) > 0.5
+          for: 15m
+          labels:
+            severity: warning
+            component: scout-agents
+          annotations:
+            summary: "Alta taxa de descarte de sinais"
+            description: "Mais de 50% dos sinais detectados estão sendo descartados"

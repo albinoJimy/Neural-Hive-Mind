@@ -1,0 +1,21 @@
+{{- if .Values.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: guard-agents
+  namespace: {{ .Values.config.namespace }}
+  labels:
+    app: guard-agents
+    neural-hive.io/component: guard-agents
+spec:
+  selector:
+    matchLabels:
+      app: guard-agents
+  endpoints:
+  - port: metrics
+    interval: {{ .Values.serviceMonitor.interval }}
+    path: /metrics
+  namespaceSelector:
+    matchNames:
+    - {{ .Values.config.namespace }}
+{{- end }}

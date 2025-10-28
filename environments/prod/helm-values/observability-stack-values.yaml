@@ -1,0 +1,470 @@
+# Valores consolidados para stack de observabilidade - Ambiente Produção
+# Este arquivo define configurações otimizadas para produção com alta disponibilidade
+
+global:
+  domain: neural-hive.com
+  environment: production
+  cluster: neural-hive-prod
+
+# Configurações específicas para produção
+production:
+  # Recursos otimizados para produção
+  resources:
+    prometheus:
+      limits:
+        cpu: 2000m
+        memory: 8Gi
+      requests:
+        cpu: 1000m
+        memory: 4Gi
+
+    grafana:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+
+    jaeger:
+      collector:
+        limits:
+          cpu: 1000m
+          memory: 2Gi
+        requests:
+          cpu: 500m
+          memory: 1Gi
+      query:
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+        requests:
+          cpu: 500m
+          memory: 512Mi
+
+    otel_collector:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+
+  # Retention longa para produção
+  retention:
+    prometheus: 30d
+    jaeger: 72h  # 3 dias para traces
+    grafana_dashboards: 1y
+
+  # Storage otimizado para produção
+  storage:
+    prometheus_size: 100Gi
+    grafana_size: 10Gi
+    jaeger_size: 50Gi
+    storage_class: gp3
+    # ILM (Index Lifecycle Management) habilitado
+    enable_ilm: true
+
+  # Alta disponibilidade
+  high_availability:
+    prometheus_replicas: 2
+    grafana_replicas: 2
+    jaeger_collector_replicas: 3
+    jaeger_query_replicas: 2
+    otel_collector_replicas: 2
+    alertmanager_replicas: 3
+
+  # Features de produção
+  features:
+    # Segurança rigorosa
+    enable_security: true
+    # TLS habilitado
+    enable_tls: true
+    # Authentication obrigatória
+    enable_authentication: true
+    # Network policies habilitadas
+    enable_network_policies: true
+    # Pod security policies
+    enable_pod_security: true
+
+  # Backup e disaster recovery
+  backup:
+    enabled: true
+    schedule: "0 2 * * *"  # Daily at 2 AM
+    retention_days: 30
+    storage:
+      type: s3
+      bucket: neural-hive-backups-prod
+      region: us-west-2
+      encryption: true
+
+  # Sampling otimizado para produção
+  sampling:
+    default_rate: 0.05  # 5% sampling
+    error_rate: 1.0     # 100% para erros
+    high_value_rate: 0.5  # 50% para high-value traces
+    critical_rate: 1.0  # 100% para critical paths
+
+  # Configurações de compliance
+  compliance:
+    # Audit logging habilitado
+    enable_audit_logging: true
+    # Data governance
+    data_retention_policy: true
+    # PII scrubbing
+    enable_pii_scrubbing: true
+
+# Override configurações específicas por componente
+
+# Prometheus para produção
+prometheus:
+  server:
+    retention: 30d
+    storage:
+      size: 100Gi
+      class: gp3
+
+    # Configuração de HA
+    replicas: 2
+    replicaExternalLabelName: __replica__
+
+    # Anti-affinity obrigatória
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+              - prometheus
+          topologyKey: kubernetes.io/hostname
+
+    # Resources de produção
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 8Gi
+      requests:
+        cpu: 1000m
+        memory: 4Gi
+
+  # Configurações de scraping otimizadas
+  scraping:
+    interval: 15s
+    timeout: 10s
+    # Configurações de exemplars
+    exemplars:
+      max_exemplars: 100000
+      retention: 24h
+
+  # Remote write para Thanos
+  remote_write:
+    enabled: true
+    url: "${THANOS_REMOTE_WRITE_URL}"
+    queue_config:
+      capacity: 10000
+      max_shards: 200
+
+  # Alerting habilitado
+  alerting:
+    enabled: true
+    external_labels:
+      cluster: neural-hive-prod
+      environment: production
+
+# Grafana para produção
+grafana:
+  replicas: 2
+
+  # Persistence otimizada
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClassName: gp3
+
+  # Database PostgreSQL para produção
+  database:
+    type: postgres
+    host: postgresql.observability.svc.cluster.local
+    name: grafana
+    ssl_mode: require
+
+  # Configurações de segurança
+  grafana_ini:
+    server:
+      domain: grafana.neural-hive.com
+      root_url: https://grafana.neural-hive.com
+      cert_file: /etc/ssl/certs/grafana.crt
+      cert_key: /etc/ssl/private/grafana.key
+
+    security:
+      admin_password: "${GRAFANA_ADMIN_PASSWORD}"
+      cookie_secure: true
+      cookie_samesite: strict
+      strict_transport_security: true
+
+    auth:
+      disable_login_form: false
+
+    # LDAP/OIDC para autenticação enterprise
+    auth.ldap:
+      enabled: true
+      config_file: /etc/grafana/ldap.toml
+
+    auth.generic_oauth:
+      enabled: true
+      name: "Neural Hive SSO"
+      client_id: "${OAUTH_CLIENT_ID}"
+      client_secret: "${OAUTH_CLIENT_SECRET}"
+      scopes: "openid profile email"
+
+  # Plugins de produção
+  plugins:
+    - grafana-piechart-panel
+    - grafana-worldmap-panel
+    - grafana-polystat-panel
+
+# Jaeger para produção (deployment distribuído)
+jaeger:
+  strategy: production
+
+  # Collector com HA
+  collector:
+    enabled: true
+    replicas: 3
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+
+    # Anti-affinity
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                - jaeger-collector
+            topologyKey: kubernetes.io/hostname
+
+  # Query com HA
+  query:
+    enabled: true
+    replicas: 2
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+
+  # Storage Elasticsearch para produção
+  storage:
+    type: elasticsearch
+    elasticsearch:
+      host: elasticsearch.observability.svc.cluster.local
+      port: 9200
+      index_prefix: neural-hive-jaeger-prod
+      num_shards: 5
+      num_replicas: 1
+      max_span_age: 72h
+      # ILM habilitado
+      use_ilm: true
+
+  # Archive storage para traces de longo prazo
+  archive_storage:
+    enabled: true
+    type: elasticsearch
+    elasticsearch:
+      index_prefix: neural-hive-jaeger-archive-prod
+      max_span_age: 2160h  # 90 dias
+
+  # Sampling strategies para produção
+  sampling:
+    strategies: |
+      {
+        "default_strategy": {
+          "type": "probabilistic",
+          "param": 0.05
+        },
+        "max_traces_per_second": 100,
+        "per_service_strategies": [
+          {
+            "service": "gateway-intencoes",
+            "type": "probabilistic",
+            "param": 0.25
+          },
+          {
+            "service": "neural-hive-critical",
+            "type": "probabilistic",
+            "param": 1.0
+          }
+        ]
+      }
+
+# OpenTelemetry Collector para produção
+otel_collector:
+  replicas: 2
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+  # Configuração otimizada para produção
+  config:
+    # Memory ballast para estabilidade
+    memory_ballast_size_mib: 683
+
+    # Batch otimizado para throughput
+    batch:
+      send_batch_size: 1024
+      timeout: 10s
+      send_batch_max_size: 2048
+
+    # Tail sampling inteligente
+    tail_sampling:
+      decision_wait: 30s
+      num_traces: 50000
+      policies:
+        # Sempre manter erros
+        - name: errors
+          type: status_code
+          status_code:
+            status_codes: [ERROR, UNSET]
+        # Sampling por intent_id
+        - name: intent_traces
+          type: string_attribute
+          string_attribute:
+            key: neural.hive.intent.id
+            values: [".+"]
+            enabled_regex_matching: true
+
+# Network policies rigorosas para produção
+network_policies:
+  enabled: true
+
+  # Políticas específicas por componente
+  ingress_rules:
+    prometheus:
+      - from:
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive
+        ports:
+        - protocol: TCP
+          port: 9090
+
+    grafana:
+      - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+        ports:
+        - protocol: TCP
+          port: 3000
+
+# Ingress para produção com TLS
+ingress:
+  enabled: true
+  className: nginx
+
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+
+  hosts:
+    grafana: grafana.neural-hive.com
+    jaeger: jaeger.neural-hive.com
+    prometheus: prometheus.neural-hive.com
+
+  tls:
+    - secretName: neural-hive-tls
+      hosts:
+      - grafana.neural-hive.com
+      - jaeger.neural-hive.com
+      - prometheus.neural-hive.com
+
+# Service monitors com labels de produção
+service_monitors:
+  labels:
+    environment: production
+    monitoring: enabled
+    tier: production
+
+# Alerting para produção
+alerting:
+  enabled: true
+
+  # Integração com PagerDuty
+  pagerduty:
+    enabled: true
+    service_key: "${PAGERDUTY_SERVICE_KEY}"
+
+  # Integração com Slack
+  slack:
+    enabled: true
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+
+  # Escalation policies
+  escalation:
+    critical_timeout: 5m
+    warning_timeout: 30m
+
+# SLOs rigorosos para produção
+slos:
+  # Targets de produção
+  latency_target_ms: 150
+  availability_target: 99.9
+
+  # Error budget tracking
+  error_budget:
+    calculation_window: 30d
+    burn_rate_alerts:
+      - window: 1h
+        threshold: 14.4  # Fast burn
+      - window: 6h
+        threshold: 1.0   # Slow burn
+
+# Configurações específicas do Neural Hive para produção
+neural_hive:
+  # Correlação otimizada
+  correlation:
+    enabled: true
+    baggage_propagation: true
+    exemplar_sampling_rate: 0.1
+
+  # Métricas de negócio
+  business_metrics:
+    enabled: true
+    intent_success_tracking: true
+    plan_execution_tracking: true
+    confidence_distribution: true
+
+  # Cost optimization
+  cost_optimization:
+    enabled: true
+    intelligent_sampling: true
+    metric_cardinality_limits: true
+    storage_tiering: true
+
+# Thanos para long-term storage (se habilitado)
+thanos:
+  enabled: false  # Configurar se necessário
+  compactor:
+    retention_raw: 30d
+    retention_5m: 180d
+    retention_1h: 1y

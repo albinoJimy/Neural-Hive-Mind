@@ -1,0 +1,202 @@
+{
+  "dashboard": {
+    "title": "MCP Tool Catalog - Genetic Algorithm Selection",
+    "tags": ["neural-hive-mind", "mcp", "genetic-algorithm", "phase2"],
+    "timezone": "browser",
+    "refresh": "10s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "rows": [
+      {
+        "title": "Overview",
+        "panels": [
+          {
+            "title": "Total Tool Selections",
+            "type": "stat",
+            "targets": [{
+              "expr": "sum(mcp_tool_selections_total)"
+            }],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "short",
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {"value": 0, "color": "green"},
+                    {"value": 100, "color": "yellow"},
+                    {"value": 1000, "color": "red"}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "title": "Active Selections",
+            "type": "gauge",
+            "targets": [{
+              "expr": "mcp_active_tool_selections"
+            }],
+            "fieldConfig": {
+              "defaults": {
+                "max": 10,
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {"value": 0, "color": "green"},
+                    {"value": 5, "color": "yellow"},
+                    {"value": 8, "color": "red"}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "title": "Cache Hit Rate",
+            "type": "gauge",
+            "targets": [{
+              "expr": "rate(mcp_cache_hits_total[5m]) / (rate(mcp_cache_hits_total[5m]) + rate(mcp_cache_misses_total[5m]))"
+            }],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percentunit",
+                "max": 1,
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {"value": 0, "color": "red"},
+                    {"value": 0.5, "color": "yellow"},
+                    {"value": 0.8, "color": "green"}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "title": "Registered Tools by Category",
+            "type": "stat",
+            "targets": [{
+              "expr": "sum(mcp_registered_tools_total) by (category)",
+              "legendFormat": "{{category}}"
+            }]
+          }
+        ]
+      },
+      {
+        "title": "Genetic Algorithm Performance",
+        "panels": [
+          {
+            "title": "GA Duration (p50, p95, p99)",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.50, rate(mcp_genetic_algorithm_duration_seconds_bucket[5m]))",
+                "legendFormat": "p50"
+              },
+              {
+                "expr": "histogram_quantile(0.95, rate(mcp_genetic_algorithm_duration_seconds_bucket[5m]))",
+                "legendFormat": "p95"
+              },
+              {
+                "expr": "histogram_quantile(0.99, rate(mcp_genetic_algorithm_duration_seconds_bucket[5m]))",
+                "legendFormat": "p99"
+              }
+            ],
+            "yaxes": [{"format": "s"}]
+          },
+          {
+            "title": "Generations Evolved",
+            "type": "graph",
+            "targets": [{
+              "expr": "mcp_genetic_algorithm_generations"
+            }],
+            "yaxes": [{"format": "short"}]
+          },
+          {
+            "title": "Fitness Score Distribution",
+            "type": "heatmap",
+            "targets": [{
+              "expr": "rate(mcp_fitness_score_bucket[5m])",
+              "format": "heatmap"
+            }]
+          },
+          {
+            "title": "Selection Method Breakdown",
+            "type": "piechart",
+            "targets": [{
+              "expr": "sum(mcp_tool_selections_total) by (selection_method)"
+            }]
+          }
+        ]
+      },
+      {
+        "title": "Tool Execution",
+        "panels": [
+          {
+            "title": "Tool Executions by Category",
+            "type": "graph",
+            "targets": [{
+              "expr": "sum(rate(mcp_tool_executions_total[5m])) by (category)",
+              "legendFormat": "{{category}}"
+            }]
+          },
+          {
+            "title": "Tool Execution Success Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "sum(rate(mcp_tool_executions_total{status=\"success\"}[5m])) / sum(rate(mcp_tool_executions_total[5m]))",
+                "legendFormat": "Success Rate"
+              }
+            ],
+            "yaxes": [{"format": "percentunit", "max": 1}]
+          },
+          {
+            "title": "Top 10 Tools by Usage",
+            "type": "bargauge",
+            "targets": [{
+              "expr": "topk(10, sum(mcp_tool_executions_total) by (tool_id))"
+            }]
+          }
+        ]
+      },
+      {
+        "title": "System Health",
+        "panels": [
+          {
+            "title": "Pod Status",
+            "type": "stat",
+            "targets": [{
+              "expr": "count(kube_pod_info{pod=~\"mcp-tool-catalog.*\", phase=\"Running\"})"
+            }]
+          },
+          {
+            "title": "CPU Usage",
+            "type": "graph",
+            "targets": [{
+              "expr": "rate(container_cpu_usage_seconds_total{pod=~\"mcp-tool-catalog.*\"}[5m])"
+            }],
+            "yaxes": [{"format": "percentunit"}]
+          },
+          {
+            "title": "Memory Usage",
+            "type": "graph",
+            "targets": [{
+              "expr": "container_memory_usage_bytes{pod=~\"mcp-tool-catalog.*\"} / container_spec_memory_limit_bytes"
+            }],
+            "yaxes": [{"format": "percentunit"}]
+          },
+          {
+            "title": "Request Rate",
+            "type": "graph",
+            "targets": [{
+              "expr": "rate(mcp_tool_selections_total[5m])"
+            }],
+            "yaxes": [{"format": "reqps"}]
+          }
+        ]
+      }
+    ]
+  }
+}

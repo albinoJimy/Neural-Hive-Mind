@@ -1,0 +1,49 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Kafka Cluster - Neural Hive-Mind",
+    "tags": ["kafka", "neural-hive-mind"],
+    "style": "dark",
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Broker Status",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "kafka_server_replicamanager_leadercount",
+            "legendFormat": "Leader Replicas"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Message Throughput",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(kafka_server_brokertopicmetrics_messagesinpersec[5m])",
+            "legendFormat": "Messages/sec"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Consumer Lag",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "kafka_consumer_lag_sum",
+            "legendFormat": "{{topic}} - {{partition}}"
+          }
+        ]
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s"
+  }
+}

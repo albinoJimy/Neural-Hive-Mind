@@ -1,0 +1,220 @@
+---
+# CronJob para executar backup de disaster recovery dos especialistas
+# Schedule: Diariamente às 2h UTC
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: disaster-recovery-backup-job
+  namespace: neural-hive-mind
+  labels:
+    app: disaster-recovery
+    component: backup
+    layer: infrastructure
+    managed-by: neural-hive
+spec:
+  # Executar diariamente às 2h UTC
+  schedule: "0 2 * * *"
+
+  # Política de concorrência: não permitir execuções simultâneas
+  concurrencyPolicy: Forbid
+
+  # Manter histórico dos últimos 3 jobs bem-sucedidos e 3 falhados
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+
+  # Suspender execução (útil para manutenção)
+  suspend: false
+
+  jobTemplate:
+    metadata:
+      labels:
+        app: disaster-recovery
+        component: backup
+    spec:
+      # Tempo máximo de execução: 2 horas
+      activeDeadlineSeconds: 7200
+
+      # Número de tentativas em caso de falha
+      backoffLimit: 2
+
+      template:
+        metadata:
+          labels:
+            app: disaster-recovery
+            component: backup
+          annotations:
+            # Annotations para Prometheus monitoring
+            prometheus.io/scrape: "true"
+            prometheus.io/port: "8000"
+        spec:
+          # Service account com permissões para acessar MongoDB, Redis, MLflow, S3
+          serviceAccountName: disaster-recovery-sa
+
+          # Restart policy: retry em caso de falha
+          restartPolicy: OnFailure
+
+          containers:
+          - name: disaster-recovery-backup
+            # Usar mesma imagem dos especialistas
+            image: neural-hive/specialist-base:latest
+            imagePullPolicy: IfNotPresent
+
+            # Comando para executar script de backup
+            command:
+              - python
+              - -m
+              - neural_hive_specialists.scripts.run_disaster_recovery_backup
+
+            # Arguments
+            args:
+              - --verbose
+              - --pushgateway-url
+              - http://prometheus-pushgateway.observability.svc.cluster.local:9091
+
+            # Resources
+            resources:
+              requests:
+                cpu: 500m
+                memory: 1Gi
+              limits:
+                cpu: 2000m
+                memory: 4Gi  # Backup pode ser pesado
+
+            # Environment variables
+            env:
+              # MongoDB Configuration
+              - name: MONGODB_URI
+                valueFrom:
+                  secretKeyRef:
+                    name: mongodb-credentials
+                    key: uri
+
+              # Redis Configuration
+              - name: REDIS_CLUSTER_NODES
+                valueFrom:
+                  configMapKeyRef:
+                    name: specialist-config
+                    key: redis_cluster_nodes
+
+              # MLflow Configuration
+              - name: MLFLOW_TRACKING_URI
+                valueFrom:
+                  configMapKeyRef:
+                    name: specialist-config
+                    key: mlflow_tracking_uri
+
+              # Disaster Recovery Configuration
+              - name: ENABLE_DISASTER_RECOVERY
+                value: "true"
+
+              - name: BACKUP_STORAGE_PROVIDER
+                value: "s3"  # ou 'gcs', 'local'
+
+              - name: BACKUP_S3_BUCKET
+                value: "neural-hive-backups-prod"
+
+              - name: BACKUP_S3_REGION
+                value: "us-west-2"
+
+              - name: BACKUP_S3_PREFIX
+                value: "specialists/backups"
+
+              # AWS Credentials (opcional, usar IAM role quando possível)
+              - name: AWS_ACCESS_KEY_ID
+                valueFrom:
+                  secretKeyRef:
+                    name: aws-credentials
+                    key: access_key_id
+                    optional: true
+
+              - name: AWS_SECRET_ACCESS_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: aws-credentials
+                    key: secret_access_key
+                    optional: true
+
+              # Backup Configuration
+              - name: BACKUP_RETENTION_DAYS
+                value: "90"
+
+              - name: BACKUP_COMPRESSION_LEVEL
+                value: "6"
+
+              - name: BACKUP_INCLUDE_CACHE
+                value: "false"  # Cache é efêmero
+
+              - name: BACKUP_INCLUDE_METRICS
+                value: "true"
+
+              - name: BACKUP_INCLUDE_FEATURE_STORE
+                value: "true"
+
+              # Environment
+              - name: ENVIRONMENT
+                value: "production"
+
+              - name: SERVICE_NAME
+                value: "disaster-recovery-backup"
+
+            # Volume mounts para workspace temporário
+            volumeMounts:
+              - name: backup-workspace
+                mountPath: /tmp
+
+          volumes:
+            # EmptyDir para workspace temporário de backups
+            - name: backup-workspace
+              emptyDir:
+                sizeLimit: 10Gi
+
+---
+# ServiceAccount para disaster recovery com permissões necessárias
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: disaster-recovery-sa
+  namespace: neural-hive-mind
+  labels:
+    app: disaster-recovery
+    managed-by: neural-hive
+
+---
+# Role com permissões para acessar recursos necessários
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: disaster-recovery-role
+  namespace: neural-hive-mind
+spec:
+  rules:
+    # Permissão para ler ConfigMaps
+    - apiGroups: [""]
+      resources: ["configmaps"]
+      verbs: ["get", "list"]
+
+    # Permissão para ler Secrets
+    - apiGroups: [""]
+      resources: ["secrets"]
+      verbs: ["get", "list"]
+
+    # Permissão para criar/ler Pods (para smoke tests)
+    - apiGroups: [""]
+      resources: ["pods"]
+      verbs: ["get", "list", "create"]
+
+---
+# RoleBinding para associar ServiceAccount ao Role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: disaster-recovery-rolebinding
+  namespace: neural-hive-mind
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: disaster-recovery-role
+subjects:
+  - kind: ServiceAccount
+    name: disaster-recovery-sa
+    namespace: neural-hive-mind

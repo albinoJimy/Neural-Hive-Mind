@@ -1,0 +1,448 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "@vocab": "https://neural-hive-mind.org/ontology/",
+    "nhm": "https://neural-hive-mind.org/ontology/",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    "dcterms": "http://purl.org/dc/terms/",
+    "foaf": "http://xmlns.com/foaf/0.1/",
+    "prov": "http://www.w3.org/ns/prov#",
+
+    "IntentEnvelope": "nhm:IntentEnvelope",
+    "Intent": "nhm:Intent",
+    "Actor": "nhm:Actor",
+    "Context": "nhm:Context",
+    "Constraint": "nhm:Constraint",
+    "QualityOfService": "nhm:QualityOfService",
+
+    "id": {
+      "@id": "@id",
+      "@type": "@id"
+    },
+    "type": {
+      "@id": "@type",
+      "@type": "@id"
+    },
+    "version": {
+      "@id": "nhm:version",
+      "@type": "xsd:string"
+    },
+    "actor": {
+      "@id": "nhm:actor",
+      "@type": "@id"
+    },
+    "intent": {
+      "@id": "nhm:intent",
+      "@type": "@id"
+    },
+    "confidence": {
+      "@id": "nhm:confidenceScore",
+      "@type": "xsd:double"
+    },
+    "context": {
+      "@id": "nhm:context",
+      "@type": "@id"
+    },
+    "constraints": {
+      "@id": "nhm:constraints",
+      "@type": "@id"
+    },
+    "qos": {
+      "@id": "nhm:qualityOfService",
+      "@type": "@id"
+    },
+    "timestamp": {
+      "@id": "dcterms:created",
+      "@type": "xsd:dateTime"
+    },
+    "correlationId": {
+      "@id": "nhm:correlationId",
+      "@type": "xsd:string"
+    },
+    "traceId": {
+      "@id": "nhm:traceId",
+      "@type": "xsd:string"
+    },
+    "spanId": {
+      "@id": "nhm:spanId",
+      "@type": "xsd:string"
+    },
+
+    "actorId": {
+      "@id": "nhm:actorId",
+      "@type": "xsd:string"
+    },
+    "actorType": {
+      "@id": "nhm:actorType",
+      "@type": "@vocab"
+    },
+    "actorName": {
+      "@id": "foaf:name",
+      "@type": "xsd:string"
+    },
+
+    "intentText": {
+      "@id": "nhm:intentText",
+      "@type": "xsd:string"
+    },
+    "intentDomain": {
+      "@id": "nhm:intentDomain",
+      "@type": "@vocab"
+    },
+    "intentClassification": {
+      "@id": "nhm:intentClassification",
+      "@type": "@vocab"
+    },
+    "originalLanguage": {
+      "@id": "nhm:originalLanguage",
+      "@type": "xsd:string"
+    },
+    "processedText": {
+      "@id": "nhm:processedText",
+      "@type": "xsd:string"
+    },
+    "entities": {
+      "@id": "nhm:entities",
+      "@container": "@set"
+    },
+    "keywords": {
+      "@id": "nhm:keywords",
+      "@container": "@set",
+      "@type": "xsd:string"
+    },
+
+    "sessionId": {
+      "@id": "nhm:sessionId",
+      "@type": "xsd:string"
+    },
+    "userId": {
+      "@id": "nhm:userId",
+      "@type": "xsd:string"
+    },
+    "tenantId": {
+      "@id": "nhm:tenantId",
+      "@type": "xsd:string"
+    },
+    "channel": {
+      "@id": "nhm:channel",
+      "@type": "@vocab"
+    },
+    "userAgent": {
+      "@id": "nhm:userAgent",
+      "@type": "xsd:string"
+    },
+    "clientIp": {
+      "@id": "nhm:clientIp",
+      "@type": "xsd:string"
+    },
+    "geolocation": {
+      "@id": "nhm:geolocation",
+      "@type": "@id"
+    },
+
+    "priority": {
+      "@id": "nhm:priority",
+      "@type": "@vocab"
+    },
+    "deadline": {
+      "@id": "nhm:deadline",
+      "@type": "xsd:dateTime"
+    },
+    "maxRetries": {
+      "@id": "nhm:maxRetries",
+      "@type": "xsd:integer"
+    },
+    "timeout": {
+      "@id": "nhm:timeout",
+      "@type": "xsd:duration"
+    },
+    "requiredCapabilities": {
+      "@id": "nhm:requiredCapabilities",
+      "@container": "@set",
+      "@type": "@vocab"
+    },
+    "securityLevel": {
+      "@id": "nhm:securityLevel",
+      "@type": "@vocab"
+    },
+
+    "deliveryMode": {
+      "@id": "nhm:deliveryMode",
+      "@type": "@vocab"
+    },
+    "durability": {
+      "@id": "nhm:durability",
+      "@type": "@vocab"
+    },
+    "consistency": {
+      "@id": "nhm:consistency",
+      "@type": "@vocab"
+    }
+  },
+
+  "@type": "IntentEnvelope",
+  "version": "1.0.0",
+
+  "schema": {
+    "@type": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://neural-hive-mind.org/schemas/intent-envelope/1.0.0",
+    "title": "Neural Hive-Mind Intent Envelope",
+    "description": "Envelope para encapsulamento de intenções no Neural Hive-Mind",
+
+    "type": "object",
+    "required": [
+      "@context",
+      "@type",
+      "id",
+      "version",
+      "actor",
+      "intent",
+      "confidence",
+      "timestamp"
+    ],
+
+    "properties": {
+      "@context": {
+        "type": "object",
+        "description": "Contexto JSON-LD para interpretação semântica"
+      },
+      "@type": {
+        "const": "IntentEnvelope",
+        "description": "Tipo do envelope"
+      },
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Identificador único da intenção (UUID v4)"
+      },
+      "version": {
+        "type": "string",
+        "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+        "description": "Versão do schema (semver)"
+      },
+      "correlationId": {
+        "type": "string",
+        "format": "uuid",
+        "description": "ID para correlação de intenções relacionadas"
+      },
+      "traceId": {
+        "type": "string",
+        "description": "ID de trace OpenTelemetry"
+      },
+      "spanId": {
+        "type": "string",
+        "description": "ID de span OpenTelemetry"
+      },
+
+      "actor": {
+        "type": "object",
+        "required": ["@type", "id", "actorType"],
+        "properties": {
+          "@type": {
+            "const": "Actor"
+          },
+          "id": {
+            "type": "string",
+            "description": "Identificador único do ator"
+          },
+          "actorType": {
+            "type": "string",
+            "enum": ["human", "system", "service", "bot"],
+            "description": "Tipo do ator que originou a intenção"
+          },
+          "name": {
+            "type": "string",
+            "description": "Nome do ator"
+          }
+        }
+      },
+
+      "intent": {
+        "type": "object",
+        "required": ["@type", "text", "domain"],
+        "properties": {
+          "@type": {
+            "const": "Intent"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000,
+            "description": "Texto da intenção"
+          },
+          "domain": {
+            "type": "string",
+            "enum": ["business", "technical", "infrastructure", "security"],
+            "description": "Domínio da intenção conforme particionamento"
+          },
+          "classification": {
+            "type": "string",
+            "description": "Classificação específica da intenção"
+          },
+          "originalLanguage": {
+            "type": "string",
+            "pattern": "^[a-z]{2}(-[A-Z]{2})?$",
+            "description": "Código ISO 639-1 do idioma original"
+          },
+          "processedText": {
+            "type": "string",
+            "description": "Texto processado (PII removido, normalizado)"
+          },
+          "entities": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {"type": "string"},
+                "value": {"type": "string"},
+                "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                "start": {"type": "integer"},
+                "end": {"type": "integer"}
+              },
+              "required": ["type", "value", "confidence"]
+            },
+            "description": "Entidades extraídas do texto"
+          },
+          "keywords": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Palavras-chave identificadas"
+          }
+        }
+      },
+
+      "confidence": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "description": "Score de confiança da classificação (0-1)"
+      },
+
+      "context": {
+        "type": "object",
+        "properties": {
+          "@type": {
+            "const": "Context"
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "ID da sessão do usuário"
+          },
+          "userId": {
+            "type": "string",
+            "description": "ID do usuário autenticado"
+          },
+          "tenantId": {
+            "type": "string",
+            "description": "ID do tenant/organização"
+          },
+          "channel": {
+            "type": "string",
+            "enum": ["web", "mobile", "api", "voice", "chat"],
+            "description": "Canal de origem da intenção"
+          },
+          "userAgent": {
+            "type": "string",
+            "description": "User-Agent do cliente"
+          },
+          "clientIp": {
+            "type": "string",
+            "format": "ipv4",
+            "description": "IP do cliente (anonimizado)"
+          },
+          "geolocation": {
+            "type": "object",
+            "properties": {
+              "country": {"type": "string"},
+              "region": {"type": "string"},
+              "city": {"type": "string"},
+              "timezone": {"type": "string"}
+            },
+            "description": "Localização geográfica (se disponível)"
+          }
+        },
+        "description": "Contexto da intenção"
+      },
+
+      "constraints": {
+        "type": "object",
+        "properties": {
+          "@type": {
+            "const": "Constraint"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["low", "normal", "high", "critical"],
+            "default": "normal",
+            "description": "Prioridade de processamento"
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Prazo limite para processamento (ISO 8601)"
+          },
+          "maxRetries": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10,
+            "default": 3,
+            "description": "Número máximo de tentativas"
+          },
+          "timeout": {
+            "type": "string",
+            "pattern": "^P(?:([0-9]+)D)?T?(?:([0-9]+)H)?(?:([0-9]+)M)?(?:([0-9]+(?:\\.[0-9]+)?)S)?$",
+            "description": "Timeout em formato ISO 8601 duration"
+          },
+          "requiredCapabilities": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Capacidades necessárias para processamento"
+          },
+          "securityLevel": {
+            "type": "string",
+            "enum": ["public", "internal", "confidential", "restricted"],
+            "default": "internal",
+            "description": "Nível de segurança necessário"
+          }
+        },
+        "description": "Restrições e requisitos para processamento"
+      },
+
+      "qos": {
+        "type": "object",
+        "properties": {
+          "@type": {
+            "const": "QualityOfService"
+          },
+          "deliveryMode": {
+            "type": "string",
+            "enum": ["at-most-once", "at-least-once", "exactly-once"],
+            "default": "exactly-once",
+            "description": "Modo de entrega"
+          },
+          "durability": {
+            "type": "string",
+            "enum": ["transient", "persistent"],
+            "default": "persistent",
+            "description": "Durabilidade da mensagem"
+          },
+          "consistency": {
+            "type": "string",
+            "enum": ["eventual", "strong"],
+            "default": "strong",
+            "description": "Nível de consistência requerido"
+          }
+        },
+        "description": "Garantias de qualidade de serviço"
+      },
+
+      "timestamp": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Timestamp de criação (ISO 8601 UTC)"
+      }
+    },
+
+    "additionalProperties": false
+  }
+}

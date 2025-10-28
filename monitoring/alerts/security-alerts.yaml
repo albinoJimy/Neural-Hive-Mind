@@ -1,0 +1,135 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: neural-hive-security-alerts
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: neural-hive-security-alerts
+    app.kubernetes.io/part-of: neural-hive-observability
+    neural.hive/component: alerting
+    neural.hive/layer: observabilidade
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+  - name: security
+    rules:
+    # Detecção de tentativas de acesso não autorizado
+    - alert: UnauthorizedAccessAttempts
+      expr: increase(neural_hive_requests_total{status="401"}[5m]) > 10
+      for: 2m
+      labels:
+        severity: warning
+        neural_hive_component: security
+        neural_hive_layer: seguranca
+        category: authentication
+      annotations:
+        summary: "Múltiplas tentativas de acesso não autorizado detectadas"
+        description: "{{ $value }} tentativas de acesso não autorizado nos últimos 5 minutos para o componente {{ $labels.neural_hive_component }}"
+        runbook_url: "https://docs.neural-hive.local/security/unauthorized-access"
+
+    # Detecção de ataques de força bruta
+    - alert: BruteForceAttack
+      expr: increase(neural_hive_requests_total{status="401"}[1m]) > 50
+      for: 0m
+      labels:
+        severity: critical
+        neural_hive_component: security
+        neural_hive_layer: seguranca
+        category: attack
+      annotations:
+        summary: "Possível ataque de força bruta detectado"
+        description: "{{ $value }} tentativas de login falharam no último minuto - possível ataque de força bruta"
+        runbook_url: "https://docs.neural-hive.local/security/brute-force"
+
+    # Falha na validação de PII
+    - alert: PIIValidationFailure
+      expr: increase(neural_hive_pii_validation_failures_total[5m]) > 0
+      for: 0m
+      labels:
+        severity: high
+        neural_hive_component: security
+        neural_hive_layer: seguranca
+        category: privacy
+      annotations:
+        summary: "Falha na validação de PII detectada"
+        description: "{{ $value }} falhas na validação de PII nos últimos 5 minutos no componente {{ $labels.neural_hive_component }}"
+        runbook_url: "https://docs.neural-hive.local/security/pii-validation"
+
+    # SSL/TLS issues
+    - alert: SSLCertificateExpiring
+      expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 7
+      for: 1h
+      labels:
+        severity: warning
+        neural_hive_component: infrastructure
+        neural_hive_layer: seguranca
+        category: certificates
+      annotations:
+        summary: "Certificado SSL expirando em breve"
+        description: "Certificado SSL para {{ $labels.instance }} expira em {{ $value }} dias"
+        runbook_url: "https://docs.neural-hive.local/security/ssl-renewal"
+
+    # Rate limiting triggered
+    - alert: RateLimitingTriggered
+      expr: increase(neural_hive_rate_limit_exceeded_total[5m]) > 100
+      for: 2m
+      labels:
+        severity: warning
+        neural_hive_component: gateway
+        neural_hive_layer: seguranca
+        category: rate_limiting
+      annotations:
+        summary: "Rate limiting ativado frequentemente"
+        description: "Rate limiting foi ativado {{ $value }} vezes nos últimos 5 minutos"
+        runbook_url: "https://docs.neural-hive.local/security/rate-limiting"
+
+    # Anomalous traffic patterns
+    - alert: AnomalousTrafficPattern
+      expr: |
+        (
+          avg_over_time(neural_hive_requests_total[24h]) * 1.5 <
+          rate(neural_hive_requests_total[5m]) * 300
+        ) and on() (
+          rate(neural_hive_requests_total[5m]) * 300 > 100
+        )
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: security
+        neural_hive_layer: seguranca
+        category: anomaly
+      annotations:
+        summary: "Padrão de tráfego anômalo detectado"
+        description: "Tráfego atual está 50% acima da média das últimas 24h para {{ $labels.neural_hive_component }}"
+        runbook_url: "https://docs.neural-hive.local/security/traffic-anomaly"
+
+  - name: compliance
+    rules:
+    # Audit log failures
+    - alert: AuditLogFailure
+      expr: increase(neural_hive_audit_log_failures_total[5m]) > 0
+      for: 0m
+      labels:
+        severity: high
+        neural_hive_component: audit
+        neural_hive_layer: compliance
+        category: logging
+      annotations:
+        summary: "Falha no sistema de auditoria"
+        description: "{{ $value }} falhas no sistema de auditoria nos últimos 5 minutos"
+        runbook_url: "https://docs.neural-hive.local/compliance/audit-failure"
+
+    # GDPR compliance violations
+    - alert: GDPRComplianceViolation
+      expr: increase(neural_hive_gdpr_violations_total[5m]) > 0
+      for: 0m
+      labels:
+        severity: critical
+        neural_hive_component: privacy
+        neural_hive_layer: compliance
+        category: gdpr
+      annotations:
+        summary: "Possível violação de compliance GDPR"
+        description: "{{ $value }} possíveis violações GDPR detectadas nos últimos 5 minutos"
+        runbook_url: "https://docs.neural-hive.local/compliance/gdpr-violation"

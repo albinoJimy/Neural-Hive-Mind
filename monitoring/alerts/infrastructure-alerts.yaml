@@ -1,0 +1,253 @@
+groups:
+- name: neural-hive.infrastructure
+  rules:
+  # Kubernetes Node Alerts
+  - alert: KubernetesNodeDown
+    expr: up{job="kubernetes-nodes"} == 0
+    for: 5m
+    labels:
+      severity: critical
+      neural_hive_component: kubernetes
+      neural_hive_layer: infraestrutura
+    annotations:
+      summary: "Nó Kubernetes inativo"
+      description: "Nó {{ $labels.instance }} está inativo por mais de 5 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/kubernetes-node-down"
+
+  - alert: KubernetesNodeHighCPU
+    expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: kubernetes
+      neural_hive_layer: infraestrutura
+    annotations:
+      summary: "Alto uso de CPU no nó Kubernetes"
+      description: "Nó {{ $labels.instance }} com {{ $value | humanize }}% CPU por mais de 10 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/high-cpu-usage"
+
+  - alert: KubernetesNodeHighMemory
+    expr: (1 - ((node_memory_MemAvailable_bytes or node_memory_Buffers_bytes + node_memory_Cached_bytes + node_memory_MemFree_bytes) / node_memory_MemTotal_bytes)) * 100 > 85
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: kubernetes
+      neural_hive_layer: infraestrutura
+    annotations:
+      summary: "Alto uso de memória no nó Kubernetes"
+      description: "Nó {{ $labels.instance }} com {{ $value | humanize }}% memória por mais de 10 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/high-memory-usage"
+
+  - alert: KubernetesNodeDiskSpaceLow
+    expr: (1 - node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"}) * 100 > 85
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: kubernetes
+      neural_hive_layer: infraestrutura
+    annotations:
+      summary: "Pouco espaço em disco no nó Kubernetes"
+      description: "Filesystem {{ $labels.mountpoint }} no nó {{ $labels.instance }} com {{ $value | humanize }}% de uso"
+      runbook_url: "https://docs.neural-hive.local/runbooks/low-disk-space"
+
+  # Pod Alerts
+  - alert: PodCrashLooping
+    expr: rate(kube_pod_container_status_restarts_total[15m]) > 0
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: kubernetes
+      neural_hive_layer: infraestrutura
+    annotations:
+      summary: "Pod reiniciando frequentemente"
+      description: "Pod {{ $labels.pod }} no namespace {{ $labels.namespace }} reiniciando {{ $value | humanize }} vezes por segundo"
+      runbook_url: "https://docs.neural-hive.local/runbooks/pod-crash-looping"
+
+  - alert: PodNotReady
+    expr: kube_pod_status_ready{condition="false"} == 1
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: kubernetes
+      neural_hive_layer: infraestrutura
+    annotations:
+      summary: "Pod não está pronto"
+      description: "Pod {{ $labels.pod }} no namespace {{ $labels.namespace }} não está pronto há mais de 10 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/pod-not-ready"
+
+  - alert: DeploymentReplicasMismatch
+    expr: kube_deployment_spec_replicas != kube_deployment_status_replicas_available
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: kubernetes
+      neural_hive_layer: infraestrutura
+    annotations:
+      summary: "Deployment com réplicas desalinhadas"
+      description: "Deployment {{ $labels.deployment }} no namespace {{ $labels.namespace }} com {{ $labels.spec_replicas }} especificadas mas {{ $labels.status_replicas_available }} disponíveis"
+      runbook_url: "https://docs.neural-hive.local/runbooks/deployment-replicas-mismatch"
+
+  # Service Alerts
+  - alert: ServiceDown
+    expr: up{neural_hive_component!=""} == 0
+    for: 3m
+    labels:
+      severity: critical
+      neural_hive_component: "{{ $labels.neural_hive_component }}"
+      neural_hive_layer: "{{ $labels.neural_hive_layer }}"
+    annotations:
+      summary: "Serviço Neural Hive-Mind inativo"
+      description: "Serviço {{ $labels.neural_hive_component }} ({{ $labels.neural_hive_layer }}) está inativo há mais de 3 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/service-down"
+      dashboard_url: "https://grafana.neural-hive.local/d/neural-hive-overview/neural-hive-overview"
+
+  - alert: ServiceHighErrorRate
+    expr: rate(neural_hive_requests_total{status=~"5..", neural_hive_component!=""}[5m]) / rate(neural_hive_requests_total{neural_hive_component!=""}[5m]) > 0.05
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: "{{ $labels.neural_hive_component }}"
+      neural_hive_layer: "{{ $labels.neural_hive_layer }}"
+    annotations:
+      summary: "Alto índice de erro no serviço"
+      description: "Serviço {{ $labels.neural_hive_component }} com {{ $value | humanizePercentage }} de erro rate"
+      runbook_url: "https://docs.neural-hive.local/runbooks/high-error-rate"
+      dashboard_url: "https://grafana.neural-hive.local/d/neural-hive-overview/neural-hive-overview"
+
+- name: neural-hive.observability
+  rules:
+  # Observability Stack Health
+  - alert: PrometheusDown
+    expr: up{job="prometheus"} == 0
+    for: 5m
+    labels:
+      severity: critical
+      neural_hive_component: prometheus
+      neural_hive_layer: observabilidade
+    annotations:
+      summary: "Prometheus está inativo"
+      description: "Prometheus não está coletando métricas há mais de 5 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/prometheus-down"
+
+  - alert: GrafanaDown
+    expr: up{job="grafana"} == 0
+    for: 5m
+    labels:
+      severity: critical
+      neural_hive_component: grafana
+      neural_hive_layer: observabilidade
+    annotations:
+      summary: "Grafana está inativo"
+      description: "Grafana não está respondendo há mais de 5 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/grafana-down"
+
+  - alert: AlertManagerDown
+    expr: up{job="alertmanager"} == 0
+    for: 5m
+    labels:
+      severity: critical
+      neural_hive_component: alertmanager
+      neural_hive_layer: observabilidade
+    annotations:
+      summary: "AlertManager está inativo"
+      description: "AlertManager não está processando alertas há mais de 5 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/alertmanager-down"
+
+  - alert: JaegerDown
+    expr: up{job="jaeger-collector"} == 0
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: jaeger
+      neural_hive_layer: observabilidade
+    annotations:
+      summary: "Jaeger collector está inativo"
+      description: "Jaeger collector não está coletando traces há mais de 5 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/jaeger-down"
+
+  - alert: OpenTelemetryCollectorDown
+    expr: up{job="opentelemetry-collector"} == 0
+    for: 3m
+    labels:
+      severity: critical
+      neural_hive_component: otel-collector
+      neural_hive_layer: observabilidade
+    annotations:
+      summary: "OpenTelemetry Collector está inativo"
+      description: "OpenTelemetry Collector não está processando telemetria há mais de 3 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/otel-collector-down"
+
+  - alert: PrometheusHighCardinality
+    expr: prometheus_tsdb_symbol_table_size_bytes > 16777216  # 16MB
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: prometheus
+      neural_hive_layer: observabilidade
+    annotations:
+      summary: "Prometheus com alta cardinalidade"
+      description: "Tabela de símbolos do Prometheus: {{ $value | humanizeBytes }} (>16MB pode indicar alta cardinalidade)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/prometheus-high-cardinality"
+
+  - alert: PrometheusHighIngestionRate
+    expr: rate(prometheus_tsdb_samples_appended_total[5m]) > 50000
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: prometheus
+      neural_hive_layer: observabilidade
+    annotations:
+      summary: "Prometheus com alta taxa de ingestão"
+      description: "Taxa de ingestão: {{ $value | humanize }} samples/s (>50k pode indicar problemas)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/prometheus-high-ingestion"
+
+  - alert: GrafanaHighMemoryUsage
+    expr: process_resident_memory_bytes{job="grafana"} / 1024 / 1024 > 1500
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: grafana
+      neural_hive_layer: observabilidade
+    annotations:
+      summary: "Grafana usando muita memória"
+      description: "Grafana está usando {{ $value }}MB de memória"
+      runbook_url: "https://docs.neural-hive.local/runbooks/grafana-high-memory"
+
+- name: neural-hive.kafka
+  rules:
+  # Kafka Cluster Health
+  - alert: KafkaBrokerDown
+    expr: kafka_server_replicamanager_leadercount < 1
+    for: 5m
+    labels:
+      severity: critical
+      neural_hive_component: kafka
+      neural_hive_layer: messaging
+    annotations:
+      summary: "Kafka broker está down"
+      description: "Kafka broker {{ $labels.instance }} não tem leaders ativos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/kafka-broker-down"
+
+  - alert: KafkaConsumerLag
+    expr: kafka_consumer_lag_max > 1000
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: kafka
+      neural_hive_layer: messaging
+    annotations:
+      summary: "Kafka consumer com lag alto"
+      description: "Consumer {{ $labels.consumer_group }} com lag de {{ $value }} mensagens no tópico {{ $labels.topic }}"
+      runbook_url: "https://docs.neural-hive.local/runbooks/kafka-consumer-lag"
+
+  - alert: KafkaHighDiskUsage
+    expr: kafka_log_size > 85 * 1024 * 1024 * 1024  # 85GB
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: kafka
+      neural_hive_layer: messaging
+    annotations:
+      summary: "Kafka usando muito disco"
+      description: "Kafka logs usando {{ $value | humanizeBytes }} de disco"
+      runbook_url: "https://docs.neural-hive.local/runbooks/kafka-high-disk"

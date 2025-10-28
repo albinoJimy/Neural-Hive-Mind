@@ -1,0 +1,50 @@
+{
+  "version": "1.0.0",
+  "domains": {
+    "security-analysis": {
+      "id": "SEC",
+      "description": "Análise de segurança e vulnerabilidades",
+      "keywords": ["auth", "security", "validate", "sanitize", "encrypt"],
+      "risk_weight": 0.35,
+      "subcategories": [
+        {"id": "SEC-AUTH", "name": "Autenticação e Autorização"},
+        {"id": "SEC-DATA", "name": "Proteção de Dados"},
+        {"id": "SEC-VULN", "name": "Vulnerabilidades"}
+      ]
+    },
+    "architecture-review": {
+      "id": "ARCH",
+      "description": "Padrões arquiteturais e design",
+      "keywords": ["service", "controller", "repository", "pattern"],
+      "risk_weight": 0.30,
+      "subcategories": [
+        {"id": "ARCH-SOLID", "name": "Princípios SOLID"},
+        {"id": "ARCH-PATTERN", "name": "Design Patterns"},
+        {"id": "ARCH-COUPLING", "name": "Acoplamento"}
+      ]
+    },
+    "performance-optimization": {
+      "id": "PERF",
+      "description": "Otimização de performance",
+      "keywords": ["cache", "async", "parallel", "optimize"],
+      "risk_weight": 0.20
+    },
+    "code-quality": {
+      "id": "QUAL",
+      "description": "Qualidade e manutenibilidade",
+      "keywords": ["test", "doc", "error", "log"],
+      "risk_weight": 0.15
+    }
+  },
+  "task_types": {
+    "analysis": {"id": "T-ANAL", "complexity_factor": 1.2},
+    "transformation": {"id": "T-TRANS", "complexity_factor": 1.5},
+    "validation": {"id": "T-VALID", "complexity_factor": 1.0},
+    "integration": {"id": "T-INTEG", "complexity_factor": 1.8}
+  },
+  "risk_patterns": {
+    "high_coupling": {"threshold": 0.7, "severity": "high"},
+    "missing_validation": {"threshold": 0.0, "severity": "critical"},
+    "no_error_handling": {"threshold": 0.3, "severity": "medium"}
+  }
+}

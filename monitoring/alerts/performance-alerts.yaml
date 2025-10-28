@@ -1,0 +1,185 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: neural-hive-performance-alerts
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: neural-hive-performance-alerts
+    app.kubernetes.io/part-of: neural-hive-observability
+    neural.hive/component: alerting
+    neural.hive/layer: observabilidade
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+  - name: latency
+    rules:
+    # High latency in intent capture (Fluxo A)
+    - alert: IntentCaptureHighLatency
+      expr: histogram_quantile(0.95, sum(rate(neural_hive_captura_duration_seconds_bucket{neural_hive_component="gateway"}[5m])) by (le)) > 0.2
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: gateway
+        neural_hive_layer: captura
+        slo_breach: "true"
+      annotations:
+        summary: "Alta latência na captura de intenções"
+        description: "P95 de latência de captura está em {{ $value }}s, acima do SLO de 200ms"
+        runbook_url: "https://docs.neural-hive.local/performance/intent-capture-latency"
+
+    # High latency in plan generation (Fluxo B)
+    - alert: PlanGenerationHighLatency
+      expr: histogram_quantile(0.95, sum(rate(neural_hive_plan_generation_duration_seconds_bucket{neural_hive_component="planner"}[5m])) by (le)) > 0.5
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: planner
+        neural_hive_layer: planejamento
+        slo_breach: "true"
+      annotations:
+        summary: "Alta latência na geração de planos"
+        description: "P95 de latência de geração está em {{ $value }}s, acima do SLO de 500ms"
+        runbook_url: "https://docs.neural-hive.local/performance/plan-generation-latency"
+
+    # High latency in orchestration (Fluxo C)
+    - alert: OrchestrationHighLatency
+      expr: histogram_quantile(0.95, sum(rate(neural_hive_orchestration_duration_seconds_bucket{neural_hive_component="orchestrator"}[5m])) by (le)) > 1.0
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: orchestrator
+        neural_hive_layer: orquestracao
+        slo_breach: "true"
+      annotations:
+        summary: "Alta latência na orquestração"
+        description: "P95 de latência de orquestração está em {{ $value }}s, acima do SLO de 1s"
+        runbook_url: "https://docs.neural-hive.local/performance/orchestration-latency"
+
+  - name: throughput
+    rules:
+    # Low throughput in intent processing
+    - alert: IntentProcessingLowThroughput
+      expr: sum(rate(neural_hive_requests_total{neural_hive_component="gateway",status="success"}[5m])) < 10
+      for: 10m
+      labels:
+        severity: warning
+        neural_hive_component: gateway
+        neural_hive_layer: captura
+      annotations:
+        summary: "Throughput baixo no processamento de intenções"
+        description: "Throughput atual está em {{ $value }} req/s, abaixo do esperado (>10 req/s)"
+        runbook_url: "https://docs.neural-hive.local/performance/intent-throughput"
+
+    # High error rate
+    - alert: HighErrorRate
+      expr: |
+        (
+          sum(rate(neural_hive_requests_total{status="error"}[5m])) /
+          sum(rate(neural_hive_requests_total[5m]))
+        ) > 0.05
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: system
+        neural_hive_layer: sistema
+      annotations:
+        summary: "Taxa de erro elevada no sistema"
+        description: "Taxa de erro atual é {{ $value | humanizePercentage }}, acima do limite de 5%"
+        runbook_url: "https://docs.neural-hive.local/performance/error-rate"
+
+  - name: resource_utilization
+    rules:
+    # High CPU usage
+    - alert: HighCPUUsage
+      expr: |
+        (
+          rate(container_cpu_usage_seconds_total{namespace=~"neural-hive|observability"}[5m]) * 100 /
+          container_spec_cpu_quota * container_spec_cpu_period
+        ) > 80
+      for: 10m
+      labels:
+        severity: warning
+        neural_hive_component: infrastructure
+        neural_hive_layer: infraestrutura
+      annotations:
+        summary: "Alto uso de CPU detectado"
+        description: "Pod {{ $labels.pod }} no namespace {{ $labels.namespace }} está usando {{ $value }}% de CPU"
+        runbook_url: "https://docs.neural-hive.local/performance/cpu-usage"
+
+    # High memory usage
+    - alert: HighMemoryUsage
+      expr: |
+        (
+          container_memory_working_set_bytes{namespace=~"neural-hive|observability"} /
+          container_spec_memory_limit_bytes
+        ) > 0.9
+      for: 5m
+      labels:
+        severity: critical
+        neural_hive_component: infrastructure
+        neural_hive_layer: infraestrutura
+      annotations:
+        summary: "Alto uso de memória detectado"
+        description: "Pod {{ $labels.pod }} no namespace {{ $labels.namespace }} está usando {{ $value | humanizePercentage }} da memória disponível"
+        runbook_url: "https://docs.neural-hive.local/performance/memory-usage"
+
+    # Kafka lag
+    - alert: KafkaHighLag
+      expr: kafka_consumer_lag_sum{namespace="neural-hive"} > 1000
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: kafka
+        neural_hive_layer: messaging
+      annotations:
+        summary: "Alto lag detectado no Kafka"
+        description: "Consumer {{ $labels.consumergroup }} tem lag de {{ $value }} mensagens no tópico {{ $labels.topic }}"
+        runbook_url: "https://docs.neural-hive.local/performance/kafka-lag"
+
+  - name: cache_performance
+    rules:
+    # Low cache hit rate
+    - alert: LowCacheHitRate
+      expr: |
+        (
+          sum(rate(neural_hive_cache_hits_total[5m])) /
+          sum(rate(neural_hive_cache_requests_total[5m]))
+        ) < 0.7
+      for: 10m
+      labels:
+        severity: warning
+        neural_hive_component: cache
+        neural_hive_layer: cache
+      annotations:
+        summary: "Taxa de hit do cache baixa"
+        description: "Cache hit rate está em {{ $value | humanizePercentage }}, abaixo dos 70% esperados para {{ $labels.neural_hive_component }}"
+        runbook_url: "https://docs.neural-hive.local/performance/cache-hit-rate"
+
+  - name: database_performance
+    rules:
+    # Slow database queries
+    - alert: SlowDatabaseQueries
+      expr: histogram_quantile(0.95, sum(rate(neural_hive_database_query_duration_seconds_bucket[5m])) by (le)) > 1.0
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: database
+        neural_hive_layer: persistencia
+      annotations:
+        summary: "Queries lentas no banco de dados"
+        description: "P95 de queries está em {{ $value }}s, acima do limite de 1s"
+        runbook_url: "https://docs.neural-hive.local/performance/slow-queries"
+
+    # High database connections
+    - alert: HighDatabaseConnections
+      expr: neural_hive_database_connections_active > 80
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: database
+        neural_hive_layer: persistencia
+      annotations:
+        summary: "Alto número de conexões com banco de dados"
+        description: "{{ $value }} conexões ativas com o banco, próximo do limite"
+        runbook_url: "https://docs.neural-hive.local/performance/db-connections"

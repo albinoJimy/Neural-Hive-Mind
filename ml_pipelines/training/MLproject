@@ -1,0 +1,23 @@
+name: specialist_retraining_pipeline
+
+conda_env: conda.yaml
+
+entry_points:
+  main:
+    parameters:
+      specialist_type: {type: string, default: "technical"}
+      feedback_count: {type: int, default: 0}
+      window_days: {type: int, default: 30}
+      min_feedback_quality: {type: float, default: 0.5}
+      model_type: {type: string, default: "random_forest"}
+      hyperparameter_tuning: {type: string, default: "false"}
+      promote_if_better: {type: string, default: "true"}
+    command: |
+      python train_specialist_model.py \
+        --specialist-type {specialist_type} \
+        --feedback-count {feedback_count} \
+        --window-days {window_days} \
+        --min-feedback-quality {min_feedback_quality} \
+        --model-type {model_type} \
+        --hyperparameter-tuning {hyperparameter_tuning} \
+        --promote-if-better {promote_if_better}

@@ -1,0 +1,343 @@
+groups:
+- name: neural-hive.slos
+  rules:
+  # SLO: Latência do Bus Neural Hive <150ms P95 (Critical SLO)
+  - alert: NeuralHiveBusLatencyHigh
+    expr: histogram_quantile(0.95, sum(rate(neural_hive_barramento_duration_seconds_bucket[5m])) by (le)) * 1000 > 150
+    for: 2m
+    labels:
+      severity: critical
+      slo: neural-hive-bus-latency
+      neural_hive_component: message-bus
+      neural_hive_layer: orquestracao
+      error_budget_burn_rate: "high"
+    annotations:
+      summary: "Latência P95 do Bus Neural Hive acima do SLO crítico"
+      description: "Latência P95 do bus: {{ $value }}ms (SLO: <150ms). Error budget sendo consumido rapidamente."
+      current_value: "{{ $value }}ms"
+      slo_target: "150ms"
+      threshold: "150ms"
+      error_budget_consumption: "{{ $value | humanizePercentage }}"
+      impact: "Impacto direto na experiência do usuário e SLA de clientes"
+      runbook_url: "https://docs.neural-hive.local/runbooks/bus-latency-slo"
+      dashboard_url: "https://grafana.neural-hive.local/d/neural-hive-overview/neural-hive-overview"
+
+  # SLO: Disponibilidade ≥99.9% (Error Budget Critical)
+  - alert: NeuralHiveAvailabilitySLOBreach
+    expr: |
+      (
+        sum(rate(neural_hive_requests_total{status!~"error|failed|5.*"}[5m])) /
+        sum(rate(neural_hive_requests_total[5m]))
+      ) * 100 < 99.9
+    for: 1m
+    labels:
+      severity: critical
+      slo: availability
+      neural_hive_component: global
+      neural_hive_layer: sistema
+      error_budget_burn_rate: "critical"
+    annotations:
+      summary: "Disponibilidade do Neural Hive abaixo do SLO crítico de 99.9%"
+      description: "Disponibilidade atual: {{ $value | printf \"%.3f\" }}% (SLO: ≥99.9%). Error budget crítico sendo consumido."
+      current_value: "{{ $value | printf \"%.3f\" }}%"
+      slo_target: "99.9%"
+      threshold: "99.9%"
+      error_budget_burn_rate: "{{ (99.9 - $value) | printf \"%.3f\" }}% deficit"
+      impact: "Sistema fora do SLA. Clientes podem estar sendo impactados."
+      immediate_action: "Verificar componentes críticos e traffic patterns"
+      runbook_url: "https://docs.neural-hive.local/runbooks/availability-slo-critical"
+      dashboard_url: "https://grafana.neural-hive.local/d/slos-eb/slos-error-budgets"
+
+  # SLO: Latência de Captura <200ms P95 (Fluxo A)
+  - alert: CapturaIntencaoLatencyHigh
+    expr: histogram_quantile(0.95, sum(rate(neural_hive_captura_duration_seconds_bucket{neural_hive_component="gateway"}[5m])) by (le)) > 0.2
+    for: 3m
+    labels:
+      severity: warning
+      slo: captura-latency
+      neural_hive_component: gateway
+      neural_hive_layer: experiencia
+    annotations:
+      summary: "Latência de captura de intenção alta"
+      description: "Latência P95 de captura: {{ $value | humanizeDuration }} (SLO: <200ms)"
+      current_value: "{{ $value | humanizeDuration }}"
+      slo_target: "200ms"
+      threshold: "200ms"
+      runbook_url: "https://docs.neural-hive.local/runbooks/captura-latency"
+      dashboard_url: "https://grafana.neural-hive.local/d/fluxo-a-captura/fluxo-a-captura-intencoes"
+
+  # SLO: Geração de Planos <120ms P95 (Fluxo B)
+  - alert: GeracaoPlanosLatencyHigh
+    expr: histogram_quantile(0.95, sum(rate(neural_hive_plan_generation_duration_seconds_bucket[5m])) by (le)) > 0.12
+    for: 3m
+    labels:
+      severity: warning
+      slo: plan-generation-latency
+      neural_hive_component: plan-generator
+      neural_hive_layer: cognicao
+    annotations:
+      summary: "Latência de geração de planos alta"
+      description: "Latência P95 de geração de planos: {{ $value | humanizeDuration }} (SLO: <120ms)"
+      current_value: "{{ $value | humanizeDuration }}"
+      slo_target: "120ms"
+      threshold: "120ms"
+      runbook_url: "https://docs.neural-hive.local/runbooks/plan-generation-latency"
+      dashboard_url: "https://grafana.neural-hive.local/d/fluxo-b-geracao/fluxo-b-geracao-planos"
+
+  # SLO: Taxa de Planos Aprovados >97%
+  - alert: TaxaPlanosAprovadosLow
+    expr: rate(neural_hive_plan_generation_success_total[5m]) / rate(neural_hive_plan_generation_total[5m]) < 0.97
+    for: 5m
+    labels:
+      severity: warning
+      slo: plan-approval-rate
+      neural_hive_component: plan-generator
+      neural_hive_layer: cognicao
+    annotations:
+      summary: "Taxa de planos aprovados baixa"
+      description: "Taxa de aprovação de planos: {{ $value | humanizePercentage }} (SLO: >97%)"
+      current_value: "{{ $value | humanizePercentage }}"
+      slo_target: "97%"
+      threshold: "97%"
+      runbook_url: "https://docs.neural-hive.local/runbooks/plan-approval-rate"
+      dashboard_url: "https://grafana.neural-hive.local/d/fluxo-b-geracao/fluxo-b-geracao-planos"
+
+  # SLO: Divergência de Custo <8%
+  - alert: DivergenciaCustoHigh
+    expr: sum(rate(neural_hive_plan_cost_divergence_total[5m])) / sum(rate(neural_hive_plan_generation_total[5m])) > 0.08
+    for: 5m
+    labels:
+      severity: warning
+      slo: cost-divergence
+      neural_hive_component: plan-generator
+      neural_hive_layer: cognicao
+    annotations:
+      summary: "Divergência de custo de planos alta"
+      description: "Divergência de custo: {{ $value | humanizePercentage }} (SLO: <8%)"
+      current_value: "{{ $value | humanizePercentage }}"
+      slo_target: "8%"
+      threshold: "8%"
+      runbook_url: "https://docs.neural-hive.local/runbooks/cost-divergence"
+      dashboard_url: "https://grafana.neural-hive.local/d/fluxo-b-geracao/fluxo-b-geracao-planos"
+
+  # SLO: Cumprimento de SLA >99% P99 (Fluxo C)
+  - alert: SLACumprimentoLow
+    expr: histogram_quantile(0.99, sum(rate(neural_hive_sla_compliance_bucket[5m])) by (le)) < 0.99
+    for: 3m
+    labels:
+      severity: critical
+      slo: sla-compliance
+      neural_hive_component: orchestrator
+      neural_hive_layer: orquestracao
+    annotations:
+      summary: "Cumprimento de SLA abaixo do esperado"
+      description: "Cumprimento de SLA P99: {{ $value | humanizePercentage }} (SLO: >99%)"
+      current_value: "{{ $value | humanizePercentage }}"
+      slo_target: "99%"
+      threshold: "99%"
+      runbook_url: "https://docs.neural-hive.local/runbooks/sla-compliance"
+      dashboard_url: "https://grafana.neural-hive.local/d/fluxo-c-orq/fluxo-c-orquestracao"
+
+  # Error Budget Fast Burn (1h window) - Enhanced precision with multi-window analysis
+  - alert: ErrorBudgetFastBurn
+    expr: |
+      (
+        (
+          sum(rate(neural_hive_request_errors_total{neural_hive_component!=""}[1h])) /
+          sum(rate(neural_hive_requests_total{neural_hive_component!=""}[1h]))
+        ) - (
+          sum(rate(neural_hive_request_errors_total{neural_hive_component!=""}[30d])) /
+          sum(rate(neural_hive_requests_total{neural_hive_component!=""}[30d]))
+        )
+      ) * (24 * 30) > 14.4 * (
+        sum(rate(neural_hive_request_errors_total{neural_hive_component!=""}[30d])) /
+        sum(rate(neural_hive_requests_total{neural_hive_component!=""}[30d]))
+      )
+    for: 2m
+    labels:
+      severity: critical
+      slo: error-budget-burn
+      neural_hive_component: global
+      neural_hive_layer: sistema
+      burn_rate: fast
+      error_budget_burn_rate: "critical"
+    annotations:
+      summary: "Error budget consumindo 14.4x mais rápido que o normal"
+      description: "Taxa crítica de consumo do error budget em 1h: {{ $value | printf \"%.2f\" }}x (threshold: 14.4x). Error budget será esgotado em ~2.5 horas se continuar neste ritmo."
+      current_value: "{{ $value | printf \"%.2f\" }}x"
+      threshold: "14.4x"
+      time_window: "1h"
+      burn_rate_multiplier: "{{ $value | printf \"%.2f\" }}x normal rate"
+      estimated_budget_exhaustion: "~2.5 horas"
+      impact: "Error budget crítico - SLA em risco iminente"
+      immediate_action: "Verificar componentes com maior error rate nas últimas 2h"
+      runbook_url: "https://docs.neural-hive.local/runbooks/error-budget-burn"
+      dashboard_url: "https://grafana.neural-hive.local/d/slos-eb/slos-error-budgets"
+
+  # Error Budget Slow Burn (6h window) - Enhanced precision with trend analysis
+  - alert: ErrorBudgetSlowBurn
+    expr: |
+      (
+        (
+          sum(rate(neural_hive_request_errors_total{neural_hive_component!=""}[6h])) /
+          sum(rate(neural_hive_requests_total{neural_hive_component!=""}[6h]))
+        ) - (
+          sum(rate(neural_hive_request_errors_total{neural_hive_component!=""}[30d])) /
+          sum(rate(neural_hive_requests_total{neural_hive_component!=""}[30d]))
+        )
+      ) * (4 * 30) > 6 * (
+        sum(rate(neural_hive_request_errors_total{neural_hive_component!=""}[30d])) /
+        sum(rate(neural_hive_requests_total{neural_hive_component!=""}[30d]))
+      )
+    for: 15m
+    labels:
+      severity: warning
+      slo: error-budget-burn
+      neural_hive_component: global
+      neural_hive_layer: sistema
+      burn_rate: slow
+      error_budget_burn_rate: "moderate"
+    annotations:
+      summary: "Error budget consumindo 6x mais rápido que baseline (6h)"
+      description: "Taxa moderada de consumo do error budget em 6h: {{ $value | printf \"%.2f\" }}x (threshold: 6x). Error budget será esgotado em ~5 dias se a tendência continuar."
+      current_value: "{{ $value | printf \"%.2f\" }}x"
+      threshold: "6x"
+      time_window: "6h"
+      burn_rate_multiplier: "{{ $value | printf \"%.2f\" }}x baseline rate"
+      estimated_budget_exhaustion: "~5 dias"
+      impact: "Consumo moderado do error budget - monitorar tendência"
+      recommended_action: "Investigar padrões de erro nas últimas 6h e identificar componentes degradados"
+      runbook_url: "https://docs.neural-hive.local/runbooks/error-budget-burn"
+      dashboard_url: "https://grafana.neural-hive.local/d/slos-eb/slos-error-budgets"
+
+  # SLO: Cobertura de Telemetria >99.7% (Fluxo D) - Enhanced with component-level precision
+  - alert: CoberturaTelemetriaLow
+    expr: |
+      (
+        count(up{neural_hive_component!="",neural_hive_component!~"test.*|mock.*"} == 1) /
+        count(up{neural_hive_component!="",neural_hive_component!~"test.*|mock.*"})
+      ) * 100 < 99.7
+    for: 5m
+    labels:
+      severity: warning
+      slo: telemetry-coverage
+      neural_hive_component: telemetry-collector
+      neural_hive_layer: observabilidade
+    annotations:
+      summary: "Cobertura de telemetria abaixo de 99.7%"
+      description: "Cobertura atual de telemetria: {{ $value | printf \"%.2f\" }}% (SLO: ≥99.7%). {{ $value | float64 | math.Abs }} componente(s) sem telemetria ativa."
+      current_value: "{{ $value | printf \"%.2f\" }}%"
+      slo_target: "99.7%"
+      threshold: "99.7%"
+      coverage_deficit: "{{ 99.7 | math.Sub $value | printf \"%.2f\" }}%"
+      affected_services_query: "up{neural_hive_component!=\"\"} == 0"
+      impact: "Visibilidade reduzida - componentes podem estar com problemas sem detecção"
+      immediate_action: "Verificar quais componentes estão down ou sem instrumentação"
+      runbook_url: "https://docs.neural-hive.local/runbooks/telemetry-coverage"
+      dashboard_url: "https://grafana.neural-hive.local/d/fluxo-d-obs/fluxo-d-observabilidade"
+
+  # SLO: MTTD <15s (Fluxo E - Autocura) - Enhanced with percentile-based precision
+  - alert: MTTDHigh
+    expr: |
+      quantile(0.95,
+        avg_over_time(neural_hive_detection_time_seconds{neural_hive_component="self-healing"}[5m])
+      ) > 15
+    for: 2m
+    labels:
+      severity: critical
+      slo: mttd
+      neural_hive_component: self-healing
+      neural_hive_layer: resiliencia
+    annotations:
+      summary: "Mean Time To Detection P95 excede 15s"
+      description: "MTTD P95: {{ $value | printf \"%.1f\" }}s (SLO: <15s). Sistema de detecção degradado com {{ $value | math.Sub 15 | printf \"%.1f\" }}s de atraso excessivo."
+      current_value: "{{ $value | printf \"%.1f\" }}s"
+      slo_target: "15s"
+      threshold: "15s"
+      performance_impact: "{{ ($value / 15 - 1) * 100 | printf \"%.1f\" }}% acima do target"
+      detection_delay: "{{ $value | math.Sub 15 | printf \"%.1f\" }}s adicional"
+      impact: "Tempo de resposta a incidentes aumentado - exposição prolongada a falhas"
+      immediate_action: "Verificar alertas e sensores de detecção, confirmar conectividade com sistema de monitoramento"
+      runbook_url: "https://docs.neural-hive.local/runbooks/mttd"
+      dashboard_url: "https://grafana.neural-hive.local/d/fluxo-e-autocura/fluxo-e-autocura"
+
+  # SLO: MTTR <90s (Fluxo E - Autocura) - Enhanced with recovery success rate correlation
+  - alert: MTTRHigh
+    expr: |
+      quantile(0.95,
+        avg_over_time(neural_hive_recovery_time_seconds{neural_hive_component="self-healing",status="success"}[10m])
+      ) > 90
+    for: 1m
+    labels:
+      severity: critical
+      slo: mttr
+      neural_hive_component: self-healing
+      neural_hive_layer: resiliencia
+    annotations:
+      summary: "Mean Time To Recovery P95 excede 90s"
+      description: "MTTR P95 para recuperações bem-sucedidas: {{ $value | printf \"%.1f\" }}s (SLO: <90s). Tempo de recuperação {{ $value | math.Sub 90 | printf \"%.1f\" }}s além do target."
+      current_value: "{{ $value | printf \"%.1f\" }}s"
+      slo_target: "90s"
+      threshold: "90s"
+      performance_impact: "{{ ($value / 90 - 1) * 100 | printf \"%.1f\" }}% acima do target"
+      recovery_delay: "{{ $value | math.Sub 90 | printf \"%.1f\" }}s adicional"
+      impact: "Tempo de inatividade prolongado - impacto na disponibilidade do sistema"
+      immediate_action: "Verificar gargalos no sistema de autocura, recursos limitados, ou falhas em cascata"
+      correlated_metrics: "Verificar taxa de sucesso de recuperação e MTTD associado"
+      runbook_url: "https://docs.neural-hive.local/runbooks/mttr"
+      dashboard_url: "https://grafana.neural-hive.local/d/fluxo-e-autocura/fluxo-e-autocura"
+
+  # SLO: Taxa de Automação >85% (Fluxo E) - Enhanced with manual intervention tracking
+  - alert: TaxaAutomacaoLow
+    expr: |
+      (
+        sum(rate(neural_hive_automated_actions_total{neural_hive_component="self-healing"}[5m])) /
+        sum(rate(neural_hive_total_actions_total{neural_hive_component="self-healing"}[5m]))
+      ) * 100 < 85
+    for: 5m
+    labels:
+      severity: warning
+      slo: automation-rate
+      neural_hive_component: self-healing
+      neural_hive_layer: resiliencia
+    annotations:
+      summary: "Taxa de automação abaixo de 85%"
+      description: "Taxa atual de automação: {{ $value | printf \"%.1f\" }}% (SLO: ≥85%). {{ 85 | math.Sub $value | printf \"%.1f\" }}% das ações requerem intervenção manual."
+      current_value: "{{ $value | printf \"%.1f\" }}%"
+      slo_target: "85%"
+      threshold: "85%"
+      automation_deficit: "{{ 85 | math.Sub $value | printf \"%.1f\" }}%"
+      manual_intervention_rate: "{{ 100 | math.Sub $value | printf \"%.1f\" }}%"
+      impact: "Dependência excessiva de intervenção manual - redução na capacidade de autorrecuperação"
+      immediate_action: "Identificar tipos de incidentes que requerem ação manual e avaliar oportunidades de automação"
+      recommended_review: "Analisar padrões de falha nas últimas 24h para identificar gaps de automação"
+      runbook_url: "https://docs.neural-hive.local/runbooks/automation-rate"
+      dashboard_url: "https://grafana.neural-hive.local/d/fluxo-e-autocura/fluxo-e-autocura"
+
+  # SLO: Taxa de Reincidência <1% semanal (Fluxo E) - Enhanced with root cause correlation
+  - alert: TaxaReincidenciaHigh
+    expr: |
+      (
+        sum(rate(neural_hive_incident_recurrence_total{neural_hive_component="self-healing",recurrence_type!="false_positive"}[7d])) /
+        sum(rate(neural_hive_incidents_total{neural_hive_component="self-healing"}[7d]))
+      ) * 100 > 1
+    for: 10m
+    labels:
+      severity: warning
+      slo: recurrence-rate
+      neural_hive_component: self-healing
+      neural_hive_layer: resiliencia
+    annotations:
+      summary: "Taxa de reincidência semanal acima de 1%"
+      description: "Taxa de reincidência real (excl. falsos positivos): {{ $value | printf \"%.2f\" }}% (SLO: <1%). {{ $value | math.Sub 1 | printf \"%.2f\" }}% acima do limite aceitável."
+      current_value: "{{ $value | printf \"%.2f\" }}%"
+      slo_target: "1%"
+      threshold: "1%"
+      recurrence_excess: "{{ $value | math.Sub 1 | printf \"%.2f\" }}%"
+      estimated_recurring_incidents: "~{{ $value | math.Div 100 | math.Mul 7 | printf \"%.0f\" }} incidentes recorrentes por semana"
+      impact: "Solucões de autocura ineficazes - problemas raiz não resolvidos adequadamente"
+      immediate_action: "Analisar incidentes recorrentes por categoria e componente afetado para identificar padrões"
+      recommended_analysis: "Revisar eficácia das soluções aplicadas e implementar correções mais robustas"
+      correlation_query: "neural_hive_incident_recurrence_total{recurrence_type=\"root_cause_unfixed\"}"
+      runbook_url: "https://docs.neural-hive.local/runbooks/incident-recurrence"
+      dashboard_url: "https://grafana.neural-hive.local/d/fluxo-e-autocura/fluxo-e-autocura"

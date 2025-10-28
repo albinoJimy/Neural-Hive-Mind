@@ -1,0 +1,227 @@
+syntax = "proto3";
+
+package consensus_engine;
+
+option go_package = "github.com/neural-hive-mind/consensus-engine/proto";
+
+// Extensões propostas para consensus_engine.proto
+// Estas extensões permitem ao Optimizer Agents ajustar pesos dinamicamente
+
+// Serviço para otimização de pesos de especialistas
+service ConsensusOptimization {
+  // Obter pesos atuais dos especialistas
+  rpc GetCurrentWeights(GetCurrentWeightsRequest) returns (GetCurrentWeightsResponse);
+
+  // Atualizar pesos dos especialistas
+  rpc UpdateWeights(UpdateWeightsRequest) returns (UpdateWeightsResponse);
+
+  // Validar ajuste de pesos antes de aplicar
+  rpc ValidateWeightAdjustment(ValidateWeightAdjustmentRequest) returns (ValidateWeightAdjustmentResponse);
+
+  // Reverter pesos para versão anterior
+  rpc RollbackWeights(RollbackWeightsRequest) returns (RollbackWeightsResponse);
+
+  // Obter métricas de consenso
+  rpc GetConsensusMetrics(GetConsensusMetricsRequest) returns (GetConsensusMetricsResponse);
+
+  // Obter histórico de ajustes de peso
+  rpc GetWeightHistory(GetWeightHistoryRequest) returns (GetWeightHistoryResponse);
+}
+
+// Mensagens para GetCurrentWeights
+message GetCurrentWeightsRequest {
+  // Filtrar por especialista específico (opcional)
+  optional string specialist_type = 1;
+}
+
+message GetCurrentWeightsResponse {
+  // Mapa de pesos: specialist_type -> weight
+  map<string, double> weights = 1;
+
+  // Timestamp da última atualização
+  int64 last_updated_at = 2;
+
+  // ID da otimização que aplicou os pesos atuais
+  string optimization_id = 3;
+}
+
+// Mensagens para UpdateWeights
+message UpdateWeightsRequest {
+  // Novos pesos: specialist_type -> weight
+  map<string, double> weights = 1;
+
+  // Justificativa da mudança
+  string justification = 2;
+
+  // ID da otimização
+  string optimization_id = 3;
+
+  // Se deve validar antes de aplicar
+  bool validate_before_apply = 4;
+
+  // Metadados da otimização
+  map<string, string> metadata = 5;
+}
+
+message UpdateWeightsResponse {
+  // Se foi bem-sucedido
+  bool success = 1;
+
+  // Mensagem de resultado
+  string message = 2;
+
+  // Pesos anteriores (para rollback)
+  map<string, double> previous_weights = 3;
+
+  // Pesos aplicados
+  map<string, double> applied_weights = 4;
+
+  // Timestamp da aplicação
+  int64 applied_at = 5;
+}
+
+// Mensagens para ValidateWeightAdjustment
+message ValidateWeightAdjustmentRequest {
+  // Pesos propostos: specialist_type -> weight
+  map<string, double> proposed_weights = 1;
+}
+
+message ValidateWeightAdjustmentResponse {
+  // Se os pesos são válidos
+  bool is_valid = 1;
+
+  // Mensagem de validação
+  string message = 2;
+
+  // Erros de validação (se houver)
+  repeated ValidationError errors = 3;
+
+  // Avisos (não bloqueiam aplicação)
+  repeated string warnings = 4;
+}
+
+message ValidationError {
+  // Campo com erro
+  string field = 1;
+
+  // Descrição do erro
+  string description = 2;
+
+  // Valor atual
+  string current_value = 3;
+
+  // Valor esperado/permitido
+  string expected_value = 4;
+}
+
+// Mensagens para RollbackWeights
+message RollbackWeightsRequest {
+  // ID da otimização a reverter
+  string optimization_id = 1;
+
+  // Se deve forçar rollback mesmo com dependências
+  bool force = 2;
+}
+
+message RollbackWeightsResponse {
+  // Se foi bem-sucedido
+  bool success = 1;
+
+  // Mensagem de resultado
+  string message = 2;
+
+  // Pesos restaurados
+  map<string, double> restored_weights = 3;
+
+  // Timestamp do rollback
+  int64 rolled_back_at = 4;
+}
+
+// Mensagens para GetConsensusMetrics
+message GetConsensusMetricsRequest {
+  // Intervalo de tempo (ex: "1h", "24h")
+  string time_range = 1;
+}
+
+message GetConsensusMetricsResponse {
+  // Divergência média entre especialistas
+  double average_divergence = 1;
+
+  // Confiança média das decisões
+  double average_confidence = 2;
+
+  // Risco médio
+  double average_risk = 3;
+
+  // Acurácia por especialista
+  map<string, double> specialist_accuracy = 4;
+
+  // Total de decisões no período
+  int64 total_decisions = 5;
+
+  // Métricas por especialista
+  map<string, SpecialistMetrics> specialist_metrics = 6;
+}
+
+message SpecialistMetrics {
+  // Tipo do especialista
+  string specialist_type = 1;
+
+  // Peso atual
+  double current_weight = 2;
+
+  // Acurácia
+  double accuracy = 3;
+
+  // Confiança média
+  double average_confidence = 4;
+
+  // Total de contribuições
+  int64 total_contributions = 5;
+
+  // Taxa de concordância com consenso final
+  double consensus_agreement_rate = 6;
+}
+
+// Mensagens para GetWeightHistory
+message GetWeightHistoryRequest {
+  // Filtrar por especialista (opcional)
+  optional string specialist_type = 1;
+
+  // Limite de resultados
+  int32 limit = 2;
+
+  // Offset para paginação
+  int32 offset = 3;
+}
+
+message GetWeightHistoryResponse {
+  // Histórico de ajustes
+  repeated WeightAdjustment adjustments = 1;
+
+  // Total de registros
+  int64 total = 2;
+}
+
+message WeightAdjustment {
+  // ID da otimização
+  string optimization_id = 1;
+
+  // Timestamp
+  int64 adjusted_at = 2;
+
+  // Pesos antes
+  map<string, double> weights_before = 3;
+
+  // Pesos depois
+  map<string, double> weights_after = 4;
+
+  // Justificativa
+  string justification = 5;
+
+  // Melhoria alcançada (se disponível)
+  optional double improvement = 6;
+
+  // Se foi revertido
+  bool was_rolled_back = 7;
+}

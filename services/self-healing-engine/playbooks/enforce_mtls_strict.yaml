@@ -1,0 +1,38 @@
+playbook_id: "enforce-mtls-strict-v1"
+playbook_name: "enforce_mtls_strict"
+playbook_type: "KUBERNETES"
+version: "1.0.0"
+description: "Apply Istio PeerAuthentication with mTLS STRICT mode to a namespace"
+parameters_schema:
+  type: object
+  properties:
+    namespace:
+      type: string
+  required: [namespace]
+required_capabilities: ["kubernetes.peerauthentications.apply"]
+timeout_seconds: 60
+max_retries: 1
+rollback_playbook: null
+validation_checks:
+  - "peer_authentication_applied"
+  - "mtls_strict_enforced"
+status: "AVAILABLE"
+steps:
+  - name: "Apply PeerAuthentication"
+    action: "apply_policy"
+    parameters:
+      policy_type: "ISTIO_PEER_AUTHENTICATION"
+      namespace: "{{ namespace }}"
+      policy_spec:
+        apiVersion: security.istio.io/v1beta1
+        kind: PeerAuthentication
+        metadata:
+          name: default
+          namespace: "{{ namespace }}"
+        spec:
+          mtls:
+            mode: STRICT
+  - name: "Wait for policy to propagate"
+    action: "wait"
+    parameters:
+      seconds: 10

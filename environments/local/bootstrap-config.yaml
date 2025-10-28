@@ -1,0 +1,209 @@
+# Bootstrap Configuration for Local Minikube Environment
+# Optimized for single-node development with resource constraints
+
+# Environment identifier
+environment: local
+
+# ============================================================================
+# Resource Quotas
+# ============================================================================
+# These values are more conservative than dev environment to work on
+# resource-constrained developer machines
+
+# Neural Hive System (Infrastructure)
+local_system_cpu_requests: "100m"
+local_system_memory_requests: "256Mi"
+local_system_cpu_limits: "250m"
+local_system_memory_limits: "512Mi"
+
+# Cognition Layer (Specialists)
+local_cognition_cpu_requests: "1"
+local_cognition_memory_requests: "2Gi"
+local_cognition_cpu_limits: "2"
+local_cognition_memory_limits: "4Gi"
+local_cognition_persistentvolumeclaims: "3"
+
+# Orchestration Layer
+local_orchestration_cpu_requests: "500m"
+local_orchestration_memory_requests: "1Gi"
+local_orchestration_cpu_limits: "1"
+local_orchestration_memory_limits: "2Gi"
+local_orchestration_persistentvolumeclaims: "2"
+
+# Execution Layer
+local_execution_cpu_requests: "2"
+local_execution_memory_requests: "4Gi"
+local_execution_cpu_limits: "4"
+local_execution_memory_limits: "8Gi"
+local_execution_persistentvolumeclaims: "5"
+
+# Observability Layer
+local_observability_cpu_requests: "500m"
+local_observability_memory_requests: "1Gi"
+local_observability_cpu_limits: "1"
+local_observability_memory_limits: "2Gi"
+local_observability_persistentvolumeclaims: "2"
+
+# Security (Cosign, Gatekeeper)
+local_security_cpu_requests: "250m"
+local_security_memory_requests: "512Mi"
+local_security_cpu_limits: "500m"
+local_security_memory_limits: "1Gi"
+
+# Authentication (Keycloak)
+local_auth_cpu_requests: "250m"
+local_auth_memory_requests: "512Mi"
+local_auth_cpu_limits: "500m"
+local_auth_memory_limits: "1Gi"
+local_auth_persistentvolumeclaims: "1"
+
+# Cert Manager
+local_certmanager_cpu_requests: "100m"
+local_certmanager_memory_requests: "256Mi"
+local_certmanager_cpu_limits: "250m"
+local_certmanager_memory_limits: "512Mi"
+
+# ============================================================================
+# LimitRanges (Default Resource Limits)
+# ============================================================================
+
+# Cognition Layer Defaults
+local_cognition_default_limit_cpu: "250m"
+local_cognition_default_limit_memory: "512Mi"
+local_cognition_default_request_cpu: "50m"
+local_cognition_default_request_memory: "128Mi"
+local_cognition_max_limit_cpu: "1"
+local_cognition_max_limit_memory: "2Gi"
+
+# Orchestration Layer Defaults
+local_orchestration_default_limit_cpu: "200m"
+local_orchestration_default_limit_memory: "256Mi"
+local_orchestration_default_request_cpu: "25m"
+local_orchestration_default_request_memory: "64Mi"
+local_orchestration_max_limit_cpu: "500m"
+local_orchestration_max_limit_memory: "1Gi"
+
+# Execution Layer Defaults
+local_execution_default_limit_cpu: "500m"
+local_execution_default_limit_memory: "1Gi"
+local_execution_default_request_cpu: "100m"
+local_execution_default_request_memory: "256Mi"
+local_execution_max_limit_cpu: "2"
+local_execution_max_limit_memory: "4Gi"
+
+# Observability Layer Defaults
+local_observability_default_limit_cpu: "100m"
+local_observability_default_limit_memory: "256Mi"
+local_observability_default_request_cpu: "25m"
+local_observability_default_request_memory: "64Mi"
+local_observability_max_limit_cpu: "500m"
+local_observability_max_limit_memory: "1Gi"
+
+# Authentication Defaults
+local_auth_default_limit_cpu: "200m"
+local_auth_default_limit_memory: "256Mi"
+local_auth_default_request_cpu: "50m"
+local_auth_default_request_memory: "128Mi"
+local_auth_max_limit_cpu: "500m"
+local_auth_max_limit_memory: "1Gi"
+
+# ============================================================================
+# CRD Resource Quotas (Data Governance)
+# ============================================================================
+
+local_crd_apiassets_quota: "25"
+local_crd_dataassets_quota: "50"
+local_crd_servicecontracts_quota: "15"
+local_crd_datalineages_quota: "40"
+
+# ============================================================================
+# Pod Security Standards
+# ============================================================================
+# Using 'baseline' for most namespaces in local for easier debugging
+# Production would use 'restricted'
+
+local_pod_security_enforce: "baseline"
+local_pod_security_audit: "baseline"
+local_pod_security_warn: "baseline"
+
+# ============================================================================
+# Local-Specific Settings
+# ============================================================================
+
+# Debug and Logging
+local_debug_mode: "true"
+local_verbose_logging: "true"
+local_log_level: "debug"
+
+# Network Policies
+# Set to false for easier debugging in local environment
+local_network_policies_default_deny: "false"
+
+# Storage
+local_storage_class: "standard"  # Minikube default storage class
+local_storage_retain_policy: "Delete"  # Don't retain PVs in local
+
+# Backup
+local_backup_enabled: "false"
+local_backup_schedule: ""
+
+# Monitoring and Observability
+local_monitoring_retention: "3d"  # Shorter retention for local
+local_trace_sampling_rate: "0.05"  # 5% sampling to reduce overhead
+local_metrics_scrape_interval: "30s"
+
+# Replica Counts (for local testing)
+local_min_replicas: "1"
+local_max_replicas: "2"
+
+# Resource Monitoring Thresholds
+local_cpu_threshold_warning: "70"
+local_cpu_threshold_critical: "85"
+local_memory_threshold_warning: "70"
+local_memory_threshold_critical: "85"
+
+# ============================================================================
+# Minikube-Specific Configuration
+# ============================================================================
+
+# Minikube resource allocation (reference values)
+minikube_cpus: "4"
+minikube_memory: "8192"  # MB
+minikube_disk_size: "20g"
+minikube_driver: "docker"
+kubernetes_version: "v1.29.0"
+
+# Required addons
+required_addons:
+  - "ingress"
+  - "metrics-server"
+  - "storage-provisioner"
+  - "registry"
+
+# ============================================================================
+# Feature Flags
+# ============================================================================
+
+# Enable/disable features for local development
+local_enable_istio: "false"  # Istio is heavy, disable in local
+local_enable_opentelemetry: "true"
+local_enable_mlflow: "false"  # Disable ML tracking in local
+local_enable_cosign: "false"  # Disable image signing in local
+local_enable_gatekeeper: "false"  # Disable policy enforcement in local
+
+# ============================================================================
+# Notes
+# ============================================================================
+#
+# This configuration is optimized for local Minikube development:
+# - Reduced resource quotas compared to dev environment
+# - More permissive security policies for easier debugging
+# - Shorter retention periods
+# - Disabled heavy components (Istio, MLflow)
+# - Single replica deployments
+#
+# Total estimated resource usage:
+# - CPU requests: ~4 cores
+# - Memory requests: ~8GB
+# - This fits within typical Minikube configuration
+#

@@ -1,0 +1,249 @@
+# Alertas Prometheus para Camada de Memória - Neural Hive-Mind
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: memory-layer-alerts
+  namespace: neural-hive-observability
+  labels:
+    prometheus: kube-prometheus
+    app.kubernetes.io/part-of: neural-hive-mind
+    neural-hive.io/component: memory-layer
+spec:
+  groups:
+    # MongoDB Alerts
+    - name: mongodb-alerts
+      interval: 30s
+      rules:
+        - alert: MongoDBDown
+          expr: mongodb_up == 0
+          for: 2m
+          labels:
+            severity: critical
+            component: mongodb
+            layer: memory
+          annotations:
+            summary: "MongoDB está indisponível"
+            description: "MongoDB instance {{ $labels.instance }} está down por mais de 2 minutos."
+            runbook_url: "https://docs.neural-hive.io/runbooks/mongodb-down"
+            dashboard_url: "https://grafana.neural-hive.io/d/mongodb-cluster"
+
+        - alert: MongoDBReplicationLag
+          expr: mongodb_replset_member_replication_lag > 10
+          for: 5m
+          labels:
+            severity: warning
+            component: mongodb
+            layer: memory
+          annotations:
+            summary: "MongoDB replication lag alto"
+            description: "MongoDB replica {{ $labels.instance }} tem lag de replicação > 10s."
+            runbook_url: "https://docs.neural-hive.io/runbooks/mongodb-replication-lag"
+
+        - alert: MongoDBHighConnections
+          expr: (mongodb_connections{state="current"} / mongodb_connections{state="available"}) > 0.8
+          for: 5m
+          labels:
+            severity: warning
+            component: mongodb
+            layer: memory
+          annotations:
+            summary: "MongoDB conexões altas"
+            description: "MongoDB {{ $labels.instance }} está usando {{ $value }}% das conexões disponíveis."
+            runbook_url: "https://docs.neural-hive.io/runbooks/mongodb-high-connections"
+
+        - alert: MongoDBSlowQueries
+          expr: rate(mongodb_op_latencies_latency_total{type="queries"}[5m]) > 1000000
+          for: 10m
+          labels:
+            severity: warning
+            component: mongodb
+            layer: memory
+          annotations:
+            summary: "MongoDB queries lentas"
+            description: "MongoDB {{ $labels.instance }} tem queries com latência média > 1s."
+            runbook_url: "https://docs.neural-hive.io/runbooks/mongodb-slow-queries"
+
+        - alert: MongoDBDiskSpaceHigh
+          expr: (mongodb_storage_size_bytes / mongodb_storage_free_bytes) > 0.85
+          for: 10m
+          labels:
+            severity: warning
+            component: mongodb
+            layer: memory
+          annotations:
+            summary: "MongoDB disk space alto"
+            description: "MongoDB {{ $labels.instance }} usando {{ $value }}% do espaço em disco."
+            runbook_url: "https://docs.neural-hive.io/runbooks/mongodb-disk-space"
+
+    # Neo4j Alerts
+    - name: neo4j-alerts
+      interval: 30s
+      rules:
+        - alert: Neo4jDown
+          expr: neo4j_database_system_check_point_events_total == 0
+          for: 2m
+          labels:
+            severity: critical
+            component: neo4j
+            layer: knowledge
+          annotations:
+            summary: "Neo4j está indisponível"
+            description: "Neo4j instance {{ $labels.instance }} está down por mais de 2 minutos."
+            runbook_url: "https://docs.neural-hive.io/runbooks/neo4j-down"
+            dashboard_url: "https://grafana.neural-hive.io/d/neo4j-cluster"
+
+        - alert: Neo4jHighHeapUsage
+          expr: (neo4j_vm_heap_used_bytes / neo4j_vm_heap_max_bytes) > 0.85
+          for: 5m
+          labels:
+            severity: warning
+            component: neo4j
+            layer: knowledge
+          annotations:
+            summary: "Neo4j heap usage alto"
+            description: "Neo4j {{ $labels.instance }} usando {{ $value }}% do heap."
+            runbook_url: "https://docs.neural-hive.io/runbooks/neo4j-heap-usage"
+
+        - alert: Neo4jSlowQueries
+          expr: histogram_quantile(0.95, rate(neo4j_cypher_query_execution_time_bucket[5m])) > 30
+          for: 10m
+          labels:
+            severity: warning
+            component: neo4j
+            layer: knowledge
+          annotations:
+            summary: "Neo4j queries lentas"
+            description: "Neo4j {{ $labels.instance }} P95 query time > 30s."
+            runbook_url: "https://docs.neural-hive.io/runbooks/neo4j-slow-queries"
+
+        - alert: Neo4jNoLeader
+          expr: sum(neo4j_cluster_core_is_leader) == 0
+          for: 2m
+          labels:
+            severity: critical
+            component: neo4j
+            layer: knowledge
+          annotations:
+            summary: "Neo4j cluster sem leader"
+            description: "Neo4j cluster não tem leader eleito."
+            runbook_url: "https://docs.neural-hive.io/runbooks/neo4j-no-leader"
+
+        - alert: Neo4jHighTransactionCount
+          expr: neo4j_database_transaction_active > 1000
+          for: 5m
+          labels:
+            severity: warning
+            component: neo4j
+            layer: knowledge
+          annotations:
+            summary: "Neo4j transações ativas altas"
+            description: "Neo4j {{ $labels.instance }} tem {{ $value }} transações ativas."
+            runbook_url: "https://docs.neural-hive.io/runbooks/neo4j-high-transactions"
+
+    # ClickHouse Alerts
+    - name: clickhouse-alerts
+      interval: 30s
+      rules:
+        - alert: ClickHouseDown
+          expr: clickhouse_query_total == 0
+          for: 2m
+          labels:
+            severity: critical
+            component: clickhouse
+            layer: memory
+          annotations:
+            summary: "ClickHouse está indisponível"
+            description: "ClickHouse instance {{ $labels.instance }} está down por mais de 2 minutos."
+            runbook_url: "https://docs.neural-hive.io/runbooks/clickhouse-down"
+            dashboard_url: "https://grafana.neural-hive.io/d/clickhouse-cluster"
+
+        - alert: ClickHouseReplicationLag
+          expr: clickhouse_replicas_max_absolute_delay > 60
+          for: 5m
+          labels:
+            severity: warning
+            component: clickhouse
+            layer: memory
+          annotations:
+            summary: "ClickHouse replication lag alto"
+            description: "ClickHouse {{ $labels.instance }} tem lag de replicação > 60s."
+            runbook_url: "https://docs.neural-hive.io/runbooks/clickhouse-replication-lag"
+
+        - alert: ClickHouseSlowQueries
+          expr: histogram_quantile(0.95, rate(clickhouse_query_duration_seconds_bucket[5m])) > 60
+          for: 10m
+          labels:
+            severity: warning
+            component: clickhouse
+            layer: memory
+          annotations:
+            summary: "ClickHouse queries lentas"
+            description: "ClickHouse {{ $labels.instance }} P95 query time > 60s."
+            runbook_url: "https://docs.neural-hive.io/runbooks/clickhouse-slow-queries"
+
+        - alert: ClickHouseTooManyParts
+          expr: clickhouse_table_parts > 300
+          for: 5m
+          labels:
+            severity: warning
+            component: clickhouse
+            layer: memory
+          annotations:
+            summary: "ClickHouse muitos parts"
+            description: "ClickHouse table {{ $labels.table }} tem {{ $value }} parts. Precisa merge."
+            runbook_url: "https://docs.neural-hive.io/runbooks/clickhouse-too-many-parts"
+
+        - alert: ClickHouseDiskSpaceHigh
+          expr: (clickhouse_disk_used_bytes / clickhouse_disk_total_bytes) > 0.85
+          for: 10m
+          labels:
+            severity: warning
+            component: clickhouse
+            layer: memory
+          annotations:
+            summary: "ClickHouse disk space alto"
+            description: "ClickHouse {{ $labels.instance }} usando {{ $value }}% do espaço em disco."
+            runbook_url: "https://docs.neural-hive.io/runbooks/clickhouse-disk-space"
+
+        - alert: ClickHouseZooKeeperDown
+          expr: clickhouse_zookeeper_session == 0
+          for: 2m
+          labels:
+            severity: critical
+            component: clickhouse
+            layer: memory
+          annotations:
+            summary: "ClickHouse ZooKeeper indisponível"
+            description: "ClickHouse {{ $labels.instance }} perdeu conexão com ZooKeeper."
+            runbook_url: "https://docs.neural-hive.io/runbooks/clickhouse-zookeeper-down"
+
+    # Memory Layer General Alerts
+    - name: memory-layer-general
+      interval: 60s
+      rules:
+        - alert: MemoryLayerHighLatency
+          expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{layer="memory"}[5m])) > 1
+          for: 10m
+          labels:
+            severity: warning
+            component: memory-layer
+            layer: memory
+          annotations:
+            summary: "Camada de memória com latência alta"
+            description: "P95 latency da camada de memória > 1s para {{ $labels.component }}."
+            runbook_url: "https://docs.neural-hive.io/runbooks/memory-layer-latency"
+            dashboard_url: "https://grafana.neural-hive.io/d/memory-layer-overview"
+
+        - alert: MemoryLayerLowAvailability
+          expr: (sum(up{component=~"mongodb|neo4j|clickhouse"}) / count(up{component=~"mongodb|neo4j|clickhouse"})) < 0.999
+          for: 5m
+          labels:
+            severity: critical
+            component: memory-layer
+            layer: memory
+          annotations:
+            summary: "Camada de memória com disponibilidade baixa"
+            description: "Disponibilidade da camada de memória < 99.9%."
+            runbook_url: "https://docs.neural-hive.io/runbooks/memory-layer-availability"
+            dashboard_url: "https://grafana.neural-hive.io/d/memory-layer-overview"
