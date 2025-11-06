@@ -534,58 +534,34 @@ class TechnicalSpecialist(BaseSpecialist):
 
         if security_score < 0.6:
             mitigations.append({
-                'mitigation_id': 'improve_security',
+                'mitigation_type': 'improve_security',
                 'description': 'Implementar controles de segurança adicionais',
                 'priority': 'critical',
-                'estimated_impact': 0.4,
-                'required_actions': [
-                    'Adicionar validação de entrada',
-                    'Implementar autenticação/autorização',
-                    'Revisar tratamento de dados sensíveis',
-                    'Adicionar testes de segurança'
-                ]
+                'estimated_effort': 'high'
             })
 
         if architecture_score < 0.6:
             mitigations.append({
-                'mitigation_id': 'refactor_architecture',
+                'mitigation_type': 'refactor_architecture',
                 'description': 'Melhorar padrões arquiteturais e design',
                 'priority': 'high',
-                'estimated_impact': 0.3,
-                'required_actions': [
-                    'Aplicar princípios SOLID',
-                    'Reduzir acoplamento entre componentes',
-                    'Melhorar modularidade',
-                    'Documentar decisões arquiteturais'
-                ]
+                'estimated_effort': 'medium'
             })
 
         if performance_score < 0.6:
             mitigations.append({
-                'mitigation_id': 'optimize_performance',
+                'mitigation_type': 'optimize_performance',
                 'description': 'Otimizar performance e uso de recursos',
                 'priority': 'medium',
-                'estimated_impact': 0.25,
-                'required_actions': [
-                    'Implementar cache estratégico',
-                    'Otimizar queries de banco de dados',
-                    'Adicionar processamento assíncrono',
-                    'Implementar lazy loading'
-                ]
+                'estimated_effort': 'medium'
             })
 
         if code_quality_score < 0.6:
             mitigations.append({
-                'mitigation_id': 'improve_code_quality',
+                'mitigation_type': 'improve_code_quality',
                 'description': 'Melhorar qualidade e manutenibilidade do código',
                 'priority': 'medium',
-                'estimated_impact': 0.2,
-                'required_actions': [
-                    'Adicionar testes unitários e de integração',
-                    'Melhorar documentação',
-                    'Implementar tratamento de erros robusto',
-                    'Adicionar logging estruturado'
-                ]
+                'estimated_effort': 'low'
             })
 
         return mitigations

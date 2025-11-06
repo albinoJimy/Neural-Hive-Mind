@@ -482,59 +482,34 @@ class BehaviorSpecialist(BaseSpecialist):
 
         if usability_score < 0.6:
             mitigations.append({
-                'mitigation_id': 'improve_usability',
+                'mitigation_type': 'improve_usability',
                 'description': 'Melhorar usabilidade simplificando fluxo e fornecendo feedback claro',
                 'priority': 'high',
-                'estimated_impact': 0.35,
-                'required_actions': [
-                    'Reduzir número de passos necessários',
-                    'Adicionar feedback visual/auditivo',
-                    'Implementar prevenção de erros',
-                    'Garantir consistência de interface'
-                ]
+                'estimated_effort': 'medium'
             })
 
         if accessibility_score < 0.6:
             mitigations.append({
-                'mitigation_id': 'ensure_accessibility',
+                'mitigation_type': 'ensure_accessibility',
                 'description': 'Garantir acessibilidade conforme WCAG 2.1 Level AA',
                 'priority': 'high',
-                'estimated_impact': 0.25,
-                'required_actions': [
-                    'Adicionar atributos ARIA apropriados',
-                    'Garantir navegação por teclado',
-                    'Fornecer alternativas textuais',
-                    'Verificar contraste de cores',
-                    'Testar com leitores de tela'
-                ]
+                'estimated_effort': 'medium'
             })
 
         if response_time_score < 0.6:
             mitigations.append({
-                'mitigation_id': 'optimize_response_time',
+                'mitigation_type': 'optimize_response_time',
                 'description': 'Otimizar tempos de resposta para melhor percepção do usuário',
                 'priority': 'medium',
-                'estimated_impact': 0.25,
-                'required_actions': [
-                    'Implementar loading indicators',
-                    'Otimizar processamento assíncrono',
-                    'Usar caching quando apropriado',
-                    'Fornecer feedback imediato'
-                ]
+                'estimated_effort': 'low'
             })
 
         if interaction_cost_score < 0.6:
             mitigations.append({
-                'mitigation_id': 'reduce_interaction_cost',
+                'mitigation_type': 'reduce_interaction_cost',
                 'description': 'Reduzir esforço cognitivo e físico do usuário',
                 'priority': 'medium',
-                'estimated_impact': 0.15,
-                'required_actions': [
-                    'Simplificar fluxo de interação',
-                    'Fornecer atalhos e defaults inteligentes',
-                    'Reduzir mudanças de contexto',
-                    'Implementar auto-complete/sugestões'
-                ]
+                'estimated_effort': 'low'
             })
 
         return mitigations

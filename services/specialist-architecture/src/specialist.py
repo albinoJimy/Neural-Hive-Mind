@@ -373,6 +373,7 @@ class ArchitectureSpecialist(BaseSpecialist):
             coupling_ratio = total_dependencies / max_possible_deps
             low_coupling_score = 1.0 - coupling_ratio  # Inverter: menos dependências = melhor
         else:
+            coupling_ratio = 0.0  # Sem dependências possíveis
             low_coupling_score = 1.0
 
         # Penalizar acoplamento alto
@@ -626,67 +627,42 @@ class ArchitectureSpecialist(BaseSpecialist):
 
         if design_pattern_score < 0.6:
             mitigations.append({
-                'mitigation_id': 'apply_design_patterns',
+                'mitigation_type': 'apply_design_patterns',
                 'description': 'Aplicar design patterns apropriados e evitar anti-patterns',
                 'priority': 'high',
-                'estimated_impact': 0.3,
-                'required_actions': [
-                    'Identificar problemas recorrentes e aplicar patterns conhecidos',
-                    'Refatorar código com anti-patterns',
-                    'Documentar decisões de design'
-                ]
+                'estimated_effort': 'medium'
             })
 
         if solid_score < 0.6:
             mitigations.append({
-                'mitigation_id': 'enforce_solid',
+                'mitigation_type': 'enforce_solid',
                 'description': 'Melhorar aderência aos princípios SOLID',
                 'priority': 'high',
-                'estimated_impact': 0.35,
-                'required_actions': [
-                    'Revisar responsabilidades de cada classe/módulo (SRP)',
-                    'Introduzir abstrações e interfaces (DIP, ISP)',
-                    'Garantir extensibilidade sem modificação (OCP)'
-                ]
+                'estimated_effort': 'high'
             })
 
         if coupling_cohesion_score < 0.6:
             mitigations.append({
-                'mitigation_id': 'reduce_coupling',
+                'mitigation_type': 'reduce_coupling',
                 'description': 'Reduzir acoplamento e aumentar coesão',
                 'priority': 'medium',
-                'estimated_impact': 0.25,
-                'required_actions': [
-                    'Minimizar dependências entre módulos',
-                    'Agrupar funcionalidades relacionadas',
-                    'Usar injeção de dependências'
-                ]
+                'estimated_effort': 'medium'
             })
 
         if separation_score < 0.6:
             mitigations.append({
-                'mitigation_id': 'separate_concerns',
+                'mitigation_type': 'separate_concerns',
                 'description': 'Separar concerns e responsabilidades',
                 'priority': 'medium',
-                'estimated_impact': 0.2,
-                'required_actions': [
-                    'Separar UI, lógica de negócio e camada de dados',
-                    'Evitar mistura de diferentes aspectos',
-                    'Definir boundaries claros entre concerns'
-                ]
+                'estimated_effort': 'medium'
             })
 
         if modularity_score < 0.6:
             mitigations.append({
-                'mitigation_id': 'improve_modularity',
+                'mitigation_type': 'improve_modularity',
                 'description': 'Melhorar modularidade e organização em camadas',
                 'priority': 'medium',
-                'estimated_impact': 0.2,
-                'required_actions': [
-                    'Organizar código em módulos bem definidos',
-                    'Estabelecer camadas arquiteturais claras',
-                    'Definir contratos entre módulos'
-                ]
+                'estimated_effort': 'medium'
             })
 
         return mitigations
