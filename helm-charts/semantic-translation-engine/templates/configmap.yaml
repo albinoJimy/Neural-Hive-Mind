@@ -17,6 +17,9 @@ data:
   KAFKA_SECURITY_PROTOCOL: {{ .Values.config.kafka.securityProtocol | quote }}
   KAFKA_SASL_MECHANISM: {{ .Values.config.kafka.saslMechanism | quote }}
 
+  # Schema Registry Configuration
+  SCHEMA_REGISTRY_URL: {{ .Values.config.schemaRegistry.url | quote }}
+
   # Neo4j Configuration
   NEO4J_URI: {{ .Values.config.neo4j.uri | quote }}
   NEO4J_USER: {{ .Values.config.neo4j.user | quote }}

@@ -85,11 +85,16 @@ async def lifespan(app: FastAPI):
     app_state['neo4j_client'] = neo4j_client
     logger.info("Neo4j client initialized")
 
-    # ClickHouse client (new)
-    clickhouse_client = ClickHouseClient(settings)
-    await clickhouse_client.initialize()
-    app_state['clickhouse_client'] = clickhouse_client
-    logger.info("ClickHouse client initialized")
+    # ClickHouse client (optional for local development)
+    clickhouse_client = None
+    try:
+        clickhouse_client = ClickHouseClient(settings)
+        await clickhouse_client.initialize()
+        app_state['clickhouse_client'] = clickhouse_client
+        logger.info("ClickHouse client initialized")
+    except Exception as e:
+        logger.warning("ClickHouse initialization failed, continuing without it", error=str(e))
+        app_state['clickhouse_client'] = None
 
     # Initialize unified memory client
     unified_client = UnifiedMemoryClient(
@@ -122,13 +127,13 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("Shutting down Memory Layer API...")
 
-    if 'clickhouse_client' in app_state:
+    if 'clickhouse_client' in app_state and app_state['clickhouse_client'] is not None:
         await app_state['clickhouse_client'].close()
-    if 'neo4j_client' in app_state:
+    if 'neo4j_client' in app_state and app_state['neo4j_client'] is not None:
         await app_state['neo4j_client'].close()
-    if 'mongodb_client' in app_state:
+    if 'mongodb_client' in app_state and app_state['mongodb_client'] is not None:
         await app_state['mongodb_client'].close()
-    if 'redis_client' in app_state:
+    if 'redis_client' in app_state and app_state['redis_client'] is not None:
         await app_state['redis_client'].close()
 
     logger.info("Memory Layer API shutdown complete")
@@ -154,6 +159,7 @@ async def readiness_check():
     """Readiness check - verify all memory layers are connected"""
     ready = True
     layers = {}
+    settings = app_state.get('settings')
 
     # Check each layer
     for layer in ['redis_client', 'mongodb_client', 'neo4j_client', 'clickhouse_client']:
@@ -163,6 +169,10 @@ async def readiness_check():
             layers[layer.replace('_client', '')] = "connected"
         else:
             layers[layer.replace('_client', '')] = "disconnected"
+            # ClickHouse is optional in dev environment
+            if layer == 'clickhouse_client' and settings and settings.environment == 'dev':
+                # Don't mark as not ready if ClickHouse is missing in dev
+                continue
             ready = False
 
     return {

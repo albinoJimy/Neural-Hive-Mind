@@ -488,7 +488,7 @@ class EvolutionSpecialist(BaseSpecialist):
         # Verificar se há tarefas de teste
         test_tasks = sum(
             1 for task in tasks
-            if 'test' in task.get('name', '').lower() or
+            if 'test' in (task.get('name') or '').lower() or
             task.get('task_type', '') == 'testing'
         )
         test_coverage_score = min(1.0, test_tasks / max(1, num_tasks * 0.3))

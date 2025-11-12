@@ -17,6 +17,12 @@ RUN pip install --no-cache-dir --user -r /tmp/lib-requirements.txt
 COPY services/specialist-evolution/requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
+# Baixar modelos spaCy com --user
+RUN python -m pip install --no-cache-dir --user \
+    https://github.com/explosion/spacy-models/releases/download/pt_core_news_sm-3.8.0/pt_core_news_sm-3.8.0-py3-none-any.whl \
+    https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl \
+    && python -c "import pt_core_news_sm; import en_core_web_sm; print('✓ Modelos spaCy instalados')"
+
 # Stage 2: Runtime
 FROM python:3.11-slim
 
@@ -25,8 +31,15 @@ WORKDIR /app
 # Criar usuário não-root
 RUN groupadd -r -g 1000 specialist && useradd -r -u 1000 -g specialist specialist
 
+# Criar diretórios com permissões corretas
+RUN mkdir -p /home/specialist/.cache /home/specialist/.local \
+    && chown -R specialist:specialist /home/specialist
+
 # Copiar dependências do builder
 COPY --from=builder /root/.local /home/specialist/.local
+
+# Ajustar propriedade após cópia
+RUN chown -R specialist:specialist /home/specialist/.local
 
 # Copiar biblioteca neural_hive_specialists
 COPY libraries/python/neural_hive_specialists /app/libraries/python/neural_hive_specialists
@@ -49,7 +62,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 LABEL maintainer="Neural Hive-Mind Team"
 LABEL component="evolution-specialist"
 LABEL layer="cognitiva"
-LABEL version="1.0.0"
+LABEL version="1.0.9"
 
 # Expor portas
 EXPOSE 50051 8000 8080

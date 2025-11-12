@@ -342,6 +342,28 @@ spec:
           value: "{{ .Values.config.nlu.languageModel }}"
         - name: NLU_CONFIDENCE_THRESHOLD
           value: "{{ .Values.config.nlu.confidenceThreshold }}"
+        - name: NLU_CONFIDENCE_THRESHOLD_STRICT
+          value: "{{ .Values.config.nlu.confidenceThresholdStrict }}"
+        - name: NLU_ADAPTIVE_THRESHOLD_ENABLED
+          value: "{{ .Values.config.nlu.adaptiveThresholdEnabled }}"
+        - name: NLU_RULES_CONFIG_PATH
+          value: "{{ .Values.config.nlu.rulesConfigPath }}"
+        # NLU Routing Thresholds
+        - name: NLU_ROUTING_THRESHOLD_HIGH
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: nlu_routing_threshold_high
+        - name: NLU_ROUTING_THRESHOLD_LOW
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: nlu_routing_threshold_low
+        - name: NLU_ROUTING_USE_ADAPTIVE_FOR_DECISIONS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: nlu_routing_use_adaptive_for_decisions
         - name: JAEGER_ENDPOINT
           value: "{{ .Values.observability.jaeger.endpoint }}"
 

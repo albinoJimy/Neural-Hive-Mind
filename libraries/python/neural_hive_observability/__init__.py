@@ -32,7 +32,7 @@ def process_intention(intent_id: str, user_input: str):
 ```
 """
 
-import logging
+import logging as stdlib_logging  # Import with alias to avoid conflict with local .logging module
 import os
 from typing import Optional, Dict, Any
 
@@ -44,10 +44,10 @@ from .health import HealthChecker
 from .context import ContextManager
 
 # Versão da biblioteca
-__version__ = "1.0.0"
+__version__ = "1.0.8"
 
 # Logger da biblioteca
-logger = logging.getLogger(__name__)
+logger = stdlib_logging.getLogger(__name__)
 
 # Instâncias globais
 _config: Optional[ObservabilityConfig] = None
@@ -121,7 +121,9 @@ def init_observability(
 
         # Registrar métricas de inicialização
         if _metrics:
-            _metrics.service_startup_total.inc()
+            _metrics.service_startup_total.labels(
+                **_config.common_labels
+            ).inc()
 
     except Exception as e:
         logger.error(f"Erro ao inicializar observabilidade: {e}")

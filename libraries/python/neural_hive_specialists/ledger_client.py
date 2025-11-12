@@ -10,7 +10,7 @@ import uuid
 import structlog
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from pymongo.errors import PyMongoError
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from circuitbreaker import CircuitBreaker, CircuitBreakerError
 from queue import Queue, Full, Empty
 
@@ -155,8 +155,11 @@ class LedgerClient:
         if self._client is None:
             self._client = MongoClient(
                 self.config.mongodb_uri,
-                serverSelectionTimeoutMS=5000,
-                connectTimeoutMS=5000
+                serverSelectionTimeoutMS=10000,  # Aumentado de 5000 para 10000
+                connectTimeoutMS=10000,           # Aumentado de 5000 para 10000
+                socketTimeoutMS=10000,            # Adicionado
+                retryWrites=True,                 # Adicionado
+                retryReads=True                   # Adicionado
             )
         return self._client
 
@@ -169,13 +172,42 @@ class LedgerClient:
         return self._collection
 
     def _initialize(self):
-        """Inicializa conexão e cria índices."""
+        """Inicializa conexão e cria índices com retry configurável."""
+        from tenacity import Retrying, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+        # Criar retryer com parâmetros configuráveis
+        retryer = Retrying(
+            stop=stop_after_attempt(self.config.ledger_init_retry_attempts),
+            wait=wait_exponential(multiplier=1, min=2, max=self.config.ledger_init_retry_max_wait_seconds),
+            retry=retry_if_exception_type(PyMongoError),
+            reraise=True
+        )
+
         try:
-            # Criar índices
-            self._create_indexes()
-            logger.info("Ledger indexes created successfully")
+            for attempt in retryer:
+                with attempt:
+                    # Test connection first
+                    self.client.admin.command('ping')
+                    logger.info("MongoDB connection established")
+
+                    # Criar índices
+                    self._create_indexes()
+                    logger.info("Ledger indexes created successfully")
+        except PyMongoError as e:
+            logger.error(
+                "Failed to initialize ledger client after retries",
+                error=str(e),
+                retry_attempts=self.config.ledger_init_retry_attempts,
+                max_wait_seconds=self.config.ledger_init_retry_max_wait_seconds
+            )
+            raise
         except Exception as e:
-            logger.warning("Failed to create ledger indexes", error=str(e))
+            logger.warning(
+                "Non-MongoDB error during initialization",
+                error=str(e)
+            )
+            # Don't retry on non-MongoDB errors
+            raise
 
     def _create_indexes(self):
         """Cria índices otimizados no MongoDB."""

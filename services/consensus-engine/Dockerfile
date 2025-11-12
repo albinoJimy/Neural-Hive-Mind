@@ -20,7 +20,9 @@ COPY services/consensus-engine/requirements.txt .
 COPY libraries/python/neural_hive_specialists/requirements.txt ./specialists-requirements.txt
 RUN grep -v "neuralHive" requirements.txt > requirements-build.txt && \
     pip install --no-cache-dir --user -r requirements-build.txt && \
-    pip install --no-cache-dir --user -r specialists-requirements.txt
+    pip install --no-cache-dir --user -r specialists-requirements.txt && \
+    python -m uvicorn --version && \
+    echo "✓ uvicorn runtime verification passed"
 
 # Stage 2: Runtime
 FROM python:3.11-slim
@@ -46,6 +48,13 @@ COPY libraries/python/neural_hive_specialists /app/neural_hive_specialists
 # Copy application code
 COPY services/consensus-engine/src /app/src
 
+# Ensure schema directories exist before copying
+RUN mkdir -p /app/schemas/cognitive-plan /app/schemas/consolidated-decision
+
+# Copy Avro schemas (following pattern from gateway and semantic-translation)
+COPY --chown=consensus:consensus schemas/cognitive-plan/cognitive-plan.avsc /app/schemas/cognitive-plan/cognitive-plan.avsc
+COPY --chown=consensus:consensus schemas/consolidated-decision/consolidated-decision.avsc /app/schemas/consolidated-decision/consolidated-decision.avsc
+
 # Fix ownership
 RUN chown -R consensus:consensus /app /home/consensus/.local
 
@@ -65,7 +74,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 
 # Labels
 LABEL maintainer="Neural Hive-Mind Team <team@neural-hive-mind.org>" \
-      version="1.0.0" \
+      version="1.0.9" \
       component="consensus-aggregator" \
       layer="cognitiva" \
       description="Mecanismo de Consenso Multi-Agente - Neural Hive-Mind"

@@ -2,8 +2,8 @@ apiVersion: v2
 name: specialist-evolution
 description: Evolution Specialist - Neural Hive-Mind Fase 1
 type: application
-version: 0.1.0
-appVersion: "1.0.0"
+version: 0.1.8
+appVersion: "1.0.8"
 
 keywords:
   - neural-hive-mind

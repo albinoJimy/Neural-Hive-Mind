@@ -36,9 +36,30 @@ class Settings(BaseSettings):
     
     # NLU Pipeline
     nlu_language_model: str = Field(default="pt_core_news_sm")
-    nlu_confidence_threshold: float = Field(default=0.75)
+    nlu_confidence_threshold: float = Field(default=0.5)
+    nlu_confidence_threshold_strict: float = Field(default=0.75)
+    nlu_adaptive_threshold_enabled: bool = Field(default=True)
+    nlu_rules_config_path: str = Field(default="/app/config/nlu_rules.yaml")
     nlu_cache_enabled: bool = Field(default=True)
     nlu_cache_ttl_seconds: int = Field(default=3600)
+
+    # NLU Routing Thresholds
+    nlu_routing_threshold_high: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Threshold mínimo para processamento normal (confidence >= threshold)"
+    )
+    nlu_routing_threshold_low: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=1.0,
+        description="Threshold mínimo para processamento com baixa confiança (threshold_low <= confidence < threshold_high)"
+    )
+    nlu_routing_use_adaptive_for_decisions: bool = Field(
+        default=False,
+        description="Se True, usa adaptive threshold calculado pelo NLU para decisões de roteamento; se False, usa thresholds fixos"
+    )
     
     # Redis Cache
     redis_cluster_nodes: str = Field(default="neural-hive-cache.redis-cluster.svc.cluster.local:6379")
@@ -127,6 +148,13 @@ class Settings(BaseSettings):
             # Em produção, alguns recursos de segurança são obrigatórios
             if not values.get('token_validation_enabled', True):
                 raise ValueError('token_validation_enabled must be True in production')
+        return v
+
+    @validator('nlu_routing_threshold_low')
+    def validate_routing_thresholds(cls, v, values):
+        high_threshold = values.get('nlu_routing_threshold_high', 0.5)
+        if v >= high_threshold:
+            raise ValueError(f'nlu_routing_threshold_low ({v}) must be < nlu_routing_threshold_high ({high_threshold})')
         return v
 
     class Config:

@@ -15,7 +15,7 @@ mkdir -p "$OUT_DIR"
 docker run --rm \
   -v "$(pwd):/workspace" \
   -w /workspace \
-  namely/protoc-all:1.51_1 \
+  namely/protoc-all:1.29_0 \
   -d "$PROTO_DIR" \
   -o "$OUT_DIR" \
   -l python \

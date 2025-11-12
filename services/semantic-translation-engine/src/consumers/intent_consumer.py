@@ -95,24 +95,34 @@ class IntentConsumer:
 
         logger.info('Starting consumer loop')
 
-        # Run blocking consumer in thread
-        await asyncio.to_thread(self._consume_sync_loop, processor_callback)
+        # Run consumer loop asynchronously with non-blocking poll
+        await self._consume_async_loop(processor_callback)
 
         logger.info('Consumer loop stopped')
 
-    def _consume_sync_loop(self, processor_callback: Callable):
+    async def _consume_async_loop(self, processor_callback: Callable):
         """
-        Synchronous consumer loop running in thread
+        Asynchronous consumer loop with non-blocking poll
 
         Args:
             processor_callback: Async function to process IntentEnvelope
         """
+        import concurrent.futures
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="kafka-poller")
+
         while self.running:
             try:
-                # Poll with timeout
-                msg = self.consumer.poll(timeout=1.0)
+                # Poll with short timeout (non-blocking)
+                # Run in executor to avoid blocking the event loop
+                loop = asyncio.get_running_loop()
+                msg = await loop.run_in_executor(
+                    executor,
+                    self.consumer.poll,
+                    1.0
+                )
 
                 if msg is None:
+                    await asyncio.sleep(0.1)  # Small delay to avoid busy loop
                     continue
 
                 if msg.error():
@@ -128,20 +138,17 @@ class IntentConsumer:
                 # Extract trace context from headers
                 trace_context = self._extract_trace_context(msg.headers() or [])
 
-                # Process message in event loop
+                # Process message in same event loop
                 try:
-                    # Create a new event loop for this thread if needed
-                    try:
-                        loop = asyncio.get_event_loop()
-                    except RuntimeError:
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-
-                    # Run async processor in the event loop
-                    loop.run_until_complete(processor_callback(intent_envelope, trace_context))
+                    # Run async processor directly in current event loop
+                    await processor_callback(intent_envelope, trace_context)
 
                     # Commit offset after successful processing
-                    self.consumer.commit(asynchronous=False)
+                    # Run commit in executor to avoid blocking
+                    await loop.run_in_executor(
+                        executor,
+                        lambda: self.consumer.commit(asynchronous=False)
+                    )
 
                     logger.debug(
                         'Message processed',
@@ -161,6 +168,10 @@ class IntentConsumer:
 
             except Exception as e:
                 logger.error('Error in consumer loop', error=str(e))
+                await asyncio.sleep(1.0)  # Back off on error
+
+        # Cleanup executor
+        executor.shutdown(wait=True)
 
     def _deserialize_message(self, msg) -> Dict:
         """

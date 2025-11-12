@@ -1,0 +1,47 @@
+[tool.poetry]
+name = "specialist-evolution"
+version = "1.0.8"
+description = "Specialist Evolution para Neural Hive-Mind - Evolução e otimização contínua de modelos"
+authors = ["Neural Hive-Mind Team <team@neural-hive.com>"]
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+neural-hive-specialists = "^1.0.8"
+
+# HTTP server and client
+fastapi = ">=0.104.0"
+uvicorn = {extras = ["standard"], version = ">=0.24.0"}
+requests = ">=2.31.0"
+
+# Circuit breaker and resilience
+tenacity = ">=8.2.3"
+pybreaker = ">=1.0.1"
+
+# Business-specific
+pandas = ">=2.1.0"
+numpy = ">=1.24.0"
+scikit-learn = ">=1.3.0"
+
+# Process mining
+pm4py = ">=2.7.0"
+
+# Time series forecasting
+prophet = ">=1.1.5"
+statsmodels = ">=0.14.0"
+
+# Cost analysis
+pulp = ">=2.7.0"
+
+# Logging
+structlog = ">=23.1.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=7.4.0"
+pytest-asyncio = ">=0.21.0"
+pytest-mock = ">=3.12.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

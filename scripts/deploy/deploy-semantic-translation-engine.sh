@@ -14,11 +14,18 @@ echo "Deploying Semantic Translation Engine para ambiente ${ENV}..."
 kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
 
 # 2. Aplicar labels no namespace
-kubectl label namespace ${NAMESPACE} \
-  neural-hive.io/component=semantic-translator \
-  neural-hive.io/layer=cognitiva \
-  istio-injection=enabled \
-  --overwrite
+if [ "${ENV}" = "production" ]; then
+  kubectl label namespace ${NAMESPACE} \
+    neural-hive.io/component=semantic-translation-engine \
+    neural-hive.io/layer=cognitiva \
+    istio-injection=enabled \
+    --overwrite
+else
+  kubectl label namespace ${NAMESPACE} \
+    neural-hive.io/component=semantic-translation-engine \
+    neural-hive.io/layer=cognitiva \
+    --overwrite
+fi
 
 # 3. Criar secrets (se não existirem)
 if ! kubectl get secret semantic-translation-engine-secrets -n ${NAMESPACE} &> /dev/null; then

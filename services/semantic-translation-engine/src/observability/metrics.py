@@ -22,10 +22,10 @@ dag_depth_histogram = Histogram(
     buckets=[1, 2, 3, 4, 5, 7, 10]
 )
 
-# Métricas de risco
+# Métricas de risco (STE-specific, biblioteca usa neural_hive_risk_score sem risk_band)
 risk_score_histogram = Histogram(
-    'neural_hive_risk_score',
-    'Distribuição de scores de risco',
+    'neural_hive_ste_risk_score',
+    'Distribuição de scores de risco (STE)',
     ['domain', 'risk_band'],
     buckets=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 )

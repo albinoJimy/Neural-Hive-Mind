@@ -207,7 +207,16 @@ async def readiness_check():
 
         # Check Kafka consumer
         if 'consumer' in state and state['consumer'].consumer:
-            checks['kafka_consumer'] = True
+            try:
+                # Verify consumer is properly connected and has assignments
+                state['consumer'].consumer.list_topics(timeout=2)
+                assignments = state['consumer'].consumer.assignment()
+                if assignments:
+                    checks['kafka_consumer'] = True
+                else:
+                    logger.warning("Kafka consumer has no topic assignments yet")
+            except Exception as e:
+                logger.warning("Kafka consumer check failed", error=str(e))
 
         all_ready = all(checks.values())
 

@@ -43,6 +43,10 @@ spec:
       - name: consensus-engine
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- if .Values.customCommand.enabled }}
+        command: {{ .Values.customCommand.command | toJson }}
+        args: {{ .Values.customCommand.args | toJson }}
+        {{- end }}
         ports:
         - name: http
           containerPort: {{ .Values.service.port }}

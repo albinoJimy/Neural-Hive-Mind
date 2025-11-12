@@ -44,7 +44,7 @@ config:
 
   # Kafka configuration - no TLS/SASL for local
   kafka:
-    bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
+    bootstrapServers: neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092
     consumerGroupId: semantic-translation-engine
     topics:
       - intentions.business
@@ -54,6 +54,10 @@ config:
     plansTopic: plans.ready
     securityProtocol: PLAINTEXT
     saslMechanism: PLAIN
+
+  # Schema Registry configuration
+  schemaRegistry:
+    url: "http://schema-registry.kafka.svc.cluster.local:8081/apis/ccompat/v6"
 
   # Neo4j configuration - no SSL for local
   neo4j:
@@ -65,7 +69,7 @@ config:
 
   # MongoDB configuration - no authentication for local
   mongodb:
-    uri: mongodb://neural-hive-mongodb.mongodb-cluster.svc.cluster.local:27017
+    uri: mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017
     database: neural_hive
     contextCollection: operational_context
     ledgerCollection: cognitive_ledger
@@ -108,7 +112,7 @@ serviceAccount:
 secrets:
   kafkaSaslUsername: ""
   kafkaSaslPassword: ""
-  neo4jPassword: neo4j
+  neo4jPassword: local_dev_password
   mongodbPassword: ""
   redisPassword: ""
 

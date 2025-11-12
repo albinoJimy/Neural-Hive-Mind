@@ -7,6 +7,12 @@ replicaCount: 1
 image:
   pullPolicy: IfNotPresent
 
+# Custom command for local development (single worker)
+customCommand:
+  enabled: true
+  command: ["python", "-m", "uvicorn"]
+  args: ["src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+
 # Reduced resources for local development (~50% of production)
 resources:
   requests:
@@ -47,24 +53,30 @@ config:
     clusterNodes: neural-hive-cache.redis-cluster.svc.cluster.local:6379
     sslEnabled: false
     defaultTtl: 300
+    maxTtl: 900
 
   # MongoDB configuration - no authentication for local
   mongodb:
-    uri: mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017/memory?authSource=admin
+    uri: mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/memory?authSource=admin
     database: memory
+    contextCollection: operational_context
+    lineageCollection: data_lineage
+    qualityCollection: data_quality_metrics
     retentionDays: 7
 
   # Neo4j configuration - no SSL for local
   neo4j:
-    uri: bolt://neo4j.neo4j.svc.cluster.local:7687
+    uri: bolt://neo4j.neo4j-cluster.svc.cluster.local:7687
+    user: neo4j
     database: neo4j
     enableSsl: false
     queryTimeout: 30
 
   # ClickHouse configuration
   clickhouse:
-    host: clickhouse.default.svc.cluster.local
-    port: 9000
+    host: clickhouse-http.clickhouse-cluster.svc.cluster.local
+    port: 8123
+    user: default
     database: memory
     retentionMonths: 3
 
@@ -77,17 +89,39 @@ config:
   routing:
     hotDataThresholdSeconds: 300
     warmDataThresholdDays: 7
+    coldDataThresholdMonths: 3
 
   # Data quality configuration - relaxed for local
   quality:
     checkEnabled: true
     completenessThreshold: 0.8
+    accuracyThreshold: 0.8
+    freshnessThresholdHours: 24
 
   # Feature flags - simplified for local
   features:
     enableCache: true
     enableLineageTracking: false
     enableQualityMonitoring: false
+    enableAutoRouting: true
+
+# Disable CronJobs for local development (no ConfigMap available)
+retention:
+  enabled: false
+
+quality:
+  enabled: false
+
+sync:
+  enabled: false
+
+  # Observability configuration
+  otel:
+    endpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
+  prometheus:
+    port: 8080
+  jaeger:
+    samplingRate: 1.0
 
 # Use default service account for local
 serviceAccount:
@@ -95,11 +129,17 @@ serviceAccount:
   name: default
 
 # Simplified secrets for local development
+# Note: Redis password should be retrieved from redis-cluster/redis-password secret
+# Set REDIS_PASSWORD env var or update this value to match your Redis cluster configuration
 secrets:
-  redisPassword: ""
-  neo4jPassword: neo4j
-  clickhousePassword: ""
-  mongodbPassword: ""
+  redis:
+    password: "local_dev_password"  # Update to match Redis cluster password
+  mongodb:
+    uri: mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/memory?authSource=admin
+  neo4j:
+    password: local_dev_password
+  clickhouse:
+    password: ""
 
 # Relaxed probes for local development
 livenessProbe:

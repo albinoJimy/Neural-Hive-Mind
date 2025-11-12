@@ -5,6 +5,7 @@ Define os modelos Pydantic para Planos Cognitivos (artefato central do Fluxo B).
 """
 
 import uuid
+import json
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from enum import Enum
@@ -181,18 +182,18 @@ class CognitivePlan(BaseModel):
                     'dependencies': task.dependencies,
                     'estimated_duration_ms': task.estimated_duration_ms,
                     'required_capabilities': task.required_capabilities,
-                    'parameters': task.parameters,
-                    'metadata': task.metadata
+                    'parameters': {k: str(v) for k, v in task.parameters.items()} if isinstance(task.parameters, dict) else {},
+                    'metadata': {k: str(v) for k, v in task.metadata.items()} if isinstance(task.metadata, dict) else {}
                 }
                 for task in self.tasks
             ],
             'execution_order': self.execution_order,
             'risk_score': self.risk_score,
-            'risk_band': self.risk_band.value,
+            'risk_band': self.risk_band.value if hasattr(self.risk_band, 'value') else self.risk_band,
             'risk_factors': self.risk_factors,
             'explainability_token': self.explainability_token,
             'reasoning_summary': self.reasoning_summary,
-            'status': self.status.value,
+            'status': self.status.value if hasattr(self.status, 'value') else self.status,
             'created_at': int(self.created_at.timestamp() * 1000),
             'valid_until': int(self.valid_until.timestamp() * 1000) if self.valid_until else None,
             'estimated_total_duration_ms': self.estimated_total_duration_ms,
@@ -200,7 +201,7 @@ class CognitivePlan(BaseModel):
             'original_domain': self.original_domain,
             'original_priority': self.original_priority,
             'original_security_level': self.original_security_level,
-            'metadata': self.metadata,
+            'metadata': {k: str(v) for k, v in self.metadata.items()} if isinstance(self.metadata, dict) else {},
             'schema_version': 1
         }
 
@@ -213,8 +214,8 @@ class CognitivePlan(BaseModel):
         return {
             'plan_id': self.plan_id,
             'intent_id': self.intent_id,
-            'risk_band': self.risk_band.value,
-            'status': self.status.value,
+            'risk_band': self.risk_band.value if hasattr(self.risk_band, 'value') else self.risk_band,
+            'status': self.status.value if hasattr(self.status, 'value') else self.status,
             'num_tasks': len(self.tasks),
             'created_at': self.created_at.isoformat()
         }

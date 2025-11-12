@@ -14,7 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy requirements and install dependencies
 COPY services/semantic-translation-engine/requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir --user -r requirements.txt && \
+    python -m uvicorn --version && \
+    echo "✓ uvicorn runtime verification passed"
 
 # Stage 2: Runtime
 FROM python:3.11-slim

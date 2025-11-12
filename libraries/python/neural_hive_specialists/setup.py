@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="neural-hive-specialists",
-    version="1.0.0",
+    version="1.0.8",
     description="Biblioteca compartilhada para especialistas neurais do Neural Hive-Mind",
     author="Neural Hive-Mind Team",
     packages=find_packages(),

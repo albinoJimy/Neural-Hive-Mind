@@ -9,6 +9,7 @@ data:
   specialist_version: {{ .Chart.AppVersion | quote }}
   environment: {{ .Values.config.environment | quote }}
   log_level: {{ .Values.config.logLevel | quote }}
+  enable_jwt_auth: {{ .Values.config.enableJwtAuth | default "true" | quote }}
 
   mlflow_experiment_name: {{ .Values.config.mlflow.experimentName | quote }}
   mlflow_model_name: {{ .Values.config.mlflow.modelName | quote }}

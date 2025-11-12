@@ -96,7 +96,29 @@ class BaseSpecialist(ABC):
             )
             self.mlflow_client = None
 
-        self.ledger_client = LedgerClient(config, metrics=self.metrics)
+        # Inicializar ledger respeitando flags enable_ledger e ledger_required
+        if not config.enable_ledger:
+            logger.info("Ledger disabled via configuration (enable_ledger=False)")
+            self.ledger_client = None
+        else:
+            try:
+                self.ledger_client = LedgerClient(config, metrics=self.metrics)
+                logger.info("Ledger client initialized successfully")
+            except Exception as e:
+                if config.ledger_required:
+                    logger.error(
+                        "Ledger is required but unavailable - failing initialization",
+                        error=str(e),
+                        ledger_required=True
+                    )
+                    raise RuntimeError(f"Ledger required but unavailable: {e}")
+                else:
+                    logger.warning(
+                        "Ledger client unavailable - continuing without ledger persistence",
+                        error=str(e),
+                        degraded_mode=True
+                    )
+                    self.ledger_client = None
 
         # Inicializar feature store
         try:
@@ -1046,7 +1068,11 @@ class BaseSpecialist(ABC):
                 )
             else:
                 # Passar processing_time_ms calculado para save_opinion com trace context
-                if self.tracer:
+                if self.ledger_client is None:
+                    logger.warning("Ledger unavailable - opinion not persisted", plan_id=plan_id)
+                    opinion_id = 'ledger-unavailable-' + str(uuid.uuid4())
+                    buffered = False
+                elif self.tracer:
                     with self.tracer.start_as_current_span("specialist.persist_to_ledger") as span:
                         try:
                             opinion_id = self.ledger_client.save_opinion_with_fallback(
@@ -1485,6 +1511,7 @@ class BaseSpecialist(ABC):
     def health_check(self) -> Dict[str, Any]:
         """Verifica saúde do especialista."""
         details = {}
+        degraded_reasons = []
 
         # Verificar modelo carregado
         details['model_loaded'] = str(self.model is not None)
@@ -1496,7 +1523,20 @@ class BaseSpecialist(ABC):
             details['mlflow_connected'] = 'N/A'
 
         # Verificar ledger
-        details['ledger_connected'] = str(self.ledger_client.is_connected())
+        if self.ledger_client is not None:
+            try:
+                details['ledger_connected'] = str(self.ledger_client.is_connected())
+                if not self.ledger_client.is_connected():
+                    degraded_reasons.append('ledger_unavailable')
+            except Exception as e:
+                logger.warning("Ledger health check failed", error=str(e))
+                details['ledger'] = 'unavailable'
+                details['ledger_connected'] = 'False'
+                degraded_reasons.append('ledger_unavailable')
+        else:
+            details['ledger'] = 'disabled'
+            details['ledger_connected'] = 'False'
+            degraded_reasons.append('ledger_disabled')
 
         # Verificar opinion cache
         if self.opinion_cache:
@@ -1527,7 +1567,8 @@ class BaseSpecialist(ABC):
         circuit_breaker_states = {}
         if self.mlflow_client:
             circuit_breaker_states['mlflow'] = self.mlflow_client.get_circuit_breaker_state()
-        circuit_breaker_states['ledger'] = self.ledger_client.get_circuit_breaker_state()
+        if self.ledger_client:
+            circuit_breaker_states['ledger'] = self.ledger_client.get_circuit_breaker_state()
         circuit_breaker_states['explainability'] = self.explainability_gen.get_circuit_breaker_state()
 
         details['circuit_breaker_states'] = circuit_breaker_states
@@ -1536,12 +1577,14 @@ class BaseSpecialist(ABC):
         any_circuit_open = any(state == 'open' for state in circuit_breaker_states.values())
 
         # Buffer do ledger
-        ledger_buffer_size = self.ledger_client.get_buffer_size()
-        details['ledger_buffer_size'] = str(ledger_buffer_size)
+        if self.ledger_client:
+            ledger_buffer_size = self.ledger_client.get_buffer_size()
+            details['ledger_buffer_size'] = str(ledger_buffer_size)
+        else:
+            ledger_buffer_size = 0
+            details['ledger_buffer_size'] = 'N/A'
 
         # Check for degradation signals
-        degraded_reasons = []
-
         # Check ledger buffer
         if ledger_buffer_size > 0:
             degraded_reasons.append('ledger_buffer>0')
@@ -1557,11 +1600,25 @@ class BaseSpecialist(ABC):
         if degraded_reasons:
             details['degraded_reasons'] = degraded_reasons
 
-        # Determinar status
-        critical_healthy = (
-            details['model_loaded'] == 'True' and
-            details['ledger_connected'] == 'True'
-        )
+        # Determinar status considerando modo degradado opcional do ledger
+        if self.config.ledger_required:
+            # Se ledger é obrigatório, exigir conexão para SERVING
+            critical_healthy = (
+                details['model_loaded'] == 'True' and
+                details['ledger_connected'] == 'True'
+            )
+        else:
+            # Se ledger é opcional, não exigir conexão para SERVING
+            # Marcar degraded_reasons adequadamente se ledger indisponível
+            critical_healthy = details['model_loaded'] == 'True'
+
+            # Verificar se ledger está indisponível (mas não desabilitado propositalmente)
+            if self.config.enable_ledger and details.get('ledger_connected') == 'False':
+                # Ledger está habilitado mas indisponível - modo degradado
+                if 'ledger_unavailable' not in degraded_reasons:
+                    degraded_reasons.append('ledger_unavailable')
+                details['degraded_reasons'] = degraded_reasons
+
         status = 'SERVING' if critical_healthy else 'NOT_SERVING'
 
         logger.debug(

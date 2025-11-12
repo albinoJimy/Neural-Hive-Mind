@@ -1,0 +1,289 @@
+# Regras de classificação NLU para Gateway de Intenções
+# Este arquivo define os domínios, padrões, subcategorias e boosters de confiança
+
+domains:
+  BUSINESS:
+    keywords:
+      # Portuguese
+      - negócio
+      - venda
+      - vendas
+      - cliente
+      - clientes
+      - relatório
+      - dashboard
+      - analytics
+      - métrica
+      - kpi
+      - receita
+      - faturamento
+      - lucro
+      - marketing
+      - campanha
+      - conversão
+      - funil
+      - lead
+      - prospect
+      # English
+      - business
+      - sales
+      - customer
+      - report
+      - revenue
+      - profit
+      - campaign
+      - conversion
+      - funnel
+    patterns:
+      - '\b(relatório|dashboard|report)\b'
+      - '\b(vendas?|sales|selling)\b'
+      - '\b(clientes?|customers?|client)\b'
+      - '\b(receita|revenue|income)\b'
+      - '\b(marketing|campanha|campaign)\b'
+    subcategories:
+      reporting:
+        - relatório
+        - dashboard
+        - report
+        - analytics
+        - métrica
+        - kpi
+      sales:
+        - venda
+        - vendas
+        - sales
+        - selling
+        - conversão
+        - conversion
+      customer:
+        - cliente
+        - clientes
+        - customer
+        - client
+        - prospect
+        - lead
+      marketing:
+        - marketing
+        - campanha
+        - campaign
+        - anúncio
+        - ad
+
+  TECHNICAL:
+    keywords:
+      # Portuguese
+      - api
+      - bug
+      - erro
+      - performance
+      - otimizar
+      - código
+      - função
+      - método
+      - classe
+      - algoritmo
+      - database
+      - query
+      - sql
+      - implementar
+      - desenvolver
+      - programar
+      - debug
+      - teste
+      - integração
+      # English
+      - code
+      - function
+      - method
+      - class
+      - algorithm
+      - develop
+      - implement
+      - programming
+      - debugging
+      - testing
+      - system
+      - technical
+      - development
+    patterns:
+      - '\b(api|rest|graphql|grpc)\b'
+      - '\b(bug|erro|error|issue|falha)\b'
+      - '\b(performance|otimizar|optimize|slow|lento)\b'
+      - '\b(código|code|function|método|class)\b'
+      - '\b(database|sql|query|banco)\b'
+    subcategories:
+      bug:
+        - bug
+        - erro
+        - error
+        - issue
+        - falha
+        - problem
+      performance:
+        - performance
+        - otimizar
+        - optimize
+        - slow
+        - lento
+        - latency
+      development:
+        - código
+        - code
+        - desenvolver
+        - develop
+        - implementar
+        - implement
+      testing:
+        - teste
+        - test
+        - unit
+        - integration
+        - qa
+
+  INFRASTRUCTURE:
+    keywords:
+      # Portuguese
+      - deploy
+      - deployment
+      - servidor
+      - server
+      - kubernetes
+      - k8s
+      - docker
+      - container
+      - pod
+      - cluster
+      - node
+      - infra
+      - infraestrutura
+      - devops
+      - pipeline
+      - helm
+      - terraform
+      - ansible
+      # English
+      - infrastructure
+      - orchestration
+      - provisioning
+      - scaling
+      - monitoring
+      - ci/cd
+    patterns:
+      - '\b(deploy|deployment|release)\b'
+      - '\b(servidor|server|host|vm)\b'
+      - '\b(kubernetes|k8s|docker|container)\b'
+      - '\b(infra|infrastructure|devops)\b'
+      - '\b(ci/cd|pipeline|automation)\b'
+    subcategories:
+      deployment:
+        - deploy
+        - deployment
+        - release
+        - rollout
+      containers:
+        - docker
+        - kubernetes
+        - k8s
+        - container
+        - pod
+      servers:
+        - servidor
+        - server
+        - host
+        - vm
+        - node
+      automation:
+        - ci/cd
+        - pipeline
+        - terraform
+        - ansible
+        - automation
+
+  SECURITY:
+    keywords:
+      # Portuguese
+      - segurança
+      - security
+      - autenticação
+      - authentication
+      - autorização
+      - authorization
+      - permissão
+      - permission
+      - acesso
+      - access
+      - token
+      - jwt
+      - oauth
+      - saml
+      - ssl
+      - tls
+      - criptografia
+      - encryption
+      - vulnerabilidade
+      - vulnerability
+      - firewall
+      - iam
+      # English
+      - auth
+      - login
+      - credential
+      - certificate
+      - key
+    patterns:
+      - '\b(segurança|security|secure)\b'
+      - '\b(autenticação|authentication|auth|login)\b'
+      - '\b(autorização|authorization|permission|acesso)\b'
+      - '\b(criptografia|encryption|crypto|ssl|tls)\b'
+      - '\b(vulnerabilidade|vulnerability|exploit|cve)\b'
+    subcategories:
+      authentication:
+        - autenticação
+        - authentication
+        - login
+        - auth
+        - credential
+      authorization:
+        - autorização
+        - authorization
+        - permission
+        - acesso
+        - access
+        - iam
+      encryption:
+        - criptografia
+        - encryption
+        - ssl
+        - tls
+        - certificate
+        - key
+      security:
+        - segurança
+        - security
+        - vulnerabilidade
+        - vulnerability
+        - firewall
+
+# Thresholds de qualidade para validação de texto
+quality_thresholds:
+  min_text_length: 3
+  max_text_length: 10000
+  min_words: 2
+  spam_patterns:
+    - '^(.)\1{10,}$'  # Caracteres repetidos
+    - '^\d+$'  # Apenas números
+    - '^[!@#$%^&*()]+$'  # Apenas símbolos
+
+# Boosters de confiança adaptativos
+confidence_boosters:
+  text_length_boost:
+    threshold: 50  # caracteres
+    boost: 0.05  # adicionar 5% de confiança
+  entity_presence_boost:
+    threshold: 2  # mínimo de entidades
+    boost: 0.05  # adicionar 5% de confiança
+  multiple_subcategories_boost:
+    threshold: 2  # múltiplas subcategorias detectadas
+    boost: 0.05  # adicionar 5% de confiança
+  context_role_match_boost:
+    boost: 0.10  # adicionar 10% quando role do usuário corresponde ao domínio

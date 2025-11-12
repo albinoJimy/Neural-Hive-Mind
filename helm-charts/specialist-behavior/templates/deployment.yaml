@@ -41,6 +41,10 @@ spec:
         securityContext:
           {{- toYaml . | nindent 10 }}
         {{- end }}
+        {{- with .Values.startupProbe }}
+        startupProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         ports:
         - name: grpc
           containerPort: {{ .Values.config.grpc.port }}
@@ -56,8 +60,25 @@ spec:
           value: {{ .Values.config.environment | quote }}
         - name: LOG_LEVEL
           value: {{ .Values.config.logLevel | quote }}
+        - name: ENABLE_JWT_AUTH
+          value: {{ .Values.config.enableJwtAuth | ternary "true" "false" | quote }}
+        {{- if .Values.secrets.jwtSecretKey }}
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "specialist-behavior.secretName" . }}
+              key: jwt_secret_key
+        {{- end }}
+        - name: ENABLE_PII_DETECTION
+          value: "false"
         - name: MLFLOW_TRACKING_URI
           value: {{ .Values.config.mlflow.trackingUri | quote }}
+        - name: MLFLOW_EXPERIMENT_NAME
+          value: {{ .Values.config.mlflow.experimentName | quote }}
+        - name: MLFLOW_MODEL_NAME
+          value: {{ .Values.config.mlflow.modelName | quote }}
+        - name: MLFLOW_MODEL_STAGE
+          value: {{ .Values.config.mlflow.modelStage | quote }}
         - name: MONGODB_URI
           valueFrom:
             secretKeyRef:
@@ -88,12 +109,30 @@ spec:
           value: {{ .Values.config.http.port | quote }}
         - name: PROMETHEUS_PORT
           value: {{ .Values.config.prometheus.port | quote }}
+        - name: ENABLE_LEDGER
+          value: {{ .Values.config.enableLedger | default "true" | quote }}
+        - name: LEDGER_REQUIRED
+          value: {{ .Values.config.ledgerRequired | default "false" | quote }}
+        - name: LEDGER_INIT_RETRY_ATTEMPTS
+          value: {{ .Values.config.ledgerInitRetryAttempts | default "5" | quote }}
+        - name: LEDGER_INIT_RETRY_MAX_WAIT_SECONDS
+          value: {{ .Values.config.ledgerInitRetryMaxWaitSeconds | default "30" | quote }}
+        - name: STARTUP_SKIP_WARMUP_ON_DEPENDENCY_FAILURE
+          value: {{ .Values.config.startupSkipWarmupOnDependencyFailure | default "true" | quote }}
+        - name: STARTUP_DEPENDENCY_CHECK_TIMEOUT_SECONDS
+          value: {{ .Values.config.startupDependencyCheckTimeoutSeconds | default "10" | quote }}
         livenessProbe:
           {{- toYaml .Values.livenessProbe | nindent 10 }}
         readinessProbe:
           {{- toYaml .Values.readinessProbe | nindent 10 }}
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
+        volumeMounts:
+        - name: mlruns
+          mountPath: /app/mlruns
+      volumes:
+      - name: mlruns
+        emptyDir: {}
       {{- with .Values.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}

@@ -184,12 +184,21 @@ class KafkaIntentProducer:
     def is_ready(self) -> bool:
         return self._ready and self.producer is not None
 
-    async def send_intent(self, intent_envelope: IntentEnvelope, topic_override: Optional[str] = None):
-        """Enviar intenção para Kafka com exactly-once"""
+    async def send_intent(
+        self,
+        intent_envelope: IntentEnvelope,
+        topic_override: Optional[str] = None,
+        confidence_status: Optional[str] = None,
+        requires_validation: Optional[bool] = None,
+        adaptive_threshold_used: Optional[bool] = None
+    ):
+        """Enviar intenção para Kafka com exactly-once e metadata de confiança"""
         logger.info(
             "🚀 send_intent CHAMADO",
             intent_id=intent_envelope.id,
-            domain=intent_envelope.intent.domain.value
+            domain=intent_envelope.intent.domain.value,
+            confidence=intent_envelope.confidence,
+            confidence_status=confidence_status
         )
 
         if not self.is_ready():
@@ -254,7 +263,11 @@ class KafkaIntentProducer:
                 'source-ip': os.getenv('SOURCE_IP', 'unknown').encode('utf-8'),
                 'user-id': (intent_envelope.actor.id if intent_envelope.actor else 'anonymous').encode('utf-8'),
                 'timestamp': str(int(asyncio.get_event_loop().time() * 1000)).encode('utf-8'),
-                'producer-id': self._transactional_id.encode('utf-8')
+                'producer-id': self._transactional_id.encode('utf-8'),
+                'confidence-score': str(intent_envelope.confidence).encode('utf-8'),
+                'confidence-status': (confidence_status or 'unknown').encode('utf-8'),
+                'requires-validation': str(requires_validation if requires_validation is not None else False).encode('utf-8'),
+                'adaptive-threshold-used': str(adaptive_threshold_used if adaptive_threshold_used is not None else False).encode('utf-8')
             }
 
             # Produzir mensagem
@@ -279,7 +292,10 @@ class KafkaIntentProducer:
                 intent_id=intent_envelope.id,
                 topic=topic,
                 partition_key=partition_key,
-                idempotency_key=idempotency_key
+                idempotency_key=idempotency_key,
+                confidence=intent_envelope.confidence,
+                confidence_status=confidence_status,
+                requires_validation=requires_validation
             )
 
         except Exception as e:
@@ -350,7 +366,7 @@ class KafkaIntentProducer:
                 "error_timestamp": int(asyncio.get_event_loop().time() * 1000),
                 "original_domain": intent_envelope.intent.domain.value,
                 "original_message_size": original_message_size,
-                "retry_count": intent_envelope.metadata.get("retry_count", 0),
+                "retry_count": 0,  # Inicializar como 0 na primeira vez que entra na DLQ
                 "original_intent": intent_envelope.to_avro_dict()
             }
 

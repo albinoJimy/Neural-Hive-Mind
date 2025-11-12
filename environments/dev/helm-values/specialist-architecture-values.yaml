@@ -6,15 +6,36 @@ image:
 
 resources:
   requests:
-    cpu: 200m
+    cpu: 250m      # Slightly increased from 200m for better performance
     memory: 512Mi
   limits:
     cpu: 1
     memory: 2Gi
 
+# Dev environment allows longer startup time due to resource constraints and potential debugging needs
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 15
+  periodSeconds: 15
+  timeoutSeconds: 10
+  failureThreshold: 40  # 40 * 15s = 10 minutes max startup time for dev
+  successThreshold: 1
+
 config:
   environment: dev
   logLevel: DEBUG
+
+  # Graceful degradation settings for dev environment
+  # Allow specialists to start even if dependencies are unavailable
+  enableLedger: true
+  ledgerRequired: false  # Continue in degraded mode if MongoDB unavailable
+  ledgerInitRetryAttempts: 3  # Fewer retries in dev
+  ledgerInitRetryMaxWaitSeconds: 15  # Shorter max wait in dev
+
+  startupSkipWarmupOnDependencyFailure: true
+  startupDependencyCheckTimeoutSeconds: 5
 
   mlflow:
     trackingUri: "http://mlflow.mlflow.svc.cluster.local:5000"
@@ -34,6 +55,10 @@ config:
 
   otel:
     endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+
+secrets:
+  mongodbUri: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive_dev?authSource=admin"
+  neo4jPassword: "local_dev_password"
 
 serviceMonitor:
   enabled: true

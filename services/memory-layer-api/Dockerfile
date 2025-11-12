@@ -22,24 +22,33 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Create non-root user first
+RUN useradd -m -u 1000 app
+
 # Copy Python dependencies from builder
 COPY --from=builder /root/.local /root/.local
 
-# Fix executable permissions and verify uvicorn installation
-RUN find /root/.local/bin -type f -exec chmod +x {} \; && \
-    ls -la /root/.local/bin/uvicorn* || echo "WARNING: uvicorn not found in /root/.local/bin"
-
-# Copy shared libraries directly to PYTHONPATH
+# Copy shared libraries BEFORE installing packages to avoid namespace conflicts
 COPY libraries/python/neural_hive_observability /app/neural_hive_observability
+
+# Install packages globally from /root/.local (excluding neural_hive_observability to avoid conflicts)
+RUN cp -r /root/.local/lib/python3.11/site-packages/* /usr/local/lib/python3.11/site-packages/ && \
+    rm -rf /usr/local/lib/python3.11/site-packages/neural_hive_observability* && \
+    python -m uvicorn --version && echo "✓ uvicorn accessible"
 
 # Copy application code
 COPY services/memory-layer-api/src/ ./src/
 
+# Fix ownership for non-root user
+RUN chown -R app:app /app /usr/local/lib/python3.11/site-packages
+
 # Update PATH and PYTHONPATH
-# Add user site-packages to PYTHONPATH so python -m works
-ENV PYTHONPATH=/app:/root/.local/lib/python3.11/site-packages \
+ENV PYTHONPATH=/app:/usr/local/lib/python3.11/site-packages \
     PYTHONUNBUFFERED=1 \
-    PATH=/root/.local/bin:$PATH
+    PATH=/usr/local/bin:$PATH
+
+# Switch to non-root user
+USER app
 
 # Expose ports
 EXPOSE 8000 8080
@@ -56,5 +65,5 @@ LABEL maintainer="Neural Hive-Mind Team <team@neural-hive-mind.org>" \
       neural-hive.io/layer="conhecimento-dados" \
       neural-hive.io/domain="unified-memory"
 
-# Start application with uvicorn (using python -m to avoid PATH issues)
-CMD python -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --workers 4
+# Start application with uvicorn (single worker for local development)
+CMD ["sh", "-c", "python -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --workers 1"]

@@ -5,7 +5,7 @@ Biblioteca compartilhada para implementação de especialistas neurais do Neural
 Fornece classes base, clientes, configuração, schemas de validação e utilitários para
 construção de especialistas.
 
-Versão: 1.0.0
+Versão: 1.0.8
 Schema Version: 1.0.0
 """
 
@@ -29,7 +29,7 @@ from .schemas import (
     SCHEMA_VERSION
 )
 
-__version__ = "1.0.0"
+__version__ = "1.0.8"
 
 __all__ = [
     "BaseSpecialist",

@@ -36,7 +36,14 @@ config:
   # NLU Pipeline - lower threshold for dev testing
   nlu:
     languageModel: "pt_core_news_sm"
-    confidenceThreshold: 0.6  # Lower for dev testing
+    confidenceThreshold: 0.5  # Lower for dev testing
+    confidenceThresholdStrict: 0.75
+    adaptiveThresholdEnabled: true
+    rulesConfigPath: "/app/config/nlu_rules.yaml"
+    # Routing Thresholds - mais permissivo em dev para facilitar testes
+    routingThresholdHigh: 0.4  # Threshold alto mais baixo permite mais processamento direto
+    routingThresholdLow: 0.2   # Threshold baixo reduzido para minimizar validação manual
+    routingUseAdaptiveForDecisions: true  # Habilitar adaptive para testes em dev
 
   # Development limits
   limits:

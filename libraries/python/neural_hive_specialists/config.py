@@ -25,9 +25,9 @@ class SpecialistConfig(BaseSettings):
 
     # MLflow
     mlflow_tracking_uri: str = Field(..., env="MLFLOW_TRACKING_URI")
-    mlflow_experiment_name: str = Field(..., description="Nome do experimento MLflow")
-    mlflow_model_name: str = Field(..., description="Nome do modelo registrado")
-    mlflow_model_stage: str = Field(default="Production", description="Stage do modelo")
+    mlflow_experiment_name: str = Field(..., env="MLFLOW_EXPERIMENT_NAME", description="Nome do experimento MLflow")
+    mlflow_model_name: str = Field(..., env="MLFLOW_MODEL_NAME", description="Nome do modelo registrado")
+    mlflow_model_stage: str = Field(default="Production", env="MLFLOW_MODEL_STAGE", description="Stage do modelo")
 
     # MongoDB (Ledger)
     mongodb_uri: str = Field(..., env="MONGODB_URI")
@@ -69,6 +69,16 @@ class SpecialistConfig(BaseSettings):
     warmup_enabled: bool = Field(default=True, env="WARMUP_ENABLED", description="Feature flag para habilitar warmup automático")
     warmup_on_startup: bool = Field(default=True, env="WARMUP_ON_STARTUP", description="Executar warmup automaticamente no startup")
     warmup_dummy_plan_path: Optional[str] = Field(default=None, env="WARMUP_DUMMY_PLAN_PATH", description="Caminho para plano dummy customizado")
+    startup_skip_warmup_on_dependency_failure: bool = Field(
+        default=True,
+        env="STARTUP_SKIP_WARMUP_ON_DEPENDENCY_FAILURE",
+        description="Skip warmup se dependências críticas falharem (acelera startup em modo degradado)"
+    )
+    startup_dependency_check_timeout_seconds: int = Field(
+        default=10,
+        env="STARTUP_DEPENDENCY_CHECK_TIMEOUT_SECONDS",
+        description="Timeout para verificação de dependências no startup"
+    )
 
     # Neo4j (Knowledge Graph)
     neo4j_uri: str = Field(..., env="NEO4J_URI")
@@ -131,6 +141,26 @@ class SpecialistConfig(BaseSettings):
         default=False,
         env="USE_SEMANTIC_FALLBACK",
         description="Feature flag para usar SemanticPipeline como fallback ao invés de heurísticas"
+    )
+    enable_ledger: bool = Field(
+        default=True,
+        env="ENABLE_LEDGER",
+        description="Feature flag para habilitar/desabilitar ledger persistence"
+    )
+    ledger_required: bool = Field(
+        default=False,
+        env="LEDGER_REQUIRED",
+        description="Se True, falha fatal se ledger indisponível; se False, continua em modo degradado"
+    )
+    ledger_init_retry_attempts: int = Field(
+        default=5,
+        env="LEDGER_INIT_RETRY_ATTEMPTS",
+        description="Número de tentativas de inicialização do ledger"
+    )
+    ledger_init_retry_max_wait_seconds: int = Field(
+        default=30,
+        env="LEDGER_INIT_RETRY_MAX_WAIT_SECONDS",
+        description="Tempo máximo de espera entre retries (exponential backoff)"
     )
 
     # Ledger Digital Signature Configuration

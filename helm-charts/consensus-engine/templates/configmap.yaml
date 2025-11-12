@@ -16,6 +16,7 @@ data:
   KAFKA_CONSENSUS_TOPIC_PRODUCE: {{ .Values.config.kafka.consensusTopicProduce | quote }}
   KAFKA_SECURITY_PROTOCOL: {{ .Values.config.kafka.securityProtocol | quote }}
   KAFKA_SASL_MECHANISM: {{ .Values.config.kafka.saslMechanism | quote }}
+  SCHEMA_REGISTRY_URL: {{ .Values.config.kafka.schemaRegistryUrl | quote }}
 
   # Specialist Configuration
   SPECIALIST_BUSINESS_ENDPOINT: {{ .Values.config.specialists.businessEndpoint | quote }}

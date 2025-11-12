@@ -7,9 +7,10 @@ from concurrent import futures
 import structlog
 from typing import Any
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from opentelemetry import trace
 from opentelemetry.instrumentation.grpc import GrpcInstrumentorServer
+from google.protobuf.timestamp_pb2 import Timestamp
 
 from .config import SpecialistConfig
 from .auth_interceptor import AuthInterceptor
@@ -358,6 +359,10 @@ class SpecialistServicer:
                 model_type=exp_data.get('model_type', '')
             )
 
+        # Converter metadata para map<string, string> conforme protobuf
+        metadata_dict = opinion_data.get('metadata', {})
+        metadata_str = {str(k): str(v) for k, v in metadata_dict.items()}
+
         opinion = specialist_pb2.SpecialistOpinion(
             confidence_score=opinion_data.get('confidence_score', 0.0),
             risk_score=opinion_data.get('risk_score', 0.0),
@@ -367,13 +372,34 @@ class SpecialistServicer:
             explainability_token=opinion_data.get('explainability_token', ''),
             explainability=explainability,
             mitigations=mitigations,
-            metadata=opinion_data.get('metadata', {})
+            metadata=metadata_str
         )
 
-        # Construir EvaluatePlanResponse
-        from google.protobuf.timestamp_pb2 import Timestamp
-        timestamp = Timestamp()
-        timestamp.GetCurrentTime()
+        # Construir EvaluatePlanResponse com timestamp robusto
+        try:
+            now_utc = datetime.now(timezone.utc)
+            timestamp = Timestamp()
+            timestamp.FromDatetime(now_utc)
+
+            # Validar que timestamp foi criado corretamente
+            if timestamp.seconds <= 0:
+                raise ValueError(f'Invalid timestamp seconds: {timestamp.seconds} (must be > 0)')
+            if not (0 <= timestamp.nanos < 1_000_000_000):
+                raise ValueError(f'Invalid timestamp nanos: {timestamp.nanos} (must be 0-999999999)')
+
+            logger.debug(
+                'Timestamp created',
+                seconds=timestamp.seconds,
+                nanos=timestamp.nanos,
+                iso=timestamp.ToDatetime().isoformat()
+            )
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.error(
+                'Failed to create timestamp',
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            raise ValueError(f'Failed to create evaluated_at timestamp: {e}')
 
         return specialist_pb2.EvaluatePlanResponse(
             opinion_id=result.get('opinion_id', ''),
@@ -386,6 +412,8 @@ class SpecialistServicer:
 
     def _build_health_check_response(self, health_result: dict):
         """Constrói HealthCheckResponse a partir de dict."""
+        import json
+
         status_map = {
             'SERVING': specialist_pb2.HealthCheckResponse.SERVING,
             'NOT_SERVING': specialist_pb2.HealthCheckResponse.NOT_SERVING,
@@ -396,9 +424,18 @@ class SpecialistServicer:
         status = status_map.get(health_result.get('status', 'UNKNOWN'),
                                specialist_pb2.HealthCheckResponse.UNKNOWN)
 
+        # Converter todos os valores de details para strings (protobuf espera map<string, string>)
+        raw_details = health_result.get('details', {})
+        details = {}
+        for key, value in raw_details.items():
+            if isinstance(value, (dict, list)):
+                details[key] = json.dumps(value)
+            else:
+                details[key] = str(value)
+
         return specialist_pb2.HealthCheckResponse(
             status=status,
-            details=health_result.get('details', {})
+            details=details
         )
 
     def _build_get_capabilities_response(self, capabilities: dict):
@@ -407,8 +444,6 @@ class SpecialistServicer:
 
         metrics = None
         if metrics_data:
-            from google.protobuf.timestamp_pb2 import Timestamp
-
             # Construir timestamp apenas se valor válido estiver disponível
             last_update = None
             last_model_update_str = metrics_data.get('last_model_update')
@@ -416,14 +451,30 @@ class SpecialistServicer:
             if last_model_update_str:
                 try:
                     # Tentar converter string ISO-8601 para datetime
-                    dt = datetime.fromisoformat(last_model_update_str)
+                    # Normalizar sufixo 'Z' para '+00:00' para compatibilidade com fromisoformat
+                    normalized_str = last_model_update_str.replace('Z', '+00:00')
+                    dt = datetime.fromisoformat(normalized_str)
                     last_update = Timestamp()
                     last_update.FromDatetime(dt)
+
+                    # Validar que timestamp foi criado corretamente
+                    if last_update.seconds <= 0:
+                        raise ValueError(f'Invalid timestamp seconds: {last_update.seconds}')
+                    if not (0 <= last_update.nanos < 1_000_000_000):
+                        raise ValueError(f'Invalid timestamp nanos: {last_update.nanos}')
+
+                    logger.debug(
+                        'Capabilities timestamp created',
+                        seconds=last_update.seconds,
+                        nanos=last_update.nanos,
+                        iso=last_update.ToDatetime().isoformat()
+                    )
                 except (ValueError, TypeError) as e:
                     logger.warning(
                         "Invalid last_model_update format, skipping timestamp",
                         value=last_model_update_str,
-                        error=str(e)
+                        error=str(e),
+                        error_type=type(e).__name__
                     )
                     # last_update permanece None
 

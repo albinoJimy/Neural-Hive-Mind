@@ -68,6 +68,14 @@ data:
   asr_device: {{ .Values.config.asr.device | quote }}
   nlu_language_model: {{ .Values.config.nlu.languageModel | quote }}
   nlu_confidence_threshold: {{ .Values.config.nlu.confidenceThreshold | quote }}
+  nlu_confidence_threshold_strict: {{ .Values.config.nlu.confidenceThresholdStrict | quote }}
+  nlu_adaptive_threshold_enabled: {{ .Values.config.nlu.adaptiveThresholdEnabled | quote }}
+  nlu_rules_config_path: {{ .Values.config.nlu.rulesConfigPath | quote }}
+
+  # NLU Routing Thresholds
+  nlu_routing_threshold_high: {{ .Values.config.nlu.routingThresholdHigh | default "0.5" | quote }}
+  nlu_routing_threshold_low: {{ .Values.config.nlu.routingThresholdLow | default "0.3" | quote }}
+  nlu_routing_use_adaptive_for_decisions: {{ .Values.config.nlu.routingUseAdaptiveForDecisions | default "false" | quote }}
   max_audio_size_mb: {{ .Values.config.limits.maxAudioSizeMb | quote }}
   max_text_length: {{ .Values.config.limits.maxTextLength | quote }}
   jaeger_endpoint: {{ .Values.observability.jaeger.endpoint | quote }}

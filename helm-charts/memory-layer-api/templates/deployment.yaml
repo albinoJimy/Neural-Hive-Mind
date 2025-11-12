@@ -33,6 +33,10 @@ spec:
           {{- toYaml .Values.securityContext | nindent 10 }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- if .Values.customCommand.enabled }}
+        command: {{ .Values.customCommand.command | toJson }}
+        args: {{ .Values.customCommand.args | toJson }}
+        {{- end }}
 
         ports:
         - name: http
@@ -168,6 +172,11 @@ spec:
             configMapKeyRef:
               name: {{ include "memory-layer-api.fullname" . }}-config
               key: otel_endpoint
+        - name: PROMETHEUS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "memory-layer-api.fullname" . }}-config
+              key: prometheus_port
 
         # Feature Flags
         - name: ENABLE_CACHE

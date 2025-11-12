@@ -143,11 +143,13 @@ class SemanticTranslationOrchestrator:
             self.metrics.observe_geracao_duration(duration, channel=domain or 'unknown')
             self.metrics.increment_plans(channel=domain or 'unknown', status='error')
 
+            import traceback
             logger.error(
                 'Erro gerando plano',
                 intent_id=intent_id,
                 error=str(e),
-                duration_ms=duration * 1000
+                duration_ms=duration * 1000,
+                traceback=traceback.format_exc()
             )
             raise
 
@@ -186,8 +188,8 @@ class SemanticTranslationOrchestrator:
         # Determine plan validity (24h default)
         valid_until = datetime.utcnow() + timedelta(hours=24)
 
-        constraints = intent_envelope.get('constraints', {})
-        intent = intent_envelope.get('intent', {})
+        constraints = intent_envelope.get('constraints') or {}
+        intent = intent_envelope.get('intent') or {}
 
         return CognitivePlan(
             intent_id=intent_envelope.get('id'),
@@ -211,7 +213,7 @@ class SemanticTranslationOrchestrator:
             metadata={
                 'original_confidence': intent_envelope.get('confidence'),
                 'num_similar_intents': len(
-                    intermediate_repr['historical_context'].get('similar_intents', [])
+                    ((intermediate_repr or {}).get('historical_context') or {}).get('similar_intents', [])
                 ),
                 'generator_version': '1.0.0'
             }

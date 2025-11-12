@@ -86,7 +86,7 @@ def init_tracing(config: ObservabilityConfig) -> None:
     # Criar tracer
     _tracer = trace.get_tracer(
         __name__,
-        version="1.0.0",
+        instrumenting_library_version="1.0.0",
         tracer_provider=tracer_provider
     )
 

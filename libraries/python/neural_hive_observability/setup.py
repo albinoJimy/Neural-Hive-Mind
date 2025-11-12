@@ -7,7 +7,7 @@ with open("requirements.txt", "r", encoding="utf-8") as f:
 
 setup(
     name="neural-hive-observability",
-    version="1.0.0",
+    version="1.0.8",
     description="Biblioteca de observabilidade padronizada para Neural Hive-Mind",
     long_description="Biblioteca Python que facilita instrumentação OpenTelemetry consistente "
                      "entre serviços do Neural Hive-Mind com tracing, métricas e logging estruturado.",

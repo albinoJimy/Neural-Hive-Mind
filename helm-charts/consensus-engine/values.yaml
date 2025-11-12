@@ -9,7 +9,7 @@ autoscaling:
 
 image:
   repository: neural-hive-mind/consensus-engine
-  tag: 1.0.0
+  tag: 1.0.10  # Fixed protobuf version incompatibility
   pullPolicy: IfNotPresent
 
 service:
@@ -27,22 +27,25 @@ resources:
 
 config:
   environment: production
-  logLevel: INFO
+  logLevel: DEBUG
 
   kafka:
     bootstrapServers: "neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092"
     consumerGroupId: "consensus-engine"
+    # Nomenclatura atual: plans.ready (consumo) e plans.consensus (produção)
+    # Nota: Difere do padrão specialists.opinions.* / decisions.* solicitado
+    # Para migração futura, atualizar ambos os tópicos e coordenar com STE/Gateway
     plansTopicConsume: "plans.ready"
     consensusTopicProduce: "plans.consensus"
     securityProtocol: "SASL_SSL"
     saslMechanism: "SCRAM-SHA-512"
 
   specialists:
-    businessEndpoint: "specialist-business.specialist-business.svc.cluster.local:50051"
-    technicalEndpoint: "specialist-technical.specialist-technical.svc.cluster.local:50051"
-    behaviorEndpoint: "specialist-behavior.specialist-behavior.svc.cluster.local:50051"
-    evolutionEndpoint: "specialist-evolution.specialist-evolution.svc.cluster.local:50051"
-    architectureEndpoint: "specialist-architecture.specialist-architecture.svc.cluster.local:50051"
+    businessEndpoint: "specialist-business.neural-hive.svc.cluster.local:50051"
+    technicalEndpoint: "specialist-technical.neural-hive.svc.cluster.local:50051"
+    behaviorEndpoint: "specialist-behavior.neural-hive.svc.cluster.local:50051"
+    evolutionEndpoint: "specialist-evolution.neural-hive.svc.cluster.local:50051"
+    architectureEndpoint: "specialist-architecture.neural-hive.svc.cluster.local:50051"
     grpcTimeoutMs: 5000
     grpcMaxRetries: 3
 

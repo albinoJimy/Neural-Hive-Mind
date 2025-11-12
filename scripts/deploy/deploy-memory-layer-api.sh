@@ -28,12 +28,17 @@ for component in redis-cluster mongodb-cluster neo4j-cluster clickhouse-cluster;
 done
 echo "✓ All memory layers deployed"
 
-# Verificar Kafka
-if ! kubectl get kafka -n neural-hive-kafka neural-hive-kafka &> /dev/null; then
-  echo "ERROR: Kafka cluster not deployed"
-  exit 1
+# Verificar Kafka (optional)
+REQUIRE_KAFKA=${REQUIRE_KAFKA:-false}
+if [ "$REQUIRE_KAFKA" = "true" ]; then
+  if ! kubectl get kafka -n neural-hive-kafka neural-hive-kafka &> /dev/null; then
+    echo "ERROR: Kafka cluster not deployed"
+    exit 1
+  fi
+  echo "✓ Kafka cluster ready"
+else
+  echo "⚠ Kafka check skipped (REQUIRE_KAFKA=false)"
 fi
-echo "✓ Kafka cluster ready"
 
 # Verificar e construir imagem Docker se necessário
 echo ""
@@ -60,7 +65,7 @@ kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -
 echo ""
 echo "3. Applying namespace labels..."
 kubectl label namespace ${NAMESPACE} \
-  neural-hive.io/component=memory-layer \
+  neural-hive.io/component=memory-layer-api \
   neural-hive.io/layer=conhecimento-dados \
   istio-injection=enabled \
   --overwrite
@@ -177,9 +182,10 @@ if [ -n "$POD_NAME" ]; then
     echo "⚠ not reachable"
   fi
 
-  # ClickHouse - testar HTTP
+  # ClickHouse - testar HTTP using curlimages/curl pod
   echo -n "  Testing ClickHouse... "
-  if kubectl exec -n ${NAMESPACE} ${POD_NAME} -- curl -s http://clickhouse-http.clickhouse-cluster.svc.cluster.local:8123/ping 2>/dev/null | grep -q "Ok"; then
+  if kubectl run tmp-clickhouse-check-$$ --rm -i --image=curlimages/curl --restart=Never -- \
+    curl -s http://clickhouse-http.clickhouse-cluster.svc.cluster.local:8123/ping 2>/dev/null | grep -q "Ok"; then
     echo "✓"
   else
     echo "⚠ not reachable"

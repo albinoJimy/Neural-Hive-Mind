@@ -167,7 +167,33 @@ config:
   # NLU Pipeline
   nlu:
     languageModel: "pt_core_news_sm"
-    confidenceThreshold: 0.75
+    # IMPORTANTE: confidenceThreshold é usado APENAS para análise interna do NLU,
+    # NÃO para decisões de roteamento. Para controlar o roteamento de intents,
+    # ajuste routingThresholdHigh e routingThresholdLow abaixo.
+    # Valor mantido em 0.6 para compatibilidade com análises internas do pipeline.
+    confidenceThreshold: 0.6  # Base threshold para análise NLU (não usado para roteamento)
+    confidenceThresholdStrict: 0.75
+    adaptiveThresholdEnabled: true
+    rulesConfigPath: "/app/config/nlu_rules.yaml"
+
+    # Routing Thresholds - controla decisões de roteamento de intents
+    # Matriz de Decisão de Roteamento:
+    # - confidence >= routingThresholdHigh (0.5): status="processed" → intentions.captured
+    # - routingThresholdLow <= confidence < routingThresholdHigh: status="processed_low_confidence" → intentions.captured (com flag)
+    # - confidence < routingThresholdLow (0.3): status="routed_to_validation" → intentions.validation
+    #
+    # Para reduzir roteamento para validação manual:
+    # - Reduzir routingThresholdLow (ex: 0.2) permite mais intents serem processadas
+    # - Reduzir routingThresholdHigh (ex: 0.4) aumenta volume de "low confidence" mas ainda processa
+    #
+    # Recomendações por ambiente:
+    # - Dev: routingThresholdHigh=0.4, routingThresholdLow=0.2 (mais permissivo para testes)
+    # - Staging: routingThresholdHigh=0.5, routingThresholdLow=0.3 (balanceado)
+    # - Prod: routingThresholdHigh=0.6, routingThresholdLow=0.35 (mais conservador)
+    routingThresholdHigh: 0.5  # >= 0.5: processamento normal
+    routingThresholdLow: 0.3   # 0.3-0.5: processamento com baixa confiança
+                                # < 0.3: roteamento para validação manual
+    routingUseAdaptiveForDecisions: false  # Se true, usa adaptive threshold para roteamento
 
   # Limites
   limits:
@@ -295,13 +321,27 @@ environments:
     config:
       debug: true
       logLevel: "DEBUG"
+      nlu:
+        routingThresholdHigh: 0.4  # Mais permissivo em dev
+        routingThresholdLow: 0.2
+        routingUseAdaptiveForDecisions: true  # Testar adaptive em dev
 
   staging:
     replicaCount: 2
     config:
       logLevel: "INFO"
+      nlu:
+        # Configuração para testes A/B: adaptive desabilitado para usar thresholds fixos
+        # Esta configuração é temporária para experimentos de validação
+        adaptiveThresholdEnabled: false  # Desabilitado para A/B test com thresholds fixos
+        routingUseAdaptiveForDecisions: false  # Usar apenas thresholds fixos para roteamento
+        routingThresholdHigh: 0.5  # Balanceado
+        routingThresholdLow: 0.3
 
   prod:
     replicaCount: 3
     config:
       logLevel: "WARNING"
+      nlu:
+        routingThresholdHigh: 0.6  # Mais conservador
+        routingThresholdLow: 0.35

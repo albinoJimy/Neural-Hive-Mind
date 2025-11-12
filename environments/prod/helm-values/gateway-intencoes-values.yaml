@@ -1,0 +1,202 @@
+# Production Environment Values for Gateway de Intenções
+# Override values for production environment
+
+# Production-specific replica and autoscaling
+replicaCount: 3
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Full resource requirements for production
+resources:
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+  requests:
+    cpu: 1000m
+    memory: 2Gi
+
+# Production-specific configuration
+config:
+  environment: "prod"
+  logLevel: "WARNING"
+  debug: false
+
+  # Production Kafka endpoints
+  kafka:
+    bootstrapServers: "neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092"
+    schemaRegistryUrl: "http://schema-registry.neural-hive-kafka.svc.cluster.local:8081"
+    # Production should have TLS enabled
+    tls:
+      enabled: true
+      caVerifyMode: "required"
+      protocol: "TLSv1_2"
+    # Production should have SASL enabled
+    sasl:
+      enabled: true
+      mechanism: "SCRAM-SHA-512"
+
+  # ASR Pipeline
+  asr:
+    modelName: "base"
+    device: "cpu"
+
+  # NLU Pipeline - configuração conservadora para produção
+  nlu:
+    languageModel: "pt_core_news_sm"
+    confidenceThreshold: 0.6
+    confidenceThresholdStrict: 0.75
+    adaptiveThresholdEnabled: true
+    rulesConfigPath: "/app/config/nlu_rules.yaml"
+    # Routing Thresholds - mais conservador em produção
+    routingThresholdHigh: 0.6  # Mais conservador: exige maior confiança
+    routingThresholdLow: 0.35  # Threshold baixo moderado para minimizar falsos positivos
+    routingUseAdaptiveForDecisions: false  # Usar thresholds fixos em produção para previsibilidade
+
+  # Production limits
+  limits:
+    maxAudioSizeMb: 10
+    maxTextLength: 10000
+
+  # CORS - strict for production
+  cors:
+    allowedOrigins: ["https://neural-hive.com", "https://app.neural-hive.com"]
+    allowedHosts: ["neural-hive.com", "app.neural-hive.com", "gateway.neural-hive.com"]
+
+  # Redis with TLS for production
+  redis:
+    clusterNodes: "neural-hive-cache.redis-cluster.svc.cluster.local:6379"
+    ssl:
+      enabled: true
+      certReqs: "required"
+
+# Istio fully enabled for production
+istio:
+  enabled: true
+  sidecar:
+    inject: true
+  virtualService:
+    enabled: true
+  gateway:
+    enabled: true
+
+# Ingress enabled for production
+ingress:
+  enabled: true
+  className: "istio"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  hosts:
+    - host: gateway.neural-hive.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: gateway-intencoes-prod-tls
+      hosts:
+        - gateway.neural-hive.com
+
+# Production node selection
+nodeSelector:
+  neural-hive-mind.org/workload-type: "compute-intensive"
+
+tolerations:
+  - key: "neural-hive-mind.org/gpu"
+    operator: "Equal"
+    value: "true"
+    effect: "NoSchedule"
+
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values: [gateway-intencoes]
+        topologyKey: kubernetes.io/hostname
+
+# Network policy strictly enabled for production
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: istio-system
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+        - namespaceSelector:
+            matchLabels:
+              neural-hive-mind.org/kafka-access: "enabled"
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-kafka
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+
+# PDB strictly enabled for production
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Full monitoring for production
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  path: /metrics
+  labels:
+    neural-hive-mind.org/monitoring: "enabled"
+
+# Production secrets (MUST be rotated from vault/secrets manager)
+secrets:
+  jwtSecretKey: "CHANGE-IN-PRODUCTION"
+  kafka:
+    username: "gateway-intencoes-prod"
+    password: "CHANGE-IN-PRODUCTION"
+  redis:
+    password: "CHANGE-IN-PRODUCTION"
+  keycloak:
+    clientSecret: "CHANGE-IN-PRODUCTION"
+
+# Stricter health checks for production
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Full observability for production
+observability:
+  jaeger:
+    endpoint: "http://jaeger-collector.monitoring.svc.cluster.local:14268/api/traces"
+  prometheus:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+      path: /metrics
+      labels:
+        neural-hive-mind.org/monitoring: "enabled"

@@ -689,18 +689,81 @@ async def _process_text_intention_with_context(
                 "keywords": nlu_result.keywords
             },
             confidence=nlu_result.confidence,
+            confidence_status=nlu_result.confidence_status,
             context=user_context,
             constraints=request.constraints.dict() if request.constraints else None,
             qos=request.qos.dict() if request.qos else None,
             timestamp=datetime.utcnow()
         )
 
-        # Confidence gating - route to validation if low confidence
-        logger.info(f"⚡ Antes de kafka_producer.send_intent: requires_manual_validation={nlu_result.requires_manual_validation}, intent_id={intent_id}")
-        if nlu_result.requires_manual_validation:
-            # Route to validation topic for manual validation
-            logger.info(f"📤 Chamando kafka_producer.send_intent para validação: intent_id={intent_id}")
-            await kafka_producer.send_intent(intent_envelope, topic_override="intentions.validation")
+        # Confidence gating - route based on confidence level
+        logger.info(f"⚡ Processando intent: confidence={nlu_result.confidence:.2f}, status={nlu_result.confidence_status}, requires_validation={nlu_result.requires_manual_validation}, intent_id={intent_id}")
+
+        # Determinar threshold efetivo (adaptativo ou fixo)
+        effective_threshold_high = settings.nlu_routing_threshold_high
+        effective_threshold_low = settings.nlu_routing_threshold_low
+
+        if settings.nlu_routing_use_adaptive_for_decisions and hasattr(nlu_pipeline, 'last_adaptive_threshold'):
+            effective_threshold_high = nlu_pipeline.last_adaptive_threshold
+            logger.debug(f"Using adaptive threshold: {effective_threshold_high:.2f}")
+
+        # Garantir ordenação dos thresholds: high >= low + 0.01
+        if effective_threshold_high < effective_threshold_low + 0.01:
+            logger.warning(
+                f"Threshold ordering violation detected: high={effective_threshold_high:.2f} < low={effective_threshold_low:.2f} + 0.01. "
+                f"Adjusting low threshold to maintain 0.01 gap."
+            )
+            effective_threshold_low = max(0.0, effective_threshold_high - 0.01)
+
+        logger.info(
+            f"⚡ Routing decision: confidence={nlu_result.confidence:.2f}, "
+            f"threshold_high={effective_threshold_high:.2f}, threshold_low={effective_threshold_low:.2f}, "
+            f"adaptive_enabled={settings.nlu_routing_use_adaptive_for_decisions}"
+        )
+
+        # Determinar roteamento baseado em confiança
+        if nlu_result.confidence >= effective_threshold_high:
+            # Alta ou média confiança - processar normalmente
+            await kafka_producer.send_intent(
+                intent_envelope,
+                confidence_status=nlu_result.confidence_status,
+                requires_validation=nlu_result.requires_manual_validation,
+                adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled
+            )
+            status_message = "processed"
+            processing_notes = []
+
+            if nlu_result.confidence_status == "medium":
+                processing_notes.append("Processado com confiança média - pode requerer revisão posterior")
+
+        elif nlu_result.confidence >= effective_threshold_low:
+            # Confiança baixa mas aceitável - processar com flag de baixa confiança
+            await kafka_producer.send_intent(
+                intent_envelope,
+                confidence_status="low",
+                requires_validation=True,
+                adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled
+            )
+            status_message = "processed_low_confidence"
+            processing_notes = ["Processado com confiança baixa - recomenda-se validação"]
+
+            logger.warning(
+                "Intenção processada com baixa confiança",
+                intent_id=intent_id,
+                confidence=nlu_result.confidence,
+                domain=nlu_result.domain
+            )
+        else:  # confidence < effective_threshold_low
+            # Confiança muito baixa - rotear para validação
+            await kafka_producer.send_intent(
+                intent_envelope,
+                topic_override="intentions.validation",
+                confidence_status="low",
+                requires_validation=True,
+                adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled
+            )
+            status_message = "routed_to_validation"
+            processing_notes = ["Confiança muito baixa - requer validação manual"]
 
             # Track low confidence routing metric
             low_confidence_routed_counter.labels(
@@ -712,18 +775,12 @@ async def _process_text_intention_with_context(
             ).inc()
 
             logger.info(
-                "Intenção roteada para validação manual por baixa confiança",
+                "Intenção roteada para validação manual por confiança muito baixa",
                 intent_id=intent_id,
                 confidence=nlu_result.confidence,
                 domain=nlu_result.domain,
                 threshold=nlu_pipeline.confidence_threshold
             )
-
-            status_message = "routed_to_validation"
-        else:
-            # Send to main domain topic
-            await kafka_producer.send_intent(intent_envelope)
-            status_message = "processed"
 
         # Cache intent envelope in Redis for retrieval
         if redis_client:
@@ -741,12 +798,23 @@ async def _process_text_intention_with_context(
 
         # Métricas
         processing_time = (datetime.utcnow() - start_time).total_seconds()
+
+        # Derivar status da métrica a partir de status_message
+        if status_message == "processed":
+            metric_status = "success"
+        elif status_message == "processed_low_confidence":
+            metric_status = "processed_low_confidence"
+        elif status_message == "routed_to_validation":
+            metric_status = "low_confidence_routed"
+        else:
+            metric_status = "unknown"
+
         intent_counter.labels(
             neural_hive_component="gateway",
             neural_hive_layer="experiencia",
             domain=nlu_result.domain,
             channel="api",
-            status="low_confidence_routed" if nlu_result.requires_manual_validation else "success"
+            status=metric_status
         ).inc()
         latency_histogram.labels(
             neural_hive_component="gateway",
@@ -774,14 +842,30 @@ async def _process_text_intention_with_context(
             "correlation_id": correlation_id,
             "status": status_message,
             "confidence": nlu_result.confidence,
+            "confidence_status": nlu_result.confidence_status,
             "domain": nlu_result.domain,
             "classification": nlu_result.classification,
-            "processing_time_ms": processing_time * 1000
+            "processing_time_ms": processing_time * 1000,
+            "requires_manual_validation": nlu_result.requires_manual_validation
         }
 
+        # Add routing thresholds info
+        response_data["routing_thresholds"] = {
+            "high": effective_threshold_high,
+            "low": effective_threshold_low,
+            "adaptive_used": settings.nlu_routing_use_adaptive_for_decisions
+        }
+
+        # Add processing notes if available
+        if 'processing_notes' in locals() and processing_notes:
+            response_data["processing_notes"] = processing_notes
+
+        # Add adaptive threshold info if enabled
+        if settings.nlu_adaptive_threshold_enabled:
+            response_data["adaptive_threshold_used"] = True
+
         # Add validation info if routed to validation
-        if nlu_result.requires_manual_validation:
-            response_data["requires_manual_validation"] = True
+        if status_message == "routed_to_validation":
             response_data["validation_reason"] = "confidence_below_threshold"
             response_data["confidence_threshold"] = nlu_pipeline.confidence_threshold
 
@@ -913,6 +997,7 @@ async def process_voice_intention(
                 "keywords": nlu_result.keywords
             },
             confidence=min(asr_result.confidence, nlu_result.confidence),  # Menor confiança
+            confidence_status=nlu_result.confidence_status,
             context={
                 **user_context,
                 "channel": "voice",
@@ -923,12 +1008,76 @@ async def process_voice_intention(
             timestamp=datetime.utcnow()
         )
 
-        # Confidence gating - route to validation if low confidence
-        logger.info(f"⚡ Antes de kafka_producer.send_intent: requires_manual_validation={nlu_result.requires_manual_validation}, intent_id={intent_id}")
-        if nlu_result.requires_manual_validation:
-            # Route to validation topic for manual validation
-            logger.info(f"📤 Chamando kafka_producer.send_intent para validação: intent_id={intent_id}")
-            await kafka_producer.send_intent(intent_envelope, topic_override="intentions.validation")
+        # Confidence gating - route based on confidence level (same as text flow)
+        logger.info(f"⚡ Processando intent de voz: confidence={intent_envelope.confidence:.2f}, status={nlu_result.confidence_status}, requires_validation={nlu_result.requires_manual_validation}, intent_id={intent_id}")
+
+        # Determinar threshold efetivo (adaptativo ou fixo) - mesma lógica do texto
+        effective_threshold_high = settings.nlu_routing_threshold_high
+        effective_threshold_low = settings.nlu_routing_threshold_low
+
+        if settings.nlu_routing_use_adaptive_for_decisions and hasattr(nlu_pipeline, 'last_adaptive_threshold'):
+            effective_threshold_high = nlu_pipeline.last_adaptive_threshold
+            logger.debug(f"Using adaptive threshold for voice: {effective_threshold_high:.2f}")
+
+        # Garantir ordenação dos thresholds: high >= low + 0.01
+        if effective_threshold_high < effective_threshold_low + 0.01:
+            logger.warning(
+                f"Threshold ordering violation detected (voice): high={effective_threshold_high:.2f} < low={effective_threshold_low:.2f} + 0.01. "
+                f"Adjusting low threshold to maintain 0.01 gap."
+            )
+            effective_threshold_low = max(0.0, effective_threshold_high - 0.01)
+
+        logger.info(
+            f"⚡ Routing decision (voice): confidence={intent_envelope.confidence:.2f}, "
+            f"threshold_high={effective_threshold_high:.2f}, threshold_low={effective_threshold_low:.2f}, "
+            f"adaptive_enabled={settings.nlu_routing_use_adaptive_for_decisions}"
+        )
+
+        # Determinar roteamento baseado em confiança (mesma lógica do texto)
+        if intent_envelope.confidence >= effective_threshold_high:
+            # Alta ou média confiança - processar normalmente
+            await kafka_producer.send_intent(
+                intent_envelope,
+                confidence_status=nlu_result.confidence_status,
+                requires_validation=nlu_result.requires_manual_validation,
+                adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled
+            )
+            status_message = "processed"
+            processing_notes = []
+
+            if nlu_result.confidence_status == "medium":
+                processing_notes.append("Processado com confiança média - pode requerer revisão posterior")
+
+        elif intent_envelope.confidence >= effective_threshold_low:
+            # Confiança baixa mas aceitável - processar com flag de baixa confiança
+            await kafka_producer.send_intent(
+                intent_envelope,
+                confidence_status="low",
+                requires_validation=True,
+                adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled
+            )
+            status_message = "processed_low_confidence"
+            processing_notes = ["Processado com confiança baixa - recomenda-se validação"]
+
+            logger.warning(
+                "Intenção de voz processada com baixa confiança",
+                intent_id=intent_id,
+                confidence=intent_envelope.confidence,
+                asr_confidence=asr_result.confidence,
+                nlu_confidence=nlu_result.confidence,
+                domain=nlu_result.domain
+            )
+        else:  # confidence < effective_threshold_low
+            # Confiança muito baixa - rotear para validação
+            await kafka_producer.send_intent(
+                intent_envelope,
+                topic_override="intentions.validation",
+                confidence_status="low",
+                requires_validation=True,
+                adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled
+            )
+            status_message = "routed_to_validation"
+            processing_notes = ["Confiança muito baixa - requer validação manual"]
 
             # Track low confidence routing metric
             low_confidence_routed_counter.labels(
@@ -940,7 +1089,7 @@ async def process_voice_intention(
             ).inc()
 
             logger.info(
-                "Intenção de voz roteada para validação manual por baixa confiança",
+                "Intenção de voz roteada para validação manual por confiança muito baixa",
                 intent_id=intent_id,
                 confidence=intent_envelope.confidence,
                 asr_confidence=asr_result.confidence,
@@ -948,12 +1097,6 @@ async def process_voice_intention(
                 domain=nlu_result.domain,
                 threshold=nlu_pipeline.confidence_threshold
             )
-
-            status_message = "routed_to_validation"
-        else:
-            # Send to main domain topic
-            await kafka_producer.send_intent(intent_envelope)
-            status_message = "processed"
 
         # Cache intent envelope in Redis for retrieval
         if redis_client:
@@ -971,12 +1114,23 @@ async def process_voice_intention(
 
         # Métricas
         processing_time = (datetime.utcnow() - start_time).total_seconds()
+
+        # Derivar status da métrica a partir de status_message
+        if status_message == "processed":
+            metric_status = "success"
+        elif status_message == "processed_low_confidence":
+            metric_status = "processed_low_confidence"
+        elif status_message == "routed_to_validation":
+            metric_status = "low_confidence_routed"
+        else:
+            metric_status = "unknown"
+
         intent_counter.labels(
             neural_hive_component="gateway",
             neural_hive_layer="experiencia",
             domain=nlu_result.domain,
             channel="voice",
-            status="low_confidence_routed" if nlu_result.requires_manual_validation else "success"
+            status=metric_status
         ).inc()
         latency_histogram.labels(
             neural_hive_component="gateway",
@@ -1008,16 +1162,32 @@ async def process_voice_intention(
             "status": status_message,
             "transcribed_text": asr_result.text,
             "confidence": intent_envelope.confidence,
+            "confidence_status": nlu_result.confidence_status,
             "asr_confidence": asr_result.confidence,
             "nlu_confidence": nlu_result.confidence,
             "domain": nlu_result.domain,
             "classification": nlu_result.classification,
-            "processing_time_ms": processing_time * 1000
+            "processing_time_ms": processing_time * 1000,
+            "requires_manual_validation": nlu_result.requires_manual_validation
         }
 
+        # Add routing thresholds info
+        response_data["routing_thresholds"] = {
+            "high": effective_threshold_high,
+            "low": effective_threshold_low,
+            "adaptive_used": settings.nlu_routing_use_adaptive_for_decisions
+        }
+
+        # Add processing notes if available
+        if 'processing_notes' in locals() and processing_notes:
+            response_data["processing_notes"] = processing_notes
+
+        # Add adaptive threshold info if enabled
+        if settings.nlu_adaptive_threshold_enabled:
+            response_data["adaptive_threshold_used"] = True
+
         # Add validation info if routed to validation
-        if nlu_result.requires_manual_validation:
-            response_data["requires_manual_validation"] = True
+        if status_message == "routed_to_validation":
             response_data["validation_reason"] = "confidence_below_threshold"
             response_data["confidence_threshold"] = nlu_pipeline.confidence_threshold
 
@@ -1087,7 +1257,13 @@ async def service_status():
             "nlu_pipeline": {
                 "ready": nlu_pipeline is not None and nlu_pipeline.is_ready(),
                 "model": settings.nlu_language_model,
-                "confidence_threshold": settings.nlu_confidence_threshold
+                "confidence_threshold": settings.nlu_confidence_threshold,
+                "adaptive_threshold_enabled": settings.nlu_adaptive_threshold_enabled,
+                "routing_thresholds": {
+                    "high": settings.nlu_routing_threshold_high,
+                    "low": settings.nlu_routing_threshold_low,
+                    "use_adaptive_for_decisions": settings.nlu_routing_use_adaptive_for_decisions
+                }
             },
             "kafka_producer": {
                 "ready": kafka_producer is not None and kafka_producer.is_ready(),

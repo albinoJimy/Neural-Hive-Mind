@@ -30,7 +30,8 @@ class Settings(BaseSettings):
             'intentions.business',
             'intentions.technical',
             'intentions.infrastructure',
-            'intentions.security'
+            'intentions.security',
+            'intentions.validation'
         ],
         description='Kafka topics to consume'
     )
@@ -94,7 +95,7 @@ class Settings(BaseSettings):
         default='http://opentelemetry-collector.observability.svc.cluster.local:4317',
         description='OpenTelemetry endpoint'
     )
-    prometheus_port: int = Field(default=8080, description='Prometheus metrics port')
+    prometheus_port: int = Field(default=8000, description='Prometheus metrics port')
     jaeger_sampling_rate: float = Field(default=1.0, description='Jaeger sampling rate')
 
     # Risk Scoring configuration

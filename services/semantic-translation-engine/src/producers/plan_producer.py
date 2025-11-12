@@ -130,7 +130,7 @@ class KafkaPlanProducer:
             headers = [
                 ('plan-id', cognitive_plan.plan_id.encode('utf-8')),
                 ('intent-id', cognitive_plan.intent_id.encode('utf-8')),
-                ('risk-band', cognitive_plan.risk_band.value.encode('utf-8')),
+                ('risk-band', (cognitive_plan.risk_band.value if hasattr(cognitive_plan.risk_band, 'value') else cognitive_plan.risk_band).encode('utf-8')),
                 ('schema-version', b'1'),
                 ('content-type', content_type.encode('utf-8')),
             ]
@@ -173,7 +173,7 @@ class KafkaPlanProducer:
                 plan_id=cognitive_plan.plan_id,
                 intent_id=cognitive_plan.intent_id,
                 topic=topic,
-                risk_band=cognitive_plan.risk_band.value,
+                risk_band=cognitive_plan.risk_band.value if hasattr(cognitive_plan.risk_band, 'value') else cognitive_plan.risk_band,
                 size_bytes=len(value),
                 format=content_type
             )

@@ -129,6 +129,7 @@ class IntentEnvelope(BaseModel):
     actor: Actor = Field(..., description="Ator que originou a intenção")
     intent: Intent = Field(..., description="Detalhes da intenção")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Score de confiança")
+    confidence_status: Optional[str] = Field(None, description="Status de confiança: high, medium, ou low")
 
     context: Optional[Context] = Field(None, description="Contexto da intenção")
     constraints: Optional[Constraint] = Field(None, description="Restrições")
@@ -258,6 +259,7 @@ class IntentEnvelope(BaseModel):
                 "original_language": self.intent.original_language
             },
             "confidence": self.confidence,
+            "confidence_status": self.confidence_status,
             "timestamp": self.timestamp.isoformat(),
             "cached_at": datetime.utcnow().isoformat()
         }
@@ -301,3 +303,5 @@ class NLUResult(BaseModel):
     entities: List[Entity] = Field(default_factory=list, description="Entidades extraídas")
     keywords: List[str] = Field(default_factory=list, description="Palavras-chave")
     requires_manual_validation: bool = Field(default=False, description="Requer validação manual")
+    confidence_status: str = Field(default="medium", description="Status de confiança: high, medium, ou low")
+    adaptive_threshold: Optional[float] = Field(None, description="Threshold adaptativo calculado pelo NLU")

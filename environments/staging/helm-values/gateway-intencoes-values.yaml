@@ -1,0 +1,153 @@
+# Staging Environment Values for Gateway de Intenções
+# Override values for staging environment
+
+# Staging-specific replica and autoscaling
+replicaCount: 2
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Moderate resource requirements for staging
+resources:
+  limits:
+    cpu: 1500m
+    memory: 3Gi
+  requests:
+    cpu: 750m
+    memory: 1.5Gi
+
+# Staging-specific configuration
+config:
+  environment: "staging"
+  logLevel: "INFO"
+  debug: false
+
+  # Staging Kafka endpoints
+  kafka:
+    bootstrapServers: "neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092"
+    schemaRegistryUrl: "http://schema-registry.neural-hive-kafka.svc.cluster.local:8081"
+
+  # ASR Pipeline
+  asr:
+    modelName: "base"
+    device: "cpu"
+
+  # NLU Pipeline - configuração para testes A/B com thresholds fixos
+  nlu:
+    languageModel: "pt_core_news_sm"
+    confidenceThreshold: 0.6
+    confidenceThresholdStrict: 0.75
+    # A/B Test: Adaptive desabilitado para usar apenas thresholds fixos
+    adaptiveThresholdEnabled: false
+    rulesConfigPath: "/app/config/nlu_rules.yaml"
+    # Routing Thresholds - balanceado para staging
+    routingThresholdHigh: 0.5  # Balanceado: aceitável para maioria dos casos
+    routingThresholdLow: 0.3   # Threshold baixo moderado
+    routingUseAdaptiveForDecisions: false  # Desabilitado para A/B test
+
+  # Staging limits
+  limits:
+    maxAudioSizeMb: 10
+    maxTextLength: 10000
+
+  # CORS - controlled for staging
+  cors:
+    allowedOrigins: ["https://staging.neural-hive.local", "https://staging-app.neural-hive.local"]
+    allowedHosts: ["staging.neural-hive.local", "staging-app.neural-hive.local"]
+
+# Istio enabled for staging
+istio:
+  enabled: true
+  sidecar:
+    inject: true
+  virtualService:
+    enabled: false
+  gateway:
+    enabled: false
+
+# Ingress enabled for staging
+ingress:
+  enabled: true
+  className: "istio"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+  hosts:
+    - host: gateway-staging.neural-hive.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: gateway-intencoes-staging-tls
+      hosts:
+        - gateway-staging.neural-hive.local
+
+# Moderate node selection for staging
+nodeSelector:
+  neural-hive-mind.org/workload-type: "compute-intensive"
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [gateway-intencoes]
+          topologyKey: kubernetes.io/hostname
+
+# Network policy enabled for staging
+networkPolicy:
+  enabled: true
+
+# PDB enabled for staging
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Monitoring enabled
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  path: /metrics
+  labels:
+    neural-hive-mind.org/monitoring: "enabled"
+
+# Staging secrets (should be rotated regularly)
+secrets:
+  jwtSecretKey: "staging-secret-key-change-me"
+
+# Health checks
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 45
+  periodSeconds: 25
+  timeoutSeconds: 8
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Observability for staging
+observability:
+  jaeger:
+    endpoint: "http://jaeger-collector.monitoring.svc.cluster.local:14268/api/traces"
+  prometheus:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      interval: 30s

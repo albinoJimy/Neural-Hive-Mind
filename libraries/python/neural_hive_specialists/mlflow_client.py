@@ -293,6 +293,9 @@ class MLflowClient:
             span.set_attribute("mlflow.confidence.score", opinion.get('confidence_score', 0.0))
 
             try:
+                # Ensure mlflow global API points to the same tracking server
+                mlflow.set_tracking_uri(self.config.mlflow_tracking_uri)
+
                 with mlflow.start_run(experiment_id=self._experiment_id):
                     # Log params
                     mlflow.log_param("plan_id", plan_id)
@@ -467,10 +470,15 @@ class MLflowClient:
 
             # Se chegou aqui, MLflow está acessível
             self._enabled = True
+
+            # Set experiment_id after successful connectivity
+            self._experiment_id = self._get_or_create_experiment(self.config.mlflow_experiment_name)
+
             logger.info(
                 "MLflow client habilitado com sucesso",
                 tracking_uri=self.config.mlflow_tracking_uri,
-                experiment_name=self.config.mlflow_experiment_name
+                experiment_name=self.config.mlflow_experiment_name,
+                experiment_id=self._experiment_id
             )
         except Exception as e:
             logger.warning(

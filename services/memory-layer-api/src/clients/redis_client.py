@@ -6,9 +6,10 @@ Fornece interface assíncrona ao Redis Cluster para cache de alta performance.
 
 import json
 import structlog
-from typing import Dict, Optional, List
-from redis.asyncio import RedisCluster
-from redis.exceptions import RedisError
+from typing import Dict, Optional, List, Union
+from redis.asyncio import RedisCluster, Redis
+from redis.asyncio.cluster import ClusterNode
+from redis.exceptions import RedisError, RedisClusterException
 
 
 logger = structlog.get_logger()
@@ -17,42 +18,71 @@ logger = structlog.get_logger()
 class RedisClient:
     """Cliente Redis assíncrono para operações de cache"""
 
-    def __init__(self, cluster_nodes: str, password: Optional[str] = None, ssl_enabled: bool = False):
+    def __init__(self, cluster_nodes: str, password: Optional[str] = None, ssl_enabled: bool = False, cluster_enabled: bool = True):
         """
         Inicializa o cliente Redis
 
         Args:
-            cluster_nodes: Nós do cluster Redis (separados por vírgula)
+            cluster_nodes: Nós do cluster Redis (separados por vírgula) ou host:port standalone
             password: Senha do Redis (opcional)
             ssl_enabled: Habilitar SSL
+            cluster_enabled: Se True, usa RedisCluster. Se False, usa Redis standalone
         """
         self.cluster_nodes = cluster_nodes
         self.password = password
         self.ssl_enabled = ssl_enabled
-        self.client: Optional[RedisCluster] = None
+        self.cluster_enabled = cluster_enabled
+        self.client: Optional[Union[RedisCluster, Redis]] = None
 
     async def initialize(self):
-        """Inicializa o cliente Redis Cluster"""
-        startup_nodes = [
-            {"host": node.split(':')[0], "port": int(node.split(':')[1])}
-            for node in self.cluster_nodes.split(',')
-        ]
+        """Inicializa o cliente Redis (cluster ou standalone)"""
+        if self.cluster_enabled:
+            # Modo cluster
+            startup_nodes = [
+                ClusterNode(host=node.split(':')[0], port=int(node.split(':')[1]))
+                for node in self.cluster_nodes.split(',')
+            ]
 
-        self.client = RedisCluster(
-            startup_nodes=startup_nodes,
-            password=self.password,
-            ssl=self.ssl_enabled,
-            decode_responses=True
-        )
+            try:
+                self.client = RedisCluster(
+                    startup_nodes=startup_nodes,
+                    password=self.password if self.password else None,
+                    ssl=self.ssl_enabled,
+                    decode_responses=True
+                )
+                await self.client.ping()
+                logger.info(
+                    'Redis Cluster client inicializado',
+                    nodes=self.cluster_nodes,
+                    ssl=self.ssl_enabled
+                )
+            except RedisClusterException as e:
+                logger.warning(
+                    'Falha ao conectar em modo cluster, tentando standalone',
+                    error=str(e)
+                )
+                # Fallback para standalone
+                self.cluster_enabled = False
 
-        # Verifica conectividade
-        await self.client.ping()
+        if not self.cluster_enabled:
+            # Modo standalone
+            node = self.cluster_nodes.split(',')[0]  # Usa primeiro nó
+            host, port = node.split(':')
 
-        logger.info(
-            'Redis client inicializado',
-            nodes=self.cluster_nodes,
-            ssl=self.ssl_enabled
-        )
+            self.client = Redis(
+                host=host,
+                port=int(port),
+                password=self.password if self.password else None,
+                ssl=self.ssl_enabled,
+                decode_responses=True
+            )
+            await self.client.ping()
+            logger.info(
+                'Redis standalone client inicializado',
+                host=host,
+                port=port,
+                ssl=self.ssl_enabled
+            )
 
     async def get(self, key: str) -> Optional[str]:
         """
