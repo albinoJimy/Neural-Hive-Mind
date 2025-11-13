@@ -11,7 +11,7 @@ spacy>=3.7.0
 grpcio>=1.60.0,<1.63.0
 grpcio-tools>=1.60.0,<1.63.0
 grpcio-health-checking>=1.60.0,<1.63.0
-protobuf>=4.25.0,<5.0.0  # Compatible with grpcio-tools 1.60.0-1.62.x, supports runtime_version
+protobuf>=5.27.0  # Supports runtime_version (needed for protoc 6.x generated code)
 
 # MLflow
 mlflow>=2.9.0
