@@ -15,7 +15,7 @@ fastavro>=1.8.0
 # gRPC
 grpcio>=1.60.0,<1.63.0
 grpcio-tools>=1.60.0,<1.63.0
-protobuf>=4.21.6,<5.0.0  # Compatible with grpcio-tools 1.60.0-1.62.x
+protobuf>=4.25.0,<5.0.0  # Compatible with grpcio-tools 1.60.0-1.62.x, supports runtime_version
 
 # MongoDB
 pymongo>=4.6.0
