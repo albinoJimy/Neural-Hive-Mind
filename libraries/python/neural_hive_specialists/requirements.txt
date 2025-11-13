@@ -8,9 +8,9 @@ aiohttp>=3.9.0
 spacy>=3.7.0
 
 # gRPC
-grpcio>=1.60.0,<1.63.0
-grpcio-tools>=1.60.0,<1.63.0
-grpcio-health-checking>=1.60.0,<1.63.0
+grpcio>=1.60.0
+grpcio-tools>=1.68.0  # Version 1.68+ supports protobuf 5.x
+grpcio-health-checking>=1.60.0
 protobuf>=5.27.0  # Supports runtime_version (needed for protoc 6.x generated code)
 
 # MLflow
