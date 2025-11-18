@@ -1,0 +1,31 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "code-forge.fullname" . }}
+  labels:
+    {{- include "code-forge.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "code-forge.selectorLabels" . | nindent 6 }}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  {{- range .Values.networkPolicy.ingress }}
+  - {{- toYaml . | nindent 4 }}
+  {{- end }}
+  egress:
+  {{- range .Values.networkPolicy.egress }}
+  - {{- toYaml . | nindent 4 }}
+  {{- end }}
+  # Permitir acesso ao OpenTelemetry Collector (default)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: observability
+    ports:
+    - protocol: TCP
+      port: 4317
+{{- end }}

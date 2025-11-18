@@ -1,0 +1,306 @@
+---
+# Alertas Prometheus para ML Predictive Scheduling do Optimizer Agents
+#
+# Monitora health, performance e acurácia do subsistema de Load Forecasting
+# e Scheduling Optimization com Q-learning
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: optimizer-ml-alerts
+  namespace: monitoring
+  labels:
+    app: optimizer-agents
+    component: ml-predictive-scheduling
+    prometheus: kube-prometheus
+spec:
+  groups:
+    - name: forecast_accuracy
+      interval: 30s
+      rules:
+        - alert: HighForecastError
+          expr: optimizer_load_forecast_accuracy_mape > 25
+          for: 15m
+          labels:
+            severity: warning
+            component: load-predictor
+            team: optimization
+          annotations:
+            summary: "Alta taxa de erro de previsão de carga (MAPE > 25%)"
+            description: |
+              MAPE (Mean Absolute Percentage Error) do Load Predictor está acima de 25%.
+              Valor atual: {{ $value | humanize }}%
+              Threshold: 25%
+
+              Previsões de carga podem estar imprecisas, afetando decisões de scheduling.
+
+              Ações:
+              - Verificar se modelos precisam retreinamento
+              - Analisar mudanças nos padrões de carga
+              - Revisar janela de treinamento (atual: 540 dias)
+              - Validar qualidade dos dados históricos no ClickHouse
+            dashboard_url: "https://grafana.local/d/optimizer-scheduling-predictions"
+            runbook_url: "https://docs.internal/runbooks/optimizer-forecast-accuracy-low"
+
+        - alert: CriticalForecastError
+          expr: optimizer_load_forecast_accuracy_mape > 40
+          for: 5m
+          labels:
+            severity: critical
+            component: load-predictor
+            team: optimization
+          annotations:
+            summary: "Taxa crítica de erro de previsão de carga (MAPE > 40%)"
+            description: |
+              MAPE está em nível crítico ({{ $value | humanize }}%), excedendo limite de 40%.
+
+              Ação imediata necessária:
+              - Modelos podem estar completamente desatualizados
+              - Padrões de carga podem ter mudado drasticamente
+              - Retreinamento urgente recomendado
+              - Considerar desabilitar otimizações até resolução
+            dashboard_url: "https://grafana.local/d/optimizer-scheduling-predictions"
+            runbook_url: "https://docs.internal/runbooks/optimizer-critical-forecast-error"
+
+
+    - name: model_health
+      interval: 30s
+      rules:
+        - alert: MLModelLoadFailure
+          expr: sum(increase(optimizer_ml_model_loads_total{status="error"}[5m])) > 3
+          for: 5m
+          labels:
+            severity: critical
+            component: model-management
+            team: optimization
+          annotations:
+            summary: "Falhas repetidas no carregamento do modelo ML"
+            description: |
+              Detectadas {{ $value }} falhas ao carregar modelos ML nos últimos 5 minutos.
+
+              Sistema pode estar utilizando modelos desatualizados ou fallback.
+
+              Ações urgentes:
+              - Verificar conectividade com MLflow server
+              - Validar se modelos existem no registry (stage: Production)
+              - Checar logs de model_registry do optimizer-agents
+              - Verificar permissões de acesso ao MLflow
+            dashboard_url: "https://grafana.local/d/optimizer-scheduling-predictions"
+            runbook_url: "https://docs.internal/runbooks/optimizer-ml-model-load-failure"
+
+        - alert: MLTrainingFailure
+          expr: sum(increase(optimizer_ml_training_runs_total{status="failed"}[1h])) > 2
+          for: 1h
+          labels:
+            severity: warning
+            component: training-pipeline
+            team: optimization
+          annotations:
+            summary: "Falhas no treinamento do modelo ML"
+            description: |
+              Detectadas {{ $value }} falhas de treinamento de modelo ML na última hora.
+
+              Ações:
+              - Verificar logs de treinamento e disponibilidade de dados
+              - Validar acesso ao ClickHouse para dados históricos
+              - Checar se há amostras suficientes (min: 1000 para Prophet)
+              - Verificar MLflow server disponível
+            dashboard_url: "https://grafana.local/d/optimizer-scheduling-predictions"
+            runbook_url: "https://docs.internal/runbooks/optimizer-ml-training-failure"
+
+        - alert: StaleModel
+          expr: (time() - optimizer_ml_model_last_training_timestamp) > 172800
+          for: 1h
+          labels:
+            severity: warning
+            component: training-pipeline
+            team: optimization
+          annotations:
+            summary: "Modelo ML desatualizado (sem treinamento há > 48h)"
+            description: |
+              Modelo ML para {{ $labels.model_type }} não foi retreinado há {{ $value | humanizeDuration }}.
+
+              A precisão das previsões pode estar degradada.
+
+              Ações:
+              - Verificar se training_pipeline está agendado
+              - Validar trigger de treino periódico (configurado: 24h)
+              - Considerar treino manual forçado
+            dashboard_url: "https://grafana.local/d/optimizer-scheduling-predictions"
+            runbook_url: "https://docs.internal/runbooks/optimizer-stale-model"
+
+    - name: scheduling_policy
+      interval: 30s
+      rules:
+        - alert: LowPolicyReward
+          expr: avg(optimizer_scheduling_policy_average_reward) < 0.3
+          for: 30m
+          labels:
+            severity: warning
+            component: scheduling-optimizer
+            team: optimization
+          annotations:
+            summary: "Baixa recompensa da política de agendamento (< 0.3)"
+            description: |
+              Política de agendamento Q-learning apresenta recompensa média de {{ $value | humanizePercentage }} nos últimos 30 minutos.
+
+              Indica decisões subótimas.
+
+              Ações:
+              - Verificar distribuição de ações e estados
+              - Revisar Q-table (estados explorados vs rewards)
+              - Analisar distribuição de ações aplicadas
+              - Validar se reward function está correta
+              - Considerar ajustar epsilon (exploração vs exploitation)
+            dashboard_url: "https://grafana.local/d/optimizer-scheduling-predictions"
+            runbook_url: "https://docs.internal/runbooks/optimizer-low-policy-reward"
+
+        - alert: HighRejection
+          expr: |
+            sum(rate(optimizer_scheduling_optimizations_applied_total{status="rejected"}[5m]))
+            /
+            sum(rate(optimizer_scheduling_optimizations_applied_total[5m])) > 0.5
+          for: 15m
+          labels:
+            severity: warning
+            component: scheduling-recommendations
+            team: optimization
+          annotations:
+            summary: "Alta taxa de rejeição de recomendações (> 50%)"
+            description: |
+              {{ $value | humanizePercentage }} das recomendações de agendamento estão sendo rejeitadas nos últimos 15 minutos.
+
+              Ações:
+              - Verificar threshold de confiança
+              - Validar qualidade das previsões
+              - Analisar motivos de rejeição nos logs
+              - Revisar critérios de aceitação do orchestrator
+            dashboard_url: "https://grafana.local/d/optimizer-scheduling-predictions"
+            runbook_url: "https://docs.internal/runbooks/optimizer-high-rejection-rate"
+
+    - name: integration_health
+      interval: 30s
+      rules:
+        - alert: OptimizerUnavailable
+          expr: |
+            sum(rate(grpc_server_handled_total{grpc_service="OptimizerAgent",grpc_code!="OK"}[5m]))
+            /
+            sum(rate(grpc_server_handled_total{grpc_service="OptimizerAgent"}[5m])) > 0.8
+          for: 5m
+          labels:
+            severity: critical
+            component: grpc-service
+            team: optimization
+          annotations:
+            summary: "Serviço Optimizer Agent indisponível (falhas RPC > 80%)"
+            description: |
+              {{ $value | humanizePercentage }} das chamadas gRPC ao Optimizer Agent estão falhando nos últimos 5 minutos.
+
+              Orquestrador pode estar operando sem otimizações.
+
+              Ações urgentes:
+              - Verificar logs do optimizer-agents gRPC servicer
+              - Validar se SchedulingOptimizer foi inicializado
+              - Checar conectividade gRPC orchestrator -> optimizer
+              - Verificar health do pod optimizer-agents
+            dashboard_url: "https://grafana.local/d/optimizer-scheduling-predictions"
+            runbook_url: "https://docs.internal/runbooks/optimizer-unavailable"
+
+        - alert: HighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(grpc_server_handling_seconds_bucket{grpc_service="OptimizerAgent"}[5m])) by (le, grpc_method)
+            ) > 1
+          for: 10m
+          labels:
+            severity: warning
+            component: grpc-performance
+            team: optimization
+          annotations:
+            summary: "Alta latência no Optimizer Agent (P95 > 1s)"
+            description: |
+              Método {{ $labels.grpc_method }} do Optimizer Agent apresenta latência P95 de {{ $value | humanizeDuration }} nos últimos 10 minutos.
+
+              Excede o SLA de 1s.
+
+              Ações:
+              - Verificar se modelos estão em memória
+              - Checar latência de queries ao ClickHouse
+              - Revisar cache hit rates
+              - Analisar carga de CPU/memória do pod
+            dashboard_url: "https://grafana.local/d/optimizer-scheduling-predictions"
+            runbook_url: "https://docs.internal/runbooks/optimizer-high-latency"
+
+    - name: data_quality
+      interval: 30s
+      rules:
+        - alert: InsufficientTrainingData
+          expr: optimizer_ml_training_samples_count < 1000
+          for: 5m
+          labels:
+            severity: warning
+            component: data-pipeline
+            team: optimization
+          annotations:
+            summary: "Dados de treinamento insuficientes (< 1000 amostras)"
+            description: |
+              Pipeline de dados para modelo {{ $labels.model_type }} possui apenas {{ $value }} amostras.
+
+              Abaixo do mínimo de 1000. A qualidade do modelo pode estar comprometida.
+
+              Ações:
+              - Aguardar acúmulo de dados históricos (execution_logs)
+              - Verificar se dados estão sendo coletados corretamente
+              - Validar TTL do ClickHouse (540 dias)
+            dashboard_url: "https://grafana.local/d/optimizer-scheduling-predictions"
+            runbook_url: "https://docs.internal/runbooks/optimizer-insufficient-training-data"
+
+        - alert: ClickHouseQueryFailures
+          expr: |
+            sum(rate(optimizer_clickhouse_query_errors_total[10m]))
+            /
+            sum(rate(optimizer_clickhouse_queries_total[10m])) > 0.1
+          for: 10m
+          labels:
+            severity: warning
+            component: data-pipeline
+            team: optimization
+          annotations:
+            summary: "Alta taxa de falhas em queries ClickHouse (> 10%)"
+            description: |
+              {{ $value | humanizePercentage }} das queries ao ClickHouse estão falhando nos últimos 10 minutos.
+
+              Pipeline de dados pode estar comprometido.
+
+              Ações:
+              - Verificar status do ClickHouse cluster
+              - Validar conectividade de rede
+              - Checar credenciais e permissões
+              - Analisar logs de erros
+            dashboard_url: "https://grafana.local/d/optimizer-scheduling-predictions"
+            runbook_url: "https://docs.internal/runbooks/optimizer-clickhouse-query-failures"
+
+        - alert: CacheDegradation
+          expr: |
+            sum(rate(optimizer_cache_hits_total[5m]))
+            /
+            sum(rate(optimizer_cache_requests_total[5m])) < 0.5
+          for: 15m
+          labels:
+            severity: warning
+            component: caching
+            team: optimization
+          annotations:
+            summary: "Degradação de cache (hit rate < 50%)"
+            description: |
+              Taxa de hit do cache {{ $labels.cache_type }} é de {{ $value | humanizePercentage }} nos últimos 15 minutos.
+
+              Abaixo do esperado de 50%.
+
+              Ações:
+              - Verificar TTLs (model: 3600s, forecast: 300s)
+              - Analisar padrões de acesso
+              - Revisar tamanho do cache Redis
+              - Validar se eviction está ocorrendo
+            dashboard_url: "https://grafana.local/d/optimizer-scheduling-predictions"
+            runbook_url: "https://docs.internal/runbooks/optimizer-cache-degradation"

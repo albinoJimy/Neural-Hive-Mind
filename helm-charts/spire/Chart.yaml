@@ -1,0 +1,14 @@
+apiVersion: v2
+name: spire
+description: SPIRE (SPIFFE Runtime Environment) para workload identity no Neural Hive-Mind
+type: application
+version: 1.0.0
+appVersion: "1.8.0"
+keywords:
+  - spire
+  - spiffe
+  - identity
+  - security
+  - zero-trust
+maintainers:
+  - name: Neural Hive-Mind Team

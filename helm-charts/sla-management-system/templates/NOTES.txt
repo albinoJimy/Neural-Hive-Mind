@@ -1,0 +1,78 @@
+Thank you for installing {{ .Chart.Name }}.
+
+Your release is named {{ .Release.Name }}.
+
+To learn more about the release, try:
+
+  $ helm status {{ .Release.Name }} -n {{ .Release.Namespace }}
+  $ helm get all {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+=======================================================================
+  SLA Management System - Neural Hive-Mind
+=======================================================================
+
+The SLA Management System has been deployed successfully!
+
+1. Check the deployment status:
+
+   kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "sla-management-system.name" . }}
+
+2. Access the API server:
+
+   kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "sla-management-system.fullname" . }} 8000:8000
+
+   Then access the API at http://localhost:8000
+
+3. API Endpoints:
+
+   - Health Check: GET /health
+   - Ready Check: GET /ready
+   - SLO Management: /api/v1/slos
+   - Budget Management: /api/v1/budgets
+   - Policy Management: /api/v1/policies
+   - Webhook Receiver: POST /webhooks/alertmanager
+   - API Documentation: /docs
+
+4. Metrics:
+
+   kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "sla-management-system.fullname" . }} 9090:9090
+
+   Then access metrics at http://localhost:9090/metrics
+
+5. View logs:
+
+   kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "sla-management-system.name" . }} -f
+
+6. CRD Management:
+
+   # List SLO Definitions
+   kubectl get slodefinitions --all-namespaces
+
+   # List SLA Policies
+   kubectl get slapolicies --all-namespaces
+
+   # Create a new SLO
+   kubectl apply -f examples/sla-management-system/example-slo-latency.yaml
+
+   # Create a new Policy
+   kubectl apply -f examples/sla-management-system/example-policy-orchestration-freeze.yaml
+
+7. Operator Status:
+
+{{- if .Values.operator.enabled }}
+   kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=operator -f
+{{- else }}
+   Operator is disabled. Enable it in values.yaml with operator.enabled=true
+{{- end }}
+
+8. Dashboard and Monitoring:
+
+   - Grafana Dashboard: SLA Management System - Operations Dashboard
+   - Prometheus Metrics: Available at service metrics port
+   - Alertmanager Integration: Webhook configured at {{ .Values.config.alertmanager.url }}
+
+For more information, visit the documentation or run:
+
+   kubectl describe deployment {{ include "sla-management-system.fullname" . }} -n {{ .Release.Namespace }}
+
+Happy SLA Monitoring!

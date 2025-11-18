@@ -1,0 +1,340 @@
+# Keycloak Configuration para Neural Hive-Mind
+
+# Configuração Geral
+nameOverride: ""
+fullnameOverride: ""
+
+# Configuração da Imagem
+image:
+  repository: quay.io/keycloak/keycloak
+  tag: "22.0.5"
+  pullPolicy: IfNotPresent
+
+# Configuração de Replicas
+replicaCount: 2
+
+# Configuração de Recursos
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2
+    memory: 2Gi
+
+# Configuração de Admin
+auth:
+  adminUser: admin
+  adminPassword: ""  # Definir via values-<env>.yaml
+  existingSecret: ""
+  passwordSecretKey: password
+
+# Configuração do Realm
+realm:
+  name: neural-hive
+  displayName: "Neural Hive-Mind"
+  enabled: true
+
+  # Token Configuration
+  tokenLifespan: 3600  # 1 hora
+  sessionTimeout: 1800  # 30 minutos
+  maxSessionLifespan: 36000  # 10 horas
+
+  # Password Policy
+  passwordPolicy: "hashIterations(27500) and specialChars(1) and upperCase(1) and digits(1) and notUsername(undefined) and length(8)"
+
+  # Clients OAuth2
+  clients:
+    gatewayIntencoes:
+      clientId: gateway-intencoes
+      name: "Gateway de Intenções"
+      enabled: true
+      publicClient: false
+      serviceAccountsEnabled: true
+      directAccessGrantsEnabled: true
+      standardFlowEnabled: true
+      implicitFlowEnabled: false
+      redirectUris:
+        - "https://gateway.neural-hive.local/auth/callback"
+        - "http://localhost:8080/auth/callback"
+      webOrigins:
+        - "https://gateway.neural-hive.local"
+        - "http://localhost:8080"
+      scopes:
+        - openid
+        - profile
+        - email
+        - roles
+
+# Configuração do Database
+postgresql:
+  enabled: true
+  auth:
+    postgresPassword: ""  # Definir via values-<env>.yaml
+    username: keycloak
+    password: ""  # Definir via values-<env>.yaml
+    database: keycloak
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: "gp3-ssd"
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: 1
+        memory: 1Gi
+
+# Database Externo (se postgresql.enabled: false)
+externalDatabase:
+  host: ""
+  port: 5432
+  database: keycloak
+  user: keycloak
+  password: ""
+  existingSecret: ""
+  existingSecretPasswordKey: password
+
+# Configuração de Service
+service:
+  type: ClusterIP
+  ports:
+    http: 8080
+    https: 8443
+  annotations:
+    neural-hive.io/service-type: "auth"
+
+# Configuração de Ingress
+ingress:
+  enabled: false
+  className: "istio"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: keycloak.neural-hive.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: keycloak-tls
+      hosts:
+        - keycloak.neural-hive.local
+
+# Configuração de TLS
+tls:
+  enabled: true
+  cert: ""
+  key: ""
+  existingSecret: ""
+
+# Configuração de Métricas
+metrics:
+  enabled: true
+  port: 9000
+
+  serviceMonitor:
+    enabled: true
+    namespace: monitoring
+    labels:
+      app: keycloak
+      release: prometheus
+    interval: 30s
+    scrapeTimeout: 10s
+
+# Configuração de Health Checks
+healthcheck:
+  enabled: true
+  initialDelaySeconds: 300
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+startupProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30
+
+# Configuração de Logs
+logging:
+  level: INFO
+
+# Configuração de JVM
+javaOpts: "-Xms1g -Xmx2g -XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=256m"
+
+# Configuração de Pod
+podAnnotations:
+  neural-hive.io/monitoring: "enabled"
+  neural-hive.io/data-classification: "confidential"
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9000"
+  prometheus.io/path: "/metrics"
+
+podLabels:
+  neural-hive.io/layer: "security"
+  neural-hive.io/component: "auth"
+
+# Configuração de Security Context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+
+# Configuração de Affinity
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: keycloak
+          topologyKey: topology.kubernetes.io/zone
+
+# Configuração de Tolerations
+tolerations: []
+
+# Configuração de Node Selector
+nodeSelector: {}
+
+# Configuração de Istio
+istio:
+  injection: true
+  virtualService:
+    enabled: false
+    hosts:
+      - keycloak.neural-hive.local
+    gateways:
+      - istio-system/neural-hive-gateway
+
+# Configuração de RBAC
+rbac:
+  create: true
+  rules: []
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Configuração de Backup
+backup:
+  enabled: true
+  schedule: "0 3 * * *"  # Diário às 3h
+  retention: 30          # Reter 30 backups
+
+  # Configuração do CronJob de Backup
+  cronjob:
+    image: postgres:14-alpine
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+# Configuração de ConfigMaps Customizados
+extraConfigMaps: []
+
+# Configuração de Secrets Customizados
+extraSecrets: []
+
+# Configuração de Environment Variables
+extraEnv: []
+
+# Configuração de Volumes
+extraVolumes: []
+extraVolumeMounts: []
+
+# Configuração de Init Containers
+initContainers: []
+
+# Labels Globais
+labels:
+  app.kubernetes.io/name: keycloak
+  app.kubernetes.io/part-of: neural-hive-mind
+  app.kubernetes.io/managed-by: helm
+  neural-hive.io/data-owner: "team-security"
+  neural-hive.io/sla-tier: "platinum"
+
+# Configurações Específicas por Ambiente
+dev:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 1Gi
+  postgresql:
+    auth:
+      postgresPassword: "dev-postgres-password"
+      password: "dev-keycloak-password"
+    primary:
+      persistence:
+        size: 5Gi
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+  backup:
+    enabled: false
+
+staging:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 300m
+      memory: 768Mi
+    limits:
+      cpu: 1.5
+      memory: 1.5Gi
+
+# Configuração de Network Policy
+networkPolicy:
+  enabled: false
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: gateway-intencoes
+        - namespaceSelector:
+            matchLabels:
+              name: istio-system
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8443
+
+# Configuração de Themes Customizados
+themes:
+  enabled: false
+  customThemes: []

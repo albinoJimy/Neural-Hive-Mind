@@ -1,0 +1,14 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "sla-management-system.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sla-management-system.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "sla-management-system.selectorLabels" . | nindent 6 }}
+{{- end }}

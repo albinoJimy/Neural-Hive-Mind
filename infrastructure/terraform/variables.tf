@@ -282,3 +282,16 @@ variable "storage_class" {
   type        = string
   default     = "gp3-ssd"
 }
+
+# SPIRE Datastore Configuration
+variable "spire_db_instance_class" {
+  description = "Classe da instância RDS para SPIRE datastore"
+  type        = string
+  default     = "db.t3.medium"
+}
+
+variable "spire_db_allocated_storage" {
+  description = "Armazenamento alocado para SPIRE RDS em GB"
+  type        = number
+  default     = 20
+}

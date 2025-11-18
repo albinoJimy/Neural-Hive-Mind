@@ -1,0 +1,1492 @@
+[
+  {
+    "iteration": 1,
+    "scenario": "Business Analysis",
+    "status_code": 200,
+    "latency_ms": 90.51346778869629,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.4,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "c233bc39-888a-4d29-ba01-e2414d86f947",
+      "correlation_id": "f60ad523-c2d3-428a-b22e-656ba70af02f",
+      "status": "routed_to_validation",
+      "confidence": 0.4,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 79.87700000000001,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 1,
+    "scenario": "Technical Implementation",
+    "status_code": 200,
+    "latency_ms": 73.28104972839355,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "security",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "fbf3dadf-0dc8-42a8-b56e-49c8d6e0b615",
+      "correlation_id": "0b86f078-0cab-46ea-a9d9-5c1e48b3ed31",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "security",
+      "classification": "authentication",
+      "processing_time_ms": 63.015
+    }
+  },
+  {
+    "iteration": 1,
+    "scenario": "Behavior Analysis",
+    "status_code": 200,
+    "latency_ms": 83.24050903320312,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "966b72fa-62e7-49bc-8df6-8f4f600f495d",
+      "correlation_id": "9fb4db17-350f-4ba0-b2df-991eb7047b19",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 74.812,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 1,
+    "scenario": "Evolution & Optimization",
+    "status_code": 200,
+    "latency_ms": 92.03195571899414,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "technical",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "281a8401-7c72-4923-b4c4-65e25728e597",
+      "correlation_id": "127259f4-4bd9-4e48-b928-986d76456256",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "technical",
+      "classification": "performance",
+      "processing_time_ms": 84.086
+    }
+  },
+  {
+    "iteration": 1,
+    "scenario": "Architecture Design",
+    "status_code": 200,
+    "latency_ms": 74.27191734313965,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "b98961b1-7205-406c-99fb-8d2258ef2c02",
+      "correlation_id": "401bda5d-6bd7-4cec-8a29-a7ab9c008212",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 66.83,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 2,
+    "scenario": "Business Analysis",
+    "status_code": 200,
+    "latency_ms": 77.2252082824707,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.4,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "eb8c2802-69e6-413d-901f-32e35446aab9",
+      "correlation_id": "7b2b357e-69a3-483a-ace3-be1e5969c885",
+      "status": "routed_to_validation",
+      "confidence": 0.4,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 69.866,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 2,
+    "scenario": "Technical Implementation",
+    "status_code": 200,
+    "latency_ms": 46.83494567871094,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "security",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "7f87f0f4-b879-4191-b6e8-8660aec29174",
+      "correlation_id": "f60daf2d-3438-4b00-b6fc-720c3b696169",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "security",
+      "classification": "authentication",
+      "processing_time_ms": 39.510000000000005
+    }
+  },
+  {
+    "iteration": 2,
+    "scenario": "Behavior Analysis",
+    "status_code": 200,
+    "latency_ms": 56.500911712646484,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "7736471e-b5e4-4401-87f0-642bb30e9291",
+      "correlation_id": "a84b6317-e7f4-440b-a822-4ff89c11629b",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 50.158,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 2,
+    "scenario": "Evolution & Optimization",
+    "status_code": 200,
+    "latency_ms": 56.089162826538086,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "technical",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "8f4e7c08-79f7-4314-b70f-4b81ad1de49e",
+      "correlation_id": "88d4523a-14f0-4656-9b6e-1494ab37bbdb",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "technical",
+      "classification": "performance",
+      "processing_time_ms": 48.52
+    }
+  },
+  {
+    "iteration": 2,
+    "scenario": "Architecture Design",
+    "status_code": 200,
+    "latency_ms": 51.35083198547363,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "8fb49d74-1b1d-4bac-b403-40b4e39146cf",
+      "correlation_id": "7e30d117-2191-46ca-a24d-b1086d995fb9",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 43.178000000000004,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 3,
+    "scenario": "Business Analysis",
+    "status_code": 200,
+    "latency_ms": 55.96208572387695,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.4,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "9a1ff080-a05a-4ce5-9d43-596c1878130f",
+      "correlation_id": "fb0db127-4c02-43d1-81b0-671221394d91",
+      "status": "routed_to_validation",
+      "confidence": 0.4,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 45.886,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 3,
+    "scenario": "Technical Implementation",
+    "status_code": 200,
+    "latency_ms": 53.27343940734863,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "security",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "d0240527-ba2e-4022-a5f1-2910a53c4679",
+      "correlation_id": "4f36895d-385b-4873-829a-6ab06e2b1ebd",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "security",
+      "classification": "authentication",
+      "processing_time_ms": 46.767
+    }
+  },
+  {
+    "iteration": 3,
+    "scenario": "Behavior Analysis",
+    "status_code": 200,
+    "latency_ms": 59.67879295349121,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "529c8096-4f9e-4ba6-9aa2-267d57f7ebe8",
+      "correlation_id": "7140539e-b094-46e5-b7b8-e221893c792d",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 52.386,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 3,
+    "scenario": "Evolution & Optimization",
+    "status_code": 200,
+    "latency_ms": 46.5240478515625,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "technical",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "8e0002c2-b3dc-4f71-ad7d-49724ea07bad",
+      "correlation_id": "41f39ed5-08fd-4d82-94b5-82cfd036c0e6",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "technical",
+      "classification": "performance",
+      "processing_time_ms": 39.459
+    }
+  },
+  {
+    "iteration": 3,
+    "scenario": "Architecture Design",
+    "status_code": 200,
+    "latency_ms": 74.77021217346191,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "fbc2fb01-ec28-47c2-a5ff-7e3edb3b1c5d",
+      "correlation_id": "00d5ebf8-f1d9-4c2a-bc1b-adccc4d0c3cc",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 68.132,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 4,
+    "scenario": "Business Analysis",
+    "status_code": 200,
+    "latency_ms": 46.03266716003418,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.4,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "62da2e0f-f127-41bb-9552-4503af024691",
+      "correlation_id": "8b9cbfd8-fe94-413b-a673-66b32095226a",
+      "status": "routed_to_validation",
+      "confidence": 0.4,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 39.192,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 4,
+    "scenario": "Technical Implementation",
+    "status_code": 200,
+    "latency_ms": 46.575069427490234,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "security",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "2655ac5b-d8fc-4683-9210-ded973f6b80a",
+      "correlation_id": "1312689f-4b67-47ae-a7e1-8e078efbd8cd",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "security",
+      "classification": "authentication",
+      "processing_time_ms": 40.112
+    }
+  },
+  {
+    "iteration": 4,
+    "scenario": "Behavior Analysis",
+    "status_code": 200,
+    "latency_ms": 39.4291877746582,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "9baf631d-dc54-41b6-b4f0-48205747f260",
+      "correlation_id": "9b0b9bae-e2be-4fc0-b867-cfb74e6414d6",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 33.666000000000004,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 4,
+    "scenario": "Evolution & Optimization",
+    "status_code": 200,
+    "latency_ms": 48.47455024719238,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "technical",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "2ccaa73e-5f6d-4b33-9bec-446086e23626",
+      "correlation_id": "61899d1f-f854-42ed-a674-820e42603606",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "technical",
+      "classification": "performance",
+      "processing_time_ms": 42.913
+    }
+  },
+  {
+    "iteration": 4,
+    "scenario": "Architecture Design",
+    "status_code": 200,
+    "latency_ms": 44.64840888977051,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "a76e8845-ed54-4404-bd23-f7b878e91184",
+      "correlation_id": "006a5341-3271-4a75-811c-a5455010f7c0",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 37.232,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 5,
+    "scenario": "Business Analysis",
+    "status_code": 200,
+    "latency_ms": 92.65804290771484,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.4,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "284e3751-e2c3-47e2-98fa-4f09d83e8271",
+      "correlation_id": "014e8de1-7d01-4735-a90f-ab21cb7930a7",
+      "status": "routed_to_validation",
+      "confidence": 0.4,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 84.051,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 5,
+    "scenario": "Technical Implementation",
+    "status_code": 200,
+    "latency_ms": 98.21915626525879,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "security",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "b3219ea3-947d-408a-bfb4-e202e0303ab4",
+      "correlation_id": "094bc3aa-de9b-4679-9516-197ffa06604e",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "security",
+      "classification": "authentication",
+      "processing_time_ms": 91.09200000000001
+    }
+  },
+  {
+    "iteration": 5,
+    "scenario": "Behavior Analysis",
+    "status_code": 200,
+    "latency_ms": 87.75830268859863,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "6f1a2dc6-7b02-4a92-a2a7-b4bcfdffbdea",
+      "correlation_id": "3916e95e-bfde-4f8a-b59b-4b874bc387be",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 78.502,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 5,
+    "scenario": "Evolution & Optimization",
+    "status_code": 200,
+    "latency_ms": 73.62675666809082,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "technical",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "1e0ec766-7977-4e33-aebc-70b7d87e50ba",
+      "correlation_id": "515e1f9d-6a97-4eb1-b43d-998470f71936",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "technical",
+      "classification": "performance",
+      "processing_time_ms": 64.716
+    }
+  },
+  {
+    "iteration": 5,
+    "scenario": "Architecture Design",
+    "status_code": 200,
+    "latency_ms": 65.53244590759277,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "308f3874-d4ec-4556-bdd6-0465cd621db9",
+      "correlation_id": "1ebab456-2993-404c-b2cb-2bda5c7a2156",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 55.656,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 6,
+    "scenario": "Business Analysis",
+    "status_code": 200,
+    "latency_ms": 80.42097091674805,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.4,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "1ac18144-94c8-4466-9ca0-c5df0dd4112d",
+      "correlation_id": "c34bff0d-b9cf-4133-a332-15a02020ad8d",
+      "status": "routed_to_validation",
+      "confidence": 0.4,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 68.772,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 6,
+    "scenario": "Technical Implementation",
+    "status_code": 200,
+    "latency_ms": 71.29478454589844,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "security",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "a9ed06e3-5402-42a0-bdaf-10322c82ce22",
+      "correlation_id": "8c4418b5-3e76-42df-a3f4-eee995c5b00d",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "security",
+      "classification": "authentication",
+      "processing_time_ms": 60.948
+    }
+  },
+  {
+    "iteration": 6,
+    "scenario": "Behavior Analysis",
+    "status_code": 200,
+    "latency_ms": 47.78337478637695,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "5f075e06-70f1-441e-a212-18400a02f4eb",
+      "correlation_id": "47638c4e-331f-4661-846c-d3446f81e632",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 40.370999999999995,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 6,
+    "scenario": "Evolution & Optimization",
+    "status_code": 200,
+    "latency_ms": 51.74875259399414,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "technical",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "49d10527-abd9-4012-9f87-865249b37c9b",
+      "correlation_id": "539fcd60-df95-4d12-bdc2-1d0b7eead27d",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "technical",
+      "classification": "performance",
+      "processing_time_ms": 44.516
+    }
+  },
+  {
+    "iteration": 6,
+    "scenario": "Architecture Design",
+    "status_code": 200,
+    "latency_ms": 41.58806800842285,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "3d00a2e7-55a8-464f-8060-fe6cfebf9c35",
+      "correlation_id": "912886b6-d424-4d33-8794-7e1e22579b3f",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 35.017,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 7,
+    "scenario": "Business Analysis",
+    "status_code": 200,
+    "latency_ms": 62.357425689697266,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.4,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "76f77187-b7e7-4427-be18-59911c376484",
+      "correlation_id": "e2e7862c-4f37-4447-a935-2e7e1018c6f6",
+      "status": "routed_to_validation",
+      "confidence": 0.4,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 54.288000000000004,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 7,
+    "scenario": "Technical Implementation",
+    "status_code": 200,
+    "latency_ms": 83.06074142456055,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "security",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "3773a863-1aa6-4527-81e5-4771d0a18d7f",
+      "correlation_id": "b10f4686-4bdb-43a1-9f73-80d739b743eb",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "security",
+      "classification": "authentication",
+      "processing_time_ms": 76.306
+    }
+  },
+  {
+    "iteration": 7,
+    "scenario": "Behavior Analysis",
+    "status_code": 200,
+    "latency_ms": 74.08428192138672,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "a085f814-05b6-45bd-b138-11d541f6d6cc",
+      "correlation_id": "92b0a66d-13e0-4201-9769-9b350a85c068",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 64.765,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 7,
+    "scenario": "Evolution & Optimization",
+    "status_code": 200,
+    "latency_ms": 71.38681411743164,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "technical",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "8c1dda0a-bdbf-4a22-b9a8-44f92016ef0c",
+      "correlation_id": "f33c7c60-4f4b-4566-957c-f5eb31762dfb",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "technical",
+      "classification": "performance",
+      "processing_time_ms": 49.588
+    }
+  },
+  {
+    "iteration": 7,
+    "scenario": "Architecture Design",
+    "status_code": 200,
+    "latency_ms": 64.99290466308594,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "273f1151-af5d-4cd4-a8e4-a228abda6276",
+      "correlation_id": "ae82b375-f421-4e2b-a225-08319892eed9",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 58.69,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 8,
+    "scenario": "Business Analysis",
+    "status_code": 200,
+    "latency_ms": 64.23330307006836,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.4,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "c80ebc89-d465-4f27-a9e1-408781fba568",
+      "correlation_id": "617b3c24-57e2-47d1-a1ef-305989809d64",
+      "status": "routed_to_validation",
+      "confidence": 0.4,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 53.461,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 8,
+    "scenario": "Technical Implementation",
+    "status_code": 200,
+    "latency_ms": 75.48761367797852,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "security",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "f12e96a3-8c8e-4004-8df5-75e90fc3a21b",
+      "correlation_id": "961b2087-20a5-4f73-850b-cba19e581818",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "security",
+      "classification": "authentication",
+      "processing_time_ms": 65.929
+    }
+  },
+  {
+    "iteration": 8,
+    "scenario": "Behavior Analysis",
+    "status_code": 200,
+    "latency_ms": 71.70438766479492,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "0bf104a3-8cb9-42e4-bc13-0e08e90f9402",
+      "correlation_id": "167d7b04-b146-4907-9674-0dea880336cf",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 63.467999999999996,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 8,
+    "scenario": "Evolution & Optimization",
+    "status_code": 200,
+    "latency_ms": 61.63740158081055,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "technical",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "fc1c0063-4c37-409c-b3b0-c97fa7e07652",
+      "correlation_id": "0f4e21c2-e8b4-4646-a2e2-771ea5eb0ae8",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "technical",
+      "classification": "performance",
+      "processing_time_ms": 54.041
+    }
+  },
+  {
+    "iteration": 8,
+    "scenario": "Architecture Design",
+    "status_code": 200,
+    "latency_ms": 43.665170669555664,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "a38d62af-29a6-4e8f-a34f-7fe078ccd5a9",
+      "correlation_id": "af92a952-f973-485c-a458-fb4656416337",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 37.447,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 9,
+    "scenario": "Business Analysis",
+    "status_code": 200,
+    "latency_ms": 76.95460319519043,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.4,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "bd4bb05f-f0de-4da0-ae11-1ede2120c159",
+      "correlation_id": "536996d4-cb12-45e2-9384-315347747972",
+      "status": "routed_to_validation",
+      "confidence": 0.4,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 69.667,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 9,
+    "scenario": "Technical Implementation",
+    "status_code": 200,
+    "latency_ms": 49.55124855041504,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "security",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "9010efff-fc8a-47f9-8730-e3e2a2330e0f",
+      "correlation_id": "d4435565-f32a-4e12-bb64-74c3af0daa5c",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "security",
+      "classification": "authentication",
+      "processing_time_ms": 42.571
+    }
+  },
+  {
+    "iteration": 9,
+    "scenario": "Behavior Analysis",
+    "status_code": 200,
+    "latency_ms": 68.71318817138672,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "ff9cd765-7242-45f1-9355-2183f2f0cb48",
+      "correlation_id": "8d3ec660-65f7-44f2-a813-9602204ac370",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 53.342,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 9,
+    "scenario": "Evolution & Optimization",
+    "status_code": 200,
+    "latency_ms": 57.96623229980469,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "technical",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "790b5d6f-d96d-4f5e-8bd8-2f42d949c1fb",
+      "correlation_id": "d639e73e-25bf-4d42-a5d9-f387cc9ceec1",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "technical",
+      "classification": "performance",
+      "processing_time_ms": 48.562
+    }
+  },
+  {
+    "iteration": 9,
+    "scenario": "Architecture Design",
+    "status_code": 200,
+    "latency_ms": 54.98981475830078,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "9f33c662-11af-4419-8c7f-988698b8740c",
+      "correlation_id": "9b2a85aa-085f-4915-a7bf-c535bc102748",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 47.117,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 10,
+    "scenario": "Business Analysis",
+    "status_code": 200,
+    "latency_ms": 96.25601768493652,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.4,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "59b109a8-0249-44a5-9859-8dd477b51476",
+      "correlation_id": "c1c174e9-dc11-4fc1-a218-23baf0a64e6a",
+      "status": "routed_to_validation",
+      "confidence": 0.4,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 86.56800000000001,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 10,
+    "scenario": "Technical Implementation",
+    "status_code": 200,
+    "latency_ms": 85.32929420471191,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "security",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "efdb1547-6b3a-4405-81b0-78401825892e",
+      "correlation_id": "5906225c-8bf8-46df-ab5b-6f99df4bad92",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "security",
+      "classification": "authentication",
+      "processing_time_ms": 76.59100000000001
+    }
+  },
+  {
+    "iteration": 10,
+    "scenario": "Behavior Analysis",
+    "status_code": 200,
+    "latency_ms": 75.67882537841797,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "9332ae2d-0d08-4899-8e73-73db66681b39",
+      "correlation_id": "e815a230-dc9d-4356-b7de-144c323532a4",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 56.047,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  },
+  {
+    "iteration": 10,
+    "scenario": "Evolution & Optimization",
+    "status_code": 200,
+    "latency_ms": 75.41155815124512,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "processed",
+      "domain": "technical",
+      "confidence": 0.95,
+      "requires_validation": false
+    },
+    "response": {
+      "intent_id": "480eb008-31f5-4a31-b577-2a9faf0b0f67",
+      "correlation_id": "e7e09ec9-8f5f-48a6-8e43-2139195b3583",
+      "status": "processed",
+      "confidence": 0.95,
+      "domain": "technical",
+      "classification": "performance",
+      "processing_time_ms": 53.047999999999995
+    }
+  },
+  {
+    "iteration": 10,
+    "scenario": "Architecture Design",
+    "status_code": 200,
+    "latency_ms": 65.9482479095459,
+    "analysis": {
+      "has_intent_id": true,
+      "has_correlation_id": true,
+      "has_status": true,
+      "has_confidence": true,
+      "has_domain": true,
+      "has_classification": true,
+      "has_processing_time": true,
+      "status": "routed_to_validation",
+      "domain": "technical",
+      "confidence": 0.2,
+      "requires_validation": true
+    },
+    "response": {
+      "intent_id": "66ab6c2a-92c2-474e-aa17-3224e68329ed",
+      "correlation_id": "e3de5204-15a3-4c16-8a9d-fe77f14a2d4e",
+      "status": "routed_to_validation",
+      "confidence": 0.2,
+      "domain": "technical",
+      "classification": "general",
+      "processing_time_ms": 54.815999999999995,
+      "requires_manual_validation": true,
+      "validation_reason": "confidence_below_threshold",
+      "confidence_threshold": 0.75
+    }
+  }
+]

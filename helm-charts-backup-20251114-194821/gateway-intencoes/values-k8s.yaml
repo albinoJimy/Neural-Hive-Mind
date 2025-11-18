@@ -1,0 +1,146 @@
+# Kubernetes values for gateway-intencoes
+# Neural Hive-Mind - Production deployment
+
+replicaCount: 1
+
+image:
+  repository: neural-hive/gateway-intencoes
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+ingress:
+  enabled: false
+
+resources:
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
+autoscaling:
+  enabled: false
+
+serviceAccount:
+  create: false
+  name: default
+
+init Containers:
+  modelDownloader:
+    enabled: false
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podSecurityContext:
+  fsGroup: 1001
+  runAsGroup: 1001
+  runAsUser: 1001
+  runAsNonRoot: true
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+config:
+  environment: "production"
+  logLevel: "INFO"
+  debug: false
+
+  kafka:
+    bootstrapServers: "neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092"
+    schemaRegistryUrl: "http://schema-registry.neural-hive-kafka.svc.cluster.local:8081"
+    tls:
+      enabled: false
+    sasl:
+      enabled: false
+
+  redis:
+    clusterNodes: "neural-hive-cache.redis-cluster.svc.cluster.local:6379"
+    defaultTtl: 600
+    maxConnections: 100
+    ssl:
+      enabled: false
+
+  keycloak:
+    url: ""
+    realm: ""
+    clientId: ""
+    tokenValidationEnabled: false
+
+  asr:
+    modelName: "base"
+    device: "cpu"
+
+  nlu:
+    languageModel: "pt_core_news_sm"
+    confidenceThreshold: 0.75
+
+  limits:
+    maxAudioSizeMb: 10
+    maxTextLength: 10000
+
+  cors:
+    allowedOrigins: ["*"]
+    allowedHosts: ["*"]
+
+secrets:
+  jwtSecretKey: "neural-hive-dev-secret-key-change-in-production"
+  kafka:
+    username: ""
+    password: ""
+  redis:
+    password: ""
+  keycloak:
+    clientSecret: ""
+
+serviceMonitor:
+  enabled: false
+
+networkPolicy:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false
+
+istio:
+  enabled: false
+
+volumes:
+  - name: model-cache
+    emptyDir: {}
+
+volumeMounts:
+  - name: model-cache
+    mountPath: /app/models

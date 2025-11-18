@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "specialist-architecture.fullname" . }}-config
+  labels:
+    {{- include "specialist-architecture.labels" . | nindent 4 }}
+data:
+  specialist_type: "architecture"
+  specialist_version: {{ .Chart.AppVersion | quote }}
+  environment: {{ .Values.config.environment | quote }}
+  log_level: {{ .Values.config.logLevel | quote }}
+
+  mlflow_experiment_name: {{ .Values.config.mlflow.experimentName | quote }}
+  mlflow_model_name: {{ .Values.config.mlflow.modelName | quote }}
+  mlflow_model_stage: {{ .Values.config.mlflow.modelStage | quote }}
+
+  mongodb_opinions_collection: {{ .Values.config.mongodb.opinionsCollection | quote }}
+  redis_cache_ttl: {{ .Values.config.redis.cacheTtl | quote }}
+
+  grpc_max_workers: {{ .Values.config.grpc.maxWorkers | quote }}
+  grpc_max_message_length: {{ .Values.config.grpc.maxMessageLength | quote }}
+
+  min_confidence_score: {{ .Values.config.thresholds.minConfidenceScore | quote }}
+  high_risk_threshold: {{ .Values.config.thresholds.highRiskThreshold | quote }}
+
+  evaluation_timeout_ms: {{ .Values.config.timeouts.evaluationMs | quote }}
+  model_inference_timeout_ms: {{ .Values.config.timeouts.modelInferenceMs | quote }}
+
+  enable_explainability: {{ .Values.config.features.enableExplainability | quote }}
+  enable_caching: {{ .Values.config.features.enableCaching | quote }}
+  enable_model_monitoring: {{ .Values.config.features.enableModelMonitoring | quote }}
+
+  design_patterns_enabled: {{ .Values.config.architecture.designPatternsEnabled | quote }}
+  solid_analysis_enabled: {{ .Values.config.architecture.solidAnalysisEnabled | quote }}
+  coupling_threshold_high: {{ .Values.config.architecture.couplingThresholdHigh | quote }}
+  cohesion_threshold_low: {{ .Values.config.architecture.cohesionThresholdLow | quote }}

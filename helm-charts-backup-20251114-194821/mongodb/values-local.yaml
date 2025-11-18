@@ -1,0 +1,59 @@
+# MongoDB Local Values - Optimized for Minikube
+# Override default values.yaml settings for local development
+
+# MongoDB Operator Configuration
+# Note: Operator is installed manually by deploy script, not by Helm
+operator:
+  install: false
+  namespace: mongodb-operator
+
+# Cluster Configuration
+cluster:
+  name: neural-hive-mongodb-local
+  namespace: mongodb-cluster
+  version: "7.0.5"
+  members: 1  # Single replica for local (instead of 3)
+
+# Storage Configuration
+storage:
+  size: 10Gi  # Reduced from 50Gi for local
+  storageClass: standard  # Minikube default storage class
+  accessMode: ReadWriteOnce
+
+# Resource Configuration
+resources:
+  requests:
+    cpu: 200m
+    memory: 1Gi
+  limits:
+    cpu: 1
+    memory: 2Gi
+
+# Security Configuration
+security:
+  auth:
+    enabled: true
+    password: "local_dev_password"  # Simple password for local
+  tls:
+    enabled: false  # Disable TLS for local simplicity
+
+# Backup Configuration
+backup:
+  enabled: false  # Disable backups for local
+
+# Metrics Configuration
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false  # Disable if Prometheus not installed
+
+# Environment
+environment: local
+
+# Network Policy
+networkPolicy:
+  enabled: false  # Disable for local simplicity
+
+# Istio
+istio:
+  injection: false  # Disable Istio sidecar for local

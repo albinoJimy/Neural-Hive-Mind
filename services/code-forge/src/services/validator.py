@@ -35,6 +35,23 @@ class Validator:
         """
         logger.info('validation_started', pipeline_id=context.pipeline_id)
 
+        # === Obter informações dinâmicas do contexto ===
+        # Extrair linguagem do ticket
+        language = context.ticket.parameters.get('language', 'python')
+
+        # Obter workspace path do contexto ou usar path temporário baseado no pipeline_id
+        workspace_path = context.code_workspace_path or f'/tmp/code-forge/{context.pipeline_id}'
+
+        # Obter project key do ticket ou usar ticket_id
+        project_key = context.ticket.parameters.get('project_key', context.ticket.ticket_id)
+
+        logger.info(
+            'validation_context_extracted',
+            language=language,
+            workspace_path=workspace_path,
+            project_key=project_key
+        )
+
         # === INTEGRAÇÃO MCP: Validação dinâmica baseada em ferramentas selecionadas ===
         validation_tasks = []
 
@@ -54,25 +71,25 @@ class Validator:
 
                 if 'sonarqube' in tool_name:
                     validation_tasks.append(
-                        self.sonarqube_client.analyze_code('project-key', '/tmp/source')
+                        self.sonarqube_client.analyze_code(project_key, workspace_path)
                     )
                 elif 'snyk' in tool_name:
                     validation_tasks.append(
-                        self.snyk_client.scan_dependencies('/tmp/source', 'python')
+                        self.snyk_client.scan_dependencies(workspace_path, language)
                     )
                 elif 'trivy' in tool_name:
                     validation_tasks.append(
-                        self.trivy_client.scan_filesystem('/tmp/source')
+                        self.trivy_client.scan_filesystem(workspace_path)
                     )
                 # Adicionar mais ferramentas conforme necessário
 
         else:
-            # Fallback: validações fixas (comportamento original)
+            # Fallback: validações fixas com parâmetros dinâmicos
             logger.info('using_default_validation_tools')
             validation_tasks = [
-                self.sonarqube_client.analyze_code('project-key', '/tmp/source'),
-                self.snyk_client.scan_dependencies('/tmp/source', 'python'),
-                self.trivy_client.scan_filesystem('/tmp/source')
+                self.sonarqube_client.analyze_code(project_key, workspace_path),
+                self.snyk_client.scan_dependencies(workspace_path, language),
+                self.trivy_client.scan_filesystem(workspace_path)
             ]
 
         # Executar validações em paralelo

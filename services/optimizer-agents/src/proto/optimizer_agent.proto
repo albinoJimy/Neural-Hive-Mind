@@ -20,6 +20,16 @@ service OptimizerAgent {
 
   // Health check
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+
+  // ML Predictive Scheduling RPCs
+  // Obter previsão de carga
+  rpc GetLoadForecast(LoadForecastRequest) returns (LoadForecastResponse);
+
+  // Obter recomendação de agendamento
+  rpc GetSchedulingRecommendation(SchedulingRecommendationRequest) returns (SchedulingRecommendationResponse);
+
+  // Obter métricas de política de agendamento
+  rpc GetSchedulingMetrics(SchedulingMetricsRequest) returns (SchedulingMetricsResponse);
 }
 
 message TriggerOptimizationRequest {
@@ -93,4 +103,63 @@ message HealthCheckRequest {}
 message HealthCheckResponse {
   string status = 1;
   string version = 2;
+}
+
+// ML Predictive Scheduling Messages
+
+message LoadForecastRequest {
+  int32 horizon_minutes = 1;
+  bool include_confidence_intervals = 2;
+}
+
+message LoadForecastResponse {
+  repeated ForecastPoint forecast = 1;
+  ForecastMetadata metadata = 2;
+}
+
+message ForecastPoint {
+  string timestamp = 1;
+  int32 ticket_count = 2;
+  ResourceDemand resource_demand = 3;
+  int32 confidence_lower = 4;
+  int32 confidence_upper = 5;
+}
+
+message ResourceDemand {
+  double cpu_cores = 1;
+  int32 memory_mb = 2;
+}
+
+message ForecastMetadata {
+  int32 model_horizon = 1;
+  int32 horizon_requested = 2;
+  string forecast_generated_at = 3;
+  int32 data_points_used = 4;
+  double confidence_level = 5;
+}
+
+message SchedulingRecommendationRequest {
+  int32 current_load = 1;
+  double worker_utilization = 2;
+  int32 queue_depth = 3;
+  double sla_compliance = 4;
+}
+
+message SchedulingRecommendationResponse {
+  string action = 1;
+  string justification = 2;
+  double expected_improvement = 3;
+  double risk_score = 4;
+  double confidence = 5;
+}
+
+message SchedulingMetricsRequest {
+  int32 time_range_hours = 1;
+}
+
+message SchedulingMetricsResponse {
+  double average_reward = 1;
+  double policy_success_rate = 2;
+  map<string, int32> action_counts = 3;
+  int32 states_explored = 4;
 }

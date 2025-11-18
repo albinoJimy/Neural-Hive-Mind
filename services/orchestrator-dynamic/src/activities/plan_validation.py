@@ -4,12 +4,29 @@ Activities Temporal para validação de planos cognitivos (Etapa C1).
 import hashlib
 import json
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from temporalio import activity
 import structlog
 
 logger = structlog.get_logger()
+
+# Dependências globais para injeção
+_policy_validator = None
+_config = None
+
+
+def set_activity_dependencies(policy_validator=None, config=None):
+    """
+    Configura dependências globais das activities.
+
+    Args:
+        policy_validator: PolicyValidator para validação OPA
+        config: OrchestratorSettings
+    """
+    global _policy_validator, _config
+    _policy_validator = policy_validator
+    _config = config
 
 
 @activity.defn
@@ -64,13 +81,45 @@ async def validate_cognitive_plan(plan_id: str, cognitive_plan: Dict[str, Any]) 
                 if dep not in task_ids:
                     errors.append(f'Dependência {dep} da task {task["task_id"]} não existe')
 
+        # Validar políticas OPA se habilitado
+        policy_decisions = {}
+        if _policy_validator and _config and _config.opa_enabled:
+            try:
+                policy_result = await _policy_validator.validate_cognitive_plan(cognitive_plan)
+
+                if not policy_result.valid:
+                    # Adicionar violações de políticas aos erros
+                    for violation in policy_result.violations:
+                        errors.append(f'Política {violation.policy_name}: {violation.message}')
+
+                    activity.logger.warning(
+                        f'Plano {plan_id} violou políticas OPA',
+                        violations_count=len(policy_result.violations),
+                        policies=[v.policy_name for v in policy_result.violations]
+                    )
+
+                # Adicionar warnings de políticas
+                for warning in policy_result.warnings:
+                    warnings.append(f'Política {warning.policy_name}: {warning.message}')
+
+                # Adicionar decisões de políticas ao resultado
+                policy_decisions = policy_result.policy_decisions
+
+            except Exception as e:
+                # Se OPA falhar e fail_closed, adicionar erro
+                # Se fail_open, apenas logar warning
+                activity.logger.error(f'Erro ao validar políticas OPA: {e}', exc_info=True)
+                if not _config.opa_fail_open:
+                    errors.append(f'Falha na validação de políticas: {str(e)}')
+
         valid = len(errors) == 0
 
         result = {
             'valid': valid,
             'errors': errors,
             'warnings': warnings,
-            'validated_at': datetime.now().isoformat()
+            'validated_at': datetime.now().isoformat(),
+            'policy_decisions': policy_decisions
         }
 
         activity.logger.info(

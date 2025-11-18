@@ -1,0 +1,28 @@
+{{- if .Values.oidc.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spire-oidc-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "spire.labels" . | nindent 4 }}
+data:
+  oidc.conf: |
+    log_level = "{{ .Values.oidc.config.logLevel }}"
+
+    domains = [
+      {{- range .Values.oidc.ingress.hosts }}
+      "{{ .host }}",
+      {{- end }}
+    ]
+
+    acme {
+      email = "admin@neural-hive.local"
+      tos_accepted = true
+    }
+
+    workload_api {
+      socket_path = "/run/spire/sockets/agent.sock"
+      trust_domain = "{{ .Values.global.trustDomain }}"
+    }
+{{- end }}

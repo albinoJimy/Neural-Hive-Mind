@@ -129,6 +129,24 @@ class SLAMetrics:
             ["topic", "event_type"]
         )
 
+        # Erros de conexão
+        self.postgresql_connection_errors_total = Counter(
+            "sla_postgresql_connection_errors_total",
+            "Total de erros de conexão com PostgreSQL"
+        )
+
+        self.redis_connection_errors_total = Counter(
+            "sla_redis_connection_errors_total",
+            "Total de erros de conexão com Redis"
+        )
+
+        # Erros de sincronização de CRD
+        self.crd_sync_errors_total = Counter(
+            "sla_crd_sync_errors_total",
+            "Total de erros ao sincronizar CRDs com PostgreSQL",
+            ["crd_type"]
+        )
+
     def record_calculation(
         self,
         slo_id: str,
@@ -276,6 +294,18 @@ class SLAMetrics:
             topic=topic,
             event_type=event_type
         ).inc()
+
+    def record_postgresql_error(self) -> None:
+        """Registra erro de conexão com PostgreSQL."""
+        self.postgresql_connection_errors_total.inc()
+
+    def record_redis_error(self) -> None:
+        """Registra erro de conexão com Redis."""
+        self.redis_connection_errors_total.inc()
+
+    def record_crd_sync_error(self, crd_type: str) -> None:
+        """Registra erro de sincronização de CRD."""
+        self.crd_sync_errors_total.labels(crd_type=crd_type).inc()
 
 
 # Instância global

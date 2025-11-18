@@ -1,0 +1,30 @@
+apiVersion: neural-hive.io/v1
+kind: SLAPolicy
+metadata:
+  name: global-critical-freeze-policy
+  namespace: neural-hive-monitoring
+  labels:
+    neural-hive.io/policy-scope: global
+    neural-hive.io/severity: critical
+spec:
+  name: "Global Critical Freeze Policy"
+  description: "Política global de freeze quando múltiplos SLOs críticos estão em estado crítico"
+  scope: GLOBAL
+  target: "*"
+  actions:
+    - BLOCK_DEPLOY
+    - BLOCK_SCALE
+    - ALERT_ONLY
+  triggerThresholdPercent: 10  # Mais restritivo para política global
+  autoUnfreeze: true
+  unfreezeThresholdPercent: 30
+  enabled: true
+  metadata:
+    owner: neural-hive-sre-team
+    severity: critical
+    notification_channels:
+      - slack-neural-hive-critical
+      - pagerduty-oncall-critical
+      - email-leadership
+    escalation_policy: neural-hive-critical-escalation
+    runbook: https://docs.neural-hive.io/runbooks/global-freeze

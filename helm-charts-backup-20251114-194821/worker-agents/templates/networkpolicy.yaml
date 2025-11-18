@@ -1,0 +1,89 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "worker-agents.fullname" . }}
+  labels:
+    {{- include "worker-agents.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "worker-agents.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow Prometheus scraping
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - protocol: TCP
+          port: {{ .Values.config.observability.prometheusPort }}
+    # Allow Istio sidecar
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+      ports:
+        - protocol: TCP
+          port: {{ .Values.config.observability.httpPort }}
+  egress:
+    # Allow DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow Service Registry
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: neural-hive-registry
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: service-registry
+      ports:
+        - protocol: TCP
+          port: {{ .Values.config.serviceRegistry.port }}
+    # Allow Execution Ticket Service
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: neural-hive-orchestration
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: execution-ticket-service
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Allow Kafka
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+    {{- if .Values.config.temporal.enabled }}
+    # Allow Temporal
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: temporal
+      ports:
+        - protocol: TCP
+          port: {{ .Values.config.temporal.port }}
+    {{- end }}
+    # Allow OpenTelemetry Collector
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - protocol: TCP
+          port: 4317
+{{- end }}

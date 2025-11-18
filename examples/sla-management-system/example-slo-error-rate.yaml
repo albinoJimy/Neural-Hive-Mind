@@ -1,0 +1,42 @@
+apiVersion: neural-hive.io/v1
+kind: SLODefinition
+metadata:
+  name: specialist-business-error-rate-slo
+  namespace: neural-hive-specialists
+  labels:
+    app.kubernetes.io/name: specialist-business
+    neural-hive.io/layer: cognitive
+    neural-hive.io/slo-type: error-rate
+spec:
+  name: "Specialist Business - Error Rate"
+  description: "Taxa de erro em análises de negócio deve ser menor que 1%"
+  sloType: ERROR_RATE
+  serviceName: specialist-business
+  component: analysis-engine
+  layer: cognitivo
+  target: 0.99  # 99% success rate (1% error rate)
+  windowDays: 30
+  sliQuery:
+    metricName: grpc_server_handled_total
+    query: |
+      (
+        sum(rate(grpc_server_handled_total{
+          grpc_service="BusinessSpecialist",
+          grpc_code!="OK"
+        }[5m]))
+        /
+        sum(rate(grpc_server_handled_total{
+          grpc_service="BusinessSpecialist"
+        }[5m]))
+      ) < 0.01
+    aggregation: sum
+    labels:
+      service: specialist-business
+      layer: cognitive
+      grpc_service: BusinessSpecialist
+  enabled: true
+  metadata:
+    owner: neural-hive-team
+    severity: high
+    runbook: https://docs.neural-hive.io/runbooks/specialist-errors
+    slack_channel: "#neural-hive-alerts"

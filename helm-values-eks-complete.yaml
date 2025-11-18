@@ -1,0 +1,60 @@
+# Valores completos para deployment EKS
+global:
+  cluster: "neural-hive-eks"
+  environment: "dev"
+
+# Service Account
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Image Pull Secrets
+imagePullSecrets:
+  - name: ecr-secret
+
+# Network Policy
+networkPolicy:
+  enabled: false
+
+# Service Monitor
+serviceMonitor:
+  enabled: false
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: false
+
+# Istio
+istio:
+  enabled: false
+
+# Custom Command
+customCommand:
+  enabled: false
+
+# Recursos reduzidos para cluster pequeno
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Replicar apenas 1 pod
+replicaCount: 1
+
+# Autoscaling desabilitado
+autoscaling:
+  enabled: false
+
+# Init Containers
+initContainers:
+  modelDownloader:
+    enabled: false
+
+# Configurações para schema registry
+config:
+  schemaRegistry:
+    url: "http://schema-registry.neural-hive-kafka.svc.cluster.local:8081"

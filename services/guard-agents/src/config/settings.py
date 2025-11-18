@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     kafka_incidents_topic: str = "security-incidents"
     kafka_orchestration_incidents_topic: str = "orchestration-incidents"
     kafka_remediation_topic: str = "remediation-actions"
+    kafka_tickets_topic: str = "execution.tickets"
+    kafka_tickets_validated_topic: str = "execution.tickets.validated"
+    kafka_tickets_rejected_topic: str = "execution.tickets.rejected"
+    kafka_tickets_pending_approval_topic: str = "execution.tickets.pending_approval"
+    kafka_validations_topic: str = "security.validations"
     kafka_auto_offset_reset: str = "earliest"
     kafka_enable_auto_commit: bool = False
 
@@ -37,7 +42,10 @@ class Settings(BaseSettings):
             "threat-detection",
             "policy-enforcement",
             "incident-classification",
-            "auto-remediation"
+            "auto-remediation",
+            "ticket-validation",
+            "secrets-scanning",
+            "guardrail-enforcement"
         ]
     )
 
@@ -46,6 +54,7 @@ class Settings(BaseSettings):
     mongodb_database: str = "neural_hive"
     mongodb_incidents_collection: str = "security_incidents"
     mongodb_remediation_collection: str = "remediation_actions"
+    mongodb_validations_collection: str = "security_validations"
 
     # Redis Config
     redis_host: str
@@ -85,6 +94,28 @@ class Settings(BaseSettings):
     # OPA Config
     opa_url: str = "http://opa:8181"
     opa_timeout_seconds: int = 5
+
+    # Vault Integration
+    vault_enabled: bool = True
+    vault_addr: str = "http://vault:8200"
+    vault_namespace: str = "neural-hive"
+    vault_fail_open: bool = False
+
+    # Trivy Integration
+    trivy_enabled: bool = True
+    trivy_url: str = "http://trivy:8080"
+    trivy_timeout_seconds: int = 30
+
+    # Validation Thresholds
+    risk_score_threshold_auto_approve: float = 0.3
+    risk_score_threshold_auto_reject: float = 0.9
+    require_approval_for_production: bool = True
+    require_approval_for_critical_risk: bool = True
+
+    # Guardrails
+    guardrails_enabled: bool = True
+    guardrails_mode: str = "BLOCKING"
+    max_blast_radius_percentage: float = 0.1
 
     # OpenTelemetry Config
     otel_exporter_otlp_endpoint: str

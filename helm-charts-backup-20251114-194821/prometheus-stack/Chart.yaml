@@ -1,0 +1,29 @@
+apiVersion: v2
+name: neural-hive-prometheus-stack
+description: Prometheus Stack configurado para Neural Hive-Mind com SLOs e alertas específicos
+type: application
+version: 1.0.0
+appVersion: "v2.47.0"
+home: https://github.com/neural-hive-mind/observability
+sources:
+  - https://github.com/prometheus-community/helm-charts
+  - https://github.com/neural-hive-mind/observability
+keywords:
+  - monitoring
+  - prometheus
+  - alerting
+  - slo
+  - metrics
+  - neural-hive-mind
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: observability@neural-hive.local
+annotations:
+  category: Monitoring
+  neural.hive/component: metrics-monitoring
+  neural.hive/layer: observabilidade
+dependencies:
+  - name: kube-prometheus-stack
+    version: "51.7.0"
+    repository: https://prometheus-community.github.io/helm-charts
+    condition: prometheus.enabled

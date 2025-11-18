@@ -1,0 +1,238 @@
+---
+# Alertas Prometheus para Modelos Preditivos do Neural Hive-Mind
+groups:
+  - name: neural_hive_ml
+    interval: 30s
+    rules:
+      # =============================================================================
+      # Alertas de Acurácia
+      # =============================================================================
+      - alert: PredictionAccuracyLow
+        expr: prediction_accuracy{service="orchestrator-dynamic"} < 0.8
+        for: 30m
+        labels:
+          severity: warning
+          component: ml-predictions
+          team: ml-ops
+        annotations:
+          summary: "Acurácia de predições abaixo do limiar (< 80%)"
+          description: |
+            A acurácia de predições do modelo {{ $labels.model_type }} está em {{ $value | humanizePercentage }},
+            abaixo do limiar de 80% por mais de 30 minutos.
+
+            Ações recomendadas:
+            - Verificar drift de dados via /api/v1/ml/drift
+            - Considerar retreinamento do modelo
+            - Validar qualidade dos dados de entrada
+          dashboard: "https://grafana/d/predictive-models"
+          runbook: "https://docs/runbooks/ml-accuracy-low"
+
+      # =============================================================================
+      # Alertas de Latência
+      # =============================================================================
+      - alert: PredictionLatencyHigh
+        expr: histogram_quantile(0.95, sum(rate(prediction_latency_seconds_bucket{service="orchestrator-dynamic"}[5m])) by (le, model_type)) > 5
+        for: 10m
+        labels:
+          severity: warning
+          component: ml-predictions
+          team: ml-ops
+        annotations:
+          summary: "Latência P95 de predições acima de 5s"
+          description: |
+            A latência P95 de predições do modelo {{ $labels.model_type }} está em {{ $value }}s,
+            acima do limiar de 5s por mais de 10 minutos.
+
+            Impacto: Scheduling de tickets pode ficar lento.
+
+            Ações recomendadas:
+            - Verificar recursos do pod (CPU/Memory)
+            - Considerar otimização do modelo (quantização, prunning)
+            - Validar carga do sistema
+          dashboard: "https://grafana/d/predictive-models"
+
+      # =============================================================================
+      # Alertas de Erros
+      # =============================================================================
+      - alert: PredictionErrorsHigh
+        expr: sum(rate(prediction_errors_total{service="orchestrator-dynamic"}[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          component: ml-predictions
+          team: ml-ops
+        annotations:
+          summary: "Taxa de erros de predições alta (> 0.1/s)"
+          description: |
+            A taxa de erros de predições está em {{ $value }} erros/s,
+            acima do limiar de 0.1/s por mais de 5 minutos.
+
+            Possíveis causas:
+            - Modelo não carregado corretamente
+            - Falha no MLflow registry
+            - Dados de entrada inválidos
+
+            Ações imediatas:
+            - Verificar logs do orchestrator-dynamic
+            - Validar /health/ml endpoint
+            - Considerar rollback se erro persistir
+          pagerduty: "ml-predictions-critical"
+
+      # =============================================================================
+      # Alertas de Anomalias
+      # =============================================================================
+      - alert: AnomalyRateHigh
+        expr: sum(rate(anomaly_detected_total{service="orchestrator-dynamic"}[1h])) / sum(rate(prediction_total{service="orchestrator-dynamic"}[1h])) > 0.10
+        for: 1h
+        labels:
+          severity: warning
+          component: anomaly-detection
+          team: ml-ops
+        annotations:
+          summary: "Taxa de anomalias detectadas acima de 10%"
+          description: |
+            A taxa de anomalias detectadas está em {{ $value | humanizePercentage }},
+            acima do esperado de ~5% (contamination=0.05).
+
+            Possíveis causas:
+            - Mudança no padrão de tickets
+            - Drift de features
+            - Modelo desatualizado
+
+            Ações recomendadas:
+            - Analisar tipos de anomalias mais comuns
+            - Verificar drift de features
+            - Considerar retreinamento com dados recentes
+          dashboard: "https://grafana/d/predictive-models"
+
+      # =============================================================================
+      # Alertas de MAPE (Load Predictor)
+      # =============================================================================
+      - alert: LoadPredictionMAPEHigh
+        expr: avg(load_prediction_mape{service="orchestrator-dynamic"}) > 25
+        for: 1h
+        labels:
+          severity: warning
+          component: load-predictor
+          team: ml-ops
+        annotations:
+          summary: "MAPE de predição de carga acima de 25%"
+          description: |
+            O MAPE (Mean Absolute Percentage Error) de predição de carga está em {{ $value }}%,
+            acima do limiar de 25% para o horizonte {{ $labels.horizon_minutes }} minutos.
+
+            Impacto: Scheduling pode alocar recursos sub-otimamente.
+
+            Ações recomendadas:
+            - Verificar padrões de sazonalidade
+            - Validar dados históricos de carga
+            - Considerar ajuste de hiperparâmetros (Prophet)
+          dashboard: "https://grafana/d/predictive-models"
+
+      # =============================================================================
+      # Alertas de Treinamento
+      # =============================================================================
+      - alert: ModelTrainingFailed
+        expr: kube_job_status_failed{job_name=~"predictive-models-training.*"} > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: ml-training
+          team: ml-ops
+        annotations:
+          summary: "Treinamento de modelo falhou"
+          description: |
+            O job de treinamento {{ $labels.job_name }} falhou.
+
+            Ações imediatas:
+            - Verificar logs do CronJob: kubectl logs -n default {{ $labels.job_name }}
+            - Validar conectividade com MLflow
+            - Verificar disponibilidade de dados no MongoDB/ClickHouse
+          pagerduty: "ml-training-failed"
+          slack: "#ml-alerts"
+
+      # =============================================================================
+      # Alertas de Modelo Desatualizado
+      # =============================================================================
+      - alert: ModelStale
+        expr: (time() - model_last_training_timestamp{service="orchestrator-dynamic"}) / 86400 > 30
+        for: 1h
+        labels:
+          severity: warning
+          component: ml-models
+          team: ml-ops
+        annotations:
+          summary: "Modelo não retreinado há mais de 30 dias"
+          description: |
+            O modelo {{ $labels.model_type }} não é retreinado há {{ $value }} dias.
+
+            Recomendação: Executar treinamento manual ou verificar CronJob de treinamento.
+
+            Comando:
+            kubectl create job --from=cronjob/predictive-models-training manual-training-$(date +%s)
+          dashboard: "https://grafana/d/predictive-models"
+
+      # =============================================================================
+      # Alertas de Cache
+      # =============================================================================
+      - alert: CacheHitRateLow
+        expr: |
+          sum(rate(cache_hit_total{service="orchestrator-dynamic"}[10m])) /
+          (sum(rate(cache_hit_total{service="orchestrator-dynamic"}[10m])) +
+           sum(rate(cache_miss_total{service="orchestrator-dynamic"}[10m]))) < 0.7
+        for: 30m
+        labels:
+          severity: info
+          component: ml-cache
+          team: ml-ops
+        annotations:
+          summary: "Cache hit rate abaixo de 70%"
+          description: |
+            O cache hit rate de predições está em {{ $value | humanizePercentage }},
+            abaixo do esperado de 80%.
+
+            Impacto: Maior latência de predições e carga em modelos.
+
+            Ações recomendadas:
+            - Verificar TTL do cache (padrão: 5min)
+            - Validar conectividade com Redis
+            - Analisar padrão de requests (queries únicas vs repetidas)
+
+      # =============================================================================
+      # Alertas de Drift
+      # =============================================================================
+      - alert: FeatureDriftDetected
+        expr: feature_drift_score{service="orchestrator-dynamic"} > 0.2
+        for: 1h
+        labels:
+          severity: warning
+          component: ml-drift
+          team: ml-ops
+        annotations:
+          summary: "Drift de features detectado"
+          description: |
+            Drift de features foi detectado na feature {{ $labels.feature_name }}
+            com score {{ $value }} (limiar: 0.2).
+
+            Impacto: Acurácia do modelo pode degradar.
+
+            Ações recomendadas:
+            - Revisar distribuição da feature no dashboard de drift
+            - Considerar retreinamento do modelo com dados recentes
+            - Avaliar se drift é esperado (mudança de comportamento legítima)
+          dashboard: "https://grafana/d/ml-drift"
+
+# =============================================================================
+# Configuração de Notificações
+# =============================================================================
+# Configurar nos Alertmanager routes:
+# - severity: critical → PagerDuty + Slack
+# - severity: warning → Slack
+# - severity: info → Slack (canal secundário)
+#
+# Slack channels:
+# - #ml-alerts: Todos os alertas ML
+# - #ml-ops-oncall: Apenas critical
+#
+# Email:
+# - ml-ops@example.com: Todos os alertas

@@ -1,0 +1,53 @@
+{{- if .Values.workloadEntries.enabled -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: spire-registration
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "spire.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "5"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      serviceAccountName: {{ include "spire.server.serviceAccountName" . }}
+      restartPolicy: OnFailure
+      initContainers:
+      - name: wait-for-server
+        image: curlimages/curl:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          until curl -s http://spire-server:8080/ready; do
+            echo "Waiting for SPIRE Server..."
+            sleep 5
+          done
+          echo "SPIRE Server is ready"
+      containers:
+      - name: spire-registration
+        image: "{{ .Values.server.image.repository }}:{{ .Values.server.image.tag }}"
+        command:
+        - /bin/sh
+        - -c
+        args:
+        - |
+          set -e
+          {{- range .Values.workloadEntries.entries }}
+          echo "Creating entry: {{ .spiffeId }}"
+          /opt/spire/bin/spire-server entry create \
+            -spiffeID {{ .spiffeId }} \
+            -parentID {{ .parentId }} \
+            {{- range .selectors }}
+            -selector {{ . }} \
+            {{- end }}
+            -ttl {{ .ttl }} \
+            -serverAddress spire-server \
+            -serverPort 8081 || true
+          {{- end }}
+          echo "Registration complete"
+{{- end }}

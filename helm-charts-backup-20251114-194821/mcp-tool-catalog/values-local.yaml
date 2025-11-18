@@ -1,0 +1,114 @@
+# Local development values for mcp-tool-catalog
+# Override production values for local Kubernetes clusters
+
+# Reduced replica count for local development
+replicaCount: 1
+
+image:
+  pullPolicy: IfNotPresent
+
+# Reduced resources for local development (~50% of production)
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Disable autoscaling for local development
+autoscaling:
+  enabled: false
+
+# Disable pod disruption budget for local development
+podDisruptionBudget:
+  enabled: false
+
+# Disable service monitor for local development
+serviceMonitor:
+  enabled: false
+
+# Disable network policies for local development
+networkPolicy:
+  enabled: false
+
+# Disable Istio for local development
+istio:
+  enabled: false
+
+# Application configuration
+# Note: Top-level keys kafka, mongodb, redis, serviceRegistry match base schema
+
+kafka:
+  bootstrapServers: neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092
+  requestTopic: mcp.tool.selection.requests
+  responseTopic: mcp.tool.selection.responses
+  consumerGroupId: mcp-tool-catalog-group
+
+mongodb:
+  url: mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017
+  database: mcp_tool_catalog
+  toolsCollection: tools
+  selectionsCollection: selections_history
+
+redis:
+  url: redis://neural-hive-cache.redis-cluster.svc.cluster.local:6379
+  cacheTtl: 3600
+  cacheEnabled: true
+
+serviceRegistry:
+  host: service-registry
+  port: 8080
+  heartbeatInterval: 30
+
+geneticAlgorithm:
+  populationSize: 50
+  maxGenerations: 100
+  crossoverProb: 0.7
+  mutationProb: 0.2
+  tournamentSize: 3
+  convergenceThreshold: 0.01
+  timeout: 30
+
+toolExecution:
+  timeout: 300
+  maxConcurrent: 10
+  retryMaxAttempts: 3
+
+observability:
+  otelEndpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
+  logLevel: DEBUG
+  logFormat: json
+
+analystAgents:
+  host: analyst-agents
+  port: 9090
+
+# Use default service account for local
+serviceAccount:
+  create: false
+  name: default
+
+# Simplified secrets for local development
+secrets:
+  mongodbPassword: ""
+  redisPassword: ""
+
+# Relaxed probes for local development
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3

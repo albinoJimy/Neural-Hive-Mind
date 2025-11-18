@@ -1,0 +1,107 @@
+# Local development values for worker-agents
+# Override production values for local Kubernetes clusters
+
+# Reduced replica count for local development
+replicaCount: 1
+
+image:
+  pullPolicy: IfNotPresent
+
+# Reduced resources for local development (~50% of production)
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Disable autoscaling for local development
+autoscaling:
+  enabled: false
+
+# Disable pod disruption budget for local development
+podDisruptionBudget:
+  enabled: false
+
+# Disable service monitor for local development
+serviceMonitor:
+  enabled: false
+
+# Disable network policies for local development
+networkPolicy:
+  enabled: false
+
+# Disable Istio for local development
+istio:
+  enabled: false
+
+# Application configuration
+config:
+  serviceName: worker-agents
+  namespace: neural-hive-execution
+  cluster: dev
+  supportedTaskTypes:
+    - BUILD
+    - DEPLOY
+    - TEST
+    - VALIDATE
+    - EXECUTE
+  maxConcurrentTasks: 5
+
+  kafka:
+    bootstrapServers: neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092
+    ticketsTopic: execution.tickets
+    resultsTopic: execution.results
+    consumerGroupId: worker-agents
+
+  serviceRegistry:
+    host: service-registry.service-registry.svc.cluster.local
+    port: 50051
+    heartbeatIntervalSeconds: 30
+
+  executionTicketService:
+    url: http://execution-ticket-service.neural-hive-orchestration.svc.cluster.local:8080
+
+  temporal:
+    enabled: false
+    host: temporal-frontend.temporal.svc.cluster.local
+    port: 7233
+    namespace: neural-hive-mind
+    taskQueue: worker-tasks
+
+  observability:
+    otelEndpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
+    prometheusPort: 9090
+    httpPort: 8080
+    logLevel: DEBUG
+
+# Use default service account for local
+serviceAccount:
+  create: false
+  name: default
+
+# Simplified secrets for local development
+secrets:
+  kafkaSaslUsername: ""
+  kafkaSaslPassword: ""
+  redisPassword: ""
+
+# Relaxed probes for local development
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3

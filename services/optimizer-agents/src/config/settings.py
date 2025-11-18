@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     kafka_telemetry_topic: str = Field(default="telemetry.aggregated")
     kafka_optimization_topic: str = Field(default="optimization.applied")
     kafka_experiments_topic: str = Field(default="experiments.results")
+    kafka_experiment_requests_topic: str = Field(default="experiments.requests", description="Kafka topic for experiment requests")
 
     # gRPC Server
     grpc_port: int = Field(default=50051, description="gRPC server port")
@@ -42,6 +43,7 @@ class Settings(BaseSettings):
     mongodb_database: str = Field(default="neural_hive")
     mongodb_optimization_collection: str = Field(default="optimization_ledger")
     mongodb_experiments_collection: str = Field(default="experiments_ledger")
+    mongodb_insights_collection: str = Field(default="insights", description="MongoDB collection for insights")
 
     # Redis
     redis_cluster_nodes: str = Field(default="redis-cluster.redis.svc.cluster.local:6379")
@@ -81,6 +83,31 @@ class Settings(BaseSettings):
     enable_bandits: bool = Field(default=True, description="Enable contextual bandits")
     enable_causal_analysis: bool = Field(default=True, description="Enable causal analysis")
     enable_experiments: bool = Field(default=True, description="Enable experiments")
+
+    # ML Predictive Scheduling
+    clickhouse_host: str = Field(default="clickhouse.clickhouse.svc.cluster.local", description="ClickHouse host")
+    clickhouse_port: int = Field(default=9000, description="ClickHouse port")
+    clickhouse_user: str = Field(default="default", description="ClickHouse user")
+    clickhouse_password: str = Field(default="", description="ClickHouse password")
+    clickhouse_database: str = Field(default="neural_hive", description="ClickHouse database")
+
+    ml_load_forecast_horizons: List[int] = Field(default=[60, 360, 1440], description="Forecast horizons in minutes (1h, 6h, 24h)")
+    ml_prophet_seasonality_mode: str = Field(default="additive", description="Prophet seasonality mode (additive/multiplicative)")
+    ml_prophet_changepoint_prior_scale: float = Field(default=0.05, description="Prophet changepoint prior scale")
+
+    ml_scheduling_epsilon: float = Field(default=0.1, description="Epsilon for scheduling RL exploration")
+    ml_scheduling_learning_rate: float = Field(default=0.01, description="Learning rate for scheduling Q-learning")
+    ml_scheduling_discount_factor: float = Field(default=0.95, description="Discount factor for scheduling RL")
+
+    ml_training_interval_hours: int = Field(default=24, description="Interval for periodic model retraining (hours)")
+    ml_training_window_days: int = Field(default=540, description="Training data window (18 months)")
+    ml_min_training_samples: int = Field(default=1000, description="Minimum samples required for training")
+
+    ml_model_cache_ttl_seconds: int = Field(default=3600, description="Model cache TTL (1 hour)")
+    ml_forecast_cache_ttl_seconds: int = Field(default=300, description="Forecast cache TTL (5 minutes)")
+
+    enable_load_prediction: bool = Field(default=True, description="Enable load prediction features")
+    enable_scheduling_optimization: bool = Field(default=True, description="Enable scheduling optimization")
 
     @field_validator("min_improvement_threshold", "max_weight_adjustment", "max_slo_adjustment_percentage")
     @classmethod

@@ -1,0 +1,34 @@
+[
+  {
+    "text": "Criar relatório de vendas do último trimestre",
+    "expected_domain": "BUSINESS"
+  },
+  {
+    "text": "Bug no sistema de login",
+    "expected_domain": "TECHNICAL"
+  },
+  {
+    "text": "Deploy da aplicação em produção",
+    "expected_domain": "INFRASTRUCTURE"
+  },
+  {
+    "text": "Configurar firewall para bloquear IPs suspeitos",
+    "expected_domain": "SECURITY"
+  },
+  {
+    "text": "Analisar métricas de KPI do dashboard",
+    "expected_domain": "BUSINESS"
+  },
+  {
+    "text": "Erro de performance no endpoint de API",
+    "expected_domain": "TECHNICAL"
+  },
+  {
+    "text": "Configurar cluster Kubernetes para autoscaling",
+    "expected_domain": "INFRASTRUCTURE"
+  },
+  {
+    "text": "Implementar autenticação JWT",
+    "expected_domain": "SECURITY"
+  }
+]

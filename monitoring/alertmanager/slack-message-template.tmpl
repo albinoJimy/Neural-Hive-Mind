@@ -1,0 +1,324 @@
+{{/* Template Customizado do Slack para Alertas de SLA */}}
+{{/* Arquivo: slack-message-template.tmpl */}}
+{{/* Uso: Referenciar em alertmanager.yml via templates: ['/etc/alertmanager/templates/*.tmpl'] */}}
+
+{{/* Template Principal para Texto do Slack */}}
+{{ define "slack.sla.text" }}
+{{- $status := .Status -}}
+{{- $severity := .CommonLabels.severity | default "unknown" -}}
+{{- $alertname := .GroupLabels.alertname | default "UnknownAlert" -}}
+
+{{/* Emoji baseado no status */}}
+{{- if eq $status "firing" }}{{ if eq $severity "critical" }}🔴{{ else }}⚠️{{ end }}{{ else }}🟢{{ end }} *{{ $alertname }}* [{{ $severity | toUpper }}]
+
+{{/* Informações de Contexto */}}
+📦 *Serviço:* {{ .CommonLabels.service_name | default "orchestrator-dynamic" }}
+🔧 *Componente:* {{ .CommonLabels.component | default "N/A" }}
+{{- if .CommonAnnotations.workflow_id }}
+🔄 *Workflow ID:* `{{ .CommonAnnotations.workflow_id }}`
+{{- end }}
+🕐 *Timestamp:* {{ .StartsAt | date "2006-01-02 15:04:05 MST" }}
+
+{{/* Detalhes Específicos por Tipo de Alerta */}}
+
+{{- if eq $alertname "OrchestratorBudgetCritical" }}
+{{/* Budget Critical Alert */}}
+📊 *Budget Restante:* {{ .CommonAnnotations.budget_remaining | default "N/A" }}%
+📈 *Status:* {{ .CommonAnnotations.status | toUpper }}
+{{- if .CommonAnnotations.burn_rate }}
+🔥 *Burn Rate:* {{ .CommonAnnotations.burn_rate }}x
+{{- end }}
+
+⚠️ *Ação Requerida:* Budget de erro está criticamente baixo. Considere congelar deployments não-críticos e investigar fonte de erros.
+
+{{- else if eq $alertname "OrchestratorDeadlineApproaching" }}
+{{/* Deadline Approaching Alert */}}
+⏱️ *Tempo Restante:* {{ .CommonAnnotations.remaining_seconds | default "N/A" }}s
+📊 *Progresso:* {{ .CommonAnnotations.percent_consumed | default "N/A" }}% consumido
+{{- if .CommonAnnotations.ticket_id }}
+🎫 *Ticket ID:* `{{ .CommonAnnotations.ticket_id }}`
+{{- end }}
+
+⚠️ *Ação Requerida:* Workflow está se aproximando do deadline de SLA. Monitorar progresso atentamente.
+
+{{- else if eq $alertname "OrchestratorDeadlineExceeded" }}
+{{/* SLA Violation Alert */}}
+🚨 *Tipo de Violação:* {{ .CommonAnnotations.violation_type | default "DEADLINE_EXCEEDED" }}
+⏱️ *Atraso:* {{ .CommonAnnotations.delay_ms | default "N/A" }}ms
+{{- if .CommonAnnotations.ticket_id }}
+🎫 *Ticket ID:* `{{ .CommonAnnotations.ticket_id }}`
+{{- end }}
+
+🚨 *VIOLAÇÃO DE SLA DETECTADA* - Investigar causa raiz imediatamente.
+
+{{- else if eq $alertname "OrchestratorHighBurnRate" }}
+{{/* High Burn Rate Alert */}}
+🔥 *Burn Rate:* {{ .CommonAnnotations.burn_rate | default "N/A" }}x
+📊 *Budget Restante:* {{ .CommonAnnotations.budget_remaining | default "N/A" }}%
+⏱️ *Janela:* {{ .CommonAnnotations.window | default "1h" }}
+
+⚠️ *Ação Requerida:* Taxa de consumo do budget está acima do normal. Verificar se há incidente em andamento.
+
+{{- else if eq $alertname "OrchestratorBudgetExhausted" }}
+{{/* Budget Exhausted Alert */}}
+🚫 *Budget Restante:* 0%
+📈 *Status:* EXHAUSTED
+
+🚨 *BUDGET ESGOTADO* - Todos os erros futuros violarão SLA. Freezar deployments e resolver incidente imediatamente.
+
+{{- else if eq $alertname "OrchestratorSLAMonitorDown" }}
+{{/* SLA Monitor Down Alert */}}
+💔 *Monitor Status:* DOWN
+⏱️ *Última Verificação:* {{ .CommonAnnotations.last_check | default "N/A" }}
+
+🚨 *SLA MONITORING INDISPONÍVEL* - Sem visibilidade de SLA. Verificar health do SLA Management System.
+
+{{- else }}
+{{/* Generic Alert */}}
+📝 *Descrição:* {{ .CommonAnnotations.description | default .CommonAnnotations.summary | default "Sem descrição disponível" }}
+{{- if .CommonAnnotations.budget_remaining }}
+📊 *Budget Restante:* {{ .CommonAnnotations.budget_remaining }}%
+{{- end }}
+{{- if .CommonAnnotations.remaining_seconds }}
+⏱️ *Tempo Restante:* {{ .CommonAnnotations.remaining_seconds }}s
+{{- end }}
+{{- end }}
+
+{{/* Links de Ação */}}
+📎 *Links:*
+{{- if .CommonAnnotations.dashboard_url }}
+  • <{{ .CommonAnnotations.dashboard_url }}|📊 Dashboard do Grafana>
+{{- else }}
+  • <http://grafana/d/fluxo-c-orchestration|📊 Dashboard do Grafana>
+{{- end }}
+{{- if .CommonAnnotations.runbook_url }}
+  • <{{ .CommonAnnotations.runbook_url }}|📖 Runbook>
+{{- else }}
+  • <https://docs.example.com/runbooks/sla|📖 Runbook>
+{{- end }}
+{{- if .CommonAnnotations.workflow_id }}
+  • <{{ .ExternalURL }}/logs?workflow_id={{ .CommonAnnotations.workflow_id }}|📋 Logs do Workflow>
+{{- end }}
+
+{{/* Lista de Alertas (se múltiplos) */}}
+{{- if gt (len .Alerts) 1 }}
+
+🔔 *Alertas neste Grupo:* {{ .Alerts | len }}
+{{- range .Alerts }}
+  • `{{ .Labels.workflow_id | default .Labels.ticket_id | default .Labels.alertname }}` - {{ .Status | toUpper }}{{ if .Labels.risk_band }} [{{ .Labels.risk_band }}]{{ end }} ({{ .StartsAt | since }})
+{{- end }}
+{{- end }}
+
+{{/* Footer */}}
+---
+🔇 <{{ .ExternalURL }}/#/silences/new?filter=%7Balertname%3D%22{{ $alertname }}%22%7D|Silenciar este alerta> | 📊 <{{ .GeneratorURL }}|Ver no Prometheus>
+{{ end }}
+
+
+{{/* Template para Título Curto */}}
+{{ define "slack.sla.title" }}
+{{- if eq .Status "firing" -}}
+  {{- if eq .CommonLabels.severity "critical" -}}
+    🔴 [CRITICAL]
+  {{- else -}}
+    ⚠️ [WARNING]
+  {{- end -}}
+{{- else -}}
+  ✅ [RESOLVED]
+{{- end }} {{ .GroupLabels.alertname }}
+{{- end }}
+
+
+{{/* Template para Cor do Slack */}}
+{{ define "slack.sla.color" }}
+{{- if eq .Status "firing" -}}
+  {{- if eq .CommonLabels.severity "critical" -}}
+    danger
+  {{- else -}}
+    warning
+  {{- end -}}
+{{- else -}}
+  good
+{{- end -}}
+{{- end }}
+
+
+{{/* Template para Sumário Executivo (PagerDuty) */}}
+{{ define "pagerduty.sla.summary" }}
+{{- $alertname := .GroupLabels.alertname | default "UnknownAlert" -}}
+{{- $severity := .CommonLabels.severity | default "unknown" | toUpper -}}
+{{- $service := .CommonLabels.service_name | default "orchestrator-dynamic" -}}
+
+[{{ $severity }}] {{ $alertname }} - {{ $service }}
+{{- if .CommonAnnotations.workflow_id }} (Workflow: {{ .CommonAnnotations.workflow_id }}){{ end }}
+{{- if .CommonAnnotations.budget_remaining }} - Budget: {{ .CommonAnnotations.budget_remaining }}%{{ end }}
+{{- if .CommonAnnotations.remaining_seconds }} - Tempo: {{ .CommonAnnotations.remaining_seconds }}s{{ end }}
+{{- end }}
+
+
+{{/* Template para Detalhes JSON (Webhooks) */}}
+{{ define "webhook.sla.payload" }}
+{
+  "status": "{{ .Status }}",
+  "alert_name": "{{ .GroupLabels.alertname }}",
+  "severity": "{{ .CommonLabels.severity }}",
+  "service": "{{ .CommonLabels.service_name | default "orchestrator-dynamic" }}",
+  "component": "{{ .CommonLabels.component }}",
+  "workflow_id": "{{ .CommonAnnotations.workflow_id }}",
+  "ticket_id": "{{ .CommonAnnotations.ticket_id }}",
+  "budget_remaining": "{{ .CommonAnnotations.budget_remaining }}",
+  "remaining_seconds": "{{ .CommonAnnotations.remaining_seconds }}",
+  "burn_rate": "{{ .CommonAnnotations.burn_rate }}",
+  "violation_type": "{{ .CommonAnnotations.violation_type }}",
+  "timestamp": "{{ .StartsAt }}",
+  "alerts_count": {{ .Alerts | len }},
+  "firing_count": {{ .Alerts.Firing | len }},
+  "resolved_count": {{ .Alerts.Resolved | len }},
+  "dashboard_url": "{{ .CommonAnnotations.dashboard_url }}",
+  "runbook_url": "{{ .CommonAnnotations.runbook_url }}",
+  "generator_url": "{{ .GeneratorURL }}"
+}
+{{- end }}
+
+
+{{/* Template para Email (futuro) */}}
+{{ define "email.sla.subject" }}
+[{{ .Status | toUpper }}] {{ .CommonLabels.severity | toUpper }}: {{ .GroupLabels.alertname }}
+{{- end }}
+
+{{ define "email.sla.body" }}
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    .alert-critical { background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; }
+    .alert-warning { background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; }
+    .alert-resolved { background-color: #d4edda; border: 1px solid #c3e6cb; padding: 10px; }
+    .details { margin: 10px 0; }
+    .label { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="alert-{{ if eq .Status "firing" }}{{ .CommonLabels.severity }}{{ else }}resolved{{ end }}">
+    <h2>{{ template "email.sla.subject" . }}</h2>
+
+    <div class="details">
+      <p><span class="label">Serviço:</span> {{ .CommonLabels.service_name | default "orchestrator-dynamic" }}</p>
+      <p><span class="label">Componente:</span> {{ .CommonLabels.component }}</p>
+      {{- if .CommonAnnotations.workflow_id }}
+      <p><span class="label">Workflow ID:</span> {{ .CommonAnnotations.workflow_id }}</p>
+      {{- end }}
+      <p><span class="label">Timestamp:</span> {{ .StartsAt }}</p>
+    </div>
+
+    {{- if .CommonAnnotations.description }}
+    <p>{{ .CommonAnnotations.description }}</p>
+    {{- end }}
+
+    <div class="details">
+      {{- if .CommonAnnotations.budget_remaining }}
+      <p><span class="label">Budget Restante:</span> {{ .CommonAnnotations.budget_remaining }}%</p>
+      {{- end }}
+      {{- if .CommonAnnotations.remaining_seconds }}
+      <p><span class="label">Tempo Restante:</span> {{ .CommonAnnotations.remaining_seconds }}s</p>
+      {{- end }}
+      {{- if .CommonAnnotations.burn_rate }}
+      <p><span class="label">Burn Rate:</span> {{ .CommonAnnotations.burn_rate }}x</p>
+      {{- end }}
+    </div>
+
+    <h3>Ações:</h3>
+    <ul>
+      <li><a href="{{ .CommonAnnotations.dashboard_url | default "http://grafana/d/fluxo-c-orchestration" }}">Ver Dashboard</a></li>
+      <li><a href="{{ .CommonAnnotations.runbook_url | default "https://docs.example.com/runbooks/sla" }}">Consultar Runbook</a></li>
+      <li><a href="{{ .GeneratorURL }}">Ver no Prometheus</a></li>
+    </ul>
+
+    {{- if gt (len .Alerts) 1 }}
+    <h3>Alertas ({{ .Alerts | len }}):</h3>
+    <ul>
+    {{- range .Alerts }}
+      <li>{{ .Labels.alertname }} - {{ .Status | toUpper }} ({{ .StartsAt }})</li>
+    {{- end }}
+    </ul>
+    {{- end }}
+  </div>
+</body>
+</html>
+{{- end }}
+
+
+{{/* INSTRUÇÕES DE USO:
+
+  1. DEPLOYMENT:
+
+     # Criar ConfigMap com o template
+     kubectl create configmap alertmanager-templates \
+       --from-file=slack-sla.tmpl=slack-message-template.tmpl \
+       -n monitoring
+
+     # Montar em /etc/alertmanager/templates/ no pod do Alertmanager
+     # Adicionar ao deployment/statefulset do Alertmanager:
+     volumes:
+       - name: templates
+         configMap:
+           name: alertmanager-templates
+     volumeMounts:
+       - name: templates
+         mountPath: /etc/alertmanager/templates
+
+  2. CONFIGURAÇÃO NO ALERTMANAGER.YML:
+
+     templates:
+       - '/etc/alertmanager/templates/*.tmpl'
+
+     receivers:
+       - name: 'slack-sla-warnings'
+         slack_configs:
+           - channel: '#sla-alerts'
+             text: '{{ template "slack.sla.text" . }}'
+             title: '{{ template "slack.sla.title" . }}'
+             color: '{{ template "slack.sla.color" . }}'
+
+  3. TESTE:
+
+     # Enviar alerta de teste
+     curl -H "Content-Type: application/json" -d '[{
+       "labels": {
+         "alertname": "OrchestratorBudgetCritical",
+         "severity": "critical",
+         "service_name": "orchestrator-dynamic"
+       },
+       "annotations": {
+         "budget_remaining": "15",
+         "burn_rate": "8.5"
+       }
+     }]' http://alertmanager:9093/api/v1/alerts
+
+  4. CUSTOMIZAÇÃO:
+
+     - Adicionar novos templates: Defina com {{ define "nome.template" }}...{{ end }}
+     - Modificar formatação: Edite os blocos dentro de cada template
+     - Adicionar campos: Use .CommonAnnotations.nome_campo ou .CommonLabels.nome_label
+     - Testar localmente: Use amtool template render --template-file=slack-sla.tmpl
+
+  5. FUNÇÕES DISPONÍVEIS:
+
+     - {{ .Status }}: "firing" ou "resolved"
+     - {{ .GroupLabels.alertname }}: Nome do alerta
+     - {{ .CommonLabels.severity }}: Severidade (critical, warning, info)
+     - {{ .CommonAnnotations.campo }}: Annotations do Prometheus alert rule
+     - {{ .StartsAt }}: Timestamp de início
+     - {{ .Alerts }}: Lista de todos os alertas no grupo
+     - {{ .Alerts.Firing }}: Alertas em firing
+     - {{ .Alerts.Resolved }}: Alertas resolvidos
+     - {{ date "layout" .StartsAt }}: Formatar data (Go time layout)
+     - {{ since .StartsAt }}: Duração desde início
+     - {{ toUpper "text" }}: Converter para maiúsculas
+     - {{ default "valor" .Campo }}: Valor padrão se campo não existe
+
+  REFERÊNCIAS:
+    - Template Language: https://prometheus.io/docs/alerting/latest/notification_examples/
+    - Slack Formatting: https://api.slack.com/reference/surfaces/formatting
+    - Go Templates: https://pkg.go.dev/text/template
+*/}}

@@ -1,0 +1,77 @@
+# DestinationRule global para serviços cluster-local (escopo limitado)
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: cluster-local-tls
+  namespace: istio-system
+  labels:
+    app: istio-destination-rule
+    neuralhive/component: networking
+    neuralhive/phase: foundation
+spec:
+  host: "*.svc.cluster.local"
+  exportTo:
+    - "." # Limitado ao namespace istio-system
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 30s
+      http:
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 1
+        h2UpgradePolicy: UPGRADE
+    loadBalancer:
+      simple: LEAST_REQUEST
+    outlierDetection:
+      consecutiveErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+
+---
+# DestinationRules específicas para serviços do Neural Hive-Mind
+{{- range $namespace := list "neural-hive-cognition" "neural-hive-orchestration" "neural-hive-execution" "neural-hive-observability" }}
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: neural-hive-services
+  namespace: {{ $namespace }}
+  labels:
+    app: neural-hive-destination-rule
+    neuralhive/component: networking
+    neuralhive/namespace: {{ $namespace }}
+spec:
+  host: "*.{{ $namespace }}.svc.cluster.local"
+  exportTo:
+    - "." # Limitado ao namespace atual
+    - "istio-system" # Permitir visibilidade do istio-system
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 50
+        connectTimeout: 10s
+      http:
+        http2MaxRequests: 50
+        maxRequestsPerConnection: 1
+        h2UpgradePolicy: UPGRADE
+        useClientProtocol: false
+    loadBalancer:
+      simple: ROUND_ROBIN
+      consistentHash:
+        httpHeaderName: "x-session-affinity"
+    outlierDetection:
+      consecutiveGatewayErrors: 5
+      consecutive5xxErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+      splitExternalLocalOriginErrors: true
+---
+{{- end }}

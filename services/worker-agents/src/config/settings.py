@@ -67,9 +67,44 @@ class WorkerAgentSettings(BaseSettings):
     mtls_cert_path: str = '/etc/certs/tls.crt'
     mtls_key_path: str = '/etc/certs/tls.key'
 
+    # Vault Integration
+    vault_enabled: bool = Field(default=False, description='Habilitar integração com Vault')
+    vault_address: str = Field(
+        default='http://vault.vault.svc.cluster.local:8200',
+        description='Endereço do servidor Vault'
+    )
+    vault_kubernetes_role: str = Field(
+        default='worker-agents',
+        description='Role Kubernetes para autenticação Vault'
+    )
+    vault_token_path: str = Field(
+        default='/vault/secrets/token',
+        description='Caminho para arquivo de token Vault'
+    )
+    vault_mount_kv: str = Field(default='secret', description='Mount point do KV secrets')
+    vault_fail_open: bool = Field(
+        default=True,
+        description='Fail-open em erros do Vault'
+    )
+
+    # SPIFFE/SPIRE Integration
+    spiffe_enabled: bool = Field(default=False, description='Habilitar integração com SPIFFE')
+    spiffe_socket_path: str = Field(
+        default='unix:///run/spire/sockets/agent.sock',
+        description='Caminho do socket da SPIRE Workload API'
+    )
+    spiffe_trust_domain: str = Field(
+        default='neural-hive.local',
+        description='Trust domain SPIFFE'
+    )
+    spiffe_jwt_audience: str = Field(
+        default='vault.neural-hive.local',
+        description='Audience para JWT-SVID'
+    )
+
     def get_metadata(self) -> Dict[str, str]:
         '''Retorna metadata para registro no Service Registry'''
-        return {
+        metadata = {
             'namespace': self.namespace,
             'cluster': self.cluster,
             'version': self.service_version,
@@ -77,6 +112,14 @@ class WorkerAgentSettings(BaseSettings):
             'node_name': os.getenv('NODE_NAME', 'unknown'),
             'environment': self.environment
         }
+
+        # Add SPIFFE ID if available
+        if self.spiffe_enabled:
+            spiffe_id = os.getenv('SPIFFE_ID', '')
+            if spiffe_id:
+                metadata['spiffe_id'] = spiffe_id
+
+        return metadata
 
     class Config:
         env_file = '.env'

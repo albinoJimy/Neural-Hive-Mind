@@ -5,7 +5,9 @@
 replicaCount: 1
 
 image:
-  pullPolicy: IfNotPresent
+  repository: neural-hive-mind/memory-layer-api
+  tag: "1.0.0"
+  pullPolicy: Never
 
 # Custom command for local development (single worker)
 customCommand:

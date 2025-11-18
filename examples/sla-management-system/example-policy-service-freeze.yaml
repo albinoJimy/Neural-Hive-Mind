@@ -1,0 +1,27 @@
+apiVersion: neural-hive.io/v1
+kind: SLAPolicy
+metadata:
+  name: gateway-service-freeze-policy
+  namespace: neural-hive-gateway
+  labels:
+    neural-hive.io/layer: gateway
+    neural-hive.io/policy-scope: service
+spec:
+  name: "Gateway Service Freeze Policy"
+  description: "Bloqueia deployments e escalamento do gateway quando error budget está crítico"
+  scope: SERVICE
+  target: gateway-intencoes
+  actions:
+    - BLOCK_DEPLOY
+    - BLOCK_SCALE
+  triggerThresholdPercent: 15
+  autoUnfreeze: true
+  unfreezeThresholdPercent: 40
+  enabled: true
+  metadata:
+    owner: gateway-team
+    severity: high
+    notification_channels:
+      - slack-gateway-alerts
+    runbook: https://docs.neural-hive.io/runbooks/gateway-freeze
+    max_freeze_duration_hours: 4

@@ -5,6 +5,9 @@ install:
 
 proto:
 	python -m grpc_tools.protoc -I./src/proto --python_out=./src/proto --grpc_python_out=./src/proto ./src/proto/optimizer_agent.proto
+	python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out=./proto ./proto/consensus_engine_extensions.proto
+	python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out=./proto ./proto/orchestrator_extensions.proto
+	@echo "Proto files compiled successfully"
 
 test:
 	pytest

@@ -9,8 +9,14 @@ from src.grpc_service.optimizer_servicer import OptimizerServicer
 
 logger = structlog.get_logger()
 
-# TODO: Import generated proto files when compiled
-# from src.proto import optimizer_agent_pb2_grpc
+# Proto imports - will be available after `make proto` compilation
+try:
+    from src.proto import optimizer_agent_pb2_grpc
+    from grpc_reflection.v1alpha import reflection
+    PROTO_AVAILABLE = True
+except ImportError:
+    PROTO_AVAILABLE = False
+    logger.warning("proto_not_compiled", message="Run 'make proto' to compile protocol buffers")
 
 
 class GrpcServer:
@@ -44,10 +50,22 @@ class GrpcServer:
                 ]
             )
 
-            # TODO: Adicionar servicer quando proto compilado
-            # optimizer_agent_pb2_grpc.add_OptimizerAgentServicer_to_server(
-            #     self.servicer, self.server
-            # )
+            # Registrar servicer quando proto estiver compilado
+            if PROTO_AVAILABLE:
+                optimizer_agent_pb2_grpc.add_OptimizerAgentServicer_to_server(
+                    self.servicer, self.server
+                )
+
+                # Habilitar reflexão gRPC para debugging
+                from src.proto import optimizer_agent_pb2
+                SERVICE_NAMES = (
+                    optimizer_agent_pb2.DESCRIPTOR.services_by_name['OptimizerAgent'].full_name,
+                    reflection.SERVICE_NAME,
+                )
+                reflection.enable_server_reflection(SERVICE_NAMES, self.server)
+                logger.info("grpc_servicer_registered", reflection_enabled=True)
+            else:
+                logger.warning("grpc_servicer_not_registered", reason="proto_not_compiled")
 
             # Adicionar porta
             listen_addr = f"[::]:{self.settings.grpc_port}"

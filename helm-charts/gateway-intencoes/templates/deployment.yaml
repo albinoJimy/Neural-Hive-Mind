@@ -366,6 +366,15 @@ spec:
               key: nlu_routing_use_adaptive_for_decisions
         - name: JAEGER_ENDPOINT
           value: "{{ .Values.observability.jaeger.endpoint }}"
+        # Kubernetes Downward API for unique transactional ID
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
 
         volumeMounts:
         {{- with .Values.volumeMounts }}

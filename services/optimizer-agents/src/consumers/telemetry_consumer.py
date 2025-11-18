@@ -106,7 +106,7 @@ class TelemetryConsumer:
                         "correlation_id": telemetry.get("correlation_id", ""),
                     }
 
-                    hypotheses = self.optimization_engine.analyze_opportunity(synthetic_insight)
+                    hypotheses = await self.optimization_engine.analyze_opportunity(synthetic_insight)
 
                     if hypotheses:
                         logger.info(

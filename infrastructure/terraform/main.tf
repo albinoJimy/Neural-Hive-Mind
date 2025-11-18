@@ -42,7 +42,6 @@ module "k8s-cluster" {
   source = "./modules/k8s-cluster"
 
   # Configurações gerais
-  name_prefix = var.name_prefix
   environment = var.environment
   tags        = local.common_tags
 
@@ -119,6 +118,57 @@ module "sigstore-irsa" {
 
   # Garantir que o cluster seja criado antes
   depends_on = [module.k8s-cluster]
+}
+
+# Módulo Vault HA
+module "vault-ha" {
+  source = "./modules/vault-ha"
+
+  # Configurações gerais
+  cluster_name = var.cluster_name
+  region       = var.aws_region
+  account_id   = var.aws_account_id
+  environment  = var.environment
+
+  # OIDC provider para IRSA
+  oidc_provider_arn = module.k8s-cluster.oidc_provider_arn
+  oidc_provider_url = module.k8s-cluster.oidc_issuer_url
+
+  # Configurações opcionais
+  enable_audit_logs = var.enable_vault_audit_logs
+
+  # Tags comuns
+  tags = local.common_tags
+
+  # Garantir que o cluster seja criado antes
+  depends_on = [module.k8s-cluster]
+}
+
+# Módulo SPIRE Datastore
+# Provisiona PostgreSQL RDS para armazenamento persistente do SPIRE Server
+module "spire-datastore" {
+  source = "./modules/spire-datastore"
+
+  # Configurações gerais
+  cluster_name = var.cluster_name
+  environment  = var.environment
+
+  # Configurações de rede
+  vpc_id                = module.network.vpc_id
+  private_subnet_ids    = module.network.private_subnet_ids
+  eks_security_group_id = module.k8s-cluster.cluster_security_group_id
+
+  # Configurações do RDS
+  instance_class        = var.spire_db_instance_class
+  allocated_storage     = var.spire_db_allocated_storage
+  multi_az              = var.environment == "prod"
+  backup_retention_days = var.environment == "prod" ? 7 : 1
+
+  # Tags comuns
+  tags = local.common_tags
+
+  # Garantir que cluster e network sejam criados antes
+  depends_on = [module.k8s-cluster, module.network]
 }
 
 # Módulo MongoDB Cluster

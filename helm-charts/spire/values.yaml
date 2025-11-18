@@ -1,0 +1,333 @@
+# Valores padrão para SPIRE Helm chart
+
+global:
+  enabled: true
+  trustDomain: "neural-hive.local"
+
+# SPIRE Server
+server:
+  enabled: true
+  image:
+    repository: ghcr.io/spiffe/spire-server
+    tag: "1.8.0"
+    pullPolicy: IfNotPresent
+
+  replicas: 3
+
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "2000m"
+
+  # Service Account
+  serviceAccount:
+    create: true
+    name: spire-server
+
+  # Configuração do servidor
+  config:
+    logLevel: INFO
+    trustDomain: "neural-hive.local"
+    dataDir: "/run/spire/server/data"
+
+    # Upstream authority via Vault PKI
+    upstreamAuthority:
+      vault:
+        enabled: false  # Habilitar após Vault estar configurado
+        vaultAddr: "https://vault.vault.svc.cluster.local:8200"
+        pkiMountPoint: "pki"
+        caCertPath: "/vault/tls/ca.crt"
+
+  # Storage backend - PostgreSQL para produção
+  # IMPORTANTE: Connection string deve ser provisionado via Terraform (spire-datastore module)
+  # e armazenado em Kubernetes Secret
+  #
+  # CRIAR SECRET ANTES DO DEPLOYMENT:
+  #
+  # Opção A - Manual (kubectl):
+  #   terraform output -raw connection_string > /tmp/conn.txt
+  #   kubectl create secret generic spire-database-secret \
+  #     --from-literal=connection-string=$(cat /tmp/conn.txt) \
+  #     -n spire-system
+  #   rm /tmp/conn.txt
+  #
+  # Opção B - External Secrets Operator (Recomendado):
+  #   1. Instalar External Secrets: helm install external-secrets external-secrets/external-secrets
+  #   2. Criar ClusterSecretStore apontando para AWS Secrets Manager
+  #   3. Criar ExternalSecret:
+  #      apiVersion: external-secrets.io/v1beta1
+  #      kind: ExternalSecret
+  #      metadata:
+  #        name: spire-db-secret
+  #        namespace: spire-system
+  #      spec:
+  #        refreshInterval: 1h
+  #        secretStoreRef:
+  #          name: aws-secrets-manager
+  #          kind: ClusterSecretStore
+  #        target:
+  #          name: spire-database-secret
+  #        data:
+  #          - secretKey: connection-string
+  #            remoteRef:
+  #              key: $(terraform output -raw secret_name)
+  #
+  # Veja: infrastructure/terraform/modules/spire-datastore/README.md
+  datastore:
+    sql:
+      databaseType: "postgres"
+      # Opção 1: Connection string direta (não recomendado - use Secret)
+      connectionString: ""  # Ex: postgresql://spire_server:PASSWORD@RDS_ENDPOINT:5432/spire?sslmode=require
+      # Opção 2: Usar Kubernetes Secret (recomendado)
+      connectionStringSecret:
+        enabled: true
+        name: "spire-database-secret"  # Secret criado via Terraform output (ver comentário acima)
+        key: "connection-string"
+
+  # Persistent Volume para Raft/data (backup)
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClass: gp3
+
+  # Node attestation - Kubernetes PSAT
+  nodeAttestor:
+    k8sPsat:
+      enabled: true
+      serviceAccountAllowList:
+        - "spire:spire-agent"
+
+  # Workload attestation
+  workloadAttestor:
+    k8s:
+      enabled: true
+      skipKubeletVerification: false
+
+  # Liveness e readiness
+  livenessProbe:
+    httpGet:
+      path: /live
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+
+  readinessProbe:
+    httpGet:
+      path: /ready
+      port: 8080
+    initialDelaySeconds: 15
+    periodSeconds: 5
+
+  # Affinity
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app: spire-server
+          topologyKey: kubernetes.io/hostname
+
+  # Tolerations
+  tolerations: []
+
+  # Node selector
+  nodeSelector: {}
+
+# SPIRE Agent
+agent:
+  enabled: true
+  image:
+    repository: ghcr.io/spiffe/spire-agent
+    tag: "1.8.0"
+    pullPolicy: IfNotPresent
+
+  # DaemonSet para executar em cada nó
+  daemonSet: true
+
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  # Service Account
+  serviceAccount:
+    create: true
+    name: spire-agent
+
+  # Configuração do agente
+  config:
+    logLevel: INFO
+    trustDomain: "neural-hive.local"
+    dataDir: "/run/spire/agent/data"
+    socketPath: "/run/spire/sockets/agent.sock"
+    serverAddress: "spire-server"
+    serverPort: 8081
+
+  # Node attestation
+  nodeAttestor:
+    k8sPsat:
+      enabled: true
+      cluster: "neural-hive"
+
+  # Workload attestation
+  workloadAttestor:
+    k8s:
+      enabled: true
+      skipKubeletVerification: false
+
+  # HostPath volumes para socket Unix
+  volumes:
+    - name: spire-agent-socket-dir
+      hostPath:
+        path: /run/spire/sockets
+        type: DirectoryOrCreate
+    - name: spire-agent-data-dir
+      hostPath:
+        path: /run/spire/agent/data
+        type: DirectoryOrCreate
+
+  volumeMounts:
+    - name: spire-agent-socket-dir
+      mountPath: /run/spire/sockets
+    - name: spire-agent-data-dir
+      mountPath: /run/spire/agent/data
+
+  # Tolerations para executar em todos os nós
+  tolerations:
+    - operator: Exists
+
+# OIDC Discovery Provider (para JWT-SVID validation externa)
+oidc:
+  enabled: true
+  image:
+    repository: ghcr.io/spiffe/oidc-discovery-provider
+    tag: "1.8.0"
+    pullPolicy: IfNotPresent
+
+  replicas: 2
+
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "500m"
+
+  # Service Account
+  serviceAccount:
+    create: true
+    name: spire-oidc
+
+  # Configuração
+  config:
+    logLevel: INFO
+    trustDomain: "neural-hive.local"
+    serverAPI: "spire-server:8081"
+
+  # Ingress para OIDC discovery
+  ingress:
+    enabled: true
+    className: istio
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    hosts:
+      - host: spire-oidc.neural-hive.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: spire-oidc-tls
+        hosts:
+          - spire-oidc.neural-hive.local
+
+# Workload Entries - Registration via Job
+workloadEntries:
+  enabled: true
+  entries:
+    - spiffeId: "spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic"
+      parentId: "spiffe://neural-hive.local/spire/agent/k8s_psat/neural-hive/node"
+      selectors:
+        - "k8s:ns:neural-hive-orchestration"
+        - "k8s:sa:orchestrator-dynamic"
+      federatesWith: []
+      admin: false
+      downstream: false
+      ttl: 3600
+
+    - spiffeId: "spiffe://neural-hive.local/ns/neural-hive-execution/sa/worker-agents"
+      parentId: "spiffe://neural-hive.local/spire/agent/k8s_psat/neural-hive/node"
+      selectors:
+        - "k8s:ns:neural-hive-execution"
+        - "k8s:sa:worker-agents"
+      federatesWith: []
+      admin: false
+      downstream: false
+      ttl: 3600
+
+    - spiffeId: "spiffe://neural-hive.local/ns/neural-hive-registry/sa/service-registry"
+      parentId: "spiffe://neural-hive.local/spire/agent/k8s_psat/neural-hive/node"
+      selectors:
+        - "k8s:ns:neural-hive-registry"
+        - "k8s:sa:service-registry"
+      federatesWith: []
+      admin: false
+      downstream: false
+      ttl: 3600
+
+# Service Monitor para Prometheus
+serviceMonitor:
+  enabled: true
+  server:
+    enabled: true
+    interval: 30s
+  agent:
+    enabled: true
+    interval: 30s
+
+# Network Policy
+networkPolicy:
+  enabled: true
+  server:
+    ingress:
+      - from:
+        - podSelector:
+            matchLabels:
+              app: spire-agent
+        ports:
+        - protocol: TCP
+          port: 8081
+  agent:
+    egress:
+      - to:
+        - podSelector:
+            matchLabels:
+              app: spire-server
+        ports:
+        - protocol: TCP
+          port: 8081
+
+# RBAC
+rbac:
+  create: true
+  # ClusterRole para SPIRE Server acessar Kubernetes API
+  server:
+    rules:
+      - apiGroups: [""]
+        resources: ["pods", "nodes", "serviceaccounts"]
+        verbs: ["get", "list", "watch"]
+      - apiGroups: ["authentication.k8s.io"]
+        resources: ["tokenreviews"]
+        verbs: ["create"]
+  # ClusterRole para SPIRE Agent
+  agent:
+    rules:
+      - apiGroups: [""]
+        resources: ["pods"]
+        verbs: ["get", "list"]

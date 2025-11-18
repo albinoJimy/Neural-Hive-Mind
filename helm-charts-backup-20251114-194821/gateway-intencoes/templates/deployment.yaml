@@ -1,0 +1,447 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gateway-intencoes.fullname" . }}
+  labels:
+    {{- include "gateway-intencoes.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "gateway-intencoes.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- if .Values.istio.enabled }}
+        sidecar.istio.io/inject: "true"
+        {{- end }}
+      labels:
+        {{- include "gateway-intencoes.selectorLabels" . | nindent 8 }}
+        neural-hive-mind.org/component: "gateway-intencoes"
+        neural-hive-mind.org/layer: "application"
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "gateway-intencoes.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+
+      {{- if .Values.initContainers.modelDownloader.enabled }}
+      initContainers:
+      - name: model-downloader
+        image: python:3.11-slim
+        command:
+        - /bin/sh
+        - -c
+        - |
+          pip install openai-whisper spacy
+          python -c "import whisper; whisper.load_model('{{ .Values.config.asr.modelName }}')"
+          python -c "import spacy; spacy.download('{{ .Values.config.nlu.languageModel }}')"
+        volumeMounts:
+        - name: model-cache
+          mountPath: /root/.cache
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+      {{- end }}
+
+      containers:
+      - name: {{ .Chart.Name }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+
+        livenessProbe:
+          {{- toYaml .Values.livenessProbe | nindent 10 }}
+
+        readinessProbe:
+          {{- toYaml .Values.readinessProbe | nindent 10 }}
+
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+
+        env:
+        - name: ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: environment
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: log_level
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: kafka_bootstrap_servers
+        - name: SCHEMA_REGISTRY_URL
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: schema_registry_url
+
+        # Kafka Security Protocol environment variable
+        - name: KAFKA_SECURITY_PROTOCOL
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: kafka_security_protocol
+
+        # Kafka Performance environment variables
+        - name: KAFKA_BATCH_SIZE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: kafka_batch_size
+        - name: KAFKA_LINGER_MS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: kafka_linger_ms
+        - name: KAFKA_COMPRESSION_TYPE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: kafka_compression_type
+
+        # Kafka TLS Certificate Path environment variables
+        - name: KAFKA_SSL_CA_LOCATION
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: kafka_ssl_ca_location
+        - name: KAFKA_SSL_CERTIFICATE_LOCATION
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: kafka_ssl_certificate_location
+        - name: KAFKA_SSL_KEY_LOCATION
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: kafka_ssl_key_location
+
+        # Legacy Kafka TLS/SSL environment variables
+        - name: KAFKA_SSL_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: kafka_ssl_enabled
+        - name: KAFKA_SSL_CA_VERIFY_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: kafka_ssl_ca_verify_mode
+        - name: KAFKA_SSL_PROTOCOL
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: kafka_ssl_protocol
+
+        # Kafka SASL environment variables
+        - name: KAFKA_SASL_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: kafka_sasl_enabled
+        - name: KAFKA_SASL_MECHANISM
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: kafka_sasl_mechanism
+        - name: KAFKA_SASL_OAUTH2_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: kafka_sasl_oauth2_enabled
+        - name: KAFKA_SASL_OAUTH2_TOKEN_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: kafka_sasl_oauth2_token_endpoint
+        - name: KAFKA_SASL_OAUTH2_SCOPE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: kafka_sasl_oauth2_scope
+
+        # Kafka secrets
+        {{- if .Values.secrets.kafka.username }}
+        - name: KAFKA_SASL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-secret
+              key: kafka-username
+        {{- end }}
+        {{- if .Values.secrets.kafka.password }}
+        - name: KAFKA_SASL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-secret
+              key: kafka-password
+        {{- end }}
+        {{- if .Values.secrets.kafka.oauth2.clientId }}
+        - name: KAFKA_SASL_OAUTH2_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-secret
+              key: kafka-oauth2-client-id
+        {{- end }}
+        {{- if .Values.secrets.kafka.oauth2.clientSecret }}
+        - name: KAFKA_SASL_OAUTH2_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-secret
+              key: kafka-oauth2-client-secret
+        {{- end }}
+
+        # Redis environment variables
+        - name: REDIS_CLUSTER_NODES
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: redis_cluster_nodes
+        - name: REDIS_DEFAULT_TTL
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: redis_default_ttl
+        - name: REDIS_MAX_CONNECTIONS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: redis_max_connections
+        - name: REDIS_POOL_SIZE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: redis_pool_size
+        - name: REDIS_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: redis_timeout
+        - name: REDIS_RETRY_ON_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: redis_retry_on_timeout
+        - name: REDIS_CONNECTION_POOL_MAX_CONNECTIONS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: redis_connection_pool_max_connections
+
+        # Redis SSL environment variables
+        - name: REDIS_SSL_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: redis_ssl_enabled
+        - name: REDIS_SSL_CERT_REQS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: redis_ssl_cert_reqs
+        - name: REDIS_SSL_CA_CERTS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: redis_ssl_ca_certs
+        - name: REDIS_SSL_CERTFILE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: redis_ssl_certfile
+        - name: REDIS_SSL_KEYFILE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: redis_ssl_keyfile
+        {{- if .Values.secrets.redis }}
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-secret
+              key: redis-password
+        {{- end }}
+
+        # Keycloak environment variables
+        - name: KEYCLOAK_URL
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: keycloak_url
+        - name: KEYCLOAK_REALM
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: keycloak_realm
+        - name: KEYCLOAK_CLIENT_ID
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: keycloak_client_id
+        - name: JWKS_URI
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: jwks_uri
+        - name: TOKEN_VALIDATION_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: token_validation_enabled
+        {{- if .Values.secrets.keycloak }}
+        - name: KEYCLOAK_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-secret
+              key: keycloak-client-secret
+        {{- end }}
+
+        # Schema Registry secrets
+        {{- if .Values.secrets.schemaRegistry.username }}
+        - name: SCHEMA_REGISTRY_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-secret
+              key: schema-registry-username
+        {{- end }}
+        {{- if .Values.secrets.schemaRegistry.password }}
+        - name: SCHEMA_REGISTRY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-secret
+              key: schema-registry-password
+        {{- end }}
+
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-secret
+              key: jwt-secret-key
+        - name: ASR_MODEL_NAME
+          value: "{{ .Values.config.asr.modelName }}"
+        - name: ASR_DEVICE
+          value: "{{ .Values.config.asr.device }}"
+        - name: NLU_LANGUAGE_MODEL
+          value: "{{ .Values.config.nlu.languageModel }}"
+        - name: NLU_CONFIDENCE_THRESHOLD
+          value: "{{ .Values.config.nlu.confidenceThreshold }}"
+        - name: NLU_CONFIDENCE_THRESHOLD_STRICT
+          value: "{{ .Values.config.nlu.confidenceThresholdStrict }}"
+        - name: NLU_ADAPTIVE_THRESHOLD_ENABLED
+          value: "{{ .Values.config.nlu.adaptiveThresholdEnabled }}"
+        - name: NLU_RULES_CONFIG_PATH
+          value: "{{ .Values.config.nlu.rulesConfigPath }}"
+        # NLU Routing Thresholds
+        - name: NLU_ROUTING_THRESHOLD_HIGH
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: nlu_routing_threshold_high
+        - name: NLU_ROUTING_THRESHOLD_LOW
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: nlu_routing_threshold_low
+        - name: NLU_ROUTING_USE_ADAPTIVE_FOR_DECISIONS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gateway-intencoes.fullname" . }}-config
+              key: nlu_routing_use_adaptive_for_decisions
+        - name: JAEGER_ENDPOINT
+          value: "{{ .Values.observability.jaeger.endpoint }}"
+
+        volumeMounts:
+        {{- with .Values.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.secrets.redis.caCert }}
+        - name: redis-ca-cert
+          mountPath: /etc/ssl/certs/redis-ca.crt
+          subPath: redis-ca.crt
+          readOnly: true
+        {{- end }}
+        {{- if .Values.secrets.kafka.tls.caCert }}
+        - name: kafka-ca-cert
+          mountPath: /etc/ssl/certs/kafka-ca.crt
+          subPath: kafka-ca.crt
+          readOnly: true
+        {{- end }}
+        {{- if .Values.secrets.kafka.tls.clientCert }}
+        - name: kafka-client-cert
+          mountPath: /etc/ssl/certs/kafka-client.crt
+          subPath: kafka-client.crt
+          readOnly: true
+        {{- end }}
+        {{- if .Values.secrets.kafka.tls.clientKey }}
+        - name: kafka-client-key
+          mountPath: /etc/ssl/certs/kafka-client.key
+          subPath: kafka-client.key
+          readOnly: true
+        {{- end }}
+
+      volumes:
+      {{- with .Values.volumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- if .Values.secrets.redis.caCert }}
+      - name: redis-ca-cert
+        secret:
+          secretName: {{ include "gateway-intencoes.fullname" . }}-secret
+          items:
+          - key: redis-ca-cert
+            path: redis-ca.crt
+      {{- end }}
+      {{- if .Values.secrets.kafka.tls.caCert }}
+      - name: kafka-ca-cert
+        secret:
+          secretName: {{ include "gateway-intencoes.fullname" . }}-secret
+          items:
+          - key: kafka-ca-cert
+            path: kafka-ca.crt
+      {{- end }}
+      {{- if .Values.secrets.kafka.tls.clientCert }}
+      - name: kafka-client-cert
+        secret:
+          secretName: {{ include "gateway-intencoes.fullname" . }}-secret
+          items:
+          - key: kafka-client-cert
+            path: kafka-client.crt
+      {{- end }}
+      {{- if .Values.secrets.kafka.tls.clientKey }}
+      - name: kafka-client-key
+        secret:
+          secretName: {{ include "gateway-intencoes.fullname" . }}-secret
+          items:
+          - key: kafka-client-key
+            path: kafka-client.key
+      {{- end }}
+
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

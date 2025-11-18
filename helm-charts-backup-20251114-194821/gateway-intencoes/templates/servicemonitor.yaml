@@ -1,0 +1,117 @@
+{{- if .Values.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "gateway-intencoes.fullname" . }}-metrics
+  labels:
+    {{- include "gateway-intencoes.labels" . | nindent 4 }}
+    # Labels padrão para descoberta do Prometheus
+    neural.hive/metrics: "enabled"
+    neural.hive/component: "gateway-intencoes"
+    neural.hive/layer: "experiencia"
+    # Label para seletor do Prometheus Operator
+    release: prometheus
+    {{- with .Values.observability.prometheus.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  annotations:
+    neural.hive/scrape-config: "standard"
+    neural.hive/metrics-path: "/metrics"
+    neural.hive/scrape-interval: "{{ .Values.observability.prometheus.serviceMonitor.interval | default "30s" }}"
+spec:
+  selector:
+    matchLabels:
+      {{- include "gateway-intencoes.selectorLabels" . | nindent 6 }}
+      component: metrics
+
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.observability.prometheus.serviceMonitor.interval | default "30s" }}
+      scrapeTimeout: {{ .Values.observability.prometheus.serviceMonitor.scrapeTimeout | default "10s" }}
+
+      # Configurações de segurança para autenticação
+      {{- if .Values.observability.prometheus.serviceMonitor.basicAuth }}
+      basicAuth:
+        username:
+          name: {{ .Values.observability.prometheus.serviceMonitor.basicAuth.secretName }}
+          key: {{ .Values.observability.prometheus.serviceMonitor.basicAuth.usernameKey }}
+        password:
+          name: {{ .Values.observability.prometheus.serviceMonitor.basicAuth.secretName }}
+          key: {{ .Values.observability.prometheus.serviceMonitor.basicAuth.passwordKey }}
+      {{- end }}
+
+      {{- if .Values.observability.prometheus.serviceMonitor.tlsConfig }}
+      tlsConfig:
+        {{- toYaml .Values.observability.prometheus.serviceMonitor.tlsConfig | nindent 8 }}
+      {{- end }}
+
+      # Relabeling para adicionar metadados padrão do Neural Hive-Mind
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_service_name]
+          targetLabel: service_name
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: kubernetes_namespace
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: kubernetes_pod_name
+        - sourceLabels: [__meta_kubernetes_pod_container_name]
+          targetLabel: kubernetes_container_name
+        # Labels padrão Neural Hive-Mind
+        - targetLabel: neural_hive_component
+          replacement: gateway-intencoes
+        - targetLabel: neural_hive_layer
+          replacement: experiencia
+        - targetLabel: cluster
+          replacement: {{ .Values.global.cluster | default "neural-hive-main" | quote }}
+        - targetLabel: environment
+          replacement: {{ .Values.global.environment | default "production" | quote }}
+
+      # Metric relabeling para padronização Neural Hive-Mind
+      metricRelabelings:
+        # Garantir que métricas já têm o prefixo neural_hive_
+        - sourceLabels: [__name__]
+          regex: "neural_hive_(.+)"
+          targetLabel: __name__
+          replacement: "neural_hive_${1}"
+        # Adicionar labels padrão a métricas que não os têm
+        - sourceLabels: [__name__]
+          regex: "neural_hive_.*"
+          targetLabel: neural_hive_component
+          replacement: gateway-intencoes
+        - sourceLabels: [__name__]
+          regex: "neural_hive_.*"
+          targetLabel: neural_hive_layer
+          replacement: experiencia
+        # Preservar correlation IDs
+        - sourceLabels: [neural_hive_intent_id]
+          targetLabel: intent_id
+        - sourceLabels: [neural_hive_plan_id]
+          targetLabel: plan_id
+        # Mapear labels legacy para novos padrões
+        - sourceLabels: [domain]
+          targetLabel: neural_hive_domain
+        - sourceLabels: [pipeline]
+          targetLabel: neural_hive_pipeline
+
+  # Configuração de namespace (se cross-namespace monitoring)
+  {{- if .Values.observability.prometheus.serviceMonitor.namespaceSelector }}
+  namespaceSelector:
+    {{- toYaml .Values.observability.prometheus.serviceMonitor.namespaceSelector | nindent 4 }}
+  {{- end }}
+
+  # Configuração de amostragem para reduzir carga
+  {{- if .Values.observability.prometheus.serviceMonitor.sampleLimit }}
+  sampleLimit: {{ .Values.observability.prometheus.serviceMonitor.sampleLimit }}
+  {{- end }}
+
+  {{- if .Values.observability.prometheus.serviceMonitor.targetLimit }}
+  targetLimit: {{ .Values.observability.prometheus.serviceMonitor.targetLimit }}
+  {{- end }}
+
+  # Configuração de honorLabels para preservar labels do serviço
+  honorLabels: {{ .Values.observability.prometheus.serviceMonitor.honorLabels | default false }}
+
+  # Configuração de honorTimestamps
+  honorTimestamps: {{ .Values.observability.prometheus.serviceMonitor.honorTimestamps | default true }}
+
+{{- end }}

@@ -85,7 +85,9 @@ class LLMClient:
 
             # Parse and validate response
             code = self._extract_code_from_response(response)
-            confidence = self._calculate_confidence(code, constraints)
+
+            # Calcular confiança usando método público
+            confidence = await self.calculate_confidence(code, constraints)
 
             logger.info(
                 "llm_code_generated",
@@ -208,6 +210,18 @@ Return ONLY valid code without markdown formatting or explanations unless reques
         # For Python: compile(code, '<string>', 'exec')
         return bool(code and len(code) > 10)
 
-    async def calculate_confidence(self, code: str, validations: Dict) -> float:
-        """Calculate final confidence score."""
-        return validations.get("syntax_valid", 0.5)
+    async def calculate_confidence(self, code: str, constraints: Dict) -> float:
+        """
+        Calcula confiança final do código gerado.
+
+        API pública recomendada para calcular confiança baseado em heurísticas
+        internas e constraints fornecidas.
+
+        Args:
+            code: Código gerado
+            constraints: Dict com language, framework, patterns, max_lines
+
+        Returns:
+            Score de confiança (0.0-1.0)
+        """
+        return self._calculate_confidence(code, constraints)

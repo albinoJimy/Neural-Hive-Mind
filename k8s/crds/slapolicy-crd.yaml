@@ -1,0 +1,167 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: slapolicies.neural-hive.io
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.0
+spec:
+  group: neural-hive.io
+  scope: Namespaced
+  names:
+    kind: SLAPolicy
+    plural: slapolicies
+    singular: slapolicy
+    shortNames:
+      - slap
+    categories:
+      - neural-hive
+      - observability
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          description: "SLAPolicy defines freeze policies based on error budget thresholds"
+          properties:
+            spec:
+              type: object
+              required:
+                - name
+                - scope
+                - target
+                - actions
+              properties:
+                name:
+                  type: string
+                  description: "Policy name"
+                  minLength: 1
+                description:
+                  type: string
+                  description: "Policy description"
+                scope:
+                  type: string
+                  description: "Freeze scope"
+                  enum:
+                    - NAMESPACE
+                    - SERVICE
+                    - GLOBAL
+                target:
+                  type: string
+                  description: "Target namespace, service name, or '*' for global"
+                  minLength: 1
+                actions:
+                  type: array
+                  description: "Actions to execute when policy triggers"
+                  minItems: 1
+                  items:
+                    type: string
+                    enum:
+                      - BLOCK_DEPLOY
+                      - BLOCK_SCALE
+                      - ALERT_ONLY
+                triggerThresholdPercent:
+                  type: number
+                  description: "Budget percentage threshold to trigger freeze"
+                  default: 20
+                  minimum: 0
+                  maximum: 100
+                  format: double
+                autoUnfreeze:
+                  type: boolean
+                  description: "Whether to automatically unfreeze when budget recovers"
+                  default: true
+                unfreezeThresholdPercent:
+                  type: number
+                  description: "Budget percentage threshold to auto-unfreeze"
+                  default: 50
+                  minimum: 0
+                  maximum: 100
+                  format: double
+                enabled:
+                  type: boolean
+                  description: "Whether this policy is active"
+                  default: true
+                metadata:
+                  type: object
+                  description: "Additional metadata"
+                  additionalProperties:
+                    type: string
+            status:
+              type: object
+              description: "Status of the SLAPolicy"
+              properties:
+                synced:
+                  type: boolean
+                  description: "Whether the policy is synced to PostgreSQL"
+                lastSyncTime:
+                  type: string
+                  format: date-time
+                  description: "Last successful sync timestamp"
+                policyId:
+                  type: string
+                  description: "UUID generated in PostgreSQL"
+                activeFreezes:
+                  type: integer
+                  description: "Number of active freezes from this policy"
+                  minimum: 0
+                lastTriggeredAt:
+                  type: string
+                  format: date-time
+                  description: "Last time this policy was triggered"
+                conditions:
+                  type: array
+                  description: "Standard Kubernetes conditions"
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - status
+                    properties:
+                      type:
+                        type: string
+                        description: "Condition type"
+                      status:
+                        type: string
+                        description: "Status of the condition (True, False, Unknown)"
+                        enum:
+                          - "True"
+                          - "False"
+                          - Unknown
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                        description: "Last time the condition transitioned"
+                      reason:
+                        type: string
+                        description: "Machine-readable reason for the condition"
+                      message:
+                        type: string
+                        description: "Human-readable message"
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Scope
+          type: string
+          description: "Policy scope"
+          jsonPath: .spec.scope
+        - name: Target
+          type: string
+          description: "Policy target"
+          jsonPath: .spec.target
+        - name: Threshold
+          type: string
+          description: "Trigger threshold"
+          jsonPath: .spec.triggerThresholdPercent
+        - name: Active Freezes
+          type: integer
+          description: "Number of active freezes"
+          jsonPath: .status.activeFreezes
+        - name: Synced
+          type: boolean
+          description: "Sync status"
+          jsonPath: .status.synced
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp

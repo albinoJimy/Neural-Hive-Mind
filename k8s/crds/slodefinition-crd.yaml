@@ -1,0 +1,198 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: slodefinitions.neural-hive.io
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.0
+spec:
+  group: neural-hive.io
+  scope: Namespaced
+  names:
+    kind: SLODefinition
+    plural: slodefinitions
+    singular: slodefinition
+    shortNames:
+      - slo
+    categories:
+      - neural-hive
+      - observability
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          description: "SLODefinition defines a Service Level Objective for monitoring and error budget tracking"
+          properties:
+            spec:
+              type: object
+              required:
+                - name
+                - sloType
+                - serviceName
+                - layer
+                - target
+                - sliQuery
+              properties:
+                name:
+                  type: string
+                  description: "Descriptive name for the SLO"
+                  minLength: 1
+                description:
+                  type: string
+                  description: "Detailed description of what this SLO measures"
+                sloType:
+                  type: string
+                  description: "Type of SLO"
+                  enum:
+                    - AVAILABILITY
+                    - LATENCY
+                    - ERROR_RATE
+                    - CUSTOM
+                serviceName:
+                  type: string
+                  description: "Name of the target service being monitored"
+                  minLength: 1
+                component:
+                  type: string
+                  description: "Specific component within the service (optional)"
+                layer:
+                  type: string
+                  description: "Architectural layer (e.g., orquestracao, cognitivo)"
+                  minLength: 1
+                target:
+                  type: number
+                  description: "SLO target as a decimal (e.g., 0.999 for 99.9%)"
+                  minimum: 0
+                  maximum: 1
+                  format: double
+                windowDays:
+                  type: integer
+                  description: "Evaluation window in days"
+                  default: 30
+                  minimum: 1
+                sliQuery:
+                  type: object
+                  description: "Prometheus query configuration for SLI measurement"
+                  required:
+                    - metricName
+                    - query
+                  properties:
+                    metricName:
+                      type: string
+                      description: "Name of the Prometheus metric"
+                      minLength: 1
+                    query:
+                      type: string
+                      description: "PromQL query to calculate SLI"
+                      minLength: 1
+                    aggregation:
+                      type: string
+                      description: "Aggregation method"
+                      default: avg
+                      enum:
+                        - avg
+                        - sum
+                        - min
+                        - max
+                        - count
+                    labels:
+                      type: object
+                      description: "Additional labels for filtering"
+                      additionalProperties:
+                        type: string
+                enabled:
+                  type: boolean
+                  description: "Whether this SLO is active"
+                  default: true
+                metadata:
+                  type: object
+                  description: "Additional metadata"
+                  additionalProperties:
+                    type: string
+            status:
+              type: object
+              description: "Status of the SLODefinition"
+              properties:
+                synced:
+                  type: boolean
+                  description: "Whether the SLO is synced to PostgreSQL"
+                lastSyncTime:
+                  type: string
+                  format: date-time
+                  description: "Last successful sync timestamp"
+                sloId:
+                  type: string
+                  description: "UUID generated in PostgreSQL"
+                currentSLI:
+                  type: number
+                  description: "Current SLI value"
+                  format: double
+                budgetRemaining:
+                  type: number
+                  description: "Current error budget remaining percentage"
+                  format: double
+                budgetStatus:
+                  type: string
+                  description: "Current budget status"
+                  enum:
+                    - HEALTHY
+                    - WARNING
+                    - CRITICAL
+                    - EXHAUSTED
+                conditions:
+                  type: array
+                  description: "Standard Kubernetes conditions"
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - status
+                    properties:
+                      type:
+                        type: string
+                        description: "Condition type"
+                      status:
+                        type: string
+                        description: "Status of the condition (True, False, Unknown)"
+                        enum:
+                          - "True"
+                          - "False"
+                          - Unknown
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                        description: "Last time the condition transitioned"
+                      reason:
+                        type: string
+                        description: "Machine-readable reason for the condition"
+                      message:
+                        type: string
+                        description: "Human-readable message"
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Type
+          type: string
+          description: "SLO type"
+          jsonPath: .spec.sloType
+        - name: Target
+          type: string
+          description: "SLO target percentage"
+          jsonPath: .spec.target
+        - name: Budget Remaining
+          type: string
+          description: "Error budget remaining"
+          jsonPath: .status.budgetRemaining
+        - name: Status
+          type: string
+          description: "Budget status"
+          jsonPath: .status.budgetStatus
+        - name: Synced
+          type: boolean
+          description: "Sync status"
+          jsonPath: .status.synced
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp

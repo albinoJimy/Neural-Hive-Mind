@@ -1,0 +1,515 @@
+---
+# Alertas Prometheus para ML Predictions do Orchestrator Dynamic
+#
+# Monitora health, performance e acurácia do subsistema de Machine Learning
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: orchestrator-ml-alerts
+  namespace: monitoring
+  labels:
+    app: orchestrator-dynamic
+    component: ml-predictions
+    prometheus: kube-prometheus
+spec:
+  groups:
+    - name: ml_prediction_health
+      interval: 30s
+      rules:
+        - alert: MLPredictionHighErrorRate
+          expr: |
+            (
+              sum(rate(orchestration_ml_predictions_total{status="error"}[5m]))
+              /
+              sum(rate(orchestration_ml_predictions_total[5m]))
+            ) * 100 > 20
+          for: 5m
+          labels:
+            severity: warning
+            component: ml-predictor
+            team: orchestration
+          annotations:
+            summary: "Alta taxa de erros em predições ML ({{ $value | humanize }}%)"
+            description: |
+              Taxa de erro de predições ML está acima de 20% nos últimos 5 minutos.
+              Valor atual: {{ $value | humanize }}%
+
+              Possíveis causas:
+              - Modelos não carregados corretamente
+              - Erros de feature extraction
+              - Dados de entrada inválidos
+
+              Ação: Verificar logs do orchestrator-dynamic para detalhes do erro.
+            dashboard_url: "https://grafana.local/d/orchestrator-ml-predictions"
+            runbook_url: "https://docs.internal/runbooks/orchestrator-ml-high-error-rate"
+
+        - alert: MLPredictionLatencyHigh
+          expr: |
+            histogram_quantile(0.95,
+              rate(orchestration_ml_prediction_duration_seconds_bucket[5m])
+            ) > 2
+          for: 5m
+          labels:
+            severity: warning
+            component: ml-predictor
+            team: orchestration
+          annotations:
+            summary: "Latência P95 de predições ML muito alta ({{ $value | humanize }}s)"
+            description: |
+              Latência P95 de predições ML está acima de 2 segundos.
+              Valor atual: {{ $value | humanize }}s
+
+              Impacto: Pode causar delays na alocação de tickets.
+
+              Ações:
+              - Verificar se modelos estão em cache
+              - Checar latência de queries ao MongoDB
+              - Revisar complexidade dos modelos
+            dashboard_url: "https://grafana.local/d/orchestrator-ml-predictions"
+            runbook_url: "https://docs.internal/runbooks/orchestrator-ml-high-latency"
+
+        - alert: MLModelLoadFailure
+          expr: |
+            increase(orchestration_ml_model_load_errors_total[10m]) > 0
+          labels:
+            severity: critical
+            component: ml-predictor
+            team: orchestration
+          annotations:
+            summary: "Falha ao carregar modelo ML: {{ $labels.model_name }}"
+            description: |
+              Modelo {{ $labels.model_name }} falhou ao carregar do MLflow.
+
+              Predições ML podem estar usando fallback heurístico.
+
+              Ações urgentes:
+              - Verificar conectividade com MLflow server
+              - Validar se modelo existe no registry
+              - Checar logs de model_registry
+            dashboard_url: "https://grafana.local/d/orchestrator-ml-predictions"
+            runbook_url: "https://docs.internal/runbooks/orchestrator-ml-model-load-failure"
+
+    - name: ml_model_performance
+      interval: 1m
+      rules:
+        - alert: MLDurationPredictionInaccurate
+          expr: |
+            (
+              (
+                sum(rate(orchestration_ml_prediction_error_bucket{model_type="duration",le="+Inf"}[1h]))
+                /
+                sum(rate(orchestration_ml_prediction_error_count{model_type="duration"}[1h]))
+              ) > 0
+              and
+              (
+                histogram_quantile(0.95, rate(orchestration_ml_prediction_error_bucket{model_type="duration"}[1h]))
+                /
+                (
+                  avg(
+                    label_replace(
+                      rate(orchestration_ml_prediction_error_sum{model_type="duration"}[1h]),
+                      "actual_duration_estimate", "60000", "", ""
+                    )
+                  )
+                )
+              ) > 0.15
+            )
+            or
+            (
+              orchestration_ml_model_accuracy{
+                model_name="duration-predictor",
+                metric_type="mae_pct"
+              } > 15
+              and
+              sum(rate(orchestration_ml_prediction_error_count{model_type="duration"}[1h])) < 10
+            )
+          for: 1h
+          labels:
+            severity: warning
+            component: ml-predictor
+            team: orchestration
+          annotations:
+            summary: "Modelo de predição de duração com erro acima de 15%"
+            description: |
+              Erro de predição de duração (runtime ou training MAE) está acima do threshold de 15%.
+
+              Fontes de erro detectadas:
+              - Runtime P95 error > 15% (se houver >10 predições/hora)
+              - Training MAE > 15% (fallback se poucos dados runtime)
+
+              Predições podem estar imprecisas, afetando alocação de recursos.
+
+              Ações:
+              - Verificar dashboard de erros runtime em tempo real
+              - Comparar distribuição de erros com MAE de treino
+              - Revisar se dados de treino são representativos
+              - Considerar retreinamento forçado se drift detectado
+              - Checar features utilizadas e sua relevância
+            dashboard_url: "https://grafana.local/d/orchestrator-ml-predictions"
+            runbook_url: "https://docs.internal/runbooks/orchestrator-ml-inaccurate-predictions"
+
+        - alert: MLAnomalyDetectionDegraded
+          expr: |
+            orchestration_ml_model_accuracy{
+              model_name="anomaly-detector",
+              metric_type="precision"
+            } < 0.6
+          for: 1h
+          labels:
+            severity: warning
+            component: ml-predictor
+            team: orchestration
+          annotations:
+            summary: "Precision do detector de anomalias abaixo de 60% ({{ $value | humanize }})"
+            description: |
+              Precision do anomaly-detector está abaixo de 0.6 (60%).
+              Valor atual: {{ $value | humanize }}
+
+              Pode resultar em muitos falsos positivos.
+
+              Ações:
+              - Revisar contamination rate (padrão: 5%)
+              - Ajustar features utilizadas
+              - Validar labels de treino
+              - Considerar retreinamento
+            dashboard_url: "https://grafana.local/d/orchestrator-ml-predictions"
+            runbook_url: "https://docs.internal/runbooks/orchestrator-ml-anomaly-degraded"
+
+        - alert: MLHighAnomalyRate
+          expr: |
+            (
+              sum(rate(orchestration_ml_anomalies_detected_total[15m]))
+              /
+              sum(rate(orchestration_ml_predictions_total{model_type="anomaly"}[15m]))
+            ) * 100 > 10
+          for: 30m
+          labels:
+            severity: info
+            component: ml-predictor
+            team: orchestration
+          annotations:
+            summary: "Taxa de anomalias detectadas muito alta ({{ $value | humanize }}%)"
+            description: |
+              Taxa de anomalias detectadas está acima de 10% (contamination esperado: 5%).
+              Valor atual: {{ $value | humanize }}%
+
+              Pode indicar:
+              - Mudança nos padrões de tickets
+              - Configurações anômalas sendo enviadas
+              - Modelo precisa ser retreinado
+
+              Revisar tipos de anomalias no dashboard.
+            dashboard_url: "https://grafana.local/d/orchestrator-ml-predictions"
+
+    - name: ml_training
+      interval: 5m
+      rules:
+        - alert: MLTrainingFailed
+          expr: |
+            increase(orchestration_ml_predictions_total{
+              model_type="unknown",
+              status="error"
+            }[1h]) > 0
+          labels:
+            severity: critical
+            component: ml-training
+            team: orchestration
+          annotations:
+            summary: "Treinamento de modelo ML falhou"
+            description: |
+              Treinamento de modelo ML reportou erro.
+
+              Modelos podem estar desatualizados.
+
+              Ações urgentes:
+              - Verificar logs de training_pipeline
+              - Validar acesso ao MongoDB para dados históricos
+              - Checar se há amostras suficientes (min: 100)
+              - Verificar MLflow server disponível
+            dashboard_url: "https://grafana.local/d/orchestrator-ml-predictions"
+            runbook_url: "https://docs.internal/runbooks/orchestrator-ml-training-failed"
+
+        - alert: MLTrainingStale
+          expr: |
+            time() - orchestration_ml_training_duration_seconds > 172800
+          for: 1h
+          labels:
+            severity: warning
+            component: ml-training
+            team: orchestration
+          annotations:
+            summary: "Treinamento de modelo ML não executado há >48h"
+            description: |
+              Último treinamento foi há mais de 48 horas.
+              Intervalo configurado: 24h
+
+              Modelos podem estar desatualizados.
+
+              Ações:
+              - Verificar se training_pipeline está rodando
+              - Checar logs do orchestrator-dynamic
+              - Validar agendamento periódico
+            dashboard_url: "https://grafana.local/d/orchestrator-ml-predictions"
+            runbook_url: "https://docs.internal/runbooks/orchestrator-ml-training-stale"
+
+        - alert: MLInsufficientTrainingData
+          expr: |
+            orchestration_ml_model_accuracy{metric_type="train_samples"} < 100
+          labels:
+            severity: info
+            component: ml-training
+            team: orchestration
+          annotations:
+            summary: "Dados insuficientes para treinamento ML ({{ $value }} amostras)"
+            description: |
+              Número de amostras de treino está abaixo do mínimo (100).
+              Amostras atuais: {{ $value }}
+
+              Modelos podem ter baixa acurácia.
+
+              Aguardar acúmulo de dados históricos (tickets completados).
+            dashboard_url: "https://grafana.local/d/orchestrator-ml-predictions"
+
+    - name: ml_feature_extraction
+      interval: 1m
+      rules:
+        - alert: MLFeatureExtractionErrors
+          expr: |
+            rate(orchestration_ml_feature_extraction_errors_total[5m]) > 0.1
+          for: 10m
+          labels:
+            severity: warning
+            component: ml-predictor
+            team: orchestration
+          annotations:
+            summary: "Erros frequentes em feature extraction ({{ $value | humanize }}/s)"
+            description: |
+              Feature extraction está falhando em {{ $value | humanize }} requisições/segundo.
+
+              Pode indicar dados de tickets malformados ou features faltando.
+
+              Ações:
+              - Verificar schema de tickets no MongoDB
+              - Revisar logs de feature_engineering
+              - Validar campos required_capabilities, qos, sla
+            dashboard_url: "https://grafana.local/d/orchestrator-ml-predictions"
+            runbook_url: "https://docs.internal/runbooks/orchestrator-ml-feature-errors"
+
+    - name: ml_drift_detection
+      interval: 5m
+      rules:
+        - alert: MLFeatureDriftSignificant
+          expr: |
+            orchestration_ml_drift_score{drift_type="feature"} > 0.25
+          for: 15m
+          labels:
+            severity: warning
+            component: ml-drift-detector
+            team: orchestration
+          annotations:
+            summary: "Drift significativo detectado em feature: {{ $labels.feature }} (PSI={{ $value | humanize }})"
+            description: |
+              PSI (Population Stability Index) para feature {{ $labels.feature }} está acima de 0.25.
+              Valor atual: {{ $value | humanize }}
+
+              Thresholds:
+              - PSI < 0.1: Sem drift
+              - PSI 0.1-0.25: Drift moderado
+              - PSI > 0.25: Drift significativo
+
+              Impacto: Distribuição da feature mudou significativamente desde o treinamento.
+
+              Ações:
+              - Verificar dashboard de drift detection
+              - Analisar mudanças recentes no sistema
+              - Considerar retreinamento do modelo
+            dashboard_url: "https://grafana.local/d/orchestrator-ml-predictions"
+            runbook_url: "https://docs.internal/runbooks/orchestrator-ml-drift-detection"
+
+        - alert: MLPredictionDriftCritical
+          expr: |
+            orchestration_ml_drift_score{drift_type="prediction",model_name="duration-predictor"} > 2.0
+          for: 30m
+          labels:
+            severity: critical
+            component: ml-drift-detector
+            team: orchestration
+          annotations:
+            summary: "Degradação crítica em predições ML (MAE Ratio={{ $value | humanize }})"
+            description: |
+              Ratio MAE atual/MAE treinamento está acima de 2.0.
+              Valor atual: {{ $value | humanize }}
+
+              MAE atual é >2x maior que MAE de treinamento.
+
+              Impacto crítico: Predições podem estar muito imprecisas.
+
+              Ações urgentes:
+              - Trigger retreinamento manual imediato
+              - Verificar se há mudanças recentes no workload
+              - Analisar distribuição de erros recentes
+              - Considerar rollback se houve deploy recente
+            dashboard_url: "https://grafana.local/d/orchestrator-ml-predictions"
+            runbook_url: "https://docs.internal/runbooks/orchestrator-ml-drift-critical"
+
+        - alert: MLTargetDriftDetected
+          expr: |
+            orchestration_ml_drift_score{drift_type="target",model_name="duration-predictor"} > 0.5
+          for: 1h
+          labels:
+            severity: warning
+            component: ml-drift-detector
+            team: orchestration
+          annotations:
+            summary: "Drift na distribuição de target detectado (K-S={{ $value | humanize }})"
+            description: |
+              Estatística Kolmogorov-Smirnov está acima de 0.5.
+              Valor atual: {{ $value | humanize }}
+
+              Distribuição de duração real mudou significativamente.
+
+              Pode indicar:
+              - Mudança nos tipos de tarefas processadas
+              - Alteração de performance de workers
+              - Novos padrões de workload
+
+              Ações:
+              - Revisar distribuição de task_types recentes
+              - Verificar performance de workers/specialists
+              - Agendar retreinamento se drift persistir
+            dashboard_url: "https://grafana.local/d/orchestrator-ml-predictions"
+            runbook_url: "https://docs.internal/runbooks/orchestrator-ml-drift-detection"
+
+        - alert: MLDriftStatusCritical
+          expr: |
+            orchestration_ml_drift_status{model_name="duration-predictor"} == 2
+          for: 30m
+          labels:
+            severity: critical
+            component: ml-drift-detector
+            team: orchestration
+          annotations:
+            summary: "Status de drift crítico para modelo {{ $labels.model_name }} - {{ $labels.drift_type }}"
+            description: |
+              Drift detector reportou status CRITICAL para {{ $labels.drift_type }} drift.
+
+              Múltiplos thresholds podem estar violados simultaneamente.
+
+              Ação imediata: Trigger retreinamento manual via API:
+              curl -X POST http://orchestrator-dynamic:8000/api/v1/ml/train
+            dashboard_url: "https://grafana.local/d/orchestrator-ml-predictions"
+            runbook_url: "https://docs.internal/runbooks/orchestrator-ml-drift-critical"
+
+    - name: ml_training_jobs
+      interval: 5m
+      rules:
+        - alert: MLTrainingJobFailureRate
+          expr: |
+            (
+              sum(rate(orchestration_ml_training_jobs_total{status="failure"}[1h]))
+              /
+              sum(rate(orchestration_ml_training_jobs_total[1h]))
+            ) * 100 > 50
+          for: 30m
+          labels:
+            severity: critical
+            component: ml-training
+            team: orchestration
+          annotations:
+            summary: "Alta taxa de falhas em training jobs ({{ $value | humanize }}%)"
+            description: |
+              Mais de 50% dos training jobs falharam na última hora.
+              Taxa de falha: {{ $value | humanize }}%
+
+              Possíveis causas:
+              - MongoDB indisponível ou sem dados
+              - MLflow server inacessível
+              - Problemas de memória/CPU
+              - Erros de schema ou validação
+
+              Ações urgentes:
+              - Verificar logs do CronJob ml-training
+              - Validar conectividade com MongoDB e MLflow
+              - Checar recursos disponíveis (CPU/Memory)
+              - Revisar últimos logs de treinamento
+            dashboard_url: "https://grafana.local/d/orchestrator-ml-predictions"
+            runbook_url: "https://docs.internal/runbooks/orchestrator-ml-training-failure"
+
+        - alert: MLTrainingJobTimeout
+          expr: |
+            increase(orchestration_ml_training_jobs_total{status="timeout"}[2h]) > 0
+          labels:
+            severity: warning
+            component: ml-training
+            team: orchestration
+          annotations:
+            summary: "Training job excedeu timeout"
+            description: |
+              Um ou mais training jobs excederam o timeout configurado.
+
+              Possíveis causas:
+              - Volume de dados muito grande
+              - Recursos insuficientes
+              - Query MongoDB lenta
+
+              Ações:
+              - Revisar duração recente de treinamentos
+              - Verificar volume de amostras processadas
+              - Considerar aumentar timeout ou recursos
+              - Otimizar queries de extração de dados
+            dashboard_url: "https://grafana.local/d/orchestrator-ml-predictions"
+            runbook_url: "https://docs.internal/runbooks/orchestrator-ml-training-timeout"
+
+        - alert: MLTrainingInsufficientSamples
+          expr: |
+            orchestration_ml_training_samples_used < 100
+          for: 6h
+          labels:
+            severity: info
+            component: ml-training
+            team: orchestration
+          annotations:
+            summary: "Volume insuficiente de amostras para treinamento ({{ $value }} samples)"
+            description: |
+              Training job usando menos de 100 amostras.
+              Amostras atuais: {{ $value }}
+
+              Modelos treinados com poucos dados tendem a ter baixa acurácia.
+
+              Causa provável:
+              - Sistema novo com poucos tickets completados
+              - Window de dados muito curto
+              - Filtros muito restritivos
+
+              Ação: Aguardar acúmulo de dados históricos ou ajustar janela de treino.
+            dashboard_url: "https://grafana.local/d/orchestrator-ml-predictions"
+
+        - alert: MLTrainingDataVolumeDropped
+          expr: |
+            (
+              orchestration_ml_training_samples_used
+              /
+              (orchestration_ml_training_samples_used offset 24h)
+            ) < 0.5
+          for: 2h
+          labels:
+            severity: warning
+            component: ml-training
+            team: orchestration
+          annotations:
+            summary: "Volume de amostras de treinamento caiu >50%"
+            description: |
+              Volume de amostras usado no treinamento caiu mais de 50% em 24h.
+
+              Pode indicar:
+              - Queda no throughput de tickets
+              - Mudança na window de dados
+              - Problema na query de dados históricos
+
+              Ações:
+              - Verificar throughput de tickets nas últimas 24h
+              - Validar configuração ml_training_window_days
+              - Checar logs de MongoDB query
+            dashboard_url: "https://grafana.local/d/orchestrator-ml-predictions"
+            runbook_url: "https://docs.internal/runbooks/orchestrator-ml-training-data-drop"

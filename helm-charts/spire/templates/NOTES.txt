@@ -1,0 +1,27 @@
+SPIRE foi instalado com sucesso!
+
+Verificar status:
+  kubectl get pods -n {{ .Release.Namespace }}
+
+Verificar SPIRE Server:
+  kubectl exec -n {{ .Release.Namespace }} spire-server-0 -- /opt/spire/bin/spire-server healthcheck
+
+Listar workload entries:
+  kubectl exec -n {{ .Release.Namespace }} spire-server-0 -- /opt/spire/bin/spire-server entry show
+
+Testar fetch de JWT-SVID (de dentro de um pod com SPIRE Agent):
+  curl --unix-socket /run/spire/sockets/agent.sock \
+    http://localhost/v1/spiffe/workload/jwt \
+    -H "Content-Type: application/json" \
+    -d '{"audience": ["vault.neural-hive.local"]}'
+
+Para adicionar novos workload entries:
+  kubectl exec -n {{ .Release.Namespace }} spire-server-0 -- \
+    /opt/spire/bin/spire-server entry create \
+    -spiffeID spiffe://{{ .Values.global.trustDomain }}/ns/<namespace>/sa/<serviceaccount> \
+    -parentID spiffe://{{ .Values.global.trustDomain }}/spire/agent/k8s_psat/production \
+    -selector k8s:ns:<namespace> \
+    -selector k8s:sa:<serviceaccount> \
+    -ttl 3600
+
+Documentação completa: docs/security/VAULT_SPIFFE_DEPLOYMENT_GUIDE.md

@@ -1,0 +1,205 @@
+# Default values for sla-management-system
+
+# Image configuration
+image:
+  repository: neural-hive-mind/sla-management-system
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# Deployment configuration
+replicaCount: 2
+
+# Autoscaling
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Resource limits
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 8000
+  metricsPort: 9090
+  annotations: {}
+
+# Application configuration
+config:
+  serviceName: sla-management-system
+  version: "1.0.0"
+  environment: production
+  logLevel: INFO
+
+  # Prometheus configuration
+  prometheus:
+    url: http://prometheus-server.monitoring.svc.cluster.local:9090
+    timeoutSeconds: 30
+    maxRetries: 3
+
+  # PostgreSQL configuration
+  postgresql:
+    host: postgres-sla.neural-hive-data.svc.cluster.local
+    port: 5432
+    database: sla_management
+    poolMinSize: 2
+    poolMaxSize: 10
+
+  # Redis configuration
+  redis:
+    clusterNodes: redis-cluster.redis-cluster.svc.cluster.local:6379
+    cacheTtlSeconds: 60
+
+  # Kafka configuration
+  kafka:
+    bootstrapServers: kafka-bootstrap.kafka.svc.cluster.local:9092
+    budgetTopic: sla.budgets
+    freezeTopic: sla.freeze.events
+    violationsTopic: sla.violations
+
+  # Alertmanager configuration
+  alertmanager:
+    url: http://alertmanager.monitoring.svc.cluster.local:9093
+    webhookPath: /webhooks/alertmanager
+
+  # Budget calculator configuration
+  calculator:
+    calculationIntervalSeconds: 30
+    errorBudgetWindowDays: 30
+    burnRateFastThreshold: 14.4
+    burnRateSlowThreshold: 6
+
+  # Policy enforcer configuration
+  policy:
+    freezeThresholdPercent: 20
+    autoUnfreezeEnabled: true
+    unfreezeThresholdPercent: 50
+
+# Operator configuration
+operator:
+  enabled: true
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  watchNamespaces: []  # Empty = watch all namespaces
+  reconciliationIntervalSeconds: 300
+
+# Secrets (should be replaced with SealedSecrets in production)
+secrets:
+  postgresUser: sla_user
+  postgresPassword: "<sealed-secret-ref>"
+  redisPassword: "<sealed-secret-ref>"
+
+# Istio configuration
+istio:
+  enabled: true
+  mtls:
+    mode: STRICT
+
+# Observability
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+
+# High availability
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Network policy
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            name: neural-hive-mind
+      - namespaceSelector:
+          matchLabels:
+            name: monitoring
+  egress:
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            name: monitoring
+      ports:
+      - protocol: TCP
+        port: 9090  # Prometheus
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            name: kafka
+      ports:
+      - protocol: TCP
+        port: 9092  # Kafka
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            name: neural-hive-data
+      ports:
+      - protocol: TCP
+        port: 5432  # PostgreSQL
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            name: redis-cluster
+      ports:
+      - protocol: TCP
+        port: 6379  # Redis
+
+# Pod configuration
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9090"
+  prometheus.io/path: "/metrics"
+  sidecar.istio.io/inject: "true"
+
+podLabels:
+  app.kubernetes.io/name: sla-management-system
+  app.kubernetes.io/part-of: neural-hive-mind
+  neural-hive.io/layer: monitoring
+
+# Affinity for pod distribution
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - sla-management-system
+        topologyKey: kubernetes.io/hostname
+
+tolerations: []
+
+nodeSelector: {}
+
+# Service account
+serviceAccount:
+  create: true
+  name: sla-management-system
+  annotations: {}
+
+# RBAC
+rbac:
+  create: true

@@ -56,3 +56,26 @@ data:
   # Observability
   OTEL_EXPORTER_ENDPOINT: {{ .Values.config.observability.otelExporterEndpoint | quote }}
   PROMETHEUS_PORT: {{ .Values.config.observability.prometheusPort | quote }}
+
+  # OPA Policy Engine
+  OPA_ENABLED: {{ .Values.config.opa.enabled | quote }}
+  OPA_HOST: {{ .Values.config.opa.host | quote }}
+  OPA_PORT: {{ .Values.config.opa.port | quote }}
+  OPA_TIMEOUT_SECONDS: {{ .Values.config.opa.timeoutSeconds | quote }}
+  OPA_RETRY_ATTEMPTS: {{ .Values.config.opa.retryAttempts | quote }}
+  OPA_CACHE_TTL_SECONDS: {{ .Values.config.opa.cacheTtlSeconds | quote }}
+  OPA_FAIL_OPEN: {{ .Values.config.opa.failOpen | quote }}
+
+  # OPA Policy Parameters
+  OPA_MAX_CONCURRENT_TICKETS: {{ .Values.config.opa.policies.maxConcurrentTickets | quote }}
+  OPA_ALLOWED_CAPABILITIES: {{ .Values.config.opa.policies.allowedCapabilities | toJson | quote }}
+  OPA_RESOURCE_LIMITS: {{ .Values.config.opa.policies.resourceLimits | toJson | quote }}
+
+  # OPA Feature Flags
+  OPA_INTELLIGENT_SCHEDULER_ENABLED: {{ .Values.config.opa.featureFlags.intelligentSchedulerEnabled | quote }}
+  OPA_BURST_CAPACITY_ENABLED: {{ .Values.config.opa.featureFlags.burstCapacityEnabled | quote }}
+  OPA_BURST_THRESHOLD: {{ .Values.config.opa.featureFlags.burstThreshold | quote }}
+  OPA_PREDICTIVE_ALLOCATION_ENABLED: {{ .Values.config.opa.featureFlags.predictiveAllocationEnabled | quote }}
+  OPA_AUTO_SCALING_ENABLED: {{ .Values.config.opa.featureFlags.autoScalingEnabled | quote }}
+  OPA_SCHEDULER_NAMESPACES: {{ .Values.config.opa.featureFlags.schedulerNamespaces | toJson | quote }}
+  OPA_PREMIUM_TENANTS: {{ .Values.config.opa.featureFlags.premiumTenants | toJson | quote }}

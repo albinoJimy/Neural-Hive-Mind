@@ -119,6 +119,29 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = Field(default='INFO', description='Nível de log (DEBUG, INFO, WARNING, ERROR)')
     LOG_FORMAT: str = Field(default='json', description='Formato de log (json, text)')
 
+    # MCP Tool Catalog Integration
+    MCP_TOOL_CATALOG_HOST: str = Field(default='mcp-tool-catalog', description='MCP Tool Catalog host')
+    MCP_TOOL_CATALOG_PORT: int = Field(default=8080, description='MCP Tool Catalog port')
+
+    @property
+    def MCP_TOOL_CATALOG_URL(self) -> str:
+        return f'http://{self.MCP_TOOL_CATALOG_HOST}:{self.MCP_TOOL_CATALOG_PORT}'
+
+    # LLM Integration (Optional)
+    LLM_PROVIDER: str = Field(default='', description='LLM provider (openai, anthropic, local)')
+    LLM_API_KEY: str = Field(default='', description='LLM API key (for OpenAI/Anthropic)')
+    LLM_MODEL: str = Field(default='gpt-4', description='LLM model name')
+    LLM_BASE_URL: str = Field(default='', description='LLM base URL (for local/custom endpoints)')
+    LLM_ENABLED: bool = Field(default=False, description='Enable LLM-based code generation')
+
+    # Analyst Agents Integration (Optional)
+    ANALYST_AGENTS_HOST: str = Field(default='analyst-agents', description='Analyst Agents host')
+    ANALYST_AGENTS_PORT: int = Field(default=8000, description='Analyst Agents port')
+
+    @property
+    def ANALYST_AGENTS_URL(self) -> str:
+        return f'http://{self.ANALYST_AGENTS_HOST}:{self.ANALYST_AGENTS_PORT}'
+
     class Config:
         env_file = '.env'
         env_file_encoding = 'utf-8'

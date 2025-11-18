@@ -25,6 +25,27 @@ spec:
         {{- if .Values.istio.enabled }}
         sidecar.istio.io/inject: "true"
         {{- end }}
+        {{- if .Values.config.vault.enabled }}
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "{{ .Values.config.vault.kubernetesRole }}"
+        vault.hashicorp.com/agent-inject-secret-mongodb: "{{ .Values.config.vault.mountKv }}/data/orchestrator/mongodb"
+        vault.hashicorp.com/agent-inject-template-mongodb: |
+          {{`{{- with secret`}} "{{ .Values.config.vault.mountKv }}/data/orchestrator/mongodb" {{`-}}
+          export MONGODB_URI="{{ .Data.data.uri }}"
+          {{- end }}`}}
+        vault.hashicorp.com/agent-inject-secret-postgres: "{{ .Values.config.vault.mountDatabase }}/creds/temporal-orchestrator"
+        vault.hashicorp.com/agent-inject-template-postgres: |
+          {{`{{- with secret`}} "{{ .Values.config.vault.mountDatabase }}/creds/temporal-orchestrator" {{`-}}
+          export POSTGRES_USER="{{ .Data.username }}"
+          export POSTGRES_PASSWORD="{{ .Data.password }}"
+          {{- end }}`}}
+        vault.hashicorp.com/agent-inject-secret-kafka: "{{ .Values.config.vault.mountKv }}/data/orchestrator/kafka"
+        vault.hashicorp.com/agent-inject-template-kafka: |
+          {{`{{- with secret`}} "{{ .Values.config.vault.mountKv }}/data/orchestrator/kafka" {{`-}}
+          export KAFKA_SASL_USERNAME="{{ .Data.data.username }}"
+          export KAFKA_SASL_PASSWORD="{{ .Data.data.password }}"
+          {{- end }}`}}
+        {{- end }}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -88,11 +109,22 @@ spec:
           mountPath: /tmp
         - name: logs
           mountPath: /app/logs
+        {{- if .Values.config.spiffe.enabled }}
+        - name: spire-agent-socket
+          mountPath: /run/spire/sockets
+          readOnly: true
+        {{- end }}
       volumes:
       - name: tmp
         emptyDir: {}
       - name: logs
         emptyDir: {}
+      {{- if .Values.config.spiffe.enabled }}
+      - name: spire-agent-socket
+        hostPath:
+          path: /run/spire/sockets
+          type: Directory
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

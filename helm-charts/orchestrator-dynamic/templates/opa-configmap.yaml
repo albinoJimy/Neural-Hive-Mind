@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opa-policies
+  namespace: neural-hive-orchestration
+  labels:
+    app: opa
+    component: policy-engine
+data:
+  resource_limits.rego: |
+{{ .Files.Get "policies/rego/orchestrator/resource_limits.rego" | indent 4 }}
+
+  sla_enforcement.rego: |
+{{ .Files.Get "policies/rego/orchestrator/sla_enforcement.rego" | indent 4 }}
+
+  feature_flags.rego: |
+{{ .Files.Get "policies/rego/orchestrator/feature_flags.rego" | indent 4 }}

@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: spire-agent
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "spire.labels" . | nindent 4 }}
+    app: spire-agent
+spec:
+  selector:
+    matchLabels:
+      app: spire-agent
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: spire-agent
+        {{- include "spire.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "spire.agent.serviceAccountName" . }}
+      hostPID: true
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      initContainers:
+      - name: init
+        image: "{{ .Values.agent.image.repository }}:{{ .Values.agent.image.tag }}"
+        command:
+        - /bin/sh
+        - -c
+        - |
+          mkdir -p /run/spire/sockets
+          mkdir -p /run/spire/agent/data
+        volumeMounts:
+        - name: spire-agent-socket-dir
+          mountPath: /run/spire/sockets
+        - name: spire-agent-data-dir
+          mountPath: /run/spire/agent/data
+      containers:
+      - name: spire-agent
+        image: "{{ .Values.agent.image.repository }}:{{ .Values.agent.image.tag }}"
+        args:
+        - -config
+        - /run/spire/config/agent.conf
+        env:
+        - name: SPIRE_AGENT_TRUST_DOMAIN
+          value: {{ .Values.global.trustDomain }}
+        - name: SPIRE_AGENT_LOG_LEVEL
+          value: {{ .Values.agent.config.logLevel }}
+        - name: MY_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        volumeMounts:
+        - name: spire-config
+          mountPath: /run/spire/config
+          readOnly: true
+        - name: spire-agent-socket-dir
+          mountPath: /run/spire/sockets
+        - name: spire-agent-data-dir
+          mountPath: /run/spire/agent/data
+        - name: spire-token
+          mountPath: /var/run/secrets/tokens
+        livenessProbe:
+          httpGet:
+            path: /live
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 3
+        resources:
+          {{- toYaml .Values.agent.resources | nindent 10 }}
+        securityContext:
+          privileged: false
+      volumes:
+      - name: spire-config
+        configMap:
+          name: spire-agent-config
+      - name: spire-agent-socket-dir
+        hostPath:
+          path: /run/spire/sockets
+          type: DirectoryOrCreate
+      - name: spire-agent-data-dir
+        hostPath:
+          path: /run/spire/agent/data
+          type: DirectoryOrCreate
+      - name: spire-token
+        projected:
+          sources:
+          - serviceAccountToken:
+              path: spire-agent
+              expirationSeconds: 7200
+              audience: spire-server
+      {{- with .Values.agent.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

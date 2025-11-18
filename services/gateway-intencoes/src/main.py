@@ -653,6 +653,8 @@ async def _process_text_intention_with_context(
     start_time: datetime
 ) -> Dict[str, Any]:
     """Processar intenção de texto com contexto de correlação."""
+    import sys
+    print(f"[KAFKA-DEBUG] _process_text_intention_with_context INICIADO - intent_id={intent_id}", file=sys.stderr, flush=True)
     try:
         # Log início do processamento
         logger.info(
@@ -722,14 +724,17 @@ async def _process_text_intention_with_context(
         )
 
         # Determinar roteamento baseado em confiança
+        import sys
         if nlu_result.confidence >= effective_threshold_high:
             # Alta ou média confiança - processar normalmente
+            print(f"[KAFKA-DEBUG] Enviando para Kafka - HIGH confidence: {nlu_result.confidence}", file=sys.stderr, flush=True)
             await kafka_producer.send_intent(
                 intent_envelope,
                 confidence_status=nlu_result.confidence_status,
                 requires_validation=nlu_result.requires_manual_validation,
                 adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled
             )
+            print(f"[KAFKA-DEBUG] Enviado com sucesso - HIGH", file=sys.stderr, flush=True)
             status_message = "processed"
             processing_notes = []
 
@@ -738,12 +743,14 @@ async def _process_text_intention_with_context(
 
         elif nlu_result.confidence >= effective_threshold_low:
             # Confiança baixa mas aceitável - processar com flag de baixa confiança
+            print(f"[KAFKA-DEBUG] Enviando para Kafka - LOW confidence: {nlu_result.confidence}", file=sys.stderr, flush=True)
             await kafka_producer.send_intent(
                 intent_envelope,
                 confidence_status="low",
                 requires_validation=True,
                 adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled
             )
+            print(f"[KAFKA-DEBUG] Enviado com sucesso - LOW", file=sys.stderr, flush=True)
             status_message = "processed_low_confidence"
             processing_notes = ["Processado com confiança baixa - recomenda-se validação"]
 
@@ -755,6 +762,7 @@ async def _process_text_intention_with_context(
             )
         else:  # confidence < effective_threshold_low
             # Confiança muito baixa - rotear para validação
+            print(f"[KAFKA-DEBUG] Enviando para Kafka - VALIDATION: {nlu_result.confidence}", file=sys.stderr, flush=True)
             await kafka_producer.send_intent(
                 intent_envelope,
                 topic_override="intentions.validation",
@@ -762,6 +770,7 @@ async def _process_text_intention_with_context(
                 requires_validation=True,
                 adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled
             )
+            print(f"[KAFKA-DEBUG] Enviado com sucesso - VALIDATION", file=sys.stderr, flush=True)
             status_message = "routed_to_validation"
             processing_notes = ["Confiança muito baixa - requer validação manual"]
 
@@ -873,9 +882,14 @@ async def _process_text_intention_with_context(
 
     except Exception as e:
         error_str = str(e)
+        import sys, traceback
+        print(f"[KAFKA-DEBUG] ❌ EXCEÇÃO em _process_text_intention_with_context: {error_str}", file=sys.stderr, flush=True)
+        print(f"[KAFKA-DEBUG] Tipo: {type(e).__name__}", file=sys.stderr, flush=True)
+        traceback.print_exc(file=sys.stderr)
 
         # Check if it's a record too large error
         if "RECORD_TOO_LARGE" in error_str or "message size" in error_str.lower() or "rejeitada por exceder limite" in error_str:
+            print(f"[KAFKA-DEBUG] Detectado erro RECORD_TOO_LARGE", file=sys.stderr, flush=True)
             logger.error(
                 "Intenção rejeitada por tamanho excessivo",
                 intent_id=intent_id,
@@ -896,6 +910,7 @@ async def _process_text_intention_with_context(
                 detail="Envelope de intenção excede limite de tamanho permitido (4MB). Considere reduzir o conteúdo da solicitação."
             )
 
+        print(f"[KAFKA-DEBUG] Erro genérico processando intenção", file=sys.stderr, flush=True)
         logger.error(
             "Erro processando intenção de texto",
             intent_id=intent_id,

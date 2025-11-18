@@ -29,19 +29,25 @@ class KafkaIntentProducer:
         self._cluster_metadata = None
 
     def _generate_stable_transactional_id(self) -> str:
-        """Generate stable transactional ID per process/pod"""
-        # Use environment variables for stability across restarts
+        """Generate stable transactional ID per process/pod
+
+        Uses HOSTNAME which is unique per pod in Kubernetes.
+        For HA scenarios, each pod replica will have its own transaction coordinator.
+        """
+        # In Kubernetes, HOSTNAME is the pod name which is unique
         hostname = os.getenv('HOSTNAME', socket.gethostname())
-        pod_uid = os.getenv('POD_UID', os.getenv('CONTAINER_ID', 'default'))
+
+        # For additional uniqueness in case of restarts, include PID
+        pid = os.getpid()
 
         # Truncate to ensure compatibility with Kafka limits (255 chars max)
-        transactional_id = f"gateway-intencoes-{hostname}-{pod_uid}"[:200]
+        transactional_id = f"gateway-intencoes-{hostname}-{pid}"[:200]
 
         logger.info(
             "Generated stable transactional ID",
             transactional_id=transactional_id,
             hostname=hostname,
-            pod_uid=pod_uid
+            pid=pid
         )
 
         return transactional_id

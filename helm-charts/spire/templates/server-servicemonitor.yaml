@@ -1,0 +1,18 @@
+{{- if and .Values.serviceMonitor.enabled .Values.serviceMonitor.server.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: spire-server
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "spire.labels" . | nindent 4 }}
+    app: spire-server
+spec:
+  selector:
+    matchLabels:
+      app: spire-server
+  endpoints:
+  - port: healthz
+    path: /metrics
+    interval: {{ .Values.serviceMonitor.server.interval }}
+{{- end }}

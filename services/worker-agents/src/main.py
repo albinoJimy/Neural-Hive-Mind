@@ -65,8 +65,28 @@ async def startup():
         metrics.startup_total.inc()
         app_state['metrics'] = metrics
 
-        # Inicializar clientes
-        registry_client = ServiceRegistryClient(config)
+        # Inicializar Vault integration se habilitado
+        vault_client = None
+        if config.vault_enabled:
+            try:
+                from .clients.vault_integration import WorkerVaultClient
+                logger.info('Inicializando Vault integration')
+                vault_client = WorkerVaultClient(config)
+                await vault_client.initialize()
+                app_state['vault_client'] = vault_client
+                logger.info('Vault integration inicializado com sucesso')
+            except ImportError:
+                logger.warning('Vault habilitado mas biblioteca neural-hive-security não disponível')
+            except Exception as e:
+                logger.error('Erro ao inicializar Vault integration', error=str(e))
+                if not config.vault_fail_open:
+                    raise
+        else:
+            logger.info('Vault integration desabilitada')
+
+        # Inicializar clientes com SPIFFE manager do Vault client
+        spiffe_manager = vault_client.spiffe_manager if vault_client else None
+        registry_client = ServiceRegistryClient(config, spiffe_manager=spiffe_manager)
         await registry_client.initialize()
         app_state['registry_client'] = registry_client
 
@@ -74,7 +94,20 @@ async def startup():
         await ticket_client.initialize()
         app_state['ticket_client'] = ticket_client
 
-        result_producer = KafkaResultProducer(config)
+        # Get Kafka credentials from Vault se habilitado
+        kafka_username = None
+        kafka_password = None
+        if vault_client:
+            logger.info('Buscando credenciais Kafka do Vault')
+            kafka_creds = await vault_client.get_kafka_credentials()
+            kafka_username = kafka_creds.get('username')
+            kafka_password = kafka_creds.get('password')
+
+        result_producer = KafkaResultProducer(
+            config,
+            sasl_username_override=kafka_username,
+            sasl_password_override=kafka_password
+        )
         await result_producer.initialize()
         app_state['result_producer'] = result_producer
 
@@ -82,13 +115,13 @@ async def startup():
         dependency_coordinator = DependencyCoordinator(config, ticket_client)
         app_state['dependency_coordinator'] = dependency_coordinator
 
-        # Criar e configurar registry de executores
+        # Criar e configurar registry de executores com Vault client
         executor_registry = TaskExecutorRegistry(config)
-        executor_registry.register_executor(BuildExecutor(config))
-        executor_registry.register_executor(DeployExecutor(config))
-        executor_registry.register_executor(TestExecutor(config))
-        executor_registry.register_executor(ValidateExecutor(config))
-        executor_registry.register_executor(ExecuteExecutor(config))
+        executor_registry.register_executor(BuildExecutor(config, vault_client=vault_client))
+        executor_registry.register_executor(DeployExecutor(config, vault_client=vault_client))
+        executor_registry.register_executor(TestExecutor(config, vault_client=vault_client))
+        executor_registry.register_executor(ValidateExecutor(config, vault_client=vault_client))
+        executor_registry.register_executor(ExecuteExecutor(config, vault_client=vault_client))
         executor_registry.validate_configuration()
         app_state['executor_registry'] = executor_registry
 
@@ -147,6 +180,12 @@ async def shutdown():
 
         if 'consumer_task' in app_state:
             app_state['consumer_task'].cancel()
+
+        # Fechar Vault client
+        if 'vault_client' in app_state and app_state['vault_client']:
+            logger.info('Fechando Vault client')
+            await app_state['vault_client'].close()
+            logger.info('Vault client fechado')
 
         # Shutdown execution engine
         if 'execution_engine' in app_state:

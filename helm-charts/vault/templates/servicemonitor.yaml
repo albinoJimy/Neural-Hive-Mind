@@ -1,0 +1,26 @@
+{{- if .Values.serverTelemetry.serviceMonitor.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "vault.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vault.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "vault.selectorLabels" . | nindent 6 }}
+  endpoints:
+  - port: http
+    path: /v1/sys/metrics
+    params:
+      format:
+      - prometheus
+    interval: {{ .Values.serverTelemetry.serviceMonitor.interval }}
+    scrapeTimeout: {{ .Values.serverTelemetry.serviceMonitor.scrapeTimeout }}
+    {{- if .Values.tls.enabled }}
+    scheme: https
+    tlsConfig:
+      insecureSkipVerify: true
+    {{- end }}
+{{- end }}

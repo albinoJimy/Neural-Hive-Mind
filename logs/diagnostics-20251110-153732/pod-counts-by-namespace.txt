@@ -1,0 +1,17 @@
+      2 default
+      1 gateway-intencoes
+      4 kafka
+      1 kube-flannel
+      7 kube-system
+      1 local-path-storage
+      3 memory-layer-api
+      1 mongodb-cluster
+      1 neo4j-cluster
+      3 neural-hive
+      1 redis-cluster
+      1 semantic-translation-engine
+      1 specialist-architecture
+      1 specialist-behavior
+      2 specialist-business
+      1 specialist-evolution
+      2 specialist-technical

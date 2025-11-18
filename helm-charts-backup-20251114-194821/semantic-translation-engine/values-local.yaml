@@ -1,0 +1,136 @@
+# Local development values for semantic-translation-engine
+# Override production values for local Kubernetes clusters
+
+# Reduced replica count for local development
+replicaCount: 1
+
+image:
+  pullPolicy: IfNotPresent
+
+# Reduced resources for local development (~50% of production)
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+
+# Disable autoscaling for local development
+autoscaling:
+  enabled: false
+
+# Disable pod disruption budget for local development
+podDisruptionBudget:
+  enabled: false
+
+# Disable service monitor for local development
+serviceMonitor:
+  enabled: false
+
+# Disable network policies for local development
+networkPolicy:
+  enabled: false
+
+# Disable Istio for local development
+istio:
+  enabled: false
+
+# Application configuration
+config:
+  environment: dev
+  logLevel: DEBUG
+  debug: true
+
+  # Kafka configuration - no TLS/SASL for local
+  kafka:
+    bootstrapServers: neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092
+    consumerGroupId: semantic-translation-engine
+    topics:
+      - intentions.business
+      - intentions.technical
+      - intentions.infrastructure
+      - intentions.security
+    plansTopic: plans.ready
+    securityProtocol: PLAINTEXT
+    saslMechanism: PLAIN
+
+  # Schema Registry configuration
+  schemaRegistry:
+    url: "http://schema-registry.kafka.svc.cluster.local:8081/apis/ccompat/v6"
+
+  # Neo4j configuration - no SSL for local
+  neo4j:
+    uri: bolt://neo4j.neo4j-cluster.svc.cluster.local:7687
+    user: neo4j
+    database: neo4j
+    queryTimeoutMs: 50
+    maxConnectionPoolSize: 50
+
+  # MongoDB configuration - no authentication for local
+  mongodb:
+    uri: mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017
+    database: neural_hive
+    contextCollection: operational_context
+    ledgerCollection: cognitive_ledger
+    maxPoolSize: 100
+
+  # Redis configuration - no SSL for local, standalone mode
+  redis:
+    clusterNodes: neural-hive-cache.redis-cluster.svc.cluster.local:6379
+    clusterEnabled: false
+    sslEnabled: false
+    defaultTtl: 600
+    cacheEnabled: true
+
+  # Observabilidade
+  openTelemetry:
+    endpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
+    samplingRate: 1.0
+
+  # Risk Scoring
+  riskScoring:
+    weightPriority: 0.3
+    weightSecurity: 0.4
+    weightComplexity: 0.3
+    thresholdHigh: 0.7
+    thresholdCritical: 0.9
+
+  # Feature Flags
+  features:
+    knowledgeGraphEnabled: true
+    ledgerEnabled: true
+    explainabilityEnabled: true
+    circuitBreakerEnabled: true
+
+# Use default service account for local
+serviceAccount:
+  create: false
+  name: default
+
+# Simplified secrets for local development
+secrets:
+  kafkaSaslUsername: ""
+  kafkaSaslPassword: ""
+  neo4jPassword: local_dev_password
+  mongodbPassword: ""
+  redisPassword: ""
+
+# Relaxed probes for local development
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3

@@ -1,0 +1,136 @@
+# Local development values for guard-agents
+# Override production values for local Kubernetes clusters
+
+# Reduced replica count for local development
+replicaCount: 1
+
+image:
+  pullPolicy: IfNotPresent
+
+# Reduced resources for local development (~50% of production)
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Disable autoscaling for local development
+autoscaling:
+  enabled: false
+
+# Disable pod disruption budget for local development
+podDisruptionBudget:
+  enabled: false
+
+# Disable service monitor for local development
+serviceMonitor:
+  enabled: false
+
+# Disable network policies for local development
+networkPolicy:
+  enabled: false
+
+# Disable Istio for local development
+istio:
+  enabled: false
+
+# Application configuration
+config:
+  serviceName: guard-agents
+  namespace: neural-hive-resilience
+
+  kafka:
+    bootstrapServers: neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092
+    incidentsTopic: security-incidents
+    orchestrationIncidentsTopic: orchestration-incidents
+    remediationTopic: remediation-actions
+    consumerGroupId: guard-agents
+
+  serviceRegistry:
+    host: service-registry.service-registry.svc.cluster.local
+    port: 50051
+    heartbeatIntervalSeconds: 30
+    capabilities:
+      - threat-detection
+      - policy-enforcement
+      - incident-classification
+      - auto-remediation
+
+  mongodb:
+    uri: mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017
+    database: neural_hive
+    incidentsCollection: security_incidents
+    remediationCollection: remediation_actions
+
+  redis:
+    host: neural-hive-cache.redis-cluster.svc.cluster.local
+    port: 6379
+    db: 0
+
+  prometheus:
+    url: http://prometheus.observability.svc.cluster.local:9090
+    queryTimeoutSeconds: 10
+
+  alertmanager:
+    url: http://alertmanager.observability.svc.cluster.local:9093
+    webhookEnabled: true
+
+  kubernetes:
+    inCluster: true
+    namespace: neural-hive-resilience
+
+  selfHealingEngine:
+    url: http://self-healing-engine:8080
+    grpcHost: self-healing-engine
+    grpcPort: 50051
+
+  detection:
+    mttdTargetSeconds: 15
+    mttrTargetSeconds: 90
+    anomalyThreshold: 0.8
+    falsePositiveThreshold: 0.05
+
+  enforcement:
+    opaEnabled: true
+    istioEnabled: false
+    autoRemediationEnabled: false
+    manualApprovalRequiredForCritical: true
+
+  observability:
+    otelEndpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
+    prometheusPort: 9090
+    httpPort: 8080
+    grpcPort: 50051
+    logLevel: DEBUG
+
+# Use default service account for local
+serviceAccount:
+  create: false
+  name: default
+
+# Simplified secrets for local development
+secrets:
+  kafkaSaslUsername: ""
+  kafkaSaslPassword: ""
+  redisPassword: ""
+
+# Relaxed probes for local development
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3

@@ -18,6 +18,17 @@ from src.clients import (
     AnalystAgentsGrpcClient,
     QueenAgentGrpcClient,
 )
+from src.clients.clickhouse_client import ClickHouseClient
+# Import centralized LoadPredictor
+try:
+    from neural_hive_ml.predictive_models import LoadPredictor
+    from neural_hive_ml.predictive_models.model_registry import ModelRegistry as CentralizedModelRegistry
+    ML_CENTRALIZED = True
+except ImportError:
+    from src.ml import LoadPredictor, ModelRegistry as CentralizedModelRegistry
+    ML_CENTRALIZED = False
+
+from src.ml import SchedulingOptimizer, TrainingPipeline
 from src.consumers import InsightsConsumer, TelemetryConsumer, ExperimentsConsumer
 from src.producers import OptimizationProducer, ExperimentProducer
 from src.grpc_service import OptimizerServicer, GrpcServer
@@ -26,6 +37,8 @@ from src.observability.tracing import setup_tracing
 from src.observability.metrics import setup_metrics
 from src.services.experiment_manager import ExperimentManager
 from src.services.optimization_engine import OptimizationEngine
+from src.services.weight_recalibrator import WeightRecalibrator
+from src.services.slo_adjuster import SLOAdjuster
 
 logger = structlog.get_logger()
 
@@ -38,6 +51,7 @@ redis_client = None
 service_registry_client = None
 mlflow_client = None
 argo_client = None
+clickhouse_client = None
 
 # gRPC clients
 consensus_engine_client = None
@@ -55,6 +69,15 @@ experiment_producer = None
 # Services
 optimization_engine = None
 experiment_manager = None
+weight_recalibrator = None
+slo_adjuster = None
+
+# ML Subsystem
+model_registry = None
+load_predictor = None
+scheduling_optimizer = None
+training_pipeline = None
+metrics_instance = None
 
 # gRPC server
 grpc_server = None
@@ -68,11 +91,12 @@ consumer_tasks = []
 async def startup():
     """Tarefas de inicialização."""
     global mongodb_client, redis_client, service_registry_client
-    global mlflow_client, argo_client
+    global mlflow_client, argo_client, clickhouse_client
     global consensus_engine_client, orchestrator_client, analyst_agents_client, queen_agent_client
     global insights_consumer, telemetry_consumer, experiments_consumer
     global optimization_producer, experiment_producer
-    global optimization_engine, experiment_manager
+    global optimization_engine, experiment_manager, weight_recalibrator, slo_adjuster
+    global model_registry, load_predictor, scheduling_optimizer, training_pipeline, metrics_instance
     global grpc_server, grpc_task
     global background_tasks, consumer_tasks
 
@@ -82,6 +106,9 @@ async def startup():
     # Inicializar observabilidade
     tracer = setup_tracing(settings)
     setup_metrics()
+    # Criar instância de métricas para ML subsystem
+    from src.observability.metrics import OptimizerMetrics
+    metrics_instance = OptimizerMetrics()
     logger.info("observability_initialized")
 
     # Inicializar clientes de armazenamento
@@ -95,6 +122,14 @@ async def startup():
         redis_client = RedisClient(settings)
         await redis_client.connect()
         logger.info("redis_client_initialized")
+
+        # ClickHouse
+        clickhouse_client = ClickHouseClient(
+            redis_client=redis_client,
+            config=settings.model_dump()
+        )
+        await clickhouse_client.initialize()
+        logger.info("clickhouse_client_initialized")
 
     except Exception as e:
         logger.error("storage_clients_initialization_failed", error=str(e))
@@ -169,15 +204,8 @@ async def startup():
 
     # Inicializar serviços
     try:
-        # Optimization Engine
-        optimization_engine = OptimizationEngine(
-            settings=settings,
-            mongodb_client=mongodb_client,
-            redis_client=redis_client,
-            consensus_engine_client=consensus_engine_client,
-            queen_agent_client=queen_agent_client,
-        )
-        logger.info("optimization_engine_initialized")
+        # NOTA: OptimizationEngine será inicializado APÓS load_predictor para injetá-lo
+        optimization_engine = None
 
         # Experiment Manager
         experiment_manager = ExperimentManager(
@@ -187,6 +215,102 @@ async def startup():
             redis_client=redis_client,
         )
         logger.info("experiment_manager_initialized")
+
+        # Weight Recalibrator
+        weight_recalibrator = WeightRecalibrator(
+            settings=settings,
+            consensus_client=consensus_engine_client,
+            mongodb_client=mongodb_client,
+            redis_client=redis_client,
+            optimization_producer=None,  # Será definido após inicialização do producer
+            metrics=None,  # Será definido após inicialização de métricas
+        )
+        logger.info("weight_recalibrator_initialized")
+
+        # SLO Adjuster
+        slo_adjuster = SLOAdjuster(
+            settings=settings,
+            orchestrator_client=orchestrator_client,
+            mongodb_client=mongodb_client,
+            redis_client=redis_client,
+            optimization_producer=None,  # Será definido após inicialização do producer
+            metrics=None,  # Será definido após inicialização de métricas
+        )
+        logger.info("slo_adjuster_initialized")
+
+        # ML Subsystem initialization
+        # ModelRegistry (usando centralizado)
+        model_registry = CentralizedModelRegistry(
+            tracking_uri=settings.mlflow_tracking_uri,
+            experiment_prefix="neural-hive-ml"
+        )
+        logger.info("model_registry_initialized")
+
+        # LoadPredictor (configurar para centralizado se disponível)
+        if ML_CENTRALIZED:
+            load_predictor_config = {
+                'model_name': 'load-predictor',
+                'model_type': 'prophet',
+                'forecast_horizons': [60, 360, 1440],
+                'seasonality_mode': 'additive',
+                'use_synthetic_data': False  # Usar dados reais em produção
+            }
+            load_predictor = LoadPredictor(
+                config=load_predictor_config,
+                model_registry=model_registry,
+                metrics=metrics_instance,
+                data_source=clickhouse_client  # Passa ClickHouse para dados reais
+            )
+            await load_predictor.initialize()
+            logger.info("load_predictor_initialized (centralized with real data)")
+        else:
+            # Fallback para versão antiga do optimizer
+            load_predictor = LoadPredictor(
+                clickhouse_client=clickhouse_client,
+                redis_client=redis_client,
+                model_registry=model_registry,
+                metrics=metrics_instance,
+                config=settings.model_dump()
+            )
+            await load_predictor.initialize()
+            logger.info("load_predictor_initialized (legacy)")
+
+        # Optimization Engine (agora com load_predictor)
+        optimization_engine = OptimizationEngine(
+            settings=settings,
+            load_predictor=load_predictor,
+            mongodb_client=mongodb_client,
+            redis_client=redis_client,
+            consensus_engine_client=consensus_engine_client,
+            queen_agent_client=queen_agent_client,
+        )
+        logger.info("optimization_engine_initialized")
+
+        # SchedulingOptimizer
+        scheduling_optimizer = SchedulingOptimizer(
+            optimization_engine=optimization_engine,
+            experiment_manager=experiment_manager,
+            orchestrator_client=orchestrator_client,
+            mongodb_client=mongodb_client,
+            redis_client=redis_client,
+            model_registry=model_registry,
+            metrics=metrics_instance,
+            config=settings.model_dump()
+        )
+        await scheduling_optimizer.initialize()
+        logger.info("scheduling_optimizer_initialized")
+
+        # TrainingPipeline
+        training_pipeline = TrainingPipeline(
+            load_predictor=load_predictor,
+            scheduling_optimizer=scheduling_optimizer,
+            model_registry=model_registry,
+            clickhouse_client=clickhouse_client,
+            mongodb_client=mongodb_client,
+            metrics=metrics_instance,
+            config=settings.model_dump()
+        )
+        logger.info("training_pipeline_initialized")
 
     except Exception as e:
         logger.error("services_initialization_failed", error=str(e))
@@ -203,6 +327,14 @@ async def startup():
         experiment_producer = ExperimentProducer(settings=settings)
         experiment_producer.start()
         logger.info("experiment_producer_initialized")
+
+        # Atualizar WeightRecalibrator e SLOAdjuster com producer e métricas
+        if weight_recalibrator:
+            weight_recalibrator.optimization_producer = optimization_producer
+            weight_recalibrator.metrics = metrics_instance
+        if slo_adjuster:
+            slo_adjuster.optimization_producer = optimization_producer
+            slo_adjuster.metrics = metrics_instance
 
     except Exception as e:
         logger.error("kafka_producers_initialization_failed", error=str(e))
@@ -245,6 +377,11 @@ async def startup():
         servicer = OptimizerServicer(
             optimization_engine=optimization_engine,
             experiment_manager=experiment_manager,
+            weight_recalibrator=weight_recalibrator,
+            slo_adjuster=slo_adjuster,
+            mongodb_client=mongodb_client,
+            load_predictor=load_predictor,
+            scheduling_optimizer=scheduling_optimizer,
             settings=settings
         )
         grpc_server = GrpcServer(servicer=servicer, settings=settings)
@@ -273,16 +410,24 @@ async def startup():
             background_tasks.append(heartbeat_task)
             logger.info("heartbeat_loop_started")
 
+        # ML Training Pipeline
+        if training_pipeline:
+            training_task = asyncio.create_task(training_pipeline.start_periodic_training())
+            background_tasks.append(training_task)
+            logger.info("training_pipeline_started")
+
     logger.info("optimizer_agents_started")
 
 
 async def shutdown():
     """Tarefas de encerramento."""
     global mongodb_client, redis_client, service_registry_client
-    global mlflow_client, argo_client
+    global mlflow_client, argo_client, clickhouse_client
     global consensus_engine_client, orchestrator_client, analyst_agents_client, queen_agent_client
     global insights_consumer, telemetry_consumer, experiments_consumer
     global optimization_producer, experiment_producer
+    global weight_recalibrator, slo_adjuster
+    global training_pipeline
     global grpc_server, grpc_task
     global background_tasks, consumer_tasks
 
@@ -291,6 +436,14 @@ async def shutdown():
 
     # Sinalizar shutdown
     shutdown_event.set()
+
+    # Parar TrainingPipeline
+    if training_pipeline:
+        try:
+            await training_pipeline.stop()
+            logger.info("training_pipeline_stopped")
+        except Exception as e:
+            logger.error("training_pipeline_stop_failed", error=str(e))
 
     # Cancelar tarefas em background
     for task in background_tasks:
@@ -408,6 +561,13 @@ async def shutdown():
             logger.error("argo_client_disconnect_failed", error=str(e))
 
     # Fechar conexões de armazenamento
+    if clickhouse_client:
+        try:
+            await clickhouse_client.close()
+            logger.info("clickhouse_client_disconnected")
+        except Exception as e:
+            logger.error("clickhouse_client_disconnect_failed", error=str(e))
+
     if mongodb_client:
         try:
             await mongodb_client.disconnect()
@@ -443,7 +603,7 @@ async def optimization_loop():
             for insight in recent_insights:
                 try:
                     # Gerar hipóteses de otimização
-                    hypotheses = optimization_engine.analyze_opportunity(insight)
+                    hypotheses = await optimization_engine.analyze_opportunity(insight)
 
                     if hypotheses:
                         logger.info(
@@ -452,11 +612,22 @@ async def optimization_loop():
                             count=len(hypotheses)
                         )
 
-                        # Submeter hipóteses para validação via ExperimentManager
+                        # Submeter hipóteses para validação via ExperimentManager ou aplicação direta
                         if experiment_manager:
                             for hypothesis in hypotheses:
                                 if hypothesis.expected_improvement >= settings.min_improvement_threshold:
-                                    await experiment_manager.validate_hypothesis(hypothesis)
+                                    # Rotear hipótese para o serviço apropriado
+                                    from src.models.optimization_event import OptimizationType
+
+                                    if hypothesis.optimization_type == OptimizationType.WEIGHT_RECALIBRATION:
+                                        if weight_recalibrator:
+                                            await weight_recalibrator.apply_weight_recalibration(hypothesis)
+                                    elif hypothesis.optimization_type == OptimizationType.SLO_ADJUSTMENT:
+                                        if slo_adjuster:
+                                            await slo_adjuster.apply_slo_adjustment(hypothesis)
+                                    else:
+                                        # Outras otimizações vão para validação experimental
+                                        await experiment_manager.validate_hypothesis(hypothesis)
 
                 except Exception as e:
                     logger.error("hypothesis_generation_failed", error=str(e))
@@ -512,18 +683,40 @@ async def experiment_monitor_loop():
                                 experiment_id=experiment_id,
                                 degradation=status.get("performance_degradation")
                             )
-                            rollback_result = await experiment_manager.rollback_experiment(experiment_id)
-                            if rollback_result.get("success"):
-                                logger.info(
-                                    "experiment_rollback_completed",
-                                    experiment_id=experiment_id,
-                                    component=rollback_result.get("component")
-                                )
+
+                            # Obter tipo de otimização do MongoDB para rotear rollback
+                            experiment_doc = await mongodb_client.get_optimization(experiment_id)
+                            if experiment_doc:
+                                from src.models.optimization_event import OptimizationType
+                                optimization_type = OptimizationType(experiment_doc.get("optimization_type"))
+
+                                # Rotear para o serviço apropriado
+                                rollback_success = False
+                                if optimization_type == OptimizationType.WEIGHT_RECALIBRATION and weight_recalibrator:
+                                    rollback_success = await weight_recalibrator.rollback_weight_recalibration(experiment_id)
+                                elif optimization_type == OptimizationType.SLO_ADJUSTMENT and slo_adjuster:
+                                    rollback_success = await slo_adjuster.rollback_slo_adjustment(experiment_id)
+                                else:
+                                    # Rollback padrão via ExperimentManager
+                                    rollback_result = await experiment_manager.rollback_experiment(experiment_id)
+                                    rollback_success = rollback_result.get("success", False)
+
+                                if rollback_success:
+                                    logger.info(
+                                        "experiment_rollback_completed",
+                                        experiment_id=experiment_id,
+                                        optimization_type=optimization_type.value
+                                    )
+                                else:
+                                    logger.error(
+                                        "experiment_rollback_failed",
+                                        experiment_id=experiment_id,
+                                        optimization_type=optimization_type.value
+                                    )
                             else:
                                 logger.error(
-                                    "experiment_rollback_failed",
-                                    experiment_id=experiment_id,
-                                    reason=rollback_result.get("reason")
+                                    "experiment_not_found_for_rollback",
+                                    experiment_id=experiment_id
                                 )
 
                 except Exception as e:

@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vault.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vault.labels" . | nindent 4 }}
+data:
+  vault.hcl: |
+    ui = true
+
+    listener "tcp" {
+      address = "[::]:8200"
+      cluster_address = "[::]:8201"
+      {{- if .Values.tls.enabled }}
+      tls_cert_file = "/vault/userconfig/vault-tls/tls.crt"
+      tls_key_file = "/vault/userconfig/vault-tls/tls.key"
+      tls_client_ca_file = "/vault/userconfig/vault-tls/ca.crt"
+      {{- else }}
+      tls_disable = true
+      {{- end }}
+    }
+
+    storage "raft" {
+      path = "/vault/data"
+
+      retry_join {
+        leader_api_addr = "{{ if .Values.tls.enabled }}https{{ else }}http{{ end }}://vault-0.vault-internal:8200"
+        {{- if .Values.tls.enabled }}
+        leader_ca_cert_file = "/vault/userconfig/vault-tls/ca.crt"
+        leader_client_cert_file = "/vault/userconfig/vault-tls/tls.crt"
+        leader_client_key_file = "/vault/userconfig/vault-tls/tls.key"
+        {{- end }}
+      }
+
+      retry_join {
+        leader_api_addr = "{{ if .Values.tls.enabled }}https{{ else }}http{{ end }}://vault-1.vault-internal:8200"
+        {{- if .Values.tls.enabled }}
+        leader_ca_cert_file = "/vault/userconfig/vault-tls/ca.crt"
+        leader_client_cert_file = "/vault/userconfig/vault-tls/tls.crt"
+        leader_client_key_file = "/vault/userconfig/vault-tls/tls.key"
+        {{- end }}
+      }
+
+      retry_join {
+        leader_api_addr = "{{ if .Values.tls.enabled }}https{{ else }}http{{ end }}://vault-2.vault-internal:8200"
+        {{- if .Values.tls.enabled }}
+        leader_ca_cert_file = "/vault/userconfig/vault-tls/ca.crt"
+        leader_client_cert_file = "/vault/userconfig/vault-tls/tls.crt"
+        leader_client_key_file = "/vault/userconfig/vault-tls/tls.key"
+        {{- end }}
+      }
+    }
+
+    {{- if .Values.server.ha.raft.config.seal.enabled }}
+    seal "awskms" {
+      region = "{{ .Values.server.ha.raft.config.seal.region }}"
+      kms_key_id = "{{ .Values.server.ha.raft.config.seal.kms_key_id }}"
+    }
+    {{- end }}
+
+    service_registration "kubernetes" {
+      namespace = "{{ .Release.Namespace }}"
+      pod_name = "${VAULT_K8S_POD_NAME}"
+    }
+
+    telemetry {
+      prometheus_retention_time = "30s"
+      disable_hostname = true
+    }
+
+    api_addr = "{{ if .Values.tls.enabled }}https{{ else }}http{{ end }}://{{ include "vault.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:8200"
+    cluster_addr = "{{ if .Values.tls.enabled }}https{{ else }}http{{ end }}://${VAULT_K8S_POD_NAME}.vault-internal:8201"

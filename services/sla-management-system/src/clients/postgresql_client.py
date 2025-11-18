@@ -10,6 +10,7 @@ from ..config.settings import PostgreSQLSettings
 from ..models.slo_definition import SLODefinition
 from ..models.error_budget import ErrorBudget
 from ..models.freeze_policy import FreezePolicy, FreezeEvent
+from ..observability.metrics import sla_metrics
 
 
 class PostgreSQLClient:
@@ -41,6 +42,7 @@ class PostgreSQLClient:
             await self._create_tables()
         except Exception as e:
             self.logger.error("postgresql_connection_failed", error=str(e))
+            sla_metrics.record_postgresql_error()
             raise
 
     async def disconnect(self) -> None:
@@ -48,6 +50,13 @@ class PostgreSQLClient:
         if self.pool:
             await self.pool.close()
             self.logger.info("postgresql_disconnected")
+
+    def _handle_connection_error(self, error: Exception) -> None:
+        """Trata erros de conexão e incrementa métrica."""
+        if isinstance(error, (asyncpg.PostgresConnectionError, asyncpg.InterfaceError, ConnectionError)):
+            sla_metrics.record_postgresql_error()
+            self.logger.error("postgresql_connection_error", error=str(error))
+        raise error
 
     def _parse_slo_row(self, row) -> Dict[str, Any]:
         """Parse row from slo_definitions, converting JSON fields."""
@@ -212,6 +221,28 @@ class PostgreSQLClient:
             rows = await conn.fetch(query, *params)
             return [SLODefinition(**self._parse_slo_row(row)) for row in rows]
 
+    async def find_slo_by_name(
+        self,
+        name: str,
+        namespace: Optional[str] = None
+    ) -> Optional[SLODefinition]:
+        """Busca SLO por nome e namespace."""
+        query = 'SELECT * FROM slo_definitions WHERE name = $1'
+        params = [name]
+
+        # Se namespace for fornecido, usar metadata para filtrar
+        if namespace:
+            query += " AND metadata->>'namespace' = $2"
+            params.append(namespace)
+
+        query += ' ORDER BY created_at DESC LIMIT 1'
+
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(query, *params)
+            if row:
+                return SLODefinition(**self._parse_slo_row(row))
+            return None
+
     async def update_slo(self, slo_id: str, updates: Dict[str, Any]) -> bool:
         """Atualiza campos permitidos de um SLO."""
         import json
@@ -358,6 +389,71 @@ class PostgreSQLClient:
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(query)
             return [FreezePolicy(**dict(row)) for row in rows]
+
+    async def find_policy_by_name(
+        self,
+        name: str,
+        namespace: Optional[str] = None
+    ) -> Optional[FreezePolicy]:
+        """Busca política por nome e namespace."""
+        query = 'SELECT * FROM freeze_policies WHERE name = $1'
+        params = [name]
+
+        # Se namespace for fornecido, usar metadata para filtrar
+        if namespace:
+            query += " AND metadata->>'namespace' = $2"
+            params.append(namespace)
+
+        query += ' ORDER BY created_at DESC LIMIT 1'
+
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(query, *params)
+            if row:
+                return FreezePolicy(**dict(row))
+            return None
+
+    async def update_policy(self, policy_id: str, updates: Dict[str, Any]) -> bool:
+        """Atualiza campos permitidos de uma política."""
+        import json
+        from datetime import datetime
+
+        if not updates:
+            return False
+
+        set_clauses = []
+        params = []
+        param_idx = 1
+
+        for field, value in updates.items():
+            if field == 'metadata' and isinstance(value, dict):
+                value = json.dumps(value)
+            elif field == 'actions' and isinstance(value, list):
+                # Convert PolicyAction enums to strings
+                value = [a.value if hasattr(a, 'value') else a for a in value]
+
+            params.append(value)
+            set_clauses.append(f'{field} = ${param_idx}')
+            param_idx += 1
+
+        params.append(policy_id)
+        query = f'''
+            UPDATE freeze_policies
+            SET {', '.join(set_clauses)}
+            WHERE policy_id = ${param_idx}
+        '''
+
+        try:
+            async with self.pool.acquire() as conn:
+                result = await conn.execute(query, *params)
+                success = result == 'UPDATE 1'
+                if success:
+                    self.logger.info("policy_updated_in_db", policy_id=policy_id, fields=list(updates.keys()))
+                else:
+                    self.logger.warning("policy_update_no_rows_affected", policy_id=policy_id)
+                return success
+        except Exception as e:
+            self.logger.error("policy_update_failed", policy_id=policy_id, error=str(e))
+            raise
 
     # Métodos de Freeze Events
     async def create_freeze_event(self, event: FreezeEvent) -> str:

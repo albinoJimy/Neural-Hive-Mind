@@ -12,3 +12,13 @@ test-*.tmp
 
 # Port-forward PIDs
 *.pf.pid
+
+# Build and Push Logs
+logs/build-*.log
+logs/build-summary.log
+logs/push-*.log
+
+# Backups de manifestos
+backups/manifests-*/
+*.yaml.bak
+*.yml.bak

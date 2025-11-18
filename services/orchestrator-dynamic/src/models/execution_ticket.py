@@ -6,7 +6,7 @@ import hashlib
 import json
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -127,6 +127,7 @@ class ExecutionTicket(BaseModel):
     error_message: Optional[str] = Field(default=None, description='Mensagem de erro')
     compensation_ticket_id: Optional[str] = Field(default=None, description='ID do ticket de compensação')
     metadata: Dict[str, str] = Field(default_factory=dict, description='Metadados adicionais')
+    predictions: Optional[Dict[str, Any]] = Field(default=None, description='Predições ML (duração, recursos, anomalias)')
     schema_version: int = Field(default=1, description='Versão do schema')
 
     class Config:
@@ -181,6 +182,10 @@ class ExecutionTicket(BaseModel):
             'consistency': self.qos.consistency.value,
             'durability': self.qos.durability.value
         }
+
+        # Incluir predictions se presente
+        if self.predictions is not None:
+            data['predictions'] = self.predictions
 
         return data
 

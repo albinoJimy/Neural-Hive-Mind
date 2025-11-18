@@ -1,0 +1,335 @@
+# Configuração de Exemplo do Alertmanager para Integração Slack/PagerDuty
+#
+# IMPORTANTE: Este é um arquivo de EXEMPLO. Para usar em produção:
+# 1. Substitua os placeholders YOUR_WEBHOOK_URL, YOUR_INTEGRATION_KEY, etc.
+# 2. Armazene credenciais sensíveis em Kubernetes Secrets
+# 3. Merge com sua configuração existente do Alertmanager
+# 4. Teste as rotas com: amtool config routes test
+#
+# Para merge com ConfigMap existente:
+# kubectl get configmap alertmanager-config -n monitoring -o yaml > current-config.yaml
+# # Merge manualmente as seções 'routes' e 'receivers'
+# kubectl apply -f merged-config.yaml
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-slack-pagerduty-config
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/component: config
+  annotations:
+    description: "Exemplo de configuração para routing de alertas SLA para Slack e PagerDuty"
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+      # Slack API URL - obter em: https://api.slack.com/messaging/webhooks
+      slack_api_url: 'https://hooks.slack.com/services/YOUR_WEBHOOK_URL'
+      # PagerDuty API URL
+      pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+
+    # Templates customizados para formatação de mensagens
+    templates:
+      - '/etc/alertmanager/templates/*.tmpl'
+
+    # Configuração de Rotas
+    route:
+      # Receptor padrão para alertas não matcheados
+      receiver: 'default-receiver'
+
+      # Agrupar alertas por estas labels
+      group_by: ['alertname', 'cluster', 'service']
+
+      # Tempo para aguardar antes de enviar notificação após primeiro alerta
+      group_wait: 10s
+
+      # Tempo para aguardar antes de enviar notificação sobre novos alertas do mesmo grupo
+      group_interval: 5m
+
+      # Tempo para aguardar antes de reenviar notificação
+      repeat_interval: 4h
+
+      # Rotas específicas para alertas de SLA
+      routes:
+        # Alertas Críticos de SLA → PagerDuty
+        - match:
+            severity: critical
+            component: orchestrator-dynamic
+          receiver: pagerduty-critical
+          group_wait: 5s
+          repeat_interval: 1h
+          continue: true  # Continua processando outras rotas
+
+        # Alertas de Warning de SLA → Slack
+        - match:
+            severity: warning
+            component: orchestrator-dynamic
+          receiver: slack-sla-warnings
+          group_wait: 30s
+          repeat_interval: 4h
+
+        # Budget Crítico → Slack + PagerDuty
+        - match:
+            alertname: OrchestratorBudgetCritical
+          receiver: slack-sla-warnings
+          continue: true
+        - match:
+            alertname: OrchestratorBudgetCritical
+          receiver: pagerduty-critical
+
+        # Deadline Approaching → Slack
+        - match:
+            alertname: OrchestratorDeadlineApproaching
+          receiver: slack-sla-warnings
+
+        # Deadline Exceeded → PagerDuty
+        - match:
+            alertname: OrchestratorDeadlineExceeded
+          receiver: pagerduty-critical
+
+        # Burn Rate Alto → Slack
+        - match:
+            alertname: OrchestratorHighBurnRate
+          receiver: slack-sla-warnings
+
+        # SLA Management System Webhook (regex match para todas SLOs)
+        - match_re:
+            slo: '.*'
+          receiver: sla-management-system-webhook
+          continue: true
+
+    # Configuração de Receivers
+    receivers:
+      # Receptor padrão
+      - name: 'default-receiver'
+        slack_configs:
+          - channel: '#alertas-gerais'
+            title: '[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}'
+            text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+      # Slack para avisos de SLA
+      - name: 'slack-sla-warnings'
+        slack_configs:
+          - channel: '#sla-alerts'  # CONFIGURAR: Seu canal Slack
+            send_resolved: true
+            title_link: '{{ .ExternalURL }}'
+
+            # Título com status e nome do alerta
+            title: '[{{ .Status | toUpper }}] SLA Alert: {{ .GroupLabels.alertname }}'
+
+            # Cor baseada na severidade
+            color: '{{ if eq .Status "firing" }}{{ if eq .CommonLabels.severity "critical" }}danger{{ else }}warning{{ end }}{{ else }}good{{ end }}'
+
+            # Template da mensagem (referencia slack-message-template.tmpl)
+            text: '{{ template "slack.sla.text" . }}'
+
+            # Campos estruturados
+            fields:
+              - title: "Serviço"
+                value: "{{ .CommonLabels.service_name | default \"orchestrator-dynamic\" }}"
+                short: true
+              - title: "Severidade"
+                value: "{{ .CommonLabels.severity | toUpper }}"
+                short: true
+              - title: "Workflow ID"
+                value: "{{ .CommonAnnotations.workflow_id | default \"N/A\" }}"
+                short: true
+              - title: "Budget Restante"
+                value: "{{ .CommonAnnotations.budget_remaining | default \"N/A\" }}%"
+                short: true
+              - title: "Tempo Restante"
+                value: "{{ .CommonAnnotations.remaining_seconds | default \"N/A\" }}s"
+                short: true
+              - title: "Burn Rate"
+                value: "{{ .CommonAnnotations.burn_rate | default \"N/A\" }}"
+                short: true
+
+            # Ações (botões)
+            actions:
+              - type: button
+                text: '📊 View Dashboard'
+                url: '{{ .CommonAnnotations.dashboard_url | default "http://grafana/d/fluxo-c-orchestration" }}'
+              - type: button
+                text: '📖 Runbook'
+                url: '{{ .CommonAnnotations.runbook_url | default "https://docs.example.com/runbooks/sla" }}'
+              - type: button
+                text: '🔇 Silence'
+                url: '{{ .ExternalURL }}/#/silences/new?filter=%7Balertname%3D%22{{ .GroupLabels.alertname }}%22%7D'
+
+      # PagerDuty para alertas críticos
+      - name: 'pagerduty-critical'
+        pagerduty_configs:
+          - service_key: 'YOUR_INTEGRATION_KEY'  # CONFIGURAR: Sua integration key do PagerDuty
+            send_resolved: true
+
+            # Routing key baseada no alerta
+            routing_key: '{{ .GroupLabels.alertname }}'
+
+            # Descrição do incidente
+            description: '[{{ .CommonLabels.severity | toUpper }}] {{ .GroupLabels.alertname }}: {{ .CommonAnnotations.summary }}'
+
+            # Severidade mapeada
+            severity: '{{ if eq .CommonLabels.severity "critical" }}critical{{ else if eq .CommonLabels.severity "warning" }}warning{{ else }}info{{ end }}'
+
+            # Detalhes customizados
+            details:
+              alert_name: '{{ .GroupLabels.alertname }}'
+              service: '{{ .CommonLabels.service_name | default "orchestrator-dynamic" }}'
+              component: '{{ .CommonLabels.component }}'
+              workflow_id: '{{ .CommonAnnotations.workflow_id | default "N/A" }}'
+              ticket_id: '{{ .CommonAnnotations.ticket_id | default "N/A" }}'
+              budget_remaining: '{{ .CommonAnnotations.budget_remaining | default "N/A" }}%'
+              remaining_seconds: '{{ .CommonAnnotations.remaining_seconds | default "N/A" }}s'
+              burn_rate: '{{ .CommonAnnotations.burn_rate | default "N/A" }}'
+              violation_type: '{{ .CommonAnnotations.violation_type | default "N/A" }}'
+              delay_ms: '{{ .CommonAnnotations.delay_ms | default "N/A" }}'
+              firing_alerts: '{{ .Alerts.Firing | len }}'
+              resolved_alerts: '{{ .Alerts.Resolved | len }}'
+
+            # Links para dashboard e logs
+            links:
+              - href: '{{ .CommonAnnotations.dashboard_url | default "http://grafana/d/fluxo-c-orchestration" }}'
+                text: 'Grafana Dashboard'
+              - href: '{{ .CommonAnnotations.runbook_url | default "https://docs.example.com/runbooks/sla" }}'
+                text: 'Runbook'
+              - href: '{{ .GeneratorURL }}'
+                text: 'Prometheus Alert'
+
+      # SLA Management System Webhook (referência da configuração existente)
+      - name: 'sla-management-system-webhook'
+        webhook_configs:
+          - url: 'http://sla-management-system.neural-hive-orchestration.svc.cluster.local:8000/webhooks/alertmanager'
+            send_resolved: true
+            http_config:
+              follow_redirects: true
+            max_alerts: 0  # Sem limite de alertas por requisição
+
+    # Regras de Inibição
+    inhibit_rules:
+      # Inibir warnings quando críticos estão ativos (mesmo alertname e serviço)
+      - source_match:
+          severity: 'critical'
+        target_match:
+          severity: 'warning'
+        equal: ['alertname', 'service_name']
+
+      # Inibir DeadlineApproaching quando DeadlineExceeded está ativo
+      - source_match:
+          alertname: 'OrchestratorDeadlineExceeded'
+        target_match:
+          alertname: 'OrchestratorDeadlineApproaching'
+        equal: ['workflow_id']
+
+      # Inibir BudgetWarning quando BudgetCritical está ativo
+      - source_match:
+          alertname: 'OrchestratorBudgetCritical'
+        target_match:
+          alertname: 'OrchestratorBudgetWarning'
+        equal: ['service_name']
+
+      # Inibir BudgetCritical quando BudgetExhausted está ativo
+      - source_match:
+          alertname: 'OrchestratorBudgetExhausted'
+        target_match:
+          alertname: 'OrchestratorBudgetCritical'
+        equal: ['service_name']
+
+---
+# INSTRUÇÕES DE DEPLOYMENT
+#
+# 1. OBTER CREDENCIAIS:
+#
+#    Slack Webhook URL:
+#    - Acesse: https://api.slack.com/messaging/webhooks
+#    - Crie um Incoming Webhook para seu workspace
+#    - Copie a URL: https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX
+#    - Substitua YOUR_WEBHOOK_URL na configuração global.slack_api_url
+#
+#    PagerDuty Integration Key:
+#    - Acesse: https://your-subdomain.pagerduty.com/services
+#    - Selecione o serviço ou crie um novo
+#    - Vá em "Integrations" → "Add Integration"
+#    - Escolha "Events API V2"
+#    - Copie a "Integration Key"
+#    - Substitua YOUR_INTEGRATION_KEY em pagerduty_configs.service_key
+#
+# 2. CRIAR KUBERNETES SECRET (recomendado para produção):
+#
+#    kubectl create secret generic alertmanager-secrets -n monitoring \
+#      --from-literal=slack-webhook-url='https://hooks.slack.com/services/...' \
+#      --from-literal=pagerduty-key='YOUR_INTEGRATION_KEY'
+#
+#    Referencie no ConfigMap usando variáveis de ambiente ou volume mounts
+#
+# 3. MERGE COM CONFIGURAÇÃO EXISTENTE:
+#
+#    # Backup da configuração atual
+#    kubectl get configmap alertmanager-config -n monitoring -o yaml > alertmanager-backup.yaml
+#
+#    # Edite manualmente para merge das seções 'routes' e 'receivers'
+#    # NÃO substitua toda a configuração, apenas adicione as novas rotas/receivers
+#
+# 4. APLICAR CONFIGURAÇÃO:
+#
+#    kubectl apply -f alertmanager-slack-pagerduty-config.yaml
+#
+#    # OU merge com existente:
+#    kubectl apply -f alertmanager-merged-config.yaml
+#
+# 5. VALIDAR CONFIGURAÇÃO:
+#
+#    # Verificar se ConfigMap foi aplicado
+#    kubectl get configmap alertmanager-slack-pagerduty-config -n monitoring
+#
+#    # Verificar logs do Alertmanager
+#    kubectl logs -n monitoring -l app=alertmanager --tail=50
+#
+#    # Testar rotas com amtool
+#    kubectl exec -n monitoring alertmanager-0 -- amtool config routes test \
+#      --config.file=/etc/alertmanager/alertmanager.yml \
+#      alertname=OrchestratorBudgetCritical severity=critical
+#
+# 6. TESTAR ALERTAS:
+#
+#    # Enviar alerta de teste via curl
+#    curl -H "Content-Type: application/json" -d '[{
+#      "labels": {
+#        "alertname": "OrchestratorBudgetCritical",
+#        "severity": "critical",
+#        "component": "orchestrator-dynamic",
+#        "service_name": "orchestrator-dynamic"
+#      },
+#      "annotations": {
+#        "summary": "Budget crítico de teste",
+#        "budget_remaining": "15",
+#        "burn_rate": "8.5"
+#      }
+#    }]' http://alertmanager:9093/api/v1/alerts
+#
+# 7. TROUBLESHOOTING:
+#
+#    # Verificar status do Alertmanager
+#    kubectl get pods -n monitoring -l app=alertmanager
+#
+#    # Verificar configuração carregada
+#    kubectl exec -n monitoring alertmanager-0 -- amtool config show
+#
+#    # Verificar alertas ativos
+#    kubectl exec -n monitoring alertmanager-0 -- amtool alert
+#
+#    # Verificar silences
+#    kubectl exec -n monitoring alertmanager-0 -- amtool silence query
+#
+# 8. CONFIGURAÇÕES ADICIONAIS:
+#
+#    - Rate limiting: Adicione 'group_interval' e 'repeat_interval' nas rotas
+#    - Timeouts: Configure http_config.timeout para webhooks
+#    - Retries: Configure max_retries em webhook_configs
+#    - TLS: Configure tls_config para HTTPS endpoints
+#
+# REFERÊNCIAS:
+#   - Alertmanager Config: https://prometheus.io/docs/alerting/latest/configuration/
+#   - Slack API: https://api.slack.com/messaging/webhooks
+#   - PagerDuty Events API: https://developer.pagerduty.com/docs/events-api-v2/overview/

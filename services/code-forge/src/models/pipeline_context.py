@@ -21,6 +21,7 @@ class PipelineContext(BaseModel):
     validation_results: List[ValidationResult] = Field(default_factory=list, description='Resultados de validações')
     pipeline_stages: List[PipelineStage] = Field(default_factory=list, description='Status dos stages')
 
+    code_workspace_path: Optional[str] = Field(None, description='Path do workspace onde código foi materializado')
     metadata: Dict[str, Any] = Field(default_factory=dict, description='Metadados adicionais')
 
     started_at: datetime = Field(default_factory=datetime.now, description='Timestamp de início')

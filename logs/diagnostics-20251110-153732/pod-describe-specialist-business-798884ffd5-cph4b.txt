@@ -1,0 +1,82 @@
+Name:             specialist-business-798884ffd5-cph4b
+Namespace:        specialist-business
+Priority:         0
+Service Account:  default
+Node:             vmi2092350.contaboserver.net/37.60.241.150
+Start Time:       Mon, 10 Nov 2025 08:07:25 +0100
+Labels:           app.kubernetes.io/component=business-specialist
+                  app.kubernetes.io/instance=specialist-business
+                  app.kubernetes.io/name=specialist-business
+                  app.kubernetes.io/part-of=neural-hive-mind
+                  neural-hive.io/component=business-specialist
+                  neural-hive.io/domain=business-analysis
+                  neural-hive.io/layer=cognitiva
+                  pod-template-hash=798884ffd5
+Annotations:      checksum/config: e4709a26beb83a04c9d92ef05a1e69c53fec60ae01cf0b7e33be51890e07002a
+                  kubectl.kubernetes.io/restartedAt: 2025-11-05T16:50:13+01:00
+                  prometheus.io/path: /metrics
+                  prometheus.io/port: 8080
+                  prometheus.io/scrape: true
+Status:           Running
+IP:               10.244.0.214
+IPs:
+  IP:           10.244.0.214
+Controlled By:  ReplicaSet/specialist-business-798884ffd5
+Containers:
+  specialist-business:
+    Container ID:   containerd://b6e8a1961558f77098e39ff9bfe6c1b8a82feda47a7a7fcf16b0504a137d1582
+    Image:          neural-hive-mind/specialist-business:1.0.7
+    Image ID:       sha256:fe68c3682d7173b269fa3def70f65e253a0c087a55174d6babdf28d58f89c04c
+    Ports:          50051/TCP, 8000/TCP, 8080/TCP
+    Host Ports:     0/TCP, 0/TCP, 0/TCP
+    State:          Running
+      Started:      Mon, 10 Nov 2025 08:07:27 +0100
+    Ready:          True
+    Restart Count:  0
+    Limits:
+      cpu:     2
+      memory:  4Gi
+    Requests:
+      cpu:      200m
+      memory:   1Gi
+    Liveness:   http-get http://:8000/health delay=60s timeout=10s period=30s #success=1 #failure=3
+    Readiness:  http-get http://:8000/ready delay=30s timeout=5s period=10s #success=1 #failure=3
+    Environment:
+      ENVIRONMENT:                  dev
+      LOG_LEVEL:                    DEBUG
+      ENABLE_JWT_AUTH:              false
+      ENABLE_PII_DETECTION:         false
+      MLFLOW_TRACKING_URI:          
+      MONGODB_URI:                  <set to the key 'mongodb_uri' in secret 'specialist-business-secrets'>  Optional: false
+      MONGODB_DATABASE:             neural_hive
+      NEO4J_URI:                    bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687
+      NEO4J_USER:                   neo4j
+      NEO4J_PASSWORD:               <set to the key 'neo4j_password' in secret 'specialist-business-secrets'>  Optional: false
+      NEO4J_DATABASE:               neo4j
+      REDIS_CLUSTER_NODES:          neural-hive-cache.redis-cluster.svc.cluster.local:6379
+      REDIS_SSL_ENABLED:            false
+      OTEL_EXPORTER_OTLP_ENDPOINT:  http://opentelemetry-collector.observability.svc.cluster.local:4317
+      GRPC_PORT:                    50051
+      HTTP_PORT:                    8000
+      PROMETHEUS_PORT:              8080
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-6k9v8 (ro)
+Conditions:
+  Type                        Status
+  PodReadyToStartContainers   True 
+  Initialized                 True 
+  Ready                       True 
+  ContainersReady             True 
+  PodScheduled                True 
+Volumes:
+  kube-api-access-6k9v8:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    ConfigMapOptional:       <nil>
+    DownwardAPI:             true
+QoS Class:                   Burstable
+Node-Selectors:              <none>
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:                      <none>

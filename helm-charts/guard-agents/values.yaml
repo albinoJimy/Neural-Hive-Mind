@@ -29,6 +29,11 @@ config:
     incidentsTopic: security-incidents
     orchestrationIncidentsTopic: orchestration-incidents
     remediationTopic: remediation-actions
+    ticketsTopic: execution.tickets
+    ticketsValidatedTopic: execution.tickets.validated
+    ticketsRejectedTopic: execution.tickets.rejected
+    ticketsPendingApprovalTopic: execution.tickets.pending_approval
+    validationsTopic: security.validations
     consumerGroupId: guard-agents
 
   serviceRegistry:
@@ -40,12 +45,16 @@ config:
       - policy-enforcement
       - incident-classification
       - auto-remediation
+      - ticket-validation
+      - secrets-scanning
+      - guardrail-enforcement
 
   mongodb:
     uri: mongodb://mongodb.neural-hive-persistence.svc.cluster.local:27017
     database: neural_hive
     incidentsCollection: security_incidents
     remediationCollection: remediation_actions
+    validationsCollection: security_validations
 
   redis:
     host: redis.neural-hive-persistence.svc.cluster.local
@@ -80,6 +89,27 @@ config:
     istioEnabled: true
     autoRemediationEnabled: true
     manualApprovalRequiredForCritical: true
+
+  validation:
+    enabled: true
+    vault:
+      enabled: true
+      addr: http://vault:8200
+      namespace: neural-hive
+      failOpen: false
+    trivy:
+      enabled: true
+      url: http://trivy:8080
+      timeoutSeconds: 30
+    thresholds:
+      riskScoreAutoApprove: 0.3
+      riskScoreAutoReject: 0.9
+      requireApprovalForProduction: true
+      requireApprovalForCriticalRisk: true
+    guardrails:
+      enabled: true
+      mode: BLOCKING
+      maxBlastRadiusPercentage: 0.1
 
   observability:
     otelEndpoint: http://otel-collector:4317

@@ -198,3 +198,77 @@ spec:
       annotations:
         summary: "Self-Healing Engine inativo"
         description: "Self-Healing Engine não está respondendo"
+
+  - name: guard-agents.ticket-validation
+    rules:
+    - alert: HighTicketRejectionRate
+      expr: |
+        (
+          sum(rate(guard_agent_tickets_validated_total{status="REJECTED"}[5m]))
+          /
+          sum(rate(guard_agent_tickets_validated_total[5m]))
+        ) > 0.3
+      for: 10m
+      labels:
+        severity: warning
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Taxa alta de rejeição de tickets (>30%)"
+        description: "{{ $value | humanizePercentage }} dos tickets estão sendo rejeitados"
+
+    - alert: SecretsDetectedInTickets
+      expr: rate(guard_agent_secrets_detected_total[5m]) > 0
+      for: 1m
+      labels:
+        severity: critical
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Secrets detectados em execution tickets"
+        description: "{{ $value }} secrets/min detectados em tickets"
+
+    - alert: HighApprovalBacklog
+      expr: guard_agent_approvals_pending > 10
+      for: 15m
+      labels:
+        severity: warning
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Alto número de tickets pendentes de aprovação"
+        description: "{{ $value }} tickets aguardando aprovação humana"
+
+    - alert: ValidationServiceDown
+      expr: up{job="guard-agents"} == 0
+      for: 2m
+      labels:
+        severity: critical
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Serviço de validação de Guard Agents está inativo"
+        description: "Validação de tickets está indisponível"
+
+    - alert: TrivyScannerDown
+      expr: |
+        rate(guard_agent_trivy_scans_total{status="error"}[5m])
+        /
+        rate(guard_agent_trivy_scans_total[5m])
+        > 0.5
+      for: 5m
+      labels:
+        severity: warning
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Trivy scanner falhando (>50% error rate)"
+        description: "Scanning de secrets pode estar degradado"
+
+    - alert: HighRiskTicketsApproved
+      expr: |
+        sum(rate(guard_agent_tickets_validated_total{status="APPROVED"}[5m]))
+        and
+        guard_agent_risk_score_avg > 0.7
+      for: 10m
+      labels:
+        severity: warning
+        neural_hive_component: guard-agents
+      annotations:
+        summary: "Tickets de alto risco sendo aprovados"
+        description: "Risk score médio é {{ $value }}"

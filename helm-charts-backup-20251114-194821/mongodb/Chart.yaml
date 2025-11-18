@@ -1,0 +1,23 @@
+apiVersion: v2
+name: mongodb
+description: MongoDB ReplicaSet para Neural Hive-Mind - Memória Operacional
+type: application
+version: 0.1.0
+appVersion: "7.0.5"
+
+keywords:
+  - mongodb
+  - database
+  - nosql
+  - neural-hive-mind
+  - operational-context
+
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: team@neural-hive-mind.org
+
+dependencies:
+  - name: mongodb-operator
+    version: "0.8.3"
+    repository: "https://mongodb.github.io/helm-charts"
+    condition: operator.install

@@ -1,0 +1,197 @@
+# Valores padrão para Vault Helm chart
+
+global:
+  enabled: true
+  tlsDisable: false
+
+server:
+  enabled: true
+  image:
+    repository: hashicorp/vault
+    tag: "1.15.0"
+    pullPolicy: IfNotPresent
+
+  # Recursos
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+  # Número de replicas para HA
+  replicas: 3
+
+  # Service Account com anotações IRSA para AWS
+  serviceAccount:
+    create: true
+    name: "vault-server"
+    annotations:
+      eks.amazonaws.com/role-arn: ""  # Preenchido via Terraform output
+
+  # Configuração HA com Raft
+  ha:
+    enabled: true
+    replicas: 3
+    raft:
+      enabled: true
+      setNodeId: true
+      config: |
+        ui = true
+
+        listener "tcp" {
+          tls_disable = 0
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+          tls_cert_file = "/vault/userconfig/vault-tls/tls.crt"
+          tls_key_file  = "/vault/userconfig/vault-tls/tls.key"
+          tls_client_ca_file = "/vault/userconfig/vault-tls/ca.crt"
+        }
+
+        storage "raft" {
+          path = "/vault/data"
+
+          retry_join {
+            leader_api_addr = "https://vault-0.vault-internal:8200"
+            leader_ca_cert_file = "/vault/userconfig/vault-tls/ca.crt"
+            leader_client_cert_file = "/vault/userconfig/vault-tls/tls.crt"
+            leader_client_key_file = "/vault/userconfig/vault-tls/tls.key"
+          }
+          retry_join {
+            leader_api_addr = "https://vault-1.vault-internal:8200"
+            leader_ca_cert_file = "/vault/userconfig/vault-tls/ca.crt"
+            leader_client_cert_file = "/vault/userconfig/vault-tls/tls.crt"
+            leader_client_key_file = "/vault/userconfig/vault-tls/tls.key"
+          }
+          retry_join {
+            leader_api_addr = "https://vault-2.vault-internal:8200"
+            leader_ca_cert_file = "/vault/userconfig/vault-tls/ca.crt"
+            leader_client_cert_file = "/vault/userconfig/vault-tls/tls.crt"
+            leader_client_key_file = "/vault/userconfig/vault-tls/tls.key"
+          }
+        }
+
+        seal "awskms" {
+          region     = "us-east-1"
+          kms_key_id = ""  # Preenchido via values override com Terraform output
+        }
+
+        service_registration "kubernetes" {}
+
+  # Volumes
+  volumes:
+    - name: vault-tls
+      secret:
+        secretName: vault-tls
+  volumeMounts:
+    - name: vault-tls
+      mountPath: /vault/userconfig/vault-tls
+      readOnly: true
+
+  # Persistent Volume para Raft
+  dataStorage:
+    enabled: true
+    size: 10Gi
+    storageClass: gp3
+    accessMode: ReadWriteOnce
+
+  # Auditing
+  auditStorage:
+    enabled: false
+
+  # Liveness e readiness probes
+  livenessProbe:
+    enabled: true
+    path: "/v1/sys/health?standbyok=true"
+    initialDelaySeconds: 60
+    periodSeconds: 5
+    successThreshold: 1
+    failureThreshold: 3
+
+  readinessProbe:
+    enabled: true
+    path: "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
+    initialDelaySeconds: 30
+    periodSeconds: 5
+    successThreshold: 1
+    failureThreshold: 3
+
+  # Affinity e topologia
+  affinity: |
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: vault
+              component: server
+          topologyKey: kubernetes.io/hostname
+
+  # Tolerations
+  tolerations: []
+
+  # Node selector
+  nodeSelector: {}
+
+# UI Service
+ui:
+  enabled: true
+  serviceType: "ClusterIP"
+  externalPort: 8200
+
+# Injector - para injeção de secrets via sidecar
+injector:
+  enabled: true
+  replicas: 1
+  image:
+    repository: "hashicorp/vault-k8s"
+    tag: "1.3.0"
+    pullPolicy: "IfNotPresent"
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  # Affinity para injector
+  affinity: |
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: vault-agent-injector
+          topologyKey: kubernetes.io/hostname
+
+# Service Monitor para Prometheus
+serverTelemetry:
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+
+# Network Policy
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            name: neural-hive-orchestration
+      - namespaceSelector:
+          matchLabels:
+            name: neural-hive-execution
+      ports:
+      - protocol: TCP
+        port: 8200
+
+# TLS Configuration
+# Nota: Certificados TLS devem ser criados externamente (cert-manager)
+# e referenciados via secret vault-tls
+tls:
+  enabled: true
+  secretName: vault-tls

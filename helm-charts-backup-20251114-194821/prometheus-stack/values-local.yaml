@@ -1,0 +1,174 @@
+# Configuração para ambiente local (Minikube/Kind)
+# Recursos reduzidos para desenvolvimento
+
+global:
+  domain: neural-hive.local
+  environment: development
+  cluster: neural-hive-local
+
+# Prometheus Stack Configuration
+kube-prometheus-stack:
+  prometheus:
+    prometheusSpec:
+      # Reduzir replicas para ambiente local
+      replicas: 1
+
+      # Retention reduzido
+      retention: 7d
+      retentionSize: 10GB
+
+      # Storage
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: standard
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 20Gi
+
+      # Recursos reduzidos
+      resources:
+        limits:
+          cpu: 1000m
+          memory: 2Gi
+        requests:
+          cpu: 500m
+          memory: 1Gi
+
+      # ServiceMonitor selector
+      serviceMonitorSelector:
+        matchLabels:
+          neural.hive/metrics: "enabled"
+
+      # Permite descoberta de ServiceMonitors em todos os namespaces
+      serviceMonitorNamespaceSelector: {}
+
+      # Exemplars (reduzido)
+      exemplars:
+        maxSize: 10000
+
+      # Scrape configs customizados para Neural Hive-Mind
+      additionalScrapeConfigs:
+        - job_name: 'neural-hive-services'
+          kubernetes_sd_configs:
+            - role: endpoints
+              namespaces:
+                names:
+                  - gateway-intencoes
+                  - semantic-translation-engine
+                  - consensus-engine
+                  - memory-layer-api
+                  - specialist-business
+                  - specialist-technical
+                  - specialist-behavior
+                  - specialist-evolution
+                  - specialist-architecture
+          relabel_configs:
+            - source_labels: [__meta_kubernetes_service_label_neural_hive_metrics]
+              regex: enabled
+              action: keep
+            - source_labels: [__meta_kubernetes_endpoint_port_name]
+              regex: metrics|prometheus
+              action: keep
+            - source_labels: [__meta_kubernetes_namespace]
+              target_label: namespace
+            - source_labels: [__meta_kubernetes_service_name]
+              target_label: service
+            - source_labels: [__meta_kubernetes_pod_name]
+              target_label: pod
+
+      # Desabilitar remote write
+      remoteWrite: []
+
+  # AlertManager Configuration
+  alertmanager:
+    alertmanagerSpec:
+      # Reduzir replicas
+      replicas: 1
+
+      # Storage
+      storage:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: standard
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 5Gi
+
+      # Recursos reduzidos
+      resources:
+        limits:
+          cpu: 250m
+          memory: 512Mi
+        requests:
+          cpu: 100m
+          memory: 256Mi
+
+    # Configuração simplificada (apenas default receiver)
+    config:
+      global:
+        resolve_timeout: 5m
+
+      route:
+        group_by: ['alertname', 'cluster', 'service']
+        group_wait: 10s
+        group_interval: 10s
+        repeat_interval: 12h
+        receiver: 'default'
+        routes:
+          - match:
+              severity: critical
+            receiver: 'default'
+            continue: true
+          - match:
+              severity: warning
+            receiver: 'default'
+
+      receivers:
+        - name: 'default'
+          # Sem receivers externos em dev
+
+      inhibit_rules:
+        - source_match:
+            severity: 'critical'
+          target_match:
+            severity: 'warning'
+          equal: ['alertname', 'cluster', 'service']
+
+  # Prometheus Operator
+  prometheusOperator:
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+  # Node Exporter
+  nodeExporter:
+    enabled: true
+    resources:
+      limits:
+        cpu: 200m
+        memory: 128Mi
+      requests:
+        cpu: 100m
+        memory: 64Mi
+
+  # Kube State Metrics
+  kubeStateMetrics:
+    enabled: true
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+  # Grafana (desabilitar - usar chart standalone)
+  grafana:
+    enabled: false

@@ -1,0 +1,35 @@
+apiVersion: neural-hive.io/v1
+kind: SLODefinition
+metadata:
+  name: orchestrator-latency-slo
+  namespace: neural-hive-orchestration
+  labels:
+    app.kubernetes.io/name: orchestrator-dynamic
+    neural-hive.io/layer: orchestration
+    neural-hive.io/slo-type: latency
+spec:
+  name: "Orchestrator Dynamic - P95 Latency"
+  description: "95th percentile latency for orchestration workflows should be under 200ms"
+  sloType: LATENCY
+  serviceName: orchestrator-dynamic
+  component: workflow-execution
+  layer: orquestracao
+  target: 0.999  # 99.9% of requests under threshold
+  windowDays: 30
+  sliQuery:
+    metricName: neural_hive_orchestration_duration_seconds
+    query: |
+      histogram_quantile(0.95,
+        sum(rate(neural_hive_orchestration_duration_seconds_bucket{
+          service="orchestrator-dynamic"
+        }[5m])) by (le)
+      ) * 1000 < 200
+    aggregation: avg
+    labels:
+      service: orchestrator-dynamic
+      layer: orchestration
+  enabled: true
+  metadata:
+    owner: neural-hive-team
+    severity: critical
+    runbook: https://docs.neural-hive.io/runbooks/orchestrator-latency

@@ -1,0 +1,92 @@
+replicaCount: 2
+
+image:
+  repository: envoyproxy/envoy
+  tag: v1.28.0
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  ports:
+    grpc:
+      port: 50051
+      targetPort: 50051
+      protocol: TCP
+    admin:
+      port: 9901
+      targetPort: 9901
+      protocol: TCP
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+
+config:
+  # Autenticação JWT
+  jwt:
+    issuer: "neural-hive"
+    audience: "specialists"
+    jwks_uri: "http://keycloak.keycloak.svc.cluster.local:8080/realms/neural-hive/protocol/openid-connect/certs"
+
+  # Rate Limiting
+  rateLimit:
+    enabled: true
+    serviceUrl: "ratelimit.observability.svc.cluster.local:8081"
+    domain: "specialists"
+    timeout: 100ms
+    failureMode: "FAIL_CLOSE"
+
+  # Clusters de especialistas
+  specialists:
+    - name: technical
+      service: specialist-technical.default.svc.cluster.local
+      port: 50051
+    - name: business
+      service: specialist-business.default.svc.cluster.local
+      port: 50051
+    - name: behavior
+      service: specialist-behavior.default.svc.cluster.local
+      port: 50051
+    - name: evolution
+      service: specialist-evolution.default.svc.cluster.local
+      port: 50051
+    - name: architecture
+      service: specialist-architecture.default.svc.cluster.local
+      port: 50051
+
+  # Tracing OpenTelemetry
+  tracing:
+    enabled: true
+    collectorEndpoint: "opentelemetry-collector.observability.svc.cluster.local:4317"
+
+  # Access Logging
+  accessLog:
+    enabled: true
+    format: json
+
+# ServiceMonitor para Prometheus
+serviceMonitor:
+  enabled: true
+  interval: 30s
+
+# NetworkPolicy
+networkPolicy:
+  enabled: true
+
+# Affinity para distribuir pods em nodes diferentes
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app
+            operator: In
+            values:
+            - envoy-gateway
+        topologyKey: kubernetes.io/hostname

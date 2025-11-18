@@ -1,0 +1,118 @@
+# Local development values for self-healing-engine
+# Override production values for local Kubernetes clusters
+
+# Reduced replica count for local development
+replicaCount: 1
+
+image:
+  pullPolicy: IfNotPresent
+
+# Reduced resources for local development (~50% of production)
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+
+# Disable autoscaling for local development
+autoscaling:
+  enabled: false
+
+# Disable pod disruption budget for local development
+podDisruptionBudget:
+  enabled: false
+
+# Disable service monitor for local development
+serviceMonitor:
+  enabled: false
+
+# Disable network policies for local development
+networkPolicy:
+  enabled: false
+
+# Disable Istio for local development
+istio:
+  enabled: false
+
+# Application configuration
+config:
+  environment: dev
+  logLevel: DEBUG
+  debug: true
+
+  # Kafka configuration - no TLS/SASL for local
+  kafka:
+    bootstrapServers: neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092
+    securityProtocol: PLAINTEXT
+    enableSasl: false
+    enableSsl: false
+    topics:
+      healthEvents: health-events
+      healingActions: healing-actions
+
+  # Kubernetes API access via ServiceAccount
+  kubernetes:
+    inCluster: true
+    namespace: default
+
+  # Prometheus configuration for metrics
+  prometheus:
+    endpoint: http://prometheus.observability.svc.cluster.local:9090
+
+  # MongoDB configuration for healing history
+  mongodb:
+    uri: mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017/selfhealing?authSource=admin
+    database: selfhealing
+    collection: healing_history
+
+  # Redis configuration for state cache
+  redis:
+    clusterNodes: neural-hive-cache.redis-cluster.svc.cluster.local:6379
+    sslEnabled: false
+    defaultTtl: 300
+
+  # OpenTelemetry configuration - disabled for local
+  openTelemetry:
+    enabled: false
+    endpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
+
+  # Self-healing configuration - safe settings for local development
+  selfHealing:
+    autoHealingEnabled: true
+    dryRunMode: true
+    healingThreshold: 0.6
+    maxConcurrentHealing: 3
+    cooldownPeriodSeconds: 60
+
+# Use default service account for local
+serviceAccount:
+  create: false
+  name: default
+
+# Simplified secrets for local development
+secrets:
+  kafkaSaslUsername: ""
+  kafkaSaslPassword: ""
+  mongodbPassword: ""
+  redisPassword: ""
+
+# Relaxed probes for local development
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3

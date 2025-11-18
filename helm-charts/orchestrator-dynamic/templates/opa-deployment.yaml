@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opa
+  namespace: neural-hive-orchestration
+  labels:
+    app: opa
+    component: policy-engine
+    layer: orchestration
+spec:
+  replicas: 2  # Alta disponibilidade
+  selector:
+    matchLabels:
+      app: opa
+      component: policy-engine
+  template:
+    metadata:
+      labels:
+        app: opa
+        component: policy-engine
+        layer: orchestration
+    spec:
+      containers:
+      - name: opa
+        image: openpolicyagent/opa:0.60.0-rootless
+        args:
+        - "run"
+        - "--server"
+        - "--addr=0.0.0.0:8181"
+        - "--log-level=info"
+        - "--log-format=json"
+        - "--bundle"
+        - "/policies"
+        ports:
+        - name: http
+          containerPort: 8181
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8181
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 2
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health?bundle=true
+            port: 8181
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 2
+          successThreshold: 1
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        volumeMounts:
+        - name: policies
+          mountPath: /policies
+          readOnly: true
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: policies
+        configMap:
+          name: opa-policies
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opa
+  namespace: neural-hive-orchestration
+  labels:
+    app: opa
+    component: policy-engine
+spec:
+  selector:
+    app: opa
+    component: policy-engine
+  ports:
+  - name: http
+    port: 8181
+    targetPort: 8181
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: opa
+  namespace: neural-hive-orchestration
+  labels:
+    app: opa
+    component: policy-engine
+spec:
+  selector:
+    matchLabels:
+      app: opa
+      component: policy-engine
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s

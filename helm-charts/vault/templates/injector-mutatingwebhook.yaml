@@ -1,0 +1,40 @@
+{{- if .Values.injector.enabled -}}
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ include "vault.fullname" . }}-agent-injector-cfg
+  labels:
+    {{- include "vault.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent-injector
+webhooks:
+- name: vault.hashicorp.com
+  clientConfig:
+    service:
+      name: {{ include "vault.fullname" . }}-agent-injector-svc
+      namespace: {{ .Release.Namespace }}
+      path: /mutate
+    {{- if .Values.injector.certs.caBundle }}
+    caBundle: {{ .Values.injector.certs.caBundle }}
+    {{- end }}
+  rules:
+  - operations:
+    - CREATE
+    - UPDATE
+    apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    resources:
+    - pods
+  failurePolicy: Ignore
+  sideEffects: None
+  admissionReviewVersions:
+  - v1
+  - v1beta1
+  namespaceSelector:
+    matchExpressions:
+    - key: vault-injection
+      operator: NotIn
+      values:
+      - disabled
+{{- end }}

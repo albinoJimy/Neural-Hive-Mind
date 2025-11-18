@@ -111,7 +111,7 @@ class InsightsConsumer:
 
             # Passar para OptimizationEngine
             if self.optimization_engine:
-                hypotheses = self.optimization_engine.analyze_opportunity(insight)
+                hypotheses = await self.optimization_engine.analyze_opportunity(insight)
 
                 if hypotheses:
                     logger.info(

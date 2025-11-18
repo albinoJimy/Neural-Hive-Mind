@@ -17,13 +17,6 @@ terraform {
     }
   }
 
-  # Backend remoto S3 para estado Terraform
-  # Configuração habilitada - usar backend.hcl para diferentes ambientes
-  # Comando: terraform init -backend-config=backend.hcl
-  backend "s3" {
-    # As configurações específicas são fornecidas via backend.hcl
-    # Isso permite reutilizar o código para dev, staging e prod
-  }
 }
 
 # Provider AWS

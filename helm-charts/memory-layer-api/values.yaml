@@ -1,8 +1,8 @@
 # Configurações do Memory Layer API
 image:
-  repository: neural-hive-mind/memory-layer-api
+  repository: 077878370245.dkr.ecr.us-east-1.amazonaws.com/dev/memory-layer-api
   pullPolicy: IfNotPresent
-  tag: "1.0.0"
+  tag: "1.0.7"
 
 replicaCount: 2
 

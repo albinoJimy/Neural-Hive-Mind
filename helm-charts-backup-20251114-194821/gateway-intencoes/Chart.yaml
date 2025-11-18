@@ -1,0 +1,31 @@
+apiVersion: v2
+name: gateway-intencoes
+description: Gateway de Intenções do Neural Hive-Mind
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+home: https://github.com/neural-hive-mind/infrastructure
+sources:
+  - https://github.com/neural-hive-mind/infrastructure/tree/main/services/gateway-intencoes
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: team@neural-hive-mind.org
+
+keywords:
+  - gateway
+  - intentions
+  - neural-hive-mind
+  - fastapi
+  - kafka
+
+annotations:
+  category: Application
+  neural-hive-mind.org/component: "gateway-intencoes"
+  neural-hive-mind.org/layer: "application"
+
+# Dependencies desabilitadas para desenvolvimento local
+# dependencies:
+#   - name: kafka-topics
+#     version: "^0.1.0"
+#     repository: "file://../kafka-topics"
+#     condition: kafka.topics.enabled

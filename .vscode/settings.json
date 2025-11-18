@@ -1,3 +1,4 @@
 {
-    "traycer.enableAutoAnalysis": false
+    "traycer.enableAutoAnalysis": false,
+    "traycer.languagePreference": "Português"
 }

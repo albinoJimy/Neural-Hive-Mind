@@ -132,6 +132,39 @@ async def lifespan(app: FastAPI):
             opa_client = None
     app.state.opa_client = opa_client
 
+    # Inicializar Vault Client (opcional - graceful degradation)
+    vault_client = None
+    if settings.vault_enabled:
+        logger.info("guard_agent.initializing_vault_client")
+        from src.clients.vault_client import GuardVaultClient
+        vault_client = GuardVaultClient(config=settings)
+        try:
+            await vault_client.initialize()
+            logger.info("guard_agent.vault_client_ready")
+        except Exception as e:
+            logger.warning("guard_agent.vault_client_failed", error=str(e))
+            if not settings.vault_fail_open:
+                raise
+            vault_client = None
+    app.state.vault_client = vault_client
+
+    # Inicializar Trivy Client (opcional - graceful degradation)
+    trivy_client = None
+    if settings.trivy_enabled:
+        logger.info("guard_agent.initializing_trivy_client")
+        from src.clients.trivy_client import TrivyClient
+        trivy_client = TrivyClient(
+            base_url=settings.trivy_url,
+            timeout=settings.trivy_timeout_seconds
+        )
+        try:
+            await trivy_client.connect()
+            logger.info("guard_agent.trivy_client_ready")
+        except Exception as e:
+            logger.warning("guard_agent.trivy_client_failed", error=str(e))
+            trivy_client = None
+    app.state.trivy_client = trivy_client
+
     # Inicializar Istio Client (opcional - graceful degradation)
     istio_client = None
     if settings.istio_enforcement_enabled:
@@ -162,6 +195,41 @@ async def lifespan(app: FastAPI):
         logger.warning("guard_agent.prometheus_client_failed", error=str(e))
         prometheus_client = None
     app.state.prometheus_client = prometheus_client
+
+    # Inicializar Security Validator
+    logger.info("guard_agent.initializing_security_validator")
+    from src.services.security_validator import SecurityValidator
+    security_validator = SecurityValidator(
+        opa_client=opa_client,
+        k8s_client=k8s_client,
+        vault_client=vault_client,
+        trivy_client=trivy_client,
+        redis_client=redis_client,
+        mongodb_client=mongodb,
+        settings=settings
+    )
+    app.state.security_validator = security_validator
+
+    # Inicializar Guardrail Enforcer
+    logger.info("guard_agent.initializing_guardrail_enforcer")
+    from src.services.guardrail_enforcer import GuardrailEnforcer
+    guardrail_enforcer = GuardrailEnforcer(
+        opa_client=opa_client,
+        mongodb_client=mongodb,
+        redis_client=redis_client,
+        mode=settings.guardrails_mode
+    )
+    app.state.guardrail_enforcer = guardrail_enforcer
+
+    # Inicializar Validation Producer
+    logger.info("guard_agent.initializing_validation_producer")
+    from src.producers.validation_producer import ValidationProducer
+    validation_producer = ValidationProducer(
+        bootstrap_servers=settings.kafka_bootstrap_servers,
+        topic=settings.kafka_validations_topic
+    )
+    await validation_producer.connect()
+    app.state.validation_producer = validation_producer
 
     # Inicializar Message Handler com todos os componentes
     logger.info("guard_agent.initializing_message_handler")
@@ -206,6 +274,24 @@ async def lifespan(app: FastAPI):
     await orchestration_consumer.start_consuming()
     app.state.orchestration_consumer = orchestration_consumer
 
+    # Consumer para ticket validation
+    logger.info("guard_agent.initializing_ticket_consumer")
+    from src.consumers.ticket_consumer import TicketConsumer
+    ticket_consumer = TicketConsumer(
+        bootstrap_servers=settings.kafka_bootstrap_servers,
+        group_id=f"{settings.kafka_consumer_group}-ticket-validator",
+        security_validator=security_validator,
+        guardrail_enforcer=guardrail_enforcer,
+        validation_producer=validation_producer,
+        tickets_topic=settings.kafka_tickets_topic,
+        tickets_validated_topic=settings.kafka_tickets_validated_topic,
+        tickets_rejected_topic=settings.kafka_tickets_rejected_topic,
+        tickets_pending_approval_topic=settings.kafka_tickets_pending_approval_topic
+    )
+    await ticket_consumer.connect()
+    await ticket_consumer.start_consuming()
+    app.state.ticket_consumer = ticket_consumer
+
     logger.info(
         "guard_agent.startup_complete",
         agent_id=agent_id,
@@ -222,9 +308,17 @@ async def lifespan(app: FastAPI):
     await app.state.security_consumer.stop()
     await app.state.orchestration_consumer.stop()
 
-    # Fechar producer
-    logger.info("guard_agent.closing_kafka_producer")
+    # Parar ticket consumer
+    if hasattr(app.state, 'ticket_consumer'):
+        logger.info("guard_agent.stopping_ticket_consumer")
+        await app.state.ticket_consumer.stop()
+
+    # Fechar producers
+    logger.info("guard_agent.closing_kafka_producers")
     await app.state.remediation_producer.close()
+
+    if hasattr(app.state, 'validation_producer'):
+        await app.state.validation_producer.close()
 
     # Fechar clientes
     logger.info("guard_agent.closing_clients")
@@ -235,6 +329,12 @@ async def lifespan(app: FastAPI):
 
     if app.state.prometheus_client:
         await app.state.prometheus_client.close()
+
+    if hasattr(app.state, 'vault_client') and app.state.vault_client:
+        await app.state.vault_client.close()
+
+    if hasattr(app.state, 'trivy_client') and app.state.trivy_client:
+        await app.state.trivy_client.close()
 
     # Desregistrar do Service Registry
     logger.info("guard_agent.closing_service_registry")
@@ -261,6 +361,10 @@ FastAPIInstrumentor.instrument_app(app)
 
 # Incluir routers
 app.include_router(health.router, tags=["health"])
+
+# Incluir router de validação
+from src.api import validation
+app.include_router(validation.router, prefix="/api/v1", tags=["validation"])
 
 # TODO: Incluir routers adicionais
 # app.include_router(incidents.router, prefix="/api/v1", tags=["incidents"])

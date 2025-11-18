@@ -110,6 +110,70 @@ class OptimizerMetrics:
             "optimizer_slo_adjustment_percentage", "Percentage of SLO adjustments", buckets=(0.01, 0.05, 0.1, 0.2)
         )
 
+        # ML Subsystem Metrics
+        # Counters para ML
+        self.load_predictions_total = Counter(
+            "optimizer_load_predictions_total", "Total load predictions generated", ["horizon", "status"]
+        )
+
+        self.scheduling_optimizations_applied_total = Counter(
+            "optimizer_scheduling_optimizations_applied_total", "Total scheduling optimizations applied", ["action"]
+        )
+
+        self.ml_model_loads_total = Counter(
+            "optimizer_ml_model_loads_total", "Total ML model loads", ["model_name", "status"]
+        )
+
+        self.ml_training_runs_total = Counter(
+            "optimizer_ml_training_runs_total", "Total ML training runs", ["model_type", "status"]
+        )
+
+        self.ml_cache_hits_total = Counter(
+            "optimizer_ml_cache_hits_total", "Total ML cache hits", ["cache_name"]
+        )
+
+        self.ml_cache_misses_total = Counter(
+            "optimizer_ml_cache_misses_total", "Total ML cache misses", ["cache_name"]
+        )
+
+        # Gauges para ML
+        self.load_forecast_accuracy_mape = Gauge(
+            "optimizer_load_forecast_accuracy_mape", "Load forecast MAPE (Mean Absolute Percentage Error)"
+        )
+
+        self.scheduling_policy_average_reward = Gauge(
+            "optimizer_scheduling_policy_average_reward", "Average reward of scheduling policy"
+        )
+
+        self.ml_model_age_seconds = Gauge(
+            "optimizer_ml_model_age_seconds", "Age of currently loaded ML model in seconds", ["model_name"]
+        )
+
+        # Histograms para ML
+        self.ml_model_load_duration_seconds = Histogram(
+            "optimizer_ml_model_load_duration_seconds",
+            "Duration of ML model loading in seconds",
+            buckets=(0.1, 0.5, 1, 5, 10, 30),
+        )
+
+        self.ml_prediction_duration_seconds = Histogram(
+            "optimizer_ml_prediction_duration_seconds",
+            "Duration of ML predictions in seconds",
+            buckets=(0.01, 0.05, 0.1, 0.5, 1, 5),
+        )
+
+        self.ml_training_duration_seconds = Histogram(
+            "optimizer_ml_training_duration_seconds",
+            "Duration of ML training in seconds",
+            buckets=(60, 300, 600, 1800, 3600, 7200),
+        )
+
+        self.scheduling_optimization_duration_seconds = Histogram(
+            "optimizer_scheduling_optimization_duration_seconds",
+            "Duration of scheduling optimization in seconds",
+            buckets=(0.01, 0.05, 0.1, 0.5, 1),
+        )
+
     def increment_counter(self, metric_name: str, labels: Optional[Dict[str, str]] = None):
         """Increment a counter metric."""
         counter = getattr(self, metric_name, None)
@@ -153,6 +217,44 @@ class OptimizerMetrics:
     def record_rollback(self, optimization_type: str, component: str):
         """Record rollback."""
         self.optimizations_rolled_back_total.labels(optimization_type=optimization_type, component=component).inc()
+
+    def record_ml_model_load(self, model_name: str, status: str, duration: float):
+        """Record ML model load event."""
+        self.ml_model_loads_total.labels(model_name=model_name, status=status).inc()
+        self.ml_model_load_duration_seconds.observe(duration)
+
+    def record_load_prediction(self, horizon: int, status: str, duration: float, accuracy: Optional[float]):
+        """Record load prediction event."""
+        self.load_predictions_total.labels(horizon=str(horizon), status=status).inc()
+        self.ml_prediction_duration_seconds.observe(duration)
+        if accuracy is not None:
+            self.load_forecast_accuracy_mape.set(accuracy)
+
+    def increment_cache_hit(self, cache_name: str):
+        """Record cache hit."""
+        self.ml_cache_hits_total.labels(cache_name=cache_name).inc()
+
+    def increment_cache_miss(self, cache_name: str):
+        """Record cache miss."""
+        self.ml_cache_misses_total.labels(cache_name=cache_name).inc()
+
+    def record_ml_training(self, model_type: str, duration: float, metrics: Dict):
+        """Record ML training run."""
+        status = "success" if metrics else "failed"
+        self.ml_training_runs_total.labels(model_type=model_type, status=status).inc()
+        self.ml_training_duration_seconds.observe(duration)
+
+    def record_scheduling_optimization(self, action: str, duration: float, reward: float):
+        """Record scheduling optimization action."""
+        self.scheduling_optimizations_applied_total.labels(action=action).inc()
+        self.scheduling_optimization_duration_seconds.observe(duration)
+        # Update average reward (simplified - actual implementation may use exponential moving average)
+        self.scheduling_policy_average_reward.set(reward)
+
+    def record_policy_update(self, reward: float, new_q: float):
+        """Record policy update in Q-learning."""
+        # Track policy quality through average reward
+        self.scheduling_policy_average_reward.set(reward)
 
 
 def setup_metrics():

@@ -11,14 +11,16 @@ logger = structlog.get_logger()
 class MongoDBClient:
     """Cliente MongoDB para ledger de planos cognitivos e tickets de execução."""
 
-    def __init__(self, config):
+    def __init__(self, config, uri_override: Optional[str] = None):
         """
         Inicializa o cliente MongoDB.
 
         Args:
             config: Configurações da aplicação
+            uri_override: URI MongoDB alternativa (para integração Vault)
         """
         self.config = config
+        self.uri_override = uri_override
         self.client = None
         self.db = None
         self.cognitive_ledger = None
@@ -29,8 +31,10 @@ class MongoDBClient:
         """Inicializar cliente MongoDB e criar índices."""
         from motor.motor_asyncio import AsyncIOMotorClient
 
+        mongodb_uri = self.uri_override if self.uri_override else self.config.mongodb_uri
+
         self.client = AsyncIOMotorClient(
-            self.config.mongodb_uri,
+            mongodb_uri,
             maxPoolSize=100,
             serverSelectionTimeoutMS=5000,
             retryWrites=True,

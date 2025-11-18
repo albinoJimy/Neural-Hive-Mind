@@ -1,0 +1,15 @@
+apiVersion: v2
+name: sla-management-system
+description: SLA Management System for Neural Hive-Mind - SLO tracking, error budgets, and freeze policies
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - neural-hive-mind
+  - sla
+  - slo
+  - error-budget
+  - observability
+  - monitoring
+maintainers:
+  - name: Neural Hive-Mind Team

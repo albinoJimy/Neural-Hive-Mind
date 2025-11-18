@@ -1,0 +1,20 @@
+apiVersion: v2
+name: opa-gatekeeper-neural-hive
+description: OPA Gatekeeper para governança policy-as-code do Neural Hive-Mind
+type: application
+version: 1.0.0
+appVersion: "3.14.0"
+
+dependencies:
+  - name: gatekeeper
+    version: "3.14.0"
+    repository: https://open-policy-agent.github.io/gatekeeper/charts
+
+maintainers:
+  - name: Neural Hive Platform Team
+    email: platform@neuralhive.ai
+
+annotations:
+  category: PolicyEngine
+  neuralhive/phase: foundation
+  neuralhive/layer: governance

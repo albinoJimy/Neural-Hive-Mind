@@ -21,6 +21,7 @@ from .clients.mongodb_client import MongoDBClient
 from .clients.redis_client import RedisClient
 from .clients.mcp_tool_catalog_client import MCPToolCatalogClient
 from .clients.llm_client import LLMClient
+from .clients.analyst_agents_client import AnalystAgentsClient
 from .services.pipeline_engine import PipelineEngine
 from .services.template_selector import TemplateSelector
 from .services.code_composer import CodeComposer
@@ -104,19 +105,34 @@ async def main():
     # Novos clientes para integração MCP
     mcp_client = None
     llm_client = None
+    analyst_client = None
 
-    if hasattr(settings, 'MCP_TOOL_CATALOG_URL') and settings.MCP_TOOL_CATALOG_URL:
-        mcp_client = MCPToolCatalogClient(settings.MCP_TOOL_CATALOG_URL)
+    if settings.MCP_TOOL_CATALOG_URL:
+        mcp_client = MCPToolCatalogClient(
+            settings.MCP_TOOL_CATALOG_HOST,
+            settings.MCP_TOOL_CATALOG_PORT
+        )
+        await mcp_client.start()
         logger.info('mcp_client_initialized', url=settings.MCP_TOOL_CATALOG_URL)
 
-    if hasattr(settings, 'LLM_PROVIDER') and settings.LLM_PROVIDER:
+    if settings.LLM_ENABLED and settings.LLM_PROVIDER:
+        from .clients.llm_client import LLMProvider
         llm_client = LLMClient(
-            provider=settings.LLM_PROVIDER,
-            api_key=getattr(settings, 'LLM_API_KEY', None),
-            model=getattr(settings, 'LLM_MODEL', None),
-            base_url=getattr(settings, 'LLM_BASE_URL', None)
+            provider=LLMProvider(settings.LLM_PROVIDER),
+            api_key=settings.LLM_API_KEY if settings.LLM_API_KEY else None,
+            model_name=settings.LLM_MODEL,
+            endpoint_url=settings.LLM_BASE_URL if settings.LLM_BASE_URL else None
         )
-        logger.info('llm_client_initialized', provider=settings.LLM_PROVIDER)
+        await llm_client.start()
+        logger.info('llm_client_initialized', provider=settings.LLM_PROVIDER, model=settings.LLM_MODEL)
+
+    if settings.ANALYST_AGENTS_URL:
+        analyst_client = AnalystAgentsClient(
+            settings.ANALYST_AGENTS_HOST,
+            settings.ANALYST_AGENTS_PORT
+        )
+        await analyst_client.start()
+        logger.info('analyst_client_initialized', url=settings.ANALYST_AGENTS_URL)
 
     # Iniciar clientes
     await kafka_consumer.start()
@@ -130,7 +146,7 @@ async def main():
     logger.info('initializing_pipeline_engine')
 
     template_selector = TemplateSelector(git_client, redis_client, mcp_client)
-    code_composer = CodeComposer(mongodb_client, llm_client, mcp_client)
+    code_composer = CodeComposer(mongodb_client, llm_client, analyst_client, mcp_client)
     validator = Validator(sonarqube_client, snyk_client, trivy_client, mcp_client)
     test_runner = TestRunner(settings.MIN_TEST_COVERAGE)
     packager = Packager(sigstore_client)
@@ -230,10 +246,37 @@ async def main():
     )
     server = uvicorn.Server(config)
 
-    # 10. Aguardar shutdown
-    await server.serve()
-
     logger.info('code_forge_started')
+
+    try:
+        # 10. Aguardar shutdown
+        await server.serve()
+    finally:
+        # 11. Cleanup: encerrar clientes HTTP
+        logger.info('shutting_down_clients')
+
+        if mcp_client:
+            try:
+                await mcp_client.stop()
+                logger.info('mcp_client_stopped')
+            except Exception as e:
+                logger.error('mcp_client_shutdown_error', error=str(e))
+
+        if llm_client:
+            try:
+                await llm_client.stop()
+                logger.info('llm_client_stopped')
+            except Exception as e:
+                logger.error('llm_client_shutdown_error', error=str(e))
+
+        if analyst_client:
+            try:
+                await analyst_client.stop()
+                logger.info('analyst_client_stopped')
+            except Exception as e:
+                logger.error('analyst_client_shutdown_error', error=str(e))
+
+        logger.info('all_clients_stopped')
 
 
 def signal_handler(sig, frame):

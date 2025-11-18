@@ -1,0 +1,84 @@
+{{- if .Values.retention.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "memory-layer-api.fullname" . }}-enforce-retention
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "memory-layer-api.labels" . | nindent 4 }}
+    app.kubernetes.io/component: retention-job
+spec:
+  schedule: {{ .Values.retention.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "memory-layer-api.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: retention-job
+          annotations:
+            sidecar.istio.io/inject: "false"
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: {{ include "memory-layer-api.serviceAccountName" . }}
+          {{- with .Values.podSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+          - name: retention
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            command:
+            - python
+            - -m
+            - src.jobs.enforce_retention
+            env:
+            - name: ENVIRONMENT
+              value: {{ .Values.config.environment | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.config.logLevel | quote }}
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "memory-layer-api.fullname" . }}-secrets
+                  key: mongodb_uri
+            - name: MONGODB_DATABASE
+              value: {{ .Values.config.mongodb.database | quote }}
+            - name: MONGODB_RETENTION_DAYS
+              value: {{ .Values.config.mongodb.retentionDays | quote }}
+            - name: REDIS_CLUSTER_NODES
+              value: {{ .Values.config.redis.clusterNodes | quote }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "memory-layer-api.fullname" . }}-secrets
+                  key: redis_password
+            - name: REDIS_SSL_ENABLED
+              value: {{ .Values.config.redis.sslEnabled | quote }}
+            - name: CLICKHOUSE_HOST
+              value: {{ .Values.config.clickhouse.host | quote }}
+            - name: CLICKHOUSE_RETENTION_MONTHS
+              value: {{ .Values.config.clickhouse.retentionMonths | quote }}
+            - name: RETENTION_DRY_RUN
+              value: {{ .Values.retention.dryRun | quote }}
+            - name: OTEL_ENDPOINT
+              value: {{ .Values.config.otel.endpoint | quote }}
+            {{- with .Values.securityContext }}
+            securityContext:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            resources:
+              {{- toYaml .Values.retention.resources | nindent 14 }}
+            volumeMounts:
+            - name: policies
+              mountPath: /etc/memory-layer/policies
+              readOnly: true
+          volumes:
+          - name: policies
+            configMap:
+              name: memory-layer-policies
+{{- end }}

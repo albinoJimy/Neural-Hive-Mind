@@ -1,0 +1,202 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orchestrator-ml-scheduling-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/component: alerting-rules
+data:
+  orchestrator-ml-scheduling-alerts.yaml: |
+    groups:
+    - name: orchestrator-ml-scheduling
+      interval: 30s
+      rules:
+      # Disponibilidade do Optimizer Remoto
+      - alert: OptimizerAgentsUnavailable
+        expr: |
+          orchestration_scheduler_optimizer_availability == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Optimizer Agents remoto indisponível"
+          description: "Optimizer Agents está indisponível há mais de 5 minutos. Scheduler usando fallback local."
+          runbook_url: "https://docs.neural-hive.io/runbooks/optimizer-unavailable"
+          impact: "Reduzida qualidade das predições ML (usando heurísticas locais)"
+
+      - alert: OptimizerAgentsDownExtended
+        expr: |
+          orchestration_scheduler_optimizer_availability == 0
+        for: 30m
+        labels:
+          severity: critical
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Optimizer Agents indisponível por período estendido"
+          description: "Optimizer Agents está indisponível há mais de 30 minutos."
+          runbook_url: "https://docs.neural-hive.io/runbooks/optimizer-unavailable"
+
+      # Taxa de Sucesso de Otimizações ML
+      - alert: MLOptimizationSuccessRateLow
+        expr: |
+          (
+            rate(orchestration_scheduler_ml_optimizations_applied_total{optimization_type!="heuristic"}[15m])
+            /
+            rate(orchestration_scheduler_ml_optimizations_applied_total[15m])
+          ) < 0.5
+        for: 10m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Taxa de sucesso de otimizações ML baixa"
+          description: "Menos de 50% das otimizações estão usando ML (remote ou local). Taxa atual: {{ $value | humanizePercentage }}"
+          runbook_url: "https://docs.neural-hive.io/runbooks/ml-optimization-low"
+
+      # Alta Taxa de Fallback para Heurísticas
+      - alert: HighHeuristicFallbackRate
+        expr: |
+          (
+            rate(orchestration_scheduler_ml_optimizations_applied_total{source="fallback"}[15m])
+            /
+            rate(orchestration_scheduler_ml_optimizations_applied_total[15m])
+          ) > 0.3
+        for: 10m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Alta taxa de fallback para heurísticas"
+          description: "Mais de 30% das otimizações estão usando fallback. Taxa: {{ $value | humanizePercentage }}"
+          impact: "Degradação na qualidade de alocação de workers"
+
+      # Erro de Predição de Queue Time Alto
+      - alert: QueuePredictionErrorHigh
+        expr: |
+          histogram_quantile(0.95, rate(orchestration_scheduler_queue_prediction_error_ms_bucket[15m])) > 10000
+        for: 10m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Erro de predição de queue time alto (P95)"
+          description: "Erro P95 de predição de queue time é {{ $value | humanizeDuration }}. Threshold: 10s"
+          runbook_url: "https://docs.neural-hive.io/runbooks/queue-prediction-error"
+          impact: "Alocações de workers podem ser subótimas"
+
+      - alert: QueuePredictionErrorCritical
+        expr: |
+          histogram_quantile(0.95, rate(orchestration_scheduler_queue_prediction_error_ms_bucket[15m])) > 30000
+        for: 5m
+        labels:
+          severity: critical
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Erro crítico de predição de queue time (P95)"
+          description: "Erro P95 de predição de queue time é {{ $value | humanizeDuration }}. Threshold: 30s"
+          runbook_url: "https://docs.neural-hive.io/runbooks/queue-prediction-error"
+
+      # Qualidade de Alocação Baixa
+      - alert: AllocationQualityScoreLow
+        expr: |
+          histogram_quantile(0.5, rate(orchestration_scheduler_allocation_quality_score_bucket{used_ml_optimization="true"}[15m])) < 0.6
+        for: 10m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Score de qualidade de alocação baixo (mediana)"
+          description: "Score mediano de qualidade é {{ $value | humanizePercentage }}. Threshold: 60%"
+          runbook_url: "https://docs.neural-hive.io/runbooks/allocation-quality"
+          impact: "Alocações podem não estar otimizadas para SLA/throughput"
+
+      # Latência de Otimização ML Alta
+      - alert: MLOptimizationLatencyHigh
+        expr: |
+          histogram_quantile(0.95, rate(orchestration_scheduler_ml_optimization_latency_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Latência de otimização ML alta (P95)"
+          description: "Latência P95 de otimização ML é {{ $value }}s. Threshold: 2s"
+          runbook_url: "https://docs.neural-hive.io/runbooks/ml-latency"
+          impact: "Scheduler pode ficar lento, impactando tempo de alocação"
+
+      - alert: MLOptimizationLatencyCritical
+        expr: |
+          histogram_quantile(0.95, rate(orchestration_scheduler_ml_optimization_latency_seconds_bucket[5m])) > 5
+        for: 2m
+        labels:
+          severity: critical
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Latência crítica de otimização ML (P95)"
+          description: "Latência P95 de otimização ML é {{ $value }}s. Threshold: 5s"
+          runbook_url: "https://docs.neural-hive.io/runbooks/ml-latency"
+
+      # Erros de ML Predictions
+      - alert: MLPredictionErrorRateHigh
+        expr: |
+          rate(orchestration_ml_predictions_total{status="error"}[15m]) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Alta taxa de erros em predições ML"
+          description: "Taxa de erro: {{ $value }}/s nos últimos 15 minutos"
+          runbook_url: "https://docs.neural-hive.io/runbooks/ml-prediction-errors"
+
+      # RL Recommendations não estão sendo aplicadas
+      - alert: RLRecommendationsNotApplied
+        expr: |
+          (
+            rate(orchestration_scheduler_ml_optimizations_applied_total{optimization_type="rl_recommendation"}[30m])
+          ) == 0 and
+          (
+            orchestration_scheduler_optimizer_availability == 1
+          )
+        for: 30m
+        labels:
+          severity: info
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Recomendações RL não estão sendo aplicadas"
+          description: "Optimizer disponível, mas nenhuma recomendação RL foi aplicada em 30 minutos."
+          runbook_url: "https://docs.neural-hive.io/runbooks/rl-not-applied"
+          impact: "Scheduling pode não estar otimizado por RL policy"
+
+      # Queue Predictions sempre retornando defaults
+      - alert: QueuePredictionsUsingDefaults
+        expr: |
+          (
+            histogram_quantile(0.5, rate(orchestration_scheduler_predicted_queue_time_ms_bucket{source="local"}[30m]))
+          ) == 1000 or
+          (
+            histogram_quantile(0.95, rate(orchestration_scheduler_predicted_queue_time_ms_bucket{source="local"}[30m]))
+          ) == 2000
+        for: 30m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Predições de queue time usando valores default"
+          description: "Predições locais parecem estar sempre retornando defaults (1s ou 2s), indicando falta de dados históricos."
+          runbook_url: "https://docs.neural-hive.io/runbooks/queue-defaults"
+          impact: "MongoDB pode estar indisponível ou sem dados históricos"

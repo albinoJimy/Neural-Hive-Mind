@@ -1,0 +1,193 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orchestrator-sla-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/component: alerting-rules
+data:
+  orchestrator-sla-alerts.yaml: |
+    groups:
+    - name: orchestrator-sla-violations
+      interval: 30s
+      rules:
+      - alert: OrchestratorSLAViolationRate
+        expr: |
+          rate(orchestration_sla_violations_total[15m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Taxa de violações SLA alta no Orchestrator"
+          description: "Taxa de violações é {{ $value | humanizePercentage }} nos últimos 15 minutos."
+          runbook_url: "https://docs.neural-hive.io/runbooks/orchestrator-sla-violations"
+          dashboard_url: "https://grafana.neural-hive.io/d/orchestrator-dynamic"
+
+      - alert: OrchestratorCriticalSLAViolations
+        expr: |
+          increase(orchestration_sla_violations_total[10m]) > 5
+        for: 2m
+        labels:
+          severity: critical
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Violações SLA críticas detectadas no Orchestrator"
+          description: "{{ $value }} violações críticas detectadas nos últimos 10 minutos."
+          runbook_url: "https://docs.neural-hive.io/runbooks/critical-sla-violations"
+
+      - alert: OrchestratorDeadlineExceeded
+        expr: |
+          increase(orchestration_sla_violations_published_total{violation_type="DEADLINE_EXCEEDED"}[10m]) > 0
+        for: 2m
+        labels:
+          severity: critical
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Tickets excedendo deadline no Orchestrator"
+          description: "{{ $value }} tickets excederam deadline nos últimos 10 minutos."
+          runbook_url: "https://docs.neural-hive.io/runbooks/deadline-exceeded"
+
+    - name: orchestrator-sla-budget
+      interval: 30s
+      rules:
+      - alert: OrchestratorBudgetCritical
+        expr: |
+          orchestration_sla_budget_remaining_percent < 20
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Error budget crítico para {{ $labels.service_name }}"
+          description: "Budget restante é {{ $value }}% para SLO {{ $labels.slo_id }}."
+          runbook_url: "https://docs.neural-hive.io/runbooks/budget-critical"
+          dashboard_url: "https://grafana.neural-hive.io/d/sla-management-system"
+
+      - alert: OrchestratorBudgetExhausted
+        expr: |
+          orchestration_sla_budget_status == 3
+        for: 1m
+        labels:
+          severity: critical
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Error budget esgotado para {{ $labels.service_name }}"
+          description: "SLO {{ $labels.slo_id }} esgotou o error budget."
+          runbook_url: "https://docs.neural-hive.io/runbooks/budget-exhausted"
+
+      - alert: OrchestratorHighBurnRate
+        expr: |
+          orchestration_sla_burn_rate{window_hours="1"} > 6
+        for: 10m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Burn rate alto para {{ $labels.service_name }}"
+          description: "Burn rate é {{ $value }} (threshold: 6) na janela de 1h."
+          runbook_url: "https://docs.neural-hive.io/runbooks/high-burn-rate"
+
+      - alert: OrchestratorBudgetWarning
+        expr: |
+          orchestration_sla_budget_remaining_percent < 50 and orchestration_sla_budget_remaining_percent >= 20
+        for: 10m
+        labels:
+          severity: info
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Error budget em nível de atenção para {{ $labels.service_name }}"
+          description: "Budget restante é {{ $value }}% para SLO {{ $labels.slo_id }}. Monitorar de perto."
+          runbook_url: "https://docs.neural-hive.io/runbooks/budget-warning"
+
+    - name: orchestrator-sla-monitoring
+      interval: 60s
+      rules:
+      - alert: OrchestratorSLAMonitorErrors
+        expr: |
+          rate(orchestration_sla_monitor_errors_total[10m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Erros no SLA monitoring do Orchestrator"
+          description: "Taxa de erro é {{ $value | humanizePercentage }} nos últimos 10 minutos (tipo: {{ $labels.error_type }})."
+          runbook_url: "https://docs.neural-hive.io/runbooks/sla-monitor-errors"
+
+      - alert: OrchestratorSLACheckSlow
+        expr: |
+          histogram_quantile(0.95, rate(orchestration_sla_check_duration_seconds_bucket[5m])) > 5
+        for: 10m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Verificações SLA lentas no Orchestrator"
+          description: "P95 de duração é {{ $value }}s (threshold: 5s) para {{ $labels.check_type }}."
+          runbook_url: "https://docs.neural-hive.io/runbooks/sla-check-slow"
+
+      - alert: OrchestratorSLAAlertStorm
+        expr: |
+          increase(orchestration_sla_alerts_sent_total[10m]) > 50
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Storm de alertas SLA no Orchestrator"
+          description: "{{ $value }} alertas enviados nos últimos 10 minutos."
+          runbook_url: "https://docs.neural-hive.io/runbooks/alert-storm"
+
+      - alert: OrchestratorSLAMonitorDown
+        expr: |
+          increase(orchestration_sla_check_duration_seconds_count[5m]) == 0
+        for: 10m
+        labels:
+          severity: critical
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "SLA Monitor não está executando verificações"
+          description: "Nenhuma verificação SLA foi registrada nos últimos 10 minutos. Pode indicar falha no monitoring."
+          runbook_url: "https://docs.neural-hive.io/runbooks/sla-monitor-down"
+
+    - name: orchestrator-sla-deadlines
+      interval: 30s
+      rules:
+      - alert: OrchestratorDeadlineApproaching
+        expr: |
+          increase(orchestration_deadline_approaching_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Múltiplos workflows próximos do deadline"
+          description: "{{ $value }} workflows atingiram 80% do tempo de deadline nos últimos 5 minutos."
+          runbook_url: "https://docs.neural-hive.io/runbooks/deadline-approaching"
+
+      - alert: OrchestratorSLARemainingLow
+        expr: |
+          orchestration_sla_remaining_seconds < 300
+        for: 2m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+        annotations:
+          summary: "Tempo SLA restante crítico para workflow {{ $labels.workflow_id }}"
+          description: "Apenas {{ $value }}s restantes de SLA para workflow {{ $labels.workflow_id }} (risk_band: {{ $labels.risk_band }})."
+          runbook_url: "https://docs.neural-hive.io/runbooks/sla-remaining-low"

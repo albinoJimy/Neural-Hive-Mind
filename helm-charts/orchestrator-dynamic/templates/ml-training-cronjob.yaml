@@ -1,0 +1,103 @@
+{{- if .Values.config.ml.trainingJob.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "orchestrator-dynamic.fullname" . }}-ml-training
+  labels:
+    {{- include "orchestrator-dynamic.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ml-training
+    neural-hive.io/layer: orchestration
+  annotations:
+    grafana.dashboard: "orchestrator-ml-predictions"
+    runbook.url: "https://docs.internal/runbooks/orchestrator-ml-training"
+spec:
+  schedule: {{ .Values.config.ml.trainingJob.schedule | quote }}
+  successfulJobsHistoryLimit: {{ .Values.config.ml.trainingJob.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.config.ml.trainingJob.failedJobsHistoryLimit }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "orchestrator-dynamic.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ml-training
+    spec:
+      backoffLimit: {{ .Values.config.ml.trainingJob.backoffLimit }}
+      activeDeadlineSeconds: {{ .Values.config.ml.trainingJob.timeoutSeconds }}
+      template:
+        metadata:
+          labels:
+            {{- include "orchestrator-dynamic.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: ml-training
+          annotations:
+            prometheus.io/scrape: "false"
+        spec:
+          restartPolicy: Never
+          serviceAccountName: {{ include "orchestrator-dynamic.serviceAccountName" . }}
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
+          containers:
+          - name: ml-training
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            command:
+              - python
+              - -m
+              - src.ml.training_job
+            env:
+              # MongoDB Configuration
+              - name: MONGODB_URI
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ include "orchestrator-dynamic.fullname" . }}-secrets
+                    key: mongodb-uri
+              # MLflow Configuration
+              - name: MLFLOW_TRACKING_URI
+                value: {{ .Values.config.ml.mlflow.trackingUri | quote }}
+              {{- if .Values.config.ml.mlflow.auth.enabled }}
+              - name: MLFLOW_TRACKING_USERNAME
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ include "orchestrator-dynamic.fullname" . }}-secrets
+                    key: mlflow-username
+              - name: MLFLOW_TRACKING_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ include "orchestrator-dynamic.fullname" . }}-secrets
+                    key: mlflow-password
+              {{- end }}
+              # ML Training Configuration
+              - name: ML_PREDICTIONS_ENABLED
+                value: "true"
+              - name: ML_TRAINING_WINDOW_DAYS
+                value: {{ .Values.config.ml.trainingJob.windowDaysOverride | default .Values.config.ml.training.windowDays | quote }}
+              - name: ML_MIN_TRAINING_SAMPLES
+                value: {{ .Values.config.ml.training.minSamples | quote }}
+              - name: ML_DURATION_ERROR_THRESHOLD
+                value: {{ .Values.config.ml.models.durationPredictor.errorThreshold | quote }}
+              - name: ML_ANOMALY_CONTAMINATION
+                value: {{ .Values.config.ml.models.anomalyDetector.contamination | quote }}
+              - name: ML_BACKFILL_ERRORS
+                value: {{ .Values.config.ml.trainingJob.backfillErrors | quote }}
+              # Prometheus Pushgateway
+              - name: PROMETHEUS_PUSHGATEWAY_URL
+                value: {{ .Values.config.prometheusPushgateway.url | quote }}
+              # Logging
+              - name: LOG_LEVEL
+                value: {{ .Values.config.logging.level | quote }}
+              - name: LOG_FORMAT
+                value: "json"
+            resources:
+              {{- toYaml .Values.config.ml.trainingJob.resources | nindent 14 }}
+            volumeMounts:
+              - name: tmp
+                mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir: {}
+{{- end }}

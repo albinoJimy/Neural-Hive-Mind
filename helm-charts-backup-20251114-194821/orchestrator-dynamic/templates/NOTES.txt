@@ -1,0 +1,96 @@
+🎉 Orchestrator Dynamic foi deployado com sucesso!
+
+Release: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+Chart Version: {{ .Chart.Version }}
+App Version: {{ .Chart.AppVersion }}
+
+=============================================================
+
+✅ Deployment Status:
+
+Para verificar o status do deployment:
+
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "orchestrator-dynamic.name" . }}
+
+Para ver os logs:
+
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "orchestrator-dynamic.name" . }} -f
+
+=============================================================
+
+🔍 Endpoints Disponíveis:
+
+{{- if .Values.service.type }}
+Service Type: {{ .Values.service.type }}
+{{- end }}
+
+Para acessar o serviço localmente (port-forward):
+
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "orchestrator-dynamic.fullname" . }} 8000:8000
+
+Endpoints:
+  - Health Check: http://localhost:8000/health
+  - Readiness Check: http://localhost:8000/ready
+  - Métricas Prometheus: http://localhost:9090/metrics
+  - API REST: http://localhost:8000/api/v1/
+
+=============================================================
+
+📊 Monitoramento:
+
+{{- if .Values.serviceMonitor.enabled }}
+✅ ServiceMonitor habilitado - Métricas sendo coletadas pelo Prometheus
+{{- else }}
+⚠️  ServiceMonitor desabilitado - Habilite em values.yaml para monitoramento
+{{- end }}
+
+{{- if .Values.autoscaling.enabled }}
+✅ Autoscaling habilitado ({{ .Values.autoscaling.minReplicas }}-{{ .Values.autoscaling.maxReplicas }} réplicas)
+{{- else }}
+ℹ️  Autoscaling desabilitado - Réplicas fixas: {{ .Values.replicaCount }}
+{{- end }}
+
+=============================================================
+
+🔧 Configuração:
+
+Temporal Server: {{ .Values.config.temporal.host }}:{{ .Values.config.temporal.port }}
+Kafka Bootstrap: {{ .Values.config.kafka.bootstrapServers }}
+Environment: {{ .Values.config.environment }}
+
+Tópicos Kafka monitorados:
+  - Input: {{ .Values.config.kafka.consensusTopic }}
+  - Output: {{ .Values.config.kafka.ticketsTopic }}
+
+=============================================================
+
+📝 Próximos Passos:
+
+1. Validar deployment:
+   ./scripts/validation/validate-orchestrator-dynamic.sh
+
+2. Verificar métricas no Grafana:
+   Dashboard: "Orchestration - Fluxo C"
+
+3. Monitorar traces no Jaeger:
+   Buscar por service: orchestrator-dynamic
+
+4. Executar teste end-to-end:
+   ./tests/phase2-orchestrator-test.sh
+
+=============================================================
+
+📚 Documentação:
+
+README: services/orchestrator-dynamic/README.md
+Status: PHASE2_IMPLEMENTATION_STATUS.md
+Troubleshooting: Consulte o README do serviço
+
+=============================================================
+
+Para desinstalar:
+
+  helm uninstall {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+=============================================================

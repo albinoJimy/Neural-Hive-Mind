@@ -1,0 +1,263 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neural-hive-ml
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ml-training-sa
+  namespace: neural-hive-ml
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ml-training-role
+  namespace: neural-hive-ml
+rules:
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ml-training-rolebinding
+  namespace: neural-hive-ml
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ml-training-role
+subjects:
+- kind: ServiceAccount
+  name: ml-training-sa
+  namespace: neural-hive-ml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ml-training-config
+  namespace: neural-hive-ml
+data:
+  training_window_days: "540"
+  min_training_samples: "1000"
+  hyperparameter_tuning: "true"
+  promote_if_better: "true"
+  clickhouse_host: "clickhouse.clickhouse.svc.cluster.local"
+  redis_host: "redis-master.redis.svc.cluster.local"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ml-training-data
+  namespace: neural-hive-ml
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: predictive-models-training
+  namespace: neural-hive-ml
+  labels:
+    app: predictive-models-training
+    component: ml-pipeline
+spec:
+  # Executa todo domingo às 2 AM UTC
+  schedule: "0 2 * * 0"
+
+  # Política de concorrência: não permite execuções sobrepostas
+  concurrencyPolicy: Forbid
+
+  # Histórico de jobs
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+
+  # Deadline para conclusão: 2 horas
+  startingDeadlineSeconds: 7200
+
+  jobTemplate:
+    metadata:
+      labels:
+        app: predictive-models-training
+        component: ml-pipeline
+    spec:
+      # Backoff limit para retries
+      backoffLimit: 2
+
+      # Deadline ativo para job
+      activeDeadlineSeconds: 7200
+
+      template:
+        metadata:
+          labels:
+            app: predictive-models-training
+            component: ml-pipeline
+        spec:
+          serviceAccountName: ml-training-sa
+          restartPolicy: OnFailure
+
+          containers:
+          - name: training
+            image: neural-hive-ml-training:latest
+            imagePullPolicy: IfNotPresent
+
+            command:
+              - python
+              - /app/ml_pipelines/training/train_predictive_models.py
+
+            args:
+              - --model-type=all
+              - --hyperparameter-tuning
+              - --promote-if-better
+
+            env:
+              # MLflow
+              - name: MLFLOW_TRACKING_URI
+                valueFrom:
+                  secretKeyRef:
+                    name: ml-training-secrets
+                    key: mlflow_tracking_uri
+                    optional: true
+
+              # MongoDB
+              - name: MONGODB_URI
+                valueFrom:
+                  secretKeyRef:
+                    name: ml-training-secrets
+                    key: mongodb_uri
+
+              # ClickHouse
+              - name: CLICKHOUSE_HOST
+                valueFrom:
+                  configMapKeyRef:
+                    name: ml-training-config
+                    key: clickhouse_host
+                    optional: true
+
+              - name: CLICKHOUSE_PORT
+                value: "9000"
+
+              - name: CLICKHOUSE_USER
+                valueFrom:
+                  secretKeyRef:
+                    name: ml-training-secrets
+                    key: clickhouse_user
+                    optional: true
+
+              - name: CLICKHOUSE_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: ml-training-secrets
+                    key: clickhouse_password
+                    optional: true
+
+              - name: CLICKHOUSE_DATABASE
+                value: "neural_hive"
+
+              # Redis
+              - name: REDIS_HOST
+                valueFrom:
+                  configMapKeyRef:
+                    name: ml-training-config
+                    key: redis_host
+                    optional: true
+
+              # Training config
+              - name: TRAINING_WINDOW_DAYS
+                valueFrom:
+                  configMapKeyRef:
+                    name: ml-training-config
+                    key: training_window_days
+
+              - name: MIN_TRAINING_SAMPLES
+                valueFrom:
+                  configMapKeyRef:
+                    name: ml-training-config
+                    key: min_training_samples
+
+              # Logging
+              - name: LOG_LEVEL
+                value: "INFO"
+
+            resources:
+              requests:
+                cpu: "2"
+                memory: 4Gi
+              limits:
+                cpu: "4"
+                memory: 8Gi
+
+            volumeMounts:
+              - name: training-data
+                mountPath: /data
+              - name: model-artifacts
+                mountPath: /artifacts
+
+          volumes:
+            - name: training-data
+              persistentVolumeClaim:
+                claimName: ml-training-data
+            - name: model-artifacts
+              emptyDir: {}
+---
+# ServiceMonitor para monitoramento com Prometheus
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: predictive-models-training
+  namespace: neural-hive-ml
+  labels:
+    app: predictive-models-training
+spec:
+  selector:
+    matchLabels:
+      app: predictive-models-training
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+---
+# PrometheusRule para alertas
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: predictive-models-training-alerts
+  namespace: neural-hive-ml
+  labels:
+    app: predictive-models-training
+spec:
+  groups:
+  - name: ml-training
+    interval: 1m
+    rules:
+    - alert: MLTrainingJobFailed
+      expr: kube_job_status_failed{job="predictive-models-training"} > 0
+      for: 5m
+      labels:
+        severity: critical
+        component: ml-pipeline
+      annotations:
+        summary: "Job de treinamento ML falhou"
+        description: "O job de treinamento de modelos preditivos falhou na namespace neural-hive-ml"
+
+    - alert: MLTrainingJobTookTooLong
+      expr: time() - kube_job_status_start_time{job="predictive-models-training"} > 7200
+      for: 10m
+      labels:
+        severity: warning
+        component: ml-pipeline
+      annotations:
+        summary: "Job de treinamento ML está demorando muito"
+        description: "O job de treinamento está rodando há mais de 2 horas"

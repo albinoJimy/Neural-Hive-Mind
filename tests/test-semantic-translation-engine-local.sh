@@ -42,6 +42,7 @@ log_section() {
 # Variáveis
 NAMESPACE="semantic-translation-engine"
 KAFKA_NAMESPACE="neural-hive-kafka"
+KAFKA_BOOTSTRAP="neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092"
 NEO4J_NAMESPACE="neo4j"
 MONGODB_NAMESPACE="mongodb-cluster"
 REDIS_NAMESPACE="redis-cluster"
@@ -135,7 +136,7 @@ fi
 
 # Testar endpoint /health
 log_info "Testando endpoint /health..."
-HEALTH_RESPONSE=$(kubectl exec -n ${NAMESPACE} ${POD_NAME} -- wget -q -O- http://localhost:8000/health 2>/dev/null || echo "")
+HEALTH_RESPONSE=$(kubectl exec -n ${NAMESPACE} ${POD_NAME} -- curl -fsSL http://localhost:8000/health 2>/dev/null || echo "")
 
 if echo "${HEALTH_RESPONSE}" | grep -q "healthy"; then
   log_success "Endpoint /health retornou 200 OK"
@@ -145,7 +146,7 @@ fi
 
 # Testar endpoint /ready
 log_info "Testando endpoint /ready..."
-READY_RESPONSE=$(kubectl exec -n ${NAMESPACE} ${POD_NAME} -- wget -q -O- http://localhost:8000/ready 2>/dev/null || echo "")
+READY_RESPONSE=$(kubectl exec -n ${NAMESPACE} ${POD_NAME} -- curl -fsSL http://localhost:8000/ready 2>/dev/null || echo "")
 
 if echo "${READY_RESPONSE}" | grep -q "ready"; then
   log_success "Endpoint /ready retornou resposta"
@@ -164,7 +165,7 @@ fi
 
 # Testar endpoint /metrics
 log_info "Testando endpoint /metrics..."
-METRICS_RESPONSE=$(kubectl exec -n ${NAMESPACE} ${POD_NAME} -- wget -q -O- http://localhost:8080/metrics 2>/dev/null || echo "")
+METRICS_RESPONSE=$(kubectl exec -n ${NAMESPACE} ${POD_NAME} -- curl -fsSL http://localhost:8000/metrics 2>/dev/null || echo "")
 
 if echo "${METRICS_RESPONSE}" | grep -q "neural_hive"; then
   log_success "Endpoint /metrics está disponível com métricas customizadas"
@@ -256,7 +257,7 @@ kubectl run kafka-producer-test-${TIMESTAMP_MS} --restart='Never' \
   --namespace ${KAFKA_NAMESPACE} \
   --command -- sh -c "echo '${INTENT_ENVELOPE}' | \
     /opt/bitnami/kafka/bin/kafka-console-producer.sh \
-    --bootstrap-server neural-hive-kafka-bootstrap:9092 \
+    --bootstrap-server ${KAFKA_BOOTSTRAP} \
     --topic intentions.business" > /dev/null 2>&1
 
 sleep 3
@@ -300,7 +301,7 @@ PLAN_MESSAGE=$(kubectl run kafka-consumer-test-${TIMESTAMP_MS} --restart='Never'
   --image docker.io/bitnami/kafka:4.0.0-debian-12-r10 \
   --namespace ${KAFKA_NAMESPACE} \
   --command -- sh -c "/opt/bitnami/kafka/bin/kafka-console-consumer.sh \
-    --bootstrap-server neural-hive-kafka-bootstrap:9092 \
+    --bootstrap-server ${KAFKA_BOOTSTRAP} \
     --topic plans.ready \
     --from-beginning \
     --max-messages 1 \
@@ -337,7 +338,7 @@ fi
 log_section "5. VALIDAÇÃO DE MÉTRICAS"
 
 log_info "Consultando métricas Prometheus..."
-METRICS=$(kubectl exec -n ${NAMESPACE} ${POD_NAME} -- wget -q -O- http://localhost:8080/metrics 2>/dev/null || echo "")
+METRICS=$(kubectl exec -n ${NAMESPACE} ${POD_NAME} -- curl -fsSL http://localhost:8000/metrics 2>/dev/null || echo "")
 
 # Verificar métricas esperadas
 if echo "${METRICS}" | grep -q "neural_hive_plans_generated_total"; then

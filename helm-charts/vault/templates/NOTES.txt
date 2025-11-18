@@ -1,0 +1,26 @@
+Vault foi instalado com sucesso!
+
+Para inicializar e unseal o Vault:
+
+1. Inicializar (apenas primeira vez):
+   kubectl exec -n {{ .Release.Namespace }} vault-0 -- vault operator init -key-shares=5 -key-threshold=3 -format=json > vault-init.json
+
+2. Unseal cada pod (usar 3 unseal keys):
+   kubectl exec -n {{ .Release.Namespace }} vault-0 -- vault operator unseal <KEY1>
+   kubectl exec -n {{ .Release.Namespace }} vault-0 -- vault operator unseal <KEY2>
+   kubectl exec -n {{ .Release.Namespace }} vault-0 -- vault operator unseal <KEY3>
+
+   Repetir para vault-1 e vault-2
+
+3. Verificar status:
+   kubectl exec -n {{ .Release.Namespace }} vault-0 -- vault status
+
+4. Configurar PKI e políticas:
+   ./scripts/vault-init-pki.sh
+   ./scripts/vault-configure-policies.sh
+
+Para acessar a UI:
+   kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "vault.fullname" . }} 8200:8200
+   Abrir: {{ if .Values.tls.enabled }}https{{ else }}http{{ end }}://localhost:8200
+
+Documentação completa: docs/security/VAULT_SPIFFE_DEPLOYMENT_GUIDE.md

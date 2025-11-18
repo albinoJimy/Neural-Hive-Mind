@@ -1,0 +1,247 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sla-management-system-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/component: alerting-rules
+data:
+  sla-management-system-alerts.yaml: |
+    groups:
+    - name: sla-management-system-health
+      interval: 30s
+      rules:
+      - alert: SLAManagementSystemDown
+        expr: up{job="sla-management-system"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: sla-management-system
+          layer: monitoring
+        annotations:
+          summary: "SLA Management System está down"
+          description: "Nenhuma instância do SLA Management System está executando há 5 minutos. Sem cálculos de budget ou freeze enforcement."
+          runbook_url: "https://docs.neural-hive.io/runbooks/sla-system-down"
+          dashboard_url: "https://grafana.neural-hive.io/d/sla-management-system"
+
+      - alert: SLAManagementSystemHighErrorRate
+        expr: rate(sla_calculations_total{status="error"}[5m]) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          component: sla-management-system
+          layer: monitoring
+        annotations:
+          summary: "Taxa de erro alta no SLA Management System"
+          description: "Taxa de erro nos cálculos de SLO é {{ $value | humanizePercentage }} nos últimos 5 minutos."
+          runbook_url: "https://docs.neural-hive.io/runbooks/sla-high-errors"
+
+      - alert: SLAManagementSystemSlowCalculations
+        expr: histogram_quantile(0.95, rate(sla_calculation_duration_seconds_bucket[5m])) > 10
+        for: 10m
+        labels:
+          severity: warning
+          component: sla-management-system
+          layer: monitoring
+        annotations:
+          summary: "Cálculos de SLO lentos"
+          description: "P95 de duração de cálculo é {{ $value }}s (threshold: 10s)."
+          runbook_url: "https://docs.neural-hive.io/runbooks/sla-slow-calculations"
+
+      - alert: SLAManagementSystemPostgreSQLDown
+        expr: sla_postgresql_connection_errors_total > 0
+        for: 2m
+        labels:
+          severity: critical
+          component: sla-management-system
+          layer: monitoring
+        annotations:
+          summary: "SLA Management System não consegue conectar ao PostgreSQL"
+          description: "{{ $value }} erros de conexão ao PostgreSQL detectados. Sistema não pode persistir dados."
+          runbook_url: "https://docs.neural-hive.io/runbooks/sla-postgres-down"
+
+      - alert: SLAManagementSystemRedisDown
+        expr: sla_redis_connection_errors_total > 0
+        for: 2m
+        labels:
+          severity: warning
+          component: sla-management-system
+          layer: monitoring
+        annotations:
+          summary: "SLA Management System não consegue conectar ao Redis"
+          description: "{{ $value }} erros de conexão ao Redis detectados. Cache indisponível."
+          runbook_url: "https://docs.neural-hive.io/runbooks/sla-redis-down"
+
+    - name: sla-budget-alerts
+      interval: 30s
+      rules:
+      - alert: CriticalBudgetExhausted
+        expr: sla_budget_status == 3
+        for: 1m
+        labels:
+          severity: critical
+          component: sla-management-system
+          layer: monitoring
+        annotations:
+          summary: "Error budget esgotado para SLO {{ $labels.slo_name }}"
+          description: "SLO {{ $labels.slo_name }} para serviço {{ $labels.service_name }} esgotou o error budget."
+          runbook_url: "https://docs.neural-hive.io/runbooks/budget-exhausted"
+          dashboard_url: "https://grafana.neural-hive.io/d/sla-management-system?var-slo={{ $labels.slo_id }}"
+
+      - alert: MultipleCriticalBudgets
+        expr: count(sla_budget_status == 2) > 3
+        for: 5m
+        labels:
+          severity: critical
+          component: sla-management-system
+          layer: monitoring
+        annotations:
+          summary: "Múltiplos SLOs em estado crítico"
+          description: "{{ $value }} SLOs estão em estado crítico (budget < 20%)."
+          runbook_url: "https://docs.neural-hive.io/runbooks/multiple-critical-budgets"
+          dashboard_url: "https://grafana.neural-hive.io/d/sla-management-system"
+
+      - alert: HighBurnRateFast
+        expr: sla_burn_rate{window_hours="1"} > 14.4
+        for: 5m
+        labels:
+          severity: critical
+          component: sla-management-system
+          layer: monitoring
+        annotations:
+          summary: "Taxa de consumo de budget muito alta"
+          description: "SLO {{ $labels.slo_name }} tem burn rate de {{ $value }} (threshold: 14.4) na janela de 1h."
+          runbook_url: "https://docs.neural-hive.io/runbooks/high-burn-rate"
+          dashboard_url: "https://grafana.neural-hive.io/d/sla-management-system?var-slo={{ $labels.slo_id }}"
+
+      - alert: HighBurnRateSlow
+        expr: sla_burn_rate{window_hours="6"} > 6
+        for: 30m
+        labels:
+          severity: warning
+          component: sla-management-system
+          layer: monitoring
+        annotations:
+          summary: "Taxa de consumo de budget elevada"
+          description: "SLO {{ $labels.slo_name }} tem burn rate de {{ $value }} (threshold: 6) na janela de 6h."
+          runbook_url: "https://docs.neural-hive.io/runbooks/high-burn-rate"
+
+    - name: sla-freeze-alerts
+      interval: 30s
+      rules:
+      - alert: FreezeActivated
+        expr: increase(sla_freezes_activated_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: sla-management-system
+          layer: monitoring
+        annotations:
+          summary: "Freeze de deployment ativado"
+          description: "Freeze ativado para {{ $labels.scope }} {{ $labels.target }} devido a budget crítico."
+          runbook_url: "https://docs.neural-hive.io/runbooks/freeze-activated"
+          dashboard_url: "https://grafana.neural-hive.io/d/sla-management-system"
+
+      - alert: LongRunningFreeze
+        expr: sla_freeze_duration_seconds > 7200
+        for: 10m
+        labels:
+          severity: warning
+          component: sla-management-system
+          layer: monitoring
+        annotations:
+          summary: "Freeze ativo há mais de 2 horas"
+          description: "Freeze para {{ $labels.scope }} {{ $labels.target }} está ativo há {{ $value | humanizeDuration }}."
+          runbook_url: "https://docs.neural-hive.io/runbooks/long-freeze"
+
+      - alert: MultipleActiveFreezes
+        expr: sla_freezes_active > 5
+        for: 10m
+        labels:
+          severity: warning
+          component: sla-management-system
+          layer: monitoring
+        annotations:
+          summary: "Múltiplos freezes ativos"
+          description: "{{ $value }} freezes estão ativos simultaneamente."
+          runbook_url: "https://docs.neural-hive.io/runbooks/multiple-freezes"
+          dashboard_url: "https://grafana.neural-hive.io/d/sla-management-system"
+
+    - name: sla-operator-alerts
+      interval: 30s
+      rules:
+      - alert: OperatorDown
+        expr: up{job="sla-management-system-operator"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: sla-management-system-operator
+          layer: monitoring
+        annotations:
+          summary: "Operador de SLA não está executando"
+          description: "Operador Kubernetes do SLA Management System está down. CRDs não serão sincronizados."
+          runbook_url: "https://docs.neural-hive.io/runbooks/operator-down"
+
+      - alert: OperatorReconciliationErrors
+        expr: increase(kopf_reconciliation_errors_total[5m]) > 10
+        for: 10m
+        labels:
+          severity: warning
+          component: sla-management-system-operator
+          layer: monitoring
+        annotations:
+          summary: "Erros de reconciliação do operador"
+          description: "{{ $value }} erros de reconciliação nos últimos 5 minutos."
+          runbook_url: "https://docs.neural-hive.io/runbooks/operator-errors"
+
+      - alert: CRDSyncFailures
+        expr: increase(sla_crd_sync_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: sla-management-system-operator
+          layer: monitoring
+        annotations:
+          summary: "Falhas na sincronização de CRD"
+          description: "{{ $value }} falhas ao sincronizar CRDs com PostgreSQL nos últimos 5 minutos."
+          runbook_url: "https://docs.neural-hive.io/runbooks/crd-sync-failures"
+
+    - name: sla-system-performance
+      interval: 60s
+      rules:
+      - alert: SLASystemHighMemoryUsage
+        expr: container_memory_working_set_bytes{pod=~"sla-management-system.*"} / container_spec_memory_limit_bytes{pod=~"sla-management-system.*"} > 0.9
+        for: 10m
+        labels:
+          severity: warning
+          component: sla-management-system
+          layer: monitoring
+        annotations:
+          summary: "Uso de memória alto no SLA System"
+          description: "Pod {{ $labels.pod }} usando {{ $value | humanizePercentage }} da memória limite."
+          runbook_url: "https://docs.neural-hive.io/runbooks/high-memory"
+
+      - alert: SLASystemHighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{pod=~"sla-management-system.*"}[5m]) / container_spec_cpu_quota{pod=~"sla-management-system.*"} * 100000 > 0.9
+        for: 10m
+        labels:
+          severity: warning
+          component: sla-management-system
+          layer: monitoring
+        annotations:
+          summary: "Uso de CPU alto no SLA System"
+          description: "Pod {{ $labels.pod }} usando {{ $value | humanizePercentage }} da CPU limite."
+          runbook_url: "https://docs.neural-hive.io/runbooks/high-cpu"
+
+      - alert: SLASystemPodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total{pod=~"sla-management-system.*"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: sla-management-system
+          layer: monitoring
+        annotations:
+          summary: "Pod do SLA System em CrashLoopBackOff"
+          description: "Pod {{ $labels.pod }} está reiniciando repetidamente."
+          runbook_url: "https://docs.neural-hive.io/runbooks/crashloop"

@@ -1,0 +1,135 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: orchestrator-scheduler-alerts
+  namespace: neural-hive-mind
+  labels:
+    app: orchestrator-dynamic
+    component: scheduler
+    prometheus: kube-prometheus
+spec:
+  groups:
+    - name: orchestrator-scheduler
+      interval: 30s
+      rules:
+        # Alertas Críticos
+        - alert: SchedulerAllocationSuccessRateLow
+          expr: |
+            (
+              rate(orchestration_scheduler_allocations_total{status="success"}[5m])
+              /
+              rate(orchestration_scheduler_allocations_total[5m])
+            ) < 0.95
+          for: 5m
+          labels:
+            severity: critical
+            component: scheduler
+          annotations:
+            summary: "Taxa de sucesso de alocação do scheduler abaixo de 95%"
+            description: "Taxa de sucesso do scheduler é {{ $value | humanizePercentage }} (limite: 95%). Verifique a saúde do Service Registry e disponibilidade de workers."
+            dashboard: "https://grafana/d/orchestrator-intelligent-scheduler"
+            runbook: "https://docs/runbooks/scheduler-low-success-rate"
+
+        - alert: SchedulerFallbackRateHigh
+          expr: |
+            (
+              rate(orchestration_scheduler_allocations_total{fallback="true"}[5m])
+              /
+              rate(orchestration_scheduler_allocations_total[5m])
+            ) > 0.10
+          for: 5m
+          labels:
+            severity: critical
+            component: scheduler
+          annotations:
+            summary: "Taxa de fallback do scheduler acima de 10%"
+            description: "Taxa de alocação fallback é {{ $value | humanizePercentage }} (limite: 10%). Service Registry pode estar indisponível ou sem workers registrados."
+            dashboard: "https://grafana/d/orchestrator-intelligent-scheduler"
+            runbook: "https://docs/runbooks/scheduler-high-fallback"
+
+        - alert: SchedulerAllocationLatencyHigh
+          expr: |
+            histogram_quantile(0.95,
+              rate(orchestration_scheduler_allocation_duration_seconds_bucket[5m])
+            ) > 0.5
+          for: 5m
+          labels:
+            severity: warning
+            component: scheduler
+          annotations:
+            summary: "Latência de alocação do scheduler p95 acima de 500ms"
+            description: "Latência de alocação p95 é {{ $value | humanizeDuration }} (limite: 500ms). Verifique performance do Service Registry e latência de rede."
+            dashboard: "https://grafana/d/orchestrator-intelligent-scheduler"
+            runbook: "https://docs/runbooks/scheduler-high-latency"
+
+        # Alertas de Aviso
+        - alert: SchedulerDiscoveryFailureRateHigh
+          expr: |
+            (
+              rate(orchestration_scheduler_discovery_failures_total[5m])
+              /
+              rate(orchestration_scheduler_allocations_total[5m])
+            ) > 0.05
+          for: 5m
+          labels:
+            severity: warning
+            component: scheduler
+          annotations:
+            summary: "Taxa de falha de descoberta de workers acima de 5%"
+            description: "Taxa de falha de descoberta é {{ $value | humanizePercentage }} (limite: 5%). Verifique conectividade com Service Registry."
+            dashboard: "https://grafana/d/orchestrator-intelligent-scheduler"
+
+        - alert: SchedulerCacheHitRateLow
+          expr: |
+            (
+              rate(orchestration_scheduler_cache_hits_total[5m])
+              /
+              rate(orchestration_scheduler_allocations_total[5m])
+            ) < 0.50
+          for: 10m
+          labels:
+            severity: warning
+            component: scheduler
+          annotations:
+            summary: "Taxa de cache hit do scheduler abaixo de 50%"
+            description: "Taxa de cache hit é {{ $value | humanizePercentage }} (limite: 50%). Considere aumentar TTL do cache ou analisar diversidade de tickets."
+            dashboard: "https://grafana/d/orchestrator-intelligent-scheduler"
+
+        - alert: SchedulerNoWorkersDiscovered
+          expr: |
+            rate(orchestration_scheduler_rejections_total{reason="no_workers"}[5m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+            component: scheduler
+          annotations:
+            summary: "Scheduler não está encontrando workers para alocações"
+            description: "Scheduler está rejeitando alocações por falta de workers descobertos. Verifique registro de workers no Service Registry."
+            dashboard: "https://grafana/d/orchestrator-intelligent-scheduler"
+
+        # Alertas Informativos
+        - alert: SchedulerAllocationLatencyElevated
+          expr: |
+            histogram_quantile(0.95,
+              rate(orchestration_scheduler_allocation_duration_seconds_bucket[5m])
+            ) > 0.2
+          for: 10m
+          labels:
+            severity: info
+            component: scheduler
+          annotations:
+            summary: "Latência de alocação do scheduler p95 acima do SLO (200ms)"
+            description: "Latência de alocação p95 é {{ $value | humanizeDuration }} (SLO: 200ms). Monitore para degradação adicional."
+            dashboard: "https://grafana/d/orchestrator-intelligent-scheduler"
+
+        - alert: SchedulerDiscoveryTimeoutIncreasing
+          expr: |
+            rate(orchestration_scheduler_discovery_failures_total{error_type="timeout"}[5m]) > 0
+          for: 5m
+          labels:
+            severity: info
+            component: scheduler
+          annotations:
+            summary: "Timeouts de descoberta de workers detectados"
+            description: "Timeouts de descoberta ocorrendo a {{ $value }} por segundo. Service Registry pode estar lento."
+            dashboard: "https://grafana/d/orchestrator-intelligent-scheduler"

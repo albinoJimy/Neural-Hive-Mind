@@ -1,0 +1,143 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "specialist-architecture.fullname" . }}
+  labels:
+    {{- include "specialist-architecture.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: {{ .Values.deployment.strategy.type }}
+    {{- if eq .Values.deployment.strategy.type "RollingUpdate" }}
+    rollingUpdate:
+      maxSurge: {{ .Values.deployment.strategy.rollingUpdate.maxSurge }}
+      maxUnavailable: {{ .Values.deployment.strategy.rollingUpdate.maxUnavailable }}
+    {{- end }}
+  selector:
+    matchLabels:
+      {{- include "specialist-architecture.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.config.prometheus.port }}"
+        prometheus.io/path: "/metrics"
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "specialist-architecture.selectorLabels" . | nindent 8 }}
+        {{- with .Values.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: specialist-architecture
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- with .Values.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.startupProbe }}
+        startupProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        ports:
+        - name: grpc
+          containerPort: {{ .Values.config.grpc.port }}
+          protocol: TCP
+        - name: http
+          containerPort: {{ .Values.config.http.port }}
+          protocol: TCP
+        - name: metrics
+          containerPort: {{ .Values.config.prometheus.port }}
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: {{ .Values.config.environment | quote }}
+        - name: LOG_LEVEL
+          value: {{ .Values.config.logLevel | quote }}
+        - name: ENABLE_JWT_AUTH
+          value: {{ .Values.config.enableJwtAuth | ternary "true" "false" | quote }}
+        {{- if .Values.secrets.jwtSecretKey }}
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "specialist-architecture.secretName" . }}
+              key: jwt_secret_key
+        {{- end }}
+        - name: ENABLE_PII_DETECTION
+          value: "false"
+        - name: MLFLOW_TRACKING_URI
+          value: {{ .Values.config.mlflow.trackingUri | quote }}
+        - name: MLFLOW_EXPERIMENT_NAME
+          value: {{ .Values.config.mlflow.experimentName | quote }}
+        - name: MLFLOW_MODEL_NAME
+          value: {{ .Values.config.mlflow.modelName | quote }}
+        - name: MLFLOW_MODEL_STAGE
+          value: {{ .Values.config.mlflow.modelStage | quote }}
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "specialist-architecture.secretName" . }}
+              key: mongodb_uri
+        - name: MONGODB_DATABASE
+          value: {{ .Values.config.mongodb.database | quote }}
+        - name: NEO4J_URI
+          value: {{ .Values.config.neo4j.uri | quote }}
+        - name: NEO4J_USER
+          value: {{ .Values.config.neo4j.user | quote }}
+        - name: NEO4J_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "specialist-architecture.secretName" . }}
+              key: neo4j_password
+        - name: NEO4J_DATABASE
+          value: {{ .Values.config.neo4j.database | quote }}
+        - name: REDIS_CLUSTER_NODES
+          value: {{ .Values.config.redis.clusterNodes | quote }}
+        - name: REDIS_SSL_ENABLED
+          value: {{ .Values.config.redis.sslEnabled | quote }}
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: {{ .Values.config.otel.endpoint | quote }}
+        - name: GRPC_PORT
+          value: {{ .Values.config.grpc.port | quote }}
+        - name: HTTP_PORT
+          value: {{ .Values.config.http.port | quote }}
+        - name: PROMETHEUS_PORT
+          value: {{ .Values.config.prometheus.port | quote }}
+        - name: ENABLE_LEDGER
+          value: {{ .Values.config.enableLedger | default "true" | quote }}
+        - name: LEDGER_REQUIRED
+          value: {{ .Values.config.ledgerRequired | default "false" | quote }}
+        - name: LEDGER_INIT_RETRY_ATTEMPTS
+          value: {{ .Values.config.ledgerInitRetryAttempts | default "5" | quote }}
+        - name: LEDGER_INIT_RETRY_MAX_WAIT_SECONDS
+          value: {{ .Values.config.ledgerInitRetryMaxWaitSeconds | default "30" | quote }}
+        - name: STARTUP_SKIP_WARMUP_ON_DEPENDENCY_FAILURE
+          value: {{ .Values.config.startupSkipWarmupOnDependencyFailure | default "true" | quote }}
+        - name: STARTUP_DEPENDENCY_CHECK_TIMEOUT_SECONDS
+          value: {{ .Values.config.startupDependencyCheckTimeoutSeconds | default "10" | quote }}
+        livenessProbe:
+          {{- toYaml .Values.livenessProbe | nindent 10 }}
+        readinessProbe:
+          {{- toYaml .Values.readinessProbe | nindent 10 }}
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        volumeMounts:
+        - name: mlruns
+          mountPath: /app/mlruns
+      volumes:
+      - name: mlruns
+        emptyDir: {}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

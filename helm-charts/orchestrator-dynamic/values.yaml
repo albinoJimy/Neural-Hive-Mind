@@ -66,6 +66,35 @@ config:
     enableIntelligentScheduler: true
     maxParallelTickets: 100
 
+  # ML Scheduling Optimization (Dual-mode: Remote Optimizer + Local Fallback)
+  # Remote Optimizer-Agents Integration (Prophet/ARIMA + Q-learning RL)
+  optimizer:
+    enabled: false  # Habilitar após validação em staging
+    endpoint: optimizer-agents.neural-hive-estrategica.svc.cluster.local:50051
+    grpcTimeout: 10
+    forecastHorizonMinutes: 60  # Horizonte de previsão de carga
+    recommendationConfidenceThreshold: 0.7  # Confiança mínima para aplicar recomendação RL (70%)
+    fallbackOnFailure: true  # Permitir fallback se optimizer indisponível
+
+  # ML Predictions e Feature Engineering
+  ml:
+    # Local Load Prediction (Fallback Heurístico)
+    localLoadPrediction:
+      enabled: true  # Sempre habilitado para fallback
+      cacheTtlSeconds: 30  # TTL do cache Redis
+      windowMinutes: 60  # Janela de dados históricos
+      queuePredictionWeight: 0.2  # Peso de queue time no score
+      loadPredictionWeight: 0.1  # Peso de carga no score
+
+    # Allocation Outcomes Feedback Loop (para RL Training)
+    allocationOutcomes:
+      enabled: true
+      topic: ml.allocation_outcomes
+      publishAsync: true
+
+    # Timeouts e Otimização
+    optimizationTimeoutSeconds: 2
+
   sla:
     defaultTimeoutMs: 3600000
     checkIntervalSeconds: 30
@@ -80,6 +109,219 @@ config:
   observability:
     otelExporterEndpoint: http://otel-collector.observability.svc.cluster.local:4317
     prometheusPort: 9090
+
+  # Vault Integration
+  # Habilitado por padrão em produção para gerenciamento seguro de credenciais
+  vault:
+    enabled: true  # Mudar para true em produção para zero-trust security
+    address: http://vault.vault.svc.cluster.local:8200
+    namespace: ""
+    authMethod: kubernetes
+    kubernetesRole: orchestrator-dynamic
+    tokenPath: /vault/secrets/token
+    mountKv: secret
+    mountDatabase: database
+    timeoutSeconds: 5
+    maxRetries: 3
+    failOpen: true  # Fallback para credenciais estáticas se Vault indisponível
+
+  # SPIFFE Integration
+  # Habilitado por padrão em produção para autenticação mTLS entre serviços
+  spiffe:
+    enabled: true  # Mudar para true em produção para zero-trust authentication
+    socketPath: unix:///run/spire/sockets/agent.sock
+    trustDomain: neural-hive.local
+    jwtAudience: service-registry.neural-hive.local  # Audience para Service Registry
+    enableX509: true  # Habilitar X.509-SVID para mTLS
+
+    # ClickHouse para dados históricos (usado pelo Optimizer Agents)
+    clickhouse:
+      host: clickhouse.clickhouse.svc.cluster.local
+      port: 9000
+      user: optimizer
+      passwordSecret: clickhouse-optimizer-password  # Secret name
+      database: neural_hive
+      queryTimeoutSeconds: 30
+      connectionPoolSize: 10
+      retryAttempts: 3
+
+    # Prophet configuration (Facebook forecasting)
+    prophet:
+      seasonalityMode: additive  # additive ou multiplicative
+      changepointPriorScale: 0.05  # Detecta mudanças de tendência (0.001-0.5)
+      seasonalityPriorScale: 10  # Peso de sazonalidades
+      dailySeasonality: true
+      weeklySeasonality: true
+      yearlySeasonality: true
+      holidays: brazil  # Feriados brasileiros
+
+    # Scheduling Optimizer (Q-learning Reinforcement Learning)
+    scheduling:
+      epsilon: 0.1  # Taxa de exploração vs exploitation (10% exploração)
+      learningRate: 0.01  # Taxa de aprendizado
+      discountFactor: 0.95  # Fator de desconto para recompensas futuras (gamma)
+      snapshotInterval: 100  # Salvar Q-table a cada N updates
+      rewardWeights:  # Pesos para reward function
+        slaCompliance: 0.4
+        throughput: 0.3
+        resourceEfficiency: 0.2
+        cost: 0.1
+
+    # Training pipeline
+    training:
+      enabled: true
+      intervalHours: 24  # Retreinamento diário
+      windowDays: 540  # Janela de 18 meses (540 dias)
+      minSamplesProphet: 1000  # Mínimo de amostras para Prophet
+      minSamplesArima: 100  # Mínimo de amostras para ARIMA fallback
+      validationSplit: 0.2  # 20% para validação
+      earlyStoppingPatience: 5  # Parar se não melhorar por N epochs
+
+    # Forecasting horizons e configurações
+    forecasting:
+      horizons: [60, 360, 1440]  # 1h, 6h, 24h em minutos
+      defaultHorizon: 60
+      confidenceIntervals: true  # Retornar bandas de confiança (yhat_lower/upper)
+      interpolateGaps: true  # Interpolar gaps < 3h nos dados
+      removeOutliers: true  # Remover outliers > 3 desvios padrão
+
+    # Model and forecast caching (Redis)
+    caching:
+      enabled: true
+      modelTTL: 3600  # Cache de modelos: 1h (segundos)
+      forecastTTL: 300  # Cache de previsões: 5min (segundos)
+      qTableTTL: 7200  # Cache de Q-table: 2h (segundos)
+      redisKeyPrefix: optimizer_ml_
+
+    # Feature engineering
+    features:
+      ticketVolumeHourly: true
+      avgDurationByType: true
+      slaComplianceRate: true
+      resourceUtilizationP95: true
+      queueDepthAvg: true
+      bottleneckIndicators: true
+
+    # A/B Testing configuration
+    experimentManager:
+      enabled: false  # Habilitar para A/B tests
+      controlGroupPct: 0.2  # 20% usa heurística padrão
+      treatmentGroupPct: 0.8  # 80% usa ML
+      minSamplesSignificance: 1000
+      confidenceLevel: 0.95
+
+    # MLflow integration
+    mlflow:
+      enabled: true
+      trackingUri: http://mlflow.mlflow.svc.cluster.local:5000
+      experimentName: optimizer-scheduling
+      registryUri: http://mlflow.mlflow.svc.cluster.local:5000
+      artifactLocation: s3://neural-hive-mlflow/artifacts
+      modelStage: Production  # Carregar modelos em stage Production
+
+    # Drift Detection
+    drift:
+      enabled: true
+      checkWindowDays: 7  # Janela de análise para drift
+      psiThreshold: 0.25  # PSI > 0.25 = drift significativo
+      maeRatioThreshold: 1.5  # MAE atual / MAE treino > 1.5 = degradação crítica
+      ksPvalueThreshold: 0.05  # P-value K-S test < 0.05 = shift significativo
+      cronSchedule: "0 3 * * *"  # Diário às 3 AM UTC (após training)
+
+    # Training Job Configuration
+    trainingJob:
+      enabled: true
+      schedule: "0 2 * * *"  # Diário às 2 AM UTC
+      timeoutSeconds: 3600  # 1 hora
+      backoffLimit: 2  # Retry até 2 vezes
+      successfulJobsHistoryLimit: 3
+      failedJobsHistoryLimit: 3
+      resources:
+        requests:
+          cpu: 1000m
+          memory: 2Gi
+        limits:
+          cpu: 2000m
+          memory: 4Gi
+      # Habilitar backfill de erros históricos
+      backfillErrors: false
+      # Override training window (default: usa ml.training.windowDays)
+      windowDaysOverride: null
+
+  # Prometheus Pushgateway (para métricas de CronJobs)
+  prometheusPushgateway:
+    url: http://prometheus-pushgateway.monitoring.svc.cluster.local:9091
+
+  # OPA Policy Engine
+  opa:
+    enabled: true
+    host: opa.neural-hive-orchestration.svc.cluster.local
+    port: 8181
+    timeoutSeconds: 2
+    retryAttempts: 3
+    cacheTtlSeconds: 30
+    failOpen: false  # fail-closed por padrão
+
+    # Policy Parameters
+    policies:
+      maxConcurrentTickets: 100
+      allowedCapabilities:
+        - code_generation
+        - deployment
+        - testing
+        - validation
+        - analysis
+        - optimization
+      resourceLimits:
+        maxCpu: "4000m"
+        maxMemory: "8Gi"
+      timeoutLimits:
+        critical: 7200000  # 2h
+        high: 3600000      # 1h
+        medium: 1800000    # 30min
+        low: 900000        # 15min
+      retryLimits:
+        critical: 5
+        high: 3
+        medium: 2
+        low: 1
+
+    # Feature Flags
+    featureFlags:
+      intelligentSchedulerEnabled: true
+      burstCapacityEnabled: true
+      burstThreshold: 0.8
+      predictiveAllocationEnabled: false
+      autoScalingEnabled: false
+      schedulerNamespaces:
+        - production
+        - staging
+      premiumTenants: []
+
+# OPA Deployment
+opa:
+  enabled: true
+  replicas: 2
+  image:
+    repository: openpolicyagent/opa
+    tag: 0.60.0-rootless
+    pullPolicy: IfNotPresent
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  service:
+    type: ClusterIP
+    port: 8181
+
+  config:
+    logLevel: info
+    logFormat: json
 
 secrets:
   postgresUser: temporal

@@ -1,0 +1,112 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: orchestrator-opa-alerts
+  namespace: neural-hive-orchestration
+  labels:
+    prometheus: kube-prometheus
+    app: orchestrator-dynamic
+    component: policy-engine
+spec:
+  groups:
+  - name: orchestrator-opa
+    interval: 30s
+    rules:
+
+    # Alta taxa de rejeições
+    - alert: OPAHighRejectionRate
+      expr: |
+        rate(orchestration_opa_policy_rejections_total[5m]) /
+        rate(orchestration_opa_validations_total[5m]) > 0.1
+      for: 5m
+      labels:
+        severity: warning
+        component: orchestrator-dynamic
+        layer: orchestration
+      annotations:
+        summary: "Alta taxa de rejeições OPA (>10%)"
+        description: "{{ $value | humanizePercentage }} dos tickets estão sendo rejeitados por políticas OPA"
+
+    # Latência alta
+    - alert: OPAHighLatency
+      expr: |
+        histogram_quantile(0.95,
+          rate(orchestration_opa_validation_duration_seconds_bucket[5m])
+        ) > 0.1
+      for: 5m
+      labels:
+        severity: warning
+        component: orchestrator-dynamic
+        layer: orchestration
+      annotations:
+        summary: "Latência alta em validações OPA (P95 >100ms)"
+        description: "Latência P95: {{ $value | humanizeDuration }}"
+
+    # Taxa de erro alta
+    - alert: OPAHighErrorRate
+      expr: |
+        rate(orchestration_opa_evaluation_errors_total[5m]) /
+        rate(orchestration_opa_validations_total[5m]) > 0.05
+      for: 5m
+      labels:
+        severity: critical
+        component: orchestrator-dynamic
+        layer: orchestration
+      annotations:
+        summary: "Alta taxa de erros OPA (>5%)"
+        description: "{{ $value | humanizePercentage }} das validações estão falhando"
+
+    # OPA indisponível
+    - alert: OPAUnavailable
+      expr: |
+        sum(rate(orchestration_opa_evaluation_errors_total{error_type="connection"}[5m])) > 0
+      for: 2m
+      labels:
+        severity: critical
+        component: orchestrator-dynamic
+        layer: orchestration
+      annotations:
+        summary: "OPA server indisponível"
+        description: "Orchestrator não consegue conectar ao OPA server"
+
+    # Rejeições críticas
+    - alert: OPACriticalPolicyViolations
+      expr: |
+        rate(orchestration_opa_policy_rejections_total{severity="critical"}[5m]) > 0
+      for: 1m
+      labels:
+        severity: critical
+        component: orchestrator-dynamic
+        layer: orchestration
+      annotations:
+        summary: "Violações críticas de políticas OPA"
+        description: "Tickets com risk_band=critical estão sendo rejeitados: {{ $value }}/s"
+
+    # Cache hit rate baixo
+    - alert: OPALowCacheHitRate
+      expr: |
+        rate(orchestration_opa_cache_hits_total[5m]) /
+        (rate(orchestration_opa_validations_total[5m]) +
+         rate(orchestration_opa_cache_hits_total[5m])) < 0.5
+      for: 10m
+      labels:
+        severity: info
+        component: orchestrator-dynamic
+        layer: orchestration
+      annotations:
+        summary: "Cache hit rate baixo (<50%)"
+        description: "Considerar aumentar TTL do cache ou revisar políticas. Cache hit rate: {{ $value | humanizePercentage }}"
+
+    # Circuit breaker aberto
+    - alert: OPACircuitBreakerOpen
+      expr: |
+        orchestration_opa_circuit_breaker_state{circuit_name="opa_client"} == 2
+      for: 2m
+      labels:
+        severity: critical
+        component: orchestrator-dynamic
+        layer: orchestration
+      annotations:
+        summary: "Circuit breaker OPA aberto"
+        description: "Circuit breaker está aberto após múltiplas falhas consecutivas. Tickets não estão sendo validados por políticas OPA. Verifique saúde do OPA server."
+        runbook_url: "https://docs.neural-hive.local/runbooks/opa-circuit-breaker-open"

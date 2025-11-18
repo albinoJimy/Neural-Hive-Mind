@@ -13,15 +13,19 @@ logger = structlog.get_logger()
 class KafkaProducerClient:
     """Producer Kafka para publicação de tickets no tópico execution.tickets."""
 
-    def __init__(self, config):
+    def __init__(self, config, sasl_username_override=None, sasl_password_override=None):
         """
         Inicializa o producer Kafka.
 
         Args:
             config: Configurações da aplicação
+            sasl_username_override: Username SASL override (ex: de Vault)
+            sasl_password_override: Password SASL override (ex: de Vault)
         """
         self.config = config
         self.producer = None
+        self.sasl_username = sasl_username_override if sasl_username_override is not None else config.kafka_sasl_username
+        self.sasl_password = sasl_password_override if sasl_password_override is not None else config.kafka_sasl_password
 
     async def initialize(self):
         """Inicializa o producer Kafka."""
@@ -105,6 +109,71 @@ class KafkaProducerClient:
                 'Erro ao publicar ticket no Kafka',
                 ticket_id=ticket_id,
                 topic=topic,
+                error=str(e),
+                exc_info=True
+            )
+            raise
+
+    async def send(
+        self,
+        topic: str,
+        value: Dict[str, Any],
+        key: str = None
+    ) -> Dict[str, Any]:
+        """
+        Publica uma mensagem genérica no tópico Kafka.
+
+        Este método complementa publish_ticket() e permite publicação
+        de eventos não-ticket (ex: allocation outcomes, métricas ML).
+
+        Args:
+            topic: Tópico Kafka
+            value: Payload da mensagem (será serializado como JSON)
+            key: Chave da mensagem (opcional)
+
+        Returns:
+            Resultado da publicação contendo offset e metadata
+
+        Raises:
+            KafkaError: Em caso de falha na publicação
+        """
+        if not self.producer:
+            raise RuntimeError('Producer não inicializado. Chame initialize() primeiro.')
+
+        try:
+            # Publicar mensagem
+            future = await self.producer.send(
+                topic=topic,
+                key=key,
+                value=value
+            )
+
+            # Aguardar confirmação
+            metadata = await future
+
+            result = {
+                'published': True,
+                'topic': metadata.topic,
+                'partition': metadata.partition,
+                'offset': metadata.offset,
+                'timestamp': metadata.timestamp
+            }
+
+            logger.debug(
+                'Mensagem publicada com sucesso no Kafka',
+                topic=metadata.topic,
+                partition=metadata.partition,
+                offset=metadata.offset,
+                key=key
+            )
+
+            return result
+
+        except KafkaError as e:
+            logger.error(
+                'Erro ao publicar mensagem no Kafka',
+                topic=topic,
+                key=key,
                 error=str(e),
                 exc_info=True
             )

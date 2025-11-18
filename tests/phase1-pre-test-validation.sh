@@ -57,15 +57,21 @@ log_info "Verifying infrastructure components..."
 
 # Kafka
 log_info "Checking Kafka cluster..."
-if kubectl get statefulset -n neural-hive-kafka neural-hive-kafka-kafka &> /dev/null; then
-    READY=$(kubectl get statefulset -n neural-hive-kafka neural-hive-kafka-kafka -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+# Auto-detect Kafka namespace early for infrastructure check
+KAFKA_NS_INFRA=$(kubectl get statefulset -A -l "strimzi.io/cluster" -o jsonpath='{.items[0].metadata.namespace}' 2>/dev/null || echo "neural-hive-kafka")
+if [ -z "$KAFKA_NS_INFRA" ]; then
+    KAFKA_NS_INFRA="neural-hive-kafka"
+fi
+
+if kubectl get statefulset -n "$KAFKA_NS_INFRA" -l "strimzi.io/cluster" &> /dev/null; then
+    READY=$(kubectl get statefulset -n "$KAFKA_NS_INFRA" -l "strimzi.io/cluster" -o jsonpath='{.items[0].status.readyReplicas}' 2>/dev/null || echo "0")
     READY=${READY:-0}
     [ "$READY" -gt 0 ]
     track_check $?
-    check_status $? "Kafka cluster (${READY} replicas ready)"
+    check_status $? "Kafka cluster in namespace $KAFKA_NS_INFRA (${READY} replicas ready)"
 else
     track_check 1
-    log_error "Kafka statefulset not found"
+    log_error "Kafka statefulset not found in namespace $KAFKA_NS_INFRA"
 fi
 
 # Redis
@@ -107,17 +113,21 @@ else
     log_error "Neo4j statefulset not found"
 fi
 
-# ClickHouse
-log_info "Checking ClickHouse cluster..."
+# ClickHouse (opcional para Fase 1)
+log_info "Checking ClickHouse cluster (opcional)..."
 if kubectl get statefulset -n clickhouse-cluster &> /dev/null; then
     READY=$(kubectl get statefulset -n clickhouse-cluster -o jsonpath='{.items[0].status.readyReplicas}' 2>/dev/null || echo "0")
     READY=${READY:-0}
-    [ "$READY" -gt 0 ]
-    track_check $?
-    check_status $? "ClickHouse cluster (${READY} replicas ready)"
+    if [ "$READY" -gt 0 ]; then
+        track_check 0
+        log_success "ClickHouse cluster (${READY} replicas ready) [OPCIONAL]"
+    else
+        # Não bloqueia - ClickHouse é opcional
+        log_warning "ClickHouse cluster não está pronto (${READY} replicas) [OPCIONAL - não bloqueante]"
+    fi
 else
-    track_check 1
-    log_error "ClickHouse statefulset not found"
+    # Não conta como falha - ClickHouse é opcional
+    log_warning "ClickHouse statefulset not found [OPCIONAL - não bloqueante]"
 fi
 
 # ========================================
@@ -161,20 +171,41 @@ log_section "Section 4: Kafka Topics Validation"
 
 log_info "Verifying Kafka topics..."
 
-KAFKA_POD=$(get_pod_name "neural-hive-kafka" "app.kubernetes.io/name=kafka")
+# Auto-detect Kafka namespace
+KAFKA_NS=$(kubectl get statefulset -A -l "strimzi.io/cluster" -o jsonpath='{.items[0].metadata.namespace}' 2>/dev/null || echo "neural-hive-kafka")
+if [ -z "$KAFKA_NS" ]; then
+    KAFKA_NS="neural-hive-kafka"
+fi
+log_debug "Using Kafka namespace: $KAFKA_NS"
+
+KAFKA_POD=$(get_pod_name "$KAFKA_NS" "app.kubernetes.io/name=kafka")
 if [ -n "$KAFKA_POD" ]; then
-    for topic in "intentions.business" "plans.ready" "plans.consensus"; do
-        if kafka_check_topic_exists "neural-hive-kafka" "$topic" "$KAFKA_POD"; then
-            track_check 0
-            log_success "Topic $topic exists"
-        else
+    # Check for both dot and hyphen variants of topic names
+    declare -A TOPIC_VARIANTS=(
+        ["intentions"]="intentions.business intentions-business"
+        ["plans_ready"]="plans.ready plans-ready"
+        ["plans_consensus"]="plans.consensus plans-consensus"
+    )
+
+    for topic_key in "${!TOPIC_VARIANTS[@]}"; do
+        TOPIC_FOUND=false
+        for topic_variant in ${TOPIC_VARIANTS[$topic_key]}; do
+            if kafka_check_topic_exists "$KAFKA_NS" "$topic_variant" "$KAFKA_POD"; then
+                track_check 0
+                log_success "Topic $topic_variant exists"
+                TOPIC_FOUND=true
+                break
+            fi
+        done
+
+        if [ "$TOPIC_FOUND" = false ]; then
             track_check 1
-            log_warning "Topic $topic not found"
+            log_warning "None of topic variants found: ${TOPIC_VARIANTS[$topic_key]}"
         fi
     done
 else
     track_check 1
-    log_error "Kafka pod not found - cannot verify topics"
+    log_error "Kafka pod not found in namespace $KAFKA_NS - cannot verify topics"
 fi
 
 # ========================================

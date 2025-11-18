@@ -1,0 +1,13 @@
+# Valores globais para deployment EKS
+global:
+  cluster: "neural-hive-eks"
+  environment: "dev"
+
+# Image pull secrets
+imagePullSecrets:
+  - name: ecr-secret
+
+# Configurações comuns para schema registry (se necessário)
+config:
+  schemaRegistry:
+    url: "http://schema-registry.neural-hive-kafka.svc.cluster.local:8081"

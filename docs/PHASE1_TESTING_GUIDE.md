@@ -20,7 +20,7 @@ Observability (Prometheus Metrics, Jaeger Traces, Grafana Dashboards)
 
 ### Componentes Validados
 
-- **Camadas de Memória**: Redis, MongoDB, Neo4j, ClickHouse
+- **Camadas de Memória**: Redis, MongoDB, Neo4j (ClickHouse é opcional)
 - **Gateway de Intenções**: Captura e roteamento de intents
 - **Semantic Translation Engine**: Geração de planos cognitivos
 - **5 Especialistas Neurais**: Avaliação multi-perspectiva
@@ -28,6 +28,8 @@ Observability (Prometheus Metrics, Jaeger Traces, Grafana Dashboards)
 - **Ledger Cognitivo**: Auditoria e rastreabilidade
 - **Feromônios Digitais**: Coordenação emergente
 - **Stack de Observabilidade**: Métricas, traces e dashboards
+
+**Nota:** ClickHouse é opcional para a Fase 1. Os testes continuarão mesmo se ClickHouse não estiver deployado.
 
 ---
 
@@ -58,6 +60,17 @@ jq --version
 kubectl cluster-info
 kubectl get nodes
 ```
+
+### Autodetecção de Namespace e Tópicos Kafka
+
+Os scripts de teste detectam automaticamente o namespace do Kafka buscando StatefulSets com label `strimzi.io/cluster`. Se não encontrado, usa o namespace padrão `neural-hive-kafka`.
+
+**Nomes de tópicos aceitos:**
+- `intentions.business` ou `intentions-business`
+- `plans.ready` ou `plans-ready`
+- `plans.consensus` ou `plans-consensus`
+
+Os testes tentam publicar/consumir usando ambas as variantes (ponto e hífen) e utilizam a primeira que funcionar. Isso garante compatibilidade com diferentes configurações do Kafka.
 
 ### Recursos Mínimos Recomendados
 
@@ -249,7 +262,7 @@ FASE 2: Testando Fluxo Completo
 
 ### Relatórios Gerados
 
-Os testes geram 2 tipos de relatórios no diretório `tests/results/`:
+Os testes geram 3 tipos de relatórios no diretório `tests/results/`:
 
 **1. Relatório JSON** (`phase1-test-report-YYYYMMDD-HHMMSS.json`)
 ```json
@@ -299,6 +312,71 @@ Os testes geram 2 tipos de relatórios no diretório `tests/results/`:
 
 ✅ **All tests passed!**
 ```
+
+**3. Relatório Executivo** (`PHASE1_E2E_EXECUTIVE_REPORT.md`)
+
+Este relatório consolida informações dos relatórios JSON, Markdown e métricas de performance do Prometheus em um único documento executivo.
+
+**Geração Automática**: O relatório executivo é gerado automaticamente ao final dos testes E2E.
+
+**Geração Manual**: Para regenerar o relatório com dados atualizados:
+
+```bash
+# Executar script de geração de relatório executivo
+./scripts/generate_e2e_executive_report.sh \
+  tests/results/phase1-test-report-YYYYMMDD-HHMMSS.json \
+  tests/results/phase1-test-summary-YYYYMMDD-HHMMSS.md \
+  tests/results/performance-metrics-YYYYMMDD-HHMMSS.txt
+```
+
+**Conteúdo do Relatório**:
+- Status geral da execução dos testes
+- Tabela de resumo com testes executados, aprovados e falhados
+- Latências observadas (média, mínima, máxima, P95)
+- Cenários testados
+- Trace IDs (Correlation IDs e Intent IDs)
+- Métricas de performance do Prometheus (se disponíveis):
+  - Latências P95 dos componentes (Plan Generation, Specialist Evaluation, Consensus, Ledger Write)
+  - Throughput do sistema (Plans, Evaluations, Decisions)
+  - Taxas de sucesso (Plan Generation, Consensus, Specialist Availability)
+- Recomendações e próximos passos baseados nos resultados
+
+**Exemplo de estrutura**:
+```markdown
+# Relatório Executivo - Teste End-to-End Fase 1
+## Neural Hive-Mind - Sistema Cognitivo Distribuído
+
+**Data de Execução**: 2025-01-15 10:30:00 UTC
+**Status Geral**: ✅ SUCESSO COMPLETO
+
+## 📊 Resumo Executivo
+
+| Métrica | Valor | Status |
+|---------|-------|--------|
+| **Testes Executados** | 28 | - |
+| **Testes Aprovados** | 28 | ✅ |
+| **Testes Falhados** | 0 | ✅ |
+| **Taxa de Sucesso** | 100% | ✅ |
+
+...
+```
+
+**Extração de Métricas de Performance**:
+
+Para incluir métricas do Prometheus no relatório executivo, execute:
+
+```bash
+# Port-forward Prometheus (em uma janela separada)
+kubectl port-forward -n monitoring svc/prometheus 9090:9090 &
+
+# Extrair métricas de performance
+./scripts/extract-performance-metrics.sh tests/results http://localhost:9090 5m
+```
+
+O script `extract-performance-metrics.sh` aceita os seguintes parâmetros:
+- `OUTPUT_DIR` (padrão: `tests/results`): Diretório de saída
+- `PROMETHEUS_URL` (padrão: `http://localhost:9090`): URL do Prometheus
+- `TIME_RANGE` (padrão: `5m`): Intervalo de tempo para as queries (ex: `5m`, `10m`, `1h`)
 
 ---
 
@@ -382,6 +460,14 @@ Os testes geram 2 tipos de relatórios no diretório `tests/results/`:
    ```bash
    curl -s http://localhost:9090/api/v1/query?query=neural_hive_specialist_evaluations_total | jq
    ```
+
+4. **Extrair métricas de performance (manual):**
+   ```bash
+   # Se a stack de observabilidade não estiver completamente configurada
+   ./scripts/extract-performance-metrics.sh tests/results http://localhost:9090
+   ```
+
+   Este script extrai P95 de latências e throughput dos componentes chave. Útil quando o Prometheus está parcialmente funcional.
 
 ### Problema: OPA Gatekeeper com violações
 

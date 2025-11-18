@@ -1,0 +1,2 @@
+NAME                           STATUS   ROLES           AGE   VERSION    INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION      CONTAINER-RUNTIME
+vmi2092350.contaboserver.net   Ready    control-plane   12d   v1.29.15   37.60.241.150   <none>        Ubuntu 20.04.6 LTS   5.4.0-105-generic   containerd://1.7.27

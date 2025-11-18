@@ -129,6 +129,77 @@ incident_flow_duration = Histogram(
     buckets=[10.0, 30.0, 60.0, 90.0, 120.0, 180.0, 300.0]
 )
 
+# Métricas de Validação Proativa de Tickets
+guard_agent_tickets_validated_total = Counter(
+    'guard_agent_tickets_validated_total',
+    'Total de execution tickets validados',
+    ['status', 'validator_type']
+)
+
+guard_agent_validation_duration_seconds = Histogram(
+    'guard_agent_validation_duration_seconds',
+    'Duração da validação de tickets',
+    ['validator_type'],
+    buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0]
+)
+
+guard_agent_violations_detected_total = Counter(
+    'guard_agent_violations_detected_total',
+    'Total de violações de guardrails detectadas',
+    ['violation_type', 'severity']
+)
+
+guard_agent_secrets_detected_total = Counter(
+    'guard_agent_secrets_detected_total',
+    'Total de secrets detectados em tickets',
+    ['secret_type']
+)
+
+guard_agent_approvals_pending = Gauge(
+    'guard_agent_approvals_pending',
+    'Número de tickets pendentes de aprovação humana'
+)
+
+guard_agent_approval_rate = Gauge(
+    'guard_agent_approval_rate',
+    'Percentual de tickets aprovados automaticamente'
+)
+
+guard_agent_risk_score_avg = Gauge(
+    'guard_agent_risk_score_avg',
+    'Risk score médio dos tickets validados'
+)
+
+validations_published_total = Counter(
+    'guard_agent_validations_published_total',
+    'Total de validações publicadas no Kafka',
+    ['topic', 'status']
+)
+
+trivy_scans_total = Counter(
+    'guard_agent_trivy_scans_total',
+    'Total de scans Trivy executados',
+    ['scan_type', 'status']
+)
+
+trivy_scan_duration_seconds = Histogram(
+    'guard_agent_trivy_scan_duration_seconds',
+    'Duração do scan Trivy',
+    buckets=[0.5, 1.0, 2.0, 5.0, 10.0, 30.0]
+)
+
+vault_requests_total = Counter(
+    'guard_agent_vault_requests_total',
+    'Total de requisições ao Vault',
+    ['operation', 'status']
+)
+
+vault_request_duration_seconds = Histogram(
+    'guard_agent_vault_request_duration_seconds',
+    'Duração de requisições ao Vault',
+    buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
+)
+
 
 class MetricsCollector:
     """Coletor centralizado de métricas para instrumentação"""

@@ -30,8 +30,8 @@ secrets:
   redisPassword: ""
 
 image:
-  repository: neural-hive-mind/specialist-technical
-  tag: latest
+  repository: 077878370245.dkr.ecr.us-east-1.amazonaws.com/dev/specialist-technical
+  tag: "1.0.7"
   pullPolicy: IfNotPresent
 
 deployment:

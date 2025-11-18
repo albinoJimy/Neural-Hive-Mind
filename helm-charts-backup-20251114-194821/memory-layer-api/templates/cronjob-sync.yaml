@@ -1,0 +1,76 @@
+{{- if .Values.sync.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "memory-layer-api.fullname" . }}-sync-mongodb-clickhouse
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "memory-layer-api.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sync-job
+spec:
+  schedule: {{ .Values.sync.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "memory-layer-api.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: sync-job
+          annotations:
+            sidecar.istio.io/inject: "false"
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: {{ include "memory-layer-api.serviceAccountName" . }}
+          {{- with .Values.podSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+          - name: sync
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            command:
+            - python
+            - -m
+            - src.jobs.sync_mongodb_to_clickhouse
+            env:
+            - name: ENVIRONMENT
+              value: {{ .Values.config.environment | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.config.logLevel | quote }}
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "memory-layer-api.fullname" . }}-secrets
+                  key: mongodb_uri
+            - name: MONGODB_DATABASE
+              value: {{ .Values.config.mongodb.database | quote }}
+            - name: CLICKHOUSE_HOST
+              value: {{ .Values.config.clickhouse.host | quote }}
+            - name: CLICKHOUSE_PORT
+              value: {{ .Values.config.clickhouse.port | quote }}
+            - name: CLICKHOUSE_USER
+              value: {{ .Values.config.clickhouse.user | quote }}
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "memory-layer-api.fullname" . }}-secrets
+                  key: clickhouse_password
+            - name: CLICKHOUSE_DATABASE
+              value: {{ .Values.config.clickhouse.database | quote }}
+            - name: SYNC_BATCH_SIZE
+              value: {{ .Values.sync.batchSize | quote }}
+            - name: SYNC_LOOKBACK_HOURS
+              value: {{ .Values.sync.lookbackHours | quote }}
+            - name: OTEL_ENDPOINT
+              value: {{ .Values.config.otel.endpoint | quote }}
+            {{- with .Values.securityContext }}
+            securityContext:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            resources:
+              {{- toYaml .Values.sync.resources | nindent 14 }}
+{{- end }}

@@ -1,0 +1,133 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "vault.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vault.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.server.replicas }}
+  serviceName: vault-internal
+  selector:
+    matchLabels:
+      {{- include "vault.selectorLabels" . | nindent 6 }}
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8200"
+        prometheus.io/path: "/v1/sys/metrics"
+      labels:
+        {{- include "vault.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "vault.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        fsGroup: 1000
+      containers:
+      - name: vault
+        image: "{{ .Values.server.image.repository }}:{{ .Values.server.image.tag }}"
+        command:
+        - /bin/sh
+        - -c
+        args:
+        - vault server -config=/vault/config/vault.hcl
+        ports:
+        - name: http
+          containerPort: 8200
+          protocol: TCP
+        - name: https-internal
+          containerPort: 8201
+          protocol: TCP
+        - name: metrics
+          containerPort: 8202
+          protocol: TCP
+        env:
+        - name: VAULT_ADDR
+          value: "https://127.0.0.1:8200"
+        - name: VAULT_API_ADDR
+          value: "https://{{ include "vault.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:8200"
+        - name: VAULT_CLUSTER_ADDR
+          value: "https://$(VAULT_K8S_POD_NAME).vault-internal:8201"
+        - name: VAULT_RAFT_NODE_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: VAULT_K8S_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: VAULT_K8S_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        volumeMounts:
+        - name: vault-config
+          mountPath: /vault/config
+        - name: vault-data
+          mountPath: /vault/data
+        {{- if .Values.tls.enabled }}
+        - name: vault-tls
+          mountPath: /vault/userconfig/vault-tls
+          readOnly: true
+        {{- end }}
+        livenessProbe:
+          httpGet:
+            path: /v1/sys/health?standbyok=true
+            port: 8200
+            scheme: {{ if .Values.tls.enabled }}HTTPS{{ else }}HTTP{{ end }}
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204
+            port: 8200
+            scheme: {{ if .Values.tls.enabled }}HTTPS{{ else }}HTTP{{ end }}
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+        resources:
+          {{- toYaml .Values.server.resources | nindent 10 }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: vault-config
+        configMap:
+          name: {{ include "vault.fullname" . }}-config
+      {{- if .Values.tls.enabled }}
+      - name: vault-tls
+        secret:
+          secretName: {{ .Values.tls.secretName }}
+      {{- end }}
+      {{- with .Values.server.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.server.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.server.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  volumeClaimTemplates:
+  - metadata:
+      name: vault-data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: {{ .Values.server.dataStorage.storageClass }}
+      resources:
+        requests:
+          storage: {{ .Values.server.dataStorage.size }}

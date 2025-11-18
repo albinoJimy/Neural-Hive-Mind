@@ -54,6 +54,37 @@ class Settings(BaseSettings):
         description="Endpoint do coletor OpenTelemetry"
     )
 
+    # Vault Integration
+    VAULT_ENABLED: bool = Field(default=False, description="Habilitar integração com Vault")
+    VAULT_ADDRESS: str = Field(
+        default="http://vault.vault.svc.cluster.local:8200",
+        description="Endereço do servidor Vault"
+    )
+    VAULT_KUBERNETES_ROLE: str = Field(
+        default="service-registry",
+        description="Role Kubernetes para autenticação Vault"
+    )
+    VAULT_TOKEN_PATH: str = Field(
+        default="/vault/secrets/token",
+        description="Caminho para arquivo de token Vault"
+    )
+    VAULT_MOUNT_KV: str = Field(default="secret", description="Mount point do KV secrets")
+
+    # SPIFFE Integration
+    SPIFFE_ENABLED: bool = Field(default=False, description="Habilitar integração com SPIFFE")
+    SPIFFE_SOCKET_PATH: str = Field(
+        default="unix:///run/spire/sockets/agent.sock",
+        description="Caminho do socket da SPIRE Workload API"
+    )
+    SPIFFE_TRUST_DOMAIN: str = Field(
+        default="neural-hive.local",
+        description="Trust domain SPIFFE"
+    )
+    SPIFFE_VERIFY_PEER: bool = Field(
+        default=True,
+        description="Verificar peer SPIFFE IDs em chamadas gRPC"
+    )
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

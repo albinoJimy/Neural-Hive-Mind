@@ -1,0 +1,163 @@
+---
+# Schema ClickHouse para ML Predictive Scheduling
+#
+# Define tabelas para dados históricos de execução e métricas de telemetria
+# usadas pelo LoadPredictor e SchedulingOptimizer para treinamento e previsões
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clickhouse-ml-schema
+  namespace: clickhouse
+  labels:
+    app: clickhouse
+    component: ml-data-pipeline
+data:
+  init-ml-schema.sql: |
+    -- Database para dados históricos ML
+    CREATE DATABASE IF NOT EXISTS neural_hive;
+
+    -- Tabela: execution_logs
+    -- Armazena logs de execução de tickets para análise de padrões temporais
+    CREATE TABLE IF NOT EXISTS neural_hive.execution_logs (
+        timestamp DateTime64(3) CODEC(DoubleDelta, LZ4),
+        ticket_id String CODEC(ZSTD(1)),
+        task_type LowCardinality(String),
+        risk_band LowCardinality(String),
+        actual_duration_ms UInt32 CODEC(T64, LZ4),
+        estimated_duration_ms UInt32 CODEC(T64, LZ4),
+        status LowCardinality(String),
+        worker_id String CODEC(ZSTD(1)),
+        resource_cpu UInt16 CODEC(T64, LZ4),
+        resource_memory UInt32 CODEC(T64, LZ4),
+        sla_threshold_ms UInt32 CODEC(T64, LZ4),
+        retry_count UInt8,
+        error_type LowCardinality(String),
+        namespace LowCardinality(String) DEFAULT 'default',
+        service LowCardinality(String) DEFAULT 'worker-agents'
+    )
+    ENGINE = MergeTree()
+    PARTITION BY toYYYYMM(timestamp)
+    ORDER BY (timestamp, task_type, risk_band)
+    TTL timestamp + INTERVAL 540 DAY  -- 18 meses
+    SETTINGS
+        index_granularity = 8192,
+        ttl_only_drop_parts = 1;
+
+    -- Índices para queries otimizadas
+    CREATE INDEX IF NOT EXISTS idx_status ON neural_hive.execution_logs (status) TYPE minmax GRANULARITY 4;
+    CREATE INDEX IF NOT EXISTS idx_task_type_risk ON neural_hive.execution_logs (task_type, risk_band) TYPE set(100) GRANULARITY 4;
+
+    -- Tabela: telemetry_metrics
+    -- Armazena métricas de telemetria (CPU, memória, workers ativos, filas)
+    CREATE TABLE IF NOT EXISTS neural_hive.telemetry_metrics (
+        timestamp DateTime64(3) CODEC(DoubleDelta, LZ4),
+        service LowCardinality(String),
+        metric_name LowCardinality(String),
+        metric_value Float64 CODEC(Gorilla, LZ4),
+        labels Map(String, String) CODEC(ZSTD(1))
+    )
+    ENGINE = MergeTree()
+    PARTITION BY toYYYYMM(timestamp)
+    ORDER BY (timestamp, service, metric_name)
+    TTL timestamp + INTERVAL 365 DAY  -- 12 meses
+    SETTINGS
+        index_granularity = 8192,
+        ttl_only_drop_parts = 1;
+
+    -- Índice para queries de métricas específicas
+    CREATE INDEX IF NOT EXISTS idx_metric_name ON neural_hive.telemetry_metrics (metric_name) TYPE set(50) GRANULARITY 4;
+
+    -- View materializada: execution_stats_hourly
+    -- Pré-agregação por hora para queries rápidas
+    CREATE MATERIALIZED VIEW IF NOT EXISTS neural_hive.execution_stats_hourly
+    ENGINE = SummingMergeTree()
+    PARTITION BY toYYYYMM(hour)
+    ORDER BY (hour, task_type, risk_band)
+    POPULATE AS
+    SELECT
+        toStartOfHour(timestamp) AS hour,
+        task_type,
+        risk_band,
+        count() AS ticket_count,
+        avg(actual_duration_ms) AS avg_duration_ms,
+        quantile(0.5)(actual_duration_ms) AS p50_duration_ms,
+        quantile(0.95)(actual_duration_ms) AS p95_duration_ms,
+        quantile(0.99)(actual_duration_ms) AS p99_duration_ms,
+        avg(resource_cpu) AS avg_cpu,
+        avg(resource_memory) AS avg_memory,
+        countIf(status = 'SUCCESS') AS success_count,
+        countIf(status = 'FAILURE') AS failure_count
+    FROM neural_hive.execution_logs
+    GROUP BY hour, task_type, risk_band;
+
+    -- View materializada: resource_utilization_hourly
+    -- Pré-agregação de métricas de utilização
+    CREATE MATERIALIZED VIEW IF NOT EXISTS neural_hive.resource_utilization_hourly
+    ENGINE = AggregatingMergeTree()
+    PARTITION BY toYYYYMM(hour)
+    ORDER BY (hour, service, metric_name)
+    POPULATE AS
+    SELECT
+        toStartOfHour(timestamp) AS hour,
+        service,
+        metric_name,
+        avgState(metric_value) AS avg_value_state,
+        maxState(metric_value) AS max_value_state,
+        minState(metric_value) AS min_value_state
+    FROM neural_hive.telemetry_metrics
+    GROUP BY hour, service, metric_name;
+
+    -- Grants para usuário ml_user
+    GRANT SELECT ON neural_hive.* TO ml_user;
+    GRANT INSERT ON neural_hive.execution_logs TO ml_user;
+    GRANT INSERT ON neural_hive.telemetry_metrics TO ml_user;
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: clickhouse-ml-schema-init
+  namespace: clickhouse
+  labels:
+    app: clickhouse
+    component: schema-init
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app: clickhouse
+        component: schema-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: schema-init
+        image: clickhouse/clickhouse-client:23.8
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          echo "Aguardando ClickHouse..."
+          until clickhouse-client --host clickhouse.clickhouse.svc.cluster.local --query "SELECT 1"; do
+            echo "ClickHouse não disponível - aguardando..."
+            sleep 5
+          done
+
+          echo "Executando schema ML..."
+          clickhouse-client --host clickhouse.clickhouse.svc.cluster.local --multiquery < /schema/init-ml-schema.sql
+
+          echo "Schema ML criado com sucesso!"
+
+          # Validar tabelas criadas
+          clickhouse-client --host clickhouse.clickhouse.svc.cluster.local --query "SHOW TABLES FROM neural_hive"
+          clickhouse-client --host clickhouse.clickhouse.svc.cluster.local --query "SELECT count() FROM neural_hive.execution_logs"
+          clickhouse-client --host clickhouse.clickhouse.svc.cluster.local --query "SELECT count() FROM neural_hive.telemetry_metrics"
+        volumeMounts:
+        - name: schema
+          mountPath: /schema
+          readOnly: true
+      volumes:
+      - name: schema
+        configMap:
+          name: clickhouse-ml-schema

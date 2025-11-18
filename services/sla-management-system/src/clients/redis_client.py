@@ -9,6 +9,7 @@ import structlog
 
 from ..config.settings import RedisSettings
 from ..models.error_budget import ErrorBudget
+from ..observability.metrics import sla_metrics
 
 
 class RedisClient:
@@ -39,6 +40,7 @@ class RedisClient:
             self.logger.info("redis_connected", nodes=self.settings.cluster_nodes)
         except Exception as e:
             self.logger.error("redis_connection_failed", error=str(e))
+            sla_metrics.record_redis_error()
             raise
 
     async def disconnect(self) -> None:
@@ -122,4 +124,5 @@ class RedisClient:
             return True
         except Exception as e:
             self.logger.error("redis_health_check_failed", error=str(e))
+            sla_metrics.record_redis_error()
             return False

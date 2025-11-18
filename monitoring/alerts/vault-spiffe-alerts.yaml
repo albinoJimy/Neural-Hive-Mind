@@ -1,0 +1,171 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-spiffe-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/component: alerting-rules
+data:
+  vault-spiffe-alerts.yaml: |
+    groups:
+    - name: vault-health
+      interval: 30s
+      rules:
+      - alert: VaultDown
+        expr: up{job="vault"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: vault
+          layer: security
+        annotations:
+          summary: "Vault está down"
+          description: "Nenhuma instância do Vault está executando há 5 minutos."
+          runbook_url: "https://docs.neural-hive.io/runbooks/vault-down"
+
+      - alert: VaultSealed
+        expr: vault_core_unsealed == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: vault
+          layer: security
+        annotations:
+          summary: "Vault está sealed"
+          description: "Vault pod {{ $labels.pod }} está sealed. Unseal necessário."
+          runbook_url: "https://docs.neural-hive.io/runbooks/vault-sealed"
+
+      - alert: VaultHighErrorRate
+        expr: rate(vault_core_handle_request{status="error"}[5m]) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          component: vault
+          layer: security
+        annotations:
+          summary: "Taxa de erro alta no Vault"
+          description: "Taxa de erro é {{ $value | humanizePercentage }} nos últimos 5 minutos."
+
+      - alert: VaultTokenExpirationSoon
+        expr: vault_token_ttl_seconds < 3600
+        for: 5m
+        labels:
+          severity: warning
+          component: vault
+          layer: security
+        annotations:
+          summary: "Token Vault expirando em breve"
+          description: "Token {{ $labels.token_id }} expira em {{ $value | humanizeDuration }}."
+
+    - name: spire-health
+      interval: 30s
+      rules:
+      - alert: SpireServerDown
+        expr: up{job="spire-server"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: spire-server
+          layer: security
+        annotations:
+          summary: "SPIRE Server está down"
+          description: "Nenhuma instância do SPIRE Server está executando há 5 minutos."
+          runbook_url: "https://docs.neural-hive.io/runbooks/spire-server-down"
+
+      - alert: SpireAgentDown
+        expr: count(up{job="spire-agent"} == 1) < 3
+        for: 5m
+        labels:
+          severity: warning
+          component: spire-agent
+          layer: security
+        annotations:
+          summary: "SPIRE Agents insuficientes"
+          description: "Apenas {{ $value }} SPIRE Agents estão rodando (esperado: 3+)."
+
+      - alert: SpireSVIDFetchFailure
+        expr: rate(spire_agent_svid_fetch_errors_total[5m]) > 0.1
+        for: 10m
+        labels:
+          severity: critical
+          component: spire-agent
+          layer: security
+        annotations:
+          summary: "Falhas ao buscar SVID"
+          description: "Taxa de erro ao buscar SVID é {{ $value }} nos últimos 5 minutos."
+          runbook_url: "https://docs.neural-hive.io/runbooks/spire-svid-fetch-failure"
+
+      - alert: SpireTrustBundleStale
+        expr: time() - spire_server_trust_bundle_last_update_timestamp_seconds > 86400
+        for: 1h
+        labels:
+          severity: warning
+          component: spire-server
+          layer: security
+        annotations:
+          summary: "Trust bundle desatualizado"
+          description: "Trust bundle não foi atualizado há {{ $value | humanizeDuration }}."
+
+    - name: vault-spiffe-integration
+      interval: 30s
+      rules:
+      - alert: GrpcAuthHighFailureRate
+        expr: rate(grpc_auth_attempts_total{status="failure"}[5m]) / rate(grpc_auth_attempts_total[5m]) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          component: service-registry
+          layer: security
+        annotations:
+          summary: "Taxa de falha alta em autenticação gRPC"
+          description: "{{ $value | humanizePercentage }} das tentativas de autenticação gRPC estão falhando."
+          runbook_url: "https://docs.neural-hive.io/runbooks/grpc-auth-failure"
+
+      - alert: CredentialRotationFailed
+        expr: increase(vault_credential_rotation_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: orchestrator-dynamic
+          layer: security
+        annotations:
+          summary: "Falha na rotação de credenciais"
+          description: "{{ $value }} erros de rotação de credenciais detectados nos últimos 5 minutos."
+          runbook_url: "https://docs.neural-hive.io/runbooks/credential-rotation-failed"
+
+      - alert: VaultConnectionPoolRecreationHigh
+        expr: rate(vault_connection_pool_recreated_total[5m]) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: security
+        annotations:
+          summary: "Alta taxa de recriação de connection pool"
+          description: "Connection pool sendo recriado {{ $value }} vezes/min (indica problemas de conectividade)."
+
+    - name: vault-performance
+      interval: 60s
+      rules:
+      - alert: VaultHighMemoryUsage
+        expr: container_memory_working_set_bytes{pod=~"vault.*"} / container_spec_memory_limit_bytes{pod=~"vault.*"} > 0.9
+        for: 10m
+        labels:
+          severity: warning
+          component: vault
+          layer: security
+        annotations:
+          summary: "Uso de memória alto no Vault"
+          description: "Pod {{ $labels.pod }} usando {{ $value | humanizePercentage }} da memória limite."
+
+      - alert: VaultHighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{pod=~"vault.*"}[5m]) / container_spec_cpu_quota{pod=~"vault.*"} * 100000 > 0.9
+        for: 10m
+        labels:
+          severity: warning
+          component: vault
+          layer: security
+        annotations:
+          summary: "Uso de CPU alto no Vault"
+          description: "Pod {{ $labels.pod }} usando {{ $value | humanizePercentage }} da CPU limite."

@@ -8,15 +8,21 @@ from typing import Dict, Any, List
 from temporalio import activity
 import structlog
 
+from src.scheduler import IntelligentScheduler
+
 logger = structlog.get_logger()
 
 # Global clients (serão injetados pelo worker)
 _kafka_producer = None
 _mongodb_client = None
 _registry_client = None
+_intelligent_scheduler = None
+_policy_validator = None
+_config = None
+_ml_predictor = None
 
 
-def set_activity_dependencies(kafka_producer, mongodb_client, registry_client=None):
+def set_activity_dependencies(kafka_producer, mongodb_client, registry_client=None, intelligent_scheduler=None, policy_validator=None, config=None, ml_predictor=None):
     """
     Injeta dependências globais nas activities.
 
@@ -24,11 +30,19 @@ def set_activity_dependencies(kafka_producer, mongodb_client, registry_client=No
         kafka_producer: Cliente Kafka Producer
         mongodb_client: Cliente MongoDB
         registry_client: Cliente do Service Registry (opcional)
+        intelligent_scheduler: Scheduler inteligente (opcional)
+        policy_validator: PolicyValidator para validação OPA (opcional)
+        config: OrchestratorSettings (opcional)
+        ml_predictor: MLPredictor para predições ML (opcional)
     """
-    global _kafka_producer, _mongodb_client, _registry_client
+    global _kafka_producer, _mongodb_client, _registry_client, _intelligent_scheduler, _policy_validator, _config, _ml_predictor
     _kafka_producer = kafka_producer
     _mongodb_client = mongodb_client
     _registry_client = registry_client
+    _intelligent_scheduler = intelligent_scheduler
+    _policy_validator = policy_validator
+    _config = config
+    _ml_predictor = ml_predictor
 
 
 @activity.defn
@@ -159,7 +173,7 @@ async def generate_execution_tickets(
 @activity.defn
 async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Aloca recursos para um ticket integrando com Service Registry.
+    Aloca recursos para um ticket usando Intelligent Scheduler.
 
     Args:
         ticket: Execution ticket
@@ -167,116 +181,148 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Ticket atualizado com allocation_metadata
     """
-    activity.logger.info(f'Alocando recursos para ticket {ticket["ticket_id"]}')
+    ticket_id = ticket.get('ticket_id', 'unknown')
+    activity.logger.info(f'Alocando recursos para ticket {ticket_id}')
 
     try:
-        allocated = False
-        allocated_agent_id = None
-        allocated_agent_type = None
-        allocation_score = 0.0
-
-        # Extrair informações do ticket
-        required_capabilities = ticket.get('required_capabilities', [])
-        security_level = ticket.get('security_level', 'INTERNAL')
-        risk_band = ticket.get('risk_band', 'medium')
-        namespace = ticket.get('metadata', {}).get('namespace', 'default')
-
-        # Se registry_client está disponível, usar discovery
-        if _registry_client and required_capabilities:
+        # Validar políticas OPA antes de alocar recursos
+        feature_flags = {}
+        if _policy_validator and _config and _config.opa_enabled:
             try:
-                # Criar filtros baseados no ticket
-                filters = {
-                    'namespace': namespace,
-                    'status': 'HEALTHY'
-                }
+                policy_result = await _policy_validator.validate_execution_ticket(ticket)
+
+                if not policy_result.valid:
+                    # Rejeitar alocação se políticas forem violadas
+                    violation_msgs = [f'{v.policy_name}/{v.rule}: {v.message}' for v in policy_result.violations]
+                    activity.logger.error(
+                        f'Ticket {ticket_id} rejeitado por políticas OPA',
+                        violations=violation_msgs
+                    )
+                    raise RuntimeError(f'Ticket rejeitado por políticas: {violation_msgs}')
+
+                # Logar warnings mas não bloquear
+                if policy_result.warnings:
+                    warning_msgs = [f'{w.policy_name}/{w.rule}: {w.message}' for w in policy_result.warnings]
+                    activity.logger.warning(
+                        f'Ticket {ticket_id} tem warnings de políticas',
+                        warnings=warning_msgs
+                    )
+
+                # Obter feature flags das decisões de políticas
+                feature_flags = policy_result.policy_decisions.get('feature_flags', {})
+
+                # Adicionar policy_decisions ao ticket metadata
+                if 'metadata' not in ticket:
+                    ticket['metadata'] = {}
+                ticket['metadata']['policy_decisions'] = policy_result.policy_decisions
+                ticket['metadata']['policy_validated_at'] = policy_result.evaluated_at.isoformat()
 
                 activity.logger.info(
-                    f'Descobrindo agentes para ticket {ticket["ticket_id"]}',
-                    capabilities=required_capabilities,
-                    filters=filters
+                    f'Ticket {ticket_id} validado por políticas OPA',
+                    feature_flags=feature_flags
                 )
 
-                # Chamar Service Registry para descobrir agentes
-                # TODO: Implementar chamada gRPC real quando proto estiver pronto
-                # response = await _registry_client.DiscoverAgents(
-                #     capabilities=required_capabilities,
-                #     filters=filters,
-                #     max_results=5
-                # )
+            except RuntimeError:
+                # Re-raise policy violations
+                raise
+            except Exception as e:
+                # Erro na validação OPA
+                activity.logger.error(f'Erro ao validar políticas OPA: {e}', exc_info=True)
+                if not _config.opa_fail_open:
+                    raise RuntimeError(f'Falha na validação de políticas: {str(e)}')
 
-                # Mock para desenvolvimento
-                # if response and response.agents:
-                #     best_agent = response.agents[0]
-                #     allocated = True
-                #     allocated_agent_id = best_agent.agent_id
-                #     allocated_agent_type = best_agent.agent_type
-                #     allocation_score = 0.95  # Calcular baseado em scores
+        # ML Predictions: enriquece ticket com predições antes do scheduler
+        predicted_duration_ms = None
+        if _ml_predictor:
+            try:
+                ticket = await _ml_predictor.predict_and_enrich(ticket)
+                # Extrair predicted_duration_ms para usar em allocation_metadata
+                predictions = ticket.get('predictions', {})
+                predicted_duration_ms = predictions.get('duration_ms')
+                activity.logger.info(
+                    f'ML predictions adicionadas ao ticket {ticket_id}',
+                    predictions=ticket.get('predictions')
+                )
+            except Exception as e:
+                activity.logger.warning(
+                    f'ML prediction falhou para ticket {ticket_id}, continuando sem predições: {e}'
+                )
+
+        # Decidir se usar IntelligentScheduler baseado em feature flags
+        use_intelligent_scheduler = feature_flags.get('enable_intelligent_scheduler', True) if _policy_validator else True
+
+        # Tentar usar Intelligent Scheduler se disponível e habilitado
+        if _intelligent_scheduler and use_intelligent_scheduler:
+            activity.logger.info(
+                f'Usando Intelligent Scheduler para ticket {ticket_id}',
+                scheduler_enabled=True
+            )
+
+            try:
+                # Delegar alocação para o scheduler
+                ticket = await _intelligent_scheduler.schedule_ticket(ticket)
+
+                # Adicionar predicted_duration_ms ao allocation_metadata para tracking de erro ML
+                if predicted_duration_ms is not None and 'allocation_metadata' in ticket:
+                    ticket['allocation_metadata']['predicted_duration_ms'] = predicted_duration_ms
 
                 activity.logger.info(
-                    f'Agentes descobertos para ticket {ticket["ticket_id"]}',
-                    allocated=allocated,
-                    agent_id=allocated_agent_id
+                    f'Recursos alocados via Intelligent Scheduler para ticket {ticket_id}',
+                    allocation_method=ticket.get('allocation_metadata', {}).get('allocation_method'),
+                    priority_score=ticket.get('allocation_metadata', {}).get('priority_score'),
+                    agent_id=ticket.get('allocation_metadata', {}).get('agent_id')
                 )
+
+                return ticket
 
             except Exception as e:
                 activity.logger.warning(
-                    f'Falha ao descobrir agentes via Service Registry: {e}',
-                    ticket_id=ticket["ticket_id"]
+                    f'Falha no Intelligent Scheduler, usando fallback: {e}',
+                    ticket_id=ticket_id
                 )
                 # Fallback para alocação stub
 
-        # Fallback: alocação stub (se registry não disponível ou falhou)
-        if not allocated:
-            activity.logger.info(
-                f'Usando alocação stub para ticket {ticket["ticket_id"]}',
-                reason='registry_unavailable_or_no_match'
-            )
-            allocated = True  # Stub sempre aloca
+        # Fallback: alocação stub (scheduler não disponível ou falhou)
+        activity.logger.info(
+            f'Usando alocação stub para ticket {ticket_id}',
+            reason='scheduler_unavailable_or_failed'
+        )
 
-        # Calcular priority score
+        # Calcular priority score simples
+        risk_band = ticket.get('risk_band', 'normal')
         priority_weights = {'critical': 1.0, 'high': 0.7, 'normal': 0.5, 'low': 0.3}
         priority_score = priority_weights.get(risk_band, 0.5)
 
-        # Combinar com allocation_score se disponível
-        if allocation_score > 0:
-            priority_score = (priority_score * 0.5) + (allocation_score * 0.5)
-
-        # Adicionar metadata de alocação
+        # Adicionar metadata de alocação stub
         allocation_metadata = {
-            'allocated': allocated,
+            'allocated_at': int(datetime.now().timestamp() * 1000),
+            'agent_id': 'worker-agent-pool',
+            'agent_type': 'worker-agent',
             'priority_score': priority_score,
-            'allocated_at': int(datetime.now().timestamp() * 1000)
+            'agent_score': 0.5,
+            'composite_score': 0.5,
+            'allocation_method': 'fallback_stub',
+            'workers_evaluated': 0
         }
 
-        if allocated_agent_id:
-            allocation_metadata['allocated_agent_id'] = allocated_agent_id
-            allocation_metadata['allocated_agent_type'] = allocated_agent_type
-            allocation_metadata['allocation_score'] = allocation_score
+        ticket['allocation_metadata'] = allocation_metadata
 
-            # Adicionar webhook_url se agente registrado no Service Registry
-            # TODO: Consultar Service Registry para obter webhook_url do agente
-            # if _registry_client:
-            #     try:
-            #         agent_info = await _registry_client.GetAgent(agent_id=allocated_agent_id)
-            #         if agent_info and agent_info.webhook_url:
-            #             ticket['metadata']['webhook_url'] = agent_info.webhook_url
-            #     except Exception as e:
-            #         activity.logger.warning(f'Failed to get webhook URL for agent {allocated_agent_id}: {e}')
-
-        ticket['metadata']['allocation_metadata'] = allocation_metadata
+        # Adicionar predicted_duration_ms ao allocation_metadata para tracking de erro ML
+        if predicted_duration_ms is not None:
+            ticket['allocation_metadata']['predicted_duration_ms'] = predicted_duration_ms
 
         activity.logger.info(
-            f'Recursos alocados para ticket {ticket["ticket_id"]}',
-            allocated=allocated,
-            priority_score=priority_score,
-            agent_id=allocated_agent_id,
-            webhook_url=ticket['metadata'].get('webhook_url')
+            f'Recursos alocados (stub) para ticket {ticket_id}',
+            priority_score=priority_score
         )
 
         return ticket
 
     except Exception as e:
-        activity.logger.error(f'Erro ao alocar recursos para ticket {ticket["ticket_id"]}: {e}', exc_info=True)
+        activity.logger.error(
+            f'Erro ao alocar recursos para ticket {ticket_id}: {e}',
+            exc_info=True
+        )
         raise
 
 
@@ -301,8 +347,24 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
         if _mongodb_client is None:
             raise RuntimeError('MongoDB client não foi injetado nas activities')
 
-        # Atualizar status do ticket para RUNNING
-        ticket['status'] = 'RUNNING'
+        # ML Error Tracking: se ticket está sendo atualizado para COMPLETED, rastrear erro
+        if ticket.get('status') == 'COMPLETED' and ticket.get('actual_duration_ms') is not None:
+            try:
+                from src.observability.metrics import get_metrics
+                from src.activities.result_consolidation import compute_and_record_ml_error
+                metrics = get_metrics()
+                compute_and_record_ml_error(ticket, metrics)
+            except Exception as e:
+                # Fail-open: não bloqueia publicação
+                activity.logger.warning(
+                    'ml_error_tracking_failed_in_publish',
+                    ticket_id=ticket_id,
+                    error=str(e)
+                )
+
+        # Atualizar status do ticket para RUNNING (se não for COMPLETED)
+        if ticket.get('status') != 'COMPLETED':
+            ticket['status'] = 'RUNNING'
 
         # Publicar ticket no Kafka usando o producer real
         kafka_result = await _kafka_producer.publish_ticket(ticket)

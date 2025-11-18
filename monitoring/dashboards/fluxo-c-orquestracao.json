@@ -16,7 +16,20 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "📊 Detailed Scheduler Metrics →",
+      "tooltip": "View comprehensive scheduler metrics and diagnostics",
+      "type": "link",
+      "url": "/d/orchestrator-intelligent-scheduler"
+    }
+  ],
   "panels": [
     {
       "datasource": "Prometheus",
@@ -592,6 +605,588 @@
       ],
       "title": "Flow C - Falhas por Razão",
       "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 56},
+      "id": 13,
+      "panels": [],
+      "title": "Intelligent Scheduler",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 57},
+      "id": 14,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "sum(rate(orchestration_scheduler_allocations_total{status=\"success\",fallback=\"false\"}[5m]))",
+          "legendFormat": "Intelligent",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(orchestration_scheduler_allocations_total{fallback=\"true\"}[5m]))",
+          "legendFormat": "Fallback",
+          "refId": "B"
+        }
+      ],
+      "title": "Allocation Method Distribution",
+      "type": "piechart",
+      "description": "Distribuição de alocações inteligentes vs fallback"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "fillOpacity": 30,
+            "lineWidth": 2,
+            "stacking": {"mode": "normal"}
+          }
+        }
+      },
+      "gridPos": {"h": 6, "w": 16, "x": 8, "y": 57},
+      "id": 15,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(orchestration_scheduler_allocations_total{fallback=\"false\"}[5m]))",
+          "legendFormat": "Intelligent Scheduler",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(orchestration_scheduler_allocations_total{fallback=\"true\"}[5m]))",
+          "legendFormat": "Fallback",
+          "refId": "B"
+        }
+      ],
+      "title": "Scheduler vs Fallback Allocations",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 90},
+              {"color": "red", "value": 95}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 63},
+      "id": 16,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        }
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "rate(orchestration_scheduler_allocations_total{status=\"success\"}[5m]) / rate(orchestration_scheduler_allocations_total[5m]) * 100",
+          "legendFormat": "Success Rate (%)",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(orchestration_scheduler_allocation_duration_seconds_bucket[5m]))",
+          "legendFormat": "Avg Latency (P95)",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(orchestration_scheduler_cache_hits_total[5m]) / rate(orchestration_scheduler_allocations_total[5m]) * 100",
+          "legendFormat": "Cache Hit Rate (%)",
+          "refId": "C"
+        }
+      ],
+      "title": "Scheduler Performance",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 69},
+      "id": 17,
+      "panels": [],
+      "title": "SLA Compliance & Alerting",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 60},
+              {"color": "green", "value": 300}
+            ]
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {"h": 8, "w": 4, "x": 0, "y": 70},
+      "id": 18,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "min(orchestration_sla_remaining_seconds)",
+          "refId": "A"
+        }
+      ],
+      "title": "SLA Remaining Time",
+      "type": "gauge",
+      "description": "Tempo mínimo restante de SLA em workflows ativos"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 20},
+              {"color": "green", "value": 50}
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": {"h": 8, "w": 4, "x": 4, "y": 70},
+      "id": 19,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "orchestration_sla_budget_remaining_percent",
+          "refId": "A"
+        }
+      ],
+      "title": "Error Budget Status",
+      "type": "gauge",
+      "description": "Budget de erro restante para o serviço orchestrator"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 1}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 4, "x": 8, "y": 70},
+      "id": 20,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "increase(orchestration_sla_violations_total[1h])",
+          "refId": "A"
+        }
+      ],
+      "title": "SLA Violations (Last Hour)",
+      "type": "stat",
+      "description": "Total de violações de SLA na última hora"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 5},
+              {"color": "red", "value": 10}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 4, "x": 12, "y": 70},
+      "id": 21,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "increase(orchestration_deadline_approaching_total[15m])",
+          "refId": "A"
+        }
+      ],
+      "title": "Deadline Approaching Workflows",
+      "type": "stat",
+      "description": "Workflows que atingiram 80% do deadline nos últimos 15 minutos"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "unit": "short"
+        }
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 70},
+      "id": 22,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "rate(orchestration_sla_alerts_sent_total{alert_type=\"BUDGET_CRITICAL\"}[5m])",
+          "legendFormat": "BUDGET_CRITICAL",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(orchestration_sla_alerts_sent_total{alert_type=\"DEADLINE_APPROACHING\"}[5m])",
+          "legendFormat": "DEADLINE_APPROACHING",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(orchestration_sla_alerts_sent_total{alert_type=\"BURN_RATE_HIGH\"}[5m])",
+          "legendFormat": "BURN_RATE_HIGH",
+          "refId": "C"
+        }
+      ],
+      "title": "SLA Alerts Sent (Rate)",
+      "type": "timeseries",
+      "description": "Taxa de alertas proativos de SLA enviados ao Kafka"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 6},
+              {"color": "red", "value": 10}
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 78},
+      "id": 23,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "orchestration_sla_burn_rate{window_hours=\"1\"}",
+          "legendFormat": "1h window",
+          "refId": "A"
+        }
+      ],
+      "title": "Budget Burn Rate",
+      "type": "timeseries",
+      "description": "Taxa de consumo do error budget (janela de 1 hora)"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "unit": "s"
+        }
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 78},
+      "id": 24,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(orchestration_sla_check_duration_seconds_bucket{check_type=\"deadline\"}[5m]))",
+          "legendFormat": "deadline (p95)",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(orchestration_sla_check_duration_seconds_bucket{check_type=\"workflow\"}[5m]))",
+          "legendFormat": "workflow (p95)",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(orchestration_sla_check_duration_seconds_bucket{check_type=\"budget\"}[5m]))",
+          "legendFormat": "budget (p95)",
+          "refId": "C"
+        }
+      ],
+      "title": "SLA Check Performance",
+      "type": "timeseries",
+      "description": "P95 latência das verificações de SLA monitoring"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "unit": "percent"
+        }
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 78},
+      "id": 25,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "rate(orchestration_sla_alert_deduplication_hits_total[5m]) / (rate(orchestration_sla_alerts_sent_total[5m]) + rate(orchestration_sla_alert_deduplication_hits_total[5m])) * 100",
+          "legendFormat": "Deduplication Rate",
+          "refId": "A"
+        }
+      ],
+      "title": "Alert Deduplication Rate",
+      "type": "timeseries",
+      "description": "Percentual de alertas bloqueados por deduplicação (prevenção de alert storms)"
     }
   ],
   "refresh": "10s",

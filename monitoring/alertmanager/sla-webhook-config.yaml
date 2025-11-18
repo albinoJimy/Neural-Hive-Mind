@@ -1,0 +1,130 @@
+# Alertmanager webhook receiver configuration for SLA Management System
+# This configuration should be merged into the existing Alertmanager ConfigMap
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-sla-webhook-config
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/component: config
+data:
+  sla-webhook.yaml: |
+    # Add this receiver to your Alertmanager configuration
+    receivers:
+      - name: sla-management-system-webhook
+        webhook_configs:
+          - url: http://sla-management-system.neural-hive-monitoring.svc.cluster.local:8000/webhooks/alertmanager
+            send_resolved: true
+            http_config:
+              follow_redirects: true
+            max_alerts: 0  # No limit on alerts per webhook
+
+    # Add this route to your Alertmanager configuration
+    route:
+      routes:
+        # Route for SLO-related alerts
+        - match_re:
+            slo: ".*"
+          receiver: sla-management-system-webhook
+          group_by:
+            - slo
+            - service
+          group_wait: 10s
+          group_interval: 5m
+          repeat_interval: 4h
+          continue: true  # Allow other receivers to also process these alerts
+
+        # Route for SLA budget alerts
+        - match:
+            component: sla-management-system
+          receiver: sla-management-system-webhook
+          group_by:
+            - alertname
+            - slo_id
+          group_wait: 10s
+          group_interval: 5m
+          repeat_interval: 4h
+          continue: true
+
+---
+# Example: Complete Alertmanager ConfigMap with SLA webhook integrated
+# Replace the existing alertmanager-config ConfigMap with this updated version
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: alertmanager
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+
+    templates:
+      - '/etc/alertmanager/templates/*.tmpl'
+
+    route:
+      receiver: 'default-receiver'
+      group_by: ['alertname', 'cluster', 'service']
+      group_wait: 10s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        # SLA Management System webhook
+        - match_re:
+            slo: ".*"
+          receiver: sla-management-system-webhook
+          group_by: ['slo', 'service']
+          group_wait: 10s
+          group_interval: 5m
+          repeat_interval: 4h
+          continue: true
+
+        - match:
+            component: sla-management-system
+          receiver: sla-management-system-webhook
+          group_by: ['alertname', 'slo_id']
+          group_wait: 10s
+          group_interval: 5m
+          repeat_interval: 4h
+          continue: true
+
+        # Critical alerts
+        - match:
+            severity: critical
+          receiver: 'critical-alerts'
+          continue: true
+
+        # Warning alerts
+        - match:
+            severity: warning
+          receiver: 'warning-alerts'
+
+    receivers:
+      - name: 'default-receiver'
+        # Configure your default receiver here
+
+      - name: 'critical-alerts'
+        # Configure your critical alerts receiver here (e.g., PagerDuty, Slack)
+
+      - name: 'warning-alerts'
+        # Configure your warning alerts receiver here
+
+      - name: 'sla-management-system-webhook'
+        webhook_configs:
+          - url: 'http://sla-management-system.neural-hive-monitoring.svc.cluster.local:8000/webhooks/alertmanager'
+            send_resolved: true
+            http_config:
+              follow_redirects: true
+            max_alerts: 0
+
+    inhibit_rules:
+      - source_match:
+          severity: 'critical'
+        target_match:
+          severity: 'warning'
+        equal: ['alertname', 'cluster', 'service']

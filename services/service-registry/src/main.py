@@ -15,7 +15,17 @@ from src.config import get_settings
 from src.clients import EtcdClient, PheromoneClient
 from src.services import RegistryService, HealthCheckManager, MatchingEngine
 from src.grpc_server import ServiceRegistryServicer
+from src.grpc_server.auth_interceptor import SPIFFEAuthInterceptor
 from src.proto import service_registry_pb2_grpc
+
+# Import SPIFFE manager if available
+try:
+    from neural_hive_security import SPIFFEManager, SPIFFEConfig
+    SECURITY_LIB_AVAILABLE = True
+except ImportError:
+    SECURITY_LIB_AVAILABLE = False
+    SPIFFEManager = None
+    SPIFFEConfig = None
 
 
 # Configurar structured logging
@@ -51,6 +61,8 @@ class ServiceRegistryServer:
         self.registry_service = None
         self.matching_engine = None
         self.health_check_manager = None
+        self.spiffe_manager = None
+        self.auth_interceptor = None
         self._shutdown_event = asyncio.Event()
 
     async def initialize(self):
@@ -93,9 +105,44 @@ class ServiceRegistryServer:
             heartbeat_timeout_seconds=self.settings.HEARTBEAT_TIMEOUT_SECONDS
         )
 
+        # Inicializar SPIFFE manager se habilitado
+        if self.settings.SPIFFE_ENABLED and SECURITY_LIB_AVAILABLE:
+            try:
+                logger.info("initializing_spiffe_manager")
+
+                spiffe_config = SPIFFEConfig(
+                    workload_api_socket=self.settings.SPIFFE_SOCKET_PATH,
+                    trust_domain=self.settings.SPIFFE_TRUST_DOMAIN
+                )
+
+                self.spiffe_manager = SPIFFEManager(spiffe_config)
+                await self.spiffe_manager.initialize()
+
+                # Criar auth interceptor se verificação de peer estiver habilitada
+                if self.settings.SPIFFE_VERIFY_PEER:
+                    self.auth_interceptor = SPIFFEAuthInterceptor(
+                        self.spiffe_manager,
+                        self.settings
+                    )
+                    logger.info("spiffe_auth_interceptor_created")
+
+                logger.info("spiffe_manager_initialized")
+
+            except Exception as e:
+                logger.error("spiffe_initialization_failed", error=str(e))
+                # Continue without SPIFFE if it fails
+                self.spiffe_manager = None
+                self.auth_interceptor = None
+
+        # Preparar interceptors para o servidor gRPC
+        interceptors = []
+        if self.auth_interceptor:
+            interceptors.append(self.auth_interceptor)
+
         # Iniciar servidor gRPC
         self.server = grpc.aio.server(
             futures.ThreadPoolExecutor(max_workers=10),
+            interceptors=interceptors if interceptors else None,
             options=[
                 ('grpc.max_send_message_length', 50 * 1024 * 1024),
                 ('grpc.max_receive_message_length', 50 * 1024 * 1024),
@@ -188,6 +235,14 @@ class ServiceRegistryServer:
         # Parar servidor gRPC
         if self.server:
             await self.server.stop(grace=5)
+
+        # Fechar SPIFFE manager
+        if self.spiffe_manager:
+            try:
+                await self.spiffe_manager.close()
+                logger.info("spiffe_manager_closed")
+            except Exception as e:
+                logger.warning("spiffe_manager_close_failed", error=str(e))
 
         # Fechar clientes
         if self.etcd_client:

@@ -1,0 +1,32 @@
+# Example values for Portainer Helm install. Adjust as needed for your cluster.
+# Save this file next to the deploy script and the script will use it automatically.
+
+# Expose Portainer with a LoadBalancer by default. Change to NodePort or configure an Ingress.
+service:
+  # Changed to NodePort for environments without cloud LoadBalancer support.
+  type: NodePort
+
+# If you need a specific port mapping:
+# service:
+#   type: NodePort
+#   nodePort: 32000
+
+# Persistence: Portainer stores data in a PVC. Ensure your cluster has a StorageClass named 'standard' or change below.
+persistence:
+  # Persistence disabled to allow quick startup in environments without a dynamic
+  # provisioner for the 'standard' StorageClass. Enable in production by setting
+  # this to true and ensuring a StorageClass is available.
+  enabled: false
+  size: 10Gi
+  storageClass: "standard"  # change if your cluster uses a different storage class
+
+# Agent configuration (the Helm chart can deploy an agent to the cluster)
+agent:
+  enabled: true
+  # Use NodePort if you need agent service exposure
+  service:
+    type: ClusterIP
+
+# Set the image tag explicitly if you want a specific Portainer CE version
+image:
+  tag: "latest"

@@ -1,0 +1,28 @@
+apiVersion: v2
+name: neural-hive-jaeger
+description: Jaeger distribuído tracing configurado para Neural Hive-Mind
+type: application
+version: 1.0.0
+appVersion: "1.51.0"
+home: https://github.com/neural-hive-mind/observability
+sources:
+  - https://github.com/jaegertracing/helm-charts
+  - https://github.com/neural-hive-mind/observability
+keywords:
+  - tracing
+  - observability
+  - jaeger
+  - distributed-tracing
+  - neural-hive-mind
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: observability@neural-hive.local
+annotations:
+  category: Tracing
+  neural.hive/component: distributed-tracing
+  neural.hive/layer: observabilidade
+dependencies:
+  - name: jaeger
+    version: "3.0.10"
+    repository: https://jaegertracing.github.io/helm-charts
+    condition: jaeger.enabled

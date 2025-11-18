@@ -1,0 +1,62 @@
+# Valores do OPA Gatekeeper para ambiente local
+# Configuração otimizada para Docker Desktop
+
+controllerManager:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+audit:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+webhook:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Configurações para ambiente de desenvolvimento
+postInstall:
+  labelNamespace:
+    enabled: true
+
+postUpgrade:
+  labelNamespace:
+    enabled: true
+
+# Configurações de tolerância para ambiente local
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Log level para desenvolvimento
+logLevel: INFO
+
+# Métricas habilitadas
+metrics:
+  enabled: true
+  port: 8888
+
+# Violations logging
+violationEnforcement: true
+
+# Mutation habilitado
+enableMutation: true
+
+# External data provider desabilitado para simplificar
+enableExternalData: false

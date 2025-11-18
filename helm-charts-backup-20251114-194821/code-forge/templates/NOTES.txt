@@ -1,0 +1,139 @@
+🎉 Code Forge implantado com sucesso!
+
+Release: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+Chart Version: {{ .Chart.Version }}
+App Version: {{ .Chart.AppVersion }}
+
+═══════════════════════════════════════════════════════════════
+
+📊 STATUS DO DEPLOYMENT
+
+Verificar pods:
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "code-forge.name" . }}
+
+Logs:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "code-forge.name" . }} -f
+
+═══════════════════════════════════════════════════════════════
+
+🌐 ENDPOINTS DISPONÍVEIS
+
+Port-forward para acesso local:
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "code-forge.fullname" . }} 8080:8080 50051:50051 9090:9090
+
+Endpoints HTTP:
+  • Health Check:  http://localhost:8080/health
+  • Readiness:     http://localhost:8080/ready
+  • Métricas:      http://localhost:9090/metrics
+
+Endpoints de API:
+  • Pipelines:     GET/POST http://localhost:8080/api/v1/pipelines
+  • Templates:     GET http://localhost:8080/api/v1/templates
+  • Qualidade:     GET http://localhost:8080/api/v1/quality
+
+Endpoints gRPC:
+  • gRPC:          localhost:50051
+
+═══════════════════════════════════════════════════════════════
+
+📈 MONITORAMENTO
+
+ServiceMonitor: {{ if .Values.serviceMonitor.enabled }}✓ Habilitado{{ else }}✗ Desabilitado{{ end }}
+{{- if .Values.autoscaling.enabled }}
+Autoscaling: ✓ Habilitado ({{ .Values.autoscaling.minReplicas }}-{{ .Values.autoscaling.maxReplicas }} réplicas)
+{{- else }}
+Réplicas: {{ .Values.replicaCount }} (fixo)
+{{- end }}
+{{- if .Values.podDisruptionBudget }}
+PodDisruptionBudget: ✓ Habilitado (minAvailable: {{ .Values.podDisruptionBudget.minAvailable }})
+{{- end }}
+{{- if .Values.networkPolicy.enabled }}
+NetworkPolicy: ✓ Habilitado
+{{- end }}
+
+═══════════════════════════════════════════════════════════════
+
+⚙️  CONFIGURAÇÃO DO PIPELINE
+
+Max Concurrent Pipelines: {{ .Values.config.MAX_CONCURRENT_PIPELINES }}
+Pipeline Timeout: {{ .Values.config.PIPELINE_TIMEOUT_SECONDS }}s
+Auto Approval Threshold: {{ .Values.config.AUTO_APPROVAL_THRESHOLD }}
+Min Quality Score: {{ .Values.config.MIN_QUALITY_SCORE }}
+Min Test Coverage: {{ .Values.config.MIN_TEST_COVERAGE }}
+
+═══════════════════════════════════════════════════════════════
+
+📦 TEMPLATES GIT
+
+Repository: {{ .Values.config.TEMPLATES_GIT_REPO }}
+Branch: {{ .Values.config.TEMPLATES_GIT_BRANCH }}
+Local Path: {{ .Values.config.TEMPLATES_LOCAL_PATH }}
+
+═══════════════════════════════════════════════════════════════
+
+🔌 INTEGRAÇÕES
+
+Kafka: {{ .Values.config.KAFKA_BOOTSTRAP_SERVERS }}
+  • Tickets Topic: {{ .Values.config.KAFKA_TICKETS_TOPIC }}
+  • Results Topic: {{ .Values.config.KAFKA_RESULTS_TOPIC }}
+  • Consumer Group: {{ .Values.config.KAFKA_CONSUMER_GROUP_ID }}
+
+PostgreSQL: {{ .Values.config.POSTGRES_HOST }}:{{ .Values.config.POSTGRES_PORT }}
+  • Database: {{ .Values.config.POSTGRES_DB }}
+
+MongoDB: {{ .Values.config.MONGODB_HOST }}:{{ .Values.config.MONGODB_PORT }}
+  • Database: {{ .Values.config.MONGODB_DB }}
+
+Redis: {{ .Values.config.REDIS_HOST }}:{{ .Values.config.REDIS_PORT }}
+
+Service Registry: {{ .Values.config.SERVICE_REGISTRY_HOST }}:{{ .Values.config.SERVICE_REGISTRY_PORT }}
+
+Execution Ticket Service: {{ .Values.config.EXECUTION_TICKET_SERVICE_URL }}
+
+═══════════════════════════════════════════════════════════════
+
+🚀 PRÓXIMOS PASSOS
+
+1. Testar endpoint de health:
+   curl http://localhost:8080/health
+
+2. Submeter um ticket de execução:
+   curl -X POST http://localhost:8080/api/v1/pipelines \
+     -H "Content-Type: application/json" \
+     -d '{"template": "python-service", "parameters": {...}}'
+
+3. Verificar pipeline no PostgreSQL:
+   kubectl exec -it -n {{ .Release.Namespace }} deploy/postgres -- \
+     psql -U {{ .Values.secrets.postgresUser }} -d {{ .Values.config.POSTGRES_DB }} \
+     -c "SELECT * FROM pipelines ORDER BY created_at DESC LIMIT 5;"
+
+4. Validar templates clonados:
+   kubectl exec -it -n {{ .Release.Namespace }} deploy/{{ include "code-forge.fullname" . }} -- \
+     ls -la {{ .Values.config.TEMPLATES_LOCAL_PATH }}
+
+5. Testar geração de código:
+   kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "code-forge.name" . }} | grep "code generation"
+
+6. Verificar métricas de qualidade:
+   curl http://localhost:8080/api/v1/quality
+
+═══════════════════════════════════════════════════════════════
+
+💻 AMBIENTE LOCAL
+
+Em ambiente local (Minikube/Kind/Docker Desktop), alguns recursos podem
+estar desabilitados para compatibilidade:
+  • NetworkPolicy (networkPolicy.enabled: false)
+  • ServiceMonitor (serviceMonitor.enabled: false)
+  • Pode ser necessário ajustar PIPELINE_TIMEOUT_SECONDS para valores maiores
+
+⚠️  IMPORTANTE: Certifique-se de que os datastores externos (PostgreSQL, MongoDB, Redis)
+estão acessíveis antes de submeter pipelines.
+
+═══════════════════════════════════════════════════════════════
+
+🗑️  DESINSTALAÇÃO
+
+Para remover este release:
+  helm uninstall {{ .Release.Name }} -n {{ .Release.Namespace }}

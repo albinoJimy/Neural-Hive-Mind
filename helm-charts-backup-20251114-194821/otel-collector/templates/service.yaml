@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "neural-hive-otel-collector.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "neural-hive-otel-collector.labels" . | nindent 4 }}
+    neural.hive/component: telemetry-collector
+    neural.hive/layer: observabilidade
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    neural.hive/metrics: "enabled"
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8888"
+    prometheus.io/path: "/metrics"
+spec:
+  type: {{ .Values.collector.service.type }}
+  ports:
+  - name: otlp-grpc
+    port: 4317
+    targetPort: otlp-grpc
+    protocol: TCP
+    appProtocol: grpc
+  - name: otlp-http
+    port: 4318
+    targetPort: otlp-http
+    protocol: TCP
+    appProtocol: http
+  - name: jaeger-grpc
+    port: 14250
+    targetPort: jaeger-grpc
+    protocol: TCP
+    appProtocol: grpc
+  - name: jaeger-http
+    port: 14268
+    targetPort: jaeger-http
+    protocol: TCP
+    appProtocol: http
+  - name: zipkin
+    port: 9411
+    targetPort: zipkin
+    protocol: TCP
+    appProtocol: http
+  - name: metrics
+    port: 8888
+    targetPort: metrics
+    protocol: TCP
+    appProtocol: http
+  - name: health
+    port: 13133
+    targetPort: health
+    protocol: TCP
+    appProtocol: http
+  - name: pprof
+    port: 1777
+    targetPort: pprof
+    protocol: TCP
+    appProtocol: http
+  - name: zpages
+    port: 55679
+    targetPort: zpages
+    protocol: TCP
+    appProtocol: http
+  selector:
+    {{- include "neural-hive-otel-collector.selectorLabels" . | nindent 4 }}
+---
+{{- if .Values.monitoring.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "neural-hive-otel-collector.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "neural-hive-otel-collector.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "neural-hive-otel-collector.selectorLabels" . | nindent 6 }}
+  endpoints:
+  - port: metrics
+    interval: {{ .Values.monitoring.serviceMonitor.interval }}
+    scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout }}
+    path: {{ .Values.monitoring.serviceMonitor.path }}
+    honorLabels: true
+{{- end }}

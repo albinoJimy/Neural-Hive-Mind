@@ -1,0 +1,82 @@
+{{- if .Values.networkPolicy.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "vault.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vault.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "vault.selectorLabels" . | nindent 6 }}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow from orchestration namespace
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: neural-hive-orchestration
+    ports:
+    - protocol: TCP
+      port: 8200
+  # Allow from execution namespace
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: neural-hive-execution
+    ports:
+    - protocol: TCP
+      port: 8200
+  # Allow from registry namespace
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: neural-hive-registry
+    ports:
+    - protocol: TCP
+      port: 8200
+  # Allow from Vault pods (Raft cluster communication)
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "vault.selectorLabels" . | nindent 10 }}
+    ports:
+    - protocol: TCP
+      port: 8201
+    - protocol: TCP
+      port: 8202
+  egress:
+  # Allow to Vault pods (Raft)
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "vault.selectorLabels" . | nindent 10 }}
+    ports:
+    - protocol: TCP
+      port: 8200
+    - protocol: TCP
+      port: 8201
+    - protocol: TCP
+      port: 8202
+  # Allow to kube-dns
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow to AWS endpoints (HTTPS) - unrestricted egress for KMS/S3 access
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+    ports:
+    - protocol: TCP
+      port: 443
+{{- end }}

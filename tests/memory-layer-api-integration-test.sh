@@ -21,6 +21,9 @@ echo ""
 cleanup() {
   echo ""
   echo "Limpando recursos de teste..."
+  if [ -n "${PF_PID:-}" ]; then
+    kill $PF_PID 2>/dev/null || true
+  fi
 }
 trap cleanup EXIT
 
@@ -68,6 +71,13 @@ done
 # 2. Teste da camada HOT (Redis)
 echo ""
 echo "2. Testando camada HOT (Redis - cache curto prazo)..."
+
+# Setup port-forward for API access
+echo "  Setting up port-forward to memory-layer-api..."
+kubectl port-forward -n ${NAMESPACE} svc/memory-layer-api 8000:8000 > /dev/null 2>&1 &
+PF_PID=$!
+sleep 3
+
 QUERY_HOT=$(cat <<EOF
 {
   "query_type": "context",
@@ -84,10 +94,9 @@ QUERY_HOT=$(cat <<EOF
 EOF
 )
 
-RESPONSE_HOT=$(kubectl exec -n ${NAMESPACE} ${POD_NAME} -- \
-  curl -s -X POST http://localhost:8000/api/v1/memory/query \
+RESPONSE_HOT=$(curl -s -X POST http://localhost:8000/api/v1/memory/query \
   -H "Content-Type: application/json" \
-  -d "$QUERY_HOT" 2>/dev/null || echo "{}")
+  -d "$QUERY_HOT" || echo "{}")
 
 if echo "$RESPONSE_HOT" | jq -e '.success' > /dev/null 2>&1; then
   echo "✅ Query HOT layer executada"
@@ -141,10 +150,9 @@ QUERY_WARM=$(cat <<EOF
 EOF
 )
 
-RESPONSE_WARM=$(kubectl exec -n ${NAMESPACE} ${POD_NAME} -- \
-  curl -s -X POST http://localhost:8000/api/v1/memory/query \
+RESPONSE_WARM=$(curl -s -X POST http://localhost:8000/api/v1/memory/query \
   -H "Content-Type: application/json" \
-  -d "$QUERY_WARM" 2>/dev/null || echo "{}")
+  -d "$QUERY_WARM" || echo "{}")
 
 if echo "$RESPONSE_WARM" | jq -e '.success' > /dev/null 2>&1; then
   echo "✅ Query WARM layer executada"
@@ -171,10 +179,9 @@ QUERY_SEMANTIC=$(cat <<EOF
 EOF
 )
 
-RESPONSE_SEMANTIC=$(kubectl exec -n ${NAMESPACE} ${POD_NAME} -- \
-  curl -s -X POST http://localhost:8000/api/v1/memory/query \
+RESPONSE_SEMANTIC=$(curl -s -X POST http://localhost:8000/api/v1/memory/query \
   -H "Content-Type: application/json" \
-  -d "$QUERY_SEMANTIC" 2>/dev/null || echo "{}")
+  -d "$QUERY_SEMANTIC" || echo "{}")
 
 if echo "$RESPONSE_SEMANTIC" | jq -e '.success' > /dev/null 2>&1; then
   echo "✅ Query SEMANTIC layer executada"
@@ -184,8 +191,7 @@ fi
 
 # Testar API de lineage
 echo "  Testando lineage tracking..."
-LINEAGE_RESPONSE=$(kubectl exec -n ${NAMESPACE} ${POD_NAME} -- \
-  curl -s http://localhost:8000/api/v1/memory/lineage/${TEST_ENTITY_ID}?depth=3 2>/dev/null || echo "{}")
+LINEAGE_RESPONSE=$(curl -s http://localhost:8000/api/v1/memory/lineage/${TEST_ENTITY_ID}?depth=3 || echo "{}")
 
 if echo "$LINEAGE_RESPONSE" | jq -e '.entity_id' > /dev/null 2>&1; then
   echo "  ✅ Lineage API respondendo"
@@ -211,10 +217,9 @@ QUERY_COLD=$(cat <<EOF
 EOF
 )
 
-RESPONSE_COLD=$(kubectl exec -n ${NAMESPACE} ${POD_NAME} -- \
-  curl -s -X POST http://localhost:8000/api/v1/memory/query \
+RESPONSE_COLD=$(curl -s -X POST http://localhost:8000/api/v1/memory/query \
   -H "Content-Type: application/json" \
-  -d "$QUERY_COLD" 2>/dev/null || echo "{}")
+  -d "$QUERY_COLD" || echo "{}")
 
 if echo "$RESPONSE_COLD" | jq -e '.success' > /dev/null 2>&1; then
   echo "✅ Query COLD layer executada"
@@ -224,7 +229,8 @@ fi
 
 # Validar conectividade direta com ClickHouse
 echo "  Validando conectividade com ClickHouse..."
-if kubectl exec -n ${NAMESPACE} ${POD_NAME} -- \
+# Using curlimages/curl pod to test ClickHouse connectivity from within cluster
+if kubectl run tmp-clickhouse-test-$$ --rm -i --image=curlimages/curl --restart=Never -- \
   curl -s http://clickhouse-http.clickhouse-cluster.svc.cluster.local:8123/ping 2>/dev/null | grep -q "Ok"; then
   echo "  ✅ ClickHouse alcançável"
 else
@@ -239,10 +245,7 @@ echo "  Cenário 1: Dados recentes (<5min) devem ir para Redis"
 
 echo "  Cenário 2: Cache miss deve buscar em MongoDB"
 # Invalidar cache primeiro
-INVALIDATE_RESPONSE=$(kubectl exec -n ${NAMESPACE} ${POD_NAME} -- \
-  curl -s -X POST http://localhost:8000/api/v1/memory/invalidate \
-  -H "Content-Type: application/json" \
-  -d "{\"entity_id\": \"${TEST_ENTITY_ID}\"}" 2>/dev/null || echo "{}")
+INVALIDATE_RESPONSE=$(curl -s -X POST "http://localhost:8000/api/v1/memory/invalidate?pattern=context:${TEST_ENTITY_ID}*" || echo "{}")
 
 if echo "$INVALIDATE_RESPONSE" | jq -e '.success' > /dev/null 2>&1; then
   echo "    ✅ Cache invalidado"
@@ -252,10 +255,9 @@ fi
 
 # Consultar novamente (deve buscar do MongoDB)
 sleep 2
-RESPONSE_AFTER_INVALIDATE=$(kubectl exec -n ${NAMESPACE} ${POD_NAME} -- \
-  curl -s -X POST http://localhost:8000/api/v1/memory/query \
+RESPONSE_AFTER_INVALIDATE=$(curl -s -X POST http://localhost:8000/api/v1/memory/query \
   -H "Content-Type: application/json" \
-  -d "{\"query_type\": \"context\", \"entity_id\": \"${TEST_ENTITY_ID}\"}" 2>/dev/null || echo "{}")
+  -d "{\"query_type\": \"context\", \"entity_id\": \"${TEST_ENTITY_ID}\"}" || echo "{}")
 
 if echo "$RESPONSE_AFTER_INVALIDATE" | jq -e '.success' > /dev/null 2>&1; then
   SOURCE_AFTER=$(echo "$RESPONSE_AFTER_INVALIDATE" | jq -r '.source // "unknown"')
@@ -268,14 +270,13 @@ fi
 # 7. Teste de data quality
 echo ""
 echo "7. Testando data quality monitoring..."
-QUALITY_RESPONSE=$(kubectl exec -n ${NAMESPACE} ${POD_NAME} -- \
-  curl -s http://localhost:8000/api/v1/memory/quality/stats 2>/dev/null || echo "{}")
+QUALITY_RESPONSE=$(curl -s http://localhost:8000/api/v1/memory/quality/stats || echo "{}")
 
-if echo "$QUALITY_RESPONSE" | jq -e '.completeness' > /dev/null 2>&1; then
+if echo "$QUALITY_RESPONSE" | jq -e '.stats.completeness' > /dev/null 2>&1; then
   echo "✅ Data quality API respondendo"
-  COMPLETENESS=$(echo "$QUALITY_RESPONSE" | jq -r '.completeness.score // 0')
-  ACCURACY=$(echo "$QUALITY_RESPONSE" | jq -r '.accuracy.score // 0')
-  TIMELINESS=$(echo "$QUALITY_RESPONSE" | jq -r '.timeliness.score // 0')
+  COMPLETENESS=$(echo "$QUALITY_RESPONSE" | jq -r '.stats.completeness.score // 0')
+  ACCURACY=$(echo "$QUALITY_RESPONSE" | jq -r '.stats.accuracy.score // 0')
+  TIMELINESS=$(echo "$QUALITY_RESPONSE" | jq -r '.stats.timeliness.score // 0')
 
   echo "   Completeness: ${COMPLETENESS}"
   echo "   Accuracy: ${ACCURACY}"
@@ -287,7 +288,7 @@ fi
 # 8. Validar métricas Prometheus
 echo ""
 echo "8. Validando métricas Prometheus..."
-METRICS=$(kubectl exec -n ${NAMESPACE} ${POD_NAME} -- curl -s http://localhost:8080/metrics 2>/dev/null)
+METRICS=$(curl -s http://localhost:8080/metrics)
 
 if echo "$METRICS" | grep -q "neural_hive_memory_queries_total"; then
   QUERIES_TOTAL=$(echo "$METRICS" | grep "^neural_hive_memory_queries_total" | awk '{print $2}' || echo "0")
@@ -307,8 +308,8 @@ fi
 # 9. Validar health e readiness
 echo ""
 echo "9. Validando health e readiness..."
-HEALTH=$(kubectl exec -n ${NAMESPACE} ${POD_NAME} -- curl -s http://localhost:8000/health 2>/dev/null || echo "{}")
-READY=$(kubectl exec -n ${NAMESPACE} ${POD_NAME} -- curl -s http://localhost:8000/ready 2>/dev/null || echo "{}")
+HEALTH=$(curl -s http://localhost:8000/health || echo "{}")
+READY=$(curl -s http://localhost:8000/ready || echo "{}")
 
 if echo "$HEALTH" | jq -e '.status == "healthy"' > /dev/null 2>&1; then
   echo "✅ Health check OK"
@@ -319,7 +320,7 @@ fi
 if echo "$READY" | jq -e '.ready == true' > /dev/null 2>&1; then
   echo "✅ Readiness check OK"
   echo "   Componentes:"
-  echo "$READY" | jq -r '.checks | to_entries[] | "     - \(.key): \(.value)"'
+  echo "$READY" | jq -r '.layers | to_entries[] | "     - \(.key): \(.value)"'
 else
   echo "⚠ Readiness check falhou"
 fi
@@ -341,7 +342,7 @@ echo ""
 echo "Funcionalidades:"
 echo "  Roteamento inteligente: ✅"
 echo "  Lineage tracking:       $(echo "$LINEAGE_RESPONSE" | jq -e '.entity_id' > /dev/null 2>&1 && echo '✅' || echo '⚠')"
-echo "  Data quality:           $(echo "$QUALITY_RESPONSE" | jq -e '.completeness' > /dev/null 2>&1 && echo '✅' || echo '⚠')"
+echo "  Data quality:           $(echo "$QUALITY_RESPONSE" | jq -e '.stats.completeness' > /dev/null 2>&1 && echo '✅' || echo '⚠')"
 echo "  Cache invalidation:     $(echo "$INVALIDATE_RESPONSE" | jq -e '.success' > /dev/null 2>&1 && echo '✅' || echo '⚠')"
 echo "  Métricas Prometheus:    ✅"
 echo ""

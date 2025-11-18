@@ -1,0 +1,18 @@
+apiVersion: v2
+name: scout-agents
+description: Scout Agents para exploração e descoberta de sinais emergentes no Neural Hive-Mind
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - neural-hive
+  - exploration
+  - scouts
+  - discovery
+  - machine-learning
+maintainers:
+  - name: Neural Hive Team
+    email: team@neuralhive.io
+home: https://github.com/your-org/neural-hive-mind
+sources:
+  - https://github.com/your-org/neural-hive-mind/tree/main/services/scout-agents

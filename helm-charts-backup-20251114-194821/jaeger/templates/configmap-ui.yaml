@@ -1,0 +1,55 @@
+{{- if .Values.jaeger.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "jaeger.fullname" . }}-ui-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ include "jaeger.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    neural.hive/component: distributed-tracing
+data:
+  ui-config.json: |
+    {
+      "monitor": {
+        "menuEnabled": true
+      },
+      "dependencies": {
+        "dagMaxNumServices": 200,
+        "menuEnabled": true
+      },
+      "archiveEnabled": true,
+      "tracking": {
+        "gaID": "",
+        "trackErrors": false
+      },
+      "menu": [
+        {
+          "label": "Neural Hive Documentation",
+          "url": "https://docs.neural-hive.local",
+          "anchorTarget": "_blank"
+        },
+        {
+          "label": "Observability Guide",
+          "url": "https://docs.neural-hive.local/observability",
+          "anchorTarget": "_blank"
+        }
+      ],
+      "linkPatterns": [
+        {
+          "type": "logs",
+          "key": "neural_hive_logs",
+          "text": "View Logs in Grafana",
+          "url": "https://grafana.{{ .Values.global.domain }}/explore?orgId=1&left=%7B%22datasource%22:%22Loki%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22expr%22:%22%7Btracing_span_id%3D%22#{spanID}%22%7D%22%7D%5D,%22range%22:%7B%22from%22:%22#{startTime}%22,%22to%22:%22#{endTime}%22%7D%7D"
+        },
+        {
+          "type": "metrics",
+          "key": "neural_hive_metrics",
+          "text": "View Metrics in Grafana",
+          "url": "https://grafana.{{ .Values.global.domain }}/explore?orgId=1&left=%7B%22datasource%22:%22Prometheus%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22expr%22:%22rate(neural_hive_requests_total%7Btrace_id%3D%5C%22#{traceID}%5C%22%7D%5B5m%5D)%22%7D%5D,%22range%22:%7B%22from%22:%22#{startTime}%22,%22to%22:%22#{endTime}%22%7D%7D"
+        }
+      ]
+    }
+{{- end }}

@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: spire-server
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "spire.labels" . | nindent 4 }}
+    app: spire-server
+spec:
+  replicas: {{ .Values.server.replicas }}
+  serviceName: spire-server
+  selector:
+    matchLabels:
+      app: spire-server
+  podManagementPolicy: Parallel
+  template:
+    metadata:
+      labels:
+        app: spire-server
+        {{- include "spire.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "spire.server.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: spire-server
+        image: "{{ .Values.server.image.repository }}:{{ .Values.server.image.tag }}"
+        args:
+        - -config
+        - /run/spire/config/server.conf
+        ports:
+        - name: grpc
+          containerPort: 8081
+          protocol: TCP
+        - name: healthz
+          containerPort: 8080
+          protocol: TCP
+        env:
+        - name: SPIRE_SERVER_TRUST_DOMAIN
+          value: {{ .Values.global.trustDomain }}
+        - name: SPIRE_SERVER_LOG_LEVEL
+          value: {{ .Values.server.config.logLevel }}
+        {{- if .Values.server.datastore.sql.connectionStringSecret.enabled }}
+        - name: SPIRE_DB_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.server.datastore.sql.connectionStringSecret.name }}
+              key: {{ .Values.server.datastore.sql.connectionStringSecret.key }}
+        {{- end }}
+        volumeMounts:
+        - name: spire-config
+          mountPath: /run/spire/config
+          readOnly: true
+        - name: spire-data
+          mountPath: /run/spire/data
+        - name: spire-sockets
+          mountPath: /run/spire/sockets
+        livenessProbe:
+          httpGet:
+            path: /live
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 3
+        resources:
+          {{- toYaml .Values.server.resources | nindent 10 }}
+      volumes:
+      - name: spire-config
+        configMap:
+          name: spire-server-config
+      {{- if not .Values.server.persistence.enabled }}
+      - name: spire-data
+        emptyDir: {}
+      {{- end }}
+      - name: spire-sockets
+        emptyDir: {}
+      {{- with .Values.server.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- if .Values.server.persistence.enabled }}
+  volumeClaimTemplates:
+  - metadata:
+      name: spire-data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: {{ .Values.server.persistence.storageClass }}
+      resources:
+        requests:
+          storage: {{ .Values.server.persistence.size }}
+  {{- end }}

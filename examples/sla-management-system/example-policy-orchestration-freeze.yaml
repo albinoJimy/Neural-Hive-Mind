@@ -1,0 +1,27 @@
+apiVersion: neural-hive.io/v1
+kind: SLAPolicy
+metadata:
+  name: orchestration-freeze-policy
+  namespace: neural-hive-orchestration
+  labels:
+    neural-hive.io/layer: orchestration
+    neural-hive.io/policy-scope: namespace
+spec:
+  name: "Orchestration Layer Freeze Policy"
+  description: "Bloqueia deployments na camada de orquestração quando error budget está abaixo de 20%"
+  scope: NAMESPACE
+  target: neural-hive-orchestration
+  actions:
+    - BLOCK_DEPLOY
+    - ALERT_ONLY
+  triggerThresholdPercent: 20
+  autoUnfreeze: true
+  unfreezeThresholdPercent: 50
+  enabled: true
+  metadata:
+    owner: neural-hive-team
+    severity: high
+    notification_channels:
+      - slack-neural-hive-alerts
+      - pagerduty-oncall
+    escalation_policy: neural-hive-sla-escalation

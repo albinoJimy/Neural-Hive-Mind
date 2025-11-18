@@ -1,0 +1,29 @@
+apiVersion: v2
+name: neural-hive-grafana
+description: Grafana configurado para Neural Hive-Mind com dashboards e data sources específicos
+type: application
+version: 1.0.0
+appVersion: "10.2.0"
+home: https://github.com/neural-hive-mind/observability
+sources:
+  - https://github.com/grafana/helm-charts
+  - https://github.com/neural-hive-mind/observability
+keywords:
+  - monitoring
+  - visualization
+  - dashboards
+  - grafana
+  - observability
+  - neural-hive-mind
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: observability@neural-hive.local
+annotations:
+  category: Visualization
+  neural.hive/component: dashboard-visualization
+  neural.hive/layer: observabilidade
+dependencies:
+  - name: grafana
+    version: "7.0.3"
+    repository: https://grafana.github.io/helm-charts
+    condition: grafana.enabled

@@ -29,6 +29,13 @@ dowhy==0.10.1
 evidently==0.4.11
 gymnasium==0.29.1
 
+# ML Predictive Scheduling
+prophet==1.1.5
+statsmodels==0.14.0
+clickhouse-driver==0.2.6
+pmdarima==2.0.4
+holidays==0.35
+
 # Observability
 opentelemetry-api==1.21.0
 opentelemetry-sdk==1.21.0
@@ -44,3 +51,7 @@ kubernetes==28.1.0
 httpx==0.25.2
 pyyaml==6.0.1
 python-dotenv==1.0.0
+
+# Biblioteca centralizada de modelos preditivos
+# Para desenvolvimento local: pip install -e ../../libraries/python/neural_hive_ml
+-e ../../libraries/python/neural_hive_ml

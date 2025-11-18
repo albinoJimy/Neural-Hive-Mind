@@ -1,0 +1,406 @@
+{
+  "dashboard": {
+    "title": "Orchestrator - ML Scheduling Optimization",
+    "uid": "orchestrator-ml-scheduling",
+    "tags": ["orchestrator", "ml", "scheduling", "phase2"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "ML Optimization Success Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(orchestration_scheduler_ml_optimizations_applied_total{optimization_type!=\"heuristic\"}[5m]) / rate(orchestration_scheduler_ml_optimizations_applied_total[5m]) * 100",
+            "legendFormat": "ML Success Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 50, "color": "yellow"},
+                {"value": 80, "color": "green"}
+              ]
+            }
+          }
+        },
+        "options": {
+          "graphMode": "area"
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Optimizer Availability",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "orchestration_scheduler_optimizer_availability",
+            "legendFormat": "Optimizer Available"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none",
+            "mappings": [
+              {"value": 0, "text": "Unavailable", "color": "red"},
+              {"value": 1, "text": "Available", "color": "green"}
+            ],
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 1, "color": "green"}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Allocation Quality Score (Median)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.5, rate(orchestration_scheduler_allocation_quality_score_bucket{used_ml_optimization=\"true\"}[5m]))",
+            "legendFormat": "Quality Score"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 0.6, "color": "yellow"},
+                {"value": 0.8, "color": "green"}
+              ]
+            }
+          }
+        },
+        "options": {
+          "graphMode": "area"
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0}
+      },
+      {
+        "id": 4,
+        "title": "ML Optimization Latency (P95)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(orchestration_scheduler_ml_optimization_latency_seconds_bucket[5m]))",
+            "legendFormat": "P95 Latency"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "yellow"},
+                {"value": 2, "color": "red"}
+              ]
+            }
+          }
+        },
+        "options": {
+          "graphMode": "area"
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0}
+      },
+      {
+        "id": 5,
+        "title": "Optimization Source Distribution",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (source) (rate(orchestration_scheduler_ml_optimizations_applied_total[5m]))",
+            "legendFormat": "{{source}}"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "values": ["value", "percent"]
+          },
+          "pieType": "donut"
+        },
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 4}
+      },
+      {
+        "id": 6,
+        "title": "Optimization Type Distribution",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (optimization_type) (rate(orchestration_scheduler_ml_optimizations_applied_total[5m]))",
+            "legendFormat": "{{optimization_type}}"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "values": ["value", "percent"]
+          },
+          "pieType": "donut"
+        },
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 4}
+      },
+      {
+        "id": 7,
+        "title": "ML Predictions Status",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(orchestration_ml_predictions_total{status=\"success\"}[5m])",
+            "legendFormat": "Success"
+          },
+          {
+            "expr": "rate(orchestration_ml_predictions_total{status=\"error\"}[5m])",
+            "legendFormat": "Error"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "custom": {
+              "lineWidth": 2,
+              "fillOpacity": 10
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 4}
+      },
+      {
+        "id": 8,
+        "title": "Queue Time Prediction Error (P95)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(orchestration_scheduler_queue_prediction_error_ms_bucket[5m])) / 1000",
+            "legendFormat": "P95 Error (seconds)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "custom": {
+              "lineWidth": 2,
+              "fillOpacity": 10
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 10, "color": "yellow"},
+                {"value": 30, "color": "red"}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12}
+      },
+      {
+        "id": 9,
+        "title": "ML Optimization Latency by Type",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(orchestration_scheduler_ml_optimization_latency_seconds_bucket[5m]))",
+            "legendFormat": "P95 Overall"
+          },
+          {
+            "expr": "histogram_quantile(0.5, rate(orchestration_scheduler_ml_optimization_latency_seconds_bucket[5m]))",
+            "legendFormat": "P50 Overall"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "custom": {
+              "lineWidth": 2,
+              "fillOpacity": 10
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12}
+      },
+      {
+        "id": 10,
+        "title": "Predicted Queue Time Distribution (Local)",
+        "type": "heatmap",
+        "targets": [
+          {
+            "expr": "sum(rate(orchestration_scheduler_predicted_queue_time_ms_bucket{source=\"local\"}[5m])) by (le)",
+            "format": "heatmap",
+            "legendFormat": "{{le}}"
+          }
+        ],
+        "options": {
+          "calculate": true,
+          "yAxis": {
+            "unit": "ms"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20}
+      },
+      {
+        "id": 11,
+        "title": "Predicted Worker Load Distribution (Local)",
+        "type": "heatmap",
+        "targets": [
+          {
+            "expr": "sum(rate(orchestration_scheduler_predicted_worker_load_pct_bucket{source=\"local\"}[5m])) by (le)",
+            "format": "heatmap",
+            "legendFormat": "{{le}}"
+          }
+        ],
+        "options": {
+          "calculate": true,
+          "yAxis": {
+            "unit": "percentunit"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20}
+      },
+      {
+        "id": 12,
+        "title": "Allocation Quality Score Distribution",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(orchestration_scheduler_allocation_quality_score_bucket{used_ml_optimization=\"true\"}[5m]))",
+            "legendFormat": "P95 (with ML)"
+          },
+          {
+            "expr": "histogram_quantile(0.5, rate(orchestration_scheduler_allocation_quality_score_bucket{used_ml_optimization=\"true\"}[5m]))",
+            "legendFormat": "P50 (with ML)"
+          },
+          {
+            "expr": "histogram_quantile(0.5, rate(orchestration_scheduler_allocation_quality_score_bucket{used_ml_optimization=\"false\"}[5m]))",
+            "legendFormat": "P50 (no ML)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "custom": {
+              "lineWidth": 2,
+              "fillOpacity": 10
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 28}
+      },
+      {
+        "id": 13,
+        "title": "ML Optimization Rate (ops/s)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum by (optimization_type) (rate(orchestration_scheduler_ml_optimizations_applied_total[5m]))",
+            "legendFormat": "{{optimization_type}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "custom": {
+              "lineWidth": 2,
+              "fillOpacity": 10,
+              "stacking": {
+                "mode": "normal"
+              }
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 28}
+      },
+      {
+        "id": 14,
+        "title": "Predicted vs Actual Queue Time (Error Tracking)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(orchestration_scheduler_predicted_queue_time_ms_bucket{source=\"local\"}[5m])) / 1000",
+            "legendFormat": "Predicted P95 (local)"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(orchestration_scheduler_queue_prediction_error_ms_bucket[5m])) / 1000",
+            "legendFormat": "Prediction Error P95"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "custom": {
+              "lineWidth": 2,
+              "fillOpacity": 10
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 36}
+      },
+      {
+        "id": 15,
+        "title": "ML Optimization Timeline (Last 24h)",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "sum by (optimization_type, source) (increase(orchestration_scheduler_ml_optimizations_applied_total[24h]))",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "renameByName": {
+                "optimization_type": "Optimization Type",
+                "source": "Source",
+                "Value": "Count (24h)"
+              }
+            }
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 36}
+      }
+    ],
+    "templating": {
+      "list": []
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "Optimizer Unavailable",
+          "datasource": "Prometheus",
+          "expr": "ALERTS{alertname=\"OptimizerAgentsUnavailable\"}",
+          "iconColor": "yellow",
+          "enable": true
+        },
+        {
+          "name": "High Prediction Errors",
+          "datasource": "Prometheus",
+          "expr": "ALERTS{alertname=\"QueuePredictionErrorHigh\"}",
+          "iconColor": "red",
+          "enable": true
+        }
+      ]
+    },
+    "schemaVersion": 36,
+    "version": 1
+  }
+}

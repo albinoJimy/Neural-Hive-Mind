@@ -22,8 +22,21 @@ class OptimizationEngine:
     para balancear exploração/exploração.
     """
 
-    def __init__(self, settings=None):
+    def __init__(
+        self,
+        settings=None,
+        load_predictor=None,
+        mongodb_client=None,
+        redis_client=None,
+        consensus_engine_client=None,
+        queen_agent_client=None
+    ):
         self.settings = settings or get_settings()
+        self.load_predictor = load_predictor
+        self.mongodb_client = mongodb_client
+        self.redis_client = redis_client
+        self.consensus_engine_client = consensus_engine_client
+        self.queen_agent_client = queen_agent_client
 
         # Q-table: dict[state_hash][action] -> Q-value
         self.q_table: Dict[str, Dict[str, float]] = defaultdict(lambda: defaultdict(float))
@@ -49,9 +62,10 @@ class OptimizationEngine:
             learning_rate=self.learning_rate,
             exploration_rate=self.exploration_rate,
             discount_factor=self.discount_factor,
+            load_predictor_enabled=self.load_predictor is not None
         )
 
-    def analyze_opportunity(self, insight: Dict) -> List[OptimizationHypothesis]:
+    async def analyze_opportunity(self, insight: Dict) -> List[OptimizationHypothesis]:
         """
         Analisar insight e identificar oportunidades de otimização.
 
@@ -71,6 +85,11 @@ class OptimizationEngine:
 
             # Mapear estado atual
             state = self._extract_state(metrics)
+
+            # Enriquece estado com previsão de carga se disponível
+            if self.load_predictor:
+                state = await self._incorporate_load_forecast(state)
+
             state_hash = self._hash_state(state)
 
             # Identificar ações candidatas baseado no tipo de insight
@@ -435,3 +454,60 @@ class OptimizationEngine:
         self.exploration_rate *= decay_factor
         # Mínimo de 5% de exploração
         self.exploration_rate = max(self.exploration_rate, 0.05)
+
+    async def _incorporate_load_forecast(self, state: Dict) -> Dict:
+        """
+        Enriquece estado com previsão de carga do sistema.
+
+        Args:
+            state: Estado atual do sistema
+
+        Returns:
+            Estado enriquecido com forecast de carga
+        """
+        try:
+            # Obtém forecast para 6 horas (360 minutos)
+            forecast = await self.load_predictor.predict_load(
+                horizon_minutes=360,
+                include_confidence=True
+            )
+
+            if 'error' not in forecast:
+                # Calcula tendência média
+                load_values = forecast.get('forecast', [])
+                if load_values:
+                    avg_load = sum(load_values) / len(load_values)
+                    current_load = state.get('current_load', 0.5)
+
+                    # Determina tendência
+                    if avg_load > current_load * 1.2:
+                        load_trend = 'increasing'
+                        trend_strength = min((avg_load - current_load) / current_load, 1.0)
+                    elif avg_load < current_load * 0.8:
+                        load_trend = 'decreasing'
+                        trend_strength = min((current_load - avg_load) / current_load, 1.0)
+                    else:
+                        load_trend = 'stable'
+                        trend_strength = 0.0
+
+                    state['load_forecast'] = {
+                        'avg_predicted_load': avg_load,
+                        'trend': load_trend,
+                        'trend_strength': trend_strength,
+                        'horizon_minutes': 360
+                    }
+
+                    logger.debug(
+                        "load_forecast_incorporated",
+                        avg_load=avg_load,
+                        trend=load_trend,
+                        trend_strength=trend_strength
+                    )
+
+        except Exception as e:
+            logger.warning(
+                "load_forecast_incorporation_failed",
+                error=str(e)
+            )
+
+        return state

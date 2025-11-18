@@ -12,9 +12,14 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
+# Copy neural_hive_security library (deve ser copiado no build context)
+# Build command: docker build -f services/guard-agents/Dockerfile --build-arg BUILD_CONTEXT=. -t guard-agents .
+COPY libraries/security/neural_hive_security /tmp/neural_hive_security
+
 # Copy requirements and install dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/opt/venv -r requirements.txt
+RUN pip install --no-cache-dir --prefix=/opt/venv -r requirements.txt && \
+    pip install --no-cache-dir --prefix=/opt/venv -e /tmp/neural_hive_security
 
 # Copy source code
 COPY src/ ./src/

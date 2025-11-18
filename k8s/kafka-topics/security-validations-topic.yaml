@@ -1,0 +1,18 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: security-validations
+  namespace: neural-hive-kafka
+  labels:
+    strimzi.io/cluster: neural-hive-kafka
+    neural-hive.io/component: guard-agents
+    neural-hive.io/layer: security
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    retention.ms: 2592000000  # 30 dias
+    segment.ms: 3600000       # 1 hora
+    compression.type: lz4
+    min.insync.replicas: 2
+    cleanup.policy: delete

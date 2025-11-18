@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spire-agent-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "spire.labels" . | nindent 4 }}
+data:
+  agent.conf: |
+    agent {
+      data_dir = "{{ .Values.agent.config.dataDir }}"
+      log_level = "{{ .Values.agent.config.logLevel }}"
+      server_address = "{{ .Values.agent.config.serverAddress }}"
+      server_port = "{{ .Values.agent.config.serverPort }}"
+      socket_path = "{{ .Values.agent.config.socketPath }}"
+      trust_domain = "{{ .Values.global.trustDomain }}"
+      insecure_bootstrap = false
+    }
+
+    plugins {
+      NodeAttestor "k8s_psat" {
+        plugin_data {
+          cluster = "{{ .Values.agent.nodeAttestor.k8sPsat.cluster }}"
+          token_path = "/var/run/secrets/tokens/spire-agent"
+        }
+      }
+
+      KeyManager "memory" {
+        plugin_data {}
+      }
+
+      WorkloadAttestor "k8s" {
+        plugin_data {
+          skip_kubelet_verification = {{ .Values.agent.workloadAttestor.k8s.skipKubeletVerification }}
+          node_name_env = "MY_NODE_NAME"
+        }
+      }
+    }
+
+    health_checks {
+      listener_enabled = true
+      bind_address = "0.0.0.0"
+      bind_port = "8080"
+      live_path = "/live"
+      ready_path = "/ready"
+    }

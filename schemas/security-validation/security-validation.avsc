@@ -1,0 +1,194 @@
+{
+  "namespace": "com.neuralhive.security.validation",
+  "type": "record",
+  "name": "SecurityValidation",
+  "doc": "Schema para validação proativa de segurança de execution tickets",
+  "fields": [
+    {
+      "name": "validation_id",
+      "type": "string",
+      "doc": "UUID único da validação"
+    },
+    {
+      "name": "ticket_id",
+      "type": "string",
+      "doc": "ID do ExecutionTicket sendo validado"
+    },
+    {
+      "name": "plan_id",
+      "type": "string",
+      "doc": "ID do plano de execução"
+    },
+    {
+      "name": "intent_id",
+      "type": "string",
+      "doc": "ID da intenção original"
+    },
+    {
+      "name": "correlation_id",
+      "type": "string",
+      "doc": "ID de correlação para rastreamento distribuído"
+    },
+    {
+      "name": "trace_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "OpenTelemetry trace ID"
+    },
+    {
+      "name": "span_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "OpenTelemetry span ID"
+    },
+    {
+      "name": "validated_at",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Timestamp de quando a validação foi executada"
+    },
+    {
+      "name": "validation_status",
+      "type": {
+        "type": "enum",
+        "name": "ValidationStatus",
+        "symbols": ["APPROVED", "REJECTED", "REQUIRES_APPROVAL"]
+      },
+      "doc": "Status da validação"
+    },
+    {
+      "name": "validator_type",
+      "type": {
+        "type": "enum",
+        "name": "ValidatorType",
+        "symbols": ["OPA_POLICY", "RBAC", "SECRETS_SCAN", "COMPLIANCE", "GUARDRAIL"]
+      },
+      "doc": "Tipo de validador que executou a validação"
+    },
+    {
+      "name": "violations",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "GuardrailViolation",
+          "fields": [
+            {
+              "name": "violation_id",
+              "type": "string",
+              "doc": "UUID único da violação"
+            },
+            {
+              "name": "violation_type",
+              "type": {
+                "type": "enum",
+                "name": "ViolationType",
+                "symbols": [
+                  "SECRET_EXPOSED",
+                  "RBAC_VIOLATION",
+                  "COMPLIANCE_BREACH",
+                  "ETHICAL_CONCERN",
+                  "POLICY_VIOLATION"
+                ]
+              },
+              "doc": "Tipo da violação detectada"
+            },
+            {
+              "name": "severity",
+              "type": {
+                "type": "enum",
+                "name": "Severity",
+                "symbols": ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+              },
+              "doc": "Severidade da violação"
+            },
+            {
+              "name": "description",
+              "type": "string",
+              "doc": "Descrição detalhada da violação"
+            },
+            {
+              "name": "remediation_suggestion",
+              "type": "string",
+              "doc": "Sugestão de como remediar a violação"
+            },
+            {
+              "name": "detected_by",
+              "type": "string",
+              "doc": "Nome do validador que detectou a violação"
+            },
+            {
+              "name": "evidence",
+              "type": {
+                "type": "map",
+                "values": "string"
+              },
+              "doc": "Evidências da violação (chave-valor)"
+            }
+          ]
+        }
+      },
+      "default": [],
+      "doc": "Lista de violações detectadas"
+    },
+    {
+      "name": "risk_assessment",
+      "type": {
+        "type": "record",
+        "name": "RiskAssessment",
+        "fields": [
+          {
+            "name": "risk_score",
+            "type": "double",
+            "doc": "Score de risco (0.0 a 1.0)"
+          },
+          {
+            "name": "severity",
+            "type": "Severity",
+            "doc": "Severidade geral do risco"
+          },
+          {
+            "name": "impact",
+            "type": "string",
+            "doc": "Descrição do impacto potencial"
+          }
+        ]
+      },
+      "doc": "Avaliação de risco calculada"
+    },
+    {
+      "name": "approval_required",
+      "type": "boolean",
+      "default": false,
+      "doc": "Indica se aprovação humana é necessária"
+    },
+    {
+      "name": "approval_reason",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Razão pela qual aprovação é necessária"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Metadados adicionais da validação"
+    },
+    {
+      "name": "hash",
+      "type": "string",
+      "doc": "Hash SHA-256 dos campos críticos para auditoria"
+    },
+    {
+      "name": "schema_version",
+      "type": "int",
+      "default": 1,
+      "doc": "Versão do schema para compatibilidade"
+    }
+  ]
+}

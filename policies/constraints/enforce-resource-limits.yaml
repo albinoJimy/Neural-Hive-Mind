@@ -1,0 +1,40 @@
+# Constraint para aplicar validação de resource limits
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: ResourceLimitsRequired
+metadata:
+  name: enforce-resource-limits
+  labels:
+    neural-hive.io/policy: resource-management
+    neural-hive.io/enforcement: active
+spec:
+  enforcementAction: warn # Começar com warn, evoluir para deny após validação
+  match:
+    kinds:
+      - apiGroups: ["", "apps", "batch"]
+        kinds:
+          - Pod
+          - Deployment
+          - StatefulSet
+          - DaemonSet
+          - Job
+          - CronJob
+          - ReplicaSet
+    namespaceSelector:
+      matchLabels:
+        neural-hive.io/managed: "true"
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+      - gatekeeper-system
+  parameters:
+    # Limites adequados para ambiente local
+    max_cpu: "2000m"       # 2 CPUs (adequado para Minikube/Kind)
+    max_memory: "4Gi"      # 4 GB RAM (adequado para ambiente local)
+    max_ratio: 4.0         # Ratio máximo entre limits e requests
+    enforcementMode: warn
+    # Configuração para transição automática warn→deny
+    autoTransition:
+      enabled: true
+      afterDays: 7
+      annotation: "gatekeeper.sh/policy-transition-date"

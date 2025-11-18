@@ -1,0 +1,12 @@
+apiVersion: v2
+name: code-forge
+description: Neural Code Generation Pipeline for Neural Hive-Mind
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - neural-hive-mind
+  - code-generation
+  - execution-layer
+maintainers:
+  - name: Neural Hive-Mind Team

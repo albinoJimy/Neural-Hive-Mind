@@ -35,10 +35,6 @@ variable "availability_zones" {
   description = "Zonas de disponibilidade para distribuir node groups"
   type        = list(string)
 
-  validation {
-    condition     = length(var.availability_zones) == length(var.private_subnet_ids)
-    error_message = "availability_zones e private_subnet_ids devem ter o mesmo tamanho."
-  }
 }
 
 variable "node_instance_types" {

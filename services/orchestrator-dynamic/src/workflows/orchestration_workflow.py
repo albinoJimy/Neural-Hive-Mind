@@ -25,6 +25,8 @@ with workflow.unsafe.imports_passed_through():
         publish_telemetry,
         buffer_telemetry
     )
+    from src.activities.sla_monitoring import check_workflow_sla_proactive
+    from src.config.settings import get_settings
 
 
 @workflow.defn
@@ -40,6 +42,7 @@ class OrchestrationWorkflow:
         self._status = 'initializing'
         self._tickets_generated = []
         self._workflow_result = {}
+        self._sla_warnings = []
 
     @workflow.run
     async def run(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -121,6 +124,35 @@ class OrchestrationWorkflow:
             self._tickets_generated = tickets
             workflow.logger.info(f'Gerados {len(tickets)} execution tickets')
 
+            # === Verificação Proativa de SLA (pós C2) ===
+            config = get_settings()
+            if config.sla_proactive_monitoring_enabled:
+                try:
+                    sla_check_result = await workflow.execute_activity(
+                        check_workflow_sla_proactive,
+                        args=[workflow_id, tickets, 'post_ticket_generation'],
+                        start_to_close_timeout=timedelta(seconds=5),
+                        retry_policy=workflow.RetryPolicy(
+                            maximum_attempts=2,
+                            non_retryable_error_types=['SLAMonitorUnavailable']
+                        )
+                    )
+
+                    if sla_check_result.get('deadline_approaching'):
+                        warning_msg = f'SLA proativo: deadline se aproximando, restam {sla_check_result.get("remaining_seconds")}s'
+                        workflow.logger.warning(
+                            warning_msg,
+                            remaining_seconds=sla_check_result.get('remaining_seconds'),
+                            critical_tickets=sla_check_result.get('critical_tickets')
+                        )
+                        self._sla_warnings.append({
+                            'checkpoint': 'post_ticket_generation',
+                            'warning': warning_msg,
+                            'data': sla_check_result
+                        })
+                except Exception as e:
+                    workflow.logger.warning(f'Falha na verificação proativa de SLA (pós C2): {e}')
+
             # === C3: Alocar Recursos ===
             self._status = 'allocating_resources'
             workflow.logger.info('C3: Alocando recursos')
@@ -159,6 +191,43 @@ class OrchestrationWorkflow:
                 published_tickets.append(publish_result)
 
             workflow.logger.info(f'Publicados {len(published_tickets)} tickets no Kafka')
+
+            # === Verificação Proativa de SLA (pós C4) ===
+            if config.sla_proactive_monitoring_enabled:
+                try:
+                    sla_check_result = await workflow.execute_activity(
+                        check_workflow_sla_proactive,
+                        args=[workflow_id, published_tickets, 'post_ticket_publishing'],
+                        start_to_close_timeout=timedelta(seconds=5),
+                        retry_policy=workflow.RetryPolicy(
+                            maximum_attempts=2,
+                            non_retryable_error_types=['SLAMonitorUnavailable']
+                        )
+                    )
+
+                    if sla_check_result.get('deadline_approaching'):
+                        warning_msg = f'SLA proativo: deadline se aproximando, restam {sla_check_result.get("remaining_seconds")}s'
+                        workflow.logger.warning(
+                            warning_msg,
+                            remaining_seconds=sla_check_result.get('remaining_seconds'),
+                            critical_tickets=sla_check_result.get('critical_tickets')
+                        )
+                        self._sla_warnings.append({
+                            'checkpoint': 'post_ticket_publishing',
+                            'warning': warning_msg,
+                            'data': sla_check_result
+                        })
+
+                    if sla_check_result.get('budget_critical'):
+                        budget_warning = 'SLA proativo: budget crítico detectado'
+                        workflow.logger.warning(budget_warning)
+                        self._sla_warnings.append({
+                            'checkpoint': 'post_ticket_publishing',
+                            'warning': budget_warning,
+                            'data': sla_check_result
+                        })
+                except Exception as e:
+                    workflow.logger.warning(f'Falha na verificação proativa de SLA (pós C4): {e}')
 
             # === C5: Consolidar Resultado ===
             self._status = 'consolidating_results'
@@ -217,7 +286,8 @@ class OrchestrationWorkflow:
                 'intent_id': intent_id,
                 'status': 'success',
                 'tickets_generated': len(tickets),
-                'result': workflow_result
+                'result': workflow_result,
+                'sla_warnings': self._sla_warnings
             }
 
         except Exception as e:
@@ -253,7 +323,8 @@ class OrchestrationWorkflow:
         return {
             'status': self._status,
             'tickets_generated': len(self._tickets_generated),
-            'workflow_result': self._workflow_result
+            'workflow_result': self._workflow_result,
+            'sla_warnings': self._sla_warnings
         }
 
     @workflow.query

@@ -1,0 +1,48 @@
+{{- if .Values.oidc.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spire-oidc-discovery-provider
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "spire.labels" . | nindent 4 }}
+    app: spire-oidc
+spec:
+  replicas: {{ .Values.oidc.replicas }}
+  selector:
+    matchLabels:
+      app: spire-oidc
+  template:
+    metadata:
+      labels:
+        app: spire-oidc
+        {{- include "spire.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Values.oidc.serviceAccount.name }}
+      containers:
+      - name: oidc-discovery-provider
+        image: "{{ .Values.oidc.image.repository }}:{{ .Values.oidc.image.tag }}"
+        args:
+        - -config
+        - /run/spire/config/oidc.conf
+        ports:
+        - name: http
+          containerPort: 8008
+          protocol: TCP
+        volumeMounts:
+        - name: oidc-config
+          mountPath: /run/spire/config
+          readOnly: true
+        - name: spire-server-socket
+          mountPath: /run/spire/sockets
+        resources:
+          {{- toYaml .Values.oidc.resources | nindent 10 }}
+      volumes:
+      - name: oidc-config
+        configMap:
+          name: spire-oidc-config
+      - name: spire-server-socket
+        hostPath:
+          path: /run/spire/sockets
+          type: DirectoryOrCreate
+{{- end }}

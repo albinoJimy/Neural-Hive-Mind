@@ -1,0 +1,108 @@
+{{- if and (.Values.config.ml.drift.enabled) (.Values.config.ml.trainingJob.enabled) }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "orchestrator-dynamic.fullname" . }}-ml-drift
+  labels:
+    {{- include "orchestrator-dynamic.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ml-drift-detection
+    neural-hive.io/layer: orchestration
+  annotations:
+    grafana.dashboard: "orchestrator-ml-predictions"
+    runbook.url: "https://docs.internal/runbooks/orchestrator-ml-drift"
+spec:
+  schedule: {{ .Values.config.ml.drift.cronSchedule | quote }}
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "orchestrator-dynamic.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ml-drift-detection
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 600
+      template:
+        metadata:
+          labels:
+            {{- include "orchestrator-dynamic.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: ml-drift-detection
+          annotations:
+            prometheus.io/scrape: "false"
+        spec:
+          restartPolicy: Never
+          serviceAccountName: {{ include "orchestrator-dynamic.serviceAccountName" . }}
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
+          containers:
+          - name: ml-drift
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            command:
+              - python
+              - -m
+              - src.ml.drift_job
+            env:
+              # MongoDB Configuration
+              - name: MONGODB_URI
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ include "orchestrator-dynamic.fullname" . }}-secrets
+                    key: mongodb-uri
+              # MLflow Configuration
+              - name: MLFLOW_TRACKING_URI
+                value: {{ .Values.config.ml.mlflow.trackingUri | quote }}
+              {{- if .Values.config.ml.mlflow.auth.enabled }}
+              - name: MLFLOW_TRACKING_USERNAME
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ include "orchestrator-dynamic.fullname" . }}-secrets
+                    key: mlflow-username
+              - name: MLFLOW_TRACKING_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ include "orchestrator-dynamic.fullname" . }}-secrets
+                    key: mlflow-password
+              {{- end }}
+              # Drift Detection Configuration
+              - name: ML_PREDICTIONS_ENABLED
+                value: "true"
+              - name: ML_DRIFT_DETECTION_ENABLED
+                value: "true"
+              - name: ML_DRIFT_CHECK_WINDOW_DAYS
+                value: {{ .Values.config.ml.drift.checkWindowDays | quote }}
+              - name: ML_DRIFT_PSI_THRESHOLD
+                value: {{ .Values.config.ml.drift.psiThreshold | quote }}
+              - name: ML_DRIFT_MAE_RATIO_THRESHOLD
+                value: {{ .Values.config.ml.drift.maeRatioThreshold | quote }}
+              - name: ML_DRIFT_KS_PVALUE_THRESHOLD
+                value: {{ .Values.config.ml.drift.ksPvalueThreshold | quote }}
+              # Prometheus Pushgateway
+              - name: PROMETHEUS_PUSHGATEWAY_URL
+                value: {{ .Values.config.prometheusPushgateway.url | quote }}
+              # Logging
+              - name: LOG_LEVEL
+                value: {{ .Values.config.logging.level | quote }}
+              - name: LOG_FORMAT
+                value: "json"
+            resources:
+              requests:
+                cpu: 200m
+                memory: 512Mi
+              limits:
+                cpu: 500m
+                memory: 1Gi
+            volumeMounts:
+              - name: tmp
+                mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir: {}
+{{- end }}

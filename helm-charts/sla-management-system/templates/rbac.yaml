@@ -1,0 +1,133 @@
+{{- if and .Values.rbac.create .Values.operator.enabled }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "sla-management-system.fullname" . }}-operator
+  labels:
+    {{- include "sla-management-system.labels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+rules:
+# CRD access for SLODefinition and SLAPolicy
+- apiGroups:
+  - neural-hive.io
+  resources:
+  - slodefinitions
+  - slapolicies
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+# CRD status subresource access
+- apiGroups:
+  - neural-hive.io
+  resources:
+  - slodefinitions/status
+  - slapolicies/status
+  verbs:
+  - get
+  - patch
+  - update
+# Namespace access for freeze annotations
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - patch
+# Deployment and StatefulSet access for freeze annotations
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - patch
+# Event creation
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+# Kopf framework coordination
+- apiGroups:
+  - kopf.dev
+  resources:
+  - kopfpeerings
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - create
+# ConfigMaps for Kopf operator state
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "sla-management-system.fullname" . }}-operator
+  labels:
+    {{- include "sla-management-system.labels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "sla-management-system.fullname" . }}-operator
+subjects:
+- kind: ServiceAccount
+  name: {{ include "sla-management-system.operatorServiceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- if .Values.rbac.create }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "sla-management-system.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sla-management-system.labels" . | nindent 4 }}
+rules:
+# ConfigMaps and Secrets access for configuration
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  verbs:
+  - get
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "sla-management-system.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sla-management-system.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "sla-management-system.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "sla-management-system.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}

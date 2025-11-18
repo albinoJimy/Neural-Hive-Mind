@@ -25,6 +25,21 @@ spec:
         {{- if .Values.istio.enabled }}
         sidecar.istio.io/inject: "true"
         {{- end }}
+        {{- if .Values.config.vault.enabled }}
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "{{ .Values.config.vault.kubernetesRole }}"
+        vault.hashicorp.com/agent-inject-secret-kafka: "{{ .Values.config.vault.mountKv }}/data/worker/kafka"
+        vault.hashicorp.com/agent-inject-template-kafka: |
+          {{`{{- with secret`}} "{{ .Values.config.vault.mountKv }}/data/worker/kafka" {{`-}}
+          export KAFKA_SASL_USERNAME="{{ .Data.data.username }}"
+          export KAFKA_SASL_PASSWORD="{{ .Data.data.password }}"
+          {{- end }}`}}
+        vault.hashicorp.com/agent-inject-secret-execution: "{{ .Values.config.vault.mountKv }}/data/worker/execution"
+        vault.hashicorp.com/agent-inject-template-execution: |
+          {{`{{- with secret`}} "{{ .Values.config.vault.mountKv }}/data/worker/execution" {{`-}}
+          export EXECUTION_CREDENTIALS="{{ .Data.data | toJSON }}"
+          {{- end }}`}}
+        {{- end }}
       labels:
         {{- include "worker-agents.selectorLabels" . | nindent 8 }}
     spec:
@@ -79,6 +94,17 @@ spec:
         volumeMounts:
         - name: tmp
           mountPath: /tmp
+        {{- if .Values.config.spiffe.enabled }}
+        - name: spire-agent-socket
+          mountPath: /run/spire/sockets
+          readOnly: true
+        {{- end }}
       volumes:
       - name: tmp
         emptyDir: {}
+      {{- if .Values.config.spiffe.enabled }}
+      - name: spire-agent-socket
+        hostPath:
+          path: /run/spire/sockets
+          type: Directory
+      {{- end }}

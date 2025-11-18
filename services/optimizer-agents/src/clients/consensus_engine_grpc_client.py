@@ -7,6 +7,14 @@ from src.config.settings import get_settings
 
 logger = structlog.get_logger()
 
+# Proto imports - will be available after `make proto` compilation
+try:
+    from proto import consensus_engine_extensions_pb2, consensus_engine_extensions_pb2_grpc
+    PROTO_AVAILABLE = True
+except ImportError:
+    PROTO_AVAILABLE = False
+    logger.warning("consensus_proto_not_compiled", message="Run 'make proto' to compile protocol buffers")
+
 
 class ConsensusEngineGrpcClient:
     """
@@ -33,9 +41,12 @@ class ConsensusEngineGrpcClient:
                 ],
             )
 
-            # TODO: Criar stub quando proto estendido for compilado
-            # from consensus_engine_pb2_grpc import ConsensusEngineStub
-            # self.stub = ConsensusEngineStub(self.channel)
+            # Criar stub quando proto estiver compilado
+            if PROTO_AVAILABLE:
+                self.stub = consensus_engine_extensions_pb2_grpc.ConsensusOptimizationStub(self.channel)
+                logger.info("consensus_engine_stub_created")
+            else:
+                logger.warning("consensus_engine_stub_not_created", reason="proto_not_compiled")
 
             # Testar conexão
             await self.channel.channel_ready()
@@ -59,23 +70,24 @@ class ConsensusEngineGrpcClient:
             Dict com {specialist_type: weight}
         """
         try:
-            # TODO: Implementar quando proto estendido
-            # request = GetCurrentWeightsRequest()
-            # response = await self.stub.GetCurrentWeights(request, timeout=self.settings.grpc_timeout)
-            # weights = dict(response.weights)
-
-            # Stub temporário
-            logger.warning("get_current_weights_stub_called")
-            weights = {
-                "technical": 0.20,
-                "safety": 0.20,
-                "business": 0.20,
-                "ethical": 0.20,
-                "legal": 0.20,
-            }
-
-            logger.info("current_weights_retrieved", weights=weights)
-            return weights
+            if PROTO_AVAILABLE and self.stub:
+                request = consensus_engine_extensions_pb2.GetCurrentWeightsRequest()
+                response = await self.stub.GetCurrentWeights(request, timeout=self.settings.grpc_timeout)
+                weights = dict(response.weights)
+                logger.info("current_weights_retrieved", weights=weights, source="grpc")
+                return weights
+            else:
+                # Stub temporário quando proto não compilado
+                logger.warning("get_current_weights_stub_called", reason="proto_not_available")
+                weights = {
+                    "technical": 0.20,
+                    "safety": 0.20,
+                    "business": 0.20,
+                    "ethical": 0.20,
+                    "legal": 0.20,
+                }
+                logger.info("current_weights_retrieved", weights=weights, source="stub")
+                return weights
 
         except grpc.RpcError as e:
             logger.error("get_current_weights_failed", error=str(e), code=e.code())
@@ -99,28 +111,38 @@ class ConsensusEngineGrpcClient:
             True se bem-sucedido
         """
         try:
-            # TODO: Implementar quando proto estendido
-            # request = UpdateWeightsRequest(
-            #     weights=weights,
-            #     justification=justification,
-            #     optimization_id=optimization_id
-            # )
-            # response = await self.stub.UpdateWeights(request, timeout=self.settings.grpc_timeout)
-
-            # Stub temporário
-            logger.warning(
-                "update_weights_stub_called",
-                weights=weights,
-                justification=justification,
-                optimization_id=optimization_id,
-            )
-
-            logger.info(
-                "weights_updated",
-                optimization_id=optimization_id,
-                weights=weights,
-            )
-            return True
+            if PROTO_AVAILABLE and self.stub:
+                request = consensus_engine_extensions_pb2.UpdateWeightsRequest(
+                    weights=weights,
+                    justification=justification,
+                    optimization_id=optimization_id,
+                    validate_before_apply=True
+                )
+                response = await self.stub.UpdateWeights(request, timeout=self.settings.grpc_timeout)
+                logger.info(
+                    "weights_updated",
+                    optimization_id=optimization_id,
+                    weights=weights,
+                    success=response.success,
+                    source="grpc"
+                )
+                return response.success
+            else:
+                # Stub temporário quando proto não compilado
+                logger.warning(
+                    "update_weights_stub_called",
+                    weights=weights,
+                    justification=justification,
+                    optimization_id=optimization_id,
+                    reason="proto_not_available"
+                )
+                logger.info(
+                    "weights_updated",
+                    optimization_id=optimization_id,
+                    weights=weights,
+                    source="stub"
+                )
+                return True
 
         except grpc.RpcError as e:
             logger.error(
@@ -145,28 +167,36 @@ class ConsensusEngineGrpcClient:
             Dict com métricas de consenso
         """
         try:
-            # TODO: Implementar quando proto estendido
-            # request = GetConsensusMetricsRequest(time_range=time_range)
-            # response = await self.stub.GetConsensusMetrics(request, timeout=self.settings.grpc_timeout)
-
-            # Stub temporário
-            logger.warning("get_consensus_metrics_stub_called", time_range=time_range)
-            metrics = {
-                "average_divergence": 0.12,
-                "average_confidence": 0.85,
-                "average_risk": 0.15,
-                "specialist_accuracy": {
-                    "technical": 0.88,
-                    "safety": 0.92,
-                    "business": 0.85,
-                    "ethical": 0.90,
-                    "legal": 0.87,
-                },
-                "total_decisions": 1234,
-            }
-
-            logger.info("consensus_metrics_retrieved", time_range=time_range)
-            return metrics
+            if PROTO_AVAILABLE and self.stub:
+                request = consensus_engine_extensions_pb2.GetConsensusMetricsRequest(time_range=time_range)
+                response = await self.stub.GetConsensusMetrics(request, timeout=self.settings.grpc_timeout)
+                metrics = {
+                    "average_divergence": response.average_divergence,
+                    "average_confidence": response.average_confidence,
+                    "average_risk": response.average_risk,
+                    "specialist_accuracy": dict(response.specialist_accuracy),
+                    "total_decisions": response.total_decisions,
+                }
+                logger.info("consensus_metrics_retrieved", time_range=time_range, source="grpc")
+                return metrics
+            else:
+                # Stub temporário quando proto não compilado
+                logger.warning("get_consensus_metrics_stub_called", time_range=time_range, reason="proto_not_available")
+                metrics = {
+                    "average_divergence": 0.12,
+                    "average_confidence": 0.85,
+                    "average_risk": 0.15,
+                    "specialist_accuracy": {
+                        "technical": 0.88,
+                        "safety": 0.92,
+                        "business": 0.85,
+                        "ethical": 0.90,
+                        "legal": 0.87,
+                    },
+                    "total_decisions": 1234,
+                }
+                logger.info("consensus_metrics_retrieved", time_range=time_range, source="stub")
+                return metrics
 
         except grpc.RpcError as e:
             logger.error("get_consensus_metrics_failed", error=str(e), code=e.code())
@@ -186,32 +216,37 @@ class ConsensusEngineGrpcClient:
             True se válido
         """
         try:
-            # TODO: Implementar quando proto estendido
-            # request = ValidateWeightAdjustmentRequest(proposed_weights=proposed_weights)
-            # response = await self.stub.ValidateWeightAdjustment(request, timeout=self.settings.grpc_timeout)
-            # return response.valid
+            if PROTO_AVAILABLE and self.stub:
+                request = consensus_engine_extensions_pb2.ValidateWeightAdjustmentRequest(
+                    proposed_weights=proposed_weights
+                )
+                response = await self.stub.ValidateWeightAdjustment(request, timeout=self.settings.grpc_timeout)
+                logger.info("weight_adjustment_validated", weights=proposed_weights, valid=response.is_valid, source="grpc")
+                return response.is_valid
+            else:
+                # Validações locais temporárias quando proto não compilado
+                logger.warning("validate_weight_adjustment_stub_called", reason="proto_not_available")
 
-            # Validações locais temporárias
-            # Verificar se somam 1.0 (±0.01 tolerância)
-            total = sum(proposed_weights.values())
-            if not (0.99 <= total <= 1.01):
-                logger.warning("weights_do_not_sum_to_one", total=total)
-                return False
-
-            # Verificar se todos >= 0.1 e <= 0.4 (evitar dominância)
-            for specialist, weight in proposed_weights.items():
-                if not (0.1 <= weight <= 0.4):
-                    logger.warning("weight_out_of_range", specialist=specialist, weight=weight)
+                # Verificar se somam 1.0 (±0.01 tolerância)
+                total = sum(proposed_weights.values())
+                if not (0.99 <= total <= 1.01):
+                    logger.warning("weights_do_not_sum_to_one", total=total)
                     return False
 
-            # Verificar se todos os 5 especialistas estão presentes
-            required_specialists = {"technical", "safety", "business", "ethical", "legal"}
-            if set(proposed_weights.keys()) != required_specialists:
-                logger.warning("missing_specialists", provided=list(proposed_weights.keys()))
-                return False
+                # Verificar se todos >= 0.1 e <= 0.4 (evitar dominância)
+                for specialist, weight in proposed_weights.items():
+                    if not (0.1 <= weight <= 0.4):
+                        logger.warning("weight_out_of_range", specialist=specialist, weight=weight)
+                        return False
 
-            logger.info("weight_adjustment_validated", weights=proposed_weights)
-            return True
+                # Verificar se todos os 5 especialistas estão presentes
+                required_specialists = {"technical", "safety", "business", "ethical", "legal"}
+                if set(proposed_weights.keys()) != required_specialists:
+                    logger.warning("missing_specialists", provided=list(proposed_weights.keys()))
+                    return False
+
+                logger.info("weight_adjustment_validated", weights=proposed_weights, source="stub")
+                return True
 
         except grpc.RpcError as e:
             logger.error("validate_weight_adjustment_failed", error=str(e), code=e.code())
@@ -231,15 +266,18 @@ class ConsensusEngineGrpcClient:
             True se bem-sucedido
         """
         try:
-            # TODO: Implementar quando proto estendido
-            # request = RollbackWeightsRequest(optimization_id=optimization_id)
-            # response = await self.stub.RollbackWeights(request, timeout=self.settings.grpc_timeout)
-
-            # Stub temporário
-            logger.warning("rollback_weights_stub_called", optimization_id=optimization_id)
-
-            logger.info("weights_rolled_back", optimization_id=optimization_id)
-            return True
+            if PROTO_AVAILABLE and self.stub:
+                request = consensus_engine_extensions_pb2.RollbackWeightsRequest(
+                    optimization_id=optimization_id
+                )
+                response = await self.stub.RollbackWeights(request, timeout=self.settings.grpc_timeout)
+                logger.info("weights_rolled_back", optimization_id=optimization_id, success=response.success, source="grpc")
+                return response.success
+            else:
+                # Stub temporário quando proto não compilado
+                logger.warning("rollback_weights_stub_called", optimization_id=optimization_id, reason="proto_not_available")
+                logger.info("weights_rolled_back", optimization_id=optimization_id, source="stub")
+                return True
 
         except grpc.RpcError as e:
             logger.error("rollback_weights_failed", optimization_id=optimization_id, error=str(e), code=e.code())

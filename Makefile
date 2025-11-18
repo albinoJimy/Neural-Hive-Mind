@@ -90,6 +90,41 @@ bootstrap-validate:
 	@./scripts/validation/validate-bootstrap-phase.sh
 
 # ============================================================================
+# EKS Build and Deploy Targets
+# ============================================================================
+
+## build-and-deploy-eks: Build local, push to ECR, and update manifests (full workflow)
+build-and-deploy-eks:
+	@echo "🚀 Executando build e deploy completo para EKS..."
+	@./scripts/build-and-deploy-eks.sh
+
+## build-and-deploy-eks-version: Build and deploy with specific version
+build-and-deploy-eks-version:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "❌ Erro: VERSION não definido. Use: make build-and-deploy-eks-version VERSION=1.0.8"; \
+		exit 1; \
+	fi
+	@echo "🚀 Executando build e deploy para EKS (versão $(VERSION))..."
+	@./scripts/build-and-deploy-eks.sh --version $(VERSION)
+
+## build-and-push-only: Build local and push to ECR (skip manifest update)
+build-and-push-only:
+	@echo "🔨 Build local e push para ECR..."
+	@./scripts/build-and-deploy-eks.sh --skip-update
+
+## update-manifests-only: Update manifests only (skip build and push)
+update-manifests-only:
+	@echo "📝 Atualizando manifestos..."
+	@./scripts/build-and-deploy-eks.sh --skip-build --skip-push
+
+## preview-manifest-changes: Preview manifest changes without applying
+preview-manifest-changes:
+	@echo "👀 Preview de mudanças nos manifestos..."
+	@./scripts/build-and-deploy-eks.sh --skip-build --skip-push --dry-run
+
+.PHONY: build-and-deploy-eks build-and-deploy-eks-version build-and-push-only update-manifests-only preview-manifest-changes
+
+# ============================================================================
 # Help Target
 # ============================================================================
 
@@ -115,6 +150,13 @@ help:
 	@echo "Bootstrap Targets:"
 	@echo "  make bootstrap-apply     - Apply bootstrap manifests"
 	@echo "  make bootstrap-validate  - Validate bootstrap configuration"
+	@echo ""
+	@echo "EKS Build and Deploy:"
+	@echo "  make build-and-deploy-eks           - Build, push e update manifestos (fluxo completo)"
+	@echo "  make build-and-deploy-eks-version   - Build e deploy com versão específica (requer VERSION=x.y.z)"
+	@echo "  make build-and-push-only            - Apenas build e push (sem atualizar manifestos)"
+	@echo "  make update-manifests-only          - Apenas atualizar manifestos (sem build/push)"
+	@echo "  make preview-manifest-changes       - Preview de mudanças nos manifestos"
 	@echo ""
 	@echo "Testing:"
 	@echo "  make test-specialists-unit        - Run unit tests only"

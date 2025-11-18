@@ -1,0 +1,728 @@
+{
+  "dashboard": {
+    "title": "Orchestrator Dynamic - ML Predictions",
+    "description": "Dashboard para monitoramento de predições ML, anomalias e performance de modelos",
+    "tags": ["orchestrator", "ml", "predictions", "anomalies"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "namespace",
+          "type": "constant",
+          "current": {
+            "value": "orchestrator",
+            "text": "orchestrator"
+          }
+        },
+        {
+          "name": "pod",
+          "type": "query",
+          "query": "label_values(orchestration_ml_predictions_total, pod)",
+          "datasource": "Prometheus",
+          "refresh": 1,
+          "multi": true,
+          "includeAll": true
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Overview de Predições ML",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Total de Predições (24h)",
+        "type": "stat",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 1},
+        "targets": [
+          {
+            "expr": "sum(increase(orchestration_ml_predictions_total{namespace=\"$namespace\"}[24h]))",
+            "legendFormat": "Total"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "textMode": "auto",
+          "colorMode": "value"
+        }
+      },
+      {
+        "id": 3,
+        "title": "Taxa de Sucesso de Predições",
+        "type": "gauge",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 1},
+        "targets": [
+          {
+            "expr": "sum(rate(orchestration_ml_predictions_total{status=\"success\",namespace=\"$namespace\"}[5m])) / sum(rate(orchestration_ml_predictions_total{namespace=\"$namespace\"}[5m])) * 100",
+            "legendFormat": "Success Rate"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 80, "color": "yellow"},
+                {"value": 95, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Anomalias Detectadas (1h)",
+        "type": "stat",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 1},
+        "targets": [
+          {
+            "expr": "sum(increase(orchestration_ml_anomalies_detected_total{namespace=\"$namespace\"}[1h]))",
+            "legendFormat": "Anomalias"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "textMode": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 10, "color": "yellow"},
+                {"value": 50, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Acurácia do Modelo (MAE %)",
+        "type": "gauge",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 1},
+        "targets": [
+          {
+            "expr": "orchestration_ml_model_accuracy{model_name=\"duration-predictor\",metric_type=\"mae_pct\",namespace=\"$namespace\"}",
+            "legendFormat": "MAE %"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 30,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 10, "color": "yellow"},
+                {"value": 15, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "Performance de Predições",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5}
+      },
+      {
+        "id": 11,
+        "title": "Latência de Predições (P50, P95, P99)",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(orchestration_ml_prediction_duration_seconds_bucket{namespace=\"$namespace\"}[5m]))",
+            "legendFormat": "P50 - {{model_type}}"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(orchestration_ml_prediction_duration_seconds_bucket{namespace=\"$namespace\"}[5m]))",
+            "legendFormat": "P95 - {{model_type}}"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(orchestration_ml_prediction_duration_seconds_bucket{namespace=\"$namespace\"}[5m]))",
+            "legendFormat": "P99 - {{model_type}}"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Latência"}
+        ]
+      },
+      {
+        "id": 12,
+        "title": "Distribuição de Erros de Predição",
+        "type": "heatmap",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+        "targets": [
+          {
+            "expr": "rate(orchestration_ml_prediction_error_bucket{model_type=\"duration\",namespace=\"$namespace\"}[5m])",
+            "legendFormat": "{{le}}"
+          }
+        ],
+        "dataFormat": "tsbuckets"
+      },
+      {
+        "id": 13,
+        "title": "Erro de Predição Runtime (%)",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14},
+        "targets": [
+          {
+            "expr": "(\n  histogram_quantile(0.50, rate(orchestration_ml_prediction_error_bucket{model_type=\"duration\",namespace=\"$namespace\"}[5m]))\n  / 60000\n) * 100",
+            "legendFormat": "P50 Error %"
+          },
+          {
+            "expr": "(\n  histogram_quantile(0.95, rate(orchestration_ml_prediction_error_bucket{model_type=\"duration\",namespace=\"$namespace\"}[5m]))\n  / 60000\n) * 100",
+            "legendFormat": "P95 Error %"
+          },
+          {
+            "expr": "(\n  histogram_quantile(0.99, rate(orchestration_ml_prediction_error_bucket{model_type=\"duration\",namespace=\"$namespace\"}[5m]))\n  / 60000\n) * 100",
+            "legendFormat": "P99 Error %"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Erro %"}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [15], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["B", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "name": "ML P95 Error > 15%"
+        }
+      },
+      {
+        "id": 14,
+        "title": "Volume de Predições com Erro Rastreado",
+        "type": "stat",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14},
+        "targets": [
+          {
+            "expr": "sum(increase(orchestration_ml_prediction_error_count{model_type=\"duration\",namespace=\"$namespace\"}[1h]))",
+            "legendFormat": "Predições Rastreadas (1h)"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "textMode": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "yellow"},
+                {"value": 10, "color": "green"},
+                {"value": 100, "color": "blue"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 20,
+        "title": "Detecção de Anomalias",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 22}
+      },
+      {
+        "id": 21,
+        "title": "Anomalias por Tipo",
+        "type": "piechart",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 23},
+        "targets": [
+          {
+            "expr": "sum by (anomaly_type) (increase(orchestration_ml_anomalies_detected_total{namespace=\"$namespace\"}[6h]))",
+            "legendFormat": "{{anomaly_type}}"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right"
+          }
+        }
+      },
+      {
+        "id": 22,
+        "title": "Taxa de Anomalias (%)",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 23},
+        "targets": [
+          {
+            "expr": "sum(rate(orchestration_ml_anomalies_detected_total{namespace=\"$namespace\"}[5m])) / sum(rate(orchestration_ml_predictions_total{model_type=\"anomaly\",namespace=\"$namespace\"}[5m])) * 100",
+            "legendFormat": "Anomaly Rate %"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Taxa"}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [10], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "name": "Alta Taxa de Anomalias"
+        }
+      },
+      {
+        "id": 23,
+        "title": "Distribuição de Anomaly Scores",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 23},
+        "targets": [
+          {
+            "expr": "avg_over_time(orchestration_ml_prediction_duration_seconds{model_type=\"anomaly\",namespace=\"$namespace\"}[5m])",
+            "legendFormat": "Avg Score"
+          }
+        ]
+      },
+      {
+        "id": 25,
+        "title": "Load Forecasting - Optimizer Agents",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 25}
+      },
+      {
+        "id": 26,
+        "title": "Previsão de Carga (1h, 6h, 24h)",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 8, "w": 16, "x": 0, "y": 26},
+        "targets": [
+          {
+            "expr": "optimizer_load_predictions_total{horizon=\"60\",status=\"success\"}",
+            "legendFormat": "1h Forecast"
+          },
+          {
+            "expr": "optimizer_load_predictions_total{horizon=\"360\",status=\"success\"}",
+            "legendFormat": "6h Forecast"
+          },
+          {
+            "expr": "optimizer_load_predictions_total{horizon=\"1440\",status=\"success\"}",
+            "legendFormat": "24h Forecast"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Previsões"}
+        ]
+      },
+      {
+        "id": 27,
+        "title": "MAPE do Load Predictor (%)",
+        "type": "gauge",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 26},
+        "targets": [
+          {
+            "expr": "optimizer_load_forecast_accuracy_mape",
+            "legendFormat": "MAPE %"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 30,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 15, "color": "yellow"},
+                {"value": 25, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 28,
+        "title": "Scheduling Optimizer - Ações Aplicadas",
+        "type": "piechart",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 34},
+        "targets": [
+          {
+            "expr": "sum by (action) (increase(optimizer_scheduling_optimizations_applied_total[6h]))",
+            "legendFormat": "{{action}}"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right"
+          }
+        }
+      },
+      {
+        "id": 29,
+        "title": "Average Reward da Política RL",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 34},
+        "targets": [
+          {
+            "expr": "optimizer_scheduling_policy_average_reward",
+            "legendFormat": "Avg Reward"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Reward", "min": -1, "max": 1}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [0.3], "type": "lt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "15m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "name": "Scheduling Policy Low Reward"
+        }
+      },
+      {
+        "id": 33,
+        "title": "Model Drift Detection",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 42}
+      },
+      {
+        "id": 34,
+        "title": "Feature Drift (PSI Score)",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 43},
+        "targets": [
+          {
+            "expr": "orchestration_ml_drift_score{drift_type=\"feature\",namespace=\"$namespace\"}",
+            "legendFormat": "{{feature}}"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "PSI Score", "min": 0}
+        ],
+        "thresholds": [
+          {"value": 0.1, "colorMode": "custom", "fill": false, "line": true, "op": "gt", "yaxis": "left", "fillColor": "rgba(255, 255, 0, 0.1)", "lineColor": "rgba(255, 255, 0, 1)"},
+          {"value": 0.25, "colorMode": "custom", "fill": false, "line": true, "op": "gt", "yaxis": "left", "fillColor": "rgba(255, 0, 0, 0.1)", "lineColor": "rgba(255, 0, 0, 1)"}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [0.25], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "name": "Feature Drift Crítico"
+        }
+      },
+      {
+        "id": 35,
+        "title": "Prediction Drift (MAE Ratio)",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 6, "w": 8, "x": 8, "y": 43},
+        "targets": [
+          {
+            "expr": "orchestration_ml_drift_score{drift_type=\"prediction\",model_name=\"duration-predictor\",namespace=\"$namespace\"}",
+            "legendFormat": "MAE Ratio"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "MAE Current / MAE Training", "min": 0}
+        ],
+        "thresholds": [
+          {"value": 1.5, "colorMode": "custom", "fill": false, "line": true, "op": "gt", "yaxis": "left", "fillColor": "rgba(255, 255, 0, 0.1)", "lineColor": "rgba(255, 255, 0, 1)"},
+          {"value": 2.0, "colorMode": "custom", "fill": false, "line": true, "op": "gt", "yaxis": "left", "fillColor": "rgba(255, 0, 0, 0.1)", "lineColor": "rgba(255, 0, 0, 1)"}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [2.0], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "10m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "name": "Prediction Drift Crítico"
+        }
+      },
+      {
+        "id": 36,
+        "title": "Target Drift (K-S Statistic)",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 6, "w": 8, "x": 16, "y": 43},
+        "targets": [
+          {
+            "expr": "orchestration_ml_drift_score{drift_type=\"target\",model_name=\"duration-predictor\",namespace=\"$namespace\"}",
+            "legendFormat": "K-S Statistic"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "K-S Statistic", "min": 0, "max": 1}
+        ],
+        "thresholds": [
+          {"value": 0.3, "colorMode": "custom", "fill": false, "line": true, "op": "gt", "yaxis": "left", "fillColor": "rgba(255, 255, 0, 0.1)", "lineColor": "rgba(255, 255, 0, 1)"},
+          {"value": 0.5, "colorMode": "custom", "fill": false, "line": true, "op": "gt", "yaxis": "left", "fillColor": "rgba(255, 0, 0, 0.1)", "lineColor": "rgba(255, 0, 0, 1)"}
+        ]
+      },
+      {
+        "id": 37,
+        "title": "Drift Status Overview",
+        "type": "stat",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 4, "w": 24, "x": 0, "y": 49},
+        "targets": [
+          {
+            "expr": "orchestration_ml_drift_status{namespace=\"$namespace\"}",
+            "legendFormat": "{{model_name}} - {{drift_type}}"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"type": "value", "value": "0", "text": "OK", "color": "green"},
+              {"type": "value", "value": "1", "text": "WARNING", "color": "yellow"},
+              {"type": "value", "value": "2", "text": "CRITICAL", "color": "red"}
+            ],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "yellow"},
+                {"value": 2, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 30,
+        "title": "Treinamento de Modelos",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 53}
+      },
+      {
+        "id": 31,
+        "title": "Duração de Treinamento",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 54},
+        "targets": [
+          {
+            "expr": "orchestration_ml_training_duration_seconds{namespace=\"$namespace\"}",
+            "legendFormat": "{{model_type}}"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Duração"}
+        ]
+      },
+      {
+        "id": 32,
+        "title": "Acurácia dos Modelos Over Time",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 6, "w": 8, "x": 8, "y": 54},
+        "targets": [
+          {
+            "expr": "orchestration_ml_model_accuracy{namespace=\"$namespace\"}",
+            "legendFormat": "{{model_name}} - {{metric_type}}"
+          }
+        ],
+        "yaxes": [
+          {"format": "percentunit", "label": "Score"}
+        ]
+      },
+      {
+        "id": 38,
+        "title": "Training Jobs - Taxa de Sucesso",
+        "type": "gauge",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 6, "w": 8, "x": 16, "y": 54},
+        "targets": [
+          {
+            "expr": "sum(rate(orchestration_ml_training_jobs_total{status=\"success\",namespace=\"$namespace\"}[1h])) / sum(rate(orchestration_ml_training_jobs_total{namespace=\"$namespace\"}[1h])) * 100",
+            "legendFormat": "Success Rate"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 70, "color": "yellow"},
+                {"value": 90, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 39,
+        "title": "Volume de Amostras por Treinamento",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 60},
+        "targets": [
+          {
+            "expr": "orchestration_ml_training_samples_used{namespace=\"$namespace\"}",
+            "legendFormat": "{{model_name}} - {{data_source}}"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Amostras"}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [100], "type": "lt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "last"},
+              "type": "query"
+            }
+          ],
+          "name": "Amostras de Treinamento Insuficientes"
+        }
+      },
+      {
+        "id": 401,
+        "title": "Training Jobs por Trigger",
+        "type": "piechart",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 60},
+        "targets": [
+          {
+            "expr": "sum by (trigger) (increase(orchestration_ml_training_jobs_total{namespace=\"$namespace\"}[24h]))",
+            "legendFormat": "{{trigger}}"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right"
+          }
+        }
+      },
+      {
+        "id": 40,
+        "title": "Erros e Diagnósticos",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 66}
+      },
+      {
+        "id": 41,
+        "title": "Erros de ML por Tipo",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 67},
+        "targets": [
+          {
+            "expr": "rate(orchestration_ml_model_load_errors_total{namespace=\"$namespace\"}[5m])",
+            "legendFormat": "Model Load - {{model_name}}"
+          },
+          {
+            "expr": "rate(orchestration_ml_feature_extraction_errors_total{namespace=\"$namespace\"}[5m])",
+            "legendFormat": "Feature Extraction"
+          },
+          {
+            "expr": "rate(orchestration_ml_predictions_total{status=\"error\",namespace=\"$namespace\"}[5m])",
+            "legendFormat": "Prediction Error - {{model_type}}"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Errors/s"}
+        ]
+      },
+      {
+        "id": 42,
+        "title": "Logs de Erros ML",
+        "type": "logs",
+        "datasource": "Loki",
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 67},
+        "targets": [
+          {
+            "expr": "{namespace=\"$namespace\", pod=~\"$pod\"} |= \"ml\" |= \"error\" | json"
+          }
+        ]
+      }
+    ]
+  }
+}

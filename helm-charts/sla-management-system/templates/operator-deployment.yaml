@@ -1,0 +1,131 @@
+{{- if .Values.operator.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sla-management-system.fullname" . }}-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sla-management-system.labels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+spec:
+  replicas: {{ .Values.operator.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "sla-management-system.name" . }}-operator
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+        {{- if .Values.istio.enabled }}
+        sidecar.istio.io/inject: "true"
+        {{- end }}
+      labels:
+        app.kubernetes.io/name: {{ include "sla-management-system.name" . }}-operator
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: operator
+        neural-hive.io/layer: monitoring
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "sla-management-system.operatorServiceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: operator
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command:
+        - kopf
+        - run
+        - /app/src/operator/main.py
+        - --verbose
+        {{- if .Values.operator.watchNamespaces }}
+        - --namespace
+        - {{ .Values.operator.watchNamespaces | join "," }}
+        {{- end }}
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        env:
+        - name: SERVICE_NAME
+          value: {{ .Values.config.serviceName }}-operator
+        - name: VERSION
+          value: {{ .Values.config.version | quote }}
+        - name: ENVIRONMENT
+          value: {{ .Values.config.environment | quote }}
+        - name: LOG_LEVEL
+          value: {{ .Values.config.logLevel | quote }}
+        - name: PROMETHEUS__URL
+          value: {{ .Values.config.prometheus.url | quote }}
+        - name: PROMETHEUS__TIMEOUT_SECONDS
+          value: {{ .Values.config.prometheus.timeoutSeconds | quote }}
+        - name: PROMETHEUS__MAX_RETRIES
+          value: {{ .Values.config.prometheus.maxRetries | quote }}
+        - name: POSTGRESQL__HOST
+          value: {{ .Values.config.postgresql.host | quote }}
+        - name: POSTGRESQL__PORT
+          value: {{ .Values.config.postgresql.port | quote }}
+        - name: POSTGRESQL__DATABASE
+          value: {{ .Values.config.postgresql.database | quote }}
+        - name: POSTGRESQL__USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "sla-management-system.fullname" . }}-secret
+              key: POSTGRESQL__USER
+        - name: POSTGRESQL__PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "sla-management-system.fullname" . }}-secret
+              key: POSTGRESQL__PASSWORD
+        - name: POSTGRESQL__POOL_MIN_SIZE
+          value: {{ .Values.config.postgresql.poolMinSize | quote }}
+        - name: POSTGRESQL__POOL_MAX_SIZE
+          value: {{ .Values.config.postgresql.poolMaxSize | quote }}
+        - name: REDIS__CLUSTER_NODES
+          value: {{ .Values.config.redis.clusterNodes | quote }}
+        - name: REDIS__PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "sla-management-system.fullname" . }}-secret
+              key: REDIS__PASSWORD
+        - name: REDIS__CACHE_TTL_SECONDS
+          value: {{ .Values.config.redis.cacheTtlSeconds | quote }}
+        - name: RECONCILIATION_INTERVAL
+          value: {{ .Values.operator.reconciliationIntervalSeconds | quote }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          {{- toYaml .Values.operator.resources | nindent 10 }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

@@ -1,0 +1,289 @@
+{
+  "dashboard": {
+    "title": "Neural Hive-Mind - Modelos Preditivos",
+    "tags": ["neural-hive-mind", "ml", "predictions"],
+    "timezone": "browser",
+    "schemaVersion": 36,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Latência de Predições (Histogram)",
+        "type": "histogram",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(prediction_latency_seconds_bucket{service=\"orchestrator-dynamic\"}[5m])) by (le, model_type))",
+            "legendFormat": "{{model_type}} - P95",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(prediction_latency_seconds_bucket{service=\"orchestrator-dynamic\"}[5m])) by (le, model_type))",
+            "legendFormat": "{{model_type}} - P50",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 0.1, "color": "yellow"},
+                {"value": 0.2, "color": "red"}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Acurácia de Predições (Série Temporal)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "prediction_accuracy{service=\"orchestrator-dynamic\"}",
+            "legendFormat": "{{model_type}} - Accuracy",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 0.8, "color": "yellow"},
+                {"value": 0.9, "color": "green"}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Taxa de Anomalias Detectadas (Gauge)",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "sum(rate(anomaly_detected_total{service=\"orchestrator-dynamic\"}[5m])) / sum(rate(prediction_total{service=\"orchestrator-dynamic\"}[5m]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 0.15,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 0.07, "color": "yellow"},
+                {"value": 0.10, "color": "red"}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "MAPE de Predição de Carga",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "avg(load_prediction_mape{service=\"orchestrator-dynamic\"}) by (horizon_minutes)",
+            "legendFormat": "{{horizon_minutes}}min",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 20, "color": "yellow"},
+                {"value": 25, "color": "red"}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "Versões de Modelos Ativos",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "model_version_info{service=\"orchestrator-dynamic\"}",
+            "format": "table",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {},
+          "overrides": []
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 6,
+        "title": "Erros de Predição (Counter)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(rate(prediction_errors_total{service=\"orchestrator-dynamic\"}[5m]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 0.1, "color": "yellow"},
+                {"value": 0.5, "color": "red"}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 16}
+      },
+      {
+        "id": 7,
+        "title": "Feature Importance (Bar Chart)",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "feature_importance{service=\"orchestrator-dynamic\", model=\"scheduling-predictor\"}",
+            "legendFormat": "{{feature_name}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none",
+            "min": 0,
+            "max": 1
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 16}
+      },
+      {
+        "id": 8,
+        "title": "Gargalos de Scheduling (Série Temporal)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "avg(predicted_queue_time_ms{service=\"orchestrator-dynamic\"}) by (agent_type)",
+            "legendFormat": "{{agent_type}} - Queue Time",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1000, "color": "yellow"},
+                {"value": 5000, "color": "red"}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      },
+      {
+        "id": 9,
+        "title": "Cache Hit Rate (Gauge)",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "sum(rate(cache_hit_total{service=\"orchestrator-dynamic\"}[5m])) / (sum(rate(cache_hit_total{service=\"orchestrator-dynamic\"}[5m])) + sum(rate(cache_miss_total{service=\"orchestrator-dynamic\"}[5m])))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 0.7, "color": "yellow"},
+                {"value": 0.8, "color": "green"}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 20}
+      },
+      {
+        "id": 10,
+        "title": "Estatísticas de Treinamento",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "model_training_duration_seconds{service=\"orchestrator-dynamic\"}",
+            "legendFormat": "{{model_type}} - Training Duration",
+            "refId": "A"
+          },
+          {
+            "expr": "model_training_samples{service=\"orchestrator-dynamic\"}",
+            "legendFormat": "{{model_type}} - Samples",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none"
+          }
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 20}
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "model_type",
+          "type": "query",
+          "query": "label_values(prediction_latency_seconds, model_type)",
+          "multi": true,
+          "includeAll": true
+        },
+        {
+          "name": "horizon",
+          "type": "custom",
+          "query": "60,360,1440",
+          "multi": false
+        },
+        {
+          "name": "time_range",
+          "type": "interval",
+          "query": "5m,15m,1h,6h,24h",
+          "auto": false
+        }
+      ]
+    },
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    }
+  }
+}

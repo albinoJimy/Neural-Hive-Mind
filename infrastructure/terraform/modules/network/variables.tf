@@ -32,10 +32,6 @@ variable "public_subnet_cidrs" {
   type        = list(string)
   default     = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
 
-  validation {
-    condition     = length(var.public_subnet_cidrs) == length(var.availability_zones)
-    error_message = "public_subnet_cidrs deve ter o mesmo tamanho que availability_zones."
-  }
 }
 
 variable "private_subnet_cidrs" {
@@ -43,10 +39,6 @@ variable "private_subnet_cidrs" {
   type        = list(string)
   default     = ["10.0.11.0/24", "10.0.12.0/24", "10.0.13.0/24"]
 
-  validation {
-    condition     = length(var.private_subnet_cidrs) == length(var.availability_zones)
-    error_message = "private_subnet_cidrs deve ter o mesmo tamanho que availability_zones."
-  }
 }
 
 variable "enable_nat_gateway" {
