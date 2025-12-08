@@ -11,6 +11,13 @@
           "query": "label_values(neural_hive_feedback_submissions_total, specialist_type)",
           "multi": true,
           "includeAll": true
+        },
+        {
+          "name": "trigger_reason",
+          "type": "query",
+          "query": "label_values(neural_hive_auto_retrain_triggered_total, trigger_reason)",
+          "multi": true,
+          "includeAll": true
         }
       ]
     },
@@ -305,6 +312,181 @@
           },
           "unit": "percentunit"
         }
+      },
+      {
+        "id": 16,
+        "title": "Model Performance Score by Specialist",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "neural_hive_model_performance_score{specialist_type=~\"$specialist_type\"}",
+            "legendFormat": "{{ specialist_type }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 56},
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 0.6, "color": "yellow"},
+                {"value": 0.75, "color": "green"}
+              ]
+            },
+            "unit": "percentunit"
+          }
+        }
+      },
+      {
+        "id": 17,
+        "title": "Model Degradation Alerts",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum by (specialist_type) (neural_hive_model_degradation_detected{specialist_type=~\"$specialist_type\"})",
+            "legendFormat": "{{ specialist_type }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 56},
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "textMode": "value_and_name",
+          "orientation": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 18,
+        "title": "MLflow Metrics - Precision/Recall/F1",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "neural_hive_mlflow_model_precision{specialist_type=~\"$specialist_type\"}",
+            "legendFormat": "{{ specialist_type }} - Precision"
+          },
+          {
+            "expr": "neural_hive_mlflow_model_recall{specialist_type=~\"$specialist_type\"}",
+            "legendFormat": "{{ specialist_type }} - Recall"
+          },
+          {
+            "expr": "neural_hive_mlflow_model_f1{specialist_type=~\"$specialist_type\"}",
+            "legendFormat": "{{ specialist_type }} - F1"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 64},
+        "yaxes": [
+          {
+            "format": "percentunit",
+            "label": "Score",
+            "min": 0,
+            "max": 1
+          }
+        ],
+        "seriesOverrides": [
+          {
+            "alias": "/Precision/",
+            "color": "#1f77b4",
+            "lines": true,
+            "linewidth": 2
+          },
+          {
+            "alias": "/Recall/",
+            "color": "#ff7f0e",
+            "lines": true,
+            "linewidth": 2
+          },
+          {
+            "alias": "/F1/",
+            "color": "#2ca02c",
+            "lines": true,
+            "linewidth": 2
+          }
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [0.75, 0.70, 0.72],
+                "type": "lt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ]
+        }
+      },
+      {
+        "id": 19,
+        "title": "Auto-Retrain Triggers",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "neural_hive_auto_retrain_triggered_total{specialist_type=~\"$specialist_type\"}",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 72},
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {},
+              "indexByName": {},
+              "renameByName": {
+                "specialist_type": "Specialist",
+                "trigger_reason": "Reason",
+                "status": "Status",
+                "Value": "Count"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 20,
+        "title": "Dataset Generation Duration",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum by (le) (rate(neural_hive_dataset_generation_duration_seconds_bucket[5m])))",
+            "legendFormat": "P95"
+          },
+          {
+            "expr": "histogram_quantile(0.50, sum by (le) (rate(neural_hive_dataset_generation_duration_seconds_bucket[5m])))",
+            "legendFormat": "P50"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 72},
+        "yaxes": [
+          {
+            "format": "s",
+            "label": "Duration"
+          }
+        ]
       }
     ],
     "annotations": {
@@ -315,6 +497,13 @@
           "expr": "changes(neural_hive_retraining_triggers_total[1m]) > 0",
           "iconColor": "blue",
           "tagKeys": "specialist_type,status"
+        },
+        {
+          "name": "Auto-Retrain Triggered",
+          "datasource": "Prometheus",
+          "expr": "changes(neural_hive_auto_retrain_triggered_total[1m]) > 0",
+          "iconColor": "purple",
+          "tagKeys": "specialist_type,trigger_reason"
         }
       ]
     },

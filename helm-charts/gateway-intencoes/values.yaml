@@ -9,6 +9,19 @@ replicaCount: 3
 nameOverride: ""
 fullnameOverride: ""
 
+# Init Containers
+initContainers:
+  modelDownloader:
+    enabled: true
+    image: python:3.11-slim
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 200m
+        memory: 512Mi
+
 # Configurações do serviço
 service:
   type: ClusterIP
@@ -37,11 +50,11 @@ ingress:
 # Resources
 resources:
   limits:
-    cpu: 2000m
-    memory: 4Gi
+    cpu: 1500m
+    memory: 3Gi
   requests:
-    cpu: 1000m
-    memory: 2Gi
+    cpu: 750m
+    memory: 1536Mi
 
 # Autoscaling
 autoscaling:
@@ -69,7 +82,15 @@ affinity:
             - key: app.kubernetes.io/name
               operator: In
               values: [gateway-intencoes]
-        topologyKey: kubernetes.io/hostname
+        topologyKey: topology.kubernetes.io/zone
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: gateway-intencoes
 
 # Security context
 podSecurityContext:
@@ -90,19 +111,28 @@ livenessProbe:
   httpGet:
     path: /health
     port: http
-  initialDelaySeconds: 60
+  initialDelaySeconds: 0
   periodSeconds: 30
   timeoutSeconds: 10
   failureThreshold: 3
 
 readinessProbe:
   httpGet:
-    path: /health
+    path: /ready
     port: http
-  initialDelaySeconds: 30
+  initialDelaySeconds: 0
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 3
+
+startupProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 40
 
 # Configurações da aplicação
 config:
@@ -161,8 +191,10 @@ config:
 
   # ASR Pipeline
   asr:
-    modelName: "base"
+    modelName: "tiny"
     device: "cpu"
+    lazyLoading: true
+    modelCacheDir: "/app/models/whisper"
 
   # NLU Pipeline
   nlu:
@@ -286,7 +318,10 @@ istio:
     enabled: false
 
 # Observabilidade
+# otelEnabled controla a inicialização do OpenTelemetry no startup da aplicação
 observability:
+  otelEnabled: true  # Habilitar OpenTelemetry em produção
+  otelEndpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
   prometheus:
     enabled: true
     serviceMonitor:
@@ -297,15 +332,27 @@ observability:
         neural-hive-mind.org/monitoring: "enabled"
   jaeger:
     endpoint: "http://jaeger-collector.monitoring.svc.cluster.local:14268/api/traces"
+  tracing:
+    enabled: true
 
 # Volume mounts para modelos ML
 volumes:
   - name: model-cache
-    emptyDir: {}
+    emptyDir: {}  # Será sobrescrito por PVC se persistence.models.enabled for true
 
 volumeMounts:
   - name: model-cache
     mountPath: /app/models
+
+# Persistent volumes para modelos ML
+persistence:
+  models:
+    enabled: true
+    storageClass: "gp3"
+    accessMode: ReadWriteMany
+    size: 2Gi
+    annotations:
+      neural-hive-mind.org/backup: "false"
 
 # Environment específicos
 environments:

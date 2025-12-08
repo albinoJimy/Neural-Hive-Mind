@@ -4,7 +4,9 @@ FROM python:3.11-slim as builder
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir --user -r requirements.txt && \
+    find /root/.local -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true && \
+    find /root/.local -type f -name '*.pyc' -delete 2>/dev/null || true
 
 # Stage 2: Runtime
 FROM python:3.11-slim

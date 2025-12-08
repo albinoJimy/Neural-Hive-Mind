@@ -7,6 +7,7 @@ from ..clients.sonarqube_client import SonarQubeClient
 from ..clients.snyk_client import SnykClient
 from ..clients.trivy_client import TrivyClient
 from ..clients.mcp_tool_catalog_client import MCPToolCatalogClient
+from ..observability.metrics import CodeForgeMetrics
 
 logger = structlog.get_logger()
 
@@ -19,12 +20,14 @@ class Validator:
         sonarqube_client: SonarQubeClient,
         snyk_client: SnykClient,
         trivy_client: TrivyClient,
-        mcp_client: Optional[MCPToolCatalogClient] = None
+        mcp_client: Optional[MCPToolCatalogClient] = None,
+        metrics: Optional[CodeForgeMetrics] = None
     ):
         self.sonarqube_client = sonarqube_client
         self.snyk_client = snyk_client
         self.trivy_client = trivy_client
         self.mcp_client = mcp_client
+        self.metrics = metrics
 
     async def validate(self, context: PipelineContext):
         """
@@ -83,6 +86,15 @@ class Validator:
                     )
                 # Adicionar mais ferramentas conforme necessário
 
+            if not validation_tasks:
+                # Se MCP retornar ferramentas não mapeadas, usar fallback padrão
+                logger.info('mcp_validation_tools_unmapped_fallback_default')
+                validation_tasks = [
+                    self.sonarqube_client.analyze_code(project_key, workspace_path),
+                    self.snyk_client.scan_dependencies(workspace_path, language),
+                    self.trivy_client.scan_filesystem(workspace_path)
+                ]
+
         else:
             # Fallback: validações fixas com parâmetros dinâmicos
             logger.info('using_default_validation_tools')
@@ -115,7 +127,7 @@ class Validator:
             )
 
         # Enviar feedback para MCP Tool Catalog
-        if self.mcp_client and hasattr(context, 'mcp_selection_id'):
+        if self.mcp_client and getattr(context, 'mcp_selection_id', None):
             await self._send_mcp_feedback(
                 context,
                 validation_success_count,
@@ -137,16 +149,19 @@ class Validator:
             failure_count: Número de validações que falharam
         """
         try:
-            # Calcular success rate
-            total = success_count + failure_count
-            success_rate = success_count / total if total > 0 else 0.0
-
-            # Enviar feedback para cada ferramenta VALIDATION
             validation_tools = [
                 t for t in getattr(context, 'selected_tools', [])
                 if t.get('category') == 'VALIDATION'
             ]
 
+            if not context.mcp_selection_id or not validation_tools:
+                return
+
+            # Calcular success rate
+            total = success_count + failure_count
+            success_rate = success_count / total if total > 0 else 0.0
+
+            # Enviar feedback para cada ferramenta VALIDATION
             for tool in validation_tools:
                 feedback = {
                     "selection_id": context.mcp_selection_id,
@@ -160,13 +175,30 @@ class Validator:
                     }
                 }
 
-                await self.mcp_client.send_tool_feedback(feedback)
+                try:
+                    result = await asyncio.wait_for(
+                        self.mcp_client.send_tool_feedback(feedback),
+                        timeout=3.0
+                    )
+                    status = 'success' if result else 'failure'
+                    if self.metrics:
+                        self.metrics.mcp_feedback_sent_total.labels(status=status).inc()
+                    if result:
+                        context.mcp_feedback_sent = True
+                    logger.info(
+                        'mcp_feedback_sent',
+                        selection_id=context.mcp_selection_id,
+                        tool_id=tool.get('tool_id'),
+                        success=feedback.get('success'),
+                        execution_time_ms=feedback.get('execution_time_ms')
+                    )
+                except (asyncio.TimeoutError, Exception) as e:
+                    if self.metrics:
+                        self.metrics.mcp_feedback_sent_total.labels(status='failure').inc()
+                    logger.warning('mcp_feedback_timeout', error=str(e))
+                    # Continuar execução sem bloquear
 
-            logger.info(
-                'mcp_feedback_sent',
-                selection_id=context.mcp_selection_id,
-                success_rate=success_rate
-            )
+            logger.info('mcp_feedback_aggregate', selection_id=context.mcp_selection_id, success_rate=success_rate)
 
         except Exception as e:
             logger.error('mcp_feedback_failed', error=str(e))

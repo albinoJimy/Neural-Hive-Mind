@@ -99,7 +99,18 @@ async def startup_event():
         logger.info('Consensus Engine iniciado com sucesso')
 
     except Exception as e:
-        logger.error('Erro na inicialização', error=str(e))
+        logger.error('Erro na inicialização', error=str(e), exc_info=True)
+        # Cleanup parcial se houver erro
+        if state.mongodb_client:
+            try:
+                await state.mongodb_client.close()
+            except:
+                pass
+        if state.redis_client:
+            try:
+                await state.redis_client.close()
+            except:
+                pass
         raise
 
 

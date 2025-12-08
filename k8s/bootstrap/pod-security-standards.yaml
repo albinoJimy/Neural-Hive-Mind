@@ -260,13 +260,14 @@ data:
 ---
 # Admission Controller Webhooks for Pod Security Standards
 apiVersion: admissionregistration.k8s.io/v1
-kind: ValidatingAdmissionWebhook
+kind: ValidatingWebhookConfiguration
 metadata:
   name: neural-hive-pod-security-validator
   labels:
     neuralhive/component: security
     neuralhive/validation-type: pod-security
-spec:
+webhooks:
+- name: neural-hive-pod-security-validator.neural-hive.io
   clientConfig:
     service:
       name: neural-hive-admission-webhook

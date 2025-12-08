@@ -1,7 +1,7 @@
 # Core dependencies
-fastapi>=0.104.0
+fastapi>=0.104.1
 uvicorn[standard]>=0.24.0
-pydantic>=2.5.0
+pydantic>=2.5.2
 pydantic-settings>=2.1.0
 
 # Logging and observability
@@ -18,11 +18,14 @@ avro-python3>=1.10.2
 
 # HTTP and gRPC clients
 httpx>=0.25.0
-grpcio>=1.60.0
-grpcio-tools>=1.60.0
+
+# gRPC - versão consolidada
+grpcio>=1.75.1
+grpcio-tools>=1.75.1
+protobuf>=5.27.0
 
 # Redis
-redis>=5.0.0
+redis[hiredis]>=5.0.1
 
 # ML and numerical computing (MVP stubs)
 numpy>=1.24.0

@@ -24,8 +24,12 @@ data:
   SPECIALIST_BEHAVIOR_ENDPOINT: {{ .Values.config.specialists.behaviorEndpoint | quote }}
   SPECIALIST_EVOLUTION_ENDPOINT: {{ .Values.config.specialists.evolutionEndpoint | quote }}
   SPECIALIST_ARCHITECTURE_ENDPOINT: {{ .Values.config.specialists.architectureEndpoint | quote }}
-  SPECIALIST_GRPC_TIMEOUT_MS: {{ .Values.config.specialists.grpcTimeoutMs | quote }}
-  SPECIALIST_GRPC_MAX_RETRIES: {{ .Values.config.specialists.grpcMaxRetries | quote }}
+  # NOTA: Pydantic Settings espera GRPC_TIMEOUT_MS (sem prefixo SPECIALIST_)
+  # devido ao mapeamento automático de field names em Settings class.
+  # Timeout increased to 120000ms (120 seconds) to accommodate specialist
+  # processing time of 49-66 seconds for ML inference.
+  GRPC_TIMEOUT_MS: {{ .Values.config.specialists.grpcTimeoutMs | quote }}
+  GRPC_MAX_RETRIES: {{ .Values.config.specialists.grpcMaxRetries | quote }}
 
   # MongoDB Configuration
   MONGODB_URI: {{ .Values.config.mongodb.uri | quote }}
@@ -57,3 +61,4 @@ data:
   ENABLE_PHEROMONES: {{ .Values.config.features.enablePheromones | quote }}
   ENABLE_FALLBACK: {{ .Values.config.features.enableFallback | quote }}
   ENABLE_PARALLEL_INVOCATION: {{ .Values.config.features.enableParallelInvocation | quote }}
+  ENABLE_TRACING: {{ .Values.config.features.enableTracing | default "true" | quote }}

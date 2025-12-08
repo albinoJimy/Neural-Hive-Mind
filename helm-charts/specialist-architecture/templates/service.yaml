@@ -4,6 +4,9 @@ metadata:
   name: {{ include "specialist-architecture.fullname" . }}
   labels:
     {{- include "specialist-architecture.labels" . | nindent 4 }}
+    neural.hive/metrics: "enabled"
+    neural.hive/component: "architecture-specialist"
+    neural.hive/layer: "cognitiva"
   annotations:
     neural-hive.io/component: business-specialist
 spec:

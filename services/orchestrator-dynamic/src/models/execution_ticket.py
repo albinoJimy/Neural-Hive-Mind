@@ -1,6 +1,10 @@
 """
 Modelo Pydantic para Execution Ticket.
 Corresponde ao schema Avro execution-ticket.avsc.
+
+NOTA: Este módulo usa Pydantic v2.
+- ConfigDict substitui class Config
+- field_serializer substitui json_encoders
 """
 import hashlib
 import json
@@ -8,7 +12,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional, Dict, List, Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 class TaskType(str, Enum):
@@ -80,8 +84,8 @@ class SLA(BaseModel):
     timeout_ms: int = Field(..., description='Timeout em milissegundos')
     max_retries: int = Field(..., description='Número máximo de tentativas')
 
-    class Config:
-        use_enum_values = True
+    # Pydantic v2: ConfigDict substitui class Config
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class QoS(BaseModel):
@@ -90,8 +94,8 @@ class QoS(BaseModel):
     consistency: Consistency = Field(..., description='Nível de consistência')
     durability: Durability = Field(..., description='Modo de durabilidade')
 
-    class Config:
-        use_enum_values = True
+    # Pydantic v2: ConfigDict substitui class Config
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class ExecutionTicket(BaseModel):
@@ -130,11 +134,10 @@ class ExecutionTicket(BaseModel):
     predictions: Optional[Dict[str, Any]] = Field(default=None, description='Predições ML (duração, recursos, anomalias)')
     schema_version: int = Field(default=1, description='Versão do schema')
 
-    class Config:
-        use_enum_values = True
-        json_encoders = {
-            datetime: lambda v: int(v.timestamp() * 1000)
-        }
+    # Pydantic v2: ConfigDict substitui class Config
+    # json_encoders foi removido - usar field_serializer se necessário
+    # Nota: timestamps já são int (millis), não precisam de encoder
+    model_config = ConfigDict(use_enum_values=True)
 
     @field_validator('dependencies')
     @classmethod

@@ -4,7 +4,7 @@ Neural Hive Integration Library
 Provides unified clients and orchestration for Phase 2 Flow C integration.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.1"
 
 from neural_hive_integration.clients.orchestrator_client import OrchestratorClient
 from neural_hive_integration.clients.service_registry_client import ServiceRegistryClient

@@ -22,8 +22,11 @@ class ASRPipeline:
         self.device = device or self.settings.asr_device
         self.model: Optional[whisper.Whisper] = None
         self._ready = False
-        self.model_cache_dir = Path("/tmp/whisper_models")
-        self.model_cache_dir.mkdir(exist_ok=True)
+        self._model_lock = asyncio.Lock()  # Lock para sincronização de carregamento
+        self._loading = False  # Flag para indicar carregamento em andamento
+        self.lazy_loading = self.settings.asr_lazy_loading
+        self.model_cache_dir = Path(self.settings.asr_model_cache_dir)
+        self.model_cache_dir.mkdir(parents=True, exist_ok=True)
         self.supported_formats = {'.wav', '.mp3', '.m4a', '.ogg', '.flac'}
         self.fallback_models = ['tiny', 'base', 'small']  # Fallback hierarchy
         self.concurrent_jobs = 0
@@ -32,26 +35,40 @@ class ASRPipeline:
     async def initialize(self):
         """Inicializar modelo Whisper com cache e fallback"""
         try:
-            # Tentar carregar modelo principal
-            logger.info(f"Carregando modelo Whisper: {self.model_name}")
-            self.model = await self._load_model_with_cache(self.model_name)
-            self._ready = True
-            logger.info(f"Modelo Whisper {self.model_name} carregado com sucesso")
+            if self.lazy_loading:
+                # Apenas validar que diretório de cache existe e está acessível
+                logger.info(f"Lazy loading habilitado - modelo {self.model_name} será carregado sob demanda")
+                if not self.model_cache_dir.exists():
+                    logger.warning(f"Diretório de cache {self.model_cache_dir} não existe, criando...")
+                    self.model_cache_dir.mkdir(parents=True, exist_ok=True)
+                self._ready = True
+                logger.info(f"Pipeline ASR inicializado com lazy loading para modelo {self.model_name}")
+            else:
+                # Carregar modelo imediatamente
+                logger.info(f"Carregando modelo Whisper: {self.model_name}")
+                self.model = await self._load_model_with_cache(self.model_name)
+                self._ready = True
+                logger.info(f"Modelo Whisper {self.model_name} carregado com sucesso")
         except Exception as e:
             logger.error(f"Erro carregando modelo {self.model_name}: {e}")
             # Tentar fallback para modelos menores
             await self._try_fallback_models()
 
     async def _load_model_with_cache(self, model_name: str) -> whisper.Whisper:
-        """Carregar modelo com cache em disco"""
+        """Carregar modelo com cache em disco do volume persistente"""
         try:
-            # Verificar se modelo já está em cache
+            # Verificar se modelo já existe no volume persistente
             model_cache_path = self.model_cache_dir / f"{model_name}.pt"
 
             if model_cache_path.exists():
-                logger.info(f"Carregando modelo do cache: {model_cache_path}")
+                logger.info(f"Modelo encontrado no cache do volume persistente: {model_cache_path}")
+            else:
+                logger.info(f"Modelo não encontrado no cache, será baixado para {self.model_cache_dir}")
 
-            # whisper.load_model já faz cache, mas explicitamente definimos o diretório
+            # Configurar diretório de cache do Whisper para usar volume persistente
+            os.environ['XDG_CACHE_HOME'] = str(self.model_cache_dir.parent)
+
+            # whisper.load_model baixa e faz cache automaticamente
             return await asyncio.get_event_loop().run_in_executor(
                 None, whisper.load_model, model_name, self.device
             )
@@ -79,7 +96,39 @@ class ASRPipeline:
         # Se todos os fallbacks falharam
         raise RuntimeError("Não foi possível carregar nenhum modelo Whisper")
 
+    async def _ensure_model_loaded(self):
+        """Garantir que modelo está carregado (para lazy loading) com sincronização"""
+        # Verificação rápida sem lock
+        if self.model is not None:
+            return
+
+        # Usar lock para garantir que apenas uma corrotina carregue o modelo
+        async with self._model_lock:
+            # Verificar novamente dentro do lock (double-check locking)
+            if self.model is not None:
+                return
+
+            # Evitar reentrância
+            if self._loading:
+                # Aguardar até que o carregamento termine
+                while self._loading:
+                    await asyncio.sleep(0.1)
+                return
+
+            self._loading = True
+            try:
+                logger.info(f"Carregando modelo sob demanda: {self.model_name}")
+                self.model = await self._load_model_with_cache(self.model_name)
+                logger.info(f"Modelo {self.model_name} carregado sob demanda com sucesso")
+            except Exception as e:
+                logger.error(f"Erro carregando modelo sob demanda: {e}")
+                await self._try_fallback_models()
+            finally:
+                self._loading = False
+
     def is_ready(self) -> bool:
+        if self.lazy_loading:
+            return self._ready  # Pipeline pronto mesmo sem modelo carregado
         return self._ready and self.model is not None
 
     def _validate_audio(self, audio_data: bytes) -> Dict[str, Any]:
@@ -198,6 +247,9 @@ class ASRPipeline:
         """Processar áudio para texto com validação e controle de concorrência"""
         if not self.is_ready():
             raise RuntimeError("Pipeline ASR não inicializado")
+
+        # Garantir que modelo está carregado (lazy loading)
+        await self._ensure_model_loaded()
 
         # Verificar limite de jobs concorrentes
         if self.concurrent_jobs >= self.max_concurrent_jobs:
@@ -321,6 +373,9 @@ class ASRPipeline:
         """Processar múltiplos áudios em paralelo"""
         if not self.is_ready():
             raise RuntimeError("Pipeline ASR não inicializado")
+
+        # Garantir que modelo está carregado (lazy loading)
+        await self._ensure_model_loaded()
 
         if len(audio_batch) > self.max_concurrent_jobs:
             raise ValueError(f"Batch muito grande: {len(audio_batch)} > {self.max_concurrent_jobs}")

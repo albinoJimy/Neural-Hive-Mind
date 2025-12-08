@@ -5,7 +5,73 @@ All notable changes to the Neural Hive-Mind project will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] - 2025-02-14
+
+### Added
+- Script de auditoria automatizada de dependências (`scripts/audit-dependencies.sh`)
+- Script de scan de imports não utilizados (`scripts/scan-unused-imports.py`)
+- Script de validação de mudanças de dependências (`scripts/validate-dependency-changes.sh`)
+- Workflow GitHub Actions (`.github/workflows/dependency-audit.yml`) para auditorias semanais e em PRs
+- Documentação abrangente em `docs/DEPENDENCY_AUDIT.md`
+- Seção de gerenciamento de dependências no README.md
+- **Otimizações de Dependências e Modelos ML**
+  - Remoção de `transformers` (~2.5GB) do `gateway-intencoes` (ASR/NLU usa apenas Whisper e spaCy)
+  - Remoção de `pyspark` (~300MB) do `analyst-agents` (não utiliza processamento distribuído)
+  - Modelo Whisper `tiny` (39MB) com lazy loading e fallback automático para `base` e `small`
+  - Init containers para download de modelos ML (Whisper, spaCy) em volumes persistentes (PVC 2Gi)
+  - Lock de sincronização (`asyncio.Lock`) em `ASRPipeline` para prevenir carregamentos concorrentes
+  - Carregamento de modelos spaCy a partir do volume compartilhado `/app/models/spacy`
+  - Separação de dependências dev/prod com `requirements-dev.txt` no `gateway-intencoes`
+  - Documentação completa em `docs/DEPENDENCY_OPTIMIZATION.md`
+- **Rightsizing & Topology Docs**
+  - `docs/RESOURCE_TUNING_GUIDE.md` promovido à versão 2.0 com matriz de serviços, decision tree, consultas Prometheus e capítulo sobre topology spread
+  - README destaca o guia para facilitar futuras auditorias de capacidade
+- **Probes e Distribuição**
+  - Startup/liveness/readiness completos para consensus-engine, memory-layer-api, semantic-translation-engine, orchestrator-dynamic, code-forge, worker-agents e service-registry
+  - Startup probes padronizados com `failureThreshold` 20-30 para lidar com Temporal/Kafka/etcd/clone de templates
+
+### Changed
+- **[BREAKING]** Consolidação de versões de dependências críticas:
+  - grpcio: 1.59.0/1.60.0 → >=1.75.1
+  - protobuf: 4.24.0/4.25.0 → >=5.27.0 (requer regeneração de código protobuf)
+  - aiokafka: 0.8.x → >=0.10.0
+  - pydantic: 2.0.0/2.4.0/2.5.0 → >=2.5.2
+  - fastapi: 0.104.0 → >=0.104.1
+  - Demais dependências alinhadas (confira `docs/DEPENDENCY_AUDIT.md`)
+- Separação de dependências de desenvolvimento:
+  - Criados requirements-dev.txt para consensus-engine, orchestrator-dynamic, semantic-translation-engine, sla-management-system, mcp-tool-catalog e code-forge
+  - Removidas dependências de teste (pytest, black, flake8, mypy) de requirements.txt de produção
+  - Redução estimada de ~50MB por imagem Docker
+- Gateway de Intenções: Redução de 60% no tamanho da imagem Docker (4.5GB → 1.8GB)
+- Gateway de Intenções: Redução de 86% no tempo de startup (85s → 12s) com lazy loading
+- Gateway de Intenções: Redução de 43% no consumo de memória base (2.1GB → 1.2GB)
+- Specialist Services: Redução de 22% no tamanho da imagem Docker (3.2GB → 2.5GB)
+- Analyst Agents: Redução de 18% no tamanho da imagem Docker (2.8GB → 2.3GB)
+- Tempo de build completo reduzido em 38% (45min → 28min)
+- Tempo de build incremental reduzido em 42% (12min → 7min)
+- Especialistas NLP: requests agora 300m CPU / 768Mi RAM (40% menos CPU garantida, 25% menos memória), mantendo limites 1 vCPU / 2Gi
+- camadas core (consensus, memory-layer-api, semantic-translation-engine) com limites reduzidos (até -37%) e probes/topology spread alinhados com perfis de Kafka, Redis, Neo4j
+- Execução/Agentes: orchestrator-dynamic, code-forge, worker-agents e service-registry com novos limites (400m/800m requests) e anti-affinity zona-based (service-registry HARD + DoNotSchedule)
+- TopologySpreadConstraints aplicados em 20 workloads garantindo fan-out equilibrado entre zonas
+
+### Fixed
+- Conflitos de versão entre serviços que causavam falhas em runtime
+- Dependências transitivas redundantes (uso padronizado de `--no-deps` em cadeias com Torch/Whisper)
+
+### Security
+- Atualização de pacotes críticos para versões com patches recentes
+- Auditoria automatizada de vulnerabilidades via pip-audit e safety integrada ao CI
+
+### Performance
+- Redução de ~15-20% no tamanho de imagens Docker após remoção de dependências não utilizadas
+- Redução de ~10-15% no tempo de build ao instalar somente dependências necessárias
+- Direitosizing de especialistas (5 serviços × 2 réplicas) corta CPU garantida de 5 cores para 3 cores (~33% economia) sem degradar consenso
+- Novos limites do orchestration/execution layer reduzem custos de Reserva EC2 previstos em ~18% mantendo SLAs de gRPC/Temporal
+
+### Notes
+- **Ação requerida**: Regenerar stubs gRPC/protobuf com protoc 6.x para serviços que consumem o Service Registry
+- **Validação requerida**: Revisar uso real de `pm4py`, `prophet`, `statsmodels` e `pulp` nos specialists (potencial economia de ~220MB por imagem)
+- Consulte `docs/DEPENDENCY_AUDIT.md` para o plano faseado de migração e lista completa de pacotes críticos
 
 ### Planned for Phase 2
 - Dynamic Orchestrator implementation

@@ -171,10 +171,46 @@ class ToolRegistry:
                 if health is None or health is True:
                     healthy_count += 1
 
-            self.metrics.update_tool_registry(
-                category=category.value,
-                total=total_count,
-                healthy=healthy_count
-            )
+                self.metrics.update_tool_registry(
+                    category=category.value,
+                    total=total_count,
+                    healthy=healthy_count
+                )
 
         logger.debug("tool_registry_metrics_updated")
+
+    async def update_tool_metrics(
+        self,
+        tool_id: str,
+        category: str,
+        success: bool,
+        execution_time_ms: int,
+        metadata: Dict
+    ) -> None:
+        """Atualiza métricas de feedback de ferramentas."""
+        try:
+            await self.redis_client.increment_tool_usage(tool_id)
+            await self.redis_client.increment_tool_feedback(tool_id, success)
+
+            if self.metrics:
+                status = "success" if success else "failure"
+                duration_seconds = max(execution_time_ms, 0) / 1000.0
+                self.metrics.record_tool_execution(
+                    tool_id=tool_id,
+                    category=category,
+                    status=status,
+                    duration=duration_seconds
+                )
+                self.metrics.record_feedback(tool_id, success)
+
+            await self.update_tool_reputation(tool_id, success)
+            logger.info(
+                "tool_metrics_updated",
+                tool_id=tool_id,
+                category=category,
+                success=success,
+                execution_time_ms=execution_time_ms,
+                metadata=metadata
+            )
+        except Exception as e:
+            logger.warning("update_tool_metrics_failed", tool_id=tool_id, error=str(e))

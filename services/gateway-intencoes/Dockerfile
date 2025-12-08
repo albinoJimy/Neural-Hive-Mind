@@ -35,24 +35,23 @@ RUN groupadd -r appgroup && useradd -r -g appgroup -u 1001 appuser
 WORKDIR /app
 
 # Copiar requirements e instalar dependências Python
+# Modelos ML (Whisper e spaCy) são gerenciados via init containers e volumes persistentes
 COPY services/gateway-intencoes/requirements.txt .
+
+# Instalar dependências Python em uma única camada para otimizar build
 RUN pip install --no-cache-dir --upgrade pip==24.0 && \
+    pip install --no-cache-dir torch==2.1.0 torchaudio==2.1.0 && \
+    pip install --no-cache-dir --no-deps openai-whisper && \
     pip install --no-cache-dir -r requirements.txt
 
-# Download de modelos ML (Whisper e spaCy)
-# Baixar Whisper primeiro (vai para /root/.cache/whisper)
-RUN python -c "import whisper; whisper.load_model('base')" && \
-    python -m pip install --no-cache-dir \
-    https://github.com/explosion/spacy-models/releases/download/pt_core_news_sm-3.8.0/pt_core_news_sm-3.8.0-py3-none-any.whl \
-    https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl \
-    && python -c "import pt_core_news_sm; import en_core_web_sm; print('✓ Modelos spaCy instalados')"
+# Baixar modelo spaCy pt_core_news_sm
+RUN python -m spacy download pt_core_news_sm
 
 # Copiar código da aplicação
 COPY services/gateway-intencoes/src/ ./src/
 
-# Criar diretórios necessários primeiro (incluindo cache para Whisper e config para NLU)
-RUN mkdir -p /app/logs /app/temp /app/models /app/schemas /app/.cache /app/config && \
-    cp -r /root/.cache/whisper /app/.cache/ 2>/dev/null || true
+# Criar diretórios necessários (modelos virão de volume externo)
+RUN mkdir -p /app/logs /app/temp /app/models /app/schemas /app/config
 
 # Copiar schema Avro (caminho relativo ao contexto de build)
 COPY schemas/intent-envelope/intent-envelope.avsc /app/schemas/intent-envelope.avsc
@@ -65,11 +64,9 @@ RUN chown -R appuser:appgroup /app
 
 # Configurar permissões de segurança
 # Diretórios precisam de 755 (rx), arquivos 644 (r)
-# .cache precisa de 775 (rwx) para Whisper criar subdirectórios
 RUN find /app -type d -exec chmod 755 {} \; && \
     find /app -type f -exec chmod 644 {} \; && \
-    chmod +x /app/src/main.py && \
-    chmod 775 /app/.cache
+    chmod +x /app/src/main.py
 
 # Configurações de segurança
 USER appuser
@@ -80,8 +77,7 @@ ENV PYTHONPATH="/app/src" \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     TMPDIR="/app/temp" \
-    HOME="/app" \
-    XDG_CACHE_HOME="/app/.cache"
+    HOME="/app"
 
 # Definir working directory para /app/src para que uvicorn encontre main.py
 WORKDIR /app/src

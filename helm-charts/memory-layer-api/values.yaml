@@ -37,12 +37,15 @@ ingress:
 
 # Resources
 resources:
+  # Multi-datastore routing (Redis+MongoDB+Neo4j+ClickHouse) peaks around 1.2 vCPU briefly,
+  # but average CPU stays under 400m; memory pressure is dominated by query caches (~1Gi).
+  # Requests keep a safe 550m/1280Mi floor and burst allowance is trimmed to 1.4 CPU / 2.5Gi.
   limits:
-    cpu: 2000m
-    memory: 2Gi
+    cpu: 1400m
+    memory: 2.5Gi
   requests:
-    cpu: 500m
-    memory: 1Gi
+    cpu: 550m
+    memory: 1280Mi
 
 # Autoscaling
 autoscaling:
@@ -58,16 +61,15 @@ nodeSelector: {}
 tolerations: []
 
 affinity:
+  # Hard anti-affinity guarantees replicas land on distinct zones to protect quorum routing latency
   podAntiAffinity:
-    preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-              - key: app.kubernetes.io/name
-                operator: In
-                values: [memory-layer-api]
-          topologyKey: kubernetes.io/hostname
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values: [memory-layer-api]
+        topologyKey: topology.kubernetes.io/zone
 
 # Security context
 podSecurityContext:
@@ -84,11 +86,21 @@ securityContext:
   runAsNonRoot: true
 
 # Health checks
+startupProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 20  # ~3.3min para sincronizar caches multi-datastore antes da validação
+  successThreshold: 1
+
 livenessProbe:
   httpGet:
     path: /health
     port: http
-  initialDelaySeconds: 60
+  initialDelaySeconds: 0
   periodSeconds: 30
   timeoutSeconds: 10
   failureThreshold: 3
@@ -97,7 +109,7 @@ readinessProbe:
   httpGet:
     path: /ready
     port: http
-  initialDelaySeconds: 30
+  initialDelaySeconds: 0
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 3
@@ -192,6 +204,14 @@ serviceMonitor:
   path: /metrics
   labels:
     neural-hive-mind.org/monitoring: "enabled"
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: memory-layer-api
 
 # Network Policy
 networkPolicy:

@@ -177,6 +177,32 @@ class OrchestratorMetrics:
             ['operation', 'error_type']
         )
 
+        # Métricas de incidentes (Fluxo E)
+        self.incident_publish_total = Counter(
+            'orchestration_incident_publish_total',
+            'Total de incidentes publicados para autocura',
+            ['incident_type', 'status']
+        )
+
+        self.incident_publish_errors = Counter(
+            'orchestration_incident_publish_errors',
+            'Falhas na publicação de incidentes para autocura',
+            ['incident_type', 'error_type']
+        )
+
+        self.incident_publish_duration_seconds = Histogram(
+            'orchestration_incident_publish_duration_seconds',
+            'Duração da publicação de incidentes no Kafka',
+            ['incident_type'],
+            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10]
+        )
+
+        self.self_healing_triggered_total = Counter(
+            'orchestration_self_healing_triggered_total',
+            'Total de incidentes que acionaram autocura',
+            ['incident_type']
+        )
+
         # Métricas de Validação
         self.plan_validations_total = Counter(
             'orchestration_plan_validations_total',
@@ -305,6 +331,7 @@ class OrchestratorMetrics:
             buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5]
         )
 
+        # Usado para tracking de erro de predição de duração (compute_and_record_ml_error)
         self.ml_prediction_error = Histogram(
             'orchestration_ml_prediction_error',
             'Erro de predição (actual - predicted)',
@@ -393,6 +420,7 @@ class OrchestratorMetrics:
             buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10]
         )
 
+        # Usado para tracking de erro de predição de queue time (record_allocation_outcome)
         self.scheduler_queue_prediction_error_ms = Histogram(
             'orchestration_scheduler_queue_prediction_error_ms',
             'Erro de predição de queue time (|predicted - actual|)',
@@ -405,6 +433,7 @@ class OrchestratorMetrics:
             ['worker_id']
         )
 
+        # Usado para tracking de qualidade de alocação (record_allocation_outcome)
         self.scheduler_allocation_quality_score = Histogram(
             'orchestration_scheduler_allocation_quality_score',
             'Score de qualidade da alocação (0-1)',
@@ -497,6 +526,22 @@ class OrchestratorMetrics:
     def record_kafka_error(self, operation: str, error_type: str):
         """Registra erro Kafka."""
         self.kafka_errors_total.labels(operation=operation, error_type=error_type).inc()
+
+    def record_incident_publish(self, incident_type: str, success: bool, duration_seconds: float, error_type: str = None):
+        """Registra métricas de publicação de incidentes para autocura."""
+        status = 'success' if success else 'failed'
+        self.incident_publish_total.labels(incident_type=incident_type, status=status).inc()
+        self.incident_publish_duration_seconds.labels(incident_type=incident_type).observe(duration_seconds)
+
+        if not success:
+            self.incident_publish_errors.labels(
+                incident_type=incident_type,
+                error_type=error_type or 'unknown'
+            ).inc()
+
+    def record_self_healing_triggered(self, incident_type: str):
+        """Registra acionamento do fluxo de autocura por tipo de incidente."""
+        self.self_healing_triggered_total.labels(incident_type=incident_type).inc()
 
     def record_plan_validation(self, result: str):
         """Registra validação de plano."""
@@ -626,6 +671,7 @@ class OrchestratorMetrics:
         Registra erro de predição ML com logging estruturado.
 
         Calcula erro percentual e registra em Prometheus + logs.
+        Usado por compute_and_record_ml_error() em result_consolidation.py para tracking de erro de duração.
 
         Args:
             model_type: Tipo do modelo (ex: 'duration')
@@ -650,6 +696,26 @@ class OrchestratorMetrics:
             error_ms=error_ms,
             error_pct=round(error_pct, 2)
         )
+
+    def record_ml_prediction_accuracy(
+        self,
+        model_type: str,
+        predicted_ms: float,
+        actual_ms: float
+    ) -> None:
+        """
+        Registra acurácia de predição ML calculada como 1 - (|error| / actual).
+        """
+        error_ms = actual_ms - predicted_ms
+        if actual_ms > 0:
+            accuracy = max(0.0, 1 - (abs(error_ms) / actual_ms))
+        else:
+            accuracy = 0.0
+
+        self.ml_model_accuracy.labels(
+            model_name=model_type,
+            metric_type='prediction_accuracy'
+        ).set(accuracy)
 
     def record_ml_error(self, error_type: str):
         """Registra erro ML."""

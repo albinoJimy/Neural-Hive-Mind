@@ -8,11 +8,13 @@
 #
 # Options:
 #   --namespace NS      Specify namespace (default: neural-hive-specialists)
+#   --specialist NAME   Test only specific specialist (e.g., business, technical)
 #   --skip-integration  Skip integration tests (only check pod/endpoint health)
 #   --verbose           Show detailed output
 #
 # Example:
 #   ./scripts/validation/validate-specialist-health.sh --verbose
+#   ./scripts/validation/validate-specialist-health.sh --specialist business
 #
 # Note: Dependency connectivity tests use service-level checks from the host,
 # avoiding kubectl exec to ensure reliability across minimal/optimized container images.
@@ -29,13 +31,15 @@ NC='\033[0m' # No Color
 
 # Configuration
 NAMESPACE="${NAMESPACE:-neural-hive-specialists}"
+TARGET_SPECIALIST=""
 SKIP_INTEGRATION=false
 VERBOSE=false
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 LOG_DIR="logs/validation-${TIMESTAMP}"
 
-# List of specialists
-SPECIALISTS=("specialist-business" "specialist-technical" "specialist-behavior" "specialist-evolution" "specialist-architecture")
+# List of specialists (used when --specialist not provided)
+ALL_SPECIALISTS=("specialist-business" "specialist-technical" "specialist-behavior" "specialist-evolution" "specialist-architecture")
+SPECIALISTS=()
 
 # Counters
 TOTAL_CHECKS=0
@@ -50,6 +54,10 @@ while [[ $# -gt 0 ]]; do
             NAMESPACE="$2"
             shift 2
             ;;
+        --specialist)
+            TARGET_SPECIALIST="$2"
+            shift 2
+            ;;
         --skip-integration)
             SKIP_INTEGRATION=true
             shift
@@ -60,11 +68,24 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             echo "Unknown option: $1"
-            echo "Usage: $0 [--namespace NS] [--skip-integration] [--verbose]"
+            echo "Usage: $0 [--namespace NS] [--specialist NAME] [--skip-integration] [--verbose]"
             exit 1
             ;;
     esac
 done
+
+# Configure specialists list based on --specialist flag
+if [ -n "${TARGET_SPECIALIST}" ]; then
+    # Single specialist mode - add "specialist-" prefix if not present
+    if [[ "${TARGET_SPECIALIST}" == specialist-* ]]; then
+        SPECIALISTS=("${TARGET_SPECIALIST}")
+    else
+        SPECIALISTS=("specialist-${TARGET_SPECIALIST}")
+    fi
+else
+    # All specialists mode
+    SPECIALISTS=("${ALL_SPECIALISTS[@]}")
+fi
 
 # Create log directory
 mkdir -p "${LOG_DIR}"
@@ -158,7 +179,7 @@ check_http_connectivity() {
 # Validation Category 1: Pod Status
 ################################################################################
 
-echo -e "${BLUE}[1/8] Validating pod status...${NC}"
+echo -e "${BLUE}[1/9] Validating pod status...${NC}"
 
 for specialist in "${SPECIALISTS[@]}"; do
     echo ""
@@ -212,7 +233,7 @@ echo ""
 # Validation Category 2: Container Health
 ################################################################################
 
-echo -e "${BLUE}[2/8] Validating container health...${NC}"
+echo -e "${BLUE}[2/9] Validating container health...${NC}"
 
 for specialist in "${SPECIALISTS[@]}"; do
     echo ""
@@ -258,7 +279,7 @@ echo ""
 # Validation Category 3: Logs Validation
 ################################################################################
 
-echo -e "${BLUE}[3/8] Validating logs...${NC}"
+echo -e "${BLUE}[3/9] Validating logs...${NC}"
 
 for specialist in "${SPECIALISTS[@]}"; do
     echo ""
@@ -319,7 +340,7 @@ echo ""
 # Validation Category 4: Endpoint Validation
 ################################################################################
 
-echo -e "${BLUE}[4/8] Validating endpoints...${NC}"
+echo -e "${BLUE}[4/9] Validating endpoints...${NC}"
 
 for specialist in "${SPECIALISTS[@]}"; do
     echo ""
@@ -387,7 +408,7 @@ echo ""
 # Validation Category 5: Dependency Connectivity
 ################################################################################
 
-echo -e "${BLUE}[5/8] Validating dependency connectivity...${NC}"
+echo -e "${BLUE}[5/9] Validating dependency connectivity...${NC}"
 echo ""
 echo "  Testing service-level connectivity (host-side checks)"
 echo ""
@@ -426,7 +447,7 @@ echo ""
 # Validation Category 6: Resource Usage
 ################################################################################
 
-echo -e "${BLUE}[6/8] Validating resource usage...${NC}"
+echo -e "${BLUE}[6/9] Validating resource usage...${NC}"
 
 for specialist in "${SPECIALISTS[@]}"; do
     echo ""
@@ -466,7 +487,7 @@ echo ""
 # Validation Category 7: Configuration Validation
 ################################################################################
 
-echo -e "${BLUE}[7/8] Validating configuration...${NC}"
+echo -e "${BLUE}[7/9] Validating configuration...${NC}"
 
 for specialist in "${SPECIALISTS[@]}"; do
     echo ""
@@ -510,13 +531,90 @@ echo ""
 ################################################################################
 
 if [ "${SKIP_INTEGRATION}" = false ]; then
-    echo -e "${BLUE}[8/8] Running integration tests...${NC}"
+    echo -e "${BLUE}[8/9] Running integration tests...${NC}"
     echo ""
     echo "  (Integration tests would go here)"
     echo "  Use --skip-integration to skip this section"
 else
-    echo -e "${BLUE}[8/8] Skipping integration tests (--skip-integration)${NC}"
+    echo -e "${BLUE}[8/9] Skipping integration tests (--skip-integration)${NC}"
 fi
+
+echo ""
+
+################################################################################
+# Validation Category 9: Model & ML Pipeline Health
+################################################################################
+
+echo -e "${BLUE}[9/9] Validating model & ML pipeline health...${NC}"
+echo ""
+
+for specialist in "${SPECIALISTS[@]}"; do
+    # Extract specialist type (remove "specialist-" prefix)
+    SPECIALIST_TYPE=${specialist#specialist-}
+
+    echo "  ${specialist}:"
+
+    POD_NAME=$(kubectl get pods -n "${NAMESPACE}" -l app.kubernetes.io/name="${specialist}" --no-headers 2>/dev/null | head -1 | awk '{print $1}' || echo "")
+
+    if [ -z "${POD_NAME}" ]; then
+        fail_check "No pod found"
+        continue
+    fi
+
+    # Query enhanced /status endpoint for model_loaded
+    kubectl port-forward "${POD_NAME}" -n "${NAMESPACE}" 8000:8000 > /dev/null 2>&1 &
+    PF_PID=$!
+    sleep 1
+
+    STATUS_RESPONSE=$(curl -s http://localhost:8000/status 2>/dev/null || echo "{}")
+
+    kill ${PF_PID} 2>/dev/null || true
+    wait ${PF_PID} 2>/dev/null || true
+
+    # Parse model_loaded from details
+    MODEL_LOADED=$(echo "${STATUS_RESPONSE}" | jq -r '.details.model_loaded // "unknown"' 2>/dev/null)
+    MLFLOW_CONNECTED=$(echo "${STATUS_RESPONSE}" | jq -r '.details.mlflow_connected // "unknown"' 2>/dev/null)
+    STATUS_VALUE=$(echo "${STATUS_RESPONSE}" | jq -r '.status // "UNKNOWN"' 2>/dev/null)
+
+    # Validate model loaded
+    if [ "${MODEL_LOADED}" = "True" ] || [ "${MODEL_LOADED}" = "true" ]; then
+        pass_check "Model Loaded: Yes"
+    elif [ "${MODEL_LOADED}" = "False" ] || [ "${MODEL_LOADED}" = "false" ]; then
+        fail_check "Model Loaded: No" "Model not loaded - check MLflow and pod logs"
+    else
+        warn_check "Model Loaded: Unknown" "Could not determine model status"
+    fi
+
+    # Validate MLflow connection
+    if [ "${MLFLOW_CONNECTED}" = "True" ] || [ "${MLFLOW_CONNECTED}" = "true" ]; then
+        pass_check "MLflow Connected: Yes"
+    elif [ "${MLFLOW_CONNECTED}" = "False" ] || [ "${MLFLOW_CONNECTED}" = "false" ]; then
+        warn_check "MLflow Connected: No" "MLflow not connected - specialist may use fallback"
+    fi
+
+    # Validate serving status
+    if [ "${STATUS_VALUE}" = "SERVING" ]; then
+        pass_check "Serving Status: SERVING"
+    else
+        fail_check "Serving Status: ${STATUS_VALUE}" "Expected SERVING, got ${STATUS_VALUE}"
+    fi
+
+    # Check degraded reasons if present
+    DEGRADED_REASONS=$(echo "${STATUS_RESPONSE}" | jq -r '.details.degraded_reasons[]? // empty' 2>/dev/null)
+    if [ -n "${DEGRADED_REASONS}" ]; then
+        warn_check "Degraded Mode Detected" "Reasons: ${DEGRADED_REASONS}"
+    fi
+
+    # Optional: Run inference test if test script exists
+    INFERENCE_SCRIPT="./test-specialist-inference.py"
+    if [ -f "${INFERENCE_SCRIPT}" ] && [ "${VERBOSE}" = true ]; then
+        if python3 "${INFERENCE_SCRIPT}" --specialist "${SPECIALIST_TYPE}" --namespace "${NAMESPACE}" > /dev/null 2>&1; then
+            pass_check "Model Inference: Working" "Test inference completed successfully"
+        else
+            warn_check "Model Inference: Failed" "Inference test did not pass"
+        fi
+    fi
+done
 
 echo ""
 

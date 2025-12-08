@@ -247,7 +247,7 @@ class OrchestrationWorkflow:
                 workflow.logger.warning('Resultado inconsistente detectado, acionando autocura')
                 await workflow.execute_activity(
                     trigger_self_healing,
-                    args=[workflow_id, workflow_result.get('errors', [])],
+                    args=[workflow_id, workflow_result.get('errors', []), published_tickets, workflow_result],
                     start_to_close_timeout=timedelta(seconds=10),
                     retry_policy=workflow.RetryPolicy(maximum_attempts=3)
                 )

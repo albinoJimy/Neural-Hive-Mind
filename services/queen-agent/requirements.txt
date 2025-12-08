@@ -1,16 +1,17 @@
 # Core Framework
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
+pydantic>=2.5.2
+pydantic-settings>=2.1.0
 
-# gRPC
+# gRPC - versão de referência para outros serviços
 grpcio==1.75.1
 grpcio-tools==1.75.1
 grpcio-health-checking==1.75.1
+protobuf>=5.27.0  # Compatível com grpcio 1.75.1
 
 # Kafka
-aiokafka==0.8.1
+aiokafka>=0.10.0
 confluent-kafka[avro]==2.3.0
 
 # Databases

@@ -1,13 +1,16 @@
 import asyncio
 import json
 import os
+import time
 from typing import Dict, Any, Optional
 from confluent_kafka import Consumer, KafkaError
 from confluent_kafka.serialization import SerializationContext, MessageField
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroDeserializer
 import structlog
+import grpc
 from src.services.consensus_orchestrator import ConsensusOrchestrator
+from src.observability.metrics import ConsensusMetrics
 
 logger = structlog.get_logger()
 
@@ -24,6 +27,7 @@ class PlanConsumer:
         self.schema_registry_client: Optional[SchemaRegistryClient] = None
         self.avro_deserializer: Optional[AvroDeserializer] = None
         self.running = False
+        self.circuit_breaker_open = False
 
     async def initialize(self):
         '''Inicializa consumer Kafka com confluent-kafka'''
@@ -69,43 +73,240 @@ class PlanConsumer:
         )
 
     async def start(self):
-        '''Inicia loop de consumo com confluent-kafka'''
+        '''
+        Inicia loop de consumo com confluent-kafka.
+
+        Implementa padrão de resiliência com:
+        - Retry automático em caso de erros transientes
+        - Exponential backoff para evitar sobrecarga
+        - Isolamento de erros por mensagem (não para o consumer por uma falha)
+
+        Comportamento de commit de offset:
+        - Erros sistêmicos (gRPC, MongoDB, rede): offset NÃO commitado, permite retry
+        - Erros de negócio (validação, dados inválidos): offset NÃO commitado por padrão,
+          permitindo retry manual ou análise. A mensagem permanece no Kafka.
+
+        NOTA: DLQ ainda não está implementado. Configurações consumer_enable_dlq e
+        kafka_dlq_topic são reservadas para implementação futura.
+        '''
         if not self.consumer:
             raise RuntimeError('Consumer não inicializado')
 
         self.running = True
+        consecutive_errors = 0
+        # Usar configurações externalizadas
+        max_consecutive_errors = self.config.consumer_max_consecutive_errors
+        base_backoff_seconds = self.config.consumer_base_backoff_seconds
+        max_backoff_seconds = self.config.consumer_max_backoff_seconds
+        poll_timeout = self.config.consumer_poll_timeout_seconds
+
+        # Inicializar estado do circuit breaker
+        self.circuit_breaker_open = False
+        ConsensusMetrics.set_circuit_breaker_state(False)
+        ConsensusMetrics.set_consecutive_errors(0)
+
         logger.info('Plan consumer iniciado')
 
-        try:
-            while self.running:
-                # Poll com timeout de 1 segundo (non-blocking)
+        while self.running:
+            try:
+                # Poll com timeout configurável (non-blocking)
                 msg = await asyncio.get_event_loop().run_in_executor(
                     None,
-                    lambda: self.consumer.poll(timeout=1.0)
+                    lambda: self.consumer.poll(timeout=poll_timeout)
                 )
 
                 if msg is None:
+                    # Reset consecutive errors on successful poll (even if empty)
+                    consecutive_errors = 0
+                    ConsensusMetrics.set_consecutive_errors(0)
                     continue
 
                 if msg.error():
                     if msg.error().code() == KafkaError._PARTITION_EOF:
                         logger.debug('Reached end of partition')
+                        consecutive_errors = 0
+                        ConsensusMetrics.set_consecutive_errors(0)
                         continue
                     else:
-                        logger.error('Erro no consumer', error=msg.error())
-                        raise Exception(msg.error())
+                        logger.error('Erro no consumer Kafka', error=msg.error())
+                        consecutive_errors += 1
+                        ConsensusMetrics.set_consecutive_errors(consecutive_errors)
+                        ConsensusMetrics.increment_consumer_error('kafka_error', is_systemic=True)
+
+                        if consecutive_errors >= max_consecutive_errors:
+                            logger.critical(
+                                'Muitos erros consecutivos no consumer - parando',
+                                consecutive_errors=consecutive_errors
+                            )
+                            self.circuit_breaker_open = True
+                            ConsensusMetrics.set_circuit_breaker_state(True)
+                            ConsensusMetrics.increment_circuit_breaker_trip()
+                            break
+
+                        # Backoff exponencial
+                        backoff = min(
+                            base_backoff_seconds * (2 ** consecutive_errors),
+                            max_backoff_seconds
+                        )
+                        ConsensusMetrics.increment_backoff_event('kafka_error')
+                        ConsensusMetrics.observe_backoff_duration(backoff, 'kafka_error')
+                        logger.warning(
+                            'Backoff antes de retry',
+                            backoff_seconds=backoff,
+                            consecutive_errors=consecutive_errors
+                        )
+                        await asyncio.sleep(backoff)
+                        continue
 
                 # Deserializar mensagem
                 cognitive_plan = self._deserialize_value(msg)
 
                 if cognitive_plan:
-                    await self._process_message(msg, cognitive_plan)
+                    # Processar com isolamento de erro por mensagem
+                    start_time = time.time()
+                    try:
+                        await self._process_message(msg, cognitive_plan)
+                        # Reset consecutive errors após sucesso
+                        consecutive_errors = 0
+                        ConsensusMetrics.set_consecutive_errors(0)
+                        # Métricas de sucesso
+                        duration = time.time() - start_time
+                        ConsensusMetrics.observe_processing_duration(duration, 'success')
+                        ConsensusMetrics.increment_message_processed('success')
+                    except Exception as process_error:
+                        # Métricas de falha
+                        duration = time.time() - start_time
+                        ConsensusMetrics.observe_processing_duration(duration, 'failed')
+                        ConsensusMetrics.increment_message_processed('failed', type(process_error).__name__)
 
-        except Exception as e:
-            logger.error('Erro no loop de consumo', error=str(e))
-            raise
-        finally:
-            logger.info('Consumer loop finalizado')
+                        # Erro ao processar mensagem específica
+                        # NÃO para o consumer - apenas loga e continua
+                        logger.error(
+                            'Erro processando mensagem - continuando consumer',
+                            error=str(process_error),
+                            error_type=type(process_error).__name__,
+                            topic=msg.topic(),
+                            partition=msg.partition(),
+                            offset=msg.offset(),
+                            plan_id=cognitive_plan.get('plan_id', 'unknown')
+                        )
+
+                        # Incrementar apenas se for erro repetido no mesmo tipo
+                        # Erros de processamento individual não devem parar o consumer
+                        # mas erros sistêmicos (gRPC, MongoDB down) devem ser detectados
+                        if self._is_systemic_error(process_error):
+                            consecutive_errors += 1
+                            ConsensusMetrics.set_consecutive_errors(consecutive_errors)
+                            ConsensusMetrics.increment_consumer_error(type(process_error).__name__, is_systemic=True)
+
+                            if consecutive_errors >= max_consecutive_errors:
+                                logger.critical(
+                                    'Erros sistêmicos detectados - parando consumer',
+                                    consecutive_errors=consecutive_errors,
+                                    error_type=type(process_error).__name__
+                                )
+                                self.circuit_breaker_open = True
+                                ConsensusMetrics.set_circuit_breaker_state(True)
+                                ConsensusMetrics.increment_circuit_breaker_trip()
+                                break
+
+                            # Backoff para erros sistêmicos
+                            backoff = min(
+                                base_backoff_seconds * (2 ** consecutive_errors),
+                                max_backoff_seconds
+                            )
+                            ConsensusMetrics.increment_backoff_event('systemic_error')
+                            ConsensusMetrics.observe_backoff_duration(backoff, 'systemic_error')
+                            logger.warning(
+                                'Backoff para erro sistêmico',
+                                backoff_seconds=backoff
+                            )
+                            await asyncio.sleep(backoff)
+                        else:
+                            # Erro de negócio - NÃO commita offset, permite retry/análise
+                            ConsensusMetrics.increment_consumer_error(type(process_error).__name__, is_systemic=False)
+                            logger.warning(
+                                'Erro de negócio - offset NÃO commitado, mensagem permanece no Kafka',
+                                offset=msg.offset(),
+                                plan_id=cognitive_plan.get('plan_id', 'unknown'),
+                                error_type=type(process_error).__name__
+                            )
+
+            except asyncio.CancelledError:
+                logger.info('Consumer cancelado via asyncio')
+                break
+            except Exception as loop_error:
+                # Erro inesperado no loop principal
+                logger.error(
+                    'Erro inesperado no loop de consumo',
+                    error=str(loop_error),
+                    error_type=type(loop_error).__name__
+                )
+                consecutive_errors += 1
+                ConsensusMetrics.set_consecutive_errors(consecutive_errors)
+                ConsensusMetrics.increment_consumer_error(type(loop_error).__name__, is_systemic=True)
+
+                if consecutive_errors >= max_consecutive_errors:
+                    logger.critical(
+                        'Erros críticos no loop - parando consumer',
+                        consecutive_errors=consecutive_errors
+                    )
+                    self.circuit_breaker_open = True
+                    ConsensusMetrics.set_circuit_breaker_state(True)
+                    ConsensusMetrics.increment_circuit_breaker_trip()
+                    break
+
+                # Backoff
+                backoff = min(
+                    base_backoff_seconds * (2 ** consecutive_errors),
+                    max_backoff_seconds
+                )
+                ConsensusMetrics.increment_backoff_event('loop_error')
+                ConsensusMetrics.observe_backoff_duration(backoff, 'loop_error')
+                await asyncio.sleep(backoff)
+
+        logger.info(
+            'Consumer loop finalizado',
+            consecutive_errors=consecutive_errors,
+            was_running=self.running,
+            circuit_breaker_open=self.circuit_breaker_open
+        )
+
+    def _is_systemic_error(self, error: Exception) -> bool:
+        '''
+        Determina se um erro é sistêmico (infraestrutura) vs erro de negócio.
+
+        Erros sistêmicos indicam problemas com:
+        - Conectividade gRPC (specialists down)
+        - MongoDB indisponível
+        - Kafka producer falhou
+        - Timeout de rede
+
+        Erros de negócio são:
+        - Validação de dados
+        - Lógica de negócio
+        - Dados inválidos no plano
+        '''
+        systemic_error_types = (
+            ConnectionError,
+            TimeoutError,
+            OSError,
+            grpc.RpcError,  # Falhas gRPC nos specialists
+        )
+
+        systemic_error_keywords = [
+            'connection', 'timeout', 'unavailable', 'refused',
+            'network', 'socket', 'dns', 'grpc', 'mongodb', 'kafka',
+            'unreachable', 'connect', 'deadline exceeded'
+        ]
+
+        # Check by exception type
+        if isinstance(error, systemic_error_types):
+            return True
+
+        # Check by error message
+        error_msg = str(error).lower()
+        return any(keyword in error_msg for keyword in systemic_error_keywords)
 
     def _deserialize_value(self, msg):
         '''Deserializa o valor da mensagem (Avro ou JSON)'''
@@ -173,10 +374,15 @@ class PlanConsumer:
 
             # 5. Commit manual do offset
             if not self.config.kafka_enable_auto_commit:
-                await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: self.consumer.commit(msg)
-                )
+                try:
+                    await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: self.consumer.commit(msg)
+                    )
+                    ConsensusMetrics.increment_offset_commit('success')
+                except Exception as commit_err:
+                    ConsensusMetrics.increment_offset_commit('failed')
+                    raise commit_err
 
             logger.info(
                 'Mensagem processada com sucesso',

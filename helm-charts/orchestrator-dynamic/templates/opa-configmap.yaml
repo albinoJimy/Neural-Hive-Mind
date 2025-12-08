@@ -1,11 +1,13 @@
+{{- if .Values.opa.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: opa-policies
-  namespace: neural-hive-orchestration
+  namespace: {{ .Release.Namespace }}
   labels:
     app: opa
     component: policy-engine
+    {{- include "orchestrator-dynamic.labels" . | nindent 4 }}
 data:
   resource_limits.rego: |
 {{ .Files.Get "policies/rego/orchestrator/resource_limits.rego" | indent 4 }}
@@ -15,3 +17,4 @@ data:
 
   feature_flags.rego: |
 {{ .Files.Get "policies/rego/orchestrator/feature_flags.rego" | indent 4 }}
+{{- end }}

@@ -28,15 +28,20 @@ jaeger:
     service:
       type: ClusterIP
       grpc:
+        name: collector-grpc
         port: 14250
       http:
+        name: collector-http
         port: 14268
       admin:
+        name: collector-admin
         port: 14269
       otlp:
         grpc:
+          name: otlp-grpc
           port: 4317
         http:
+          name: otlp-http
           port: 4318
 
     # OTLP receivers e configurações avançadas
@@ -111,26 +116,7 @@ jaeger:
         neural.hive/layer: "observabilidade"
 
     ingress:
-      enabled: true
-      className: "nginx"
-      annotations:
-        nginx.ingress.kubernetes.io/ssl-redirect: "true"
-        nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-        cert-manager.io/cluster-issuer: "letsencrypt-prod"
-        # UI customizada Neural Hive-Mind
-        nginx.ingress.kubernetes.io/configuration-snippet: |
-          add_header X-Frame-Options "SAMEORIGIN" always;
-          add_header X-Content-Type-Options "nosniff" always;
-          add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-      hosts:
-        - host: jaeger.neural-hive.local
-          paths:
-            - path: /
-              pathType: Prefix
-      tls:
-        - secretName: jaeger-tls
-          hosts:
-            - jaeger.neural-hive.local
+      enabled: false
 
     cmdlineParams:
       es.server-urls: "http://elasticsearch:9200"

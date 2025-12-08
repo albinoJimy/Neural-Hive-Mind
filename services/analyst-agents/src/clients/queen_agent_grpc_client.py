@@ -149,13 +149,43 @@ class QueenAgentGRPCClient:
     async def request_strategic_decision(self, context: Dict) -> Optional[Dict]:
         """Solicitar decisão estratégica ao Queen Agent"""
         try:
-            if not self.channel:
-                logger.warning('queen_agent_channel_not_initialized')
+            if not self.stub:
+                logger.warning('queen_agent_stub_not_initialized')
                 return None
 
-            # TODO: Implementar quando proto do Queen Agent estiver disponível
-            logger.info('strategic_decision_request_stub', context_keys=list(context.keys()))
-            return None
+            request = queen_agent_pb2.GetStrategicDecisionRequest(
+                decision_id=context.get('decision_id', '')
+            )
+
+            for attempt in range(MAX_RETRIES):
+                try:
+                    response = await self.stub.GetStrategicDecision(request, timeout=10.0)
+                    return {
+                        'decision_id': response.decision_id,
+                        'decision_type': response.decision_type,
+                        'confidence_score': response.confidence_score,
+                        'risk_score': response.risk_score,
+                        'reasoning_summary': response.reasoning_summary,
+                        'action': response.action,
+                        'target_entities': list(response.target_entities)
+                    }
+                except grpc.RpcError as e:
+                    should_retry = (
+                        attempt < MAX_RETRIES - 1 and
+                        e.code() in [grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED]
+                    )
+                    logger.error(
+                        'grpc_request_decision_failed',
+                        error=str(e),
+                        code=e.code() if hasattr(e, 'code') else 'UNKNOWN',
+                        attempt=attempt + 1,
+                        will_retry=should_retry
+                    )
+                    if should_retry:
+                        backoff = BASE_BACKOFF_SECONDS * (2 ** attempt)
+                        await asyncio.sleep(backoff)
+                        continue
+                    return None
 
         except grpc.RpcError as e:
             logger.error('grpc_request_decision_failed', error=str(e))
@@ -185,13 +215,40 @@ class QueenAgentGRPCClient:
     async def get_strategic_priorities(self) -> Optional[Dict]:
         """Obter prioridades estratégicas atuais"""
         try:
-            if not self.channel:
-                logger.warning('queen_agent_channel_not_initialized')
+            if not self.stub:
+                logger.warning('queen_agent_stub_not_initialized')
                 return None
 
-            # TODO: Implementar quando proto do Queen Agent estiver disponível
-            logger.info('get_strategic_priorities_stub')
-            return None
+            request = queen_agent_pb2.GetSystemStatusRequest()
+
+            for attempt in range(MAX_RETRIES):
+                try:
+                    response = await self.stub.GetSystemStatus(request, timeout=10.0)
+                    return {
+                        'system_score': response.system_score,
+                        'sla_compliance': response.sla_compliance,
+                        'error_rate': response.error_rate,
+                        'resource_saturation': response.resource_saturation,
+                        'active_incidents': response.active_incidents,
+                        'timestamp': response.timestamp
+                    }
+                except grpc.RpcError as e:
+                    should_retry = (
+                        attempt < MAX_RETRIES - 1 and
+                        e.code() in [grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED]
+                    )
+                    logger.error(
+                        'grpc_get_priorities_failed',
+                        error=str(e),
+                        code=e.code() if hasattr(e, 'code') else 'UNKNOWN',
+                        attempt=attempt + 1,
+                        will_retry=should_retry
+                    )
+                    if should_retry:
+                        backoff = BASE_BACKOFF_SECONDS * (2 ** attempt)
+                        await asyncio.sleep(backoff)
+                        continue
+                    return None
 
         except grpc.RpcError as e:
             logger.error('grpc_get_priorities_failed', error=str(e))

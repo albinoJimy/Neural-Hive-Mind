@@ -2,6 +2,7 @@ import grpc
 import structlog
 from uuid import UUID
 from typing import Iterator
+from datetime import datetime, timezone
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 from src.services import RegistryService, MatchingEngine
@@ -260,4 +261,38 @@ class ServiceRegistryServicer:
 
             except Exception as e:
                 logger.error("watch_agents_error", error=str(e))
+                context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")
+
+    async def NotifyAgent(self, request, context):
+        """RPC: Envia notificação para agente (best-effort)."""
+        with tracer.start_as_current_span("notify_agent") as span:
+            try:
+                agent_id = request.agent_id
+                notification_type = request.notification_type or "INFO"
+                metadata = dict(request.metadata)
+
+                # Validar existência do agente (fail-open)
+                try:
+                    await self.registry_service.get_agent(UUID(agent_id))
+                except Exception:
+                    logger.warning("notify_agent_agent_not_found", agent_id=agent_id)
+
+                logger.info(
+                    "notify_agent_request",
+                    agent_id=agent_id,
+                    notification_type=notification_type,
+                    message=request.message,
+                    metadata=metadata
+                )
+
+                from src.proto import service_registry_pb2
+                response = service_registry_pb2.NotifyAgentResponse(success=True, error="")
+
+                span.set_attribute("agent_id", agent_id)
+                span.set_attribute("notification_type", notification_type)
+
+                return response
+
+            except Exception as e:
+                logger.error("notify_agent_error", error=str(e))
                 context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")

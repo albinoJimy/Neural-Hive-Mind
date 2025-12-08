@@ -1,14 +1,398 @@
-# Scripts de Validação E2E - Neural Hive-Mind
+# Scripts de Validação - Neural Hive-Mind
 
-Este diretório contém scripts para validação end-to-end do pipeline Neural Hive-Mind.
+Este diretório contém scripts para validação completa do sistema Neural Hive-Mind, incluindo validações de especialistas, modelos ML, infraestrutura e fluxos end-to-end.
 
 ## Visão Geral
 
-A validação E2E verifica o fluxo completo de processamento de intenções:
+### Arquitetura de Validação
+
+A suite de validação cobre múltiplas camadas do sistema:
 
 ```
-Gateway → Semantic Translation → Consensus Engine → Specialists → MongoDB → Memory Layer API
+┌──────────────────────────────────────────────────────────────┐
+│  Master Orchestrator: validate-all-specialists.sh            │
+├──────────────────────────────────────────────────────────────┤
+│  Fase 1: Modelos ML         (validate_models_loaded.sh)     │
+│  Fase 2: Saúde Specialists  (validate-specialist-health.sh)  │
+│  Fase 3: Inferência Modelos (test-specialist-inference.py)   │
+│  Fase 4: E2E Consensus      (test-consensus-engine-e2e.py)   │
+│  Fase 5: Métricas           (validate-prometheus-metrics.sh) │
+└──────────────────────────────────────────────────────────────┘
 ```
+
+### Fluxo E2E Completo
+
+```
+Gateway → Semantic Translation → Consensus Engine → Specialists (5) → MongoDB → Memory Layer API
+                                       ↓
+                                   Pheromone Trails (Redis)
+                                       ↓
+                                   Prometheus Metrics
+```
+
+---
+
+## 🆕 Scripts de Validação de Especialistas
+
+### validate-all-specialists.sh (Master Orchestrator)
+
+**Propósito**: Orquestrador mestre que executa toda a suite de validação de especialistas em sequência
+
+**Uso**:
+```bash
+# Executar validação completa
+./scripts/validation/validate-all-specialists.sh
+
+# Modo rápido (pula testes de inferência e E2E)
+./scripts/validation/validate-all-specialists.sh --quick
+
+# Validar apenas um especialista
+./scripts/validation/validate-all-specialists.sh --specialist technical
+
+# Modo CI/CD (output JSON)
+./scripts/validation/validate-all-specialists.sh --ci-mode --output-dir ./reports
+```
+
+**Fases de Validação**:
+1. **Pré-requisitos**: Valida kubectl, jq, curl, python3, acesso ao cluster
+2. **Modelos ML**: Verifica modelos no MLflow e carregamento nos specialists
+3. **Saúde dos Specialists**: Pods, containers, endpoints, dependências
+4. **Inferência de Modelos**: Testa inferência real via gRPC com planos cognitivos
+5. **Métricas Prometheus**: Valida coleta de métricas e dashboards Grafana
+
+**Exit Codes**:
+- `0`: Sucesso (taxa ≥ 80%)
+- `1`: Falha (taxa < 50%)
+- `2`: Avisos (taxa entre 50-79%)
+
+**Output**:
+- `validation-reports/validation-run-YYYYMMDD_HHMMSS.log`
+- `validation-reports/ci-report-YYYYMMDD_HHMMSS.json` (se --ci-mode)
+
+---
+
+### validate_models_loaded.sh
+
+**Propósito**: Valida que os modelos ML foram carregados com sucesso em todos os especialistas
+
+**Localização**: `ml_pipelines/training/validate_models_loaded.sh`
+
+**Uso**:
+```bash
+# Validar modelos em namespace padrão
+NAMESPACE=semantic-translation ./ml_pipelines/training/validate_models_loaded.sh
+
+# Especificar MLflow URI customizado
+MLFLOW_URI=http://mlflow:5000 ./ml_pipelines/training/validate_models_loaded.sh
+```
+
+**O que valida**:
+1. Modelos registrados no MLflow (5 modelos: technical, business, behavior, evolution, architecture)
+2. Versão Production de cada modelo
+3. Status dos pods dos especialistas
+4. Endpoint `/status` de cada pod (campos: `model_loaded`, `mlflow_connected`, `ledger_connected`)
+5. Estado SERVING do especialista
+
+**Diagnóstico**:
+- Se `model_loaded = False`: Modelo não existe no MLflow ou não está em Production
+- Se `mlflow_connected = False`: MLflow não está acessível
+- Se `status != SERVING`: Especialista não está pronto para receber requisições
+
+**Exit Code**: `0` se 5/5 especialistas carregaram modelos, `1` caso contrário
+
+---
+
+### validate-specialist-health.sh
+
+**Propósito**: Validação abrangente de saúde dos especialistas (9 categorias)
+
+**Uso**:
+```bash
+# Validação completa
+./scripts/validation/validate-specialist-health.sh --namespace semantic-translation
+
+# Pular testes de integração
+./scripts/validation/validate-specialist-health.sh --skip-integration
+
+# Modo verbose (inclui testes de inferência)
+./scripts/validation/validate-specialist-health.sh --verbose
+```
+
+**Categorias de Validação**:
+1. **Pod Status**: Deployment, replicas, pod phase, readiness
+2. **Container Health**: Restart count, estado dos containers
+3. **Logs Validation**: Erros críticos, conexões com MongoDB
+4. **Endpoint Validation**: `/health`, `/ready`, `/metrics` (Prometheus), gRPC (50051)
+5. **Dependency Connectivity**: MongoDB, Redis, Neo4j
+6. **Resource Usage**: CPU, memória
+7. **Configuration Validation**: Imagens, variáveis de ambiente
+8. **Integration Testing**: (Opcional, customizável)
+9. **🆕 Model & ML Pipeline Health**:
+   - Model loaded status
+   - MLflow connectivity
+   - Serving status (SERVING/NOT_SERVING)
+   - Degraded mode detection
+   - Inference test (se --verbose)
+
+**Output**:
+- `logs/validation-YYYYMMDD-HHMMSS/VALIDATION_REPORT.md`
+- Logs individuais por especialista
+- Sumário com contadores (Passed, Failed, Warnings)
+
+---
+
+### test-specialist-inference.py
+
+**Propósito**: Testa inferência real dos modelos via gRPC com planos cognitivos variados
+
+**Uso**:
+```bash
+# Testar todos os especialistas
+./scripts/validation/test-specialist-inference.py
+
+# Testar apenas um especialista
+./scripts/validation/test-specialist-inference.py --specialist technical
+
+# Cenários específicos
+./scripts/validation/test-specialist-inference.py --scenarios simple high_risk complex
+
+# Verbose + JSON output
+./scripts/validation/test-specialist-inference.py --verbose --output-json inference-report.json
+
+# Namespace customizado
+./scripts/validation/test-specialist-inference.py --namespace specialist-ns
+```
+
+**Cenários de Teste**:
+1. **Simple**: Plano de baixo risco, aprovação esperada
+2. **High Risk**: Plano de alto risco, rejeição/review esperado
+3. **Complex**: Plano com múltiplas tarefas e dependências
+4. **Malformed**: (Futuro) Plano malformado para teste de error handling
+
+**Validação da Resposta**:
+- ✅ `opinion_id` presente e não vazio
+- ✅ `specialist_type` correto
+- ✅ `confidence_score` no range [0.0-1.0]
+- ✅ `risk_score` no range [0.0-1.0]
+- ✅ `recommendation` em ['approve', 'reject', 'review_required', 'conditional']
+- ✅ `reasoning_summary` não vazio
+- ✅ `evaluated_at` timestamp válido
+- ✅ `processing_time_ms` > 0
+
+**Output JSON** (se `--output-json`):
+```json
+{
+  "test_run_id": "uuid",
+  "timestamp": "ISO-8601",
+  "namespace": "semantic-translation",
+  "results": [
+    {
+      "specialist_type": "technical",
+      "scenarios": [
+        {
+          "scenario": "simple",
+          "status": "passed",
+          "response_time_ms": 245.67,
+          "opinion": {
+            "confidence_score": 0.87,
+            "risk_score": 0.12,
+            "recommendation": "approve"
+          }
+        }
+      ],
+      "summary": {"total": 3, "passed": 3, "failed": 0}
+    }
+  ],
+  "overall_summary": {
+    "total_tests": 15,
+    "passed": 14,
+    "failed": 1,
+    "success_rate": 93.33
+  }
+}
+```
+
+---
+
+### test-consensus-engine-e2e.py
+
+**Propósito**: Teste end-to-end do Consensus Engine (Kafka → Especialistas → MongoDB → Redis)
+
+**Status**: ⚠️ Parcialmente implementado (estrutura pronta, integração Kafka/MongoDB pendente)
+
+**Uso**:
+```bash
+# Teste E2E com cenários padrão
+./scripts/validation/test-consensus-engine-e2e.py
+
+# Cenários customizados
+./scripts/validation/test-consensus-engine-e2e.py --scenarios simple,high_risk
+
+# Kafka/MongoDB customizados
+./scripts/validation/test-consensus-engine-e2e.py \
+  --kafka-bootstrap kafka:9092 \
+  --mongodb-uri mongodb://mongo:27017 \
+  --timeout 15
+```
+
+**Fluxo de Teste**:
+1. Publica plano cognitivo no tópico `cognitive-plans` (Kafka)
+2. Monitora tópico `consensus-decisions` para decisão
+3. Valida que 5/5 especialistas foram invocados
+4. Verifica decisão de consenso no MongoDB
+5. Valida pheromone trails atualizados no Redis
+6. Mede tempo de processamento fim-a-fim
+
+**Exit Codes**:
+- `0`: Todos os testes passaram
+- `1`: Falhas detectadas
+- `2`: Implementação pendente
+
+---
+
+### validate-prometheus-metrics.sh
+
+**Propósito**: Valida coleta de métricas Prometheus e dashboards Grafana
+
+**Uso**:
+```bash
+# Validação completa
+./scripts/validation/validate-prometheus-metrics.sh
+
+# URLs customizadas
+./scripts/validation/validate-prometheus-metrics.sh \
+  --prometheus-url http://prometheus:9090 \
+  --grafana-url http://grafana:3000
+
+# Namespace específico
+./scripts/validation/validate-prometheus-metrics.sh --namespace specialist-ns
+```
+
+**Métricas Validadas**:
+- `specialist_evaluations_total` (counter)
+- `specialist_evaluation_duration_seconds` (histogram)
+- `specialist_model_inference_duration_seconds` (histogram)
+- `specialist_cache_hits_total` / `specialist_cache_misses_total`
+- `specialist_errors_total` (por error_type)
+
+**Validações**:
+1. ✅ Prometheus está acessível (`/-/healthy`)
+2. ✅ Métricas existem para todos os 5 especialistas
+3. ✅ Freshness das métricas (última coleta < 2 minutos)
+4. ✅ Grafana está acessível (`/api/health`)
+5. ✅ Alerting rules configurados (specialist_down, model_not_loaded)
+
+---
+
+## Quick Start - Validação Completa
+
+### Opção 1: Validação Rápida (5 minutos)
+
+```bash
+cd /jimy/Neural-Hive-Mind/scripts/validation
+
+# Executar validação completa em modo quick (pula inferência E2E)
+./validate-all-specialists.sh --quick
+```
+
+### Opção 2: Validação Completa (15 minutos)
+
+```bash
+cd /jimy/Neural-Hive-Mind/scripts/validation
+
+# Executar todas as fases incluindo testes de inferência
+./validate-all-specialists.sh --output-dir ./reports
+```
+
+### Opção 3: Validação Individual
+
+```bash
+# 1. Validar apenas modelos ML
+NAMESPACE=semantic-translation ../../ml_pipelines/training/validate_models_loaded.sh
+
+# 2. Validar apenas saúde dos specialists
+./validate-specialist-health.sh --namespace semantic-translation --verbose
+
+# 3. Testar apenas inferência
+./test-specialist-inference.py --specialist technical --verbose
+
+# 4. Validar apenas métricas
+./validate-prometheus-metrics.sh
+```
+
+---
+
+## Troubleshooting - Validação de Especialistas
+
+### Problema: "Model not loaded" (model_loaded = False)
+
+**Diagnóstico**:
+```bash
+# 1. Verificar se modelo existe no MLflow
+curl -s http://mlflow:5000/api/2.0/mlflow/registered-models/get?name=technical-evaluator | jq
+
+# 2. Verificar se está em Production
+curl -s http://mlflow:5000/api/2.0/mlflow/registered-models/get?name=technical-evaluator \
+  | jq '.registered_model.latest_versions[] | select(.current_stage == "Production")'
+
+# 3. Verificar logs do specialist
+kubectl logs -n semantic-translation -l app=specialist-technical --tail=50 | grep -i "model\|mlflow"
+```
+
+**Solução**:
+- Se modelo não existe: Executar treinamento (`ml_pipelines/training/train_specialist_model.py`)
+- Se não está em Production: Promover modelo no MLflow UI
+- Se erro ao carregar: Verificar compatibilidade de versão (protobuf, mlflow, pandas)
+
+---
+
+### Problema: "Specialist timeout" durante inferência
+
+**Diagnóstico**:
+```bash
+# 1. Verificar se pod está Ready
+kubectl get pods -n semantic-translation -l app=specialist-technical
+
+# 2. Testar endpoint gRPC manualmente
+kubectl port-forward -n semantic-translation svc/specialist-technical 50051:50051 &
+grpcurl -plaintext localhost:50051 neural_hive.specialist.SpecialistService/HealthCheck
+
+# 3. Verificar logs de erro
+kubectl logs -n semantic-translation -l app=specialist-technical --tail=100 | grep -i "error\|timeout\|exception"
+```
+
+**Solução**:
+- Aumentar timeout no teste (`--timeout` parameter)
+- Verificar recursos do pod (CPU/memória)
+- Verificar circuit breakers abertos (`/status` endpoint)
+
+---
+
+### Problema: "Prometheus metrics not found"
+
+**Diagnóstico**:
+```bash
+# 1. Verificar ServiceMonitor configurado
+kubectl get servicemonitor -n semantic-translation
+
+# 2. Verificar target no Prometheus
+# Acessar Prometheus UI → Status → Targets → Buscar "specialist"
+
+# 3. Testar endpoint /metrics diretamente
+kubectl port-forward -n semantic-translation svc/specialist-technical 8000:8000 &
+curl -s localhost:8000/metrics | grep specialist_
+```
+
+**Solução**:
+- Criar ServiceMonitor se não existe
+- Verificar labels do Service match com ServiceMonitor selector
+- Aguardar intervalo de scrape (default: 30s)
+
+---
+
+## Scripts E2E Legados
+
+Os scripts abaixo focam na validação do fluxo Gateway → Consensus → Memory Layer:
 
 ## Scripts Disponíveis
 

@@ -1,8 +1,6 @@
 """
 Activities Temporal para validação de planos cognitivos (Etapa C1).
 """
-import hashlib
-import json
 from datetime import datetime
 from typing import Dict, Any, Optional
 
@@ -14,19 +12,22 @@ logger = structlog.get_logger()
 # Dependências globais para injeção
 _policy_validator = None
 _config = None
+_mongodb_client = None
 
 
-def set_activity_dependencies(policy_validator=None, config=None):
+def set_activity_dependencies(policy_validator=None, config=None, mongodb_client=None):
     """
     Configura dependências globais das activities.
 
     Args:
         policy_validator: PolicyValidator para validação OPA
         config: OrchestratorSettings
+        mongodb_client: Cliente MongoDB para auditoria
     """
-    global _policy_validator, _config
+    global _policy_validator, _config, _mongodb_client
     _policy_validator = policy_validator
     _config = config
+    _mongodb_client = mongodb_client
 
 
 @activity.defn
@@ -143,7 +144,7 @@ async def validate_cognitive_plan(plan_id: str, cognitive_plan: Dict[str, Any]) 
 @activity.defn
 async def audit_validation(plan_id: str, validation_result: Dict[str, Any]) -> None:
     """
-    Persiste resultado de validação no MongoDB para auditoria.
+    Persiste resultado de validação no MongoDB para auditoria (fail-open).
 
     Args:
         plan_id: ID do plano validado
@@ -152,20 +153,30 @@ async def audit_validation(plan_id: str, validation_result: Dict[str, Any]) -> N
     activity.logger.info(f'Auditando validação do plano {plan_id}')
 
     try:
-        # TODO: Implementar persistência no MongoDB
-        # mongodb_client.validation_audit.insert_one({
-        #     'plan_id': plan_id,
-        #     'validation_result': validation_result,
-        #     'workflow_id': activity.info().workflow_id,
-        #     'timestamp': datetime.now(),
-        #     'hash': hashlib.sha256(json.dumps(validation_result, sort_keys=True).encode()).hexdigest()
-        # })
+        if not _mongodb_client:
+            activity.logger.warning('mongodb_client_not_initialized', plan_id=plan_id)
+            return
+
+        try:
+            await _mongodb_client.save_validation_audit(
+                plan_id,
+                validation_result,
+                activity.info().workflow_id
+            )
+        except Exception as mongo_error:
+            activity.logger.error(
+                'validation_audit_persist_failed',
+                plan_id=plan_id,
+                error=str(mongo_error)
+            )
+            return
 
         activity.logger.info(f'Validação do plano {plan_id} auditada com sucesso')
 
     except Exception as e:
         activity.logger.error(f'Erro ao auditar validação do plano {plan_id}: {e}', exc_info=True)
-        raise
+        # Fail-open
+        return
 
 
 @activity.defn

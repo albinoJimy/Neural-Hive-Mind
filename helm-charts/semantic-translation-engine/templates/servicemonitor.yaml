@@ -6,6 +6,11 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "semantic-translation-engine.labels" . | nindent 4 }}
+    # Labels para descoberta do Prometheus Operator
+    neural.hive/metrics: "enabled"
+    neural.hive/component: "semantic-translator"
+    neural.hive/layer: "cognitiva"
+    prometheus: neural-hive
 spec:
   selector:
     matchLabels:

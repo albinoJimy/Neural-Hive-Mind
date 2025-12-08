@@ -5,6 +5,10 @@ metadata:
   name: {{ include "specialist-behavior.fullname" . }}
   labels:
     {{- include "specialist-behavior.labels" . | nindent 4 }}
+    # Labels para descoberta do Prometheus Operator
+    neural.hive/metrics: "enabled"
+    neural.hive/component: "behavior-specialist"
+    neural.hive/layer: "cognitiva"
     {{- with .Values.serviceMonitor.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

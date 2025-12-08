@@ -39,8 +39,20 @@ class TicketServiceSettings(BaseSettings):
     kafka_auto_offset_reset: str = Field(default='earliest', description='Reset de offset')
     kafka_enable_auto_commit: bool = Field(default=False, description='Auto commit (manual para controle)')
     kafka_security_protocol: str = Field(default='PLAINTEXT', description='Protocolo de segurança Kafka')
+    kafka_sasl_mechanism: str = Field(default='SCRAM-SHA-512', description='Mecanismo SASL')
     kafka_sasl_username: Optional[str] = Field(default=None, description='Username SASL')
     kafka_sasl_password: Optional[str] = Field(default=None, description='Password SASL')
+    kafka_ssl_ca_location: Optional[str] = Field(default=None, description='Caminho CA SSL')
+    kafka_ssl_certificate_location: Optional[str] = Field(default=None, description='Caminho certificado SSL')
+    kafka_ssl_key_location: Optional[str] = Field(default=None, description='Caminho chave SSL')
+    kafka_schema_registry_url: str = Field(
+        default='http://schema-registry.neural-hive-kafka.svc.cluster.local:8081',
+        description='URL do Schema Registry para deserialização Avro'
+    )
+    schemas_base_path: str = Field(
+        default='/app/schemas',
+        description='Diretório base dos schemas Avro'
+    )
 
     # JWT Tokens
     jwt_secret_key: str = Field(..., description='Chave secreta JWT')

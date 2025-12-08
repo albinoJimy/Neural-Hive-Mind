@@ -29,13 +29,17 @@ class Settings(BaseSettings):
     kafka_compression_type: str = Field(default="snappy")  # none, gzip, snappy, lz4, zstd
     
     # ASR Pipeline
-    asr_model_name: str = Field(default="base")
+    # Modelos disponíveis: tiny (39MB), base (142MB), small (466MB), medium (1.5GB), large (2.9GB)
+    asr_model_name: str = Field(default="tiny")
     asr_device: str = Field(default="cpu")
     asr_timeout_seconds: int = Field(default=60)
     asr_max_concurrent_jobs: int = Field(default=5)
+    asr_lazy_loading: bool = Field(default=True, description="Habilitar lazy loading do modelo Whisper")
+    asr_model_cache_dir: str = Field(default="/app/models/whisper", description="Diretório de cache de modelos montado via volume persistente")
     
     # NLU Pipeline
     nlu_language_model: str = Field(default="pt_core_news_sm")
+    nlu_model_cache_dir: str = Field(default="/app/models/spacy", description="Diretório de cache de modelos spaCy montado via volume persistente")
     nlu_confidence_threshold: float = Field(default=0.5)
     nlu_confidence_threshold_strict: float = Field(default=0.75)
     nlu_adaptive_threshold_enabled: bool = Field(default=True)
@@ -108,6 +112,7 @@ class Settings(BaseSettings):
     allowed_hosts: List[str] = Field(default=["*"])
     
     # Observabilidade - OpenTelemetry Collector OTLP endpoint
+    otel_enabled: bool = Field(default=False, description="Habilitar OpenTelemetry para tracing distribuído")
     otel_endpoint: str = Field(default="http://opentelemetry-collector.observability.svc.cluster.local:4317")
     prometheus_port: int = Field(default=8080)
     jaeger_sampling_rate: float = Field(default=0.1)

@@ -57,3 +57,4 @@ data:
   LEDGER_ENABLED: {{ .Values.config.features.ledgerEnabled | quote }}
   EXPLAINABILITY_ENABLED: {{ .Values.config.features.explainabilityEnabled | quote }}
   CIRCUIT_BREAKER_ENABLED: {{ .Values.config.features.circuitBreakerEnabled | quote }}
+  ENABLE_TRACING: {{ .Values.config.features.enableTracing | default "true" | quote }}

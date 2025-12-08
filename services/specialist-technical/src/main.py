@@ -15,6 +15,7 @@ sys.path.insert(0, '/app/libraries/python')
 from config import TechnicalSpecialistConfig
 from specialist import TechnicalSpecialist
 from http_server import create_http_server
+from http_server_fastapi import create_fastapi_app, run_fastapi_server
 
 # Imports simulados (em produção viriam de neural_hive_specialists)
 try:
@@ -27,7 +28,9 @@ except ImportError:
 logger = structlog.get_logger()
 
 # Flag para escolher entre FastAPI (async) ou HTTPServer (sync)
-USE_FASTAPI = False
+# Changed to True to match other specialists - FastAPI readiness check
+# doesn't require model_loaded=True, allowing the pod to become Ready
+USE_FASTAPI = True
 
 
 def main():

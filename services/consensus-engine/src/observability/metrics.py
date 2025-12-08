@@ -96,6 +96,79 @@ compliance_violations_total = Counter(
     ['domain', 'violation_type']
 )
 
+# ===========================
+# Métricas do Consumer Kafka
+# ===========================
+
+# Mensagens processadas pelo consumer
+consumer_messages_processed_total = Counter(
+    'neural_hive_consumer_messages_processed_total',
+    'Total de mensagens processadas pelo consumer',
+    ['status', 'error_type']
+)
+
+# Duração do processamento de mensagens
+consumer_messages_processing_duration_seconds = Histogram(
+    'neural_hive_consumer_processing_duration_seconds',
+    'Duração do processamento de mensagens pelo consumer',
+    ['status'],
+    buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0]
+)
+
+# Commits de offset
+consumer_offset_commits_total = Counter(
+    'neural_hive_consumer_offset_commits_total',
+    'Total de commits de offset do consumer',
+    ['status']
+)
+
+# Erros do consumer
+consumer_errors_total = Counter(
+    'neural_hive_consumer_errors_total',
+    'Total de erros do consumer',
+    ['error_type', 'is_systemic']
+)
+
+# Erros consecutivos atuais
+consumer_consecutive_errors_gauge = Gauge(
+    'neural_hive_consumer_consecutive_errors',
+    'Contagem atual de erros consecutivos do consumer'
+)
+
+# Eventos de backoff
+consumer_backoff_events_total = Counter(
+    'neural_hive_consumer_backoff_events_total',
+    'Total de eventos de backoff do consumer',
+    ['reason']
+)
+
+# Duração de backoff
+consumer_backoff_duration_seconds = Histogram(
+    'neural_hive_consumer_backoff_duration_seconds',
+    'Duração de backoff do consumer',
+    ['reason'],
+    buckets=[1, 2, 5, 10, 30, 60]
+)
+
+# Estado do circuit breaker (0=fechado, 1=aberto)
+consumer_circuit_breaker_state = Gauge(
+    'neural_hive_consumer_circuit_breaker_state',
+    'Estado do circuit breaker do consumer (0=fechado, 1=aberto)'
+)
+
+# Trips do circuit breaker
+consumer_circuit_breaker_trips_total = Counter(
+    'neural_hive_consumer_circuit_breaker_trips_total',
+    'Total de vezes que circuit breaker foi acionado'
+)
+
+# Mensagens enviadas para DLQ
+consumer_dlq_messages_total = Counter(
+    'neural_hive_consumer_dlq_messages_total',
+    'Total de mensagens enviadas para Dead Letter Queue',
+    ['reason']
+)
+
 
 class ConsensusMetrics:
     '''Wrapper para métricas de consenso com métodos de conveniência'''
@@ -182,3 +255,63 @@ class ConsensusMetrics:
             domain=domain,
             violation_type=violation_type
         ).inc()
+
+    # ===========================
+    # Métricas do Consumer Kafka
+    # ===========================
+
+    @staticmethod
+    def increment_message_processed(status: str, error_type: str = 'none'):
+        '''Incrementa contador de mensagens processadas'''
+        consumer_messages_processed_total.labels(
+            status=status,
+            error_type=error_type
+        ).inc()
+
+    @staticmethod
+    def observe_processing_duration(duration: float, status: str):
+        '''Observa duração do processamento de mensagem'''
+        consumer_messages_processing_duration_seconds.labels(status=status).observe(duration)
+
+    @staticmethod
+    def increment_offset_commit(status: str):
+        '''Incrementa contador de commits de offset'''
+        consumer_offset_commits_total.labels(status=status).inc()
+
+    @staticmethod
+    def increment_consumer_error(error_type: str, is_systemic: bool):
+        '''Incrementa contador de erros do consumer'''
+        consumer_errors_total.labels(
+            error_type=error_type,
+            is_systemic=str(is_systemic).lower()
+        ).inc()
+
+    @staticmethod
+    def set_consecutive_errors(count: int):
+        '''Define contagem de erros consecutivos'''
+        consumer_consecutive_errors_gauge.set(count)
+
+    @staticmethod
+    def increment_backoff_event(reason: str):
+        '''Incrementa contador de eventos de backoff'''
+        consumer_backoff_events_total.labels(reason=reason).inc()
+
+    @staticmethod
+    def observe_backoff_duration(duration: float, reason: str):
+        '''Observa duração de backoff'''
+        consumer_backoff_duration_seconds.labels(reason=reason).observe(duration)
+
+    @staticmethod
+    def set_circuit_breaker_state(is_open: bool):
+        '''Define estado do circuit breaker (1=aberto, 0=fechado)'''
+        consumer_circuit_breaker_state.set(1 if is_open else 0)
+
+    @staticmethod
+    def increment_circuit_breaker_trip():
+        '''Incrementa contador de trips do circuit breaker'''
+        consumer_circuit_breaker_trips_total.inc()
+
+    @staticmethod
+    def increment_dlq_message(reason: str):
+        '''Incrementa contador de mensagens DLQ'''
+        consumer_dlq_messages_total.labels(reason=reason).inc()

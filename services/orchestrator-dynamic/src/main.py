@@ -4,7 +4,7 @@ Implementa FastAPI para API REST e gerencia lifecycle do Temporal Worker e Kafka
 """
 import asyncio
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Optional, Dict, Any
 
 import structlog
 from fastapi import FastAPI, HTTPException
@@ -17,9 +17,11 @@ from src.consumers.decision_consumer import DecisionConsumer
 from src.workers.temporal_worker import TemporalWorkerManager, create_temporal_client
 from src.clients.mongodb_client import MongoDBClient
 from src.clients.kafka_producer import KafkaProducerClient
+from src.clients.self_healing_client import SelfHealingClient
 from src.clients.optimizer_grpc_client import OptimizerGrpcClient
 from src.integration.flow_c_consumer import FlowCConsumer
-from pydantic import BaseModel
+from src.workflows.orchestration_workflow import OrchestrationWorkflow
+from pydantic import BaseModel, Field
 from uuid import uuid4
 
 # Import Vault integration (optional dependency)
@@ -48,6 +50,7 @@ class AppState:
         self.flow_c_task: Optional[asyncio.Task] = None
         self.mongodb_client: Optional[MongoDBClient] = None
         self.kafka_producer: Optional[KafkaProducerClient] = None
+        self.self_healing_client: Optional[SelfHealingClient] = None
         self.redis_client = None
         self.vault_client = None
         self.drift_detector = None
@@ -98,11 +101,18 @@ async def lifespan(app: FastAPI):
         else:
             mongodb_uri = config.mongodb_uri
 
-        # Inicializar MongoDB
-        logger.info('Conectando ao MongoDB')
-        app_state.mongodb_client = MongoDBClient(config, uri_override=mongodb_uri)
-        await app_state.mongodb_client.initialize()
-        logger.info('MongoDB conectado com sucesso')
+        # Inicializar MongoDB (fail-open)
+        try:
+            logger.info('Conectando ao MongoDB')
+            app_state.mongodb_client = MongoDBClient(config, uri_override=mongodb_uri)
+            await app_state.mongodb_client.initialize()
+            logger.info('MongoDB conectado com sucesso')
+        except Exception as mongo_error:
+            logger.warning(
+                'Falha ao conectar ao MongoDB, continuando em modo degradado',
+                error=str(mongo_error)
+            )
+            app_state.mongodb_client = None
 
         # Inicializar modelos preditivos centralizados (se habilitado)
         if getattr(config, 'ml_predictions_enabled', False):
@@ -207,6 +217,12 @@ async def lifespan(app: FastAPI):
         await app_state.kafka_producer.initialize()
         logger.info('Kafka Producer inicializado com sucesso')
 
+        # Inicializar Self-Healing client (lazy HTTP)
+        app_state.self_healing_client = SelfHealingClient(
+            base_url=config.self_healing_engine_url,
+            timeout=config.self_healing_timeout_seconds
+        )
+
         # Get PostgreSQL credentials from Vault if enabled
         postgres_user = config.postgres_user
         postgres_password = config.postgres_password
@@ -217,14 +233,34 @@ async def lifespan(app: FastAPI):
             postgres_password = pg_creds['password']
             logger.info('Credenciais PostgreSQL obtidas do Vault', ttl=pg_creds.get('ttl', 0))
 
-        # Conectar ao Temporal Server com credenciais do Vault
-        logger.info('Conectando ao Temporal Server', host=config.temporal_host, port=config.temporal_port)
-        app_state.temporal_client = await create_temporal_client(
-            config,
-            postgres_user=postgres_user,
-            postgres_password=postgres_password
-        )
-        logger.info('Conectado ao Temporal Server com sucesso')
+        # Criar cliente Temporal (lazy connection - não conecta imediatamente)
+        # Temporal é opcional - serviço funciona em modo degradado sem ele
+        if config.temporal_enabled:
+            try:
+                logger.info(
+                    'Criando cliente Temporal',
+                    host=config.temporal_host,
+                    port=config.temporal_port,
+                    namespace=config.temporal_namespace
+                )
+                app_state.temporal_client = await create_temporal_client(
+                    config,
+                    postgres_user=postgres_user,
+                    postgres_password=postgres_password
+                )
+                if app_state.temporal_client:
+                    logger.info('Cliente Temporal criado (lazy connection)')
+                else:
+                    logger.info('Temporal desabilitado via create_temporal_client')
+            except Exception as e:
+                logger.warning(
+                    'Falha ao criar cliente Temporal, continuando em modo degradado',
+                    error=str(e)
+                )
+                app_state.temporal_client = None
+        else:
+            logger.info('Temporal desabilitado via configuração (temporal_enabled=False)')
+            app_state.temporal_client = None
 
         # Inicializar Kafka Consumer
         logger.info('Inicializando Kafka Consumer', topic=config.kafka_consensus_topic)
@@ -244,32 +280,36 @@ async def lifespan(app: FastAPI):
         else:
             logger.info('Optimizer integration desabilitada')
 
-        # Inicializar Temporal Worker com dependências
-        logger.info('Inicializando Temporal Worker', task_queue=config.temporal_task_queue)
-        app_state.temporal_worker = TemporalWorkerManager(
-            config,
-            app_state.temporal_client,
-            app_state.kafka_producer,
-            app_state.mongodb_client,
-            optimizer_client=app_state.optimizer_client,
-            vault_client=app_state.vault_client,
-            scheduling_predictor=app_state.scheduling_predictor,
-            load_predictor=app_state.load_predictor,
-            anomaly_detector=app_state.anomaly_detector
-        )
-        await app_state.temporal_worker.initialize()
+        # Inicializar Temporal Worker com dependências (se Temporal disponível)
+        if app_state.temporal_client:
+            logger.info('Inicializando Temporal Worker', task_queue=config.temporal_task_queue)
+            app_state.temporal_worker = TemporalWorkerManager(
+                config,
+                app_state.temporal_client,
+                app_state.kafka_producer,
+                app_state.mongodb_client,
+                optimizer_client=app_state.optimizer_client,
+                vault_client=app_state.vault_client,
+                scheduling_predictor=app_state.scheduling_predictor,
+                load_predictor=app_state.load_predictor,
+                anomaly_detector=app_state.anomaly_detector,
+                self_healing_client=app_state.self_healing_client
+            )
+            await app_state.temporal_worker.initialize()
 
-        # Iniciar Temporal Worker em background
-        app_state.worker_task = asyncio.create_task(app_state.temporal_worker.start())
-        logger.info('Temporal Worker iniciado em background')
+            # Iniciar Temporal Worker em background
+            app_state.worker_task = asyncio.create_task(app_state.temporal_worker.start())
+            logger.info('Temporal Worker iniciado em background')
+        else:
+            logger.warning('Temporal Worker não inicializado - Temporal client não disponível')
 
         # Iniciar Kafka Consumer em background
         app_state.consumer_task = asyncio.create_task(app_state.kafka_consumer.start())
         logger.info('Kafka Consumer iniciado em background')
 
-        # Inicializar Flow C Consumer
+        # Inicializar Flow C Consumer com config injetada
         logger.info('Inicializando Flow C Consumer')
-        app_state.flow_c_consumer = FlowCConsumer()
+        app_state.flow_c_consumer = FlowCConsumer(config=config)
         await app_state.flow_c_consumer.start()
 
         # Iniciar Flow C Consumer em background
@@ -350,6 +390,10 @@ async def lifespan(app: FastAPI):
         if app_state.kafka_producer:
             logger.info('Fechando Kafka Producer')
             await app_state.kafka_producer.close()
+
+        if app_state.self_healing_client:
+            logger.info('Fechando Self-Healing client')
+            await app_state.self_healing_client.close()
 
         # Fechar MongoDB
         if app_state.mongodb_client:
@@ -457,39 +501,41 @@ async def health_check():
 async def readiness_check():
     """
     Readiness check - verifica se serviço está pronto para receber requisições.
-    Valida conexões com Temporal, Kafka e MongoDB.
+    Valida conexões com Kafka e MongoDB. Temporal é opcional.
     """
     checks = {
-        'temporal': False,
         'kafka_consumer': False,
-        'worker': False
+        'flow_c_consumer': False
     }
 
     try:
-        # Verificar Temporal Client
-        if app_state.temporal_client:
-            checks['temporal'] = True
-
-        # Verificar Kafka Consumer
+        # Verificar Kafka Consumer (obrigatório)
         if app_state.kafka_consumer and app_state.kafka_consumer.running:
             checks['kafka_consumer'] = True
 
-        # Verificar Temporal Worker
-        if app_state.temporal_worker and app_state.temporal_worker.running:
-            checks['worker'] = True
-
-        # Verificar Flow C Consumer
-        checks['flow_c_consumer'] = False
+        # Verificar Flow C Consumer (obrigatório)
         if app_state.flow_c_consumer and app_state.flow_c_consumer.running:
             checks['flow_c_consumer'] = True
 
-        all_ready = all(checks.values())
+        # Temporal é opcional - incluir no status se disponível
+        if app_state.temporal_client:
+            checks['temporal'] = True
+            # Verificar Temporal Worker apenas se Temporal disponível
+            checks['worker'] = bool(app_state.temporal_worker and app_state.temporal_worker.running)
+        else:
+            checks['temporal'] = 'disabled'
+            checks['worker'] = 'disabled'
+
+        # Ready se componentes obrigatórios estão OK
+        required_checks = [checks['kafka_consumer'], checks['flow_c_consumer']]
+        all_ready = all(v is True for v in required_checks)
 
         return JSONResponse(
             status_code=200 if all_ready else 503,
             content={
                 'status': 'ready' if all_ready else 'not_ready',
-                'checks': checks
+                'checks': checks,
+                'mode': 'full' if app_state.temporal_client else 'degraded'
             }
         )
 
@@ -699,6 +745,21 @@ class ModelPromotionRequest(BaseModel):
     """Request para promoção de modelo."""
     version: str
     stage: str = "Production"
+
+
+class WorkflowStartRequest(BaseModel):
+    """Request para iniciar workflow Temporal."""
+    cognitive_plan: Dict[str, Any] = Field(..., description="Plano cognitivo a ser executado")
+    correlation_id: str = Field(..., description="ID de correlação para rastreabilidade")
+    priority: int = Field(default=5, ge=1, le=10, description="Prioridade do workflow (1-10)")
+    sla_deadline_seconds: int = Field(default=14400, description="Deadline SLA em segundos (default: 4h)")
+
+
+class WorkflowStartResponse(BaseModel):
+    """Response do início de workflow."""
+    workflow_id: str = Field(..., description="ID do workflow iniciado")
+    status: str = Field(..., description="Status do workflow")
+    correlation_id: str = Field(..., description="ID de correlação")
 
 
 @app.post('/api/v1/ml/train')
@@ -1080,6 +1141,122 @@ async def get_workflow_status(workflow_id: str):
     """Consultar status de workflow Temporal."""
     # Implementação futura: consultar Temporal
     raise HTTPException(status_code=501, detail='Not implemented')
+
+
+@app.post('/api/v1/workflows/start')
+async def start_workflow(request: WorkflowStartRequest):
+    """
+    Iniciar workflow Temporal para execução de plano cognitivo.
+
+    Este endpoint é chamado pelo FlowCOrchestrator via OrchestratorClient
+    para iniciar a execução do Fluxo C (geração de execution tickets).
+
+    Args:
+        request: WorkflowStartRequest com cognitive_plan, correlation_id, priority
+
+    Returns:
+        WorkflowStartResponse com workflow_id, status e correlation_id
+
+    Raises:
+        HTTPException 503: Temporal client não disponível
+        HTTPException 500: Erro ao iniciar workflow
+    """
+    # Validar disponibilidade do Temporal client
+    if not app_state.temporal_client:
+        logger.warning(
+            'workflow_start_rejected',
+            reason='temporal_client_unavailable',
+            correlation_id=request.correlation_id
+        )
+        raise HTTPException(
+            status_code=503,
+            detail='Temporal client not available. Service running in degraded mode.'
+        )
+
+    config = get_settings()
+
+    # Gerar workflow_id usando prefixo configurado
+    workflow_id = f"{config.temporal_workflow_id_prefix}flow-c-{request.correlation_id}"
+
+    # Extrair dados do plano cognitivo
+    plan_id = request.cognitive_plan.get('plan_id', 'unknown')
+    intent_id = request.cognitive_plan.get('intent_id', 'unknown')
+
+    # Extrair decision_id do cognitive_plan se disponível, senão usar correlation_id como fallback
+    decision_id = request.cognitive_plan.get('decision_id')
+    if not decision_id:
+        decision_id = request.correlation_id
+        logger.debug(
+            'decision_id_fallback_used',
+            correlation_id=request.correlation_id,
+            plan_id=plan_id,
+            reason='decision_id not found in cognitive_plan, using correlation_id as fallback'
+        )
+
+    # Criar consolidated_decision mínimo para o workflow
+    # O workflow espera consolidated_decision com decision_id para as activities
+    consolidated_decision = {
+        'decision_id': decision_id,  # Usa decision_id do plano ou correlation_id como fallback
+        'plan_id': plan_id,
+        'intent_id': intent_id,
+        'final_decision': 'approve',
+        'correlation_id': request.correlation_id,
+        'priority': request.priority,
+        'sla_deadline_seconds': request.sla_deadline_seconds
+    }
+
+    # Construir input_data conforme esperado pelo OrchestrationWorkflow
+    input_data = {
+        'consolidated_decision': consolidated_decision,
+        'cognitive_plan': request.cognitive_plan
+    }
+
+    logger.info(
+        'workflow_start_attempt',
+        workflow_id=workflow_id,
+        plan_id=plan_id,
+        intent_id=intent_id,
+        correlation_id=request.correlation_id,
+        priority=request.priority
+    )
+
+    try:
+        # Iniciar workflow no Temporal
+        await app_state.temporal_client.start_workflow(
+            OrchestrationWorkflow.run,
+            input_data,
+            id=workflow_id,
+            task_queue=config.temporal_task_queue
+        )
+
+        logger.info(
+            'workflow_started',
+            workflow_id=workflow_id,
+            plan_id=plan_id,
+            correlation_id=request.correlation_id
+        )
+
+        return JSONResponse(
+            status_code=200,
+            content=WorkflowStartResponse(
+                workflow_id=workflow_id,
+                status='started',
+                correlation_id=request.correlation_id
+            ).model_dump()
+        )
+
+    except Exception as e:
+        logger.error(
+            'workflow_start_failed',
+            workflow_id=workflow_id,
+            plan_id=plan_id,
+            correlation_id=request.correlation_id,
+            error=str(e)
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f'Failed to start workflow: {str(e)}'
+        )
 
 
 if __name__ == '__main__':

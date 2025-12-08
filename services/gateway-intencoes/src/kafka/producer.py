@@ -210,7 +210,7 @@ class KafkaIntentProducer:
         if not self.is_ready():
             raise RuntimeError("Producer Kafka não inicializado")
 
-        topic = topic_override or f"intentions.{intent_envelope.intent.domain.value}"
+        topic = topic_override or f"intentions-{intent_envelope.intent.domain.value}"
         partition_key = intent_envelope.get_partition_key()
         idempotency_key = intent_envelope.get_idempotency_key()
 

@@ -78,8 +78,8 @@ local_cognition_max_limit_memory: "2Gi"
 # Orchestration Layer Defaults
 local_orchestration_default_limit_cpu: "200m"
 local_orchestration_default_limit_memory: "256Mi"
-local_orchestration_default_request_cpu: "25m"
-local_orchestration_default_request_memory: "64Mi"
+local_orchestration_default_request_cpu: "50m"
+local_orchestration_default_request_memory: "128Mi"
 local_orchestration_max_limit_cpu: "500m"
 local_orchestration_max_limit_memory: "1Gi"
 
@@ -94,16 +94,16 @@ local_execution_max_limit_memory: "4Gi"
 # Observability Layer Defaults
 local_observability_default_limit_cpu: "100m"
 local_observability_default_limit_memory: "256Mi"
-local_observability_default_request_cpu: "25m"
-local_observability_default_request_memory: "64Mi"
+local_observability_default_request_cpu: "50m"
+local_observability_default_request_memory: "128Mi"
 local_observability_max_limit_cpu: "500m"
 local_observability_max_limit_memory: "1Gi"
 
 # Authentication Defaults
 local_auth_default_limit_cpu: "200m"
 local_auth_default_limit_memory: "256Mi"
-local_auth_default_request_cpu: "50m"
-local_auth_default_request_memory: "128Mi"
+local_auth_default_request_cpu: "100m"
+local_auth_default_request_memory: "256Mi"
 local_auth_max_limit_cpu: "500m"
 local_auth_max_limit_memory: "1Gi"
 

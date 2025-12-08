@@ -35,17 +35,89 @@ spec:
       {{- if .Values.initContainers.modelDownloader.enabled }}
       initContainers:
       - name: model-downloader
-        image: python:3.11-slim
+        image: {{ .Values.initContainers.modelDownloader.image }}
         command:
         - /bin/sh
         - -c
         - |
-          pip install openai-whisper spacy
-          python -c "import whisper; whisper.load_model('{{ .Values.config.asr.modelName }}')"
-          python -c "import spacy; spacy.download('{{ .Values.config.nlu.languageModel }}')"
+          set -e
+          echo "=== Verificando e baixando modelos ML ==="
+
+          # Verificar se modelo Whisper já existe
+          WHISPER_MODEL_PATH="/app/models/whisper/{{ .Values.config.asr.modelName }}.pt"
+          if [ -f "$WHISPER_MODEL_PATH" ]; then
+            echo "✓ Modelo Whisper {{ .Values.config.asr.modelName }} já existe no cache"
+          else
+            echo "→ Baixando modelo Whisper {{ .Values.config.asr.modelName }}..."
+
+            # Verificar se openai-whisper já está instalado (presente na imagem base)
+            if python -c "import whisper" 2>/dev/null; then
+              echo "  openai-whisper já instalado na imagem base"
+            else
+              # Instalar dependências pesadas primeiro se necessário
+              pip install --no-cache-dir torch torchaudio || true
+              # Instalar whisper sem re-baixar dependências já presentes
+              pip install --no-cache-dir --no-deps openai-whisper
+            fi
+
+            export XDG_CACHE_HOME=/app/models
+            python -c "import whisper; whisper.load_model('{{ .Values.config.asr.modelName }}')"
+            echo "✓ Modelo Whisper {{ .Values.config.asr.modelName }} baixado com sucesso"
+          fi
+
+          # Verificar se modelo spaCy já existe
+          SPACY_MODEL_DIR="/app/models/spacy"
+          SPACY_MODEL_PATH="$SPACY_MODEL_DIR/{{ .Values.config.nlu.languageModel }}"
+
+          # Criar diretório de modelos spaCy se não existir
+          mkdir -p "$SPACY_MODEL_DIR"
+
+          if [ -d "$SPACY_MODEL_PATH" ]; then
+            echo "✓ Modelo spaCy {{ .Values.config.nlu.languageModel }} já existe no cache"
+          else
+            echo "→ Baixando modelo spaCy {{ .Values.config.nlu.languageModel }}..."
+
+            # Verificar se spaCy já está instalado (presente na imagem base)
+            if python -c "import spacy" 2>/dev/null; then
+              echo "  spaCy já instalado na imagem base"
+            else
+              pip install --no-cache-dir spacy
+            fi
+
+            # Configurar variáveis de ambiente para instalar no volume persistente
+            export PYTHONUSERBASE="$SPACY_MODEL_DIR"
+
+            # Baixar modelo e instalá-lo no diretório compartilhado
+            python -m spacy download {{ .Values.config.nlu.languageModel }} --user
+
+            # Criar link simbólico para facilitar o acesso
+            SITE_PACKAGES=$(python -c "import site; print(site.USER_SITE)")
+            mkdir -p "$SITE_PACKAGES"
+            if [ -d "$SITE_PACKAGES/{{ .Values.config.nlu.languageModel }}" ]; then
+              ln -sf "$SITE_PACKAGES/{{ .Values.config.nlu.languageModel }}" "$SPACY_MODEL_PATH"
+            else
+              # Fallback: baixar diretamente para o diretório de destino usando --no-deps
+              pip download --no-deps {{ .Values.config.nlu.languageModel }} -d /tmp
+              pip install --no-cache-dir --no-deps --target="$SPACY_MODEL_PATH" /tmp/{{ .Values.config.nlu.languageModel }}*.tar.gz || \
+              pip install --no-cache-dir --no-deps --target="$SPACY_MODEL_PATH" /tmp/{{ .Values.config.nlu.languageModel }}*.whl
+            fi
+
+            echo "✓ Modelo spaCy {{ .Values.config.nlu.languageModel }} baixado e instalado em $SPACY_MODEL_PATH"
+          fi
+
+          echo "=== Download de modelos concluído ==="
+        env:
+        - name: ASR_MODEL_NAME
+          value: "{{ .Values.config.asr.modelName }}"
+        - name: NLU_LANGUAGE_MODEL
+          value: "{{ .Values.config.nlu.languageModel }}"
+        - name: MODEL_CACHE_DIR
+          value: "/app/models"
+        resources:
+          {{- toYaml .Values.initContainers.modelDownloader.resources | nindent 10 }}
         volumeMounts:
         - name: model-cache
-          mountPath: /root/.cache
+          mountPath: /app/models
         securityContext:
           {{- toYaml .Values.securityContext | nindent 10 }}
       {{- end }}
@@ -338,8 +410,14 @@ spec:
           value: "{{ .Values.config.asr.modelName }}"
         - name: ASR_DEVICE
           value: "{{ .Values.config.asr.device }}"
+        - name: ASR_LAZY_LOADING
+          value: "{{ .Values.config.asr.lazyLoading }}"
+        - name: ASR_MODEL_CACHE_DIR
+          value: "{{ .Values.config.asr.modelCacheDir }}"
         - name: NLU_LANGUAGE_MODEL
           value: "{{ .Values.config.nlu.languageModel }}"
+        - name: NLU_MODEL_CACHE_DIR
+          value: "/app/models/spacy"
         - name: NLU_CONFIDENCE_THRESHOLD
           value: "{{ .Values.config.nlu.confidenceThreshold }}"
         - name: NLU_CONFIDENCE_THRESHOLD_STRICT
@@ -366,6 +444,8 @@ spec:
               key: nlu_routing_use_adaptive_for_decisions
         - name: JAEGER_ENDPOINT
           value: "{{ .Values.observability.jaeger.endpoint }}"
+        - name: ENABLE_TRACING
+          value: {{ .Values.observability.tracing.enabled | default "true" | quote }}
         # Kubernetes Downward API for unique transactional ID
         - name: POD_UID
           valueFrom:
@@ -406,8 +486,14 @@ spec:
         {{- end }}
 
       volumes:
+      {{- if .Values.persistence.models.enabled }}
+      - name: model-cache
+        persistentVolumeClaim:
+          claimName: {{ include "gateway-intencoes.fullname" . }}-models-pvc
+      {{- else }}
       {{- with .Values.volumes }}
       {{- toYaml . | nindent 6 }}
+      {{- end }}
       {{- end }}
       {{- if .Values.secrets.redis.caCert }}
       - name: redis-ca-cert

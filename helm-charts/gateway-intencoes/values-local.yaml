@@ -1,27 +1,21 @@
 # Configurações locais simplificadas para desenvolvimento
 image:
   repository: neural-hive-mind/gateway-intencoes
-  pullPolicy: IfNotPresent
-  tag: "local"
-
+  pullPolicy: Never
+  tag: "1.0.0"
 replicaCount: 1
-
 serviceAccount:
   create: false
   name: "default"
-
 initContainers:
   modelDownloader:
-    enabled: false  # Modelos já estão na imagem Docker
-
+    enabled: false # Modelos já estão na imagem Docker
 service:
   type: ClusterIP
   port: 80
   targetPort: 8000
-
 ingress:
   enabled: false
-
 resources:
   limits:
     cpu: 1000m
@@ -29,27 +23,22 @@ resources:
   requests:
     cpu: 500m
     memory: 1Gi
-
 autoscaling:
   enabled: false
-
-nodeSelector: {}  # Sem node selectors para dev local
+nodeSelector: {} # Sem node selectors para dev local
 tolerations: []
 affinity: {}
-
 podSecurityContext:
   fsGroup: 1001
   runAsGroup: 1001
   runAsUser: 1001
   runAsNonRoot: true
-
 securityContext:
   allowPrivilegeEscalation: false
   capabilities:
     drop: [ALL]
   readOnlyRootFilesystem: false
   runAsNonRoot: true
-
 livenessProbe:
   httpGet:
     path: /health
@@ -58,7 +47,6 @@ livenessProbe:
   periodSeconds: 30
   timeoutSeconds: 10
   failureThreshold: 3
-
 readinessProbe:
   httpGet:
     path: /health
@@ -67,17 +55,15 @@ readinessProbe:
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 3
-
 config:
   environment: "dev"
   logLevel: "DEBUG"
   debug: true
-
   kafka:
     topics:
-      enabled: false  # Topics já foram criados manualmente
+      enabled: false # Topics já foram criados manualmente
     bootstrapServers: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
-    schemaRegistryUrl: ""  # Sem schema registry no dev local
+    schemaRegistryUrl: "" # Sem schema registry no dev local
     tls:
       enabled: false
     sasl:
@@ -86,7 +72,6 @@ config:
       batchSize: 16384
       lingerMs: 10
       compressionType: "snappy"
-
   redis:
     clusterNodes: "neural-hive-cache.redis-cluster.svc.cluster.local:6379"
     defaultTtl: 600
@@ -96,30 +81,24 @@ config:
     retryOnTimeout: true
     ssl:
       enabled: false
-
   keycloak:
     url: "http://keycloak.keycloak.svc.cluster.local:8080"
     realm: "neural-hive"
     clientId: "gateway-intencoes"
     jwksUri: "http://keycloak.keycloak.svc.cluster.local:8080/realms/neural-hive/protocol/openid-connect/certs"
-    tokenValidationEnabled: false  # Desabilitar para dev inicial
-
+    tokenValidationEnabled: false # Desabilitar para dev inicial
   asr:
-    modelName: "tiny"  # Modelo menor para dev
+    modelName: "tiny" # Modelo menor para dev
     device: "cpu"
-
   nlu:
     languageModel: "pt_core_news_sm"
     confidenceThreshold: 0.75
-
   limits:
     maxAudioSizeMb: 10
     maxTextLength: 10000
-
   cors:
     allowedOrigins: ["*"]
     allowedHosts: ["*"]
-
 secrets:
   jwtSecretKey: "dev-secret-key-change-in-production"
   kafka:
@@ -129,20 +108,18 @@ secrets:
     password: ""
   keycloak:
     clientSecret: "dev-client-secret"
-
 serviceMonitor:
-  enabled: false  # Sem Prometheus operator no dev local
-
+  enabled: false # Sem Prometheus operator no dev local
+# Observabilidade - OpenTelemetry desabilitado para dev local, usando stubs
 observability:
+  otelEnabled: false  # Desabilitar OpenTelemetry em dev local para simplificar desenvolvimento
+  otelEndpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
   prometheus:
-    enabled: false  # Desabilitar ServiceMonitor para dev local
-
+    enabled: false # Desabilitar ServiceMonitor para dev local
 networkPolicy:
-  enabled: false  # Simplificar para dev
-
+  enabled: false # Simplificar para dev
 podDisruptionBudget:
-  enabled: false  # Não necessário com 1 replica
-
+  enabled: false # Não necessário com 1 replica
 istio:
   enabled: true
   sidecar:
@@ -151,11 +128,9 @@ istio:
     enabled: false
   gateway:
     enabled: false
-
 volumes:
   - name: model-cache
     emptyDir: {}
-
 volumeMounts:
   - name: model-cache
     mountPath: /app/models

@@ -1,17 +1,73 @@
 """
 Kafka consumer para tópico plans.consensus.
 Consome decisões consolidadas e inicia workflows Temporal.
+
+Suporta deserialização Avro (Confluent wire format) e JSON fallback.
 """
 import json
+import io
+import os
 from typing import Optional
 
 from aiokafka import AIOKafkaConsumer
 from temporalio.client import Client
 import structlog
 
+# Avro support
+try:
+    from confluent_kafka.schema_registry import SchemaRegistryClient
+    import fastavro
+    AVRO_AVAILABLE = True
+except ImportError:
+    AVRO_AVAILABLE = False
+
 from src.workflows.orchestration_workflow import OrchestrationWorkflow
 
 logger = structlog.get_logger()
+
+
+def _deserialize_avro_or_json(raw_bytes: bytes, schema_registry_url: str = None) -> dict:
+    """
+    Deserialize message supporting both Avro (Confluent wire format) and JSON.
+
+    Confluent wire format:
+    - Byte 0: Magic byte (0x00)
+    - Bytes 1-4: Schema ID (big-endian int)
+    - Bytes 5+: Avro payload
+    """
+    if len(raw_bytes) < 5:
+        # Too short for Avro wire format, try JSON
+        return json.loads(raw_bytes.decode('utf-8'))
+
+    magic_byte = raw_bytes[0]
+    if magic_byte != 0:
+        # Not Avro wire format, try JSON
+        return json.loads(raw_bytes.decode('utf-8'))
+
+    # Extract schema ID and Avro payload
+    schema_id = int.from_bytes(raw_bytes[1:5], byteorder='big')
+    avro_payload = raw_bytes[5:]
+
+    if AVRO_AVAILABLE:
+        try:
+            reader = io.BytesIO(avro_payload)
+            records = list(fastavro.reader(reader))
+            if records:
+                return records[0]
+        except Exception as e:
+            # Fallback: try with schema from registry
+            if schema_registry_url:
+                try:
+                    client = SchemaRegistryClient({'url': schema_registry_url})
+                    schema = client.get_schema(schema_id)
+                    parsed_schema = fastavro.parse_schema(json.loads(schema.schema_str))
+                    reader = io.BytesIO(avro_payload)
+                    return fastavro.schemaless_reader(reader, parsed_schema)
+                except Exception as registry_error:
+                    logger.warning("schema_registry_fallback_failed", error=str(registry_error))
+            raise e
+
+    raise ValueError("Avro deserialization not available")
 
 
 class DecisionConsumer:
@@ -31,18 +87,23 @@ class DecisionConsumer:
         self.mongodb_client = mongodb_client
         self.consumer: Optional[AIOKafkaConsumer] = None
         self.running = False
+        self.schema_registry_url = os.getenv(
+            'SCHEMA_REGISTRY_URL',
+            'http://schema-registry.kafka.svc.cluster.local:8081/apis/ccompat/v6'
+        )
 
     async def initialize(self):
         """Inicializa o consumer Kafka."""
         logger.info('Inicializando Kafka consumer', topic=self.config.kafka_consensus_topic)
 
+        # Não usar value_deserializer - deserialização manual para suportar Avro e JSON
         self.consumer = AIOKafkaConsumer(
             self.config.kafka_consensus_topic,
             bootstrap_servers=self.config.kafka_bootstrap_servers,
             group_id=self.config.kafka_consumer_group_id,
             auto_offset_reset=self.config.kafka_auto_offset_reset,
             enable_auto_commit=self.config.kafka_enable_auto_commit,
-            value_deserializer=lambda v: json.loads(v.decode('utf-8'))
+            # Recebemos bytes crus para deserialização manual (Avro/JSON)
         )
 
         await self.consumer.start()
@@ -94,7 +155,23 @@ class DecisionConsumer:
         Args:
             message: Mensagem do Kafka contendo ConsolidatedDecision
         """
-        consolidated_decision = message.value
+        # Deserializar mensagem (suporta Avro e JSON)
+        raw_value = message.value
+        if isinstance(raw_value, bytes):
+            try:
+                consolidated_decision = _deserialize_avro_or_json(
+                    raw_value,
+                    self.schema_registry_url
+                )
+            except Exception as deser_err:
+                logger.warning(
+                    "avro_deserialization_failed_trying_json",
+                    error=str(deser_err)
+                )
+                # Fallback para JSON
+                consolidated_decision = json.loads(raw_value.decode('utf-8'))
+        else:
+            consolidated_decision = raw_value
 
         logger.info(
             'Mensagem recebida do Kafka',

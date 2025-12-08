@@ -31,9 +31,9 @@ class FlowCTelemetryPublisher:
 
     def __init__(
         self,
-        kafka_bootstrap_servers: str = "kafka.neural-hive-messaging:9092",
+        kafka_bootstrap_servers: str = "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092",
         topic: str = "telemetry-flow-c",
-        redis_url: str = "redis://redis.neural-hive-storage:6379",
+        redis_url: str = "redis://redis-cluster.redis-cluster.svc.cluster.local:6379",
         buffer_ttl: int = 3600,  # 1 hour
     ):
         self.kafka_servers = kafka_bootstrap_servers

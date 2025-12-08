@@ -68,6 +68,22 @@ def sample_cognitive_plan():
 
 
 @pytest.fixture
+def cognitive_plan_without_correlation_id(sample_cognitive_plan):
+    """Plano cognitivo sem correlation_id para testes de fallback."""
+    plan = sample_cognitive_plan.copy()
+    plan.pop('correlation_id', None)
+    return plan
+
+
+@pytest.fixture
+def cognitive_plan_with_empty_correlation_id(sample_cognitive_plan):
+    """Plano cognitivo com correlation_id vazio."""
+    plan = sample_cognitive_plan.copy()
+    plan['correlation_id'] = ''
+    return plan
+
+
+@pytest.fixture
 def sample_trace_context():
     """Contexto de trace válido para testes."""
     return {
@@ -206,6 +222,162 @@ def multiple_valid_responses(valid_timestamp_protobuf):
         responses.append(response)
 
     return responses
+
+
+# ===========================
+# Fixtures para ConsensusOrchestrator
+# ===========================
+
+@pytest.fixture
+def mock_consensus_orchestrator_config():
+    """Configuração mock para o ConsensusOrchestrator."""
+    config = MagicMock()
+    config.min_confidence_score = 0.7
+    config.max_divergence_threshold = 0.3
+    config.critical_risk_threshold = 0.8
+    config.enable_pheromones = False
+    config.enable_bayesian_averaging = True
+    return config
+
+
+@pytest.fixture
+def mock_pheromone_client():
+    """Cliente de feromônios mock."""
+    client = AsyncMock()
+    client.calculate_dynamic_weight = AsyncMock(return_value=0.2)
+    client.get_aggregated_pheromone = AsyncMock(return_value={'net_strength': 0.5})
+    client.publish_pheromone = AsyncMock()
+    return client
+
+
+@pytest.fixture
+def sample_specialist_opinions():
+    """Lista de 5 opiniões válidas de especialistas para testes de consenso."""
+    return [
+        {
+            'specialist_type': 'business',
+            'opinion_id': str(uuid.uuid4()),
+            'opinion': {
+                'confidence_score': 0.85,
+                'risk_score': 0.2,
+                'recommendation': 'approve'
+            },
+            'processing_time_ms': 100
+        },
+        {
+            'specialist_type': 'technical',
+            'opinion_id': str(uuid.uuid4()),
+            'opinion': {
+                'confidence_score': 0.88,
+                'risk_score': 0.15,
+                'recommendation': 'approve'
+            },
+            'processing_time_ms': 120
+        },
+        {
+            'specialist_type': 'behavior',
+            'opinion_id': str(uuid.uuid4()),
+            'opinion': {
+                'confidence_score': 0.82,
+                'risk_score': 0.18,
+                'recommendation': 'approve'
+            },
+            'processing_time_ms': 90
+        },
+        {
+            'specialist_type': 'evolution',
+            'opinion_id': str(uuid.uuid4()),
+            'opinion': {
+                'confidence_score': 0.90,
+                'risk_score': 0.12,
+                'recommendation': 'approve'
+            },
+            'processing_time_ms': 110
+        },
+        {
+            'specialist_type': 'architecture',
+            'opinion_id': str(uuid.uuid4()),
+            'opinion': {
+                'confidence_score': 0.87,
+                'risk_score': 0.16,
+                'recommendation': 'approve'
+            },
+            'processing_time_ms': 130
+        }
+    ]
+
+
+# ===========================
+# Fixtures para Testes de Resiliência do Consumer
+# ===========================
+
+@pytest.fixture
+def mock_config_with_resilience():
+    """Configuração mock com parâmetros de resiliência para testes rápidos."""
+    config = MagicMock()
+    # Configurações básicas do consumer
+    config.kafka_plans_topic = 'plans.ready'
+    config.kafka_bootstrap_servers = 'localhost:9092'
+    config.kafka_consumer_group_id = 'consensus-engine-test'
+    config.kafka_auto_offset_reset = 'earliest'
+    config.kafka_enable_auto_commit = False
+    config.enable_parallel_invocation = True
+    config.grpc_timeout_ms = 5000
+    # Parâmetros de resiliência (valores menores para testes rápidos)
+    config.consumer_max_consecutive_errors = 5
+    config.consumer_base_backoff_seconds = 0.1
+    config.consumer_max_backoff_seconds = 1.0
+    config.consumer_poll_timeout_seconds = 0.5
+    config.consumer_enable_dlq = False
+    config.kafka_dlq_topic = 'plans.ready.dlq'
+    config.consumer_max_retries_before_dlq = 2
+    return config
+
+
+@pytest.fixture
+def mock_kafka_message_success():
+    """Mock de mensagem Kafka com sucesso."""
+    msg = MagicMock()
+    msg.error.return_value = None
+    msg.value.return_value = b'{"plan_id": "test-123", "intent_id": "int-123"}'
+    msg.topic.return_value = 'plans.ready'
+    msg.partition.return_value = 0
+    msg.offset.return_value = 1
+    return msg
+
+
+@pytest.fixture
+def mock_kafka_message_with_error():
+    """Mock de mensagem Kafka com erro."""
+    from confluent_kafka import KafkaError
+    msg = MagicMock()
+    error = MagicMock()
+    error.code.return_value = KafkaError._ALL_BROKERS_DOWN
+    msg.error.return_value = error
+    msg.topic.return_value = 'plans.ready'
+    msg.partition.return_value = 0
+    msg.offset.return_value = 1
+    return msg
+
+
+@pytest.fixture
+def systemic_error_examples():
+    """Lista de erros sistêmicos para testes."""
+    return [
+        ConnectionError('gRPC unavailable'),
+        TimeoutError('Request timeout'),
+        OSError('Network unreachable')
+    ]
+
+
+@pytest.fixture
+def business_error_examples():
+    """Lista de erros de negócio para testes."""
+    return [
+        ValueError('Invalid plan format'),
+        KeyError('Missing required field'),
+        TypeError('Wrong type')
+    ]
 
 
 # ===========================

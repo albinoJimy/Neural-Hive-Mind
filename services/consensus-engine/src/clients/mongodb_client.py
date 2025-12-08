@@ -22,8 +22,10 @@ class MongoDBClient:
 
         self.client = AsyncIOMotorClient(
             self.config.mongodb_uri,
-            maxPoolSize=100,
-            serverSelectionTimeoutMS=5000,
+            maxPoolSize=50,  # Reduzido de 100 para evitar sobrecarga
+            serverSelectionTimeoutMS=30000,  # Aumentado de 5s para 30s
+            connectTimeoutMS=30000,  # Timeout de conexão aumentado
+            socketTimeoutMS=30000,  # Timeout de socket aumentado
             retryWrites=True,
             w='majority'
         )
@@ -40,24 +42,32 @@ class MongoDBClient:
         logger.info('MongoDB client inicializado')
 
     async def _create_indexes(self):
-        '''Criar índices necessários'''
-        # Índices para decisões consolidadas
-        await self.consensus_collection.create_index('decision_id', unique=True)
-        await self.consensus_collection.create_index('plan_id')
-        await self.consensus_collection.create_index('intent_id')
-        await self.consensus_collection.create_index('created_at')
-        await self.consensus_collection.create_index('hash')
-        await self.consensus_collection.create_index(
-            [('final_decision', 1), ('created_at', -1)]
-        )
+        '''Criar índices necessários (idempotente - ignora se já existem)'''
+        try:
+            # Índices para decisões consolidadas
+            await self.consensus_collection.create_index('decision_id', unique=True)
+            await self.consensus_collection.create_index('plan_id')
+            await self.consensus_collection.create_index('intent_id')
+            await self.consensus_collection.create_index('created_at')
+            await self.consensus_collection.create_index('hash')
+            await self.consensus_collection.create_index(
+                [('final_decision', 1), ('created_at', -1)]
+            )
 
-        # Índices para explicabilidade
-        await self.explainability_collection.create_index('token', unique=True)
-        await self.explainability_collection.create_index('timestamp')
+            # Índices para explicabilidade
+            await self.explainability_collection.create_index('token', unique=True)
+            await self.explainability_collection.create_index('timestamp')
+
+            logger.info('Índices MongoDB criados/verificados com sucesso')
+        except Exception as e:
+            # Índices podem já existir, especialmente em ambiente multi-worker
+            logger.warning('Aviso ao criar índices MongoDB (podem já existir)', error=str(e))
 
     async def save_consensus_decision(self, decision: ConsolidatedDecision):
         '''Salva decisão consolidada no ledger'''
-        document = decision.dict()
+        # Usar model_dump com mode='json' para garantir serialização correta de enums
+        # Isso converte DecisionType.APPROVE para "approve" automaticamente
+        document = decision.model_dump(mode='json')
         document['_id'] = decision.decision_id
         document['immutable'] = True
 

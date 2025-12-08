@@ -121,6 +121,10 @@ spec:
           value: {{ .Values.config.startupSkipWarmupOnDependencyFailure | default "true" | quote }}
         - name: STARTUP_DEPENDENCY_CHECK_TIMEOUT_SECONDS
           value: {{ .Values.config.startupDependencyCheckTimeoutSeconds | default "10" | quote }}
+        - name: ENABLE_TRACING
+          value: {{ .Values.config.features.enableTracing | default "true" | quote }}
+        - name: USE_SEMANTIC_FALLBACK
+          value: {{ .Values.config.features.useSemanticFallback | default "true" | quote }}
         livenessProbe:
           {{- toYaml .Values.livenessProbe | nindent 10 }}
         readinessProbe:

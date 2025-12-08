@@ -138,7 +138,7 @@ class SpecialistConfig(BaseSettings):
     enable_caching: bool = Field(default=True)
     enable_model_monitoring: bool = Field(default=True)
     use_semantic_fallback: bool = Field(
-        default=False,
+        default=True,
         env="USE_SEMANTIC_FALLBACK",
         description="Feature flag para usar SemanticPipeline como fallback ao invés de heurísticas"
     )

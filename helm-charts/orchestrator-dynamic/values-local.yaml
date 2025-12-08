@@ -3,10 +3,15 @@
 
 # Reduced replica count for local development
 replicaCount: 1
-
 image:
-  pullPolicy: IfNotPresent
-
+  pullPolicy: Never
+  repository: neural-hive-mind/orchestrator-dynamic
+  tag: 1.0.0
+# Custom command for local development
+customCommand:
+  enabled: true
+  command: ["uvicorn"]
+  args: ["src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
 # Reduced resources for local development (~50% of production)
 resources:
   requests:
@@ -15,94 +20,129 @@ resources:
   limits:
     cpu: 1000m
     memory: 2Gi
-
 # Disable autoscaling for local development
 autoscaling:
   enabled: false
-
 # Disable pod disruption budget for local development
 podDisruptionBudget:
   enabled: false
-
 # Disable service monitor for local development
 serviceMonitor:
   enabled: false
-
 # Disable network policies for local development
 networkPolicy:
   enabled: false
-
 # Disable Istio for local development
 istio:
   enabled: false
-
 # Application configuration
 config:
+  serviceName: orchestrator-dynamic
+  serviceVersion: "1.0.0"
   environment: dev
   logLevel: DEBUG
-
-  # Temporal configuration - no TLS for local
+  # Temporal configuration - HABILITADO (Temporal Server instalado)
   temporal:
-    host: temporal.default.svc.cluster.local:7233
+    enabled: true
+    host: temporal-frontend.temporal.svc.cluster.local
+    port: 7233
     namespace: default
+    taskQueue: orchestration-tasks
     tlsEnabled: false
-
   # PostgreSQL configuration for Temporal - no SSL
   postgres:
     host: postgresql.default.svc.cluster.local
     port: 5432
     database: temporal
     sslMode: disable
-
   # Kafka configuration - no TLS/SASL for local
   kafka:
-    bootstrapServers: neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092
+    bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
+    consensusTopic: plans.consensus
+    ticketsTopic: execution.tickets
+    consumerGroupId: orchestrator-dynamic
     securityProtocol: PLAINTEXT
-    enableSasl: false
-    enableSsl: false
-    topics:
-      tickets: execution-tickets
-      orchestration: orchestration-events
-
   # MongoDB configuration - no authentication for local
   mongodb:
     uri: mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017/orchestrator?authSource=admin
     database: orchestrator
-    collection: workflows
-
   # Redis configuration - no SSL for local
   redis:
     clusterNodes: neural-hive-cache.redis-cluster.svc.cluster.local:6379
     sslEnabled: false
-    defaultTtl: 300
-
-  # OpenTelemetry configuration - disabled for local
-  openTelemetry:
+  # Scheduler configuration
+  scheduler:
+    enableIntelligentScheduler: false
+    maxParallelTickets: 50
+  # SLA configuration
+  sla:
+    defaultTimeoutMs: 1800000
+    checkIntervalSeconds: 30
+    alertThresholdPercent: 0.8
+  # Retry configuration
+  retry:
+    maxAttempts: 2
+    initialIntervalMs: 1000
+    backoffCoefficient: 2.0
+    maxIntervalMs: 30000
+  # Observability configuration
+  observability:
+    otelExporterEndpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
+    prometheusPort: 9090
+  # OPA Policy Engine - disabled for local
+  opa:
     enabled: false
-    endpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
-
-  # Orchestrator configuration - reduced for local development
-  orchestrator:
-    scheduler:
-      maxParallelTickets: 50
-    sla:
-      defaultTimeoutMs: 1800000
-    retry:
-      maxAttempts: 2
-
+    host: opa.neural-hive.svc.cluster.local
+    port: 8181
+    timeoutSeconds: 2
+    retryAttempts: 3
+    cacheTtlSeconds: 30
+    failOpen: true
+    policies:
+      maxConcurrentTickets: 50
+      allowedCapabilities:
+        - code_generation
+        - testing
+        - validation
+      resourceLimits:
+        maxCpu: "2000m"
+        maxMemory: "4Gi"
+    featureFlags:
+      intelligentSchedulerEnabled: false
+      burstCapacityEnabled: false
+      burstThreshold: 0.8
+      predictiveAllocationEnabled: false
+      autoScalingEnabled: false
+      schedulerNamespaces:
+        - default
+      premiumTenants: []
+  # ML configuration - disabled for local
+  ml:
+    trainingJob:
+      enabled: false
+    drift:
+      enabled: false
+  # SPIFFE/SPIRE - disabled for local (not installed)
+  spiffe:
+    enabled: false
+  # Vault - disabled for local (not installed)
+  vault:
+    enabled: false
+# Disable OPA deployment for local development
+opa:
+  enabled: false
 # Use default service account for local
 serviceAccount:
   create: false
   name: default
-
 # Simplified secrets for local development
 secrets:
+  postgresUser: temporal
   postgresPassword: temporal
+  mongodbUri: mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/orchestrator?authSource=admin
   kafkaSaslUsername: ""
   kafkaSaslPassword: ""
-  mongodbPassword: ""
   redisPassword: ""
-
 # Relaxed probes for local development
 livenessProbe:
   httpGet:
@@ -112,7 +152,6 @@ livenessProbe:
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 3
-
 readinessProbe:
   httpGet:
     path: /ready

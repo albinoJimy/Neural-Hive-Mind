@@ -67,3 +67,8 @@ class RedisClient:
         key = f"mcp:tool:health:{tool_id}"
         health = await self.client.get(key)
         return health == "1" if health else None
+
+    async def increment_tool_feedback(self, tool_id: str, success: bool) -> int:
+        """Incrementa contadores de feedback de ferramentas."""
+        key = f"mcp:tool:feedback:{'success' if success else 'failure'}:{tool_id}"
+        return await self.client.incr(key)

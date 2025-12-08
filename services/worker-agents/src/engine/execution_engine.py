@@ -72,9 +72,6 @@ class ExecutionEngine:
                 # Atualizar status para RUNNING
                 await self.ticket_client.update_ticket_status(ticket_id, 'RUNNING')
 
-                # Obter token JWT
-                token = await self.ticket_client.get_ticket_token(ticket_id)
-
                 # Verificar dependências
                 try:
                     await self.dependency_coordinator.wait_for_dependencies(ticket)
@@ -159,14 +156,27 @@ class ExecutionEngine:
                     # TODO: Incrementar métrica worker_agent_tickets_failed_total{task_type=...}
 
         except asyncio.TimeoutError:
+            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             self.logger.error('ticket_execution_timeout', ticket_id=ticket_id)
             await self.ticket_client.update_ticket_status(
                 ticket_id,
                 'FAILED',
-                error_message='Execution timeout'
+                error_message='Execution timeout',
+                actual_duration_ms=duration_ms
             )
+            try:
+                await self.result_producer.publish_result(
+                    ticket_id,
+                    'FAILED',
+                    {'success': False},
+                    error_message='Execution timeout',
+                    actual_duration_ms=duration_ms
+                )
+            except Exception as pub_exc:
+                self.logger.error('result_publish_failed_timeout', ticket_id=ticket_id, error=str(pub_exc))
 
         except Exception as e:
+            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             self.logger.error(
                 'ticket_execution_error',
                 ticket_id=ticket_id,
@@ -176,8 +186,19 @@ class ExecutionEngine:
             await self.ticket_client.update_ticket_status(
                 ticket_id,
                 'FAILED',
-                error_message=str(e)
+                error_message=str(e),
+                actual_duration_ms=duration_ms
             )
+            try:
+                await self.result_producer.publish_result(
+                    ticket_id,
+                    'FAILED',
+                    {'success': False},
+                    error_message=str(e),
+                    actual_duration_ms=duration_ms
+                )
+            except Exception as pub_exc:
+                self.logger.error('result_publish_failed_error', ticket_id=ticket_id, error=str(pub_exc))
 
         finally:
             # Remover de active_tasks

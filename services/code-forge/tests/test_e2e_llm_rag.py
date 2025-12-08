@@ -7,6 +7,7 @@ import uuid
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
+from src.clients.llm_client import LLMProvider
 from src.services.code_composer import CodeComposer
 from src.models.artifact import ArtifactType, GenerationMethod
 
@@ -14,9 +15,18 @@ from src.models.artifact import ArtifactType, GenerationMethod
 @pytest.fixture
 def mock_all_clients():
     """Mock de todos os clientes necessários"""
+    llm_mock = AsyncMock()
+    llm_mock.provider = LLMProvider.OPENAI  # Adicionar provider
+    llm_mock.generate_code = AsyncMock(return_value={
+        'code': 'print("Hello")',
+        'confidence_score': 0.8,
+        'prompt_tokens': 50,
+        'completion_tokens': 20
+    })
+
     return {
         'mongodb_client': AsyncMock(),
-        'llm_client': AsyncMock(),
+        'llm_client': llm_mock,
         'analyst_client': AsyncMock(),
         'mcp_client': AsyncMock()
     }

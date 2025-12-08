@@ -1,5 +1,5 @@
-# Configuração para ambiente local (Minikube/Kind)
-# All-in-one deployment com storage in-memory
+# Configuração para ambiente local (Kubeadm)
+# All-in-one deployment com storage in-memory para dev/teste
 
 global:
   domain: neural-hive.local
@@ -101,6 +101,11 @@ sampling:
         },
         {
           "service": "consensus-engine",
+          "type": "probabilistic",
+          "param": 1.0
+        },
+        {
+          "service": "orchestrator-dynamic",
           "type": "probabilistic",
           "param": 1.0
         },

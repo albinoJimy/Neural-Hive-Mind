@@ -5,6 +5,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "consensus-engine.labels" . | nindent 4 }}
+    neural.hive/metrics: "enabled"
+    neural.hive/component: "consensus-aggregator"
+    neural.hive/layer: "cognitiva"
 spec:
   type: {{ .Values.service.type }}
   ports:

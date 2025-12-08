@@ -17,6 +17,7 @@ class NLUPipeline:
     def __init__(self, language_model: str = None, confidence_threshold: float = None):
         self.settings = get_settings()
         self.language_model = language_model or self.settings.nlu_language_model
+        self.model_cache_dir = Path(self.settings.nlu_model_cache_dir)
         self.confidence_threshold = confidence_threshold or self.settings.nlu_confidence_threshold
         self.nlp = None
         self.nlp_models = {}  # Cache de modelos por idioma
@@ -34,9 +35,9 @@ class NLUPipeline:
     async def initialize(self):
         """Carregar modelos spaCy e configurações"""
         try:
-            # Carregar modelo principal
+            # Carregar modelo principal do volume persistente
             logger.info(f"Carregando modelo spaCy principal: {self.language_model}")
-            self.nlp = spacy.load(self.language_model)
+            self.nlp = self._load_model_from_cache(self.language_model)
             self.nlp_models['default'] = self.nlp
 
             # Tentar carregar modelos para idiomas suportados
@@ -44,7 +45,7 @@ class NLUPipeline:
                 try:
                     if model_name != self.language_model:  # Evitar recarregar modelo principal
                         logger.info(f"Carregando modelo {model_name} para idioma {lang_code}")
-                        model = spacy.load(model_name)
+                        model = self._load_model_from_cache(model_name)
                         self.nlp_models[lang_code] = model
                 except OSError:
                     logger.warning(f"Modelo {model_name} não encontrado para idioma {lang_code}")
@@ -225,6 +226,27 @@ class NLUPipeline:
                 "context_role_match_boost": {"boost": 0.10}
             }
         }
+
+    def _load_model_from_cache(self, model_name: str):
+        """Carregar modelo spaCy do volume persistente"""
+        # Tentar carregar do diretório de cache primeiro
+        model_path = self.model_cache_dir / model_name
+
+        if model_path.exists():
+            logger.info(f"Carregando modelo do cache: {model_path}")
+            # Adicionar o diretório de cache ao sys.path temporariamente
+            import sys
+            cache_str = str(self.model_cache_dir)
+            if cache_str not in sys.path:
+                sys.path.insert(0, cache_str)
+            try:
+                return spacy.load(str(model_path))
+            except Exception as e:
+                logger.warning(f"Falha ao carregar do cache {model_path}, tentando instalação padrão: {e}")
+
+        # Fallback para instalação padrão do spaCy
+        logger.info(f"Carregando modelo da instalação padrão: {model_name}")
+        return spacy.load(model_name)
 
     def is_ready(self) -> bool:
         return self._ready and self.nlp is not None

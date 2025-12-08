@@ -22,6 +22,10 @@ class PipelineContext(BaseModel):
     pipeline_stages: List[PipelineStage] = Field(default_factory=list, description='Status dos stages')
 
     code_workspace_path: Optional[str] = Field(None, description='Path do workspace onde código foi materializado')
+    mcp_selection_id: Optional[str] = Field(None, description='ID da seleção MCP')
+    selected_tools: List[Dict[str, Any]] = Field(default_factory=list, description='Ferramentas selecionadas pelo MCP')
+    generation_method: Optional[str] = Field(None, description='Método de geração (LLM, HYBRID, TEMPLATE, HEURISTIC)')
+    mcp_feedback_sent: bool = Field(False, description='Flag indicando se feedback foi enviado ao MCP')
     metadata: Dict[str, Any] = Field(default_factory=dict, description='Metadados adicionais')
 
     started_at: datetime = Field(default_factory=datetime.now, description='Timestamp de início')
@@ -135,7 +139,12 @@ class PipelineContext(BaseModel):
             git_mr_url=self.metadata.get('git_mr_url'),
             created_at=self.started_at,
             completed_at=self.completed_at,
-            metadata={k: str(v) for k, v in self.metadata.items()},
+            metadata={
+                **self.metadata,
+                'mcp_selection_id': self.mcp_selection_id,
+                'generation_method': self.generation_method,
+                'mcp_tools_count': len(self.selected_tools)
+            },
             schema_version=1
         )
 

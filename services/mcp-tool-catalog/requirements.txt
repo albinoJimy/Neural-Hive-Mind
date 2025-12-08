@@ -20,9 +20,10 @@ motor==3.3.2
 aiokafka==0.10.0
 avro-python3==1.10.2
 
-# gRPC
-grpcio==1.60.0
-grpcio-tools==1.60.0
+# gRPC - versão consolidada
+grpcio>=1.75.1
+grpcio-tools>=1.75.1
+protobuf>=5.27.0
 
 # Genetic algorithm
 deap==1.4.1
@@ -36,8 +37,3 @@ aiohttp==3.9.1
 python-json-logger==2.0.7
 tenacity==8.2.3
 
-# Testing
-pytest==7.4.3
-pytest-asyncio==0.21.1
-pytest-cov==4.1.0
-pytest-mock==3.12.0

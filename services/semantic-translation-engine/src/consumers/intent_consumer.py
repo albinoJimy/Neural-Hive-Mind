@@ -38,6 +38,12 @@ class IntentConsumer:
             'enable.auto.commit': False,  # Manual commit for transactions
             'isolation.level': 'read_committed',  # Exactly-once semantics
             'session.timeout.ms': self.settings.kafka_session_timeout_ms,
+
+            # Fix for Kafka connection termination issue
+            'connections.max.idle.ms': 540000,  # 9 minutes
+            'socket.keepalive.enable': True,
+            'heartbeat.interval.ms': 3000,
+            'max.poll.interval.ms': 300000,  # 5 minutes
         }
 
         # Add security configuration
@@ -50,7 +56,35 @@ class IntentConsumer:
             })
 
         self.consumer = Consumer(consumer_config)
-        self.consumer.subscribe(self.settings.kafka_topics)
+
+        # Workaround for UNKNOWN_TOPIC_OR_PART error with subscribe()
+        # Use manual assignment instead of subscribe()
+        try:
+            from confluent_kafka import TopicPartition
+
+            # Get metadata for all topics
+            cluster_metadata = self.consumer.list_topics(timeout=10)
+
+            # Create manual assignment for all partitions
+            topic_partitions = []
+            for topic in self.settings.kafka_topics:
+                if topic in cluster_metadata.topics:
+                    topic_metadata = cluster_metadata.topics[topic]
+                    for partition_id in topic_metadata.partitions.keys():
+                        topic_partitions.append(TopicPartition(topic, partition_id))
+                    logger.info(f'Assigned to topic {topic} with {len(topic_metadata.partitions)} partitions')
+                else:
+                    logger.warning(f'Topic {topic} not found in cluster metadata')
+
+            if topic_partitions:
+                self.consumer.assign(topic_partitions)
+                logger.info(f'Manual assignment completed: {len(topic_partitions)} partitions total')
+            else:
+                logger.error('No partitions found for assignment - falling back to subscribe()')
+                self.consumer.subscribe(self.settings.kafka_topics)
+        except Exception as e:
+            logger.error(f'Manual assignment failed: {e} - falling back to subscribe()')
+            self.consumer.subscribe(self.settings.kafka_topics)
 
         # Initialize Schema Registry client (optional for dev)
         if self.settings.schema_registry_url and self.settings.schema_registry_url.strip():
@@ -242,6 +276,22 @@ class IntentConsumer:
                 trace_context['span_id'] = value.decode('utf-8')
             elif key == 'correlation-id':
                 trace_context['correlation_id'] = value.decode('utf-8')
+
+        # Log de debug para rastrear extração de headers
+        logger.debug(
+            'Trace context extraído dos headers Kafka',
+            trace_id=trace_context.get('trace_id'),
+            span_id=trace_context.get('span_id'),
+            correlation_id=trace_context.get('correlation_id'),
+            total_headers=len(headers)
+        )
+
+        # Warning se correlation_id não foi encontrado nos headers
+        if 'correlation_id' not in trace_context:
+            logger.warning(
+                'correlation_id ausente nos headers Kafka',
+                headers_presentes=[key for key, _ in headers]
+            )
 
         return trace_context
 

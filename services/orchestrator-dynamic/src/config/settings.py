@@ -1,10 +1,14 @@
 """
 Configurações do serviço Orchestrator Dynamic usando Pydantic Settings.
+
+NOTA: Este módulo usa Pydantic v2 com pydantic-settings.
+- model_config substitui class Config (Pydantic v2)
+- SettingsConfigDict para configuração de BaseSettings
 """
 from typing import Optional
 from functools import lru_cache
 from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class OrchestratorSettings(BaseSettings):
@@ -17,8 +21,15 @@ class OrchestratorSettings(BaseSettings):
     log_level: str = Field(default='INFO', description='Nível de log')
 
     # Temporal
-    temporal_host: str = Field(..., description='Host do Temporal Server')
-    temporal_port: int = Field(default=7233, description='Porta do Temporal Server')
+    temporal_enabled: bool = Field(
+        default=True,
+        description='Habilitar integração com Temporal (False = modo degradado sem workflows)'
+    )
+    temporal_host: str = Field(
+        default='temporal-frontend.temporal.svc.cluster.local',
+        description='Host do Temporal Server (pode incluir porta no formato host:port)'
+    )
+    temporal_port: int = Field(default=7233, description='Porta do Temporal Server (ignorada se host incluir porta)')
     temporal_namespace: str = Field(default='neural-hive-mind', description='Namespace Temporal')
     temporal_task_queue: str = Field(default='orchestration-tasks', description='Fila de tarefas Temporal')
     temporal_workflow_id_prefix: str = Field(default='orch-', description='Prefixo para workflow IDs')
@@ -31,13 +42,39 @@ class OrchestratorSettings(BaseSettings):
     kafka_auto_offset_reset: str = Field(default='earliest', description='Reset de offset')
     kafka_enable_auto_commit: bool = Field(default=False, description='Auto commit (manual para controle)')
     kafka_security_protocol: str = Field(default='PLAINTEXT', description='Protocolo de segurança Kafka')
+    kafka_sasl_mechanism: str = Field(default='SCRAM-SHA-512', description='Mecanismo SASL')
     kafka_sasl_username: Optional[str] = Field(default=None, description='Username SASL')
     kafka_sasl_password: Optional[str] = Field(default=None, description='Password SASL')
+    kafka_ssl_ca_location: Optional[str] = Field(default=None, description='Caminho CA SSL')
+    kafka_ssl_certificate_location: Optional[str] = Field(default=None, description='Caminho certificado SSL')
+    kafka_ssl_key_location: Optional[str] = Field(default=None, description='Caminho chave SSL')
 
     # Kafka Producer (execution.tickets)
     kafka_tickets_topic: str = Field(default='execution.tickets', description='Tópico de tickets de execução')
     kafka_enable_idempotence: bool = Field(default=True, description='Habilitar idempotência')
     kafka_transactional_id: Optional[str] = Field(default=None, description='ID transacional')
+    kafka_schema_registry_url: str = Field(
+        default='http://schema-registry.neural-hive-kafka.svc.cluster.local:8081',
+        description='URL do Schema Registry para serialização Avro'
+    )
+    schemas_base_path: str = Field(
+        default='/app/schemas',
+        description='Diretório base para schemas Avro'
+    )
+
+    # Self-Healing Engine
+    self_healing_engine_url: str = Field(
+        default='http://self-healing-engine:8080',
+        description='Base URL do Self-Healing Engine'
+    )
+    self_healing_enabled: bool = Field(
+        default=True,
+        description='Flag para habilitar acionamento de autocura'
+    )
+    self_healing_timeout_seconds: int = Field(
+        default=30,
+        description='Timeout para chamadas HTTP ao Self-Healing Engine'
+    )
 
     # PostgreSQL (Temporal state store)
     postgres_host: str = Field(..., description='Host PostgreSQL')
@@ -441,11 +478,13 @@ class OrchestratorSettings(BaseSettings):
         description='URL do Prometheus Pushgateway'
     )
 
-    class Config:
-        """Configuração do Pydantic Settings."""
-        env_file = '.env'
-        env_file_encoding = 'utf-8'
-        case_sensitive = False
+    # Pydantic v2: model_config substitui class Config
+    model_config = SettingsConfigDict(
+        env_file='.env',
+        env_file_encoding='utf-8',
+        case_sensitive=False,
+        extra='ignore',  # Ignorar variáveis de ambiente extras
+    )
 
 
 @lru_cache()

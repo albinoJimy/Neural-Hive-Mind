@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+# Enable Docker BuildKit for improved build performance
+export DOCKER_BUILDKIT=1
+
 # Cores
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -43,6 +46,41 @@ fi
 log_success "Login no ECR bem-sucedido"
 
 cd /jimy/Neural-Hive-Mind
+
+# Array de imagens base em ordem de dependência
+BASE_IMAGES=("python-ml-base" "python-grpc-base" "python-nlp-base")
+
+# Build e push das imagens base primeiro (dependências dos serviços)
+log_info "# Build e push de imagens base primeiro (dependências dos serviços)"
+for base in "${BASE_IMAGES[@]}"; do
+    dockerfile="base-images/${base}/Dockerfile"
+
+    if [ ! -f "$dockerfile" ]; then
+        log_warning "Dockerfile não encontrado: $dockerfile, pulando..."
+        continue
+    fi
+
+    local_tag="neural-hive-mind/${base}:latest"
+    ecr_tag="${ECR_REGISTRY}/${ENV}/${base}:latest"
+
+    log_info "Building ${base}..."
+    docker build -t "$local_tag" -f "$dockerfile" . || {
+        log_error "Falha ao buildar ${base}"
+        continue
+    }
+
+    docker tag "$local_tag" "$ecr_tag"
+
+    log_info "Pushing ${base}..."
+    docker push "$ecr_tag" || {
+        log_error "Falha ao push ${base}"
+        continue
+    }
+
+    log_success "✅ ${base} completo"
+done
+
+echo ""
 
 # Lista de imagens para build
 declare -A IMAGES
@@ -113,6 +151,9 @@ log_success "Build e push de imagens concluído!"
 log_success "============================================"
 log_info ""
 log_info "Verificar imagens no ECR:"
+log_info "  # Imagens base"
+log_info "  aws ecr list-images --repository-name ${ENV}/python-nlp-base --region ${AWS_REGION}"
+log_info "  # Serviços"
 log_info "  aws ecr list-images --repository-name ${ENV}/gateway-intencoes --region ${AWS_REGION}"
 log_info ""
 log_info "Próximo passo:"

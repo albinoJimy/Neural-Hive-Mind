@@ -27,7 +27,8 @@ class TemporalWorkerManager:
         optimizer_client=None,
         scheduling_predictor=None,
         load_predictor=None,
-        anomaly_detector=None
+        anomaly_detector=None,
+        self_healing_client=None
     ):
         """
         Inicializa o worker manager.
@@ -54,6 +55,7 @@ class TemporalWorkerManager:
         self.scheduling_predictor = scheduling_predictor
         self.load_predictor = load_predictor
         self.anomaly_detector = anomaly_detector
+        self.self_healing_client = self_healing_client
         self.intelligent_scheduler = None
         self.opa_client = None
         self.policy_validator = None
@@ -271,16 +273,25 @@ class TemporalWorkerManager:
             consolidate_results,
             trigger_self_healing,
             publish_telemetry,
-            buffer_telemetry
+            buffer_telemetry,
+            set_activity_dependencies as set_consolidation_deps
         )
 
-        # Injetar PolicyValidator independentemente de Kafka/MongoDB
+        # Injetar PolicyValidator e MongoDB nas activities de validação (fail-open)
         if self.policy_validator:
             set_validation_deps(
                 policy_validator=self.policy_validator,
-                config=self.config
+                config=self.config,
+                mongodb_client=self.mongodb_client
             )
             logger.info('PolicyValidator injetado em plan_validation activities')
+        else:
+            set_validation_deps(
+                policy_validator=None,
+                config=self.config,
+                mongodb_client=self.mongodb_client
+            )
+            logger.info('plan_validation activities configuradas sem PolicyValidator')
 
         # Injetar dependências em ticket_generation (requer Kafka e MongoDB)
         if self.kafka_producer and self.mongodb_client:
@@ -305,6 +316,16 @@ class TemporalWorkerManager:
             )
         else:
             logger.warning('Kafka Producer ou MongoDB Client não fornecidos - ticket_generation activities podem falhar')
+
+        # Injetar dependências em result_consolidation (fail-open)
+        set_consolidation_deps(
+            scheduling_optimizer=getattr(self.intelligent_scheduler, 'scheduling_optimizer', None)
+            if self.intelligent_scheduler else None,
+            config=self.config,
+            mongodb_client=self.mongodb_client,
+            kafka_producer=self.kafka_producer,
+            self_healing_client=self.self_healing_client
+        )
 
         # Criar Worker
         self.worker = Worker(
@@ -379,9 +400,34 @@ class TemporalWorkerManager:
         # Temporal SDK gerencia shutdown automaticamente
 
 
+def _build_temporal_target(host: str, port: int) -> str:
+    """
+    Constrói target URL do Temporal de forma robusta.
+
+    Trata casos onde host já contém porta (ex: temporal-frontend:7233)
+    para evitar duplicação (temporal-frontend:7233:7233).
+
+    Args:
+        host: Hostname do Temporal (pode incluir porta)
+        port: Porta do Temporal (usado apenas se host não incluir porta)
+
+    Returns:
+        Target URL no formato host:port
+    """
+    # Se host já contém porta (formato host:port), usar diretamente
+    if ':' in host:
+        return host
+
+    # Caso contrário, concatenar host e port
+    return f'{host}:{port}'
+
+
 async def create_temporal_client(config, postgres_user=None, postgres_password=None) -> Client:
     """
-    Cria cliente Temporal.
+    Cria cliente Temporal com conexão imediata.
+
+    IMPORTANTE: Workers do Temporal requerem conexão eager (lazy=False).
+    Lazy clients não são suportados para workers.
 
     Args:
         config: Configurações da aplicação
@@ -389,25 +435,39 @@ async def create_temporal_client(config, postgres_user=None, postgres_password=N
         postgres_password: PostgreSQL password override (ex: de Vault)
 
     Returns:
-        Cliente Temporal conectado
+        Cliente Temporal conectado, ou None se temporal_enabled=False
 
-    Note:
-        PostgreSQL credentials são usados pelo Temporal Server (não pelo client).
-        Este parâmetro está aqui para documentação e eventual uso futuro
-        caso seja necessário configurar connection string customizada.
+    Raises:
+        Exception: Se conexão falhar e temporal_enabled=True
     """
-    logger.info('Conectando ao Temporal Server', host=config.temporal_host, port=config.temporal_port)
+    # Verificar se Temporal está habilitado
+    temporal_enabled = getattr(config, 'temporal_enabled', True)
+    if not temporal_enabled:
+        logger.info('Temporal desabilitado via configuração (temporal_enabled=False)')
+        return None
+
+    # Construir target URL de forma robusta (evita porta duplicada)
+    target = _build_temporal_target(config.temporal_host, config.temporal_port)
+
+    logger.info(
+        'Conectando ao Temporal Server',
+        target=target,
+        namespace=config.temporal_namespace
+    )
 
     try:
+        # Workers requerem conexão eager (lazy=False é o padrão)
+        # lazy=True NÃO é suportado para workers - causa RuntimeError
         client = await Client.connect(
-            f'{config.temporal_host}:{config.temporal_port}',
+            target,
             namespace=config.temporal_namespace,
+            # lazy=False é o padrão - conexão imediata necessária para workers
             # tls=config.temporal_tls_enabled  # Configurar TLS para produção
         )
 
-        logger.info('Cliente Temporal criado com sucesso')
+        logger.info('Cliente Temporal conectado com sucesso', target=target)
         return client
 
     except Exception as e:
-        logger.error('Erro ao conectar ao Temporal Server', error=str(e), exc_info=True)
+        logger.error('Erro ao conectar ao Temporal Server', error=str(e), target=target, exc_info=True)
         raise

@@ -222,23 +222,42 @@ def create_fastapi_app(specialist, config) -> FastAPI:
     async def status_check():
         """
         Status detalhado do specialist e suas dependências.
+        Inclui informações completas do health_check() incluindo model_loaded.
         """
+        circuit_breaker_states = {
+            "mongodb": health_breakers.mongodb_breaker.current_state,
+            "neo4j": health_breakers.neo4j_breaker.current_state,
+            "redis": health_breakers.redis_breaker.current_state
+        }
+
         try:
-            circuit_breaker_states = {
-                "mongodb": health_breakers.mongodb_breaker.current_state,
-                "neo4j": health_breakers.neo4j_breaker.current_state,
-                "redis": health_breakers.redis_breaker.current_state
+            # Obter health check completo do specialist
+            health_info = specialist.health_check()
+
+            # Construir resposta combinando informações básicas e health check
+            response = {
+                "specialist_type": specialist.specialist_type,
+                "version": specialist.version,
+                "mlflow_enabled": getattr(specialist.mlflow_client, '_enabled', False) if specialist.mlflow_client else False,
+                "circuit_breakers": circuit_breaker_states,
+                "status": health_info.get('status', 'UNKNOWN'),
+                "details": health_info.get('details', {})
             }
 
+            return response
+        except Exception as e:
+            logger.error("Status check failed", error=str(e))
+            # Retornar JSON padronizado com campos status e details mesmo em caso de exceção
             return {
                 "specialist_type": specialist.specialist_type,
                 "version": specialist.version,
                 "mlflow_enabled": getattr(specialist.mlflow_client, '_enabled', False) if specialist.mlflow_client else False,
-                "circuit_breakers": circuit_breaker_states
+                "circuit_breakers": circuit_breaker_states,
+                "status": "NOT_SERVING",
+                "details": {
+                    "degraded_reasons": [str(e)]
+                }
             }
-        except Exception as e:
-            logger.error("Status check failed", error=str(e))
-            return {"error": str(e)}
 
     # Integrar Feedback API se habilitado
     if FEEDBACK_AVAILABLE and config.enable_feedback_collection and config.feedback_api_enabled:

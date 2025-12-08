@@ -1,5 +1,5 @@
 {{- if .Values.operator.install -}}
-apiVersion: redis.redis.opstreelabs.in/v1beta1
+apiVersion: redis.redis.opstreelabs.in/v1beta2
 kind: RedisCluster
 metadata:
   name: {{ .Values.cluster.name | default (printf "%s-cluster" (include "redis-cluster.fullname" .)) }}
@@ -67,7 +67,7 @@ spec:
   {{- with .Values.podAnnotations }}
   podAnnotations:
     {{- toYaml . | nindent 4 }}
-    sidecar.istio.io/inject: "{{ .Values.istio.injection }}"
+    sidecar.istio.io/inject: "{{ $.Values.istio.injection | default "false" }}"
   {{- end }}
 
   {{- with .Values.podLabels }}

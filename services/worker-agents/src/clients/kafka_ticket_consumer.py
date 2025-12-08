@@ -1,6 +1,12 @@
+import asyncio
 import json
+import os
+from pathlib import Path
 import structlog
-from aiokafka import AIOKafkaConsumer
+from confluent_kafka import Consumer, KafkaError
+from confluent_kafka.serialization import SerializationContext, MessageField
+from confluent_kafka.schema_registry import SchemaRegistryClient
+from confluent_kafka.schema_registry.avro import AvroDeserializer
 from typing import Optional
 
 logger = structlog.get_logger()
@@ -13,22 +19,45 @@ class KafkaTicketConsumer:
         self.config = config
         self.execution_engine = execution_engine
         self.logger = logger.bind(service='kafka_ticket_consumer')
-        self.consumer: Optional[AIOKafkaConsumer] = None
+        self.consumer: Optional[Consumer] = None
+        self.schema_registry_client: Optional[SchemaRegistryClient] = None
+        self.avro_deserializer: Optional[AvroDeserializer] = None
         self.running = False
 
     async def initialize(self):
         '''Inicializar consumer Kafka'''
         try:
-            self.consumer = AIOKafkaConsumer(
-                self.config.kafka_tickets_topic,
-                bootstrap_servers=self.config.kafka_bootstrap_servers,
-                group_id=self.config.kafka_consumer_group_id,
-                auto_offset_reset=self.config.kafka_auto_offset_reset,
-                enable_auto_commit=self.config.kafka_enable_auto_commit,
-                value_deserializer=lambda v: json.loads(v.decode('utf-8'))
-            )
+            consumer_config = {
+                'bootstrap.servers': self.config.kafka_bootstrap_servers,
+                'group.id': self.config.kafka_consumer_group_id,
+                'auto.offset.reset': self.config.kafka_auto_offset_reset,
+                'enable.auto.commit': False
+            }
 
-            await self.consumer.start()
+            consumer_config.update(self._configure_security())
+            self.consumer = Consumer(consumer_config)
+
+            try:
+                schema_path = Path(self.config.schemas_base_path) / 'execution-ticket' / 'execution-ticket.avsc'
+                schema_str = schema_path.read_text()
+
+                self.schema_registry_client = SchemaRegistryClient(
+                    {'url': self.config.kafka_schema_registry_url}
+                )
+                self.avro_deserializer = AvroDeserializer(self.schema_registry_client, schema_str)
+                self.logger.info(
+                    'schema_registry_enabled',
+                    url=self.config.kafka_schema_registry_url
+                )
+            except Exception as exc:
+                self.logger.warning(
+                    'schema_registry_unavailable_fallback_json',
+                    error=str(exc)
+                )
+                self.schema_registry_client = None
+                self.avro_deserializer = None
+
+            self.consumer.subscribe([self.config.kafka_tickets_topic])
 
             self.logger.info(
                 'kafka_consumer_initialized',
@@ -47,12 +76,33 @@ class KafkaTicketConsumer:
         self.running = True
 
         try:
-            async for message in self.consumer:
+            while self.running:
+                message = await asyncio.get_event_loop().run_in_executor(
+                    None, lambda: self.consumer.poll(timeout=1.0)
+                )
+
+                if message is None:
+                    continue
+
+                if message.error():
+                    if message.error().code() == KafkaError._PARTITION_EOF:
+                        continue
+                    raise message.error()
+
+                ticket = None
+
                 if not self.running:
                     break
 
                 try:
-                    ticket = message.value
+                    context = SerializationContext(
+                        message.topic(), MessageField.VALUE
+                    )
+
+                    if self.avro_deserializer:
+                        ticket = self.avro_deserializer(message.value(), context)
+                    else:
+                        ticket = json.loads(message.value().decode('utf-8'))
 
                     # Validar campos obrigatórios
                     required_fields = ['ticket_id', 'task_id', 'task_type', 'status', 'dependencies']
@@ -63,7 +113,9 @@ class KafkaTicketConsumer:
                             ticket_id=ticket.get('ticket_id'),
                             missing_fields=missing_fields
                         )
-                        await self.consumer.commit()
+                        await asyncio.get_event_loop().run_in_executor(
+                            None, lambda: self.consumer.commit(message)
+                        )
                         continue
 
                     # Verificar se task_type é suportado
@@ -74,7 +126,9 @@ class KafkaTicketConsumer:
                             ticket_id=ticket.get('ticket_id'),
                             task_type=task_type
                         )
-                        await self.consumer.commit()
+                        await asyncio.get_event_loop().run_in_executor(
+                            None, lambda: self.consumer.commit(message)
+                        )
                         continue
 
                     # Verificar status
@@ -85,7 +139,9 @@ class KafkaTicketConsumer:
                             ticket_id=ticket.get('ticket_id'),
                             status=status
                         )
-                        await self.consumer.commit()
+                        await asyncio.get_event_loop().run_in_executor(
+                            None, lambda: self.consumer.commit(message)
+                        )
                         continue
 
                     # Processar ticket
@@ -101,7 +157,9 @@ class KafkaTicketConsumer:
                     await self.execution_engine.process_ticket(ticket)
 
                     # Commit offset após processamento bem-sucedido
-                    await self.consumer.commit()
+                    await asyncio.get_event_loop().run_in_executor(
+                        None, lambda: self.consumer.commit(message)
+                    )
 
                 except Exception as e:
                     self.logger.error(
@@ -125,5 +183,28 @@ class KafkaTicketConsumer:
         '''Parar consumer'''
         self.running = False
         if self.consumer:
-            await self.consumer.stop()
+            await asyncio.get_event_loop().run_in_executor(None, self.consumer.close)
             self.logger.info('kafka_consumer_stopped')
+
+    def _configure_security(self) -> dict:
+        """Configuração de segurança Kafka (SASL/SSL)."""
+        security_config = {
+            'security.protocol': self.config.kafka_security_protocol
+        }
+
+        if self.config.kafka_security_protocol in ['SASL_SSL', 'SASL_PLAINTEXT']:
+            if getattr(self.config, 'kafka_sasl_mechanism', None):
+                security_config['sasl.mechanism'] = self.config.kafka_sasl_mechanism
+            if self.config.kafka_sasl_username and self.config.kafka_sasl_password:
+                security_config['sasl.username'] = self.config.kafka_sasl_username
+                security_config['sasl.password'] = self.config.kafka_sasl_password
+
+        if self.config.kafka_security_protocol in ['SSL', 'SASL_SSL']:
+            if getattr(self.config, 'kafka_ssl_ca_location', None):
+                security_config['ssl.ca.location'] = self.config.kafka_ssl_ca_location
+            if getattr(self.config, 'kafka_ssl_certificate_location', None):
+                security_config['ssl.certificate.location'] = self.config.kafka_ssl_certificate_location
+            if getattr(self.config, 'kafka_ssl_key_location', None):
+                security_config['ssl.key.location'] = self.config.kafka_ssl_key_location
+
+        return security_config

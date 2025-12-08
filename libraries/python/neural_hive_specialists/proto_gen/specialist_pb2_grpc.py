@@ -3,9 +3,9 @@
 import grpc
 import warnings
 
-from . import specialist_pb2 as specialist__pb2
+import specialist_pb2 as specialist__pb2
 
-GRPC_GENERATED_VERSION = '1.60.0'
+GRPC_GENERATED_VERSION = '1.70.0'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -13,10 +13,10 @@ try:
     from grpc._utilities import first_version_is_lower
     _version_not_supported = first_version_is_lower(GRPC_VERSION, GRPC_GENERATED_VERSION)
 except ImportError:
-    _version_not_supported = False
+    _version_not_supported = True
 
 if _version_not_supported:
-    warnings.warn(
+    raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
         + f' but the generated code in specialist_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
@@ -38,15 +38,18 @@ class SpecialistServiceStub(object):
         self.EvaluatePlan = channel.unary_unary(
                 '/neural_hive.specialist.SpecialistService/EvaluatePlan',
                 request_serializer=specialist__pb2.EvaluatePlanRequest.SerializeToString,
-                response_deserializer=specialist__pb2.EvaluatePlanResponse.FromString)
+                response_deserializer=specialist__pb2.EvaluatePlanResponse.FromString,
+                _registered_method=True)
         self.HealthCheck = channel.unary_unary(
                 '/neural_hive.specialist.SpecialistService/HealthCheck',
                 request_serializer=specialist__pb2.HealthCheckRequest.SerializeToString,
-                response_deserializer=specialist__pb2.HealthCheckResponse.FromString)
+                response_deserializer=specialist__pb2.HealthCheckResponse.FromString,
+                _registered_method=True)
         self.GetCapabilities = channel.unary_unary(
                 '/neural_hive.specialist.SpecialistService/GetCapabilities',
                 request_serializer=specialist__pb2.GetCapabilitiesRequest.SerializeToString,
-                response_deserializer=specialist__pb2.GetCapabilitiesResponse.FromString)
+                response_deserializer=specialist__pb2.GetCapabilitiesResponse.FromString,
+                _registered_method=True)
 
 
 class SpecialistServiceServicer(object):
@@ -96,6 +99,7 @@ def add_SpecialistServiceServicer_to_server(servicer, server):
     generic_handler = grpc.method_handlers_generic_handler(
             'neural_hive.specialist.SpecialistService', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
+    server.add_registered_method_handlers('neural_hive.specialist.SpecialistService', rpc_method_handlers)
 
 
  # This class is part of an EXPERIMENTAL API.

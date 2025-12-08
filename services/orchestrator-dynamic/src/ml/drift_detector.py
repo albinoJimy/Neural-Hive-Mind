@@ -335,7 +335,19 @@ class DriftDetector:
             recent_mean = float(np.mean(recent_durations))
             recent_std = float(np.std(recent_durations))
 
-            mean_shift_pct = ((recent_mean - baseline_mean) / baseline_mean) * 100
+            # Handle division by zero for mean_shift_pct
+            if baseline_mean == 0:
+                logger.warning(
+                    "baseline_mean is zero, cannot calculate mean_shift_pct normally",
+                    extra={
+                        "baseline_mean": baseline_mean,
+                        "recent_mean": recent_mean
+                    }
+                )
+                mean_shift_pct = 0.0
+            else:
+                mean_shift_pct = ((recent_mean - baseline_mean) / baseline_mean) * 100
+
             std_shift_pct = ((recent_std - baseline_std) / baseline_std) * 100 if baseline_std > 0 else 0
 
             result = {

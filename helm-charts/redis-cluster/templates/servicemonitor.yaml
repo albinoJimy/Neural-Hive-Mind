@@ -78,7 +78,7 @@ spec:
             layer: memory
           annotations:
             summary: "Redis Cluster high memory usage"
-            description: "Redis cluster {{ $labels.instance }} memory usage is above 80% ({{ $value }}%)"
+            description: "Redis cluster memory usage is above 80% of the maximum threshold."
 
         # Hit Ratio Alert
         - alert: RedisClusterLowHitRatio
@@ -91,7 +91,7 @@ spec:
             layer: memory
           annotations:
             summary: "Redis Cluster low hit ratio"
-            description: "Redis cluster {{ $labels.instance }} hit ratio is below 70% ({{ $value }})"
+            description: "Redis cluster hit ratio is below 70%."
 
         # Cluster Down Alert
         - alert: RedisClusterDown
@@ -104,7 +104,7 @@ spec:
             layer: memory
           annotations:
             summary: "Redis Cluster is down"
-            description: "Redis cluster instance {{ $labels.instance }} is down"
+            description: "Redis cluster instance reported by Prometheus is down."
 
         # Connection Count Alert
         - alert: RedisClusterHighConnections
@@ -117,7 +117,7 @@ spec:
             layer: memory
           annotations:
             summary: "Redis Cluster high connection count"
-            description: "Redis cluster {{ $labels.instance }} has {{ $value }} connections (threshold: 1000)"
+            description: "Redis cluster connections exceeded the 1000 client threshold."
 
         # Replication Lag Alert
         - alert: RedisClusterReplicationLag
@@ -130,7 +130,7 @@ spec:
             layer: memory
           annotations:
             summary: "Redis Cluster replication lag"
-            description: "Redis cluster {{ $labels.instance }} replication lag is {{ $value }} bytes"
+            description: "Redis cluster replication lag is above the configured bytes threshold."
 
         # Keyspace Events (TTL effectiveness)
         - alert: RedisClusterLowTTLEffectiveness
@@ -143,7 +143,7 @@ spec:
             layer: memory
           annotations:
             summary: "Redis Cluster low TTL effectiveness"
-            description: "Redis cluster {{ $labels.instance }} TTL effectiveness is low ({{ $value }})"
+            description: "Redis cluster TTL effectiveness metric is below expectations."
 
         # Blocked Clients
         - alert: RedisClusterBlockedClients
@@ -156,6 +156,6 @@ spec:
             layer: memory
           annotations:
             summary: "Redis Cluster has blocked clients"
-            description: "Redis cluster {{ $labels.instance }} has {{ $value }} blocked clients"
+            description: "Redis cluster has blocked clients above the acceptable level."
 
 {{- end }}

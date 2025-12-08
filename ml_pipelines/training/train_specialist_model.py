@@ -14,6 +14,7 @@ from typing import Dict, Any, Tuple
 import structlog
 import pandas as pd
 import numpy as np
+import sklearn
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import train_test_split
@@ -79,7 +80,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def load_base_dataset(specialist_type: str, dataset_path_template: str) -> pd.DataFrame:
+def load_base_dataset(specialist_type: str, dataset_path_template: str) -> Tuple[pd.DataFrame, str]:
     """
     Carrega dataset base de treinamento.
 
@@ -88,7 +89,8 @@ def load_base_dataset(specialist_type: str, dataset_path_template: str) -> pd.Da
         dataset_path_template: Template do path (com {specialist_type})
 
     Returns:
-        DataFrame com features e labels
+        Tupla (DataFrame com features e labels, data_source)
+        - data_source: 'synthetic' se usou dados sintéticos, ou path do arquivo real
     """
     dataset_path = dataset_path_template.format(specialist_type=specialist_type)
 
@@ -100,12 +102,25 @@ def load_base_dataset(specialist_type: str, dataset_path_template: str) -> pd.Da
 
     # Verificar se arquivo existe
     if not os.path.exists(dataset_path):
+        # Verificar se fallback para sintético está habilitado
+        allow_synthetic = os.getenv('ALLOW_SYNTHETIC_FALLBACK', 'true').lower() == 'true'
+        environment = os.getenv('ENVIRONMENT', 'development')
+
+        if not allow_synthetic and environment == 'production':
+            raise FileNotFoundError(
+                f"Dataset não encontrado em {dataset_path} e ALLOW_SYNTHETIC_FALLBACK=false em production. "
+                f"Configure o dataset real ou defina ALLOW_SYNTHETIC_FALLBACK=true."
+            )
+
         logger.warning(
             "Base dataset not found - using synthetic data",
-            path=dataset_path
+            path=dataset_path,
+            environment=environment,
+            allow_synthetic=allow_synthetic
         )
         # Criar dataset sintético para desenvolvimento
-        return create_synthetic_dataset(n_samples=1000)
+        df = create_synthetic_dataset(n_samples=1000)
+        return df, 'synthetic'
 
     # Carregar Parquet
     df = pd.read_parquet(dataset_path)
@@ -113,10 +128,11 @@ def load_base_dataset(specialist_type: str, dataset_path_template: str) -> pd.Da
     logger.info(
         "Base dataset loaded",
         size=len(df),
-        columns=list(df.columns)
+        columns=list(df.columns),
+        data_source=dataset_path
     )
 
-    return df
+    return df, dataset_path
 
 
 def create_synthetic_dataset(n_samples: int = 1000) -> pd.DataFrame:
@@ -405,7 +421,7 @@ def get_baseline_model(specialist_type: str) -> Tuple[Any, Dict[str, float]]:
         Tupla (modelo, métricas) ou (None, None)
     """
     try:
-        model_name = f"{specialist_type}-model"
+        model_name = f"{specialist_type}-evaluator"
 
         # Tentar carregar modelo de Production
         model_uri = f"models:/{model_name}/Production"
@@ -447,7 +463,9 @@ def should_promote_model(
     new_metrics: Dict[str, float],
     baseline_metrics: Dict[str, float],
     precision_threshold: float = 0.75,
-    recall_threshold: float = 0.70
+    recall_threshold: float = 0.70,
+    f1_threshold: float = 0.72,
+    improvement_threshold: float = None
 ) -> bool:
     """
     Determina se modelo deve ser promovido.
@@ -457,10 +475,24 @@ def should_promote_model(
         baseline_metrics: Métricas do baseline
         precision_threshold: Precision mínima
         recall_threshold: Recall mínimo
+        f1_threshold: F1 score mínimo
+        improvement_threshold: Melhoria mínima sobre baseline (default: env MODEL_IMPROVEMENT_THRESHOLD ou 0.05)
 
     Returns:
         True se deve promover
     """
+    # Carregar improvement_threshold de env var se não fornecido
+    if improvement_threshold is None:
+        improvement_threshold = float(os.getenv('MODEL_IMPROVEMENT_THRESHOLD', '0.05'))
+
+    logger.info(
+        "Checking promotion criteria",
+        precision_threshold=precision_threshold,
+        recall_threshold=recall_threshold,
+        f1_threshold=f1_threshold,
+        improvement_threshold=improvement_threshold
+    )
+
     # Verificar thresholds absolutos
     if new_metrics['precision'] < precision_threshold:
         logger.info(
@@ -478,19 +510,27 @@ def should_promote_model(
         )
         return False
 
+    if new_metrics['f1'] < f1_threshold:
+        logger.info(
+            "Model not promoted - F1 score below threshold",
+            f1=new_metrics['f1'],
+            threshold=f1_threshold
+        )
+        return False
+
     # Se não há baseline, promover
     if not baseline_metrics:
         logger.info("No baseline - promoting new model")
         return True
 
-    # Comparar com baseline (novo deve ser 5% melhor)
-    improvement_threshold = 0.05
+    # Comparar com baseline (novo deve ser improvement_threshold% melhor)
     precision_improvement = new_metrics['precision'] - baseline_metrics['precision']
 
     if precision_improvement >= improvement_threshold:
         logger.info(
             "Model promoted - significant improvement",
-            precision_improvement=precision_improvement
+            precision_improvement=precision_improvement,
+            improvement_threshold=improvement_threshold
         )
         return True
 
@@ -514,7 +554,7 @@ def main():
 
     # Configurar MLflow
     mlflow.set_tracking_uri(os.getenv('MLFLOW_TRACKING_URI', 'http://mlflow:5000'))
-    experiment_name = f"specialist-retraining-{args.specialist_type}"
+    experiment_name = f"{args.specialist_type}-specialist"
     mlflow.set_experiment(experiment_name)
 
     with mlflow.start_run():
@@ -530,8 +570,18 @@ def main():
             'TRAINING_DATASET_PATH',
             '/data/training/specialist_{specialist_type}_base.parquet'
         )
-        df_base = load_base_dataset(args.specialist_type, dataset_path_template)
+        df_base, data_source = load_base_dataset(args.specialist_type, dataset_path_template)
         mlflow.log_metric('base_dataset_size', len(df_base))
+
+        # Logar data_source para rastreabilidade
+        mlflow.log_param('data_source', data_source)
+        mlflow.set_tag('data_source_type', 'synthetic' if data_source == 'synthetic' else 'real')
+
+        if data_source == 'synthetic':
+            print(f"⚠️  Using SYNTHETIC dataset for training")
+            print(f"   Set TRAINING_DATASET_PATH to use real data")
+        else:
+            print(f"📁 Using REAL dataset: {data_source}")
 
         # 2. Carregar feedbacks
         df_feedback = load_feedback_data(
@@ -593,15 +643,31 @@ def main():
         print(f"   F1: {metrics['f1']:.3f}")
         print()
 
-        # 7. Registrar modelo
+        # 7. Registrar modelo usando mlflow.sklearn.log_model para garantir flavor correto
         print(f"💾 Registering model...")
-        model_name = f"{args.specialist_type}-model"
+        model_name = f"{args.specialist_type}-evaluator"
 
-        mlflow.sklearn.log_model(
-            model,
-            "model",
-            registered_model_name=model_name
-        )
+        # Usar mlflow.sklearn.log_model para criar artifact com flavor sklearn/pyfunc
+        # Isso garante que MLmodel seja criado e o modelo possa ser carregado via mlflow.pyfunc.load_model
+        try:
+            mlflow.sklearn.log_model(
+                sk_model=model,
+                artifact_path="model",
+                registered_model_name=model_name
+            )
+            print(f"   ✅ Model registered as {model_name} with sklearn flavor")
+        except Exception as e:
+            logger.warning(f"Could not register model with sklearn flavor: {e}")
+            # Fallback: logar modelo sem registrar no Model Registry
+            mlflow.sklearn.log_model(
+                sk_model=model,
+                artifact_path="model"
+            )
+            print(f"   ⚠️  Model logged but not registered in Model Registry")
+            print(f"   💡 You can manually register using mlflow.register_model()")
+
+        run_id = mlflow.active_run().info.run_id
+        model_uri = f"runs:/{run_id}/model"
 
         # 8. Comparar com baseline e promover
         if args.promote_if_better == 'true':
@@ -619,15 +685,32 @@ def main():
                 versions = client.search_model_versions(f"name='{model_name}'")
                 latest_version = max([int(v.version) for v in versions])
 
+                # Arquivar versões anteriores em Production (Comment 5 - alinhado com Job e promote_model.py)
+                archived_versions = []
+                for v in versions:
+                    if v.current_stage == 'Production':
+                        client.transition_model_version_stage(
+                            name=model_name,
+                            version=v.version,
+                            stage='Archived',
+                            archive_existing_versions=False
+                        )
+                        archived_versions.append(v.version)
+                        print(f"   📦 Archived previous version v{v.version}")
+
                 # Promover para Production
                 client.transition_model_version_stage(
                     name=model_name,
                     version=latest_version,
-                    stage="Production"
+                    stage="Production",
+                    archive_existing_versions=False  # Já arquivamos manualmente
                 )
 
                 mlflow.log_param('promoted', 'true')
+                mlflow.log_param('archived_versions', str(archived_versions))
                 print(f"   Model version {latest_version} promoted to Production")
+                if archived_versions:
+                    print(f"   📋 Archived versions: {archived_versions}")
             else:
                 print(f"ℹ️  Model kept in Staging - performance below threshold")
                 mlflow.log_param('promoted', 'false')

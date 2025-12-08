@@ -136,6 +136,20 @@ message AgentChangeEvent {
   int64 timestamp = 3;
 }
 
+// Requisição para notificar agente
+message NotifyAgentRequest {
+  string agent_id = 1;
+  string notification_type = 2;
+  string message = 3;
+  map<string, string> metadata = 4;
+}
+
+// Resposta de notificação
+message NotifyAgentResponse {
+  bool success = 1;
+  string error = 2;
+}
+
 // Serviço de registro
 service ServiceRegistry {
   // Registrar um novo agente
@@ -158,4 +172,7 @@ service ServiceRegistry {
 
   // Observar mudanças em agentes (server streaming)
   rpc WatchAgents(WatchAgentsRequest) returns (stream AgentChangeEvent);
+
+  // Notificar agente via streaming/evento
+  rpc NotifyAgent(NotifyAgentRequest) returns (NotifyAgentResponse);
 }

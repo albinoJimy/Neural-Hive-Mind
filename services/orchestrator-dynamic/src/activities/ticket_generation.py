@@ -20,9 +20,10 @@ _intelligent_scheduler = None
 _policy_validator = None
 _config = None
 _ml_predictor = None
+_scheduling_optimizer = None
 
 
-def set_activity_dependencies(kafka_producer, mongodb_client, registry_client=None, intelligent_scheduler=None, policy_validator=None, config=None, ml_predictor=None):
+def set_activity_dependencies(kafka_producer, mongodb_client, registry_client=None, intelligent_scheduler=None, policy_validator=None, config=None, ml_predictor=None, scheduling_optimizer=None):
     """
     Injeta dependências globais nas activities.
 
@@ -34,8 +35,9 @@ def set_activity_dependencies(kafka_producer, mongodb_client, registry_client=No
         policy_validator: PolicyValidator para validação OPA (opcional)
         config: OrchestratorSettings (opcional)
         ml_predictor: MLPredictor para predições ML (opcional)
+        scheduling_optimizer: SchedulingOptimizer para enriquecer metadata (opcional)
     """
-    global _kafka_producer, _mongodb_client, _registry_client, _intelligent_scheduler, _policy_validator, _config, _ml_predictor
+    global _kafka_producer, _mongodb_client, _registry_client, _intelligent_scheduler, _policy_validator, _config, _ml_predictor, _scheduling_optimizer
     _kafka_producer = kafka_producer
     _mongodb_client = mongodb_client
     _registry_client = registry_client
@@ -43,6 +45,7 @@ def set_activity_dependencies(kafka_producer, mongodb_client, registry_client=No
     _policy_validator = policy_validator
     _config = config
     _ml_predictor = ml_predictor
+    _scheduling_optimizer = scheduling_optimizer
 
 
 @activity.defn
@@ -174,6 +177,7 @@ async def generate_execution_tickets(
 async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
     """
     Aloca recursos para um ticket usando Intelligent Scheduler.
+    Enriquece allocation_metadata com dados de predições ML para feedback loop.
 
     Args:
         ticket: Execution ticket
@@ -263,8 +267,76 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 ticket = await _intelligent_scheduler.schedule_ticket(ticket)
 
                 # Adicionar predicted_duration_ms ao allocation_metadata para tracking de erro ML
+                # Usado para ML error tracking e feedback loop
                 if predicted_duration_ms is not None and 'allocation_metadata' in ticket:
                     ticket['allocation_metadata']['predicted_duration_ms'] = predicted_duration_ms
+
+                allocation_metadata = ticket.get('allocation_metadata') or {}
+                if 'predicted_queue_ms' in allocation_metadata:
+                    ticket['allocation_metadata']['predicted_queue_ms'] = allocation_metadata.get('predicted_queue_ms')
+                if 'predicted_load_pct' in allocation_metadata:
+                    ticket['allocation_metadata']['predicted_load_pct'] = allocation_metadata.get('predicted_load_pct')
+                if 'ml_enriched' in allocation_metadata or 'ml_scheduling_enriched' in allocation_metadata:
+                    ticket['allocation_metadata']['ml_enriched'] = allocation_metadata.get('ml_enriched', allocation_metadata.get('ml_scheduling_enriched', False))
+
+                # Validação OPA da alocação de recursos (C3)
+                if _policy_validator and _config and _config.opa_enabled:
+                    allocation_metadata = ticket.get('allocation_metadata') or {}
+                    agent_info = {
+                        'agent_id': allocation_metadata.get('agent_id'),
+                        'agent_type': allocation_metadata.get('agent_type'),
+                        'capacity': allocation_metadata.get('capacity') or allocation_metadata.get('resources', {})
+                    }
+
+                    try:
+                        # Ausência de allocation_metadata.agent_id é tratada como erro fatal (sem fallback)
+                        if agent_info['agent_id'] is None:
+                            raise RuntimeError('allocation_metadata.agent_id ausente para validação de recursos')
+
+                        policy_result = await _policy_validator.validate_resource_allocation(ticket, agent_info)
+
+                        if not policy_result.valid:
+                            violation_msgs = [f'{v.policy_name}/{v.rule}: {v.message}' for v in policy_result.violations]
+                            activity.logger.error(
+                                f'Alocação rejeitada por políticas OPA para ticket {ticket_id}',
+                                violations=violation_msgs,
+                                agent_id=agent_info.get('agent_id')
+                            )
+                            raise RuntimeError(f'Alocação rejeitada por políticas: {violation_msgs}')
+
+                        if policy_result.warnings:
+                            warning_msgs = [f'{w.policy_name}/{w.rule}: {w.message}' for w in policy_result.warnings]
+                            activity.logger.warning(
+                                f'Alocação com warnings de políticas OPA para ticket {ticket_id}',
+                                warnings=warning_msgs,
+                                agent_id=agent_info.get('agent_id')
+                            )
+
+                        if 'metadata' not in ticket:
+                            ticket['metadata'] = {}
+
+                        existing_decisions = ticket['metadata'].get('policy_decisions', {})
+                        if isinstance(existing_decisions, dict):
+                            existing_decisions.update(policy_result.policy_decisions)
+                            ticket['metadata']['policy_decisions'] = existing_decisions
+                        else:
+                            ticket['metadata']['policy_decisions'] = policy_result.policy_decisions
+                        ticket['metadata']['policy_validated_at'] = policy_result.evaluated_at.isoformat()
+
+                        activity.logger.info(
+                            f'Validação OPA de alocação concluída para ticket {ticket_id}',
+                            agent_id=agent_info.get('agent_id'),
+                            agent_type=agent_info.get('agent_type')
+                        )
+                    except RuntimeError:
+                        raise
+                    except Exception as e:
+                        activity.logger.warning(
+                            f'Erro ao validar alocação via OPA para ticket {ticket_id}: {e}',
+                            agent_id=agent_info.get('agent_id')
+                        )
+                        if not _config.opa_fail_open:
+                            raise RuntimeError(f'Falha na validação de alocação: {str(e)}')
 
                 activity.logger.info(
                     f'Recursos alocados via Intelligent Scheduler para ticket {ticket_id}',
@@ -308,8 +380,12 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
         ticket['allocation_metadata'] = allocation_metadata
 
         # Adicionar predicted_duration_ms ao allocation_metadata para tracking de erro ML
+        # Usado para ML error tracking e feedback loop
         if predicted_duration_ms is not None:
             ticket['allocation_metadata']['predicted_duration_ms'] = predicted_duration_ms
+        ticket['allocation_metadata']['predicted_queue_ms'] = 2000.0
+        ticket['allocation_metadata']['predicted_load_pct'] = 0.5
+        ticket['allocation_metadata']['ml_enriched'] = False
 
         activity.logger.info(
             f'Recursos alocados (stub) para ticket {ticket_id}',

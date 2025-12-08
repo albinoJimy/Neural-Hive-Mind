@@ -1,9 +1,13 @@
+import time
 from typing import Dict, Optional
 
 import grpc
 import structlog
+from google.protobuf.json_format import MessageToDict
 
 from src.config.settings import get_settings
+
+from ..proto import queen_agent_pb2, queen_agent_pb2_grpc
 
 logger = structlog.get_logger()
 
@@ -32,9 +36,7 @@ class QueenAgentGrpcClient:
                 ],
             )
 
-            # TODO: Criar stub quando proto estendido for compilado
-            # from queen_agent_pb2_grpc import QueenAgentStub
-            # self.stub = QueenAgentStub(self.channel)
+            self.stub = queen_agent_pb2_grpc.QueenAgentStub(self.channel)
 
             await self.channel.channel_ready()
 
@@ -65,40 +67,26 @@ class QueenAgentGrpcClient:
             Decisão de aprovação ou None se falhou
         """
         try:
-            # TODO: Implementar quando proto estendido
-            # request = RequestApprovalRequest(
-            #     optimization_id=optimization_id,
-            #     optimization_type=optimization_type,
-            #     hypothesis=hypothesis,
-            #     risk_score=risk_score
-            # )
-            # response = await self.stub.RequestApproval(request, timeout=self.settings.grpc_timeout)
+            if not self.stub:
+                raise RuntimeError("QueenAgent gRPC stub not initialized")
 
-            # Stub temporário
-            logger.warning(
-                "request_approval_stub_called",
-                optimization_id=optimization_id,
-                optimization_type=optimization_type,
-                risk_score=risk_score,
+            request = queen_agent_pb2.RequestExceptionRequest(
+                exception_type=optimization_type,
+                plan_id=optimization_id,
+                justification=hypothesis.get("description", ""),
+                guardrails_affected=[],
+                expires_at=int(time.time() * 1000) + 3600000,
             )
+            response = await self.stub.RequestExceptionApproval(request, timeout=self.settings.grpc_timeout)
 
-            # Auto-aprovar se risco baixo, caso contrário requer aprovação manual
-            if risk_score < 0.5:
-                decision = {
-                    "approved": True,
-                    "approval_type": "AUTO_APPROVED",
-                    "decision_id": f"decision-{optimization_id}",
-                    "rationale": "Low risk optimization auto-approved",
-                    "conditions": [],
-                }
-            else:
-                decision = {
-                    "approved": False,
-                    "approval_type": "PENDING_REVIEW",
-                    "decision_id": f"decision-{optimization_id}",
-                    "rationale": "High risk optimization requires manual approval",
-                    "conditions": ["Manual review by operations team", "Gradual rollout required"],
-                }
+            response_dict = MessageToDict(response, preserving_proto_field_name=True)
+            decision = {
+                "approved": response_dict.get("status", "").upper() in {"APPROVED", "APPROVED_WITH_CONDITIONS"},
+                "approval_type": response_dict.get("status", ""),
+                "decision_id": response_dict.get("exceptionId") or response_dict.get("exception_id"),
+                "rationale": response_dict.get("message", ""),
+                "conditions": response_dict.get("conditions", []),
+            }
 
             logger.info(
                 "approval_decision_received",
@@ -159,12 +147,11 @@ class QueenAgentGrpcClient:
             Prioridades estratégicas ou None se falhou
         """
         try:
-            # TODO: Implementar quando proto estendido
-            # request = GetStrategicPrioritiesRequest()
-            # response = await self.stub.GetStrategicPriorities(request, timeout=self.settings.grpc_timeout)
+            if not self.stub:
+                raise RuntimeError("QueenAgent gRPC stub not initialized")
 
-            # Stub temporário
-            logger.warning("get_strategic_priorities_stub_called")
+            request = queen_agent_pb2.GetSystemStatusRequest()
+            response = await self.stub.GetSystemStatus(request, timeout=self.settings.grpc_timeout)
 
             priorities = {
                 "current_focus": "PERFORMANCE_OPTIMIZATION",
@@ -173,8 +160,8 @@ class QueenAgentGrpcClient:
                     {"area": "cost_optimization", "weight": 0.3},
                     {"area": "reliability", "weight": 0.3},
                 ],
-                "constraints": ["maintain_slo_compliance", "no_breaking_changes"],
-                "updated_at": 1696377600000,
+                "constraints": ["maintain_slo_compliance"],
+                "updated_at": getattr(response, "timestamp", 0),
             }
 
             logger.info("strategic_priorities_retrieved", focus=priorities["current_focus"])

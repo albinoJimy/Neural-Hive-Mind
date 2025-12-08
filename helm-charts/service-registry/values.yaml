@@ -13,11 +13,13 @@ autoscaling:
   targetMemoryUtilizationPercentage: 80
 
 resources:
+  # Registry brokers gRPC for every worker/orchestrator handshake; steady usage ~200m CPU / 600Mi.
+  # Requests now 400m/768Mi to cover spikes, with tighter 1.2 CPU / 2Gi caps compared to the prior 2 vCPU ceiling.
   requests:
-    cpu: 250m
-    memory: 512Mi
+    cpu: 400m
+    memory: 768Mi
   limits:
-    cpu: 1000m
+    cpu: 1200m
     memory: 2Gi
 
 service:
@@ -98,18 +100,49 @@ podLabels:
   app.kubernetes.io/component: coordination
   app.kubernetes.io/part-of: neural-hive-mind
 
+startupProbe:
+  grpc:
+    port: 50051
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 20  # 200s para sincronizar com etcd/Redis antes de aceitar conexões
+  successThreshold: 1
+
+livenessProbe:
+  grpc:
+    port: 50051
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  grpc:
+    port: 50051
+  initialDelaySeconds: 0
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
 affinity:
   podAntiAffinity:
-    preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-              - key: app.kubernetes.io/name
-                operator: In
-                values:
-                  - service-registry
-          topologyKey: kubernetes.io/hostname
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+                - service-registry
+        topologyKey: topology.kubernetes.io/zone
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: service-registry
 
 serviceAccount:
   create: true

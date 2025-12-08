@@ -3,18 +3,15 @@
 
 # Reduced replica count for local development
 replicaCount: 1
-
 image:
   repository: neural-hive-mind/consensus-engine
   pullPolicy: Never
   tag: "1.0.0"
-
 # Custom command for local development (single worker)
 customCommand:
   enabled: true
   command: ["uvicorn"]
   args: ["src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
-
 # Reduced resources for local development (~50% of production)
 resources:
   requests:
@@ -23,32 +20,25 @@ resources:
   limits:
     cpu: 1000m
     memory: 2Gi
-
 # Disable autoscaling for local development
 autoscaling:
   enabled: false
-
 # Disable pod disruption budget for local development
 podDisruptionBudget:
   enabled: false
-
 # Disable service monitor for local development
 serviceMonitor:
   enabled: false
-
 # Disable network policies for local development
 networkPolicy:
   enabled: false
-
 # Disable Istio for local development
 istio:
   enabled: false
-
 # Application configuration
 config:
   environment: dev
   logLevel: DEBUG
-
   # Kafka configuration - no TLS/SASL for local
   kafka:
     bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
@@ -61,36 +51,32 @@ config:
     securityProtocol: PLAINTEXT
     saslMechanism: PLAIN
     schemaRegistryUrl: http://schema-registry.kafka.svc.cluster.local:8081/apis/ccompat/v6
-
   # MongoDB configuration - with authentication for local
   mongodb:
     uri: mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin
     database: neural_hive
     consensusCollection: consensus_decisions
-
   # Redis configuration - no SSL for local
   redis:
     clusterNodes: neural-hive-cache.redis-cluster.svc.cluster.local:6379
     sslEnabled: false
     pheromoneTtl: 3600
     pheromoneDecayRate: 0.1
-
   # OpenTelemetry configuration - disabled for local
   openTelemetry:
     enabled: false
     endpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
     samplingRate: 1.0
-
-  # Specialist endpoints - cluster-local DNS
+  # Specialist endpoints - cluster-local DNS (namespace: semantic-translation)
   specialists:
-    businessEndpoint: specialist-business.specialist-business.svc.cluster.local:50051
-    technicalEndpoint: specialist-technical.specialist-technical.svc.cluster.local:50051
-    behaviorEndpoint: specialist-behavior.specialist-behavior.svc.cluster.local:50051
-    evolutionEndpoint: specialist-evolution.specialist-evolution.svc.cluster.local:50051
-    architectureEndpoint: specialist-architecture.specialist-architecture.svc.cluster.local:50051
-    grpcTimeoutMs: 5000
+    businessEndpoint: specialist-business.semantic-translation.svc.cluster.local:50051
+    technicalEndpoint: specialist-technical.semantic-translation.svc.cluster.local:50051
+    behaviorEndpoint: specialist-behavior.semantic-translation.svc.cluster.local:50051
+    evolutionEndpoint: specialist-evolution.semantic-translation.svc.cluster.local:50051
+    architectureEndpoint: specialist-architecture.semantic-translation.svc.cluster.local:50051
+    # Timeout increased to 120000ms (120 seconds) to accommodate specialist processing time of 49-66 seconds for ML inference
+    grpcTimeoutMs: 120000
     grpcMaxRetries: 3
-
   # Consensus algorithm configuration - relaxed for local development
   consensus:
     minConfidenceScore: 0.7
@@ -101,25 +87,21 @@ config:
     votingWeightDecay: 0.95
     requireUnanimousForCritical: false
     fallbackToDeterministic: true
-
   # Feature flags
   features:
     enableBayesianAveraging: true
     enablePheromones: true
     enableFallback: true
     enableParallelInvocation: true
-
 # Simplified secrets for local development
 secrets:
   kafkaSaslPassword: ""
   mongodbPassword: ""
   redisPassword: ""
-
 # Use default service account for local
 serviceAccount:
   create: false
   name: default
-
 # Relaxed probes for local development
 livenessProbe:
   httpGet:
@@ -129,7 +111,6 @@ livenessProbe:
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 3
-
 readinessProbe:
   httpGet:
     path: /ready

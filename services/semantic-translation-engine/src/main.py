@@ -88,10 +88,16 @@ async def lifespan(app: FastAPI):
             risk_scorer=risk_scorer,
             explainability_generator=explainability_generator,
             mongodb_client=mongodb_client,
+            neo4j_client=neo4j_client,
             plan_producer=plan_producer,
             metrics=metrics
         )
         state['orchestrator'] = orchestrator
+
+        logger.info(
+            'Orchestrator inicializado com persistencia Neo4j habilitada',
+            neo4j_uri=settings.neo4j_uri
+        )
 
         # Initialize Kafka consumer
         intent_consumer = IntentConsumer(settings)

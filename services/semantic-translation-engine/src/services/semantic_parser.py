@@ -45,6 +45,9 @@ class SemanticParser:
         # Garantir que constraints nunca seja None
         constraints = intent_envelope.get('constraints') or {}
 
+        # Garantir domínio com fallback consistente com persistência e seed
+        domain = intent.get('domain') or 'unknown'
+
         # Extract objectives
         objectives = self._extract_objectives(intent.get('text', ''))
 
@@ -58,19 +61,19 @@ class SemanticParser:
         # Enrich with historical context
         historical_context = await self._enrich_with_history(
             intent_envelope.get('id'),
-            intent.get('domain'),
+            domain,
             intent.get('text', '')
         )
 
         # Identify known patterns
         known_patterns = await self._identify_patterns(
-            intent.get('domain'),
+            domain,
             objectives
         )
 
         intermediate_representation = {
             'intent_id': intent_envelope.get('id'),
-            'domain': intent.get('domain'),
+            'domain': domain,
             'objectives': objectives,
             'entities': mapped_entities,
             'constraints': extracted_constraints,
@@ -91,11 +94,14 @@ class SemanticParser:
             ttl=300
         )
 
+        # Log com informação sobre contexto histórico
+        num_similar = len(historical_context.get('similar_intents', []))
         logger.info(
-            'Intent parsed',
+            'Intent parsed e enriquecido com contexto historico',
             intent_id=intent_envelope.get('id'),
             objectives=objectives,
-            num_entities=len(mapped_entities)
+            num_entities=len(mapped_entities),
+            num_similar_intents=num_similar
         )
 
         return intermediate_representation
@@ -185,6 +191,15 @@ class SemanticParser:
         """Enrich with historical context from Knowledge Graph"""
         # Query similar intents (with cache)
         cache_key = f'neo4j:similar:{hashlib.md5(text.encode()).hexdigest()}'
+
+        logger.debug(
+            'Buscando similar intents no Neo4j',
+            intent_id=intent_id,
+            domain=domain,
+            text_preview=text[:100] if text else '',
+            cache_key=cache_key
+        )
+
         similar_intents = await self.redis.get_cached_query(cache_key)
 
         if not similar_intents:
@@ -195,8 +210,32 @@ class SemanticParser:
             )
             await self.redis.cache_query_result(cache_key, similar_intents, ttl=600)
 
+        # Log resultado da busca de similar intents
+        if not similar_intents:
+            logger.warning(
+                'Nenhum similar intent encontrado no Neo4j',
+                intent_id=intent_id,
+                domain=domain,
+                sugestao='Verifique se Neo4j possui dados historicos (execute seed_neo4j_intents.py)'
+            )
+        else:
+            similar_ids = [s.get('id') for s in similar_intents[:2]]
+            logger.info(
+                'Similar intents encontrados',
+                intent_id=intent_id,
+                count=len(similar_intents),
+                similar_ids=similar_ids
+            )
+
         # Get operational context (if exists)
         operational_context = await self.mongodb.get_operational_context(intent_id)
+
+        logger.debug(
+            'Contexto historico enriquecido',
+            intent_id=intent_id,
+            has_operational_context=operational_context is not None,
+            num_similar_intents=len(similar_intents) if similar_intents else 0
+        )
 
         return {
             'similar_intents': similar_intents,

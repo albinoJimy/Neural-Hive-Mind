@@ -218,7 +218,79 @@ class MLflowClient:
 
                 # Buscar versão do modelo no stage especificado
                 model_uri = f"models:/{model_name}/{stage}"
-                model = mlflow.pyfunc.load_model(model_uri)
+
+                try:
+                    model = mlflow.pyfunc.load_model(model_uri)
+                except (ValueError, AttributeError, TypeError) as model_compat_err:
+                    # Handle sklearn compatibility issues (monotonic_cst deprecated in 1.4+,
+                    # and other common model serialization compatibility problems)
+                    error_msg = str(model_compat_err).lower()
+                    compatibility_indicators = [
+                        'monotonic', 'constraint', 'attribute', 'deprecated',
+                        'unsupported', 'pickle', 'serialization'
+                    ]
+
+                    if any(indicator in error_msg for indicator in compatibility_indicators):
+                        logger.warning(
+                            "Model has sklearn/pickle compatibility issues - attempting fallback loading",
+                            model_name=model_name,
+                            stage=stage,
+                            error=str(model_compat_err),
+                            error_type=type(model_compat_err).__name__
+                        )
+
+                        # Attempt 1: Try loading via sklearn directly with custom unpickler
+                        try:
+                            import pickle
+                            import io
+
+                            # Download model artifacts
+                            artifacts_path = mlflow.artifacts.download_artifacts(artifact_uri=model_uri)
+
+                            # Try common model file patterns
+                            model_file_patterns = [
+                                f"{artifacts_path}/model.pkl",
+                                f"{artifacts_path}/model/model.pkl",
+                                f"{artifacts_path}/sklearn-model",
+                                f"{artifacts_path}/model.joblib"
+                            ]
+
+                            loaded = False
+                            for model_file in model_file_patterns:
+                                import os
+                                if os.path.exists(model_file):
+                                    try:
+                                        import joblib
+                                        model = joblib.load(model_file)
+                                        loaded = True
+                                        logger.info(
+                                            "Model loaded via joblib fallback",
+                                            model_name=model_name,
+                                            model_file=model_file
+                                        )
+                                        break
+                                    except Exception as joblib_err:
+                                        logger.debug(
+                                            "Joblib load failed for path",
+                                            path=model_file,
+                                            error=str(joblib_err)
+                                        )
+
+                            if not loaded:
+                                # If all fallbacks fail, re-raise original error
+                                logger.error(
+                                    "All model loading fallbacks failed",
+                                    model_name=model_name,
+                                    stage=stage
+                                )
+                                raise model_compat_err
+
+                        except ImportError:
+                            logger.error("joblib not available for fallback loading")
+                            raise model_compat_err
+                    else:
+                        # Not a compatibility issue, re-raise
+                        raise
 
                 # Cachear modelo com timestamp
                 self._model_cache[cache_key] = {

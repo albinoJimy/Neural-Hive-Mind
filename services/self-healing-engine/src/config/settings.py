@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     kafka_consumer_group: str = "self-healing-engine"
     kafka_remediation_topic: str = "remediation-actions"
     kafka_auto_offset_reset: str = "earliest"
+    kafka_incident_topic: str = "orchestration.incidents"
+    kafka_incident_group: str = "self-healing-incidents"
+    schemas_base_path: str = "./schemas"
 
     # Kubernetes Config
     kubernetes_in_cluster: bool = True
@@ -29,6 +32,12 @@ class Settings(BaseSettings):
 
     # Playbooks Config
     playbooks_dir: str = "./playbooks"
+    playbook_timeout_seconds: int = 300
+
+    # Service Registry
+    service_registry_host: str = "service-registry.neural-hive-execution.svc.cluster.local"
+    service_registry_port: int = 50051
+    service_registry_timeout_seconds: int = 3
 
     # OpenTelemetry Config
     otel_exporter_otlp_endpoint: str = "http://tempo:4317"

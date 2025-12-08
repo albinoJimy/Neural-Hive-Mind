@@ -1,11 +1,14 @@
+import asyncio
 import structlog
 import uuid
+import time
 from typing import List, Dict, Optional
 from ..models.pipeline_context import PipelineContext
 from ..models.template import Template, TemplateType, TemplateLanguage, TemplateMetadata, TemplateRegistry
 from ..clients.git_client import GitClient
 from ..clients.redis_client import RedisClient
 from ..clients.mcp_tool_catalog_client import MCPToolCatalogClient
+from ..observability.metrics import CodeForgeMetrics
 
 logger = structlog.get_logger()
 
@@ -17,12 +20,14 @@ class TemplateSelector:
         self,
         git_client: GitClient,
         redis_client: RedisClient,
-        mcp_client: Optional[MCPToolCatalogClient] = None
+        mcp_client: Optional[MCPToolCatalogClient] = None,
+        metrics: Optional[CodeForgeMetrics] = None
     ):
         self.git_client = git_client
         self.redis_client = redis_client
         self.template_registry = TemplateRegistry()
         self.mcp_client = mcp_client  # Integração MCP Tool Catalog
+        self.metrics = metrics
 
     async def select(self, context: PipelineContext) -> Template:
         """
@@ -64,8 +69,41 @@ class TemplateSelector:
                     "context": params
                 }
 
+                logger.info(
+                    'mcp_selection_request_sent',
+                    request_id=mcp_request['request_id'],
+                    complexity_score=complexity_score,
+                    required_categories=mcp_request['required_categories'],
+                    artifact_type=mcp_request['artifact_type']
+                )
+
+                start_time = time.monotonic()
+
                 # Chamar MCP Tool Catalog
-                mcp_response = await self.mcp_client.request_tool_selection(mcp_request)
+                try:
+                    mcp_response = await asyncio.wait_for(
+                        self.mcp_client.request_tool_selection(mcp_request),
+                        timeout=5.0
+                    )
+                    duration = time.monotonic() - start_time
+                    if self.metrics:
+                        status = 'success' if mcp_response else 'failure'
+                        self.metrics.mcp_selection_requests_total.labels(status=status).inc()
+                        self.metrics.mcp_selection_duration_seconds.observe(duration)
+                except asyncio.TimeoutError as e:
+                    duration = time.monotonic() - start_time
+                    logger.warning('mcp_selection_timeout_using_fallback', error=str(e))
+                    if self.metrics:
+                        self.metrics.mcp_selection_requests_total.labels(status='timeout').inc()
+                        self.metrics.mcp_selection_duration_seconds.observe(duration)
+                    mcp_response = None
+                except Exception as e:
+                    duration = time.monotonic() - start_time
+                    logger.warning('mcp_selection_timeout_using_fallback', error=str(e))
+                    if self.metrics:
+                        self.metrics.mcp_selection_requests_total.labels(status='failure').inc()
+                        self.metrics.mcp_selection_duration_seconds.observe(duration)
+                    mcp_response = None
 
                 if mcp_response:
                     # Armazenar ferramentas selecionadas no contexto
@@ -77,6 +115,20 @@ class TemplateSelector:
                         context.selected_tools
                     )
                     context.generation_method = generation_method
+
+                    logger.info(
+                        'mcp_selection_response_received',
+                        selection_id=mcp_response.get('request_id'),
+                        tools_count=len(mcp_response.get('selected_tools', [])),
+                        total_fitness=mcp_response.get('total_fitness_score'),
+                        selection_method=mcp_response.get('selection_method')
+                    )
+
+                    if self.metrics:
+                        for tool in context.selected_tools:
+                            self.metrics.mcp_tools_selected_total.labels(
+                                category=tool.get('category', 'unknown')
+                            ).inc()
 
                     logger.info(
                         'mcp_tools_selected',

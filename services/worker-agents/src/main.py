@@ -23,6 +23,7 @@ from .executors import (
 from .api import create_http_server
 from .observability import init_metrics
 from neural_hive_integration import ServiceRegistryClient as IntegrationServiceRegistry
+from neural_hive_integration.clients.code_forge_client import CodeForgeClient
 
 # Configurar logging estruturado
 structlog.configure(
@@ -94,6 +95,19 @@ async def startup():
         await ticket_client.initialize()
         app_state['ticket_client'] = ticket_client
 
+        # Inicializar Code Forge client se habilitado
+        code_forge_client = None
+        if config.code_forge_enabled:
+            try:
+                code_forge_client = CodeForgeClient(
+                    base_url=config.code_forge_url,
+                    timeout=config.code_forge_timeout_seconds
+                )
+                app_state['code_forge_client'] = code_forge_client
+                logger.info('code_forge_client_initialized', url=config.code_forge_url)
+            except Exception as e:
+                logger.warning('code_forge_client_init_failed', error=str(e))
+
         # Get Kafka credentials from Vault se habilitado
         kafka_username = None
         kafka_password = None
@@ -117,11 +131,11 @@ async def startup():
 
         # Criar e configurar registry de executores com Vault client
         executor_registry = TaskExecutorRegistry(config)
-        executor_registry.register_executor(BuildExecutor(config, vault_client=vault_client))
-        executor_registry.register_executor(DeployExecutor(config, vault_client=vault_client))
-        executor_registry.register_executor(TestExecutor(config, vault_client=vault_client))
-        executor_registry.register_executor(ValidateExecutor(config, vault_client=vault_client))
-        executor_registry.register_executor(ExecuteExecutor(config, vault_client=vault_client))
+        executor_registry.register_executor(BuildExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client))
+        executor_registry.register_executor(DeployExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client))
+        executor_registry.register_executor(TestExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client))
+        executor_registry.register_executor(ValidateExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client))
+        executor_registry.register_executor(ExecuteExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client))
         executor_registry.validate_configuration()
         app_state['executor_registry'] = executor_registry
 
@@ -209,6 +223,9 @@ async def shutdown():
 
         if 'ticket_client' in app_state:
             await app_state['ticket_client'].close()
+
+        if 'code_forge_client' in app_state and app_state['code_forge_client']:
+            await app_state['code_forge_client'].close()
 
         logger.info('worker_agent_shutdown_complete')
 

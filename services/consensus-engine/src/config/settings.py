@@ -1,4 +1,4 @@
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
@@ -56,7 +56,15 @@ class Settings(BaseSettings):
         default='specialist-architecture.specialist-architecture.svc.cluster.local:50051',
         description='Endpoint do Architecture Specialist'
     )
-    grpc_timeout_ms: int = Field(default=5000, description='Timeout gRPC em milliseconds', gt=0)
+    grpc_timeout_ms: int = Field(
+        default=5000,
+        description='Timeout gRPC em milliseconds (env: GRPC_TIMEOUT_MS). '
+                    'Default 5000ms para execuções locais/teste sem Kubernetes. '
+                    'Em Kubernetes/produção, configurar 120000ms via variável de ambiente '
+                    'GRPC_TIMEOUT_MS (injetada pelo Helm) para acomodar tempo de processamento '
+                    'dos specialists (49-66s para ML inference).',
+        gt=0
+    )
     grpc_max_retries: int = Field(default=3, description='Máximo de retries gRPC', ge=0)
 
     # MongoDB (Ledger)
@@ -143,6 +151,50 @@ class Settings(BaseSettings):
     enable_fallback: bool = Field(default=True, description='Habilitar fallback determinístico')
     enable_parallel_invocation: bool = Field(default=True, description='Habilitar invocação paralela')
 
+    # Configuração de Resiliência do Consumer
+    # Estes parâmetros controlam o comportamento do consumer sob condições de erro,
+    # incluindo backoff exponencial, circuit breaker e Dead Letter Queue.
+    consumer_max_consecutive_errors: int = Field(
+        default=10,
+        description='Máximo de erros consecutivos antes do circuit breaker abrir. '
+                    'Quando atingido, consumer para para evitar falhas em cascata.',
+        gt=0
+    )
+    consumer_base_backoff_seconds: float = Field(
+        default=1.0,
+        description='Duração base para backoff exponencial (segundos). '
+                    'Backoff = base * 2^erros_consecutivos, limitado ao máximo.',
+        gt=0.0
+    )
+    consumer_max_backoff_seconds: float = Field(
+        default=60.0,
+        description='Limite máximo de backoff (segundos). '
+                    'Previne esperas indefinidamente longas durante falhas sustentadas.',
+        gt=0.0
+    )
+    consumer_poll_timeout_seconds: float = Field(
+        default=1.0,
+        description='Timeout do poll do consumer Kafka (segundos). '
+                    'Controla tradeoff entre responsividade e frequência de polling.',
+        gt=0.0
+    )
+    # NOTA: DLQ ainda não está implementado no consumer. Estas configurações são
+    # reservadas para implementação futura. Não habilite consumer_enable_dlq em produção.
+    consumer_enable_dlq: bool = Field(
+        default=False,
+        description='[NÃO IMPLEMENTADO] Habilitar Dead Letter Queue para mensagens que falham. '
+                    'Reservado para implementação futura - não habilite em produção.'
+    )
+    kafka_dlq_topic: str = Field(
+        default='plans.ready.dlq',
+        description='[NÃO IMPLEMENTADO] Tópico Kafka para mensagens Dead Letter Queue.'
+    )
+    consumer_max_retries_before_dlq: int = Field(
+        default=3,
+        description='[NÃO IMPLEMENTADO] Máximo de retries antes de enviar mensagem para DLQ.',
+        ge=0
+    )
+
     @field_validator('grpc_timeout_ms', 'grpc_max_retries', 'pheromone_ttl', 'prometheus_port')
     @classmethod
     def validate_positive_int(cls, v: int) -> int:
@@ -165,6 +217,16 @@ class Settings(BaseSettings):
         if not v or ':' not in v:
             raise ValueError('Endpoint deve estar no formato host:port')
         return v
+
+    @model_validator(mode='after')
+    def validate_backoff_config(self) -> 'Settings':
+        '''Valida consistência entre parâmetros de backoff do consumer.'''
+        if self.consumer_max_backoff_seconds < self.consumer_base_backoff_seconds:
+            raise ValueError(
+                f'consumer_max_backoff_seconds ({self.consumer_max_backoff_seconds}) deve ser '
+                f'>= consumer_base_backoff_seconds ({self.consumer_base_backoff_seconds})'
+            )
+        return self
 
 
 # Singleton

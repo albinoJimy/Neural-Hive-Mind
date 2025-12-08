@@ -68,6 +68,10 @@ spec:
       - name: orchestrator-dynamic
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- if .Values.customCommand.enabled }}
+        command: {{ .Values.customCommand.command | toJson }}
+        args: {{ .Values.customCommand.args | toJson }}
+        {{- end }}
         ports:
         - name: http
           containerPort: 8000

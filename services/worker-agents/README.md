@@ -18,7 +18,15 @@ Worker Agents são executores distribuídos responsáveis por consumir Execution
 
 ### Status
 
-**MVP Completo** - Fase 2.5 implementada com executores stub para demonstração.
+Executores agora integram serviços reais (Code Forge, OPA/Trivy) e publicam resultados em Avro. Fallbacks simulados permanecem ativos para evitar quebra do fluxo quando integrações externas estiverem indisponíveis.
+
+### Executors
+
+- **ExecuteExecutor**: Integra com Code Forge para geração de código com polling do status.
+- **BuildExecutor**: Dispara pipelines CI/CD no Code Forge e retorna artifacts/SBOM/assinatura.
+- **TestExecutor**: Executa comandos de teste reais via subprocess com parsing de relatórios JSON.
+- **ValidateExecutor**: Valida políticas via OPA e roda SAST com Trivy (quando habilitado).
+- **DeployExecutor**: Preparado para ArgoCD/Flux com fallback simulado até GitOps estar disponível.
 
 ## Arquitetura
 
@@ -59,12 +67,23 @@ Worker Agents são executores distribuídos responsáveis por consumir Execution
 └─────────────────────────────────────────────────────────┘
 ```
 
+## Kafka Integration
+
+- **Consumer** (`execution.tickets`): Avro via Schema Registry (`execution-ticket.avsc`).
+- **Producer** (`execution.results`): Avro via Schema Registry (`execution-result.avsc`) com fallback JSON se Schema Registry estiver indisponível.
+- **Schema Registry**: URL configurável via `KAFKA_SCHEMA_REGISTRY_URL`.
+
+Fluxo:
+```
+execution.tickets (Kafka) -> Execution Engine -> Executors -> Code Forge / OPA / Trivy -> Result Producer -> execution.results (Kafka)
+```
+
 ## Tecnologias
 
 - **FastAPI** - REST API para health/metrics
-- **aiokafka** - Consumer/Producer assíncrono
+- **confluent-kafka + Schema Registry** - Consumer/Producer Avro
 - **grpcio** - Cliente gRPC para Service Registry
-- **httpx** - Cliente HTTP async para Execution Ticket Service
+- **httpx** - Clientes HTTP (Execution Ticket Service, OPA, Code Forge)
 - **temporalio** - (Opcional) Activity workers
 - **Prometheus** - Métricas
 - **OpenTelemetry** - Distributed tracing
@@ -134,6 +153,28 @@ HEARTBEAT_INTERVAL_SECONDS=30
 # Execution Ticket Service
 EXECUTION_TICKET_SERVICE_URL=http://execution-ticket-service:8080
 
+# Code Forge
+CODE_FORGE_URL=http://code-forge.neural-hive-execution:8000
+CODE_FORGE_ENABLED=true
+CODE_FORGE_TIMEOUT_SECONDS=14400
+
+# GitOps / ArgoCD
+ARGOCD_URL=
+ARGOCD_TOKEN=
+ARGOCD_ENABLED=false
+
+# OPA / Validation
+OPA_URL=http://opa.neural-hive-governance:8181
+OPA_ENABLED=true
+
+# SAST
+TRIVY_ENABLED=true
+TRIVY_TIMEOUT_SECONDS=300
+
+# Test Execution
+TEST_EXECUTION_TIMEOUT_SECONDS=600
+ALLOWED_TEST_COMMANDS=pytest,npm test,go test,mvn test
+
 # Temporal (opcional)
 ENABLE_TEMPORAL_ACTIVITIES=false
 
@@ -169,6 +210,9 @@ helm upgrade --install worker-agents \
 - Orchestrator Dynamic rodando
 - Tópico `execution.tickets` criado
 - Tópico `execution.results` criado
+- Schema Registry disponível
+- Code Forge acessível (para BUILD/EXECUTE)
+- OPA/Trivy configurados (para VALIDATE)
 
 ## Desenvolvimento Local
 
@@ -190,6 +234,12 @@ export EXECUTION_TICKET_SERVICE_URL=http://localhost:8080
 
 python -m src.main
 ```
+
+## Testing
+
+- Unit tests: `pytest tests/`
+- Kafka + Schema Registry integration: `RUN_KAFKA_INTEGRATION_TESTS=1 pytest tests/test_kafka_ticket_consumer_avro.py tests/test_result_producer_avro.py`
+- Requisitos de integração: Kafka, Schema Registry e Code Forge/OPA opcionais para executors reais.
 
 ## Métricas Prometheus
 

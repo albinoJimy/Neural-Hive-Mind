@@ -3,6 +3,25 @@ name: specialist_retraining_pipeline
 conda_env: conda.yaml
 
 entry_points:
+  generate_datasets:
+    parameters:
+      specialist_type: {type: string, default: "technical"}
+      num_samples: {type: int, default: 1000}
+      output_path: {type: string, default: "/data/training/specialist_{specialist_type}_base.parquet"}
+      llm_provider: {type: string, default: "local"}
+      llm_model: {type: string, default: "llama2"}
+      temperature: {type: float, default: 0.7}
+      validate_schemas: {type: string, default: "true"}
+    command: |
+      python generate_training_datasets.py \
+        --specialist-type {specialist_type} \
+        --num-samples {num_samples} \
+        --output-path {output_path} \
+        --llm-provider {llm_provider} \
+        --llm-model {llm_model} \
+        --temperature {temperature} \
+        --validate-schemas {validate_schemas}
+
   main:
     parameters:
       specialist_type: {type: string, default: "technical"}
@@ -21,3 +40,14 @@ entry_points:
         --model-type {model_type} \
         --hyperparameter-tuning {hyperparameter_tuning} \
         --promote-if-better {promote_if_better}
+
+  train_all:
+    parameters:
+      model_type: {type: string, default: "random_forest"}
+      hyperparameter_tuning: {type: string, default: "false"}
+      promote_if_better: {type: string, default: "true"}
+    command: |
+      export MODEL_TYPE={model_type} && \
+      export HYPERPARAMETER_TUNING={hyperparameter_tuning} && \
+      export PROMOTE_IF_BETTER={promote_if_better} && \
+      bash train_all_specialists.sh

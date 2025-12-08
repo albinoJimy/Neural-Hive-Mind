@@ -145,9 +145,9 @@ async def main():
     # 5. Inicializar pipeline engine e subpipelines
     logger.info('initializing_pipeline_engine')
 
-    template_selector = TemplateSelector(git_client, redis_client, mcp_client)
+    template_selector = TemplateSelector(git_client, redis_client, mcp_client, metrics)
     code_composer = CodeComposer(mongodb_client, llm_client, analyst_client, mcp_client)
-    validator = Validator(sonarqube_client, snyk_client, trivy_client, mcp_client)
+    validator = Validator(sonarqube_client, snyk_client, trivy_client, mcp_client, metrics)
     test_runner = TestRunner(settings.MIN_TEST_COVERAGE)
     packager = Packager(sigstore_client)
     approval_gate = ApprovalGate(

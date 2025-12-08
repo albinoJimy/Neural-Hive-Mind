@@ -147,6 +147,19 @@ class DecisionProducer:
     async def _publish_decision(self, decision: ConsolidatedDecision):
         '''Publica decisão consolidada no Kafka'''
         try:
+            # Validação defensiva - correlation_id deve sempre existir
+            if not decision.correlation_id or not decision.correlation_id.strip():
+                logger.error(
+                    'CRITICAL: correlation_id ausente na decisão - violação de contrato',
+                    decision_id=decision.decision_id,
+                    plan_id=decision.plan_id,
+                    intent_id=decision.intent_id
+                )
+                raise ValueError(
+                    f"correlation_id não pode ser None/vazio. "
+                    f"decision_id={decision.decision_id}, plan_id={decision.plan_id}"
+                )
+
             # Serializar decisão
             value = self._serialize_value(decision)
             key = decision.plan_id.encode('utf-8')
@@ -173,6 +186,7 @@ class DecisionProducer:
                 topic=self.config.kafka_consensus_topic,
                 decision_id=decision.decision_id,
                 plan_id=decision.plan_id,
+                correlation_id=decision.correlation_id,
                 final_decision=decision.final_decision.value
             )
 

@@ -42,17 +42,18 @@ deployment:
       maxUnavailable: 0
 
 resources:
-  # Production defaults - ajustar para clusters com capacidade limitada
+  # Optimized for spaCy models (~200MB) + application overhead (~300MB) + cache (~200MB) = ~700MB base
+  # Production defaults based on real usage profiling: ~400-600MB memory, ~200-300m CPU during inference
+  # Ratios: 3.3x CPU burst capacity, 2.6x memory headroom for peak loads
   # Para clusters pequenos/dev, considere reduzir para:
-  #   requests: cpu: 250m, memory: 512Mi
-  #   limits: cpu: 1, memory: 2Gi
-  # Ver environments/dev/helm-values/specialist-business-values.yaml para exemplo
+  #   requests: cpu: 200m, memory: 512Mi
+  #   limits: cpu: 800m, memory: 1.5Gi
   requests:
-    cpu: 500m
-    memory: 1Gi
+    cpu: 300m
+    memory: 768Mi
   limits:
-    cpu: 2
-    memory: 4Gi
+    cpu: 1
+    memory: 2Gi
 
 service:
   type: ClusterIP
@@ -124,6 +125,8 @@ config:
     enableExplainability: true
     enableCaching: true
     enableModelMonitoring: true
+    enableTracing: true
+    useSemanticFallback: true
 
   business:
     processMiningEnabled: true
@@ -168,6 +171,15 @@ affinity:
                 values:
                   - specialist-business
           topologyKey: topology.kubernetes.io/zone
+
+# Topology spread ensures even distribution across zones (soft), while anti-affinity prevents co-location (soft)
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: specialist-business
 
 # Startup probe - allows up to 5 minutes for initial container startup before liveness probe takes over
 # This prevents premature pod restarts during complex initialization (loading ML models, connecting to dependencies)

@@ -4,6 +4,9 @@ metadata:
   name: {{ include "specialist-technical.fullname" . }}
   labels:
     {{- include "specialist-technical.labels" . | nindent 4 }}
+    neural.hive/metrics: "enabled"
+    neural.hive/component: "technical-specialist"
+    neural.hive/layer: "cognitiva"
   annotations:
     neural-hive.io/component: technical-specialist
 spec:

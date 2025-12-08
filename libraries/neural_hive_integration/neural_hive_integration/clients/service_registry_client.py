@@ -1,27 +1,24 @@
 """
 Service Registry client for agent discovery and health management.
+
+This client uses pre-compiled proto stubs bundled with the neural_hive_integration
+library, ensuring consistent imports across all services.
 """
 
 import grpc
 import structlog
-import sys
-import os
 from typing import List, Dict, Any, Optional
 from tenacity import retry, stop_after_attempt, wait_exponential
 from opentelemetry import trace
 from pydantic import BaseModel
 from prometheus_client import Counter, Histogram
 
-# Importar stubs gRPC gerados
-proto_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'services', 'service-registry', 'src', 'proto')
-if proto_path not in sys.path:
-    sys.path.insert(0, proto_path)
-
-try:
-    import service_registry_pb2
-    import service_registry_pb2_grpc
-except ImportError as e:
-    raise ImportError(f"Failed to import gRPC stubs. Ensure proto files are compiled: {e}")
+# Import gRPC stubs from bundled proto_stubs package
+# This ensures consistent imports regardless of deployment context
+from neural_hive_integration.proto_stubs import (
+    service_registry_pb2,
+    service_registry_pb2_grpc,
+)
 
 logger = structlog.get_logger()
 tracer = trace.get_tracer(__name__)

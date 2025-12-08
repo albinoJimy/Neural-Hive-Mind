@@ -31,6 +31,21 @@ class WorkerAgentSettings(BaseSettings):
     kafka_consumer_group_id: str = 'worker-agents'
     kafka_auto_offset_reset: str = 'earliest'
     kafka_enable_auto_commit: bool = False
+    kafka_security_protocol: str = 'PLAINTEXT'
+    kafka_sasl_mechanism: str = Field(default='SCRAM-SHA-512')
+    kafka_sasl_username: Optional[str] = None
+    kafka_sasl_password: Optional[str] = None
+    kafka_ssl_ca_location: Optional[str] = None
+    kafka_ssl_certificate_location: Optional[str] = None
+    kafka_ssl_key_location: Optional[str] = None
+    kafka_schema_registry_url: str = Field(
+        default='http://schema-registry.neural-hive-kafka.svc.cluster.local:8081',
+        description='URL do Schema Registry'
+    )
+    schemas_base_path: str = Field(
+        default='/app/schemas',
+        description='Diretório base para schemas Avro'
+    )
 
     # Service Registry
     service_registry_host: str = 'localhost'
@@ -41,6 +56,30 @@ class WorkerAgentSettings(BaseSettings):
     # Execution Ticket Service
     execution_ticket_service_url: str = 'http://localhost:8080'
     ticket_api_timeout_seconds: int = 10
+
+    # Code Forge
+    code_forge_url: str = 'http://code-forge.neural-hive-execution:8000'
+    code_forge_timeout_seconds: int = 14400  # 4 hours
+    code_forge_enabled: bool = True
+
+    # GitOps / ArgoCD
+    argocd_url: Optional[str] = None
+    argocd_token: Optional[str] = None
+    argocd_enabled: bool = False
+
+    # OPA Validation
+    opa_url: str = 'http://opa.neural-hive-governance:8181'
+    opa_enabled: bool = True
+
+    # SAST / Security
+    trivy_enabled: bool = True
+    trivy_timeout_seconds: int = 300
+
+    # Test Execution
+    test_execution_timeout_seconds: int = 600
+    allowed_test_commands: List[str] = Field(
+        default_factory=lambda: ['pytest', 'npm test', 'go test', 'mvn test']
+    )
 
     # Temporal (opcional)
     temporal_host: str = 'temporal-frontend.temporal.svc.cluster.local'

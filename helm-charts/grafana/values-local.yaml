@@ -1,5 +1,5 @@
-# Configuração para ambiente local (Minikube/Kind)
-# Recursos reduzidos para desenvolvimento
+# Configuração para ambiente local (Kubeadm)
+# Uso combinado com docs/manual-deployment/03-observability-manual-guide.md
 
 global:
   domain: neural-hive.local
@@ -16,13 +16,13 @@ grafana:
 
   # Admin credentials (dev only)
   adminUser: admin
-  adminPassword: admin
+  adminPassword: admin  # Em produção utilizar Secret externo
 
   # Persistence
   persistence:
     enabled: true
     type: pvc
-    storageClassName: standard
+    storageClassName: local-path
     size: 5Gi
     accessModes:
       - ReadWriteOnce
@@ -49,18 +49,19 @@ grafana:
         - name: Prometheus
           type: prometheus
           access: proxy
-          url: http://neural-hive-prometheus-kube-prometheus-prometheus.neural-hive-observability.svc.cluster.local:9090
+          url: http://neural-hive-prometheus-kube-prometheus-prometheus.observability.svc.cluster.local:9090
           isDefault: true
           jsonData:
             timeInterval: 30s
             exemplarTraceIdDestinations:
               - name: trace_id
                 datasourceUid: jaeger
+                urlDisplayLabel: "View Trace"
 
         - name: Jaeger
           type: jaeger
           access: proxy
-          url: http://neural-hive-jaeger.neural-hive-observability.svc.cluster.local:16686
+          url: http://neural-hive-jaeger.observability.svc.cluster.local:16686
           uid: jaeger
 
   # Sidecar (auto-discovery de dashboards)
@@ -87,7 +88,7 @@ grafana:
 
   # Ingress (desabilitado para local)
   ingress:
-    enabled: false
+    enabled: false  # Acesso via port-forward no ambiente local
 
   # Service
   service:
@@ -127,5 +128,5 @@ grafana:
   # Environment variables
   env:
     GF_EXPLORE_ENABLED: "true"
-    GF_FEATURE_TOGGLES_ENABLE: "traceqlEditor"
+    GF_FEATURE_TOGGLES_ENABLE: "traceqlEditor,correlations"
     GF_LOG_LEVEL: info

@@ -2,7 +2,7 @@
 API REST endpoints para operações com ferramentas MCP.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Query, Path
 from pydantic import BaseModel, Field
 import structlog
@@ -43,6 +43,14 @@ class ToolHealthResponse(BaseModel):
     is_healthy: bool
     last_check: Optional[str] = None
     error: Optional[str] = None
+
+
+class ToolFeedbackRequest(BaseModel):
+    selection_id: str
+    tool_id: str
+    success: bool
+    execution_time_ms: int = Field(ge=0)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 # ===== Dependency Injection =====
@@ -278,4 +286,46 @@ async def check_tool_health(
         raise
     except Exception as e:
         logger.error("check_tool_health_failed", tool_id=tool_id, error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{tool_id}/feedback", status_code=204)
+async def submit_tool_feedback(
+    tool_id: str = Path(..., description="ID da ferramenta"),
+    feedback: ToolFeedbackRequest
+):
+    """Recebe feedback de execução de ferramenta."""
+    if not tool_registry:
+        raise HTTPException(status_code=500, detail="Tool registry not initialized")
+
+    if feedback and feedback.tool_id != tool_id:
+        raise HTTPException(
+            status_code=400,
+            detail="tool_id in path and body must match"
+        )
+
+    try:
+        tool = await tool_registry.get_tool_by_id(tool_id)
+        if not tool:
+            raise HTTPException(status_code=404, detail=f"Tool {tool_id} not found")
+
+        await tool_registry.update_tool_metrics(
+            tool_id=tool_id,
+            category=tool.category.value,
+            success=feedback.success,
+            execution_time_ms=feedback.execution_time_ms,
+            metadata=feedback.metadata
+        )
+
+        logger.info(
+            "tool_feedback_processed",
+            tool_id=tool_id,
+            selection_id=feedback.selection_id,
+            success=feedback.success
+        )
+        return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("submit_tool_feedback_failed", tool_id=tool_id, error=str(e))
         raise HTTPException(status_code=500, detail=str(e))

@@ -1,9 +1,13 @@
+import json
+import time
 from typing import Dict, Optional
 
 import grpc
 import structlog
+from google.protobuf.json_format import MessageToDict
 
 from src.config.settings import get_settings
+from ..proto import analyst_agent_pb2, analyst_agent_pb2_grpc, optimizer_agent_pb2, optimizer_agent_pb2_grpc
 
 logger = structlog.get_logger()
 
@@ -32,9 +36,8 @@ class AnalystAgentsGrpcClient:
                 ],
             )
 
-            # TODO: Criar stub quando proto estendido for compilado
-            # from analyst_agents_pb2_grpc import AnalystAgentsStub
-            # self.stub = AnalystAgentsStub(self.channel)
+            # Criar stub real
+            self.stub = analyst_agent_pb2_grpc.AnalystAgentServiceStub(self.channel)
 
             await self.channel.channel_ready()
 
@@ -64,38 +67,36 @@ class AnalystAgentsGrpcClient:
             Análise causal ou None se falhou
         """
         try:
-            # TODO: Implementar quando proto estendido
-            # request = RequestCausalAnalysisRequest(
-            #     target_component=target_component,
-            #     degradation_metrics=degradation_metrics,
-            #     context=context
-            # )
-            # response = await self.stub.RequestCausalAnalysis(request, timeout=self.settings.grpc_timeout)
+            if not self.stub:
+                raise RuntimeError("AnalystAgents gRPC stub not initialized")
 
-            # Stub temporário
-            logger.warning(
-                "request_causal_analysis_stub_called",
-                target_component=target_component,
-                degradation_metrics=degradation_metrics,
-            )
+            request = None
+            response = None
 
-            # Retornar análise causal simulada
-            causal_analysis = {
-                "root_cause": f"Performance degradation in {target_component}",
-                "contributing_factors": ["High load", "Resource contention", "Configuration drift"],
-                "confidence_score": 0.85,
-                "method": "granger_causality",
-                "causal_graph": {
-                    "nodes": [target_component, "load_balancer", "database"],
-                    "edges": [
-                        {"from": "load_balancer", "to": target_component, "strength": 0.8},
-                        {"from": "database", "to": target_component, "strength": 0.6},
-                    ],
-                },
-            }
+            if hasattr(analyst_agent_pb2, "RequestCausalAnalysisRequest") and hasattr(
+                self.stub, "RequestCausalAnalysis"
+            ):
+                request = analyst_agent_pb2.RequestCausalAnalysisRequest(
+                    target_component=target_component,
+                    degradation_metrics=degradation_metrics,
+                    context=context,
+                )
+                response = await self.stub.RequestCausalAnalysis(request, timeout=self.settings.grpc_timeout)
+            else:
+                # Fallback para RPC existente ExecuteAnalysis
+                request = analyst_agent_pb2.ExecuteAnalysisRequest(
+                    analysis_type="causal_analysis",
+                    parameters={
+                        "target_component": target_component,
+                        "degradation_metrics": json.dumps(degradation_metrics),
+                        "context": json.dumps(context),
+                    },
+                )
+                response = await self.stub.ExecuteAnalysis(request, timeout=self.settings.grpc_timeout)
 
+            response_dict = MessageToDict(response, preserving_proto_field_name=True)
             logger.info("causal_analysis_retrieved", target_component=target_component)
-            return causal_analysis
+            return response_dict
 
         except grpc.RpcError as e:
             logger.error("request_causal_analysis_failed", error=str(e), code=e.code())
@@ -108,6 +109,10 @@ class AnalystAgentsGrpcClient:
         """
         Obter insights históricos para um componente.
 
+        Nota: o proto atual não expõe filtro explícito por componente; quando
+        usando QueryInsights como fallback, os filtros são aproximados via
+        campos de tempo e reutilizando `insight_type` como hint de componente.
+
         Args:
             target_component: Nome do componente
             time_range: Intervalo de tempo
@@ -116,35 +121,43 @@ class AnalystAgentsGrpcClient:
             Insights históricos ou None se falhou
         """
         try:
-            # TODO: Implementar quando proto estendido
-            # request = GetHistoricalInsightsRequest(
-            #     target_component=target_component,
-            #     time_range=time_range
-            # )
-            # response = await self.stub.GetHistoricalInsights(request, timeout=self.settings.grpc_timeout)
+            if not self.stub:
+                raise RuntimeError("AnalystAgents gRPC stub not initialized")
 
-            # Stub temporário
-            logger.warning("get_historical_insights_stub_called", target_component=target_component, time_range=time_range)
+            if hasattr(analyst_agent_pb2, "GetHistoricalInsightsRequest") and hasattr(self.stub, "GetHistoricalInsights"):
+                request = analyst_agent_pb2.GetHistoricalInsightsRequest(
+                    target_component=target_component, time_range=time_range
+                )
+                response = await self.stub.GetHistoricalInsights(request, timeout=self.settings.grpc_timeout)
+            else:
+                now_ms = int(time.time() * 1000)
+                start_ms = now_ms
+                try:
+                    amount = int(time_range[:-1])
+                    unit = time_range[-1].lower()
+                    if unit == "h":
+                        start_ms = now_ms - amount * 60 * 60 * 1000
+                    elif unit == "d":
+                        start_ms = now_ms - amount * 24 * 60 * 60 * 1000
+                except Exception:
+                    start_ms = 0
 
-            insights = {
-                "insights_count": 15,
-                "top_insights": [
-                    {
-                        "insight_type": "OPERATIONAL",
-                        "priority": "HIGH",
-                        "description": "Latency spike detected",
-                        "timestamp": 1696377600000,
-                    },
-                    {
-                        "insight_type": "PREDICTIVE",
-                        "priority": "MEDIUM",
-                        "description": "Capacity threshold approaching",
-                        "timestamp": 1696374000000,
-                    },
-                ],
-            }
+                request = analyst_agent_pb2.QueryInsightsRequest(
+                    insight_type=target_component or "ANY",  # Reaproveitado como hint de componente
+                    priority="ANY",
+                    start_timestamp=start_ms,
+                    end_timestamp=now_ms,
+                    limit=50,
+                    offset=0,
+                )
+                response = await self.stub.QueryInsights(request, timeout=self.settings.grpc_timeout)
 
-            logger.info("historical_insights_retrieved", target_component=target_component, count=insights["insights_count"])
+            insights = MessageToDict(response, preserving_proto_field_name=True)
+            logger.info(
+                "historical_insights_retrieved",
+                target_component=target_component,
+                count=insights.get("insights_count") or len(insights.get("insights", [])),
+            )
             return insights
 
         except grpc.RpcError as e:
@@ -165,24 +178,27 @@ class AnalystAgentsGrpcClient:
             Validação ou None se falhou
         """
         try:
-            # TODO: Implementar quando proto estendido
-            # request = ValidateOptimizationHypothesisRequest(
-            #     hypothesis=hypothesis
-            # )
-            # response = await self.stub.ValidateOptimizationHypothesis(request, timeout=self.settings.grpc_timeout)
+            if not self.stub:
+                raise RuntimeError("AnalystAgents gRPC stub not initialized")
 
-            # Stub temporário
-            logger.warning("validate_optimization_hypothesis_stub_called", hypothesis_id=hypothesis.get("hypothesis_id"))
+            if hasattr(analyst_agent_pb2, "ValidateOptimizationHypothesisRequest") and hasattr(
+                self.stub, "ValidateOptimizationHypothesis"
+            ):
+                request = analyst_agent_pb2.ValidateOptimizationHypothesisRequest(hypothesis=hypothesis)
+                response = await self.stub.ValidateOptimizationHypothesis(request, timeout=self.settings.grpc_timeout)
+            else:
+                request = analyst_agent_pb2.ExecuteAnalysisRequest(
+                    analysis_type="validate_optimization_hypothesis",
+                    parameters={"hypothesis": json.dumps(hypothesis)},
+                )
+                response = await self.stub.ExecuteAnalysis(request, timeout=self.settings.grpc_timeout)
 
-            validation = {
-                "is_valid": True,
-                "confidence": 0.82,
-                "supporting_evidence": ["Historical pattern match", "Causal relationship confirmed"],
-                "risks": ["Potential side effects on downstream services"],
-                "recommendations": ["Start with 10% traffic", "Monitor error rates closely"],
-            }
-
-            logger.info("hypothesis_validated", hypothesis_id=hypothesis.get("hypothesis_id"), is_valid=validation["is_valid"])
+            validation = MessageToDict(response, preserving_proto_field_name=True)
+            logger.info(
+                "hypothesis_validated",
+                hypothesis_id=hypothesis.get("hypothesis_id"),
+                is_valid=validation.get("is_valid"),
+            )
             return validation
 
         except grpc.RpcError as e:

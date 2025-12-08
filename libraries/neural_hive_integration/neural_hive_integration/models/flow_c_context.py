@@ -1,24 +1,77 @@
 """
 Flow C context models for integration tracking.
+
+Este módulo define os modelos de contexto para rastreamento de execução do Flow C,
+incluindo validação robusta de campos de correlação para observabilidade distribuída.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
+import uuid
 
 
 class FlowCContext(BaseModel):
-    """Context for Flow C execution."""
+    """
+    Context for Flow C execution.
+
+    Mantém o contexto completo de uma execução Flow C, incluindo IDs de correlação
+    para rastreamento distribuído e observabilidade end-to-end.
+
+    Attributes:
+        intent_id: ID único da intenção original
+        plan_id: ID do plano cognitivo gerado
+        decision_id: ID da decisão consolidada
+        correlation_id: ID de correlação para tracing (gerado se ausente)
+        trace_id: OpenTelemetry trace ID
+        span_id: OpenTelemetry span ID
+        started_at: Timestamp de início da execução
+        sla_deadline: Deadline SLA para conclusão
+        priority: Prioridade de execução (1-10)
+        risk_band: Banda de risco (low, medium, high, critical)
+    """
     intent_id: str
     plan_id: str
     decision_id: str
-    correlation_id: str
-    trace_id: str
-    span_id: str
+    correlation_id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        description="ID de correlação para tracing distribuído"
+    )
+    trace_id: str = Field(default="", description="OpenTelemetry trace ID")
+    span_id: str = Field(default="", description="OpenTelemetry span ID")
     started_at: datetime
     sla_deadline: datetime
-    priority: int = Field(ge=1, le=10)
-    risk_band: str  # low, medium, high, critical
+    priority: int = Field(default=5, ge=1, le=10)
+    risk_band: str = Field(default="medium")  # low, medium, high, critical
+
+    @field_validator('correlation_id', mode='before')
+    @classmethod
+    def ensure_correlation_id(cls, v):
+        """
+        Garante que correlation_id nunca seja None ou vazio.
+
+        Se o valor recebido for None, string vazia ou apenas whitespace,
+        gera um novo UUID para manter a rastreabilidade.
+        """
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return str(uuid.uuid4())
+        return v
+
+    @field_validator('trace_id', 'span_id', mode='before')
+    @classmethod
+    def ensure_string_ids(cls, v):
+        """Converte None para string vazia para IDs de tracing."""
+        return v if v is not None else ""
+
+    @field_validator('risk_band', mode='before')
+    @classmethod
+    def normalize_risk_band(cls, v):
+        """Normaliza e valida risk_band."""
+        valid_bands = {'low', 'medium', 'high', 'critical'}
+        if v is None:
+            return 'medium'
+        normalized = str(v).lower().strip()
+        return normalized if normalized in valid_bands else 'medium'
 
 
 class FlowCStep(BaseModel):

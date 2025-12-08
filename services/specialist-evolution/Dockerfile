@@ -1,13 +1,7 @@
 # Stage 1: Builder
-FROM python:3.11-slim AS builder
+FROM neural-hive-mind/python-nlp-base:1.0.0 AS builder
 
 WORKDIR /app
-
-# Instalar dependências de build
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
 
 # Copiar requirements da biblioteca neural_hive_specialists
 COPY libraries/python/neural_hive_specialists/requirements.txt /tmp/lib-requirements.txt
@@ -17,14 +11,11 @@ RUN pip install --no-cache-dir --user -r /tmp/lib-requirements.txt
 COPY services/specialist-evolution/requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
-# Baixar modelos spaCy com --user
-RUN python -m pip install --no-cache-dir --user \
-    https://github.com/explosion/spacy-models/releases/download/pt_core_news_sm-3.8.0/pt_core_news_sm-3.8.0-py3-none-any.whl \
-    https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl \
-    && python -c "import pt_core_news_sm; import en_core_web_sm; print('✓ Modelos spaCy instalados')"
+# Verificar que modelos da base image estão acessíveis
+RUN python -c "import spacy; nlp = spacy.load('pt_core_news_sm'); print('✓ Base models accessible')"
 
 # Stage 2: Runtime
-FROM python:3.11-slim
+FROM neural-hive-mind/python-nlp-base:1.0.0
 
 WORKDIR /app
 
@@ -62,7 +53,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 LABEL maintainer="Neural Hive-Mind Team"
 LABEL component="evolution-specialist"
 LABEL layer="cognitiva"
-LABEL version="1.0.9"
+LABEL version="1.0.10"
 
 # Expor portas
 EXPOSE 50051 8000 8080

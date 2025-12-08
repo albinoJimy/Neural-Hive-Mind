@@ -1,12 +1,13 @@
 # Core Web Framework
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
+pydantic>=2.5.2
+pydantic-settings>=2.1.0
 
-# gRPC
-grpcio==1.60.0
-grpcio-tools==1.60.0
+# gRPC - versão consolidada
+grpcio>=1.75.1
+grpcio-tools>=1.75.1
+protobuf>=5.27.0
 
 # Database - PostgreSQL
 sqlalchemy==2.0.23
@@ -18,8 +19,8 @@ psycopg2-binary==2.9.9
 motor==3.3.2
 
 # Messaging - Kafka
-aiokafka==0.10.0
-avro-python3==1.10.2
+confluent-kafka>=2.3.0
+fastavro>=1.8.0
 
 # Security & Tokens
 PyJWT==2.8.0

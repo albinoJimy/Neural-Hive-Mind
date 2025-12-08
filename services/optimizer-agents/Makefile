@@ -5,6 +5,11 @@ install:
 
 proto:
 	python -m grpc_tools.protoc -I./src/proto --python_out=./src/proto --grpc_python_out=./src/proto ./src/proto/optimizer_agent.proto
+	sed -i 's/^import optimizer_agent_pb2/from . import optimizer_agent_pb2/' ./src/proto/optimizer_agent_pb2_grpc.py
+	python -m grpc_tools.protoc -I../analyst-agents/src/proto --python_out=./src/proto --grpc_python_out=./src/proto ../analyst-agents/src/proto/analyst_agent.proto
+	sed -i 's/^import analyst_agent_pb2/from . import analyst_agent_pb2/' ./src/proto/analyst_agent_pb2_grpc.py
+	python -m grpc_tools.protoc -I../queen-agent/src/proto --python_out=./src/proto --grpc_python_out=./src/proto ../queen-agent/src/proto/queen_agent.proto
+	sed -i 's/^import queen_agent_pb2/from . import queen_agent_pb2/' ./src/proto/queen_agent_pb2_grpc.py
 	python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out=./proto ./proto/consensus_engine_extensions.proto
 	python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out=./proto ./proto/orchestrator_extensions.proto
 	@echo "Proto files compiled successfully"

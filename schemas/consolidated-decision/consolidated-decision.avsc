@@ -129,6 +129,12 @@
       "doc": "Lista de guardrails acionados"
     },
     {
+      "name": "cognitive_plan",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Plano cognitivo original serializado como JSON (contrato final: string JSON, não map<string>). Estrutura esperada: {plan_id, version, intent_id, tasks: [{task_id, task_type, description, dependencies, parameters}], execution_order: [task_ids], risk_score, risk_band, explainability_token, reasoning_summary, status, created_at, metadata}. Necessário para Orchestrator Dynamic iniciar workflows Temporal e gerar execution tickets."
+    },
+    {
       "name": "requires_human_review",
       "type": "boolean",
       "doc": "Indica se requer revisão humana"

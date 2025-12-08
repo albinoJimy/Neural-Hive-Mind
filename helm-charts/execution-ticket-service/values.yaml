@@ -32,11 +32,11 @@ podLabels:
 
 resources:
   requests:
-    cpu: 500m
+    cpu: 400m
     memory: 1Gi
   limits:
-    cpu: 2000m
-    memory: 4Gi
+    cpu: 1500m
+    memory: 3Gi
 
 autoscaling:
   enabled: true
@@ -66,6 +66,15 @@ config:
     bootstrapServers: kafka:9092
     consumerGroupId: execution-ticket-service
     ticketsTopic: execution.tickets
+    schemaRegistryUrl: http://schema-registry.neural-hive-kafka.svc.cluster.local:8081
+    securityProtocol: PLAINTEXT
+    saslMechanism: SCRAM-SHA-512
+    saslUsername: ""
+    saslPassword: ""
+    sslCaLocation: ""
+    sslCertificateLocation: ""
+    sslKeyLocation: ""
+    schemasBasePath: /app/schemas
 
   jwt:
     algorithm: HS256
@@ -117,8 +126,16 @@ affinity:
             operator: In
             values:
             - execution-ticket-service
-        topologyKey: kubernetes.io/hostname
+        topologyKey: topology.kubernetes.io/zone
 
 tolerations: []
 
 nodeSelector: {}
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: execution-ticket-service

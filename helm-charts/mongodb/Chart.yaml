@@ -17,7 +17,7 @@ maintainers:
     email: team@neural-hive-mind.org
 
 dependencies:
-  - name: mongodb-operator
-    version: "0.8.3"
+  - name: community-operator
+    version: "0.13.0"
     repository: "https://mongodb.github.io/helm-charts"
     condition: operator.install

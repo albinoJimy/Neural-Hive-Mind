@@ -75,13 +75,24 @@ class MCPToolCatalogClient:
         except httpx.HTTPError:
             return []
 
-    async def send_tool_feedback(self, tool_id: str, success: bool, metadata: Dict):
-        """Send feedback about tool execution."""
+    async def send_tool_feedback(self, feedback: Dict) -> bool:
+        """Send feedback about tool execution.
+
+        Args:
+            feedback: Dict com selection_id, tool_id, success, execution_time_ms, metadata
+
+        Returns:
+            True se enviado com sucesso, False caso contrário
+        """
         try:
-            feedback_data = {"tool_id": tool_id, "success": success, "metadata": metadata}
-            await self.client.post(f"/api/v1/tools/{tool_id}/feedback", json=feedback_data)
-
-            logger.info("tool_feedback_sent", tool_id=tool_id, success=success)
-
+            tool_id = feedback.get('tool_id')
+            response = await self.client.post(
+                f"/api/v1/tools/{tool_id}/feedback",
+                json=feedback
+            )
+            response.raise_for_status()
+            logger.info("tool_feedback_sent", tool_id=tool_id, success=feedback.get('success'))
+            return True
         except httpx.HTTPError as e:
             logger.warning("tool_feedback_failed", error=str(e), tool_id=tool_id)
+            return False

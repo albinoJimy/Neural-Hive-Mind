@@ -2,28 +2,32 @@
 # neuralHiveSpecialists @ file:///app/libraries/python/neural_hive_specialists
 
 # HTTP server and client
-fastapi>=0.104.0
+fastapi>=0.104.1
 uvicorn[standard]>=0.24.0
 requests>=2.31.0
+
+# Data validation
+pydantic>=2.5.2
+pydantic-settings>=2.1.0
 
 # Circuit breaker and resilience
 tenacity>=8.2.3
 pybreaker>=1.0.1
 
 # Business-specific
-pandas>=2.1.0
-numpy>=1.24.0
-scikit-learn>=1.3.0
+pandas>=2.1.3
+numpy>=1.26.2
+scikit-learn>=1.4.0,<1.6.0
 
-# Process mining
+# Process mining (VALIDAR USO REAL)
 pm4py>=2.7.0
 
-# Time series forecasting
+# Time series forecasting (VALIDAR USO REAL)
 prophet>=1.1.5
 statsmodels>=0.14.0
 
-# Cost analysis
+# Optimization (VALIDAR USO REAL)
 pulp>=2.7.0
 
 # Logging
-structlog>=23.1.0
+structlog>=23.2.0

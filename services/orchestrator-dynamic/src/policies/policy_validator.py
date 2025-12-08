@@ -42,7 +42,7 @@ class ValidationResult:
     valid: bool
     violations: List[PolicyViolation] = field(default_factory=list)
     warnings: List[PolicyWarning] = field(default_factory=list)
-    policy_decisions: Dict[str, Any] = field(default_factory=dict)
+    policy_decisions: Dict[str, Any] = field(default_factory=dict)  # indexado por policy_path; entradas especiais como 'feature_flags' podem ser adicionadas
     evaluated_at: datetime = field(default_factory=datetime.now)
     evaluation_duration_ms: float = 0.0
 
@@ -349,15 +349,9 @@ class PolicyValidator:
     ) -> ValidationResult:
         """
         Validar alocação de recursos considerando capacidade do agente.
-
-        TODO: Integrar esta validação na etapa C3 (allocate_resources).
-        Atualmente esta função está implementada mas não é chamada pelo fluxo principal.
-        Para integrar:
-        1. Chamar validate_resource_allocation em ticket_generation.allocate_resources
-        2. Após o IntelligentScheduler selecionar um agente
-        3. Antes de finalizar a alocação
-        4. Passar ticket atualizado e agent_info retornado pelo scheduler
-        5. Rejeitar alocação se validação falhar (validation_result.valid == False)
+        Esta validação é chamada em C3 (ticket_generation.allocate_resources) logo após
+        o IntelligentScheduler.schedule_ticket selecionar um agente e antes de finalizar
+        a alocação.
 
         Args:
             ticket: Execution ticket
@@ -365,6 +359,21 @@ class PolicyValidator:
 
         Returns:
             ValidationResult
+
+        Exemplo de uso:
+            agent_info = {
+                'agent_id': 'worker-123',
+                'agent_type': 'worker-agent',
+                'capacity': {'cpu': '500m', 'memory': '512Mi'}
+            }
+            ticket['allocation_metadata'] = {'agent_id': 'worker-123', 'agent_type': 'worker-agent'}
+            result = await policy_validator.validate_resource_allocation(ticket, agent_info)
+
+        Políticas avaliadas:
+            - resource_limits.rego
+                - timeout_exceeds_maximum
+                - capabilities_not_allowed
+                - concurrent_tickets_limit
         """
         start_time = datetime.now()
 

@@ -1,14 +1,19 @@
 import asyncio
 import signal
+import json
+from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 import structlog
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 from src.config.settings import get_settings
-from src.api import health
+from src.api import health, remediation
 from src.services.playbook_executor import PlaybookExecutor
+from src.services.remediation_manager import RemediationManager
+from src.clients.service_registry_client import ServiceRegistryClient
 from src.consumers.remediation_consumer import RemediationConsumer
+from src.consumers.orchestration_incident_consumer import OrchestrationIncidentConsumer
 
 # Configure structured logging
 structlog.configure(
@@ -38,14 +43,28 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("self_healing_engine.startup", service=settings.service_name, version=settings.service_version)
 
+    # Initialize Service Registry client (fail-open)
+    service_registry_client = ServiceRegistryClient(
+        host=settings.service_registry_host,
+        port=settings.service_registry_port,
+        timeout_seconds=settings.service_registry_timeout_seconds
+    )
+    await service_registry_client.initialize()
+    app.state.service_registry_client = service_registry_client
+
     # Initialize Playbook Executor
     logger.info("self_healing_engine.initializing_playbook_executor")
     playbook_executor = PlaybookExecutor(
         playbooks_dir=settings.playbooks_dir,
-        k8s_in_cluster=settings.kubernetes_in_cluster
+        k8s_in_cluster=settings.kubernetes_in_cluster,
+        default_timeout_seconds=settings.playbook_timeout_seconds,
+        service_registry_client=service_registry_client
     )
     await playbook_executor.initialize()
     app.state.playbook_executor = playbook_executor
+
+    # Initialize Remediation Manager
+    app.state.remediation_manager = RemediationManager(default_timeout_seconds=settings.playbook_timeout_seconds)
 
     # Initialize Kafka Consumer
     logger.info("self_healing_engine.initializing_kafka_consumer")
@@ -58,6 +77,26 @@ async def lifespan(app: FastAPI):
     await remediation_consumer.start()
     app.state.remediation_consumer = remediation_consumer
 
+    # Initialize Orchestration Incident Consumer (Kafka)
+    incident_schema = None
+    schema_path = Path(settings.schemas_base_path) / "orchestration-incident" / "orchestration-incident.avsc"
+    if schema_path.exists():
+        try:
+            incident_schema = json.loads(schema_path.read_text())
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("incident_consumer.schema_load_failed", error=str(exc), schema_path=str(schema_path))
+
+    incident_consumer = OrchestrationIncidentConsumer(
+        bootstrap_servers=settings.kafka_bootstrap_servers,
+        group_id=settings.kafka_incident_group,
+        topic=settings.kafka_incident_topic,
+        playbook_executor=playbook_executor,
+        remediation_manager=app.state.remediation_manager,
+        incident_schema=incident_schema
+    )
+    await incident_consumer.start()
+    app.state.incident_consumer = incident_consumer
+
     logger.info("self_healing_engine.startup_complete")
 
     yield
@@ -68,6 +107,17 @@ async def lifespan(app: FastAPI):
     # Stop consumer
     logger.info("self_healing_engine.stopping_kafka_consumer")
     await app.state.remediation_consumer.stop()
+
+    # Stop incident consumer
+    incident_consumer = getattr(app.state, "incident_consumer", None)
+    if incident_consumer:
+        logger.info("self_healing_engine.stopping_incident_consumer")
+        await incident_consumer.stop()
+
+    # Close Service Registry client
+    service_registry_client = getattr(app.state, "service_registry_client", None)
+    if service_registry_client:
+        await service_registry_client.close()
 
     logger.info("self_healing_engine.shutdown_complete")
 
@@ -85,6 +135,7 @@ FastAPIInstrumentor.instrument_app(app)
 
 # Include routers
 app.include_router(health.router, tags=["health"])
+app.include_router(remediation.router, tags=["remediation"])
 
 
 # Signal handling for graceful shutdown

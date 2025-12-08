@@ -4,8 +4,11 @@ metadata:
   name: {{ include "specialist-evolution.fullname" . }}
   labels:
     {{- include "specialist-evolution.labels" . | nindent 4 }}
+    neural.hive/metrics: "enabled"
+    neural.hive/component: "evolution-specialist"
+    neural.hive/layer: "cognitiva"
   annotations:
-    neural-hive.io/component: business-specialist
+    neural-hive.io/component: evolution-specialist
 spec:
   type: {{ .Values.service.type }}
   ports:

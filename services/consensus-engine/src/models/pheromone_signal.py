@@ -2,7 +2,7 @@ import uuid
 from enum import Enum
 from typing import Dict, Any, Optional
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 class PheromoneType(str, Enum):
@@ -34,6 +34,17 @@ class PheromoneSignal(BaseModel):
 
     metadata: Dict[str, Any] = Field(default_factory=dict, description='Metadados adicionais')
 
+    @field_validator('pheromone_type', mode='before')
+    @classmethod
+    def coerce_pheromone_type(cls, v):
+        '''Garante que pheromone_type seja sempre um PheromoneType enum.'''
+        if isinstance(v, str):
+            try:
+                return PheromoneType(v)
+            except ValueError:
+                return PheromoneType[v.upper()]
+        return v
+
     def get_redis_key(self) -> str:
         '''Gera chave Redis para o feromônio'''
         return f'pheromone:{self.specialist_type}:{self.domain}:{self.pheromone_type.value}'
@@ -44,8 +55,8 @@ class PheromoneSignal(BaseModel):
         decayed_strength = self.strength * ((1 - self.decay_rate) ** elapsed_hours)
         return max(0.0, decayed_strength)
 
-    class Config:
-        use_enum_values = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict(
+        # NÃO usar use_enum_values - manter pheromone_type como enum
+        validate_assignment=True,
+        json_encoders={datetime: lambda v: v.isoformat()}
+    )

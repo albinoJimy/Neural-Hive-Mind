@@ -13,12 +13,15 @@ service:
     metrics: 9090
 
 resources:
+  # Git clone + template rendering bursts demand but average utilization stays <600m CPU.
+  # Keep higher request (800m) than other services to accommodate build phases while trimming
+  # previous 2 vCPU / 4Gi upper bound down to 2.2 vCPU / 3.5Gi.
   requests:
-    cpu: 1000m
-    memory: 2Gi
+    cpu: 800m
+    memory: 1536Mi
   limits:
-    cpu: 2000m
-    memory: 4Gi
+    cpu: 2200m
+    memory: 3584Mi
 
 autoscaling:
   enabled: true
@@ -169,3 +172,52 @@ networkPolicy:
       ports:
         - protocol: TCP
           port: 443
+
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 25  # Até 4.1min para clonar templates privados antes de expor readiness
+  successThreshold: 1
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 0
+  periodSeconds: 15
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8080
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - code-forge
+          topologyKey: topology.kubernetes.io/zone
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: code-forge

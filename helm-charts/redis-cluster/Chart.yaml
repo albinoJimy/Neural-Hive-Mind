@@ -18,8 +18,8 @@ maintainers:
     email: sre@neural-hive.local
 dependencies:
   - name: redis-operator
-    version: "0.15.1"
-    repository: "https://ot-redis-operator.github.io/helm-charts/"
+    version: "0.22.2"
+    repository: "https://ot-container-kit.github.io/helm-charts/"
     condition: operator.install
 annotations:
   category: Database

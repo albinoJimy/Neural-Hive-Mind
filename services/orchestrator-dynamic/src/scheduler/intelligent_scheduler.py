@@ -80,12 +80,14 @@ class IntelligentScheduler:
 
         Calcula prioridade, descobre workers disponíveis, seleciona o melhor
         e atualiza o ticket com metadata de alocação.
+        Feedback loop de allocation outcomes é acionado em result_consolidation.py após conclusão do ticket.
 
         Args:
             ticket: Execution ticket a ser agendado
 
         Returns:
-            Ticket atualizado com allocation_metadata
+            Ticket atualizado com allocation_metadata (sempre inclui agent_id/agent_type;
+            fallbacks também preenchem agent_id='worker-agent-pool')
         """
         start_time = datetime.now()
         ticket_id = ticket.get('ticket_id', 'unknown')
@@ -259,14 +261,9 @@ class IntelligentScheduler:
                 allocation_metadata['ml_scheduling_enriched'] = True
                 allocation_metadata['predicted_queue_ms'] = best_worker.get('predicted_queue_ms')
                 allocation_metadata['predicted_load_pct'] = best_worker.get('predicted_load_pct')
+                # Esses campos serão usados para feedback loop em result_consolidation.py
 
             ticket['allocation_metadata'] = allocation_metadata
-
-            # Registrar allocation outcome para feedback loop (fire-and-forget)
-            if self.scheduling_optimizer and best_worker.get('ml_enriched', False):
-                asyncio.create_task(
-                    self._record_allocation_outcome_async(ticket, best_worker)
-                )
 
             duration = (datetime.now() - start_time).total_seconds()
             self.metrics.record_scheduler_allocation(
@@ -428,42 +425,10 @@ class IntelligentScheduler:
 
         return ticket
 
-    async def _record_allocation_outcome_async(
-        self,
-        ticket: Dict,
-        worker: Dict
-    ):
-        """
-        Registra outcome de alocação de forma assíncrona (fire-and-forget).
-
-        Args:
-            ticket: Ticket alocado
-            worker: Worker selecionado
-        """
-        try:
-            # Esperar ticket completar para obter duração real
-            # (isso seria implementado via callback/listener em produção)
-            # Por enquanto, registrar apenas a alocação inicial
-
-            actual_duration_ms = ticket.get('actual_duration_ms', 0)
-
-            if actual_duration_ms > 0:
-                await self.scheduling_optimizer.record_allocation_outcome(
-                    ticket=ticket,
-                    worker=worker,
-                    actual_duration_ms=actual_duration_ms
-                )
-
-        except Exception as e:
-            self.logger.error(
-                "record_outcome_async_error",
-                ticket_id=ticket.get('ticket_id'),
-                error=str(e)
-            )
-
     async def _enrich_ticket_with_predictions(self, ticket: Dict) -> Dict:
         """
         Enriquece ticket com predições ML (duração, recursos, anomalia).
+        Enriquece ticket com predições ML antes da alocação (usado para priority boosting e feedback loop).
 
         Args:
             ticket: Ticket a enriquecer

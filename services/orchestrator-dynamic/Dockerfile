@@ -12,7 +12,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /build
 
 # Copiar requirements e instalar dependências
-COPY requirements.txt .
+COPY services/orchestrator-dynamic/requirements.txt .
+# Bibliotecas internas referenciadas via caminhos relativos nos requirements
+COPY libraries /libraries
 RUN pip install --no-cache-dir --user -r requirements.txt
 
 # Stage 2: Runtime
@@ -21,7 +23,7 @@ FROM python:3.11-slim
 # Metadados OCI para rastreabilidade
 LABEL org.opencontainers.image.title="Orchestrator Dynamic"
 LABEL org.opencontainers.image.description="Orquestrador Dinâmico do Neural Hive-Mind usando Temporal"
-LABEL org.opencontainers.image.version="1.0.0"
+LABEL org.opencontainers.image.version="2.0.0"
 LABEL org.opencontainers.image.vendor="Neural Hive-Mind"
 LABEL neural-hive.layer="orchestration"
 LABEL neural-hive.component="orchestrator-dynamic"
@@ -48,7 +50,10 @@ ENV PATH=/home/orchestrator/.local/bin:$PATH
 WORKDIR /app
 
 # Copiar código fonte
-COPY --chown=orchestrator:orchestrator src/ ./src/
+COPY --chown=orchestrator:orchestrator services/orchestrator-dynamic/src/ ./src/
+
+# Proto stubs não precisam mais ser copiados separadamente
+# Eles agora estão incluídos no pacote neural_hive_integration.proto_stubs
 
 # Mudar para usuário não-root
 USER orchestrator

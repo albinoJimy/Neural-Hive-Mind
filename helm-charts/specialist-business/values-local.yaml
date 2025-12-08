@@ -3,13 +3,10 @@
 
 # Reduced replica count for local development
 replicaCount: 1
-
 image:
   repository: neural-hive-mind/specialist-business
   tag: 1.0.0
-  pullPolicy: Never
-
-
+  pullPolicy: IfNotPresent
 # Reduced resources for local development (~50% of production)
 resources:
   requests:
@@ -18,108 +15,88 @@ resources:
   limits:
     cpu: 1000m
     memory: 2Gi
-
 # Disable autoscaling for local development
 autoscaling:
   enabled: false
-
 # Disable pod disruption budget for local development
 podDisruptionBudget:
   enabled: false
-
 # Disable service monitor for local development
 serviceMonitor:
   enabled: false
-
 # Disable network policies for local development
 networkPolicy:
   enabled: false
-
 # Disable Istio for local development
 istio:
   enabled: false
-
 # Application configuration
 config:
   environment: dev
   logLevel: DEBUG
-
-  # MLflow configuration - staging model for local
+  # MLflow configuration - production model for ML inference
   mlflow:
     trackingUri: http://mlflow.mlflow.svc.cluster.local:5000
     experimentName: specialist-business
-    modelName: business
-    modelStage: Staging
-
+    modelName: business-evaluator
+    modelStage: Production
   # MongoDB configuration - no authentication for local
   mongodb:
     uri: mongodb://neural-hive-mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive
     database: neural_hive
     opinionsCollection: specialist_opinions
-
   # Neo4j configuration - no SSL for local
   neo4j:
     uri: bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687
     user: neo4j
     database: neo4j
-
   # Redis configuration - no SSL for local
   redis:
     clusterNodes: neural-hive-cache.redis-cluster.svc.cluster.local:6379
     sslEnabled: false
     cacheTtl: 300
-
   # OpenTelemetry configuration - disabled for local
   otel:
     endpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
-
   # gRPC configuration - reduced workers for local
   grpc:
     port: 50051
     maxWorkers: 5
     maxMessageLength: 4194304
-
   # HTTP configuration
   http:
     port: 8000
-
   # Prometheus configuration
   prometheus:
     port: 8080
-
   # Thresholds configuration - relaxed for local
   thresholds:
     minConfidenceScore: 0.7
     highRiskThreshold: 0.6
-
   # Timeouts configuration
   timeouts:
     evaluationMs: 3000
     modelInferenceMs: 3000
-
   # Features configuration
   features:
     enableExplainability: true
     enableCaching: true
     enableModelMonitoring: false
-
+    enableTracing: false
   # Business-specific configuration
   business:
     roiAnalysisEnabled: true
     impactAssessmentEnabled: true
     complianceCheckEnabled: false
-
 # Use default service account for local
 serviceAccount:
   create: false
   name: default
-
 # Simplified secrets for local development
 secrets:
   mongodbUri: mongodb://neural-hive-mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive
   neo4jPassword: neo4j
   redisPassword: ""
-
 # Relaxed probes for local development
 livenessProbe:
   httpGet:
@@ -129,7 +106,6 @@ livenessProbe:
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 3
-
 readinessProbe:
   httpGet:
     path: /ready

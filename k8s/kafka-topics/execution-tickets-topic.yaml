@@ -8,14 +8,16 @@ metadata:
     app.kubernetes.io/name: kafka-topic
     app.kubernetes.io/component: messaging
     neural-hive.io/layer: orchestration
+    neural-hive.io/flow: fluxo-c
 spec:
-  partitions: 12
-  replicas: 3
+  partitions: 12 # Produção: 12 partitions. Local: pode reduzir para 3.
+  replicas: 3 # Produção: 3 replicas. Local: usar 1.
   config:
-    retention.ms: 604800000  # 7 dias
-    segment.ms: 3600000  # 1 hora
+    # Schema: schemas/execution-ticket/execution-ticket.avsc
+    retention.ms: 604800000 # 7 dias
+    segment.ms: 3600000 # 1 hora
     compression.type: snappy
-    min.insync.replicas: 2
+    min.insync.replicas: 2 # Produção: 2. Local: usar 1.
     cleanup.policy: delete
-    max.message.bytes: 1048576  # 1MB
+    max.message.bytes: 1048576 # 1MB
     message.timestamp.type: CreateTime

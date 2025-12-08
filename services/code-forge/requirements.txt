@@ -4,9 +4,10 @@
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 
-# gRPC
-grpcio>=1.59.0
-grpcio-tools>=1.59.0
+# gRPC - versão consolidada
+grpcio>=1.75.1
+grpcio-tools>=1.75.1
+protobuf>=5.27.0
 
 # Kafka
 aiokafka>=0.8.1
@@ -29,6 +30,10 @@ redis[hiredis]>=5.0.0
 
 # HTTP Client
 httpx>=0.25.0
+
+# LLM SDKs
+openai>=1.12.0
+anthropic>=0.18.0
 
 # OpenTelemetry
 opentelemetry-api>=1.21.0
@@ -70,8 +75,3 @@ tenacity>=8.2.3
 # Para produção com registry privado: neural_hive_integration>=1.0.0
 -e ../../libraries/neural_hive_integration
 
-# Testing
-pytest>=7.4.3
-pytest-asyncio>=0.21.1
-pytest-cov>=4.1.0
-httpx>=0.25.0

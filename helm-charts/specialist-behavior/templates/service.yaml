@@ -4,6 +4,9 @@ metadata:
   name: {{ include "specialist-behavior.fullname" . }}
   labels:
     {{- include "specialist-behavior.labels" . | nindent 4 }}
+    neural.hive/metrics: "enabled"
+    neural.hive/component: "behavior-specialist"
+    neural.hive/layer: "cognitiva"
   annotations:
     neural-hive.io/component: behavior-specialist
 spec:

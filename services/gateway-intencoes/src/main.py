@@ -26,79 +26,103 @@ from kafka.producer import KafkaIntentProducer
 from cache.redis_client import get_redis_client, close_redis_client
 from security.oauth2_validator import get_oauth2_validator, close_oauth2_validator
 from middleware.auth_middleware import create_auth_middleware, get_current_user, get_current_admin_user
-# from neural_hive_observability import trace_intent, get_metrics, get_context_manager
-# from neural_hive_observability.health import HealthManager, RedisHealthCheck, CustomHealthCheck, HealthStatus
-# from observability.metrics import (
-#     intent_counter, latency_histogram, confidence_histogram,
-#     low_confidence_routed_counter, record_too_large_counter
-# )
+# Tentar importar observabilidade - usar stubs se não disponível
+try:
+    from neural_hive_observability import trace_intent, get_metrics, get_context_manager
+    from neural_hive_observability.health import HealthManager, RedisHealthCheck, CustomHealthCheck, HealthStatus
+    from observability.metrics import (
+        intent_counter, latency_histogram, confidence_histogram,
+        low_confidence_routed_counter, record_too_large_counter
+    )
+    OBSERVABILITY_AVAILABLE = True
+except ImportError:
+    OBSERVABILITY_AVAILABLE = False
+    # Stubs temporários para desenvolvimento local sem neural_hive_observability
+    class HealthManager:
+        def __init__(self):
+            self.checks = []
+            self._checks_dict = {}
 
-# Stubs temporários para desenvolvimento local sem neural_hive_observability
-class HealthManager:
-    def __init__(self):
-        self.checks = []
+        def add_check(self, health_check):
+            """Aceita objetos de health check"""
+            self.checks.append(health_check)
+            name = getattr(health_check, 'name', 'unknown')
+            self._checks_dict[name] = health_check
 
-    def add_check(self, health_check):
-        """Aceita objetos de health check"""
-        self.checks.append(health_check)
+        async def check_health(self):
+            return {"status": "healthy", "checks": {}}
 
-    async def check_health(self):
-        return {"status": "healthy", "checks": {}}
+        async def check_single(self, check_name: str):
+            """Check a single health check by name"""
+            check = self._checks_dict.get(check_name)
+            if not check:
+                return None
 
-    async def check_all(self):
-        results = {}
-        overall_healthy = True
-        for check in self.checks:
+            # Return a simple object with status attribute
+            class CheckResult:
+                def __init__(self, status):
+                    self.status = status
+
             try:
-                # Tentar executar o check
-                name = getattr(check, 'name', 'unknown')
-                result = {"status": "healthy"}
-                results[name] = result
-            except Exception as e:
-                results.get(name, "unknown")
-                results[name] = {"status": "unhealthy", "error": str(e)}
-                overall_healthy = False
-        self._overall_status = "healthy" if overall_healthy else "degraded"
-        return {
-            "status": self._overall_status,
-            "checks": results
-        }
+                # For stub implementation, always return healthy
+                return CheckResult(HealthStatus.HEALTHY)
+            except Exception:
+                return CheckResult(HealthStatus.UNHEALTHY)
 
-    def get_overall_status(self):
-        """Retorna status geral do sistema"""
-        return getattr(self, '_overall_status', 'healthy')
+        async def check_all(self):
+            results = {}
+            overall_healthy = True
+            for check in self.checks:
+                try:
+                    # Tentar executar o check
+                    name = getattr(check, 'name', 'unknown')
+                    result = {"status": "healthy"}
+                    results[name] = result
+                except Exception as e:
+                    results.get(name, "unknown")
+                    results[name] = {"status": "unhealthy", "error": str(e)}
+                    overall_healthy = False
+            self._overall_status = "healthy" if overall_healthy else "degraded"
+            return {
+                "status": self._overall_status,
+                "checks": results
+            }
 
-class RedisHealthCheck:
-    def __init__(self, name, *args, **kwargs):
-        self.name = name
+        def get_overall_status(self):
+            """Retorna status geral do sistema"""
+            return getattr(self, '_overall_status', 'healthy')
 
-class CustomHealthCheck:
-    def __init__(self, name, *args, **kwargs):
-        self.name = name
+    class RedisHealthCheck:
+        def __init__(self, name, *args, **kwargs):
+            self.name = name
 
-class HealthStatus:
-    HEALTHY = "healthy"
-    UNHEALTHY = "unhealthy"
-    DEGRADED = "degraded"
+    class CustomHealthCheck:
+        def __init__(self, name, *args, **kwargs):
+            self.name = name
 
-def trace_intent(*args, **kwargs):
-    def decorator(func): return func
-    return decorator
+    class HealthStatus:
+        HEALTHY = "healthy"
+        UNHEALTHY = "unhealthy"
+        DEGRADED = "degraded"
 
-def get_metrics(): return {}
-def get_context_manager(): return None
+    def trace_intent(*args, **kwargs):
+        def decorator(func): return func
+        return decorator
 
-# Stubs de métricas
-class MetricStub:
-    def labels(self, **kwargs): return self
-    def inc(self, *args): pass
-    def observe(self, *args): pass
+    def get_metrics(): return {}
+    def get_context_manager(): return None
 
-intent_counter = MetricStub()
-latency_histogram = MetricStub()
-confidence_histogram = MetricStub()
-low_confidence_routed_counter = MetricStub()
-record_too_large_counter = MetricStub()
+    # Stubs de métricas
+    class MetricStub:
+        def labels(self, **kwargs): return self
+        def inc(self, *args): pass
+        def observe(self, *args): pass
+
+    intent_counter = MetricStub()
+    latency_histogram = MetricStub()
+    confidence_histogram = MetricStub()
+    low_confidence_routed_counter = MetricStub()
+    record_too_large_counter = MetricStub()
 
 # Setup logging estruturado
 structlog.configure(
@@ -173,39 +197,45 @@ async def lifespan(app: FastAPI):
         await kafka_producer.initialize()
 
         # Setup observabilidade padronizada do Neural Hive-Mind
-        # DESABILITADO para dev local - biblioteca neural_hive_observability não disponível
-        # from neural_hive_observability import init_observability
-        # from neural_hive_observability.config import ObservabilityConfig
-        # from neural_hive_observability.tracing import init_tracing
+        # Controlado pela feature flag otel_enabled e disponibilidade da biblioteca
+        if settings.otel_enabled and OBSERVABILITY_AVAILABLE:
+            from neural_hive_observability import init_observability
+            from neural_hive_observability.config import ObservabilityConfig
+            from neural_hive_observability.tracing import init_tracing
 
-        # Initialize observability configuration
-        # observability_config = ObservabilityConfig(
-        #     service_name="gateway-intencoes",
-        #     service_version="1.0.0",
-        #     neural_hive_component="gateway",
-        #     neural_hive_layer="experiencia",
-        #     neural_hive_domain="captura-intencoes",
-        #     environment=settings.environment,
-        #     otel_endpoint=settings.otel_endpoint,
-        #     prometheus_port=8000
-        # )
+            # Initialize observability configuration
+            observability_config = ObservabilityConfig(
+                service_name="gateway-intencoes",
+                service_version="1.0.0",
+                neural_hive_component="gateway",
+                neural_hive_layer="experiencia",
+                neural_hive_domain="captura-intencoes",
+                environment=settings.environment,
+                otel_endpoint=settings.otel_endpoint,
+                prometheus_port=settings.prometheus_port
+            )
 
-        # Initialize tracing with OTLP exporter
-        # init_tracing(observability_config)
+            # Initialize tracing with OTLP exporter
+            init_tracing(observability_config)
 
-        # Initialize full observability stack
-        # init_observability(
-        #     service_name="gateway-intencoes",
-        #     service_version="1.0.0",
-        #     neural_hive_component="gateway",
-        #     neural_hive_layer="experiencia",
-        #     neural_hive_domain="captura-intencoes",
-        #     environment=settings.environment,
-        #     otel_endpoint=settings.otel_endpoint,
-        #     prometheus_port=8000
-        # )
+            # Initialize full observability stack
+            init_observability(
+                service_name="gateway-intencoes",
+                service_version="1.0.0",
+                neural_hive_component="gateway",
+                neural_hive_layer="experiencia",
+                neural_hive_domain="captura-intencoes",
+                environment=settings.environment,
+                otel_endpoint=settings.otel_endpoint,
+                prometheus_port=settings.prometheus_port
+            )
 
-        logger.info("Observabilidade desabilitada para dev local")
+            logger.info("OpenTelemetry habilitado e inicializado", otel_endpoint=settings.otel_endpoint)
+        else:
+            if settings.otel_enabled and not OBSERVABILITY_AVAILABLE:
+                logger.warning("OpenTelemetry solicitado mas biblioteca neural_hive_observability não disponível - usando stubs")
+            else:
+                logger.info("OpenTelemetry desabilitado - usando stubs para dev local")
 
         # Initialize standardized health checks
         logger.info("Configurando health checks padronizados")

@@ -38,25 +38,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create non-root user first
 RUN useradd -m -u 1000 consensus
 
-# Copy Python dependencies from builder to consensus user home
-COPY --from=builder /root/.local /home/consensus/.local
+# Copy Python dependencies from builder directly with correct ownership
+# Using --chown in COPY is much faster than chown -R after the fact
+COPY --from=builder --chown=consensus:consensus /root/.local /home/consensus/.local
 
-# Copy libraries directly to PYTHONPATH (no installation needed)
-COPY libraries/python/neural_hive_observability /app/neural_hive_observability
-COPY libraries/python/neural_hive_specialists /app/neural_hive_specialists
+# Copy libraries directly to PYTHONPATH with correct ownership
+COPY --chown=consensus:consensus libraries/python/neural_hive_observability /app/neural_hive_observability
+COPY --chown=consensus:consensus libraries/python/neural_hive_specialists /app/neural_hive_specialists
 
-# Copy application code
-COPY services/consensus-engine/src /app/src
+# Copy application code with correct ownership
+COPY --chown=consensus:consensus services/consensus-engine/src /app/src
 
-# Ensure schema directories exist before copying
-RUN mkdir -p /app/schemas/cognitive-plan /app/schemas/consolidated-decision
+# Ensure schema directories exist
+RUN mkdir -p /app/schemas/cognitive-plan /app/schemas/consolidated-decision && \
+    chown -R consensus:consensus /app/schemas
 
-# Copy Avro schemas (following pattern from gateway and semantic-translation)
+# Copy Avro schemas
 COPY --chown=consensus:consensus schemas/cognitive-plan/cognitive-plan.avsc /app/schemas/cognitive-plan/cognitive-plan.avsc
 COPY --chown=consensus:consensus schemas/consolidated-decision/consolidated-decision.avsc /app/schemas/consolidated-decision/consolidated-decision.avsc
-
-# Fix ownership
-RUN chown -R consensus:consensus /app /home/consensus/.local
 
 # Environment variables
 ENV PYTHONPATH=/app:/home/consensus/.local/lib/python3.11/site-packages \
@@ -74,10 +73,12 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 
 # Labels
 LABEL maintainer="Neural Hive-Mind Team <team@neural-hive-mind.org>" \
-      version="1.0.9" \
+      version="1.0.0" \
       component="consensus-aggregator" \
       layer="cognitiva" \
       description="Mecanismo de Consenso Multi-Agente - Neural Hive-Mind"
 
 # Start application
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# Using 1 worker to avoid race conditions in startup (MongoDB indexes, Kafka consumer group)
+# For production with multiple replicas, use 1 worker per pod and scale horizontally
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

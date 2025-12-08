@@ -39,8 +39,9 @@ class PheromoneClient:
         )
 
         # Salvar no Redis com TTL (serializar para JSON)
+        # Usar model_dump(mode='json') para serialização correta de enums e datetime
         key = signal.get_redis_key()
-        signal_json = json.dumps(signal.dict())
+        signal_json = json.dumps(signal.model_dump(mode='json'))
         await self.redis.set(
             key,
             signal_json,

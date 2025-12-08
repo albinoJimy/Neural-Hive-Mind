@@ -202,6 +202,60 @@ helm upgrade gateway-intencoes helm-charts/gateway-intencoes/ -n gateway
 
 Ver também: `QUICK_START_EKS.md` para guia completo de deployment no EKS.
 
+## Gerenciamento de Dependências
+
+### Estrutura de Requirements
+
+Cada serviço possui dois arquivos de dependências:
+
+- **requirements.txt**: Dependências de produção (instaladas na imagem Docker).
+- **requirements-dev.txt**: Dependências de desenvolvimento e testes (não incluídas em produção).
+
+### Consolidação de Versões
+
+O projeto mantém versões consolidadas de dependências críticas para evitar conflitos:
+
+| Dependência | Versão Consolidada | Justificativa |
+|-------------|-------------------|---------------|
+| grpcio / grpcio-tools | >= 1.75.1 | Compatibilidade com protobuf 5.x |
+| protobuf | >= 5.27.0 | Suporte a runtime_version (protoc 6.x) |
+| fastapi | >= 0.104.1 | Versão estável com correções de segurança |
+| pydantic | >= 2.5.2 | Validação de dados robusta |
+| aiokafka | >= 0.10.0 | Melhorias de performance |
+
+Ver [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) para matriz completa de versões.
+
+### Auditoria de Dependências
+
+Auditoria manual:
+
+```bash
+# Auditoria completa com verificação de segurança
+./scripts/audit-dependencies.sh --check-security
+
+# Escanear imports não utilizados
+python scripts/scan-unused-imports.py --output reports/unused-imports.json
+
+# Validar mudanças antes de commit
+./scripts/validate-dependency-changes.sh
+```
+
+Auditoria automática via GitHub Actions:
+- Execução semanal (segundas-feiras).
+- Execução em PRs que modificam `requirements*.txt`.
+- Relatórios disponíveis como artifacts do workflow **Dependency Audit**.
+
+### Adicionando Novas Dependências
+
+1. **Produção**: Adicionar em `requirements.txt` com versão mínima (`>=X.Y.Z`).
+2. **Desenvolvimento**: Adicionar em `requirements-dev.txt`.
+3. **Validação**: Executar `./scripts/validate-dependency-changes.sh`.
+4. **Documentação**: Dependências pesadas (>50MB) devem ser descritas em `docs/DEPENDENCY_AUDIT.md`.
+
+### Dependências Críticas
+
+Consulte `docs/DEPENDENCY_AUDIT.md` (seção *Dependências Críticas e Justificativas*) para entender o motivo de cada pacote pesado permanecer na base.
+
 ### Setup Automatizado (Recomendado)
 
 ```bash
@@ -317,6 +371,7 @@ kubectl get pods --all-namespaces
 - **[Quick Start EKS](QUICK_START_EKS.md)** - Deploy em 30 minutos
 - **[Guia Completo EKS](DEPLOYMENT_EKS_GUIDE.md)** - Guia detalhado com troubleshooting
 - **[Checklist EKS](EKS_DEPLOYMENT_CHECKLIST.md)** - Checklist completo de deployment
+- **[Resource Tuning Guide](docs/RESOURCE_TUNING_GUIDE.md)** - Rightsizing, probes e topology spread 2.0 para especialistas/core
 
 ### Custos Estimados AWS
 
@@ -413,6 +468,26 @@ Neural-Hive-Mind/
 - **Orchestration**: Coordenação e workflow
 - **Execution**: Agentes e workers
 - **Observability**: Métricas, logs e tracing
+
+### 🤖 Estratégia de Modelos ML
+
+**Modelos Fora da Imagem Docker:**
+- Modelos ML não são empacotados nas imagens Docker
+- Init containers baixam modelos durante inicialização do pod
+- Volumes persistentes (PVC) armazenam modelos compartilhados
+- Lazy loading carrega modelos sob demanda em runtime
+
+**Benefícios:**
+- **60% de redução** no tamanho das imagens Docker
+- **86% de redução** no tempo de startup (lazy loading)
+- **43% de redução** no consumo de memória base
+- Cache compartilhado entre pods (economia de armazenamento)
+
+**Modelos Utilizados:**
+- Whisper ASR: `tiny` (39MB) com fallback para `base` e `small`
+- spaCy NLU: `pt_core_news_sm`, `en_core_web_sm`, `es_core_news_sm` (~15MB cada)
+
+Ver [Guia de Otimização de Dependências](docs/DEPENDENCY_OPTIMIZATION.md) para detalhes completos.
 
 ## 🧠 Motor de Tradução Semântica (Fase 1)
 
@@ -1444,6 +1519,7 @@ istioctl authn tls-check <pod>.<namespace> <service>.<namespace>
 
 ### Fase 1 - Fundação
 - **[Deployment Guide](DEPLOYMENT_GUIDE.md)**: Guia detalhado de implementação
+- **[Dependency Optimization Guide](docs/DEPENDENCY_OPTIMIZATION.md)**: Otimizações de dependências e modelos ML
 - **[ADR-0001](docs/adr/ADR-0001-cloud-provider-selection.md)**: Seleção de Cloud Provider
 - **[ADR-0002](docs/adr/ADR-0002-service-mesh-selection.md)**: Seleção de Service Mesh
 - **[ADR-0003](docs/adr/ADR-0003-container-registry-solution.md)**: Solução de Container Registry
@@ -1940,6 +2016,111 @@ make view-continuous-learning     # Abrir dashboard Grafana
 Para detalhes completos sobre arquitetura, configuração, troubleshooting e monitoramento:
 
 📖 **[Continuous Learning Guide](docs/CONTINUOUS_LEARNING_GUIDE.md)**
+
+## 🤖 ML Pipeline - Specialist Model Training & Management
+
+O Neural Hive Mind utiliza um pipeline de Machine Learning para treinar e gerenciar modelos de avaliação dos 5 especialistas (technical, business, behavior, evolution, architecture).
+
+### Overview
+
+Cada especialista utiliza modelos de ML (Random Forest, Gradient Boosting ou Neural Networks) para avaliar planos cognitivos e emitir opiniões estruturadas. Os modelos são:
+- **Treinados** com datasets sintéticos gerados por LLMs (GPT-4, Claude, Ollama)
+- **Versionados** e **rastreados** no MLflow Model Registry
+- **Promovidos** automaticamente quando atingem thresholds de qualidade
+- **Carregados** em runtime pelos pods de especialistas via `mlflow_client.py`
+
+### Quick Start
+
+```bash
+# Gerar datasets com IA
+cd ml_pipelines/training
+./generate_all_datasets.sh
+
+# Treinar todos os modelos
+./train_all_specialists.sh
+
+# Validar modelos carregados
+./validate_models_loaded.sh
+
+# Verificar status dos modelos
+../scripts/check_model_status.sh --all
+```
+
+### Components
+
+| Componente | Descrição |
+|------------|-----------|
+| **Dataset Generation** | Geração sintética com LLMs (OpenAI/Anthropic/Ollama) |
+| **Model Training** | Random Forest, Gradient Boosting, Neural Networks |
+| **MLflow Integration** | Tracking, Model Registry, Auto-promotion |
+| **Validation** | Health checks e model loading verification |
+| **Maintenance Scripts** | Status check, retrain, rollback |
+
+### Model Naming Convention
+
+- **Modelos**: `{specialist_type}-evaluator` (ex: `technical-evaluator`)
+- **Experimentos MLflow**: `{specialist_type}-specialist` (ex: `technical-specialist`)
+- **Stages**: Production, Staging, Archived
+
+### Promotion Thresholds
+
+Para promoção automática para Production:
+
+| Métrica | Threshold |
+|---------|-----------|
+| Precision | ≥ 0.75 |
+| Recall | ≥ 0.70 |
+| F1 Score | ≥ 0.72 |
+| Improvement | ≥ 5% vs baseline |
+
+### Maintenance Operations
+
+```bash
+# Verificar status de modelos
+ml_pipelines/scripts/check_model_status.sh --all
+
+# Re-treinar especialista específico
+ml_pipelines/scripts/retrain_specialist.sh --specialist technical
+
+# Fazer rollback de modelo
+ml_pipelines/scripts/rollback_model.sh --specialist technical \
+  --reason "High latency in production"
+
+# Análise exploratória (Jupyter)
+cd ml_pipelines/notebooks
+jupyter notebook model_analysis.ipynb
+```
+
+### MLflow Access
+
+- **URL**: `http://mlflow.mlflow:5000`
+- **Port-forward**: `kubectl port-forward -n mlflow svc/mlflow 5000:5000`
+- **UI**: `http://localhost:5000`
+
+### Integration with Specialists
+
+Os especialistas carregam modelos em runtime via `mlflow_client.py`:
+- Circuit breaker e fallback para cache expirado
+- Health checks: `/status` endpoint mostra `model_loaded: true`
+- Namespace: `semantic-translation`
+- Restart para forçar reload: `kubectl rollout restart deployment/specialist-{type} -n semantic-translation`
+
+### Troubleshooting
+
+| Problema | Diagnóstico | Solução |
+|----------|-------------|---------|
+| MLflow não conectado | `curl -f http://mlflow.mlflow:5000/health` | `kubectl rollout restart deployment/mlflow -n mlflow` |
+| Modelo não carregado | `/status` retorna `model_loaded: false` | `kubectl rollout restart deployment/specialist-{type}` |
+| Specialist NOT READY | Ver `/tmp/ANALISE_SPECIALIST_TECHNICAL.md` | Verificar liveness probes, MongoDB, model loading |
+| Datasets ausentes | `FileNotFoundError` no treinamento | `cd ml_pipelines/training && ./generate_all_datasets.sh` |
+
+### Documentation
+
+Para documentação completa do pipeline ML:
+
+📖 **[ML Pipeline README](ml_pipelines/README.md)**
+📖 **[Dataset Generation Guide](ml_pipelines/training/README_DATASET_GENERATION.md)**
+📖 **[Continuous Learning Guide](CONTINUOUS_LEARNING_GUIDE.md)**
 
 ## 📊 Business Metrics & Anomaly Detection
 

@@ -40,6 +40,7 @@ Este serviço consome **Consolidated Decisions** do Consensus Engine, converte *
 │  • Prometheus Metrics (20+ métricas)                        │
 │  • OpenTelemetry Tracing                                    │
 │  • Structured Logging (structlog)                           │
+│  • PolicyValidator + OPA Enforcement                         │
 └─────────────────────────────────────────────────────────────┘
          │                        │                   │
          ↓                        ↓                   ↓
@@ -140,6 +141,52 @@ services/orchestrator-dynamic/
 - Exporta métricas para Prometheus
 - Cria span OpenTelemetry para o workflow
 - Buffer local em caso de falha
+
+## MongoDB Persistence
+
+- Coleções: `validation_audit` (auditoria C1), `workflow_results` (resultados C5), `incidents` (autocura Fluxo E), `telemetry_buffer` (retry de telemetria)
+- Estruturas: cada coleção inclui `workflow_id`; `validation_audit` armazena `validation_result`, `timestamp`, `hash`; `workflow_results` guarda métricas/SLA e resumo de tickets; `incidents` registra `type`, `details`, `severity`; `telemetry_buffer` persiste frame com `buffered_at` e `retry_count`
+- Índices: `validation_audit` em `plan_id`, `workflow_id`, `(plan_id, timestamp)`; `workflow_results` em `workflow_id` (único), `status`, `(status, consolidated_at)`; `incidents` em `workflow_id`, `type`, `(severity, timestamp)`; `telemetry_buffer` em `workflow_id`, `buffered_at`, `(retry_count, buffered_at)`
+- Uso: auditoria completa de validações, consolidação para analytics/SLA, trilha de incidentes para autocura e buffer resiliente de telemetria
+- Diagrama (simplificado): `plan_validation.audit_validation → validation_audit` | `consolidate_results → workflow_results` | `trigger_self_healing → incidents` | `buffer_telemetry → telemetry_buffer`
+
+## Retry e Resiliência
+
+- Todas as operações de persistência usam `tenacity` com `stop_after_attempt(config.retry_max_attempts)` e `wait_exponential` (`multiplier=config.retry_backoff_coefficient`, `min=config.retry_initial_interval_ms/1000`, `max=config.retry_max_interval_ms/1000`)
+- Fail-open por padrão: erros de MongoDB são logados e não bloqueiam workflow (orquestração continua em modo degradado)
+- Logs estruturados para sucesso/erro: `validation_audit_saved`, `workflow_result_saved`, `incident_saved`, `telemetry_buffered`
+- Configurações padrão em `src/config/settings.py`: tentativas=3, intervalo inicial=1000ms, backoff=2.0, intervalo máximo=60000ms
+
+## Configuração MongoDB
+
+- `MONGODB_URI`: string de conexão (pode vir do Vault)
+- `MONGODB_DATABASE`: nome do database (default: `neural_hive_orchestration`)
+- `RETRY_MAX_ATTEMPTS`: tentativas de retry (default: 3)
+- `RETRY_INITIAL_INTERVAL_MS`: intervalo inicial em ms (default: 1000)
+- `RETRY_BACKOFF_COEFFICIENT`: multiplicador do backoff (default: 2.0)
+- `RETRY_MAX_INTERVAL_MS`: intervalo máximo em ms (default: 60000)
+
+## Troubleshooting MongoDB
+
+- MongoDB indisponível: serviço segue em modo degradado; logs `mongodb_client_not_initialized` indicam que a activity foi pulada
+- Falhas recorrentes de persistência: revisar logs `*_persist_failed`, ajustar parâmetros de retry ou conexão
+- Índices: executar `db.<collection>.getIndexes()` para validar criação; `workflow_results` usa `_id=workflow_id` com índice único
+- Consultas rápidas: contar validações por plano (`db.validation_audit.countDocuments({plan_id: "<id>"})`), listar SLA violados (`db.workflow_results.find({"sla_status.violations_count": {$gt: 0}})`), incidentes críticos (`db.incidents.find({severity: "CRITICAL"})`)
+
+## Testes de Persistência
+
+- Rodar unitários: `pytest services/orchestrator-dynamic/tests/test_mongodb_persistence.py`
+- Rodar integração das activities: `pytest services/orchestrator-dynamic/tests/test_activities_mongodb_integration.py`
+- Tests usam MongoDB mockado e validam retry + fail-open; seguros para execução local sem MongoDB real
+
+## Policy Validation
+
+- Integração com OPA Policy Engine cobrindo C1 (plano cognitivo), C2 (tickets) e C3 (alocação de recursos).
+- C1: `plan_validation.validate_cognitive_plan` valida planos completos com `resource_limits.rego` e `sla_enforcement.rego`.
+- C2: `ticket_generation.allocate_resources` valida tickets e aplica `feature_flags.rego` para habilitar Intelligent Scheduler e capacidades relacionadas.
+- C3: `ticket_generation.allocate_resources` valida a alocação retornada pelo `IntelligentScheduler.schedule_ticket` via `validate_resource_allocation`.
+- Métricas OPA registradas em todas as etapas (validações, rejeições, warnings e erros).
+- Detalhamento completo em `docs/POLICY_VALIDATION_INTEGRATION.md`.
 
 ## Scheduler Inteligente
 
@@ -611,11 +658,11 @@ config:
 ### Métricas OPA
 
 Métricas Prometheus disponíveis:
-- `orchestration_opa_validations_total` - Total de validações (labels: policy_name, result)
-- `orchestration_opa_validation_duration_seconds` - Latência de validações (histogram)
-- `orchestration_opa_policy_rejections_total` - Rejeições por política (labels: policy_name, rule, severity)
-- `orchestration_opa_evaluation_errors_total` - Erros de avaliação (labels: error_type)
-- `orchestration_opa_feature_flags` - Status de feature flags (labels: flag_name, namespace)
+- `opa_validations_total{policy_name, result}` - Total de validações por política
+- `opa_validation_duration_seconds{policy_name}` - Latência das avaliações
+- `opa_policy_rejections_total{policy_name, rule, severity}` - Rejeições por regra
+- `opa_policy_warnings_total{policy_name, rule}` - Avisos por regra
+- `opa_evaluation_errors_total{error_type}` - Erros de avaliação ou indisponibilidade do OPA
 
 ### Troubleshooting OPA
 
@@ -832,6 +879,51 @@ asyncio.run(pipeline.run_training_cycle())
 - `MLTrainingFailed`: Erros em treinamento
 - `MLTrainingStale`: Sem treinamento > 48h
 
+## 🤖 ML Feedback Loop
+
+O Orchestrator Dynamic implementa um feedback loop completo para treinamento contínuo de modelos ML:
+
+### Componentes
+
+1. **Predições em Tempo Real:**
+   - Predição de duração de tickets (RandomForest)
+   - Detecção de anomalias (Isolation Forest)
+   - Predição de queue time e carga de workers
+2. **Priority Boosting:**
+   - Tickets com `duration_ratio > 1.5`: +20% prioridade
+   - Tickets com anomalia detectada: +20% prioridade
+3. **Error Tracking:**
+   - Calcula erro: `actual_duration_ms - predicted_duration_ms`
+   - Registra em Prometheus: `ml_prediction_error`
+   - Log estruturado com erro percentual
+4. **Allocation Outcome Feedback:**
+   - Publica outcomes no Kafka `ml.allocation_outcomes`
+   - Usado para treinamento de RL policy (Q-learning)
+   - Métricas de allocation quality
+5. **Treinamento Offline:**
+   - CronJob periódico (24h) ou por drift detection
+   - Retreina modelos com dados históricos (18 meses)
+   - Promove modelos para Production no MLflow
+
+### Configuração
+
+```yaml
+ML_PREDICTIONS_ENABLED: true
+ML_ALLOCATION_OUTCOMES_ENABLED: true
+ML_TRAINING_WINDOW_DAYS: 540
+ML_DURATION_ERROR_THRESHOLD: 0.15
+```
+
+### Métricas
+
+- `orchestration_ml_prediction_error`: Erro de predição (Histogram)
+- `orchestration_ml_model_accuracy`: Acurácia do modelo (Gauge)
+- `orchestration_scheduler_allocation_quality_score`: Qualidade de alocação (Histogram)
+
+### Documentação Detalhada
+
+Ver `docs/ML_FEEDBACK_LOOP_ARCHITECTURE.md` para arquitetura completa.
+
 ## Schemas
 
 ### Execution Ticket (Avro)
@@ -888,6 +980,13 @@ SERVICE_REGISTRY_CACHE_TTL_SECONDS=10
 ENABLE_INTELLIGENT_SCHEDULER=true
 SCHEDULER_MAX_PARALLEL_TICKETS=100
 SLA_DEFAULT_TIMEOUT_MS=3600000
+
+# OPA / Policy Validation
+OPA_ENABLED=true
+OPA_HOST=opa.neural-hive-orchestration.svc.cluster.local
+OPA_FAIL_OPEN=false
+OPA_INTELLIGENT_SCHEDULER_ENABLED=true
+OPA_BURST_CAPACITY_ENABLED=true
 
 # Observabilidade
 OTEL_EXPORTER_ENDPOINT=http://otel-collector:4317
@@ -994,6 +1093,12 @@ python -m src.main
 ```bash
 # Unit tests
 pytest tests/
+
+# ML feedback loop
+pytest tests/integration/test_ml_feedback_loop_integration.py tests/unit/test_ml_prediction_integration.py -v
+
+# OPA integration (C1-C3)
+pytest tests/test_policy_integration_c3.py tests/test_policy_integration_e2e.py -v
 
 # Linting
 black src/

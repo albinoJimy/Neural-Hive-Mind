@@ -1,10 +1,22 @@
 import grpc
 import asyncio
 import json
+from datetime import datetime
 from typing import List, Dict, Any, Optional
 from tenacity import AsyncRetrying, stop_after_attempt, wait_exponential, RetryError
 import structlog
 from google.protobuf.timestamp_pb2 import Timestamp
+
+
+def _json_datetime_serializer(obj):
+    """
+    Custom JSON serializer for objects not serializable by default json code.
+
+    Handles datetime objects returned by Avro deserializer for timestamp-millis fields.
+    """
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f'Object of type {type(obj).__name__} is not JSON serializable')
 
 # Importar stubs gerados do specialist.proto
 from neural_hive_specialists.proto_gen import specialist_pb2, specialist_pb2_grpc
@@ -72,8 +84,31 @@ class SpecialistsGrpcClient:
                 if not stub:
                     raise ValueError(f'Especialista {specialist_type} não configurado')
 
+                # DEBUG: Log estado do cognitive_plan antes da serialização
+                logger.debug(
+                    'Preparando cognitive_plan para gRPC',
+                    specialist_type=specialist_type,
+                    plan_id=cognitive_plan.get('plan_id'),
+                    has_version='version' in cognitive_plan,
+                    version_value=cognitive_plan.get('version'),
+                    cognitive_plan_keys=list(cognitive_plan.keys())
+                )
+
                 # Serializar plano para bytes (JSON)
-                plan_bytes = json.dumps(cognitive_plan).encode('utf-8')
+                # Usar serializer customizado para lidar com datetime do Avro deserializer
+                plan_bytes = json.dumps(
+                    cognitive_plan,
+                    default=_json_datetime_serializer
+                ).encode('utf-8')
+
+                # DEBUG: Log do JSON serializado para verificar integridade
+                logger.debug(
+                    'cognitive_plan serializado para JSON',
+                    specialist_type=specialist_type,
+                    plan_id=cognitive_plan.get('plan_id'),
+                    json_size_bytes=len(plan_bytes),
+                    json_preview=plan_bytes[:500].decode('utf-8')
+                )
 
                 # Criar request
                 request = specialist_pb2.EvaluatePlanRequest(

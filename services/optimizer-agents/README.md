@@ -109,6 +109,20 @@ DISCOUNT_FACTOR=0.95
 REQUIRE_QUEEN_APPROVAL=true
 ```
 
+## gRPC Integration
+
+### Compilar Protos
+```bash
+make proto
+```
+
+### Clientes gRPC Disponíveis
+- `AnalystAgentsGrpcClient`: Comunicação com Analyst Agents
+- `QueenAgentGrpcClient`: Comunicação com Queen Agent
+
+### Exemplo de Uso
+Ver `docs/grpc-integration-guide.md` para exemplos completos.
+
 ## Build e Deploy
 
 ### Build Docker

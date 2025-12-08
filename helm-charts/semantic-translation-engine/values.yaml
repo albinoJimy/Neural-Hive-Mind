@@ -24,12 +24,15 @@ strategy:
 
 # Recursos
 resources:
+  # Kafka deserialização + Neo4j lookups consomem ~350m CPU e ~850Mi RAM em carga média.
+  # Ajustamos requests para 450m/1Gi e mantemos burst em 1.5 CPU / 3Gi para ingestões em lote
+  # sem replicar o antigo padrão 500m→2 CPU / 1Gi→4Gi que desperdiçava capacidade.
   requests:
-    cpu: 500m
+    cpu: 450m
     memory: 1Gi
   limits:
-    cpu: 2
-    memory: 4Gi
+    cpu: 1500m
+    memory: 3Gi
 
 # Service
 service:
@@ -97,6 +100,7 @@ config:
     ledgerEnabled: true
     explainabilityEnabled: true
     circuitBreakerEnabled: true
+    enableTracing: true
 
 # Secrets (fornecer via values override ou External Secrets)
 secrets:
@@ -196,12 +200,30 @@ affinity:
               app.kubernetes.io/name: semantic-translation-engine
           topologyKey: topology.kubernetes.io/zone
 
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: semantic-translation-engine
+
 # Health checks
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 20
+  successThreshold: 1
+
 livenessProbe:
   httpGet:
     path: /health
     port: 8000
-  initialDelaySeconds: 30
+  initialDelaySeconds: 0
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 3
@@ -210,10 +232,10 @@ readinessProbe:
   httpGet:
     path: /ready
     port: 8000
-  initialDelaySeconds: 20
+  initialDelaySeconds: 0
   periodSeconds: 5
   timeoutSeconds: 3
-  failureThreshold: 2
+  failureThreshold: 3
 
 # Labels
 labels:

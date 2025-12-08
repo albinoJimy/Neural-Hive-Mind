@@ -106,8 +106,8 @@ grafana:
   grafana.ini:
     # Server settings
     server:
-      domain: "grafana.{{ .Values.global.domain }}"
-      root_url: "https://grafana.{{ .Values.global.domain }}"
+      domain: "grafana.neural-hive.local"
+      root_url: "https://grafana.neural-hive.local"
       serve_from_sub_path: false
       enable_gzip: true
 
@@ -236,12 +236,8 @@ grafana:
           channel: "#neural-hive-critical"
           title: "🚨 Critical Alert - Neural Hive-Mind"
           text: |
-            {{ range .Alerts }}
-            Alert: {{ .Labels.alertname }}
-            Component: {{ .Labels.neural_hive_component }}
-            Severity: {{ .Labels.severity }}
-            Description: {{ .Annotations.description }}
-            {{ end }}
+            Alerta crítico registrado no cluster Neural Hive-Mind.
+            Consulte o Prometheus para detalhes do alerta e acione o runbook correspondente.
       - name: "neural-hive-slack"
         slack_configs:
         - api_url: "${SLACK_GENERAL_WEBHOOK}"
@@ -256,9 +252,9 @@ grafana:
     # Database (PostgreSQL para produção)
     database:
       type: postgres
-      host: "{{ .Values.postgresql.host | default "postgresql.observability.svc.cluster.local:5432" }}"
-      name: "{{ .Values.postgresql.database | default "grafana" }}"
-      user: "{{ .Values.postgresql.username | default "grafana" }}"
+      host: "postgresql.observability.svc.cluster.local:5432"
+      name: "grafana"
+      user: "grafana"
       password: "$__env{GF_DATABASE_PASSWORD}"
       ssl_mode: require
       ca_cert_path: /etc/ssl/certs/ca-certificates.crt
@@ -399,48 +395,9 @@ grafana:
         access: proxy
         url: http://jaeger-query:16686
         jsonData:
-          {{- if .Values.featureFlags.enableLoki }}
-          tracesToLogs:
-            datasourceUid: loki
-            tags: [{ key: 'service.name', value: 'service' }]
-          {{- end }}
           nodeGraph:
             enabled: true
         editable: true
-
-      # Loki - logs aggregation (condicional)
-      {{- if .Values.featureFlags.enableLoki }}
-      - name: Loki
-        type: loki
-        uid: loki
-        access: proxy
-        url: http://loki:3100
-        jsonData:
-          derivedFields:
-          - datasourceUid: jaeger
-            matcherRegex: "trace_id=(\\w+)"
-            name: TraceID
-            url: "$${__value.raw}"
-        editable: true
-      {{- end }}
-
-      # Tempo - distributed tracing (condicional)
-      {{- if .Values.featureFlags.enableTempo }}
-      - name: Tempo
-        type: tempo
-        uid: tempo
-        access: proxy
-        url: http://tempo:3100
-        jsonData:
-          {{- if .Values.featureFlags.enableLoki }}
-          tracesToLogs:
-            datasourceUid: loki
-            tags: [{ key: 'service.name', value: 'service' }]
-          {{- end }}
-          nodeGraph:
-            enabled: true
-        editable: true
-      {{- end }}
 
       # TestData para desenvolvimento e testes
       - name: TestData
@@ -550,14 +507,14 @@ grafana:
       nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
       nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
     hosts:
-    - host: "grafana.{{ .Values.global.domain }}"
+    - host: "grafana.neural-hive.local"
       paths:
       - path: /
         pathType: Prefix
     tls:
     - secretName: grafana-tls
       hosts:
-      - "grafana.{{ .Values.global.domain }}"
+      - "grafana.neural-hive.local"
 
   # Monitoring
   serviceMonitor:
@@ -594,7 +551,7 @@ alerting:
       neural_hive_layer: observabilidade
     annotations:
       summary: "Grafana usando muita memória"
-      description: "Grafana está usando {{ $value }}MB de memória"
+      description: "Grafana acima do limite de memória configurado"
 
 # Backup configuration
 backup:

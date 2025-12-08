@@ -154,3 +154,28 @@ class CodeForgeMetrics:
             ['method', 'endpoint'],
             buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
         )
+
+        # MCP Integration Metrics
+        self.mcp_selection_requests_total = Counter(
+            'code_forge_mcp_selection_requests_total',
+            'Total MCP tool selection requests',
+            ['status']  # success, failure, timeout
+        )
+
+        self.mcp_selection_duration_seconds = Histogram(
+            'code_forge_mcp_selection_duration_seconds',
+            'MCP tool selection duration',
+            buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
+        )
+
+        self.mcp_tools_selected_total = Counter(
+            'code_forge_mcp_tools_selected_total',
+            'Total tools selected by MCP',
+            ['category']
+        )
+
+        self.mcp_feedback_sent_total = Counter(
+            'code_forge_mcp_feedback_sent_total',
+            'Total feedback sent to MCP',
+            ['status']  # success, failure
+        )

@@ -1,12 +1,24 @@
 """LLM client for code generation (OpenAI, Anthropic, local models)."""
 import json
 from enum import Enum
-from typing import Dict, List, Optional
+import inspect
+from typing import AsyncGenerator, Dict, List, Optional
 
 import httpx
 import structlog
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 logger = structlog.get_logger()
+
+
+def _is_transient_error(exc: Exception) -> bool:
+    """Define quais exceções são consideradas transitórias para retry."""
+    transient_names = {"RateLimitError"}
+    if isinstance(exc, (httpx.ReadTimeout, httpx.ConnectTimeout, httpx.ConnectError)):
+        return True
+    if exc.__class__.__name__ in transient_names:
+        return True
+    return False
 
 
 class LLMProvider(str, Enum):
@@ -57,8 +69,26 @@ class LLMClient:
         if self.client:
             await self.client.aclose()
 
+        # Cleanup OpenAI client
+        if hasattr(self, "_openai_client"):
+            close_fn = getattr(self._openai_client, "close", None)
+            if callable(close_fn):
+                maybe_coro = close_fn()
+                if inspect.isawaitable(maybe_coro):
+                    await maybe_coro
+
+        # Cleanup Anthropic client
+        if hasattr(self, "_anthropic_client"):
+            close_fn = getattr(self._anthropic_client, "close", None)
+            if callable(close_fn):
+                maybe_coro = close_fn()
+                if inspect.isawaitable(maybe_coro):
+                    await maybe_coro
+
+        logger.info("llm_client_stopped", provider=self.provider)
+
     async def generate_code(
-        self, prompt: str, constraints: Dict, temperature: float = 0.2
+        self, prompt: str, constraints: Dict, temperature: float = 0.2, stream: bool = False
     ) -> Optional[Dict]:
         """Generate code using LLM.
 
@@ -66,6 +96,7 @@ class LLMClient:
             prompt: Prompt for code generation
             constraints: Dict with language, framework, patterns, max_lines
             temperature: Sampling temperature (0.0-1.0)
+            stream: Enable streaming responses when supported
 
         Returns:
             Dict with 'code', 'confidence_score', 'explanation'
@@ -74,11 +105,22 @@ class LLMClient:
             # Build system prompt
             system_prompt = self._build_system_prompt(constraints)
 
-            # Call LLM (simplified - actual implementation depends on provider)
+            # Call LLM based on provider
             if self.provider == LLMProvider.LOCAL:
+                if stream:
+                    logger.warning("streaming_not_supported_local_provider")
                 response = await self._call_ollama(system_prompt, prompt, temperature)
+            elif self.provider == LLMProvider.OPENAI:
+                response = await self._call_openai_sdk(
+                    system_prompt, prompt, temperature, stream=stream
+                )
+            elif self.provider == LLMProvider.ANTHROPIC:
+                response = await self._call_anthropic_sdk(
+                    system_prompt, prompt, temperature, stream=stream
+                )
             else:
-                response = await self._call_cloud_llm(system_prompt, prompt, temperature)
+                logger.error("unsupported_llm_provider", provider=self.provider)
+                return None
 
             if not response:
                 return None
@@ -153,11 +195,147 @@ Return ONLY valid code without markdown formatting or explanations unless reques
             logger.error("ollama_call_failed", error=str(e))
             return None
 
-    async def _call_cloud_llm(self, system_prompt: str, user_prompt: str, temperature: float) -> Optional[Dict]:
-        """Call cloud LLM (OpenAI/Anthropic) - simplified stub."""
-        # Full implementation would use official SDKs
-        logger.warning("cloud_llm_not_implemented", provider=self.provider)
-        return None
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception(_is_transient_error),
+    )
+    async def _call_openai_sdk(
+        self, system_prompt: str, user_prompt: str, temperature: float, stream: bool = False
+    ) -> Optional[Dict]:
+        """Call OpenAI API using official SDK with retry logic."""
+        try:
+            # Lazy import para evitar erro se SDK não instalado
+            from openai import APIError, AsyncOpenAI, RateLimitError
+
+            if not self.api_key:
+                logger.error("openai_api_key_missing")
+                return None
+
+            # Criar cliente (reutilizar se já existe)
+            if not hasattr(self, "_openai_client"):
+                self._openai_client = AsyncOpenAI(api_key=self.api_key)
+
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ]
+
+            if stream:
+                # Streaming mode
+                response_text = ""
+                stream_iterator = await self._openai_client.chat.completions.create(
+                    model=self.model_name,
+                    messages=messages,
+                    temperature=temperature,
+                    stream=True,
+                )
+                async for chunk in stream_iterator:
+                    if chunk.choices[0].delta.content:
+                        response_text += chunk.choices[0].delta.content
+
+                return {
+                    "code": response_text,
+                    "prompt_tokens": 0,  # Não disponível em streaming
+                    "completion_tokens": 0,
+                }
+            else:
+                # Non-streaming mode
+                response = await self._openai_client.chat.completions.create(
+                    model=self.model_name,
+                    messages=messages,
+                    temperature=temperature,
+                )
+
+                return {
+                    "code": response.choices[0].message.content,
+                    "prompt_tokens": response.usage.prompt_tokens,
+                    "completion_tokens": response.usage.completion_tokens,
+                }
+
+        except RateLimitError as e:
+            logger.warning("openai_rate_limit", error=str(e))
+            raise  # Retry via tenacity
+        except APIError as e:
+            logger.error("openai_api_error", error=str(e))
+            return None
+        except ImportError:
+            logger.error("openai_sdk_not_installed", message="Install with: pip install openai")
+            return None
+        except Exception as e:
+            logger.error("openai_call_failed", error=str(e))
+            return None
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception(_is_transient_error),
+    )
+    async def _call_anthropic_sdk(
+        self, system_prompt: str, user_prompt: str, temperature: float, stream: bool = False
+    ) -> Optional[Dict]:
+        """Call Anthropic API using official SDK with retry logic."""
+        try:
+            # Lazy import
+            from anthropic import APIError, AsyncAnthropic, RateLimitError
+
+            if not self.api_key:
+                logger.error("anthropic_api_key_missing")
+                return None
+
+            # Criar cliente (reutilizar se já existe)
+            if not hasattr(self, "_anthropic_client"):
+                self._anthropic_client = AsyncAnthropic(api_key=self.api_key)
+
+            # Anthropic usa system prompt como parâmetro separado
+            if stream:
+                # Streaming mode
+                response_text = ""
+                async with self._anthropic_client.messages.stream(
+                    model=self.model_name,
+                    max_tokens=4096,
+                    system=system_prompt,
+                    messages=[{"role": "user", "content": user_prompt}],
+                    temperature=temperature,
+                ) as stream_iterator:
+                    async for text in stream_iterator.text_stream:
+                        response_text += text
+
+                return {
+                    "code": response_text,
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0,
+                }
+            else:
+                # Non-streaming mode
+                message = await self._anthropic_client.messages.create(
+                    model=self.model_name,
+                    max_tokens=4096,
+                    system=system_prompt,
+                    messages=[{"role": "user", "content": user_prompt}],
+                    temperature=temperature,
+                )
+
+                return {
+                    "code": message.content[0].text,
+                    "prompt_tokens": message.usage.input_tokens,
+                    "completion_tokens": message.usage.output_tokens,
+                }
+
+        except RateLimitError as e:
+            logger.warning("anthropic_rate_limit", error=str(e))
+            raise  # Retry via tenacity
+        except APIError as e:
+            logger.error("anthropic_api_error", error=str(e))
+            return None
+        except ImportError:
+            logger.error(
+                "anthropic_sdk_not_installed", message="Install with: pip install anthropic"
+            )
+            return None
+        except Exception as e:
+            logger.error("anthropic_call_failed", error=str(e))
+            return None
 
     def _extract_code_from_response(self, response: Dict) -> str:
         """Extract code from LLM response."""

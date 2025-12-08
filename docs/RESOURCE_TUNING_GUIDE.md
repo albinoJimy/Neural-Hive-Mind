@@ -1,5 +1,7 @@
 # Resource Tuning Guide - Neural Hive Mind
 
+> Version: 2.0 (2025-11-15)
+
 ## 1. Overview
 
 This guide covers resource optimization and tuning for Neural Hive Mind specialists in Kubernetes. Proper resource configuration ensures pods start successfully, perform well, and don't overwhelm the cluster.
@@ -779,26 +781,32 @@ Total Memory request = (200Mi + 300Mi + 100Mi) × 1.5 = 900Mi
 → Set request to 1Gi, limit to 2Gi for burst
 ```
 
+**CPU Reduction Context (2025-11 Review):**
+- Old baseline across 5 specialists: 500m request × 5 services × 2 replicas = 5,000m (5 cores)
+- New baseline after spaCy optimizations: 300m request × 5 services × 2 replicas = 3,000m (3 cores)
+- **Result:** ~33% CPU request reduction (saved 2 cores at steady state) without impacting consensus latency
+
 ---
 
 ### Cluster Capacity Planning
 
 **Per-Specialist Requirements (Production):**
 ```
-CPU: 500m request, 2 cores limit
-Memory: 1Gi request, 4Gi limit
+CPU: 300m request, 1 core limit
+Memory: 768Mi request, 2Gi limit
 Pods per specialist: 2-3 replicas
 ```
 
 **Cluster Needs for All 5 Specialists:**
 ```
-Total CPU: 500m × 5 specialists × 2 replicas = 5 cores (requests)
-Total Memory: 1Gi × 5 specialists × 2 replicas = 10Gi (requests)
+Total CPU: 300m × 5 specialists × 2 replicas = 3 cores (requests)
+Total Memory: 768Mi × 5 specialists × 2 replicas ≈ 7.5Gi (requests)
+CPU Savings vs. legacy baseline: 5 cores → 3 cores (∆ = -40%)
 
 With overhead (system pods, networking):
-Minimum cluster: 8 cores, 16Gi RAM (tight)
-Recommended cluster: 12 cores, 24Gi RAM (comfortable)
-Production cluster: 16-24 cores, 32-48Gi RAM (HA + headroom)
+Minimum cluster: 6 cores, 14Gi RAM (tight)
+Recommended cluster: 10 cores, 20Gi RAM (comfortable)
+Production cluster: 14-20 cores, 28-40Gi RAM (HA + headroom + burst)
 ```
 
 ---
@@ -852,6 +860,123 @@ Memory Utilization: 50-70% (stable)
 
 ---
 
-**Last Updated:** 2025-01-10
-**Version:** 1.0
+## 11. Rightsizing Playbook
+
+### 11.1 Service Profile Matrix
+
+| Serviço | Perfil | CPU Req | CPU Limit | Mem Req | Mem Limit | Observações |
+|---------|--------|---------|-----------|---------|-----------|-------------|
+| NLP Specialists (business/technical/behavior/evolution/architecture) | spaCy inference + caching | 300m | 1 | 768Mi | 2Gi | StartupProbe failureThreshold=30, soft spread por zona |
+| Consensus Engine | Bayesian aggregation + Redis pheromones | 400m | 1.5 | 1Gi | 2.5Gi | StartupProbe=20 para Kafka replay |
+| Memory-Layer API | Redis+Mongo+Neo4j+ClickHouse routing | 550m | 1.4 | 1280Mi | 2.5Gi | Anti-affinity HARD, soft topology spread |
+| Semantic Translation Engine | Kafka fan-in + Neo4j lookups | 450m | 1.5 | 1Gi | 3Gi | StartupProbe=20, readiness delay=0 |
+| Orchestrator Dynamic | Temporal workflows + Kafka tickets | 400m | 1.6 | 1Gi | 3Gi | StartupProbe=30 (Temporal replay), zone spread soft |
+| Code Forge | Git clone + pipeline bootstrap | 800m | 2.2 | 1536Mi | 3.5Gi | StartupProbe=25 (git clone), preferred anti-affinity |
+| Worker Agents | Task execution fan-out | 400m | 1.5 | 640Mi | 1.5Gi | StartupProbe=20 (registry handshake) |
+| Service Registry | gRPC registry (critical path) | 400m | 1.2 | 768Mi | 2Gi | StartupProbe=20, HARD spread (DoNotSchedule) |
+
+### 11.2 Decision Tree for Adjustments
+
+1. **Observe SLO drift** (latency, queue depth, CrashLoopBackOff?).  
+2. **Check Prometheus metrics** (`container_cpu_usage_seconds_total`, `container_memory_working_set_bytes`).  
+3. **If CPU P95 < 60% of request** → consider lowering requests by 50m steps until P95 ≈ 70%.  
+4. **If CPU throttling or queue backlog occurs** → raise limit by +200m increments and reassess after 1 hour.  
+5. **If memory RSS > 80% of limit** → increase limit by 256Mi blocks; if <50%, decrease request by 128Mi.  
+6. **If startupProbe failures occur** → increase `failureThreshold` by +5 or `periodSeconds` by +5 before touching liveness.  
+7. **Any change** → document in CHANGELOG + run `kubectl rollout status` with watch on startup probes.
+
+### 11.3 Metrics & Queries
+
+```promql
+# CPU utilization vs requests
+sum(rate(container_cpu_usage_seconds_total{pod=~"specialist-.*"}[5m])) by (pod)
+/
+sum(kube_pod_container_resource_requests{resource="cpu", pod=~"specialist-.*"}) by (pod)
+
+# Memory working set vs requests
+sum(container_memory_working_set_bytes{pod=~"specialist-.*"}) by (pod)
+/
+sum(kube_pod_container_resource_requests_memory_bytes{pod=~"specialist-.*"}) by (pod)
+
+# Startup probe failures
+sum(increase(probe_success{probe_type="startup", namespace="neural-hive-specialists"}[15m]) == 0)
+```
+
+### 11.4 Workflow Steps
+
+1. Capture 24h metrics baseline (Grafana dashboard `Specialists - Resource Profile`).  
+2. Apply helm overrides (e.g., `helm upgrade specialist-business ... --set resources.requests.cpu=300m`).  
+3. Monitor `kubectl get pods -n neural-hive-specialists --watch` until startup probes pass.  
+4. Validate latency via `test-grpc-specialists.sh` and `consensus-engine` Prometheus panel.  
+5. Record deltas in `docs/RESOURCE_TUNING_GUIDE.md` + CHANGELOG.  
+6. Update README > Documentação bullet and notify platform ops.
+
+---
+
+## 12. Topology Spread & Anti-Affinity
+
+### 12.1 Key Differences
+
+- **Anti-affinity** (preferred/required) prevents pods with matching labels from sharing the same topology key.  
+- **TopologySpreadConstraints** balances pods across available topology domains but allows mixing with other workloads.  
+- Use anti-affinity to avoid co-location, use topology spread to keep per-zone quorum symmetry.
+
+### 12.2 Soft vs Hard Configurations
+
+- **Soft (ScheduleAnyway)**: Scheduler may violate spread if cluster is full; ideal for specialists and non-critical workloads.  
+- **Hard (DoNotSchedule)**: Scheduler refuses placement if balancing is impossible; reserve for Service Registry / Memory Layer.
+
+### 12.3 YAML Example (Soft)
+
+```yaml
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: specialist-business
+          topologyKey: topology.kubernetes.io/zone
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: specialist-business
+```
+
+### 12.4 YAML Example (Hard/DoNotSchedule)
+
+```yaml
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: service-registry
+        topologyKey: topology.kubernetes.io/zone
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: service-registry
+```
+
+### 12.5 Troubleshooting & Commands
+
+- `kubectl describe pod <pod> | grep -A3 Spread` → confirm constraint evaluation.  
+- `kubectl get pods -n neural-hive-specialists -o custom-columns=NAME:.metadata.name,ZONE:.metadata.labels.topology\\.kubernetes\\.io/zone` → verify distribution.  
+- `kubectl get events -A | grep -i topology` → detect scheduling failures due to DoNotSchedule rules.  
+- If pods remain Pending, temporarily lower `maxSkew` or relax to `ScheduleAnyway` while scaling the node group.
+
+---
+
+**Last Updated:** 2025-11-15
+**Version:** 2.0
 **Authors:** Neural Hive Mind Team

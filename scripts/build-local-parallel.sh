@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+# Enable Docker BuildKit for improved build performance
+export DOCKER_BUILDKIT=1
+
 # Colors for logging
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -17,6 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BUILD_CONTEXT="."
 NO_CACHE=""
+SKIP_BASE_IMAGES="false"
 
 # Services array (9 Phase 1 services)
 SERVICES=(
@@ -95,6 +99,27 @@ check_prerequisites() {
     fi
 }
 
+# Build base images first
+build_base_images_first() {
+    if [ "${SKIP_BASE_IMAGES}" = "true" ]; then
+        log_info "Pulando build de imagens base (--skip-base-images)"
+        return 0
+    fi
+
+    log_info "Construindo imagens base primeiro..."
+
+    if [ -f "${PROJECT_ROOT}/scripts/build-base-images.sh" ]; then
+        bash "${PROJECT_ROOT}/scripts/build-base-images.sh" --version "${VERSION}" ${NO_CACHE}
+        if [ $? -ne 0 ]; then
+            log_error "Falha ao construir imagens base"
+            exit 1
+        fi
+        log_success "Imagens base construídas com sucesso"
+    else
+        log_warning "build-base-images.sh não encontrado, pulando..."
+    fi
+}
+
 # Build individual service
 build_service() {
     local service_name=$1
@@ -170,6 +195,7 @@ Opções:
   --parallel <n>        Número de builds paralelos (padrão: 4)
   --services <list>     Buildar apenas serviços específicos (separados por vírgula)
   --no-cache            Força rebuild sem usar cache do Docker
+  --skip-base-images    Pular build de imagens base (assume que já existem)
   --help                Exibe esta mensagem de ajuda
 
 Exemplos:
@@ -187,6 +213,9 @@ Exemplos:
 
   # Build sem cache
   $0 --no-cache
+
+  # Build apenas serviços (imagens base já construídas)
+  $0 --skip-base-images
 
 EOF
     exit 0
@@ -210,6 +239,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --no-cache)
             NO_CACHE="--no-cache"
+            shift
+            ;;
+        --skip-base-images)
+            SKIP_BASE_IMAGES="true"
             shift
             ;;
         --help)
@@ -236,6 +269,9 @@ main() {
     echo ""
 
     check_prerequisites
+
+    # Build base images first
+    build_base_images_first
 
     # Create logs directory
     mkdir -p "${PROJECT_ROOT}/logs"

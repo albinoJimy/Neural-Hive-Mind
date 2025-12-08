@@ -13,12 +13,14 @@ autoscaling:
   targetMemoryUtilizationPercentage: 80
 
 resources:
+  # Workers pull Temporal/Kafka tasks but idle frequently; profiling shows 250-300m CPU steady state.
+  # Right-size to 400m CPU / 640Mi requests with burst cap 1.5 CPU / 1.5Gi for parallel job spikes.
   requests:
-    cpu: 500m
-    memory: 512Mi
+    cpu: 400m
+    memory: 640Mi
   limits:
-    cpu: 2000m
-    memory: 2Gi
+    cpu: 1500m
+    memory: 1536Mi
 
 config:
   serviceName: worker-agents
@@ -37,6 +39,15 @@ config:
     ticketsTopic: execution.tickets
     resultsTopic: execution.results
     consumerGroupId: worker-agents
+    schemaRegistryUrl: http://schema-registry.neural-hive-kafka.svc.cluster.local:8081
+    securityProtocol: PLAINTEXT
+    saslMechanism: SCRAM-SHA-512
+    saslUsername: ""
+    saslPassword: ""
+    sslCaLocation: ""
+    sslCertificateLocation: ""
+    sslKeyLocation: ""
+    schemasBasePath: /app/schemas
 
   serviceRegistry:
     host: service-registry.neural-hive-registry.svc.cluster.local
@@ -74,6 +85,34 @@ serviceMonitor:
   enabled: true
   interval: 30s
 
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 20  # Dá 3.3min para registrar tasks no Service Registry/Temporal
+  successThreshold: 1
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 0
+  periodSeconds: 15
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8080
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
 pdb:
   enabled: true
   minAvailable: 1
@@ -84,3 +123,24 @@ networkPolicy:
 secrets:
   kafkaSaslUsername: ""
   kafkaSaslPassword: ""
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - worker-agents
+          topologyKey: topology.kubernetes.io/zone
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: worker-agents

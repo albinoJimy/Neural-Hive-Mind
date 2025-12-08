@@ -5,6 +5,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "semantic-translation-engine.labels" . | nindent 4 }}
+    neural.hive/metrics: "enabled"
+    neural.hive/component: "semantic-translator"
+    neural.hive/layer: "cognitiva"
 spec:
   type: {{ .Values.service.type }}
   ports:

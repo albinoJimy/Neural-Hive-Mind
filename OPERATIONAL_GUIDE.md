@@ -320,6 +320,81 @@ helm rollback neural-hive-mind
 4. **Investigar** degradações de performance imediatamente
 5. **Documentar** mudanças de performance
 
+## SemanticPipeline Fallback
+
+### Visão Geral
+O sistema utiliza **SemanticPipeline** como fallback inteligente quando modelos ML não estão disponíveis, ao invés de heurísticas simples. O SemanticPipeline combina:
+- **Análise Semântica**: Embeddings de sentence-transformers para avaliar segurança, arquitetura, performance e qualidade
+- **Avaliação Ontológica**: Conhecimento estruturado sobre domínios, complexidade e padrões de risco
+
+### Configuração
+O fallback está **habilitado por padrão** via:
+- **Config Python**: `use_semantic_fallback=True` em `config.py`
+- **Helm Values**: `config.features.useSemanticFallback: true` em `values.yaml`
+- **Env Var**: `USE_SEMANTIC_FALLBACK=true` nos pods
+
+### Desabilitar SemanticPipeline (Rollback para Heurísticas)
+Se necessário reverter para heurísticas simples:
+
+```bash
+# Opção 1: Via Helm (recomendado)
+helm upgrade specialist-technical ./helm-charts/specialist-technical \
+  --set config.features.useSemanticFallback=false \
+  --reuse-values
+
+# Opção 2: Via Env Var (temporário)
+kubectl set env deployment/specialist-technical \
+  -n neural-hive \
+  USE_SEMANTIC_FALLBACK=false
+
+# Verificar mudança
+kubectl logs -n neural-hive deployment/specialist-technical | \
+  grep "use_semantic_fallback"
+```
+
+### Monitoramento
+**Logs**: Buscar por `"Falling back to semantic pipeline"` ou `"Falling back to specialist heuristics"`
+
+**Métricas Prometheus**:
+```promql
+# Taxa de uso do SemanticPipeline
+rate(neural_hive_specialist_evaluations_total{model_source="semantic_pipeline"}[5m])
+
+# Taxa de uso de heurísticas
+rate(neural_hive_specialist_evaluations_total{model_source="heuristics"}[5m])
+```
+
+**Grafana Dashboard**: Painel "Specialist Inference Sources" mostra distribuição ML/SemanticPipeline/Heuristics
+
+### Troubleshooting SemanticPipeline
+**Problema**: SemanticPipeline não está sendo usado (logs mostram "heuristics")
+- **Causa**: `USE_SEMANTIC_FALLBACK=false` ou erro na inicialização do SemanticPipeline
+- **Solução**: Verificar env var e logs de inicialização do specialist
+
+**Problema**: Confiança muito baixa com SemanticPipeline
+- **Causa**: Descrições de tarefas pobres (STE gerando descrições vazias)
+- **Solução**: Enriquecer prompts do STE (ver fase subsequente)
+
+### Calibração de Confiança
+O sistema **reduz confiança em 20%** quando usa fallback (SemanticPipeline ou heurísticas) para sinalizar que não é inferência ML:
+- **ML**: `confidence_score` original
+- **SemanticPipeline**: `confidence_score * 0.8`
+- **Heurísticas**: `confidence_score * 0.8`
+
+Isso garante que decisões de consenso priorizem opiniões baseadas em ML quando disponíveis.
+
+### Script de Validação
+```bash
+# Validar configuração de fallback
+./scripts/validation/test-semantic-fallback.sh
+
+# Validar todos os specialists
+./scripts/validation/test-semantic-fallback.sh all
+
+# Testar fallback com MLflow desligado (interativo)
+./scripts/validation/test-semantic-fallback.sh technical
+```
+
 ## Troubleshooting Rápido
 
 ### Problemas Comuns

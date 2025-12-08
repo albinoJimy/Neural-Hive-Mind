@@ -23,6 +23,14 @@ class Neo4jClient:
 
     async def initialize(self):
         """Initialize Neo4j driver with connection pool"""
+        logger.info(
+            'Tentando conectar ao Neo4j',
+            uri=self.settings.neo4j_uri,
+            database=self.settings.neo4j_database,
+            pool_size=self.settings.neo4j_max_connection_pool_size,
+            timeout=self.settings.neo4j_connection_timeout
+        )
+
         self.driver = AsyncGraphDatabase.driver(
             self.settings.neo4j_uri,
             auth=(self.settings.neo4j_user, self.settings.neo4j_password),
@@ -32,13 +40,24 @@ class Neo4jClient:
         )
 
         # Verify connectivity
-        await self.driver.verify_connectivity()
-
-        logger.info(
-            'Neo4j client inicializado',
-            uri=self.settings.neo4j_uri,
-            database=self.settings.neo4j_database
-        )
+        try:
+            await self.driver.verify_connectivity()
+            logger.info(
+                'Neo4j client inicializado com sucesso',
+                uri=self.settings.neo4j_uri,
+                database=self.settings.neo4j_database,
+                pool_size=self.settings.neo4j_max_connection_pool_size,
+                timeout=self.settings.neo4j_connection_timeout
+            )
+        except Exception as e:
+            logger.error(
+                'Falha ao verificar conectividade Neo4j',
+                uri=self.settings.neo4j_uri,
+                timeout=self.settings.neo4j_connection_timeout,
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            raise
 
     @retry(
         stop=stop_after_attempt(3),
@@ -61,7 +80,16 @@ class Neo4jClient:
         Returns:
             List of similar intent records
         """
+        import time
         keywords = self._extract_keywords(intent_text)
+
+        logger.debug(
+            'Buscando similar intents no Neo4j',
+            intent_text_preview=intent_text[:100] if intent_text else '',
+            domain=domain,
+            limit=limit,
+            keywords=keywords
+        )
 
         query = '''
         MATCH (i:Intent {domain: $domain})
@@ -76,6 +104,7 @@ class Neo4jClient:
             database=self.settings.neo4j_database
         ) as session:
             try:
+                start_time = time.time()
                 result = await session.run(
                     query,
                     domain=domain,
@@ -84,11 +113,15 @@ class Neo4jClient:
                     timeout=self.settings.neo4j_query_timeout / 1000.0
                 )
                 records = await result.data()
+                duration_ms = (time.time() - start_time) * 1000
 
                 logger.debug(
                     'Similar intents queried',
                     domain=domain,
-                    count=len(records)
+                    count=len(records),
+                    keywords=keywords,
+                    duration_ms=round(duration_ms, 2),
+                    empty_result=len(records) == 0
                 )
 
                 return records
@@ -97,7 +130,10 @@ class Neo4jClient:
                 logger.error(
                     'Error querying similar intents',
                     domain=domain,
-                    error=str(e)
+                    keywords=keywords,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    sugestao='Verifique conectividade com Neo4j e se existem Intent nodes'
                 )
                 return []
 
@@ -115,6 +151,11 @@ class Neo4jClient:
         Returns:
             Ontology definition
         """
+        logger.debug(
+            'Buscando ontologia no Neo4j',
+            entity_type=entity_type
+        )
+
         query = '''
         MATCH (o:Ontology {type: $entity_type})
         RETURN o.canonical_type AS canonical_type,
@@ -142,6 +183,10 @@ class Neo4jClient:
                     }
                 else:
                     # Return default if not found
+                    logger.debug(
+                        'Ontologia não encontrada no Neo4j - usando default',
+                        entity_type=entity_type
+                    )
                     return {
                         'canonical_type': entity_type,
                         'properties': {},
@@ -152,7 +197,8 @@ class Neo4jClient:
                 logger.error(
                     'Error querying ontology',
                     entity_type=entity_type,
-                    error=str(e)
+                    error=str(e),
+                    error_type=type(e).__name__
                 )
                 return {
                     'canonical_type': entity_type,
@@ -174,6 +220,11 @@ class Neo4jClient:
         Returns:
             List of causal relationships
         """
+        logger.debug(
+            'Buscando relacionamentos causais no Neo4j',
+            intent_id=intent_id
+        )
+
         query = '''
         MATCH (i:Intent {id: $intent_id})-[r:CAUSES|DEPENDS_ON]->(related)
         RETURN type(r) AS relationship_type,
@@ -205,9 +256,164 @@ class Neo4jClient:
                 logger.error(
                     'Error querying causal relationships',
                     intent_id=intent_id,
-                    error=str(e)
+                    error=str(e),
+                    error_type=type(e).__name__
                 )
                 return []
+
+    async def persist_intent_to_graph(
+        self,
+        intent_envelope: Dict,
+        cognitive_plan_id: str,
+        outcome: str
+    ) -> bool:
+        """
+        Persiste intent no grafo de conhecimento Neo4j (best-effort)
+
+        Esta operação é opcional e não deve bloquear o fluxo principal.
+        Não usa @retry pois exceções são capturadas e convertidas em False,
+        e o orquestrador já trata falhas de forma graceful.
+
+        Args:
+            intent_envelope: Dict do Intent Envelope
+            cognitive_plan_id: ID do plano cognitivo gerado
+            outcome: Resultado do processamento ('success' ou 'error')
+
+        Returns:
+            True se persistido com sucesso, False em caso de erro
+        """
+        intent_id = intent_envelope.get('id')
+        intent = intent_envelope.get('intent', {})
+        text = self._sanitize_text_for_cypher(intent.get('text', ''))
+        domain = intent.get('domain', 'unknown')
+        confidence = intent_envelope.get('confidence', 0.0)
+        timestamp = intent_envelope.get('timestamp')
+        entities = intent.get('entities', [])
+        keywords = self._extract_keywords(intent.get('text', ''))
+
+        logger.debug(
+            'Persistindo intent no grafo Neo4j',
+            intent_id=intent_id,
+            domain=domain,
+            plan_id=cognitive_plan_id,
+            num_entities=len(entities)
+        )
+
+        # Query para criar/atualizar Intent node
+        query = '''
+        MERGE (i:Intent {id: $intent_id})
+        SET i.text = $text,
+            i.domain = $domain,
+            i.confidence = $confidence,
+            i.timestamp = $timestamp,
+            i.outcome = $outcome,
+            i.plan_id = $plan_id,
+            i.keywords = $keywords,
+            i.updated_at = datetime()
+        RETURN i.id AS id
+        '''
+
+        async with self.driver.session(
+            database=self.settings.neo4j_database
+        ) as session:
+            try:
+                result = await session.run(
+                    query,
+                    intent_id=intent_id,
+                    text=text,
+                    domain=domain,
+                    confidence=confidence,
+                    timestamp=timestamp,
+                    outcome=outcome,
+                    plan_id=cognitive_plan_id,
+                    keywords=keywords,
+                    timeout=self.settings.neo4j_query_timeout / 1000.0
+                )
+                await result.consume()
+
+                # Persistir entities se existirem
+                if entities:
+                    await self._persist_intent_entities(session, intent_id, entities)
+
+                logger.info(
+                    'Intent persistido no grafo Neo4j',
+                    intent_id=intent_id,
+                    domain=domain,
+                    num_entities=len(entities),
+                    keywords=keywords
+                )
+
+                return True
+
+            except Exception as e:
+                logger.error(
+                    'Erro ao persistir intent no Neo4j',
+                    intent_id=intent_id,
+                    error=str(e),
+                    error_type=type(e).__name__
+                )
+                return False
+
+    async def _persist_intent_entities(
+        self,
+        session,
+        intent_id: str,
+        entities: List[Dict]
+    ):
+        """
+        Persiste entities do intent e cria relacionamentos
+
+        Args:
+            session: Neo4j session
+            intent_id: ID do intent
+            entities: Lista de entities do intent
+        """
+        query = '''
+        MATCH (i:Intent {id: $intent_id})
+        MERGE (e:Entity {type: $entity_type, value: $entity_value})
+        MERGE (i)-[:CONTAINS]->(e)
+        '''
+
+        for entity in entities:
+            try:
+                await session.run(
+                    query,
+                    intent_id=intent_id,
+                    entity_type=entity.get('type', 'unknown'),
+                    entity_value=self._sanitize_text_for_cypher(
+                        str(entity.get('value', ''))
+                    ),
+                    timeout=self.settings.neo4j_query_timeout / 1000.0
+                )
+            except Exception as e:
+                logger.warning(
+                    'Erro ao persistir entity no Neo4j',
+                    intent_id=intent_id,
+                    entity_type=entity.get('type'),
+                    error=str(e)
+                )
+
+    def _sanitize_text_for_cypher(self, text: str) -> str:
+        """
+        Prepara texto para uso em queries Cypher
+
+        O driver Neo4j faz escaping automático de parâmetros, então apenas
+        truncamos textos muito longos para evitar problemas de performance.
+
+        Args:
+            text: Texto de entrada
+
+        Returns:
+            Texto truncado se necessário
+        """
+        if not text:
+            return ''
+
+        # Truncar texto longo (max 5000 chars) para evitar problemas de performance
+        if len(text) > 5000:
+            return text[:5000] + '...'
+
+        return text
 
     def _extract_keywords(self, text: str) -> str:
         """

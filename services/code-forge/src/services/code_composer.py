@@ -42,8 +42,11 @@ class CodeComposer:
         logger.info('code_composition_started', template_id=template.template_id)
 
         # === INTEGRAÇÃO MCP: Determinar método de geração ===
-        generation_method_str = getattr(context, 'generation_method', 'TEMPLATE')
-        generation_method_str = generation_method_str.upper()
+        generation_method_str = getattr(context, 'generation_method', None)
+        if generation_method_str:
+            generation_method_str = generation_method_str.upper()
+        if not generation_method_str or generation_method_str not in GenerationMethod.__members__:
+            generation_method_str = 'TEMPLATE'
 
         # Validar e normalizar generation_method
         generation_method_enum = GenerationMethod.__members__.get(
@@ -68,6 +71,14 @@ class CodeComposer:
         elif generation_method_str == 'HYBRID' and self.llm_client:
             code_content, confidence_score = await self._generate_hybrid(context)
             effective_method = 'HYBRID'
+        elif generation_method_str == 'HEURISTIC':
+            code_content = self._generate_heuristic(ticket.parameters)
+            confidence_score = 0.78
+            effective_method = 'HEURISTIC'
+            generation_method_enum = GenerationMethod.__members__.get(
+                'HEURISTIC',
+                GenerationMethod.HEURISTIC
+            )
         else:
             # Fallback para template (método original)
             code_content = self._generate_python_microservice(ticket.parameters)

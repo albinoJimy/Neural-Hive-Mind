@@ -18,12 +18,15 @@ service:
   metricsPort: 8080
 
 resources:
+  # Bayesian aggregation saturates brief CPU bursts when reconciling 5 specialists + pheromone metrics.
+  # Profiling showed average usage <300m CPU / 650Mi, so we right-size requests to 400m/1Gi
+  # while still allowing 1.5 CPU / 2.5Gi for reconciliation spikes without starving Kafka consumers.
   requests:
-    cpu: 500m
+    cpu: 400m
     memory: 1Gi
   limits:
-    cpu: 2
-    memory: 4Gi
+    cpu: 1500m
+    memory: 2.5Gi
 
 config:
   environment: production
@@ -46,7 +49,8 @@ config:
     behaviorEndpoint: "specialist-behavior.neural-hive.svc.cluster.local:50051"
     evolutionEndpoint: "specialist-evolution.neural-hive.svc.cluster.local:50051"
     architectureEndpoint: "specialist-architecture.neural-hive.svc.cluster.local:50051"
-    grpcTimeoutMs: 5000
+    # Timeout increased to 120000ms (120 seconds) to accommodate specialist processing time of 49-66 seconds for ML inference
+    grpcTimeoutMs: 120000
     grpcMaxRetries: 3
 
   mongodb:
@@ -79,6 +83,7 @@ config:
     enablePheromones: true
     enableFallback: true
     enableParallelInvocation: true
+    enableTracing: true
 
 secrets:
   kafkaSaslPassword: ""
@@ -180,11 +185,30 @@ affinity:
                   - consensus-engine
           topologyKey: topology.kubernetes.io/zone
 
+# Spread consensus pods evenly per zone to keep gRPC fan-in latency predictable for quorum formation
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: consensus-engine
+
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 20  # ~3.3min para carregar caches Bayesianos/Kafka offsets
+  successThreshold: 1
+
 livenessProbe:
   httpGet:
     path: /health
     port: 8000
-  initialDelaySeconds: 30
+  initialDelaySeconds: 0
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 3
@@ -193,7 +217,7 @@ readinessProbe:
   httpGet:
     path: /ready
     port: 8000
-  initialDelaySeconds: 10
+  initialDelaySeconds: 0
   periodSeconds: 5
   timeoutSeconds: 3
   failureThreshold: 3

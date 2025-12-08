@@ -8,14 +8,19 @@ from setuptools import setup, find_packages
 
 setup(
     name="neural_hive_integration",
-    version="1.0.0",
+    version="1.1.2",  # Fix: hardcoded Kafka/Redis URLs corrigidos
     description="Neural Hive Mind Phase 2 Integration Library",
     author="Neural Hive Team",
     packages=find_packages(),
+    package_data={
+        "neural_hive_integration.proto_stubs": ["*.py"],
+    },
+    include_package_data=True,
     python_requires=">=3.11",
     install_requires=[
         "httpx>=0.24.0",
         "grpcio>=1.54.0",
+        "protobuf>=5.27.0",  # Adicionado: necessário para proto_stubs
         "structlog>=23.1.0",
         "opentelemetry-api>=1.18.0",
         "opentelemetry-sdk>=1.18.0",

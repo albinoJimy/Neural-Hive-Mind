@@ -79,3 +79,7 @@ data:
   max_audio_size_mb: {{ .Values.config.limits.maxAudioSizeMb | quote }}
   max_text_length: {{ .Values.config.limits.maxTextLength | quote }}
   jaeger_endpoint: {{ .Values.observability.jaeger.endpoint | quote }}
+  enable_tracing: {{ .Values.observability.tracing.enabled | default "true" | quote }}
+  # OpenTelemetry Configuration
+  otel_enabled: {{ .Values.observability.otelEnabled | default "false" | quote }}
+  otel_endpoint: {{ .Values.observability.otelEndpoint | default "http://opentelemetry-collector.observability.svc.cluster.local:4317" | quote }}

@@ -15,9 +15,6 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
-# Copy source code
-COPY src/ ./src/
-
 # Stage 2 - Runtime
 FROM python:3.11-slim
 
@@ -30,8 +27,8 @@ WORKDIR /app
 # Copy installed dependencies from builder
 COPY --from=builder /root/.local /home/worker-agent/.local
 
-# Copy source code
-COPY --from=builder /app/src ./src
+# Copy source code from host context
+COPY src/ ./src
 
 # Set PATH to include user binaries
 ENV PATH=/home/worker-agent/.local/bin:$PATH

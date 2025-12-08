@@ -15,6 +15,15 @@ data:
   KAFKA_TICKETS_TOPIC: {{ .Values.config.kafka.ticketsTopic | quote }}
   KAFKA_RESULTS_TOPIC: {{ .Values.config.kafka.resultsTopic | quote }}
   KAFKA_CONSUMER_GROUP_ID: {{ .Values.config.kafka.consumerGroupId | quote }}
+  KAFKA_SECURITY_PROTOCOL: {{ .Values.config.kafka.securityProtocol | quote }}
+  KAFKA_SASL_MECHANISM: {{ .Values.config.kafka.saslMechanism | quote }}
+  KAFKA_SASL_USERNAME: {{ .Values.config.kafka.saslUsername | quote }}
+  KAFKA_SASL_PASSWORD: {{ .Values.config.kafka.saslPassword | quote }}
+  KAFKA_SSL_CA_LOCATION: {{ .Values.config.kafka.sslCaLocation | quote }}
+  KAFKA_SSL_CERTIFICATE_LOCATION: {{ .Values.config.kafka.sslCertificateLocation | quote }}
+  KAFKA_SSL_KEY_LOCATION: {{ .Values.config.kafka.sslKeyLocation | quote }}
+  KAFKA_SCHEMA_REGISTRY_URL: {{ .Values.config.kafka.schemaRegistryUrl | quote }}
+  SCHEMAS_BASE_PATH: {{ .Values.config.kafka.schemasBasePath | quote }}
 
   SERVICE_REGISTRY_HOST: {{ .Values.config.serviceRegistry.host | quote }}
   SERVICE_REGISTRY_PORT: {{ .Values.config.serviceRegistry.port | quote }}

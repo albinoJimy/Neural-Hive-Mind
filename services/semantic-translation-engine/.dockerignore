@@ -32,6 +32,10 @@ tests/
 htmlcov/
 .tox/
 
+# Logs
+logs/
+*.log
+
 # Build artifacts
 dist/
 build/

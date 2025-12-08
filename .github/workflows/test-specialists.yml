@@ -48,7 +48,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('libraries/python/neural_hive_specialists/requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('libraries/python/neural_hive_specialists/requirements.txt', 'libraries/python/neural_hive_specialists/requirements-dev.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
@@ -56,7 +56,7 @@ jobs:
         working-directory: libraries/python/neural_hive_specialists
         run: |
           pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -r requirements-dev.txt
           pip install -e ".[explainability]"
 
       - name: Gerar protobufs

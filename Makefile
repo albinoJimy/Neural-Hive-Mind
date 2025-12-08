@@ -1,4 +1,4 @@
-.PHONY: proto-gen clean-proto minikube-setup minikube-start minikube-stop minikube-clean minikube-reset minikube-validate minikube-status minikube-dashboard minikube-logs bootstrap-apply bootstrap-validate test-phase1-pre-validate test-phase1 test-phase1-debug test-phase1-full test-phase1-results test-phase1-clean test-specialists-unit test-specialists-integration test-specialists-contract test-specialists-all test-specialists-coverage test-specialists-clean help
+.PHONY: proto-gen proto-gen-all clean-proto minikube-setup minikube-start minikube-stop minikube-clean minikube-reset minikube-validate minikube-status minikube-dashboard minikube-logs bootstrap-apply bootstrap-validate test-phase1-pre-validate test-phase1 test-phase1-debug test-phase1-full test-phase1-results test-phase1-clean test-specialists-unit test-specialists-integration test-specialists-contract test-specialists-all test-specialists-coverage test-specialists-clean help
 
 # ============================================================================
 # Protobuf Targets
@@ -15,6 +15,11 @@ proto-gen:
 		./schemas/specialist-opinion/specialist.proto
 	@echo "import sys; import os; sys.path.insert(0, os.path.dirname(__file__))" > libraries/python/neural_hive_specialists/proto_gen/__init__.py
 	@echo "Protobuf gerado com sucesso!"
+
+# Compilar todos os protos do projeto
+proto-gen-all:
+	@echo "Compilando todos os protos do projeto..."
+	@./scripts/compile_all_protos.sh
 
 # Limpar arquivos protobuf gerados
 clean-proto:
@@ -134,6 +139,7 @@ help:
 	@echo ""
 	@echo "Protobuf Targets:"
 	@echo "  make proto-gen           - Generate protobuf files"
+	@echo "  make proto-gen-all       - Compile all protobuf files (services + libraries)"
 	@echo "  make clean-proto         - Remove generated protobuf files"
 	@echo ""
 	@echo "Minikube Local Development:"
