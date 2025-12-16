@@ -1,0 +1,103 @@
+replicaCount: 1
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: queen-agent
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: ""
+
+service:
+  type: ClusterIP
+  ports:
+    http: 8000
+    grpc: 50053
+    metrics: 9090
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9090"
+  prometheus.io/path: "/metrics"
+
+resources:
+  requests:
+    cpu: 300m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+config:
+  serviceName: queen-agent
+  serviceVersion: "1.0.0"
+  environment: production
+  logLevel: INFO
+  corsOrigins:
+    - "*"
+
+  fastapi:
+    host: 0.0.0.0
+    port: 8000
+
+  grpc:
+    port: 50053
+    maxWorkers: 10
+
+  kafka:
+    bootstrapServers: kafka:9092
+    consumerGroup: queen-agent-group
+    autoOffsetReset: earliest
+    topics:
+      consensus: plans.consensus
+      telemetry: telemetry.aggregated
+      incidents: incidents.critical
+      strategic: strategic.decisions
+
+  mongodb:
+    uri: mongodb://mongodb:27017
+    database: neural_hive
+    ledgerCollection: strategic_decisions_ledger
+    exceptionsCollection: exception_approvals
+    maxPoolSize: 100
+    minPoolSize: 10
+
+  redis:
+    clusterNodes: redis-cluster:6379
+    password: ""
+    sslEnabled: true
+    pheromonePrefix: pheromone:strategic:
+    cacheTtlSeconds: 300
+
+  neo4j:
+    uri: bolt://neo4j:7687
+    user: neo4j
+    password: password
+    database: neo4j
+    maxConnectionPoolSize: 50
+
+  prometheus:
+    url: http://prometheus-server:9090
+    queryTimeoutSeconds: 30
+
+  orchestrator:
+    grpcHost: orchestrator-dynamic
+    grpcPort: 50051
+
+  serviceRegistry:
+    grpcHost: service-registry
+    grpcPort: 50051
+
+  observability:
+    # OpenTelemetry Collector endpoint (gRPC)
+    otelExporterEndpoint: http://otel-collector:4317
+    # Prometheus metrics port
+    prometheusPort: 9090
+
+serviceMonitor:
+  enabled: true
+  interval: 30s

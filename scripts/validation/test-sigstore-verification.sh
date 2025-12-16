@@ -1,4 +1,10 @@
 #!/bin/bash
+echo "⚠️  AVISO: Este script foi consolidado no CLI unificado de validação."
+echo "⚠️  Use: scripts/validate.sh --target <TARGET>"
+echo "⚠️  Exemplo: scripts/validate.sh --target specialists"
+echo ""
+echo "Executando script legado..."
+echo ""
 # Script específico para testar verificação de assinatura de imagens pelo Sigstore Policy Controller
 # Valida que imagens assinadas são aceitas e não assinadas são rejeitadas
 

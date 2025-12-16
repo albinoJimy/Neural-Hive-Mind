@@ -25,7 +25,11 @@ class MongoDBClient:
     async def connect(self):
         """Estabelecer conexão com MongoDB."""
         try:
-            self.client = AsyncIOMotorClient(self.settings.mongodb_uri)
+            self.client = AsyncIOMotorClient(
+                self.settings.mongodb_uri,
+                maxPoolSize=self.settings.mongodb_max_pool_size,
+                minPoolSize=self.settings.mongodb_min_pool_size
+            )
             self.db = self.client[self.settings.mongodb_database]
             self.optimization_collection = self.db[self.settings.mongodb_optimization_collection]
             self.experiments_collection = self.db[self.settings.mongodb_experiments_collection]

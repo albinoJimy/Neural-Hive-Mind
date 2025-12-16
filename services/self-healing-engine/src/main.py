@@ -1,11 +1,16 @@
 import asyncio
 import signal
 import json
+import os
 from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 import structlog
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from neural_hive_observability import (
+    get_tracer,
+    init_observability,
+    instrument_kafka_consumer,
+)
 
 from src.config.settings import get_settings
 from src.api import health, remediation
@@ -43,6 +48,16 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("self_healing_engine.startup", service=settings.service_name, version=settings.service_version)
 
+    init_observability(
+        service_name='self-healing-engine',
+        service_version=settings.service_version,
+        neural_hive_component='self-healing',
+        neural_hive_layer='governanca',
+        neural_hive_domain='remediation',
+        otel_endpoint=os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4317'),
+        enable_kafka=True
+    )
+
     # Initialize Service Registry client (fail-open)
     service_registry_client = ServiceRegistryClient(
         host=settings.service_registry_host,
@@ -75,6 +90,7 @@ async def lifespan(app: FastAPI):
         playbook_executor=playbook_executor
     )
     await remediation_consumer.start()
+    remediation_consumer = instrument_kafka_consumer(remediation_consumer)
     app.state.remediation_consumer = remediation_consumer
 
     # Initialize Orchestration Incident Consumer (Kafka)
@@ -95,6 +111,7 @@ async def lifespan(app: FastAPI):
         incident_schema=incident_schema
     )
     await incident_consumer.start()
+    incident_consumer = instrument_kafka_consumer(incident_consumer)
     app.state.incident_consumer = incident_consumer
 
     logger.info("self_healing_engine.startup_complete")
@@ -129,9 +146,6 @@ app = FastAPI(
     version=settings.service_version,
     lifespan=lifespan
 )
-
-# Instrument with OpenTelemetry
-FastAPIInstrumentor.instrument_app(app)
 
 # Include routers
 app.include_router(health.router, tags=["health"])

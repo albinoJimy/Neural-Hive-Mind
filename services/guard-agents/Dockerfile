@@ -17,12 +17,12 @@ WORKDIR /app
 COPY libraries/security/neural_hive_security /tmp/neural_hive_security
 
 # Copy requirements and install dependencies
-COPY requirements.txt .
+COPY services/guard-agents/requirements.txt .
 RUN pip install --no-cache-dir --prefix=/opt/venv -r requirements.txt && \
     pip install --no-cache-dir --prefix=/opt/venv -e /tmp/neural_hive_security
 
 # Copy source code
-COPY src/ ./src/
+COPY services/guard-agents/src/ ./src/
 
 # Stage 2 - Runtime
 FROM python:3.11-slim

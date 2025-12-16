@@ -35,21 +35,47 @@ class EvolutionSpecialist(BaseSpecialist):
 
         # Tentar carregar modelo ML do MLflow
         # Verificar se MLflow está disponível
-        if self.mlflow_client is None or not getattr(self.mlflow_client, '_enabled', False):
+        mlflow_enabled = False
+        if self.mlflow_client is None:
+            logger.warning("MLflow not available - using heuristic-based evaluation")
+            return None
+        if hasattr(self.mlflow_client, "is_enabled"):
+            mlflow_enabled = self.mlflow_client.is_enabled()
+        else:
+            mlflow_enabled = getattr(self.mlflow_client, '_enabled', False)
+
+        if not mlflow_enabled:
             logger.warning("MLflow not available - using heuristic-based evaluation")
             return None
 
         try:
-            model = self.mlflow_client.load_model(
+            # Carregar modelo com fallback para cache expirado
+            model = self.mlflow_client.load_model_with_fallback(
                 self.config.mlflow_model_name,
                 self.config.mlflow_model_stage
             )
 
-            logger.info(
-                "ML model loaded successfully",
-                model_name=self.config.mlflow_model_name,
-                stage=self.config.mlflow_model_stage
-            )
+            if model:
+                metadata = self.mlflow_client.get_model_metadata(
+                    self.config.mlflow_model_name,
+                    self.config.mlflow_model_stage
+                )
+
+                if not metadata:
+                    logger.warning(
+                        "No model metadata found for configured stage - using heuristics",
+                        model_name=self.config.mlflow_model_name,
+                        stage=self.config.mlflow_model_stage
+                    )
+                    return None
+
+                logger.info(
+                    "ML model loaded successfully",
+                    model_name=self.config.mlflow_model_name,
+                    stage=self.config.mlflow_model_stage,
+                    version=metadata.get('version', 'unknown'),
+                    stage_match=metadata.get('stage', self.config.mlflow_model_stage) == self.config.mlflow_model_stage
+                )
 
             return model
 

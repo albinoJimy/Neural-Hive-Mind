@@ -1,0 +1,163 @@
+# Valores padrão para MongoDB Helm Chart - Neural Hive-Mind
+nameOverride: ""
+fullnameOverride: ""
+# Configuração do Operator
+operator:
+  install: true
+  namespace: mongodb-operator
+  version: 0.8.3
+# Configuração do Cluster
+cluster:
+  name: neural-hive-mongodb
+  namespace: mongodb-cluster
+  version: "7.0.5"
+  members: 3 # ReplicaSet com 3 membros para HA
+# Storage
+storage:
+  size: 20Gi
+  storageClass: local-path
+  accessMode: ReadWriteOnce
+# Resources
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+# Security
+security:
+  auth:
+    enabled: true
+    existingSecret: "" # Se vazio, cria automaticamente
+    password: "" # Fornecido via values override ou secret externo
+  tls:
+    enabled: false
+    cert: ""
+    key: ""
+    ca: ""
+# Backup
+backup:
+  enabled: false
+  schedule: "0 2 * * *"
+  retention: 7
+  storage:
+    size: 20Gi
+    storageClass: local-path
+# Metrics
+metrics:
+  enabled: true
+  image: percona/mongodb_exporter:0.40
+  port: 9216
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+    namespace: mongodb-cluster
+# Service
+service:
+  type: ClusterIP
+  port: 27017
+  annotations:
+    neural-hive.io/service-type: database
+    neural-hive.io/component: operational-context
+# Pod Annotations e Labels
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9216"
+  prometheus.io/path: "/metrics"
+podLabels:
+  app.kubernetes.io/name: mongodb
+  app.kubernetes.io/component: database
+  neural-hive.io/layer: memory
+  neural-hive.io/component: operational-context
+# Affinity
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - mongodb
+          topologyKey: topology.kubernetes.io/zone
+# Tolerations
+tolerations: []
+# Node Selector
+nodeSelector: {}
+# Istio
+istio:
+  injection: true
+# Environment
+environment: prod
+# Health Checks
+healthCheck:
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 3
+# RBAC
+rbac:
+  create: true
+# Network Policy
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-observability
+      ports:
+        - protocol: TCP
+          port: 9216
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              neural-hive.io/layer: cognitive
+      ports:
+        - protocol: TCP
+          port: 27017
+# Configurações por ambiente
+dev:
+  storage:
+    size: 20Gi
+  resources:
+    requests:
+      cpu: 200m
+      memory: 1Gi
+    limits:
+      cpu: 1
+      memory: 4Gi
+  backup:
+    enabled: false
+  security:
+    tls:
+      enabled: false
+staging:
+  storage:
+    size: 30Gi
+  resources:
+    requests:
+      cpu: 300m
+      memory: 1.5Gi
+    limits:
+      cpu: 1.5
+      memory: 6Gi
+  backup:
+    enabled: true
+prod:
+  storage:
+    size: 100Gi
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: 2
+      memory: 8Gi
+  backup:
+    enabled: true

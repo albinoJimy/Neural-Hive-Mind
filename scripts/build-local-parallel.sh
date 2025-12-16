@@ -1,22 +1,38 @@
 #!/bin/bash
+# ============================================================================
+# ⚠️  DEPRECATION WARNING
+# ============================================================================
+# Este script está deprecated e será removido em versão futura.
+# Use o novo CLI unificado: ./scripts/build.sh
+#
+# Equivalência:
+#   ./scripts/build-local-parallel.sh --version 1.0.8
+#   → ./scripts/build.sh --target local --version 1.0.8
+#
+#   ./scripts/push-to-ecr.sh --version 1.0.8
+#   → ./scripts/build.sh --target ecr --version 1.0.8
+# ============================================================================
+
+echo ""
+echo "⚠️  AVISO: Este script está deprecated"
+echo "   Use: ./scripts/build.sh --target <local|ecr|registry|all>"
+echo "   Documentação: ./scripts/build.sh --help"
+echo ""
+sleep 2
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/common.sh"
+source "${SCRIPT_DIR}/lib/docker.sh"
+
 # Enable Docker BuildKit for improved build performance
 export DOCKER_BUILDKIT=1
-
-# Colors for logging
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
 
 # Configuration
 VERSION="${VERSION:-1.0.7}"
 MAX_PARALLEL_JOBS="${MAX_PARALLEL_JOBS:-4}"
 # Derive PROJECT_ROOT from script location (portable across environments)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BUILD_CONTEXT="."
 NO_CACHE=""
@@ -46,43 +62,11 @@ completed=0
 failed=0
 success=0
 
-# Logging functions
-log_info() {
-    echo -e "${BLUE}[INFO]${NC} $(date '+%Y-%m-%d %H:%M:%S') - $1"
-}
-
-log_success() {
-    echo -e "${GREEN}✅${NC} $1"
-}
-
-log_warning() {
-    echo -e "${YELLOW}⚠️${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}❌${NC} $1"
-}
-
-log_progress() {
-    echo -e "${BLUE}[$1/$total]${NC} $2"
-}
-
 # Check prerequisites
-check_prerequisites() {
+check_build_prerequisites() {
     log_info "Verificando pré-requisitos..."
 
-    # Check Docker
-    if ! command -v docker &> /dev/null; then
-        log_error "Docker não está instalado"
-        exit 1
-    fi
-
-    if ! docker info &> /dev/null; then
-        log_error "Docker daemon não está rodando"
-        exit 1
-    fi
-
-    log_success "Docker disponível"
+    check_prerequisites
 
     # Check if in correct directory
     if [ ! -d "${PROJECT_ROOT}/services" ]; then
@@ -136,18 +120,15 @@ build_service() {
     # Build the image
     BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-    docker build \
-        -f "${dockerfile_path}" \
-        -t "${image_name}:latest" \
-        -t "${image_name}:${VERSION}" \
-        --build-arg VERSION="${VERSION}" \
-        --build-arg BUILD_DATE="${BUILD_DATE}" \
-        ${NO_CACHE} \
-        --progress=plain \
-        "${BUILD_CONTEXT}" \
-        > "${log_file}" 2>&1
+    local build_args=(
+        "VERSION=${VERSION}"
+        "BUILD_DATE=${BUILD_DATE}"
+    )
 
-    return $?
+    local cache_flag=()
+    [[ -n "${NO_CACHE}" ]] && cache_flag+=(--no-cache)
+
+    DOCKER_BUILD_SILENT=true DOCKER_BUILD_LOG_FILE="${log_file}" docker_build "${image_name}" "${VERSION}" "${dockerfile_path}" "${BUILD_CONTEXT}" "${build_args[@]}" "${cache_flag[@]}"
 }
 
 # Semaphore control for parallel jobs
@@ -291,7 +272,7 @@ main() {
     for service in "${SERVICES[@]}"; do
         acquire_slot
 
-        log_progress ${index} "🔨 ${service}"
+        log_info "[${index}/${total}] 🔨 ${service}"
 
         # Start build in background
         (

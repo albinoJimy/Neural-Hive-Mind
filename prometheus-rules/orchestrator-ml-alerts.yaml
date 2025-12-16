@@ -1,0 +1,53 @@
+groups:
+- name: orchestrator_ml_models
+  interval: 60s
+  rules:
+  - alert: MLModelHighMAE
+    expr: orchestrator_ml_duration_model_mae > 0.20
+    for: 30m
+    labels:
+      severity: warning
+      component: ml_models
+    annotations:
+      summary: "DurationPredictor MAE alto ({{ $value }})"
+      description: "MAE > 20%, requer retreinamento. Threshold: 15%"
+
+  - alert: MLModelLowPrecision
+    expr: orchestrator_ml_anomaly_model_precision < 0.70
+    for: 30m
+    labels:
+      severity: warning
+      component: ml_models
+    annotations:
+      summary: "AnomalyDetector precision baixa ({{ $value }})"
+      description: "Precision < 70%, requer retreinamento. Threshold: 75%"
+
+  - alert: MLDriftDetected
+    expr: orchestrator_ml_drift_status == 2
+    for: 15m
+    labels:
+      severity: critical
+      component: ml_models
+    annotations:
+      summary: "Drift crítico detectado em modelos ML"
+      description: "Modelos apresentam drift significativo, retreinamento urgente necessário"
+
+  - alert: MLTrainingJobFailed
+    expr: orchestrator_ml_training_status == 0
+    for: 5m
+    labels:
+      severity: warning
+      component: ml_training
+    annotations:
+      summary: "Job de treinamento ML falhou"
+      description: "Último treinamento falhou, verificar logs do CronJob"
+
+  - alert: MLPredictionLatencyHigh
+    expr: histogram_quantile(0.95, rate(orchestrator_ml_prediction_duration_seconds_bucket[5m])) > 0.5
+    for: 10m
+    labels:
+      severity: warning
+      component: ml_models
+    annotations:
+      summary: "Latência de predição ML alta (P95 > 500ms)"
+      description: "P95 latency: {{ $value }}s, threshold: 0.5s"

@@ -1,0 +1,29 @@
+Observability Validation Report - Wed 19 Nov 2025 02:13:15 PM CET
+Namespace: observability
+Resumo: 5 passados, 19 falharam, 1 avisos
+
+- PASS | Namespace observability | Labels detectados
+- FAIL | Prometheus Operator | Prometheus Operator não encontrado
+- FAIL | Prometheus Server | Pods Prometheus não prontos
+- FAIL | Alertmanager | Pods Alertmanager não prontos
+- FAIL | Node Exporter | DaemonSet incompleto (0/0)
+- FAIL | Kube State Metrics | Deployment não pronto
+- FAIL | Grafana | Pod Grafana não pronto
+- FAIL | Jaeger | Pod Jaeger não pronto
+- FAIL | Serviços principais | Service neural-hive-prometheus-kube-prometheus-prometheus ausente
+- FAIL | ServiceMonitors | Apenas 0 ServiceMonitors encontrados
+- FAIL | Prometheus targets | Falha
+- FAIL | Prometheus query | Falha
+- FAIL | Grafana datasources | Não foi possível recuperar senha
+- FAIL | Grafana health | Senha indisponível
+- FAIL | Jaeger UI | Falha
+- FAIL | Jaeger OTLP | Portas OTLP ausentes
+- FAIL | PVCs | 1 PVCs não Bound
+- PASS | Recursos/OOM | Sem OOMKilled
+- PASS | Logs críticos | Sem erros críticos
+- FAIL | Conectividade interna | Falha na conectividade interna
+- PASS | RBAC | SA/Role/RoleBinding listados
+- WARN | NetworkPolicies | Nenhuma NetworkPolicy (warning)
+- PASS | Pod Security | PSS baseline aplicado
+- FAIL | Exemplars | Exemplars não configurados
+- FAIL | Integração Grafana | ConfigMap grafana-datasources ausente

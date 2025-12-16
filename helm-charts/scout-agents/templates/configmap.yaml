@@ -41,4 +41,4 @@ data:
   OBSERVABILITY__PROMETHEUS_PORT: {{ .Values.config.observability.prometheusPort | quote }}
   OBSERVABILITY__HTTP_PORT: {{ .Values.config.observability.httpPort | quote }}
   OBSERVABILITY__TRACING_ENABLED: {{ .Values.config.observability.tracingEnabled | quote }}
-  OBSERVABILITY__JAEGER_ENDPOINT: {{ .Values.config.observability.jaegerEndpoint | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.observability.otelEndpoint | quote }}

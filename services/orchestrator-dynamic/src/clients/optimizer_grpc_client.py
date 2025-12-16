@@ -10,6 +10,9 @@ import grpc
 import structlog
 from typing import Dict, List, Optional
 from tenacity import retry, stop_after_attempt, wait_exponential
+from opentelemetry import trace
+from neural_hive_observability.grpc_instrumentation import instrument_grpc_channel
+from neural_hive_observability.context import inject_context_to_metadata
 
 from src.config.settings import OrchestratorSettings
 
@@ -63,7 +66,11 @@ class OptimizerGrpcClient:
 
         try:
             # Criar canal insecure
-            self.channel = grpc.aio.insecure_channel(target)
+            self.channel = instrument_grpc_channel(
+                grpc.aio.insecure_channel(target),
+                service_name="orchestrator-dynamic",
+                target_service="optimizer-agents"
+            )
 
             # Criar stub
             self.stub = optimizer_agent_pb2_grpc.OptimizerAgentStub(self.channel)
@@ -120,7 +127,8 @@ class OptimizerGrpcClient:
                 include_confidence_intervals=include_confidence_intervals
             )
 
-            response = await self.stub.GetLoadForecast(request, timeout=10)
+            metadata = inject_context_to_metadata([])
+            response = await self.stub.GetLoadForecast(request, metadata=metadata, timeout=10)
 
             # Converter resposta para dict
             forecast = {
@@ -150,6 +158,11 @@ class OptimizerGrpcClient:
                 'load_forecast_received',
                 points=len(forecast['forecast'])
             )
+            span = trace.get_current_span()
+            span.set_attribute("rpc.service", "OptimizerAgent")
+            span.set_attribute("rpc.method", "GetLoadForecast")
+            span.set_attribute("neural.hive.ml.horizon_minutes", horizon_minutes)
+            span.set_attribute("neural.hive.ml.forecast_points", len(forecast['forecast']))
 
             return forecast
 
@@ -208,7 +221,8 @@ class OptimizerGrpcClient:
                 sla_compliance=current_state.get('sla_compliance', 1.0),
             )
 
-            response = await self.stub.GetSchedulingRecommendation(request, timeout=5)
+            metadata = inject_context_to_metadata([])
+            response = await self.stub.GetSchedulingRecommendation(request, metadata=metadata, timeout=5)
 
             # Converter resposta para dict
             recommendation = {
@@ -224,6 +238,9 @@ class OptimizerGrpcClient:
                 action=recommendation['action'],
                 confidence=recommendation['confidence']
             )
+            span = trace.get_current_span()
+            span.set_attribute("rpc.service", "OptimizerAgent")
+            span.set_attribute("rpc.method", "GetSchedulingRecommendation")
 
             return recommendation
 

@@ -2,14 +2,8 @@ import asyncio
 import signal
 import grpc
 import structlog
-from concurrent import futures
 from grpc_health.v1 import health, health_pb2_grpc
-from prometheus_client import start_http_server
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.instrumentation.grpc import GrpcInstrumentorServer
+from neural_hive_observability import init_observability, create_instrumented_grpc_server
 
 from src.config import get_settings
 from src.clients import EtcdClient, PheromoneClient
@@ -75,7 +69,26 @@ class ServiceRegistryServer:
         )
 
         # Inicializar OpenTelemetry
-        self._setup_telemetry()
+        try:
+            init_observability(
+                service_name=self.settings.SERVICE_NAME,
+                service_version=self.settings.SERVICE_VERSION,
+                neural_hive_component="service-registry",
+                neural_hive_layer="coordination",
+                environment=self.settings.ENVIRONMENT,
+                otel_endpoint=self.settings.OTEL_EXPORTER_ENDPOINT,
+                prometheus_port=self.settings.METRICS_PORT,
+                log_level=self.settings.LOG_LEVEL,
+                enable_kafka=False,
+                enable_grpc=True
+            )
+        except Exception as e:
+            logger.warning(
+                "observability_init_failed",
+                error=str(e),
+                otel_endpoint=self.settings.OTEL_EXPORTER_ENDPOINT,
+                prometheus_port=self.settings.METRICS_PORT
+            )
 
         # Inicializar clientes
         self.etcd_client = EtcdClient(
@@ -140,8 +153,8 @@ class ServiceRegistryServer:
             interceptors.append(self.auth_interceptor)
 
         # Iniciar servidor gRPC
-        self.server = grpc.aio.server(
-            futures.ThreadPoolExecutor(max_workers=10),
+        self.server = create_instrumented_grpc_server(
+            max_workers=10,
             interceptors=interceptors if interceptors else None,
             options=[
                 ('grpc.max_send_message_length', 50 * 1024 * 1024),
@@ -165,42 +178,14 @@ class ServiceRegistryServer:
         health_pb2_grpc.add_HealthServicer_to_server(health_servicer, self.server)
         health_servicer.set("", health_pb2.HealthCheckResponse.SERVING)
 
-        # Instrumentar com OpenTelemetry
-        GrpcInstrumentorServer().instrument_server(self.server)
-
         # Adicionar porta
         self.server.add_insecure_port(f'[::]:{self.settings.GRPC_PORT}')
-
-        # Iniciar servidor de métricas Prometheus
-        start_http_server(self.settings.METRICS_PORT)
 
         logger.info(
             "service_registry_initialized",
             grpc_port=self.settings.GRPC_PORT,
             metrics_port=self.settings.METRICS_PORT
         )
-
-    def _setup_telemetry(self):
-        """Configura OpenTelemetry tracing"""
-        try:
-            # Configurar exporter OTLP
-            otlp_exporter = OTLPSpanExporter(
-                endpoint=self.settings.OTEL_EXPORTER_ENDPOINT,
-                insecure=True
-            )
-
-            # Configurar TracerProvider
-            trace_provider = TracerProvider()
-            trace_provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
-            trace.set_tracer_provider(trace_provider)
-
-            logger.info(
-                "telemetry_configured",
-                endpoint=self.settings.OTEL_EXPORTER_ENDPOINT
-            )
-
-        except Exception as e:
-            logger.warning("telemetry_configuration_failed", error=str(e))
 
     async def start(self):
         """Inicia o servidor"""

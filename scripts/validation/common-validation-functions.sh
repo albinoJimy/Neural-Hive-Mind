@@ -6,6 +6,10 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/common.sh"
+source "${SCRIPT_DIR}/../lib/k8s.sh"
+
 # ============================================================================
 # GLOBAL CONFIGURATION
 # ============================================================================
@@ -48,15 +52,6 @@ declare -A CRITICALITY_WEIGHTS=(
     ["info"]=1
 )
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
-
 # Global variables for report tracking
 declare -A TEST_RESULTS=()
 declare -A TEST_SCORES=()
@@ -66,59 +61,6 @@ PASSED_TESTS=0
 FAILED_TESTS=0
 TOTAL_SCORE=0
 MAX_POSSIBLE_SCORE=0
-
-# ============================================================================
-# LOGGING FUNCTIONS
-# ============================================================================
-
-log_timestamp() {
-    date '+%Y-%m-%d %H:%M:%S'
-}
-
-log_info() {
-    local message="$1"
-    echo -e "${BLUE}[INFO]${NC} $(log_timestamp) - ${message}" >&2
-}
-
-log_success() {
-    local message="$1"
-    echo -e "${GREEN}[SUCCESS]${NC} $(log_timestamp) - ${message}" >&2
-}
-
-log_error() {
-    local message="$1"
-    echo -e "${RED}[ERROR]${NC} $(log_timestamp) - ${message}" >&2
-}
-
-log_warning() {
-    local message="$1"
-    echo -e "${YELLOW}[WARNING]${NC} $(log_timestamp) - ${message}" >&2
-}
-
-log_test() {
-    local test_name="$1"
-    local status="$2"
-    local details="${3:-}"
-
-    if [[ "$status" == "PASS" ]]; then
-        echo -e "${GREEN}[TEST]${NC} $(log_timestamp) - ${test_name}: ${GREEN}PASS${NC}" >&2
-    elif [[ "$status" == "FAIL" ]]; then
-        echo -e "${RED}[TEST]${NC} $(log_timestamp) - ${test_name}: ${RED}FAIL${NC}" >&2
-    else
-        echo -e "${YELLOW}[TEST]${NC} $(log_timestamp) - ${test_name}: ${YELLOW}${status}${NC}" >&2
-    fi
-
-    if [[ -n "$details" ]]; then
-        echo -e "       Details: $details" >&2
-    fi
-}
-
-log_debug() {
-    local message="$1"
-    if [[ "${DEBUG:-false}" == "true" ]]; then
-        echo -e "${PURPLE}[DEBUG]${NC} $(log_timestamp) - ${message}" >&2
-    fi
-}
 
 # ============================================================================
 # REPORT MANAGEMENT FUNCTIONS
@@ -388,57 +330,6 @@ EOF
 # UTILITY FUNCTIONS
 # ============================================================================
 
-check_prerequisites() {
-    local required_tools=("kubectl" "jq" "curl")
-    local missing_tools=()
-
-    for tool in "${required_tools[@]}"; do
-        if ! command -v "$tool" >/dev/null 2>&1; then
-            missing_tools+=("$tool")
-        fi
-    done
-
-    if [[ ${#missing_tools[@]} -gt 0 ]]; then
-        log_error "Missing required tools: ${missing_tools[*]}"
-        return 1
-    fi
-
-    # Check kubectl connectivity
-    if ! kubectl cluster-info >/dev/null 2>&1; then
-        log_error "Cannot connect to Kubernetes cluster"
-        return 1
-    fi
-
-    log_success "All prerequisites checked successfully"
-    return 0
-}
-
-wait_for_condition() {
-    local description="$1"
-    local command="$2"
-    local timeout="${3:-$DEFAULT_TIMEOUT}"
-    local interval="${4:-5}"
-
-    log_info "Waiting for condition: $description (timeout: ${timeout}s)"
-
-    local start_time=$(date +%s)
-    while true; do
-        if eval "$command" >/dev/null 2>&1; then
-            local elapsed=$(($(date +%s) - start_time))
-            log_success "Condition met: $description (after ${elapsed}s)"
-            return 0
-        fi
-
-        local elapsed=$(($(date +%s) - start_time))
-        if [[ $elapsed -ge $timeout ]]; then
-            log_error "Timeout waiting for condition: $description"
-            return 1
-        fi
-
-        sleep "$interval"
-    done
-}
-
 cleanup_resources() {
     local namespace="$1"
     local label_selector="${2:-app=neural-validation-test}"
@@ -448,20 +339,7 @@ cleanup_resources() {
     kubectl delete pods,services,deployments -n "$namespace" -l "$label_selector" --ignore-not-found=true >/dev/null 2>&1 || true
 
     # Wait for cleanup to complete
-    wait_for_condition "resource cleanup" \
-        "! kubectl get pods -n $namespace -l $label_selector --no-headers 2>/dev/null | grep -q ." \
-        60
-}
-
-measure_execution_time() {
-    local start_time="$1"
-    local end_time="${2:-$(date +%s)}"
-    echo $((end_time - start_time))
-}
-
-generate_random_string() {
-    local length="${1:-8}"
-    head /dev/urandom | tr -dc a-z0-9 | head -c "$length"
+    wait_for_condition "! kubectl get pods -n $namespace -l $label_selector --no-headers 2>/dev/null | grep -q ." 60 5
 }
 
 # ============================================================================
@@ -520,42 +398,6 @@ check_resource_utilization() {
 }
 
 # ============================================================================
-# NETWORK AND CONNECTIVITY FUNCTIONS
-# ============================================================================
-
-test_service_connectivity() {
-    local source_namespace="$1"
-    local target_service="$2"
-    local target_namespace="$3"
-    local port="${4:-80}"
-    local timeout="${5:-$CURL_TIMEOUT}"
-
-    local test_pod="connectivity-test-$(generate_random_string)"
-
-    # Create test pod
-    kubectl run "$test_pod" -n "$source_namespace" \
-        --image=curlimages/curl:latest \
-        --rm -i --restart=Never \
-        --timeout="${timeout}s" \
-        -- curl -s -o /dev/null -w "%{http_code}" \
-        "http://${target_service}.${target_namespace}.svc.cluster.local:${port}/health" \
-        2>/dev/null || echo "000"
-}
-
-test_dns_resolution() {
-    local namespace="$1"
-    local fqdn="$2"
-
-    local test_pod="dns-test-$(generate_random_string)"
-
-    kubectl run "$test_pod" -n "$namespace" \
-        --image=busybox:latest \
-        --rm -i --restart=Never \
-        --timeout="30s" \
-        -- nslookup "$fqdn" >/dev/null 2>&1
-}
-
-# ============================================================================
 # CERTIFICATE AND TLS FUNCTIONS
 # ============================================================================
 
@@ -594,51 +436,6 @@ validate_mtls_config() {
         jq -r --arg svc "$service" '.items[] | select(.spec.selector.matchLabels.app == $svc) | .spec.mtls.mode // "UNSET"')
 
     echo "${peer_auth:-UNSET}"
-}
-
-# ============================================================================
-# KUBERNETES RESOURCE FUNCTIONS
-# ============================================================================
-
-wait_for_pod_ready() {
-    local namespace="$1"
-    local pod_selector="$2"
-    local timeout="${3:-$POD_READY_TIMEOUT}"
-
-    wait_for_condition "pod ready" \
-        "kubectl get pods -n $namespace -l $pod_selector -o jsonpath='{.items[*].status.conditions[?(@.type==\"Ready\")].status}' | grep -q True" \
-        "$timeout"
-}
-
-get_pod_logs() {
-    local namespace="$1"
-    local pod_selector="$2"
-    local container="${3:-}"
-    local lines="${4:-100}"
-
-    local pod_name=$(kubectl get pods -n "$namespace" -l "$pod_selector" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-
-    if [[ -n "$pod_name" ]]; then
-        if [[ -n "$container" ]]; then
-            kubectl logs -n "$namespace" "$pod_name" -c "$container" --tail="$lines" 2>/dev/null || echo "No logs available"
-        else
-            kubectl logs -n "$namespace" "$pod_name" --tail="$lines" 2>/dev/null || echo "No logs available"
-        fi
-    else
-        echo "No pod found with selector: $pod_selector"
-    fi
-}
-
-check_resource_exists() {
-    local resource_type="$1"
-    local resource_name="$2"
-    local namespace="${3:-}"
-
-    if [[ -n "$namespace" ]]; then
-        kubectl get "$resource_type" "$resource_name" -n "$namespace" >/dev/null 2>&1
-    else
-        kubectl get "$resource_type" "$resource_name" >/dev/null 2>&1
-    fi
 }
 
 # ============================================================================
@@ -681,6 +478,79 @@ add_recommendation() {
        "$REPORT_FILE" > "$temp_file" && mv "$temp_file" "$REPORT_FILE"
 }
 
+# Verificar se pod está Running
+check_pod_running() {
+    local service="$1"
+    local namespace="$2"
+    
+    local status=$(kubectl get pods -n "$namespace" -l "app.kubernetes.io/name=$service" -o jsonpath='{.items[0].status.phase}' 2>/dev/null)
+    [[ "$status" == "Running" ]]
+}
+
+# Verificar endpoint HTTP
+check_http_endpoint() {
+    local service="$1"
+    local namespace="$2"
+    local path="$3"
+    
+    local pod=$(kubectl get pods -n "$namespace" -l "app.kubernetes.io/name=$service" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+    
+    if [[ -z "$pod" ]]; then
+        return 1
+    fi
+    
+    kubectl port-forward "$pod" -n "$namespace" 8000:8000 > /dev/null 2>&1 &
+    local pf_pid=$!
+    sleep 2
+    
+    local response=$(curl -s -w "%{http_code}" -o /dev/null "http://localhost:8000${path}" 2>/dev/null)
+    
+    kill $pf_pid 2>/dev/null || true
+    wait $pf_pid 2>/dev/null || true
+    
+    [[ "$response" == "200" ]]
+}
+
+# Verificar endpoint gRPC
+check_grpc_endpoint() {
+    local service="$1"
+    local namespace="$2"
+    local port="$3"
+    
+    local pod=$(kubectl get pods -n "$namespace" -l "app.kubernetes.io/name=$service" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+    
+    if [[ -z "$pod" ]]; then
+        return 1
+    fi
+    
+    kubectl port-forward "$pod" -n "$namespace" "$port:$port" > /dev/null 2>&1 &
+    local pf_pid=$!
+    sleep 2
+    
+    timeout 2 bash -c "cat < /dev/null > /dev/tcp/localhost/$port" 2>/dev/null
+    local result=$?
+    
+    kill $pf_pid 2>/dev/null || true
+    wait $pf_pid 2>/dev/null || true
+    
+    return $result
+}
+
+# Verificar conectividade com dependência
+check_dependency_connectivity() {
+    local service="$1"
+    local namespace="$2"
+    local host="$3"
+    local port="$4"
+    
+    # Usar kubectl run com pod temporário
+    kubectl run test-connectivity-${service}-$(date +%s) \
+        --image=busybox \
+        --rm -i \
+        --restart=Never \
+        --command -- timeout 5 sh -c "cat < /dev/null > /dev/tcp/${host}/${port}" > /dev/null 2>&1
+}
+
 # ============================================================================
 # INITIALIZATION
 # ============================================================================
@@ -689,14 +559,11 @@ add_recommendation() {
 mkdir -p "$REPORT_DIR"
 
 # Export functions for use in other scripts
-export -f log_info log_success log_error log_warning log_test log_debug
 export -f init_report add_test_result generate_summary_report export_json_report export_html_report
-export -f check_prerequisites wait_for_condition cleanup_resources measure_execution_time
+export -f cleanup_resources
 export -f collect_cluster_metrics validate_slo_compliance check_resource_utilization
-export -f test_service_connectivity test_dns_resolution
 export -f check_certificate_expiry validate_mtls_config
-export -f wait_for_pod_ready get_pod_logs check_resource_exists
-export -f calculate_component_health add_recommendation generate_random_string
+export -f calculate_component_health add_recommendation
 
 # Export global variables
 export REPORT_DIR REPORT_FILE HTML_REPORT_FILE

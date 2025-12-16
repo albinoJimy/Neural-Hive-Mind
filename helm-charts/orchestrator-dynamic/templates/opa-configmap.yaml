@@ -17,4 +17,7 @@ data:
 
   feature_flags.rego: |
 {{ .Files.Get "policies/rego/orchestrator/feature_flags.rego" | indent 4 }}
+
+  security_constraints.rego: |
+{{ .Files.Get "policies/rego/orchestrator/security_constraints.rego" | indent 4 }}
 {{- end }}

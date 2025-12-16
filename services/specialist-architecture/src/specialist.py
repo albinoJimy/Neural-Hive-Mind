@@ -398,7 +398,7 @@ class ArchitectureSpecialist(BaseSpecialist):
             elif avg_tasks_per_group >= 2:
                 cohesion_score = 0.8
             else:
-
+                cohesion_score = 0.6
         else:
             cohesion_score = 0.5
 

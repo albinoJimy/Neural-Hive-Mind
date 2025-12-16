@@ -1,0 +1,652 @@
+# Custom Resource Definitions para Governança de Dados
+# Neural Hive-Mind Data Catalog e Governance
+
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: apiassets.catalog.neural-hive.io
+  labels:
+    neural-hive.io/component: governance
+    neural-hive.io/layer: catalog
+  finalizers:
+  - catalog.neural-hive.io/finalizer
+spec:
+  group: catalog.neural-hive.io
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            required:
+            - owner
+            - classification
+            - sla_tier
+            properties:
+              owner:
+                type: string
+                description: "Equipe responsável pela API"
+                pattern: "^[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9]@[a-zA-Z0-9][a-zA-Z0-9\\-]*\\.com$|^team-[a-zA-Z0-9\\-]+$"
+                minLength: 5
+                maxLength: 100
+              classification:
+                type: string
+                description: "Classificação de dados da API"
+                enum:
+                - public
+                - internal
+                - confidential
+                - restricted
+              pii_fields:
+                type: array
+                description: "Campos que contêm dados pessoais (PII)"
+                items:
+                  type: string
+              sla_tier:
+                type: string
+                description: "Nível de SLA da API"
+                enum:
+                - bronze
+                - silver
+                - gold
+                - platinum
+              retention_policy:
+                type: string
+                description: "Política de retenção de dados (ex: 90d, 1y)"
+                pattern: "^[0-9]+[dmy]$"
+              endpoints:
+                type: array
+                description: "Endpoints da API"
+                items:
+                  type: object
+                  required:
+                  - path
+                  - method
+                  properties:
+                    path:
+                      type: string
+                      description: "Caminho do endpoint"
+                    method:
+                      type: string
+                      description: "Método HTTP"
+                      enum:
+                      - GET
+                      - POST
+                      - PUT
+                      - PATCH
+                      - DELETE
+                    sensitive_data:
+                      type: boolean
+                      description: "Endpoint manipula dados sensíveis"
+                      default: false
+                    requires_auth:
+                      type: boolean
+                      description: "Endpoint requer autenticação"
+                      default: true
+              version:
+                type: string
+                description: "Versão da API"
+                pattern: "^v[0-9]+$"
+              description:
+                type: string
+                description: "Descrição da API"
+              tags:
+                type: array
+                description: "Tags para categorização"
+                items:
+                  type: string
+          status:
+            type: object
+            properties:
+              compliance_score:
+                type: number
+                description: "Score de compliance (0-100)"
+                minimum: 0
+                maximum: 100
+              last_audit:
+                type: string
+                format: date-time
+                description: "Data do último audit"
+              violations:
+                type: array
+                description: "Violações de política identificadas"
+                items:
+                  type: object
+                  properties:
+                    rule:
+                      type: string
+                    severity:
+                      type: string
+                      enum:
+                      - low
+                      - medium
+                      - high
+                      - critical
+                    message:
+                      type: string
+              conditions:
+                type: array
+                description: "Condições do status do recurso"
+                items:
+                  type: object
+                  required:
+                  - type
+                  - status
+                  properties:
+                    type:
+                      type: string
+                      enum:
+                      - Ready
+                      - Validated
+                      - Compliant
+                      - EndpointsVerified
+                    status:
+                      type: string
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                    reason:
+                      type: string
+                    message:
+                      type: string
+                    lastTransitionTime:
+                      type: string
+                      format: date-time
+    additionalPrinterColumns:
+    - name: Owner
+      type: string
+      jsonPath: .spec.owner
+    - name: Classification
+      type: string
+      jsonPath: .spec.classification
+    - name: SLA Tier
+      type: string
+      jsonPath: .spec.sla_tier
+    - name: Compliance Score
+      type: number
+      jsonPath: .status.compliance_score
+    - name: Age
+      type: date
+      jsonPath: .metadata.creationTimestamp
+  scope: Namespaced
+  names:
+    plural: apiassets
+    singular: apiasset
+    kind: ApiAsset
+    categories:
+    - neural-hive
+    - governance
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: dataassets.catalog.neural-hive.io
+  labels:
+    neural-hive.io/component: governance
+    neural-hive.io/layer: catalog
+  finalizers:
+  - catalog.neural-hive.io/finalizer
+spec:
+  group: catalog.neural-hive.io
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            required:
+            - owner
+            - classification
+            - storage_location
+            properties:
+              owner:
+                type: string
+                description: "Equipe responsável pelos dados"
+                pattern: "^[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9]@[a-zA-Z0-9][a-zA-Z0-9\\-]*\\.com$|^team-[a-zA-Z0-9\\-]+$"
+                minLength: 5
+                maxLength: 100
+              classification:
+                type: string
+                description: "Classificação dos dados"
+                enum:
+                - public
+                - internal
+                - confidential
+                - restricted
+              pii_fields:
+                type: array
+                description: "Campos com dados pessoais (PII)"
+                items:
+                  type: string
+              retention_policy:
+                type: string
+                description: "Política de retenção (ex: 90d, 1y, forever)"
+                pattern: "^([0-9]+[dmy]|forever)$"
+              storage_location:
+                type: string
+                description: "Localização dos dados (ex: kafka://topic, postgres://db.table)"
+                pattern: "^(kafka|postgres|mongodb|s3|gcs|azure)://[a-zA-Z0-9][a-zA-Z0-9\\-\\._/]*[a-zA-Z0-9]$"
+                minLength: 10
+                maxLength: 500
+              data_schema:
+                type: object
+                description: "Schema dos dados"
+                properties:
+                  format:
+                    type: string
+                    enum:
+                    - avro
+                    - json
+                    - protobuf
+                    - parquet
+                  fields:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        type:
+                          type: string
+                        required:
+                          type: boolean
+                        sensitive:
+                          type: boolean
+                          default: false
+              access_patterns:
+                type: array
+                description: "Padrões de acesso aos dados"
+                items:
+                  type: object
+                  properties:
+                    service:
+                      type: string
+                    frequency:
+                      type: string
+                      enum:
+                      - real-time
+                      - batch
+                      - on-demand
+                    purpose:
+                      type: string
+              compliance_requirements:
+                type: array
+                description: "Requisitos de compliance (LGPD, GDPR, etc)"
+                items:
+                  type: string
+          status:
+            type: object
+            properties:
+              data_quality_score:
+                type: number
+                description: "Score de qualidade dos dados (0-100)"
+                minimum: 0
+                maximum: 100
+              last_accessed:
+                type: string
+                format: date-time
+                description: "Último acesso aos dados"
+              size_bytes:
+                type: integer
+                description: "Tamanho dos dados em bytes"
+              record_count:
+                type: integer
+                description: "Número de registros"
+    additionalPrinterColumns:
+    - name: Owner
+      type: string
+      jsonPath: .spec.owner
+    - name: Classification
+      type: string
+      jsonPath: .spec.classification
+    - name: Storage Location
+      type: string
+      jsonPath: .spec.storage_location
+    - name: PII Fields
+      type: string
+      jsonPath: .spec.pii_fields
+    - name: Quality Score
+      type: number
+      jsonPath: .status.data_quality_score
+    - name: Age
+      type: date
+      jsonPath: .metadata.creationTimestamp
+  scope: Namespaced
+  names:
+    plural: dataassets
+    singular: dataasset
+    kind: DataAsset
+    categories:
+    - neural-hive
+    - governance
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: servicecontracts.catalog.neural-hive.io
+  labels:
+    neural-hive.io/component: governance
+    neural-hive.io/layer: catalog
+  finalizers:
+  - catalog.neural-hive.io/finalizer
+spec:
+  group: catalog.neural-hive.io
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            required:
+            - provider
+            - consumer
+            - sla_requirements
+            properties:
+              provider:
+                type: string
+                description: "Serviço provedor"
+              consumer:
+                type: string
+                description: "Serviço consumidor"
+              api_reference:
+                type: string
+                description: "Referência para ApiAsset relacionado"
+              sla_requirements:
+                type: object
+                description: "Requisitos de SLA"
+                properties:
+                  availability:
+                    type: string
+                    description: "Disponibilidade (ex: 99.9%)"
+                    pattern: "^[0-9]{2}.[0-9]+%$"
+                  response_time_p95:
+                    type: string
+                    description: "Tempo de resposta P95 (ex: 100ms)"
+                    pattern: "^[0-9]+ms$"
+                  throughput:
+                    type: string
+                    description: "Throughput (ex: 1000rps)"
+                    pattern: "^[0-9]+rps$"
+              data_sharing_agreement:
+                type: object
+                description: "Acordo de compartilhamento de dados"
+                properties:
+                  allowed_fields:
+                    type: array
+                    items:
+                      type: string
+                  forbidden_fields:
+                    type: array
+                    items:
+                      type: string
+                  purpose:
+                    type: string
+                  retention_limit:
+                    type: string
+              version:
+                type: string
+                description: "Versão do contrato"
+                pattern: "^v[0-9]+$"
+              expiry_date:
+                type: string
+                format: date
+                description: "Data de expiração do contrato"
+          status:
+            type: object
+            properties:
+              compliance_status:
+                type: string
+                enum:
+                - compliant
+                - non-compliant
+                - warning
+              violations:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    metric:
+                      type: string
+                    threshold:
+                      type: string
+                    current_value:
+                      type: string
+                    severity:
+                      type: string
+              last_checked:
+                type: string
+                format: date-time
+    additionalPrinterColumns:
+    - name: Provider
+      type: string
+      jsonPath: .spec.provider
+    - name: Consumer
+      type: string
+      jsonPath: .spec.consumer
+    - name: Status
+      type: string
+      jsonPath: .status.compliance_status
+    - name: Availability SLA
+      type: string
+      jsonPath: .spec.sla_requirements.availability
+    - name: Age
+      type: date
+      jsonPath: .metadata.creationTimestamp
+  scope: Namespaced
+  names:
+    plural: servicecontracts
+    singular: servicecontract
+    kind: ServiceContract
+    categories:
+    - neural-hive
+    - governance
+
+---
+# CRD para rastreamento de linhagem de dados
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: datalineages.catalog.neural-hive.io
+  labels:
+    neural-hive.io/component: governance
+    neural-hive.io/layer: catalog
+  finalizers:
+  - catalog.neural-hive.io/finalizer
+spec:
+  group: catalog.neural-hive.io
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            required:
+            - source
+            - target
+            - transformation_type
+            properties:
+              source:
+                type: object
+                description: "Fonte dos dados"
+                required:
+                - asset_reference
+                - fields
+                properties:
+                  asset_reference:
+                    type: string
+                    description: "Referência para DataAsset fonte"
+                    pattern: "^[a-zA-Z0-9\\-]+/[a-zA-Z0-9\\-]+$"
+                  fields:
+                    type: array
+                    description: "Campos específicos da fonte"
+                    items:
+                      type: string
+                  namespace:
+                    type: string
+                    description: "Namespace do asset fonte"
+              target:
+                type: object
+                description: "Destino dos dados"
+                required:
+                - asset_reference
+                - fields
+                properties:
+                  asset_reference:
+                    type: string
+                    description: "Referência para DataAsset destino"
+                    pattern: "^[a-zA-Z0-9\\-]+/[a-zA-Z0-9\\-]+$"
+                  fields:
+                    type: array
+                    description: "Campos específicos do destino"
+                    items:
+                      type: string
+                  namespace:
+                    type: string
+                    description: "Namespace do asset destino"
+              transformation_type:
+                type: string
+                description: "Tipo de transformação aplicada"
+                enum:
+                - copy
+                - aggregate
+                - filter
+                - join
+                - enrich
+                - anonymize
+                - encrypt
+              transformation_logic:
+                type: string
+                description: "Lógica de transformação (SQL, código, etc.)"
+                maxLength: 5000
+              data_sensitivity:
+                type: string
+                description: "Nível de sensibilidade dos dados"
+                enum:
+                - low
+                - medium
+                - high
+                - critical
+              processing_frequency:
+                type: string
+                description: "Frequência do processamento"
+                enum:
+                - real-time
+                - hourly
+                - daily
+                - weekly
+                - monthly
+                - on-demand
+              owner:
+                type: string
+                description: "Responsável pela pipeline de dados"
+                pattern: "^[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9]@[a-zA-Z0-9][a-zA-Z0-9\\-]*\\.com$|^team-[a-zA-Z0-9\\-]+$"
+              tags:
+                type: array
+                description: "Tags para categorização"
+                items:
+                  type: string
+          status:
+            type: object
+            properties:
+              last_processed:
+                type: string
+                format: date-time
+                description: "Última execução da pipeline"
+              processing_status:
+                type: string
+                enum:
+                - active
+                - paused
+                - failed
+                - completed
+              data_quality_metrics:
+                type: object
+                description: "Métricas de qualidade dos dados"
+                properties:
+                  completeness_score:
+                    type: number
+                    minimum: 0
+                    maximum: 100
+                  accuracy_score:
+                    type: number
+                    minimum: 0
+                    maximum: 100
+                  timeliness_score:
+                    type: number
+                    minimum: 0
+                    maximum: 100
+              conditions:
+                type: array
+                description: "Condições do status"
+                items:
+                  type: object
+                  required:
+                  - type
+                  - status
+                  properties:
+                    type:
+                      type: string
+                      enum:
+                      - Ready
+                      - Validated
+                      - SourceAvailable
+                      - TargetAvailable
+                    status:
+                      type: string
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                    reason:
+                      type: string
+                    message:
+                      type: string
+                    lastTransitionTime:
+                      type: string
+                      format: date-time
+    additionalPrinterColumns:
+    - name: Source
+      type: string
+      jsonPath: .spec.source.asset_reference
+    - name: Target
+      type: string
+      jsonPath: .spec.target.asset_reference
+    - name: Transformation
+      type: string
+      jsonPath: .spec.transformation_type
+    - name: Owner
+      type: string
+      jsonPath: .spec.owner
+    - name: Status
+      type: string
+      jsonPath: .status.processing_status
+    - name: Age
+      type: date
+      jsonPath: .metadata.creationTimestamp
+  scope: Namespaced
+  names:
+    plural: datalineages
+    singular: datalineage
+    kind: DataLineage
+    categories:
+    - neural-hive
+    - governance

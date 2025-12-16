@@ -1,0 +1,97 @@
+{
+  "specialist_type": "evolution",
+  "model_type": "RandomForestClassifier",
+  "trained_at": "2025-12-16T12:50:51.619689",
+  "n_samples": 58,
+  "n_features": 26,
+  "features": [
+    "num_tasks",
+    "priority_score",
+    "total_duration_ms",
+    "avg_duration_ms",
+    "risk_score",
+    "complexity_score",
+    "domain_risk_weight",
+    "avg_task_complexity_factor",
+    "num_patterns_detected",
+    "num_anti_patterns_detected",
+    "avg_pattern_quality",
+    "total_anti_pattern_penalty",
+    "num_nodes",
+    "num_edges",
+    "density",
+    "avg_in_degree",
+    "max_in_degree",
+    "critical_path_length",
+    "max_parallelism",
+    "num_levels",
+    "avg_coupling",
+    "num_bottlenecks",
+    "graph_complexity_score",
+    "mean_norm",
+    "std_norm",
+    "avg_diversity"
+  ],
+  "labels": [
+    1,
+    2,
+    3
+  ],
+  "metrics": {
+    "accuracy": 0.5,
+    "precision": 0.4583333333333333,
+    "recall": 0.5,
+    "f1_score": 0.47222222222222227,
+    "cv_f1_mean": 0.5397838848458043,
+    "cv_f1_std": 0.12964935303017233
+  },
+  "hyperparameters": {
+    "n_estimators": 100,
+    "max_depth": 10,
+    "min_samples_split": 5,
+    "min_samples_leaf": 2,
+    "class_weight": "balanced"
+  },
+  "top_features": [
+    {
+      "feature": "complexity_score",
+      "importance": 0.10014825313664234
+    },
+    {
+      "feature": "avg_diversity",
+      "importance": 0.07986066673697842
+    },
+    {
+      "feature": "num_nodes",
+      "importance": 0.0661534376499387
+    },
+    {
+      "feature": "domain_risk_weight",
+      "importance": 0.0650248146500238
+    },
+    {
+      "feature": "total_duration_ms",
+      "importance": 0.059137457316784284
+    },
+    {
+      "feature": "std_norm",
+      "importance": 0.05805197813950499
+    },
+    {
+      "feature": "priority_score",
+      "importance": 0.05793330049584834
+    },
+    {
+      "feature": "avg_duration_ms",
+      "importance": 0.05776376567934956
+    },
+    {
+      "feature": "risk_score",
+      "importance": 0.05250788493073947
+    },
+    {
+      "feature": "mean_norm",
+      "importance": 0.05210240221565682
+    }
+  ]
+}

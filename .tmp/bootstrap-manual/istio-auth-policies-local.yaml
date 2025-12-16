@@ -1,0 +1,82 @@
+# Políticas de Autenticação Istio simplificadas para ambiente local
+# Configuração básica para desenvolvimento
+
+---
+# PeerAuthentication global - PERMISSIVE para desenvolvimento local
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default-mtls-local
+  namespace: istio-system
+  labels:
+    neural-hive.io/component: authentication
+    neural-hive.io/environment: local
+spec:
+  mtls:
+    mode: PERMISSIVE  # Permite tráfego HTTP e HTTPS para facilitar desenvolvimento
+
+---
+# PeerAuthentication específica para namespaces Neural Hive
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: neural-hive-mtls
+  namespace: neural-hive-system
+spec:
+  mtls:
+    mode: PERMISSIVE
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: neural-hive-mtls
+  namespace: neural-hive-cognition
+spec:
+  mtls:
+    mode: PERMISSIVE
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: neural-hive-mtls
+  namespace: neural-hive-orchestration
+spec:
+  mtls:
+    mode: PERMISSIVE
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: neural-hive-mtls
+  namespace: neural-hive-execution
+spec:
+  mtls:
+    mode: PERMISSIVE
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: neural-hive-mtls
+  namespace: neural-hive-observability
+spec:
+  mtls:
+    mode: PERMISSIVE
+
+---
+# AuthorizationPolicy permissiva para desenvolvimento
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-all-local-dev
+  namespace: istio-system
+  labels:
+    neural-hive.io/component: authorization
+    neural-hive.io/environment: local
+spec:
+  # Policy vazia = permitir tudo (para desenvolvimento local)
+  rules:
+  - {}

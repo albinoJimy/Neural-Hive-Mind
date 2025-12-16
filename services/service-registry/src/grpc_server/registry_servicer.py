@@ -8,6 +8,9 @@ from opentelemetry.trace import Status, StatusCode
 from src.services import RegistryService, MatchingEngine
 from src.models import AgentType, AgentTelemetry
 
+from neural_hive_observability.context import set_baggage
+from neural_hive_observability.grpc_instrumentation import extract_grpc_context
+
 
 logger = structlog.get_logger()
 tracer = trace.get_tracer(__name__)
@@ -26,6 +29,11 @@ class ServiceRegistryServicer:
 
     async def Register(self, request, context):
         """RPC: Registrar novo agente"""
+        metadata_dict = dict(context.invocation_metadata())
+        extract_grpc_context(metadata_dict)
+        if hasattr(request, "agent_id") and request.agent_id:
+            set_baggage("agent_id", request.agent_id)
+
         with tracer.start_as_current_span("register_agent") as span:
             try:
                 # Converter proto para tipos Python
@@ -79,6 +87,11 @@ class ServiceRegistryServicer:
 
     async def Heartbeat(self, request, context):
         """RPC: Enviar heartbeat"""
+        metadata_dict = dict(context.invocation_metadata())
+        extract_grpc_context(metadata_dict)
+        if hasattr(request, "agent_id") and request.agent_id:
+            set_baggage("agent_id", request.agent_id)
+
         with tracer.start_as_current_span("heartbeat") as span:
             try:
                 agent_id = UUID(request.agent_id)
@@ -123,6 +136,11 @@ class ServiceRegistryServicer:
 
     async def Deregister(self, request, context):
         """RPC: Deregistrar agente"""
+        metadata_dict = dict(context.invocation_metadata())
+        extract_grpc_context(metadata_dict)
+        if hasattr(request, "agent_id") and request.agent_id:
+            set_baggage("agent_id", request.agent_id)
+
         with tracer.start_as_current_span("deregister_agent") as span:
             try:
                 agent_id = UUID(request.agent_id)
@@ -147,6 +165,9 @@ class ServiceRegistryServicer:
 
     async def DiscoverAgents(self, request, context):
         """RPC: Descobrir agentes baseado em capabilities"""
+        metadata_dict = dict(context.invocation_metadata())
+        extract_grpc_context(metadata_dict)
+
         with tracer.start_as_current_span("discover_agents") as span:
             try:
                 capabilities_required = list(request.capabilities)
@@ -184,6 +205,11 @@ class ServiceRegistryServicer:
 
     async def GetAgent(self, request, context):
         """RPC: Obter informações de um agente específico"""
+        metadata_dict = dict(context.invocation_metadata())
+        extract_grpc_context(metadata_dict)
+        if hasattr(request, "agent_id") and request.agent_id:
+            set_baggage("agent_id", request.agent_id)
+
         with tracer.start_as_current_span("get_agent") as span:
             try:
                 agent_id = UUID(request.agent_id)
@@ -219,6 +245,9 @@ class ServiceRegistryServicer:
 
     async def ListAgents(self, request, context):
         """RPC: Listar todos os agentes"""
+        metadata_dict = dict(context.invocation_metadata())
+        extract_grpc_context(metadata_dict)
+
         with tracer.start_as_current_span("list_agents") as span:
             try:
                 agent_type = AgentType(request.agent_type) if request.agent_type else None
@@ -252,6 +281,9 @@ class ServiceRegistryServicer:
 
     async def WatchAgents(self, request, context) -> Iterator:
         """RPC: Observar mudanças em agentes (server streaming)"""
+        metadata_dict = dict(context.invocation_metadata())
+        extract_grpc_context(metadata_dict)
+
         with tracer.start_as_current_span("watch_agents") as span:
             try:
                 # TODO: Implementar watch usando etcd watch API
@@ -265,6 +297,11 @@ class ServiceRegistryServicer:
 
     async def NotifyAgent(self, request, context):
         """RPC: Envia notificação para agente (best-effort)."""
+        metadata_dict = dict(context.invocation_metadata())
+        extract_grpc_context(metadata_dict)
+        if hasattr(request, "agent_id") and request.agent_id:
+            set_baggage("agent_id", request.agent_id)
+
         with tracer.start_as_current_span("notify_agent") as span:
             try:
                 agent_id = request.agent_id

@@ -374,3 +374,230 @@ class TestEnsembleIntegration:
         assert 'metadata' in result
         assert 'ensemble_models' in result['metadata']
         assert len(result['metadata']['ensemble_models']) == 2
+
+
+class TestEnsembleCalibrationMetadata:
+    """Testes de metadata de calibração agregada em _combine_predictions."""
+
+    def test_combine_predictions_calibration_metadata_all_calibrated(self, ensemble_specialist):
+        """Testa propagação de metadata quando todos modelos usam predict_proba."""
+        # Mock metrics para evitar dependência de Prometheus real
+        ensemble_specialist.metrics = MagicMock()
+
+        predictions = {
+            'model-rf': {
+                'confidence_score': 0.8,
+                'risk_score': 0.2,
+                'calibrated': True,
+                'recommendation': 'approve',
+                'reasoning_factors': [],
+                'metadata': {'prediction_method': 'predict_proba'}
+            },
+            'model-gb': {
+                'confidence_score': 0.9,
+                'risk_score': 0.1,
+                'calibrated': True,
+                'recommendation': 'approve',
+                'reasoning_factors': [],
+                'metadata': {'prediction_method': 'predict_proba'}
+            },
+            'model-lr': {
+                'confidence_score': 0.7,
+                'risk_score': 0.3,
+                'calibrated': True,
+                'recommendation': 'review_required',
+                'reasoning_factors': [],
+                'metadata': {'prediction_method': 'predict_proba'}
+            }
+        }
+
+        result = ensemble_specialist._combine_predictions(predictions)
+
+        # Verificar campos de metadata de calibração
+        assert 'metadata' in result
+        metadata = result['metadata']
+
+        # base_models_prediction_methods deve conter todos os modelos
+        assert 'base_models_prediction_methods' in metadata
+        assert metadata['base_models_prediction_methods'] == {
+            'model-rf': 'predict_proba',
+            'model-gb': 'predict_proba',
+            'model-lr': 'predict_proba'
+        }
+
+        # calibrated_models_count deve ser 3 (todos calibrados)
+        assert 'calibrated_models_count' in metadata
+        assert metadata['calibrated_models_count'] == 3
+
+        # ensemble_calibrated deve ser True (3/3 > 50%)
+        assert 'ensemble_calibrated' in metadata
+        assert metadata['ensemble_calibrated'] is True
+
+        # calibration_coverage deve ser 1.0 (100%)
+        assert 'calibration_coverage' in metadata
+        assert metadata['calibration_coverage'] == 1.0
+
+        # Verificar chamadas às métricas
+        ensemble_specialist.metrics.observe_ensemble_calibration_coverage.assert_called_once_with(1.0)
+        ensemble_specialist.metrics.increment_ensemble_probabilistic_prediction.assert_called_once()
+
+    def test_combine_predictions_calibration_metadata_mixed(self, ensemble_specialist):
+        """Testa propagação de metadata com mistura de modelos calibrados e não-calibrados."""
+        # Mock metrics
+        ensemble_specialist.metrics = MagicMock()
+
+        predictions = {
+            'model-rf': {
+                'confidence_score': 0.8,
+                'risk_score': 0.2,
+                'calibrated': True,
+                'recommendation': 'approve',
+                'reasoning_factors': [],
+                'metadata': {'prediction_method': 'predict_proba'}
+            },
+            'model-gb': {
+                'confidence_score': 0.7,
+                'risk_score': 0.3,
+                'calibrated': False,
+                'recommendation': 'review_required',
+                'reasoning_factors': [],
+                'metadata': {'prediction_method': 'predict'}
+            },
+            'model-lr': {
+                'confidence_score': 0.6,
+                'risk_score': 0.4,
+                'calibrated': False,
+                'recommendation': 'review_required',
+                'reasoning_factors': [],
+                'metadata': {'prediction_method': 'predict_fallback'}
+            }
+        }
+
+        result = ensemble_specialist._combine_predictions(predictions)
+
+        metadata = result['metadata']
+
+        # base_models_prediction_methods deve refletir métodos misturados
+        assert metadata['base_models_prediction_methods'] == {
+            'model-rf': 'predict_proba',
+            'model-gb': 'predict',
+            'model-lr': 'predict_fallback'
+        }
+
+        # calibrated_models_count deve ser 1 (apenas model-rf)
+        assert metadata['calibrated_models_count'] == 1
+
+        # ensemble_calibrated deve ser False (1/3 < 50%)
+        assert metadata['ensemble_calibrated'] is False
+
+        # calibration_coverage deve ser ~0.333
+        assert abs(metadata['calibration_coverage'] - (1/3)) < 0.01
+
+        # Verificar chamadas às métricas com valores corretos
+        ensemble_specialist.metrics.observe_ensemble_calibration_coverage.assert_called_once()
+        call_args = ensemble_specialist.metrics.observe_ensemble_calibration_coverage.call_args[0]
+        assert abs(call_args[0] - (1/3)) < 0.01
+
+    def test_combine_predictions_calibration_metadata_none_calibrated(self, ensemble_specialist):
+        """Testa propagação de metadata quando nenhum modelo usa predict_proba."""
+        # Mock metrics
+        ensemble_specialist.metrics = MagicMock()
+
+        predictions = {
+            'model-rf': {
+                'confidence_score': 0.75,
+                'risk_score': 0.25,
+                'calibrated': False,
+                'recommendation': 'review_required',
+                'reasoning_factors': [],
+                'metadata': {'prediction_method': 'predict'}
+            },
+            'model-gb': {
+                'confidence_score': 0.65,
+                'risk_score': 0.35,
+                'calibrated': False,
+                'recommendation': 'review_required',
+                'reasoning_factors': [],
+                'metadata': {'prediction_method': 'predict'}
+            }
+        }
+
+        result = ensemble_specialist._combine_predictions(predictions)
+
+        metadata = result['metadata']
+
+        # calibrated_models_count deve ser 0
+        assert metadata['calibrated_models_count'] == 0
+
+        # ensemble_calibrated deve ser False (0/2 < 50%)
+        assert metadata['ensemble_calibrated'] is False
+
+        # calibration_coverage deve ser 0.0
+        assert metadata['calibration_coverage'] == 0.0
+
+    def test_combine_predictions_calibration_metadata_majority_calibrated(self, ensemble_specialist):
+        """Testa que ensemble_calibrated é True quando maioria está calibrada."""
+        # Mock metrics
+        ensemble_specialist.metrics = MagicMock()
+
+        predictions = {
+            'model-rf': {
+                'confidence_score': 0.8,
+                'risk_score': 0.2,
+                'calibrated': True,
+                'recommendation': 'approve',
+                'reasoning_factors': [],
+                'metadata': {'prediction_method': 'predict_proba'}
+            },
+            'model-gb': {
+                'confidence_score': 0.85,
+                'risk_score': 0.15,
+                'calibrated': True,
+                'recommendation': 'approve',
+                'reasoning_factors': [],
+                'metadata': {'prediction_method': 'predict_proba'}
+            },
+            'model-lr': {
+                'confidence_score': 0.6,
+                'risk_score': 0.4,
+                'calibrated': False,
+                'recommendation': 'review_required',
+                'reasoning_factors': [],
+                'metadata': {'prediction_method': 'predict'}
+            }
+        }
+
+        result = ensemble_specialist._combine_predictions(predictions)
+
+        metadata = result['metadata']
+
+        # calibrated_models_count deve ser 2
+        assert metadata['calibrated_models_count'] == 2
+
+        # ensemble_calibrated deve ser True (2/3 > 50%)
+        assert metadata['ensemble_calibrated'] is True
+
+        # calibration_coverage deve ser ~0.667
+        assert abs(metadata['calibration_coverage'] - (2/3)) < 0.01
+
+    def test_combine_predictions_preserves_aggregation_method(self, ensemble_specialist):
+        """Testa que aggregation_method é incluído na metadata."""
+        # Mock metrics
+        ensemble_specialist.metrics = MagicMock()
+
+        predictions = {
+            'model-rf': {
+                'confidence_score': 0.8,
+                'risk_score': 0.2,
+                'calibrated': True,
+                'recommendation': 'approve',
+                'reasoning_factors': [],
+                'metadata': {'prediction_method': 'predict_proba'}
+            }
+        }
+
+        result = ensemble_specialist._combine_predictions(predictions)
+
+        # aggregation_method deve estar presente
+        assert 'aggregation_method' in result['metadata']
+        assert result['metadata']['aggregation_method'] == 'weighted_average'

@@ -8,6 +8,8 @@ para enriquecer decisões de alocação de workers.
 import time
 import structlog
 from typing import Dict, Any, Optional, List
+from neural_hive_observability import get_tracer
+from opentelemetry import trace
 
 from src.config.settings import OrchestratorSettings
 from src.clients.optimizer_grpc_client import OptimizerGrpcClient
@@ -56,6 +58,7 @@ class SchedulingOptimizer:
         self.kafka_producer = kafka_producer
         self.metrics = metrics
         self.logger = logger.bind(component="scheduling_optimizer")
+        self.tracer = get_tracer(__name__)
 
         # Thresholds
         self.confidence_threshold = 0.6  # Mínimo para aplicar recomendações RL
@@ -78,54 +81,63 @@ class SchedulingOptimizer:
         """
         start_time = time.time()
 
-        try:
-            # Se optimizer integration desabilitado, retornar None
-            if not self.config.enable_optimizer_integration:
-                self.logger.debug("optimizer_integration_disabled")
-                return None
+        with self.tracer.start_as_current_span(
+            "scheduling.get_load_forecast",
+            attributes={
+                "neural.hive.ml.horizon_minutes": horizon_minutes,
+                "neural.hive.ml.source": "remote" if self.optimizer_client else "none"
+            }
+        ) as span:
+            try:
+                # Se optimizer integration desabilitado, retornar None
+                if not self.config.enable_optimizer_integration:
+                    self.logger.debug("optimizer_integration_disabled")
+                    return None
 
-            # Se cliente não disponível, retornar None
-            if not self.optimizer_client:
-                self.logger.debug("optimizer_client_not_available")
-                self.metrics.update_optimizer_availability(available=False)
-                return None
+                # Se cliente não disponível, retornar None
+                if not self.optimizer_client:
+                    self.logger.debug("optimizer_client_not_available")
+                    self.metrics.update_optimizer_availability(available=False)
+                    return None
 
-            # Tentar obter forecast do remote optimizer
-            forecast = await self.optimizer_client.get_load_forecast(
-                horizon_minutes=horizon_minutes,
-                include_confidence_intervals=True
-            )
-
-            # Métricas
-            duration_seconds = time.time() - start_time
-
-            if forecast:
-                self.metrics.update_optimizer_availability(available=True)
-                self.metrics.record_ml_optimization(
-                    optimization_type='load_forecast',
-                    source='remote',
-                    duration_seconds=duration_seconds
-                )
-
-                self.logger.info(
-                    "load_forecast_obtained_from_remote",
+                # Tentar obter forecast do remote optimizer
+                forecast = await self.optimizer_client.get_load_forecast(
                     horizon_minutes=horizon_minutes,
-                    points=len(forecast.get('forecast', [])),
-                    latency_ms=duration_seconds * 1000
+                    include_confidence_intervals=True
                 )
-            else:
+
+                # Métricas
+                duration_seconds = time.time() - start_time
+
+                if forecast:
+                    span.set_attribute("neural.hive.ml.forecast_points", len(forecast.get('forecast', [])))
+                    self.metrics.update_optimizer_availability(available=True)
+                    self.metrics.record_ml_optimization(
+                        optimization_type='load_forecast',
+                        source='remote',
+                        duration_seconds=duration_seconds
+                    )
+
+                    self.logger.info(
+                        "load_forecast_obtained_from_remote",
+                        horizon_minutes=horizon_minutes,
+                        points=len(forecast.get('forecast', [])),
+                        latency_ms=duration_seconds * 1000
+                    )
+                else:
+                    self.metrics.update_optimizer_availability(available=False)
+                    self.logger.warning("load_forecast_remote_unavailable")
+
+                return forecast
+
+            except Exception as e:
+                self.logger.error(
+                    "load_forecast_error",
+                    error=str(e)
+                )
+                span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
                 self.metrics.update_optimizer_availability(available=False)
-                self.logger.warning("load_forecast_remote_unavailable")
-
-            return forecast
-
-        except Exception as e:
-            self.logger.error(
-                "load_forecast_error",
-                error=str(e)
-            )
-            self.metrics.update_optimizer_availability(available=False)
-            return None
+                return None
 
     async def optimize_allocation(
         self,
@@ -146,83 +158,93 @@ class SchedulingOptimizer:
         """
         start_time = time.time()
 
-        try:
-            # Coletar estado atual para RL recommendation
-            current_state = await self._build_current_state(ticket, workers)
+        with self.tracer.start_as_current_span(
+            "scheduling.optimize_allocation",
+            attributes={
+                "neural.hive.ticket.id": ticket.get('ticket_id'),
+                "neural.hive.ml.workers_count": len(workers)
+            }
+        ) as span:
+            try:
+                # Coletar estado atual para RL recommendation
+                current_state = await self._build_current_state(ticket, workers)
 
-            # Tentar obter recomendação de RL policy
-            recommendation = None
-            if (self.config.enable_optimizer_integration and
-                self.optimizer_client):
+                # Tentar obter recomendação de RL policy
+                recommendation = None
+                if (self.config.enable_optimizer_integration and
+                    self.optimizer_client):
 
-                try:
-                    recommendation = await self.optimizer_client.get_scheduling_recommendation(
-                        current_state=current_state
-                    )
-
-                    if recommendation:
-                        self.logger.info(
-                            "rl_recommendation_obtained",
-                            action=recommendation.get('action'),
-                            confidence=recommendation.get('confidence')
+                    try:
+                        recommendation = await self.optimizer_client.get_scheduling_recommendation(
+                            current_state=current_state
                         )
-                except Exception as e:
-                    self.logger.warning(
-                        "rl_recommendation_error",
-                        error=str(e)
+
+                        if recommendation:
+                            self.logger.info(
+                                "rl_recommendation_obtained",
+                                action=recommendation.get('action'),
+                                confidence=recommendation.get('confidence')
+                            )
+                    except Exception as e:
+                        self.logger.warning(
+                            "rl_recommendation_error",
+                            error=str(e)
+                        )
+
+                # Enriquecer cada worker com predições
+                enriched_workers = []
+                for worker in workers:
+                    enriched = await self._enrich_worker_with_predictions(
+                        worker=worker,
+                        ticket=ticket,
+                        load_forecast=load_forecast
+                    )
+                    enriched_workers.append(enriched)
+
+                # Aplicar recomendação de RL se disponível e confiável
+                if recommendation and recommendation.get('confidence', 0) >= self.confidence_threshold:
+                    enriched_workers = self._apply_scheduling_recommendation(
+                        recommendation=recommendation,
+                        workers=enriched_workers
                     )
 
-            # Enriquecer cada worker com predições
-            enriched_workers = []
-            for worker in workers:
-                enriched = await self._enrich_worker_with_predictions(
-                    worker=worker,
-                    ticket=ticket,
-                    load_forecast=load_forecast
+                    source = 'remote'
+                    optimization_type = 'rl_recommendation'
+                else:
+                    source = 'local'
+                    optimization_type = 'heuristic'
+
+                # Métricas
+                duration_seconds = time.time() - start_time
+                span.set_attribute("neural.hive.ml.optimization_source", source)
+                span.set_attribute("neural.hive.ml.workers_enriched", len(enriched_workers))
+                self.metrics.record_ml_optimization(
+                    optimization_type=optimization_type,
+                    source=source,
+                    duration_seconds=duration_seconds
                 )
-                enriched_workers.append(enriched)
 
-            # Aplicar recomendação de RL se disponível e confiável
-            if recommendation and recommendation.get('confidence', 0) >= self.confidence_threshold:
-                enriched_workers = self._apply_scheduling_recommendation(
-                    recommendation=recommendation,
-                    workers=enriched_workers
+                self.logger.info(
+                    "allocation_optimization_complete",
+                    ticket_id=ticket.get('ticket_id'),
+                    workers_enriched=len(enriched_workers),
+                    optimization_source=source,
+                    latency_ms=duration_seconds * 1000
                 )
 
-                source = 'remote'
-                optimization_type = 'rl_recommendation'
-            else:
-                source = 'local'
-                optimization_type = 'heuristic'
+                return enriched_workers
 
-            # Métricas
-            duration_seconds = time.time() - start_time
-            self.metrics.record_ml_optimization(
-                optimization_type=optimization_type,
-                source=source,
-                duration_seconds=duration_seconds
-            )
+            except Exception as e:
+                self.logger.error(
+                    "optimize_allocation_error",
+                    ticket_id=ticket.get('ticket_id'),
+                    error=str(e)
+                )
+                span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
+                self.metrics.record_ml_error('allocation_optimization')
 
-            self.logger.info(
-                "allocation_optimization_complete",
-                ticket_id=ticket.get('ticket_id'),
-                workers_enriched=len(enriched_workers),
-                optimization_source=source,
-                latency_ms=duration_seconds * 1000
-            )
-
-            return enriched_workers
-
-        except Exception as e:
-            self.logger.error(
-                "optimize_allocation_error",
-                ticket_id=ticket.get('ticket_id'),
-                error=str(e)
-            )
-            self.metrics.record_ml_error('allocation_optimization')
-
-            # Fallback: retornar workers originais
-            return workers
+                # Fallback: retornar workers originais
+                return workers
 
     async def _enrich_worker_with_predictions(
         self,
@@ -243,49 +265,59 @@ class SchedulingOptimizer:
         """
         worker_id = worker.get('agent_id', 'unknown')
 
-        try:
-            # Predizer queue time usando local predictor
-            predicted_queue_ms = await self.local_predictor.predict_queue_time(
-                worker_id=worker_id,
-                ticket=ticket
-            )
-
-            # Predizer worker load
-            predicted_load_pct = await self.local_predictor.predict_worker_load(
-                worker_id=worker_id
-            )
-
-            # Adicionar campos ao worker dict
-            enriched = {
-                **worker,
-                'predicted_queue_ms': predicted_queue_ms,
-                'predicted_load_pct': predicted_load_pct,
-                'ml_enriched': True
+        with self.tracer.start_as_current_span(
+            "scheduling.enrich_worker",
+            attributes={
+                "neural.hive.worker.id": worker_id
             }
+        ) as span:
+            try:
+                # Predizer queue time usando local predictor
+                predicted_queue_ms = await self.local_predictor.predict_queue_time(
+                    worker_id=worker_id,
+                    ticket=ticket
+                )
 
-            self.logger.debug(
-                "worker_enriched_with_predictions",
-                worker_id=worker_id,
-                predicted_queue_ms=predicted_queue_ms,
-                predicted_load_pct=predicted_load_pct
-            )
+                # Predizer worker load
+                predicted_load_pct = await self.local_predictor.predict_worker_load(
+                    worker_id=worker_id
+                )
 
-            return enriched
+                # Adicionar campos ao worker dict
+                enriched = {
+                    **worker,
+                    'predicted_queue_ms': predicted_queue_ms,
+                    'predicted_load_pct': predicted_load_pct,
+                    'ml_enriched': True
+                }
 
-        except Exception as e:
-            self.logger.error(
-                "worker_enrichment_error",
-                worker_id=worker_id,
-                error=str(e)
-            )
+                span.set_attribute("neural.hive.ml.predicted_queue_ms", predicted_queue_ms)
+                span.set_attribute("neural.hive.ml.predicted_load_pct", predicted_load_pct)
 
-            # Fallback: retornar worker sem enrichment
-            return {
-                **worker,
-                'predicted_queue_ms': 2000.0,
-                'predicted_load_pct': 0.5,
-                'ml_enriched': False
-            }
+                self.logger.debug(
+                    "worker_enriched_with_predictions",
+                    worker_id=worker_id,
+                    predicted_queue_ms=predicted_queue_ms,
+                    predicted_load_pct=predicted_load_pct
+                )
+
+                return enriched
+
+            except Exception as e:
+                self.logger.error(
+                    "worker_enrichment_error",
+                    worker_id=worker_id,
+                    error=str(e)
+                )
+                span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
+
+                # Fallback: retornar worker sem enrichment
+                return {
+                    **worker,
+                    'predicted_queue_ms': 2000.0,
+                    'predicted_load_pct': 0.5,
+                    'ml_enriched': False
+                }
 
     def _apply_scheduling_recommendation(
         self,

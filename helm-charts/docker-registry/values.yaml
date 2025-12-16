@@ -1,0 +1,64 @@
+# Docker Registry Configuration
+replicaCount: 1
+
+image:
+  repository: registry
+  tag: "2.8.3"
+  pullPolicy: IfNotPresent
+
+# Service configuration
+service:
+  type: NodePort
+  port: 5000
+  nodePort: 30500
+
+# Persistence configuration
+persistence:
+  enabled: true
+  storageClass: ""  # Use default storage class
+  size: 50Gi
+  accessMode: ReadWriteOnce
+
+# Resource limits
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+# Node selector - run on control plane
+nodeSelector:
+  node-role.kubernetes.io/control-plane: ""
+
+# Tolerations for control plane
+tolerations:
+  - key: "node-role.kubernetes.io/control-plane"
+    operator: "Exists"
+    effect: "NoSchedule"
+
+# Registry configuration
+config:
+  # Storage configuration
+  storage:
+    delete:
+      enabled: true
+    cache:
+      blobdescriptor: inmemory
+  # HTTP configuration
+  http:
+    addr: ":5000"
+    headers:
+      X-Content-Type-Options: [nosniff]
+  # Health check
+  health:
+    storagedriver:
+      enabled: true
+      interval: 10s
+      threshold: 3
+
+# Garbage collection cronjob
+gc:
+  enabled: true
+  schedule: "0 2 * * 0"  # Every Sunday at 2am

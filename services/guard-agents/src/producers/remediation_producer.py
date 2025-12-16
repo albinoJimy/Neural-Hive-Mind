@@ -5,6 +5,8 @@ import structlog
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaError
 
+from neural_hive_observability import instrument_kafka_producer
+
 logger = structlog.get_logger()
 
 
@@ -32,6 +34,7 @@ class RemediationProducer:
                 max_in_flight_requests_per_connection=1,
                 enable_idempotence=True
             )
+            self.producer = instrument_kafka_producer(self.producer)
             await self.producer.start()
             self._connected = True
             logger.info(

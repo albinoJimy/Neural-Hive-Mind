@@ -1,0 +1,160 @@
+# Configuração local do Gateway de Intenções para cluster Kubeadm
+# Usado pelo script 08-prepare-gateway-values.sh para gerar values-local-generated.yaml
+
+# Global configuration
+global:
+  cluster: "local-kubeadm"
+  environment: "local"
+
+config:
+  environment: "local"
+  logLevel: "DEBUG"
+  debug: true
+  kafka:
+    bootstrapServers: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
+    schemaRegistryUrl: "" # Sem schema registry no dev local
+    tls:
+      enabled: false
+    sasl:
+      enabled: false
+    performance:
+      batchSize: 16384
+      lingerMs: 10
+      compressionType: "snappy"
+  redis:
+    clusterNodes: "neural-hive-cache.redis-cluster.svc.cluster.local:6379"
+    defaultTtl: 600
+    maxConnections: 50
+    poolSize: 10
+    timeout: 5000
+    retryOnTimeout: true
+    ssl:
+      enabled: false
+  keycloak:
+    url: "http://keycloak.keycloak.svc.cluster.local:8080"
+    realm: "neural-hive"
+    clientId: "gateway-intencoes"
+    tokenValidationEnabled: false # Desabilitar para dev inicial
+  asr:
+    modelName: "tiny" # Modelo menor para dev (base, small, medium, large)
+    device: "cpu"
+    lazyLoading: true
+    modelCacheDir: "/app/models"
+  nlu:
+    languageModel: "pt_core_news_sm"
+    confidenceThreshold: 0.75
+    confidenceThresholdStrict: 0.85
+    adaptiveThresholdEnabled: true
+    routingThresholdHigh: 0.5
+    routingThresholdLow: 0.3
+    routingUseAdaptiveForDecisions: false
+  limits:
+    maxAudioSizeMb: 10
+    maxTextLength: 10000
+  cors:
+    allowedOrigins: ["*"]
+    allowedHosts: ["*"]
+secrets:
+  jwtSecretKey: "dev-secret-key-change-in-production"
+  kafka:
+    username: ""
+    password: ""
+  redis:
+    password: ""
+  keycloak:
+    clientSecret: "dev-client-secret"
+# Observabilidade - OpenTelemetry desabilitado em cluster local
+observability:
+  otelEnabled: false  # Desabilitar OpenTelemetry em cluster local
+  otelEndpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+  serviceMonitor:
+    enabled: false # Habilitar após deploy do Prometheus
+  jaeger:
+    endpoint: "http://jaeger-collector.observability.svc.cluster.local:14268/api/traces"
+  prometheus:
+    enabled: false
+networkPolicy:
+  enabled: false # Simplificar para dev local
+podDisruptionBudget:
+  enabled: false # Não necessário com 1 replica
+istio:
+  enabled: false # Desabilitar service mesh para dev
+# Persistence for ML models - disabled, using emptyDir since models are in image
+persistence:
+  models:
+    enabled: false
+
+# Use emptyDir for models (models are included in Docker image)
+volumes:
+  - name: model-cache
+    emptyDir: {}
+
+volumeMounts:
+  - name: model-cache
+    mountPath: /app/models
+initContainers:
+  modelDownloader:
+    enabled: false  # Desabilitado: modelos torch/whisper já estão na imagem, spaCy será lazy-loaded
+metadata:
+  generated_at: "2025-11-20T14:00:34Z"
+  generated_by: 08-prepare-gateway-values.sh
+  cluster_context: kubernetes-admin@kubernetes
+replicaCount: 1
+image:
+  repository: "neural-hive-mind/gateway-intencoes"
+  tag: "1.0.0"
+  pullPolicy: "Never" # Imagem local no containerd
+
+# Service Account
+serviceAccount:
+  create: true
+  name: "gateway-intencoes"
+  annotations: {}
+
+# Ingress
+ingress:
+  enabled: false
+
+# Autoscaling
+autoscaling:
+  enabled: false
+
+# Allow pod to run on control-plane node (where image is available)
+nodeSelector:
+  kubernetes.io/hostname: vmi2092350.contaboserver.net
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+  - key: node-role.kubernetes.io/master
+    operator: Exists
+    effect: NoSchedule
+affinity: {}
+
+resources:
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+  limits:
+    cpu: "1000m"
+    memory: "2Gi"
+service:
+  type: "ClusterIP"
+  port: 80
+  targetPort: 8000
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 90
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3

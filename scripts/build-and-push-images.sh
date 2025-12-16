@@ -1,4 +1,25 @@
 #!/bin/bash
+# ============================================================================
+# ⚠️  DEPRECATION WARNING
+# ============================================================================
+# Este script está deprecated e será removido em versão futura.
+# Use o novo CLI unificado: ./scripts/build.sh
+#
+# Equivalência:
+#   ./scripts/build-local-parallel.sh --version 1.0.8
+#   → ./scripts/build.sh --target local --version 1.0.8
+#
+#   ./scripts/push-to-ecr.sh --version 1.0.8
+#   → ./scripts/build.sh --target ecr --version 1.0.8
+# ============================================================================
+
+echo ""
+echo "⚠️  AVISO: Este script está deprecated"
+echo "   Use: ./scripts/build.sh --target <local|ecr|registry|all>"
+echo "   Documentação: ./scripts/build.sh --help"
+echo ""
+sleep 2
+
 # Script para build e push de imagens Docker para ECR
 # Neural Hive-Mind - Version 1.0
 

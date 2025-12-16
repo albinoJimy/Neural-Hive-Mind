@@ -48,6 +48,7 @@ data:
 
   # Observability Configuration
   OTEL_ENDPOINT: {{ .Values.config.observability.otelEndpoint | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.observability.otelEndpoint | quote }}
   PROMETHEUS_PORT: {{ .Values.config.observability.prometheusPort | quote }}
   HTTP_PORT: {{ .Values.config.observability.httpPort | quote }}
   GRPC_PORT: {{ .Values.config.observability.grpcPort | quote }}

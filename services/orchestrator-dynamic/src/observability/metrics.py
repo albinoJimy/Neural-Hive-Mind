@@ -50,6 +50,17 @@ class OrchestratorMetrics:
             'Workflows ativos no momento'
         )
 
+        # MongoDB pool
+        self.mongodb_pool_size = Gauge(
+            'mongodb_pool_size',
+            'MongoDB connection pool size',
+            ['pool_type']
+        )
+        self.mongodb_pool_checkedout = Gauge(
+            'mongodb_pool_checkedout',
+            'MongoDB connections checked out'
+        )
+
         # Métricas de Tickets
         self.tickets_generated_total = Counter(
             'orchestration_tickets_generated_total',
@@ -315,6 +326,43 @@ class OrchestratorMetrics:
             'orchestration_opa_circuit_breaker_state',
             'Estado do circuit breaker OPA (0=closed, 1=half_open, 2=open)',
             ['circuit_name']
+        )
+
+        # Security Metrics
+        self.security_violations_total = Counter(
+            'orchestration_security_violations_total',
+            'Total de violações de segurança detectadas',
+            ['tenant_id', 'violation_type', 'severity']
+        )
+
+        self.security_authentication_failures_total = Counter(
+            'orchestration_security_authentication_failures_total',
+            'Total de falhas de autenticação',
+            ['tenant_id', 'reason']
+        )
+
+        self.security_authorization_denials_total = Counter(
+            'orchestration_security_authorization_denials_total',
+            'Total de negações de autorização',
+            ['tenant_id', 'user_id', 'capability']
+        )
+
+        self.security_tenant_isolation_violations_total = Counter(
+            'orchestration_security_tenant_isolation_violations_total',
+            'Total de violações de isolamento de tenant',
+            ['source_tenant', 'target_tenant']
+        )
+
+        self.security_data_governance_violations_total = Counter(
+            'orchestration_security_data_governance_violations_total',
+            'Total de violações de governança de dados',
+            ['tenant_id', 'violation_type']
+        )
+
+        self.security_rate_limit_exceeded_total = Counter(
+            'orchestration_security_rate_limit_exceeded_total',
+            'Total de rate limits excedidos',
+            ['tenant_id', 'limit_type']
         )
 
         # ML Predictions Metrics
@@ -588,6 +636,24 @@ class OrchestratorMetrics:
         """Registra rejeição de alocação pelo scheduler."""
         self.scheduler_rejections_total.labels(reason=reason).inc()
 
+    def record_mongodb_pool_metrics(self, client):
+        """Registra métricas de pool do MongoDB."""
+        try:
+            self.mongodb_pool_size.labels(pool_type='max').set(client.options.pool_options.max_pool_size)
+            min_pool = getattr(client.options.pool_options, "min_pool_size", 0)
+            self.mongodb_pool_size.labels(pool_type='min').set(min_pool)
+
+            servers = []
+            topology = getattr(client, "_topology", None)
+            if topology and hasattr(topology, "_servers"):
+                servers = list(topology._servers.values())
+
+            if servers:
+                active_sockets = getattr(servers[0]._pool, "active_sockets", 0)
+                self.mongodb_pool_checkedout.set(active_sockets)
+        except Exception as exc:
+            logger.debug("mongodb_pool_metrics_failed", error=str(exc))
+
     def record_opa_validation(self, policy_name: str, result: str, duration_seconds: float):
         """Registra validação OPA."""
         self.opa_validations_total.labels(policy_name=policy_name, result=result).inc()
@@ -599,6 +665,76 @@ class OrchestratorMetrics:
             policy_name=policy_name,
             rule=rule,
             severity=severity
+        ).inc()
+
+    def record_security_violation(
+        self,
+        tenant_id: str,
+        violation_type: str,
+        severity: str
+    ):
+        """Registrar violação de segurança."""
+        self.security_violations_total.labels(
+            tenant_id=tenant_id,
+            violation_type=violation_type,
+            severity=severity
+        ).inc()
+
+    def record_authentication_failure(
+        self,
+        tenant_id: str,
+        reason: str
+    ):
+        """Registrar falha de autenticação."""
+        self.security_authentication_failures_total.labels(
+            tenant_id=tenant_id,
+            reason=reason
+        ).inc()
+
+    def record_authorization_denial(
+        self,
+        tenant_id: str,
+        user_id: str,
+        capability: str
+    ):
+        """Registrar negação de autorização."""
+        self.security_authorization_denials_total.labels(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            capability=capability
+        ).inc()
+
+    def record_tenant_isolation_violation(
+        self,
+        source_tenant: str,
+        target_tenant: str
+    ):
+        """Registrar violação de isolamento de tenant."""
+        self.security_tenant_isolation_violations_total.labels(
+            source_tenant=source_tenant,
+            target_tenant=target_tenant
+        ).inc()
+
+    def record_data_governance_violation(
+        self,
+        tenant_id: str,
+        violation_type: str
+    ):
+        """Registrar violação de governança de dados."""
+        self.security_data_governance_violations_total.labels(
+            tenant_id=tenant_id,
+            violation_type=violation_type
+        ).inc()
+
+    def record_rate_limit_exceeded(
+        self,
+        tenant_id: str,
+        limit_type: str
+    ):
+        """Registrar rate limit excedido."""
+        self.security_rate_limit_exceeded_total.labels(
+            tenant_id=tenant_id,
+            limit_type=limit_type
         ).inc()
 
     def record_ml_prediction(self, model_type: str, status: str, duration: float):

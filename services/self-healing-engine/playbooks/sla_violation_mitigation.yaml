@@ -1,0 +1,47 @@
+playbook_id: "sla-violation-mitigation-v1"
+playbook_name: "sla_violation_mitigation"
+playbook_type: "ORCHESTRATION"
+version: "1.0.0"
+description: "Mitiga violações de SLA escalando workers e priorizando tickets críticos"
+parameters_schema:
+  type: object
+  properties:
+    workflow_id:
+      type: string
+    service_name:
+      type: string
+    violation_type:
+      type: string
+    delay_ms:
+      type: integer
+  required: [workflow_id, service_name]
+timeout_seconds: 480
+rollback_playbook: null
+validation_checks:
+  - "sla_restored"
+  - "error_budget_positive"
+status: "AVAILABLE"
+actions:
+  - name: "boost_ticket_priority"
+    type: "update_ticket_status"
+    parameters:
+      workflow_id: "{{ workflow_id }}"
+      status: "PRIORITY_BOOST"
+      violation_type: "{{ violation_type }}"
+  - name: "scale_workers"
+    type: "scale_deployment"
+    parameters:
+      deployment_name: "worker-agents"
+      namespace: "default"
+      replicas: 2
+  - name: "enable_fast_path"
+    type: "update_policy"
+    parameters:
+      policy_name: "fast_path_mode"
+      enabled: true
+  - name: "notify_slack"
+    type: "notify_agent"
+    parameters:
+      agent_id: "pagerduty-slack"
+      notification_type: "SLA_VIOLATION"
+      message: "SLA violado para {{ service_name }} - atraso {{ delay_ms }} ms"

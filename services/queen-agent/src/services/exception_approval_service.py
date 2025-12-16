@@ -5,6 +5,7 @@ from typing import List, Optional
 from ..config import Settings
 from ..models import ExceptionApproval, ExceptionType, ApprovalStatus
 from ..clients import MongoDBClient
+from neural_hive_resilience.circuit_breaker import CircuitBreakerError
 
 
 logger = structlog.get_logger()
@@ -32,7 +33,14 @@ class ExceptionApprovalService:
             exception.risk_assessment = await self.evaluate_exception_risk(exception)
 
             # Salvar no MongoDB
-            await self.mongodb_client.save_exception_approval(exception)
+            try:
+                await self.mongodb_client.save_exception_approval(exception)
+            except CircuitBreakerError:
+                logger.warning(
+                    "exception_approval_circuit_open",
+                    exception_id=exception.exception_id
+                )
+                raise
 
             logger.info(
                 "exception_requested",
@@ -73,7 +81,15 @@ class ExceptionApprovalService:
             exception.approve(decision_id, conditions)
 
             # Atualizar no MongoDB
-            await self.mongodb_client.update_exception_status(exception_id, ApprovalStatus.APPROVED)
+            try:
+                await self.mongodb_client.update_exception_status(exception_id, ApprovalStatus.APPROVED)
+            except CircuitBreakerError:
+                logger.warning(
+                    "exception_status_update_circuit_open",
+                    exception_id=exception_id,
+                    decision_id=decision_id
+                )
+                raise
 
             logger.info(
                 "exception_approved",
@@ -101,7 +117,15 @@ class ExceptionApprovalService:
             exception.reject(reason)
 
             # Atualizar no MongoDB
-            await self.mongodb_client.update_exception_status(exception_id, ApprovalStatus.REJECTED)
+            try:
+                await self.mongodb_client.update_exception_status(exception_id, ApprovalStatus.REJECTED)
+            except CircuitBreakerError:
+                logger.warning(
+                    "exception_status_update_circuit_open",
+                    exception_id=exception_id,
+                    reason=reason
+                )
+                raise
 
             logger.info("exception_rejected", exception_id=exception_id, reason=reason)
 

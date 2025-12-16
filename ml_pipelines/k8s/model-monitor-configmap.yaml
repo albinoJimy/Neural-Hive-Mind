@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: model-monitor-config
+  namespace: ml-pipelines
+  labels:
+    app: model-performance-monitor
+    component: ml-monitoring
+data:
+  # Performance Thresholds
+  PRECISION_THRESHOLD: "0.75"
+  RECALL_THRESHOLD: "0.70"
+  F1_THRESHOLD: "0.72"
+  FEEDBACK_AVG_THRESHOLD: "0.6"
+
+  # Retraining Configuration
+  RETRAINING_FEEDBACK_THRESHOLD: "100"
+  RETRAINING_FEEDBACK_WINDOW_DAYS: "30"
+  RETRAINING_MIN_FEEDBACK_QUALITY: "0.5"
+  ENABLE_RETRAINING_TRIGGER: "true"
+
+  # Dataset Generation
+  DATASET_NUM_SAMPLES: "1000"
+  LLM_PROVIDER: "local"
+  LLM_MODEL: "llama2"
+  LLM_TEMPERATURE: "0.7"
+  LLM_BASE_URL: "http://ollama.default:11434"
+
+  # Monitoring Configuration
+  MONITOR_LAST_N_RUNS: "100"
+  MONITOR_WINDOW_DAYS: "30"
+
+  # Notification Configuration
+  NOTIFICATION_CHANNELS: "slack,email"
+  SLACK_CHANNEL: "#ml-alerts"
+  EMAIL_RECIPIENTS: "ml-ops@example.com"
+
+  # MLflow Configuration
+  MLFLOW_TRACKING_URI: "http://mlflow.mlflow:5000"
+  RETRAINING_MLFLOW_PROJECT_URI: "/app/ml_pipelines/training"
+
+  # MongoDB Configuration
+  MONGODB_DATABASE: "neural_hive"
+  MONGODB_OPINIONS_COLLECTION: "cognitive_ledger"
+  FEEDBACK_MONGODB_COLLECTION: "specialist_feedback"
+
+  # SMTP Configuration (não sensíveis)
+  SMTP_HOST: "smtp.gmail.com"
+  SMTP_PORT: "587"
+  SMTP_USER: "notifications@example.com"

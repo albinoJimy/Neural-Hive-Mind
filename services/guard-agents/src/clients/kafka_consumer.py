@@ -4,6 +4,8 @@ from typing import Callable, Optional
 from aiokafka import AIOKafkaConsumer
 import structlog
 
+from neural_hive_observability import instrument_kafka_consumer
+
 logger = structlog.get_logger()
 
 
@@ -39,6 +41,7 @@ class KafkaConsumerClient:
                 auto_offset_reset=self.auto_offset_reset,
                 enable_auto_commit=self.enable_auto_commit
             )
+            self.consumer = instrument_kafka_consumer(self.consumer)
             await self.consumer.start()
             logger.info("kafka.consumer_connected", topics=self.topics, group_id=self.group_id)
         except Exception as e:

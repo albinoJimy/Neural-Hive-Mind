@@ -3,6 +3,11 @@ import json
 from typing import TYPE_CHECKING
 import structlog
 
+from neural_hive_observability.context import (
+    extract_context_from_headers,
+    set_baggage
+)
+
 if TYPE_CHECKING:
     from aiokafka import ConsumerRecord
     from src.clients.mongodb_client import MongoDBClient
@@ -81,7 +86,13 @@ class MessageHandler:
         E6: Documentar lições aprendidas
         """
         try:
+            headers_dict = {k: v for k, v in (message.headers or [])}
+            extract_context_from_headers(headers_dict)
             incident_data = json.loads(message.value.decode('utf-8'))
+            if incident_data.get("user_id"):
+                set_baggage("user_id", incident_data.get("user_id"))
+            if incident_data.get("incident_id"):
+                set_baggage("incident_id", incident_data.get("incident_id"))
 
             logger.info(
                 "security_incident.received",
@@ -131,7 +142,11 @@ class MessageHandler:
         através do fluxo completo E1-E6
         """
         try:
+            headers_dict = {k: v for k, v in (message.headers or [])}
+            extract_context_from_headers(headers_dict)
             incident_data = json.loads(message.value.decode('utf-8'))
+            if incident_data.get("incident_id"):
+                set_baggage("incident_id", incident_data.get("incident_id"))
 
             logger.info(
                 "orchestration_incident.received",

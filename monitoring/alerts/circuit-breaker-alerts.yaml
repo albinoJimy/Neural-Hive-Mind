@@ -1,0 +1,19 @@
+groups:
+  - name: circuit_breakers
+    interval: 30s
+    rules:
+      - alert: CircuitBreakerOpen
+        expr: circuit_breaker_state == 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Circuit breaker {{ $labels.circuit }} is open in {{ $labels.service }}"
+          
+      - alert: CircuitBreakerHighFailureRate
+        expr: rate(circuit_breaker_failures_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High failure rate in circuit {{ $labels.circuit }} ({{ $labels.service }})"

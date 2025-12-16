@@ -1,0 +1,5 @@
+[22:51:11] START specialist-architecture → 84.247.138.35
+docker.io/neural hive mind/specialist ar	saved	
+application/vnd.oci.image.manifest.v1+json sha256:fa727acc05b2802c549e76d1d944c37fbdd35d138379f22f1e31b6f04a70737b
+Importing	elapsed: 22585.4s	total:   0.0 B	(0.0 B/s)	
+[05:07:52] SUCCESS specialist-architecture → 84.247.138.35

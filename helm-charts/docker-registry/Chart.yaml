@@ -1,0 +1,12 @@
+apiVersion: v2
+name: docker-registry
+description: Private Docker Registry for Neural-Hive-Mind cluster
+type: application
+version: 1.0.0
+appVersion: "2.8.3"
+keywords:
+  - registry
+  - docker
+  - images
+maintainers:
+  - name: Neural-Hive-Mind Team

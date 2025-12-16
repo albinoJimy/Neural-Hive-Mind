@@ -1,0 +1,107 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: model-performance-monitor
+  namespace: ml-pipelines
+  labels:
+    app: model-performance-monitor
+    component: ml-monitoring
+spec:
+  # Executar a cada 6 horas
+  schedule: "0 */6 * * *"
+
+  # Não permitir execuções sobrepostas
+  concurrencyPolicy: Forbid
+
+  # Manter histórico de jobs
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+
+  jobTemplate:
+    metadata:
+      labels:
+        app: model-performance-monitor
+        component: ml-monitoring
+    spec:
+      template:
+        metadata:
+          labels:
+            app: model-performance-monitor
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: model-monitor-sa
+
+          containers:
+          - name: monitor
+            image: neural-hive-ml-monitoring:latest
+            imagePullPolicy: Always
+
+            command:
+            - python
+            - /app/monitoring/auto_retrain.py
+
+            args:
+            - --notification-channels
+            - slack,email
+
+            envFrom:
+            - configMapRef:
+                name: model-monitor-config
+            - secretRef:
+                name: model-monitor-secrets
+
+            env:
+            # MongoDB
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-credentials
+                  key: uri
+
+            # MLflow
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow.mlflow:5000"
+
+            # Prometheus Pushgateway
+            - name: PROMETHEUS_PUSHGATEWAY_URL
+              value: "http://prometheus-pushgateway.monitoring:9091"
+
+            # Notification secrets
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: model-monitor-secrets
+                  key: slack-webhook-url
+                  optional: true
+
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: model-monitor-secrets
+                  key: smtp-password
+                  optional: true
+
+            resources:
+              requests:
+                cpu: 500m
+                memory: 1Gi
+              limits:
+                cpu: 1000m
+                memory: 2Gi
+
+            volumeMounts:
+            - name: training-data
+              mountPath: /data/training
+            - name: prompts
+              mountPath: /app/training/prompts
+              readOnly: true
+
+          volumes:
+          - name: training-data
+            emptyDir:
+              sizeLimit: 5Gi
+
+          - name: prompts
+            configMap:
+              name: llm-prompts
+              optional: true

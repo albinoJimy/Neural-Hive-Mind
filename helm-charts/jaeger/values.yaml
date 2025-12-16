@@ -81,6 +81,12 @@ jaeger:
       # Health check
       admin.http.host-port: "0.0.0.0:14269"
 
+    extraConfigmapMounts:
+      - name: sampling-strategies
+        mountPath: /etc/jaeger/sampling
+        configMap: jaeger-sampling-strategies
+        readOnly: true
+
     # Anti-affinity para alta disponibilidade
     affinity:
       podAntiAffinity:
@@ -198,62 +204,8 @@ jaeger:
         certPath: ""
         keyPath: ""
 
-  # Sampling strategies específicas para Neural Hive-Mind
-  sampling:
-    strategies: |
-      {
-        "default_strategy": {
-          "type": "probabilistic",
-          "param": 0.05
-        },
-        "max_traces_per_second": 100,
-        "per_service_strategies": [
-          {
-            "service": "gateway-intencoes",
-            "type": "probabilistic",
-            "param": 0.25,
-            "max_traces_per_second": 20
-          },
-          {
-            "service": "neural-hive-planner",
-            "type": "probabilistic",
-            "param": 0.15,
-            "max_traces_per_second": 15
-          },
-          {
-            "service": "neural-hive-executor",
-            "type": "probabilistic",
-            "param": 0.10,
-            "max_traces_per_second": 10
-          },
-          {
-            "service": "neural-hive-critical",
-            "type": "probabilistic",
-            "param": 1.0,
-            "max_traces_per_second": 50
-          }
-        ],
-        "per_operation_strategies": [
-          {
-            "service": "gateway-intencoes",
-            "operation": "POST /intents",
-            "type": "probabilistic",
-            "param": 0.5
-          },
-          {
-            "service": "*",
-            "operation": "*error*",
-            "type": "probabilistic",
-            "param": 1.0
-          },
-          {
-            "service": "*",
-            "operation": "*health*",
-            "type": "probabilistic",
-            "param": 0.01
-          }
-        ]
-      }
+  # Sampling strategies são carregadas via ConfigMap dedicado (templates/configmap-sampling.yaml)
+  sampling: {}
 
   # ServiceMonitor for Prometheus scraping
   serviceMonitor:

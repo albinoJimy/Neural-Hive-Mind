@@ -1,4 +1,10 @@
 #!/bin/bash
+echo "⚠️  AVISO: Este script foi consolidado no CLI unificado de validação."
+echo "⚠️  Use: scripts/validate.sh --target <TARGET>"
+echo "⚠️  Exemplo: scripts/validate.sh --target specialists"
+echo ""
+echo "Executando script legado..."
+echo ""
 #
 # validate-data-governance-crds.sh
 # Script para validar CRDs de governança de dados do Neural Hive-Mind

@@ -3,8 +3,7 @@ import signal
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 import structlog
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.instrumentation.grpc import GrpcInstrumentorServer
+from neural_hive_observability import init_observability
 
 from src.config.settings import get_settings
 from src.api import health
@@ -36,6 +35,27 @@ async def lifespan(app: FastAPI):
     """Gerencia lifecycle da aplicação"""
     # Startup
     logger.info("guard_agent.startup", service=settings.service_name, version=settings.service_version)
+
+    try:
+        init_observability(
+            service_name=settings.service_name,
+            service_version=settings.service_version,
+            neural_hive_component="guard-agents",
+            neural_hive_layer="resilience",
+            environment=settings.environment,
+            otel_endpoint=settings.otel_exporter_otlp_endpoint,
+            prometheus_port=9090,
+            log_level=settings.log_level,
+            enable_kafka=True,
+            enable_grpc=False
+        )
+    except Exception as e:
+        logger.warning(
+            "observability_init_failed",
+            error=str(e),
+            otel_endpoint=settings.otel_exporter_otlp_endpoint,
+            prometheus_port=9090
+        )
 
     # Importar clientes
     from src.clients.service_registry_client import ServiceRegistryClient
@@ -355,9 +375,6 @@ app = FastAPI(
     version=settings.service_version,
     lifespan=lifespan
 )
-
-# Instrumentar com OpenTelemetry
-FastAPIInstrumentor.instrument_app(app)
 
 # Incluir routers
 app.include_router(health.router, tags=["health"])

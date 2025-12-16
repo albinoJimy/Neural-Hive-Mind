@@ -1,62 +1,13 @@
-#!/bin/bash
-# Deploy do Motor de Tradução Semântica
+#!/usr/bin/env bash
 set -euo pipefail
 
-# Variáveis
-ENV=${ENV:-dev}
-NAMESPACE="semantic-translation-engine"
-CHART_PATH="./helm-charts/semantic-translation-engine"
-VALUES_FILE="./environments/${ENV}/helm-values/semantic-translation-engine-values.yaml"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="${SCRIPT_DIR}/../lib"
+source "${LIB_DIR}/common.sh"
 
-echo "Deploying Semantic Translation Engine para ambiente ${ENV}..."
+CLI_SCRIPT="${SCRIPT_DIR}/../deploy.sh"
+DEFAULT_ARGS=(--env eks --phase 1 --services ste)
 
-# 1. Criar namespace se não existir
-kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
-
-# 2. Aplicar labels no namespace
-if [ "${ENV}" = "production" ]; then
-  kubectl label namespace ${NAMESPACE} \
-    neural-hive.io/component=semantic-translation-engine \
-    neural-hive.io/layer=cognitiva \
-    istio-injection=enabled \
-    --overwrite
-else
-  kubectl label namespace ${NAMESPACE} \
-    neural-hive.io/component=semantic-translation-engine \
-    neural-hive.io/layer=cognitiva \
-    --overwrite
-fi
-
-# 3. Criar secrets (se não existirem)
-if ! kubectl get secret semantic-translation-engine-secrets -n ${NAMESPACE} &> /dev/null; then
-  echo "Criando secrets..."
-  kubectl create secret generic semantic-translation-engine-secrets \
-    --from-literal=kafka_sasl_password="${KAFKA_SASL_PASSWORD:-}" \
-    --from-literal=neo4j_password="${NEO4J_PASSWORD:-}" \
-    --from-literal=mongodb_password="${MONGODB_PASSWORD:-}" \
-    --from-literal=redis_password="${REDIS_PASSWORD:-}" \
-    -n ${NAMESPACE}
-fi
-
-# 4. Deploy via Helm
-echo "Deployando Helm chart..."
-helm upgrade --install semantic-translation-engine ${CHART_PATH} \
-  --namespace ${NAMESPACE} \
-  --values ${VALUES_FILE} \
-  --wait --timeout 10m
-
-# 5. Verificar deployment
-echo "Verificando deployment..."
-kubectl rollout status deployment/semantic-translation-engine -n ${NAMESPACE}
-
-# 6. Verificar pods
-kubectl get pods -n ${NAMESPACE} -l app.kubernetes.io/name=semantic-translation-engine
-
-# 7. Verificar health
-echo "Checando health..."
-kubectl wait --for=condition=ready pod \
-  -l app.kubernetes.io/name=semantic-translation-engine \
-  -n ${NAMESPACE} \
-  --timeout=5m
-
-echo "✅ Deployment concluído com sucesso!"
+log_warning "⚠️  DEPRECATED: use './scripts/deploy.sh --env eks --phase 1 --services ste' instead"
+log_info "Redirecionando para o novo CLI..."
+exec "${CLI_SCRIPT}" "${DEFAULT_ARGS[@]}" "$@"

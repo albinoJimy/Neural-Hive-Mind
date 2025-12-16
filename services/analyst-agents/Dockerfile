@@ -1,9 +1,9 @@
 # Stage 1: Builder
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY services/analyst-agents/requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt && \
     find /root/.local -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true && \
     find /root/.local -type f -name '*.pyc' -delete 2>/dev/null || true
@@ -18,7 +18,7 @@ COPY --from=builder /root/.local /root/.local
 ENV PATH=/root/.local/bin:$PATH
 
 # Copy application code
-COPY src/ ./src/
+COPY services/analyst-agents/src/ ./src/
 
 # Create non-root user
 RUN useradd -m -u 1000 analyst && chown -R analyst:analyst /app

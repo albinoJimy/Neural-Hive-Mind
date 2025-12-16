@@ -7,6 +7,7 @@ from typing import Optional, Callable, List, Dict, Any
 import structlog
 from kubernetes import client, config
 from prometheus_client import Counter, Histogram
+from neural_hive_observability import get_tracer
 
 logger = structlog.get_logger()
 
@@ -102,51 +103,57 @@ class PlaybookExecutor:
             timeout_seconds=timeout
         )
 
-        start_time = perf_counter()
-        status_label = "success"
-        result: Dict[str, Any] = {}
+        tracer = get_tracer()
+        with tracer.start_as_current_span("playbook_execution") as span:
+            span.set_attribute("neural.hive.playbook_name", playbook_name)
+            span.set_attribute("neural.hive.incident_id", context.get("incident_id"))
 
-        try:
-            execution_result = await asyncio.wait_for(
-                self._execute_actions(actions, context, on_action_completed),
-                timeout=timeout
+            start_time = perf_counter()
+            status_label = "success"
+            result: Dict[str, Any] = {}
+
+            try:
+                execution_result = await asyncio.wait_for(
+                    self._execute_actions(actions, context, on_action_completed),
+                    timeout=timeout
+                )
+                result = {
+                    **execution_result,
+                    "total_actions": total_actions
+                }
+            except asyncio.TimeoutError:
+                status_label = "timeout"
+                result = {
+                    "success": False,
+                    "error": "Playbook timeout",
+                    "status": "TIMEOUT",
+                    "total_actions": total_actions
+                }
+            except Exception as e:  # noqa: BLE001
+                status_label = "error"
+                result = {
+                    "success": False,
+                    "error": str(e),
+                    "status": "FAILED",
+                    "total_actions": total_actions
+                }
+                logger.error("playbook_executor.execution_failed", playbook=playbook_name, error=str(e))
+
+            duration = perf_counter() - start_time
+            status_label = status_label if status_label in ["timeout", "error"] else ("success" if result.get("success") else "failed")
+            span.set_attribute("neural.hive.execution_status", status_label)
+            self._record_metrics(playbook_name, status_label, duration)
+
+            if on_playbook_completed:
+                await self._maybe_call_callback(on_playbook_completed, {**result, "duration_seconds": duration})
+
+            logger.info(
+                "playbook_executor.completed",
+                playbook=playbook_name,
+                success=result.get("success"),
+                duration_seconds=round(duration, 4)
             )
-            result = {
-                **execution_result,
-                "total_actions": total_actions
-            }
-        except asyncio.TimeoutError:
-            status_label = "timeout"
-            result = {
-                "success": False,
-                "error": "Playbook timeout",
-                "status": "TIMEOUT",
-                "total_actions": total_actions
-            }
-        except Exception as e:  # noqa: BLE001
-            status_label = "error"
-            result = {
-                "success": False,
-                "error": str(e),
-                "status": "FAILED",
-                "total_actions": total_actions
-            }
-            logger.error("playbook_executor.execution_failed", playbook=playbook_name, error=str(e))
-
-        duration = perf_counter() - start_time
-        status_label = status_label if status_label in ["timeout", "error"] else ("success" if result.get("success") else "failed")
-        self._record_metrics(playbook_name, status_label, duration)
-
-        if on_playbook_completed:
-            await self._maybe_call_callback(on_playbook_completed, {**result, "duration_seconds": duration})
-
-        logger.info(
-            "playbook_executor.completed",
-            playbook=playbook_name,
-            success=result.get("success"),
-            duration_seconds=round(duration, 4)
-        )
-        return result
+            return result
 
     async def _execute_actions(
         self,

@@ -106,7 +106,7 @@ class DurationPredictor:
             Modelo carregado ou None
         """
         try:
-            model = self.model_registry.load_model(
+            model = await self.model_registry.load_model(
                 model_name=self.model_name,
                 stage='Production'
             )
@@ -330,8 +330,7 @@ class DurationPredictor:
             # Query tickets completados com actual_duration
             tickets = await self.mongodb_client.db['execution_tickets'].find({
                 'completed_at': {'$gte': cutoff_date},
-                'actual_duration_ms': {'$exists': True, '$ne': None},
-                'status': 'COMPLETED'
+                'actual_duration_ms': {'$exists': True, '$ne': None, '$gt': 0}
             }).to_list(None)
 
             if len(tickets) < self.config.ml_min_training_samples:
@@ -340,7 +339,12 @@ class DurationPredictor:
                     samples=len(tickets),
                     required=self.config.ml_min_training_samples
                 )
-                return {}
+                return {
+                    'promoted': False,
+                    'version': None,
+                    'train_samples': len(tickets),
+                    'test_samples': 0
+                }
 
             # Atualiza stats antes de extrair features
             await self._refresh_historical_stats()
@@ -411,7 +415,7 @@ class DurationPredictor:
                 'timestamp': datetime.utcnow().isoformat()
             }
 
-            run_id = self.model_registry.save_model(
+            run_id = await self.model_registry.save_model(
                 model=model,
                 model_name=self.model_name,
                 metrics=metrics,
@@ -420,18 +424,24 @@ class DurationPredictor:
             )
 
             # Atualiza modelo em memória se melhor que threshold
+            promoted = False
+            latest_version = await self._get_latest_version()
+            metrics['version'] = latest_version
+
             if mae_pct < self.config.ml_duration_error_threshold * 100:
                 self.model = model
                 self.logger.info("model_updated_in_memory", mae_pct=mae_pct)
+                promoted = True
 
                 # Promove modelo se passar critérios
-                latest_version = await self._get_latest_version()
                 if latest_version:
-                    self.model_registry.promote_model(
+                    await self.model_registry.promote_model(
                         model_name=self.model_name,
                         version=latest_version,
                         stage='Production'
                     )
+
+            metrics['promoted'] = promoted
 
             # Métricas
             training_duration = time.time() - start_time
@@ -453,7 +463,12 @@ class DurationPredictor:
         except Exception as e:
             self.logger.error("training_failed", error=str(e))
             self.metrics.record_ml_error('training')
-            return {}
+            return {
+                'promoted': False,
+                'version': None,
+                'train_samples': 0,
+                'test_samples': 0
+            }
 
     async def _get_latest_version(self) -> Optional[str]:
         """
@@ -463,7 +478,7 @@ class DurationPredictor:
             String com número da versão ou None
         """
         try:
-            metadata = self.model_registry.get_model_metadata(self.model_name)
+            metadata = await self.model_registry.get_model_metadata(self.model_name)
             return metadata.get('version')
         except:
             return None

@@ -3,55 +3,16 @@
 # This library provides shared functions for test scripts
 # Source this file - do not execute directly
 
-# Color definitions
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-MAGENTA='\033[0;35m'
-NC='\033[0m'
-
-# Emoji/symbols
-CHECK_MARK="✓"
-CROSS_MARK="✗"
-WARNING="⚠"
-INFO="ℹ"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../lib/common.sh"
+source "${SCRIPT_DIR}/../lib/k8s.sh"
+source "${SCRIPT_DIR}/../lib/docker.sh"
+source "${SCRIPT_DIR}/../lib/aws.sh"
 
 # Global variables for test reporting
 declare -g TEST_REPORT_JSON=""
 declare -g TEST_START_TIME=""
 declare -a PORT_FORWARDS=()
-
-# Logging functions
-log_info() {
-    echo -e "${BLUE}${INFO}${NC} $*"
-}
-
-log_success() {
-    echo -e "${GREEN}${CHECK_MARK}${NC} $*"
-}
-
-log_warning() {
-    echo -e "${YELLOW}${WARNING}${NC} $*"
-}
-
-log_error() {
-    echo -e "${RED}${CROSS_MARK}${NC} $*"
-}
-
-log_debug() {
-    if [ "${DEBUG:-false}" = "true" ]; then
-        echo -e "${CYAN}[DEBUG]${NC} $*"
-    fi
-}
-
-log_section() {
-    echo ""
-    echo -e "${BLUE}========================================${NC}"
-    echo -e "${BLUE}$*${NC}"
-    echo -e "${BLUE}========================================${NC}"
-}
 
 # Status check function
 check_status() {
@@ -67,85 +28,29 @@ check_status() {
 }
 
 # Command existence check
-check_command_exists() {
-    local cmd=$1
-    if command -v "$cmd" &> /dev/null; then
-        return 0
-    else
-        return 1
-    fi
-}
-
-# Kubectl connection check
-check_kubectl_connection() {
-    if kubectl cluster-info &> /dev/null; then
-        return 0
-    else
-        return 1
-    fi
-}
-
-# Kubernetes helper functions
 detect_namespace() {
     local service=$1
-    local candidates=("$service" "neural-hive-core" "default")
-
-    # Check cache
-    local cache_var="NS_CACHE_${service//-/_}"
-    if [ -n "${!cache_var:-}" ]; then
-        echo "${!cache_var}"
-        return 0
-    fi
-
-    for ns in "${candidates[@]}"; do
-        if kubectl get namespace "$ns" &> /dev/null; then
-            # Check if service exists in this namespace
-            if kubectl get deployment -n "$ns" "$service" &> /dev/null 2>&1 || \
-               kubectl get statefulset -n "$ns" "$service" &> /dev/null 2>&1 || \
-               kubectl get pods -n "$ns" -l "app.kubernetes.io/name=$service" --no-headers 2>/dev/null | grep -q .; then
-                log_debug "Service $service found in namespace: $ns"
-                # Cache result
-                eval "$cache_var='$ns'"
-                echo "$ns"
-                return 0
-            fi
-        fi
-    done
-
-    log_warning "Service $service not found in any candidate namespace"
-    echo "$service"  # Return service name as fallback
-    return 1
+    local ns
+    ns=$(k8s_detect_namespace "${service}")
+    echo "${ns:-$service}"
 }
 
 get_pod_name() {
-    local namespace=$1
-    local label_selector=$2
-    kubectl get pods -n "$namespace" -l "$label_selector" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null
+    k8s_get_pod_name "$@"
 }
 
 get_pod_logs() {
-    local namespace=$1
-    local pod_name=$2
-    local tail_lines=${3:-100}
-    kubectl logs -n "$namespace" "$pod_name" --tail="$tail_lines" 2>/dev/null
+    k8s_get_pod_logs "$@"
 }
 
 wait_for_pod_ready() {
-    local namespace=$1
-    local pod_name=$2
-    local timeout=${3:-300}
-    kubectl wait --for=condition=Ready pod/"$pod_name" -n "$namespace" --timeout="${timeout}s" 2>/dev/null
+    k8s_wait_for_pod_ready "$@"
 }
 
 exec_in_pod() {
-    local namespace=$1
-    local pod_name=$2
-    shift 2
-    local command=("$@")
-    kubectl exec -n "$namespace" "$pod_name" -- "${command[@]}" 2>/dev/null
+    k8s_exec_in_pod "$@"
 }
 
-# Port forwarding with retry
 port_forward_with_retry() {
     local namespace=$1
     local service=$2
@@ -153,30 +58,19 @@ port_forward_with_retry() {
     local remote_port=$4
     local max_retries=${5:-3}
 
-    for i in $(seq 1 $max_retries); do
-        log_debug "Port-forward attempt $i/$max_retries"
-        kubectl port-forward -n "$namespace" "svc/$service" "$local_port:$remote_port" &> /dev/null &
-        local pf_pid=$!
-        PORT_FORWARDS+=("$pf_pid")
-        sleep 2
+    local pid
+    if pid=$(k8s_port_forward "${namespace}" "svc/${service}" "${local_port}" "${remote_port}" "${max_retries}"); then
+        PORT_FORWARDS+=("${pid}")
+        echo "${pid}"
+        return 0
+    fi
 
-        if kill -0 "$pf_pid" 2>/dev/null; then
-            log_debug "Port-forward established (PID: $pf_pid)"
-            echo "$pf_pid"
-            return 0
-        fi
-    done
-
-    log_error "Failed to establish port-forward after $max_retries attempts"
+    log_error "Failed to establish port-forward after ${max_retries} attempts"
     return 1
 }
 
 cleanup_port_forwards() {
-    for pid in "${PORT_FORWARDS[@]}"; do
-        if kill -0 "$pid" 2>/dev/null; then
-            kill "$pid" 2>/dev/null || true
-        fi
-    done
+    k8s_cleanup_port_forwards
     PORT_FORWARDS=()
 }
 

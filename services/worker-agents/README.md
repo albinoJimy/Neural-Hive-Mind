@@ -20,6 +20,13 @@ Worker Agents são executores distribuídos responsáveis por consumir Execution
 
 Executores agora integram serviços reais (Code Forge, OPA/Trivy) e publicam resultados em Avro. Fallbacks simulados permanecem ativos para evitar quebra do fluxo quando integrações externas estiverem indisponíveis.
 
+### Real Executors
+- **Build**: usa CodeForge `/api/v1/pipelines` com polling e validação de artifacts (SBOM/assinatura). Configurar `CODE_FORGE_URL` e `CODE_FORGE_TIMEOUT_SECONDS`.
+- **Deploy**: integra com ArgoCD (Application + sync + health check). Habilitar `ARGOCD_ENABLED=true` e fornecer token via Secret `argocd-token`.
+- **Test**: suporta subprocess ou GitHub Actions/Jenkins (`provider` no ticket). Token GitHub via Secret `github-token`.
+- **Validate**: orquestra OPA, Trivy, SonarQube, Snyk, Checkov; agrega violações e métricas.
+- Métricas Prometheus adicionadas para cada executor (taxa, duração, chamadas externas) e dashboard em `monitoring/grafana/dashboards/worker-agents-executors.json`.
+
 ### Executors
 
 - **ExecuteExecutor**: Integra com Code Forge para geração de código com polling do status.

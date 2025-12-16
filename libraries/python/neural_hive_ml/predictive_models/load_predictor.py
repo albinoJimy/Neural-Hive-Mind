@@ -199,20 +199,25 @@ class LoadPredictor(BasePredictor):
 
     async def train_model(
         self,
-        training_window_days: int = 540
+        training_window_days: int = 540,
+        training_data: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[str, Any]:
         """
         Treina modelos Prophet para todos os horizontes.
 
         Args:
             training_window_days: Janela de dados históricos (540 = 18 meses)
+            training_data: Dados históricos externos já carregados (opcional)
 
         Returns:
             Dict com métricas de treinamento
         """
         try:
-            # Carrega dados históricos (deve ser implementado pelo serviço)
-            historical_data = await self._load_historical_data(training_window_days)
+            if training_data is not None:
+                historical_data = training_data
+            else:
+                # Carrega dados históricos (deve ser implementado pelo serviço)
+                historical_data = await self._load_historical_data(training_window_days)
 
             if len(historical_data) < 1000:
                 raise ValueError(

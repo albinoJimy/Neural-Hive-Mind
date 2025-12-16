@@ -1,6 +1,6 @@
 # Multi-stage Dockerfile for Code Forge - Neural Code Generation Pipeline
 # Stage 1: Builder
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /build
 
@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install dependencies
-COPY requirements.txt .
+COPY services/code-forge/requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
 # Stage 2: Runtime
@@ -36,7 +36,7 @@ ENV PATH=/root/.local/bin:$PATH
 
 # Copy shared libraries
 COPY libraries/python/neural_hive_specialists /app/libraries/neural_hive_specialists
-COPY libraries/python/neural_hive_telemetry /app/libraries/neural_hive_telemetry
+COPY libraries/python/neural_hive_observability /app/libraries/neural_hive_observability
 
 # Copy service code
 COPY services/code-forge/src /app/src

@@ -49,7 +49,14 @@ data:
 
   # Scheduler
   ENABLE_INTELLIGENT_SCHEDULER: {{ .Values.config.scheduler.enableIntelligentScheduler | quote }}
+  ENABLE_ML_ENHANCED_SCHEDULING: {{ .Values.config.scheduler.enableMlEnhancedScheduling | quote }}
   SCHEDULER_MAX_PARALLEL_TICKETS: {{ .Values.config.scheduler.maxParallelTickets | quote }}
+
+  # ML
+  ML_PREDICTIONS_ENABLED: {{ .Values.config.ml.predictionsEnabled | quote }}
+  ML_DRIFT_DETECTION_ENABLED: {{ .Values.config.ml.driftDetectionEnabled | quote }}
+  ML_DRIFT_BASELINE_ENABLED: {{ .Values.config.ml.driftBaselineEnabled | quote }}
+  ML_BACKFILL_ERRORS: {{ .Values.config.ml.backfillErrors | quote }}
 
   # SLA
   SLA_DEFAULT_TIMEOUT_MS: {{ printf "%d" (int64 .Values.config.sla.defaultTimeoutMs) | quote }}

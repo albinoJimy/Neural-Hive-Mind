@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+echo "⚠️  AVISO: Este script foi consolidado no CLI unificado de validação."
+echo "⚠️  Use: scripts/validate.sh --target <TARGET>"
+echo "⚠️  Exemplo: scripts/validate.sh --target specialists"
+echo ""
+echo "Executando script legado..."
+echo ""
 #
 # Validate Phase 2 Flow C Integration
 #
@@ -24,6 +30,13 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 NAMESPACE="${NAMESPACE:-neural-hive-orchestration}"
+ORCH_NAMESPACE="${ORCH_NAMESPACE:-$NAMESPACE}"
+SERVICE_REGISTRY_NAMESPACE="${SERVICE_REGISTRY_NAMESPACE:-neural-hive-service-registry}"
+WORKERS_NAMESPACE="${WORKERS_NAMESPACE:-neural-hive-workers}"
+CODE_FORGE_NAMESPACE="${CODE_FORGE_NAMESPACE:-neural-hive-code-forge}"
+KAFKA_NAMESPACE="${KAFKA_NAMESPACE:-neural-hive-kafka}"
+KAFKA_CLUSTER="${KAFKA_CLUSTER:-neural-hive-kafka}"
+MONITORING_NAMESPACE="${MONITORING_NAMESPACE:-neural-hive-observability}"
 VERBOSE=false
 
 # Contadores
@@ -92,22 +105,29 @@ check_pods_and_rollouts() {
     log_info "=== Verificando Pods e Rollouts ==="
 
     local services=(
-        "orchestrator-dynamic"
-        "service-registry"
-        "execution-ticket-service"
-        "worker-agents"
-        "code-forge"
+        "orchestrator-dynamic:${ORCH_NAMESPACE}"
+        "service-registry:${SERVICE_REGISTRY_NAMESPACE}"
+        "execution-ticket-service:${ORCH_NAMESPACE}"
+        "worker-agents:${WORKERS_NAMESPACE}"
+        "code-forge:${CODE_FORGE_NAMESPACE}"
     )
 
-    for service in "${services[@]}"; do
-        log_info "Verificando: $service"
+    for service_ns in "${services[@]}"; do
+        IFS=':' read -r service namespace <<<"$service_ns"
+        log_info "Verificando: $service (ns=$namespace)"
 
         # Verificar pods
         local pods
-        pods=$(kubectl get pods -n "$NAMESPACE" -l app="$service" --no-headers 2>/dev/null | wc -l)
+        pods=$(kubectl get pods -n "$namespace" -l app.kubernetes.io/name="$service" --no-headers 2>/dev/null | wc -l)
+        if [ "$pods" -eq 0 ]; then
+            pods=$(kubectl get pods -n "$namespace" -l app="$service" --no-headers 2>/dev/null | wc -l)
+        fi
         if [ "$pods" -gt 0 ]; then
             local ready
-            ready=$(kubectl get pods -n "$NAMESPACE" -l app="$service" --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l)
+            ready=$(kubectl get pods -n "$namespace" -l app.kubernetes.io/name="$service" --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l)
+            if [ "$ready" -eq 0 ]; then
+                ready=$(kubectl get pods -n "$namespace" -l app="$service" --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l)
+            fi
             if [ "$ready" -eq "$pods" ]; then
                 log_success "$service: $ready/$pods pods running"
             else
@@ -119,10 +139,13 @@ check_pods_and_rollouts() {
 
         # Verificar health endpoint
         local pod
-        pod=$(kubectl get pods -n "$NAMESPACE" -l app="$service" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+        pod=$(kubectl get pods -n "$namespace" -l app.kubernetes.io/name="$service" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+        if [ -z "$pod" ]; then
+            pod=$(kubectl get pods -n "$namespace" -l app="$service" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+        fi
         if [ -n "$pod" ]; then
-            if kubectl exec -n "$NAMESPACE" "$pod" -- wget -q -O- http://localhost:8080/health 2>/dev/null | grep -q "ok\|healthy\|UP" || \
-               kubectl exec -n "$NAMESPACE" "$pod" -- wget -q -O- http://localhost:8080/healthz 2>/dev/null | grep -q "ok\|healthy\|UP"; then
+            if kubectl exec -n "$namespace" "$pod" -- wget -q -O- http://localhost:8080/health 2>/dev/null | grep -q "ok\|healthy\|UP" || \
+               kubectl exec -n "$namespace" "$pod" -- wget -q -O- http://localhost:8080/healthz 2>/dev/null | grep -q "ok\|healthy\|UP"; then
                 log_success "$service: health endpoint OK"
             else
                 log_warn "$service: health endpoint não respondeu como esperado"
@@ -140,9 +163,9 @@ check_service_connectivity() {
     # Orchestrator -> Service Registry
     log_info "Testando: orchestrator-dynamic -> service-registry"
     local orch_pod
-    orch_pod=$(kubectl get pods -n "$NAMESPACE" -l app=orchestrator-dynamic -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    orch_pod=$(kubectl get pods -n "$ORCH_NAMESPACE" -l app.kubernetes.io/name=orchestrator-dynamic -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
     if [ -n "$orch_pod" ]; then
-        if kubectl exec -n "$NAMESPACE" "$orch_pod" -- nc -zv service-registry 50051 2>&1 | grep -q "succeeded\|open"; then
+        if kubectl exec -n "$ORCH_NAMESPACE" "$orch_pod" -- nc -zv "service-registry.${SERVICE_REGISTRY_NAMESPACE}.svc.cluster.local" 50051 2>&1 | grep -q "succeeded\|open"; then
             log_success "orchestrator-dynamic -> service-registry: conectividade OK"
         else
             log_warn "orchestrator-dynamic -> service-registry: conectividade falhou"
@@ -154,9 +177,9 @@ check_service_connectivity() {
     # Worker -> Execution Ticket Service
     log_info "Testando: worker-agents -> execution-ticket-service"
     local worker_pod
-    worker_pod=$(kubectl get pods -n "$NAMESPACE" -l app=worker-agents -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    worker_pod=$(kubectl get pods -n "$WORKERS_NAMESPACE" -l app.kubernetes.io/name=worker-agents -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
     if [ -n "$worker_pod" ]; then
-        if kubectl exec -n "$NAMESPACE" "$worker_pod" -- nc -zv execution-ticket-service 8000 2>&1 | grep -q "succeeded\|open"; then
+        if kubectl exec -n "$WORKERS_NAMESPACE" "$worker_pod" -- nc -zv "execution-ticket-service.${ORCH_NAMESPACE}.svc.cluster.local" 8000 2>&1 | grep -q "succeeded\|open"; then
             log_success "worker-agents -> execution-ticket-service: conectividade OK"
         else
             log_warn "worker-agents -> execution-ticket-service: conectividade falhou"
@@ -180,7 +203,7 @@ check_kafka_topics() {
 
     for topic in "${topics[@]}"; do
         log_info "Verificando topic: $topic"
-        if kubectl get kafkatopic -n "$NAMESPACE" "$topic" &>/dev/null; then
+        if kubectl get kafkatopic -n "$KAFKA_NAMESPACE" "$topic" &>/dev/null; then
             log_success "Topic $topic existe"
         else
             log_error "Topic $topic NÃO encontrado"
@@ -190,10 +213,10 @@ check_kafka_topics() {
     # Verificar consumer groups (requer acesso ao Kafka)
     log_info "Verificando consumer groups..."
     local kafka_pod
-    kafka_pod=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=kafka -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    kafka_pod=$(kubectl get pods -n "$KAFKA_NAMESPACE" -l "strimzi.io/cluster=${KAFKA_CLUSTER},strimzi.io/name=${KAFKA_CLUSTER}-kafka" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
     if [ -n "$kafka_pod" ]; then
         local groups
-        groups=$(kubectl exec -n "$NAMESPACE" "$kafka_pod" -- kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list 2>/dev/null || echo "")
+        groups=$(kubectl exec -n "$KAFKA_NAMESPACE" "$kafka_pod" -- kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list 2>/dev/null || echo "")
         if echo "$groups" | grep -q "flow-c\|orchestrator\|worker"; then
             log_success "Consumer groups ativos detectados"
         else
@@ -210,27 +233,40 @@ check_kafka_topics() {
 check_registered_workers() {
     log_info "=== Verificando Workers Registrados ==="
 
-    local registry_pod
-    registry_pod=$(kubectl get pods -n "$NAMESPACE" -l app=service-registry -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    local registry_service="service-registry"
+    local worker_count=0
 
-    if [ -n "$registry_pod" ]; then
-        # Tentar chamar API de listagem de agents (assumindo endpoint REST)
-        local agents
-        agents=$(kubectl exec -n "$NAMESPACE" "$registry_pod" -- wget -q -O- http://localhost:8080/api/v1/agents 2>/dev/null || echo "")
-
-        if [ -n "$agents" ]; then
-            local worker_count
-            worker_count=$(echo "$agents" | jq -r '.agents | length' 2>/dev/null || echo "0")
-            if [ "$worker_count" -gt 0 ]; then
-                log_success "$worker_count workers registrados no Service Registry"
+    if kubectl get svc -n "$SERVICE_REGISTRY_NAMESPACE" "$registry_service" >/dev/null 2>&1; then
+        # Health check gRPC
+        kubectl port-forward -n "$SERVICE_REGISTRY_NAMESPACE" "svc/${registry_service}" 50051:50051 >/tmp/validate-phase2-integration-sr-grpc.log 2>&1 &
+        local sr_pf=$!
+        sleep 2
+        if command -v grpcurl >/dev/null 2>&1; then
+            if grpcurl -plaintext localhost:50051 grpc.health.v1.Health/Check >/dev/null 2>&1; then
+                log_success "Service Registry gRPC health responde"
             else
-                log_warn "Nenhum worker registrado no Service Registry"
+                log_warn "Service Registry gRPC health não respondeu"
             fi
         else
-            log_warn "Não foi possível listar agents do Service Registry"
+            log_warn "grpcurl não encontrado - pulando health gRPC"
+        fi
+
+        # Métricas Prometheus para contar workers
+        kubectl port-forward -n "$SERVICE_REGISTRY_NAMESPACE" "svc/${registry_service}" 9090:9090 >/tmp/validate-phase2-integration-sr-metrics.log 2>&1 &
+        local sr_metrics_pf=$!
+        sleep 2
+        worker_count=$(curl -s http://127.0.0.1:9090/metrics 2>/dev/null | awk -F' ' '/neural_hive_service_registry_agents_total.*agent_type="worker".*status="healthy"/{print $2}' | head -1)
+        worker_count=${worker_count:-0}
+
+        kill "$sr_pf" "$sr_metrics_pf" 2>/dev/null || true
+
+        if [ "$worker_count" -gt 0 ]; then
+            log_success "$worker_count workers registrados no Service Registry"
+        else
+            log_warn "Nenhum worker registrado no Service Registry"
         fi
     else
-        log_error "Pod service-registry não encontrado"
+        log_error "Service Registry service não encontrado no namespace ${SERVICE_REGISTRY_NAMESPACE}"
     fi
 
     echo
@@ -241,7 +277,7 @@ check_prometheus_metrics() {
     log_info "=== Verificando Métricas Prometheus ==="
 
     local prometheus_pod
-    prometheus_pod=$(kubectl get pods -n "$NAMESPACE" -l app=prometheus -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    prometheus_pod=$(kubectl get pods -n "$MONITORING_NAMESPACE" -l app=prometheus -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
 
     if [ -z "$prometheus_pod" ]; then
         log_warn "Prometheus pod não encontrado, pulando verificação de métricas"
@@ -262,7 +298,7 @@ check_prometheus_metrics() {
         log_info "Verificando métrica: $metric"
         # Query Prometheus API
         local result
-        result=$(kubectl exec -n "$NAMESPACE" "$prometheus_pod" -- wget -q -O- "http://localhost:9090/api/v1/query?query=$metric" 2>/dev/null || echo "")
+        result=$(kubectl exec -n "$MONITORING_NAMESPACE" "$prometheus_pod" -- wget -q -O- "http://localhost:9090/api/v1/query?query=$metric" 2>/dev/null || echo "")
 
         if echo "$result" | jq -e '.data.result | length > 0' &>/dev/null; then
             log_success "Métrica $metric presente"
@@ -279,7 +315,7 @@ check_jaeger_spans() {
     log_info "=== Verificando Jaeger Spans ==="
 
     local jaeger_pod
-    jaeger_pod=$(kubectl get pods -n "$NAMESPACE" -l app=jaeger -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    jaeger_pod=$(kubectl get pods -n "$MONITORING_NAMESPACE" -l app=jaeger -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
 
     if [ -z "$jaeger_pod" ]; then
         log_warn "Jaeger pod não encontrado, pulando verificação de spans"
@@ -289,7 +325,7 @@ check_jaeger_spans() {
 
     # Verificar se há traces (query Jaeger API)
     local traces
-    traces=$(kubectl exec -n "$NAMESPACE" "$jaeger_pod" -- wget -q -O- "http://localhost:16686/api/traces?service=flow_c_orchestrator&limit=10" 2>/dev/null || echo "")
+    traces=$(kubectl exec -n "$MONITORING_NAMESPACE" "$jaeger_pod" -- wget -q -O- "http://localhost:16686/api/traces?service=flow_c_orchestrator&limit=10" 2>/dev/null || echo "")
 
     if echo "$traces" | jq -e '.data | length > 0' &>/dev/null; then
         log_success "Traces detectados no Jaeger para flow_c_orchestrator"
@@ -305,7 +341,7 @@ check_grafana_dashboard() {
     log_info "=== Verificando Grafana Dashboard ==="
 
     # Verificar se ConfigMap do dashboard existe
-    if kubectl get configmap -n "$NAMESPACE" grafana-dashboard-flow-c &>/dev/null; then
+    if kubectl get configmap -n "$MONITORING_NAMESPACE" grafana-dashboard-flow-c &>/dev/null; then
         log_success "ConfigMap grafana-dashboard-flow-c existe"
     else
         log_warn "ConfigMap grafana-dashboard-flow-c NÃO encontrado"
@@ -313,7 +349,7 @@ check_grafana_dashboard() {
 
     # Verificar Grafana pod
     local grafana_pod
-    grafana_pod=$(kubectl get pods -n "$NAMESPACE" -l app=grafana -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    grafana_pod=$(kubectl get pods -n "$MONITORING_NAMESPACE" -l app=grafana -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
 
     if [ -n "$grafana_pod" ]; then
         log_success "Grafana pod rodando: $grafana_pod"
@@ -329,7 +365,7 @@ check_prometheus_alerts() {
     log_info "=== Verificando Prometheus Alert Rules ==="
 
     local prometheus_pod
-    prometheus_pod=$(kubectl get pods -n "$NAMESPACE" -l app=prometheus -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    prometheus_pod=$(kubectl get pods -n "$MONITORING_NAMESPACE" -l app=prometheus -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
 
     if [ -z "$prometheus_pod" ]; then
         log_warn "Prometheus pod não encontrado, pulando verificação de alertas"
@@ -339,7 +375,7 @@ check_prometheus_alerts() {
 
     # Verificar rules carregadas
     local rules
-    rules=$(kubectl exec -n "$NAMESPACE" "$prometheus_pod" -- wget -q -O- "http://localhost:9090/api/v1/rules" 2>/dev/null || echo "")
+    rules=$(kubectl exec -n "$MONITORING_NAMESPACE" "$prometheus_pod" -- wget -q -O- "http://localhost:9090/api/v1/rules" 2>/dev/null || echo "")
 
     if echo "$rules" | jq -e '.data.groups[] | select(.name=="flow-c-integration")' &>/dev/null; then
         log_success "Alert rules 'flow-c-integration' carregadas no Prometheus"
@@ -373,9 +409,10 @@ print_summary() {
 # Main
 main() {
     parse_args "$@"
+    ORCH_NAMESPACE="${ORCH_NAMESPACE:-$NAMESPACE}"
 
     log_info "=== Validate Phase 2 Flow C Integration ==="
-    log_info "Namespace: $NAMESPACE"
+    log_info "Namespaces: orch=$ORCH_NAMESPACE | registry=$SERVICE_REGISTRY_NAMESPACE | workers=$WORKERS_NAMESPACE | monitoring=$MONITORING_NAMESPACE | kafka=$KAFKA_NAMESPACE"
     echo
 
     check_pods_and_rollouts

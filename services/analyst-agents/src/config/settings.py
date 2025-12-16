@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     MONGODB_URI: str
     MONGODB_DATABASE: str = 'neural_hive'
     MONGODB_COLLECTION_INSIGHTS: str = 'analyst_insights'
+    MONGODB_MAX_POOL_SIZE: int = 100
+    MONGODB_MIN_POOL_SIZE: int = 10
 
     # Redis
     REDIS_HOST: str = 'localhost'

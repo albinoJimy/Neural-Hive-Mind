@@ -1,0 +1,137 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: neural-hive-phase2-critical-alerts
+  namespace: observability
+  labels:
+    neural.hive/phase: phase2
+    neural.hive/layer: orchestration
+spec:
+  groups:
+    - name: queen-agent.critical
+      rules:
+        - alert: QueenAgentConflictsUnresolved
+          expr: (sum(conflicts_detected_total) - sum(conflicts_resolved_total)) > 10
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            description: "Mais de 10 conflitos não resolvidos detectados. Pode indicar falha no Conflict Arbitrator."
+            runbook_url: https://docs.neural-hive.local/runbooks/queen-agent-conflicts-unresolved
+        - alert: QueenAgentExceptionsPending
+          expr: sum(exception_requests_total) - sum(exception_approvals_total) - sum(exception_rejections_total) > 20
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            description: "Mais de 20 exceções pendentes de aprovação. Pode causar bloqueio de workflows."
+        - alert: QueenAgentSLAComplianceLow
+          expr: sla_compliance_ratio < 0.99
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            description: "SLA compliance abaixo de 99% (target: >99%). Sistema não está atendendo SLOs da Fase 2."
+        - alert: QueenAgentSystemHealthCritical
+          expr: system_health_score < 0.7
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            description: "System health score abaixo de 0.7. Investigar incidentes ativos e decisões estratégicas."
+    - name: worker-agents.critical
+      rules:
+        - alert: WorkerAgentsHighFailureRate
+          expr: rate(worker_agent_tickets_failed_total[10m]) / (rate(worker_agent_tickets_completed_total[10m]) + rate(worker_agent_tickets_failed_total[10m])) > 0.10
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            description: "Taxa de falha de tickets acima de 10% (threshold crítico). Verificar executores e dependências externas."
+            runbook_url: https://docs.neural-hive.local/runbooks/worker-agents-high-failure-rate
+        - alert: WorkerAgentsQueueDepthHigh
+          expr: sum(kafka_consumer_lag{topic="execution-tickets"}) > 100
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            description: "Queue depth de execution-tickets acima de 100. Pode indicar sobrecarga ou executores lentos."
+        - alert: WorkerAgentsBuildExecutorDown
+          expr: sum(rate(worker_agent_build_tasks_executed_total[5m])) == 0 and sum(kafka_consumer_lag{topic="execution-tickets"}) > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            description: "BUILD executor não está processando tarefas apesar de queue não vazia. Verificar Code Forge integration."
+        - alert: WorkerAgentsDeployRollbacksHigh
+          expr: rate(worker_agent_deploy_rollbacks_total[10m]) > 0.05
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            description: "Taxa de rollbacks de deploy acima de 5%. Investigar validações e health checks."
+        - alert: WorkerAgentsTestCoverageLow
+          expr: avg(worker_agent_test_coverage_percent) < 90
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            description: "Cobertura de testes abaixo de 90% (target: >90%). Pode impactar auto-approval rate."
+    - name: code-forge.critical
+      rules:
+        - alert: CodeForgePipelineFailureRate
+          expr: rate(code_forge_pipelines_failed_total[10m]) / rate(code_forge_pipelines_started_total[10m]) > 0.10
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            description: "Taxa de falha de pipelines acima de 10%. Verificar stages de validation e MCP integration."
+            runbook_url: https://docs.neural-hive.local/runbooks/code-forge-pipeline-failures
+        - alert: CodeForgeAutoApprovalRateLow
+          expr: rate(code_forge_auto_approvals_total[15m]) / (rate(code_forge_auto_approvals_total[15m]) + rate(code_forge_manual_reviews_total[15m])) < 0.80
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            description: "Auto-approval rate abaixo de 80% (target: >80%). Pode impactar Intent-to-Deploy SLO (<4h)."
+        - alert: CodeForgeValidationIssuesHigh
+          expr: histogram_quantile(0.95, rate(code_forge_validation_issues_found_bucket{severity="critical"}[10m])) > 5
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            description: "P95 de issues críticos encontrados acima de 5. Verificar qualidade de templates e MCP tool selection."
+        - alert: CodeForgeMCPIntegrationDown
+          expr: rate(code_forge_mcp_selection_requests_total{status="failure"}[5m]) / rate(code_forge_mcp_selection_requests_total[5m]) > 0.20
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            description: "Taxa de falha de MCP tool selection acima de 20%. Verificar MCP Tool Catalog service."
+    - name: backups.critical
+      rules:
+        - alert: PostgreSQLBackupFailed
+          expr: postgres_backup_success{database="temporal"} == 0
+          for: 1h
+          labels:
+            severity: critical
+          annotations:
+            summary: "PostgreSQL Temporal backup failed"
+            runbook: "docs/runbooks/phase2-operations.md#postgresql-backup-failure"
+    - name: phase2.slo
+      rules:
+        - alert: Phase2IntentToDeploySLOViolation
+          expr: histogram_quantile(0.95, rate(orchestration_workflow_duration_seconds_bucket{workflow_type="flow_c"}[1h])) > 14400
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            description: "P95 de Intent-to-Deploy acima de 4h (14.400s). SLO da Fase 2 violado."
+            runbook_url: https://docs.neural-hive.local/runbooks/phase2-slo-violation
+        - alert: Phase2OverallHealthDegraded
+          expr: (sla_compliance_ratio < 0.99) or (rate(worker_agent_tickets_failed_total[10m]) / (rate(worker_agent_tickets_completed_total[10m]) + rate(worker_agent_tickets_failed_total[10m])) > 0.10) or (rate(code_forge_pipelines_failed_total[10m]) / rate(code_forge_pipelines_started_total[10m]) > 0.10)
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            description: "Saúde geral da Fase 2 degradada. Múltiplos componentes fora de SLO."

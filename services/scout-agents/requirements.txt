@@ -11,6 +11,7 @@ opentelemetry-api>=1.21.0
 opentelemetry-sdk>=1.21.0
 opentelemetry-instrumentation-fastapi>=0.42b0
 opentelemetry-exporter-jaeger>=1.21.0
+neural_hive_observability==1.1.0
 
 # Kafka
 aiokafka>=0.10.0

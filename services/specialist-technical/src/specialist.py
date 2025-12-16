@@ -33,8 +33,17 @@ class TechnicalSpecialist(BaseSpecialist):
         logger.info("Loading Technical Specialist model")
 
         # Verificar se MLflow está disponível
+        mlflow_enabled = False
         if self.mlflow_client is None:
-            logger.warning("MLflow client not initialized - using heuristic-based evaluation")
+            logger.warning("MLflow not available - using heuristic-based evaluation")
+            return None
+        if hasattr(self.mlflow_client, "is_enabled"):
+            mlflow_enabled = self.mlflow_client.is_enabled()
+        else:
+            mlflow_enabled = getattr(self.mlflow_client, "_enabled", False)
+
+        if not mlflow_enabled:
+            logger.warning("MLflow not available - using heuristic-based evaluation")
             return None
 
         try:
@@ -45,17 +54,25 @@ class TechnicalSpecialist(BaseSpecialist):
             )
 
             if model:
-                # Buscar metadados do modelo para logging de versão
                 metadata = self.mlflow_client.get_model_metadata(
                     self.config.mlflow_model_name,
                     self.config.mlflow_model_stage
                 )
 
+                if not metadata:
+                    logger.warning(
+                        "No model metadata found for configured stage - using heuristics",
+                        model_name=self.config.mlflow_model_name,
+                        stage=self.config.mlflow_model_stage
+                    )
+                    return None
+
                 logger.info(
                     "ML model loaded successfully",
                     model_name=self.config.mlflow_model_name,
                     stage=self.config.mlflow_model_stage,
-                    version=metadata.get('version', 'unknown')
+                    version=metadata.get('version', 'unknown'),
+                    stage_match=metadata.get('stage', self.config.mlflow_model_stage) == self.config.mlflow_model_stage
                 )
 
             return model

@@ -1,0 +1,133 @@
+{
+  "title": "Vault & SPIFFE Integration",
+  "timezone": "browser",
+  "schemaVersion": 27,
+  "version": 1,
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "type": "query",
+        "datasource": "$datasource",
+        "refresh": 2,
+        "query": "label_values(kube_pod_info, namespace)",
+        "hide": 0
+      },
+      {
+        "name": "service",
+        "type": "query",
+        "datasource": "$datasource",
+        "refresh": 2,
+        "query": "label_values(up{namespace=~\"$namespace\"}, service)",
+        "hide": 0
+      },
+      {
+        "name": "credential_type",
+        "type": "custom",
+        "query": "postgres,mongodb,kafka,redis",
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "graph",
+      "title": "Vault API Request Rate",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "sum by (operation)(rate(vault_requests_total[5m]))", "legendFormat": "{{operation}}" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Vault API Latency (p95)",
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum(rate(vault_request_duration_seconds_bucket[5m])) by (le,operation))", "legendFormat": "{{operation}}" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Vault Token TTL",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "vault_token_ttl_seconds" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "type": "graph",
+      "title": "Vault Error Rate",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        { "expr": "sum by (operation)(rate(vault_requests_total{status=\"error\"}[5m]))", "legendFormat": "{{operation}}" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Credential Fetch Success Rate",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "sum(rate(orchestrator_vault_credentials_fetched_total{status=\"success\",credential_type=~\"$credential_type\"}[5m])) by (credential_type)", "legendFormat": "{{credential_type}}" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Credential Renewal Task Runs",
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 8 },
+      "targets": [
+        { "expr": "sum by (status)(rate(orchestrator_vault_renewal_task_runs_total[5m]))", "legendFormat": "{{status}}" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Credential Renewal Failures",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 },
+      "targets": [
+        { "expr": "sum(rate(vault_credential_renewals_total{status=\"error\"}[5m]))", "legendFormat": "renewal_error" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "JWT-SVID Fetch Rate",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 8 },
+      "targets": [
+        { "expr": "sum by (svid_type)(rate(spiffe_svid_fetch_total[5m]))", "legendFormat": "{{svid_type}}" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "JWT-SVID TTL",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 16 },
+      "targets": [
+        { "expr": "spiffe_svid_ttl_seconds{svid_type=\"jwt_svid\"}" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "type": "graph",
+      "title": "SPIFFE Trust Bundle Updates",
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 16 },
+      "targets": [
+        { "expr": "sum by (status)(rate(spiffe_trust_bundle_updates_total[5m]))", "legendFormat": "{{status}}" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "gRPC Auth Attempts (JWT-SVID)",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 16 },
+      "targets": [
+        { "expr": "sum by (service,status)(rate(grpc_jwt_auth_attempts_total[5m]))", "legendFormat": "{{service}} {{status}}" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "gRPC Auth Failures",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 16 },
+      "targets": [
+        { "expr": "sum by (service,reason)(rate(grpc_jwt_auth_failures_total[5m]))", "legendFormat": "{{service}} {{reason}}" }
+      ]
+    }
+  ]
+}

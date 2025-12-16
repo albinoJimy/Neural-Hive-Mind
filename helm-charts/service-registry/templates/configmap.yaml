@@ -16,3 +16,6 @@ data:
   HEARTBEAT_TIMEOUT_SECONDS: {{ .Values.config.heartbeat.timeoutSeconds | quote }}
   REDIS_CLUSTER_NODES: {{ join "," .Values.config.redis.clusterNodes | quote }}
   OTEL_EXPORTER_ENDPOINT: {{ .Values.config.otel.exporterEndpoint | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.otel.exporterEndpoint | quote }}
+  OTEL_SERVICE_NAME: {{ .Values.config.serviceName | quote }}
+  OTEL_RESOURCE_ATTRIBUTES: "service.version={{ .Values.config.serviceVersion }},deployment.environment={{ .Values.config.environment }}"

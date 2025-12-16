@@ -4,6 +4,13 @@ import structlog
 import uvicorn
 from contextlib import asynccontextmanager
 
+from neural_hive_observability import (
+    get_tracer,
+    init_observability,
+    instrument_grpc_channel,
+    instrument_kafka_consumer,
+    instrument_kafka_producer,
+)
 from .config import get_settings
 from .clients import (
     ServiceRegistryClient,
@@ -61,10 +68,45 @@ async def startup():
             cluster=config.cluster
         )
 
+        init_observability(
+            service_name='worker-agents',
+            service_version='1.0.0',
+            neural_hive_component='worker-agent',
+            neural_hive_layer='execucao',
+            neural_hive_domain='task-execution',
+            otel_endpoint=config.otel_endpoint,
+            enable_kafka=True,
+            enable_grpc=True
+        )
+
         # Inicializar métricas
         metrics = init_metrics(config)
         metrics.startup_total.inc()
         app_state['metrics'] = metrics
+
+        # Inicializar SPIFFE Manager (independente de Vault)
+        spiffe_manager = None
+        if config.spiffe_enabled:
+            try:
+                from neural_hive_security import SPIFFEManager, SPIFFEConfig
+                logger.info('Inicializando SPIFFE integration')
+                spiffe_config = SPIFFEConfig(
+                    workload_api_socket=config.spiffe_socket_path,
+                    trust_domain=config.spiffe_trust_domain,
+                    jwt_audience=config.spiffe_jwt_audience,
+                    jwt_ttl_seconds=config.spiffe_jwt_ttl_seconds,
+                )
+                spiffe_manager = SPIFFEManager(spiffe_config)
+                await spiffe_manager.initialize()
+                app_state['spiffe_manager'] = spiffe_manager
+                logger.info('SPIFFE integration inicializada com sucesso')
+            except ImportError:
+                logger.warning('SPIFFE habilitado mas biblioteca neural-hive-security não disponível')
+            except Exception as e:
+                logger.error('Erro ao inicializar SPIFFE integration', error=str(e))
+                raise
+        else:
+            logger.info('SPIFFE integration desabilitada')
 
         # Inicializar Vault integration se habilitado
         vault_client = None
@@ -72,7 +114,7 @@ async def startup():
             try:
                 from .clients.vault_integration import WorkerVaultClient
                 logger.info('Inicializando Vault integration')
-                vault_client = WorkerVaultClient(config)
+                vault_client = WorkerVaultClient(config, spiffe_manager=spiffe_manager)
                 await vault_client.initialize()
                 app_state['vault_client'] = vault_client
                 logger.info('Vault integration inicializado com sucesso')
@@ -86,7 +128,6 @@ async def startup():
             logger.info('Vault integration desabilitada')
 
         # Inicializar clientes com SPIFFE manager do Vault client
-        spiffe_manager = vault_client.spiffe_manager if vault_client else None
         registry_client = ServiceRegistryClient(config, spiffe_manager=spiffe_manager)
         await registry_client.initialize()
         app_state['registry_client'] = registry_client
@@ -123,6 +164,7 @@ async def startup():
             sasl_password_override=kafka_password
         )
         await result_producer.initialize()
+        result_producer = instrument_kafka_producer(result_producer)
         app_state['result_producer'] = result_producer
 
         # Criar componentes de execução
@@ -131,11 +173,11 @@ async def startup():
 
         # Criar e configurar registry de executores com Vault client
         executor_registry = TaskExecutorRegistry(config)
-        executor_registry.register_executor(BuildExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client))
-        executor_registry.register_executor(DeployExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client))
-        executor_registry.register_executor(TestExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client))
-        executor_registry.register_executor(ValidateExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client))
-        executor_registry.register_executor(ExecuteExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client))
+        executor_registry.register_executor(BuildExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client, metrics=metrics))
+        executor_registry.register_executor(DeployExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client, metrics=metrics))
+        executor_registry.register_executor(TestExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client, metrics=metrics))
+        executor_registry.register_executor(ValidateExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client, metrics=metrics))
+        executor_registry.register_executor(ExecuteExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client, metrics=metrics))
         executor_registry.validate_configuration()
         app_state['executor_registry'] = executor_registry
 
@@ -145,13 +187,15 @@ async def startup():
             ticket_client,
             result_producer,
             dependency_coordinator,
-            executor_registry
+            executor_registry,
+            metrics=metrics
         )
         app_state['execution_engine'] = execution_engine
 
         # Criar Kafka consumer
         kafka_consumer = KafkaTicketConsumer(config, execution_engine)
         await kafka_consumer.initialize()
+        kafka_consumer = instrument_kafka_consumer(kafka_consumer)
         app_state['kafka_consumer'] = kafka_consumer
 
         # Registrar no Service Registry
@@ -204,6 +248,10 @@ async def shutdown():
         # Shutdown execution engine
         if 'execution_engine' in app_state:
             await app_state['execution_engine'].shutdown(timeout_seconds=30)
+
+        # Fechar SPIFFE manager independente do Vault
+        if 'spiffe_manager' in app_state and app_state['spiffe_manager']:
+            await app_state['spiffe_manager'].close()
 
         # Deregistrar do Service Registry
         if 'integration_registry' in app_state:

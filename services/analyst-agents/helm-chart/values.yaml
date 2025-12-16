@@ -1,8 +1,8 @@
 replicaCount: 2
 
 image:
-  repository: neural-hive/analyst-agents
-  tag: latest
+  repository: 37.60.241.150:30500/analyst-agents
+  tag: "1.0.0"
   pullPolicy: IfNotPresent
 
 service:
@@ -14,11 +14,11 @@ service:
 
 resources:
   requests:
-    cpu: 500m
+    cpu: 600m      # Analytics queries + embeddings
     memory: 1Gi
   limits:
     cpu: 2000m
-    memory: 4Gi
+    memory: 3Gi
 
 autoscaling:
   enabled: true
@@ -34,6 +34,8 @@ env:
   LOG_LEVEL: INFO
   KAFKA_BOOTSTRAP_SERVERS: kafka:9092
   MONGODB_URI: mongodb://mongodb:27017
+  MONGODB_MAX_POOL_SIZE: "100"
+  MONGODB_MIN_POOL_SIZE: "10"
   REDIS_HOST: redis
   NEO4J_URI: bolt://neo4j:7687
   CLICKHOUSE_HOST: clickhouse

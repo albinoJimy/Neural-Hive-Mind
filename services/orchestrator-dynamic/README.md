@@ -50,6 +50,26 @@ Este serviço consome **Consolidated Decisions** do Consensus Engine, converte *
     • telemetry.orchestration
 ```
 
+## Observability & Tracing
+
+O serviço está instrumentado com OpenTelemetry via `neural_hive_observability`, habilitando tracing para Kafka (consumers/producers), gRPC (clientes) e workflows Temporal. Os spans incluem atributos customizados do Neural Hive para facilitar correlação:
+- `neural.hive.intent.id`: ID da intenção original
+- `neural.hive.plan.id`: ID do plano cognitivo
+- `neural.hive.decision.id`: ID da decisão consolidada
+- `neural.hive.workflow.id`: ID do workflow Temporal
+- `neural.hive.ticket.id`: ID do execution ticket
+- `neural.hive.worker.id`: ID do worker alocado
+- `neural.hive.ml.*`: Atributos de operações ML (source, predicted_queue_ms, predicted_load_pct, anomaly_score, optimization_source)
+- `messaging.kafka.*`: Tópico/partição/offset Kafka consumido
+- `rpc.*`: Serviço/método gRPC invocado
+
+Consultas úteis no Jaeger:
+- Por plano: `neural.hive.plan.id=<plan_id>`
+- Por intenção: `neural.hive.intent.id=<intent_id>`
+- Spans ML: `operation=load.predict_worker_load` ou `operation=scheduling.optimize_allocation`
+
+Visualização: os traces são exportados para o OTLP Collector configurado em `OTEL_EXPORTER_ENDPOINT` e podem ser inspecionados no Jaeger UI do cluster.
+
 ## Tecnologias
 
 - **Framework**: FastAPI 0.104+
@@ -187,6 +207,22 @@ services/orchestrator-dynamic/
 - C3: `ticket_generation.allocate_resources` valida a alocação retornada pelo `IntelligentScheduler.schedule_ticket` via `validate_resource_allocation`.
 - Métricas OPA registradas em todas as etapas (validações, rejeições, warnings e erros).
 - Detalhamento completo em `docs/POLICY_VALIDATION_INTEGRATION.md`.
+
+## OPA Policy Enforcement
+
+- Enforcement centralizado com OPA no C1 (plano completo) e C3 (tickets e alocações), usando `PolicyValidator` + `OPAClient`.
+- Políticas ativas: `resource_limits`, `sla_enforcement`, `feature_flags`, `security_constraints`.
+- Configuração rápida (env):
+  - `OPA_ENABLED=true`, `OPA_HOST`, `OPA_PORT`, `OPA_TIMEOUT_SECONDS`, `OPA_FAIL_OPEN`
+  - `OPA_POLICY_RESOURCE_LIMITS`, `OPA_POLICY_SLA_ENFORCEMENT`, `OPA_POLICY_FEATURE_FLAGS`, `OPA_POLICY_SECURITY_CONSTRAINTS`
+  - `OPA_CIRCUIT_BREAKER_ENABLED=true`, `OPA_CIRCUIT_BREAKER_FAILURE_THRESHOLD=5`, `OPA_CACHE_TTL_SECONDS=30`
+- Documentação: `docs/OPA_INTEGRATION_GUIDE.md` e `docs/FEATURE_FLAGS_GUIDE.md`.
+- Validação rápida: `scripts/validate_opa_integration.sh` (faz healthcheck, valida políticas e roda testes E2E).
+- Observabilidade: métricas OPA já expostas em `/metrics` e alertas pré-configurados em `monitoring/prometheus-rules/orchestrator-opa-alerts.yaml`.
+- Troubleshooting resumido:
+  - OPA indisponível → verificar `/health`, métrica `orchestration_opa_evaluation_errors_total`, circuit breaker (`orchestration_opa_circuit_breaker_state`).
+  - Rejeições inesperadas → revisar `orchestration_opa_policy_rejections_total{policy_name,rule}` e testar entrada no OPA Playground.
+  - Cache/latência → `orchestration_opa_cache_hits_total` e `orchestration_opa_validation_duration_seconds`.
 
 ## Scheduler Inteligente
 

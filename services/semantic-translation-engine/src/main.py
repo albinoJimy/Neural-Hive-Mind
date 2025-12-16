@@ -10,6 +10,12 @@ import structlog
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
+from neural_hive_observability import (
+    get_tracer,
+    init_observability,
+    instrument_kafka_consumer,
+    instrument_kafka_producer,
+)
 
 from src.config.settings import get_settings
 from src.consumers.intent_consumer import IntentConsumer
@@ -42,6 +48,16 @@ async def lifespan(app: FastAPI):
         environment=settings.environment
     )
 
+    init_observability(
+        service_name='semantic-translation-engine',
+        service_version='1.0.0',
+        neural_hive_component='semantic-translator',
+        neural_hive_layer='cognitiva',
+        neural_hive_domain='plan-generation',
+        otel_endpoint=settings.otel_endpoint,
+        enable_kafka=True
+    )
+
     try:
         # Initialize clients
         logger.info("Initializing infrastructure clients...")
@@ -64,6 +80,7 @@ async def lifespan(app: FastAPI):
         # Initialize Kafka producer
         plan_producer = KafkaPlanProducer(settings)
         await plan_producer.initialize()
+        plan_producer = instrument_kafka_producer(plan_producer)
         state['producer'] = plan_producer
 
         # Initialize services
@@ -102,6 +119,7 @@ async def lifespan(app: FastAPI):
         # Initialize Kafka consumer
         intent_consumer = IntentConsumer(settings)
         await intent_consumer.initialize()
+        intent_consumer = instrument_kafka_consumer(intent_consumer)
         state['consumer'] = intent_consumer
 
         # Start consuming in background

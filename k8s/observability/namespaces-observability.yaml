@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+  labels:
+    neural-hive.io/phase: observability
+    neural-hive.io/managed-by: manual
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    name: observability
+  annotations:
+    neural-hive.io/description: Stack de observabilidade (Prometheus, Grafana, Jaeger)
+    neural-hive.io/owner: platform-team
+    neural-hive.io/created-by: manual-deployment-guide

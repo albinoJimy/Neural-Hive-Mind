@@ -12,10 +12,11 @@ class ValidationError(Exception):
 class BaseTaskExecutor(ABC):
     '''Classe base abstrata para executores de tarefas'''
 
-    def __init__(self, config, vault_client=None, code_forge_client=None):
+    def __init__(self, config, vault_client=None, code_forge_client=None, metrics=None):
         self.config = config
         self.vault_client = vault_client
         self.code_forge_client = code_forge_client
+        self.metrics = metrics
         self.logger = logger.bind(service=self.__class__.__name__)
         self.logger.info(
             'executor_initialized',

@@ -5,6 +5,7 @@ import hashlib
 import json
 import logging
 import yaml
+from contextlib import nullcontext
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from models.intent_envelope import NLUResult, Entity, IntentDomain
@@ -12,6 +13,11 @@ from config.settings import get_settings
 from cache.redis_client import get_redis_client
 
 logger = logging.getLogger(__name__)
+try:
+    from neural_hive_observability import get_tracer
+    tracer = get_tracer()
+except ImportError:
+    tracer = None
 
 class NLUPipeline:
     def __init__(self, language_model: str = None, confidence_threshold: float = None):
@@ -256,86 +262,134 @@ class NLUPipeline:
         if not self.is_ready():
             raise RuntimeError("Pipeline NLU não inicializado")
 
-        # Validar qualidade do texto
-        if not self._validate_text_quality(text):
-            raise ValueError("Texto não atende critérios de qualidade")
+        span_context = tracer.start_as_current_span("nlu.process") if tracer else nullcontext()
+        with span_context as span:
+            if span:
+                span.set_attribute("neural.hive.component", "gateway")
+                span.set_attribute("neural.hive.layer", "experiencia")
+                span.set_attribute("neural.hive.nlu.language", language)
+                span.set_attribute("neural.hive.nlu.text_length", len(text))
+                span.set_attribute("neural.hive.nlu.cache_enabled", self.settings.nlu_cache_enabled)
 
-        # Verificar cache se habilitado
-        cache_key = None
-        if self.settings.nlu_cache_enabled and self.redis_client:
-            cache_key = self._get_cache_key(text, language, context)
-            cached_result = await self._get_cached_result(cache_key)
-            if cached_result:
-                logger.debug(f"Resultado NLU obtido do cache: {cache_key}")
-                return cached_result
+            # Validar qualidade do texto
+            if not self._validate_text_quality(text):
+                if span:
+                    span.set_attribute("neural.hive.nlu.validation_failed", True)
+                raise ValueError("Texto não atende critérios de qualidade")
 
-        # Detectar idioma automaticamente se não especificado claramente
-        detected_language = await self._detect_language(text, language)
+            # Verificar cache se habilitado
+            cache_key = None
+            if self.settings.nlu_cache_enabled and self.redis_client:
+                cache_key = self._get_cache_key(text, language, context)
+                cached_result = await self._get_cached_result(cache_key)
+                if cached_result:
+                    if span:
+                        span.set_attribute("neural.hive.nlu.cache_hit", True)
+                        span.set_attribute("neural.hive.nlu.domain", cached_result.domain.value)
+                        span.set_attribute("neural.hive.nlu.confidence", cached_result.confidence)
+                    logger.debug(f"Resultado NLU obtido do cache: {cache_key}")
+                    return cached_result
+                if span:
+                    span.set_attribute("neural.hive.nlu.cache_hit", False)
 
-        # Selecionar modelo apropriado para o idioma
-        nlp_model = self._get_model_for_language(detected_language)
+            # Detectar idioma automaticamente se não especificado claramente
+            detected_language = await self._detect_language(text, language)
+            if span:
+                span.set_attribute("neural.hive.nlu.detected_language", detected_language)
 
-        # Normalizar texto
-        normalized_text = self._normalize_text(text)
+            # Selecionar modelo apropriado para o idioma
+            nlp_model = self._get_model_for_language(detected_language)
 
-        # Processar texto com spaCy
-        doc = nlp_model(normalized_text)
+            # Normalizar texto
+            normalized_text = self._normalize_text(text)
 
-        # Mascarar PII
-        processed_text = self._mask_pii(text)
+            # Processar texto com spaCy
+            doc = nlp_model(normalized_text)
 
-        # Extrair entidades
-        entities = self._extract_entities(doc)
+            # Mascarar PII
+            processed_text = self._mask_pii(text)
 
-        # Classificar domínio e intenção usando regras configuráveis
-        domain, classification, confidence = await self._classify_intent_advanced(
-            text, entities, detected_language, context
-        )
+            # Extrair entidades
+            entities_context = tracer.start_as_current_span("nlu.extract_entities") if tracer else nullcontext()
+            with entities_context as entities_span:
+                entities = self._extract_entities(doc)
+                if entities_span:
+                    entities_span.set_attribute("neural.hive.nlu.entities_count", len(entities))
+                    if entities:
+                        entities_span.set_attribute(
+                            "neural.hive.nlu.entity_types",
+                            ", ".join(set(e.type for e in entities))
+                        )
 
-        # Extrair palavras-chave
-        keywords = self._extract_keywords(doc)
+            # Classificar domínio e intenção usando regras configuráveis
+            classify_context = tracer.start_as_current_span("nlu.classify_intent") if tracer else nullcontext()
+            with classify_context as classify_span:
+                domain, classification, confidence = await self._classify_intent_advanced(
+                    text, entities, detected_language, context
+                )
+                if classify_span:
+                    classify_span.set_attribute("neural.hive.nlu.domain", domain.value)
+                    classify_span.set_attribute("neural.hive.nlu.classification", classification)
+                    classify_span.set_attribute("neural.hive.nlu.confidence", confidence)
 
-        # Calcular threshold adaptativo se habilitado
-        adaptive_threshold = self.confidence_threshold
-        if self.settings.nlu_adaptive_threshold_enabled:
-            adaptive_threshold = self._calculate_adaptive_threshold(text, context, confidence, entities)
+            # Extrair palavras-chave
+            keywords_context = tracer.start_as_current_span("nlu.extract_keywords") if tracer else nullcontext()
+            with keywords_context as keywords_span:
+                keywords = self._extract_keywords(doc)
+                if keywords_span:
+                    keywords_span.set_attribute("neural.hive.nlu.keywords_count", len(keywords))
 
-        # Store adaptive threshold for routing decisions
-        self.last_adaptive_threshold = adaptive_threshold
+            # Calcular threshold adaptativo se habilitado
+            adaptive_threshold = self.confidence_threshold
+            if self.settings.nlu_adaptive_threshold_enabled:
+                adaptive_threshold = self._calculate_adaptive_threshold(text, context, confidence, entities)
+                if span:
+                    span.set_attribute("neural.hive.nlu.adaptive_threshold", adaptive_threshold)
 
-        # Determinar confidence_status
-        if confidence >= 0.75:
-            confidence_status = "high"
-        elif confidence >= 0.5:
-            confidence_status = "medium"
-        else:
-            confidence_status = "low"
+            # Store adaptive threshold for routing decisions
+            self.last_adaptive_threshold = adaptive_threshold
 
-        # Criar resultado
-        result = NLUResult(
-            processed_text=processed_text,
-            domain=domain,
-            classification=classification,
-            confidence=confidence,
-            entities=entities,
-            keywords=keywords,
-            requires_manual_validation=confidence < adaptive_threshold,
-            confidence_status=confidence_status,
-            adaptive_threshold=adaptive_threshold
-        )
+            # Determinar confidence_status
+            if confidence >= 0.75:
+                confidence_status = "high"
+            elif confidence >= 0.5:
+                confidence_status = "medium"
+            else:
+                confidence_status = "low"
 
-        # Salvar no cache se habilitado
-        if self.settings.nlu_cache_enabled and self.redis_client and cache_key:
-            await self._cache_result(cache_key, result)
+            if span:
+                span.set_attribute("neural.hive.nlu.confidence_status", confidence_status)
+                span.set_attribute("neural.hive.nlu.requires_validation", confidence < adaptive_threshold)
 
-        logger.info(
-            f"NLU processado: domínio={domain.value}, classificação={classification}, "
-            f"confidence={confidence:.2f}, status={confidence_status}, "
-            f"threshold_base={self.confidence_threshold:.2f}, threshold_adaptive={adaptive_threshold:.2f}, "
-            f"idioma={detected_language}"
-        )
+            # Criar resultado
+            result = NLUResult(
+                processed_text=processed_text,
+                domain=domain,
+                classification=classification,
+                confidence=confidence,
+                entities=entities,
+                keywords=keywords,
+                requires_manual_validation=confidence < adaptive_threshold,
+                confidence_status=confidence_status,
+                adaptive_threshold=adaptive_threshold
+            )
 
-        return result
+            # Salvar no cache se habilitado
+            if self.settings.nlu_cache_enabled and self.redis_client and cache_key:
+                await self._cache_result(cache_key, result)
+
+            if span:
+                span.set_attribute("neural.hive.nlu.result.domain", domain.value)
+                span.set_attribute("neural.hive.nlu.result.confidence", confidence)
+
+            logger.info(
+                f"NLU processado: domínio={domain.value}, classificação={classification}, "
+                f"confidence={confidence:.2f}, status={confidence_status}, "
+                f"threshold_base={self.confidence_threshold:.2f}, threshold_adaptive={adaptive_threshold:.2f}, "
+                f"idioma={detected_language}"
+            )
+
+            return result
 
     def _validate_text_quality(self, text: str) -> bool:
         """Validar qualidade do texto de entrada"""

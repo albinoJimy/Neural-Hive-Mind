@@ -12,6 +12,9 @@ from typing import Optional
 from aiokafka import AIOKafkaConsumer
 from temporalio.client import Client
 import structlog
+from neural_hive_observability import trace_plan, get_tracer, instrument_kafka_consumer
+from neural_hive_observability.context import extract_context_from_headers, set_baggage
+from opentelemetry import trace
 
 # Avro support
 try:
@@ -73,7 +76,14 @@ def _deserialize_avro_or_json(raw_bytes: bytes, schema_registry_url: str = None)
 class DecisionConsumer:
     """Consumer Kafka para decisões consolidadas."""
 
-    def __init__(self, config, temporal_client: Client, mongodb_client):
+    def __init__(
+        self,
+        config,
+        temporal_client: Client,
+        mongodb_client,
+        sasl_username_override: Optional[str] = None,
+        sasl_password_override: Optional[str] = None
+    ):
         """
         Inicializa o consumer.
 
@@ -81,12 +91,18 @@ class DecisionConsumer:
             config: Configurações da aplicação
             temporal_client: Cliente Temporal para iniciar workflows
             mongodb_client: Cliente MongoDB para buscar Cognitive Plans
+            sasl_username_override: Username SASL (ex: obtido do Vault)
+            sasl_password_override: Password SASL (ex: obtido do Vault)
         """
         self.config = config
         self.temporal_client = temporal_client
         self.mongodb_client = mongodb_client
         self.consumer: Optional[AIOKafkaConsumer] = None
         self.running = False
+        self.sasl_username = sasl_username_override if sasl_username_override is not None else config.kafka_sasl_username
+        self.sasl_password = sasl_password_override if sasl_password_override is not None else config.kafka_sasl_password
+        self.security_protocol = config.kafka_security_protocol
+        self.sasl_mechanism = getattr(config, 'kafka_sasl_mechanism', 'PLAIN')
         self.schema_registry_url = os.getenv(
             'SCHEMA_REGISTRY_URL',
             'http://schema-registry.kafka.svc.cluster.local:8081/apis/ccompat/v6'
@@ -97,14 +113,32 @@ class DecisionConsumer:
         logger.info('Inicializando Kafka consumer', topic=self.config.kafka_consensus_topic)
 
         # Não usar value_deserializer - deserialização manual para suportar Avro e JSON
-        self.consumer = AIOKafkaConsumer(
-            self.config.kafka_consensus_topic,
-            bootstrap_servers=self.config.kafka_bootstrap_servers,
-            group_id=self.config.kafka_consumer_group_id,
-            auto_offset_reset=self.config.kafka_auto_offset_reset,
-            enable_auto_commit=self.config.kafka_enable_auto_commit,
+        consumer_config = {
+            'bootstrap_servers': self.config.kafka_bootstrap_servers,
+            'group_id': self.config.kafka_consumer_group_id,
+            'auto_offset_reset': self.config.kafka_auto_offset_reset,
+            'enable_auto_commit': self.config.kafka_enable_auto_commit,
             # Recebemos bytes crus para deserialização manual (Avro/JSON)
+        }
+
+        if self.security_protocol and self.security_protocol != 'PLAINTEXT':
+            consumer_config.update({
+                'security_protocol': self.security_protocol,
+                'sasl_mechanism': self.sasl_mechanism,
+                'sasl_plain_username': self.sasl_username,
+                'sasl_plain_password': self.sasl_password,
+            })
+            logger.info(
+                'Kafka consumer configurado com SASL',
+                mechanism=self.sasl_mechanism,
+                security_protocol=self.security_protocol
+            )
+
+        self.consumer = instrument_kafka_consumer(
+            AIOKafkaConsumer(self.config.kafka_consensus_topic, **consumer_config),
+            service_name="orchestrator-dynamic"
         )
+        logger.info("Kafka consumer instrumented with OpenTelemetry")
 
         await self.consumer.start()
         logger.info('Kafka consumer inicializado com sucesso')
@@ -148,6 +182,7 @@ class DecisionConsumer:
 
         logger.info('Kafka consumer parado')
 
+    @trace_plan
     async def _process_message(self, message):
         """
         Processa uma mensagem do Kafka.
@@ -155,6 +190,31 @@ class DecisionConsumer:
         Args:
             message: Mensagem do Kafka contendo ConsolidatedDecision
         """
+        # Preserve tracing headers as binary for W3C traceparent/baggage compatibility
+        extract_context_from_headers(message.headers or [])
+
+        business_headers = {}
+        for key, value in (message.headers or []):
+            if key in ('x-neural-hive-intent-id', 'x-neural-hive-plan-id', 'x-neural-hive-user-id'):
+                if isinstance(value, bytes):
+                    try:
+                        business_headers[key] = value.decode('utf-8')
+                    except Exception:
+                        continue
+                elif value is not None:
+                    business_headers[key] = str(value)
+
+        intent_id = business_headers.get('x-neural-hive-intent-id')
+        plan_id = business_headers.get('x-neural-hive-plan-id')
+        user_id = business_headers.get('x-neural-hive-user-id')
+
+        if intent_id:
+            set_baggage('intent_id', intent_id)
+        if plan_id:
+            set_baggage('plan_id', plan_id)
+        if user_id:
+            set_baggage('user_id', user_id)
+
         # Deserializar mensagem (suporta Avro e JSON)
         raw_value = message.value
         if isinstance(raw_value, bytes):
@@ -181,6 +241,13 @@ class DecisionConsumer:
             decision_id=consolidated_decision.get('decision_id'),
             plan_id=consolidated_decision.get('plan_id')
         )
+        span = trace.get_current_span()
+        span.set_attribute("neural.hive.decision.id", consolidated_decision.get('decision_id'))
+        span.set_attribute("neural.hive.plan.id", consolidated_decision.get('plan_id'))
+        span.set_attribute("neural.hive.intent.id", consolidated_decision.get('intent_id'))
+        span.set_attribute("messaging.kafka.topic", message.topic)
+        span.set_attribute("messaging.kafka.partition", message.partition)
+        span.set_attribute("messaging.kafka.offset", message.offset)
 
         try:
             # Validar campos obrigatórios

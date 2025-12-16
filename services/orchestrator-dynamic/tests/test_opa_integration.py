@@ -2,14 +2,14 @@
 Testes de integração para validação OPA no orchestrator-dynamic.
 """
 import pytest
+import pytest_asyncio
 import asyncio
-import pybreaker
 from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 from src.policies import OPAClient, PolicyValidator
 from src.policies.opa_client import OPAConnectionError, OPAPolicyNotFoundError
 from src.config.settings import OrchestratorSettings
-from src.models.validation import ValidationResult, PolicyViolation
+from src.policies.policy_validator import ValidationResult, PolicyViolation
 
 
 @pytest.fixture
@@ -31,34 +31,30 @@ def mock_config():
     config.opa_max_concurrent_tickets = 100
     config.opa_allowed_capabilities = ['code_generation', 'deployment', 'testing', 'validation']
     config.opa_resource_limits = {'max_cpu': '4000m', 'max_memory': '8Gi'}
+    config.opa_intelligent_scheduler_enabled = True
+    config.opa_burst_capacity_enabled = True
+    config.opa_burst_threshold = 0.8
+    config.opa_predictive_allocation_enabled = False
+    config.opa_auto_scaling_enabled = False
+    config.opa_scheduler_namespaces = ['production']
+    config.opa_premium_tenants = []
+    config.opa_security_enabled = False
+    config.opa_policy_security_constraints = 'neuralhive/orchestrator/security_constraints'
+    config.opa_allowed_tenants = []
+    config.opa_rbac_roles = {}
+    config.opa_data_residency_regions = {}
+    config.opa_tenant_rate_limits = {}
+    config.opa_global_rate_limit = 0
+    config.opa_default_tenant_rate_limit = 0
+    config.spiffe_enabled = False
+    config.spiffe_trust_domain = "example.com"
+    config.redis_cluster_nodes = ""
+    config.redis_password = None
+    config.redis_ssl_enabled = False
     return config
 
 
-@pytest.fixture
-def mock_circuit_breaker():
-    """Fixture com circuit breaker mock."""
-    breaker = Mock(spec=pybreaker.CircuitBreaker)
-    breaker.call = Mock(side_effect=lambda fn: fn())
-    breaker.state = Mock(name='closed')
-    breaker.fail_counter = 0
-    breaker.current_state = Mock(name='closed')
-    breaker._state = Mock()
-    breaker._state.call_succeeded = Mock()
-    breaker._state.call_failed = Mock()
-    return breaker
-
-
-@pytest.fixture
-async def opa_client_with_breaker(mock_config):
-    """Fixture com OPAClient inicializado com circuit breaker."""
-    with patch('src.policies.opa_client.CircuitBreaker'):
-        client = OPAClient(mock_config)
-        await client.initialize()
-        yield client
-        await client.close()
-
-
-@pytest.fixture
+@pytest_asyncio.fixture
 async def opa_client(mock_config):
     """Fixture com OPAClient inicializado."""
     client = OPAClient(mock_config)
@@ -293,7 +289,7 @@ class TestPolicyIntegration:
         # Verificar resultados
         assert result.valid is True
         assert len(result.violations) == 0
-        assert 'resource_limits' in result.policy_decisions
+        assert 'neuralhive/orchestrator/resource_limits' in result.policy_decisions
         mock_opa_client.batch_evaluate.assert_called_once()
 
     @pytest.mark.asyncio
@@ -491,7 +487,7 @@ class TestCircuitBreaker:
         await client.initialize()
 
         # Simular 10 falhas - todas devem tentar normalmente
-        with patch.object(client, '_evaluate_policy_internal', side_effect=aiohttp.ClientError("Connection failed")):
+        with patch.object(client, '_evaluate_policy_internal', side_effect=OPAConnectionError("Connection failed")):
             for i in range(10):
                 try:
                     await client.evaluate_policy('test/policy', {'input': {}})
@@ -511,11 +507,7 @@ class TestCircuitBreaker:
 
         with patch.object(client.metrics, 'record_opa_circuit_breaker_state') as mock_metric:
             # Simular mudança de estado
-            client._on_circuit_breaker_state_change(
-                client._circuit_breaker,
-                Mock(name='closed'),
-                Mock(name='open')
-            )
+            client._set_circuit_state('open')
 
             # Verificar que métrica foi chamada
             mock_metric.assert_called()
@@ -596,7 +588,7 @@ class TestFailOpenFailClosed:
 
         mock_config.opa_fail_open = False
         mock_opa_client = AsyncMock()
-        mock_opa_client.evaluate_policy = AsyncMock(side_effect=OPAConnectionError("Connection timeout"))
+        mock_opa_client.batch_evaluate = AsyncMock(side_effect=OPAConnectionError("Connection timeout"))
 
         validator = PolicyValidator(mock_opa_client, mock_config)
 

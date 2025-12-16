@@ -6,6 +6,7 @@ from typing import Dict, Any, Optional
 
 from temporalio import activity
 import structlog
+from neural_hive_resilience.circuit_breaker import CircuitBreakerError
 
 logger = structlog.get_logger()
 
@@ -163,6 +164,13 @@ async def audit_validation(plan_id: str, validation_result: Dict[str, Any]) -> N
                 validation_result,
                 activity.info().workflow_id
             )
+        except CircuitBreakerError:
+            activity.logger.warning(
+                'validation_audit_circuit_open',
+                plan_id=plan_id,
+                workflow_id=activity.info().workflow_id
+            )
+            return
         except Exception as mongo_error:
             activity.logger.error(
                 'validation_audit_persist_failed',

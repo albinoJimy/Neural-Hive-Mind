@@ -14,6 +14,8 @@ import structlog
 from datetime import datetime
 import json
 
+from neural_hive_observability import get_tracer
+
 from src.models.security_validation import (
     SecurityValidation,
     GuardrailViolation,
@@ -25,6 +27,7 @@ from src.models.security_validation import (
 )
 
 logger = structlog.get_logger(__name__)
+tracer = get_tracer(__name__)
 
 
 class SecurityValidator:
@@ -86,98 +89,107 @@ class SecurityValidator:
             task_type=ticket.get("task_type")
         )
 
-        # Verificar cache
-        cached = await self._get_cached_validation(ticket_id)
-        if cached:
-            logger.info("security_validator.cache_hit", ticket_id=ticket_id)
-            return cached
+        with tracer.start_as_current_span("validate_security") as span:
+            span.set_attribute("neural.hive.ticket.id", ticket_id)
+            if ticket.get("plan_id"):
+                span.set_attribute("neural.hive.plan.id", ticket.get("plan_id"))
 
-        violations: List[GuardrailViolation] = []
+            # Verificar cache
+            cached = await self._get_cached_validation(ticket_id)
+            if cached:
+                span.set_attribute("neural.hive.validation.result", cached.validation_status.value)
+                span.set_attribute("neural.hive.risk.score", cached.risk_assessment.risk_score)
+                logger.info("security_validator.cache_hit", ticket_id=ticket_id)
+                return cached
 
-        # Executar validações em paralelo quando possível
-        try:
-            # 1. Validar políticas OPA
-            opa_violations = await self._validate_opa_policies(ticket)
-            violations.extend(opa_violations)
+            violations: List[GuardrailViolation] = []
 
-            # 2. Validar RBAC
-            rbac_violations = await self._validate_rbac(ticket)
-            violations.extend(rbac_violations)
+            # Executar validações em paralelo quando possível
+            try:
+                # 1. Validar políticas OPA
+                opa_violations = await self._validate_opa_policies(ticket)
+                violations.extend(opa_violations)
 
-            # 3. Escanear secrets (se Trivy disponível)
-            if self.trivy_client:
-                secret_violations = await self._scan_secrets(ticket)
-                violations.extend(secret_violations)
+                # 2. Validar RBAC
+                rbac_violations = await self._validate_rbac(ticket)
+                violations.extend(rbac_violations)
 
-            # 4. Validar compliance
-            compliance_violations = await self._validate_compliance(ticket)
-            violations.extend(compliance_violations)
+                # 3. Escanear secrets (se Trivy disponível)
+                if self.trivy_client:
+                    secret_violations = await self._scan_secrets(ticket)
+                    violations.extend(secret_violations)
 
-        except Exception as e:
-            logger.error(
-                "security_validator.validation_error",
-                ticket_id=ticket_id,
-                error=str(e)
-            )
-            # Criar violação de erro interno
-            violations.append(
-                GuardrailViolation(
-                    violation_type=ViolationType.POLICY_VIOLATION,
-                    severity=Severity.HIGH,
-                    description=f"Erro durante validação: {str(e)}",
-                    remediation_suggestion="Verificar logs do Guard Agent",
-                    detected_by="SecurityValidator",
-                    evidence={"error": str(e)}
+                # 4. Validar compliance
+                compliance_violations = await self._validate_compliance(ticket)
+                violations.extend(compliance_violations)
+
+            except Exception as e:
+                logger.error(
+                    "security_validator.validation_error",
+                    ticket_id=ticket_id,
+                    error=str(e)
                 )
+                # Criar violação de erro interno
+                violations.append(
+                    GuardrailViolation(
+                        violation_type=ViolationType.POLICY_VIOLATION,
+                        severity=Severity.HIGH,
+                        description=f"Erro durante validação: {str(e)}",
+                        remediation_suggestion="Verificar logs do Guard Agent",
+                        detected_by="SecurityValidator",
+                        evidence={"error": str(e)}
+                    )
+                )
+
+            # 5. Calcular risk assessment
+            risk_assessment = await self._calculate_risk_assessment(violations, ticket)
+            span.set_attribute("neural.hive.risk.score", risk_assessment.risk_score)
+
+            # Determinar status da validação
+            validation_status = self._determine_validation_status(
+                risk_assessment, violations
+            )
+            span.set_attribute("neural.hive.validation.result", validation_status.value)
+
+            # Criar SecurityValidation
+            validation = SecurityValidation(
+                ticket_id=ticket_id,
+                plan_id=ticket.get("plan_id", "unknown"),
+                intent_id=ticket.get("intent_id", "unknown"),
+                correlation_id=ticket.get("correlation_id", "unknown"),
+                trace_id=ticket.get("trace_id"),
+                span_id=ticket.get("span_id"),
+                validation_status=validation_status,
+                validator_type=ValidatorType.GUARDRAIL,  # Validação completa
+                violations=violations,
+                risk_assessment=risk_assessment,
+                approval_required=validation_status == ValidationStatus.REQUIRES_APPROVAL,
+                approval_reason=self._get_approval_reason(risk_assessment, violations),
+                metadata={
+                    "validator_version": "1.0.0",
+                    "ticket_type": ticket.get("task_type", "unknown"),
+                    "security_level": ticket.get("security_level", "unknown")
+                }
             )
 
-        # 5. Calcular risk assessment
-        risk_assessment = await self._calculate_risk_assessment(violations, ticket)
+            # Recalcular hash após construção completa
+            validation.refresh_hash()
 
-        # Determinar status da validação
-        validation_status = self._determine_validation_status(
-            risk_assessment, violations
-        )
+            # Cachear validação
+            await self._cache_validation(validation)
 
-        # Criar SecurityValidation
-        validation = SecurityValidation(
-            ticket_id=ticket_id,
-            plan_id=ticket.get("plan_id", "unknown"),
-            intent_id=ticket.get("intent_id", "unknown"),
-            correlation_id=ticket.get("correlation_id", "unknown"),
-            trace_id=ticket.get("trace_id"),
-            span_id=ticket.get("span_id"),
-            validation_status=validation_status,
-            validator_type=ValidatorType.GUARDRAIL,  # Validação completa
-            violations=violations,
-            risk_assessment=risk_assessment,
-            approval_required=validation_status == ValidationStatus.REQUIRES_APPROVAL,
-            approval_reason=self._get_approval_reason(risk_assessment, violations),
-            metadata={
-                "validator_version": "1.0.0",
-                "ticket_type": ticket.get("task_type", "unknown"),
-                "security_level": ticket.get("security_level", "unknown")
-            }
-        )
+            # Persistir no MongoDB
+            await self._persist_validation(validation)
 
-        # Recalcular hash após construção completa
-        validation.refresh_hash()
+            logger.info(
+                "security_validator.validation_complete",
+                ticket_id=ticket_id,
+                status=validation_status.value,
+                violations_count=len(violations),
+                risk_score=risk_assessment.risk_score
+            )
 
-        # Cachear validação
-        await self._cache_validation(validation)
-
-        # Persistir no MongoDB
-        await self._persist_validation(validation)
-
-        logger.info(
-            "security_validator.validation_complete",
-            ticket_id=ticket_id,
-            status=validation_status.value,
-            violations_count=len(violations),
-            risk_score=risk_assessment.risk_score
-        )
-
-        return validation
+            return validation
 
     async def _validate_opa_policies(self, ticket: dict) -> List[GuardrailViolation]:
         """

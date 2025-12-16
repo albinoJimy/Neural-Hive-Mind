@@ -1,0 +1,85 @@
+# Gerado automaticamente por 12-prepare-fluxo-c-values.sh em Thu 20 Nov 2025 10:11:21 AM CET
+# Baseado em environments/local/fluxo-c-config.yaml
+
+image:
+  repository: docker.io/neural-hive-mind/consensus-engine
+  tag: "1.0.13"
+  pullPolicy: Never
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "512Mi"
+  limits:
+    cpu: "1"
+    memory: "2Gi"
+
+customCommand:
+  enabled: false
+  command: []
+  args: []
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+
+config:
+  environment: "local"
+  logLevel: "DEBUG"
+  
+  kafka:
+    bootstrapServers: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
+    consumerGroupId: "consensus-engine-local"
+    plansTopicConsume: "plans.ready"
+    consensusTopicProduce: "plans.consensus"
+    securityProtocol: "PLAINTEXT"
+    sasl:
+      enabled: false
+
+  specialists:
+    businessEndpoint: "specialist-business.semantic-translation.svc.cluster.local:50051"
+    technicalEndpoint: "specialist-technical.semantic-translation.svc.cluster.local:50051"
+    behaviorEndpoint: "specialist-behavior.semantic-translation.svc.cluster.local:50051"
+    evolutionEndpoint: "specialist-evolution.semantic-translation.svc.cluster.local:50051"
+    architectureEndpoint: "specialist-architecture.semantic-translation.svc.cluster.local:50051"
+    # Timeout increased to 120000ms (120 seconds) to accommodate specialist processing time of 49-66 seconds for ML inference
+    grpcTimeoutMs: 120000
+    grpcMaxRetries: 3
+
+  mongodb:
+    uri: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/?authSource=admin"
+    database: "neural_hive"
+    consensusCollection: "consensus_decisions"
+
+  redis:
+    clusterNodes: "neural-hive-cache.redis-cluster.svc.cluster.local:6379"
+    sslEnabled: false
+    pheromoneTtl: 3600
+    pheromoneDecayRate: 0.1
+
+  openTelemetry:
+    endpoint: "localhost:4317"
+    samplingRate: 1.0
+
+  consensus:
+    minConfidenceScore: 0.7
+    maxDivergenceThreshold: 0.05
+    features:
+      enableBayesianAveraging: true
+      enablePheromones: true
+
+serviceMonitor:
+  enabled: true
+  interval: "30s"
+
+security:
+  istio:
+    enabled: false

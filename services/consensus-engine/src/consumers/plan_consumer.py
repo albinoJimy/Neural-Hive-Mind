@@ -9,6 +9,7 @@ from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroDeserializer
 import structlog
 import grpc
+from neural_hive_observability import get_tracer
 from src.services.consensus_orchestrator import ConsensusOrchestrator
 from src.observability.metrics import ConsensusMetrics
 

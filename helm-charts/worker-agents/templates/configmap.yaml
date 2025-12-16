@@ -39,7 +39,40 @@ data:
   TEMPORAL_TASK_QUEUE: {{ .Values.config.temporal.taskQueue | quote }}
   {{- end }}
 
-  OTEL_EXPORTER_ENDPOINT: {{ .Values.config.observability.otelEndpoint | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.observability.otelEndpoint | quote }}
   PROMETHEUS_PORT: {{ .Values.config.observability.prometheusPort | quote }}
   HTTP_PORT: {{ .Values.config.observability.httpPort | quote }}
   LOG_LEVEL: {{ .Values.config.observability.logLevel | quote }}
+
+  # Code Forge Configuration
+  CODE_FORGE_URL: {{ .Values.config.codeForge.url | quote }}
+  CODE_FORGE_ENABLED: {{ .Values.config.codeForge.enabled | quote }}
+  CODE_FORGE_TIMEOUT_SECONDS: {{ .Values.config.codeForge.timeoutSeconds | quote }}
+
+  # ArgoCD Configuration
+  {{- if .Values.config.argocd.url }}
+  ARGOCD_URL: {{ .Values.config.argocd.url | quote }}
+  {{- end }}
+  ARGOCD_ENABLED: {{ .Values.config.argocd.enabled | quote }}
+
+  # OPA Configuration
+  OPA_URL: {{ .Values.config.opa.url | quote }}
+  OPA_ENABLED: {{ .Values.config.opa.enabled | quote }}
+
+  # Trivy Configuration
+  TRIVY_ENABLED: {{ .Values.config.trivy.enabled | quote }}
+  TRIVY_TIMEOUT_SECONDS: {{ .Values.config.trivy.timeoutSeconds | quote }}
+
+  # Test Execution Configuration
+  TEST_EXECUTION_TIMEOUT_SECONDS: {{ .Values.config.testExecution.timeoutSeconds | quote }}
+  ALLOWED_TEST_COMMANDS: {{ join "," .Values.config.testExecution.allowedCommands | quote }}
+
+  # GitHub Actions
+  GITHUB_ACTIONS_ENABLED: {{ .Values.config.githubActions.enabled | quote }}
+  GITHUB_API_URL: {{ .Values.config.githubActions.apiUrl | quote }}
+
+  # Validation tools
+  SONARQUBE_ENABLED: {{ .Values.config.validation.sonarqube.enabled | quote }}
+  SONARQUBE_URL: {{ .Values.config.validation.sonarqube.url | quote }}
+  SNYK_ENABLED: {{ .Values.config.validation.snyk.enabled | quote }}
+  CHECKOV_ENABLED: {{ .Values.config.validation.checkov.enabled | quote }}

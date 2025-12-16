@@ -65,6 +65,7 @@ Deploy completo da infraestrutura Fase 2 realizado com sucesso. **22 componentes
 ```bash
 # Validação completa
 bash scripts/validation/validate-phase2-deployment.sh
+bash scripts/validation/run-e2e-validation-suite.sh
 
 # Listar todos os pods
 kubectl get pods --all-namespaces | grep neural-hive

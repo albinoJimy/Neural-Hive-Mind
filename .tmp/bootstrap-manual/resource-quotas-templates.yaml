@@ -1,0 +1,167 @@
+# Templates de ResourceQuotas específicos por ambiente
+# Neural Hive-Mind Bootstrap Configuration
+
+# Templates para ambiente de desenvolvimento
+---
+# Dev - Cognition Layer
+dev_cognition_cpu_requests_quota: "2"
+dev_cognition_memory_requests_quota: "4Gi"
+dev_cognition_cpu_limits_quota: "4"
+dev_cognition_memory_limits_quota: "8Gi"
+dev_cognition_pvc_quota: "5"
+
+# Dev - Orchestration Layer
+dev_orchestration_cpu_requests_quota: "1"
+dev_orchestration_memory_requests_quota: "2Gi"
+dev_orchestration_cpu_limits_quota: "2"
+dev_orchestration_memory_limits_quota: "4Gi"
+dev_orchestration_pvc_quota: "3"
+
+# Dev - Execution Layer
+dev_execution_cpu_requests_quota: "4"
+dev_execution_memory_requests_quota: "8Gi"
+dev_execution_cpu_limits_quota: "8"
+dev_execution_memory_limits_quota: "16Gi"
+dev_execution_pvc_quota: "10"
+
+# Dev - Observability Layer
+dev_observability_cpu_requests_quota: "1"
+dev_observability_memory_requests_quota: "2Gi"
+dev_observability_cpu_limits_quota: "2"
+dev_observability_memory_limits_quota: "4Gi"
+dev_observability_pvc_quota: "3"
+
+# Dev - Security Components
+dev_security_cpu_requests_quota: "500m"
+dev_security_memory_requests_quota: "1Gi"
+dev_security_cpu_limits_quota: "1"
+dev_security_memory_limits_quota: "2Gi"
+
+# Dev - Infrastructure Components
+dev_infrastructure_cpu_requests_quota: "200m"
+dev_infrastructure_memory_requests_quota: "512Mi"
+dev_infrastructure_cpu_limits_quota: "500m"
+dev_infrastructure_memory_limits_quota: "1Gi"
+
+# Dev - Auth Components
+dev_auth_cpu_requests_quota: "500m"
+dev_auth_memory_requests_quota: "1Gi"
+dev_auth_cpu_limits_quota: "1"
+dev_auth_memory_limits_quota: "2Gi"
+dev_auth_pvc_quota: "2"
+
+# Templates para ambiente de staging
+---
+# Staging - Cognition Layer
+staging_cognition_cpu_requests_quota: "5"
+staging_cognition_memory_requests_quota: "10Gi"
+staging_cognition_cpu_limits_quota: "10"
+staging_cognition_memory_limits_quota: "20Gi"
+staging_cognition_pvc_quota: "8"
+
+# Staging - Orchestration Layer
+staging_orchestration_cpu_requests_quota: "3"
+staging_orchestration_memory_requests_quota: "6Gi"
+staging_orchestration_cpu_limits_quota: "6"
+staging_orchestration_memory_limits_quota: "12Gi"
+staging_orchestration_pvc_quota: "5"
+
+# Staging - Execution Layer
+staging_execution_cpu_requests_quota: "10"
+staging_execution_memory_requests_quota: "20Gi"
+staging_execution_cpu_limits_quota: "20"
+staging_execution_memory_limits_quota: "40Gi"
+staging_execution_pvc_quota: "15"
+
+# Staging - Observability Layer
+staging_observability_cpu_requests_quota: "2"
+staging_observability_memory_requests_quota: "4Gi"
+staging_observability_cpu_limits_quota: "4"
+staging_observability_memory_limits_quota: "8Gi"
+staging_observability_pvc_quota: "5"
+
+# Staging - Security Components
+staging_security_cpu_requests_quota: "1"
+staging_security_memory_requests_quota: "2Gi"
+staging_security_cpu_limits_quota: "2"
+staging_security_memory_limits_quota: "4Gi"
+
+# Staging - Infrastructure Components
+staging_infrastructure_cpu_requests_quota: "500m"
+staging_infrastructure_memory_requests_quota: "1Gi"
+staging_infrastructure_cpu_limits_quota: "1"
+staging_infrastructure_memory_limits_quota: "2Gi"
+
+# Staging - Auth Components
+staging_auth_cpu_requests_quota: "1"
+staging_auth_memory_requests_quota: "2Gi"
+staging_auth_cpu_limits_quota: "2"
+staging_auth_memory_limits_quota: "4Gi"
+staging_auth_pvc_quota: "3"
+
+# Templates para ambiente de produção
+---
+# Prod - Cognition Layer
+prod_cognition_cpu_requests_quota: "10"
+prod_cognition_memory_requests_quota: "20Gi"
+prod_cognition_cpu_limits_quota: "20"
+prod_cognition_memory_limits_quota: "40Gi"
+prod_cognition_pvc_quota: "15"
+
+# Prod - Orchestration Layer
+prod_orchestration_cpu_requests_quota: "8"
+prod_orchestration_memory_requests_quota: "16Gi"
+prod_orchestration_cpu_limits_quota: "16"
+prod_orchestration_memory_limits_quota: "32Gi"
+prod_orchestration_pvc_quota: "10"
+
+# Prod - Execution Layer
+prod_execution_cpu_requests_quota: "20"
+prod_execution_memory_requests_quota: "40Gi"
+prod_execution_cpu_limits_quota: "40"
+prod_execution_memory_limits_quota: "80Gi"
+prod_execution_pvc_quota: "25"
+
+# Prod - Observability Layer
+prod_observability_cpu_requests_quota: "5"
+prod_observability_memory_requests_quota: "10Gi"
+prod_observability_cpu_limits_quota: "10"
+prod_observability_memory_limits_quota: "20Gi"
+prod_observability_pvc_quota: "8"
+
+# Prod - Security Components
+prod_security_cpu_requests_quota: "2"
+prod_security_memory_requests_quota: "4Gi"
+prod_security_cpu_limits_quota: "4"
+prod_security_memory_limits_quota: "8Gi"
+
+# Prod - Infrastructure Components
+prod_infrastructure_cpu_requests_quota: "1"
+prod_infrastructure_memory_requests_quota: "2Gi"
+prod_infrastructure_cpu_limits_quota: "2"
+prod_infrastructure_memory_limits_quota: "4Gi"
+
+# Prod - Auth Components
+prod_auth_cpu_requests_quota: "2"
+prod_auth_memory_requests_quota: "4Gi"
+prod_auth_cpu_limits_quota: "4"
+prod_auth_memory_limits_quota: "8Gi"
+prod_auth_pvc_quota: "5"
+
+# Quotas específicas para CRDs customizados
+---
+# CRD Quotas por ambiente
+dev_apiassets_quota: "50"
+dev_dataassets_quota: "100"
+dev_servicecontracts_quota: "25"
+dev_datalineages_quota: "75"
+
+staging_apiassets_quota: "100"
+staging_dataassets_quota: "200"
+staging_servicecontracts_quota: "50"
+staging_datalineages_quota: "150"
+
+prod_apiassets_quota: "500"
+prod_dataassets_quota: "1000"
+prod_servicecontracts_quota: "200"
+prod_datalineages_quota: "750"

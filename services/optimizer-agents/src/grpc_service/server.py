@@ -3,6 +3,7 @@ from typing import Optional
 
 import grpc
 import structlog
+from neural_hive_observability import create_instrumented_grpc_server
 
 from src.config.settings import get_settings
 from src.grpc_service.optimizer_servicer import OptimizerServicer
@@ -39,7 +40,7 @@ class GrpcServer:
         """Iniciar servidor gRPC."""
         try:
             # Criar servidor
-            self.server = grpc.aio.server(
+            base_server = grpc.aio.server(
                 options=[
                     ("grpc.max_send_message_length", 100 * 1024 * 1024),
                     ("grpc.max_receive_message_length", 100 * 1024 * 1024),
@@ -49,6 +50,7 @@ class GrpcServer:
                     ("grpc.http2.max_pings_without_data", 0),
                 ]
             )
+            self.server = create_instrumented_grpc_server(base_server)
 
             # Registrar servicer quando proto estiver compilado
             if PROTO_AVAILABLE:

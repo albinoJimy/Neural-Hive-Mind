@@ -17,12 +17,12 @@
 
 set -euo pipefail
 
-# Cores para logging
-readonly GREEN='\033[0;32m'
-readonly BLUE='\033[0;34m'
-readonly YELLOW='\033[1;33m'
-readonly RED='\033[0;31m'
-readonly NC='\033[0m' # No Color
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+source "${SCRIPT_DIR}/lib/common.sh"
+source "${SCRIPT_DIR}/lib/aws.sh"
+source "${SCRIPT_DIR}/lib/k8s.sh"
 
 # Variáveis de configuração padrão
 VERSION="${VERSION:-1.0.7}"
@@ -37,9 +37,6 @@ DRY_RUN="${DRY_RUN:-false}"
 SERVICES_FILTER="${SERVICES_FILTER:-}"
 
 # Paths
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-
 # Variáveis globais para rastreamento de resultados
 BUILD_EXIT_CODE=0
 PUSH_EXIT_CODE=0
@@ -53,34 +50,6 @@ ECR_REGISTRY=""
 BUILT_IMAGES_COUNT=0
 PUSHED_IMAGES_COUNT=0
 UPDATED_MANIFESTS_COUNT=0
-
-################################################################################
-# Funções de Logging
-################################################################################
-
-log_info() {
-    echo -e "${BLUE}ℹ️  $*${NC}"
-}
-
-log_success() {
-    echo -e "${GREEN}✅ $*${NC}"
-}
-
-log_warning() {
-    echo -e "${YELLOW}⚠️  $*${NC}"
-}
-
-log_error() {
-    echo -e "${RED}❌ $*${NC}"
-}
-
-log_phase() {
-    echo ""
-    echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
-    echo -e "${BLUE}  $*${NC}"
-    echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
-    echo ""
-}
 
 log_phase_result() {
     local phase="$1"
@@ -101,106 +70,58 @@ log_phase_result() {
 check_prerequisites() {
     log_phase "VERIFICAÇÃO DE PRÉ-REQUISITOS"
 
-    local has_error=false
+    local has_error=0
 
-    # Docker
     log_info "Verificando Docker..."
-    if ! command -v docker &> /dev/null; then
+    if ! check_command_exists docker; then
         log_error "Docker não encontrado. Instale Docker primeiro."
-        has_error=true
+        has_error=1
     else
-        if ! docker info &> /dev/null; then
-            log_error "Docker daemon não está rodando. Inicie o Docker primeiro."
-            has_error=true
-        else
-            log_success "Docker: OK"
-
-            # Verificar espaço em disco
-            local available_space=$(df -BG "${PROJECT_ROOT}" | awk 'NR==2 {print $4}' | sed 's/G//')
-            if [[ ${available_space} -lt 10 ]]; then
-                log_warning "Espaço em disco baixo: ${available_space}GB disponível (recomendado: ≥10GB)"
-            else
-                log_success "Espaço em disco: ${available_space}GB disponível"
-            fi
-        fi
+        check_docker_running || has_error=1
+        check_disk_space || has_error=1
     fi
 
-    # AWS CLI
     log_info "Verificando AWS CLI..."
-
-    # Determinar se AWS CLI é obrigatória
     local aws_required=true
     if [[ "${SKIP_PUSH}" == "true" && "${DRY_RUN}" == "true" ]]; then
         aws_required=false
-    elif [[ "${SKIP_PUSH}" == "true" && "${SKIP_UPDATE}" == "false" ]]; then
-        aws_required=true
-    elif [[ "${SKIP_PUSH}" == "false" ]]; then
-        aws_required=true
     fi
 
-    if ! command -v aws &> /dev/null; then
-        if [[ "${aws_required}" == "true" ]]; then
+    if [[ "${aws_required}" == "true" ]]; then
+        if ! check_command_exists aws; then
             log_error "AWS CLI não encontrado. Instale AWS CLI primeiro."
-            has_error=true
+            has_error=1
+        elif ! aws_check_credentials; then
+            log_error "Credenciais AWS não configuradas ou inválidas."
+            has_error=1
         else
-            log_warning "AWS CLI não encontrado (OK para preview/dry-run sem push)"
-        fi
-    else
-        if ! aws sts get-caller-identity &> /dev/null; then
-            if [[ "${aws_required}" == "true" ]]; then
-                log_error "Credenciais AWS não configuradas ou inválidas."
-                log_info "Configure com: aws configure"
-                has_error=true
-            else
-                log_warning "Credenciais AWS não configuradas (OK para preview/dry-run sem push)"
-            fi
-        else
-            AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-            ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+            AWS_ACCOUNT_ID=$(aws_get_account_id)
+            ECR_REGISTRY=$(aws_ecr_get_registry_url "${AWS_ACCOUNT_ID}" "${AWS_REGION}")
             log_success "AWS CLI: OK (Account: ${AWS_ACCOUNT_ID})"
             log_success "ECR Registry: ${ECR_REGISTRY}"
         fi
+    else
+        log_warning "AWS CLI não é obrigatória para este fluxo (SKIP_PUSH + DRY_RUN)."
+        check_command_exists aws && aws_check_credentials && log_info "AWS disponível para operações opcionais."
     fi
 
-    # kubectl (apenas se não skip update)
     if [[ "${SKIP_UPDATE}" == "false" ]]; then
         log_info "Verificando kubectl..."
 
-        # kubectl é obrigatório apenas se update for real (não dry-run)
-        local kubectl_required=true
-        if [[ "${DRY_RUN}" == "true" ]]; then
-            kubectl_required=false
-        fi
-
-        if ! command -v kubectl &> /dev/null; then
-            if [[ "${kubectl_required}" == "true" ]]; then
-                log_error "kubectl não encontrado. Instale kubectl primeiro."
-                has_error=true
-            else
-                log_warning "kubectl não encontrado (OK para preview/dry-run)"
-            fi
+        if ! check_command_exists kubectl; then
+            log_error "kubectl não encontrado. Instale kubectl primeiro."
+            has_error=1
         else
-            # Verificar cluster-info com timeout condicional (compatível com macOS)
-            local cluster_check_result=0
-            if command -v timeout &> /dev/null; then
-                timeout 5s kubectl cluster-info &> /dev/null
-                cluster_check_result=$?
-            else
-                kubectl cluster-info &> /dev/null
-                cluster_check_result=$?
-            fi
-
-            if [[ ${cluster_check_result} -eq 0 ]]; then
-                local current_context=$(kubectl config current-context 2>/dev/null || echo "nenhum")
-                log_success "kubectl: OK (Context: ${current_context})"
-            else
-                if [[ "${kubectl_required}" == "true" ]]; then
-                    log_warning "kubectl encontrado mas cluster não acessível (pode causar falhas em update real)"
-                else
+            check_kubectl_connection || {
+                if [[ "${DRY_RUN}" == "true" ]]; then
                     log_warning "Cluster não acessível (OK para preview/dry-run)"
+                else
+                    has_error=1
                 fi
-            fi
+            }
         fi
+    elif [[ "${DRY_RUN}" == "true" ]]; then
+        log_warning "SKIP_UPDATE habilitado em modo dry-run: kubectl não será verificado."
     fi
 
     # Carregar ~/.neural-hive-env se existir
@@ -214,14 +135,14 @@ check_prerequisites() {
     log_info "Validando variáveis de ambiente..."
     if [[ -z "${ENV}" ]]; then
         log_error "ENV não definido"
-        has_error=true
+        has_error=1
     else
         log_success "ENV: ${ENV}"
     fi
 
     if [[ -z "${AWS_REGION}" ]]; then
         log_error "AWS_REGION não definido"
-        has_error=true
+        has_error=1
     else
         log_success "AWS_REGION: ${AWS_REGION}"
     fi
@@ -247,7 +168,7 @@ check_prerequisites() {
     log_info "═══════════════════════════════════════════════════════════════"
     echo ""
 
-    if [[ "${has_error}" == "true" ]]; then
+    if [[ "${has_error}" -ne 0 ]]; then
         log_error "Pré-requisitos não atendidos. Corrija os erros acima e tente novamente."
         exit 1
     fi

@@ -2,6 +2,7 @@ import asyncio
 import structlog
 import grpc
 from concurrent import futures
+from neural_hive_observability import create_instrumented_grpc_server
 
 logger = structlog.get_logger()
 
@@ -38,9 +39,10 @@ class AnalystGRPCServer:
             logger.info('starting_grpc_server', host=self.host, port=self.port)
 
             # Criar servidor
-            self.server = grpc.aio.server(
+            base_server = grpc.aio.server(
                 futures.ThreadPoolExecutor(max_workers=self.max_workers)
             )
+            self.server = create_instrumented_grpc_server(base_server)
 
             # Registrar servicer (quando proto estiver compilado)
             # from .analyst_servicer import AnalystServicer

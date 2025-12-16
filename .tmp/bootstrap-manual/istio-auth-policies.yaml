@@ -1,0 +1,482 @@
+# Políticas de Autenticação Istio para Neural Hive-Mind
+# Integração OAuth2 + mTLS híbrido com Keycloak
+
+# RequestAuthentication para validação de tokens JWT do Keycloak
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: keycloak-jwt
+  namespace: istio-system
+  labels:
+    neural-hive.io/component: authentication
+    neural-hive.io/layer: security
+spec:
+  # Aplicar a todos os workloads no mesh
+  selector: {}
+  jwtRules:
+  - issuer: "https://keycloak.neural-hive.local/auth/realms/neural-hive"
+    jwksUri: "https://keycloak.neural-hive.local/auth/realms/neural-hive/protocol/openid-connect/certs"
+    audiences:
+    - "gateway-intencoes"
+    - "neural-hive-services"
+    - "account"
+    # Configurações específicas de claims
+    fromHeaders:
+    - name: Authorization
+      prefix: "Bearer "
+    fromParams:
+    - "access_token"
+    # Note: Cache duration is internally managed by Istio
+
+---
+# AuthorizationPolicy para Gateway de Intenções
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: gateway-intencoes-auth
+  namespace: gateway-intencoes
+  labels:
+    neural-hive.io/component: authorization
+    neural-hive.io/service: gateway-intencoes
+spec:
+  selector:
+    matchLabels:
+      app: gateway-intencoes
+  rules:
+  # Permitir health checks sem autenticação
+  - to:
+    - operation:
+        paths: ["/health", "/metrics", "/ready"]
+        methods: ["GET"]
+
+  # APIs que requerem autenticação JWT
+  - to:
+    - operation:
+        paths: ["/intentions/*", "/api/v1/*"]
+        methods: ["POST", "PUT", "PATCH", "DELETE"]
+    when:
+    - key: request.auth.claims[iss]
+      values: ["https://keycloak.neural-hive.local/auth/realms/neural-hive"]
+    - key: request.auth.claims[aud]
+      values: ["gateway-intencoes"]
+    - key: request.auth.claims[realm_access.roles]
+      values: ["neural-hive-user", "neural-hive-admin"]
+
+  # Leitura de intenções - requer token válido
+  - to:
+    - operation:
+        paths: ["/intentions/*"]
+        methods: ["GET"]
+    when:
+    - key: request.auth.claims[iss]
+      values: ["https://keycloak.neural-hive.local/auth/realms/neural-hive"]
+
+---
+# AuthorizationPolicy para serviços internos (mTLS only)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: internal-services-mtls
+  namespace: neural-hive-internal
+  labels:
+    neural-hive.io/component: authorization
+    neural-hive.io/layer: internal
+spec:
+  selector:
+    matchLabels:
+      neural-hive.io/tier: internal
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/*/sa/*"]
+    to:
+    - operation:
+        methods: ["*"]
+    when:
+    # Requer mTLS válido via service account principal
+    - key: source.principal
+      notValues: [""]
+
+---
+# AuthorizationPolicy para Redis Cluster
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: redis-cluster-access
+  namespace: redis-cluster
+  labels:
+    neural-hive.io/component: authorization
+    neural-hive.io/service: redis-cluster
+spec:
+  selector:
+    matchLabels:
+      app: neural-hive-cache
+  rules:
+  # Apenas serviços autorizados podem acessar Redis
+  - from:
+    - source:
+        namespaces: ["gateway-intencoes", "neural-hive-services"]
+        principals:
+        - "cluster.local/ns/gateway-intencoes/sa/gateway-intencoes"
+        - "cluster.local/ns/neural-hive-services/sa/microservice-*"
+    to:
+    - operation:
+        ports: ["6379"]
+
+  # Permitir métricas para monitoring
+  - from:
+    - source:
+        namespaces: ["monitoring"]
+        principals: ["cluster.local/ns/monitoring/sa/prometheus"]
+    to:
+    - operation:
+        ports: ["9121"]  # Redis exporter
+
+---
+# AuthorizationPolicy para Keycloak
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: keycloak-access
+  namespace: auth
+  labels:
+    neural-hive.io/component: authorization
+    neural-hive.io/service: keycloak
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+  rules:
+  # Permitir acesso público aos endpoints OAuth2/OIDC
+  - to:
+    - operation:
+        paths:
+        - "/auth/realms/*/protocol/openid-connect/*"
+        - "/auth/realms/*/.well-known/*"
+        - "/health"
+        methods: ["GET", "POST"]
+
+  # Admin console - apenas com JWT admin
+  - to:
+    - operation:
+        paths: ["/auth/admin/*"]
+    when:
+    - key: request.auth.claims[realm_access.roles]
+      values: ["admin", "realm-admin"]
+    - key: request.auth.claims[preferred_username]
+      values: ["admin"]
+
+  # Account management - usuários autenticados
+  - to:
+    - operation:
+        paths: ["/auth/realms/*/account/*"]
+    when:
+    - key: request.auth.claims[iss]
+      values: ["https://keycloak.neural-hive.local/auth/realms/neural-hive"]
+
+---
+# PeerAuthentication para aplicar mTLS STRICT
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default-mtls
+  namespace: istio-system
+  labels:
+    neural-hive.io/component: authentication
+    neural-hive.io/policy: mtls-strict
+spec:
+  # Aplicar a todo o mesh
+  mtls:
+    mode: STRICT
+
+---
+# PeerAuthentication específica para services externos
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: external-services-permissive
+  namespace: istio-system
+  labels:
+    neural-hive.io/component: authentication
+    neural-hive.io/policy: mtls-permissive
+spec:
+  selector:
+    matchLabels:
+      neural-hive.io/external: "true"
+  mtls:
+    mode: PERMISSIVE
+
+---
+# RequestAuthentication para service accounts internos
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: service-account-auth
+  namespace: istio-system
+  labels:
+    neural-hive.io/component: authentication
+    neural-hive.io/type: service-account
+spec:
+  selector:
+    matchLabels:
+      neural-hive.io/service-type: "internal"
+  jwtRules:
+  - issuer: "https://keycloak.neural-hive.local/auth/realms/neural-hive"
+    audiences: ["service-account"]
+    # Service account tokens têm claims específicos
+    fromHeaders:
+    - name: Authorization
+      prefix: "Bearer "
+
+---
+# AuthorizationPolicy global com regras básicas
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: neural-hive-global-rules
+  namespace: istio-system
+  labels:
+    neural-hive.io/component: authorization
+    neural-hive.io/scope: global
+spec:
+  # Sem selector = aplica a todo o mesh
+  rules:
+  # Sempre permitir health checks
+  - to:
+    - operation:
+        paths: ["/health", "/healthz", "/ready", "/live"]
+        methods: ["GET"]
+
+  # Sempre permitir métricas para Prometheus
+  - from:
+    - source:
+        namespaces: ["monitoring", "istio-system"]
+    to:
+    - operation:
+        paths: ["/metrics", "/stats/prometheus"]
+        methods: ["GET"]
+
+  # Note: DENY rules moved to separate policy below
+
+---
+# AuthorizationPolicy for denying sensitive endpoints
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-sensitive-endpoints
+  namespace: istio-system
+  labels:
+    neural-hive.io/component: authorization
+    neural-hive.io/scope: security
+spec:
+  action: DENY
+  rules:
+  - to:
+    - operation:
+        paths: ["/admin/*", "/debug/*", "/internal/*"]
+    when:
+    - key: source.namespace
+      notValues: ["istio-system", "monitoring"]
+    - key: request.auth.claims[realm_access.roles]
+      notValues: ["admin", "debug-access"]
+
+---
+# AuthorizationPolicy para desenvolvimento (ambiente dev)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: dev-environment-relaxed
+  namespace: istio-system
+  labels:
+    neural-hive.io/component: authorization
+    neural-hive.io/environment: dev
+spec:
+  # Aplicar apenas quando label environment=dev
+  selector:
+    matchLabels:
+      neural-hive.io/environment: "dev"
+  rules:
+  # Em dev, permitir acesso mais relaxado para debugging
+  - to:
+    - operation:
+        methods: ["*"]
+    when:
+    - key: source.namespace
+      values: ["dev-tools", "debugging"]
+
+---
+# Security Components Authorization Policies
+
+# AuthorizationPolicy para Sigstore Policy Controller
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: sigstore-policy-controller-access
+  namespace: cosign-system
+  labels:
+    neural-hive.io/component: authorization
+    neural-hive.io/service: sigstore-policy-controller
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: policy-controller
+  rules:
+  # Permitir webhook calls do API server
+  - from:
+    - source:
+        principals: ["cluster.local/ns/kube-system/sa/*"]
+    to:
+    - operation:
+        ports: ["9443"]  # Webhook port
+        methods: ["POST"]
+
+  # Permitir health checks
+  - to:
+    - operation:
+        paths: ["/healthz", "/readyz", "/livez"]
+        methods: ["GET"]
+
+  # Permitir métricas para monitoring
+  - from:
+    - source:
+        namespaces: ["monitoring", "neural-hive-observability", "istio-system"]
+    to:
+    - operation:
+        paths: ["/metrics"]
+        ports: ["9090"]
+        methods: ["GET"]
+
+---
+# AuthorizationPolicy para OPA Gatekeeper
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: opa-gatekeeper-access
+  namespace: gatekeeper-system
+  labels:
+    neural-hive.io/component: authorization
+    neural-hive.io/service: opa-gatekeeper
+spec:
+  selector:
+    matchLabels:
+      gatekeeper.sh/operation: webhook
+  rules:
+  # Permitir webhook calls do API server
+  - from:
+    - source:
+        principals: ["cluster.local/ns/kube-system/sa/*"]
+    to:
+    - operation:
+        ports: ["8443"]  # Webhook port
+        methods: ["POST"]
+
+  # Permitir health checks
+  - to:
+    - operation:
+        paths: ["/healthz", "/readyz", "/v1/health"]
+        methods: ["GET"]
+
+  # Permitir métricas para monitoring
+  - from:
+    - source:
+        namespaces: ["monitoring", "neural-hive-observability", "istio-system"]
+    to:
+    - operation:
+        paths: ["/metrics"]
+        ports: ["8888"]
+        methods: ["GET"]
+
+---
+# AuthorizationPolicy para Cert-Manager (se usando)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: cert-manager-access
+  namespace: cert-manager
+  labels:
+    neural-hive.io/component: authorization
+    neural-hive.io/service: cert-manager
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: webhook
+  rules:
+  # Permitir webhook calls do API server
+  - from:
+    - source:
+        principals: ["cluster.local/ns/kube-system/sa/*"]
+    to:
+    - operation:
+        ports: ["10250"]  # Webhook port
+        methods: ["POST"]
+
+  # Permitir health checks
+  - to:
+    - operation:
+        paths: ["/healthz", "/livez"]
+        methods: ["GET"]
+
+---
+# RequestAuthentication para componentes de segurança
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: security-components-auth
+  namespace: istio-system
+  labels:
+    neural-hive.io/component: authentication
+    neural-hive.io/type: security-components
+spec:
+  selector:
+    matchLabels:
+      neural-hive.io/component: security
+  # Service accounts específicos para componentes de segurança
+  # Estes componentes usam mTLS service-to-service sem JWT
+
+---
+# PeerAuthentication específica para namespaces de segurança
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: security-namespaces-mtls-strict
+  namespace: istio-system
+  labels:
+    neural-hive.io/component: authentication
+    neural-hive.io/policy: security-mtls-strict
+spec:
+  selector:
+    matchLabels:
+      neural-hive.io/tier: security
+  mtls:
+    mode: STRICT
+
+---
+# AuthorizationPolicy para comunicação entre componentes de segurança
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: security-inter-component-access
+  namespace: istio-system
+  labels:
+    neural-hive.io/component: authorization
+    neural-hive.io/scope: security-components
+spec:
+  selector:
+    matchLabels:
+      neural-hive.io/tier: security
+  rules:
+  # Permitir comunicação entre componentes de segurança via mTLS
+  - from:
+    - source:
+        namespaces: ["cosign-system", "gatekeeper-system", "cert-manager", "istio-system"]
+        principals:
+        - "cluster.local/ns/cosign-system/sa/*"
+        - "cluster.local/ns/gatekeeper-system/sa/*"
+        - "cluster.local/ns/cert-manager/sa/*"
+        - "cluster.local/ns/istio-system/sa/*"
+    to:
+    - operation:
+        methods: ["GET", "POST"]
+    when:
+    - key: source.principal
+      notValues: [""]

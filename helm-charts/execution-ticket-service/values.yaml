@@ -8,7 +8,7 @@ serviceAccount:
   name: ""
 
 image:
-  repository: localhost:5000/execution-ticket-service
+  repository: 37.60.241.150:30500/execution-ticket-service
   tag: "1.0.0"
   pullPolicy: IfNotPresent
 
@@ -32,11 +32,11 @@ podLabels:
 
 resources:
   requests:
-    cpu: 400m
-    memory: 1Gi
+    cpu: 400m      # REST + gRPC + Kafka
+    memory: 768Mi
   limits:
     cpu: 1500m
-    memory: 3Gi
+    memory: 2Gi
 
 autoscaling:
   enabled: true
@@ -48,6 +48,7 @@ autoscaling:
 config:
   enabled: true
   serviceName: execution-ticket-service
+  serviceVersion: "1.0.0"
   environment: development
   logLevel: INFO
 
@@ -94,14 +95,13 @@ config:
     prometheusPort: 9090
 
 secrets:
-  create: true
-  existingSecret: ""
-  postgresPassword: "<change-me>"
-  mongodbUri: "mongodb://mongodb:27017"
-  jwtSecretKey: "<change-me>"
-  postgresPasswordKey: postgres-password
-  mongodbUriKey: mongodb-uri
-  jwtSecretKeyKey: jwt-secret-key
+  # Use existingSecret para referenciar secrets criados pelo create-phase2-secrets.sh
+  # Os Helm charts usam secretKeyRef para ler valores diretamente dos secrets K8s
+  existingSecret: "execution-ticket-service-secrets"
+  # Mapeamento de chaves do secret para variáveis de ambiente
+  postgresPasswordKey: POSTGRES_PASSWORD
+  mongodbUriKey: MONGODB_URI
+  jwtSecretKeyKey: JWT_SECRET_KEY
 
 serviceMonitor:
   enabled: true

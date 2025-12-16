@@ -27,6 +27,7 @@ opentelemetry-sdk==1.21.0
 opentelemetry-instrumentation-fastapi==0.42b0
 opentelemetry-instrumentation-grpc==0.42b0
 opentelemetry-exporter-otlp==1.21.0
+neural_hive_observability==1.1.0
 structlog==23.2.0
 
 # Utilities

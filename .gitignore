@@ -22,3 +22,10 @@ logs/push-*.log
 backups/manifests-*/
 *.yaml.bak
 *.yml.bak
+
+# Large files - excluded from git
+awscliv2.zip
+minikube
+infrastructure/terraform-simple/.terraform/
+infrastructure/terraform/modules/observability-stack/.terraform/
+*.terraform/

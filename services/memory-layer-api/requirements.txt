@@ -26,4 +26,4 @@ httpx>=0.25.2
 python-json-logger>=2.0.7
 
 # Internal libraries (installed via Dockerfile)
-# neural_hive_observability @ file:///app/libraries/python/neural_hive_observability
+neural_hive_observability @ file:///app/libraries/python/neural_hive_observability

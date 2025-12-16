@@ -9,6 +9,7 @@ import structlog
 from datetime import datetime, timedelta
 from typing import Dict
 
+from neural_hive_observability import get_tracer
 from src.services.semantic_parser import SemanticParser
 from src.services.dag_generator import DAGGenerator
 from src.services.risk_scorer import RiskScorer
@@ -60,6 +61,7 @@ class SemanticTranslationOrchestrator:
         intent_id = intent_envelope.get('id')
         intent = intent_envelope.get('intent', {})
         domain = intent.get('domain')
+        tracer = get_tracer()
 
         # Log de debug para rastrear propagação do correlation_id
         # Buscar correlation_id em ambos os formatos (camelCase do Gateway e snake_case legado)
@@ -85,18 +87,25 @@ class SemanticTranslationOrchestrator:
 
             # B2: Enrich context (Semantic Parser)
             logger.info('B2: Enriquecendo contexto', intent_id=intent_id)
-            intermediate_repr = await self.parser.parse(intent_envelope)
+            with tracer.start_as_current_span("semantic_parsing") as span:
+                span.set_attribute("neural.hive.intent_id", intent_id)
+                intermediate_repr = await self.parser.parse(intent_envelope)
 
             # B3: Decompose into DAG
             logger.info('B3: Gerando DAG de tarefas', intent_id=intent_id)
-            tasks, execution_order = self.dag_gen.generate(intermediate_repr)
+            with tracer.start_as_current_span("dag_generation") as span:
+                span.set_attribute("neural.hive.plan_id", intent_envelope.get('plan_id'))
+                tasks, execution_order = self.dag_gen.generate(intermediate_repr)
+                span.set_attribute("neural.hive.dag_node_count", len(tasks))
 
             # B4: Evaluate risk
             logger.info('B4: Avaliando risco', intent_id=intent_id)
-            risk_score, risk_band, risk_factors = self.risk_scorer.score(
-                intermediate_repr,
-                tasks
-            )
+            with tracer.start_as_current_span("risk_scoring") as span:
+                risk_score, risk_band, risk_factors = self.risk_scorer.score(
+                    intermediate_repr,
+                    tasks
+                )
+                span.set_attribute("neural.hive.risk_score", risk_score)
 
             # Check if requires human review
             if risk_score >= 0.95:

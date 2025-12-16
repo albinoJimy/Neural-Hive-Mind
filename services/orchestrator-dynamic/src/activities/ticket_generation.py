@@ -7,6 +7,7 @@ from typing import Dict, Any, List
 
 from temporalio import activity
 import structlog
+from neural_hive_resilience.circuit_breaker import CircuitBreakerError
 
 from src.scheduler import IntelligentScheduler
 
@@ -461,6 +462,13 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 f'Ticket {ticket_id} persistido no MongoDB',
                 plan_id=ticket['plan_id']
             )
+        except CircuitBreakerError:
+            activity.logger.warning(
+                'execution_ticket_persist_circuit_open',
+                ticket_id=ticket_id,
+                plan_id=ticket.get('plan_id')
+            )
+            # Degradação: manter publicação e registrar alerta
         except Exception as db_error:
             # Log do erro mas não falha a publicação do ticket
             # O ticket já foi publicado no Kafka com sucesso

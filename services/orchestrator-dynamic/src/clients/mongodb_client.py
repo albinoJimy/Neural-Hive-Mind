@@ -14,6 +14,8 @@ from pymongo.errors import DuplicateKeyError, PyMongoError
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 import structlog
 
+from neural_hive_resilience.circuit_breaker import MonitoredCircuitBreaker, CircuitBreakerError
+
 logger = structlog.get_logger()
 
 
@@ -39,6 +41,10 @@ class MongoDBClient:
         self.workflow_results = None
         self.incidents = None
         self.telemetry_buffer = None
+        self.execution_ticket_breaker = None
+        self.validation_audit_breaker = None
+        self.workflow_results_breaker = None
+        self.circuit_breaker_enabled = getattr(config, "CIRCUIT_BREAKER_ENABLED", False)
 
     async def initialize(self):
         """Inicializar cliente MongoDB e criar índices."""
@@ -49,8 +55,9 @@ class MongoDBClient:
         # Motor 3.7+ requer snake_case para parameter names
         self.client = AsyncIOMotorClient(
             mongodb_uri,
-            maxPoolSize=100,                      # Motor aceita camelCase via pymongo
-            serverSelectionTimeoutMS=5000,        # Motor aceita camelCase via pymongo
+            max_pool_size=self.config.MONGODB_MAX_POOL_SIZE,
+            min_pool_size=self.config.MONGODB_MIN_POOL_SIZE,
+            server_selection_timeout_ms=5000,
             retryWrites=True,
             w='majority'
         )
@@ -63,6 +70,44 @@ class MongoDBClient:
         self.workflow_results = self.db['workflow_results']
         self.incidents = self.db['incidents']
         self.telemetry_buffer = self.db['telemetry_buffer']
+
+        if self.circuit_breaker_enabled:
+            self.execution_ticket_breaker = MonitoredCircuitBreaker(
+                service_name=self.config.service_name,
+                circuit_name="execution_ticket_persistence",
+                fail_max=self.config.CIRCUIT_BREAKER_FAIL_MAX,
+                timeout_duration=self.config.CIRCUIT_BREAKER_TIMEOUT,
+                recovery_timeout=getattr(
+                    self.config,
+                    "CIRCUIT_BREAKER_RECOVERY_TIMEOUT",
+                    self.config.CIRCUIT_BREAKER_TIMEOUT,
+                ),
+                expected_exception=Exception,
+            )
+            self.validation_audit_breaker = MonitoredCircuitBreaker(
+                service_name=self.config.service_name,
+                circuit_name="validation_audit_persistence",
+                fail_max=self.config.CIRCUIT_BREAKER_FAIL_MAX,
+                timeout_duration=self.config.CIRCUIT_BREAKER_TIMEOUT,
+                recovery_timeout=getattr(
+                    self.config,
+                    "CIRCUIT_BREAKER_RECOVERY_TIMEOUT",
+                    self.config.CIRCUIT_BREAKER_TIMEOUT,
+                ),
+                expected_exception=Exception,
+            )
+            self.workflow_results_breaker = MonitoredCircuitBreaker(
+                service_name=self.config.service_name,
+                circuit_name="workflow_result_persistence",
+                fail_max=self.config.CIRCUIT_BREAKER_FAIL_MAX,
+                timeout_duration=self.config.CIRCUIT_BREAKER_TIMEOUT,
+                recovery_timeout=getattr(
+                    self.config,
+                    "CIRCUIT_BREAKER_RECOVERY_TIMEOUT",
+                    self.config.CIRCUIT_BREAKER_TIMEOUT,
+                ),
+                expected_exception=Exception,
+            )
 
         # Criar índices
         await self._create_indexes()
@@ -141,7 +186,11 @@ class MongoDBClient:
         document['_id'] = ticket['ticket_id']
 
         try:
-            await self.execution_tickets.insert_one(document)
+            await self._execute_with_breaker(
+                self.execution_ticket_breaker,
+                self.execution_tickets.insert_one,
+                document
+            )
             logger.info(
                 'Execution ticket salvo',
                 ticket_id=ticket['ticket_id'],
@@ -149,7 +198,9 @@ class MongoDBClient:
             )
         except DuplicateKeyError:
             # Se já existe, atualizar
-            await self.execution_tickets.replace_one(
+            await self._execute_with_breaker(
+                self.execution_ticket_breaker,
+                self.execution_tickets.replace_one,
                 {'ticket_id': ticket['ticket_id']},
                 document
             )
@@ -157,6 +208,13 @@ class MongoDBClient:
                 'Execution ticket atualizado',
                 ticket_id=ticket['ticket_id']
             )
+        except CircuitBreakerError:
+            logger.warning(
+                'execution_ticket_circuit_open',
+                ticket_id=ticket['ticket_id'],
+                plan_id=ticket['plan_id']
+            )
+            raise
 
     async def update_ticket_status(self, ticket_id: str, status: str, **kwargs):
         """
@@ -214,7 +272,11 @@ class MongoDBClient:
 
         @retry_decorator
         async def _persist():
-            await self.validation_audit.insert_one(document)
+            await self._execute_with_breaker(
+                self.validation_audit_breaker,
+                self.validation_audit.insert_one,
+                document
+            )
 
         try:
             await _persist()
@@ -230,6 +292,13 @@ class MongoDBClient:
                 workflow_id=workflow_id,
                 error=str(e)
             )
+        except CircuitBreakerError:
+            logger.warning(
+                'validation_audit_circuit_open',
+                plan_id=plan_id,
+                workflow_id=workflow_id
+            )
+            raise
 
     async def save_workflow_result(self, workflow_result: Dict[str, Any]) -> None:
         """
@@ -245,7 +314,9 @@ class MongoDBClient:
 
         @retry_decorator
         async def _persist():
-            await self.workflow_results.replace_one(
+            await self._execute_with_breaker(
+                self.workflow_results_breaker,
+                self.workflow_results.replace_one,
                 {'_id': document.get('_id')},
                 document,
                 upsert=True
@@ -265,6 +336,12 @@ class MongoDBClient:
                 workflow_id=workflow_id,
                 error=str(e)
             )
+        except CircuitBreakerError:
+            logger.warning(
+                'workflow_result_circuit_open',
+                workflow_id=workflow_id
+            )
+            raise
 
     async def save_incident(self, incident_event: Dict[str, Any]) -> None:
         """
@@ -324,3 +401,12 @@ class MongoDBClient:
         if self.client:
             self.client.close()
             logger.info('MongoDB client fechado')
+
+    async def _execute_with_breaker(self, breaker, func, *args, **kwargs):
+        """
+        Executa operação MongoDB protegida por circuit breaker (quando habilitado).
+        """
+        if not self.circuit_breaker_enabled or breaker is None:
+            return await func(*args, **kwargs)
+
+        return await breaker.call_async(func, *args, **kwargs)

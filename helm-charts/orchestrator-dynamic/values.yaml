@@ -1,5 +1,5 @@
 image:
-  repository: <registry>/orchestrator-dynamic
+  repository: 37.60.241.150:30500/orchestrator-dynamic
   tag: "1.0.0"
   pullPolicy: IfNotPresent
 
@@ -61,14 +61,16 @@ config:
     schemasBasePath: /app/schemas
 
   postgres:
-    host: postgres-temporal-headless.temporal-postgres.svc.cluster.local
-    port: 5432
+    host: pgbouncer-temporal.temporal-postgres.svc.cluster.local
+    port: 6432
     database: temporal
     sslMode: require
 
   mongodb:
     uri: mongodb://mongodb-0.mongodb-headless.mongodb-cluster.svc.cluster.local:27017,mongodb-1.mongodb-headless.mongodb-cluster.svc.cluster.local:27017,mongodb-2.mongodb-headless.mongodb-cluster.svc.cluster.local:27017/?replicaSet=rs0
     database: neural_hive_orchestration
+    maxPoolSize: 100  # Tuneable via Helm for replica-based sizing
+    minPoolSize: 10   # Maintain warm connections for burst traffic
 
   redis:
     clusterNodes: redis-cluster.redis-cluster.svc.cluster.local:6379
@@ -76,6 +78,7 @@ config:
 
   scheduler:
     enableIntelligentScheduler: true
+    enableMlEnhancedScheduling: true
     maxParallelTickets: 100
 
   # ML Scheduling Optimization (Dual-mode: Remote Optimizer + Local Fallback)
@@ -90,6 +93,10 @@ config:
 
   # ML Predictions e Feature Engineering
   ml:
+    predictionsEnabled: true
+    driftDetectionEnabled: true
+    driftBaselineEnabled: true
+    backfillErrors: false
     # Local Load Prediction (Fallback Heurístico)
     localLoadPrediction:
       enabled: true  # Sempre habilitado para fallback
@@ -117,6 +124,11 @@ config:
     initialIntervalMs: 1000
     backoffCoefficient: 2.0
     maxIntervalMs: 60000
+  circuitBreaker:
+    enabled: true
+    failMax: 5           # Trip after 5 failures
+    timeoutSeconds: 60   # Open for 60s
+    recoveryTimeoutSeconds: 30  # Half-open after 30s
 
   observability:
     otelExporterEndpoint: http://otel-collector.observability.svc.cluster.local:4317
@@ -125,7 +137,7 @@ config:
   # Vault Integration
   # Habilitado por padrão em produção para gerenciamento seguro de credenciais
   vault:
-    enabled: true  # Mudar para true em produção para zero-trust security
+    enabled: false  # Mudar para true em produção para zero-trust security
     address: http://vault.vault.svc.cluster.local:8200
     namespace: ""
     authMethod: kubernetes
@@ -140,11 +152,12 @@ config:
   # SPIFFE Integration
   # Habilitado por padrão em produção para autenticação mTLS entre serviços
   spiffe:
-    enabled: true  # Mudar para true em produção para zero-trust authentication
+    enabled: false  # Mudar para true em produção para zero-trust authentication
     socketPath: unix:///run/spire/sockets/agent.sock
     trustDomain: neural-hive.local
-    jwtAudience: service-registry.neural-hive.local  # Audience para Service Registry
+    jwtAudience: vault.neural-hive.local  # Audience para JWT-SVID
     enableX509: true  # Habilitar X.509-SVID para mTLS
+    fallbackAllowed: false
 
     # ClickHouse para dados históricos (usado pelo Optimizer Agents)
     clickhouse:
@@ -248,6 +261,12 @@ config:
       backoffLimit: 2  # Retry até 2 vezes
       successfulJobsHistoryLimit: 3
       failedJobsHistoryLimit: 3
+      minSamples: 100
+      durationErrorThreshold: 0.15
+      anomalyContamination: 0.05
+      driftBaselineEnabled: true
+      mlflowTrackingUri: http://mlflow.mlflow.svc.cluster.local:5000
+      mlflowExperimentName: orchestrator-predictive-models
       resources:
         requests:
           cpu: 1000m
@@ -297,6 +316,10 @@ config:
         high: 3
         medium: 2
         low: 1
+      resource_limits: neuralhive/orchestrator/resource_limits
+      sla_enforcement: neuralhive/orchestrator/sla_enforcement
+      feature_flags: neuralhive/orchestrator/feature_flags
+      security_constraints: neuralhive/orchestrator/security_constraints  # NOVO
 
     # Feature Flags
     featureFlags:
@@ -309,6 +332,25 @@ config:
         - production
         - staging
       premiumTenants: []
+
+    security:  # NOVO
+      enabled: true
+      allowed_tenants: []  # Vazio = todos permitidos
+      rbac_roles:
+        admin@example.com:
+          - admin
+        developer@example.com:
+          - developer
+        viewer@example.com:
+          - viewer
+      data_residency_regions:
+        - us-east-1
+        - us-west-2
+        - eu-west-1
+      tenant_rate_limits:
+        tenant-rate-limited: 100  # Override específico; demais usam default_tenant_rate_limit
+      global_rate_limit: 1000
+      default_tenant_rate_limit: 100
 
 # OPA Deployment
 opa:

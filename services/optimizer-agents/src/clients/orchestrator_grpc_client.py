@@ -3,6 +3,7 @@ from typing import Dict, Optional
 import grpc
 import structlog
 
+from neural_hive_observability import instrument_grpc_channel
 from src.config.settings import get_settings
 
 logger = structlog.get_logger()
@@ -39,6 +40,7 @@ class OrchestratorGrpcClient:
                     ("grpc.keepalive_time_ms", 30000),
                 ],
             )
+            self.channel = instrument_grpc_channel(self.channel, service_name='orchestrator-dynamic')
 
             # Criar stub quando proto estiver compilado
             if PROTO_AVAILABLE:

@@ -5,7 +5,7 @@ NOTA: Este módulo usa Pydantic v2 com pydantic-settings.
 - model_config substitui class Config (Pydantic v2)
 - SettingsConfigDict para configuração de BaseSettings
 """
-from typing import Optional
+from typing import Optional, List
 from functools import lru_cache
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -89,6 +89,8 @@ class OrchestratorSettings(BaseSettings):
     mongodb_database: str = Field(default='neural_hive_orchestration', description='Database MongoDB')
     mongodb_collection_tickets: str = Field(default='execution_tickets', description='Collection de tickets')
     mongodb_collection_workflows: str = Field(default='workflows', description='Collection de workflows')
+    MONGODB_MAX_POOL_SIZE: int = Field(default=100, ge=10, le=500)
+    MONGODB_MIN_POOL_SIZE: int = Field(default=10, ge=5, le=50)
 
     # Redis (cache opcional)
     redis_cluster_nodes: str = Field(..., description='Nodes do cluster Redis')
@@ -107,10 +109,44 @@ class OrchestratorSettings(BaseSettings):
 
     # Scheduler
     enable_intelligent_scheduler: bool = Field(default=True, description='Habilitar scheduler inteligente')
+    enable_ml_enhanced_scheduling: bool = Field(
+        default=False,
+        description='Habilitar ML-enhanced scheduling com modelos treinados (requer modelos em Production)'
+    )
     scheduler_max_parallel_tickets: int = Field(default=100, description='Máximo de tickets paralelos')
     scheduler_priority_weights: dict = Field(
         default={'risk': 0.4, 'qos': 0.3, 'sla': 0.3},
         description='Pesos de priorização (risk, qos, sla)'
+    )
+
+    # ML Predictions
+    ml_predictions_enabled: bool = Field(
+        default=True,
+        description="Habilita predições ML centralizadas"
+    )
+    mlflow_tracking_uri: str = Field(
+        default="http://mlflow.mlflow:5000",
+        description="URI do servidor MLflow"
+    )
+    ml_scheduling_model_type: str = Field(
+        default="xgboost",
+        description="Tipo de modelo para SchedulingPredictor"
+    )
+    ml_anomaly_model_type: str = Field(
+        default="isolation_forest",
+        description="Tipo de modelo para AnomalyDetector"
+    )
+    ml_load_forecast_horizons: List[int] = Field(
+        default=[60, 360, 1440],
+        description="Horizontes de forecast em minutos"
+    )
+    ml_forecast_cache_ttl_seconds: int = Field(
+        default=300,
+        description="TTL do cache de forecasts"
+    )
+    ml_drift_detection_enabled: bool = Field(
+        default=True,
+        description="Habilita detecção de drift"
     )
 
     # SLA Tracking
@@ -158,7 +194,7 @@ class OrchestratorSettings(BaseSettings):
     vault_max_retries: int = Field(default=3, description='Número de tentativas de retry')
     vault_fail_open: bool = Field(
         default=True,
-        description='Fail-open em erros do Vault (fallback para env vars)'
+        description='Fail-open em erros do Vault (fallback para env vars); propagado para VaultConfig.fail_open'
     )
     vault_token_renewal_threshold: float = Field(
         default=0.2,
@@ -182,6 +218,10 @@ class OrchestratorSettings(BaseSettings):
     spiffe_jwt_audience: str = Field(
         default='vault.neural-hive.local',
         description='Audience para JWT-SVID'
+    )
+    spiffe_jwt_ttl_seconds: int = Field(
+        default=3600,
+        description='TTL desejado (segundos) para JWT-SVIDs solicitados ao SPIRE Workload API'
     )
     spiffe_enable_x509: bool = Field(
         default=False,
@@ -287,6 +327,10 @@ class OrchestratorSettings(BaseSettings):
     retry_initial_interval_ms: int = Field(default=1000, description='Intervalo inicial de retry')
     retry_backoff_coefficient: float = Field(default=2.0, description='Coeficiente de backoff exponencial')
     retry_max_interval_ms: int = Field(default=60000, description='Intervalo máximo de retry')
+    CIRCUIT_BREAKER_ENABLED: bool = Field(default=True, description='Habilitar circuit breaker global MongoDB')
+    CIRCUIT_BREAKER_FAIL_MAX: int = Field(default=5, description='Falhas consecutivas para abrir circuito')
+    CIRCUIT_BREAKER_TIMEOUT: int = Field(default=60, description='Tempo em segundos com circuito aberto')
+    CIRCUIT_BREAKER_RECOVERY_TIMEOUT: int = Field(default=30, description='Tempo em segundos para half-open')
 
     # Observabilidade
     otel_exporter_endpoint: str = Field(
@@ -336,6 +380,44 @@ class OrchestratorSettings(BaseSettings):
     opa_policy_feature_flags: str = Field(
         default='neuralhive/orchestrator/feature_flags',
         description='Path da política de feature flags'
+    )
+    opa_policy_security_constraints: str = Field(
+        default='neuralhive/orchestrator/security_constraints',
+        description='Path da política de security constraints'
+    )
+
+    # OPA Security Parameters
+    opa_security_enabled: bool = Field(
+        default=True,
+        description='Habilitar validação de security constraints'
+    )
+    opa_allowed_tenants: list = Field(
+        default_factory=lambda: [],
+        description='Whitelist de tenants permitidos (vazio = todos permitidos)'
+    )
+    opa_rbac_roles: dict = Field(
+        default_factory=lambda: {
+            'admin@example.com': ['admin'],
+            'developer@example.com': ['developer'],
+            'viewer@example.com': ['viewer']
+        },
+        description='Mapeamento de usuários para roles RBAC'
+    )
+    opa_data_residency_regions: list = Field(
+        default_factory=lambda: ['us-east-1', 'us-west-2', 'eu-west-1'],
+        description='Regiões permitidas para data residency'
+    )
+    opa_tenant_rate_limits: dict = Field(
+        default_factory=lambda: {},
+        description='Rate limits por tenant (req/min)'
+    )
+    opa_global_rate_limit: int = Field(
+        default=1000,
+        description='Rate limit global (req/min)'
+    )
+    opa_default_tenant_rate_limit: int = Field(
+        default=100,
+        description='Rate limit padrão para tenants sem configuração específica (fallback quando tenant_rate_limits não definido; se ausente, usa global)'
     )
 
     # OPA Policy Parameters

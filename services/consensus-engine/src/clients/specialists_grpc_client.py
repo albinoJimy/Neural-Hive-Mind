@@ -6,6 +6,7 @@ from typing import List, Dict, Any, Optional
 from tenacity import AsyncRetrying, stop_after_attempt, wait_exponential, RetryError
 import structlog
 from google.protobuf.timestamp_pb2 import Timestamp
+from neural_hive_observability import instrument_grpc_channel
 
 
 def _json_datetime_serializer(obj):
@@ -52,6 +53,10 @@ class SpecialistsGrpcClient:
                     ('grpc.keepalive_time_ms', 30000),
                     ('grpc.keepalive_timeout_ms', 10000),
                 ]
+            )
+            channel = instrument_grpc_channel(
+                channel,
+                service_name=f'specialist-{specialist_type}'
             )
 
             # Criar stub

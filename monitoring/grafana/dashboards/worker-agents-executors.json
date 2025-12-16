@@ -1,0 +1,37 @@
+{
+  "title": "Worker Agents Executors",
+  "schemaVersion": 30,
+  "version": 1,
+  "panels": [
+    {
+      "title": "Task execution rate",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "sum by (task_type,status) (worker_agent_tickets_completed_total)",
+          "legendFormat": "{{task_type}} {{status}}"
+        }
+      ]
+    },
+    {
+      "title": "Build duration p95",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(worker_agent_build_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+    {
+      "title": "External API errors",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "sum by (method, status) ({__name__=~\"worker_agent_code_forge_api_calls_total|worker_agent_argocd_api_calls_total|worker_agent_github_actions_api_calls_total\",status=\"error\"})",
+          "legendFormat": "{{method}} {{status}}"
+        }
+      ]
+    }
+  ]
+}

@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     MONGODB_DATABASE: str = 'neural_hive'
     MONGODB_COLLECTION_LEDGER: str = 'strategic_decisions_ledger'
     MONGODB_COLLECTION_EXCEPTIONS: str = 'exception_approvals'
+    MONGODB_MAX_POOL_SIZE: int = 100
+    MONGODB_MIN_POOL_SIZE: int = 10
 
     # Redis
     REDIS_CLUSTER_NODES: str
@@ -77,6 +79,10 @@ class Settings(BaseSettings):
     # Observability
     OTEL_EXPORTER_ENDPOINT: str = 'http://jaeger-collector:4317'
     METRICS_PORT: int = 9090
+    CIRCUIT_BREAKER_ENABLED: bool = True
+    CIRCUIT_BREAKER_FAIL_MAX: int = 5
+    CIRCUIT_BREAKER_TIMEOUT: int = 60
+    CIRCUIT_BREAKER_RECOVERY_TIMEOUT: int = 30
 
 
 @lru_cache()

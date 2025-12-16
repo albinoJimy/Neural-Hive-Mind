@@ -1,0 +1,40 @@
+FROM python:3.9-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY ml_pipelines/monitoring/requirements.txt /app/monitoring/requirements.txt
+COPY ml_pipelines/training/requirements-dataset-generation.txt /app/training/requirements.txt
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r /app/monitoring/requirements.txt \
+    && pip install --no-cache-dir -r /app/training/requirements.txt
+
+# Copy neural_hive_specialists library
+COPY libraries/python/neural_hive_specialists /app/libraries/python/neural_hive_specialists
+RUN pip install -e /app/libraries/python/neural_hive_specialists
+
+# Copy ML pipelines code
+COPY ml_pipelines/monitoring /app/monitoring
+COPY ml_pipelines/training /app/training
+COPY schemas /app/schemas
+
+# Set Python path
+ENV PYTHONPATH=/app:/app/libraries/python:$PYTHONPATH
+
+# Create data directory
+RUN mkdir -p /data/training
+
+# Run as non-root user
+RUN useradd -m -u 1000 mlops && chown -R mlops:mlops /app /data
+USER mlops
+
+# Default command (overridden by CronJob)
+CMD ["python", "/app/monitoring/auto_retrain.py"]

@@ -1,0 +1,21 @@
+# Ordem recomendada de build - Neural Hive-Mind
+
+Fase 1 - Imagens Base
+python-ml-base
+python-grpc-base
+python-nlp-base
+
+Fase 2 - Serviços sem dependências diretas entre si
+gateway-intencoes
+semantic-translation-engine
+orchestrator-dynamic
+
+Fase 3 - Specialists (podem rodar em paralelo)
+specialist-business
+specialist-technical
+specialist-behavior
+specialist-evolution
+specialist-architecture
+
+Fase 4 - Serviços dependentes gRPC
+consensus-engine

@@ -3,6 +3,8 @@ from aiokafka import AIOKafkaProducer
 from typing import Optional
 import json
 
+from neural_hive_observability import instrument_kafka_producer
+
 from ..config import Settings
 from ..models import StrategicDecision
 
@@ -29,6 +31,7 @@ class StrategicDecisionProducer:
                 compression_type='snappy'
             )
 
+            self.producer = instrument_kafka_producer(self.producer)
             await self.producer.start()
             logger.info(
                 "strategic_decision_producer_initialized",

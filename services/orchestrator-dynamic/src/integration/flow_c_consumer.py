@@ -16,8 +16,14 @@ import os
 import io
 from typing import Optional
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
-from opentelemetry import trace
 from prometheus_client import Counter
+from neural_hive_observability import (
+    get_tracer,
+    trace_plan,
+    instrument_kafka_consumer,
+    instrument_kafka_producer
+)
+from neural_hive_observability.context import extract_context_from_headers, set_baggage
 
 # Avro support
 try:
@@ -31,7 +37,7 @@ except ImportError:
 from neural_hive_integration.orchestration.flow_c_orchestrator import FlowCOrchestrator
 
 logger = structlog.get_logger()
-tracer = trace.get_tracer(__name__)
+tracer = get_tracer(__name__)
 
 # Metrics
 messages_consumed = Counter(
@@ -172,7 +178,10 @@ class FlowCConsumer:
             })
 
         # Initialize consumer
-        self.consumer = AIOKafkaConsumer(self.input_topic, **consumer_config)
+        self.consumer = instrument_kafka_consumer(
+            AIOKafkaConsumer(self.input_topic, **consumer_config),
+            service_name="orchestrator-dynamic-flowc"
+        )
         await self.consumer.start()
 
         # Construir config do producer
@@ -191,7 +200,10 @@ class FlowCConsumer:
             })
 
         # Initialize producer for incidents
-        self.producer = AIOKafkaProducer(**producer_config)
+        self.producer = instrument_kafka_producer(
+            AIOKafkaProducer(**producer_config),
+            service_name="orchestrator-dynamic-flowc"
+        )
         await self.producer.start()
 
         # Initialize orchestrator
@@ -234,13 +246,34 @@ class FlowCConsumer:
                 self.logger.error("consumption_error", error=str(e))
                 await asyncio.sleep(5)
 
-    @tracer.start_as_current_span("flow_c_consumer.process_message")
+    @trace_plan
     async def _process_message(self, message):
         """Process single consolidated decision message."""
         messages_consumed.inc()
         consolidated_decision = None
 
         try:
+            # Preserve tracing headers as binary for W3C traceparent/baggage compatibility
+            extract_context_from_headers(message.headers or [])
+
+            business_headers = {}
+            for key, value in (message.headers or []):
+                if key in ('x-neural-hive-intent-id', 'x-neural-hive-plan-id'):
+                    if isinstance(value, bytes):
+                        try:
+                            business_headers[key] = value.decode('utf-8')
+                        except Exception:
+                            continue
+                    elif value is not None:
+                        business_headers[key] = str(value)
+
+            intent_id = business_headers.get('x-neural-hive-intent-id')
+            plan_id = business_headers.get('x-neural-hive-plan-id')
+            if intent_id:
+                set_baggage('intent_id', intent_id)
+            if plan_id:
+                set_baggage('plan_id', plan_id)
+
             # Deserializar mensagem (suporta Avro e JSON)
             raw_value = message.value
             if isinstance(raw_value, bytes):
@@ -275,6 +308,14 @@ class FlowCConsumer:
                 plan_id=consolidated_decision.get("plan_id"),
                 decision_id=consolidated_decision.get("decision_id"),
             )
+            from opentelemetry import trace
+            span = trace.get_current_span()
+            span.set_attribute("neural.hive.intent.id", consolidated_decision.get("intent_id"))
+            span.set_attribute("neural.hive.plan.id", consolidated_decision.get("plan_id"))
+            span.set_attribute("neural.hive.decision.id", consolidated_decision.get("decision_id"))
+            span.set_attribute("messaging.kafka.topic", message.topic)
+            span.set_attribute("messaging.kafka.partition", message.partition)
+            span.set_attribute("messaging.kafka.offset", message.offset)
 
             # Execute Flow C
             result = await self.orchestrator.execute_flow_c(consolidated_decision)

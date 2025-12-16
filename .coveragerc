@@ -1,0 +1,35 @@
+[run]
+source = 
+    libraries/python/neural_hive_specialists
+    services/
+omit =
+    */tests/*
+    */proto_gen/*
+    */__pycache__/*
+    */setup.py
+    */conftest.py
+    */.venv/*
+    */venv/*
+branch = True
+parallel = True
+
+[report]
+precision = 2
+show_missing = True
+skip_covered = False
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod
+    @overload
+
+[html]
+directory = htmlcov
+title = Neural Hive-Mind Coverage Report
+
+[xml]
+output = coverage.xml

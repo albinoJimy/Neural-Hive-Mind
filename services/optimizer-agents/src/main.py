@@ -6,6 +6,11 @@ from threading import Thread
 import structlog
 import uvicorn
 from fastapi import FastAPI
+from neural_hive_observability import (
+    init_observability,
+    instrument_kafka_consumer,
+    instrument_kafka_producer,
+)
 
 from src.clients import (
     MongoDBClient,
@@ -33,7 +38,6 @@ from src.consumers import InsightsConsumer, TelemetryConsumer, ExperimentsConsum
 from src.producers import OptimizationProducer, ExperimentProducer
 from src.grpc_service import OptimizerServicer, GrpcServer
 from src.config.settings import get_settings
-from src.observability.tracing import setup_tracing
 from src.observability.metrics import setup_metrics
 from src.services.experiment_manager import ExperimentManager
 from src.services.optimization_engine import OptimizationEngine
@@ -104,7 +108,16 @@ async def startup():
     logger.info("optimizer_agents_starting", service=settings.service_name, version=settings.service_version)
 
     # Inicializar observabilidade
-    tracer = setup_tracing(settings)
+    init_observability(
+        service_name='optimizer-agents',
+        service_version=settings.service_version,
+        neural_hive_component='optimizer-agent',
+        neural_hive_layer='otimizacao',
+        neural_hive_domain='continuous-improvement',
+        otel_endpoint=settings.otel_endpoint,
+        enable_kafka=True,
+        enable_grpc=True
+    )
     setup_metrics()
     # Criar instância de métricas para ML subsystem
     from src.observability.metrics import OptimizerMetrics
@@ -321,11 +334,13 @@ async def startup():
         # Optimization Producer
         optimization_producer = OptimizationProducer(settings=settings)
         optimization_producer.start()
+        optimization_producer = instrument_kafka_producer(optimization_producer)
         logger.info("optimization_producer_initialized")
 
         # Experiment Producer
         experiment_producer = ExperimentProducer(settings=settings)
         experiment_producer.start()
+        experiment_producer = instrument_kafka_producer(experiment_producer)
         logger.info("experiment_producer_initialized")
 
         # Atualizar WeightRecalibrator e SLOAdjuster com producer e métricas
@@ -348,6 +363,7 @@ async def startup():
             optimization_engine=optimization_engine,
         )
         insights_consumer.start()
+        insights_consumer = instrument_kafka_consumer(insights_consumer)
         logger.info("insights_consumer_initialized")
 
         # Telemetry Consumer
@@ -356,6 +372,7 @@ async def startup():
             optimization_engine=optimization_engine,
         )
         telemetry_consumer.start()
+        telemetry_consumer = instrument_kafka_consumer(telemetry_consumer)
         logger.info("telemetry_consumer_initialized")
 
         # Experiments Consumer
@@ -364,6 +381,7 @@ async def startup():
             experiment_manager=experiment_manager,
         )
         experiments_consumer.start()
+        experiments_consumer = instrument_kafka_consumer(experiments_consumer)
         logger.info("experiments_consumer_initialized")
 
         logger.info("kafka_consumers_initialized")

@@ -26,6 +26,7 @@ opentelemetry-api>=1.21.0
 opentelemetry-sdk>=1.21.0
 opentelemetry-instrumentation-fastapi>=0.42b0
 opentelemetry-exporter-otlp>=1.21.0
+neural_hive_observability==1.1.0
 
 # Utilities
 python-json-logger>=2.0.0

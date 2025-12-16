@@ -28,12 +28,17 @@ import grpc
 from . import ticket_service_pb2
 from . import ticket_service_pb2_grpc
 
+from neural_hive_observability import get_tracer
+from neural_hive_observability.context import set_baggage
+from neural_hive_observability.grpc_instrumentation import extract_grpc_context
+
 from ..database import get_postgres_client
 from ..models import ExecutionTicket, TicketStatus
 from ..models.jwt_token import generate_token
 from ..config import get_settings
 
 logger = logging.getLogger(__name__)
+tracer = get_tracer(__name__)
 
 
 class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
@@ -53,6 +58,13 @@ class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
         ticket_id = request.ticket_id
 
         try:
+            metadata_dict = dict(context.invocation_metadata())
+            extract_grpc_context(metadata_dict)
+            if hasattr(request, "plan_id") and request.plan_id:
+                set_baggage("plan_id", request.plan_id)
+            if ticket_id:
+                set_baggage("ticket_id", ticket_id)
+
             postgres_client = await get_postgres_client()
             ticket_orm = await postgres_client.get_ticket_by_id(ticket_id)
 
@@ -85,6 +97,11 @@ class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
             ListTicketsResponse
         """
         try:
+            metadata_dict = dict(context.invocation_metadata())
+            extract_grpc_context(metadata_dict)
+            if hasattr(request, "plan_id") and request.plan_id:
+                set_baggage("plan_id", request.plan_id)
+
             postgres_client = await get_postgres_client()
 
             filters = {}
@@ -132,6 +149,13 @@ class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
         error_message = request.error_message if request.error_message else None
 
         try:
+            metadata_dict = dict(context.invocation_metadata())
+            extract_grpc_context(metadata_dict)
+            if hasattr(request, "plan_id") and request.plan_id:
+                set_baggage("plan_id", request.plan_id)
+            if ticket_id:
+                set_baggage("ticket_id", ticket_id)
+
             postgres_client = await get_postgres_client()
 
             # Verificar se ticket existe
@@ -178,6 +202,13 @@ class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
         ticket_id = request.ticket_id
 
         try:
+            metadata_dict = dict(context.invocation_metadata())
+            extract_grpc_context(metadata_dict)
+            if hasattr(request, "plan_id") and request.plan_id:
+                set_baggage("plan_id", request.plan_id)
+            if ticket_id:
+                set_baggage("ticket_id", ticket_id)
+
             settings = get_settings()
             postgres_client = await get_postgres_client()
 
@@ -197,12 +228,15 @@ class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
                 return ticket_service_pb2.GenerateTokenResponse()
 
             # Gerar token
-            token = generate_token(
-                ticket,
-                settings.jwt_secret_key,
-                settings.jwt_algorithm,
-                settings.jwt_token_expiration_seconds
-            )
+            with tracer.start_as_current_span("generate_jwt_token") as span:
+                span.set_attribute("neural.hive.ticket.id", ticket_id)
+                token = generate_token(
+                    ticket,
+                    settings.jwt_secret_key,
+                    settings.jwt_algorithm,
+                    settings.jwt_token_expiration_seconds
+                )
+                span.set_attribute("neural.hive.ticket.status", ticket.status.value)
 
             return ticket_service_pb2.GenerateTokenResponse(
                 access_token=token.access_token,

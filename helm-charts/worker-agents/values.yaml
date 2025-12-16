@@ -1,6 +1,6 @@
 image:
-  repository: 077878370245.dkr.ecr.us-east-1.amazonaws.com/neural-hive-mind/worker-agents
-  tag: 1.0.7
+  repository: 37.60.241.150:30500/worker-agents
+  tag: "1.0.0"
   pullPolicy: IfNotPresent
 
 replicaCount: 3
@@ -70,6 +70,79 @@ config:
     httpPort: 8080
     logLevel: INFO
 
+  codeForge:
+    url: http://code-forge.neural-hive-execution.svc.cluster.local:8000
+    enabled: true
+    timeoutSeconds: 14400  # 4 hours
+
+  argocd:
+    url: ""  # e.g., https://argocd.example.com
+    enabled: false
+    token: ""  # Será movido para Secret
+    tokenSecretName: argocd-token
+    tokenSecretKey: token
+
+  opa:
+    url: http://opa.neural-hive-governance.svc.cluster.local:8181
+    enabled: true
+
+  trivy:
+    enabled: true
+    timeoutSeconds: 300
+
+  testExecution:
+    timeoutSeconds: 600
+    allowedCommands:
+      - pytest
+      - npm test
+      - go test
+      - mvn test
+      - jest
+      - cargo test
+
+  vault:
+    enabled: false
+    address: http://vault.vault.svc.cluster.local:8200
+    namespace: ""
+    authMethod: kubernetes
+    kubernetesRole: worker-agents
+    tokenPath: /vault/secrets/token
+    mountKv: secret
+    mountDatabase: database
+    timeoutSeconds: 5
+    maxRetries: 3
+    failOpen: true
+
+  spiffe:
+    enabled: false
+    socketPath: unix:///run/spire/sockets/agent.sock
+    trustDomain: neural-hive.local
+    jwtAudience: vault.neural-hive.local
+    enableX509: false
+    fallbackAllowed: false
+
+  githubActions:
+    enabled: false
+    apiUrl: https://api.github.com
+    tokenSecretName: github-token
+
+  validation:
+    opa:
+      enabled: true
+      url: http://opa.neural-hive-governance.svc.cluster.local:8181
+    trivy:
+      enabled: true
+      timeout: 300
+    sonarqube:
+      enabled: false
+      url: https://sonarqube.example.com
+      tokenSecretName: sonarqube-token
+    snyk:
+      enabled: false
+      tokenSecretName: snyk-token
+    checkov:
+      enabled: false
+
 securityContext:
   runAsNonRoot: true
   runAsUser: 1000
@@ -123,6 +196,7 @@ networkPolicy:
 secrets:
   kafkaSaslUsername: ""
   kafkaSaslPassword: ""
+  argoCdToken: ""  # ArgoCD API token (base64 encoded in production)
 
 affinity:
   podAntiAffinity:

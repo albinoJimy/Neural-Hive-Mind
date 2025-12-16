@@ -1,0 +1,394 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}, "id": 100, "panels": [], "title": "\ud83d\udcc8 Overview - Worker Agents Execution", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 5, "x": 0, "y": 1},
+      "id": 1,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "worker_agent_active_tasks", "refId": "A"}],
+      "title": "Active Tasks",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 5, "x": 5, "y": 1},
+      "id": 2,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "sum(rate(worker_agent_tickets_consumed_total[5m]))", "refId": "A"}],
+      "title": "Total Tickets Consumed",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 0.7},
+              {"color": "green", "value": 0.9}
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 5, "x": 10, "y": 1},
+      "id": 3,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showThresholdLabels": false, "showThresholdMarkers": true},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_tickets_completed_total[5m]) / (rate(worker_agent_tickets_completed_total[5m]) + rate(worker_agent_tickets_failed_total[5m]))", "refId": "A"}],
+      "title": "Success Rate",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 100}
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 5, "x": 15, "y": 1},
+      "id": 4,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showThresholdLabels": false, "showThresholdMarkers": true},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "sum(kafka_consumer_lag{topic=\"execution-tickets\"})", "refId": "A"}],
+      "title": "Queue Depth",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 1},
+      "id": 5,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "sum(worker_agent_executors_registered_total)", "refId": "A"}],
+      "title": "Registered Executors",
+      "type": "stat"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5}, "id": 101, "panels": [], "title": "\u23f3 Task Execution", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 6},
+      "id": 6,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_tickets_consumed_total[5m]) by (task_type)", "refId": "A"}],
+      "title": "Tickets by Task Type",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 6},
+      "id": 7,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {"expr": "rate(worker_agent_tickets_completed_total[5m]) by (task_type)", "refId": "A", "legendFormat": "Completed {{task_type}}"},
+        {"expr": "rate(worker_agent_tickets_failed_total[5m]) by (task_type, error_type)", "refId": "B", "legendFormat": "Failed {{task_type}} {{error_type}}"}
+      ],
+      "title": "Completed vs Failed",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 6},
+      "id": 8,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {"expr": "histogram_quantile(0.50, sum(rate(worker_agent_task_duration_seconds_bucket[5m])) by (le, task_type))", "refId": "A"},
+        {"expr": "histogram_quantile(0.95, sum(rate(worker_agent_task_duration_seconds_bucket[5m])) by (le, task_type))", "refId": "B"}
+      ],
+      "title": "Task Duration by Type",
+      "type": "timeseries"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 14}, "id": 102, "panels": [], "title": "\ud83d\udce6 BUILD Executor", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 15},
+      "id": 9,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_build_tasks_executed_total[5m]) by (status)", "refId": "A"}],
+      "title": "Build Tasks",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 15},
+      "id": 10,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "histogram_quantile(0.95, rate(worker_agent_build_duration_seconds_bucket[5m])) by (stage)", "refId": "A"}],
+      "title": "Build Duration by Stage",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 15},
+      "id": 11,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_build_artifacts_generated_total[5m]) by (type)", "refId": "A"}],
+      "title": "Artifacts Generated",
+      "type": "timeseries"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 23}, "id": 103, "panels": [], "title": "\ud83d\udd3a DEPLOY Executor", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 24},
+      "id": 12,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_deploy_tasks_executed_total[5m]) by (status)", "refId": "A"}],
+      "title": "Deploy Tasks",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 24},
+      "id": 13,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "histogram_quantile(0.95, rate(worker_agent_deploy_duration_seconds_bucket[5m])) by (stage)", "refId": "A"}],
+      "title": "Deploy Duration by Stage",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 24},
+      "id": 14,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_deploy_rollbacks_total[5m]) by (reason)", "refId": "A"}],
+      "title": "Rollbacks",
+      "type": "timeseries"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 32}, "id": 104, "panels": [], "title": "\ud83d\udcdd TEST Executor", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 33},
+      "id": 15,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_test_tasks_executed_total[5m]) by (status, suite)", "refId": "A"}],
+      "title": "Test Tasks",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 0.8},
+              {"color": "green", "value": 0.9}
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 33},
+      "id": 16,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {"expr": "rate(worker_agent_tests_passed_total[5m]) / (rate(worker_agent_tests_passed_total[5m]) + rate(worker_agent_tests_failed_total[5m]))", "refId": "A", "legendFormat": "Pass Rate"}
+      ],
+      "title": "Test Pass Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 0.8},
+              {"color": "green", "value": 0.9}
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 33},
+      "id": 17,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showThresholdLabels": false, "showThresholdMarkers": true},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "worker_agent_test_coverage_percent", "refId": "A"}],
+      "title": "Test Coverage",
+      "type": "gauge"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 41}, "id": 105, "panels": [], "title": "\u2705 VALIDATE Executor", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 42},
+      "id": 18,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_validate_tasks_executed_total[5m]) by (status, tool)", "refId": "A"}],
+      "title": "Validate Tasks",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 42},
+      "id": 19,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_validate_violations_total[5m]) by (severity, tool)", "refId": "A"}],
+      "title": "Violations by Severity",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 42},
+      "id": 20,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "histogram_quantile(0.95, rate(worker_agent_validate_duration_seconds_bucket[5m])) by (tool)", "refId": "A"}],
+      "title": "Validation Duration",
+      "type": "timeseries"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 50}, "id": 106, "panels": [], "title": "\ud83d\udee0 Dependencies & Retries", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 51},
+      "id": 21,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "histogram_quantile(0.95, rate(worker_agent_dependency_wait_duration_seconds_bucket[5m]))", "refId": "A"}],
+      "title": "Dependency Wait Time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 51},
+      "id": 22,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_dependency_checks_total[5m]) by (result)", "refId": "A"}],
+      "title": "Dependency Check Results",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 51},
+      "id": 23,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_task_retries_total[5m]) by (task_type, attempt)", "refId": "A"}],
+      "title": "Task Retries",
+      "type": "timeseries"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 59}, "id": 107, "panels": [], "title": "\ud83d\udcf1 External Integrations", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 60},
+      "id": 24,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_code_forge_api_calls_total[5m]) by (method, status)", "refId": "A"}],
+      "title": "Code Forge API Calls",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 60},
+      "id": 25,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_argocd_api_calls_total[5m]) by (method, status)", "refId": "A"}],
+      "title": "ArgoCD API Calls",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 60},
+      "id": 26,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_github_actions_api_calls_total[5m]) by (method, status)", "refId": "A"}],
+      "title": "GitHub Actions API Calls",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 27,
+  "style": "dark",
+  "tags": ["neural-hive-mind", "worker-agents", "phase2", "execution"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Worker Agents - Task Execution",
+  "uid": "worker-agents-execution",
+  "version": 1
+}

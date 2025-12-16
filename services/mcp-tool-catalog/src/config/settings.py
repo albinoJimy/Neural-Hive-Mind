@@ -73,8 +73,21 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = "json"
     OTEL_EXPORTER_ENDPOINT: Optional[str] = Field(
         default="http://otel-collector:4317",
-        description="OpenTelemetry collector endpoint"
+        description="(Deprecated) OpenTelemetry collector endpoint"
     )
+    OTEL_EXPORTER_OTLP_ENDPOINT: Optional[str] = Field(
+        default="http://otel-collector:4317",
+        description="OpenTelemetry OTLP collector endpoint"
+    )
+
+    @property
+    def otel_endpoint(self) -> Optional[str]:
+        """
+        Compat helper to read OTLP endpoint.
+
+        Prefers OTEL_EXPORTER_OTLP_ENDPOINT and falls back to legacy OTEL_EXPORTER_ENDPOINT.
+        """
+        return self.OTEL_EXPORTER_OTLP_ENDPOINT or self.OTEL_EXPORTER_ENDPOINT
 
     # Analyst Agents Integration (for RAG)
     ANALYST_AGENTS_HOST: str = "analyst-agents"

@@ -38,6 +38,7 @@ data:
 
   # Observability
   otel_endpoint: {{ .Values.config.otel.endpoint | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.otel.endpoint | quote }}
   prometheus_port: {{ .Values.config.prometheus.port | quote }}
   jaeger_sampling_rate: {{ .Values.config.jaeger.samplingRate | quote }}
 

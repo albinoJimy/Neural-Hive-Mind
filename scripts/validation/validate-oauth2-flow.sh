@@ -1,4 +1,10 @@
 #!/bin/bash
+echo "⚠️  AVISO: Este script foi consolidado no CLI unificado de validação."
+echo "⚠️  Use: scripts/validate.sh --target <TARGET>"
+echo "⚠️  Exemplo: scripts/validate.sh --target specialists"
+echo ""
+echo "Executando script legado..."
+echo ""
 
 # validate-oauth2-flow.sh
 # Script de validação do fluxo OAuth2 com Keycloak

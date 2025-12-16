@@ -1,0 +1,45 @@
+playbook_id: "ticket-timeout-recovery-v1"
+playbook_name: "ticket_timeout_recovery"
+playbook_type: "ORCHESTRATION"
+version: "1.0.0"
+description: "Recupera tickets que excederam SLA ou timeout realocando e reiniciando worker se necessário"
+parameters_schema:
+  type: object
+  properties:
+    ticket_id:
+      type: string
+    workflow_id:
+      type: string
+    worker_id:
+      type: string
+    namespace:
+      type: string
+  required: [ticket_id, workflow_id, worker_id, namespace]
+timeout_seconds: 300
+rollback_playbook: null
+validation_checks:
+  - "ticket_status_updated"
+  - "worker_responsive"
+status: "AVAILABLE"
+actions:
+  - name: "check_worker_health"
+    type: "check_worker_health"
+    parameters:
+      worker_id: "{{ worker_id }}"
+      namespace: "{{ namespace }}"
+  - name: "restart_worker_pod"
+    type: "restart_pod"
+    parameters:
+      pod_name: "{{ worker_id }}"
+      namespace: "{{ namespace }}"
+  - name: "reallocate_ticket"
+    type: "reallocate_ticket"
+    parameters:
+      ticket_id: "{{ ticket_id }}"
+      workflow_id: "{{ workflow_id }}"
+      previous_worker_id: "{{ worker_id }}"
+  - name: "update_ticket_status"
+    type: "update_ticket_status"
+    parameters:
+      ticket_id: "{{ ticket_id }}"
+      status: "RETRYING"

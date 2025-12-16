@@ -1,0 +1,561 @@
+# RBAC inicial para service accounts do Neural Hive-Mind
+# Princípio de least privilege
+
+---
+# ServiceAccount para componentes cognitivos
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cognitive-processor
+  namespace: neural-hive-cognition
+  labels:
+    neuralhive/component: cognitive
+    neuralhive/tier: processing
+
+---
+# ServiceAccount para orquestrador
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: orchestration-engine
+  namespace: neural-hive-orchestration
+  labels:
+    neuralhive/component: orchestration
+    neuralhive/tier: control
+
+---
+# ServiceAccount para agentes de execução
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: execution-agent
+  namespace: neural-hive-execution
+  labels:
+    neuralhive/component: execution
+    neuralhive/tier: worker
+
+---
+# ServiceAccount para observabilidade
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: observability-collector
+  namespace: neural-hive-observability
+  labels:
+    neuralhive/component: observability
+    neuralhive/tier: monitoring
+
+---
+# ServiceAccounts para componentes de segurança
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sigstore-policy-controller
+  namespace: cosign-system
+  labels:
+    neuralhive/component: security
+    neuralhive/tier: validation
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gatekeeper-admin
+  namespace: gatekeeper-system
+  labels:
+    neuralhive/component: security
+    neuralhive/tier: policy
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cert-manager
+  namespace: cert-manager
+  labels:
+    neuralhive/component: infrastructure
+    neuralhive/tier: tls
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: keycloak-operator
+  namespace: auth
+  labels:
+    neuralhive/component: security
+    neuralhive/tier: authentication
+
+---
+# ClusterRole para leitura de configurações
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: neural-hive-config-reader
+  labels:
+    neuralhive/role: config-reader
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["services", "endpoints"]
+  verbs: ["get", "list"]
+
+---
+# ClusterRole para gerenciamento de workloads
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: neural-hive-workload-manager
+  labels:
+    neuralhive/role: workload-manager
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets", "statefulsets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+- apiGroups: ["batch"]
+  resources: ["jobs", "cronjobs"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["pods", "pods/log", "pods/status"]
+  verbs: ["get", "list", "watch"]
+
+---
+# ClusterRole para observabilidade
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: neural-hive-metrics-reader
+  labels:
+    neuralhive/role: metrics-reader
+rules:
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["pods", "nodes"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["pods", "nodes", "namespaces", "services", "endpoints"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+  verbs: ["get", "list", "watch"]
+
+---
+# ClusterRole para segurança (leitura)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: neural-hive-security-reader
+  labels:
+    neuralhive/role: security-reader
+rules:
+- apiGroups: ["networking.k8s.io"]
+  resources: ["networkpolicies"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["policy"]
+  resources: ["podsecuritypolicies"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["security.istio.io"]
+  resources: ["authorizationpolicies", "peerauthentications"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["get", "list", "watch"]
+
+---
+# ClusterRole para data governance
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: neural-hive-data-governance
+  labels:
+    neuralhive/role: data-governance
+rules:
+- apiGroups: ["catalog.neural-hive.io"]
+  resources: ["apiassets", "dataassets", "servicecontracts"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+
+---
+# ClusterRole para componentes de segurança
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: neural-hive-security-controller
+  labels:
+    neuralhive/role: security-controller
+rules:
+- apiGroups: [""]
+  resources: ["pods", "namespaces"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["admissionregistration.k8s.io"]
+  resources: ["validatingadmissionwebhooks", "mutatingadmissionwebhooks"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+
+---
+# Role para cognitive processor no seu namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cognitive-processor-role
+  namespace: neural-hive-cognition
+  labels:
+    neuralhive/role: cognitive-processor
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["persistentvolumeclaims"]
+  verbs: ["get", "list", "create"]
+
+---
+# Role para orchestration engine
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: orchestration-engine-role
+  namespace: neural-hive-orchestration
+  labels:
+    neuralhive/role: orchestration-engine
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["create", "update", "patch", "delete", "get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+
+---
+# Role para execution agents
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: execution-agent-role
+  namespace: neural-hive-execution
+  labels:
+    neuralhive/role: execution-agent
+rules:
+- apiGroups: [""]
+  resources: ["pods", "pods/status", "pods/log"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list"]
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+---
+# Role para data governance
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: data-governance-role
+  namespace: neural-hive-system
+  labels:
+    neuralhive/role: data-governance
+rules:
+- apiGroups: ["catalog.neural-hive.io"]
+  resources: ["apiassets", "dataassets", "servicecontracts"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "create", "update", "patch"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+
+---
+# Role para componentes de segurança
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: security-controller-role
+  namespace: cosign-system
+  labels:
+    neuralhive/role: security-controller
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gatekeeper-role
+  namespace: gatekeeper-system
+  labels:
+    neuralhive/role: gatekeeper
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+- apiGroups: ["templates.gatekeeper.sh"]
+  resources: ["constrainttemplates"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cert-manager-role
+  namespace: cert-manager
+  labels:
+    neuralhive/role: cert-manager
+rules:
+- apiGroups: [""]
+  resources: ["secrets", "configmaps"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["cert-manager.io"]
+  resources: ["certificates", "certificaterequests", "issuers", "clusterissuers"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: keycloak-role
+  namespace: auth
+  labels:
+    neuralhive/role: keycloak
+rules:
+- apiGroups: [""]
+  resources: ["secrets", "configmaps", "services"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+- apiGroups: [""]
+  resources: ["persistentvolumeclaims"]
+  verbs: ["get", "list", "create"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+
+---
+# RoleBindings
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cognitive-processor-binding
+  namespace: neural-hive-cognition
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cognitive-processor-role
+subjects:
+- kind: ServiceAccount
+  name: cognitive-processor
+  namespace: neural-hive-cognition
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: orchestration-engine-binding
+  namespace: neural-hive-orchestration
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: orchestration-engine-role
+subjects:
+- kind: ServiceAccount
+  name: orchestration-engine
+  namespace: neural-hive-orchestration
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: execution-agent-binding
+  namespace: neural-hive-execution
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: execution-agent-role
+subjects:
+- kind: ServiceAccount
+  name: execution-agent
+  namespace: neural-hive-execution
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: security-controller-binding
+  namespace: cosign-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: security-controller-role
+subjects:
+- kind: ServiceAccount
+  name: sigstore-policy-controller
+  namespace: cosign-system
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gatekeeper-binding
+  namespace: gatekeeper-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gatekeeper-role
+subjects:
+- kind: ServiceAccount
+  name: gatekeeper-admin
+  namespace: gatekeeper-system
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cert-manager-binding
+  namespace: cert-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cert-manager-role
+subjects:
+- kind: ServiceAccount
+  name: cert-manager
+  namespace: cert-manager
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: keycloak-binding
+  namespace: auth
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: keycloak-role
+subjects:
+- kind: ServiceAccount
+  name: keycloak-operator
+  namespace: auth
+
+---
+# ClusterRoleBindings para acesso cross-namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: neural-hive-config-readers
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: neural-hive-config-reader
+subjects:
+- kind: ServiceAccount
+  name: cognitive-processor
+  namespace: neural-hive-cognition
+- kind: ServiceAccount
+  name: orchestration-engine
+  namespace: neural-hive-orchestration
+- kind: ServiceAccount
+  name: execution-agent
+  namespace: neural-hive-execution
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: neural-hive-workload-managers
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: neural-hive-workload-manager
+subjects:
+- kind: ServiceAccount
+  name: orchestration-engine
+  namespace: neural-hive-orchestration
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: neural-hive-metrics-readers
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: neural-hive-metrics-reader
+subjects:
+- kind: ServiceAccount
+  name: observability-collector
+  namespace: neural-hive-observability
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: neural-hive-security-readers
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: neural-hive-security-reader
+subjects:
+- kind: ServiceAccount
+  name: observability-collector
+  namespace: neural-hive-observability
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: neural-hive-security-controllers
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: neural-hive-security-controller
+subjects:
+- kind: ServiceAccount
+  name: sigstore-policy-controller
+  namespace: cosign-system
+- kind: ServiceAccount
+  name: gatekeeper-admin
+  namespace: gatekeeper-system
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: neural-hive-data-governance
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: neural-hive-data-governance
+subjects:
+- kind: ServiceAccount
+  name: cognitive-processor
+  namespace: neural-hive-cognition
+- kind: ServiceAccount
+  name: orchestration-engine
+  namespace: neural-hive-orchestration

@@ -1,0 +1,24 @@
+# Core dependencies
+mlflow>=2.9.0
+pymongo>=4.6.0
+pandas>=1.5.0
+numpy>=1.24.0
+structlog>=23.2.0
+pydantic>=2.0.0
+
+# Circuit breaker
+pybreaker>=1.0.0
+
+# Notifications
+requests>=2.31.0  # For Slack webhooks
+
+# Prometheus
+prometheus-client>=0.19.0
+
+# Retry logic
+tenacity>=8.2.0
+
+# Testing (optional)
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.12.0

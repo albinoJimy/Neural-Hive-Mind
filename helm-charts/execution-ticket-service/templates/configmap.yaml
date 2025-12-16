@@ -50,5 +50,8 @@ data:
 
   # Observability Configuration
   OTEL_EXPORTER_ENDPOINT: {{ .Values.config.observability.otelExporterEndpoint | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.observability.otelExporterEndpoint | quote }}
+  OTEL_SERVICE_NAME: {{ .Values.config.serviceName | quote }}
+  OTEL_RESOURCE_ATTRIBUTES: "service.version={{ .Values.config.serviceVersion }},deployment.environment={{ .Values.config.environment }}"
   PROMETHEUS_PORT: {{ .Values.config.observability.prometheusPort | quote }}
 {{- end }}

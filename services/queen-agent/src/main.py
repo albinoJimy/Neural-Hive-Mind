@@ -3,9 +3,11 @@ import structlog
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from prometheus_client import make_asgi_app
-import grpc
 from grpc import aio
+from neural_hive_observability import (
+    init_observability,
+    create_instrumented_grpc_server
+)
 
 from .config import get_settings
 from .clients import (
@@ -19,7 +21,6 @@ from .services import (
 from .consumers import ConsensusConsumer, TelemetryConsumer, IncidentConsumer
 from .producers import StrategicDecisionProducer
 from .api import health_router, decisions_router, exceptions_router, status_router
-from .observability import setup_tracing
 from .grpc_server import QueenAgentServicer
 from .proto import queen_agent_pb2_grpc
 
@@ -83,7 +84,26 @@ async def lifespan(app: FastAPI):
 
     try:
         # 1. Configurar tracing
-        setup_tracing(settings)
+        try:
+            init_observability(
+                service_name=settings.SERVICE_NAME,
+                service_version=settings.SERVICE_VERSION,
+                neural_hive_component="queen-agent",
+                neural_hive_layer="coordination",
+                environment=settings.ENVIRONMENT,
+                otel_endpoint=settings.OTEL_EXPORTER_ENDPOINT,
+                prometheus_port=settings.METRICS_PORT,
+                log_level=settings.LOG_LEVEL,
+                enable_kafka=True,
+                enable_grpc=True
+            )
+        except Exception as e:
+            logger.warning(
+                "observability_init_failed",
+                error=str(e),
+                otel_endpoint=settings.OTEL_EXPORTER_ENDPOINT,
+                prometheus_port=settings.METRICS_PORT
+            )
 
         # 2. Inicializar clientes
         logger.info("initializing_clients")
@@ -183,7 +203,9 @@ async def lifespan(app: FastAPI):
             app_state.telemetry_aggregator
         )
 
-        app_state.grpc_server = aio.server()
+        app_state.grpc_server = create_instrumented_grpc_server(
+            max_workers=settings.GRPC_MAX_WORKERS
+        )
         queen_agent_pb2_grpc.add_QueenAgentServicer_to_server(
             app_state.grpc_servicer,
             app_state.grpc_server
@@ -290,11 +312,6 @@ app.include_router(health_router)
 app.include_router(decisions_router)
 app.include_router(exceptions_router)
 app.include_router(status_router)
-
-# Montar métricas Prometheus
-metrics_app = make_asgi_app()
-app.mount("/metrics", metrics_app)
-
 
 if __name__ == "__main__":
     import uvicorn

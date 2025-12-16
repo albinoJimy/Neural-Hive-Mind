@@ -1,0 +1,51 @@
+# PeerAuthentication overrides for webhook workloads
+# Allows API server to communicate with admission webhooks despite mesh-wide STRICT mTLS
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: gatekeeper-webhook-permissive
+  namespace: gatekeeper-system
+spec:
+  selector:
+    matchLabels:
+      app: gatekeeper-controller-manager
+  mtls:
+    mode: PERMISSIVE
+  portLevelMtls:
+    8443:  # Gatekeeper webhook port
+      mode: PERMISSIVE
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: cosign-webhook-permissive
+  namespace: cosign-system
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: policy-controller-webhook
+  mtls:
+    mode: PERMISSIVE
+  portLevelMtls:
+    9443:  # Sigstore/Cosign webhook port
+      mode: PERMISSIVE
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: cert-manager-webhook-permissive
+  namespace: cert-manager
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: webhook
+      app.kubernetes.io/instance: cert-manager
+  mtls:
+    mode: PERMISSIVE
+  portLevelMtls:
+    10250:  # Cert-manager webhook port
+      mode: PERMISSIVE

@@ -38,6 +38,7 @@ opentelemetry-api==1.21.0
 opentelemetry-sdk==1.21.0
 opentelemetry-instrumentation-fastapi==0.42b0
 opentelemetry-instrumentation-grpc==0.42b0
+neural_hive_observability==1.1.0
 
 # Utilities
 python-dotenv==1.0.0

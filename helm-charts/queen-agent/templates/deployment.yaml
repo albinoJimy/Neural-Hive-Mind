@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "queen-agent.fullname" . }}
+  labels:
+    {{- include "queen-agent.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "queen-agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "queen-agent.selectorLabels" . | nindent 8 }}
+      annotations:
+        {{- if .Values.podAnnotations }}
+        {{- toYaml .Values.podAnnotations | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "queen-agent.serviceAccountName" . }}
+      containers:
+        - name: {{ include "queen-agent.name" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "queen-agent.configMapName" . }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.ports.http }}
+            - name: grpc
+              containerPort: {{ .Values.service.ports.grpc }}
+            - name: metrics
+              containerPort: {{ .Values.service.ports.metrics }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

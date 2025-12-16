@@ -102,6 +102,7 @@ async def test_build_command(cli_adapter):
     assert "trivy image" in command
     assert "--severity HIGH" in command or "--severity 'HIGH'" in command
     assert "--format json" in command or "--format 'json'" in command
+    assert command.strip().endswith("nginx:latest")
 
 
 @pytest.mark.asyncio

@@ -4,6 +4,7 @@ from collections import deque
 from datetime import datetime, timedelta
 from typing import Optional, Deque
 import structlog
+from neural_hive_observability import get_tracer, instrument_kafka_producer
 
 from ..models.raw_event import RawEvent
 from ..models.scout_signal import ScoutSignal, ExplorationDomain, ChannelType
@@ -52,6 +53,7 @@ class ExplorationEngine:
         """Initialize and start the exploration engine"""
         try:
             await self.kafka_producer.start()
+            self.kafka_producer = instrument_kafka_producer(self.kafka_producer)
             await self.memory_client.start()
             await self.pheromone_client.start()
             self._is_running = True
@@ -113,7 +115,13 @@ class ExplorationEngine:
 
         try:
             # Step 1: Detect signal
-            signal = await self.detector.detect(event, domain, channel)
+            tracer = get_tracer()
+            with tracer.start_as_current_span("signal_detection") as span:
+                span.set_attribute("neural.hive.agent_id", self.scout_agent_id)
+                signal = await self.detector.detect(event, domain, channel)
+                if signal:
+                    span.set_attribute("neural.hive.signal_type", signal.signal_type.value)
+                    span.set_attribute("neural.hive.curiosity_score", signal.curiosity_score)
 
             if not signal:
                 return None

@@ -11,6 +11,12 @@ from confluent_kafka.serialization import SerializationContext, MessageField
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroDeserializer
 
+from neural_hive_observability import instrument_kafka_consumer
+from neural_hive_observability.context import (
+    extract_context_from_headers,
+    set_baggage
+)
+
 from ..config import get_settings
 from ..models import ExecutionTicket
 from ..database import get_postgres_client, get_mongodb_client
@@ -44,6 +50,7 @@ class TicketConsumer:
 
             consumer_config.update(self._configure_security())
             self.consumer = Consumer(consumer_config)
+            self.consumer = instrument_kafka_consumer(self.consumer)
 
             try:
                 schema_path = Path(self.settings.schemas_base_path) / 'execution-ticket' / 'execution-ticket.avsc'
@@ -105,6 +112,9 @@ class TicketConsumer:
                         message.topic(), MessageField.VALUE
                     )
 
+                    headers_dict = {k: v for k, v in (message.headers() or [])}
+                    extract_context_from_headers(headers_dict)
+
                     if self.avro_deserializer:
                         ticket_dict = self.avro_deserializer(message.value(), serialization_context)
                     else:
@@ -112,6 +122,10 @@ class TicketConsumer:
 
                     # Converter para Pydantic
                     ticket = ExecutionTicket.from_avro_dict(ticket_dict)
+                    if ticket.plan_id:
+                        set_baggage("plan_id", ticket.plan_id)
+                    if ticket.ticket_id:
+                        set_baggage("ticket_id", ticket.ticket_id)
 
                     # Processar ticket
                     await self._process_ticket(ticket)

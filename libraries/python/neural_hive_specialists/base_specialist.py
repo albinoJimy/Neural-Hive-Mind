@@ -9,6 +9,7 @@ import json
 import hashlib
 import uuid
 from datetime import datetime
+from contextlib import nullcontext
 import structlog
 import numpy as np
 from opentelemetry import trace
@@ -155,8 +156,13 @@ class BaseSpecialist(ABC):
         # Inicializar feature extractor ANTES de explainability
         self.feature_extractor = FeatureExtractor(config={
             'ontology_path': config.ontology_path if hasattr(config, 'ontology_path') else None,
-            'embeddings_model': config.embeddings_model if hasattr(config, 'embeddings_model') else 'paraphrase-multilingual-MiniLM-L12-v2'
-        })
+            'embeddings_model': config.embeddings_model if hasattr(config, 'embeddings_model') else 'paraphrase-multilingual-MiniLM-L12-v2',
+            'embedding_cache_size': config.embedding_cache_size if hasattr(config, 'embedding_cache_size') else 1000,
+            'embedding_batch_size': config.embedding_batch_size if hasattr(config, 'embedding_batch_size') else 32,
+            'embedding_cache_enabled': config.embedding_cache_enabled if hasattr(config, 'embedding_cache_enabled') else True,
+            'embedding_cache_ttl_seconds': config.embedding_cache_ttl_seconds if hasattr(config, 'embedding_cache_ttl_seconds') else None,
+            'semantic_similarity_threshold': config.semantic_similarity_threshold if hasattr(config, 'semantic_similarity_threshold') else 0.7
+        }, metrics=self.metrics)
 
         # Inicializar semantic pipeline (substitui heurísticas de string-match)
         self.semantic_pipeline = SemanticPipeline(
@@ -266,7 +272,22 @@ class BaseSpecialist(ABC):
                 self.tracer = None
 
         # Carregar modelo
-        self.model = self._load_model()
+        if self.tracer:
+            with self.tracer.start_as_current_span("specialist.load_model") as span:
+                span.set_attribute("model.name", config.mlflow_model_name)
+                span.set_attribute("model.stage", config.mlflow_model_stage)
+                try:
+                    start = time.time()
+                    self.model = self._load_model()
+                    span.set_attribute("loading.time_ms", int((time.time() - start) * 1000))
+                    span.set_attribute("model.version", self._get_model_version())
+                    span.set_status(Status(StatusCode.OK))
+                except Exception as e:
+                    span.record_exception(e)
+                    span.set_status(Status(StatusCode.ERROR, str(e)))
+                    raise
+        else:
+            self.model = self._load_model()
 
         logger.info(
             "Specialist initialized successfully",
@@ -336,8 +357,9 @@ class BaseSpecialist(ABC):
         Returns:
             Resultado da predição ou None se falhar
         """
+        include_embeddings = self.model is not None
         if self.model is None:
-            logger.debug("Model not available, skipping ML inference")
+            logger.debug("Model not available, skipping ML inference and embeddings")
             return None
 
         timeout_seconds = (timeout_ms or self.config.model_inference_timeout_ms) / 1000.0
@@ -349,7 +371,10 @@ class BaseSpecialist(ABC):
                 with self.tracer.start_as_current_span("specialist.extract_features") as span:
                     try:
                         start_time = time.time()
-                        features = self.feature_extractor.extract_features(cognitive_plan)
+                        features = self.feature_extractor.extract_features(
+                            cognitive_plan,
+                            include_embeddings=include_embeddings
+                        )
                         feature_vector = features['aggregated_features']
                         feature_extraction_time = time.time() - start_time
 
@@ -375,8 +400,16 @@ class BaseSpecialist(ABC):
                         # Registrar features para monitoramento de drift
                         if self.drift_detector:
                             try:
-                                self.drift_detector.log_evaluation_features(features['aggregated_features'])
+                                with self.tracer.start_as_current_span("specialist.drift_detection") as span:
+                                    span.set_attribute("drift.threshold", getattr(self.drift_detector, "threshold_psi", None))
+                                    span.set_attribute("drift.detected", False)
+                                    span.set_attribute("drift.psi_score", 0.0)
+                                    self.drift_detector.log_evaluation_features(features['aggregated_features'])
+                                    span.set_status(Status(StatusCode.OK))
                             except Exception as e:
+                                if 'span' in locals():
+                                    span.record_exception(e)
+                                    span.set_status(Status(StatusCode.ERROR, str(e)))
                                 logger.warning("Failed to log features for drift monitoring", error=str(e))
 
                         span.set_status(Status(StatusCode.OK))
@@ -386,7 +419,10 @@ class BaseSpecialist(ABC):
                         raise
             else:
                 start_time = time.time()
-                features = self.feature_extractor.extract_features(cognitive_plan)
+                features = self.feature_extractor.extract_features(
+                    cognitive_plan,
+                    include_embeddings=include_embeddings
+                )
                 feature_vector = features['aggregated_features']
                 feature_extraction_time = time.time() - start_time
 
@@ -448,25 +484,54 @@ class BaseSpecialist(ABC):
                     # Fallback: usar feature_vector diretamente
                     feature_df = pd.DataFrame([feature_vector])
 
-                # Predição
-                prediction = self.model.predict(feature_df)
+                # Predição - tentar predict_proba para obter probabilidades calibradas
+                try:
+                    if hasattr(self.model, 'predict_proba'):
+                        prediction = self.model.predict_proba(feature_df)
+                        prediction_method = 'predict_proba'
+                        logger.info(
+                            "Using predict_proba for probabilistic inference",
+                            plan_id=cognitive_plan.get('plan_id'),
+                            model_version=self._get_model_version()
+                        )
+                    else:
+                        # Fallback para predict se predict_proba não estiver disponível
+                        prediction = self.model.predict(feature_df)
+                        prediction_method = 'predict'
+                        logger.warning(
+                            "Model does not support predict_proba, falling back to predict",
+                            plan_id=cognitive_plan.get('plan_id'),
+                            model_version=self._get_model_version(),
+                            model_type=type(self.model).__name__
+                        )
+                except Exception as e:
+                    # Fallback se predict_proba falhar (captura qualquer tipo de erro)
+                    logger.warning(
+                        "predict_proba failed, falling back to predict",
+                        plan_id=cognitive_plan.get('plan_id'),
+                        error_type=type(e).__name__,
+                        error=str(e)
+                    )
+                    prediction = self.model.predict(feature_df)
+                    prediction_method = 'predict_fallback'
 
                 # Log input/output para auditoria
                 logger.info(
                     "Model inference completed",
                     plan_id=cognitive_plan.get('plan_id'),
                     model_version=self._get_model_version(),
+                    prediction_method=prediction_method,
                     prediction=prediction.tolist() if hasattr(prediction, 'tolist') else prediction
                 )
 
-                return prediction
+                return prediction, prediction_method
 
             with ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(_run_inference)
                 try:
                     # Medir tempo de inferência
                     inference_start = time.time()
-                    prediction = future.result(timeout=timeout_seconds)
+                    prediction, prediction_method = future.result(timeout=timeout_seconds)
                     inference_duration = time.time() - inference_start
 
                     # Registrar métrica de duração de inferência
@@ -482,6 +547,9 @@ class BaseSpecialist(ABC):
                         status='success'
                     ).inc()
 
+                    # Passar prediction_method nas features para parsing correto
+                    features['prediction_method'] = prediction_method
+
                     # Converter predição para formato padronizado
                     result = self._parse_model_prediction(prediction, features)
                     result['metadata']['model_source'] = 'ml_model'
@@ -489,6 +557,7 @@ class BaseSpecialist(ABC):
                     result['metadata']['feature_extraction_time_ms'] = int(feature_extraction_time * 1000)
                     result['metadata']['inference_duration_ms'] = int(inference_duration * 1000)
                     result['metadata']['mlflow_model_signature_version'] = self.config.mlflow_model_signature_version
+                    result['metadata']['prediction_method'] = prediction_method
 
                     # Adicionar feature_id se features foram persistidas
                     if self.feature_store and plan_id:
@@ -540,30 +609,145 @@ class BaseSpecialist(ABC):
         Suporta múltiplos formatos de saída: numpy arrays, pandas DataFrames,
         listas, dicionários.
 
+        Comportamento de parsing baseado em prediction_method (passado via features):
+        - 'predict_proba': Extrai probabilidade da classe positiva (índice 1) de array
+          2D com shape [1, n_classes]. confidence = P(classe_positiva), risk = 1 - confidence.
+          Para classificação binária (n_classes=2), as probabilidades são complementares.
+          Para multiclasse (n_classes>2), usa-se P(classe_positiva) como medida de confiança.
+        - 'predict' ou outros: Trata array como formato legado [confidence, risk] onde
+          coluna 0 é confidence e coluna 1 é risk (valores independentes).
+
         Subclasses devem sobrescrever se necessário.
 
         Args:
             prediction: Saída do modelo
-            features: Features extraídas
+            features: Features extraídas. Pode conter 'prediction_method' indicando
+                      o método usado ('predict_proba', 'predict', 'predict_fallback').
 
         Returns:
-            Dicionário com confidence_score, risk_score, etc.
+            Dicionário com confidence_score, risk_score, calibrated (quando aplicável), etc.
         """
         confidence_score = 0.5
         risk_score = 0.5
         metadata = {}
+        parsing_method = 'unknown'
+        calibrated = False
+
+        # Obter método de predição usado (passado por _predict_with_model)
+        prediction_method = features.get('prediction_method', 'unknown')
+        plan_id = features.get('plan_id', 'unknown')
+
+        # Caso predict_proba: usar campo prediction_method para identificar explicitamente
+        # Só processar como probabilidades se prediction_method indicar predict_proba
+        if prediction_method == 'predict_proba':
+            if isinstance(prediction, np.ndarray) and prediction.ndim == 2:
+                if prediction.shape[0] == 1 and prediction.shape[1] >= 2:
+                    num_classes = prediction.shape[1]
+
+                    # Extrair probabilidade da classe positiva (índice 1)
+                    # Para classificação binária ou multiclasse, índice 1 representa a classe positiva
+                    raw_positive_prob = float(prediction[0][1])
+                    raw_negative_prob = float(prediction[0][0])
+
+                    # Normalizar probabilidades se necessário (classificação binária)
+                    # Para multiclasse, não tentamos normalizar pois há mais de 2 classes
+                    if num_classes == 2:
+                        prob_sum = raw_positive_prob + raw_negative_prob
+                        if prob_sum > 0 and abs(prob_sum - 1.0) > 0.01:
+                            # Normalizar dividindo pela soma das duas classes
+                            confidence_score = max(0.0, min(1.0, raw_positive_prob / prob_sum))
+                            normalized_negative = max(0.0, min(1.0, raw_negative_prob / prob_sum))
+                            logger.debug(
+                                "Probabilidades binarias normalizadas",
+                                plan_id=plan_id,
+                                original_sum=prob_sum,
+                                raw_positive=raw_positive_prob,
+                                raw_negative=raw_negative_prob
+                            )
+                        else:
+                            confidence_score = max(0.0, min(1.0, raw_positive_prob))
+                            normalized_negative = max(0.0, min(1.0, raw_negative_prob))
+
+                        metadata['negative_class_probability'] = normalized_negative
+                    else:
+                        # Multiclasse: usar P(classe_positiva) diretamente como confiança
+                        # Não verificar se probabilidades somam 1.0 pois há mais classes
+                        confidence_score = max(0.0, min(1.0, raw_positive_prob))
+                        metadata['negative_class_probability'] = max(0.0, min(1.0, raw_negative_prob))
+                        logger.info(
+                            "Modelo multiclasse detectado, usando P(classe_positiva) como confianca",
+                            plan_id=plan_id,
+                            num_classes=num_classes,
+                            positive_prob=confidence_score
+                        )
+
+                    # risk_score é sempre complementar a confidence_score
+                    # Comportamento intencional: risk = 1 - confidence
+                    risk_score = 1.0 - confidence_score
+
+                    metadata['probabilities_used'] = True
+                    metadata['positive_class_probability'] = confidence_score
+                    metadata['num_classes'] = num_classes
+                    metadata['calibrated'] = True
+                    parsing_method = 'predict_proba'
+                    calibrated = True
+
+                    logger.info(
+                        "Parsed predict_proba output",
+                        plan_id=plan_id,
+                        confidence_score=confidence_score,
+                        risk_score=risk_score,
+                        num_classes=num_classes,
+                        parsing_method=parsing_method
+                    )
+
+                    metadata['parsing_method'] = parsing_method
+
+                    return {
+                        'confidence_score': confidence_score,
+                        'risk_score': risk_score,
+                        'calibrated': calibrated,
+                        'recommendation': 'review_required',
+                        'reasoning_summary': 'Avaliação baseada em modelo ML com probabilidades calibradas',
+                        'reasoning_factors': [
+                            {'factor': 'ml_confidence', 'score': confidence_score},
+                            {'factor': 'ml_risk', 'score': risk_score}
+                        ],
+                        'metadata': metadata
+                    }
+                elif prediction.shape[0] != 1:
+                    # Múltiplas amostras - inesperado para avaliação de plano único
+                    logger.warning(
+                        "predict_proba retornou multiplas amostras, formato inesperado",
+                        shape=prediction.shape,
+                        plan_id=plan_id,
+                        prediction_method=prediction_method
+                    )
+            else:
+                # prediction_method indica predict_proba mas formato não é reconhecido
+                logger.warning(
+                    "prediction_method indica predict_proba mas formato de saida nao reconhecido",
+                    plan_id=plan_id,
+                    prediction_method=prediction_method,
+                    prediction_type=type(prediction).__name__,
+                    prediction_shape=getattr(prediction, 'shape', None),
+                    prediction_ndim=getattr(prediction, 'ndim', None)
+                )
 
         try:
-            # Caso 1: NumPy array
+            # Caso 1: NumPy array (formato legado - coluna 0 = confidence, coluna 1 = risk)
             if isinstance(prediction, np.ndarray):
                 if prediction.ndim == 2 and prediction.shape[1] >= 2:
                     confidence_score = float(prediction[0][0])
                     risk_score = float(prediction[0][1])
+                    parsing_method = 'numpy_array_2d'
                 elif prediction.ndim == 1 and len(prediction) >= 2:
                     confidence_score = float(prediction[0])
                     risk_score = float(prediction[1])
+                    parsing_method = 'numpy_array_1d'
                 else:
                     metadata['parse_warning'] = f'NumPy array shape não suportado: {prediction.shape}'
+                    parsing_method = 'numpy_array_unsupported'
                     logger.warning("NumPy array com shape inesperado", shape=prediction.shape)
 
             # Caso 2: Pandas DataFrame
@@ -573,14 +757,18 @@ class BaseSpecialist(ABC):
                     if len(prediction.columns) >= 2:
                         confidence_score = float(prediction.iloc[0, 0])
                         risk_score = float(prediction.iloc[0, 1])
+                        parsing_method = 'dataframe'
                     else:
                         metadata['parse_warning'] = f'DataFrame com colunas insuficientes: {len(prediction.columns)}'
+                        parsing_method = 'dataframe_insufficient'
                 elif isinstance(prediction, pd.Series):
                     if len(prediction) >= 2:
                         confidence_score = float(prediction.iloc[0])
                         risk_score = float(prediction.iloc[1])
+                        parsing_method = 'series'
                     else:
                         metadata['parse_warning'] = f'Series com elementos insuficientes: {len(prediction)}'
+                        parsing_method = 'series_insufficient'
 
             # Caso 3: Lista
             elif isinstance(prediction, list):
@@ -589,33 +777,41 @@ class BaseSpecialist(ABC):
                     if isinstance(prediction[0], (list, tuple)):
                         confidence_score = float(prediction[0][0])
                         risk_score = float(prediction[0][1])
+                        parsing_method = 'list_nested'
                     # Lista simples
                     else:
                         confidence_score = float(prediction[0])
                         risk_score = float(prediction[1])
+                        parsing_method = 'list_flat'
                 else:
                     metadata['parse_warning'] = f'Lista com elementos insuficientes: {len(prediction)}'
+                    parsing_method = 'list_insufficient'
 
             # Caso 4: Dicionário
             elif isinstance(prediction, dict):
                 confidence_score = float(prediction.get('confidence_score', prediction.get('confidence', 0.5)))
                 risk_score = float(prediction.get('risk_score', prediction.get('risk', 0.5)))
+                parsing_method = 'dict'
 
             # Caso 5: Formato desconhecido
             else:
                 metadata['parse_warning'] = f'Formato de predição desconhecido: {type(prediction).__name__}'
+                parsing_method = 'unknown'
                 logger.warning(
                     "Formato de predição não reconhecido",
                     prediction_type=type(prediction).__name__
                 )
 
         except Exception as e:
+            prediction_shape = getattr(prediction, 'shape', None)
             logger.error(
                 "Erro ao parsear predição do modelo",
                 error=str(e),
-                prediction_type=type(prediction).__name__
+                prediction_type=type(prediction).__name__,
+                prediction_shape=prediction_shape
             )
             metadata['parse_error'] = str(e)
+            parsing_method = 'error'
 
         # Garantir que scores estejam no range válido
         confidence_score = max(0.0, min(1.0, confidence_score))
@@ -625,9 +821,12 @@ class BaseSpecialist(ABC):
         if 'parse_warning' in metadata:
             metadata['signature_mismatch'] = True
 
+        metadata['parsing_method'] = parsing_method
+
         return {
             'confidence_score': confidence_score,
             'risk_score': risk_score,
+            'calibrated': calibrated,
             'recommendation': 'review_required',
             'reasoning_summary': 'Avaliação baseada em modelo ML',
             'reasoning_factors': [
@@ -1415,6 +1614,7 @@ class BaseSpecialist(ABC):
             Dict com estatísticas de warmup
         """
         start_time = time.time()
+        span_context = self.tracer.start_as_current_span("specialist.warmup") if self.tracer else nullcontext()
 
         logger.info(
             "Starting specialist warmup",
@@ -1422,66 +1622,84 @@ class BaseSpecialist(ABC):
             version=self.version
         )
 
-        try:
-            # 1. Garantir que modelo está carregado
-            if self.model is None:
-                logger.info("Loading model during warmup")
-                self.model = self._load_model()
+        dummy_plan = None
+        with span_context as span:
+            try:
+                # 1. Garantir que modelo está carregado
+                if self.model is None:
+                    logger.info("Loading model during warmup")
+                    self.model = self._load_model()
 
-            # 2. Criar plano dummy
-            dummy_plan = self._create_dummy_plan()
+                # 2. Criar plano dummy
+                dummy_plan = self._create_dummy_plan()
 
-            # 3. Executar avaliação dummy (sem persistência no ledger e sem métricas)
-            logger.info("Executing dummy evaluation for warmup")
-            dummy_request = type('Request', (), {
-                'plan_id': 'warmup-dummy',
-                'intent_id': 'warmup-intent',
-                'cognitive_plan': json.dumps(dummy_plan).encode('utf-8'),
-                'trace_id': 'warmup-trace',
-                'span_id': 'warmup-span',
-                'correlation_id': 'warmup-correlation',
-                'context': {'skip_ledger': True, 'skip_metrics': True}
-            })
+                # 3. Executar avaliação dummy (sem persistência no ledger e sem métricas)
+                logger.info("Executing dummy evaluation for warmup")
+                dummy_request = type('Request', (), {
+                    'plan_id': 'warmup-dummy',
+                    'intent_id': 'warmup-intent',
+                    'cognitive_plan': json.dumps(dummy_plan).encode('utf-8'),
+                    'trace_id': 'warmup-trace',
+                    'span_id': 'warmup-span',
+                    'correlation_id': 'warmup-correlation',
+                    'context': {'skip_ledger': True, 'skip_metrics': True}
+                })
 
-            _ = self.evaluate_plan(dummy_request)
+                _ = self.evaluate_plan(dummy_request)
 
-            # 4. Calcular duração
-            duration = time.time() - start_time
+                # 4. Calcular duração
+                duration = time.time() - start_time
 
-            # 5. Registrar métricas
-            self.metrics.observe_warmup_duration(duration, 'success')
+                # 5. Registrar métricas
+                self.metrics.observe_warmup_duration(duration, 'success')
 
-            logger.info(
-                "Specialist warmup completed successfully",
-                specialist_type=self.specialist_type,
-                duration_seconds=duration,
-                model_loaded=self.model is not None
-            )
+                if span:
+                    span.set_attribute("warmup.success", True)
+                    span.set_attribute("warmup.time_ms", int(duration * 1000))
+                    span.set_attribute("warmup.dummy_plan_id", dummy_plan.get('plan_id'))
+                    span.set_status(Status(StatusCode.OK))
 
-            return {
-                'status': 'success',
-                'duration_seconds': duration,
-                'model_loaded': self.model is not None,
-                'cache_ready': self.opinion_cache is not None and self.opinion_cache.is_connected()
-            }
+                logger.info(
+                    "Specialist warmup completed successfully",
+                    specialist_type=self.specialist_type,
+                    duration_seconds=duration,
+                    model_loaded=self.model is not None
+                )
 
-        except Exception as e:
-            duration = time.time() - start_time
-            self.metrics.observe_warmup_duration(duration, 'error')
+                return {
+                    'status': 'success',
+                    'duration_seconds': duration,
+                    'model_loaded': self.model is not None,
+                    'cache_ready': self.opinion_cache is not None and self.opinion_cache.is_connected()
+                }
 
-            logger.error(
-                "Specialist warmup failed",
-                specialist_type=self.specialist_type,
-                error=str(e),
-                duration_seconds=duration,
-                exc_info=True
-            )
+            except Exception as e:
+                duration = time.time() - start_time
+                self.metrics.observe_warmup_duration(duration, 'error')
 
-            return {
-                'status': 'error',
-                'error': str(e),
-                'duration_seconds': duration
-            }
+                if span:
+                    span.record_exception(e)
+                    span.set_attribute("warmup.success", False)
+                    span.set_attribute("warmup.time_ms", int(duration * 1000))
+                    span.set_attribute(
+                        "warmup.dummy_plan_id",
+                        dummy_plan.get('plan_id') if dummy_plan else None
+                    )
+                    span.set_status(Status(StatusCode.ERROR, str(e)))
+
+                logger.error(
+                    "Specialist warmup failed",
+                    specialist_type=self.specialist_type,
+                    error=str(e),
+                    duration_seconds=duration,
+                    exc_info=True
+                )
+
+                return {
+                    'status': 'error',
+                    'error': str(e),
+                    'duration_seconds': duration
+                }
 
     def _create_dummy_plan(self) -> Dict[str, Any]:
         """

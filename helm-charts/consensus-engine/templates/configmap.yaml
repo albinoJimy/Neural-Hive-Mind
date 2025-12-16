@@ -43,7 +43,7 @@ data:
   REDIS_PHEROMONE_DECAY_RATE: {{ .Values.config.redis.pheromoneDecayRate | quote }}
 
   # OpenTelemetry Configuration
-  OTEL_ENDPOINT: {{ .Values.config.openTelemetry.endpoint | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.openTelemetry.endpoint | quote }}
   OTEL_SAMPLING_RATE: {{ .Values.config.openTelemetry.samplingRate | quote }}
 
   # Consensus Configuration

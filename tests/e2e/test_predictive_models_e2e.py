@@ -90,123 +90,220 @@ async def test_ml_health_check(orchestrator_url):
 
 @pytest.mark.asyncio
 @pytest.mark.e2e
-async def test_ticket_with_ml_predictions(orchestrator_url, sample_ticket):
+async def test_ticket_receives_ml_predictions_real(orchestrator_url, sample_ticket):
     """
-    Valida que ticket submetido recebe predições ML.
-
+    Valida que ticket submetido via API recebe predições ML reais.
+    
     Fluxo:
-    1. Submeter ticket via API
-    2. Validar que response contém predictions
-    3. Validar que predictions tem todos os campos esperados
+    1. Submeter cognitive plan via /api/v1/workflows/start
+    2. Aguardar processamento
+    3. Consultar ticket gerado
+    4. Validar que predictions foram adicionadas
     """
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        # Mock de endpoint de submissão de ticket (ajustar conforme API real)
-        # Por enquanto, testar apenas estrutura esperada
-
-        # Simular que ticket foi processado com predições
-        expected_predictions = {
-            'duration_ms': 5000,
-            'duration_confidence': 0.85,
-            'cpu_cores': 2.0,
-            'memory_mb': 1024,
-            'resources_confidence': 0.8,
-            'anomaly': {
-                'is_anomaly': False,
-                'score': 0.1,
-                'type': None,
-                'confidence': 0.9
-            },
-            'model_type': 'xgboost'
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        # Criar cognitive plan
+        cognitive_plan = {
+            'plan_id': f'e2e-test-{int(time.time())}',
+            'intent_id': 'test-intent',
+            'risk_band': 'MEDIUM',
+            'dag': {
+                'nodes': [
+                    {
+                        'node_id': 'task-1',
+                        'action': 'data_processing',
+                        'capabilities': ['database', 'analytics'],
+                        'estimated_duration_ms': 5000
+                    }
+                ]
+            }
         }
-
-        # Validar estrutura
-        assert 'duration_ms' in expected_predictions
-        assert 'anomaly' in expected_predictions
-        assert expected_predictions['duration_ms'] > 0
-        assert 0 <= expected_predictions['duration_confidence'] <= 1
-        assert expected_predictions['cpu_cores'] >= 0.5
-        assert expected_predictions['memory_mb'] >= 256
+        
+        # Submeter workflow
+        response = await client.post(
+            f"{orchestrator_url}/api/v1/workflows/start",
+            json={
+                'cognitive_plan': cognitive_plan,
+                'correlation_id': f'e2e-{int(time.time())}',
+                'priority': 7,
+                'sla_deadline_seconds': 3600
+            }
+        )
+        
+        assert response.status_code == 200
+        workflow_data = response.json()
+        workflow_id = workflow_data['workflow_id']
+        
+        # Aguardar processamento (polling)
+        max_attempts = 30
+        for attempt in range(max_attempts):
+            await asyncio.sleep(2)
+            
+            # Consultar status do workflow
+            status_response = await client.get(
+                f"{orchestrator_url}/api/v1/workflows/{workflow_id}/status"
+            )
+            
+            if status_response.status_code == 200:
+                status_data = status_response.json()
+                
+                # Verificar se ticket foi gerado
+                if 'tickets' in status_data and len(status_data['tickets']) > 0:
+                    ticket = status_data['tickets'][0]
+                    
+                    # Validar predictions
+                    assert 'predictions' in ticket, "Ticket não contém predictions"
+                    predictions = ticket['predictions']
+                    
+                    assert 'duration_ms' in predictions
+                    assert predictions['duration_ms'] > 0
+                    assert 'confidence' in predictions
+                    assert 0 <= predictions['confidence'] <= 1
+                    
+                    assert 'cpu_cores' in predictions
+                    assert predictions['cpu_cores'] >= 0.5
+                    
+                    assert 'memory_mb' in predictions
+                    assert predictions['memory_mb'] >= 256
+                    
+                    assert 'anomaly' in predictions
+                    assert 'is_anomaly' in predictions['anomaly']
+                    assert 'score' in predictions['anomaly']
+                    
+                    # Validar allocation_metadata
+                    assert 'allocation_metadata' in ticket
+                    metadata = ticket['allocation_metadata']
+                    assert 'predicted_duration_ms' in metadata
+                    assert 'anomaly_detected' in metadata
+                    
+                    print(f"✅ Ticket {ticket['ticket_id']} recebeu predições ML:")
+                    print(f"   - Duração prevista: {predictions['duration_ms']}ms")
+                    print(f"   - Confiança: {predictions['confidence']:.2f}")
+                    print(f"   - CPU: {predictions['cpu_cores']} cores")
+                    print(f"   - Memória: {predictions['memory_mb']} MB")
+                    print(f"   - Anomalia: {predictions['anomaly']['is_anomaly']}")
+                    
+                    return  # Sucesso
+        
+        pytest.fail(f"Timeout aguardando ticket com predictions após {max_attempts * 2}s")
 
 
 @pytest.mark.asyncio
 @pytest.mark.e2e
-async def test_anomaly_detection_in_scheduling(orchestrator_url, anomalous_ticket):
+async def test_anomaly_detection_real(orchestrator_url, anomalous_ticket):
     """
-    Valida que anomalias são detectadas e refletidas no scheduling.
-
-    Fluxo:
-    1. Submeter ticket anômalo
-    2. Validar que predictions.anomaly.is_anomaly = True
-    3. Validar que priority foi boosted
-    4. Validar que metrics foram registradas
+    Valida que anomalias são detectadas em tickets reais.
+    
+    Ticket anômalo: 20 capabilities (threshold: 12)
     """
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        # Simular predições para ticket anômalo
-        expected_predictions = {
-            'duration_ms': 6000,
-            'duration_confidence': 0.75,
-            'cpu_cores': 2.5,
-            'memory_mb': 1536,
-            'resources_confidence': 0.7,
-            'anomaly': {
-                'is_anomaly': True,
-                'score': 0.85,
-                'type': 'capability_anomaly',
-                'confidence': 0.95
-            },
-            'model_type': 'isolation_forest'
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        # Criar cognitive plan com ticket anômalo
+        cognitive_plan = {
+            'plan_id': f'e2e-anomaly-{int(time.time())}',
+            'intent_id': 'test-anomaly',
+            'risk_band': 'MEDIUM',
+            'dag': {
+                'nodes': [
+                    {
+                        'node_id': 'task-anomaly',
+                        'action': 'complex_processing',
+                        'capabilities': [f'cap{i}' for i in range(20)],  # 20 capabilities
+                        'estimated_duration_ms': 5000
+                    }
+                ]
+            }
         }
-
-        # Validar detecção de anomalia
-        assert expected_predictions['anomaly']['is_anomaly'] is True
-        assert expected_predictions['anomaly']['type'] == 'capability_anomaly'
-        assert expected_predictions['anomaly']['score'] > 0.5
-
-        # Validar que priority foi boosted (simulação)
-        base_priority = 0.5
-        boosted_priority = min(base_priority * 1.2, 1.0) if expected_predictions['anomaly']['is_anomaly'] else base_priority
-
-        assert boosted_priority > base_priority
-        assert boosted_priority == 0.6
+        
+        response = await client.post(
+            f"{orchestrator_url}/api/v1/workflows/start",
+            json={
+                'cognitive_plan': cognitive_plan,
+                'correlation_id': f'e2e-anomaly-{int(time.time())}',
+                'priority': 5,
+                'sla_deadline_seconds': 3600
+            }
+        )
+        
+        assert response.status_code == 200
+        workflow_id = response.json()['workflow_id']
+        
+        # Aguardar processamento
+        for attempt in range(30):
+            await asyncio.sleep(2)
+            
+            status_response = await client.get(
+                f"{orchestrator_url}/api/v1/workflows/{workflow_id}/status"
+            )
+            
+            if status_response.status_code == 200:
+                status_data = status_response.json()
+                
+                if 'tickets' in status_data and len(status_data['tickets']) > 0:
+                    ticket = status_data['tickets'][0]
+                    
+                    # Validar detecção de anomalia
+                    assert 'predictions' in ticket
+                    anomaly = ticket['predictions']['anomaly']
+                    
+                    assert anomaly['is_anomaly'] is True, "Anomalia não foi detectada"
+                    assert anomaly['score'] > 0.5, f"Score de anomalia muito baixo: {anomaly['score']}"
+                    assert anomaly['type'] == 'capability_anomaly'
+                    
+                    # Validar priority boost
+                    metadata = ticket['allocation_metadata']
+                    assert metadata['anomaly_detected'] is True
+                    assert metadata['priority_score'] > 0.5  # Boosted
+                    
+                    print(f"✅ Anomalia detectada com sucesso:")
+                    print(f"   - Tipo: {anomaly['type']}")
+                    print(f"   - Score: {anomaly['score']:.2f}")
+                    print(f"   - Priority boosted: {metadata['priority_score']:.2f}")
+                    
+                    return
+        
+        pytest.fail("Timeout aguardando detecção de anomalia")
 
 
 @pytest.mark.asyncio
 @pytest.mark.e2e
-async def test_load_forecast_in_scheduling(orchestrator_url):
+async def test_load_forecast_real(orchestrator_url):
     """
-    Valida que forecast de carga é usado no scheduling.
-
-    Fluxo:
-    1. Requisitar forecast de carga
-    2. Validar estrutura do forecast
-    3. Validar que valores são não-negativos
+    Valida que forecast de carga funciona via API.
+    
+    Endpoint: GET /api/v1/ml/load-forecast?horizon_minutes=60
     """
     async with httpx.AsyncClient(timeout=30.0) as client:
-        # Simular forecast de carga
-        expected_forecast = {
-            'forecast': [
-                {
-                    'timestamp': datetime.now().isoformat(),
-                    'predicted_load': 120.5,
-                    'confidence_lower': 100.0,
-                    'confidence_upper': 140.0
-                }
-            ],
-            'trend': 'increasing',
-            'horizon_minutes': 60
-        }
-
+        # Requisitar forecast de 60 minutos
+        response = await client.get(
+            f"{orchestrator_url}/api/v1/ml/load-forecast",
+            params={'horizon_minutes': 60}
+        )
+        
+        assert response.status_code == 200
+        forecast = response.json()
+        
         # Validar estrutura
-        assert 'forecast' in expected_forecast
-        assert len(expected_forecast['forecast']) > 0
-        assert 'trend' in expected_forecast
-        assert expected_forecast['horizon_minutes'] == 60
-
+        assert 'forecast' in forecast
+        assert 'timestamps' in forecast
+        assert 'model_type' in forecast
+        assert 'horizon_minutes' in forecast
+        
+        assert forecast['horizon_minutes'] == 60
+        assert len(forecast['forecast']) > 0
+        assert len(forecast['timestamps']) == len(forecast['forecast'])
+        
         # Validar valores não-negativos
-        for point in expected_forecast['forecast']:
-            assert point['predicted_load'] >= 0
-            assert point['confidence_lower'] >= 0
-            assert point['confidence_upper'] >= point['predicted_load']
+        for load_value in forecast['forecast']:
+            assert load_value >= 0, f"Load negativo: {load_value}"
+        
+        # Validar timestamps são ISO 8601
+        for ts in forecast['timestamps']:
+            datetime.fromisoformat(ts.replace('Z', '+00:00'))
+        
+        print(f"✅ Load forecast obtido com sucesso:")
+        print(f"   - Horizonte: {forecast['horizon_minutes']} minutos")
+        print(f"   - Pontos: {len(forecast['forecast'])}")
+        print(f"   - Modelo: {forecast['model_type']}")
+        print(f"   - Load médio: {sum(forecast['forecast']) / len(forecast['forecast']):.2f}")
 
 
 # =============================================================================
@@ -220,10 +317,10 @@ async def test_prometheus_metrics(orchestrator_url):
     Valida que métricas Prometheus são registradas.
 
     Métricas esperadas:
-    - prediction_latency_seconds
-    - prediction_accuracy
-    - anomaly_detected_total
-    - cache_hit_total
+    - orchestration_ml_prediction_duration_seconds
+    - orchestration_ml_predictions_total
+    - orchestration_ml_anomalies_detected_total
+    - orchestration_ml_prediction_cache_hits_total
     """
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.get(f"{orchestrator_url}/metrics")
@@ -233,17 +330,16 @@ async def test_prometheus_metrics(orchestrator_url):
 
         # Validar métricas específicas de ML
         expected_metrics = [
-            'prediction_latency_seconds',
-            'prediction_accuracy',
-            'prediction_total',
-            'cache_hit_total',
-            'cache_miss_total'
+            'orchestration_ml_prediction_duration_seconds',
+            'orchestration_ml_predictions_total',
+            'orchestration_ml_anomalies_detected_total',
+            'orchestration_ml_prediction_cache_hits_total'
         ]
 
         # Pelo menos algumas métricas devem estar presentes
         # (podem não estar todas se ML não foi usado ainda)
         metrics_found = [m for m in expected_metrics if m in metrics_text]
-        assert len(metrics_found) >= 0  # Relaxed check - podem estar ausentes se não houver dados
+        assert len(metrics_found) >= 1  # Relaxed: requer pelo menos uma métrica emitida
 
 
 @pytest.mark.asyncio

@@ -1,4 +1,10 @@
 #!/bin/bash
+echo "⚠️  AVISO: Este script foi consolidado no CLI unificado de validação."
+echo "⚠️  Use: scripts/validate.sh --target <TARGET>"
+echo "⚠️  Exemplo: scripts/validate.sh --target specialists"
+echo ""
+echo "Executando script legado..."
+echo ""
 ################################################################################
 # Script: execute-e2e-validation-v1.0.9.sh
 # Propósito: Executar validação E2E completa do pipeline Neural Hive-Mind v1.0.9

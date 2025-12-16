@@ -1,0 +1,92 @@
+# Gerado automaticamente por 12-prepare-fluxo-c-values.sh em Thu 20 Nov 2025 10:11:21 AM CET
+# Baseado em environments/local/fluxo-c-config.yaml
+
+image:
+  repository: docker.io/neural-hive-mind/orchestrator-dynamic
+  tag: "1.0.0"
+  pullPolicy: Never
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "512Mi"
+  limits:
+    cpu: "1"
+    memory: "2Gi"
+
+customCommand:
+  enabled: false
+  command: []
+  args: []
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+
+config:
+  environment: "local"
+  logLevel: "DEBUG"
+
+  temporal:
+    host: "temporal-frontend.temporal.svc.cluster.local:7233"
+    namespace: "default"
+    tlsEnabled: false
+
+  postgres:
+    host: "temporal-postgresql.temporal.svc.cluster.local:5432"
+    database: "temporal"
+    sslMode: "disable"
+
+  kafka:
+    bootstrapServers: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
+    consensusTopic: "plans.consensus"
+    ticketsTopic: "execution.tickets"
+    consumerGroupId: "orchestrator-dynamic-local"
+    securityProtocol: "PLAINTEXT"
+    sasl:
+      enabled: false
+
+  mongodb:
+    uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+    database: "neural_hive_orchestration"
+
+  redis:
+    clusterNodes: "redis.redis-cluster.svc.cluster.local:6379"
+    sslEnabled: false
+
+  openTelemetry:
+    endpoint: "localhost:4317"
+
+  scheduler:
+    enableIntelligentScheduler: false
+    maxParallelTickets: 50
+
+  sla:
+    defaultTimeoutMs: 1800000
+
+  ml:
+    trainingJob:
+      enabled: false
+    drift:
+      enabled: false
+  
+  spiffe:
+    enabled: false
+  
+  vault:
+    enabled: false
+
+serviceMonitor:
+  enabled: true
+
+security:
+  istio:
+    enabled: false

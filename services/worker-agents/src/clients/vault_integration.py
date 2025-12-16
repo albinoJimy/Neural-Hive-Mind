@@ -30,7 +30,7 @@ class WorkerVaultClient:
     - Armazenamento de resultados sensíveis
     """
 
-    def __init__(self, config: WorkerAgentSettings):
+    def __init__(self, config: WorkerAgentSettings, spiffe_manager: Optional["SPIFFEManager"] = None):
         if not SECURITY_LIB_AVAILABLE:
             raise ImportError("neural-hive-security library not available")
 
@@ -51,10 +51,15 @@ class WorkerVaultClient:
             workload_api_socket=config.spiffe_socket_path,
             trust_domain=config.spiffe_trust_domain,
             jwt_audience=config.spiffe_jwt_audience,
+            jwt_ttl_seconds=config.spiffe_jwt_ttl_seconds,
         )
 
         self.vault_client: Optional[VaultClient] = VaultClient(vault_config) if config.vault_enabled else None
-        self.spiffe_manager: Optional[SPIFFEManager] = SPIFFEManager(spiffe_config) if config.spiffe_enabled else None
+        self._owns_spiffe = spiffe_manager is None
+        if spiffe_manager is not None:
+            self.spiffe_manager = spiffe_manager
+        else:
+            self.spiffe_manager: Optional[SPIFFEManager] = SPIFFEManager(spiffe_config) if config.spiffe_enabled else None
 
     async def initialize(self):
         """Inicializa clientes Vault e SPIFFE"""
@@ -62,7 +67,7 @@ class WorkerVaultClient:
 
         try:
             # Initialize SPIFFE manager
-            if self.spiffe_manager and self.config.spiffe_enabled:
+            if self.spiffe_manager and self.config.spiffe_enabled and self._owns_spiffe:
                 await self.spiffe_manager.initialize()
 
             # Initialize Vault client
@@ -161,5 +166,5 @@ class WorkerVaultClient:
         if self.vault_client:
             await self.vault_client.close()
 
-        if self.spiffe_manager:
+        if self.spiffe_manager and self._owns_spiffe:
             await self.spiffe_manager.close()

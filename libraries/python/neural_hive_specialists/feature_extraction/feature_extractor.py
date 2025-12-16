@@ -10,12 +10,16 @@ Gera feature vector padronizado para inferência de modelos ML.
 """
 
 import numpy as np
-from typing import Dict, List, Any, Optional
+import time
+from typing import Dict, List, Any, Optional, TYPE_CHECKING
 import structlog
 
 from .ontology_mapper import OntologyMapper
 from .graph_analyzer import GraphAnalyzer
 from .embeddings_generator import EmbeddingsGenerator
+
+if TYPE_CHECKING:
+    from ..metrics import SpecialistMetrics
 
 logger = structlog.get_logger(__name__)
 
@@ -23,37 +27,46 @@ logger = structlog.get_logger(__name__)
 class FeatureExtractor:
     """Extrai features estruturadas de planos cognitivos para ML."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None, metrics: Optional["SpecialistMetrics"] = None):
         """
         Inicializa extrator de features.
 
         Args:
             config: Configuração opcional (ontology_path, embeddings_model)
+            metrics: Métricas Prometheus opcionais para instrumentação
         """
         self.config = config or {}
+        self.metrics = metrics
 
         # Inicializar componentes
         # Inicializar embeddings generator primeiro
         self.embeddings_generator = EmbeddingsGenerator(
-            model_name=self.config.get('embeddings_model', 'paraphrase-multilingual-MiniLM-L12-v2')
+            model_name=self.config.get('embeddings_model', 'paraphrase-multilingual-MiniLM-L12-v2'),
+            cache_size=self.config.get('embedding_cache_size', 1000),
+            batch_size=self.config.get('embedding_batch_size', 32),
+            metrics=metrics,
+            cache_ttl_seconds=self.config.get('embedding_cache_ttl_seconds'),
+            cache_enabled=self.config.get('embedding_cache_enabled', True)
         )
 
         # Passar embeddings_generator para OntologyMapper para usar similaridade semântica
         self.ontology_mapper = OntologyMapper(
             ontology_path=self.config.get('ontology_path'),
-            embeddings_generator=self.embeddings_generator
+            embeddings_generator=self.embeddings_generator,
+            semantic_similarity_threshold=self.config.get('semantic_similarity_threshold', 0.7)
         )
 
         self.graph_analyzer = GraphAnalyzer()
 
         logger.info("FeatureExtractor initialized", config=self.config)
 
-    def extract_features(self, cognitive_plan: Dict[str, Any]) -> Dict[str, Any]:
+    def extract_features(self, cognitive_plan: Dict[str, Any], include_embeddings: bool = True) -> Dict[str, Any]:
         """
         Extrai features estruturadas do plano cognitivo.
 
         Args:
             cognitive_plan: Plano cognitivo validado
+            include_embeddings: Se False, pula extração de embeddings
 
         Returns:
             Dicionário com features categorizadas:
@@ -63,6 +76,7 @@ class FeatureExtractor:
             - embedding_features: Features de embeddings
             - aggregated_features: Features agregadas para modelo
         """
+        start_time = time.time()
         logger.info(
             "Extracting features from cognitive plan",
             plan_id=cognitive_plan.get('plan_id')
@@ -82,7 +96,11 @@ class FeatureExtractor:
         graph_features = self._extract_graph_features(tasks)
 
         # 4. Features de embeddings
-        embedding_features = self._extract_embedding_features(tasks)
+        if include_embeddings:
+            embedding_features = self._extract_embedding_features(tasks)
+        else:
+            embedding_features = {}
+            logger.debug("Skipping embedding extraction", plan_id=cognitive_plan.get('plan_id'))
 
         # 5. Agregar features para modelo
         aggregated_features = self._aggregate_features(
@@ -97,6 +115,11 @@ class FeatureExtractor:
             plan_id=cognitive_plan.get('plan_id'),
             num_features=len(aggregated_features)
         )
+        try:
+            if self.metrics:
+                self.metrics.observe_feature_extraction_duration(time.time() - start_time)
+        except Exception as e:
+            logger.warning("feature_extraction_metrics_failed", error=str(e))
 
         return {
             'metadata_features': metadata_features,
@@ -108,11 +131,18 @@ class FeatureExtractor:
 
     def _extract_metadata_features(self, cognitive_plan: Dict[str, Any]) -> Dict[str, Any]:
         """Extrai features de metadados básicos."""
+        import random
         tasks = cognitive_plan.get('tasks', [])
 
-        # Mapear prioridade para numérico
+        # Mapear prioridade para numérico com variação para evitar valores estáticos
+        # Isso melhora a diversidade do dataset de treinamento
         priority_map = {'low': 0.25, 'normal': 0.5, 'high': 0.75, 'critical': 1.0}
-        priority_score = priority_map.get(cognitive_plan.get('original_priority', 'normal'), 0.5)
+        base_priority = priority_map.get(cognitive_plan.get('original_priority', 'normal'), 0.5)
+
+        # Adicionar jitter de ±0.1 para criar variação nos dados de treinamento
+        # Mantém dentro dos limites [0.0, 1.0]
+        jitter = random.uniform(-0.1, 0.1)
+        priority_score = max(0.0, min(1.0, base_priority + jitter))
 
         # Calcular duração total
         total_duration_ms = sum(task.get('estimated_duration_ms', 0) for task in tasks)
@@ -218,17 +248,18 @@ class FeatureExtractor:
 
         return aggregated
 
-    def get_feature_vector(self, cognitive_plan: Dict[str, Any]) -> np.ndarray:
+    def get_feature_vector(self, cognitive_plan: Dict[str, Any], include_embeddings: bool = True) -> np.ndarray:
         """
         Retorna vetor de features para inferência de modelo.
 
         Args:
             cognitive_plan: Plano cognitivo validado
+            include_embeddings: Se False, pula extração de embeddings
 
         Returns:
             Array numpy com features agregadas
         """
-        features = self.extract_features(cognitive_plan)
+        features = self.extract_features(cognitive_plan, include_embeddings=include_embeddings)
         aggregated = features['aggregated_features']
 
         # Ordenar features por chave para consistência
@@ -243,9 +274,12 @@ class FeatureExtractor:
 
         return feature_vector
 
-    def get_feature_names(self) -> List[str]:
+    def get_feature_names(self, include_embeddings: bool = True) -> List[str]:
         """
         Retorna nomes das features no vetor.
+
+        Args:
+            include_embeddings: Se False, pula extração de embeddings
 
         Returns:
             Lista ordenada de nomes de features
@@ -258,7 +292,7 @@ class FeatureExtractor:
             'original_priority': 'normal'
         }
 
-        features = self.extract_features(dummy_plan)
+        features = self.extract_features(dummy_plan, include_embeddings=include_embeddings)
         aggregated = features['aggregated_features']
 
         return sorted(aggregated.keys())

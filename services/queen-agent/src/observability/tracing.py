@@ -1,3 +1,6 @@
+# DEPRECATED: Use neural_hive_observability library instead
+# This module will be removed in v2.0.0
+
 import structlog
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider

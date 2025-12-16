@@ -181,3 +181,36 @@ output "clickhouse_native_uri" {
   value       = module.clickhouse_cluster.native_uri
   sensitive   = true
 }
+
+# Outputs Vault HA
+output "kms_key_id" {
+  description = "KMS Key ID utilizada para auto-unseal do Vault"
+  value       = module.vault-ha.kms_key_id
+}
+
+output "vault_server_role_arn" {
+  description = "IAM Role ARN associada ao serviço Vault via IRSA"
+  value       = module.vault-ha.vault_server_role_arn
+}
+
+output "audit_logs_bucket_name" {
+  description = "Bucket S3 para logs de auditoria do Vault"
+  value       = module.vault-ha.audit_logs_bucket_name
+}
+
+# Outputs SPIRE datastore
+output "connection_string" {
+  description = "Connection string do banco de dados do SPIRE Server"
+  value       = module.spire-datastore.connection_string
+  sensitive   = true
+}
+
+output "secret_arn" {
+  description = "ARN do secret no AWS Secrets Manager para SPIRE datastore"
+  value       = module.spire-datastore.secret_arn
+}
+
+output "secret_name" {
+  description = "Nome do secret no AWS Secrets Manager para SPIRE datastore"
+  value       = module.spire-datastore.secret_name
+}

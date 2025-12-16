@@ -1,171 +1,115 @@
-apiVersion: v1
-kind: ConfigMap
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
 metadata:
   name: vault-spiffe-alerts
-  namespace: monitoring
   labels:
-    app.kubernetes.io/name: prometheus
-    app.kubernetes.io/component: alerting-rules
-data:
-  vault-spiffe-alerts.yaml: |
-    groups:
-    - name: vault-health
-      interval: 30s
-      rules:
-      - alert: VaultDown
-        expr: up{job="vault"} == 0
-        for: 5m
-        labels:
-          severity: critical
-          component: vault
-          layer: security
-        annotations:
-          summary: "Vault está down"
-          description: "Nenhuma instância do Vault está executando há 5 minutos."
-          runbook_url: "https://docs.neural-hive.io/runbooks/vault-down"
+    role: vault-spiffe
+spec:
+  groups:
+  - name: vault-health
+    rules:
+    - alert: VaultTokenExpiringSoon
+      expr: vault_token_ttl_seconds < 3600
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Vault token expiring soon"
+        description: "Vault token TTL below 1h. Check renewal task."
+    - alert: VaultTokenExpiringSoonCritical
+      expr: vault_token_ttl_seconds < 900
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Vault token expiring in <15m"
+        description: "Vault token TTL critical. Renewal failing."
+    - alert: VaultTokenRenewalFailing
+      expr: rate(vault_token_renewals_total{status="error"}[5m]) > 3
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Vault token renewals failing"
+        description: "Token renewals failing. Check Vault/SPIRE connectivity."
+    - alert: VaultCredentialFetchFailing
+      expr: rate(orchestrator_vault_credentials_fetched_total{status="error"}[5m]) > 5
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Vault credential fetch failures"
+        description: "High rate of Vault credential fetch failures."
+    - alert: VaultAPIHighLatency
+      expr: histogram_quantile(0.95, sum(rate(vault_request_duration_seconds_bucket[5m])) by (le,operation)) > 2
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Vault API latency high"
+        description: "Vault API p95 latency above 2s."
 
-      - alert: VaultSealed
-        expr: vault_core_unsealed == 0
-        for: 2m
-        labels:
-          severity: critical
-          component: vault
-          layer: security
-        annotations:
-          summary: "Vault está sealed"
-          description: "Vault pod {{ $labels.pod }} está sealed. Unseal necessário."
-          runbook_url: "https://docs.neural-hive.io/runbooks/vault-sealed"
+  - name: spiffe-health
+    rules:
+    - alert: SPIFFESVIDExpiringSoon
+      expr: spiffe_svid_ttl_seconds < 1800
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "SPIFFE SVID expiring soon"
+        description: "JWT/X509 SVID expiring. Check SPIRE agent."
+    - alert: SPIFFESVIDExpiringCritical
+      expr: spiffe_svid_ttl_seconds < 300
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "SPIFFE SVID expiring in <5m"
+        description: "Immediate action required to renew SVID."
+    - alert: SPIFFESVIDFetchFailing
+      expr: rate(spiffe_svid_fetch_total{status="error"}[5m]) > 3
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "SPIFFE SVID fetch failing"
+        description: "JWT/X509 fetches failing from SPIRE agent."
+    - alert: SPIFFETrustBundleStale
+      expr: rate(spiffe_trust_bundle_updates_total[1h]) == 0
+      for: 1h
+      labels:
+        severity: warning
+      annotations:
+        summary: "SPIFFE trust bundle not updated"
+        description: "Trust bundle not refreshed in the last hour."
 
-      - alert: VaultHighErrorRate
-        expr: rate(vault_core_handle_request{status="error"}[5m]) > 0.05
-        for: 10m
-        labels:
-          severity: warning
-          component: vault
-          layer: security
-        annotations:
-          summary: "Taxa de erro alta no Vault"
-          description: "Taxa de erro é {{ $value | humanizePercentage }} nos últimos 5 minutos."
+  - name: grpc-auth
+    rules:
+    - alert: GRPCAuthFailureRateHigh
+      expr: rate(grpc_jwt_auth_failures_total[5m]) > 0.1
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High gRPC auth failure rate"
+        description: "JWT-SVID authentication failures exceed 10%."
+    - alert: GRPCUnauthenticatedFallbackHigh
+      expr: rate(grpc_jwt_auth_attempts_total{status="fallback"}[5m]) > 0.05
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Unauthenticated fallback in gRPC calls"
+        description: "Fallback to unauthenticated calls detected."
 
-      - alert: VaultTokenExpirationSoon
-        expr: vault_token_ttl_seconds < 3600
-        for: 5m
-        labels:
-          severity: warning
-          component: vault
-          layer: security
-        annotations:
-          summary: "Token Vault expirando em breve"
-          description: "Token {{ $labels.token_id }} expira em {{ $value | humanizeDuration }}."
-
-    - name: spire-health
-      interval: 30s
-      rules:
-      - alert: SpireServerDown
-        expr: up{job="spire-server"} == 0
-        for: 5m
-        labels:
-          severity: critical
-          component: spire-server
-          layer: security
-        annotations:
-          summary: "SPIRE Server está down"
-          description: "Nenhuma instância do SPIRE Server está executando há 5 minutos."
-          runbook_url: "https://docs.neural-hive.io/runbooks/spire-server-down"
-
-      - alert: SpireAgentDown
-        expr: count(up{job="spire-agent"} == 1) < 3
-        for: 5m
-        labels:
-          severity: warning
-          component: spire-agent
-          layer: security
-        annotations:
-          summary: "SPIRE Agents insuficientes"
-          description: "Apenas {{ $value }} SPIRE Agents estão rodando (esperado: 3+)."
-
-      - alert: SpireSVIDFetchFailure
-        expr: rate(spire_agent_svid_fetch_errors_total[5m]) > 0.1
-        for: 10m
-        labels:
-          severity: critical
-          component: spire-agent
-          layer: security
-        annotations:
-          summary: "Falhas ao buscar SVID"
-          description: "Taxa de erro ao buscar SVID é {{ $value }} nos últimos 5 minutos."
-          runbook_url: "https://docs.neural-hive.io/runbooks/spire-svid-fetch-failure"
-
-      - alert: SpireTrustBundleStale
-        expr: time() - spire_server_trust_bundle_last_update_timestamp_seconds > 86400
-        for: 1h
-        labels:
-          severity: warning
-          component: spire-server
-          layer: security
-        annotations:
-          summary: "Trust bundle desatualizado"
-          description: "Trust bundle não foi atualizado há {{ $value | humanizeDuration }}."
-
-    - name: vault-spiffe-integration
-      interval: 30s
-      rules:
-      - alert: GrpcAuthHighFailureRate
-        expr: rate(grpc_auth_attempts_total{status="failure"}[5m]) / rate(grpc_auth_attempts_total[5m]) > 0.1
-        for: 10m
-        labels:
-          severity: warning
-          component: service-registry
-          layer: security
-        annotations:
-          summary: "Taxa de falha alta em autenticação gRPC"
-          description: "{{ $value | humanizePercentage }} das tentativas de autenticação gRPC estão falhando."
-          runbook_url: "https://docs.neural-hive.io/runbooks/grpc-auth-failure"
-
-      - alert: CredentialRotationFailed
-        expr: increase(vault_credential_rotation_errors_total[5m]) > 0
-        for: 5m
-        labels:
-          severity: critical
-          component: orchestrator-dynamic
-          layer: security
-        annotations:
-          summary: "Falha na rotação de credenciais"
-          description: "{{ $value }} erros de rotação de credenciais detectados nos últimos 5 minutos."
-          runbook_url: "https://docs.neural-hive.io/runbooks/credential-rotation-failed"
-
-      - alert: VaultConnectionPoolRecreationHigh
-        expr: rate(vault_connection_pool_recreated_total[5m]) > 0.5
-        for: 10m
-        labels:
-          severity: warning
-          component: orchestrator-dynamic
-          layer: security
-        annotations:
-          summary: "Alta taxa de recriação de connection pool"
-          description: "Connection pool sendo recriado {{ $value }} vezes/min (indica problemas de conectividade)."
-
-    - name: vault-performance
-      interval: 60s
-      rules:
-      - alert: VaultHighMemoryUsage
-        expr: container_memory_working_set_bytes{pod=~"vault.*"} / container_spec_memory_limit_bytes{pod=~"vault.*"} > 0.9
-        for: 10m
-        labels:
-          severity: warning
-          component: vault
-          layer: security
-        annotations:
-          summary: "Uso de memória alto no Vault"
-          description: "Pod {{ $labels.pod }} usando {{ $value | humanizePercentage }} da memória limite."
-
-      - alert: VaultHighCPUUsage
-        expr: rate(container_cpu_usage_seconds_total{pod=~"vault.*"}[5m]) / container_spec_cpu_quota{pod=~"vault.*"} * 100000 > 0.9
-        for: 10m
-        labels:
-          severity: warning
-          component: vault
-          layer: security
-        annotations:
-          summary: "Uso de CPU alto no Vault"
-          description: "Pod {{ $labels.pod }} usando {{ $value | humanizePercentage }} da CPU limite."
+  - name: credential-rotation
+    rules:
+    - alert: CredentialRotationStuck
+      expr: rate(orchestrator_vault_renewal_task_runs_total{status="success"}[1h]) == 0
+      for: 1h
+      labels:
+        severity: warning
+      annotations:
+        summary: "Vault credential renewal not running"
+        description: "No successful credential renewal in the last hour."

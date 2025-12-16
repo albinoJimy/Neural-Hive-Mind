@@ -54,12 +54,13 @@ httpx>=0.24.0
 cachetools>=5.3.0
 
 # Bibliotecas internas (instalar via path local ou registry privado)
-# neural-hive-observability>=1.0.0
 # neural-hive-risk-scoring>=1.0.0
 # Bibliotecas internas - usar caminhos do contexto de build (relativos a /build)
 /libraries/neural_hive_integration
 /libraries/security
 /libraries/python/neural_hive_ml
+/libraries/python/neural_hive_resilience
+/libraries/python/neural_hive_observability
 
 # ML and Data Science
 scikit-learn>=1.4.0,<1.6.0

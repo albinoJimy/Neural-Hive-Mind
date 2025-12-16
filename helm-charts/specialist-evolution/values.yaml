@@ -41,19 +41,24 @@ deployment:
       maxSurge: 1
       maxUnavailable: 0
 
+# Pós-deploy (obrigatório após redução de memória e failureThreshold):
+# - Monitorar container_memory_usage_bytes e eventos dos pods nos specialists e no consensus-engine.
+# - Se houver OOMKill ou uso sustentado >80-85% do limit de 1Gi, aumentar resources.limits.memory em +256Mi neste arquivo (ex: 1.25Gi, 1.5Gi) e redeploy.
+# - Se "Startup probe failed" ocorrer de forma recorrente sem erro funcional, elevar startupProbe.failureThreshold para 20 ou 30 mantendo o restante igual.
 resources:
-  # Optimized for spaCy models (~200MB) + application overhead (~300MB) + cache (~200MB) = ~700MB base
-  # Production defaults based on real usage profiling: ~400-600MB memory, ~200-300m CPU during inference
-  # Ratios: 3.3x CPU burst capacity, 2.6x memory headroom for peak loads
+  # Optimized after Phase 1-4 dependency cleanup (removed ~1.75GB unused ML libs: shap, lime, evidently, presidio, sentence-transformers)
+  # New baseline: python-specialist-base (~1.2GB) + application code (~100MB) + runtime overhead (~200MB) = ~1.5GB image, ~400-500MB runtime
+  # Production defaults based on optimized images: ~300-400MB memory, ~200-300m CPU during inference
+  # Ratios: 3.3x CPU burst capacity, 2x memory headroom for peak loads
   # Para clusters pequenos/dev, considere reduzir para:
-  #   requests: cpu: 200m, memory: 512Mi
-  #   limits: cpu: 800m, memory: 1.5Gi
+  #   requests: cpu: 200m, memory: 384Mi
+  #   limits: cpu: 800m, memory: 768Mi
   requests:
     cpu: 300m
-    memory: 768Mi
+    memory: 512Mi
   limits:
     cpu: 1
-    memory: 2Gi
+    memory: 1Gi
 
 service:
   type: ClusterIP
@@ -99,6 +104,13 @@ config:
     sslEnabled: false
     cacheTtl: 300
 
+  # OpenTelemetry Configuration
+  # Custom attributes exported by specialists:
+  # - neural.hive.intent.id, neural.hive.plan.id, neural.hive.user.id (baggage)
+  # - specialist.type, specialist.version, plan.id, intent.id (span attributes)
+  # - opinion.confidence_score, opinion.risk_score, opinion.recommendation
+  # - inference.source (ml_model, semantic_pipeline, heuristics)
+  # - features.count, extraction.time_ms, processing.time_ms
   otel:
     endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
 
@@ -181,15 +193,16 @@ topologySpreadConstraints:
       matchLabels:
         app.kubernetes.io/name: specialist-evolution
 
-# Startup probe - allows up to 5 minutes for initial container startup before liveness probe takes over
-# This prevents premature pod restarts during complex initialization (loading ML models, connecting to dependencies)
+# Startup probe - allows up to 2.5 minutes for initial container startup before liveness probe takes over
+# Reduced from 5 minutes after Phase 1-4 optimizations (removed heavy deps, optimized base images)
+# Observed startup time: ~30-45s (vs ~2-3 min before), so 2.5 min provides 3-5x safety margin
 # TUNING GUIDE:
 # - Se pods crasham com "Startup probe failed" mas logs mostram progresso normal:
-#   Aumentar failureThreshold (ex: 40 para 10 minutos, 60 para 10 minutos)
-# - Se model loading é lento (>3 minutos):
+#   Aumentar failureThreshold (ex: 20 para 3.3 minutos, 30 para 5 minutos)
+# - Se startup é lento em clusters com I/O lento:
 #   Aumentar failureThreshold ou periodSeconds
-# - Para clusters rápidos com SSD:
-#   Reduzir failureThreshold para 20 (3.3 minutos)
+# - Para clusters rápidos com SSD e rede rápida:
+#   Reduzir failureThreshold para 10 (1.6 minutos)
 startupProbe:
   httpGet:
     path: /health
@@ -197,7 +210,7 @@ startupProbe:
   initialDelaySeconds: 10
   periodSeconds: 10
   timeoutSeconds: 5
-  failureThreshold: 30  # 30 * 10s = 5 minutes max startup time
+  failureThreshold: 15  # 15 * 10s = 2.5 minutes max startup time
   successThreshold: 1
 
 # Liveness probe - only runs after startup probe succeeds

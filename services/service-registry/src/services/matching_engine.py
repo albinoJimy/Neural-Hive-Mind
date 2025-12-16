@@ -4,8 +4,11 @@ from src.models import AgentInfo, AgentType, AgentStatus
 from src.clients import EtcdClient, PheromoneClient
 from prometheus_client import Counter, Histogram
 
+from neural_hive_observability import get_tracer
+
 
 logger = structlog.get_logger()
+tracer = get_tracer(__name__)
 
 
 # Métricas Prometheus
@@ -63,54 +66,58 @@ class MatchingEngine:
         Returns:
             Lista de AgentInfo ordenada por score (melhor primeiro)
         """
-        try:
-            # Métricas
-            if agent_type:
-                discovery_requests_total.labels(agent_type=agent_type.value).inc()
-            else:
-                discovery_requests_total.labels(agent_type="all").inc()
+        with tracer.start_as_current_span("match_agents") as span:
+            try:
+                span.set_attribute("neural.hive.capability.required", ",".join(capabilities_required))
+                # Métricas
+                if agent_type:
+                    discovery_requests_total.labels(agent_type=agent_type.value).inc()
+                else:
+                    discovery_requests_total.labels(agent_type="all").inc()
 
-            # 1. Listar agentes candidatos
-            all_agents = await self.etcd_client.list_agents(agent_type, filters)
+                # 1. Listar agentes candidatos
+                all_agents = await self.etcd_client.list_agents(agent_type, filters)
 
-            # 2. Filtrar por capabilities (set intersection)
-            candidates = self._filter_by_capabilities(all_agents, capabilities_required)
+                # 2. Filtrar por capabilities (set intersection)
+                candidates = self._filter_by_capabilities(all_agents, capabilities_required)
 
-            # 3. Filtrar apenas agentes HEALTHY
-            candidates = [a for a in candidates if a.status == AgentStatus.HEALTHY]
+                # 3. Filtrar apenas agentes HEALTHY
+                candidates = [a for a in candidates if a.status == AgentStatus.HEALTHY]
 
-            if not candidates:
-                logger.warning(
-                    "no_healthy_candidates_found",
+                if not candidates:
+                    logger.warning(
+                        "no_healthy_candidates_found",
+                        capabilities_required=capabilities_required,
+                        filters=filters
+                    )
+                    matching_candidates_evaluated.observe(0)
+                    agents_matched.observe(0)
+                    span.set_attribute("neural.hive.agents.matched", 0)
+                    return []
+
+                matching_candidates_evaluated.observe(len(candidates))
+
+                # 4. Calcular scores e ranquear
+                ranked_agents = await self._rank_agents(candidates)
+
+                # 5. Retornar top N
+                result = ranked_agents[:max_results]
+
+                agents_matched.observe(len(result))
+                span.set_attribute("neural.hive.agents.matched", len(result))
+
+                logger.info(
+                    "agents_matched_successfully",
                     capabilities_required=capabilities_required,
-                    filters=filters
+                    candidates_evaluated=len(candidates),
+                    agents_matched=len(result)
                 )
-                matching_candidates_evaluated.observe(0)
-                agents_matched.observe(0)
-                return []
 
-            matching_candidates_evaluated.observe(len(candidates))
+                return result
 
-            # 4. Calcular scores e ranquear
-            ranked_agents = await self._rank_agents(candidates)
-
-            # 5. Retornar top N
-            result = ranked_agents[:max_results]
-
-            agents_matched.observe(len(result))
-
-            logger.info(
-                "agents_matched_successfully",
-                capabilities_required=capabilities_required,
-                candidates_evaluated=len(candidates),
-                agents_matched=len(result)
-            )
-
-            return result
-
-        except Exception as e:
-            logger.error("match_agents_failed", error=str(e))
-            raise
+            except Exception as e:
+                logger.error("match_agents_failed", error=str(e))
+                raise
 
     def _filter_by_capabilities(
         self,

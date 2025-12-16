@@ -671,3 +671,247 @@ OTEL_EXPORTER_OTLP_COMPRESSION=gzip
 - [ ] Testes de instrumentação
 - [ ] Dashboards de observabilidade da observabilidade
 - [ ] Runbooks para problemas comuns
+
+## Debugging com Jaeger - Casos Práticos
+
+### Caso 1: Identificar Gargalo de Performance
+
+**Problema:** Usuário reporta lentidão ao processar intenção.
+
+**Passos para Diagnóstico:**
+
+1. **Obter intent_id** do usuário (via logs, suporte, ou header de resposta)
+
+2. **Buscar trace no Jaeger:**
+   ```
+   Service: *
+   Tags: neural.hive.intent.id=<intent-id>
+   Lookback: 1h
+   ```
+
+3. **Analisar duração de cada span** no trace:
+   ```
+   Gateway: 50ms ✓
+   Kafka produce: 5ms ✓
+   Orchestrator workflow: 8s ⚠️ LENTO
+   Specialist evaluate: 7.5s ⚠️ GARGALO
+   ```
+
+4. **Drill-down** no span problemático (`specialist-business.Evaluate`):
+   ```
+   model.load: 6s ❌ PROBLEMA
+   model.predict: 1.5s ✓
+   ```
+
+5. **Solução identificada:** Modelo não está em cache, implementar warmup no startup do specialist.
+
+**Comando para análise automatizada:**
+```bash
+# Analisar latência por fase
+curl -s "http://jaeger-query:16686/api/traces/<trace-id>" | \
+  jq -r '.data[0].spans | sort_by(-.duration) | .[0:5][] |
+    "\(.operationName): \((.duration / 1000) | round)ms"'
+```
+
+### Caso 2: Rastrear Falha em Fluxo Distribuído
+
+**Problema:** Plan não foi executado, mas gateway retornou sucesso.
+
+**Passos para Diagnóstico:**
+
+1. **Buscar trace por plan_id:**
+   ```bash
+   curl "http://jaeger-query:16686/api/traces?tag=neural.hive.plan.id:<plan-id>" | jq
+   ```
+
+2. **Identificar span com erro:**
+   ```json
+   {
+     "operationName": "allocate_resources",
+     "tags": [
+       {"key": "error", "value": true},
+       {"key": "error.message", "value": "ServiceRegistry unavailable"}
+     ]
+   }
+   ```
+
+3. **Correlacionar com logs** no timestamp do span:
+   ```bash
+   kubectl logs -n neural-hive deployment/service-registry \
+     --since-time=<span-start-time>
+   ```
+
+4. **Verificar estado do serviço:**
+   ```bash
+   kubectl get pods -n neural-hive -l app=service-registry
+   kubectl describe pod -n neural-hive <service-registry-pod>
+   ```
+
+**Solução:** Service-registry estava em restart, implementar retry com backoff exponencial no orchestrator.
+
+### Caso 3: Validar Propagação de Contexto
+
+**Problema:** Specialist não recebe `intent_id` em metadata gRPC.
+
+**Passos para Diagnóstico:**
+
+1. **Buscar trace completo** do gateway até specialist:
+   ```
+   Service: gateway-intencoes
+   Tags: neural.hive.intent.id=<intent-id>
+   ```
+
+2. **Verificar baggage em cada span:**
+   - Gateway: `baggage.neural.hive.intent.id = <intent-id>` ✓
+   - Orchestrator: `baggage.neural.hive.intent.id = <intent-id>` ✓
+   - Specialist: `baggage.neural.hive.intent.id = null` ❌
+
+3. **Verificar span de gRPC call** no orchestrator:
+   ```bash
+   curl -s "http://jaeger-query:16686/api/traces/<trace-id>" | \
+     jq '.data[0].spans[] | select(.operationName | contains("grpc")) |
+       .tags[] | select(.key | contains("metadata"))'
+   ```
+   - Se `rpc.grpc.request.metadata` não contém `x-neural-hive-intent-id`, há problema na injeção.
+
+4. **Verificar código do gRPC client:**
+   ```python
+   # Deve haver algo como:
+   inject_context_to_metadata(metadata)
+   # antes de:
+   stub.Evaluate(request, metadata=metadata)
+   ```
+
+**Solução:** Adicionar `inject_context_to_metadata()` antes da chamada gRPC no optimizer_grpc_client.py.
+
+### Caso 4: Diagnosticar Sampling Issues
+
+**Problema:** Traces importantes não aparecem no Jaeger.
+
+**Passos para Diagnóstico:**
+
+1. **Verificar métricas de tail sampling:**
+   ```bash
+   kubectl exec -n observability deployment/neural-hive-otel-collector -- \
+     curl -s http://localhost:8888/metrics | \
+     grep "otelcol_processor_tail_sampling"
+   ```
+
+2. **Verificar decisões de sampling:**
+   ```bash
+   kubectl exec -n observability deployment/neural-hive-otel-collector -- \
+     curl -s http://localhost:8888/metrics | \
+     grep "sampling_decision" | grep "sampled"
+   ```
+
+3. **Verificar política de sampling específica:**
+   ```bash
+   kubectl get configmap -n observability neural-hive-otel-collector -o yaml | \
+     grep -A 30 "tail_sampling"
+   ```
+
+4. **Testar com trace forçado:**
+   ```bash
+   # Enviar request com flag de sampling forçado
+   curl -H "traceparent: 00-$(openssl rand -hex 16)-$(openssl rand -hex 8)-01" \
+        -H "Content-Type: application/json" \
+        -d '{"text":"test forced sampling"}' \
+        http://gateway-intencoes:8000/intents/text
+   ```
+
+**Solução:** Aumentar `sampling_percentage` para policies de alta prioridade ou adicionar tag específica para sempre amostrar (`neural.hive.force_sample=true`).
+
+### Caso 5: Debug de Traces Fragmentados
+
+**Problema:** Spans de diferentes serviços não formam uma árvore conectada.
+
+**Diagnóstico via código:**
+```python
+# Script de diagnóstico
+import requests
+
+def check_trace_continuity(trace_id: str, jaeger_url: str):
+    """Verifica se todos os spans compartilham o mesmo trace_id"""
+    response = requests.get(f"{jaeger_url}/api/traces/{trace_id}")
+    trace = response.json()["data"][0]
+
+    parent_ids = set()
+    span_ids = set()
+
+    for span in trace["spans"]:
+        span_ids.add(span["spanID"])
+        for ref in span.get("references", []):
+            if ref["refType"] == "CHILD_OF":
+                parent_ids.add(ref["spanID"])
+
+    # Spans órfãos (exceto root)
+    orphan_spans = parent_ids - span_ids - {None}
+
+    if orphan_spans:
+        print(f"⚠️  Encontrados {len(orphan_spans)} spans com parent faltando")
+        return False
+
+    print("✓ Trace está íntegro")
+    return True
+
+# Uso
+check_trace_continuity("abc123...", "http://jaeger-query:16686")
+```
+
+**Causas comuns:**
+1. Context não propagado entre Kafka producer/consumer
+2. gRPC metadata não injected corretamente
+3. Async operations perdendo context
+
+**Solução:** Garantir uso consistente de `with tracer.start_as_current_span()` e propagação via `inject()`/`extract()`.
+
+## Exemplos de Queries por Cenário
+
+### Cenário: Análise de SLA
+
+```bash
+# Traces que violaram SLA (>5s)
+curl "http://jaeger-query:16686/api/traces?\
+service=gateway-intencoes&\
+minDuration=5s&\
+lookback=24h&\
+limit=100" | jq '.data | length'
+```
+
+### Cenário: Análise de Erros por Período
+
+```bash
+# Taxa de erro por hora nas últimas 24h
+for h in $(seq 0 23); do
+  START=$(($(date +%s) - (h+1)*3600))000000
+  END=$(($(date +%s) - h*3600))000000
+
+  TOTAL=$(curl -s "http://jaeger-query:16686/api/traces?service=gateway-intencoes&start=$START&end=$END&limit=1000" | jq '.data | length')
+  ERRORS=$(curl -s "http://jaeger-query:16686/api/traces?service=gateway-intencoes&tag=error:true&start=$START&end=$END&limit=1000" | jq '.data | length')
+
+  echo "Hora -$h: $ERRORS/$TOTAL erros"
+done
+```
+
+### Cenário: Mapa de Dependências
+
+```bash
+# Extrair dependências de um trace
+curl -s "http://jaeger-query:16686/api/traces/<trace-id>" | \
+  jq -r '.data[0] |
+    .spans as $spans |
+    .processes as $procs |
+    $spans[] |
+    ($procs[.processID].serviceName) as $svc |
+    (.references[]? | select(.refType=="CHILD_OF") | .spanID) as $parent |
+    ($spans[] | select(.spanID==$parent) | $procs[.processID].serviceName) as $parent_svc |
+    select($parent_svc != null) |
+    "\($parent_svc) -> \($svc)"' | sort -u
+```
+
+## Referências
+
+- **Documentação OpenTelemetry**: https://opentelemetry.io/docs/
+- **Jaeger Documentation**: https://www.jaegertracing.io/docs/
+- **Neural Hive Troubleshooting**: [jaeger-troubleshooting.md](./jaeger-troubleshooting.md)
+- **Queries Customizadas**: [jaeger-queries-neural-hive.md](./jaeger-queries-neural-hive.md)

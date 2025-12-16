@@ -50,7 +50,7 @@ class ValidationResult:
 class PolicyValidator:
     """Interface de alto nível para validação de políticas."""
 
-    def __init__(self, opa_client: OPAClient, config):
+    def __init__(self, opa_client: OPAClient, config, redis_client=None):
         """
         Inicializar PolicyValidator.
 
@@ -60,6 +60,7 @@ class PolicyValidator:
         """
         self.opa_client = opa_client
         self.config = config
+        self.redis_client = redis_client
         self.metrics = get_metrics()
 
         logger.info("PolicyValidator inicializado")
@@ -209,7 +210,11 @@ class PolicyValidator:
                 'ticket_id': ticket.get('ticket_id', 'unknown'),
                 'namespace': ticket.get('namespace', 'default'),
                 'current_time': int(datetime.now().timestamp() * 1000),
-                'tenant_id': ticket.get('tenant_id', 'default')
+                'tenant_id': ticket.get('tenant_id', 'default'),
+                'user_id': ticket.get('user_id', 'system'),
+                'jwt_token': ticket.get('jwt_token'),
+                'source_ip': ticket.get('source_ip', 'unknown'),
+                'request_count_last_minute': await self._get_request_count(ticket.get('tenant_id', 'default'))
             }
 
             # Construir input OPA
@@ -233,12 +238,28 @@ class PolicyValidator:
                 'premium_tenants': self.config.opa_premium_tenants
             }
 
+            # NOVO: Adicionar parâmetros de segurança
+            opa_input['input']['security'] = {
+                'spiffe_enabled': self.config.spiffe_enabled,
+                'trust_domain': self.config.spiffe_trust_domain,
+                'allowed_tenants': self.config.opa_allowed_tenants,
+                'rbac_roles': self.config.opa_rbac_roles,
+                'data_residency_regions': self.config.opa_data_residency_regions,
+                'tenant_rate_limits': self.config.opa_tenant_rate_limits,
+                'global_rate_limit': self.config.opa_global_rate_limit,
+                'default_tenant_rate_limit': self.config.opa_default_tenant_rate_limit
+            }
+
             # Avaliar políticas em paralelo
             evaluations = [
                 (self.config.opa_policy_resource_limits, opa_input),
                 (self.config.opa_policy_sla_enforcement, opa_input),
                 (self.config.opa_policy_feature_flags, opa_input)
             ]
+
+            # NOVO: Adicionar security constraints se habilitado
+            if self.config.opa_security_enabled:
+                evaluations.append((self.config.opa_policy_security_constraints, opa_input))
 
             results = await self.opa_client.batch_evaluate(evaluations)
 
@@ -248,6 +269,10 @@ class PolicyValidator:
             # Extrair feature flags do resultado da terceira política
             if len(results) > 2 and 'result' in results[2]:
                 validation_result.policy_decisions['feature_flags'] = results[2]['result']
+
+            # NOVO: Extrair security context se disponível
+            if len(results) > 3 and 'result' in results[3]:
+                validation_result.policy_decisions['security_context'] = results[3]['result'].get('security_context', {})
 
             # Calcular duração
             duration_ms = (datetime.now() - start_time).total_seconds() * 1000
@@ -270,6 +295,43 @@ class PolicyValidator:
                     violation.rule,
                     violation.severity
                 )
+
+                # NOVO: Registrar violações de segurança
+                if violation.policy_name == 'security_constraints':
+                    self.metrics.record_security_violation(
+                        context['tenant_id'],
+                        violation.rule,
+                        violation.severity
+                    )
+                    if violation.rule == 'cross_tenant_access':
+                        self.metrics.record_tenant_isolation_violation(
+                            context['tenant_id'],
+                            context['tenant_id']
+                        )
+                    elif violation.rule in ['missing_authentication', 'invalid_jwt']:
+                        self.metrics.record_authentication_failure(
+                            context['tenant_id'],
+                            violation.rule
+                        )
+                    elif violation.rule == 'insufficient_permissions':
+                        denied_capability = ''
+                        if isinstance(ticket.get('required_capabilities'), list) and ticket['required_capabilities']:
+                            denied_capability = str(ticket['required_capabilities'][0])
+                        self.metrics.record_authorization_denial(
+                            context['tenant_id'],
+                            context.get('user_id', 'unknown'),
+                            denied_capability
+                        )
+                    elif violation.rule == 'pii_handling_violation':
+                        self.metrics.record_data_governance_violation(
+                            context['tenant_id'],
+                            violation.rule
+                        )
+                    elif violation.rule == 'tenant_rate_limit_exceeded':
+                        self.metrics.record_rate_limit_exceeded(
+                            context['tenant_id'],
+                            'tenant'
+                        )
 
             # Registrar warnings
             for warning in validation_result.warnings:
@@ -383,21 +445,19 @@ class PolicyValidator:
                 'ticket_id': ticket.get('ticket_id', 'unknown'),
                 'agent_id': agent_info.get('agent_id', 'unknown'),
                 'agent_capacity': agent_info.get('capacity', {}),
-                'current_time': int(datetime.now().timestamp() * 1000)
-            }
-
-            # Construir input OPA
-            combined_data = {
-                'ticket': ticket,
+                'current_time': int(datetime.now().timestamp() * 1000),
+                'total_tickets': ticket.get('total_tickets', 0),
                 'agent': agent_info
             }
 
-            opa_input = self._build_opa_input(combined_data, context)
+            # Construir input OPA com o ticket como recurso (compatível com resource_limits.rego)
+            opa_input = self._build_opa_input(ticket, context)
 
             # Adicionar parâmetros
             opa_input['input']['parameters'] = {
                 'allowed_capabilities': self.config.opa_allowed_capabilities,
-                'resource_limits': self.config.opa_resource_limits
+                'resource_limits': self.config.opa_resource_limits,
+                'max_concurrent_tickets': self.config.opa_max_concurrent_tickets
             }
 
             # Avaliar política de resource limits
@@ -487,6 +547,45 @@ class PolicyValidator:
                 )],
                 evaluation_duration_ms=(datetime.now() - start_time).total_seconds() * 1000
             )
+
+    async def _get_request_count(self, tenant_id: str) -> int:
+        """
+        Obter contagem de requests do tenant no último minuto via Redis.
+        """
+        try:
+            if not tenant_id:
+                return 0
+
+            # Se configuração de Redis não estiver disponível, fail-open
+            if not hasattr(self.config, 'redis_cluster_nodes') or not getattr(self.config, 'redis_cluster_nodes', None):
+                return 0
+
+            # Inicializa redis client sob demanda
+            if self.redis_client is None:
+                try:
+                    from src.clients.redis_client import get_redis_client
+                    self.redis_client = await get_redis_client(self.config)
+                except Exception as redis_err:
+                    logger.warning("redis_client_initialization_failed_for_requests", error=str(redis_err))
+                    self.redis_client = None
+
+            if self.redis_client is None:
+                return 0
+
+            key = f"orchestration:tenant_requests_last_minute:{tenant_id}"
+            value = await self.redis_client.get(key)
+            if value is None:
+                return 0
+
+            return int(value)
+
+        except Exception as e:
+            logger.warning(
+                "Erro ao obter request count",
+                tenant_id=tenant_id,
+                error=str(e)
+            )
+            return 0
 
     def _build_opa_input(self, data: dict, context: dict) -> dict:
         """

@@ -55,3 +55,6 @@ data:
   OBSERVABILITY__HTTP_PORT: {{ .Values.config.observability.httpPort | quote }}
   OBSERVABILITY__GRPC_PORT: {{ .Values.config.observability.grpcPort | quote }}
   OBSERVABILITY__LOG_LEVEL: {{ .Values.config.observability.logLevel | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.observability.otelEndpoint | quote }}
+  OTEL_SERVICE_NAME: {{ .Values.config.serviceName | quote }}
+  OTEL_RESOURCE_ATTRIBUTES: "service.version={{ .Values.image.tag | default .Chart.AppVersion }},deployment.environment={{ .Values.config.environment | default \"production\" }}"

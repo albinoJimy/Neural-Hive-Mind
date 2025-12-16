@@ -3,6 +3,7 @@ Ponto de entrada principal do serviço Orchestrator Dynamic.
 Implementa FastAPI para API REST e gerencia lifecycle do Temporal Worker e Kafka Consumer.
 """
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from typing import Optional, Dict, Any
 
@@ -11,6 +12,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
+from neural_hive_observability import init_observability, get_logger
 
 from src.config import get_settings
 from src.consumers.decision_consumer import DecisionConsumer
@@ -19,6 +21,7 @@ from src.clients.mongodb_client import MongoDBClient
 from src.clients.kafka_producer import KafkaProducerClient
 from src.clients.self_healing_client import SelfHealingClient
 from src.clients.optimizer_grpc_client import OptimizerGrpcClient
+from src.clients.execution_ticket_client import ExecutionTicketClient
 from src.integration.flow_c_consumer import FlowCConsumer
 from src.workflows.orchestration_workflow import OrchestrationWorkflow
 from pydantic import BaseModel, Field
@@ -50,6 +53,7 @@ class AppState:
         self.flow_c_task: Optional[asyncio.Task] = None
         self.mongodb_client: Optional[MongoDBClient] = None
         self.kafka_producer: Optional[KafkaProducerClient] = None
+        self.execution_ticket_client: Optional[ExecutionTicketClient] = None
         self.self_healing_client: Optional[SelfHealingClient] = None
         self.redis_client = None
         self.vault_client = None
@@ -62,6 +66,7 @@ class AppState:
         self.load_predictor = None
         self.anomaly_detector = None
         self.model_registry = None
+        self.spiffe_manager = None
 
 
 app_state = AppState()
@@ -72,6 +77,7 @@ async def lifespan(app: FastAPI):
     """
     Gerencia lifecycle da aplicação (startup/shutdown).
     """
+    global logger
     config = get_settings()
 
     # Startup
@@ -82,24 +88,130 @@ async def lifespan(app: FastAPI):
         environment=config.environment
     )
 
-    try:
-        # Initialize Vault client (if enabled)
-        if config.vault_enabled and VAULT_AVAILABLE and OrchestratorVaultClient:
-            logger.info('Inicializando Vault client')
-            app_state.vault_client = OrchestratorVaultClient(config)
-            await app_state.vault_client.initialize()
-            logger.info('Vault client inicializado')
-        else:
-            if config.vault_enabled and not VAULT_AVAILABLE:
-                logger.warning('Vault habilitado mas biblioteca de segurança não disponível')
-            else:
-                logger.info('Vault integration desabilitada, usando credenciais estáticas')
+    logger.info(
+        'OPA configuration carregada',
+        opa_enabled=getattr(config, 'opa_enabled', False),
+        opa_host=getattr(config, 'opa_host', None),
+        opa_port=getattr(config, 'opa_port', None),
+        opa_fail_open=getattr(config, 'opa_fail_open', False),
+        opa_security_enabled=getattr(config, 'opa_security_enabled', False)
+    )
 
-        # Get MongoDB credentials from Vault or config
-        if app_state.vault_client:
-            mongodb_uri = await app_state.vault_client.get_mongodb_uri()
+    # Qualquer falha na criação/inicialização do Vault client cai em fail-open quando habilitado,
+    # e erros posteriores de fetch de segredos também respeitam o mesmo comportamento de fallback.
+    try:
+        # Inicializar integração Vault/SPIFFE com fail-open
+        vault_client = None
+        if config.vault_enabled:
+            if VAULT_AVAILABLE and OrchestratorVaultClient:
+                try:
+                    logger.info('Inicializando Vault client')
+                    vault_client = OrchestratorVaultClient(config)
+                    await vault_client.initialize()
+                    app_state.vault_client = vault_client
+                    logger.info('Vault client inicializado')
+                except Exception as vault_error:
+                    logger.error('Erro ao inicializar Vault integration', error=str(vault_error))
+                    if not getattr(config, 'vault_fail_open', True):
+                        raise
+                    logger.warning('Vault fail-open habilitado, continuando com credenciais estáticas')
+                    vault_client = None
+                    app_state.vault_client = None
+            else:
+                if config.vault_enabled and not VAULT_AVAILABLE:
+                    logger.warning('Vault habilitado mas biblioteca de segurança não disponível')
+                else:
+                    logger.info('Vault integration desabilitada, usando credenciais estáticas')
         else:
-            mongodb_uri = config.mongodb_uri
+            logger.info('Vault integration desabilitada, usando credenciais estáticas')
+
+        # Extrair SPIFFE manager para gRPC auth
+        spiffe_manager = vault_client.spiffe_manager if vault_client else None
+        app_state.spiffe_manager = spiffe_manager
+
+        try:
+            otel_endpoint = os.getenv('OTEL_EXPORTER_ENDPOINT', getattr(config, 'otel_exporter_endpoint', None))
+            init_observability(
+                service_name=getattr(config, 'service_name', "orchestrator-dynamic"),
+                service_version=config.service_version,
+                neural_hive_component="orchestrator",
+                neural_hive_layer="orchestration",
+                environment=config.environment,
+                otel_endpoint=otel_endpoint,
+                enable_kafka=True,
+                enable_grpc=True
+            )
+            logger.info("OpenTelemetry tracing initialized via neural_hive_observability")
+        except Exception as observability_error:
+            logger.warning(
+                "Failed to initialize OpenTelemetry tracing via neural_hive_observability",
+                error=str(observability_error)
+            )
+
+        try:
+            logger = get_logger(__name__)
+            logger.info(
+                "Orchestrator Dynamic initialized with OpenTelemetry tracing",
+                service_version=config.service_version,
+                otel_endpoint=config.otel_exporter_endpoint
+            )
+        except Exception as log_error:
+            logger.warning(
+                "Failed to configure structured logging with trace correlation",
+                error=str(log_error)
+            )
+
+        # Buscar segredos/credenciais com fallback para configuração
+        mongodb_uri = config.mongodb_uri
+        redis_password = config.redis_password
+        kafka_username = config.kafka_sasl_username
+        kafka_password = config.kafka_sasl_password
+        postgres_user = config.postgres_user
+        postgres_password = config.postgres_password
+
+        if vault_client:
+            try:
+                mongodb_uri = await vault_client.get_mongodb_uri()
+            except Exception as mongo_vault_error:
+                logger.warning(
+                    'Falha ao buscar MongoDB URI do Vault, usando configuração',
+                    error=str(mongo_vault_error)
+                )
+
+            try:
+                redis_password = await vault_client.get_redis_password()
+            except Exception as redis_error:
+                logger.warning(
+                    'Falha ao buscar senha do Redis no Vault, usando configuração',
+                    error=str(redis_error)
+                )
+
+            try:
+                kafka_creds = await vault_client.get_kafka_credentials()
+                kafka_username = kafka_creds.get('username', kafka_username)
+                kafka_password = kafka_creds.get('password', kafka_password)
+                logger.info('Credenciais Kafka obtidas do Vault')
+            except Exception as kafka_error:
+                logger.warning(
+                    'Falha ao buscar credenciais Kafka do Vault, usando configuração',
+                    error=str(kafka_error)
+                )
+
+            try:
+                pg_creds = await vault_client.get_postgres_credentials()
+                postgres_user = pg_creds['username']
+                postgres_password = pg_creds['password']
+                logger.info('Credenciais PostgreSQL obtidas do Vault', ttl=pg_creds.get('ttl', 0))
+            except Exception as pg_error:
+                logger.warning(
+                    'Falha ao buscar credenciais PostgreSQL no Vault, usando configuração',
+                    error=str(pg_error)
+                )
+
+        # Propagar overrides para config para consumidores/produtores compartilharem
+        config.kafka_sasl_username = kafka_username
+        config.kafka_sasl_password = kafka_password
+        config.redis_password = redis_password
 
         # Inicializar MongoDB (fail-open)
         try:
@@ -195,18 +307,6 @@ async def lifespan(app: FastAPI):
         else:
             logger.info('ML predictions desabilitado')
 
-        # Get Kafka credentials from Vault if enabled
-        kafka_username = config.kafka_sasl_username
-        kafka_password = config.kafka_sasl_password
-        if app_state.vault_client:
-            logger.info('Buscando credenciais Kafka do Vault')
-            kafka_creds = await app_state.vault_client.get_kafka_credentials()
-            if kafka_creds.get('username'):
-                kafka_username = kafka_creds['username']
-            if kafka_creds.get('password'):
-                kafka_password = kafka_creds['password']
-            logger.info('Credenciais Kafka obtidas do Vault')
-
         # Inicializar Kafka Producer com credenciais do Vault
         logger.info('Inicializando Kafka Producer', topic=config.kafka_tickets_topic)
         app_state.kafka_producer = KafkaProducerClient(
@@ -217,21 +317,29 @@ async def lifespan(app: FastAPI):
         await app_state.kafka_producer.initialize()
         logger.info('Kafka Producer inicializado com sucesso')
 
+        # Inicializar Execution Ticket Service client com SPIFFE (fail-open)
+        try:
+            app_state.execution_ticket_client = ExecutionTicketClient(
+                config,
+                spiffe_manager=spiffe_manager
+            )
+            await app_state.execution_ticket_client.initialize()
+            logger.info(
+                'Execution Ticket client inicializado',
+                spiffe_enabled=config.spiffe_enabled
+            )
+        except Exception as et_error:
+            logger.warning(
+                'Falha ao inicializar Execution Ticket client, continuando em modo degradado',
+                error=str(et_error)
+            )
+            app_state.execution_ticket_client = None
+
         # Inicializar Self-Healing client (lazy HTTP)
         app_state.self_healing_client = SelfHealingClient(
             base_url=config.self_healing_engine_url,
             timeout=config.self_healing_timeout_seconds
         )
-
-        # Get PostgreSQL credentials from Vault if enabled
-        postgres_user = config.postgres_user
-        postgres_password = config.postgres_password
-        if app_state.vault_client:
-            logger.info('Buscando credenciais PostgreSQL do Vault')
-            pg_creds = await app_state.vault_client.get_postgres_credentials()
-            postgres_user = pg_creds['username']
-            postgres_password = pg_creds['password']
-            logger.info('Credenciais PostgreSQL obtidas do Vault', ttl=pg_creds.get('ttl', 0))
 
         # Criar cliente Temporal (lazy connection - não conecta imediatamente)
         # Temporal é opcional - serviço funciona em modo degradado sem ele
@@ -243,6 +351,7 @@ async def lifespan(app: FastAPI):
                     port=config.temporal_port,
                     namespace=config.temporal_namespace
                 )
+                # Observação: credenciais do Vault são aplicadas apenas no bootstrap; o client/pool Temporal não é rotacionado dinamicamente ainda.
                 app_state.temporal_client = await create_temporal_client(
                     config,
                     postgres_user=postgres_user,
@@ -267,7 +376,9 @@ async def lifespan(app: FastAPI):
         app_state.kafka_consumer = DecisionConsumer(
             config,
             app_state.temporal_client,
-            app_state.mongodb_client
+            app_state.mongodb_client,
+            sasl_username_override=kafka_username,
+            sasl_password_override=kafka_password
         )
         await app_state.kafka_consumer.initialize()
 
@@ -296,6 +407,14 @@ async def lifespan(app: FastAPI):
                 self_healing_client=app_state.self_healing_client
             )
             await app_state.temporal_worker.initialize()
+
+            logger.info(
+                'Temporal Worker inicializado com PolicyValidator',
+                opa_enabled=config.opa_enabled,
+                policy_validator_injected=app_state.temporal_worker.policy_validator is not None,
+                opa_host=getattr(config, 'opa_host', None),
+                opa_port=getattr(config, 'opa_port', None)
+            )
 
             # Iniciar Temporal Worker em background
             app_state.worker_task = asyncio.create_task(app_state.temporal_worker.start())
@@ -390,6 +509,10 @@ async def lifespan(app: FastAPI):
         if app_state.kafka_producer:
             logger.info('Fechando Kafka Producer')
             await app_state.kafka_producer.close()
+
+        if app_state.execution_ticket_client:
+            logger.info('Fechando Execution Ticket client')
+            await app_state.execution_ticket_client.close()
 
         if app_state.self_healing_client:
             logger.info('Fechando Self-Healing client')

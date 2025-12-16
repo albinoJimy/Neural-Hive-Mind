@@ -10,11 +10,12 @@ import structlog
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from neural_hive_observability import init_observability
 
 from .config import get_settings
 from .database import get_postgres_client, get_mongodb_client
 from .api import health_router, tickets_router
-from .observability import TicketServiceMetrics, setup_tracing
+from .observability import TicketServiceMetrics
 
 # Configurar logging
 logging.basicConfig(
@@ -158,7 +159,26 @@ def create_app() -> FastAPI:
     app.include_router(tickets_router, tags=['Tickets'])
 
     # Configurar tracing
-    setup_tracing(app, settings)
+    try:
+        init_observability(
+            service_name=settings.service_name,
+            service_version=settings.service_version,
+            neural_hive_component="execution-ticket",
+            neural_hive_layer="orchestration",
+            environment=settings.environment,
+            otel_endpoint=settings.otel_exporter_endpoint,
+            prometheus_port=settings.prometheus_port,
+            log_level=settings.log_level,
+            enable_kafka=True,
+            enable_grpc=True
+        )
+    except Exception as e:
+        logger.warning(
+            "observability_init_failed",
+            error=str(e),
+            otel_endpoint=settings.otel_exporter_endpoint,
+            prometheus_port=settings.prometheus_port
+        )
 
     logger.info('FastAPI application created')
 

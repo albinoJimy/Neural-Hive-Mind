@@ -10,7 +10,7 @@ from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import structlog
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Histogram, Gauge
 
 from .config import SPIFFEConfig
 
@@ -33,6 +33,16 @@ spiffe_svid_fetch_duration_seconds = Histogram(
     "spiffe_svid_fetch_duration_seconds",
     "SPIFFE SVID fetch duration in seconds",
     ["svid_type"]
+)
+spiffe_svid_ttl_seconds = Gauge(
+    "spiffe_svid_ttl_seconds",
+    "TTL (seconds) do SVID retornado",
+    ["svid_type"]
+)
+spiffe_trust_bundle_updates_total = Counter(
+    "spiffe_trust_bundle_updates_total",
+    "Total de atualizações de trust bundle",
+    ["status"]
 )
 
 
@@ -135,12 +145,13 @@ class SPIFFEManager:
             self.logger.error("spiffe_initialization_failed", error=str(e))
             raise SPIFFEConnectionError(f"Failed to initialize SPIFFE manager: {e}")
 
-    async def fetch_jwt_svid(self, audience: str) -> JWTSVID:
+    async def fetch_jwt_svid(self, audience: str, ttl_seconds: Optional[int] = None) -> JWTSVID:
         """
         Fetch JWT-SVID for specified audience using SPIRE Workload API
 
         Args:
             audience: JWT audience (e.g., "vault.neural-hive.local")
+            ttl_seconds: Desired TTL for the JWT-SVID in seconds (defaults to config.jwt_ttl_seconds)
 
         Returns:
             JWTSVID object
@@ -155,13 +166,14 @@ class SPIFFEManager:
                         self.logger.debug("using_cached_jwt_svid", audience=audience)
                         return cached
 
-                self.logger.debug("fetching_jwt_svid_from_spire", audience=audience)
+                desired_ttl = ttl_seconds or self.config.jwt_ttl_seconds
+                self.logger.debug("fetching_jwt_svid_from_spire", audience=audience, ttl=desired_ttl)
 
                 # Attempt to fetch from SPIRE Workload API
                 if SPIRE_API_AVAILABLE and self.stub:
                     try:
                         # Create JWT-SVID request
-                        request = workload_pb2.JWTSVIDRequest(audience=[audience])
+                        request = workload_pb2.JWTSVIDRequest(audience=[audience], ttl=desired_ttl)
 
                         # Call Workload API
                         response = await self.stub.FetchJWTSVID(request)
@@ -182,6 +194,9 @@ class SPIFFEManager:
                             self._jwt_svid_cache[audience] = jwt_svid
 
                             spiffe_svid_fetch_total.labels(svid_type=operation, status="success").inc()
+                            spiffe_svid_ttl_seconds.labels(svid_type=operation).set(
+                                (expiry - datetime.utcnow()).total_seconds()
+                            )
                             self.logger.info(
                                 "jwt_svid_fetched_from_spire",
                                 audience=audience,
@@ -205,6 +220,7 @@ class SPIFFEManager:
                 # Fallback: Read from environment or file if SPIRE unavailable
                 import os
                 spiffe_id = os.getenv("SPIFFE_ID", f"spiffe://{self.config.trust_domain}/default")
+                desired_ttl = ttl_seconds or self.config.jwt_ttl_seconds
 
                 # Try reading JWT from file (injected by SPIRE agent via volume mount)
                 jwt_token_path = os.getenv("SPIFFE_JWT_TOKEN_PATH", "/var/run/secrets/tokens/spiffe-jwt")
@@ -212,7 +228,7 @@ class SPIFFEManager:
                     with open(jwt_token_path, "r") as f:
                         token = f.read().strip()
                     # Parse expiry from JWT (simplified - in production decode properly)
-                    expiry = datetime.utcnow() + timedelta(hours=1)
+                    expiry = datetime.utcnow() + timedelta(seconds=desired_ttl)
                 except FileNotFoundError:
                     # Check environment - fail in production/staging if no real SVID
                     if self.config.environment in ['production', 'staging']:
@@ -235,7 +251,7 @@ class SPIFFEManager:
                         warning="Using placeholder SVID in development - not for production"
                     )
                     token = f"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.placeholder.{audience}"
-                    expiry = datetime.utcnow() + timedelta(hours=1)
+                    expiry = datetime.utcnow() + timedelta(seconds=desired_ttl)
 
                 jwt_svid = JWTSVID(
                     token=token,
@@ -248,6 +264,9 @@ class SPIFFEManager:
                 self._jwt_svid_cache[audience] = jwt_svid
 
                 spiffe_svid_fetch_total.labels(svid_type=operation, status="success").inc()
+                spiffe_svid_ttl_seconds.labels(svid_type=operation).set(
+                    (expiry - datetime.utcnow()).total_seconds()
+                )
                 self.logger.info(
                     "jwt_svid_fetched_fallback",
                     audience=audience,
@@ -279,7 +298,7 @@ class SPIFFEManager:
             try:
                 # Check cache
                 if self._x509_svid:
-                    if self._x509_svid.expiry > datetime.utcnow() + timedelta(minutes=5):
+                    if self._x509_svid.expires_at > datetime.utcnow() + timedelta(minutes=5):
                         self.logger.debug("using_cached_x509_svid")
                         return self._x509_svid
 
@@ -302,21 +321,26 @@ class SPIFFEManager:
                                 certificate = svid_data.x509_svid.decode('utf-8')
                                 private_key = svid_data.x509_svid_key.decode('utf-8')
                                 expiry = datetime.utcfromtimestamp(svid_data.expires_at)
+                                bundle_pem = svid_data.bundle.decode('utf-8') if svid_data.bundle else (self._trust_bundle or "")
 
                                 x509_svid = X509SVID(
                                     certificate=certificate,
                                     private_key=private_key,
                                     spiffe_id=spiffe_id,
-                                    expiry=expiry
+                                    ca_bundle=bundle_pem,
+                                    expires_at=expiry
                                 )
 
                                 self._x509_svid = x509_svid
 
                                 # Also update trust bundle from response
                                 if svid_data.bundle:
-                                    self._trust_bundle = svid_data.bundle.decode('utf-8')
+                                    self._trust_bundle = bundle_pem
 
                                 spiffe_svid_fetch_total.labels(svid_type=operation, status="success").inc()
+                                spiffe_svid_ttl_seconds.labels(svid_type=operation).set(
+                                    (expiry - datetime.utcnow()).total_seconds()
+                                )
                                 self.logger.info(
                                     "x509_svid_fetched_from_spire",
                                     spiffe_id=spiffe_id,
@@ -372,6 +396,9 @@ class SPIFFEManager:
                 self._x509_svid = x509_svid
 
                 spiffe_svid_fetch_total.labels(svid_type=operation, status="success").inc()
+                spiffe_svid_ttl_seconds.labels(svid_type=operation).set(
+                    (self._x509_svid.expires_at - datetime.utcnow()).total_seconds()
+                )
                 self.logger.info(
                     "x509_svid_fetched_fallback",
                     spiffe_id=spiffe_id,
@@ -432,6 +459,7 @@ class SPIFFEManager:
                                     trust_domain=self.config.trust_domain,
                                     num_keys=len(self._trust_bundle_keys)
                                 )
+                                spiffe_trust_bundle_updates_total.labels(status="success").inc()
 
                                 return self._trust_bundle
                         break
@@ -447,12 +475,14 @@ class SPIFFEManager:
             trust_bundle = "-----BEGIN CERTIFICATE-----\nplaceholder CA\n-----END CERTIFICATE-----"
 
             self._trust_bundle = trust_bundle
+            spiffe_trust_bundle_updates_total.labels(status="success").inc()
             self.logger.info("trust_bundle_fetched_fallback")
 
             return trust_bundle
 
         except Exception as e:
             self.logger.error("trust_bundle_fetch_failed", error=str(e))
+            spiffe_trust_bundle_updates_total.labels(status="error").inc()
             raise SPIFFEFetchError(f"Failed to fetch trust bundle: {e}")
 
     def get_trust_bundle_keys(self) -> Dict[str, str]:
@@ -473,7 +503,7 @@ class SPIFFEManager:
                 # Refresh JWT-SVIDs
                 for audience, svid in list(self._jwt_svid_cache.items()):
                     time_until_expiry = (svid.expiry - datetime.utcnow()).total_seconds()
-                    refresh_threshold = 3600 * self.config.svid_refresh_threshold  # Default 1 hour * 0.8
+                    refresh_threshold = self.config.jwt_ttl_seconds * self.config.svid_refresh_threshold
 
                     if time_until_expiry < refresh_threshold:
                         self.logger.info("refreshing_jwt_svid", audience=audience)

@@ -5,6 +5,7 @@ import grpc
 import structlog
 from google.protobuf.json_format import MessageToDict
 
+from neural_hive_observability import instrument_grpc_channel
 from src.config.settings import get_settings
 
 from ..proto import queen_agent_pb2, queen_agent_pb2_grpc
@@ -35,6 +36,7 @@ class QueenAgentGrpcClient:
                     ("grpc.keepalive_time_ms", 30000),
                 ],
             )
+            self.channel = instrument_grpc_channel(self.channel, service_name='queen-agent')
 
             self.stub = queen_agent_pb2_grpc.QueenAgentStub(self.channel)
 

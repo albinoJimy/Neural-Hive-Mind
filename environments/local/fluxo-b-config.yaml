@@ -1,0 +1,550 @@
+# Configuração centralizada do Fluxo B (Semantic Translation Engine + Specialists)
+# Referência direta para os scripts 10-prepare-fluxo-b-values.sh e 11-validate-fluxo-b-deployment.sh
+# Mantém consistência com os guias anteriores (bootstrap, infraestrutura, observabilidade e gateway)
+
+metadata:
+  version: "1.0.0"
+  description: "Parametros locais para o Semantic Translation Engine e cinco specialists no cluster Kubeadm."
+  createdAt: "2025-02-15T00:00:00Z"
+
+namespace:
+  name: "semantic-translation"
+  labels:
+    neural-hive-mind.org/layer: "cognitiva"
+    neural-hive-mind.org/flow: "fluxo-b"
+
+semanticTranslationEngine:
+  releaseName: "semantic-translation-engine"
+  replicas: 1  # Reduzido para ambiente local sem HA
+
+  image:
+    repository: "neural-hive-mind/semantic-translation-engine"
+    tag: "1.0.0"
+    pullPolicy: "Never"  # Imagem já importada no containerd local
+
+  resources:
+    requests:
+      cpu: "300m"
+      memory: "768Mi"
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+
+  service:
+    type: "ClusterIP"
+    port: 8000
+
+  config:
+    environment: "local"
+    logLevel: "DEBUG"
+
+    kafka:
+      bootstrapServers: "detect"  # Detectado automaticamente pelo script de preparação
+      consumerGroupId: "semantic-translation-engine-local"
+      topics:
+        - "intentions.business"
+        - "intentions.technical"
+        - "intentions.infrastructure"
+        - "intentions.security"
+      plansTopic: "plans.ready"
+      securityProtocol: "PLAINTEXT"
+      saslMechanism: ""
+
+    neo4j:
+      uri: "bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687"
+      user: "neo4j"
+      database: "neo4j"
+      queryTimeoutMs: 5000
+      maxConnectionPoolSize: 20
+
+    mongodb:
+      uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+      database: "neural_hive"
+      contextCollection: "operational_context"
+      ledgerCollection: "cognitive_ledger"
+      maxPoolSize: 50
+
+    redis:
+      clusterNodes: "detect"
+      clusterEnabled: true
+      sslEnabled: false
+      defaultTtl: 600
+      cacheEnabled: true
+
+    openTelemetry:
+      endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+      samplingRate: 1.0
+
+    riskScoring:
+      weightPriority: 0.3
+      weightSecurity: 0.4
+      weightComplexity: 0.3
+      thresholdHigh: 0.7
+      thresholdCritical: 0.9
+
+    features:
+      knowledgeGraphEnabled: true
+      ledgerEnabled: true
+      explainabilityEnabled: true
+      circuitBreakerEnabled: false  # Desabilitado para simplificar no cluster local
+
+  probes:
+    startup:
+      initialDelaySeconds: 20
+      periodSeconds: 10
+      failureThreshold: 30
+    liveness:
+      initialDelaySeconds: 0
+      periodSeconds: 10
+    readiness:
+      initialDelaySeconds: 0
+      periodSeconds: 5
+
+  secrets:
+    kafkaSaslUsername: ""
+    kafkaSaslPassword: ""
+    neo4jPassword: "neo4j-local-password"
+    mongodbPassword: ""
+    redisPassword: ""
+
+  observability:
+    serviceMonitor:
+      enabled: true
+      interval: "30s"
+
+  security:
+    istio:
+      enabled: false
+    networkPolicy:
+      enabled: false
+
+specialists:
+  - name: "specialist-business"
+    replicas: 1
+    image:
+      repository: "neural-hive-mind/specialist-business"
+      tag: "1.0.0"
+      pullPolicy: "Never"
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "800m"
+        memory: "1536Mi"
+    service:
+      type: "ClusterIP"
+      grpcPort: 50051
+      httpPort: 8000
+      metricsPort: 8080
+    config:
+      environment: "local"
+      logLevel: "DEBUG"
+      enableJwtAuth: false
+      mlflow:
+        trackingUri: "http://mlflow.mlflow.svc.cluster.local:5000"
+        experimentName: "business-specialist-local"
+        modelName: "business-evaluator"
+        modelStage: "Staging"
+      mongodb:
+        uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+        database: "neural_hive"
+        opinionsCollection: "specialist_opinions"
+      neo4j:
+        uri: "bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687"
+        user: "neo4j"
+        database: "neo4j"
+      redis:
+        clusterNodes: "detect"
+        sslEnabled: false
+        cacheTtl: 300
+      otel:
+        endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+      grpc:
+        port: 50051
+        maxWorkers: 5
+        maxMessageLength: 4194304
+      http:
+        port: 8000
+      prometheus:
+        port: 8080
+      thresholds:
+        minConfidenceScore: 0.7
+        highRiskThreshold: 0.7
+      timeouts:
+        evaluationMs: 5000
+        modelInferenceMs: 3000
+      features:
+        enableExplainability: true
+        enableCaching: true
+        enableModelMonitoring: false
+      business:
+        processMiningEnabled: true
+        complianceFrameworks:
+          - "BPMN"
+          - "COBIT"
+    probes:
+      startup:
+        initialDelaySeconds: 10
+        periodSeconds: 10
+        failureThreshold: 30
+      liveness:
+        initialDelaySeconds: 60
+        periodSeconds: 30
+      readiness:
+        initialDelaySeconds: 30
+        periodSeconds: 10
+    secrets:
+      mongodbUri: "mongodb://root:local-password@mongodb.mongodb-cluster.svc.cluster.local:27017"
+      neo4jPassword: "neo4j-local-password"
+      redisPassword: ""
+    observability:
+      serviceMonitor:
+        enabled: true
+    security:
+      networkPolicy:
+        enabled: false
+
+  - name: "specialist-technical"
+    replicas: 1
+    image:
+      repository: "neural-hive-mind/specialist-technical"
+      tag: "1.0.0"
+      pullPolicy: "Never"
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "800m"
+        memory: "1536Mi"
+    service:
+      type: "ClusterIP"
+      grpcPort: 50051
+      httpPort: 8000
+      metricsPort: 8080
+    config:
+      environment: "local"
+      logLevel: "DEBUG"
+      enableJwtAuth: false
+      mlflow:
+        trackingUri: "http://mlflow.mlflow.svc.cluster.local:5000"
+        experimentName: "technical-specialist-local"
+        modelName: "technical-evaluator"
+        modelStage: "Staging"
+      mongodb:
+        uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+        database: "neural_hive"
+        opinionsCollection: "specialist_opinions"
+      neo4j:
+        uri: "bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687"
+        user: "neo4j"
+        database: "neo4j"
+      redis:
+        clusterNodes: "detect"
+        sslEnabled: false
+        cacheTtl: 300
+      otel:
+        endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+      grpc:
+        port: 50051
+        maxWorkers: 5
+        maxMessageLength: 4194304
+      http:
+        port: 8000
+      prometheus:
+        port: 8080
+      thresholds:
+        minConfidenceScore: 0.7
+        highRiskThreshold: 0.7
+      timeouts:
+        evaluationMs: 5000
+        modelInferenceMs: 3000
+      features:
+        enableExplainability: true
+        enableCaching: true
+        enableModelMonitoring: false
+      technical:
+        securityAnalysisEnabled: true
+        complianceRequirements:
+          - "OWASP-ASVS"
+          - "NIST-SP-800-53"
+    probes:
+      startup:
+        initialDelaySeconds: 10
+        periodSeconds: 10
+        failureThreshold: 30
+      liveness:
+        initialDelaySeconds: 60
+        periodSeconds: 30
+      readiness:
+        initialDelaySeconds: 30
+        periodSeconds: 10
+    secrets:
+      mongodbUri: "mongodb://root:local-password@mongodb.mongodb-cluster.svc.cluster.local:27017"
+      neo4jPassword: "neo4j-local-password"
+      redisPassword: ""
+    observability:
+      serviceMonitor:
+        enabled: true
+    security:
+      networkPolicy:
+        enabled: false
+
+  - name: "specialist-behavior"
+    replicas: 1
+    image:
+      repository: "neural-hive-mind/specialist-behavior"
+      tag: "1.0.0"
+      pullPolicy: "Never"
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "800m"
+        memory: "1536Mi"
+    service:
+      type: "ClusterIP"
+      grpcPort: 50051
+      httpPort: 8000
+      metricsPort: 8080
+    config:
+      environment: "local"
+      logLevel: "DEBUG"
+      enableJwtAuth: false
+      mlflow:
+        trackingUri: "http://mlflow.mlflow.svc.cluster.local:5000"
+        experimentName: "behavior-specialist-local"
+        modelName: "behavior-evaluator"
+        modelStage: "Staging"
+      mongodb:
+        uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+        database: "neural_hive"
+        opinionsCollection: "specialist_opinions"
+      neo4j:
+        uri: "bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687"
+        user: "neo4j"
+        database: "neo4j"
+      redis:
+        clusterNodes: "detect"
+        sslEnabled: false
+        cacheTtl: 300
+      otel:
+        endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+      grpc:
+        port: 50051
+        maxWorkers: 5
+        maxMessageLength: 4194304
+      http:
+        port: 8000
+      prometheus:
+        port: 8080
+      thresholds:
+        minConfidenceScore: 0.7
+        highRiskThreshold: 0.7
+      timeouts:
+        evaluationMs: 5000
+        modelInferenceMs: 3000
+      features:
+        enableExplainability: true
+        enableCaching: true
+        enableModelMonitoring: false
+      behavior:
+        accessibilityWcagLevel: "AA"
+        ethicalAiChecksEnabled: true
+    probes:
+      startup:
+        initialDelaySeconds: 10
+        periodSeconds: 10
+        failureThreshold: 30
+      liveness:
+        initialDelaySeconds: 60
+        periodSeconds: 30
+      readiness:
+        initialDelaySeconds: 30
+        periodSeconds: 10
+    secrets:
+      mongodbUri: "mongodb://root:local-password@mongodb.mongodb-cluster.svc.cluster.local:27017"
+      neo4jPassword: "neo4j-local-password"
+      redisPassword: ""
+    observability:
+      serviceMonitor:
+        enabled: true
+    security:
+      networkPolicy:
+        enabled: false
+
+  - name: "specialist-evolution"
+    replicas: 1
+    image:
+      repository: "neural-hive-mind/specialist-evolution"
+      tag: "1.0.0"
+      pullPolicy: "Never"
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "800m"
+        memory: "1536Mi"
+    service:
+      type: "ClusterIP"
+      grpcPort: 50051
+      httpPort: 8000
+      metricsPort: 8080
+    config:
+      environment: "local"
+      logLevel: "DEBUG"
+      enableJwtAuth: false
+      mlflow:
+        trackingUri: "http://mlflow.mlflow.svc.cluster.local:5000"
+        experimentName: "evolution-specialist-local"
+        modelName: "evolution-evaluator"
+        modelStage: "Staging"
+      mongodb:
+        uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+        database: "neural_hive"
+        opinionsCollection: "specialist_opinions"
+      neo4j:
+        uri: "bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687"
+        user: "neo4j"
+        database: "neo4j"
+      redis:
+        clusterNodes: "detect"
+        sslEnabled: false
+        cacheTtl: 300
+      otel:
+        endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+      grpc:
+        port: 50051
+        maxWorkers: 5
+        maxMessageLength: 4194304
+      http:
+        port: 8000
+      prometheus:
+        port: 8080
+      thresholds:
+        minConfidenceScore: 0.7
+        highRiskThreshold: 0.7
+      timeouts:
+        evaluationMs: 5000
+        modelInferenceMs: 3000
+      features:
+        enableExplainability: true
+        enableCaching: true
+        enableModelMonitoring: false
+      evolution:
+        maintainabilityEnabled: true
+        technicalDebtTolerance: "moderate"
+    probes:
+      startup:
+        initialDelaySeconds: 10
+        periodSeconds: 10
+        failureThreshold: 30
+      liveness:
+        initialDelaySeconds: 60
+        periodSeconds: 30
+      readiness:
+        initialDelaySeconds: 30
+        periodSeconds: 10
+    secrets:
+      mongodbUri: "mongodb://root:local-password@mongodb.mongodb-cluster.svc.cluster.local:27017"
+      neo4jPassword: "neo4j-local-password"
+      redisPassword: ""
+    observability:
+      serviceMonitor:
+        enabled: true
+    security:
+      networkPolicy:
+        enabled: false
+
+  - name: "specialist-architecture"
+    replicas: 1
+    image:
+      repository: "neural-hive-mind/specialist-architecture"
+      tag: "1.0.0"
+      pullPolicy: "Never"
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "800m"
+        memory: "1536Mi"
+    service:
+      type: "ClusterIP"
+      grpcPort: 50051
+      httpPort: 8000
+      metricsPort: 8080
+    config:
+      environment: "local"
+      logLevel: "DEBUG"
+      enableJwtAuth: false
+      mlflow:
+        trackingUri: "http://mlflow.mlflow.svc.cluster.local:5000"
+        experimentName: "architecture-specialist-local"
+        modelName: "architecture-evaluator"
+        modelStage: "Staging"
+      mongodb:
+        uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+        database: "neural_hive"
+        opinionsCollection: "specialist_opinions"
+      neo4j:
+        uri: "bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687"
+        user: "neo4j"
+        database: "neo4j"
+      redis:
+        clusterNodes: "detect"
+        sslEnabled: false
+        cacheTtl: 300
+      otel:
+        endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+      grpc:
+        port: 50051
+        maxWorkers: 5
+        maxMessageLength: 4194304
+      http:
+        port: 8000
+      prometheus:
+        port: 8080
+      thresholds:
+        minConfidenceScore: 0.7
+        highRiskThreshold: 0.7
+      timeouts:
+        evaluationMs: 5000
+        modelInferenceMs: 3000
+      features:
+        enableExplainability: true
+        enableCaching: true
+        enableModelMonitoring: false
+      architecture:
+        designPatternsEnabled: true
+        decisionRecordsEnabled: true
+    probes:
+      startup:
+        initialDelaySeconds: 10
+        periodSeconds: 10
+        failureThreshold: 30
+      liveness:
+        initialDelaySeconds: 60
+        periodSeconds: 30
+      readiness:
+        initialDelaySeconds: 30
+        periodSeconds: 10
+    secrets:
+      mongodbUri: "mongodb://root:local-password@mongodb.mongodb-cluster.svc.cluster.local:27017"
+      neo4jPassword: "neo4j-local-password"
+      redisPassword: ""
+    observability:
+      serviceMonitor:
+        enabled: true
+    security:
+      networkPolicy:
+        enabled: false
+
+# Ajustes adicionais:
+# - Replicas limitadas a 1 por serviço para preservar recursos do cluster local.
+# - Kafka usando PLAINTEXT e sem SASL/SSL, alinhado ao ambiente sem Istio/mTLS.
+# - Recursos e thresholds reduzidos aceleram o ciclo de feedback durante testes.
+# - Próximo passo: Fluxo C (Consensus Engine) consumirá plans.ready produzidos pelo STE.

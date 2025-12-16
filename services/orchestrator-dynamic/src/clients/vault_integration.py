@@ -6,6 +6,7 @@ import asyncio
 from typing import Dict, Optional
 from datetime import datetime, timedelta
 import structlog
+from prometheus_client import Counter
 
 # Import security library components
 try:
@@ -19,6 +20,17 @@ from src.config.settings import OrchestratorSettings
 
 
 logger = structlog.get_logger(__name__)
+
+vault_credentials_fetched_total = Counter(
+    "orchestrator_vault_credentials_fetched_total",
+    "Total de buscas de credenciais do Vault",
+    ["credential_type", "status"]
+)
+vault_renewal_task_runs_total = Counter(
+    "orchestrator_vault_renewal_task_runs_total",
+    "Execuções do task de renovação de credenciais",
+    ["status"]
+)
 
 
 class OrchestratorVaultClient:
@@ -40,6 +52,8 @@ class OrchestratorVaultClient:
         self.logger = logger.bind(component="vault_integration")
 
         # Create Vault config from orchestrator settings
+        # fail_open segue exatamente o vault_fail_open do OrchestratorSettings; os métodos de fetch fazem o fallback
+        # final para credenciais estáticas quando necessário.
         vault_config = VaultConfig(
             address=config.vault_address,
             namespace=config.vault_namespace,
@@ -58,6 +72,7 @@ class OrchestratorVaultClient:
             workload_api_socket=config.spiffe_socket_path,
             trust_domain=config.spiffe_trust_domain,
             jwt_audience=config.spiffe_jwt_audience,
+            jwt_ttl_seconds=config.spiffe_jwt_ttl_seconds,
         )
 
         self.vault_client: Optional[VaultClient] = VaultClient(vault_config) if config.vault_enabled else None
@@ -122,10 +137,12 @@ class OrchestratorVaultClient:
                 self._postgres_credentials_expiry = datetime.utcnow() + timedelta(seconds=creds["ttl"])
 
             self.logger.info("postgres_credentials_fetched", ttl=creds.get("ttl", 0))
+            vault_credentials_fetched_total.labels(credential_type="postgres", status="success").inc()
             return creds
 
         except Exception as e:
             self.logger.error("postgres_credentials_fetch_failed", error=str(e))
+            vault_credentials_fetched_total.labels(credential_type="postgres", status="error").inc()
             if self.config.vault_fail_open:
                 # Fallback to config
                 return {
@@ -151,6 +168,7 @@ class OrchestratorVaultClient:
 
             if secret and "uri" in secret:
                 self.logger.info("mongodb_uri_fetched")
+                vault_credentials_fetched_total.labels(credential_type="mongodb", status="success").inc()
                 return secret["uri"]
             else:
                 self.logger.warning("mongodb_uri_not_found_in_vault")
@@ -158,6 +176,7 @@ class OrchestratorVaultClient:
 
         except Exception as e:
             self.logger.error("mongodb_uri_fetch_failed", error=str(e))
+            vault_credentials_fetched_total.labels(credential_type="mongodb", status="error").inc()
             if self.config.vault_fail_open:
                 return self.config.mongodb_uri
             raise
@@ -178,6 +197,7 @@ class OrchestratorVaultClient:
 
             if secret and "password" in secret:
                 self.logger.info("redis_password_fetched")
+                vault_credentials_fetched_total.labels(credential_type="redis", status="success").inc()
                 return secret["password"]
             else:
                 self.logger.warning("redis_password_not_found_in_vault")
@@ -185,6 +205,7 @@ class OrchestratorVaultClient:
 
         except Exception as e:
             self.logger.error("redis_password_fetch_failed", error=str(e))
+            vault_credentials_fetched_total.labels(credential_type="redis", status="error").inc()
             if self.config.vault_fail_open:
                 return self.config.redis_password
             raise
@@ -208,6 +229,7 @@ class OrchestratorVaultClient:
 
             if secret:
                 self.logger.info("kafka_credentials_fetched")
+                vault_credentials_fetched_total.labels(credential_type="kafka", status="success").inc()
                 return {
                     "username": secret.get("username"),
                     "password": secret.get("password")
@@ -221,6 +243,7 @@ class OrchestratorVaultClient:
 
         except Exception as e:
             self.logger.error("kafka_credentials_fetch_failed", error=str(e))
+            vault_credentials_fetched_total.labels(credential_type="kafka", status="error").inc()
             if self.config.vault_fail_open:
                 return {
                     "username": self.config.kafka_sasl_username,
@@ -256,12 +279,14 @@ class OrchestratorVaultClient:
                 await self._renew_postgres_credentials_if_needed()
 
                 self.logger.debug("credential_renewal_check_complete")
+                vault_renewal_task_runs_total.labels(status="success").inc()
 
             except asyncio.CancelledError:
                 self.logger.info("credential_renewal_task_cancelled")
                 break
             except Exception as e:
                 self.logger.error("credential_renewal_error", error=str(e))
+                vault_renewal_task_runs_total.labels(status="error").inc()
                 # Em caso de erro, aguardar 60s antes de tentar novamente
                 await asyncio.sleep(60)
 
@@ -379,11 +404,14 @@ class OrchestratorVaultClient:
                 ttl=new_creds.get("ttl", 0),
                 username=new_creds.get("username")
             )
+            vault_renewal_task_runs_total.labels(status="success").inc()
 
             # NOTA: Em um sistema completo, aqui seria necessário atualizar
             # as conexões ativas do PostgreSQL (connection pool do Temporal).
             # Isso requer coordenação com o cliente Temporal e está fora do
-            # escopo desta implementação básica.
+            # escopo desta implementação básica. Limitação conhecida: conexões
+            # existentes podem continuar usando credenciais expiradas até que o
+            # cliente/pool do Temporal seja recriado.
             self.logger.warning(
                 "postgres_credentials_renewed_connection_pool_update_required",
                 note="Connection pool precisa ser atualizado com novas credenciais"
@@ -391,6 +419,7 @@ class OrchestratorVaultClient:
 
         except Exception as e:
             self.logger.error("postgres_credentials_renewal_failed", error=str(e))
+            vault_renewal_task_runs_total.labels(status="error").inc()
             raise
 
     async def close(self):

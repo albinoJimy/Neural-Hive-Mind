@@ -16,6 +16,12 @@ import asyncio
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaError
 
+from neural_hive_observability import instrument_kafka_consumer
+from neural_hive_observability.context import (
+    extract_context_from_headers,
+    set_baggage
+)
+
 from src.models.security_validation import ValidationStatus
 
 logger = structlog.get_logger(__name__)
@@ -83,6 +89,7 @@ class TicketConsumer:
                 value_deserializer=lambda m: json.loads(m.decode('utf-8'))
             )
 
+            self.consumer = instrument_kafka_consumer(self.consumer)
             await self.consumer.start()
 
             logger.info(
@@ -148,6 +155,8 @@ class TicketConsumer:
                     for tp, msgs in messages.items():
                         for message in msgs:
                             try:
+                                headers_dict = {k: v for k, v in (message.headers or [])}
+                                extract_context_from_headers(headers_dict)
                                 await self.handle_ticket(message.value)
 
                                 # Commit offset após processamento bem-sucedido
@@ -193,6 +202,11 @@ class TicketConsumer:
             ticket: Dicionário com dados do ExecutionTicket
         """
         ticket_id = ticket.get("ticket_id", "unknown")
+        plan_id = ticket.get("plan_id")
+        if plan_id:
+            set_baggage("plan_id", plan_id)
+        if ticket_id:
+            set_baggage("ticket_id", ticket_id)
 
         logger.info(
             "ticket_consumer.handling_ticket",

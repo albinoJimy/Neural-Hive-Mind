@@ -4,6 +4,9 @@ import structlog
 from typing import TYPE_CHECKING
 from datetime import datetime
 
+from neural_hive_observability.context import set_baggage
+from neural_hive_observability.grpc_instrumentation import extract_grpc_context
+
 from ..proto import queen_agent_pb2, queen_agent_pb2_grpc
 from ..models import ExceptionApproval, ExceptionType, RiskAssessment
 
@@ -32,6 +35,11 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
     async def GetStrategicDecision(self, request, context):
         """Buscar decisão estratégica por ID"""
         try:
+            metadata_dict = dict(context.invocation_metadata())
+            extract_grpc_context(metadata_dict)
+            if hasattr(request, "plan_id") and request.plan_id:
+                set_baggage("plan_id", request.plan_id)
+
             decision = await self.mongodb_client.get_strategic_decision(request.decision_id)
 
             if not decision:
@@ -60,6 +68,11 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
     async def ListStrategicDecisions(self, request, context):
         """Listar decisões estratégicas recentes"""
         try:
+            metadata_dict = dict(context.invocation_metadata())
+            extract_grpc_context(metadata_dict)
+            if hasattr(request, "plan_id") and request.plan_id:
+                set_baggage("plan_id", request.plan_id)
+
             # Construir filtros
             filters = {}
             if request.decision_type:
@@ -110,6 +123,11 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
     async def GetSystemStatus(self, request, context):
         """Obter status geral do sistema"""
         try:
+            metadata_dict = dict(context.invocation_metadata())
+            extract_grpc_context(metadata_dict)
+            if hasattr(request, "plan_id") and request.plan_id:
+                set_baggage("plan_id", request.plan_id)
+
             health = await self.telemetry_aggregator.aggregate_system_health()
 
             return queen_agent_pb2.SystemStatusResponse(
@@ -130,6 +148,11 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
     async def RequestExceptionApproval(self, request, context):
         """Solicitar aprovação de exceção"""
         try:
+            metadata_dict = dict(context.invocation_metadata())
+            extract_grpc_context(metadata_dict)
+            if hasattr(request, "plan_id") and request.plan_id:
+                set_baggage("plan_id", request.plan_id)
+
             # Criar ExceptionApproval
             exception = ExceptionApproval(
                 exception_type=ExceptionType(request.exception_type),
@@ -156,6 +179,11 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
     async def ApproveException(self, request, context):
         """Aprovar exceção"""
         try:
+            metadata_dict = dict(context.invocation_metadata())
+            extract_grpc_context(metadata_dict)
+            if hasattr(request, "plan_id") and request.plan_id:
+                set_baggage("plan_id", request.plan_id)
+
             exception = await self.exception_service.approve_exception(
                 request.exception_id,
                 request.decision_id,
@@ -181,6 +209,11 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
     async def RejectException(self, request, context):
         """Rejeitar exceção"""
         try:
+            metadata_dict = dict(context.invocation_metadata())
+            extract_grpc_context(metadata_dict)
+            if hasattr(request, "plan_id") and request.plan_id:
+                set_baggage("plan_id", request.plan_id)
+
             exception = await self.exception_service.reject_exception(
                 request.exception_id,
                 request.reason
@@ -205,6 +238,11 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
     async def GetActiveConflicts(self, request, context):
         """Obter conflitos ativos"""
         try:
+            metadata_dict = dict(context.invocation_metadata())
+            extract_grpc_context(metadata_dict)
+            if hasattr(request, "plan_id") and request.plan_id:
+                set_baggage("plan_id", request.plan_id)
+
             # Usar o helper do Neo4j client
             results = await self.neo4j_client.list_active_conflicts()
 
@@ -229,6 +267,11 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
     async def SubmitInsight(self, request, context):
         """Receber insight de Analyst Agent"""
         try:
+            metadata_dict = dict(context.invocation_metadata())
+            extract_grpc_context(metadata_dict)
+            if hasattr(request, "plan_id") and request.plan_id:
+                set_baggage("plan_id", request.plan_id)
+
             # Converter request proto para dict
             insight_data = {
                 'insight_id': request.insight_id,

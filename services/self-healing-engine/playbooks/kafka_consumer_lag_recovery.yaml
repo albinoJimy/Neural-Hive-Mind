@@ -1,0 +1,43 @@
+playbook_id: "kafka-consumer-lag-recovery-v1"
+playbook_name: "kafka_consumer_lag_recovery"
+playbook_type: "PLATFORM"
+version: "1.0.0"
+description: "Recupera consumer lag escalando consumers e pausando producers temporariamente"
+parameters_schema:
+  type: object
+  properties:
+    consumer_group:
+      type: string
+    topic:
+      type: string
+    lag_threshold:
+      type: integer
+  required: [consumer_group, topic, lag_threshold]
+timeout_seconds: 300
+rollback_playbook: null
+validation_checks:
+  - "lag_reduced"
+  - "consumers_healthy"
+status: "AVAILABLE"
+actions:
+  - name: "check_consumer_lag"
+    type: "check_consumer_lag"
+    parameters:
+      consumer_group: "{{ consumer_group }}"
+      topic: "{{ topic }}"
+      lag_threshold: "{{ lag_threshold }}"
+  - name: "scale_consumers"
+    type: "scale_deployment"
+    parameters:
+      deployment_name: "{{ consumer_group }}"
+      namespace: "default"
+      replicas: 3
+  - name: "pause_producers"
+    type: "pause_producers"
+    parameters:
+      topic: "{{ topic }}"
+      consumer_group: "{{ consumer_group }}"
+  - name: "cleanup_poison_messages"
+    type: "cleanup_poison_messages"
+    parameters:
+      topic: "{{ topic }}"

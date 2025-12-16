@@ -1,0 +1,313 @@
+# Prometheus alerting rules for ML Drift Detection
+# Deploy with: kubectl apply -f prometheus-rules/ml-drift-alerts.yaml -n monitoring
+#
+# These rules monitor drift in ML models and trigger alerts when
+# performance degradation or data drift is detected.
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ml-drift-alerts
+  namespace: monitoring
+  labels:
+    app: neural-hive
+    component: ml-monitoring
+    prometheus: k8s
+    role: alert-rules
+spec:
+  groups:
+    # ==========================================================================
+    # ML Drift Detection Alerts
+    # ==========================================================================
+    - name: ml_drift
+      interval: 5m
+      rules:
+        # Critical drift detected - immediate action required
+        - alert: MLDriftCritical
+          expr: orchestration_ml_drift_overall_status == 2
+          for: 10m
+          labels:
+            severity: critical
+            component: ml-drift-detection
+            team: ml-platform
+          annotations:
+            summary: "Drift crítico detectado em modelos ML"
+            description: |
+              Status de drift está em nível crítico por mais de 10 minutos.
+
+              Ações recomendadas:
+              1. Verificar logs do drift job
+              2. Analisar métricas de drift no Grafana
+              3. Considerar retreinamento urgente
+
+              Comando para verificar:
+              kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=100 | grep drift
+            runbook_url: "https://docs.neuralhive.io/runbooks/ml-drift-critical"
+
+        # Warning level drift - monitor closely
+        - alert: MLDriftWarning
+          expr: orchestration_ml_drift_overall_status == 1
+          for: 30m
+          labels:
+            severity: warning
+            component: ml-drift-detection
+            team: ml-platform
+          annotations:
+            summary: "Drift moderado detectado em modelos ML"
+            description: |
+              Status de drift está em nível de warning por mais de 30 minutos.
+
+              Monitorar e considerar retreinamento se persistir.
+
+              Verificar dashboard: Orchestrator ML Predictions
+            runbook_url: "https://docs.neuralhive.io/runbooks/ml-drift-warning"
+
+        # Feature drift (PSI) exceeds threshold
+        - alert: MLFeatureDriftHigh
+          expr: orchestration_ml_drift_feature_max_psi > 0.25
+          for: 15m
+          labels:
+            severity: warning
+            component: ml-drift-detection
+            team: ml-platform
+          annotations:
+            summary: "Feature drift elevado detectado (PSI > 0.25)"
+            description: |
+              PSI máximo entre features está acima do threshold (0.25).
+
+              Valor atual: {{ $value | printf "%.3f" }}
+
+              Isso indica que a distribuição das features de entrada mudou
+              significativamente em relação ao baseline de treino.
+
+              Investigar mudanças recentes nos dados de entrada.
+            runbook_url: "https://docs.neuralhive.io/runbooks/feature-drift"
+
+        # Prediction drift (MAE ratio) exceeds threshold
+        - alert: MLPredictionDriftCritical
+          expr: orchestration_ml_drift_prediction_ratio > 1.5
+          for: 15m
+          labels:
+            severity: critical
+            component: ml-drift-detection
+            team: ml-platform
+          annotations:
+            summary: "Degradação crítica de predições (MAE ratio > 1.5)"
+            description: |
+              MAE ratio (atual/treino) excede 1.5, indicando degradação
+              de 50%+ na acurácia das predições.
+
+              Ratio atual: {{ $value | printf "%.2f" }}
+
+              Retreinamento urgente recomendado.
+
+              Comando:
+              python ml_pipelines/monitoring/auto_retrain.py --specialist-type all --force
+            runbook_url: "https://docs.neuralhive.io/runbooks/prediction-drift"
+
+        # Target drift (low p-value)
+        - alert: MLTargetDriftDetected
+          expr: orchestration_ml_drift_target_pvalue < 0.05
+          for: 15m
+          labels:
+            severity: warning
+            component: ml-drift-detection
+            team: ml-platform
+          annotations:
+            summary: "Target drift detectado (K-S p-value < 0.05)"
+            description: |
+              Kolmogorov-Smirnov test indica que a distribuição do target
+              (actual_duration_ms) mudou significativamente.
+
+              P-value: {{ $value | printf "%.4f" }}
+
+              Isso pode indicar mudanças no padrão de carga de trabalho.
+              Verificar se é uma mudança esperada ou anomalia.
+            runbook_url: "https://docs.neuralhive.io/runbooks/target-drift"
+
+    # ==========================================================================
+    # Model Performance Alerts
+    # ==========================================================================
+    - name: ml_performance
+      interval: 5m
+      rules:
+        # Model degradation detected
+        - alert: MLModelDegraded
+          expr: neural_hive_model_degradation_detected == 1
+          for: 15m
+          labels:
+            severity: warning
+            component: ml-performance
+            team: ml-platform
+          annotations:
+            summary: "Degradação de modelo detectada - {{ $labels.specialist_type }}"
+            description: |
+              Performance do modelo {{ $labels.specialist_type }} está abaixo
+              dos thresholds configurados.
+
+              Verificar ModelPerformanceMonitor para detalhes:
+              python ml_pipelines/monitoring/model_performance_monitor.py \
+                --specialist-type {{ $labels.specialist_type }} \
+                --output-format json
+            runbook_url: "https://docs.neuralhive.io/runbooks/model-degraded"
+
+        # Low performance score
+        - alert: MLModelLowPerformance
+          expr: neural_hive_model_performance_score < 0.65
+          for: 30m
+          labels:
+            severity: warning
+            component: ml-performance
+            team: ml-platform
+          annotations:
+            summary: "Score de performance baixo - {{ $labels.specialist_type }}"
+            description: |
+              Score agregado de performance do modelo {{ $labels.specialist_type }}
+              está abaixo de 0.65.
+
+              Score atual: {{ $value | printf "%.3f" }}
+
+              Considerar retreinamento ou revisão de feedback.
+            runbook_url: "https://docs.neuralhive.io/runbooks/low-performance"
+
+        # F1 score below threshold
+        - alert: MLModelLowF1Score
+          expr: neural_hive_mlflow_model_f1 < 0.72
+          for: 30m
+          labels:
+            severity: warning
+            component: ml-performance
+            team: ml-platform
+          annotations:
+            summary: "F1 Score baixo - {{ $labels.specialist_type }}"
+            description: |
+              F1 Score do modelo {{ $labels.specialist_type }} está abaixo
+              do threshold (0.72).
+
+              F1 atual: {{ $value | printf "%.3f" }}
+            runbook_url: "https://docs.neuralhive.io/runbooks/low-f1"
+
+    # ==========================================================================
+    # Auto-Retrain Alerts
+    # ==========================================================================
+    - name: auto_retrain
+      interval: 5m
+      rules:
+        # Auto-retrain failed
+        - alert: AutoRetrainFailed
+          expr: increase(neural_hive_auto_retrain_triggered_total{status="failed"}[1h]) > 0
+          for: 5m
+          labels:
+            severity: warning
+            component: auto-retrain
+            team: ml-platform
+          annotations:
+            summary: "Auto-retrain falhou para {{ $labels.specialist_type }}"
+            description: |
+              Tentativa de retreinamento automático falhou na última hora.
+
+              Verificar logs do auto_retrain.py:
+              kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic \
+                --tail=500 | grep retrain
+
+              Verificar status no MongoDB:
+              db.retraining_triggers.find({status: 'failed'}).sort({triggered_at: -1}).limit(5)
+            runbook_url: "https://docs.neuralhive.io/runbooks/auto-retrain-failed"
+
+        # Long retrain duration
+        - alert: AutoRetrainLongDuration
+          expr: neural_hive_auto_retrain_duration_seconds > 7200
+          for: 5m
+          labels:
+            severity: warning
+            component: auto-retrain
+            team: ml-platform
+          annotations:
+            summary: "Retreinamento demorado - {{ $labels.specialist_type }}"
+            description: |
+              Último retreinamento do {{ $labels.specialist_type }} levou mais
+              de 2 horas.
+
+              Duração: {{ $value | humanizeDuration }}
+
+              Verificar se há problemas de recursos ou dataset muito grande.
+            runbook_url: "https://docs.neuralhive.io/runbooks/long-retrain"
+
+        # No retrain in last 30 days (if drift detected)
+        - alert: NoRetrainWithDrift
+          expr: |
+            (
+              orchestration_ml_drift_overall_status > 0
+            ) and (
+              time() - neural_hive_auto_retrain_last_success_timestamp > 2592000
+            )
+          for: 1h
+          labels:
+            severity: warning
+            component: auto-retrain
+            team: ml-platform
+          annotations:
+            summary: "Drift detectado mas sem retreinamento recente"
+            description: |
+              Drift foi detectado, mas não houve retreinamento bem-sucedido
+              nos últimos 30 dias.
+
+              Considerar executar retreinamento manual:
+              python ml_pipelines/monitoring/auto_retrain.py --specialist-type all --force
+            runbook_url: "https://docs.neuralhive.io/runbooks/stale-retrain"
+
+    # ==========================================================================
+    # Drift CronJob Health Alerts
+    # ==========================================================================
+    - name: drift_cronjob_health
+      interval: 5m
+      rules:
+        # CronJob not running
+        - alert: MLDriftCronJobNotRunning
+          expr: |
+            time() - kube_cronjob_status_last_schedule_time{
+              cronjob="orchestrator-dynamic-ml-drift",
+              namespace="neural-hive-orchestration"
+            } > 129600
+          for: 10m
+          labels:
+            severity: warning
+            component: drift-cronjob
+            team: ml-platform
+          annotations:
+            summary: "ML Drift CronJob não executou nas últimas 36h"
+            description: |
+              O CronJob de detecção de drift não executou nas últimas 36 horas.
+              Schedule esperado: diário às 3 AM UTC.
+
+              Verificar:
+              kubectl get cronjob -n neural-hive-orchestration orchestrator-dynamic-ml-drift
+
+              Verificar se está suspenso:
+              kubectl get cronjob orchestrator-dynamic-ml-drift -n neural-hive-orchestration \
+                -o jsonpath='{.spec.suspend}'
+            runbook_url: "https://docs.neuralhive.io/runbooks/cronjob-not-running"
+
+        # CronJob jobs failing
+        - alert: MLDriftCronJobFailing
+          expr: |
+            kube_job_status_failed{
+              job_name=~"orchestrator-dynamic-ml-drift-.*",
+              namespace="neural-hive-orchestration"
+            } > 0
+          for: 5m
+          labels:
+            severity: warning
+            component: drift-cronjob
+            team: ml-platform
+          annotations:
+            summary: "ML Drift Job falhou"
+            description: |
+              Um job de detecção de drift falhou.
+
+              Verificar logs:
+              kubectl logs -n neural-hive-orchestration job/{{ $labels.job_name }}
+
+              Verificar eventos:
+              kubectl describe job -n neural-hive-orchestration {{ $labels.job_name }}
+            runbook_url: "https://docs.neuralhive.io/runbooks/drift-job-failed"

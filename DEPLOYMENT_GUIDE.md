@@ -7,9 +7,10 @@ Guia completo para deployment da Fase 1 - Fundação do Neural Hive-Mind.
 1. [Pré-requisitos](#-pré-requisitos)
 2. [Configuração Inicial](#%EF%B8%8F-configuração-inicial)
 3. [Deployment Passo-a-Passo](#-deployment-passo-a-passo)
-4. [Validação](#-validação)
-5. [Troubleshooting](#-troubleshooting)
-6. [Rollback](#-rollback)
+4. [Deployment Fases 2–3 (Staging/Prod)](#-deployment-fases-23-stagingprod)
+5. [Validação](#-validação)
+6. [Troubleshooting](#-troubleshooting)
+7. [Rollback](#-rollback)
 
 ## 🎯 Pré-requisitos
 
@@ -342,6 +343,45 @@ kubectl get pods -n gatekeeper-system
 kubectl get constrainttemplates
 kubectl get constraints -A
 ```
+
+## 🧭 Deployment Fases 2–3 (Staging/Prod)
+
+### Ordem Recomendada de Deploy (Aplicação)
+
+1. Service Registry (`service-registry`) e Config (feature flags/secrets)
+2. Orchestrator Dynamic (`orchestrator-dynamic`)
+3. Consensus Engine (`consensus-engine`) e Execution Ticket Service (`execution-ticket-service`)
+4. Memory Layer API (`memory-layer-api`) e bancos (MongoDB, Redis, Neo4j, ClickHouse)
+5. Code Forge (`code-forge`) e integrações (MCP, LLM providers)
+6. Worker Agents (`worker-agents`) e otimização/observabilidade
+7. Self-Healing Engine (`self-healing-engine`) e SLA Management (`sla-management-system`)
+8. Gateways/Apis de entrada (captura de intent + explainability)
+
+> Use `helm-values-eks-complete.yaml` como base para staging/prod ajustando URLs e secrets de provedores externos.
+
+Exemplo de comando Helm (ajuste chart/path e namespace conforme componente):
+
+```bash
+helm upgrade --install orchestrator-dynamic ./helm-charts/orchestrator-dynamic \
+  -f helm-values-eks-complete.yaml \
+  --namespace neural-hive-orchestration \
+  --create-namespace \
+  --wait
+
+helm upgrade --install worker-agents ./helm-charts/worker-agents \
+  -f helm-values-eks-complete.yaml \
+  --namespace neural-hive-execution \
+  --create-namespace \
+  --wait
+```
+
+### Validação Pós-Deploy (Obrigatória)
+
+1. Rodar suíte E2E completa: `./scripts/run-e2e-validation-suite.sh` (ou `pytest tests/e2e/ -m "e2e and not slow"` se preferir Python).
+2. Validar SLOs: `scripts/validation/test-slos.sh` (P95 gateway/API, disponibilidade).
+3. Benchmarks de performance: `scripts/validation/validate-performance-benchmarks.sh` (throughput, latência P95, eficiência de recursos).
+4. Confirmar métricas e logs nos namespaces `neural-hive-orchestration`, `neural-hive-execution`, `neural-hive-observability`.
+5. Somente concluir rollout após todos os scripts retornarem sucesso e os testes `tests/e2e/` passarem.
 
 ## ✅ Validação
 

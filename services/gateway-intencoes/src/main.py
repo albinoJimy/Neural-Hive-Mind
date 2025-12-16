@@ -200,35 +200,23 @@ async def lifespan(app: FastAPI):
         # Controlado pela feature flag otel_enabled e disponibilidade da biblioteca
         if settings.otel_enabled and OBSERVABILITY_AVAILABLE:
             from neural_hive_observability import init_observability
-            from neural_hive_observability.config import ObservabilityConfig
-            from neural_hive_observability.tracing import init_tracing
-
-            # Initialize observability configuration
-            observability_config = ObservabilityConfig(
-                service_name="gateway-intencoes",
-                service_version="1.0.0",
-                neural_hive_component="gateway",
-                neural_hive_layer="experiencia",
-                neural_hive_domain="captura-intencoes",
-                environment=settings.environment,
-                otel_endpoint=settings.otel_endpoint,
-                prometheus_port=settings.prometheus_port
-            )
-
-            # Initialize tracing with OTLP exporter
-            init_tracing(observability_config)
 
             # Initialize full observability stack
             init_observability(
                 service_name="gateway-intencoes",
-                service_version="1.0.0",
+                service_version="1.0.7",
                 neural_hive_component="gateway",
                 neural_hive_layer="experiencia",
                 neural_hive_domain="captura-intencoes",
                 environment=settings.environment,
                 otel_endpoint=settings.otel_endpoint,
-                prometheus_port=settings.prometheus_port
+                prometheus_port=settings.prometheus_port,
+                enable_grpc=False,
+                enable_kafka=True
             )
+
+            from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+            FastAPIInstrumentor.instrument_app(app)
 
             logger.info("OpenTelemetry habilitado e inicializado", otel_endpoint=settings.otel_endpoint)
         else:

@@ -1,0 +1,77 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-temporal-backup
+  namespace: temporal-postgres
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 7
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 3600  # 1 hour timeout
+      backoffLimit: 2
+      template:
+        spec:
+          serviceAccountName: postgres-backup-sa
+          restartPolicy: OnFailure
+          containers:
+          - name: pg-backup
+            image: postgres:15-alpine
+            command:
+              - /bin/sh
+              - -c
+              - |
+                set -euo pipefail
+                apk add --no-cache curl python3 py3-pip
+                pip install --no-cache-dir awscli
+
+                status=1
+                TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+                BACKUP_FILE="temporal_backup_${TIMESTAMP}.sql.gz"
+                
+                # Full backup with pg_dump
+                if pg_dump -h $POSTGRES_HOST -U $POSTGRES_USER -d temporal \
+                  --format=custom --compress=6 --verbose \
+                  | gzip > /tmp/${BACKUP_FILE} && \
+                  aws s3 cp /tmp/${BACKUP_FILE} \
+                  s3://${BACKUP_S3_BUCKET}/temporal/backups/${BACKUP_FILE} \
+                  --storage-class STANDARD_IA; then
+                  status=0
+                fi
+                
+                # Cleanup old backups (retain 30 days)
+                aws s3 ls s3://${BACKUP_S3_BUCKET}/temporal/backups/ \
+                  | awk '{print $4}' \
+                  | while read file; do
+                      file_date=$(echo $file | grep -oP '\d{8}')
+                      if [ $(( ($(date +%s) - $(date -d $file_date +%s)) / 86400 )) -gt 30 ]; then
+                        aws s3 rm s3://${BACKUP_S3_BUCKET}/temporal/backups/$file
+                      fi
+                    done
+                
+                # Push metrics to Pushgateway
+                echo "postgres_backup_success{database=\"temporal\"} ${status}" | \
+                  curl --data-binary @- http://prometheus-pushgateway:9091/metrics/job/postgres_backup
+            env:
+              - name: POSTGRES_HOST
+                value: postgres-temporal-headless.temporal-postgres.svc.cluster.local
+              - name: POSTGRES_USER
+                value: temporal
+              - name: PGPASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: postgres-temporal-credentials
+                    key: temporal-password
+              - name: BACKUP_S3_BUCKET
+                value: neural-hive-backups-prod
+              - name: AWS_DEFAULT_REGION
+                value: us-east-1
+            resources:
+              requests:
+                cpu: 500m
+                memory: 1Gi
+              limits:
+                cpu: 2000m
+                memory: 4Gi

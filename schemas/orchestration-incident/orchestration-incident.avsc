@@ -1,0 +1,103 @@
+{
+  "type": "record",
+  "name": "OrchestrationIncident",
+  "namespace": "io.neuralhive.orchestration",
+  "doc": "Incident event emitted by Orchestrator Dynamic to trigger self-healing (Fluxo E)",
+  "fields": [
+    {
+      "name": "incident_id",
+      "type": "string",
+      "doc": "Unique identifier for the incident (UUID)"
+    },
+    {
+      "name": "workflow_id",
+      "type": "string",
+      "doc": "Workflow that detected the inconsistency"
+    },
+    {
+      "name": "incident_type",
+      "type": {
+        "type": "enum",
+        "name": "IncidentType",
+        "symbols": [
+          "INCONSISTENCY",
+          "SLA_VIOLATION",
+          "TICKET_TIMEOUT",
+          "WORKER_FAILURE"
+        ]
+      },
+      "doc": "Type of incident detected by orchestration"
+    },
+    {
+      "name": "severity",
+      "type": "string",
+      "doc": "Severity level (INFO, WARNING, CRITICAL, etc.)"
+    },
+    {
+      "name": "details",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "doc": "Human-readable list of detected inconsistencies"
+    },
+    {
+      "name": "affected_tickets",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "doc": "Tickets impacted by this incident"
+    },
+    {
+      "name": "correlation_id",
+      "type": "string",
+      "doc": "Correlation ID for cross-service tracing"
+    },
+    {
+      "name": "trace_id",
+      "type": "string",
+      "doc": "OpenTelemetry trace ID"
+    },
+    {
+      "name": "recommended_playbook",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null,
+      "doc": "Suggested playbook for remediation"
+    },
+    {
+      "name": "auto_remediation_enabled",
+      "type": [
+        "null",
+        "boolean"
+      ],
+      "default": null,
+      "doc": "Flag indicating if automatic remediation is allowed"
+    },
+    {
+      "name": "escalation_required",
+      "type": [
+        "null",
+        "boolean"
+      ],
+      "default": null,
+      "doc": "If true, human escalation is needed after retries"
+    },
+    {
+      "name": "created_at",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Creation timestamp (epoch millis)"
+    },
+    {
+      "name": "hash",
+      "type": "string",
+      "doc": "SHA-256 hash for integrity validation"
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+You are an expert system architect generating realistic cognitive plans for a Neural Hive Mind system.
+
+Generate a valid JSON cognitive plan with the following characteristics:
+- Domain: {domain} (security-analysis, architecture-review, performance-optimization, code-quality, business-logic)
+- Complexity: {complexity} (low: 1-3 tasks, medium: 4-7 tasks, high: 8-15 tasks)
+- Risk Level: {risk_level} (low: 0.0-0.3, medium: 0.3-0.6, high: 0.6-0.8, critical: 0.8-1.0)
+- Priority: {priority} (low, normal, high, critical)
+
+The cognitive plan must follow this JSON structure:
+{{
+  "plan_id": "<uuid>",
+  "version": "1.0.0",
+  "intent_id": "<uuid>",
+  "tasks": [
+    {{
+      "task_id": "task-1",
+      "task_type": "analysis|transformation|validation|integration",
+      "description": "<15-50 word description with domain context, risk mitigation, and QoS hints>",
+      "dependencies": [],
+      "estimated_duration_ms": <number>,
+      "required_capabilities": ["<capability1>", "<capability2>"],
+      "parameters": {{}},
+      "metadata": {{}}
+    }}
+  ],
+  "execution_order": ["task-1", "task-2", ...],
+  "risk_score": <0.0-1.0>,
+  "risk_band": "low|medium|high|critical",
+  "risk_factors": {{"factor1": 0.5, "factor2": 0.3}},
+  "explainability_token": "<token>",
+  "reasoning_summary": "<summary>",
+  "status": "draft",
+  "created_at": <timestamp_millis>,
+  "complexity_score": <0.0-1.0>,
+  "original_domain": "{domain}",
+  "original_priority": "{priority}",
+  "original_security_level": "public|internal|confidential|secret",
+  "metadata": {{}},
+  "schema_version": 1
+}}
+
+IMPORTANT:
+- Tasks must form a valid DAG (no cycles in dependencies)
+- Task types should match domain (e.g., security domain → validation tasks)
+- Risk score should correlate with complexity and domain
+- Use realistic descriptions based on domain
+- Include 2-5 risk factors with weights summing to ~1.0
+- Execution order must respect task dependencies (topological sort)
+
+DESCRIPTION QUALITY REQUIREMENTS:
+- Each task description must be 15-50 words (not just "Create operation")
+- Include domain-specific context:
+  - security-analysis → mention "authentication", "encryption", "audit", "sanitize", "permission"
+  - architecture-review → mention "service", "interface", "pattern", "module", "component"
+  - performance-optimization → mention "cache", "index", "optimize", "parallel", "async"
+  - code-quality → mention "test", "error", "log", "coverage", "refactor"
+  - business-logic → mention "workflow", "KPI", "cost", "efficiency", "process"
+- Mention risk mitigation for high-risk tasks (e.g., "with input validation and sanitization")
+- Reference QoS requirements (e.g., "exactly_once" → "with idempotency guarantees and transaction rollback")
+- Use action verbs: "Validate and sanitize", "Retrieve and cache", "Transform and encrypt"
+- Include resource hints for performance tasks: "using indexed queries", "with connection pooling"
+
+DESCRIPTION EXAMPLES:
+GOOD: "Validate user input and sanitize SQL queries to prevent injection attacks with comprehensive error logging (security-analysis, confidential)"
+BAD: "Validate operation"
+
+GOOD: "Retrieve customer data with indexed queries and cache results for 5 minutes using Redis connection pooling (performance-optimization, high priority)"
+BAD: "Query operation"
+
+GOOD: "Transform and normalize payment records with encryption using AES-256 and audit trail logging for compliance (business-logic, restricted)"
+BAD: "Transform operation"
+
+Return ONLY valid JSON, no markdown formatting.

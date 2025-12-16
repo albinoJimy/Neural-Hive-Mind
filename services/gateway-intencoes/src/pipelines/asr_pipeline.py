@@ -7,6 +7,7 @@ import subprocess
 import wave
 import struct
 import logging
+from contextlib import nullcontext
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 import hashlib
@@ -14,6 +15,11 @@ from models.intent_envelope import ASRResult
 from config.settings import get_settings
 
 logger = logging.getLogger(__name__)
+try:
+    from neural_hive_observability import get_tracer
+    tracer = get_tracer()
+except ImportError:
+    tracer = None
 
 class ASRPipeline:
     def __init__(self, model_name: str = None, device: str = None):
@@ -257,46 +263,79 @@ class ASRPipeline:
 
         try:
             self.concurrent_jobs += 1
+            span_context = tracer.start_as_current_span("asr.process") if tracer else nullcontext()
+            with span_context as span:
+                if span:
+                    span.set_attribute("neural.hive.component", "gateway")
+                    span.set_attribute("neural.hive.layer", "experiencia")
+                    span.set_attribute("neural.hive.asr.language", language)
+                    span.set_attribute("neural.hive.asr.audio_size_bytes", len(audio_data))
 
-            # Validar áudio antes do processamento
-            validation = self._validate_audio(audio_data)
-            if not validation["valid"]:
-                raise ValueError(f"Áudio inválido: {', '.join(validation['issues'])}")
+                validation_context = tracer.start_as_current_span("asr.validate_audio") if tracer else nullcontext()
+                with validation_context as validate_span:
+                    validation = self._validate_audio(audio_data)
+                    if validate_span:
+                        validate_span.set_attribute("neural.hive.asr.format", validation["format"])
+                        validate_span.set_attribute("neural.hive.asr.duration_seconds", validation["duration"])
+                        validate_span.set_attribute("neural.hive.asr.valid", validation["valid"])
+                        if validation.get("issues"):
+                            validate_span.set_attribute("neural.hive.asr.issues", ", ".join(validation["issues"]))
+                    if not validation["valid"]:
+                        raise ValueError(f"Áudio inválido: {', '.join(validation['issues'])}")
 
-            logger.info(f"Áudio validado: {validation['format']}, {validation['duration']:.2f}s")
+                logger.info(f"Áudio validado: {validation['format']}, {validation['duration']:.2f}s")
 
-            # Verificar se precisa converter formato
-            processed_audio = audio_data
-            if validation["format"] not in ["wav", "wave"]:
-                logger.info(f"Convertendo áudio de {validation['format']} para WAV")
-                processed_audio = await self._convert_audio_format(audio_data, "wav")
+                # Verificar se precisa converter formato
+                processed_audio = audio_data
+                if validation["format"] not in ["wav", "wave"]:
+                    logger.info(f"Convertendo áudio de {validation['format']} para WAV")
+                    convert_context = tracer.start_as_current_span("asr.convert_audio") if tracer else nullcontext()
+                    with convert_context as convert_span:
+                        if convert_span:
+                            convert_span.set_attribute("neural.hive.asr.source_format", validation["format"])
+                            convert_span.set_attribute("neural.hive.asr.target_format", "wav")
+                        processed_audio = await self._convert_audio_format(audio_data, "wav")
+                        if convert_span:
+                            convert_span.set_attribute("neural.hive.asr.converted_size_bytes", len(processed_audio))
 
-            # Calcular timeout baseado na duração do áudio
-            audio_duration = validation.get("duration", 60)  # Default 60s se não detectado
-            timeout = max(self.settings.asr_timeout_seconds, int(audio_duration * 3))  # 3x a duração
+                # Calcular timeout baseado na duração do áudio
+                audio_duration = validation.get("duration", 60)  # Default 60s se não detectado
+                timeout = max(self.settings.asr_timeout_seconds, int(audio_duration * 3))  # 3x a duração
 
-            # Salvar áudio temporariamente
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
-                temp_file.write(processed_audio)
-                temp_path = temp_file.name
+                # Salvar áudio temporariamente
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+                    temp_file.write(processed_audio)
+                    temp_path = temp_file.name
 
-            try:
-                # Executar Whisper em thread separada com timeout
-                result = await asyncio.wait_for(
-                    asyncio.get_event_loop().run_in_executor(
-                        None, self._transcribe, temp_path, language, validation
-                    ),
-                    timeout=timeout
-                )
-                return result
+                try:
+                    # Executar Whisper em thread separada com timeout
+                    transcribe_context = tracer.start_as_current_span("asr.transcribe") if tracer else nullcontext()
+                    with transcribe_context as transcribe_span:
+                        if transcribe_span:
+                            transcribe_span.set_attribute("neural.hive.asr.model", self.model_name)
+                            transcribe_span.set_attribute("neural.hive.asr.device", self.device)
+                        result = await asyncio.wait_for(
+                            asyncio.get_event_loop().run_in_executor(
+                                None, self._transcribe, temp_path, language, validation
+                            ),
+                            timeout=timeout
+                        )
+                        if transcribe_span:
+                            transcribe_span.set_attribute("neural.hive.asr.text_length", len(result.text))
+                            transcribe_span.set_attribute("neural.hive.asr.confidence", result.confidence)
+                            transcribe_span.set_attribute("neural.hive.asr.detected_language", result.language)
+                        if span:
+                            span.set_attribute("neural.hive.asr.result.confidence", result.confidence)
+                            span.set_attribute("neural.hive.asr.result.text_length", len(result.text))
+                        return result
 
-            except asyncio.TimeoutError:
-                logger.error(f"Timeout na transcrição após {timeout}s")
-                raise RuntimeError(f"Timeout na transcrição do áudio (limite: {timeout}s)")
+                except asyncio.TimeoutError:
+                    logger.error(f"Timeout na transcrição após {timeout}s")
+                    raise RuntimeError(f"Timeout na transcrição do áudio (limite: {timeout}s)")
 
-            finally:
-                if os.path.exists(temp_path):
-                    os.unlink(temp_path)
+                finally:
+                    if os.path.exists(temp_path):
+                        os.unlink(temp_path)
 
         finally:
             self.concurrent_jobs -= 1

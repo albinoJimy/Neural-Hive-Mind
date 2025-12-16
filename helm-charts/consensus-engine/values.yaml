@@ -17,16 +17,22 @@ service:
   port: 8000
   metricsPort: 8080
 
+# Pós-deploy (obrigatório após redução de memória e failureThreshold):
+# - Monitorar container_memory_usage_bytes e eventos dos pods no consensus-engine e nos specialists.
+# - Se houver OOMKill ou uso sustentado >80-85% do limit de 1Gi, aumentar resources.limits.memory em +256Mi neste arquivo (ex: 1.25Gi, 1.5Gi) e redeploy.
+# - Se "Startup probe failed" ocorrer de forma recorrente sem erro funcional, elevar startupProbe.failureThreshold para 20 ou 30 mantendo o restante igual.
 resources:
-  # Bayesian aggregation saturates brief CPU bursts when reconciling 5 specialists + pheromone metrics.
-  # Profiling showed average usage <300m CPU / 650Mi, so we right-size requests to 400m/1Gi
-  # while still allowing 1.5 CPU / 2.5Gi for reconciliation spikes without starving Kafka consumers.
+  # Optimized after Phase 4 (migrated to python-grpc-base, removed neural_hive_specialists bloat)
+  # Image reduced from ~1.5GB to ~480MB (68% reduction)
+  # Bayesian aggregation saturates brief CPU bursts when reconciling 5 specialists + pheromone metrics
+  # Profiling showed average usage <300m CPU / 400Mi (down from 650Mi), so we right-size requests to 400m/512Mi
+  # while still allowing 1.5 CPU / 1Gi for reconciliation spikes without starving Kafka consumers
   requests:
     cpu: 400m
-    memory: 1Gi
+    memory: 512Mi
   limits:
     cpu: 1500m
-    memory: 2.5Gi
+    memory: 1Gi
 
 config:
   environment: production
@@ -65,7 +71,7 @@ config:
     pheromoneDecayRate: 0.1
 
   openTelemetry:
-    endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+    endpoint: "http://otel-collector:4317"
     samplingRate: 1.0
 
   consensus:
@@ -201,7 +207,7 @@ startupProbe:
   initialDelaySeconds: 0
   periodSeconds: 10
   timeoutSeconds: 5
-  failureThreshold: 20  # ~3.3min para carregar caches Bayesianos/Kafka offsets
+  failureThreshold: 15  # 15 * 10s = 2.5 minutes (reduced from 3.3min after Phase 4 optimizations)
   successThreshold: 1
 
 livenessProbe:

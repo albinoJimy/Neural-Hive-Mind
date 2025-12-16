@@ -4,6 +4,12 @@ from aiokafka import AIOKafkaConsumer
 from typing import Optional
 import json
 
+from neural_hive_observability import instrument_kafka_consumer
+from neural_hive_observability.context import (
+    extract_context_from_headers,
+    set_baggage
+)
+
 from ..config import Settings
 from ..services import StrategicDecisionEngine
 
@@ -38,6 +44,7 @@ class ConsensusConsumer:
                 value_deserializer=lambda v: json.loads(v.decode('utf-8'))
             )
 
+            self.consumer = instrument_kafka_consumer(self.consumer)
             await self.consumer.start()
             logger.info(
                 "consensus_consumer_initialized",
@@ -61,7 +68,7 @@ class ConsensusConsumer:
                     break
 
                 try:
-                    await self.process_message(message.value)
+                    await self.process_message(message)
 
                     # Commit manual após processamento bem-sucedido
                     await self.consumer.commit()
@@ -88,10 +95,20 @@ class ConsensusConsumer:
             await self.consumer.stop()
             logger.info("consensus_consumer_closed")
 
-    async def process_message(self, decision_data: dict) -> None:
+    async def process_message(self, message) -> None:
         """Processar mensagem de decisão consolidada"""
         try:
+            headers_dict = {k: v for k, v in (message.headers or [])}
+            extract_context_from_headers(headers_dict)
+
+            decision_data = message.value
             decision_id = decision_data.get('decision_id')
+            intent_id = decision_data.get("intent_id")
+            plan_id = decision_data.get("plan_id")
+            if intent_id:
+                set_baggage("intent_id", intent_id)
+            if plan_id:
+                set_baggage("plan_id", plan_id)
 
             logger.info("consensus_decision_received", decision_id=decision_id)
 

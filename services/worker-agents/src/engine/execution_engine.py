@@ -13,12 +13,13 @@ class TaskExecutionError(Exception):
 class ExecutionEngine:
     '''Orquestrador principal de execução de tarefas'''
 
-    def __init__(self, config, ticket_client, result_producer, dependency_coordinator, executor_registry):
+    def __init__(self, config, ticket_client, result_producer, dependency_coordinator, executor_registry, metrics=None):
         self.config = config
         self.ticket_client = ticket_client
         self.result_producer = result_producer
         self.dependency_coordinator = dependency_coordinator
         self.executor_registry = executor_registry
+        self.metrics = metrics
         self.logger = logger.bind(service='execution_engine')
 
         # Rastrear tarefas em execução
@@ -47,8 +48,11 @@ class ExecutionEngine:
             active_tasks_count=len(self.active_tasks)
         )
 
-        # TODO: Incrementar métrica worker_agent_tickets_processing_total{task_type=...}
-        # TODO: Atualizar gauge worker_agent_active_tasks
+        if self.metrics:
+            if hasattr(self.metrics, 'tickets_processing_total'):
+                self.metrics.tickets_processing_total.labels(task_type=ticket.get('task_type')).inc()
+            if hasattr(self.metrics, 'active_tasks'):
+                self.metrics.active_tasks.set(len(self.active_tasks))
 
     async def _execute_ticket(self, ticket: Dict[str, Any]):
         '''Executar ticket com coordenação de dependências e retry logic'''
@@ -94,6 +98,12 @@ class ExecutionEngine:
                         {'success': False},
                         error_message=str(dep_error)
                     )
+                    duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+                    if self.metrics:
+                        if hasattr(self.metrics, 'tickets_failed_total'):
+                            self.metrics.tickets_failed_total.labels(task_type=task_type, error_type='dependency').inc()
+                        if hasattr(self.metrics, 'task_duration_seconds'):
+                            self.metrics.task_duration_seconds.labels(task_type=task_type).observe(duration_ms / 1000)
                     return
 
                 # Executar tarefa com retry
@@ -123,8 +133,11 @@ class ExecutionEngine:
                         duration_ms=duration_ms
                     )
 
-                    # TODO: Incrementar métrica worker_agent_tickets_completed_total{task_type=...}
-                    # TODO: Registrar histogram worker_agent_task_duration_seconds{task_type=...}
+                    if self.metrics:
+                        if hasattr(self.metrics, 'tickets_completed_total'):
+                            self.metrics.tickets_completed_total.labels(task_type=task_type).inc()
+                        if hasattr(self.metrics, 'task_duration_seconds'):
+                            self.metrics.task_duration_seconds.labels(task_type=task_type).observe(duration_ms / 1000)
 
                 except TaskExecutionError as exec_error:
                     # Falha após todas as tentativas
@@ -153,7 +166,11 @@ class ExecutionEngine:
                         duration_ms=duration_ms
                     )
 
-                    # TODO: Incrementar métrica worker_agent_tickets_failed_total{task_type=...}
+                    if self.metrics:
+                        if hasattr(self.metrics, 'tickets_failed_total'):
+                            self.metrics.tickets_failed_total.labels(task_type=task_type, error_type='execution_error').inc()
+                        if hasattr(self.metrics, 'task_duration_seconds'):
+                            self.metrics.task_duration_seconds.labels(task_type=task_type).observe(duration_ms / 1000)
 
         except asyncio.TimeoutError:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
@@ -174,6 +191,11 @@ class ExecutionEngine:
                 )
             except Exception as pub_exc:
                 self.logger.error('result_publish_failed_timeout', ticket_id=ticket_id, error=str(pub_exc))
+            if self.metrics:
+                if hasattr(self.metrics, 'tickets_failed_total'):
+                    self.metrics.tickets_failed_total.labels(task_type=task_type, error_type='timeout').inc()
+                if hasattr(self.metrics, 'task_duration_seconds'):
+                    self.metrics.task_duration_seconds.labels(task_type=task_type).observe(duration_ms / 1000)
 
         except Exception as e:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
@@ -199,12 +221,18 @@ class ExecutionEngine:
                 )
             except Exception as pub_exc:
                 self.logger.error('result_publish_failed_error', ticket_id=ticket_id, error=str(pub_exc))
+            if self.metrics:
+                if hasattr(self.metrics, 'tickets_failed_total'):
+                    self.metrics.tickets_failed_total.labels(task_type=task_type, error_type='exception').inc()
+                if hasattr(self.metrics, 'task_duration_seconds'):
+                    self.metrics.task_duration_seconds.labels(task_type=task_type).observe(duration_ms / 1000)
 
         finally:
             # Remover de active_tasks
             if ticket_id in self.active_tasks:
                 del self.active_tasks[ticket_id]
-            # TODO: Atualizar gauge worker_agent_active_tasks
+            if self.metrics and hasattr(self.metrics, 'active_tasks'):
+                self.metrics.active_tasks.set(len(self.active_tasks))
 
     async def _execute_task_with_retry(self, ticket: Dict[str, Any]) -> Dict[str, Any]:
         '''Executar tarefa com retry logic'''
@@ -249,6 +277,8 @@ class ExecutionEngine:
                     attempt=attempt + 1,
                     timeout_seconds=timeout_seconds
                 )
+                if self.metrics and hasattr(self.metrics, 'task_retries_total'):
+                    self.metrics.task_retries_total.labels(task_type=task_type, attempt=str(attempt + 1)).inc()
 
             except Exception as e:
                 last_error = str(e)
@@ -259,8 +289,8 @@ class ExecutionEngine:
                     attempt=attempt + 1,
                     error=str(e)
                 )
-
-            # TODO: Incrementar métrica worker_agent_task_retries_total{task_type=..., attempt=...}
+                if self.metrics and hasattr(self.metrics, 'task_retries_total'):
+                    self.metrics.task_retries_total.labels(task_type=task_type, attempt=str(attempt + 1)).inc()
 
             # Backoff exponencial
             if attempt < max_retries:

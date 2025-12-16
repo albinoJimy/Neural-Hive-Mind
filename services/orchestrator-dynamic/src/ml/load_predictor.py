@@ -1,17 +1,20 @@
 """
-LoadPredictor Local - Preditor leve de carga e tempo de fila.
+LoadPredictor Local - Preditor leve de carga e tempo de fila (heurístico).
 
 Implementa predições heurísticas usando dados históricos do MongoDB para estimar:
 - Tempo de espera em fila (queue_time)
 - Carga atual do worker (load_percentage)
 
 Projetado para latência <50ms como fallback quando optimizer-agents indisponível.
+Não participa de treinamento/registro no MLflow; é um componente de fallback sempre ativo.
 """
 
 import time
 import structlog
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
+from neural_hive_observability import get_tracer
+from opentelemetry import trace
 
 from src.config.settings import OrchestratorSettings
 from src.observability.metrics import OrchestratorMetrics
@@ -51,6 +54,7 @@ class LoadPredictor:
         self.redis_client = redis_client
         self.metrics = metrics
         self.logger = logger.bind(component="load_predictor_local")
+        self.tracer = get_tracer(__name__)
 
         # Parâmetros de predição
         self.window_minutes = config.ml_local_load_window_minutes
@@ -58,6 +62,20 @@ class LoadPredictor:
 
         # Smoothing parameters
         self.alpha = 0.3  # Exponential smoothing factor
+
+    async def train_model(self, *args, **kwargs) -> Dict[str, Any]:
+        """
+        Stub de treinamento para compatibilidade.
+
+        LoadPredictor é heurístico e não é registrado no MLflow; retornamos
+        metadados mínimos para integradores que esperam interface train_model.
+        """
+        return {
+            'promoted': False,
+            'version': None,
+            'status': 'skipped',
+            'reason': 'heuristic_only'
+        }
 
     async def predict_queue_time(
         self,
@@ -76,98 +94,112 @@ class LoadPredictor:
         """
         start_time = time.time()
 
-        try:
-            # Verificar cache primeiro
-            cache_key = f"queue_pred:{worker_id}"
-            cached = await self._get_from_cache(cache_key)
+        with self.tracer.start_as_current_span(
+            "load.predict_queue_time",
+            attributes={
+                "neural.hive.worker.id": worker_id,
+                "neural.hive.ml.source": "local"
+            }
+        ) as span:
+            try:
+                # Verificar cache primeiro
+                cache_key = f"queue_pred:{worker_id}"
+                cached = await self._get_from_cache(cache_key)
 
-            if cached is not None:
+                if cached is not None:
+                    self.logger.debug(
+                        "queue_prediction_cache_hit",
+                        worker_id=worker_id,
+                        predicted_ms=cached
+                    )
+                    span.set_attribute("neural.hive.ml.predicted_queue_ms", float(cached))
+                    span.set_attribute("neural.hive.ml.cache_hit", True)
+                    return float(cached)
+
+                # Buscar dados históricos recentes
+                recent_completions = await self._fetch_recent_completions(
+                    worker_id,
+                    self.window_minutes
+                )
+
+                if not recent_completions:
+                    # Sem dados: retornar estimativa default
+                    default_queue_ms = 1000.0  # 1 segundo
+                    await self._save_to_cache(cache_key, default_queue_ms)
+
+                    self.logger.debug(
+                        "queue_prediction_no_data",
+                        worker_id=worker_id,
+                        predicted_ms=default_queue_ms
+                    )
+                    span.set_attribute("neural.hive.ml.predicted_queue_ms", default_queue_ms)
+                    span.set_attribute("neural.hive.ml.cache_hit", False)
+
+                    return default_queue_ms
+
+                # Estimar queue depth atual
+                queue_depth = await self._estimate_queue_depth(worker_id)
+
+                # Calcular moving average de durações
+                avg_duration = self._calculate_moving_average(
+                    [c['actual_duration_ms'] for c in recent_completions],
+                    window=10
+                )
+
+                # Predição: queue_depth * avg_duration
+                predicted_queue_ms = queue_depth * avg_duration
+
+                # Aplicar exponential smoothing se houver predição anterior
+                if cached is not None:
+                    predicted_queue_ms = (
+                        self.alpha * predicted_queue_ms +
+                        (1 - self.alpha) * cached
+                    )
+
+                # Limitar entre 0 e 60 segundos
+                predicted_queue_ms = max(0.0, min(predicted_queue_ms, 60000.0))
+
+                # Salvar no cache
+                await self._save_to_cache(cache_key, predicted_queue_ms)
+
+                # Métricas
+                duration_seconds = time.time() - start_time
+                self.metrics.record_ml_prediction(
+                    model_type='queue_time_local',
+                    status='success',
+                    duration=duration_seconds
+                )
+
+                # Registrar predição de queue time
+                self.metrics.record_predicted_queue_time(
+                    predicted_ms=predicted_queue_ms,
+                    source='local'
+                )
+
                 self.logger.debug(
-                    "queue_prediction_cache_hit",
+                    "queue_time_predicted",
                     worker_id=worker_id,
-                    predicted_ms=cached
+                    predicted_ms=predicted_queue_ms,
+                    queue_depth=queue_depth,
+                    avg_duration_ms=avg_duration,
+                    latency_ms=duration_seconds * 1000
                 )
-                return float(cached)
+                span.set_attribute("neural.hive.ml.predicted_queue_ms", predicted_queue_ms)
+                span.set_attribute("neural.hive.ml.cache_hit", False)
 
-            # Buscar dados históricos recentes
-            recent_completions = await self._fetch_recent_completions(
-                worker_id,
-                self.window_minutes
-            )
+                return float(predicted_queue_ms)
 
-            if not recent_completions:
-                # Sem dados: retornar estimativa default
-                default_queue_ms = 1000.0  # 1 segundo
-                await self._save_to_cache(cache_key, default_queue_ms)
-
-                self.logger.debug(
-                    "queue_prediction_no_data",
+            except Exception as e:
+                self.logger.error(
+                    "queue_prediction_error",
                     worker_id=worker_id,
-                    predicted_ms=default_queue_ms
+                    error=str(e)
                 )
+                span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
+                self.metrics.record_ml_error('queue_prediction')
 
-                return default_queue_ms
-
-            # Estimar queue depth atual
-            queue_depth = await self._estimate_queue_depth(worker_id)
-
-            # Calcular moving average de durações
-            avg_duration = self._calculate_moving_average(
-                [c['actual_duration_ms'] for c in recent_completions],
-                window=10
-            )
-
-            # Predição: queue_depth * avg_duration
-            predicted_queue_ms = queue_depth * avg_duration
-
-            # Aplicar exponential smoothing se houver predição anterior
-            if cached is not None:
-                predicted_queue_ms = (
-                    self.alpha * predicted_queue_ms +
-                    (1 - self.alpha) * cached
-                )
-
-            # Limitar entre 0 e 60 segundos
-            predicted_queue_ms = max(0.0, min(predicted_queue_ms, 60000.0))
-
-            # Salvar no cache
-            await self._save_to_cache(cache_key, predicted_queue_ms)
-
-            # Métricas
-            duration_seconds = time.time() - start_time
-            self.metrics.record_ml_prediction(
-                model_type='queue_time_local',
-                status='success',
-                duration=duration_seconds
-            )
-
-            # Registrar predição de queue time
-            self.metrics.record_predicted_queue_time(
-                predicted_ms=predicted_queue_ms,
-                source='local'
-            )
-
-            self.logger.debug(
-                "queue_time_predicted",
-                worker_id=worker_id,
-                predicted_ms=predicted_queue_ms,
-                queue_depth=queue_depth,
-                avg_duration_ms=avg_duration,
-                latency_ms=duration_seconds * 1000
-            )
-
-            return float(predicted_queue_ms)
-
-        except Exception as e:
-            self.logger.error(
-                "queue_prediction_error",
-                worker_id=worker_id,
-                error=str(e)
-            )
-            self.metrics.record_ml_error('queue_prediction')
-
-            # Fallback: retornar estimativa conservadora
-            return 2000.0  # 2 segundos
+                # Fallback: retornar estimativa conservadora
+                return 2000.0  # 2 segundos
 
     async def predict_worker_load(self, worker_id: str) -> float:
         """
@@ -181,65 +213,77 @@ class LoadPredictor:
         """
         start_time = time.time()
 
-        try:
-            # Verificar cache
-            cache_key = f"load_pred:{worker_id}"
-            cached = await self._get_from_cache(cache_key)
+        with self.tracer.start_as_current_span(
+            "load.predict_worker_load",
+            attributes={
+                "neural.hive.worker.id": worker_id,
+                "neural.hive.ml.source": "local"
+            }
+        ) as span:
+            try:
+                # Verificar cache
+                cache_key = f"load_pred:{worker_id}"
+                cached = await self._get_from_cache(cache_key)
 
-            if cached is not None:
-                self.logger.debug(
-                    "load_prediction_cache_hit",
-                    worker_id=worker_id,
-                    predicted_load=cached
+                if cached is not None:
+                    self.logger.debug(
+                        "load_prediction_cache_hit",
+                        worker_id=worker_id,
+                        predicted_load=cached
+                    )
+                    span.set_attribute("neural.hive.ml.predicted_load_pct", float(cached))
+                    span.set_attribute("neural.hive.ml.cache_hit", True)
+                    return float(cached)
+
+                # Estimar queue depth
+                queue_depth = await self._estimate_queue_depth(worker_id)
+
+                # Buscar capacidade máxima do worker (heurística: 10 tarefas)
+                max_capacity = 10.0
+
+                # Calcular carga como percentual
+                load_pct = min(queue_depth / max_capacity, 1.0)
+
+                # Salvar no cache
+                await self._save_to_cache(cache_key, load_pct)
+
+                # Métricas
+                duration_seconds = time.time() - start_time
+                self.metrics.record_ml_prediction(
+                    model_type='worker_load_local',
+                    status='success',
+                    duration=duration_seconds
                 )
-                return float(cached)
 
-            # Estimar queue depth
-            queue_depth = await self._estimate_queue_depth(worker_id)
+                # Registrar predição de worker load
+                self.metrics.record_predicted_worker_load(
+                    predicted_pct=load_pct,
+                    source='local'
+                )
 
-            # Buscar capacidade máxima do worker (heurística: 10 tarefas)
-            max_capacity = 10.0
+                self.logger.debug(
+                    "worker_load_predicted",
+                    worker_id=worker_id,
+                    predicted_load_pct=load_pct,
+                    queue_depth=queue_depth,
+                    latency_ms=duration_seconds * 1000
+                )
+                span.set_attribute("neural.hive.ml.predicted_load_pct", load_pct)
+                span.set_attribute("neural.hive.ml.cache_hit", False)
 
-            # Calcular carga como percentual
-            load_pct = min(queue_depth / max_capacity, 1.0)
+                return float(load_pct)
 
-            # Salvar no cache
-            await self._save_to_cache(cache_key, load_pct)
+            except Exception as e:
+                self.logger.error(
+                    "load_prediction_error",
+                    worker_id=worker_id,
+                    error=str(e)
+                )
+                span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
+                self.metrics.record_ml_error('load_prediction')
 
-            # Métricas
-            duration_seconds = time.time() - start_time
-            self.metrics.record_ml_prediction(
-                model_type='worker_load_local',
-                status='success',
-                duration=duration_seconds
-            )
-
-            # Registrar predição de worker load
-            self.metrics.record_predicted_worker_load(
-                predicted_pct=load_pct,
-                source='local'
-            )
-
-            self.logger.debug(
-                "worker_load_predicted",
-                worker_id=worker_id,
-                predicted_load_pct=load_pct,
-                queue_depth=queue_depth,
-                latency_ms=duration_seconds * 1000
-            )
-
-            return float(load_pct)
-
-        except Exception as e:
-            self.logger.error(
-                "load_prediction_error",
-                worker_id=worker_id,
-                error=str(e)
-            )
-            self.metrics.record_ml_error('load_prediction')
-
-            # Fallback: assumir carga média
-            return 0.5
+                # Fallback: assumir carga média
+                return 0.5
 
     async def _fetch_recent_completions(
         self,

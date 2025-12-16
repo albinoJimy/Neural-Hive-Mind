@@ -23,5 +23,5 @@ data:
   GA_TIMEOUT_SECONDS: {{ .Values.geneticAlgorithm.timeout | quote }}
   LOG_LEVEL: {{ .Values.observability.logLevel | quote }}
   LOG_FORMAT: {{ .Values.observability.logFormat | quote }}
-  OTEL_EXPORTER_ENDPOINT: {{ .Values.observability.otelEndpoint | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.observability.otelEndpoint | quote }}
   HEARTBEAT_INTERVAL_SECONDS: {{ .Values.serviceRegistry.heartbeatInterval | quote }}

@@ -172,9 +172,12 @@ class CLIAdapter(BaseToolAdapter):
             Comando completo (ex: 'trivy image --severity HIGH nginx:latest')
         """
         parts = [base_command]
+        target_arg: Optional[str] = None
 
         for key, value in parameters.items():
-            if key.startswith("_"):  # Skip internal parameters
+            if key.startswith("_"):
+                if key == "_target":
+                    target_arg = str(value)
                 continue
 
             if isinstance(value, bool):
@@ -185,5 +188,8 @@ class CLIAdapter(BaseToolAdapter):
                     parts.append(f"--{key} {shlex.quote(str(item))}")
             else:
                 parts.append(f"--{key} {shlex.quote(str(value))}")
+
+        if target_arg:
+            parts.append(shlex.quote(target_arg))
 
         return " ".join(parts)

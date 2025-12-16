@@ -426,13 +426,23 @@ class TrainingPipeline:
                         started_at = row.get('started_at')
                         completed_at = row.get('completed_at')
                         if started_at and completed_at:
-                            actual_duration_ms = completed_at - started_at
+                            # Suporta datetime (timedelta em segundos) ou timestamps numéricos
+                            if hasattr(completed_at, 'timestamp') and hasattr(started_at, 'timestamp'):
+                                actual_duration_ms = (completed_at - started_at).total_seconds() * 1000
+                            elif isinstance(completed_at, (int, float)) and isinstance(started_at, (int, float)):
+                                actual_duration_ms = (completed_at - started_at) * 1000
+                            else:
+                                actual_duration_ms = completed_at - started_at
                         else:
                             skipped_no_actual += 1
                             continue
 
+                    # Normalizar timedelta para ms se necessário
+                    if hasattr(actual_duration_ms, 'total_seconds'):
+                        actual_duration_ms = actual_duration_ms.total_seconds() * 1000
+
                     # Validar actual > 0
-                    if actual_duration_ms <= 0:
+                    if actual_duration_ms is None or actual_duration_ms <= 0:
                         skipped_invalid += 1
                         continue
 

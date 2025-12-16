@@ -1,5 +1,5 @@
 image:
-  repository: neuralhive/scout-agents
+  repository: 37.60.241.150:30500/scout-agents
   tag: "1.0.0"
   pullPolicy: IfNotPresent
   pullSecrets: []
@@ -68,15 +68,15 @@ config:
     prometheusPort: 9090
     httpPort: 8000
     tracingEnabled: true
-    jaegerEndpoint: http://jaeger-collector.observability.svc.cluster.local:14268/api/traces
+    otelEndpoint: http://otel-collector:4317
 
 resources:
   requests:
-    cpu: 200m
-    memory: 256Mi
+    cpu: 400m      # Solution exploration
+    memory: 768Mi
   limits:
-    cpu: 500m
-    memory: 512Mi
+    cpu: 1500m
+    memory: 2Gi
 
 autoscaling:
   enabled: true

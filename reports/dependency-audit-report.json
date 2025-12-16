@@ -1,0 +1,791 @@
+{
+  "services": {
+    "gateway-intencoes": {
+      "service": "gateway-intencoes",
+      "dependencies": [
+        {
+          "package": "fastapi",
+          "normalized": "fastapi",
+          "spec": "==0.104.1"
+        },
+        {
+          "package": "uvicorn",
+          "normalized": "uvicorn",
+          "spec": "[standard]==0.24.0"
+        },
+        {
+          "package": "python-multipart",
+          "normalized": "python-multipart",
+          "spec": "==0.0.6"
+        },
+        {
+          "package": "confluent-kafka",
+          "normalized": "confluent-kafka",
+          "spec": "==2.3.0"
+        },
+        {
+          "package": "redis",
+          "normalized": "redis",
+          "spec": "[hiredis]>=5.0.1"
+        },
+        {
+          "package": "openai-whisper",
+          "normalized": "openai-whisper",
+          "spec": "==20231117"
+        },
+        {
+          "package": "torch",
+          "normalized": "torch",
+          "spec": "==2.1.2"
+        },
+        {
+          "package": "torchaudio",
+          "normalized": "torchaudio",
+          "spec": "==2.1.2"
+        },
+        {
+          "package": "spacy",
+          "normalized": "spacy",
+          "spec": "==3.7.2"
+        },
+        {
+          "package": "nltk",
+          "normalized": "nltk",
+          "spec": "==3.8.1"
+        },
+        {
+          "package": "pydantic",
+          "normalized": "pydantic",
+          "spec": "[email]>=2.5.2"
+        },
+        {
+          "package": "pydantic-settings",
+          "normalized": "pydantic-settings",
+          "spec": ">=2.1.0"
+        },
+        {
+          "package": "jsonschema",
+          "normalized": "jsonschema",
+          "spec": "==4.20.0"
+        },
+        {
+          "package": "avro",
+          "normalized": "avro",
+          "spec": "==1.11.3"
+        },
+        {
+          "package": "fastavro",
+          "normalized": "fastavro",
+          "spec": "==1.9.4"
+        },
+        {
+          "package": "opentelemetry-api",
+          "normalized": "opentelemetry-api",
+          "spec": "==1.21.0"
+        },
+        {
+          "package": "opentelemetry-sdk",
+          "normalized": "opentelemetry-sdk",
+          "spec": "==1.21.0"
+        },
+        {
+          "package": "opentelemetry-instrumentation-fastapi",
+          "normalized": "opentelemetry-instrumentation-fastapi",
+          "spec": "==0.42b0"
+        },
+        {
+          "package": "opentelemetry-instrumentation-kafka-python",
+          "normalized": "opentelemetry-instrumentation-kafka-python",
+          "spec": "==0.42b0"
+        },
+        {
+          "package": "opentelemetry-exporter-otlp",
+          "normalized": "opentelemetry-exporter-otlp",
+          "spec": "==1.21.0"
+        },
+        {
+          "package": "prometheus-client",
+          "normalized": "prometheus-client",
+          "spec": "==0.19.0"
+        },
+        {
+          "package": "structlog",
+          "normalized": "structlog",
+          "spec": "==23.2.0"
+        },
+        {
+          "package": "python-jose",
+          "normalized": "python-jose",
+          "spec": "[cryptography]==3.3.0"
+        },
+        {
+          "package": "passlib",
+          "normalized": "passlib",
+          "spec": "[bcrypt]==1.7.4"
+        },
+        {
+          "package": "cryptography",
+          "normalized": "cryptography",
+          "spec": "==41.0.7"
+        },
+        {
+          "package": "httpx",
+          "normalized": "httpx",
+          "spec": "==0.25.2"
+        },
+        {
+          "package": "aiofiles",
+          "normalized": "aiofiles",
+          "spec": "==23.2.1"
+        },
+        {
+          "package": "asyncio-mqtt",
+          "normalized": "asyncio-mqtt",
+          "spec": "==0.16.1"
+        },
+        {
+          "package": "numpy",
+          "normalized": "numpy",
+          "spec": ">=1.26.2"
+        },
+        {
+          "package": "pandas",
+          "normalized": "pandas",
+          "spec": ">=2.1.3"
+        },
+        {
+          "package": "python-dotenv",
+          "normalized": "python-dotenv",
+          "spec": "==1.0.0"
+        },
+        {
+          "package": "click",
+          "normalized": "click",
+          "spec": "==8.1.7"
+        },
+        {
+          "package": "rich",
+          "normalized": "rich",
+          "spec": "==13.7.0"
+        }
+      ],
+      "used": [
+        {
+          "package": "fastapi",
+          "spec": "==0.104.1",
+          "files": [
+            "src/main.py",
+            "src/middleware/auth_middleware.py",
+            "src/security/auth.py"
+          ]
+        },
+        {
+          "package": "uvicorn",
+          "spec": "[standard]==0.24.0",
+          "files": [
+            "src/main.py"
+          ]
+        },
+        {
+          "package": "confluent-kafka",
+          "spec": "==2.3.0",
+          "files": [
+            "src/kafka/producer.py"
+          ]
+        },
+        {
+          "package": "redis",
+          "spec": "[hiredis]>=5.0.1",
+          "files": [
+            "src/cache/redis_client.py",
+            "tests/unit/test_redis_client.py"
+          ]
+        },
+        {
+          "package": "openai-whisper",
+          "spec": "==20231117",
+          "files": [
+            "src/pipelines/asr_pipeline.py"
+          ]
+        },
+        {
+          "package": "spacy",
+          "spec": "==3.7.2",
+          "files": [
+            "src/pipelines/nlu_pipeline.py"
+          ]
+        },
+        {
+          "package": "pydantic",
+          "spec": "[email]>=2.5.2",
+          "files": [
+            "src/config/settings.py",
+            "src/models/intent_envelope.py"
+          ]
+        },
+        {
+          "package": "pydantic-settings",
+          "spec": ">=2.1.0",
+          "files": [
+            "src/config/settings.py"
+          ]
+        },
+        {
+          "package": "prometheus-client",
+          "spec": "==0.19.0",
+          "files": [
+            "src/cache/redis_client.py",
+            "src/main.py",
+            "src/observability/metrics.py",
+            "src/security/oauth2_validator.py"
+          ]
+        },
+        {
+          "package": "structlog",
+          "spec": "==23.2.0",
+          "files": [
+            "src/kafka/producer.py",
+            "src/main.py"
+          ]
+        },
+        {
+          "package": "python-jose",
+          "spec": "[cryptography]==3.3.0",
+          "files": [
+            "src/security/oauth2_validator.py",
+            "tests/integration/test_keycloak_integration.py",
+            "tests/unit/test_oauth2_validator.py"
+          ]
+        },
+        {
+          "package": "httpx",
+          "spec": "==0.25.2",
+          "files": [
+            "src/security/oauth2_validator.py",
+            "tests/integration/test_keycloak_integration.py",
+            "tests/unit/test_oauth2_validator.py"
+          ]
+        },
+        {
+          "package": "numpy",
+          "spec": ">=1.26.2",
+          "files": [
+            "tests/unit/test_asr_pipeline.py"
+          ]
+        }
+      ],
+      "unused": [
+        {
+          "package": "python-multipart",
+          "spec": "==0.0.6",
+          "reason": "Nenhum import encontrado"
+        },
+        {
+          "package": "torch",
+          "spec": "==2.1.2",
+          "reason": "Nenhum import encontrado"
+        },
+        {
+          "package": "torchaudio",
+          "spec": "==2.1.2",
+          "reason": "Nenhum import encontrado"
+        },
+        {
+          "package": "nltk",
+          "spec": "==3.8.1",
+          "reason": "Nenhum import encontrado"
+        },
+        {
+          "package": "jsonschema",
+          "spec": "==4.20.0",
+          "reason": "Nenhum import encontrado"
+        },
+        {
+          "package": "avro",
+          "spec": "==1.11.3",
+          "reason": "Nenhum import encontrado"
+        },
+        {
+          "package": "fastavro",
+          "spec": "==1.9.4",
+          "reason": "Nenhum import encontrado"
+        },
+        {
+          "package": "opentelemetry-api",
+          "spec": "==1.21.0",
+          "reason": "Nenhum import encontrado"
+        },
+        {
+          "package": "opentelemetry-sdk",
+          "spec": "==1.21.0",
+          "reason": "Nenhum import encontrado"
+        },
+        {
+          "package": "opentelemetry-instrumentation-fastapi",
+          "spec": "==0.42b0",
+          "reason": "Nenhum import encontrado"
+        },
+        {
+          "package": "opentelemetry-instrumentation-kafka-python",
+          "spec": "==0.42b0",
+          "reason": "Nenhum import encontrado"
+        },
+        {
+          "package": "opentelemetry-exporter-otlp",
+          "spec": "==1.21.0",
+          "reason": "Nenhum import encontrado"
+        },
+        {
+          "package": "passlib",
+          "spec": "[bcrypt]==1.7.4",
+          "reason": "Nenhum import encontrado"
+        },
+        {
+          "package": "cryptography",
+          "spec": "==41.0.7",
+          "reason": "Nenhum import encontrado"
+        },
+        {
+          "package": "aiofiles",
+          "spec": "==23.2.1",
+          "reason": "Nenhum import encontrado"
+        },
+        {
+          "package": "asyncio-mqtt",
+          "spec": "==0.16.1",
+          "reason": "Nenhum import encontrado"
+        },
+        {
+          "package": "pandas",
+          "spec": ">=2.1.3",
+          "reason": "Nenhum import encontrado"
+        },
+        {
+          "package": "python-dotenv",
+          "spec": "==1.0.0",
+          "reason": "Nenhum import encontrado"
+        },
+        {
+          "package": "click",
+          "spec": "==8.1.7",
+          "reason": "Nenhum import encontrado"
+        },
+        {
+          "package": "rich",
+          "spec": "==13.7.0",
+          "reason": "Nenhum import encontrado"
+        }
+      ],
+      "missing": [
+        {
+          "import": "subprocess",
+          "files": [
+            "run_tests.py",
+            "src/pipelines/asr_pipeline.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "argparse",
+          "files": [
+            "run_tests.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "uuid",
+          "files": [
+            "src/main.py",
+            "src/models/intent_envelope.py",
+            "tests/integration/test_kafka_eos.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "contextlib",
+          "files": [
+            "src/cache/redis_client.py",
+            "src/main.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "datetime",
+          "files": [
+            "src/main.py",
+            "src/models/intent_envelope.py",
+            "src/security/oauth2_validator.py",
+            "tests/conftest.py",
+            "tests/integration/test_kafka_eos.py",
+            "tests/integration/test_keycloak_integration.py",
+            "tests/unit/test_intent_envelope.py",
+            "tests/unit/test_oauth2_validator.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "config",
+          "files": [
+            "src/cache/redis_client.py",
+            "src/kafka/producer.py",
+            "src/main.py",
+            "src/middleware/auth_middleware.py",
+            "src/pipelines/asr_pipeline.py",
+            "src/pipelines/nlu_pipeline.py",
+            "src/security/oauth2_validator.py",
+            "tests/conftest.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "models",
+          "files": [
+            "src/kafka/producer.py",
+            "src/main.py",
+            "src/pipelines/asr_pipeline.py",
+            "src/pipelines/nlu_pipeline.py",
+            "tests/conftest.py",
+            "tests/integration/test_kafka_eos.py",
+            "tests/unit/test_intent_envelope.py",
+            "tests/unit/test_nlu_pipeline.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "pipelines",
+          "files": [
+            "src/main.py",
+            "tests/conftest.py",
+            "tests/unit/test_asr_pipeline.py",
+            "tests/unit/test_nlu_pipeline.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "kafka",
+          "files": [
+            "src/main.py",
+            "tests/conftest.py",
+            "tests/integration/test_kafka_eos.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "cache",
+          "files": [
+            "src/main.py",
+            "src/pipelines/nlu_pipeline.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "security",
+          "files": [
+            "src/main.py",
+            "src/middleware/auth_middleware.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "middleware",
+          "files": [
+            "src/main.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "traceback",
+          "files": [
+            "src/main.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "starlette",
+          "files": [
+            "src/middleware/auth_middleware.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "opentelemetry",
+          "files": [
+            "src/cache/redis_client.py",
+            "src/middleware/auth_middleware.py",
+            "src/security/oauth2_validator.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "jwt",
+          "files": [
+            "src/security/auth.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "urllib",
+          "files": [
+            "src/security/oauth2_validator.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "ssl",
+          "files": [
+            "src/cache/redis_client.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "socket",
+          "files": [
+            "src/kafka/producer.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "observability",
+          "files": [
+            "src/kafka/producer.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "functools",
+          "files": [
+            "src/observability/tracing.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "neural_hive_observability",
+          "files": [
+            "src/observability/tracing.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "re",
+          "files": [
+            "src/pipelines/nlu_pipeline.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "hashlib",
+          "files": [
+            "src/pipelines/asr_pipeline.py",
+            "src/pipelines/nlu_pipeline.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "yaml",
+          "files": [
+            "src/pipelines/nlu_pipeline.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "tempfile",
+          "files": [
+            "src/pipelines/asr_pipeline.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "wave",
+          "files": [
+            "src/pipelines/asr_pipeline.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "struct",
+          "files": [
+            "src/pipelines/asr_pipeline.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "enum",
+          "files": [
+            "src/models/intent_envelope.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "pytest",
+          "files": [
+            "tests/conftest.py",
+            "tests/integration/test_kafka_eos.py",
+            "tests/integration/test_keycloak_integration.py",
+            "tests/integration/test_redis_cluster.py",
+            "tests/integration/test_redis_integration.py",
+            "tests/unit/test_asr_pipeline.py",
+            "tests/unit/test_intent_envelope.py",
+            "tests/unit/test_nlu_pipeline.py",
+            "tests/unit/test_oauth2_validator.py",
+            "tests/unit/test_redis_client.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "pytest_asyncio",
+          "files": [
+            "tests/conftest.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "unittest",
+          "files": [
+            "tests/conftest.py",
+            "tests/integration/test_kafka_eos.py",
+            "tests/integration/test_keycloak_integration.py",
+            "tests/integration/test_redis_cluster.py",
+            "tests/integration/test_redis_integration.py",
+            "tests/unit/test_asr_pipeline.py",
+            "tests/unit/test_nlu_pipeline.py",
+            "tests/unit/test_oauth2_validator.py",
+            "tests/unit/test_redis_client.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "src",
+          "files": [
+            "tests/integration/test_keycloak_integration.py",
+            "tests/integration/test_redis_cluster.py",
+            "tests/integration/test_redis_integration.py",
+            "tests/unit/test_oauth2_validator.py",
+            "tests/unit/test_redis_client.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "testcontainers",
+          "files": [
+            "tests/integration/test_kafka_eos.py",
+            "tests/integration/test_keycloak_integration.py",
+            "tests/integration/test_redis_cluster.py",
+            "tests/integration/test_redis_integration.py"
+          ],
+          "reason": "Não listado em requirements"
+        },
+        {
+          "import": "time",
+          "files": [
+            "tests/integration/test_keycloak_integration.py",
+            "tests/integration/test_redis_cluster.py",
+            "tests/integration/test_redis_integration.py"
+          ],
+          "reason": "Não listado em requirements"
+        }
+      ]
+    }
+  },
+  "version_matrix": {
+    "aiofiles": {
+      "gateway-intencoes": "==23.2.1"
+    },
+    "asyncio-mqtt": {
+      "gateway-intencoes": "==0.16.1"
+    },
+    "avro": {
+      "gateway-intencoes": "==1.11.3"
+    },
+    "click": {
+      "gateway-intencoes": "==8.1.7"
+    },
+    "confluent-kafka": {
+      "gateway-intencoes": "==2.3.0"
+    },
+    "cryptography": {
+      "gateway-intencoes": "==41.0.7"
+    },
+    "fastapi": {
+      "gateway-intencoes": "==0.104.1"
+    },
+    "fastavro": {
+      "gateway-intencoes": "==1.9.4"
+    },
+    "httpx": {
+      "gateway-intencoes": "==0.25.2"
+    },
+    "jsonschema": {
+      "gateway-intencoes": "==4.20.0"
+    },
+    "nltk": {
+      "gateway-intencoes": "==3.8.1"
+    },
+    "numpy": {
+      "gateway-intencoes": ">=1.26.2"
+    },
+    "openai-whisper": {
+      "gateway-intencoes": "==20231117"
+    },
+    "opentelemetry-api": {
+      "gateway-intencoes": "==1.21.0"
+    },
+    "opentelemetry-exporter-otlp": {
+      "gateway-intencoes": "==1.21.0"
+    },
+    "opentelemetry-instrumentation-fastapi": {
+      "gateway-intencoes": "==0.42b0"
+    },
+    "opentelemetry-instrumentation-kafka-python": {
+      "gateway-intencoes": "==0.42b0"
+    },
+    "opentelemetry-sdk": {
+      "gateway-intencoes": "==1.21.0"
+    },
+    "pandas": {
+      "gateway-intencoes": ">=2.1.3"
+    },
+    "passlib": {
+      "gateway-intencoes": "[bcrypt]==1.7.4"
+    },
+    "prometheus-client": {
+      "gateway-intencoes": "==0.19.0"
+    },
+    "pydantic": {
+      "gateway-intencoes": "[email]>=2.5.2"
+    },
+    "pydantic-settings": {
+      "gateway-intencoes": ">=2.1.0"
+    },
+    "python-dotenv": {
+      "gateway-intencoes": "==1.0.0"
+    },
+    "python-jose": {
+      "gateway-intencoes": "[cryptography]==3.3.0"
+    },
+    "python-multipart": {
+      "gateway-intencoes": "==0.0.6"
+    },
+    "redis": {
+      "gateway-intencoes": "[hiredis]>=5.0.1"
+    },
+    "rich": {
+      "gateway-intencoes": "==13.7.0"
+    },
+    "spacy": {
+      "gateway-intencoes": "==3.7.2"
+    },
+    "structlog": {
+      "gateway-intencoes": "==23.2.0"
+    },
+    "torch": {
+      "gateway-intencoes": "==2.1.2"
+    },
+    "torchaudio": {
+      "gateway-intencoes": "==2.1.2"
+    },
+    "uvicorn": {
+      "gateway-intencoes": "[standard]==0.24.0"
+    }
+  },
+  "security_issues": []
+}

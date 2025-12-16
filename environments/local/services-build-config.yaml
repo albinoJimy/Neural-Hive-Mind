@@ -1,0 +1,116 @@
+# Configuração centralizada para build local das imagens dos serviços Neural Hive-Mind
+# Ajuste os valores conforme necessário para ambientes diferentes (ex.: laboratório, staging)
+
+build:
+  # Versão padrão aplicada em tags e labels OCI
+  version: "1.0.0"
+  # Registry/local namespace usado nos comandos docker build/tag
+  registry: "neural-hive-mind"
+  # Contexto padrão de build (raiz do repositório)
+  context: "."
+  # Número de jobs paralelos recomendado para scripts auxiliares
+  parallel_jobs: 4
+  # Defina como true para forçar rebuild completo (ignora cache)
+  no_cache: false
+
+base_images:
+  # Ordem: python-ml-base -> python-grpc-base -> python-nlp-base
+  python_ml_base:
+    name: "python-ml-base"
+    dockerfile: "base-images/python-ml-base/Dockerfile"
+    size_estimate: "384MB"
+  python_grpc_base:
+    name: "python-grpc-base"
+    dockerfile: "base-images/python-grpc-base/Dockerfile"
+    size_estimate: "411MB"
+  python_nlp_base:
+    name: "python-nlp-base"
+    dockerfile: "base-images/python-nlp-base/Dockerfile"
+    size_estimate: "700MB"
+
+services:
+  # Atualize health_endpoint ou portas conforme alterações nos serviços
+  - name: "gateway-intencoes"
+    dockerfile: "services/gateway-intencoes/Dockerfile"
+    depends_on: ["python-ml-base"]
+    ports: [8000]
+    size_estimate: "6326MB"
+    health_endpoint: "/health"
+    health_check_enabled: false
+  - name: "semantic-translation-engine"
+    dockerfile: "services/semantic-translation-engine/Dockerfile"
+    depends_on: ["python-ml-base"]
+    ports: [8080]
+    size_estimate: "257MB"
+    health_endpoint: "/health"
+    health_check_enabled: false
+  - name: "specialist-business"
+    dockerfile: "services/specialist-business/Dockerfile"
+    depends_on: ["python-nlp-base"]
+    ports: [8101]
+    size_estimate: "17111MB"
+    health_endpoint: "/health"
+    health_check_enabled: false
+  - name: "specialist-technical"
+    dockerfile: "services/specialist-technical/Dockerfile"
+    depends_on: ["python-nlp-base"]
+    ports: [8102]
+    size_estimate: "17111MB"
+    health_endpoint: "/health"
+    health_check_enabled: false
+  - name: "specialist-behavior"
+    dockerfile: "services/specialist-behavior/Dockerfile"
+    depends_on: ["python-nlp-base"]
+    ports: [8103]
+    size_estimate: "17111MB"
+    health_endpoint: "/health"
+    health_check_enabled: false
+  - name: "specialist-evolution"
+    dockerfile: "services/specialist-evolution/Dockerfile"
+    depends_on: ["python-nlp-base"]
+    ports: [8104]
+    size_estimate: "17111MB"
+    health_endpoint: "/health"
+    health_check_enabled: false
+  - name: "specialist-architecture"
+    dockerfile: "services/specialist-architecture/Dockerfile"
+    depends_on: ["python-nlp-base"]
+    ports: [8105]
+    size_estimate: "17111MB"
+    health_endpoint: "/health"
+    health_check_enabled: false
+  - name: "consensus-engine"
+    dockerfile: "services/consensus-engine/Dockerfile"
+    depends_on: ["python-grpc-base"]
+    ports: [7070]
+    size_estimate: "16861MB"
+    health_endpoint: "/health"
+    health_check_enabled: false
+  - name: "orchestrator-dynamic"
+    dockerfile: "services/orchestrator-dynamic/Dockerfile"
+    depends_on: []
+    ports: [8090]
+    size_estimate: "3620MB"
+    health_endpoint: "/health"
+    health_check_enabled: false
+
+containerd:
+  # Namespace padrão usado pelo Kubernetes
+  namespace: "k8s.io"
+  # Diretório local/remote para armazenar os tarballs gerados
+  temp_dir: "/tmp/neural-hive-images"
+  # Lista de nós do cluster Kubeadm (preencher manualmente conforme ambiente)
+  nodes: []
+  # Usuário padrão para SSH/scp; substitua caso o cluster use contas distintas
+  ssh_user: "root"
+
+validation:
+  # Espaço mínimo recomendado antes de iniciar o processo de build
+  min_disk_space_gb: 20
+  # Ferramentas necessárias para os scripts de preparação/validação
+  required_tools:
+    - docker
+    - kubectl
+    - ctr
+  # Timeout padrão (segundos) para health checks em containers locais
+  health_check_timeout: 30

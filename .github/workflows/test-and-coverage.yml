@@ -1,0 +1,260 @@
+name: Test and Coverage
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, develop]
+  pull_request:
+  schedule:
+    - cron: "0 2 * * *"
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  unit-tests:
+    name: Unit tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r libraries/python/neural_hive_specialists/requirements-dev.txt
+          pip install -r tests/requirements-test.txt
+
+      - name: Run unit tests
+        run: ./tests/run-tests.sh --type unit --coverage --report
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-unit-py${{ matrix.python-version }}
+          path: |
+            tests/results/coverage/coverage.xml
+            tests/results/test-report-*.json
+            tests/results/test-summary-*.md
+            .coverage
+            .coverage.*
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./tests/results/coverage/coverage.xml
+          flags: unit-py${{ matrix.python-version }}
+          fail_ci_if_error: true
+
+  integration-tests:
+    name: Integration tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: unit-tests
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    services:
+      mongo:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongo --eval 'db.runCommand({ ping: 1 })'" --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+      neo4j:
+        image: neo4j:5.15
+        env:
+          NEO4J_AUTH: none
+        ports:
+          - 7474:7474
+          - 7687:7687
+      kafka:
+        image: quay.io/strimzi/kafka:0.36.1-kafka-3.5.1
+        env:
+          LOG_DIR: /tmp/logs
+        options: >-
+          --hostname kafka
+        ports:
+          - 9092:9092
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r libraries/python/neural_hive_specialists/requirements-dev.txt
+          pip install -r tests/requirements-test.txt
+
+      - name: Run integration tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+          REDIS_URI: redis://localhost:6379
+          NEO4J_URI: bolt://localhost:7687
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+        run: ./tests/run-tests.sh --type integration --coverage --report
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-integration-py${{ matrix.python-version }}
+          path: |
+            tests/results/coverage/coverage.xml
+            tests/results/test-report-*.json
+            tests/results/test-summary-*.md
+            .coverage
+            .coverage.*
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./tests/results/coverage/coverage.xml
+          flags: integration-py${{ matrix.python-version }}
+          fail_ci_if_error: true
+
+  service-tests:
+    name: Service tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: integration-tests
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r libraries/python/neural_hive_specialists/requirements-dev.txt
+          pip install -r tests/requirements-test.txt
+
+      - name: Run service tests
+        run: ./tests/run-tests.sh --component services --coverage --report
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-services-py${{ matrix.python-version }}
+          path: |
+            tests/results/coverage/coverage.xml
+            tests/results/test-report-*.json
+            tests/results/test-summary-*.md
+            .coverage
+            .coverage.*
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./tests/results/coverage/coverage.xml
+          flags: services-py${{ matrix.python-version }}
+          fail_ci_if_error: true
+
+  lint:
+    name: Lint and type-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install lint dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black mypy
+          pip install -r libraries/python/neural_hive_specialists/requirements-dev.txt
+
+      - name: Run flake8
+        run: flake8 .
+
+      - name: Run black check
+        run: black --check .
+
+      - name: Run mypy
+        run: mypy libraries/python/neural_hive_specialists
+
+  quality-gate:
+    name: Coverage quality gate
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, service-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download coverage data
+        uses: actions/download-artifact@v3
+        with:
+          pattern: coverage-*
+          merge-multiple: true
+
+      - name: Combine coverage
+        run: |
+          python -m pip install coverage
+          python - <<'PY'
+import glob
+import shutil
+from pathlib import Path
+import subprocess
+
+cov_files = list(Path(".").glob(".coverage*"))
+if not cov_files:
+    raise SystemExit("No coverage data files found for combination")
+
+primary = cov_files[0]
+for extra in cov_files[1:]:
+    target = Path(".") / extra.name
+    if extra != target:
+        shutil.move(str(extra), target)
+
+subprocess.run(["coverage", "combine"], check=True)
+subprocess.run(["coverage", "xml"], check=True)
+PY
+
+      - name: Check coverage threshold
+        run: |
+          coverage_percent=$(python - <<'PY'
+import xml.etree.ElementTree as ET
+tree = ET.parse('coverage.xml')
+root = tree.getroot()
+print(float(root.attrib.get('line-rate', 0)) * 100)
+PY
+          )
+          echo "Coverage: ${coverage_percent}%"
+          if (( $(echo "$coverage_percent < 85" | bc -l) )); then
+            echo "❌ Coverage too low: ${coverage_percent}% (required: 85%)"
+            exit 1
+          fi
+          echo "✅ Coverage OK: ${coverage_percent}%"
+
+      - name: Upload aggregated coverage
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage.xml

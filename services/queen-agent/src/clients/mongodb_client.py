@@ -3,6 +3,7 @@ from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase, AsyncI
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 
+from neural_hive_resilience.circuit_breaker import MonitoredCircuitBreaker, CircuitBreakerError
 from ..config import Settings
 from ..models import StrategicDecision, ExceptionApproval, ApprovalStatus
 
@@ -19,14 +20,39 @@ class MongoDBClient:
         self.db: Optional[AsyncIOMotorDatabase] = None
         self.ledger_collection: Optional[AsyncIOMotorCollection] = None
         self.exceptions_collection: Optional[AsyncIOMotorCollection] = None
+        self.ledger_breaker: Optional[MonitoredCircuitBreaker] = None
+        self.exceptions_breaker: Optional[MonitoredCircuitBreaker] = None
+        self.circuit_breaker_enabled: bool = getattr(settings, "CIRCUIT_BREAKER_ENABLED", False)
 
     async def initialize(self) -> None:
         """Conectar ao MongoDB e criar índices"""
         try:
-            self.client = AsyncIOMotorClient(self.settings.MONGODB_URI)
+            self.client = AsyncIOMotorClient(
+                self.settings.MONGODB_URI,
+                maxPoolSize=self.settings.MONGODB_MAX_POOL_SIZE,
+                minPoolSize=self.settings.MONGODB_MIN_POOL_SIZE
+            )
             self.db = self.client[self.settings.MONGODB_DATABASE]
             self.ledger_collection = self.db[self.settings.MONGODB_COLLECTION_LEDGER]
             self.exceptions_collection = self.db[self.settings.MONGODB_COLLECTION_EXCEPTIONS]
+
+            if self.circuit_breaker_enabled:
+                self.ledger_breaker = MonitoredCircuitBreaker(
+                    service_name=self.settings.SERVICE_NAME,
+                    circuit_name="strategic_decision_persistence",
+                    fail_max=self.settings.CIRCUIT_BREAKER_FAIL_MAX,
+                    timeout_duration=self.settings.CIRCUIT_BREAKER_TIMEOUT,
+                    recovery_timeout=self.settings.CIRCUIT_BREAKER_RECOVERY_TIMEOUT,
+                    expected_exception=Exception
+                )
+                self.exceptions_breaker = MonitoredCircuitBreaker(
+                    service_name=self.settings.SERVICE_NAME,
+                    circuit_name="exception_approval_persistence",
+                    fail_max=self.settings.CIRCUIT_BREAKER_FAIL_MAX,
+                    timeout_duration=self.settings.CIRCUIT_BREAKER_TIMEOUT,
+                    recovery_timeout=self.settings.CIRCUIT_BREAKER_RECOVERY_TIMEOUT,
+                    expected_exception=Exception
+                )
 
             # Criar índices para ledger
             await self.ledger_collection.create_index("decision_id", unique=True)
@@ -62,7 +88,11 @@ class MongoDBClient:
 
             # Converter para dict e salvar
             decision_dict = decision.to_avro_dict()
-            await self.ledger_collection.insert_one(decision_dict)
+            await self._execute_with_breaker(
+                self.ledger_breaker,
+                self.ledger_collection.insert_one,
+                decision_dict
+            )
 
             logger.info(
                 "strategic_decision_saved",
@@ -75,6 +105,12 @@ class MongoDBClient:
                 "strategic_decision_save_failed",
                 decision_id=decision.decision_id,
                 error=str(e)
+            )
+            raise
+        except CircuitBreakerError:
+            logger.warning(
+                "strategic_decision_circuit_open",
+                decision_id=decision.decision_id
             )
             raise
 
@@ -118,7 +154,11 @@ class MongoDBClient:
         """Persistir aprovação de exceção"""
         try:
             approval_dict = approval.to_dict()
-            await self.exceptions_collection.insert_one(approval_dict)
+            await self._execute_with_breaker(
+                self.exceptions_breaker,
+                self.exceptions_collection.insert_one,
+                approval_dict
+            )
 
             logger.info(
                 "exception_approval_saved",
@@ -131,6 +171,12 @@ class MongoDBClient:
                 "exception_approval_save_failed",
                 exception_id=approval.exception_id,
                 error=str(e)
+            )
+            raise
+        except CircuitBreakerError:
+            logger.warning(
+                "exception_approval_circuit_open",
+                exception_id=approval.exception_id
             )
             raise
 
@@ -180,3 +226,10 @@ class MongoDBClient:
         except Exception as e:
             logger.error("exception_approvals_list_failed", error=str(e))
             return []
+
+    async def _execute_with_breaker(self, breaker: Optional[MonitoredCircuitBreaker], func, *args, **kwargs):
+        """Executa operação MongoDB protegida por circuit breaker quando habilitado."""
+        if not self.circuit_breaker_enabled or breaker is None:
+            return await func(*args, **kwargs)
+
+        return await breaker.call_async(func, *args, **kwargs)

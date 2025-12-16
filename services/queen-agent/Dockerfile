@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 # Instalar dependências de build
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -13,7 +13,7 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copiar requirements e instalar dependências
-COPY requirements.txt /tmp/
+COPY services/queen-agent/requirements.txt /tmp/
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r /tmp/requirements.txt
 
@@ -37,7 +37,7 @@ RUN useradd -m -u 1000 -s /bin/bash queen-agent
 WORKDIR /app
 
 # Copiar código fonte
-COPY --chown=queen-agent:queen-agent src/ /app/src/
+COPY --chown=queen-agent:queen-agent services/queen-agent/src/ /app/src/
 
 # Gerar stubs gRPC (deve executar como root antes de mudar para usuário não-root)
 RUN python -m grpc_tools.protoc -I./src/proto --python_out=./src/proto --grpc_python_out=./src/proto --pyi_out=./src/proto ./src/proto/queen_agent.proto && \

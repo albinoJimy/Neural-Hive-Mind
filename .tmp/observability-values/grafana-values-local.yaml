@@ -1,0 +1,133 @@
+# Configuração para ambiente local (Kubeadm)
+# Uso combinado com docs/manual-deployment/03-observability-manual-guide.md
+
+global:
+  domain: neural-hive.local
+  environment: local
+# Feature flags
+enableLoki: false
+enableTempo: false
+# Grafana Configuration
+grafana:
+  # Replicas
+  replicas: 1
+  # Admin credentials (dev only)
+  adminUser: admin
+  adminPassword: 7OUhOihClMCxcCGjvQwj # Em produção utilizar Secret externo
+  # Persistence
+  persistence:
+    enabled: true
+    type: pvc
+    storageClassName: local-path
+    size: 5Gi
+    accessModes:
+      - ReadWriteOnce
+  # Recursos reduzidos
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  # Database (SQLite para local)
+  database:
+    type: sqlite3
+    path: /var/lib/grafana/grafana.db
+  # Datasources
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          access: proxy
+          url: http://neural-hive-prometheus-kube-prometheus-prometheus.observability.svc.cluster.local:9090
+          isDefault: true
+          jsonData:
+            timeInterval: 30s
+            exemplarTraceIdDestinations:
+              - name: trace_id
+                datasourceUid: jaeger
+                urlDisplayLabel: "View Trace"
+        - name: Jaeger
+          type: jaeger
+          access: proxy
+          url: http://neural-hive-jaeger.observability.svc.cluster.local:16686
+          uid: jaeger
+    datasources:
+      yaml:
+        apiVersion: 1
+        datasources:
+          - name: Prometheus
+            type: prometheus
+            access: proxy
+            url: http://neural-hive-prometheus-kube-prometheus-prometheus.observability.svc.cluster.local:9090
+            isDefault: true
+            jsonData:
+              timeInterval: 30s
+              exemplarTraceIdDestinations:
+                - name: trace_id
+                  datasourceUid: jaeger
+                  urlDisplayLabel: "View Trace"
+          - name: Jaeger
+            type: jaeger
+            access: proxy
+            url: http://neural-hive-jaeger.observability.svc.cluster.local:16686
+            uid: jaeger
+  # Sidecar (auto-discovery de dashboards)
+
+  # Desabilitado para ambiente local (sem ConfigMaps rotulados)
+  sidecar:
+    datasources:
+      enabled: false
+      label: grafana_datasource
+      labelValue: "1"
+      searchNamespace: ALL
+    dashboards:
+      enabled: false
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      folder: /tmp/dashboards
+      defaultFolderName: "Neural Hive-Mind"
+  # Plugins (reduzido)
+  plugins:
+    - grafana-piechart-panel
+    - grafana-clock-panel
+  # Ingress (desabilitado para local)
+  ingress:
+    enabled: false # Acesso via port-forward no ambiente local
+  # Service
+  service:
+    type: ClusterIP
+    port: 80
+  # Security (simplificado)
+  auth:
+    anonymous:
+      enabled: false
+    basic:
+      enabled: true
+    disable_login_form: false
+  # Grafana.ini customizations
+  grafana.ini:
+    server:
+      domain: neural-hive.local
+      root_url: http://localhost:3000
+    analytics:
+      reporting_enabled: false
+      check_for_updates: false
+    log:
+      mode: console
+      level: info
+    users:
+      allow_sign_up: false
+      auto_assign_org: true
+      auto_assign_org_role: Viewer
+    unified_alerting:
+      enabled: true
+  # Environment variables
+  env:
+    GF_EXPLORE_ENABLED: "true"
+    GF_FEATURE_TOGGLES_ENABLE: "traceqlEditor,correlations"
+    GF_LOG_LEVEL: info

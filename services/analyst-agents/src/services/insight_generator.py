@@ -2,6 +2,7 @@ import structlog
 import uuid
 from typing import Dict, List
 from datetime import datetime
+from neural_hive_observability import get_tracer
 from ..models.insight import AnalystInsight, InsightType, Priority, Recommendation, RelatedEntity, TimeWindow
 
 logger = structlog.get_logger()
@@ -13,52 +14,59 @@ class InsightGenerator:
 
     async def generate_insight(self, data: Dict, insight_type: InsightType, trace_id: str = '', span_id: str = '') -> AnalystInsight:
         """Gerar insight a partir de dados"""
-        try:
-            # Calcular scores
-            confidence_score = self.calculate_confidence_score(data)
-            impact_score = self.calculate_impact_score(data)
+        tracer = get_tracer()
+        with tracer.start_as_current_span("insight_generation") as span:
+            try:
+                # Calcular scores
+                confidence_score = self.calculate_confidence_score(data)
+                impact_score = self.calculate_impact_score(data)
+                span.set_attribute("neural.hive.insight_type", insight_type.value if hasattr(insight_type, 'value') else str(insight_type))
+                span.set_attribute("neural.hive.confidence", confidence_score)
+                span.set_attribute("neural.hive.data_sources", len(data.get('data_sources', [])))
 
-            # Determinar prioridade
-            priority = self._determine_priority(confidence_score, impact_score)
+                # Determinar prioridade
+                priority = self._determine_priority(confidence_score, impact_score)
 
-            # Gerar recomendações
-            recommendations = self.generate_recommendations(data, insight_type)
+                # Gerar recomendações
+                recommendations = self.generate_recommendations(data, insight_type)
 
-            # Encontrar entidades relacionadas
-            related_entities = self._find_related_entities(data)
+                # Encontrar entidades relacionadas
+                related_entities = self._find_related_entities(data)
 
-            # Criar insight
-            insight = AnalystInsight(
-                insight_id=str(uuid.uuid4()),
-                version='1.0.0',
-                correlation_id=data.get('correlation_id', str(uuid.uuid4())),
-                trace_id=trace_id or str(uuid.uuid4()),
-                span_id=span_id or str(uuid.uuid4()),
-                insight_type=insight_type,
-                priority=priority,
-                title=data.get('title', 'Insight sem título'),
-                summary=data.get('summary', ''),
-                detailed_analysis=data.get('detailed_analysis', ''),
-                data_sources=data.get('data_sources', []),
-                metrics=data.get('metrics', {}),
-                confidence_score=confidence_score,
-                impact_score=impact_score,
-                recommendations=recommendations,
-                related_entities=related_entities,
-                time_window=TimeWindow(
-                    start_timestamp=data.get('time_window', {}).get('start', 0),
-                    end_timestamp=data.get('time_window', {}).get('end', 0)
-                ),
-                tags=data.get('tags', []),
-                metadata=data.get('metadata', {})
-            )
+                # Criar insight
+                insight = AnalystInsight(
+                    insight_id=str(uuid.uuid4()),
+                    version='1.0.0',
+                    correlation_id=data.get('correlation_id', str(uuid.uuid4())),
+                    trace_id=trace_id or str(uuid.uuid4()),
+                    span_id=span_id or str(uuid.uuid4()),
+                    insight_type=insight_type,
+                    priority=priority,
+                    title=data.get('title', 'Insight sem título'),
+                    summary=data.get('summary', ''),
+                    detailed_analysis=data.get('detailed_analysis', ''),
+                    data_sources=data.get('data_sources', []),
+                    metrics=data.get('metrics', {}),
+                    confidence_score=confidence_score,
+                    impact_score=impact_score,
+                    recommendations=recommendations,
+                    related_entities=related_entities,
+                    time_window=TimeWindow(
+                        start_timestamp=data.get('time_window', {}).get('start', 0),
+                        end_timestamp=data.get('time_window', {}).get('end', 0)
+                    ),
+                    tags=data.get('tags', []),
+                    metadata=data.get('metadata', {})
+                )
 
-            logger.info('insight_generated', insight_id=insight.insight_id, type=insight_type, priority=priority)
-            return insight
+                logger.info('insight_generated', insight_id=insight.insight_id, type=insight_type, priority=priority)
+                span.set_attribute("neural.hive.execution_status", 'success')
+                return insight
 
-        except Exception as e:
-            logger.error('generate_insight_failed', error=str(e))
-            raise
+            except Exception as e:
+                span.set_attribute("neural.hive.execution_status", 'failed')
+                logger.error('generate_insight_failed', error=str(e))
+                raise
 
     async def generate_anomaly_insight(self, anomaly: Dict) -> AnalystInsight:
         """Gerar insight de anomalia"""

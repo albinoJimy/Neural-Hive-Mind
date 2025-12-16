@@ -83,7 +83,7 @@ config:
 
   # Observabilidade
   openTelemetry:
-    endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+    endpoint: "http://otel-collector:4317"
     samplingRate: 1.0
 
   # Risk Scoring

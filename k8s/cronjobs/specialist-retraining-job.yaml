@@ -1,0 +1,165 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: specialist-models-retraining
+  namespace: mlflow
+  labels:
+    app: neural-hive
+    component: specialist-retraining
+    layer: ml-ops
+spec:
+  schedule: "0 2 * * 0"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 7200
+  jobTemplate:
+    metadata:
+      labels:
+        app: neural-hive
+        component: specialist-retraining
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 7200
+      template:
+        metadata:
+          labels:
+            app: neural-hive
+            component: specialist-retraining
+          annotations:
+            prometheus.io/scrape: "true"
+            prometheus.io/port: "8080"
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
+          containers:
+          - name: trainer
+            image: 077878370245.dkr.ecr.us-east-1.amazonaws.com/neural-hive-mind/pipelines:latest
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                  - ALL
+              readOnlyRootFilesystem: false
+            command:
+            - python
+            - /app/ml_pipelines/monitoring/auto_retrain.py
+            args:
+            - --specialist-type
+            - all
+            - --notification-channels
+            - slack,email
+            env:
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow.mlflow.svc.cluster.local:5000"
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: uri
+                  optional: true
+            - name: MONGODB_DATABASE
+              value: "neural_hive"
+            - name: MODEL_TYPE
+              value: "random_forest"
+            - name: HYPERPARAMETER_TUNING
+              value: "false"
+            - name: PROMOTE_IF_BETTER
+              value: "true"
+            - name: ALLOW_SYNTHETIC_FALLBACK
+              value: "true"
+            - name: ENVIRONMENT
+              value: "production"
+            - name: MODEL_IMPROVEMENT_THRESHOLD
+              value: "0.05"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: model-monitor-secrets
+                  key: slack-webhook-url
+                  optional: true
+            - name: SLACK_CHANNEL
+              value: "#ml-alerts"
+            - name: SMTP_HOST
+              value: "smtp.gmail.com"
+            - name: SMTP_PORT
+              value: "587"
+            - name: SMTP_USER
+              value: "notifications@neural-hive.io"
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: model-monitor-secrets
+                  key: smtp-password
+                  optional: true
+            - name: EMAIL_RECIPIENTS
+              value: "ml-ops@neural-hive.io,devops@neural-hive.io"
+            - name: PROMETHEUS_PUSHGATEWAY_URL
+              value: "http://prometheus-pushgateway.monitoring:9091"
+            volumeMounts:
+            - name: training-data
+              mountPath: /data/training
+            resources:
+              requests:
+                memory: "1Gi"
+                cpu: "500m"
+              limits:
+                memory: "2Gi"
+                cpu: "2000m"
+          volumes:
+          - name: training-data
+            persistentVolumeClaim:
+              claimName: ml-training-data-pvc
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: specialist-retraining-alerts
+  namespace: mlflow
+  labels:
+    app: neural-hive
+    component: specialist-retraining
+    prometheus: neural-hive
+spec:
+  groups:
+  - name: specialist-ml-training
+    interval: 1m
+    rules:
+    - alert: SpecialistRetrainingJobFailed
+      expr: kube_job_status_failed{job_name=~"specialist-models-retraining-.*",namespace="mlflow"} > 0
+      for: 5m
+      labels:
+        severity: critical
+        component: ml-ops
+        layer: cognitive
+      annotations:
+        summary: "Job de retreinamento de especialistas falhou"
+        description: "O job de retreinamento de modelos de especialistas falhou na namespace mlflow. Verificar logs: kubectl logs -n mlflow job/{{ $labels.job_name }}"
+    - alert: SpecialistRetrainingJobTookTooLong
+      expr: time() - kube_job_status_start_time{job_name=~"specialist-models-retraining-.*",namespace="mlflow"} > 7200
+      for: 10m
+      labels:
+        severity: warning
+        component: ml-ops
+        layer: cognitive
+      annotations:
+        summary: "Job de retreinamento de especialistas está demorando muito"
+        description: "O job de retreinamento está rodando há mais de 2 horas. Tempo esperado: 10-20 minutos."
+    - alert: SpecialistModelNotPromoted
+      expr: |
+        sum(mlflow_model_stage{model_name=~".*-evaluator",stage="Production"}) < 5
+      for: 30m
+      labels:
+        severity: warning
+        component: ml-ops
+        layer: cognitive
+      annotations:
+        summary: "Nem todos os modelos de especialistas estão em Production"
+        description: "Esperado: 5 modelos em Production. Atual: {{ $value }}. Verificar MLflow: http://mlflow.mlflow.svc.cluster.local:5000"

@@ -1,5 +1,5 @@
 # Multi-stage build for Scout Agents
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install dependencies in virtualenv
-COPY requirements.txt .
+COPY services/scout-agents/requirements.txt .
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip && \
@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /opt/venv /opt/venv
 
 # Copy application code
-COPY src/ ./src/
+COPY services/scout-agents/src/ ./src/
 
 # Create non-root user
 RUN useradd -m -u 1000 scout && chown -R scout:scout /app

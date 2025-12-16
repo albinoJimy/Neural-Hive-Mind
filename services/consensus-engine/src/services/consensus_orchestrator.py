@@ -2,6 +2,7 @@ from typing import Dict, Any, List
 from datetime import datetime, timedelta
 import uuid
 import structlog
+from neural_hive_observability import get_tracer
 from src.models.consolidated_decision import (
     ConsolidatedDecision,
     DecisionType,
@@ -54,20 +55,26 @@ class ConsensusOrchestrator:
             specialist_opinions
         )
 
-        # 2. Agregação Bayesiana
-        aggregated_confidence, conf_variance = self.bayesian.aggregate_confidence(
-            specialist_opinions,
-            weights
-        )
-        aggregated_risk, risk_variance = self.bayesian.aggregate_risk(
-            specialist_opinions,
-            weights
-        )
-        divergence = self.bayesian.calculate_divergence(
-            specialist_opinions,
-            aggregated_confidence,
-            aggregated_risk
-        )
+        tracer = get_tracer()
+        with tracer.start_as_current_span("bayesian_aggregation") as span:
+            span.set_attribute("neural.hive.plan_id", cognitive_plan.get('plan_id'))
+            span.set_attribute("neural.hive.specialist_count", len(specialist_opinions))
+
+            # 2. Agregação Bayesiana
+            aggregated_confidence, conf_variance = self.bayesian.aggregate_confidence(
+                specialist_opinions,
+                weights
+            )
+            aggregated_risk, risk_variance = self.bayesian.aggregate_risk(
+                specialist_opinions,
+                weights
+            )
+            divergence = self.bayesian.calculate_divergence(
+                specialist_opinions,
+                aggregated_confidence,
+                aggregated_risk
+            )
+            span.set_attribute("neural.hive.consensus_confidence", aggregated_confidence)
 
         # 3. Voting Ensemble
         final_recommendation, vote_distribution = self.voting.aggregate_recommendations(
@@ -84,7 +91,7 @@ class ConsensusOrchestrator:
         )
 
         # 5. Verificar compliance
-        is_compliant, violations = self.compliance.check_compliance(
+        is_compliant, violations, adaptive_thresholds = self.compliance.check_compliance(
             cognitive_plan,
             specialist_opinions,
             aggregated_confidence,
@@ -167,9 +174,28 @@ class ConsensusOrchestrator:
                 violations
             ),
             compliance_checks={
+                # Base thresholds (compatibilidade legado)
                 'confidence_threshold': aggregated_confidence >= self.config.min_confidence_score,
                 'divergence_threshold': divergence <= self.config.max_divergence_threshold,
-                'risk_acceptable': aggregated_risk < self.config.critical_risk_threshold
+                # Campos explícitos de base
+                'base_confidence_threshold_passed': aggregated_confidence >= self.config.min_confidence_score,
+                'base_divergence_threshold_passed': divergence <= self.config.max_divergence_threshold,
+                'base_thresholds': {
+                    'min_confidence': self.config.min_confidence_score,
+                    'max_divergence': self.config.max_divergence_threshold
+                },
+                # Campos adaptativos (refletem thresholds efetivamente aplicados pelo ComplianceFallback)
+                'adaptive_confidence_threshold_passed': aggregated_confidence >= adaptive_thresholds['min_confidence'],
+                'adaptive_divergence_threshold_passed': divergence <= adaptive_thresholds['max_divergence'],
+                'adaptive_thresholds': {
+                    'min_confidence': adaptive_thresholds['min_confidence'],
+                    'max_divergence': adaptive_thresholds['max_divergence'],
+                    'health_status': adaptive_thresholds['health_status'],
+                    'degraded_count': adaptive_thresholds['degraded_count'],
+                    'adjustment_reason': adaptive_thresholds['adjustment_reason'],
+                },
+                'risk_acceptable': aggregated_risk < self.config.critical_risk_threshold,
+                'adaptive_thresholds_used': True
             },
             guardrails_triggered=violations,
             requires_human_review=requires_review,

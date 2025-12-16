@@ -1,0 +1,387 @@
+# Pod Security Standards para Neural Hive-Mind
+# Configuração de políticas de segurança por namespace
+
+# Configuração global de Pod Security Standards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pod-security-config
+  namespace: kube-system
+  labels:
+    neuralhive/component: security
+    neuralhive/policy-type: pod-security-standards
+data:
+  # Configurações por tipo de namespace
+  restricted-namespaces: |
+    neural-hive-cognition
+    neural-hive-orchestration
+    neural-hive-execution
+
+  baseline-namespaces: |
+    neural-hive-system
+    neural-hive-observability
+    cosign-system
+    gatekeeper-system
+    cert-manager
+    auth
+
+  privileged-namespaces: |
+    kube-system
+    istio-system
+    metallb-system
+    local-path-storage
+
+---
+# Network Policies para isolamento entre namespaces
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: neural-hive-cognition
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-neural-hive-communication
+  namespace: neural-hive-cognition
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          neuralhive/layer: orchestration
+    - namespaceSelector:
+        matchLabels:
+          neuralhive/layer: system
+    - namespaceSelector:
+        matchLabels:
+          neuralhive/layer: observability
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          neuralhive/layer: orchestration
+    - namespaceSelector:
+        matchLabels:
+          neuralhive/layer: system
+    - namespaceSelector:
+        matchLabels:
+          neuralhive/layer: execution
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: neural-hive-orchestration
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-neural-hive-communication
+  namespace: neural-hive-orchestration
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          neuralhive/layer: cognitive
+    - namespaceSelector:
+        matchLabels:
+          neuralhive/layer: execution
+    - namespaceSelector:
+        matchLabels:
+          neuralhive/layer: system
+    - namespaceSelector:
+        matchLabels:
+          neuralhive/layer: observability
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          neuralhive/layer: cognitive
+    - namespaceSelector:
+        matchLabels:
+          neuralhive/layer: execution
+    - namespaceSelector:
+        matchLabels:
+          neuralhive/layer: system
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: neural-hive-execution
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-neural-hive-communication
+  namespace: neural-hive-execution
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          neuralhive/layer: orchestration
+    - namespaceSelector:
+        matchLabels:
+          neuralhive/layer: system
+    - namespaceSelector:
+        matchLabels:
+          neuralhive/layer: observability
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          neuralhive/layer: orchestration
+    - namespaceSelector:
+        matchLabels:
+          neuralhive/layer: system
+    - namespaceSelector:
+        matchLabels:
+          neuralhive/layer: cognitive
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+
+---
+# Security Context Constraints templates
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: security-context-templates
+  namespace: kube-system
+  labels:
+    neuralhive/component: security
+    neuralhive/policy-type: security-context
+data:
+  restricted-security-context.yaml: |
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+      seccompProfile:
+        type: RuntimeDefault
+      capabilities:
+        drop:
+        - ALL
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+
+  baseline-security-context.yaml: |
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+      seccompProfile:
+        type: RuntimeDefault
+      capabilities:
+        drop:
+        - ALL
+        add:
+        - NET_BIND_SERVICE
+      allowPrivilegeEscalation: false
+
+  infrastructure-security-context.yaml: |
+    securityContext:
+      runAsUser: 0
+      seccompProfile:
+        type: RuntimeDefault
+      capabilities:
+        drop:
+        - ALL
+        add:
+        - NET_BIND_SERVICE
+        - NET_ADMIN
+      allowPrivilegeEscalation: true
+
+---
+# Admission Controller Webhooks for Pod Security Standards
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: neural-hive-pod-security-validator
+  labels:
+    neuralhive/component: security
+    neuralhive/validation-type: pod-security
+webhooks:
+- name: neural-hive-pod-security-validator.neural-hive.io
+  clientConfig:
+    service:
+      name: neural-hive-admission-webhook
+      namespace: neural-hive-system
+      path: /validate-pod-security
+  rules:
+  - operations: ["CREATE", "UPDATE"]
+    apiGroups: [""]
+    apiVersions: ["v1"]
+    resources: ["pods"]
+    scope: "Namespaced"
+  namespaceSelector:
+    matchLabels:
+      neuralhive.ai/policy-enforcement: enabled
+  admissionReviewVersions: ["v1", "v1beta1"]
+  sideEffects: None
+  failurePolicy: Fail
+
+---
+# Pod Disruption Budgets para componentes críticos
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: neural-hive-cognition-pdb
+  namespace: neural-hive-cognition
+  labels:
+    neuralhive/component: cognition
+    neuralhive/policy-type: availability
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      neuralhive/tier: processing
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: neural-hive-orchestration-pdb
+  namespace: neural-hive-orchestration
+  labels:
+    neuralhive/component: orchestration
+    neuralhive/policy-type: availability
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      neuralhive/tier: control
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: neural-hive-execution-pdb
+  namespace: neural-hive-execution
+  labels:
+    neuralhive/component: execution
+    neuralhive/policy-type: availability
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      neuralhive/tier: worker
+
+---
+# Runtime Security Monitoring
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: runtime-security-config
+  namespace: neural-hive-system
+  labels:
+    neuralhive/component: security
+    neuralhive/policy-type: runtime-monitoring
+data:
+  falco-rules.yaml: |
+    - rule: Unauthorized process in Neural Hive namespace
+      desc: Detect unauthorized processes running in Neural Hive namespaces
+      condition: >
+        spawned_process and
+        k8s_ns in (neural-hive-cognition, neural-hive-orchestration, neural-hive-execution) and
+        not proc.name in (python, node, java, go)
+      output: >
+        Unauthorized process spawned in Neural Hive namespace
+        (user=%user.name command=%proc.cmdline container=%container.name namespace=%k8s.ns.name)
+      priority: WARNING
+      tags: [neuralhive, process, security]
+
+    - rule: Sensitive file access in Neural Hive
+      desc: Detect access to sensitive files in Neural Hive containers
+      condition: >
+        open_read and
+        k8s_ns startswith neural-hive and
+        fd.name in (/etc/passwd, /etc/shadow, /etc/hosts, /root/.ssh/id_rsa)
+      output: >
+        Sensitive file accessed in Neural Hive container
+        (file=%fd.name user=%user.name container=%container.name namespace=%k8s.ns.name)
+      priority: CRITICAL
+      tags: [neuralhive, filesystem, security]
+
+  security-scan-config.yaml: |
+    # Configuração para scanning de imagens
+    image_scan_policies:
+      - namespace_pattern: "neural-hive-*"
+        scan_on_push: true
+        scan_on_deployment: true
+        block_critical_vulnerabilities: true
+        block_high_vulnerabilities: false
+        max_age_days: 30
+
+    # Configuração para runtime monitoring
+    runtime_monitoring:
+      - namespace_pattern: "neural-hive-*"
+        monitor_syscalls: true
+        monitor_network: true
+        monitor_filesystem: true
+        alert_on_anomalies: true

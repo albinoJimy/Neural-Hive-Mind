@@ -122,6 +122,11 @@ class SPIFFEConfig(BaseSettings):
         default="vault.neural-hive.local",
         description="Default JWT-SVID audience"
     )
+    jwt_ttl_seconds: int = Field(
+        default=3600,
+        ge=300,
+        description="Desired TTL for JWT-SVIDs requested from SPIRE"
+    )
     svid_refresh_threshold: float = Field(
         default=0.8,
         ge=0.5,

@@ -1,0 +1,21 @@
+{{- if .Values.config.ml.trainingJob.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "orchestrator-dynamic.fullname" . }}-ml-training-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "orchestrator-dynamic.labels" . | nindent 4 }}
+data:
+  ML_TRAINING_WINDOW_DAYS: "{{ default .Values.config.ml.training.windowDays .Values.config.ml.trainingJob.windowDaysOverride }}"
+  ML_MIN_TRAINING_SAMPLES: "{{ .Values.config.ml.trainingJob.minSamples }}"
+  ML_DURATION_ERROR_THRESHOLD: "{{ .Values.config.ml.trainingJob.durationErrorThreshold }}"
+  ML_ANOMALY_CONTAMINATION: "{{ .Values.config.ml.trainingJob.anomalyContamination }}"
+  ML_BACKFILL_ERRORS: "{{ .Values.config.ml.trainingJob.backfillErrors }}"
+  ML_DRIFT_BASELINE_ENABLED: "{{ .Values.config.ml.trainingJob.driftBaselineEnabled }}"
+  MLFLOW_TRACKING_URI: "{{ .Values.config.ml.trainingJob.mlflowTrackingUri }}"
+  MLFLOW_EXPERIMENT_NAME: "{{ .Values.config.ml.trainingJob.mlflowExperimentName }}"
+  MONGODB_URI: "{{ .Values.config.mongodb.uri }}"
+  MONGODB_DATABASE: "{{ .Values.config.mongodb.database }}"
+  REDIS_CLUSTER_NODES: "{{ .Values.config.redis.clusterNodes }}"
+{{- end }}

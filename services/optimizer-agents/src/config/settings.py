@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     mongodb_optimization_collection: str = Field(default="optimization_ledger")
     mongodb_experiments_collection: str = Field(default="experiments_ledger")
     mongodb_insights_collection: str = Field(default="insights", description="MongoDB collection for insights")
+    mongodb_max_pool_size: int = Field(default=100, description="Maximum MongoDB connections in pool")
+    mongodb_min_pool_size: int = Field(default=10, description="Minimum MongoDB connections in pool")
 
     # Redis
     redis_cluster_nodes: str = Field(default="redis-cluster.redis.svc.cluster.local:6379")

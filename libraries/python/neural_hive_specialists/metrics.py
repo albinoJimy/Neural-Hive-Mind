@@ -254,6 +254,31 @@ class SpecialistMetrics:
             ['specialist_type']
         )
 
+        self.embedding_cache_hits_total = Counter(
+            'neural_hive_specialist_embedding_cache_hits_total',
+            'Total de cache hits em geração de embeddings',
+            ['specialist_type']
+        )
+
+        self.embedding_cache_misses_total = Counter(
+            'neural_hive_specialist_embedding_cache_misses_total',
+            'Total de cache misses em geração de embeddings',
+            ['specialist_type']
+        )
+
+        self.embedding_cache_size = Gauge(
+            'neural_hive_specialist_embedding_cache_size',
+            'Tamanho atual do cache de embeddings',
+            ['specialist_type']
+        )
+
+        self.embedding_generation_duration_seconds = Histogram(
+            'neural_hive_specialist_embedding_generation_duration_seconds',
+            'Duração da geração de embeddings (hit vs miss)',
+            ['specialist_type', 'cache_status'],
+            buckets=[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0, 30.0]
+        )
+
         self.cache_operation_duration_seconds = Histogram(
             'neural_hive_specialist_cache_operation_duration_seconds',
             'Duração de operações de cache',
@@ -648,6 +673,17 @@ class SpecialistMetrics:
             'neural_hive_ensemble_weights_gauge',
             'Pesos atuais do ensemble por modelo',
             ['specialist_type', 'model_name']
+        )
+        self.ensemble_calibration_coverage = Histogram(
+            'neural_hive_ensemble_calibration_coverage',
+            'Cobertura de calibração no ensemble (percentual de modelos usando predict_proba)',
+            ['specialist_type'],
+            buckets=[0.0, 0.25, 0.5, 0.75, 1.0]
+        )
+        self.ensemble_probabilistic_predictions_total = Counter(
+            'neural_hive_ensemble_probabilistic_predictions_total',
+            'Total de predições ensemble por método de agregação e status de calibração',
+            ['specialist_type', 'aggregation_method', 'calibrated']
         )
 
         # ============================================================================
@@ -1218,6 +1254,31 @@ class SpecialistMetrics:
             duration_seconds=duration
         )
 
+    def increment_embedding_cache_hit(self):
+        """Incrementa contador de cache hits de embeddings."""
+        self.embedding_cache_hits_total.labels(
+            specialist_type=self.specialist_type
+        ).inc()
+
+    def increment_embedding_cache_miss(self):
+        """Incrementa contador de cache misses de embeddings."""
+        self.embedding_cache_misses_total.labels(
+            specialist_type=self.specialist_type
+        ).inc()
+
+    def observe_embedding_generation_duration(self, duration: float, cache_status: str):
+        """Observa duração da geração de embeddings por status de cache."""
+        self.embedding_generation_duration_seconds.labels(
+            specialist_type=self.specialist_type,
+            cache_status=cache_status
+        ).observe(duration)
+
+    def set_embedding_cache_size(self, size: int):
+        """Define tamanho atual do cache de embeddings."""
+        self.embedding_cache_size.labels(
+            specialist_type=self.specialist_type
+        ).set(size)
+
     def update_cache_hit_ratio(self):
         """Calcula e atualiza gauge de cache hit ratio."""
         total = self._cache_hits + self._cache_misses
@@ -1561,6 +1622,21 @@ class SpecialistMetrics:
                 summary['total_auth_attempts'] = total_auth
         except Exception:
             pass  # Métricas de auth podem não estar disponíveis
+
+        # Estatísticas de cache de embeddings
+        try:
+            emb_hits = self.embedding_cache_hits_total.labels(self.specialist_type)._value.get()
+            emb_misses = self.embedding_cache_misses_total.labels(self.specialist_type)._value.get()
+            emb_size = self.embedding_cache_size.labels(self.specialist_type)._value.get()
+            total_emb_ops = emb_hits + emb_misses
+            summary['embedding_cache'] = {
+                'hits': emb_hits,
+                'misses': emb_misses,
+                'size': emb_size,
+                'hit_ratio': emb_hits / total_emb_ops if total_emb_ops > 0 else 0.0
+            }
+        except Exception:
+            pass  # Métricas de cache de embeddings podem não estar disponíveis
 
         # Estatísticas de cache
         total_cache_ops = self._cache_hits + self._cache_misses
@@ -2023,6 +2099,34 @@ class SpecialistMetrics:
             self.specialist_type,
             model_name
         ).set(weight)
+
+    def observe_ensemble_calibration_coverage(self, coverage: float):
+        """
+        Observa cobertura de calibração no ensemble.
+
+        Registra o percentual de modelos que usaram predict_proba()
+        em uma predição ensemble.
+
+        Args:
+            coverage: Percentual de modelos calibrados (0.0 a 1.0)
+        """
+        self.ensemble_calibration_coverage.labels(
+            self.specialist_type
+        ).observe(coverage)
+
+    def increment_ensemble_probabilistic_prediction(self, method: str, calibrated: bool):
+        """
+        Incrementa contador de predições probabilísticas do ensemble.
+
+        Args:
+            method: Método de agregação usado ('weighted_average', 'voting', 'stacking')
+            calibrated: Se a maioria dos modelos usou predict_proba()
+        """
+        self.ensemble_probabilistic_predictions_total.labels(
+            self.specialist_type,
+            method,
+            str(calibrated).lower()
+        ).inc()
 
     # ============================================================================
     # A/B Testing Metrics Helper Methods

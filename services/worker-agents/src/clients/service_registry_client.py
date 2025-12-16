@@ -5,6 +5,7 @@ import asyncio
 from tenacity import retry, stop_after_attempt, wait_exponential
 import sys
 from pathlib import Path
+from neural_hive_observability import instrument_grpc_channel
 
 # Adicionar caminho para os protos do service-registry
 service_registry_proto_path = Path(__file__).parent.parent.parent.parent / 'service-registry' / 'src'
@@ -36,6 +37,7 @@ class ServiceRegistryClient:
                 self.channel = grpc.aio.insecure_channel(target)
             else:
                 self.channel = grpc.aio.insecure_channel(target)
+            self.channel = instrument_grpc_channel(self.channel, service_name='service-registry')
 
             self.stub = service_registry_pb2_grpc.ServiceRegistryStub(self.channel)
 

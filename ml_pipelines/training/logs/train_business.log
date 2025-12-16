@@ -1,0 +1,45 @@
+2025/11/22 22:59:20 INFO mlflow.tracking.fluent: Experiment with name 'business-specialist' does not exist. Creating a new experiment.
+🤖 Neural Hive - Model Retraining Pipeline
+   Specialist: business
+   Model type: random_forest
+   Feedback count: 0
+
+2025-11-22 22:59:20 [info     ] Loading base dataset           path=/data/training/specialist_business_base.parquet specialist_type=business
+2025-11-22 22:59:20 [warning  ] Base dataset not found - using synthetic data path=/data/training/specialist_business_base.parquet
+2025-11-22 22:59:20 [info     ] Creating synthetic dataset     n_samples=1000
+2025-11-22 22:59:51 [error    ] Failed to load feedback data   error="localhost:27017: [Errno 111] Connection refused (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms), Timeout: 30s, Topology Description: <TopologyDescription id: 69223238b78ec341917023eb, topology_type: Unknown, servers: [<ServerDescription ('localhost', 27017) server_type: Unknown, rtt: None, error=AutoReconnect('localhost:27017: [Errno 111] Connection refused (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms)')>]>"
+📊 Dataset sizes:
+   Base: 1000
+   Feedback: 0
+   Total: 1000
+
+📈 Splits:
+   Train: 700
+   Validation: 201
+   Test: 99
+
+🔧 Training random_forest model...
+2025-11-22 22:59:51 [info     ] Training model                 hyperparameter_tuning=False model_type=random_forest n_samples=700
+2025-11-22 22:59:51 [info     ] Model training completed
+📊 Evaluating model...
+2025-11-22 22:59:51 [info     ] Model evaluated                accuracy=1.0 f1=1.0 precision=1.0 recall=1.0
+Successfully registered model 'business-evaluator'.
+   Precision: 1.000
+   Recall: 1.000
+   F1: 1.000
+
+💾 Registering model...
+   ✅ Model artifacts logged
+2025-11-22 22:59:51 [warning  ] Could not register model in MLflow Model Registry: API request to endpoint /api/2.0/mlflow/logged-models/search failed with error code 404 != 200. Response body: '<!doctype html>
+<html lang=en>
+<title>404 Not Found</title>
+<h1>Not Found</h1>
+<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>
+'
+   ⚠️  Model logged but not registered in Model Registry
+   💡 You can load it using: mlflow.pyfunc.load_model('runs:/346cd01417224068a2729a504a22d591/model')
+
+✅ Retraining pipeline completed
+   Run ID: 346cd01417224068a2729a504a22d591
+🏃 View run thundering-ox-824 at: http://localhost:5000/#/experiments/7/runs/346cd01417224068a2729a504a22d591
+🧪 View experiment at: http://localhost:5000/#/experiments/7

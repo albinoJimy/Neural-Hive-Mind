@@ -139,3 +139,50 @@ spec:
       annotations:
         summary: "Low tool diversity in category {{ $labels.category }}"
         description: "Category {{ $labels.category }} represents only {{ $value | humanizePercentage }} of selections."
+
+    # Warning: Baixa Diversidade de Seleção
+    - alert: MCPLowSelectionDiversity
+      expr: |
+        count(count(mcp_tool_selections_total) by (tool_id)) < 10
+      for: 1h
+      labels:
+        severity: warning
+        component: mcp-tool-catalog
+      annotations:
+        summary: "Low tool selection diversity (< 10 unique tools)"
+        description: "Only {{ $value }} unique tools selected in last hour. Consider reviewing GA parameters."
+
+    # Critical: Genetic Algorithm Convergence Failure
+    - alert: MCPGeneticAlgorithmNoConvergence
+      expr: |
+        rate(mcp_genetic_algorithm_runs_total{converged="false"}[10m]) > 0.5
+      for: 10m
+      labels:
+        severity: critical
+        component: mcp-tool-catalog
+      annotations:
+        summary: "Genetic algorithm failing to converge (> 50%)"
+        description: "{{ $value | humanizePercentage }} of GA runs not converging. Check population/generation params."
+
+    # Warning: Code Forge Integration Failure
+    - alert: MCPCodeForgeIntegrationFailure
+      expr: |
+        rate(mcp_tool_selections_total{source="code-forge", status="error"}[5m]) > 0.1
+      for: 5m
+      labels:
+        severity: warning
+        component: mcp-tool-catalog
+      annotations:
+        summary: "High Code Forge integration failure rate (> 10%)"
+        description: "{{ $value | humanizePercentage }} of Code Forge requests failing."
+
+    # Info: Tool Catalog Incomplete
+    - alert: MCPToolCatalogIncomplete
+      expr: mcp_registered_tools_total < 87
+      for: 1h
+      labels:
+        severity: info
+        component: mcp-tool-catalog
+      annotations:
+        summary: "Tool catalog incomplete (< 87 tools)"
+        description: "Only {{ $value }} tools registered. Expected 87."

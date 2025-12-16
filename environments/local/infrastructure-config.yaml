@@ -1,0 +1,122 @@
+# Configuração de Infraestrutura - Ambiente Local Kubeadm
+# Usado por: docs/manual-deployment/scripts/02-prepare-infrastructure-values.sh
+
+environment: local
+cluster_type: kubeadm
+
+# Storage
+storage:
+  class: local-path  # Será detectado automaticamente se vazio
+  provisioner: rancher.io/local-path  # ou kubernetes.io/no-provisioner
+
+# Recursos globais (reduzidos para ambiente local)
+resources:
+  small:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  medium:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 2Gi
+  large:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2
+      memory: 4Gi
+
+# Kafka (Strimzi)
+# NOTA: O bloco Kafka não é consumido pelo script 02-prepare-infrastructure-values.sh.
+# Para suportar Kafka, adicione uma função process_kafka() no script e inclua 'kafka' em COMPONENTS.
+# kafka:
+#   namespace: kafka
+#   cluster_name: neural-hive-kafka
+#   replicas: 1
+#   storage_size: 10Gi
+#   resources: medium
+#   tls_enabled: false
+#   topics:
+#     partitions: 3
+#     replication_factor: 1
+
+# Redis Cluster
+redis:
+  namespace: redis-cluster
+  cluster_name: neural-hive-cache
+  cluster_size: 3  # Mínimo para cluster mode
+  storage_size: 5Gi
+  resources: medium
+  backup_enabled: false
+  tls_enabled: false
+
+# MongoDB
+mongodb:
+  namespace: mongodb-cluster
+  cluster_name: neural-hive-mongodb
+  members: 3  # ReplicaSet mínimo
+  storage_size: 20Gi
+  resources: large
+  backup_enabled: false
+  tls_enabled: false
+
+# Neo4j
+neo4j:
+  namespace: neo4j-cluster
+  cluster_name: neural-hive-neo4j
+  core_servers: 1  # Reduzido para local
+  read_replicas: 1
+  storage:
+    core_size: 20Gi
+    replica_size: 10Gi
+  resources:
+    core: large
+    replica: medium
+  backup_enabled: false
+  ssl_enabled: false
+  plugins:
+    apoc: true
+    graph_data_science: false
+    neosemantics: true
+
+# ClickHouse
+clickhouse:
+  namespace: clickhouse-cluster
+  cluster_name: neural-hive-clickhouse
+  shards: 1  # Reduzido para local
+  replicas: 1
+  storage_size: 30Gi
+  resources: large
+  zookeeper:
+    enabled: true
+    nodes: 1  # Mínimo
+    storage_size: 5Gi
+    resources: small
+  backup_enabled: false
+  tls_enabled: false
+
+# Segurança (simplificada para dev)
+security:
+  generate_passwords: true
+  password_length: 16
+  auth_enabled: true
+  tls_global: false
+
+# Observabilidade
+observability:
+  metrics_enabled: true
+  service_monitors: true  # Se Prometheus instalado no cluster
+  logging_enabled: true
+
+# Validação
+validation:
+  wait_timeout: 600
+  retry_attempts: 3
+  health_check_interval: 10

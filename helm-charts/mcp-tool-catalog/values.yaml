@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: neural-hive-mind/mcp-tool-catalog
+  repository: 37.60.241.150:30500/mcp-tool-catalog
   pullPolicy: IfNotPresent
   tag: "1.0.0"
 
@@ -12,11 +12,11 @@ service:
 
 resources:
   requests:
-    cpu: 500m
-    memory: 512Mi
+    cpu: 200m      # Tool registry
+    memory: 384Mi
   limits:
-    cpu: 2000m
-    memory: 2Gi
+    cpu: 800m
+    memory: 1Gi
 
 autoscaling:
   enabled: true

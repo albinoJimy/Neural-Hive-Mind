@@ -2,6 +2,7 @@
 Adapter para ferramentas acessadas via REST API.
 """
 
+import asyncio
 import time
 from typing import Dict, Any, Optional
 import aiohttp
@@ -83,10 +84,11 @@ class RESTAdapter(BaseToolAdapter):
 
                         response_text = await response.text()
 
+                        success = 200 <= response.status < 300
                         result = ExecutionResult(
-                            success=(200 <= response.status < 300),
+                            success=success,
                             output=response_text,
-                            error=None if response.ok else f"HTTP {response.status}",
+                            error=None if success else f"HTTP {response.status}",
                             execution_time_ms=execution_time_ms,
                             exit_code=response.status,
                             metadata={

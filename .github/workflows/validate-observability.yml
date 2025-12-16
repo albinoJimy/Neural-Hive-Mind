@@ -7,6 +7,7 @@ on:
     - 'helm-charts/**'
     - 'monitoring/**'
     - 'libraries/python/neural_hive_observability/**'
+    - 'scripts/observability/validate-observability.sh'
     - '.github/workflows/validate-observability.yml'
   push:
     branches: [main, develop]
@@ -15,6 +16,7 @@ on:
     - 'helm-charts/**'
     - 'monitoring/**'
     - 'libraries/python/neural_hive_observability/**'
+    - 'scripts/observability/validate-observability.sh'
 
 env:
   TERRAFORM_VERSION: 1.6.0
@@ -314,7 +316,7 @@ jobs:
       run: |
         # Verificar sintaxe dos scripts
         bash -n scripts/deploy/deploy-observability.sh
-        bash -n scripts/validation/validate-observability.sh || echo "Script validation not found"
+        bash -n scripts/observability/validate-observability.sh
 
   # Verificação de Segurança
   security-scan:

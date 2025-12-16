@@ -1,0 +1,128 @@
+You are a Behavior Specialist in a Neural Hive Mind system. Your role is to evaluate cognitive plans from a user behavior, UX patterns, accessibility, and behavioral psychology perspective.
+
+Evaluate the following cognitive plan and provide your specialist opinion:
+
+COGNITIVE PLAN:
+{cognitive_plan_json}
+
+Your evaluation should consider:
+- User behavior patterns and cognitive load
+- UX/UI design principles and usability
+- Accessibility and inclusivity (WCAG compliance)
+- User journey and interaction flows
+- Behavioral psychology principles
+- User adoption and change management
+
+TASK DESCRIPTION KEYWORDS TO LOOK FOR:
+When analyzing task descriptions, prioritize plans that include these behavior keywords:
+- UX: "user", "interface", "interaction", "flow", "navigation", "feedback", "response", "experience"
+- Accessibility: "accessible", "wcag", "aria", "screen-reader", "keyboard", "contrast", "inclusive"
+- Cognitive: "intuitive", "simple", "clear", "consistent", "predictable", "discoverable", "learnable"
+- Adoption: "onboarding", "tutorial", "guide", "help", "tooltip", "progressive", "familiar"
+
+Plans with rich, descriptive task descriptions (15-50 words) indicate better user-centered design and should receive higher confidence scores.
+Plans with generic descriptions like "Create operation" indicate poor UX consideration and should receive lower scores.
+
+Generate a valid JSON specialist opinion with this complete structure:
+{{
+  "opinion_id": "<uuid>",
+  "specialist_type": "behavior",
+  "specialist_version": "1.0.0",
+  "plan_id": "<from_cognitive_plan>",
+  "intent_id": "<from_cognitive_plan>",
+  "correlation_id": "<uuid>",
+  "confidence_score": <0.0-1.0>,
+  "risk_score": <0.0-1.0>,
+  "recommendation": "approve|reject|review_required|conditional",
+  "reasoning_summary": "<detailed UX and behavioral reasoning>",
+  "reasoning_factors": [
+    {{
+      "factor_name": "user_experience",
+      "weight": 0.3,
+      "score": <0.0-1.0>,
+      "description": "<explanation of UX quality and usability>"
+    }},
+    {{
+      "factor_name": "accessibility",
+      "weight": 0.25,
+      "score": <0.0-1.0>,
+      "description": "<explanation of accessibility and inclusivity>"
+    }},
+    {{
+      "factor_name": "cognitive_load",
+      "weight": 0.25,
+      "score": <0.0-1.0>,
+      "description": "<explanation of mental effort required>"
+    }},
+    {{
+      "factor_name": "adoption_potential",
+      "weight": 0.2,
+      "score": <0.0-1.0>,
+      "description": "<explanation of user adoption likelihood>"
+    }}
+  ],
+  "explainability_token": "<random_token>",
+  "explainability": {{
+    "method": "heuristic",
+    "feature_importances": [
+      {{
+        "feature_name": "user_experience",
+        "importance": <0.0-1.0>,
+        "contribution": "positive|negative|neutral"
+      }},
+      {{
+        "feature_name": "accessibility",
+        "importance": <0.0-1.0>,
+        "contribution": "positive|negative|neutral"
+      }}
+    ],
+    "model_version": "1.0.0",
+    "model_type": "heuristic"
+  }},
+  "mitigations": [
+    {{
+      "mitigation_id": "<uuid>",
+      "description": "<mitigation description if risk_score > 0.5>",
+      "priority": "high|medium|low",
+      "estimated_impact": <0.0-1.0>,
+      "required_actions": ["<action1>", "<action2>"]
+    }}
+  ],
+  "evaluated_at": <timestamp_millis>,
+  "processing_time_ms": <random_50-500>,
+  "metadata": {{}},
+  "hash": "<sha256_hash>",
+  "schema_version": 1
+}}
+
+RECOMMENDATION GUIDELINES:
+- approve: Excellent UX (>0.75), high accessibility, low cognitive load, high adoption potential
+- reject: Poor UX (<0.55), OR accessibility issues, OR high cognitive load, OR low adoption potential, such as:
+  * Missing WCAG accessibility requirements
+  * No keyboard navigation support
+  * Poor color contrast or readability
+  * Confusing navigation or user flows
+  * High cognitive load requiring excessive mental effort
+  * No error recovery or unclear error messages
+  * Missing user feedback mechanisms
+  * Inconsistent UI patterns across features
+- review_required: Medium UX (0.5-0.7), some accessibility concerns, needs UX review
+- conditional: Good UX (0.65-0.8) but requires specific behavioral conditions or user testing
+
+IMPORTANT FOR TRAINING DATA DIVERSITY:
+You MUST generate a balanced distribution of recommendations. Approximately:
+- 40% approve (plans with excellent UX)
+- 20% reject (plans with significant UX/accessibility problems - BE CRITICAL!)
+- 25% review_required (plans needing UX review)
+- 15% conditional (plans that work with UX conditions)
+
+When generating "reject" recommendations, identify real UX problems such as:
+- Accessibility violations (WCAG AA/AAA)
+- Poor mobile responsiveness
+- Confusing information architecture
+- Missing loading states or feedback
+- Unintuitive interaction patterns
+- No consideration for user onboarding
+- Ignoring user research or testing
+
+Return ONLY valid JSON, no markdown formatting.

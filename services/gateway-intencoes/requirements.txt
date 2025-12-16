@@ -30,7 +30,7 @@ avro==1.11.3
 fastavro==1.9.4
 
 # Observabilidade
-# neural-hive-observability==1.0.0  # Biblioteca padronizada do Neural Hive-Mind - TEMPORARIAMENTE DESABILITADA
+neural-hive-observability==1.1.0  # Biblioteca padronizada do Neural Hive-Mind
 opentelemetry-api==1.21.0
 opentelemetry-sdk==1.21.0
 opentelemetry-instrumentation-fastapi==0.42b0

@@ -285,6 +285,32 @@ class SpecialistConfig(BaseSettings):
         env="EMBEDDINGS_MODEL",
         description="Modelo sentence-transformers para embeddings"
     )
+    embedding_cache_enabled: bool = Field(
+        default=True,
+        env="EMBEDDING_CACHE_ENABLED",
+        description="Habilitar cache de embeddings em memória"
+    )
+    embedding_cache_size: int = Field(
+        default=1000,
+        env="EMBEDDING_CACHE_SIZE",
+        description="Tamanho máximo do cache LRU de embeddings"
+    )
+    embedding_cache_ttl_seconds: Optional[int] = Field(
+        default=None,
+        env="EMBEDDING_CACHE_TTL_SECONDS",
+        description="TTL do cache de embeddings (None = sem expiração)"
+    )
+    embedding_batch_size: int = Field(
+        default=32,
+        env="EMBEDDING_BATCH_SIZE",
+        description="Batch size para geração de embeddings"
+    )
+    semantic_similarity_threshold: float = Field(
+        default=0.7,
+        ge=0.0,
+        le=1.0,
+        description="Threshold de similaridade semântica para detecção de padrões (0.0-1.0)"
+    )
     enable_feature_extraction: bool = Field(
         default=True,
         env="ENABLE_FEATURE_EXTRACTION",
@@ -908,6 +934,27 @@ class SpecialistConfig(BaseSettings):
         env="GCP_CREDENTIALS_PATH",
         description="Path para service account JSON do GCP"
     )
+
+    @field_validator('embedding_cache_size')
+    @classmethod
+    def validate_cache_size(cls, v):
+        """Valida limites razoáveis para cache de embeddings."""
+        if v < 10:
+            raise ValueError("embedding_cache_size deve ser >= 10")
+        if v > 100000:
+            logger.warning(
+                "embedding_cache_size muito alto - pode consumir muita memória",
+                embedding_cache_size=v
+            )
+        return v
+
+    @field_validator('semantic_similarity_threshold')
+    @classmethod
+    def validate_semantic_threshold(cls, v):
+        """Valida range do threshold de similaridade semântica."""
+        if not 0.0 <= v <= 1.0:
+            raise ValueError("semantic_similarity_threshold deve estar entre 0.0 e 1.0")
+        return v
 
     @field_validator('opinion_cache_ttl_seconds')
     @classmethod

@@ -3,6 +3,11 @@ import structlog
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from neural_hive_observability import (
+    init_observability,
+    instrument_kafka_consumer,
+    instrument_kafka_producer,
+)
 
 from .config import get_settings
 from .clients import MongoDBClient, RedisClient, Neo4jClient, ClickHouseClient, ElasticsearchClient, PrometheusClient, QueenAgentGRPCClient
@@ -11,7 +16,6 @@ from .consumers import TelemetryConsumer, ConsensusConsumer, ExecutionConsumer, 
 from .producers import InsightProducer
 from .api import health, insights, analytics, status, semantics
 from .observability.metrics import setup_metrics
-from .observability.tracing import setup_tracing
 from .grpc_service import AnalystGRPCServer
 
 logger = structlog.get_logger()
@@ -58,8 +62,16 @@ async def lifespan(app: FastAPI):
     """Gerenciar ciclo de vida da aplicação"""
     logger.info('starting_analyst_agents', version=settings.SERVICE_VERSION)
 
-    # Setup observability
-    setup_tracing(settings)
+    init_observability(
+        service_name='analyst-agents',
+        service_version=settings.SERVICE_VERSION,
+        neural_hive_component='analyst-agent',
+        neural_hive_layer='analise',
+        neural_hive_domain='insight-generation',
+        otel_endpoint=settings.OTEL_EXPORTER_OTLP_ENDPOINT,
+        enable_kafka=True,
+        enable_grpc=True
+    )
     setup_metrics()
 
     # Inicializar clientes
@@ -68,7 +80,9 @@ async def lifespan(app: FastAPI):
         app_state.mongodb_client = MongoDBClient(
             uri=settings.MONGODB_URI,
             database=settings.MONGODB_DATABASE,
-            collection=settings.MONGODB_COLLECTION_INSIGHTS
+            collection=settings.MONGODB_COLLECTION_INSIGHTS,
+            max_pool_size=settings.MONGODB_MAX_POOL_SIZE,
+            min_pool_size=settings.MONGODB_MIN_POOL_SIZE
         )
         await app_state.mongodb_client.initialize()
 
@@ -161,6 +175,7 @@ async def lifespan(app: FastAPI):
             default_topic=settings.KAFKA_TOPICS_INSIGHTS
         )
         await app_state.insight_producer.initialize()
+        app_state.insight_producer = instrument_kafka_producer(app_state.insight_producer)
         logger.info('kafka_producer_initialized')
 
     except Exception as e:
@@ -183,6 +198,7 @@ async def lifespan(app: FastAPI):
             window_size_seconds=settings.ANALYTICS_WINDOW_SIZE_SECONDS
         )
         await app_state.telemetry_consumer.initialize()
+        app_state.telemetry_consumer = instrument_kafka_consumer(app_state.telemetry_consumer)
 
         # Consensus Consumer
         app_state.consensus_consumer = ConsensusConsumer(
@@ -197,6 +213,7 @@ async def lifespan(app: FastAPI):
             queen_agent_client=app_state.queen_agent_client
         )
         await app_state.consensus_consumer.initialize()
+        app_state.consensus_consumer = instrument_kafka_consumer(app_state.consensus_consumer)
 
         # Execution Consumer
         app_state.execution_consumer = ExecutionConsumer(
@@ -210,6 +227,7 @@ async def lifespan(app: FastAPI):
             queen_agent_client=app_state.queen_agent_client
         )
         await app_state.execution_consumer.initialize()
+        app_state.execution_consumer = instrument_kafka_consumer(app_state.execution_consumer)
 
         # Pheromone Consumer
         app_state.pheromone_consumer = PheromoneConsumer(
@@ -223,6 +241,7 @@ async def lifespan(app: FastAPI):
             queen_agent_client=app_state.queen_agent_client
         )
         await app_state.pheromone_consumer.initialize()
+        app_state.pheromone_consumer = instrument_kafka_consumer(app_state.pheromone_consumer)
 
         logger.info('kafka_consumers_initialized')
 

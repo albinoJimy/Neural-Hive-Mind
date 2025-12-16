@@ -3,7 +3,7 @@
 replicaCount: 2
 
 image:
-  repository: neural-hive/queen-agent
+  repository: 37.60.241.150:30500/queen-agent
   tag: "1.0.0"
   pullPolicy: IfNotPresent
 
@@ -75,6 +75,8 @@ config:
   MONGODB_DATABASE: "neural_hive"
   MONGODB_COLLECTION_LEDGER: "strategic_decisions_ledger"
   MONGODB_COLLECTION_EXCEPTIONS: "exception_approvals"
+  MONGODB_MAX_POOL_SIZE: "100"
+  MONGODB_MIN_POOL_SIZE: "10"
 
   # Redis
   REDIS_SSL_ENABLED: "true"
@@ -106,6 +108,10 @@ config:
   # Observability
   OTEL_EXPORTER_ENDPOINT: "http://jaeger-collector:4317"
   METRICS_PORT: "9090"
+  CIRCUIT_BREAKER_ENABLED: "true"
+  CIRCUIT_BREAKER_FAIL_MAX: "5"
+  CIRCUIT_BREAKER_TIMEOUT: "60"
+  CIRCUIT_BREAKER_RECOVERY_TIMEOUT: "30"
 
 # Secrets (devem ser criados externamente ou via External Secrets Operator)
 secrets:

@@ -1,0 +1,97 @@
+releaseName: "semantic-translation-engine"
+replicas: 1 # Reduzido para ambiente local sem HA
+image:
+  repository: "docker.io/neural-hive-mind/semantic-translation-engine"
+  tag: "1.0.0"
+  pullPolicy: "Never" # Imagem já importada no containerd local
+resources:
+  requests:
+    cpu: "300m"
+    memory: "768Mi"
+  limits:
+    cpu: "1"
+    memory: "2Gi"
+service:
+  type: "ClusterIP"
+  port: 8000
+config:
+  environment: "local"
+  logLevel: "DEBUG"
+  kafka:
+    bootstrapServers: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092" # PLAINTEXT listener
+    consumerGroupId: "semantic-translation-engine-local"
+    topics:
+      - "intentions-business"
+      - "intentions-technical"
+      - "intentions-infrastructure"
+      - "intentions-security"
+    plansTopic: "plans.ready"
+    securityProtocol: "PLAINTEXT"
+    saslMechanism: ""
+  neo4j:
+    uri: "bolt://neo4j.neo4j-cluster.svc.cluster.local:7687"
+    user: "neo4j"
+    database: "neo4j"
+    queryTimeoutMs: 5000
+    maxConnectionPoolSize: 20
+  mongodb:
+    uri: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017"
+    database: "neural_hive"
+    contextCollection: "operational_context"
+    ledgerCollection: "cognitive_ledger"
+    maxPoolSize: 50
+  redis:
+    host: "neural-hive-cache.redis-cluster.svc.cluster.local"
+    port: 6379
+    clusterEnabled: false
+    sslEnabled: false
+    defaultTtl: 600
+    cacheEnabled: true
+  schemaRegistry:
+    url: ""  # Desabilitado - usando serialização JSON
+  openTelemetry:
+    endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+    samplingRate: 1.0
+  riskScoring:
+    weightPriority: 0.3
+    weightSecurity: 0.4
+    weightComplexity: 0.3
+    thresholdHigh: 0.7
+    thresholdCritical: 0.9
+  features:
+    knowledgeGraphEnabled: true # Neo4j restaurado e rodando
+    ledgerEnabled: true
+    explainabilityEnabled: true
+    circuitBreakerEnabled: false # Desabilitado para simplificar no cluster local
+probes:
+  startup:
+    initialDelaySeconds: 20
+    periodSeconds: 10
+    failureThreshold: 30
+  liveness:
+    initialDelaySeconds: 0
+    periodSeconds: 10
+  readiness:
+    initialDelaySeconds: 0
+    periodSeconds: 5
+secrets:
+  kafkaSaslUsername: ""
+  kafkaSaslPassword: ""
+  neo4jPassword: "local_dev_password"
+  mongodbPassword: ""
+  redisPassword: ""
+observability:
+  serviceMonitor:
+    enabled: true
+    interval: "30s"
+nodeSelector:
+  kubernetes.io/hostname: "vmi2092350.contaboserver.net"
+security:
+  istio:
+    enabled: false
+  networkPolicy:
+    enabled: false
+metadata:
+  generated_at: "2025-11-20T21:08:32Z"
+  generated_by: 10-prepare-fluxo-b-values.sh
+  cluster_context: kubernetes-admin@kubernetes

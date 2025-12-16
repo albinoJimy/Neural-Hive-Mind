@@ -1,0 +1,20 @@
+
+==============================================
+[0;34m🧠 Neural Hive Mind - Geração de Datasets[0m
+==============================================
+
+Configuração:
+  • Samples por especialista: [0;32m100[0m
+  • Provider LLM: [0;32mdeepseek[0m
+  • Modelo: [0;32mdeepseek-chat[0m
+  • Output: [0;32m/jimy/Neural-Hive-Mind/ml_pipelines/training/data[0m
+  • Log: [0;32m/jimy/Neural-Hive-Mind/ml_pipelines/training/logs/generation_20251216_003733.log[0m
+  • Filtro: [0;32mbehavior[0m
+
+Especialistas a gerar: behavior
+
+==============================================
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m📊 Gerando dataset: specialist-behavior[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m

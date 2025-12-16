@@ -1,0 +1,61 @@
+========================================
+RELATÓRIO DE VALIDAÇÃO - 2025-11-19T15:07:06Z
+Version: 1.0.0   Registry: neural-hive-mind
+========================================
+[PASS] base:python-ml-base - Imagem válida
+[PASS] base:python-grpc-base - Imagem válida
+[PASS] base:python-nlp-base - Imagem válida
+[WARN] svc:gateway-intencoes - Tamanho acima do esperado (6326MB)
+[PASS] svc:gateway-intencoes - Imagem validada
+[WARN] svc:semantic-translation-engine - Label version inconsistente
+[PASS] svc:semantic-translation-engine - Imagem validada
+[WARN] svc:specialist-business - Tamanho acima do esperado (17111MB)
+[PASS] svc:specialist-business - Imagem validada
+[WARN] svc:specialist-technical - Tamanho acima do esperado (17111MB)
+[PASS] svc:specialist-technical - Imagem validada
+[WARN] svc:specialist-behavior - Tamanho acima do esperado (17111MB)
+[PASS] svc:specialist-behavior - Imagem validada
+[WARN] svc:specialist-evolution - Tamanho acima do esperado (17111MB)
+[PASS] svc:specialist-evolution - Imagem validada
+[WARN] svc:specialist-architecture - Tamanho acima do esperado (17111MB)
+[PASS] svc:specialist-architecture - Imagem validada
+[WARN] svc:consensus-engine - Label version inconsistente
+[WARN] svc:consensus-engine - Tamanho acima do esperado (16861MB)
+[PASS] svc:consensus-engine - Imagem validada
+[WARN] svc:orchestrator-dynamic - Tamanho acima do esperado (3620MB)
+[PASS] svc:orchestrator-dynamic - Imagem validada
+[PASS] disk-space - Espaço livre 787G
+[WARN] helm:gateway-intencoes - Tag esperada 1.0.0
+[WARN] helm:gateway-intencoes - imagePullPolicy != Never
+[PASS] helm:semantic-translation-engine - values-local alinhado
+[PASS] helm:specialist-business - values-local alinhado
+[WARN] helm:specialist-technical - Repository esperado neural-hive-mind/specialist-technical
+[WARN] helm:specialist-technical - Tag esperada 1.0.0
+[WARN] helm:specialist-technical - imagePullPolicy != Never
+[WARN] helm:specialist-behavior - Repository esperado neural-hive-mind/specialist-behavior
+[WARN] helm:specialist-behavior - Tag esperada 1.0.0
+[WARN] helm:specialist-behavior - imagePullPolicy != Never
+[WARN] helm:specialist-evolution - Repository esperado neural-hive-mind/specialist-evolution
+[WARN] helm:specialist-evolution - Tag esperada 1.0.0
+[WARN] helm:specialist-evolution - imagePullPolicy != Never
+[WARN] helm:specialist-architecture - Repository esperado neural-hive-mind/specialist-architecture
+[WARN] helm:specialist-architecture - Tag esperada 1.0.0
+[WARN] helm:specialist-architecture - imagePullPolicy != Never
+[PASS] helm:consensus-engine - values-local alinhado
+[WARN] helm:orchestrator-dynamic - Repository esperado neural-hive-mind/orchestrator-dynamic
+[WARN] helm:orchestrator-dynamic - Tag esperada 1.0.0
+[WARN] helm:orchestrator-dynamic - imagePullPolicy != Never
+[WARN] containerd:python-ml-base - Imagem não encontrada no namespace k8s.io
+[WARN] containerd:python-grpc-base - Imagem não encontrada no namespace k8s.io
+[WARN] containerd:python-nlp-base - Imagem não encontrada no namespace k8s.io
+[WARN] containerd:gateway-intencoes - Imagem não encontrada no namespace k8s.io
+[WARN] containerd:specialist-business - Imagem não encontrada no namespace k8s.io
+[WARN] containerd:specialist-behavior - Imagem não encontrada no namespace k8s.io
+[WARN] containerd:specialist-evolution - Imagem não encontrada no namespace k8s.io
+[WARN] containerd:specialist-architecture - Imagem não encontrada no namespace k8s.io
+[WARN] containerd:consensus-engine - Imagem não encontrada no namespace k8s.io
+[WARN] containerd:orchestrator-dynamic - Imagem não encontrada no namespace k8s.io
+========================================
+Total PASS: 16
+Total WARN: 37
+Total FAIL: 0

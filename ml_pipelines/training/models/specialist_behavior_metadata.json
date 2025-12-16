@@ -1,0 +1,96 @@
+{
+  "specialist_type": "behavior",
+  "model_type": "RandomForestClassifier",
+  "trained_at": "2025-12-16T12:50:32.525362",
+  "n_samples": 46,
+  "n_features": 26,
+  "features": [
+    "num_tasks",
+    "priority_score",
+    "total_duration_ms",
+    "avg_duration_ms",
+    "risk_score",
+    "complexity_score",
+    "domain_risk_weight",
+    "avg_task_complexity_factor",
+    "num_patterns_detected",
+    "num_anti_patterns_detected",
+    "avg_pattern_quality",
+    "total_anti_pattern_penalty",
+    "num_nodes",
+    "num_edges",
+    "density",
+    "avg_in_degree",
+    "max_in_degree",
+    "critical_path_length",
+    "max_parallelism",
+    "num_levels",
+    "avg_coupling",
+    "num_bottlenecks",
+    "graph_complexity_score",
+    "mean_norm",
+    "std_norm",
+    "avg_diversity"
+  ],
+  "labels": [
+    0,
+    2
+  ],
+  "metrics": {
+    "accuracy": 0.5,
+    "precision": 0.47619047619047616,
+    "recall": 0.5,
+    "f1_score": 0.48351648351648346,
+    "cv_f1_mean": 0.6168109668109668,
+    "cv_f1_std": 0.17511806780188807
+  },
+  "hyperparameters": {
+    "n_estimators": 100,
+    "max_depth": 10,
+    "min_samples_split": 5,
+    "min_samples_leaf": 2,
+    "class_weight": "balanced"
+  },
+  "top_features": [
+    {
+      "feature": "risk_score",
+      "importance": 0.1381608754936982
+    },
+    {
+      "feature": "mean_norm",
+      "importance": 0.11533154569852974
+    },
+    {
+      "feature": "complexity_score",
+      "importance": 0.10625489109441133
+    },
+    {
+      "feature": "graph_complexity_score",
+      "importance": 0.0712744150616339
+    },
+    {
+      "feature": "domain_risk_weight",
+      "importance": 0.06300721687298995
+    },
+    {
+      "feature": "avg_coupling",
+      "importance": 0.05924087259056613
+    },
+    {
+      "feature": "priority_score",
+      "importance": 0.05831667144116806
+    },
+    {
+      "feature": "avg_duration_ms",
+      "importance": 0.054468450281635016
+    },
+    {
+      "feature": "total_duration_ms",
+      "importance": 0.05013198130629104
+    },
+    {
+      "feature": "avg_diversity",
+      "importance": 0.04682180131403023
+    }
+  ]
+}

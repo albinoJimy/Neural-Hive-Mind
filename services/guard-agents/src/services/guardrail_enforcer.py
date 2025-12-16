@@ -12,6 +12,8 @@ from typing import List, Dict, Optional
 import structlog
 from datetime import datetime
 
+from neural_hive_observability import get_tracer
+
 from src.models.security_validation import (
     GuardrailViolation,
     ViolationType,
@@ -19,6 +21,7 @@ from src.models.security_validation import (
 )
 
 logger = structlog.get_logger(__name__)
+tracer = get_tracer(__name__)
 
 
 class GuardrailEnforcer:
@@ -64,39 +67,44 @@ class GuardrailEnforcer:
             mode=self.mode
         )
 
-        violations: List[GuardrailViolation] = []
+        with tracer.start_as_current_span("enforce_guardrails") as span:
+            span.set_attribute("neural.hive.ticket.id", ticket_id)
+            violations: List[GuardrailViolation] = []
 
-        # 1. Ethical AI Guardrails
-        violations.extend(await self._check_bias_risk(ticket))
-        violations.extend(await self._check_privacy_compliance(ticket))
-        violations.extend(await self._check_explainability(ticket))
+            # 1. Ethical AI Guardrails
+            violations.extend(await self._check_bias_risk(ticket))
+            violations.extend(await self._check_privacy_compliance(ticket))
+            violations.extend(await self._check_explainability(ticket))
 
-        # 2. Compliance Guardrails
-        violations.extend(await self._check_data_residency(ticket))
-        violations.extend(await self._check_audit_trail(ticket))
-        violations.extend(await self._check_encryption(ticket))
+            # 2. Compliance Guardrails
+            violations.extend(await self._check_data_residency(ticket))
+            violations.extend(await self._check_audit_trail(ticket))
+            violations.extend(await self._check_encryption(ticket))
 
-        # 3. Operational Guardrails
-        violations.extend(await self._check_blast_radius(ticket))
-        violations.extend(await self._check_rollback_plan(ticket))
-        violations.extend(await self._check_testing_coverage(ticket))
+            # 3. Operational Guardrails
+            violations.extend(await self._check_blast_radius(ticket))
+            violations.extend(await self._check_rollback_plan(ticket))
+            violations.extend(await self._check_testing_coverage(ticket))
 
-        # 4. Cost Guardrails
-        violations.extend(await self._check_resource_limits(ticket))
-        violations.extend(await self._check_cost_threshold(ticket))
+            # 4. Cost Guardrails
+            violations.extend(await self._check_resource_limits(ticket))
+            violations.extend(await self._check_cost_threshold(ticket))
 
-        # Persistir violations para análise
-        if violations:
-            await self._persist_violations(ticket_id, violations)
+            # Persistir violations para análise
+            if violations:
+                await self._persist_violations(ticket_id, violations)
 
-        logger.info(
-            "guardrail_enforcer.complete",
-            ticket_id=ticket_id,
-            violations_count=len(violations),
-            mode=self.mode
-        )
+            span.set_attribute("neural.hive.validation.result", "violations" if violations else "clean")
+            span.set_attribute("neural.hive.validation.violations", len(violations))
 
-        return violations
+            logger.info(
+                "guardrail_enforcer.complete",
+                ticket_id=ticket_id,
+                violations_count=len(violations),
+                mode=self.mode
+            )
+
+            return violations
 
     # ===== ETHICAL AI GUARDRAILS =====
 

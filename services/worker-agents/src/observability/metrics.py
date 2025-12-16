@@ -142,29 +142,113 @@ class WorkerAgentMetrics:
             ['task_type']
         )
 
+        # Build
         self.build_tasks_executed_total = Counter(
             'worker_agent_build_tasks_executed_total',
-            'Total de tarefas BUILD executadas'
+            'Total de tarefas BUILD executadas',
+            ['status']
+        )
+        self.build_duration_seconds = Histogram(
+            'worker_agent_build_duration_seconds',
+            'Tempo de execução de etapas de build',
+            ['stage'],
+            buckets=[1, 5, 10, 30, 60, 120, 300, 600, 1800, 3600, 14400]
+        )
+        self.build_artifacts_generated_total = Counter(
+            'worker_agent_build_artifacts_generated_total',
+            'Total de artefatos gerados em builds',
+            ['type']
+        )
+        self.code_forge_api_calls_total = Counter(
+            'worker_agent_code_forge_api_calls_total',
+            'Total de chamadas à API CodeForge',
+            ['method', 'status']
         )
 
+        # Deploy
         self.deploy_tasks_executed_total = Counter(
             'worker_agent_deploy_tasks_executed_total',
-            'Total de tarefas DEPLOY executadas'
+            'Total de tarefas DEPLOY executadas',
+            ['status']
+        )
+        self.deploy_duration_seconds = Histogram(
+            'worker_agent_deploy_duration_seconds',
+            'Tempo de execução de deploy por etapa',
+            ['stage'],
+            buckets=[1, 5, 10, 30, 60, 120, 300, 600, 900, 1800]
+        )
+        self.argocd_api_calls_total = Counter(
+            'worker_agent_argocd_api_calls_total',
+            'Total de chamadas à API do ArgoCD',
+            ['method', 'status']
+        )
+        self.deploy_rollbacks_total = Counter(
+            'worker_agent_deploy_rollbacks_total',
+            'Total de rollbacks executados',
+            ['reason']
         )
 
+        # Test
         self.test_tasks_executed_total = Counter(
             'worker_agent_test_tasks_executed_total',
-            'Total de tarefas TEST executadas'
+            'Total de tarefas TEST executadas',
+            ['status', 'suite']
+        )
+        self.test_duration_seconds = Histogram(
+            'worker_agent_test_duration_seconds',
+            'Tempo de execução dos testes',
+            ['suite'],
+            buckets=[1, 5, 10, 30, 60, 120, 300, 600]
+        )
+        self.tests_passed_total = Counter(
+            'worker_agent_tests_passed_total',
+            'Total de testes aprovados',
+            ['suite']
+        )
+        self.tests_failed_total = Counter(
+            'worker_agent_tests_failed_total',
+            'Total de testes reprovados',
+            ['suite']
+        )
+        self.test_coverage_percent = Gauge(
+            'worker_agent_test_coverage_percent',
+            'Cobertura percentual por suíte de teste',
+            ['suite']
+        )
+        self.github_actions_api_calls_total = Counter(
+            'worker_agent_github_actions_api_calls_total',
+            'Total de chamadas à API do GitHub Actions',
+            ['method', 'status']
         )
 
+        # Validate
         self.validate_tasks_executed_total = Counter(
             'worker_agent_validate_tasks_executed_total',
-            'Total de tarefas VALIDATE executadas'
+            'Total de tarefas VALIDATE executadas',
+            ['status', 'tool']
+        )
+        self.validate_duration_seconds = Histogram(
+            'worker_agent_validate_duration_seconds',
+            'Tempo de execução das validações',
+            ['tool'],
+            buckets=[1, 5, 10, 30, 60, 120, 300, 600]
+        )
+        self.validate_violations_total = Counter(
+            'worker_agent_validate_violations_total',
+            'Total de violações encontradas',
+            ['severity', 'tool']
+        )
+        self.validate_tools_executed_total = Counter(
+            'worker_agent_validate_tools_executed_total',
+            'Total de execuções de ferramentas de validação',
+            ['tool', 'status']
         )
 
+        # Execute
         self.execute_tasks_executed_total = Counter(
             'worker_agent_execute_tasks_executed_total',
-            'Total de tarefas EXECUTE executadas'
+            'Total de tarefas EXECUTE executadas',
+            ['status']
         )
 
         logger.info('worker_agent_metrics_initialized')

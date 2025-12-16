@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from opentelemetry import trace
 from opentelemetry.instrumentation.grpc import GrpcInstrumentorServer
 from google.protobuf.timestamp_pb2 import Timestamp
+from neural_hive_observability.context import extract_context_from_metadata, set_baggage
 
 from .config import SpecialistConfig
 from .auth_interceptor import AuthInterceptor
@@ -165,6 +166,28 @@ class SpecialistServicer:
         try:
             # Extrair trace context dos metadados
             metadata = dict(context.invocation_metadata())
+
+            context_data = extract_context_from_metadata(metadata)
+            if context_data:
+                intent_id = context_data.get('intent_id')
+                plan_id = context_data.get('plan_id')
+                user_id = context_data.get('user_id')
+
+                if intent_id:
+                    set_baggage('neural.hive.intent.id', intent_id)
+                if plan_id:
+                    set_baggage('neural.hive.plan.id', plan_id)
+                if user_id:
+                    set_baggage('neural.hive.user.id', user_id)
+                    if current_span:
+                        current_span.set_attribute("neural.hive.user.id", user_id)
+
+                logger.debug(
+                    "Baggage propagated",
+                    intent_id=intent_id,
+                    plan_id=plan_id,
+                    user_id=user_id
+                )
 
             # Extrair x-tenant-id do metadata gRPC e injetar no request.context
             tenant_id = metadata.get('x-tenant-id')

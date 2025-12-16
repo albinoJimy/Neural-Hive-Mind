@@ -1,0 +1,101 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+.Python
+*.so
+.eggs
+*.egg-info
+.pytest_cache
+.coverage
+htmlcov
+.mypy_cache
+.ruff_cache
+venv
+.venv
+env
+
+# Node
+node_modules
+npm-debug.log
+
+# Build artifacts
+dist
+build
+*.log
+
+# Documentation (not needed in images)
+docs
+*.md
+!README.md
+
+# Tests (not needed in production images)
+tests
+**/tests
+**/*_test.py
+**/test_*.py
+conftest.py
+
+# Development files
+.env.example
+.env.local
+.env.development
+docker-compose*.yml
+Makefile
+
+# Helm charts (not needed in images)
+helm-charts
+
+# Kubernetes manifests
+k8s
+
+# CI/CD
+.github
+.gitlab-ci.yml
+
+# Temporary files
+.tmp
+tmp
+temp
+*.tmp
+*.temp
+logs
+*.log
+
+# ML artifacts (large files)
+ml_pipelines/training/data
+ml_pipelines/training/logs
+**/*.pkl
+**/*.joblib
+**/*.h5
+**/*.pt
+**/*.pth
+**/*.onnx
+
+# Reports
+reports
+
+# Environments
+environments
+
+# Monitoring dashboards
+monitoring
+
+# Base images (built separately)
+base-images
+
+# Scripts (not needed in service images)
+scripts
+
+# Large unnecessary directories
+.tmp

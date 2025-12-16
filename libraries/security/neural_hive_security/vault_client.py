@@ -13,7 +13,7 @@ from tenacity import (
     wait_exponential,
     retry_if_exception_type,
 )
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Histogram, Gauge
 
 from .config import VaultConfig, AuthMethod
 
@@ -33,6 +33,15 @@ vault_token_renewals_total = Counter(
     "vault_token_renewals_total",
     "Total Vault token renewals",
     ["status"]
+)
+vault_token_ttl_seconds = Gauge(
+    "vault_token_ttl_seconds",
+    "Current Vault token TTL in seconds"
+)
+vault_credential_renewals_total = Counter(
+    "vault_credential_renewals_total",
+    "Credential renewals triggered",
+    ["credential_type", "status"]
 )
 
 
@@ -152,6 +161,7 @@ class VaultClient:
 
         # Update client headers
         self.client.headers["X-Vault-Token"] = self.token
+        vault_token_ttl_seconds.set(lease_duration)
 
         self.logger.info(
             "kubernetes_auth_successful",
@@ -185,6 +195,7 @@ class VaultClient:
 
         # Update client headers
         self.client.headers["X-Vault-Token"] = self.token
+        vault_token_ttl_seconds.set(lease_duration)
 
         self.logger.info(
             "jwt_auth_successful",
@@ -289,6 +300,7 @@ class VaultClient:
                     role=role,
                     ttl=data["lease_duration"]
                 )
+                vault_credential_renewals_total.labels(credential_type=role, status="success").inc()
 
                 return {
                     "username": data["data"]["username"],
@@ -298,6 +310,7 @@ class VaultClient:
 
             except httpx.HTTPStatusError as e:
                 vault_requests_total.labels(operation=operation, status="error").inc()
+                vault_credential_renewals_total.labels(credential_type=role, status="error").inc()
                 if e.response.status_code == 403:
                     raise VaultPermissionError(f"Permission denied for role {role}")
                 else:
@@ -360,6 +373,7 @@ class VaultClient:
             data = response.json()
             lease_duration = data["auth"]["lease_duration"]
             self.token_expiry = datetime.utcnow() + timedelta(seconds=lease_duration)
+            vault_token_ttl_seconds.set(lease_duration)
 
             vault_token_renewals_total.labels(status="success").inc()
             self.logger.info("token_renewed", ttl=lease_duration)

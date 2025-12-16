@@ -9,6 +9,7 @@ import grpc
 import structlog
 from typing import List, Dict, Optional, TYPE_CHECKING
 from tenacity import retry, stop_after_attempt, wait_exponential
+from prometheus_client import Counter
 
 from src.config.settings import OrchestratorSettings
 
@@ -26,6 +27,17 @@ except ImportError:
     service_registry_pb2_grpc = None
 
 logger = structlog.get_logger(__name__)
+
+grpc_jwt_auth_attempts_total = Counter(
+    "grpc_jwt_auth_attempts_total",
+    "Tentativas de autenticação JWT-SVID em chamadas gRPC",
+    ["service", "status"]
+)
+grpc_jwt_auth_failures_total = Counter(
+    "grpc_jwt_auth_failures_total",
+    "Falhas de autenticação JWT-SVID",
+    ["service", "reason"]
+)
 
 
 class ServiceRegistryClient:
@@ -241,6 +253,7 @@ class ServiceRegistryClient:
 
                     # Adicionar token JWT ao metadata
                     metadata.append(('authorization', f'Bearer {jwt_svid.token}'))
+                    grpc_jwt_auth_attempts_total.labels(service="service_registry", status="success").inc()
 
                     self.logger.debug(
                         'jwt_svid_attached',
@@ -251,6 +264,9 @@ class ServiceRegistryClient:
                 except Exception as e:
                     # Importar exceção SPIFFE
                     from neural_hive_security.spiffe_manager import SPIFFEFetchError
+
+                    grpc_jwt_auth_attempts_total.labels(service="service_registry", status="error").inc()
+                    grpc_jwt_auth_failures_total.labels(service="service_registry", reason="fetch_failed").inc()
 
                     if isinstance(e, SPIFFEFetchError):
                         # SPIFFE fetch falhou
@@ -279,6 +295,7 @@ class ServiceRegistryClient:
                             'jwt_auth_fallback_unauthenticated',
                             warning='Proceeding without JWT-SVID - NOT FOR PRODUCTION'
                         )
+                        grpc_jwt_auth_attempts_total.labels(service="service_registry", status="fallback").inc()
                     else:
                         # Outro erro - apenas log warning e continua
                         self.logger.warning(
@@ -310,6 +327,7 @@ class ServiceRegistryClient:
         except grpc.RpcError as e:
             # Log específico para erros de autenticação
             if e.code() == grpc.StatusCode.UNAUTHENTICATED:
+                grpc_jwt_auth_failures_total.labels(service="service_registry", reason="unauthenticated").inc()
                 self.logger.error(
                     'authentication_failed',
                     error=str(e),
@@ -317,6 +335,7 @@ class ServiceRegistryClient:
                     hint='Verifique se JWT-SVID está sendo enviado corretamente'
                 )
             elif e.code() == grpc.StatusCode.PERMISSION_DENIED:
+                grpc_jwt_auth_failures_total.labels(service="service_registry", reason="permission_denied").inc()
                 self.logger.error(
                     'authorization_failed',
                     error=str(e),

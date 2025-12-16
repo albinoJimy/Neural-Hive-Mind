@@ -1,0 +1,72 @@
+---
+# StorageClass para ambiente Kubeadm local
+# Usa local-path-provisioner (Rancher) como provisioner padrão
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-path
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+    neural-hive.io/environment: local
+    neural-hive.io/provisioner-type: local-path
+provisioner: rancher.io/local-path
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+parameters:
+  nodePath: /opt/local-path-provisioner
+  # Ajuste o caminho acima caso utilize diretório diferente nos nodes
+
+---
+# Alternativa hostPath caso o provisioner local-path não esteja disponível
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: hostpath
+  annotations:
+    neural-hive.io/environment: local
+    neural-hive.io/provisioner-type: hostpath
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete
+
+---
+# PersistentVolume de exemplo para uso com o StorageClass hostpath
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: local-pv-example
+  labels:
+    type: local
+    neural-hive.io/storage-tier: standard
+spec:
+  storageClassName: hostpath
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data/neural-hive"
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - <worker-node-name>  # Substitua pelo nome real do worker
+
+---
+# Instruções de uso:
+# 1. Verifique StorageClasses existentes: `kubectl get storageclass`.
+# 2. Se `local-path` não estiver disponível, instale o provisioner: `kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml`.
+# 3. aplique este manifesto: `kubectl apply -f k8s/infrastructure/storageclass-local.yaml`.
+# 4. Confirme o padrão: `kubectl get storageclass` deve listar `local-path (default)`.
+# 5. Caso utilize `hostpath`, crie PVs individuais (exemplo acima) para cada workload.
+#
+# Notas:
+# - Utilize `local-path` para provisionamento automático em ambientes de desenvolvimento.
+# - `hostpath` oferece controle manual mas exige criação de PVs por node.
+# - Ajuste `nodePath` e `hostPath` conforme diretórios disponíveis nos nodes do cluster.
+# - Para produção, utilize provisionadores gerenciados (EBS gp3, NFS, Ceph, etc.) definidos em charts específicos.

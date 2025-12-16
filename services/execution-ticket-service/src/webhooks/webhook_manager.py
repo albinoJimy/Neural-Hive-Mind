@@ -10,11 +10,15 @@ from typing import Optional
 
 import aiohttp
 
+from neural_hive_observability import get_tracer
+from neural_hive_observability.context import inject_context_to_headers
+
 from ..config import get_settings
 from ..models import WebhookEvent
 from ..observability.metrics import TicketServiceMetrics
 
 logger = logging.getLogger(__name__)
+tracer = get_tracer(__name__)
 
 
 class WebhookManager:
@@ -160,28 +164,34 @@ class WebhookManager:
                 'User-Agent': 'Neural-Hive-Execution-Ticket-Service/1.0'
             }
 
-            # Enviar POST
-            async with self.http_session.post(
-                str(event.webhook_url),
-                json=payload,
-                headers=headers
-            ) as response:
-                event.response_status_code = response.status
-                event.response_body = await response.text()
+            with tracer.start_as_current_span("send_webhook") as span:
+                span.set_attribute("neural.hive.webhook.url", str(event.webhook_url))
+                span.set_attribute("neural.hive.ticket.id", event.ticket_id)
+                inject_context_to_headers(headers)
 
-                if 200 <= response.status < 300:
-                    event.status = 'sent'
-                    self.metrics.webhooks_sent_total.inc()
+                # Enviar POST
+                async with self.http_session.post(
+                    str(event.webhook_url),
+                    json=payload,
+                    headers=headers
+                ) as response:
+                    event.response_status_code = response.status
+                    event.response_body = await response.text()
+                    span.set_attribute("http.status_code", response.status)
 
-                    logger.info(
-                        f"Webhook sent successfully",
-                        event_id=event.event_id,
-                        ticket_id=event.ticket_id,
-                        url=event.webhook_url,
-                        status_code=response.status
-                    )
-                else:
-                    raise Exception(f"HTTP {response.status}: {event.response_body}")
+                    if 200 <= response.status < 300:
+                        event.status = 'sent'
+                        self.metrics.webhooks_sent_total.inc()
+
+                        logger.info(
+                            f"Webhook sent successfully",
+                            event_id=event.event_id,
+                            ticket_id=event.ticket_id,
+                            url=event.webhook_url,
+                            status_code=response.status
+                        )
+                    else:
+                        raise Exception(f"HTTP {response.status}: {event.response_body}")
 
         except Exception as e:
             event.error_message = str(e)

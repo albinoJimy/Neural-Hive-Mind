@@ -1,0 +1,97 @@
+{
+  "specialist_type": "business",
+  "model_type": "RandomForestClassifier",
+  "trained_at": "2025-12-16T12:50:12.337202",
+  "n_samples": 103,
+  "n_features": 26,
+  "features": [
+    "num_tasks",
+    "priority_score",
+    "total_duration_ms",
+    "avg_duration_ms",
+    "risk_score",
+    "complexity_score",
+    "domain_risk_weight",
+    "avg_task_complexity_factor",
+    "num_patterns_detected",
+    "num_anti_patterns_detected",
+    "avg_pattern_quality",
+    "total_anti_pattern_penalty",
+    "num_nodes",
+    "num_edges",
+    "density",
+    "avg_in_degree",
+    "max_in_degree",
+    "critical_path_length",
+    "max_parallelism",
+    "num_levels",
+    "avg_coupling",
+    "num_bottlenecks",
+    "graph_complexity_score",
+    "mean_norm",
+    "std_norm",
+    "avg_diversity"
+  ],
+  "labels": [
+    1,
+    2,
+    3
+  ],
+  "metrics": {
+    "accuracy": 0.6666666666666666,
+    "precision": 0.6611111111111112,
+    "recall": 0.6666666666666666,
+    "f1_score": 0.6575963718820862,
+    "cv_f1_mean": 0.7241078463144498,
+    "cv_f1_std": 0.026716466774587194
+  },
+  "hyperparameters": {
+    "n_estimators": 100,
+    "max_depth": 10,
+    "min_samples_split": 5,
+    "min_samples_leaf": 2,
+    "class_weight": "balanced"
+  },
+  "top_features": [
+    {
+      "feature": "avg_task_complexity_factor",
+      "importance": 0.16727738772742062
+    },
+    {
+      "feature": "priority_score",
+      "importance": 0.1445718255020015
+    },
+    {
+      "feature": "mean_norm",
+      "importance": 0.06584672023953925
+    },
+    {
+      "feature": "avg_diversity",
+      "importance": 0.06272456315550948
+    },
+    {
+      "feature": "std_norm",
+      "importance": 0.06252983504267752
+    },
+    {
+      "feature": "risk_score",
+      "importance": 0.05982622202525882
+    },
+    {
+      "feature": "total_duration_ms",
+      "importance": 0.05639663891150042
+    },
+    {
+      "feature": "domain_risk_weight",
+      "importance": 0.04305234378475082
+    },
+    {
+      "feature": "density",
+      "importance": 0.041021824332456075
+    },
+    {
+      "feature": "avg_duration_ms",
+      "importance": 0.04070163093347203
+    }
+  ]
+}

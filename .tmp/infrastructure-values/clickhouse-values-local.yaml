@@ -1,0 +1,190 @@
+# Valores padrão para ClickHouse Helm Chart - Neural Hive-Mind
+nameOverride: ""
+fullnameOverride: ""
+# Configuração do Operator
+operator:
+  install: false
+  namespace: clickhouse-operator
+  version: 0.25.5
+# Cluster
+cluster:
+  name: neural-hive-clickhouse
+  namespace: clickhouse-cluster
+  version: "23.8"
+  shards: 1
+  replicas: 1 # Réplicas por shard
+# ZooKeeper/Keeper
+zookeeper:
+  enabled: true
+  nodes: 1
+  storage:
+    size: 5Gi
+    storageClass: local-path
+# Storage
+storage:
+  size: 30Gi
+  storageClass: local-path
+# Resources
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+zookeeperResources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi
+# Config
+config:
+  compression: ZSTD(3)
+  maxMemoryUsage: 10Gi
+  maxThreads: 8
+  queryLogEnabled: true
+  ttlDays: 540 # 18 meses
+# Users
+users:
+  admin:
+    password: "" # Fornecido via values override
+  readonly:
+    password: ""
+  writer:
+    password: ""
+  existingSecret: ""
+# Security
+security:
+  tls:
+    enabled: false
+    cert: ""
+    key: ""
+    ca: ""
+# Backup
+backup:
+  enabled: false
+  schedule: "0 3 * * *"
+  retention: 7
+  storage:
+    size: 200Gi
+# Metrics
+metrics:
+  enabled: true
+  port: 9363
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+    namespace: clickhouse-cluster
+# Services
+services:
+  http:
+    port: 8123
+    type: ClusterIP
+  native:
+    port: 9000
+    type: ClusterIP
+  metrics:
+    port: 9363
+    type: ClusterIP
+# Pod Annotations e Labels
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9363"
+  prometheus.io/path: "/metrics"
+podLabels:
+  app.kubernetes.io/name: clickhouse
+  app.kubernetes.io/component: analytics
+  neural-hive.io/layer: memory
+  neural-hive.io/component: historical-analytics
+# Affinity
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - clickhouse
+          topologyKey: topology.kubernetes.io/zone
+# Tolerations
+tolerations: []
+# Node Selector
+nodeSelector: {}
+# Istio
+istio:
+  injection: true
+# Environment
+environment: prod
+# RBAC
+rbac:
+  create: true
+# Network Policy
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-observability
+      ports:
+        - protocol: TCP
+          port: 9363
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              neural-hive.io/layer: cognitive
+      ports:
+        - protocol: TCP
+          port: 8123
+        - protocol: TCP
+          port: 9000
+# Configurações por ambiente
+dev:
+  cluster:
+    shards: 2
+    replicas: 2
+  storage:
+    size: 30Gi
+  zookeeper:
+    storage:
+      size: 5Gi
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: 2
+      memory: 8Gi
+  config:
+    maxMemoryUsage: 4Gi
+    maxThreads: 4
+    ttlDays: 90
+  backup:
+    enabled: false
+  security:
+    tls:
+      enabled: false
+staging:
+  cluster:
+    shards: 2
+    replicas: 2
+  storage:
+    size: 50Gi
+  config:
+    ttlDays: 180
+prod:
+  cluster:
+    shards: 3
+    replicas: 2
+  storage:
+    size: 200Gi
+  config:
+    ttlDays: 540
+  backup:
+    enabled: true

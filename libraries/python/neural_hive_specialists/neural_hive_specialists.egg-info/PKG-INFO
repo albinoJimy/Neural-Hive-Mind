@@ -1,0 +1,33 @@
+Metadata-Version: 2.4
+Name: neural-hive-specialists
+Version: 1.0.9
+Summary: Biblioteca compartilhada para especialistas neurais do Neural Hive-Mind
+Author: Neural Hive-Mind Team
+Requires-Python: >=3.11
+Requires-Dist: pydantic>=2.5.2
+Requires-Dist: grpcio>=1.60.0
+Requires-Dist: mlflow>=2.9.0
+Requires-Dist: pymongo>=4.6.0
+Requires-Dist: redis>=5.0.1
+Requires-Dist: neo4j>=5.15.0
+Requires-Dist: opentelemetry-api>=1.21.0
+Requires-Dist: prometheus-client>=0.19.0
+Requires-Dist: tenacity>=8.2.3
+Requires-Dist: circuitbreaker>=1.4.0
+Provides-Extra: explainability
+Requires-Dist: shap>=0.44.0; extra == "explainability"
+Requires-Dist: lime>=0.2.0.1; extra == "explainability"
+Provides-Extra: dev
+Requires-Dist: pytest>=7.4.3; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.21.1; extra == "dev"
+Requires-Dist: pytest-cov>=4.1.0; extra == "dev"
+Requires-Dist: pytest-mock>=3.12.0; extra == "dev"
+Requires-Dist: pytest-timeout>=2.2.0; extra == "dev"
+Requires-Dist: testcontainers>=3.7.1; extra == "dev"
+Requires-Dist: faker>=22.0.0; extra == "dev"
+Requires-Dist: grpcio-testing>=1.60.0; extra == "dev"
+Dynamic: author
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

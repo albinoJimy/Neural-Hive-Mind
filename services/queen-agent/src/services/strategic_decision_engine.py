@@ -3,6 +3,7 @@ from typing import Dict, Any, List, Optional, TYPE_CHECKING
 from datetime import datetime, timedelta
 import statistics
 
+from neural_hive_resilience.circuit_breaker import CircuitBreakerError
 from ..config import Settings
 from ..models import (
     StrategicDecision, DecisionType, DecisionContext, DecisionAnalysis,
@@ -205,10 +206,24 @@ class StrategicDecisionEngine:
             decision.hash = decision.calculate_hash()
 
             # 8. Persistir no MongoDB
-            await self.mongodb_client.save_strategic_decision(decision)
+            try:
+                await self.mongodb_client.save_strategic_decision(decision)
+            except CircuitBreakerError:
+                logger.warning(
+                    "strategic_decision_persist_circuit_open",
+                    decision_id=decision.decision_id
+                )
+                return None
 
             # 9. Registrar no Neo4j
-            await self.neo4j_client.record_strategic_decision(decision)
+            try:
+                await self.neo4j_client.record_strategic_decision(decision)
+            except CircuitBreakerError:
+                logger.warning(
+                    "neo4j_circuit_open_record_decision",
+                    decision_id=decision.decision_id
+                )
+                return None
 
             # 10. Atualizar feromônios
             await self._update_pheromones(decision, success=True)

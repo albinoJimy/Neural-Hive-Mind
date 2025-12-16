@@ -1,0 +1,725 @@
+---
+# Neural Hive Mind - Phase 2 Additional Namespaces
+#
+# This file defines the additional namespaces required for Phase 2 services.
+# Apply with: kubectl apply -f k8s/bootstrap/namespaces-phase2.yaml
+#
+# Namespaces:
+#   - neural-hive-queen: Queen Agent (strategic coordination)
+#   - neural-hive-registry: Service Registry
+#   - neural-hive-estrategica: Scout, Analyst, and Optimizer Agents
+#   - neural-hive-resilience: Guard Agents and Self-Healing Engine
+#   - neural-hive-mcp: MCP Tool Catalog
+#   - neural-hive-monitoring: SLA Management System
+#
+
+# =============================================================================
+# NAMESPACE: neural-hive-queen
+# Purpose: Queen Agent - Strategic decision making and coordination
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neural-hive-queen
+  labels:
+    name: neural-hive-queen
+    neuralhive/layer: strategic
+    neuralhive/phase: phase2
+    neuralhive/component: queen
+    istio-injection: enabled
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: queen-quota
+  namespace: neural-hive-queen
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    pods: "20"
+    services: "10"
+    secrets: "20"
+    configmaps: "20"
+    persistentvolumeclaims: "10"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: queen-limits
+  namespace: neural-hive-queen
+spec:
+  limits:
+    - default:
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "128Mi"
+      type: Container
+    - max:
+        storage: "10Gi"
+      type: PersistentVolumeClaim
+
+---
+# =============================================================================
+# NAMESPACE: neural-hive-registry
+# Purpose: Service Registry - Service discovery and registration
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neural-hive-registry
+  labels:
+    name: neural-hive-registry
+    neuralhive/layer: infrastructure
+    neuralhive/phase: phase2
+    neuralhive/component: registry
+    istio-injection: enabled
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: registry-quota
+  namespace: neural-hive-registry
+spec:
+  hard:
+    requests.cpu: "2"
+    requests.memory: 4Gi
+    limits.cpu: "4"
+    limits.memory: 8Gi
+    pods: "10"
+    services: "5"
+    secrets: "10"
+    configmaps: "10"
+    persistentvolumeclaims: "5"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: registry-limits
+  namespace: neural-hive-registry
+spec:
+  limits:
+    - default:
+        cpu: "250m"
+        memory: "256Mi"
+      defaultRequest:
+        cpu: "50m"
+        memory: "64Mi"
+      type: Container
+    - max:
+        storage: "5Gi"
+      type: PersistentVolumeClaim
+
+---
+# =============================================================================
+# NAMESPACE: neural-hive-estrategica
+# Purpose: Strategic Agents - Scout, Analyst, and Optimizer Agents
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neural-hive-estrategica
+  labels:
+    name: neural-hive-estrategica
+    neuralhive/layer: strategic
+    neuralhive/phase: phase2
+    neuralhive/component: agents
+    istio-injection: enabled
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: estrategica-quota
+  namespace: neural-hive-estrategica
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    pods: "50"
+    services: "20"
+    secrets: "30"
+    configmaps: "30"
+    persistentvolumeclaims: "20"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: estrategica-limits
+  namespace: neural-hive-estrategica
+spec:
+  limits:
+    - default:
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "128Mi"
+      type: Container
+    - max:
+        storage: "20Gi"
+      type: PersistentVolumeClaim
+
+---
+# =============================================================================
+# NAMESPACE: neural-hive-resilience
+# Purpose: Resilience Layer - Guard Agents and Self-Healing Engine
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neural-hive-resilience
+  labels:
+    name: neural-hive-resilience
+    neuralhive/layer: resilience
+    neuralhive/phase: phase2
+    neuralhive/component: self-healing
+    istio-injection: enabled
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: resilience-quota
+  namespace: neural-hive-resilience
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    pods: "30"
+    services: "15"
+    secrets: "20"
+    configmaps: "20"
+    persistentvolumeclaims: "10"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: resilience-limits
+  namespace: neural-hive-resilience
+spec:
+  limits:
+    - default:
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "128Mi"
+      type: Container
+    - max:
+        storage: "10Gi"
+      type: PersistentVolumeClaim
+
+---
+# =============================================================================
+# NAMESPACE: neural-hive-mcp
+# Purpose: MCP (Model Context Protocol) - Tool Catalog and integrations
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neural-hive-mcp
+  labels:
+    name: neural-hive-mcp
+    neuralhive/layer: integration
+    neuralhive/phase: phase2
+    neuralhive/component: mcp
+    istio-injection: enabled
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: mcp-quota
+  namespace: neural-hive-mcp
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    pods: "20"
+    services: "10"
+    secrets: "15"
+    configmaps: "15"
+    persistentvolumeclaims: "10"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: mcp-limits
+  namespace: neural-hive-mcp
+spec:
+  limits:
+    - default:
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "128Mi"
+      type: Container
+    - max:
+        storage: "10Gi"
+      type: PersistentVolumeClaim
+
+---
+# =============================================================================
+# NAMESPACE: neural-hive-monitoring
+# Purpose: Monitoring - SLA Management System and observability
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neural-hive-monitoring
+  labels:
+    name: neural-hive-monitoring
+    neuralhive/layer: observability
+    neuralhive/phase: phase2
+    neuralhive/component: monitoring
+    istio-injection: enabled
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: monitoring-quota
+  namespace: neural-hive-monitoring
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    pods: "30"
+    services: "15"
+    secrets: "20"
+    configmaps: "20"
+    persistentvolumeclaims: "15"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: monitoring-limits
+  namespace: neural-hive-monitoring
+spec:
+  limits:
+    - default:
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "128Mi"
+      type: Container
+    - max:
+        storage: "50Gi"
+      type: PersistentVolumeClaim
+
+---
+# =============================================================================
+# NAMESPACE: neural-hive-execution (if not already exists)
+# Purpose: Execution Layer - Worker Agents and Code Forge
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neural-hive-execution
+  labels:
+    name: neural-hive-execution
+    neuralhive/layer: execution
+    neuralhive/phase: phase2
+    neuralhive/component: workers
+    istio-injection: enabled
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: execution-quota
+  namespace: neural-hive-execution
+spec:
+  hard:
+    requests.cpu: "16"
+    requests.memory: 32Gi
+    limits.cpu: "32"
+    limits.memory: 64Gi
+    pods: "100"
+    services: "30"
+    secrets: "50"
+    configmaps: "50"
+    persistentvolumeclaims: "30"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: execution-limits
+  namespace: neural-hive-execution
+spec:
+  limits:
+    - default:
+        cpu: "1"
+        memory: "1Gi"
+      defaultRequest:
+        cpu: "200m"
+        memory: "256Mi"
+      type: Container
+    - max:
+        storage: "100Gi"
+      type: PersistentVolumeClaim
+
+---
+# =============================================================================
+# NETWORK POLICIES
+# =============================================================================
+
+# Allow all namespaces to communicate within the neural-hive ecosystem
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-neural-hive-internal
+  namespace: neural-hive-queen
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              neuralhive/phase: phase2
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-infrastructure
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              neuralhive/phase: phase2
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-infrastructure
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-neural-hive-internal
+  namespace: neural-hive-registry
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              neuralhive/phase: phase2
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-infrastructure
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              neuralhive/phase: phase2
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-infrastructure
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-neural-hive-internal
+  namespace: neural-hive-estrategica
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              neuralhive/phase: phase2
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-infrastructure
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              neuralhive/phase: phase2
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-infrastructure
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-neural-hive-internal
+  namespace: neural-hive-resilience
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              neuralhive/phase: phase2
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-infrastructure
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              neuralhive/phase: phase2
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-infrastructure
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-neural-hive-internal
+  namespace: neural-hive-mcp
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              neuralhive/phase: phase2
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-infrastructure
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              neuralhive/phase: phase2
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-infrastructure
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-neural-hive-internal
+  namespace: neural-hive-monitoring
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              neuralhive/phase: phase2
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-infrastructure
+        - namespaceSelector:
+            matchLabels:
+              name: observability
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              neuralhive/phase: phase2
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-infrastructure
+        - namespaceSelector:
+            matchLabels:
+              name: observability
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-neural-hive-internal
+  namespace: neural-hive-execution
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              neuralhive/phase: phase2
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-infrastructure
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              neuralhive/phase: phase2
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-infrastructure
+    # Allow egress to external services (ArgoCD, Jenkins, etc.)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

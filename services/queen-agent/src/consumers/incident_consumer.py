@@ -4,6 +4,12 @@ from aiokafka import AIOKafkaConsumer
 from typing import Optional
 import json
 
+from neural_hive_observability import instrument_kafka_consumer
+from neural_hive_observability.context import (
+    extract_context_from_headers,
+    set_baggage
+)
+
 from ..config import Settings
 from ..services import StrategicDecisionEngine
 from ..clients import RedisClient
@@ -41,6 +47,7 @@ class IncidentConsumer:
                 value_deserializer=lambda v: json.loads(v.decode('utf-8'))
             )
 
+            self.consumer = instrument_kafka_consumer(self.consumer)
             await self.consumer.start()
             logger.info(
                 "incident_consumer_initialized",
@@ -63,7 +70,7 @@ class IncidentConsumer:
                     break
 
                 try:
-                    await self.process_message(message.value)
+                    await self.process_message(message)
                     await self.consumer.commit()
 
                 except Exception as e:
@@ -87,9 +94,19 @@ class IncidentConsumer:
             await self.consumer.stop()
             logger.info("incident_consumer_closed")
 
-    async def process_message(self, incident: dict) -> None:
+    async def process_message(self, message) -> None:
         """Processar incidente crítico"""
         try:
+            headers_dict = {k: v for k, v in (message.headers or [])}
+            extract_context_from_headers(headers_dict)
+
+            incident = message.value
+            intent_id = incident.get("intent_id")
+            plan_id = incident.get("plan_id")
+            if intent_id:
+                set_baggage("intent_id", intent_id)
+            if plan_id:
+                set_baggage("plan_id", plan_id)
             incident_id = incident.get('incident_id')
             severity = incident.get('severity')
 

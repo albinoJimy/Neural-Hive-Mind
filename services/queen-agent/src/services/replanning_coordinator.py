@@ -2,6 +2,7 @@ import structlog
 from typing import Dict, Any
 from datetime import datetime
 
+from neural_hive_resilience.circuit_breaker import CircuitBreakerError
 from ..config import Settings
 from ..models import QoSAdjustment, AdjustmentType
 from ..clients import OrchestratorClient, RedisClient
@@ -52,6 +53,13 @@ class ReplanningCoordinator:
 
             return success
 
+        except CircuitBreakerError:
+            logger.warning(
+                "trigger_replanning_circuit_open",
+                plan_id=plan_id,
+                reason=reason
+            )
+            return False
         except Exception as e:
             logger.error("trigger_replanning_failed", plan_id=plan_id, error=str(e))
             return False
@@ -78,6 +86,13 @@ class ReplanningCoordinator:
 
             return success
 
+        except CircuitBreakerError:
+            logger.warning(
+                "qos_adjustment_circuit_open",
+                adjustment_id=adjustment.adjustment_id
+            )
+            adjustment.mark_failed("circuit_open")
+            return False
         except Exception as e:
             logger.error("adjust_qos_failed", error=str(e))
             adjustment.mark_failed(str(e))
@@ -91,6 +106,13 @@ class ReplanningCoordinator:
             logger.info("execution_paused", workflow_id=workflow_id, reason=reason, success=success)
             return success
 
+        except CircuitBreakerError:
+            logger.warning(
+                "pause_execution_circuit_open",
+                workflow_id=workflow_id,
+                reason=reason
+            )
+            return False
         except Exception as e:
             logger.error("pause_execution_failed", workflow_id=workflow_id, error=str(e))
             return False
@@ -103,6 +125,12 @@ class ReplanningCoordinator:
             logger.info("execution_resumed", workflow_id=workflow_id, success=success)
             return success
 
+        except CircuitBreakerError:
+            logger.warning(
+                "resume_execution_circuit_open",
+                workflow_id=workflow_id
+            )
+            return False
         except Exception as e:
             logger.error("resume_execution_failed", workflow_id=workflow_id, error=str(e))
             return False

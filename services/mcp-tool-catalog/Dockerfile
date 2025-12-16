@@ -1,5 +1,5 @@
 # Multi-stage build for MCP Tool Catalog Service
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /build
 
@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install dependencies to global site-packages
-COPY requirements.txt .
+COPY services/mcp-tool-catalog/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Runtime stage
@@ -28,7 +28,7 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
-COPY src/ ./src/
+COPY services/mcp-tool-catalog/src/ ./src/
 
 # Create non-root user
 RUN useradd -m -u 1000 mcp-user && chown -R mcp-user:mcp-user /app

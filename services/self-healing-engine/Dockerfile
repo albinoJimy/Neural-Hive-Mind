@@ -13,11 +13,11 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy requirements and install dependencies
-COPY requirements.txt .
+COPY services/self-healing-engine/requirements.txt .
 RUN pip install --no-cache-dir --prefix=/opt/venv -r requirements.txt
 
 # Copy source code
-COPY src/ ./src/
+COPY services/self-healing-engine/src/ ./src/
 
 # Stage 2 - Runtime
 FROM python:3.11-slim
@@ -33,7 +33,7 @@ COPY --from=builder /opt/venv /opt/venv
 
 # Copy source code and playbooks
 COPY --from=builder /app/src ./src
-COPY playbooks/ ./playbooks/
+COPY services/self-healing-engine/playbooks/ ./playbooks/
 
 # Set PATH to include venv binaries
 ENV PATH=/opt/venv/bin:$PATH

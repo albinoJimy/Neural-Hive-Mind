@@ -1,0 +1,37 @@
+Metadata-Version: 2.4
+Name: neural-hive-observability
+Version: 1.1.0
+Summary: Biblioteca de observabilidade padronizada para Neural Hive-Mind
+Author: Neural Hive-Mind Team
+License: MIT
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Topic :: System :: Monitoring
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Requires-Python: >=3.8
+Description-Content-Type: text/plain
+Requires-Dist: opentelemetry-api>=1.21.0
+Requires-Dist: opentelemetry-sdk>=1.21.0
+Requires-Dist: opentelemetry-exporter-otlp-proto-grpc>=1.21.0
+Requires-Dist: opentelemetry-instrumentation>=0.42b0
+Requires-Dist: opentelemetry-instrumentation-grpc>=0.42b0
+Requires-Dist: grpcio>=1.59.0
+Requires-Dist: prometheus-client>=0.19.0
+Requires-Dist: structlog>=23.2.0
+Requires-Dist: pydantic>=2.5.0
+Requires-Dist: pydantic-settings>=2.1.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.21.0; extra == "dev"
+Requires-Dist: pytest-mock>=3.10.0; extra == "dev"
+Requires-Dist: black>=23.0.0; extra == "dev"
+Requires-Dist: flake8>=6.0.0; extra == "dev"
+Requires-Dist: mypy>=1.0.0; extra == "dev"
+
+Biblioteca Python que facilita instrumentação OpenTelemetry consistente entre serviços do Neural Hive-Mind com tracing, métricas e logging estruturado.

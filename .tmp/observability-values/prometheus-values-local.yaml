@@ -1,0 +1,140 @@
+# Configuração para ambiente local (Kubeadm 1 master + 2 workers)
+# Referência: docs/manual-deployment/03-observability-manual-guide.md
+# Namespace alvo deve ser `observability` para manter consistência com os manifests do projeto.
+global:
+  domain: neural-hive.local
+  environment: local
+  cluster: kubeadm-local
+# Prometheus Stack Configuration
+kube-prometheus-stack:
+  prometheus:
+    prometheusSpec:
+      # Reduzir replicas para ambiente local
+      replicas: 1
+      # Retention reduzido
+      retention: 7d
+      retentionSize: 10Gi
+      scrapeInterval: 30s
+      # Storage
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: local-path
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 20Gi
+      # Recursos reduzidos
+      resources: {}
+      # ServiceMonitor selector
+      serviceMonitorSelector:
+        matchLabels:
+          neural.hive/metrics: enabled
+      # Permite descoberta de ServiceMonitors em todos os namespaces
+      serviceMonitorNamespaceSelector: {}
+      # Exemplars (reduzido)
+      exemplars:
+        maxSize: 10000
+      # Scrape configs customizados para Neural Hive-Mind
+      additionalScrapeConfigs:
+        - job_name: neural-hive-services
+          scrape_interval: 30s
+          honor_labels: true
+          kubernetes_sd_configs:
+            - role: endpoints
+              namespaces:
+                names:
+                  - gateway
+                  - gateway-intencoes
+                  - semantic-translation-engine
+                  - consensus-engine
+                  - orchestrator-dynamic
+                  - specialist-business
+                  - specialist-technical
+                  - specialist-behavior
+                  - specialist-evolution
+                  - specialist-architecture
+                  - memory-layer-api
+                  - execution-ticket-service
+          relabel_configs:
+            - source_labels: [__meta_kubernetes_service_label_neural\.hive/metrics]
+              regex: enabled
+              action: keep
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+              regex: true
+              action: keep
+            - source_labels: [__meta_kubernetes_endpoint_port_name]
+              target_label: port_name
+            - source_labels: [__meta_kubernetes_namespace]
+              target_label: namespace
+            - source_labels: [__meta_kubernetes_service_name]
+              target_label: service
+            - source_labels: [__meta_kubernetes_pod_name]
+              target_label: pod
+      # Desabilitar remote write
+      remoteWrite: []
+      enableAdminAPI: true
+  # AlertManager Configuration
+  alertmanager:
+    alertmanagerSpec:
+      # Reduzir replicas
+      replicas: 1
+      # Storage
+      storage:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: local-path
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 5Gi
+      # Recursos reduzidos
+      resources: {}
+    # Configuração simplificada (apenas default receiver)
+    config:
+      global:
+        resolve_timeout: 5m
+      route:
+        receiver: 'default'
+        group_by:
+          - alertname
+          - cluster
+          - service
+      receivers:
+        - name: default
+  # Prometheus Operator
+  prometheusOperator:
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  # Node Exporter
+  nodeExporter:
+    enabled: true
+    resources:
+      limits:
+        cpu: 200m
+        memory: 128Mi
+      requests:
+        cpu: 100m
+        memory: 64Mi
+  # Kube State Metrics
+  kubeStateMetrics:
+    enabled: true
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  # Grafana (desabilitar - usar chart standalone)
+  grafana:
+    enabled: false
+
+thanos:
+  enabled: false
+

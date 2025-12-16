@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from temporalio import activity
 import structlog
+from neural_hive_resilience.circuit_breaker import CircuitBreakerError
 
 from src.sla.sla_monitor import SLAMonitor
 from src.sla.alert_manager import AlertManager
@@ -690,6 +691,11 @@ async def consolidate_results(tickets: List[Dict[str, Any]], workflow_id: str) -
                 activity.logger.info('workflow_result_persisted', workflow_id=workflow_id)
             else:
                 activity.logger.warning('mongodb_client_not_initialized', workflow_id=workflow_id)
+        except CircuitBreakerError:
+            activity.logger.warning(
+                'workflow_result_persist_circuit_open',
+                workflow_id=workflow_id
+            )
         except Exception as mongo_error:
             activity.logger.error(
                 'workflow_result_persist_failed',

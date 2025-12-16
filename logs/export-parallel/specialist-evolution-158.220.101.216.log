@@ -1,0 +1,5 @@
+[22:51:12] START specialist-evolution → 158.220.101.216
+docker.io/neural hive mind/specialist ev	saved	
+application/vnd.oci.image.manifest.v1+json sha256:9a25d3926dd88ad1fbbe8937e577cbe25d510e2f16b24c38e18c04489a5758a8
+Importing	elapsed: 18000.8s	total:   0.0 B	(0.0 B/s)	
+[03:51:15] SUCCESS specialist-evolution → 158.220.101.216

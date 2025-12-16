@@ -1,0 +1,47 @@
+playbook_id: "worker-failure-recovery-v1"
+playbook_name: "worker_failure_recovery"
+playbook_type: "ORCHESTRATION"
+version: "1.0.0"
+description: "Recupera tickets após falha de worker deregistrando e realocando tickets críticos"
+parameters_schema:
+  type: object
+  properties:
+    worker_id:
+      type: string
+    namespace:
+      type: string
+    affected_tickets:
+      type: array
+      items:
+        type: string
+  required: [worker_id, namespace]
+timeout_seconds: 420
+rollback_playbook: null
+validation_checks:
+  - "worker_deregistered"
+  - "tickets_reallocated"
+status: "AVAILABLE"
+actions:
+  - name: "deregister_worker"
+    type: "notify_agent"
+    parameters:
+      agent_id: "{{ worker_id }}"
+      notification_type: "DEREGISTER"
+      message: "Worker marcado como unhealthy e será removido"
+  - name: "reallocate_pending_tickets"
+    type: "reallocate_ticket"
+    parameters:
+      affected_tickets: "{{ affected_tickets }}"
+      previous_worker_id: "{{ worker_id }}"
+  - name: "scale_workers_if_needed"
+    type: "scale_deployment"
+    parameters:
+      deployment_name: "worker-agents"
+      namespace: "{{ namespace }}"
+      replicas: 2
+  - name: "notify_queen_agent"
+    type: "notify_agent"
+    parameters:
+      agent_id: "queen-agent"
+      notification_type: "WORKER_FAILURE"
+      message: "Worker {{ worker_id }} removido e tickets realocados"

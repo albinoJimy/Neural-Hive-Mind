@@ -1,0 +1,92 @@
+{
+  "title": "Phase 2 Resource Utilization",
+  "uid": "phase2-resources",
+  "version": 1,
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "CPU Utilization by Service",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"neural-hive-orchestration\",container!=\"POD\"}[5m])) by (app_kubernetes_io_name)",
+          "legendFormat": "{{app_kubernetes_io_name}}"
+        },
+        {
+          "expr": "sum(kube_pod_container_resource_requests_cpu_cores{namespace=\"neural-hive-orchestration\"}) by (app_kubernetes_io_name)",
+          "legendFormat": "{{app_kubernetes_io_name}} requests"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Memory Utilization by Service",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(container_memory_working_set_bytes{namespace=\"neural-hive-orchestration\",container!=\"POD\"}) by (app_kubernetes_io_name)",
+          "legendFormat": "{{app_kubernetes_io_name}}"
+        },
+        {
+          "expr": "sum(kube_pod_container_resource_requests_memory_bytes{namespace=\"neural-hive-orchestration\"}) by (app_kubernetes_io_name)",
+          "legendFormat": "{{app_kubernetes_io_name}} requests"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "HPA Scaling Events",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "increase(kube_hpa_status_current_replicas{namespace=\"neural-hive-orchestration\"}[15m])",
+          "legendFormat": "{{hpa}} current replicas"
+        },
+        {
+          "expr": "increase(kube_hpa_status_desired_replicas{namespace=\"neural-hive-orchestration\"}[15m])",
+          "legendFormat": "{{hpa}} desired replicas"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Resource Efficiency Score",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "avg(sum(rate(container_cpu_usage_seconds_total{namespace=\"neural-hive-orchestration\",container!=\"POD\"}[5m])) by (app_kubernetes_io_name) / sum(kube_pod_container_resource_limits_cpu_cores{namespace=\"neural-hive-orchestration\"}) by (app_kubernetes_io_name))"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "orientation": "vertical"
+      }
+    }
+  ]
+}

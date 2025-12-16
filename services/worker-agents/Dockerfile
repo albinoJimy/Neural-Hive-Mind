@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy requirements and install dependencies
-COPY requirements.txt .
+COPY services/worker-agents/requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
 # Stage 2 - Runtime
@@ -28,7 +28,7 @@ WORKDIR /app
 COPY --from=builder /root/.local /home/worker-agent/.local
 
 # Copy source code from host context
-COPY src/ ./src
+COPY services/worker-agents/src/ ./src
 
 # Set PATH to include user binaries
 ENV PATH=/home/worker-agent/.local/bin:$PATH

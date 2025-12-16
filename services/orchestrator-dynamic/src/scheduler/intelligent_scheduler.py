@@ -13,6 +13,7 @@ from functools import lru_cache
 
 from src.config.settings import OrchestratorSettings
 from src.observability.metrics import OrchestratorMetrics
+from neural_hive_resilience.circuit_breaker import MonitoredCircuitBreaker, CircuitBreakerError
 from .priority_calculator import PriorityCalculator
 from .resource_allocator import ResourceAllocator
 
@@ -69,6 +70,20 @@ class IntelligentScheduler:
         self.load_predictor = load_predictor
         self.anomaly_detector = anomaly_detector
         self.logger = logger.bind(component='intelligent_scheduler')
+        self.registry_breaker = None
+        if getattr(config, "CIRCUIT_BREAKER_ENABLED", False):
+            self.registry_breaker = MonitoredCircuitBreaker(
+                service_name=config.service_name,
+                circuit_name="service_registry_discovery",
+                fail_max=config.CIRCUIT_BREAKER_FAIL_MAX,
+                timeout_duration=config.CIRCUIT_BREAKER_TIMEOUT,
+                recovery_timeout=getattr(
+                    config,
+                    "CIRCUIT_BREAKER_RECOVERY_TIMEOUT",
+                    config.CIRCUIT_BREAKER_TIMEOUT,
+                ),
+                expected_exception=Exception,
+            )
 
         # Cache de descobertas: {cache_key: (workers, timestamp)}
         self._discovery_cache: Dict[str, tuple[List[Dict], datetime]] = {}
@@ -102,7 +117,10 @@ class IntelligentScheduler:
 
         try:
             # Etapa 0: Enriquecer ticket com predições ML
-            ticket = await self._enrich_ticket_with_predictions(ticket)
+            if self.config.enable_ml_enhanced_scheduling:
+                ticket = await self._enrich_ticket_with_predictions(ticket)
+            else:
+                self.logger.debug("ml_enhanced_scheduling_disabled", ticket_id=ticket_id)
 
             # Etapa 1: Calcular priority score
             priority_score = self.priority_calculator.calculate_priority_score(ticket)
@@ -246,12 +264,8 @@ class IntelligentScheduler:
 
                 # Registra métricas de anomalia se detectada
                 if is_anomaly and self.metrics:
-                    asyncio.create_task(
-                        self.metrics.record_anomaly_detection(
-                            anomaly_type=anomaly.get('type', 'unknown'),
-                            severity='MEDIUM',
-                            score=anomaly.get('score', 0.0)
-                        )
+                    self.metrics.record_ml_anomaly(
+                        anomaly_type=anomaly.get('type', 'unknown')
                     )
                     allocation_metadata['anomaly_type'] = anomaly.get('type')
                     allocation_metadata['anomaly_score'] = anomaly.get('score')
@@ -320,10 +334,9 @@ class IntelligentScheduler:
         """
         cache_key = self._build_cache_key(ticket)
 
-        # Verificar cache
-        if cache_key in self._discovery_cache:
-            workers, timestamp = self._discovery_cache[cache_key]
-
+        cached = self._discovery_cache.get(cache_key)
+        if cached:
+            workers, timestamp = cached
             if datetime.now() - timestamp < self._cache_ttl:
                 self.metrics.record_cache_hit()
                 self.logger.debug(
@@ -332,22 +345,41 @@ class IntelligentScheduler:
                     workers_count=len(workers)
                 )
                 return workers
-            else:
-                # Cache expirado, remover
-                del self._discovery_cache[cache_key]
+            del self._discovery_cache[cache_key]
 
-        # Descobrir workers com timeout centralizado
         try:
-            workers = await asyncio.wait_for(
-                self.resource_allocator.discover_workers(ticket),
-                timeout=5.0  # Timeout único de 5s (scheduler layer)
-            )
+            if self.registry_breaker:
+                workers = await asyncio.wait_for(
+                    self.registry_breaker.call_async(
+                        self.resource_allocator.discover_workers,
+                        ticket
+                    ),
+                    timeout=5.0
+                )
+            else:
+                workers = await asyncio.wait_for(
+                    self.resource_allocator.discover_workers(ticket),
+                    timeout=5.0
+                )
 
-            # Atualizar cache
             self._discovery_cache[cache_key] = (workers, datetime.now())
-
             return workers
 
+        except CircuitBreakerError:
+            if cached:
+                self.logger.warning(
+                    'service_registry_circuit_open_using_cache',
+                    cache_key=cache_key,
+                    workers_cached=len(cached[0])
+                )
+                return cached[0]
+
+            self.logger.warning(
+                'service_registry_circuit_open_no_cache',
+                cache_key=cache_key
+            )
+            self.metrics.record_discovery_failure('circuit_open')
+            return []
         except asyncio.TimeoutError:
             self.logger.warning(
                 'discovery_timeout',
@@ -446,6 +478,7 @@ class IntelligentScheduler:
 
                 predictions.update({
                     'duration_ms': duration_pred.get('predicted_duration_ms', 0),
+                    'confidence': duration_pred.get('confidence', 0.0),
                     'duration_confidence': duration_pred.get('confidence', 0.0),
                     'cpu_cores': resources_pred.get('cpu_cores', 1.0),
                     'memory_mb': resources_pred.get('memory_mb', 512),
@@ -474,17 +507,16 @@ class IntelligentScheduler:
 
                 predictions['anomaly'] = {
                     'is_anomaly': anomaly_result.get('is_anomaly', False),
-                    'score': anomaly_result.get('score', 0.0),
-                    'type': anomaly_result.get('type', 'unknown'),
-                    'confidence': anomaly_result.get('confidence', 0.0)
+                    'score': anomaly_result.get('anomaly_score', 0.0),
+                    'type': anomaly_result.get('anomaly_type', 'unknown')
                 }
 
                 if anomaly_result.get('is_anomaly'):
                     self.logger.info(
                         'anomaly_detected_in_ticket',
                         ticket_id=ticket.get('ticket_id'),
-                        anomaly_type=anomaly_result.get('type'),
-                        score=anomaly_result.get('score')
+                        anomaly_type=anomaly_result.get('anomaly_type'),
+                        score=anomaly_result.get('anomaly_score')
                     )
 
             except Exception as e:

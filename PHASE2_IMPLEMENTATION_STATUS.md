@@ -197,6 +197,7 @@ A implementação da **Fase 2 completa** (Camada de Execução) do Neural Hive-M
     - Fixtures: orchestrator, sample_decision, mock_workers
     - Mocks para todos os clientes (Temporal, ServiceRegistry, Ticket, Worker, Telemetry)
   - **E2E**: `tests/phase2-flow-c-integration-test.sh`
+    - Orquestrador padrão em staging: `scripts/validation/run-e2e-validation-suite.sh` (encadeia deployment, integração e E2E Flow C)
     - Verificação de 5 serviços Kubernetes
     - Validação tópico Kafka `telemetry-flow-c`
     - Teste descoberta workers via Service Registry
@@ -215,6 +216,54 @@ A implementação da **Fase 2 completa** (Camada de Execução) do Neural Hive-M
 - Documentação técnica completa (807 linhas)
 - Observabilidade completa (8 alertas + 6 painéis dashboard)
 - Pronto para deploy em produção 🚀
+
+## 🐳 Build de Imagens Docker da Fase 2
+
+**Data**: 2025-12-13
+**Versão das Imagens**: 1.0.0
+
+### Resumo
+
+Build e push de imagens Docker para todos os 13 serviços da Fase 2, utilizando multi-stage builds otimizados com Python 3.11-slim.
+
+### Serviços da Fase 2 (Imagens Docker)
+
+| Serviço | Tag | Base Image | Status |
+|---------|-----|------------|--------|
+| orchestrator-dynamic | 1.0.0 | python:3.11-slim | ✅ |
+| queen-agent | 1.0.0 | python:3.11-slim | ✅ |
+| worker-agents | 1.0.0 | python:3.11-slim | ✅ |
+| code-forge | 1.0.0 | python:3.11-slim | ✅ |
+| service-registry | 1.0.0 | python:3.11-slim | ✅ |
+| execution-ticket-service | 1.0.0 | python:3.11-slim | ✅ |
+| scout-agents | 1.0.0 | python:3.11-slim | ✅ |
+| analyst-agents | 1.0.0 | python:3.11-slim | ✅ |
+| guard-agents | 1.0.0 | python:3.11-slim | ✅ |
+| sla-management-system | 1.0.0 | python:3.11-slim | ✅ |
+| mcp-tool-catalog | 1.0.0 | python:3.11-slim | ✅ |
+| self-healing-engine | 1.0.0 | python:3.11-slim | ✅ |
+| optimizer-agents | 1.0.0 | python-mlops-base | ✅ |
+
+### Registry
+
+- **URL**: `37.60.241.150:30500`
+- **Formato**: `37.60.241.150:30500/<service-name>:1.0.0`
+
+### Scripts de Build
+
+- **Build completo (Fase 1 + Fase 2)**: `./scripts/build-all-optimized-services.sh`
+- **Rebuild alternativo**: `./scripts/rebuild-all-images.sh`
+- **Build individual**: `./scripts/build-and-push-to-registry.sh build <service> 1.0.0`
+
+### Verificação de Imagens no Registry
+
+```bash
+# Listar repositórios
+curl -s http://37.60.241.150:30500/v2/_catalog | jq .
+
+# Listar tags de um serviço
+curl -s http://37.60.241.150:30500/v2/<service-name>/tags/list | jq .
+```
 
 ## ⏳ Componentes Pendentes
 

@@ -1,7 +1,7 @@
 {
   "dashboard": {
-    "title": "Orchestrator OPA Policy Enforcement",
-    "tags": ["orchestrator", "opa", "policy"],
+    "title": "Orchestrator OPA Policy Enforcement & Security Compliance",
+    "tags": ["orchestrator", "opa", "policy", "security", "compliance"],
     "timezone": "browser",
     "panels": [
       {
@@ -181,12 +181,146 @@
           {"format": "short", "label": "Failures"}
         ],
         "gridPos": {"h": 6, "w": 12, "x": 6, "y": 26}
+      },
+      {
+        "id": 11,
+        "title": "Security Violations by Type",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(orchestration_security_violations_total[5m])) by (violation_type, severity)",
+            "legendFormat": "{{violation_type}} ({{severity}})"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Violations/s"}
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 32}
+      },
+      {
+        "id": 12,
+        "title": "Authentication Failures",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(rate(orchestration_security_authentication_failures_total[5m]))",
+            "legendFormat": "Auth Failures/s"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 0.1, "color": "yellow"},
+                {"value": 1, "color": "red"}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 32}
+      },
+      {
+        "id": 13,
+        "title": "Authorization Denials by Tenant",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "topk(10, sum by (tenant_id, user_id, capability) (rate(orchestration_security_authorization_denials_total[5m])))",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 40}
+      },
+      {
+        "id": 14,
+        "title": "Tenant Isolation Violations",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(orchestration_security_tenant_isolation_violations_total[5m])) by (source_tenant, target_tenant)",
+            "legendFormat": "{{source_tenant}} \u2192 {{target_tenant}}"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Violations/s"}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"type": "gt", "params": [0]},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"type": "avg"}
+            }
+          ],
+          "executionErrorState": "alerting",
+          "frequency": "1m",
+          "handler": 1,
+          "name": "Tenant Isolation Violation Alert",
+          "noDataState": "no_data",
+          "notifications": []
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 40}
+      },
+      {
+        "id": 15,
+        "title": "Data Governance Compliance",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "1 - (sum(rate(orchestration_security_data_governance_violations_total[5m])) / sum(rate(orchestration_opa_validations_total{policy_name=\"security_constraints\"}[5m])))",
+            "legendFormat": "Compliance Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 0.95, "color": "yellow"},
+                {"value": 0.99, "color": "green"}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 6, "w": 6, "x": 0, "y": 48}
+      },
+      {
+        "id": 16,
+        "title": "Rate Limit Exceeded by Tenant",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "topk(10, sum by (tenant_id, limit_type) (rate(orchestration_security_rate_limit_exceeded_total[5m])))",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "gridPos": {"h": 6, "w": 12, "x": 6, "y": 48}
       }
     ],
     "refresh": "30s",
     "time": {
       "from": "now-6h",
       "to": "now"
+    },
+    "annotations": {
+      "list": [
+        {
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "ALERTS{alertname=\"TenantIsolationViolation\"}",
+          "iconColor": "red",
+          "name": "Security Alerts",
+          "tagKeys": "tenant_id,violation_type"
+        }
+      ]
     }
   }
 }

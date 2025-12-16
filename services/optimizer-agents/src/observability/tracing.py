@@ -1,3 +1,4 @@
+"""DEPRECATED: substituted by neural_hive_observability==1.1.0; keep only for temporary compatibility."""
 from typing import Dict, Optional
 
 from opentelemetry import trace

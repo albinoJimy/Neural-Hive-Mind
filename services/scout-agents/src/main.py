@@ -1,16 +1,17 @@
 """Main entry point for Scout Agents service"""
 import asyncio
+import os
 import signal
 import sys
 import uuid
 from contextlib import asynccontextmanager
 import structlog
 import uvicorn
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from neural_hive_observability import (
+    get_tracer,
+    init_observability,
+    instrument_kafka_producer,
+)
 
 from .config import get_settings
 from .engine.exploration_engine import ExplorationEngine
@@ -44,29 +45,8 @@ def configure_logging():
 
 
 def configure_tracing(settings):
-    """Configure OpenTelemetry tracing"""
-    if not settings.observability.tracing_enabled:
-        return
-
-    try:
-        # Set up Jaeger exporter
-        jaeger_exporter = JaegerExporter(
-            collector_endpoint=settings.observability.jaeger_endpoint,
-        )
-
-        # Set up tracer provider
-        provider = TracerProvider()
-        processor = BatchSpanProcessor(jaeger_exporter)
-        provider.add_span_processor(processor)
-        trace.set_tracer_provider(provider)
-
-        # Instrument FastAPI
-        FastAPIInstrumentor.instrument_app(app)
-
-        logger.info("tracing_configured", endpoint=settings.observability.jaeger_endpoint)
-
-    except Exception as e:
-        logger.warning("tracing_configuration_failed", error=str(e))
+    """DEPRECATED: tracing is handled by neural_hive_observability.init_observability."""
+    return
 
 
 def handle_signal(signum, frame):
@@ -146,6 +126,16 @@ async def startup():
         environment=settings.service.environment
     )
 
+    init_observability(
+        service_name='scout-agents',
+        service_version=settings.service.version,
+        neural_hive_component='scout-agent',
+        neural_hive_layer='exploracao',
+        neural_hive_domain='signal-detection',
+        otel_endpoint=os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4317'),
+        enable_kafka=True
+    )
+
     ScoutMetrics.record_startup()
 
     try:
@@ -218,9 +208,6 @@ async def main():
 
     # Configure logging
     configure_logging()
-
-    # Configure tracing
-    configure_tracing(settings)
 
     # Set up signal handlers
     signal.signal(signal.SIGINT, handle_signal)

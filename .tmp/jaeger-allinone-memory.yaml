@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neural-hive-jaeger-allinone
+  namespace: observability
+  labels:
+    app: jaeger
+    component: all-in-one
+    neural.hive/component: distributed-tracing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jaeger
+      component: all-in-one
+  template:
+    metadata:
+      labels:
+        app: jaeger
+        component: all-in-one
+        neural.hive/component: distributed-tracing
+    spec:
+      containers:
+      - name: jaeger
+        image: jaegertracing/all-in-one:1.53.0
+        ports:
+        - containerPort: 16686
+          name: query
+          protocol: TCP
+        - containerPort: 14268
+          name: collector-http
+          protocol: TCP
+        - containerPort: 14250
+          name: collector-grpc
+          protocol: TCP
+        - containerPort: 4317
+          name: otlp-grpc
+          protocol: TCP
+        - containerPort: 4318
+          name: otlp-http
+          protocol: TCP
+        - containerPort: 14269
+          name: admin
+          protocol: TCP
+        env:
+        - name: COLLECTOR_OTLP_ENABLED
+          value: "true"
+        - name: METRICS_STORAGE_TYPE
+          value: prometheus
+        args:
+        - "--memory.max-traces=10000"
+        - "--query.base-path=/"
+        - "--collector.otlp.grpc.host-port=0.0.0.0:4317"
+        - "--collector.otlp.http.host-port=0.0.0.0:4318"
+        - "--collector.grpc-server.host-port=0.0.0.0:14250"
+        - "--collector.http-server.host-port=0.0.0.0:14268"
+        - "--admin.http.host-port=0.0.0.0:14269"
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 250m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 14269
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 14269
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: neural-hive-jaeger-allinone
+  namespace: observability
+  labels:
+    app: jaeger
+    component: all-in-one
+    neural.hive/component: distributed-tracing
+spec:
+  type: ClusterIP
+  ports:
+  - name: query
+    port: 16686
+    targetPort: 16686
+    protocol: TCP
+  - name: collector-http
+    port: 14268
+    targetPort: 14268
+    protocol: TCP
+  - name: collector-grpc
+    port: 14250
+    targetPort: 14250
+    protocol: TCP
+  - name: otlp-grpc
+    port: 4317
+    targetPort: 4317
+    protocol: TCP
+  - name: otlp-http
+    port: 4318
+    targetPort: 4318
+    protocol: TCP
+  - name: admin
+    port: 14269
+    targetPort: 14269
+    protocol: TCP
+  selector:
+    app: jaeger
+    component: all-in-one

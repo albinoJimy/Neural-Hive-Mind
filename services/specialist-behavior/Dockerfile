@@ -1,21 +1,4 @@
-# Stage 1: Builder
-FROM neural-hive-mind/python-nlp-base:1.0.0 AS builder
-
-WORKDIR /app
-
-# Copiar requirements da biblioteca neural_hive_specialists
-COPY libraries/python/neural_hive_specialists/requirements.txt /tmp/lib-requirements.txt
-RUN pip install --no-cache-dir --user -r /tmp/lib-requirements.txt
-
-# Copiar requirements do serviço
-COPY services/specialist-behavior/requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
-
-# Verificar que modelos da base image estão acessíveis
-RUN python -c "import spacy; nlp = spacy.load('pt_core_news_sm'); print('✓ Base models accessible')"
-
-# Stage 2: Runtime
-FROM neural-hive-mind/python-nlp-base:1.0.0
+FROM neural-hive-mind/python-specialist-base:1.0.0
 
 WORKDIR /app
 
@@ -26,14 +9,8 @@ RUN groupadd -r -g 1000 specialist && useradd -r -u 1000 -g specialist specialis
 RUN mkdir -p /home/specialist/.cache /home/specialist/.local \
     && chown -R specialist:specialist /home/specialist
 
-# Copiar dependências do builder
-COPY --from=builder /root/.local /home/specialist/.local
-
-# Ajustar propriedade após cópia
-RUN chown -R specialist:specialist /home/specialist/.local
-
-# Copiar biblioteca neural_hive_specialists
-COPY libraries/python/neural_hive_specialists /app/libraries/python/neural_hive_specialists
+# Verificar que modelos da base image estão acessíveis
+RUN python -c "import spacy; nlp = spacy.load('pt_core_news_sm'); print('✓ Base models accessible')"
 
 # Copiar código da aplicação
 COPY services/specialist-behavior/src /app/src
@@ -53,7 +30,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 LABEL maintainer="Neural Hive-Mind Team"
 LABEL component="behavior-specialist"
 LABEL layer="cognitiva"
-LABEL version="1.0.10"
+LABEL version="1.0.11"
 
 # Expor portas
 EXPOSE 50051 8000 8080

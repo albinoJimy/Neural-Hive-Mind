@@ -11,6 +11,8 @@ from sklearn.ensemble import IsolationForest
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score, recall_score, f1_score
 import structlog
+from neural_hive_observability import get_tracer
+from opentelemetry import trace
 
 from .feature_engineering import (
     extract_ticket_features,
@@ -54,6 +56,7 @@ class AnomalyDetector:
         self.model_registry = model_registry
         self.metrics = metrics
         self.logger = logger.bind(component="anomaly_detector")
+        self.tracer = get_tracer(__name__)
 
         # Modelo em memória
         self.model: Optional[IsolationForest] = None
@@ -113,7 +116,7 @@ class AnomalyDetector:
             Modelo carregado ou None
         """
         try:
-            model = self.model_registry.load_model(
+            model = await self.model_registry.load_model(
                 model_name=self.model_name,
                 stage='Production'
             )
@@ -176,93 +179,105 @@ class AnomalyDetector:
 
         start_time = time.time()
 
-        try:
-            # Atualiza stats se necessário
-            await self._refresh_historical_stats()
+        with self.tracer.start_as_current_span(
+            "anomaly.detect",
+            attributes={
+                "neural.hive.ticket.id": ticket.get('ticket_id'),
+                "neural.hive.ml.model_name": self.model_name
+            }
+        ) as span:
+            try:
+                # Atualiza stats se necessário
+                await self._refresh_historical_stats()
 
-            # Extrai features
-            features_dict = extract_ticket_features(
-                ticket=ticket,
-                historical_stats=self.historical_stats
-            )
+                # Extrai features
+                features_dict = extract_ticket_features(
+                    ticket=ticket,
+                    historical_stats=self.historical_stats
+                )
 
-            # Normaliza features para array
-            features = normalize_features(features_dict)
+                # Normaliza features para array
+                features = normalize_features(features_dict)
 
-            # Detecta anomalia
-            is_anomaly = False
-            anomaly_score = 0.0
-            anomaly_type = None
-            explanation = "Ticket dentro do padrão esperado"
+                # Detecta anomalia
+                is_anomaly = False
+                anomaly_score = 0.0
+                anomaly_type = None
+                explanation = "Ticket dentro do padrão esperado"
 
-            if self.model and hasattr(self.model, 'predict'):
-                try:
-                    # Predição: -1 = anomalia, 1 = normal
-                    prediction = self.model.predict(features)[0]
-                    is_anomaly = (prediction == -1)
+                if self.model and hasattr(self.model, 'predict'):
+                    try:
+                        # Predição: -1 = anomalia, 1 = normal
+                        prediction = self.model.predict(features)[0]
+                        is_anomaly = (prediction == -1)
 
-                    # Score: valores negativos = anomalia
-                    anomaly_score = float(self.model.score_samples(features)[0])
+                        # Score: valores negativos = anomalia
+                        anomaly_score = float(self.model.score_samples(features)[0])
 
-                    # Identifica tipo e explica anomalia
-                    if is_anomaly:
-                        anomaly_type, explanation = self._explain_anomaly(
+                        # Identifica tipo e explica anomalia
+                        if is_anomaly:
+                            anomaly_type, explanation = self._explain_anomaly(
+                                features_dict,
+                                ticket
+                            )
+
+                    except Exception as e:
+                        self.logger.warning("anomaly_detection_failed", error=str(e))
+                        # Fallback para regras heurísticas
+                        is_anomaly, anomaly_type, explanation = self._heuristic_detection(
                             features_dict,
                             ticket
                         )
-
-                except Exception as e:
-                    self.logger.warning("anomaly_detection_failed", error=str(e))
-                    # Fallback para regras heurísticas
+                        anomaly_score = -0.5 if is_anomaly else 0.5
+                else:
+                    # Modelo não treinado, usa heurísticas
                     is_anomaly, anomaly_type, explanation = self._heuristic_detection(
                         features_dict,
                         ticket
                     )
                     anomaly_score = -0.5 if is_anomaly else 0.5
-            else:
-                # Modelo não treinado, usa heurísticas
-                is_anomaly, anomaly_type, explanation = self._heuristic_detection(
-                    features_dict,
-                    ticket
+
+                # Métricas
+                if is_anomaly:
+                    self.metrics.record_ml_anomaly(anomaly_type or 'unknown')
+
+                duration_seconds = time.time() - start_time
+                self.metrics.record_ml_prediction(
+                    model_type='anomaly',
+                    status='success',
+                    duration=duration_seconds
                 )
-                anomaly_score = -0.5 if is_anomaly else 0.5
 
-            # Métricas
-            if is_anomaly:
-                self.metrics.record_ml_anomaly(anomaly_type or 'unknown')
+                self.logger.debug(
+                    "anomaly_detected" if is_anomaly else "ticket_normal",
+                    ticket_id=ticket.get('ticket_id'),
+                    is_anomaly=is_anomaly,
+                    anomaly_type=anomaly_type,
+                    score=anomaly_score
+                )
+                span.set_attribute("neural.hive.ml.is_anomaly", is_anomaly)
+                span.set_attribute("neural.hive.ml.anomaly_score", anomaly_score)
+                if anomaly_type:
+                    span.set_attribute("neural.hive.ml.anomaly_type", anomaly_type)
 
-            duration_seconds = time.time() - start_time
-            self.metrics.record_ml_prediction(
-                model_type='anomaly',
-                status='success',
-                duration=duration_seconds
-            )
+                return {
+                    'is_anomaly': is_anomaly,
+                    'anomaly_score': anomaly_score,
+                    'anomaly_type': anomaly_type,
+                    'explanation': explanation
+                }
 
-            self.logger.debug(
-                "anomaly_detected" if is_anomaly else "ticket_normal",
-                ticket_id=ticket.get('ticket_id'),
-                is_anomaly=is_anomaly,
-                anomaly_type=anomaly_type,
-                score=anomaly_score
-            )
+            except Exception as e:
+                self.logger.error("detect_anomaly_failed", error=str(e), ticket_id=ticket.get('ticket_id'))
+                span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
+                self.metrics.record_ml_error('prediction')
 
-            return {
-                'is_anomaly': is_anomaly,
-                'anomaly_score': anomaly_score,
-                'anomaly_type': anomaly_type,
-                'explanation': explanation
-            }
-
-        except Exception as e:
-            self.logger.error("detect_anomaly_failed", error=str(e), ticket_id=ticket.get('ticket_id'))
-            self.metrics.record_ml_error('prediction')
-
-            return {
-                'is_anomaly': False,
-                'anomaly_score': 0.0,
-                'anomaly_type': None,
-                'explanation': 'Detecção de anomalia falhou'
-            }
+                return {
+                    'is_anomaly': False,
+                    'anomaly_score': 0.0,
+                    'anomaly_type': None,
+                    'explanation': 'Detecção de anomalia falhou'
+                }
 
     def _explain_anomaly(
         self,
@@ -394,143 +409,170 @@ class AnomalyDetector:
         from datetime import datetime, timedelta
 
         start_time = time.time()
+        window_days = training_window_days or self.config.ml_training_window_days
 
-        try:
-            window_days = training_window_days or self.config.ml_training_window_days
-            cutoff_date = datetime.utcnow() - timedelta(days=window_days)
-
-            # Query todos os tickets (anomalias são raras)
-            tickets = await self.mongodb_client.db['execution_tickets'].find({
-                'completed_at': {'$gte': cutoff_date}
-            }).to_list(None)
-
-            if len(tickets) < self.config.ml_min_training_samples:
-                self.logger.warning(
-                    "insufficient_training_data",
-                    samples=len(tickets),
-                    required=self.config.ml_min_training_samples
-                )
-                return {}
-
-            # Atualiza stats antes de extrair features
-            await self._refresh_historical_stats()
-
-            # Extrai features
-            X_list = []
-            y_list = []  # Labels de anomalia (heurístico)
-
-            for ticket in tickets:
-                try:
-                    features_dict = extract_ticket_features(
-                        ticket=ticket,
-                        historical_stats=self.historical_stats
-                    )
-                    features = normalize_features(features_dict)
-
-                    # Label de anomalia baseado em heurística
-                    is_anomaly, _, _ = self._heuristic_detection(features_dict, ticket)
-
-                    X_list.append(features[0])
-                    y_list.append(1 if is_anomaly else 0)
-
-                except Exception as e:
-                    self.logger.warning("feature_extraction_failed", error=str(e))
-                    continue
-
-            X = np.array(X_list)
-            y = np.array(y_list)
-
-            # Treina modelo (unsupervised, não usa y)
-            model = self._create_default_model()
-            model.fit(X)
-
-            # Avalia com labels heurísticos
-            predictions = model.predict(X)
-            y_pred = np.where(predictions == -1, 1, 0)  # -1 = anomalia
-
-            # Split para métricas
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=0.2, random_state=42
-            )
-
-            predictions_test = model.predict(X_test)
-            y_pred_test = np.where(predictions_test == -1, 1, 0)
-
-            # Calcula métricas (pode ter warnings se sem anomalias)
+        with self.tracer.start_as_current_span(
+            "anomaly.train_model",
+            attributes={
+                "neural.hive.ml.model_name": self.model_name,
+                "neural.hive.ml.training_window_days": window_days
+            }
+        ) as span:
             try:
-                precision = precision_score(y_test, y_pred_test, zero_division=0)
-                recall = recall_score(y_test, y_pred_test, zero_division=0)
-                f1 = f1_score(y_test, y_pred_test, zero_division=0)
-            except:
-                precision = recall = f1 = 0.0
+                cutoff_date = datetime.utcnow() - timedelta(days=window_days)
 
-            anomaly_rate = np.mean(y_pred)
+                # Query todos os tickets (anomalias são raras)
+                tickets = await self.mongodb_client.db['execution_tickets'].find({
+                    'completed_at': {'$gte': cutoff_date}
+                }).to_list(None)
 
-            metrics = {
-                'precision': float(precision),
-                'recall': float(recall),
-                'f1_score': float(f1),
-                'anomaly_rate': float(anomaly_rate),
-                'train_samples': len(X),
-                'contamination': self.contamination
-            }
-
-            # Salva modelo no registry
-            params = {
-                'n_estimators': 100,
-                'contamination': self.contamination,
-                'training_window_days': window_days,
-                'feature_count': X.shape[1]
-            }
-
-            tags = {
-                'model_type': 'anomaly_detector',
-                'timestamp': datetime.utcnow().isoformat()
-            }
-
-            run_id = self.model_registry.save_model(
-                model=model,
-                model_name=self.model_name,
-                metrics=metrics,
-                params=params,
-                tags=tags
-            )
-
-            # Atualiza modelo em memória se precision razoável
-            if precision >= 0.6:
-                self.model = model
-                self.logger.info("model_updated_in_memory", precision=precision)
-
-                # Promove modelo se passar critérios
-                latest_version = await self._get_latest_version()
-                if latest_version:
-                    self.model_registry.promote_model(
-                        model_name=self.model_name,
-                        version=latest_version,
-                        stage='Production'
+                if len(tickets) < self.config.ml_min_training_samples:
+                    self.logger.warning(
+                        "insufficient_training_data",
+                        samples=len(tickets),
+                        required=self.config.ml_min_training_samples
                     )
+                    return {
+                        'promoted': False,
+                        'version': None,
+                        'train_samples': len(tickets),
+                        'test_samples': 0
+                    }
 
-            # Métricas
-            training_duration = time.time() - start_time
-            self.metrics.record_ml_training(
-                model_type='anomaly',
-                duration=training_duration,
-                metrics=metrics
-            )
+                # Atualiza stats antes de extrair features
+                await self._refresh_historical_stats()
 
-            self.logger.info(
-                "anomaly_model_trained",
-                metrics=metrics,
-                run_id=run_id,
-                duration_seconds=training_duration
-            )
+                # Extrai features
+                X_list = []
+                y_list = []  # Labels de anomalia (heurístico)
 
-            return metrics
+                for ticket in tickets:
+                    try:
+                        features_dict = extract_ticket_features(
+                            ticket=ticket,
+                            historical_stats=self.historical_stats
+                        )
+                        features = normalize_features(features_dict)
 
-        except Exception as e:
-            self.logger.error("training_failed", error=str(e))
-            self.metrics.record_ml_error('training')
-            return {}
+                        # Label de anomalia baseado em heurística
+                        is_anomaly, _, _ = self._heuristic_detection(features_dict, ticket)
+
+                        X_list.append(features[0])
+                        y_list.append(1 if is_anomaly else 0)
+
+                    except Exception as e:
+                        self.logger.warning("feature_extraction_failed", error=str(e))
+                        continue
+
+                X = np.array(X_list)
+                y = np.array(y_list)
+
+                # Treina modelo (unsupervised, não usa y)
+                model = self._create_default_model()
+                model.fit(X)
+
+                # Avalia com labels heurísticos
+                predictions = model.predict(X)
+                y_pred = np.where(predictions == -1, 1, 0)  # -1 = anomalia
+
+                # Split para métricas
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X, y, test_size=0.2, random_state=42
+                )
+
+                predictions_test = model.predict(X_test)
+                y_pred_test = np.where(predictions_test == -1, 1, 0)
+
+                # Calcula métricas (pode ter warnings se sem anomalias)
+                try:
+                    precision = precision_score(y_test, y_pred_test, zero_division=0)
+                    recall = recall_score(y_test, y_pred_test, zero_division=0)
+                    f1 = f1_score(y_test, y_pred_test, zero_division=0)
+                except:
+                    precision = recall = f1 = 0.0
+
+                anomaly_rate = np.mean(y_pred)
+
+                metrics = {
+                    'precision': float(precision),
+                    'recall': float(recall),
+                    'f1_score': float(f1),
+                    'anomaly_rate': float(anomaly_rate),
+                    'train_samples': len(X),
+                    'contamination': self.contamination
+                }
+
+                # Salva modelo no registry
+                params = {
+                    'n_estimators': 100,
+                    'contamination': self.contamination,
+                    'training_window_days': window_days,
+                    'feature_count': X.shape[1]
+                }
+
+                tags = {
+                    'model_type': 'anomaly_detector',
+                    'timestamp': datetime.utcnow().isoformat()
+                }
+
+                run_id = await self.model_registry.save_model(
+                    model=model,
+                    model_name=self.model_name,
+                    metrics=metrics,
+                    params=params,
+                    tags=tags
+                )
+
+                # Atualiza modelo em memória se precision razoável
+                promoted = False
+                latest_version = await self._get_latest_version()
+                metrics['version'] = latest_version
+
+                if precision >= 0.6:
+                    self.model = model
+                    self.logger.info("model_updated_in_memory", precision=precision)
+                    promoted = True
+
+                    # Promove modelo se passar critérios
+                    if latest_version:
+                        await self.model_registry.promote_model(
+                            model_name=self.model_name,
+                            version=latest_version,
+                            stage='Production'
+                        )
+
+                metrics['promoted'] = promoted
+
+                # Métricas
+                training_duration = time.time() - start_time
+                self.metrics.record_ml_training(
+                    model_type='anomaly',
+                    duration=training_duration,
+                    metrics=metrics
+                )
+
+                self.logger.info(
+                    "anomaly_model_trained",
+                    metrics=metrics,
+                    run_id=run_id,
+                    duration_seconds=training_duration
+                )
+                span.set_attribute("neural.hive.ml.train_samples", len(X))
+                span.set_attribute("neural.hive.ml.precision", float(precision))
+                span.set_attribute("neural.hive.ml.promoted", promoted)
+
+                return metrics
+
+            except Exception as e:
+                self.logger.error("training_failed", error=str(e))
+                span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
+                self.metrics.record_ml_error('training')
+                return {
+                    'promoted': False,
+                    'version': None,
+                    'train_samples': 0,
+                    'test_samples': 0
+                }
 
     async def _get_latest_version(self) -> Optional[str]:
         """
@@ -540,7 +582,7 @@ class AnomalyDetector:
             String com número da versão ou None
         """
         try:
-            metadata = self.model_registry.get_model_metadata(self.model_name)
+            metadata = await self.model_registry.get_model_metadata(self.model_name)
             return metadata.get('version')
         except:
             return None

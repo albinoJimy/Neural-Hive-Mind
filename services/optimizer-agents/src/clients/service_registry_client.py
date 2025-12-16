@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 import grpc
 import structlog
 
+from neural_hive_observability import instrument_grpc_channel
 from src.config.settings import get_settings
 
 logger = structlog.get_logger()
@@ -32,6 +33,7 @@ class ServiceRegistryClient:
                     ("grpc.keepalive_time_ms", 30000),
                 ],
             )
+            self.channel = instrument_grpc_channel(self.channel, service_name='service-registry')
 
             # TODO: Criar stub quando proto estendido for compilado
             # from service_registry_pb2_grpc import ServiceRegistryStub

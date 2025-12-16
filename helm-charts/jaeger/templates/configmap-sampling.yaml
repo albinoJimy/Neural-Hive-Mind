@@ -1,0 +1,135 @@
+{{- if .Values.jaeger.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jaeger-sampling-strategies
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "jaeger.labels" . | nindent 4 }}
+data:
+  strategies.json: |
+    {
+      "default_strategy": {
+        "type": "probabilistic",
+        "param": {{ if eq .Values.global.environment "production" }}0.05{{ else if eq .Values.global.environment "staging" }}0.25{{ else }}1.0{{ end }}
+      },
+      "max_traces_per_second": {{ if eq .Values.global.environment "production" }}100{{ else if eq .Values.global.environment "staging" }}200{{ else }}1000{{ end }},
+      "per_service_strategies": [
+        {
+          "service": "gateway-intencoes",
+          "type": "probabilistic",
+          "param": {{ if eq .Values.global.environment "production" }}0.30{{ else }}0.50{{ end }},
+          "max_traces_per_second": 30,
+          "operation_strategies": [
+            {
+              "operation": "POST /intents/text",
+              "type": "probabilistic",
+              "param": 0.50
+            },
+            {
+              "operation": "POST /intents/voice",
+              "type": "probabilistic",
+              "param": 0.50
+            },
+            {
+              "operation": "GET /health",
+              "type": "probabilistic",
+              "param": 0.01
+            }
+          ]
+        },
+        {
+          "service": "orchestrator-dynamic",
+          "type": "probabilistic",
+          "param": {{ if eq .Values.global.environment "production" }}0.20{{ else }}0.40{{ end }},
+          "max_traces_per_second": 25,
+          "operation_strategies": [
+            {
+              "operation": "ProcessIntent",
+              "type": "probabilistic",
+              "param": 0.40
+            },
+            {
+              "operation": "ExecutePlan",
+              "type": "probabilistic",
+              "param": 0.40
+            }
+          ]
+        },
+        {
+          "service": "specialist-*",
+          "type": "probabilistic",
+          "param": {{ if eq .Values.global.environment "production" }}0.15{{ else }}0.30{{ end }},
+          "max_traces_per_second": 20,
+          "operation_strategies": [
+            {
+              "operation": "EvaluatePlan",
+              "type": "probabilistic",
+              "param": 0.30
+            },
+            {
+              "operation": "GetOpinion",
+              "type": "probabilistic",
+              "param": 0.30
+            }
+          ]
+        },
+        {
+          "service": "execution-ticket-service",
+          "type": "probabilistic",
+          "param": {{ if eq .Values.global.environment "production" }}0.20{{ else }}0.40{{ end }},
+          "max_traces_per_second": 25
+        },
+        {
+          "service": "queen-agent",
+          "type": "probabilistic",
+          "param": {{ if eq .Values.global.environment "production" }}0.15{{ else }}0.30{{ end }},
+          "max_traces_per_second": 20
+        },
+        {
+          "service": "consensus-engine",
+          "type": "probabilistic",
+          "param": {{ if eq .Values.global.environment "production" }}0.25{{ else }}0.50{{ end }},
+          "max_traces_per_second": 30
+        }
+      ],
+      "per_operation_strategies": [
+        {
+          "service": "*",
+          "operation": "*error*",
+          "type": "probabilistic",
+          "param": 1.0
+        },
+        {
+          "service": "*",
+          "operation": "*Error*",
+          "type": "probabilistic",
+          "param": 1.0
+        },
+        {
+          "service": "*",
+          "operation": "*health*",
+          "type": "probabilistic",
+          "param": 0.01
+        },
+        {
+          "service": "*",
+          "operation": "*Health*",
+          "type": "probabilistic",
+          "param": 0.01
+        },
+        {
+          "service": "*",
+          "operation": "*ready*",
+          "type": "probabilistic",
+          "param": 0.01
+        },
+        {
+          "service": "*",
+          "operation": "*metrics*",
+          "type": "probabilistic",
+          "param": 0.01
+        }
+      ]
+    }
+{{- end }}

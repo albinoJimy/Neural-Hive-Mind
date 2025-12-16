@@ -1,4 +1,5 @@
-.PHONY: proto-gen proto-gen-all clean-proto minikube-setup minikube-start minikube-stop minikube-clean minikube-reset minikube-validate minikube-status minikube-dashboard minikube-logs bootstrap-apply bootstrap-validate test-phase1-pre-validate test-phase1 test-phase1-debug test-phase1-full test-phase1-results test-phase1-clean test-specialists-unit test-specialists-integration test-specialists-contract test-specialists-all test-specialists-coverage test-specialists-clean help
+.PHONY: proto-gen proto-gen-all clean-proto minikube-setup minikube-start minikube-stop minikube-clean minikube-reset minikube-validate minikube-status minikube-dashboard minikube-logs bootstrap-apply bootstrap-validate test test-unit test-integration test-e2e test-phase1 test-phase2 test-specialists test-coverage test-parallel test-dry-run test-clean test-specialists-unit test-phase1-pre-validate help
+.PHONY: validate validate-all validate-specialists validate-infrastructure validate-services validate-security validate-observability validate-performance validate-phase validate-e2e validate-report validate-ci
 
 # ============================================================================
 # Protobuf Targets
@@ -130,6 +131,68 @@ preview-manifest-changes:
 .PHONY: build-and-deploy-eks build-and-deploy-eks-version build-and-push-only update-manifests-only preview-manifest-changes
 
 # ============================================================================
+# Build Targets (Unified CLI)
+# ============================================================================
+
+## build-local: Build local apenas (sem push)
+build-local:
+	@echo "🔨 Building local..."
+	@./scripts/build.sh --target local
+
+## build-local-version: Build local com versão específica
+build-local-version:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "❌ Erro: VERSION não definido. Use: make build-local-version VERSION=1.0.8"; \
+		exit 1; \
+	fi
+	@./scripts/build.sh --target local --version $(VERSION)
+
+## build-ecr: Build e push para ECR
+build-ecr:
+	@echo "🚀 Building e pushing para ECR..."
+	@./scripts/build.sh --target ecr
+
+## build-ecr-version: Build e push para ECR com versão específica
+build-ecr-version:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "❌ Erro: VERSION não definido. Use: make build-ecr-version VERSION=1.0.8"; \
+		exit 1; \
+	fi
+	@./scripts/build.sh --target ecr --version $(VERSION)
+
+## build-registry: Build e push para registry local
+build-registry:
+	@echo "🚀 Building e pushing para registry local..."
+	@./scripts/build.sh --target registry
+
+## build-all: Build e push para ECR e registry local
+build-all:
+	@echo "🚀 Building e pushing para todos os registries..."
+	@./scripts/build.sh --target all
+
+## build-services: Build serviços específicos
+build-services:
+	@if [ -z "$(SERVICES)" ]; then \
+		echo "❌ Erro: SERVICES não definido. Use: make build-services SERVICES=gateway-intencoes,consensus-engine"; \
+		exit 1; \
+	fi
+	@./scripts/build.sh --target local --services $(SERVICES)
+
+## build-no-cache: Build sem cache
+build-no-cache:
+	@./scripts/build.sh --target local --no-cache
+
+## build-parallel: Build com paralelização customizada
+build-parallel:
+	@if [ -z "$(JOBS)" ]; then \
+		echo "❌ Erro: JOBS não definido. Use: make build-parallel JOBS=8"; \
+		exit 1; \
+	fi
+	@./scripts/build.sh --target local --parallel $(JOBS)
+
+.PHONY: build-local build-local-version build-ecr build-ecr-version build-registry build-all build-services build-no-cache build-parallel
+
+# ============================================================================
 # Help Target
 # ============================================================================
 
@@ -141,6 +204,17 @@ help:
 	@echo "  make proto-gen           - Generate protobuf files"
 	@echo "  make proto-gen-all       - Compile all protobuf files (services + libraries)"
 	@echo "  make clean-proto         - Remove generated protobuf files"
+	@echo ""
+	@echo "Build Targets (Unified CLI):"
+	@echo "  make build-local              - Build local apenas"
+	@echo "  make build-local-version      - Build local com versão específica (requer VERSION=x.y.z)"
+	@echo "  make build-ecr                - Build e push para ECR"
+	@echo "  make build-ecr-version        - Build e push para ECR com versão (requer VERSION=x.y.z)"
+	@echo "  make build-registry           - Build e push para registry local"
+	@echo "  make build-all                - Build e push para todos os registries"
+	@echo "  make build-services           - Build serviços específicos (requer SERVICES=svc1,svc2)"
+	@echo "  make build-no-cache           - Build sem cache"
+	@echo "  make build-parallel           - Build com paralelização customizada (requer JOBS=n)"
 	@echo ""
 	@echo "Minikube Local Development:"
 	@echo "  make minikube-setup      - Complete Minikube setup with bootstrap"
@@ -164,13 +238,18 @@ help:
 	@echo "  make update-manifests-only          - Apenas atualizar manifestos (sem build/push)"
 	@echo "  make preview-manifest-changes       - Preview de mudanças nos manifestos"
 	@echo ""
-	@echo "Testing:"
-	@echo "  make test-specialists-unit        - Run unit tests only"
-	@echo "  make test-specialists-integration - Run integration tests only"
-	@echo "  make test-specialists-contract    - Run contract tests only"
-	@echo "  make test-specialists-all         - Run all tests"
-	@echo "  make test-specialists-coverage    - Run tests with coverage report"
-	@echo "  make test-specialists-clean       - Clean test artifacts"
+	@echo "Testing (Unified CLI):"
+	@echo "  make test                - Run all tests"
+	@echo "  make test-unit           - Run unit tests only"
+	@echo "  make test-integration    - Run integration tests only"
+	@echo "  make test-e2e            - Run E2E tests only"
+	@echo "  make test-phase1         - Run Phase 1 tests"
+	@echo "  make test-phase2         - Run Phase 2 tests"
+	@echo "  make test-specialists    - Run specialist tests"
+	@echo "  make test-coverage       - Run tests with coverage"
+	@echo "  make test-parallel       - Run tests in parallel"
+	@echo "  make test-dry-run        - Show which tests would run"
+	@echo "  make test-clean          - Clean test results"
 	@echo ""
 	@echo "Phase 1 Testing:"
 	@echo "  make test-phase1-pre-validate  - Run pre-test validation"
@@ -190,81 +269,87 @@ help:
 	@echo "  make deploy-retraining-cronjob - Deploy retraining CronJob to Kubernetes"
 	@echo "  make test-feedback             - Run feedback system tests"
 	@echo ""
+	@echo "Security (Unified CLI):"
+	@echo "  make security-init             - Inicializar Vault e SPIRE"
+	@echo "  make security-validate         - Validar todos os componentes de seguranca"
+	@echo "  make security-audit            - Gerar relatorio de auditoria de seguranca"
+	@echo "  make security-vault-init       - Inicializar Vault (auth, engines, policies, roles)"
+	@echo "  make security-vault-backup     - Criar backup do Vault"
+	@echo "  make security-vault-populate   - Popular secrets no Vault"
+	@echo "  make security-spire-deploy     - Deploy SPIRE"
+	@echo "  make security-spire-register   - Registrar workload entries no SPIRE"
+	@echo "  make security-certs-setup      - Setup cert-manager"
+	@echo "  make security-certs-validate   - Validar certificados (expiracao)"
+	@echo "  make security-secrets-create   - Criar secrets Phase 2"
+	@echo "  make security-secrets-validate - Validar secrets"
+	@echo "  make security-policies-transition - Transicionar politicas warn -> enforce"
+	@echo "  make security-validate-mtls    - Validar conectividade mTLS"
+	@echo "  make security-validate-vault   - Validar Vault + SPIFFE"
+	@echo "  make security-dry-run          - Executar validacao em modo dry-run"
+	@echo "  make security-test             - Executar testes de integracao do CLI"
+	@echo ""
 	@echo "Use 'make help' to see this message again."
 
 # ============================================================================
-# Testing Targets
+# Testing Targets (Unified CLI)
 # ============================================================================
 
-## test-specialists-unit: Run unit tests only
-test-specialists-unit:
-	@echo "Running specialist unit tests..."
-	@cd libraries/python/neural_hive_specialists && pytest tests/ -m "unit" -v
+## test: Run all tests
+test:
+	@./tests/run-tests.sh --type all
 
-## test-specialists-integration: Run integration tests only
-test-specialists-integration:
-	@echo "Running specialist integration tests..."
-	@cd libraries/python/neural_hive_specialists && pytest tests/ -m "integration" -v
+## test-unit: Run unit tests only
+test-unit:
+	@./tests/run-tests.sh --type unit
 
-## test-specialists-contract: Run contract tests only
-test-specialists-contract:
-	@echo "Running specialist contract tests..."
-	@cd libraries/python/neural_hive_specialists && pytest tests/ -m "contract" -v
+## test-integration: Run integration tests only
+test-integration:
+	@./tests/run-tests.sh --type integration
 
-## test-specialists-all: Run all specialist tests
-test-specialists-all:
-	@echo "Running all specialist tests..."
-	@cd libraries/python/neural_hive_specialists && pytest tests/ -v
+## test-e2e: Run E2E tests only
+test-e2e:
+	@./tests/run-tests.sh --type e2e
 
-## test-specialists-coverage: Run tests with coverage report
-test-specialists-coverage:
-	@echo "Running specialist tests with coverage..."
-	@cd libraries/python/neural_hive_specialists && pytest tests/ --cov --cov-report=html --cov-report=term
-	@echo "Coverage report generated at libraries/python/neural_hive_specialists/htmlcov/index.html"
-
-## test-specialists-clean: Clean test artifacts
-test-specialists-clean:
-	@echo "Cleaning specialist test artifacts..."
-	@rm -rf libraries/python/neural_hive_specialists/htmlcov
-	@rm -f libraries/python/neural_hive_specialists/coverage.xml
-	@rm -f libraries/python/neural_hive_specialists/.coverage
-	@find libraries/python/neural_hive_specialists -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-	@echo "Test artifacts cleaned."
-
-# ============================================================================
-# Phase 1 Testing Targets
-# ============================================================================
-
-## test-phase1-pre-validate: Run Phase 1 pre-test validation
-test-phase1-pre-validate:
-	@echo "Running Phase 1 pre-test validation..."
-	@./tests/phase1-pre-test-validation.sh
-
-## test-phase1: Run Phase 1 end-to-end test
+## test-phase1: Run Phase 1 tests
 test-phase1:
-	@echo "Running Phase 1 end-to-end test..."
-	@./tests/phase1-end-to-end-test.sh
+	@./tests/run-tests.sh --type e2e --phase 1
 
-## test-phase1-debug: Run Phase 1 end-to-end test in debug mode
-test-phase1-debug:
-	@echo "Running Phase 1 end-to-end test (debug mode)..."
-	@./tests/phase1-end-to-end-test.sh --debug
+## test-phase2: Run Phase 2 tests
+test-phase2:
+	@./tests/run-tests.sh --type e2e --phase 2
 
-## test-phase1-full: Run full Phase 1 test suite (pre-validation + e2e test)
-test-phase1-full: test-phase1-pre-validate test-phase1
+## test-specialists: Run specialist tests
+test-specialists:
+	@./tests/run-tests.sh --component specialists
 
-## test-phase1-results: Show latest Phase 1 test results
-test-phase1-results:
-	@echo "Latest Phase 1 test results:"
-	@ls -lt tests/results/phase1-test-report-*.json 2>/dev/null | head -1 | awk '{print $$NF}' | xargs cat 2>/dev/null | jq . || echo "No test results found"
+## test-coverage: Run tests with coverage
+test-coverage:
+	@./tests/run-tests.sh --type all --coverage
 
-## test-phase1-clean: Clean Phase 1 test results
-test-phase1-clean:
-	@echo "Cleaning Phase 1 test results..."
-	@rm -f tests/results/phase1-test-report-*.json
-	@rm -f tests/results/phase1-test-summary-*.md
-	@rm -f tests/results/*.log
+## test-parallel: Run tests in parallel
+test-parallel:
+	@./tests/run-tests.sh --type all --parallel --jobs 8
+
+## test-dry-run: Show which tests would run
+test-dry-run:
+	@./tests/run-tests.sh --type all --dry-run
+
+## test-clean: Clean test results
+test-clean:
+	@rm -rf tests/results/*.json tests/results/*.md tests/results/*.xml
+	@rm -rf tests/coverage tests/logs
+	@rm -rf tests/results/coverage
 	@echo "Test results cleaned."
+
+## test-specialists-unit: [DEPRECATED] Use 'make test-unit'
+test-specialists-unit:
+	@echo "⚠️  DEPRECATED: Use 'make test-unit' instead"
+	@./tests/run-tests.sh --type unit
+
+## test-phase1-pre-validate: [DEPRECATED] Use 'make test-phase1'
+test-phase1-pre-validate:
+	@echo "⚠️  DEPRECATED: Use 'make test-phase1' instead"
+	@./tests/run-tests.sh --type e2e --phase 1
 
 # ============================================================================
 # Business Metrics Targets
@@ -639,3 +724,126 @@ dr-logs:
 	kubectl logs -n neural-hive-mind -l app=disaster-recovery -f
 
 .PHONY: dr-backup dr-backup-dry-run dr-list-backups dr-restore dr-restore-force dr-test-recovery deploy-dr-cronjobs check-dr-status dr-logs
+
+# ============================================================================
+# Security Targets (Unified CLI)
+# ============================================================================
+
+## security-init: Inicializar Vault e SPIRE
+security-init:
+	@echo "Inicializando componentes de segurança..."
+	@./scripts/security.sh vault init
+	@./scripts/security.sh spire deploy
+
+## security-validate: Validar todos os componentes de segurança
+security-validate:
+	@./scripts/security.sh validate all
+
+## security-audit: Gerar relatório de auditoria de segurança
+security-audit:
+	@./scripts/security.sh audit report --output reports/security-audit-$(shell date +%Y%m%d).html
+	@echo "Relatório gerado: reports/security-audit-$(shell date +%Y%m%d).html"
+
+## security-vault-init: Inicializar Vault (auth, engines, policies, roles)
+security-vault-init:
+	@./scripts/security.sh vault init
+
+## security-vault-backup: Criar backup do Vault
+security-vault-backup:
+	@./scripts/security.sh vault backup --output /tmp/vault-backup-$(shell date +%Y%m%d).tar.gz
+
+## security-vault-populate: Popular secrets no Vault
+security-vault-populate:
+	@./scripts/security.sh vault populate --mode static --environment dev
+
+## security-spire-deploy: Deploy SPIRE
+security-spire-deploy:
+	@./scripts/security.sh spire deploy --namespace spire-system
+
+## security-spire-register: Registrar workload entries no SPIRE
+security-spire-register:
+	@./scripts/security.sh spire register --service all
+
+## security-certs-setup: Setup cert-manager
+security-certs-setup:
+	@./scripts/security.sh certs setup --environment production
+
+## security-certs-validate: Validar certificados (expiração)
+security-certs-validate:
+	@./scripts/security.sh certs validate --check-expiry --days 30
+
+## security-secrets-create: Criar secrets Phase 2
+security-secrets-create:
+	@./scripts/security.sh secrets create --phase 2 --mode static
+
+## security-secrets-validate: Validar secrets
+security-secrets-validate:
+	@./scripts/security.sh secrets validate --phase 2
+
+## security-policies-transition: Transicionar políticas warn -> enforce
+security-policies-transition:
+	@./scripts/security.sh policies transition --dry-run
+
+## security-validate-mtls: Validar conectividade mTLS
+security-validate-mtls:
+	@./scripts/security.sh validate mtls
+
+## security-validate-vault: Validar Vault + SPIFFE
+security-validate-vault:
+	@./scripts/security.sh validate vault
+
+## security-dry-run: Executar validação em modo dry-run
+security-dry-run:
+	@./scripts/security.sh --dry-run validate all
+
+## security-test: Executar testes de integração do CLI de segurança
+security-test:
+	@echo "Executando testes de integração do CLI de segurança..."
+	@./tests/integration/security-cli-test.sh
+
+.PHONY: security-init security-validate security-audit security-vault-init security-vault-backup security-vault-populate
+.PHONY: security-spire-deploy security-spire-register security-certs-setup security-certs-validate
+.PHONY: security-secrets-create security-secrets-validate security-policies-transition
+.PHONY: security-validate-mtls security-validate-vault security-dry-run security-test
+
+# ============================================================================
+# Validation Targets
+# ============================================================================
+
+# Validação
+validate: validate-all
+
+validate-all:
+	@./scripts/validate.sh --target all
+
+validate-specialists:
+	@./scripts/validate.sh --target specialists
+
+validate-infrastructure:
+	@./scripts/validate.sh --target infrastructure
+
+validate-services:
+	@./scripts/validate.sh --target services
+
+validate-security:
+	@./scripts/validate.sh --target security
+
+validate-observability:
+	@./scripts/validate.sh --target observability
+
+validate-performance:
+	@./scripts/validate.sh --target performance
+
+validate-phase:
+	@./scripts/validate.sh --target phase --phase $(PHASE)
+
+validate-e2e:
+	@./scripts/validate.sh --target e2e
+
+# Validação com relatórios
+validate-report:
+	@./scripts/validate.sh --target all --report html --report-file /tmp/validation-report.html
+	@echo "Relatório gerado: /tmp/validation-report.html"
+
+validate-ci:
+	@./scripts/validate.sh --target all --report json --report-file /tmp/validation-report.json

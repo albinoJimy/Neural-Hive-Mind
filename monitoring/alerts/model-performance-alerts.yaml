@@ -1,0 +1,285 @@
+groups:
+  - name: model_performance_alerts
+    interval: 30s
+    rules:
+      # Alert 1: ModelPerformanceDegraded
+      - alert: ModelPerformanceDegraded
+        expr: neural_hive_model_performance_score < 0.6
+        for: 1h
+        labels:
+          severity: warning
+          component: ml-monitoring
+          team: ml-ops
+        annotations:
+          summary: "Performance do modelo {{ $labels.specialist_type }} degradada"
+          description: |
+            Performance do modelo {{ $labels.specialist_type }} está abaixo de 60% (atual: {{ $value | humanizePercentage }}).
+            Score agregado baseado em MLflow metrics (70%) e feedback humano (30%).
+          actions: |
+            1. Verificar métricas no MLflow: http://mlflow.mlflow:5000
+            2. Revisar feedback recente no MongoDB
+            3. Considerar trigger manual de retreinamento
+            4. Verificar se auto-retrain está funcionando
+          dashboard: "http://grafana/d/continuous-learning"
+          runbook: "https://docs.neural-hive-mind.io/runbooks/model-performance-degraded"
+
+      # Alert 2: ModelPrecisionBelowThreshold
+      - alert: ModelPrecisionBelowThreshold
+        expr: neural_hive_mlflow_model_precision < 0.75
+        for: 30m
+        labels:
+          severity: warning
+          component: ml-monitoring
+          team: ml-ops
+        annotations:
+          summary: "Precision do modelo {{ $labels.specialist_type }} abaixo do threshold"
+          description: |
+            Precision do modelo {{ $labels.specialist_type }} está em {{ $value | humanizePercentage }} (threshold: 75%).
+            Isso indica que o modelo está gerando muitos falsos positivos.
+          actions: |
+            1. Analisar distribuição de predições
+            2. Verificar qualidade dos dados de treino
+            3. Revisar feedback de usuários
+          dashboard: "http://grafana/d/continuous-learning"
+
+      # Alert 3: ModelRecallBelowThreshold
+      - alert: ModelRecallBelowThreshold
+        expr: neural_hive_mlflow_model_recall < 0.70
+        for: 30m
+        labels:
+          severity: warning
+          component: ml-monitoring
+          team: ml-ops
+        annotations:
+          summary: "Recall do modelo {{ $labels.specialist_type }} abaixo do threshold"
+          description: |
+            Recall do modelo {{ $labels.specialist_type }} está em {{ $value | humanizePercentage }} (threshold: 70%).
+            Isso indica que o modelo está perdendo muitos casos positivos.
+          actions: |
+            1. Verificar se há mudança no padrão de dados
+            2. Analisar amostras perdidas (falsos negativos)
+            3. Considerar ajuste de threshold de decisão
+          dashboard: "http://grafana/d/continuous-learning"
+
+      # Alert 4: ModelF1BelowThreshold
+      - alert: ModelF1BelowThreshold
+        expr: neural_hive_mlflow_model_f1 < 0.72
+        for: 30m
+        labels:
+          severity: warning
+          component: ml-monitoring
+          team: ml-ops
+        annotations:
+          summary: "F1 Score do modelo {{ $labels.specialist_type }} abaixo do threshold"
+          description: |
+            F1 Score do modelo {{ $labels.specialist_type }} está em {{ $value | humanizePercentage }} (threshold: 72%).
+            O F1 é a média harmônica de precision e recall.
+          actions: |
+            1. Verificar precision e recall individualmente
+            2. Avaliar necessidade de retreinamento
+            3. Revisar dados de treino e validação
+          dashboard: "http://grafana/d/continuous-learning"
+
+      # Alert 5: AutoRetrainFailed
+      - alert: AutoRetrainFailed
+        expr: increase(neural_hive_auto_retrain_triggered_total{status="failed"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: ml-monitoring
+          team: ml-ops
+          oncall: "true"
+        annotations:
+          summary: "Auto-retrain falhou para {{ $labels.specialist_type }}"
+          description: |
+            Tentativa de retreinamento automático falhou para {{ $labels.specialist_type }}.
+            Intervenção manual necessária imediatamente.
+          actions: |
+            1. Verificar logs do CronJob: kubectl logs -n ml-pipelines -l app=model-performance-monitor
+            2. Verificar conectividade com MLflow: curl http://mlflow.mlflow:5000/health
+            3. Validar geração de datasets
+            4. Verificar recursos disponíveis (CPU/memória)
+            5. Trigger manual se necessário
+          dashboard: "http://grafana/d/continuous-learning"
+          runbook: "https://docs.neural-hive-mind.io/runbooks/auto-retrain-failed"
+
+      # Alert 6: DatasetGenerationFailed
+      - alert: DatasetGenerationFailed
+        expr: increase(neural_hive_dataset_generation_errors_total[15m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: ml-monitoring
+          team: ml-ops
+          oncall: "true"
+        annotations:
+          summary: "Geração de dataset falhou para {{ $labels.specialist_type }}"
+          description: |
+            Falha na geração de datasets com AI para {{ $labels.specialist_type }}.
+            Processo de retreinamento não pode continuar.
+          actions: |
+            1. Verificar conectividade com LLM provider (Ollama/OpenAI/Anthropic)
+            2. Verificar variáveis de ambiente: LLM_PROVIDER, LLM_MODEL, LLM_BASE_URL
+            3. Verificar logs de geração de dataset
+            4. Validar prompts em /app/training/prompts/
+            5. Verificar quotas de API (se usando provider externo)
+          dashboard: "http://grafana/d/continuous-learning"
+          runbook: "https://docs.neural-hive-mind.io/runbooks/dataset-generation-failed"
+
+      # Alert 7: ModelNotRetrainedRecently
+      - alert: ModelNotRetrainedRecently
+        expr: (time() - neural_hive_retraining_last_trigger_timestamp) / 86400 > 60
+        for: 1h
+        labels:
+          severity: info
+          component: ml-monitoring
+          team: ml-ops
+        annotations:
+          summary: "Modelo {{ $labels.specialist_type }} não foi retreinado há {{ $value }} dias"
+          description: |
+            O modelo {{ $labels.specialist_type }} não foi retreinado nos últimos 60 dias.
+            Considerar revisão manual mesmo se performance estiver OK.
+          actions: |
+            1. Revisar métricas de performance atuais
+            2. Verificar se há feedback suficiente acumulado
+            3. Considerar trigger manual de retreinamento
+            4. Validar se auto-retrain está desabilitado propositalmente
+          dashboard: "http://grafana/d/continuous-learning"
+
+      # Alert 8: FeedbackAverageBelowThreshold
+      - alert: FeedbackAverageBelowThreshold
+        expr: neural_hive_feedback_avg_rating < 0.6
+        for: 2h
+        labels:
+          severity: warning
+          component: ml-monitoring
+          team: ml-ops
+        annotations:
+          summary: "Feedback médio do {{ $labels.specialist_type }} está baixo"
+          description: |
+            Feedback médio de usuários para {{ $labels.specialist_type }} está em {{ $value | humanizePercentage }} (threshold: 60%).
+            Isso pode indicar insatisfação com as respostas do specialist.
+          actions: |
+            1. Analisar feedback negativo recente
+            2. Verificar se há padrão nas reclamações
+            3. Revisar prompt engineering do specialist
+            4. Considerar ajustes no sistema de prompts
+          dashboard: "http://grafana/d/continuous-learning"
+
+      # Alert 9: AutoRetrainDurationHigh
+      - alert: AutoRetrainDurationHigh
+        expr: neural_hive_auto_retrain_duration_seconds > 3600
+        for: 10m
+        labels:
+          severity: warning
+          component: ml-monitoring
+          team: ml-ops
+        annotations:
+          summary: "Auto-retrain demorando muito para {{ $labels.specialist_type }}"
+          description: |
+            Processo de auto-retrain para {{ $labels.specialist_type }} está demorando {{ $value | humanizeDuration }}.
+            Tempo esperado: < 1h.
+          actions: |
+            1. Verificar tamanho do dataset gerado
+            2. Verificar recursos disponíveis (CPU/memória)
+            3. Verificar logs de treinamento MLflow
+            4. Considerar otimização de hiperparâmetros
+          dashboard: "http://grafana/d/continuous-learning"
+
+      # Alert 10: MongoDBCircuitBreakerOpen
+      - alert: MongoDBCircuitBreakerOpen
+        expr: neural_hive_mongodb_circuit_breaker_state{state="open"} == 1
+        for: 5m
+        labels:
+          severity: critical
+          component: ml-monitoring
+          team: ml-ops
+          oncall: "true"
+        annotations:
+          summary: "Circuit breaker do MongoDB está aberto"
+          description: |
+            Circuit breaker do MongoDB está aberto devido a falhas consecutivas.
+            Operações de feedback e retreinamento estão impactadas.
+          actions: |
+            1. Verificar status do MongoDB: kubectl get pods -n mongodb-cluster
+            2. Verificar logs do MongoDB
+            3. Verificar conectividade de rede
+            4. Verificar recursos do cluster (storage, CPU, memória)
+            5. Circuit breaker vai tentar reconectar automaticamente
+          dashboard: "http://grafana/d/continuous-learning"
+          runbook: "https://docs.neural-hive-mind.io/runbooks/mongodb-circuit-breaker"
+
+      # Alert 11: MLflowConnectionFailed
+      - alert: MLflowConnectionFailed
+        expr: increase(neural_hive_mlflow_connection_errors_total[10m]) > 3
+        for: 5m
+        labels:
+          severity: critical
+          component: ml-monitoring
+          team: ml-ops
+          oncall: "true"
+        annotations:
+          summary: "Falhas consecutivas de conexão com MLflow"
+          description: |
+            Monitor de performance está falhando ao conectar com MLflow.
+            Sistema de auto-retrain pode estar comprometido.
+          actions: |
+            1. Verificar status do MLflow: kubectl get pods -n mlflow
+            2. Verificar logs do MLflow server
+            3. Testar conectividade: curl http://mlflow.mlflow:5000/health
+            4. Verificar configuração de MLFLOW_TRACKING_URI
+          dashboard: "http://grafana/d/continuous-learning"
+          runbook: "https://docs.neural-hive-mind.io/runbooks/mlflow-connection-failed"
+
+  - name: model_degradation
+    interval: 30s
+    rules:
+      - alert: FeatureExtractionLatencyHigh
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(neural_hive_specialist_feature_extraction_duration_seconds_bucket[5m])) 
+            by (le, specialist_type)
+          ) > 30
+        for: 10m
+        labels:
+          severity: critical
+          component: ml-monitoring
+          team: ml-ops
+          oncall: "true"
+        annotations:
+          summary: "Feature extraction muito lenta para {{ $labels.specialist_type }}"
+          description: |
+            P95 de feature extraction para {{ $labels.specialist_type }} está em {{ $value }}s (threshold: 30s).
+            Isso indica problemas com:
+            - Geração de embeddings (modelo sentence-transformers na CPU)
+            - OntologyMapper com similaridade semântica O(n×m)
+            - GraphAnalyzer com betweenness centrality O(n³)
+          actions: |
+            1. Verificar métricas de cache de embeddings:
+               - neural_hive_specialist_embedding_cache_hits_total
+               - neural_hive_specialist_embedding_cache_misses_total
+               - Hit ratio deve ser >50%
+            2. Verificar logs de specialists: kubectl logs -n semantic-translation -l specialist_type={{ $labels.specialist_type }}
+            3. Considerar aumentar EMBEDDING_CACHE_SIZE (default: 1000)
+            4. Verificar se GPU está disponível para sentence-transformers
+            5. Avaliar desabilitar embeddings temporariamente: EMBEDDING_CACHE_ENABLED=false
+          dashboard: "http://grafana/d/continuous-learning"
+          runbook: "https://docs.neural-hive-mind.io/runbooks/feature-extraction-slow"
+
+      - alert: ModelConfidenceCritical
+        expr: neural_hive_specialist_confidence_score < 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Modelo {{ $labels.specialist_type }} com confiança crítica"
+          description: "Confiança de {{ $value }} indica possível degradação ou fallback para heurísticas"
+
+      - alert: ModelNotLoaded
+        expr: neural_hive_specialist_model_loaded == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Modelo {{ $labels.specialist_type }} não carregado"
+          description: "Specialist está usando heurísticas ao invés de modelo ML"

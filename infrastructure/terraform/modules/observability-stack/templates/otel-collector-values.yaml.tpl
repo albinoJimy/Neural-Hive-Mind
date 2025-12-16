@@ -161,8 +161,73 @@ config:
         type: latency
         latency:
           threshold_ms: 1000
-      # Sampling probabilístico
-      - name: neural_hive_probabilistic
+      # Alta taxa para traces com intent_id (70%)
+      - name: neural_hive_intent_traces_high
+        type: and
+        and:
+          and_sub_policies:
+          - name: has_intent_id
+            type: string_attribute
+            string_attribute:
+              key: neural.hive.intent.id
+              values: [".+"]
+              enabled_regex_matching: true
+          - name: intent_sampling_high
+            type: probabilistic
+            probabilistic:
+              sampling_percentage: 70
+      # Alta taxa para traces com plan_id (60%)
+      - name: neural_hive_plan_traces_high
+        type: and
+        and:
+          and_sub_policies:
+          - name: has_plan_id
+            type: string_attribute
+            string_attribute:
+              key: neural.hive.plan.id
+              values: [".+"]
+              enabled_regex_matching: true
+          - name: plan_sampling_high
+            type: probabilistic
+            probabilistic:
+              sampling_percentage: 60
+      # Operações críticas 100%
+      - name: neural_hive_critical_operations
+        type: string_attribute
+        string_attribute:
+          key: operation
+          values: ["captura_intencao", "geracao_plano", "execucao_acao", "consensus", "evaluate_plan"]
+          enabled_regex_matching: true
+      # Gateway sampling 30%
+      - name: neural_hive_gateway_sampling
+        type: and
+        and:
+          and_sub_policies:
+          - name: is_gateway
+            type: string_attribute
+            string_attribute:
+              key: service.name
+              values: ["gateway-intencoes"]
+          - name: gateway_rate
+            type: probabilistic
+            probabilistic:
+              sampling_percentage: 30
+      # Health checks 1%
+      - name: neural_hive_health_checks
+        type: and
+        and:
+          and_sub_policies:
+          - name: is_health_check
+            type: string_attribute
+            string_attribute:
+              key: http.target
+              values: ["/health", "/ready", "/metrics", "/healthz"]
+          - name: health_rate
+            type: probabilistic
+            probabilistic:
+              sampling_percentage: 1
+      # Sampling probabilístico geral controlado por ambiente
+      - name: neural_hive_general_sampling
         type: probabilistic
         probabilistic:
           sampling_percentage: ${sampling_rate}

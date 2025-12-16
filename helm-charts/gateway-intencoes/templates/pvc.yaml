@@ -1,0 +1,20 @@
+{{- if .Values.persistence.models.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "gateway-intencoes.fullname" . }}-models-pvc
+  labels:
+    {{- include "gateway-intencoes.labels" . | nindent 4 }}
+    neural-hive-mind.org/component: "model-cache"
+  {{- with .Values.persistence.models.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.models.accessMode }}
+  storageClassName: {{ .Values.persistence.models.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.models.size }}
+{{- end }}

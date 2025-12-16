@@ -6,6 +6,7 @@ import grpc
 import structlog
 from google.protobuf.json_format import MessageToDict
 
+from neural_hive_observability import instrument_grpc_channel
 from src.config.settings import get_settings
 from ..proto import analyst_agent_pb2, analyst_agent_pb2_grpc, optimizer_agent_pb2, optimizer_agent_pb2_grpc
 
@@ -35,6 +36,7 @@ class AnalystAgentsGrpcClient:
                     ("grpc.keepalive_time_ms", 30000),
                 ],
             )
+            self.channel = instrument_grpc_channel(self.channel, service_name='analyst-agents')
 
             # Criar stub real
             self.stub = analyst_agent_pb2_grpc.AnalystAgentServiceStub(self.channel)

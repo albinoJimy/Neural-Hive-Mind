@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "queen-agent.configMapName" . }}
+  labels:
+    {{- include "queen-agent.labels" . | nindent 4 }}
+data:
+  SERVICE_NAME: {{ .Values.config.serviceName | quote }}
+  SERVICE_VERSION: {{ .Values.config.serviceVersion | quote }}
+  ENVIRONMENT: {{ .Values.config.environment | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+
+  FASTAPI_HOST: {{ .Values.config.fastapi.host | quote }}
+  FASTAPI_PORT: {{ .Values.config.fastapi.port | quote }}
+  CORS_ORIGINS: {{ .Values.config.corsOrigins | join "," | quote }}
+
+  GRPC_PORT: {{ .Values.config.grpc.port | quote }}
+  GRPC_MAX_WORKERS: {{ .Values.config.grpc.maxWorkers | quote }}
+
+  KAFKA_BOOTSTRAP_SERVERS: {{ .Values.config.kafka.bootstrapServers | quote }}
+  KAFKA_CONSUMER_GROUP: {{ .Values.config.kafka.consumerGroup | quote }}
+  KAFKA_AUTO_OFFSET_RESET: {{ .Values.config.kafka.autoOffsetReset | quote }}
+  KAFKA_TOPICS_CONSENSUS: {{ .Values.config.kafka.topics.consensus | quote }}
+  KAFKA_TOPICS_TELEMETRY: {{ .Values.config.kafka.topics.telemetry | quote }}
+  KAFKA_TOPICS_INCIDENTS: {{ .Values.config.kafka.topics.incidents | quote }}
+  KAFKA_TOPICS_STRATEGIC: {{ .Values.config.kafka.topics.strategic | quote }}
+
+  MONGODB_URI: {{ .Values.config.mongodb.uri | quote }}
+  MONGODB_DATABASE: {{ .Values.config.mongodb.database | quote }}
+  MONGODB_COLLECTION_LEDGER: {{ .Values.config.mongodb.ledgerCollection | quote }}
+  MONGODB_COLLECTION_EXCEPTIONS: {{ .Values.config.mongodb.exceptionsCollection | quote }}
+  MONGODB_MAX_POOL_SIZE: {{ .Values.config.mongodb.maxPoolSize | quote }}
+  MONGODB_MIN_POOL_SIZE: {{ .Values.config.mongodb.minPoolSize | quote }}
+
+  REDIS_CLUSTER_NODES: {{ .Values.config.redis.clusterNodes | quote }}
+  REDIS_PASSWORD: {{ .Values.config.redis.password | quote }}
+  REDIS_SSL_ENABLED: {{ .Values.config.redis.sslEnabled | quote }}
+  REDIS_PHEROMONE_PREFIX: {{ .Values.config.redis.pheromonePrefix | quote }}
+  REDIS_CACHE_TTL_SECONDS: {{ .Values.config.redis.cacheTtlSeconds | quote }}
+
+  NEO4J_URI: {{ .Values.config.neo4j.uri | quote }}
+  NEO4J_USER: {{ .Values.config.neo4j.user | quote }}
+  NEO4J_PASSWORD: {{ .Values.config.neo4j.password | quote }}
+  NEO4J_DATABASE: {{ .Values.config.neo4j.database | quote }}
+  NEO4J_MAX_CONNECTION_POOL_SIZE: {{ .Values.config.neo4j.maxConnectionPoolSize | quote }}
+
+  PROMETHEUS_URL: {{ .Values.config.prometheus.url | quote }}
+  PROMETHEUS_QUERY_TIMEOUT_SECONDS: {{ .Values.config.prometheus.queryTimeoutSeconds | quote }}
+
+  ORCHESTRATOR_GRPC_HOST: {{ .Values.config.orchestrator.grpcHost | quote }}
+  ORCHESTRATOR_GRPC_PORT: {{ .Values.config.orchestrator.grpcPort | quote }}
+
+  SERVICE_REGISTRY_GRPC_HOST: {{ .Values.config.serviceRegistry.grpcHost | quote }}
+  SERVICE_REGISTRY_GRPC_PORT: {{ .Values.config.serviceRegistry.grpcPort | quote }}
+
+  OTEL_EXPORTER_ENDPOINT: {{ .Values.config.observability.otelExporterEndpoint | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.observability.otelExporterEndpoint | quote }}
+  OTEL_SERVICE_NAME: {{ .Values.config.serviceName | quote }}
+  OTEL_RESOURCE_ATTRIBUTES: "service.version={{ .Values.config.serviceVersion }},deployment.environment={{ .Values.config.environment }}"
+  METRICS_PORT: {{ .Values.config.observability.prometheusPort | quote }}

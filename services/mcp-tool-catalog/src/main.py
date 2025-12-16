@@ -8,6 +8,12 @@ import structlog
 import uvicorn
 from fastapi import FastAPI
 from prometheus_client import make_asgi_app, start_http_server
+from neural_hive_observability import (
+    get_tracer,
+    init_observability,
+    instrument_kafka_consumer,
+    instrument_kafka_producer,
+)
 
 from src.api.http_server import create_app
 from src.config import get_settings
@@ -38,6 +44,16 @@ class MCPToolCatalogService:
     async def startup(self):
         """Initialize all service components."""
         logger.info("starting_mcp_tool_catalog", version=self.settings.SERVICE_VERSION)
+
+        init_observability(
+            service_name=self.settings.SERVICE_NAME,
+            service_version=self.settings.SERVICE_VERSION,
+            neural_hive_component='mcp-tool-catalog',
+            neural_hive_layer='ferramentas',
+            neural_hive_domain='tool-selection',
+            otel_endpoint=self.settings.otel_endpoint,
+            enable_kafka=True
+        )
 
         try:
             # Initialize MongoDB client
@@ -85,6 +101,7 @@ class MCPToolCatalogService:
                 self.settings.KAFKA_CONSUMER_GROUP_ID,
             )
             await self.kafka_consumer.start()
+            self.kafka_consumer = instrument_kafka_consumer(self.kafka_consumer)
             logger.info("kafka_consumer_started")
 
             self.kafka_producer = KafkaResponseProducer(
@@ -92,6 +109,7 @@ class MCPToolCatalogService:
                 self.settings.KAFKA_TOOL_SELECTION_RESPONSE_TOPIC,
             )
             await self.kafka_producer.start()
+            self.kafka_producer = instrument_kafka_producer(self.kafka_producer)
             logger.info("kafka_producer_started")
 
             # Initialize Service Registry client
@@ -153,8 +171,14 @@ class MCPToolCatalogService:
                 try:
                     self.metrics.active_tool_selections.inc()
 
-                    # Process selection request
-                    response = await self.genetic_selector.select_tools(request)
+                    tracer = get_tracer()
+                    with tracer.start_as_current_span("genetic_tool_selection") as span:
+                        span.set_attribute("neural.hive.request_id", request.request_id)
+                        span.set_attribute("neural.hive.tool_count", len(request.required_capabilities))
+
+                        # Process selection request
+                        response = await self.genetic_selector.select_tools(request)
+                        span.set_attribute("neural.hive.selected_tools", len(response.selected_tools))
 
                     # Increment usage counters for selected tools
                     for selected_tool in response.selected_tools:

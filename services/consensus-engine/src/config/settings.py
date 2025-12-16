@@ -100,15 +100,28 @@ class Settings(BaseSettings):
     jaeger_sampling_rate: float = Field(default=1.0, description='Taxa de sampling Jaeger', ge=0.0, le=1.0)
 
     # Consensus Configuration
+    #
+    # NOTA: Thresholds ajustados baseado em análise de produção (2025-12)
+    # Valores anteriores (0.8 confidence, 0.05 divergence) eram muito restritivos,
+    # causando 78% de rejeições mesmo com modelos saudáveis.
+    #
+    # Novos valores base refletem:
+    # - Confiança típica de modelos ML em produção: 70-75%
+    # - Divergência natural entre 5 specialists heterogêneos: 15-20%
+    # - Margem para degradação parcial sem falsos positivos
     min_confidence_score: float = Field(
-        default=0.8,
-        description='Score mínimo de confiança obrigatório',
+        default=0.65,  # Reduzido de 0.8 para 0.65 (65%)
+        description='Score mínimo de confiança obrigatório. '
+                    'Ajustado para 65% baseado em análise de produção. '
+                    'Thresholds adaptativos podem relaxar até 50% quando modelos degradados.',
         ge=0.0,
         le=1.0
     )
     max_divergence_threshold: float = Field(
-        default=0.05,
-        description='Divergência máxima permitida (5%)',
+        default=0.25,  # Aumentado de 0.05 para 0.25 (25%)
+        description='Divergência máxima permitida entre specialists. '
+                    'Ajustado para 25% para acomodar variação natural entre 5 specialists. '
+                    'Thresholds adaptativos podem relaxar até 35% quando modelos degradados.',
         ge=0.0,
         le=1.0
     )

@@ -2,7 +2,7 @@
 
 # Image configuration
 image:
-  repository: neural-hive-mind/sla-management-system
+  repository: 37.60.241.150:30500/sla-management-system
   tag: "1.0.0"
   pullPolicy: IfNotPresent
 
@@ -22,10 +22,10 @@ autoscaling:
 # Resource limits
 resources:
   requests:
-    cpu: 200m
-    memory: 512Mi
+    cpu: 300m      # Budget calculations
+    memory: 640Mi
   limits:
-    cpu: 1000m
+    cpu: 1200m
     memory: 2Gi
 
 # Service configuration
@@ -100,11 +100,16 @@ operator:
   watchNamespaces: []  # Empty = watch all namespaces
   reconciliationIntervalSeconds: 300
 
-# Secrets (should be replaced with SealedSecrets in production)
+# Secrets configuration
+# Use existingSecret para referenciar secrets criados pelo create-phase2-secrets.sh
+# Os Helm charts usam secretKeyRef para ler valores diretamente dos secrets K8s
 secrets:
-  postgresUser: sla_user
-  postgresPassword: "<sealed-secret-ref>"
-  redisPassword: "<sealed-secret-ref>"
+  existingSecret: "sla-management-system-secrets"
+  # Mapeamento de chaves do secret para variáveis de ambiente
+  postgresUserKey: POSTGRES_USER
+  postgresPasswordKey: POSTGRES_PASSWORD
+  redisPasswordKey: REDIS_PASSWORD
+  prometheusBearerTokenKey: PROMETHEUS_BEARER_TOKEN
 
 # Istio configuration
 istio:

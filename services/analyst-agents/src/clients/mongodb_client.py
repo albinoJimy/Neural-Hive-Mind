@@ -7,10 +7,12 @@ logger = structlog.get_logger()
 
 
 class MongoDBClient:
-    def __init__(self, uri: str, database: str, collection: str):
+    def __init__(self, uri: str, database: str, collection: str, max_pool_size: int = 100, min_pool_size: int = 10):
         self.uri = uri
         self.database_name = database
         self.collection_name = collection
+        self.max_pool_size = max_pool_size
+        self.min_pool_size = min_pool_size
         self.client = None
         self.database = None
         self.collection = None
@@ -18,7 +20,11 @@ class MongoDBClient:
     async def initialize(self):
         """Conectar ao MongoDB"""
         try:
-            self.client = AsyncIOMotorClient(self.uri)
+            self.client = AsyncIOMotorClient(
+                self.uri,
+                maxPoolSize=self.max_pool_size,
+                minPoolSize=self.min_pool_size
+            )
             self.database = self.client[self.database_name]
             self.collection = self.database[self.collection_name]
 

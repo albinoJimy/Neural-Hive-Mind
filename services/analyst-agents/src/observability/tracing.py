@@ -1,3 +1,4 @@
+"""DEPRECATED: substituído por neural_hive_observability==1.1.0."""
 import structlog
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider

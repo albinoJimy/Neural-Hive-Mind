@@ -4,6 +4,12 @@ from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
 import structlog
 from redis.asyncio import Redis
+from neural_hive_observability import (
+    get_tracer,
+    init_observability,
+    instrument_kafka_consumer,
+    instrument_kafka_producer,
+)
 from src.config import get_settings
 from src.clients import SpecialistsGrpcClient, PheromoneClient, MongoDBClient
 from src.observability import ConsensusMetrics
@@ -42,6 +48,17 @@ async def startup_event():
     '''Inicialização da aplicação'''
     logger.info('Iniciando Consensus Engine', environment=settings.environment)
 
+    init_observability(
+        service_name='consensus-engine',
+        service_version='1.0.0',
+        neural_hive_component='consensus-engine',
+        neural_hive_layer='cognitiva',
+        neural_hive_domain='consensus',
+        otel_endpoint=settings.otel_endpoint,
+        enable_kafka=True,
+        enable_grpc=True
+    )
+
     try:
         # Inicializar clientes
         # MongoDB
@@ -79,11 +96,13 @@ async def startup_event():
             state.pheromone_client
         )
         await state.plan_consumer.initialize()
+        state.plan_consumer = instrument_kafka_consumer(state.plan_consumer)
         logger.info('Plan consumer inicializado')
 
         # Inicializar Kafka producer
         state.decision_producer = DecisionProducer(settings)
         await state.decision_producer.initialize()
+        state.decision_producer = instrument_kafka_producer(state.decision_producer)
         logger.info('Decision producer inicializado')
 
         # Iniciar consumer em background

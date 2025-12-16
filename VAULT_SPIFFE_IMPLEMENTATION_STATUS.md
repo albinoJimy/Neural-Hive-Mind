@@ -119,6 +119,7 @@ python3 -c "from neural_hive_security import VaultClient, SPIFFEManager"
    - Propagar novas credenciais para clients (recriando conexões quando necessário)
    - Iniciar renovação em background durante startup
    - Parar no shutdown
+- Limitação atual: a rotação automática de credenciais PostgreSQL ainda não reconfigura o cliente/pool do Temporal em runtime; fase futura deve implementar recriação segura do cliente quando `_postgres_credentials` for renovado.
 
 ### Comentário 5: Worker Agents usar `WorkerVaultClient`
 

@@ -1,0 +1,91 @@
+name: "specialist-technical"
+replicas: 1
+image:
+  repository: "docker.io/neural-hive-mind/specialist-technical"
+  tag: "1.0.0"
+  pullPolicy: "Never"
+resources:
+  requests:
+    cpu: "200m"
+    memory: "512Mi"
+  limits:
+    cpu: "800m"
+    memory: "1536Mi"
+service:
+  type: "ClusterIP"
+  grpcPort: 50051
+  httpPort: 8000
+  metricsPort: 8080
+config:
+  environment: "local"
+  logLevel: "DEBUG"
+  enableJwtAuth: false
+  mlflow:
+    trackingUri: "http://mlflow.mlflow.svc.cluster.local:5000"
+    experimentName: "technical-specialist-local"
+    modelName: "technical-evaluator"
+    modelStage: "Staging"
+  mongodb:
+    uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+    database: "neural_hive"
+    opinionsCollection: "specialist_opinions"
+  neo4j:
+    uri: "bolt://neo4j.neo4j-cluster.svc.cluster.local:7687"
+    user: "neo4j"
+    database: "neo4j"
+  redis:
+    clusterNodes: "neural-hive-cache.redis-cluster.svc.cluster.local:6379"
+    sslEnabled: false
+    cacheTtl: 300
+  otel:
+    endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+  grpc:
+    port: 50051
+    maxWorkers: 5
+    maxMessageLength: 4194304
+  http:
+    port: 8000
+  prometheus:
+    port: 8080
+  thresholds:
+    minConfidenceScore: 0.7
+    highRiskThreshold: 0.7
+  timeouts:
+    evaluationMs: 5000
+    modelInferenceMs: 3000
+  features:
+    enableExplainability: true
+    enableCaching: true
+    enableModelMonitoring: false
+  technical:
+    securityAnalysisEnabled: true
+    complianceRequirements:
+      - "OWASP-ASVS"
+      - "NIST-SP-800-53"
+probes:
+  startup:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    failureThreshold: 30
+  liveness:
+    initialDelaySeconds: 60
+    periodSeconds: 30
+  readiness:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+secrets:
+  mongodbUri: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017"
+  neo4jPassword: "local_dev_password"
+  redisPassword: ""
+nodeSelector:
+  kubernetes.io/hostname: "vmi2092350.contaboserver.net"
+observability:
+  serviceMonitor:
+    enabled: true
+security:
+  networkPolicy:
+    enabled: false
+metadata:
+  generated_at: "2025-11-20T21:08:32Z"
+  generated_by: 10-prepare-fluxo-b-values.sh
+  cluster_context: kubernetes-admin@kubernetes

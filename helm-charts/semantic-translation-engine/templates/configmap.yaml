@@ -43,6 +43,7 @@ data:
 
   # OpenTelemetry Configuration
   OTEL_ENDPOINT: {{ .Values.config.openTelemetry.endpoint | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.openTelemetry.endpoint | quote }}
   OTEL_SAMPLING_RATE: {{ .Values.config.openTelemetry.samplingRate | quote }}
 
   # Risk Scoring Configuration

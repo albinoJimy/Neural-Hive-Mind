@@ -1,6 +1,6 @@
 image:
-  repository: neural-hive/guard-agents
-  tag: 1.0.0
+  repository: 37.60.241.150:30500/guard-agents
+  tag: "1.0.0"
   pullPolicy: IfNotPresent
 
 replicaCount: 2
@@ -14,14 +14,15 @@ autoscaling:
 
 resources:
   requests:
-    cpu: 500m
+    cpu: 300m      # Policy enforcement is lightweight
     memory: 512Mi
   limits:
     cpu: 1000m
-    memory: 1Gi
+    memory: 1536Mi
 
 config:
   serviceName: guard-agents
+  environment: production
   namespace: neural-hive-resilience
 
   kafka:
@@ -170,11 +171,16 @@ nodeSelector: {}
 networkPolicy:
   enabled: true
 
+# Secrets configuration
+# Use existingSecret para referenciar secrets criados pelo create-phase2-secrets.sh
+# Os Helm charts usam secretKeyRef para ler valores diretamente dos secrets K8s
 secrets:
-  mongodbPassword: ""
-  redisPassword: ""
-  kafkaSaslUsername: ""
-  kafkaSaslPassword: ""
+  existingSecret: "guard-agents-secrets"
+  # Mapeamento de chaves do secret para variáveis de ambiente
+  mongodbPasswordKey: MONGODB_PASSWORD
+  redisPasswordKey: REDIS_PASSWORD
+  kafkaSaslUsernameKey: KAFKA_SASL_USERNAME
+  kafkaSaslPasswordKey: KAFKA_SASL_PASSWORD
 
 topologySpreadConstraints:
   - maxSkew: 1

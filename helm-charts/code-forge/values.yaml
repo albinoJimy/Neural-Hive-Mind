@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: neural-hive-mind/code-forge
+  repository: 37.60.241.150:30500/code-forge
   tag: "1.0.0"
   pullPolicy: IfNotPresent
 
@@ -90,23 +90,20 @@ config:
   LOG_FORMAT: json
 
 secrets:
-  # PostgreSQL
-  postgresUser: "code_forge"
-  postgresPassword: "change-in-production"
-
-  # MongoDB
-  mongodbUri: "mongodb://code_forge:change-in-production@mongodb:27017/code_forge"
-
-  # Redis
-  redisPassword: ""
-
-  # Kafka SASL (se habilitado)
-  kafkaSaslUsername: ""
-  kafkaSaslPassword: ""
-
-  # Git credentials (se repositório privado)
-  gitUsername: ""
-  gitToken: ""
+  # Use existingSecret para referenciar secrets criados pelo create-phase2-secrets.sh
+  # Os Helm charts usam secretKeyRef para ler valores diretamente dos secrets K8s
+  existingSecret: "code-forge-secrets"
+  # Mapeamento de chaves do secret para variáveis de ambiente
+  postgresUserKey: POSTGRES_USER
+  postgresPasswordKey: POSTGRES_PASSWORD
+  mongodbUriKey: MONGODB_URI
+  redisPasswordKey: REDIS_PASSWORD
+  kafkaSaslUsernameKey: KAFKA_SASL_USERNAME
+  kafkaSaslPasswordKey: KAFKA_SASL_PASSWORD
+  gitUsernameKey: GIT_USERNAME
+  gitTokenKey: GIT_TOKEN
+  openaiApiKeyKey: OPENAI_API_KEY
+  anthropicApiKeyKey: ANTHROPIC_API_KEY
 
 networkPolicy:
   enabled: true

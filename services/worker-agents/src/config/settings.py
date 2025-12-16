@@ -66,6 +66,7 @@ class WorkerAgentSettings(BaseSettings):
     argocd_url: Optional[str] = None
     argocd_token: Optional[str] = None
     argocd_enabled: bool = False
+    argocd_notifications_webhook: Optional[str] = None
 
     # OPA Validation
     opa_url: str = 'http://opa.neural-hive-governance:8181'
@@ -80,6 +81,24 @@ class WorkerAgentSettings(BaseSettings):
     allowed_test_commands: List[str] = Field(
         default_factory=lambda: ['pytest', 'npm test', 'go test', 'mvn test']
     )
+    github_actions_enabled: bool = False
+    github_api_url: str = 'https://api.github.com'
+    github_token: Optional[str] = None
+    github_actions_timeout_seconds: int = 900
+    jenkins_url: Optional[str] = None
+    jenkins_user: Optional[str] = None
+    jenkins_token: Optional[str] = None
+    jenkins_timeout_seconds: int = 600
+
+    # Validation providers
+    sonarqube_enabled: bool = False
+    sonarqube_url: Optional[str] = None
+    sonarqube_token: Optional[str] = None
+    sonarqube_timeout_seconds: int = 600
+    snyk_enabled: bool = False
+    snyk_token: Optional[str] = None
+    checkov_enabled: bool = False
+    checkov_timeout_seconds: int = 300
 
     # Temporal (opcional)
     temporal_host: str = 'temporal-frontend.temporal.svc.cluster.local'
@@ -92,6 +111,7 @@ class WorkerAgentSettings(BaseSettings):
     max_retries_per_ticket: int = 3
     retry_backoff_base_seconds: int = 2
     retry_backoff_max_seconds: int = 60
+    code_forge_retry_attempts: int = 3
     dependency_check_interval_seconds: int = 5
     dependency_check_max_attempts: int = 60
 
@@ -107,6 +127,7 @@ class WorkerAgentSettings(BaseSettings):
     mtls_key_path: str = '/etc/certs/tls.key'
 
     # Vault Integration
+    # As flags vault_enabled e spiffe_enabled são independentes; SPIFFE pode ser habilitado sem Vault para autenticação mTLS/JWT.
     vault_enabled: bool = Field(default=False, description='Habilitar integração com Vault')
     vault_address: str = Field(
         default='http://vault.vault.svc.cluster.local:8200',
@@ -139,6 +160,10 @@ class WorkerAgentSettings(BaseSettings):
     spiffe_jwt_audience: str = Field(
         default='vault.neural-hive.local',
         description='Audience para JWT-SVID'
+    )
+    spiffe_jwt_ttl_seconds: int = Field(
+        default=3600,
+        description='TTL desejado (segundos) para JWT-SVIDs solicitados ao SPIRE Workload API'
     )
 
     def get_metadata(self) -> Dict[str, str]:

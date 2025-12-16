@@ -8,8 +8,6 @@ from datetime import datetime, timedelta
 import aiohttp
 from cachetools import TTLCache
 import structlog
-import pybreaker
-from pybreaker import CircuitBreaker, CircuitBreakerError
 
 from ..observability.metrics import get_metrics
 
@@ -53,14 +51,11 @@ class OPAClient:
             ttl=config.opa_cache_ttl_seconds
         )
 
-        # Circuit Breaker para prevenir cascading failures
+        # Circuit Breaker para prevenir cascading failures (implementação assíncrona manual)
         self._circuit_breaker_enabled = config.opa_circuit_breaker_enabled
-        self._circuit_breaker = CircuitBreaker(
-            fail_max=config.opa_circuit_breaker_failure_threshold,
-            reset_timeout=config.opa_circuit_breaker_reset_timeout,
-            exclude=[OPAPolicyNotFoundError],
-            listeners=[self._on_circuit_breaker_state_change]
-        )
+        self._circuit_state: str = 'closed'  # closed, half_open, open
+        self._circuit_failure_count: int = 0
+        self._circuit_opened_at: Optional[datetime] = None
         self._last_failure_time: Optional[datetime] = None
 
         logger.info(
@@ -73,32 +68,28 @@ class OPAClient:
             circuit_breaker_reset_timeout=config.opa_circuit_breaker_reset_timeout
         )
 
-    def _on_circuit_breaker_state_change(self, breaker, old_state, new_state):
-        """
-        Listener para mudanças de estado do circuit breaker.
+    def _set_circuit_state(self, new_state: str):
+        """Atualiza estado do circuit breaker e registra métricas."""
+        previous_state = getattr(self, "_circuit_state", "closed")
+        if new_state == previous_state:
+            return
 
-        Args:
-            breaker: Instância do CircuitBreaker
-            old_state: Estado anterior
-            new_state: Novo estado
-        """
+        self._circuit_state = new_state
+        self.metrics.record_opa_circuit_breaker_state(new_state, self._circuit_failure_count)
+
         logger.warning(
             "Circuit breaker OPA mudou de estado",
-            old_state=old_state.name if hasattr(old_state, 'name') else str(old_state),
-            new_state=new_state.name if hasattr(new_state, 'name') else str(new_state),
-            failure_count=breaker.fail_counter,
+            old_state=previous_state,
+            new_state=new_state,
+            failure_count=self._circuit_failure_count,
             timestamp=datetime.now().isoformat()
         )
 
-        # Registrar métrica de mudança de estado
-        self.metrics.record_opa_circuit_breaker_state(
-            new_state.name if hasattr(new_state, 'name') else str(new_state),
-            breaker.fail_counter
-        )
-
-        # Atualizar timestamp de última falha se relevante
-        if new_state.name == 'open':
+        if new_state == 'open':
             self._last_failure_time = datetime.now()
+            self._circuit_opened_at = self._last_failure_time
+        elif new_state == 'closed':
+            self._circuit_opened_at = None
 
     async def initialize(self):
         """Criar sessão aiohttp com connection pooling."""
@@ -304,40 +295,48 @@ class OPAClient:
             self.metrics.record_opa_cache_hit()
             return self._cache[cache_key]
 
-        # Se circuit breaker não está habilitado, executar diretamente
-        if not self._circuit_breaker_enabled:
-            return await self._evaluate_policy_internal(policy_path, input_data, cache_key)
+        # Verificar estado do circuit breaker
+        if self._circuit_breaker_enabled:
+            # Se aberto e dentro do reset timeout, falhar imediatamente
+            if self._circuit_state == 'open' and self._circuit_opened_at:
+                elapsed = (datetime.now() - self._circuit_opened_at).total_seconds()
+                if elapsed < self.config.opa_circuit_breaker_reset_timeout:
+                    self.metrics.record_opa_error('circuit_breaker_open')
+                    raise OPAConnectionError(
+                        f"Circuit breaker aberto após {self.config.opa_circuit_breaker_failure_threshold} falhas"
+                    )
+                # Após reset_timeout, permitir tentativa em half-open
+                self._set_circuit_state('half_open')
 
-        # Executar com circuit breaker usando API pública
-        # Wrapper síncrono que executa a coroutine async
-        def sync_eval_wrapper():
-            # Obter ou criar event loop para executar a coroutine
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            return loop.run_until_complete(
-                self._evaluate_policy_internal(policy_path, input_data, cache_key)
-            )
-
-        # Executar através do circuit breaker que gerencia falhas/sucessos
         try:
-            result = self._circuit_breaker.call(sync_eval_wrapper)
+            result = await self._evaluate_policy_internal(policy_path, input_data, cache_key)
+
+            # Sucesso: fechar circuit breaker e resetar contadores
+            if self._circuit_breaker_enabled:
+                self._circuit_failure_count = 0
+                if self._circuit_state != 'closed':
+                    self._set_circuit_state('closed')
+
             return result
 
-        except CircuitBreakerError as e:
-            logger.error(
-                "Circuit breaker OPA aberto",
-                policy_path=policy_path,
-                failure_threshold=self.config.opa_circuit_breaker_failure_threshold,
-                failure_count=self._circuit_breaker.fail_counter
-            )
-            self.metrics.record_opa_error('circuit_breaker_open')
-            raise OPAConnectionError(
-                f"Circuit breaker aberto após {self.config.opa_circuit_breaker_failure_threshold} falhas"
-            )
+        except OPAPolicyNotFoundError:
+            # 404 não deve afetar circuit breaker
+            raise
+
+        except (OPAConnectionError, OPAEvaluationError) as e:
+            if self._circuit_breaker_enabled:
+                if self._circuit_state == 'half_open':
+                    # Uma falha em half-open reabre imediatamente
+                    self._circuit_failure_count = self.config.opa_circuit_breaker_failure_threshold
+                else:
+                    self._circuit_failure_count += 1
+
+                self._last_failure_time = datetime.now()
+
+                if self._circuit_failure_count >= self.config.opa_circuit_breaker_failure_threshold:
+                    self._set_circuit_state('open')
+
+            raise
 
     async def batch_evaluate(
         self,
@@ -427,15 +426,9 @@ class OPAClient:
                 'last_failure_time': None
             }
 
-        state_name = self._circuit_breaker.current_state
-        if hasattr(state_name, 'name'):
-            state_name = state_name.name.lower()
-        else:
-            state_name = str(state_name).lower()
-
         return {
             'enabled': True,
-            'state': state_name,
-            'failure_count': self._circuit_breaker.fail_counter,
+            'state': self._circuit_state,
+            'failure_count': self._circuit_failure_count,
             'last_failure_time': self._last_failure_time.isoformat() if self._last_failure_time else None
         }

@@ -1,0 +1,92 @@
+{
+  "namespace": "neural.hive.execution",
+  "type": "record",
+  "name": "ExecutionResult",
+  "doc": "Resultado de execução publicado pelos Worker Agents no tópico execution.results",
+  "fields": [
+    {
+      "name": "ticket_id",
+      "type": "string",
+      "doc": "ID do ticket executado"
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "ExecutionStatus",
+        "symbols": ["COMPLETED", "FAILED", "RUNNING"]
+      },
+      "doc": "Status final do ticket"
+    },
+    {
+      "name": "result",
+      "type": {
+        "type": "record",
+        "name": "ExecutionResultPayload",
+        "fields": [
+          {
+            "name": "success",
+            "type": "boolean",
+            "doc": "Indica se a execução foi bem sucedida"
+          },
+          {
+            "name": "output",
+            "type": {
+              "type": "map",
+              "values": "string"
+            },
+            "default": {},
+            "doc": "Saída principal ou artefatos da execução"
+          },
+          {
+            "name": "metadata",
+            "type": {
+              "type": "map",
+              "values": "string"
+            },
+            "default": {},
+            "doc": "Metadados adicionais da execução"
+          },
+          {
+            "name": "logs",
+            "type": {
+              "type": "array",
+              "items": "string"
+            },
+            "default": [],
+            "doc": "Logs ou mensagens emitidas durante a execução"
+          }
+        ]
+      },
+      "doc": "Resultado detalhado da execução"
+    },
+    {
+      "name": "error_message",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Mensagem de erro, se aplicável"
+    },
+    {
+      "name": "actual_duration_ms",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "Duração real em milissegundos"
+    },
+    {
+      "name": "agent_id",
+      "type": "string",
+      "doc": "ID do Worker Agent que executou"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "doc": "Timestamp Unix em milissegundos"
+    },
+    {
+      "name": "schema_version",
+      "type": "int",
+      "default": 1,
+      "doc": "Versão do schema"
+    }
+  ]
+}

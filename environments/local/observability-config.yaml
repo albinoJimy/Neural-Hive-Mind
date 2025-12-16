@@ -1,0 +1,163 @@
+# Configuração de Observabilidade - Ambiente Local Kubeadm
+# Usado por: docs/manual-deployment/scripts/04-prepare-observability-values.sh
+
+environment: local
+cluster_type: kubeadm
+
+storage:
+  class: local-path  # Detectado automaticamente quando vazio
+  provisioner: rancher.io/local-path
+
+resources:
+  small:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  medium:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 2Gi
+  large:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2
+      memory: 4Gi
+
+prometheus:
+  namespace: observability
+  release_name: neural-hive-prometheus
+  replicas: 1
+  retention: 7d
+  retention_size: 10Gi
+  storage_size: 20Gi
+  storage_class: local-path
+  resources: medium
+  scrape_interval: 30s
+  remote_write_enabled: false
+  alertmanager_replicas: 1
+  alertmanager_storage: 5Gi
+  alertmanager_resources: small
+  operator_resources: small
+  kube_state_metrics_resources: small
+  node_exporter_resources: small
+
+  service_monitor_selector:
+    neural.hive/metrics: enabled
+  service_monitor_namespaces:
+    - gateway
+    - gateway-intencoes
+    - semantic-translation-engine
+    - consensus-engine
+    - orchestrator-dynamic
+    - specialist-business
+    - specialist-technical
+    - specialist-behavior
+    - specialist-evolution
+    - specialist-architecture
+    - memory-layer-api
+    - execution-ticket-service
+
+  additional_scrape_configs: true
+  remote_write: []
+
+  exemplars:
+    enabled: true
+    max_size: 10000
+
+  alertmanager_config:
+    route:
+      receiver: default
+    receivers:
+      - name: default
+
+
+  global:
+    environment: local
+    cluster: kubeadm-local
+
+  servicemonitors:
+    enabled: true
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+
+  validation:
+    wait_timeout: 600
+    retry_attempts: 3
+    health_check_interval: 10
+
+grafana:
+  namespace: observability
+  release_name: neural-hive-grafana
+  replicas: 1
+  storage_size: 5Gi
+  resources: small
+  admin_user: admin
+  admin_password: admin
+  generate_passwords: true
+  database_type: sqlite3
+  plugins:
+    - grafana-piechart-panel
+    - grafana-clock-panel
+  datasources:
+    prometheus_name: Prometheus
+    jaeger_name: Jaeger
+  dashboards_enabled: true
+  ingress_enabled: false
+  feature_toggles:
+    - traceqlEditor
+    - correlations
+
+jaeger:
+  namespace: observability
+  release_name: neural-hive-jaeger
+  deployment_mode: all-in-one
+  replicas: 1
+  storage_type: memory
+  storage_size: n/a
+  resources: medium
+  otlp_enabled: true
+  sampling_rate: 1.0
+  ui_enabled: true
+  elasticsearch_enabled: false
+  service_monitor:
+    enabled: true
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+servicemonitors:
+  enabled: true
+  scrape_interval: 30s
+  scrape_timeout: 10s
+  namespaces:
+    - gateway
+    - gateway-intencoes
+    - semantic-translation-engine
+    - consensus-engine
+    - orchestrator-dynamic
+    - specialist-business
+    - specialist-technical
+    - specialist-behavior
+    - specialist-evolution
+    - specialist-architecture
+    - memory-layer-api
+    - execution-ticket-service
+
+security:
+  tls_enabled: false
+  auth_enabled: true
+  generate_passwords: true
+  password_length: 16
+
+validation:
+  wait_timeout: 600
+  retry_attempts: 3
+  health_check_interval: 10

@@ -1,4 +1,10 @@
 #!/bin/bash
+echo "⚠️  AVISO: Este script foi consolidado no CLI unificado de validação."
+echo "⚠️  Use: scripts/validate.sh --target <TARGET>"
+echo "⚠️  Exemplo: scripts/validate.sh --target specialists"
+echo ""
+echo "Executando script legado..."
+echo ""
 # Teste abrangente do cluster autoscaler para Neural Hive-Mind
 # Valida scale-up/down, multi-zone, node affinity, resource contention e performance
 # Version: 2.0

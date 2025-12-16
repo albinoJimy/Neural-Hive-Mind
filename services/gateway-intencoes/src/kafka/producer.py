@@ -13,6 +13,14 @@ import structlog
 from models.intent_envelope import IntentEnvelope
 from observability.metrics import message_size_histogram, message_size_gauge, record_too_large_counter
 from config.settings import get_settings
+try:
+    from neural_hive_observability.tracing import inject_context_to_headers
+except ImportError:
+    inject_context_to_headers = None
+try:
+    from neural_hive_observability.kafka_instrumentation import instrument_kafka_producer
+except ImportError:
+    instrument_kafka_producer = None
 
 logger = structlog.get_logger()
 
@@ -27,6 +35,7 @@ class KafkaIntentProducer:
         self._ready = False
         self._transactional_id = self._generate_stable_transactional_id()
         self._cluster_metadata = None
+        self._instrumented = False
 
     def _generate_stable_transactional_id(self) -> str:
         """Generate stable transactional ID per process/pod
@@ -133,6 +142,12 @@ class KafkaIntentProducer:
 
             # Inicializar transações
             self.producer.init_transactions()
+
+            if instrument_kafka_producer and self.settings.otel_enabled:
+                self.producer = instrument_kafka_producer(self.producer)
+                self._instrumented = True
+                logger.info("Instrumentação de Kafka habilitada para propagação de tracing")
+
             self._ready = True
 
             logger.info("Producer Kafka inicializado com sucesso")
@@ -275,6 +290,22 @@ class KafkaIntentProducer:
                 'requires-validation': str(requires_validation if requires_validation is not None else False).encode('utf-8'),
                 'adaptive-threshold-used': str(adaptive_threshold_used if adaptive_threshold_used is not None else False).encode('utf-8')
             }
+            if (
+                self.settings.otel_enabled
+                and inject_context_to_headers
+                and not self._instrumented
+            ):
+                normalized_headers = {
+                    key: value.decode('utf-8') if isinstance(value, (bytes, bytearray)) else value
+                    for key, value in headers.items()
+                }
+                headers_with_context = inject_context_to_headers(normalized_headers)
+                headers = [
+                    (key, val.encode('utf-8') if isinstance(val, str) else val)
+                    for key, val in headers_with_context.items()
+                ]
+            else:
+                headers = list(headers.items())
 
             # Produzir mensagem
             future = self.producer.produce(

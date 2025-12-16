@@ -14,6 +14,7 @@ import pandas as pd
 import numpy as np
 from motor.motor_asyncio import AsyncIOMotorClient
 import mlflow
+from mlflow.tracking import MlflowClient
 
 # Adiciona path da biblioteca
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "libraries" / "python"))
@@ -184,9 +185,20 @@ class PredictiveModelsTrainer:
             # Carrega dados históricos reais
             training_data = await self._load_load_predictor_data()
 
-            if len(training_data) < self.args.min_samples:
+            # Converte dataframe para lista de registros (timestamp, load) quando disponível
+            training_records = []
+            if training_data is not None and not training_data.empty:
+                for _, row in training_data.iterrows():
+                    ts = row['timestamp']
+                    ts_iso = ts.isoformat() if hasattr(ts, 'isoformat') else str(ts)
+                    training_records.append({
+                        'timestamp': ts_iso,
+                        'load': float(row['ticket_count'])
+                    })
+
+            if len(training_records) < self.args.min_samples:
                 logger.warning(
-                    f"Dados insuficientes para LoadPredictor: {len(training_data)} < {self.args.min_samples}, "
+                    f"Dados insuficientes para LoadPredictor: {len(training_records)} < {self.args.min_samples}, "
                     f"usando dados sintéticos"
                 )
                 # Treina com dados internos (sintéticos se necessário)
@@ -194,10 +206,11 @@ class PredictiveModelsTrainer:
                     training_window_days=self.args.training_window_days
                 )
             else:
-                logger.info(f"Treinando LoadPredictor com {len(training_data)} registros reais")
+                logger.info(f"Treinando LoadPredictor com {len(training_records)} registros reais")
                 # Treina com dados reais
                 all_metrics = await predictor.train_model(
-                    training_window_days=self.args.training_window_days
+                    training_window_days=self.args.training_window_days,
+                    training_data=training_records
                 )
 
             logger.info(f"LoadPredictor treinado: {all_metrics}")
@@ -364,9 +377,25 @@ class PredictiveModelsTrainer:
             )
 
             if not prod_metadata:
-                logger.info(f"Nenhum modelo em produção para {model_name}, promovendo automaticamente")
-                # TODO: Obter versão do modelo recém-treinado
-                # Por agora, assume que foi o último registrado
+                logger.info(f"Nenhum modelo em produção para {model_name}, promovendo modelo mais recente")
+
+                latest_versions = self.model_registry.client.get_latest_versions(
+                    model_name,
+                    stages=["None", "Staging"]
+                )
+
+                if not latest_versions:
+                    logger.warning(f"Nenhuma versão encontrada para {model_name}")
+                    return
+
+                new_version = max(latest_versions, key=lambda v: v.creation_timestamp)
+
+                self.model_registry.promote_model(
+                    model_name=model_name,
+                    version=str(new_version.version),
+                    stage="Production"
+                )
+                logger.info(f"✅ Modelo {model_name} v{new_version.version} promovido para Production (primeiro modelo)")
                 return
 
             prod_metric = prod_metadata.get('metrics', {}).get(metric_key)
@@ -391,10 +420,25 @@ class PredictiveModelsTrainer:
                 f"Melhoria={improvement*100:.2f}%"
             )
 
+            latest_versions = self.model_registry.client.get_latest_versions(
+                model_name,
+                stages=["None", "Staging"]
+            )
+
+            if not latest_versions:
+                logger.warning(f"Nenhuma versão encontrada para {model_name}")
+                return
+
+            new_version = max(latest_versions, key=lambda v: v.creation_timestamp)
+
             if should_promote:
-                logger.info(f"Promovendo {model_name} para Production (melhoria de {improvement*100:.2f}%)")
-                # TODO: Implementar promoção
-                # await self.model_registry.promote_model(model_name, version, "Production")
+                logger.info(f"Promovendo {model_name} v{new_version.version} para Production")
+                self.model_registry.promote_model(
+                    model_name=model_name,
+                    version=str(new_version.version),
+                    stage="Production"
+                )
+                logger.info(f"✅ Modelo {model_name} v{new_version.version} promovido com sucesso")
             else:
                 logger.info(f"Novo modelo não é significativamente melhor, mantendo Production")
 

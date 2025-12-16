@@ -1,5 +1,10 @@
 # Neural Hive-Mind - Fase 1: Fundação
 
+[![codecov](https://codecov.io/gh/albinoJimy/Neural-Hive-Mind/branch/main/graph/badge.svg)](https://codecov.io/gh/albinoJimy/Neural-Hive-Mind)
+[![Tests](https://github.com/albinoJimy/Neural-Hive-Mind/actions/workflows/test-and-coverage.yml/badge.svg)](https://github.com/albinoJimy/Neural-Hive-Mind/actions/workflows/test-and-coverage.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 🚀 **Infraestrutura como Código para a base do organismo digital Neural Hive-Mind**
 
 Este repositório implementa a **Fase 1 - Fundação** do Neural Hive-Mind, estabelecendo a infraestrutura essencial para suportar um sistema de IA distribuído com arquitetura zero-trust, observabilidade nativa e governança auditável.
@@ -38,6 +43,52 @@ A Fase 1 provisiona:
 │  └── neural-hive-observability (Métricas e Logs)           │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+## 🤖 Machine Learning
+
+O Neural Hive Mind utiliza modelos ML para avaliar planos cognitivos:
+
+- **5 Especialistas**: Technical, Business, Behavior, Evolution, Architecture
+- **Retreinamento Automático**: Semanal via CronJob Kubernetes
+- **MLflow Integration**: Model Registry com stages (Production/Staging)
+- **Feedback Loop**: Incorpora opiniões humanas do MongoDB
+
+📚 **Documentação**: [Guia de Modelos de Especialistas](docs/ml/SPECIALIST_MODELS_GUIDE.md)
+
+## 🤖 Modelos Preditivos
+
+O Neural Hive-Mind utiliza Machine Learning para otimizar scheduling e detectar anomalias:
+
+- **SchedulingPredictor** - Prediz duração e recursos de tickets (XGBoost)
+- **LoadPredictor** - Prevê carga futura do sistema (Prophet)
+- **AnomalyDetector** - Detecta tickets anômalos (Isolation Forest)
+
+### Treinamento
+
+Modelos são treinados automaticamente toda semana (domingos 2 AM UTC) via CronJob Kubernetes.
+
+Para treinar manualmente:
+
+```bash
+kubectl create job --from=cronjob/predictive-models-training \
+  manual-training-$(date +%Y%m%d-%H%M%S) \
+  -n neural-hive-ml
+```
+
+### Validação
+
+```bash
+# Validar modelos registrados no MLflow
+./ml_pipelines/training/validate_model_promotion.sh
+
+# Validar modelos carregados no Orchestrator
+./scripts/validation/validate_orchestrator_ml.sh
+
+# Executar testes E2E
+./scripts/testing/run_ml_e2e_tests.sh
+```
+
+Veja [Guia de Modelos Preditivos](docs/ml/PREDICTIVE_MODELS_GUIDE.md) para detalhes.
 
 ## 🚀 Quick Start - Desenvolvimento Local
 
@@ -2016,6 +2067,153 @@ make view-continuous-learning     # Abrir dashboard Grafana
 Para detalhes completos sobre arquitetura, configuração, troubleshooting e monitoramento:
 
 📖 **[Continuous Learning Guide](docs/CONTINUOUS_LEARNING_GUIDE.md)**
+
+## 🔭 Distributed Tracing & Observability
+
+Neural Hive implementa observabilidade completa com OpenTelemetry, Jaeger, e Prometheus para rastreabilidade end-to-end de intenções, planos, e execuções.
+
+### Arquitetura de Tracing
+
+```mermaid
+graph LR
+    A[Services] -->|OTLP| B[OTEL Collector]
+    B -->|Tail Sampling| C[Jaeger Collector]
+    C -->|Storage| D[Elasticsearch]
+    E[Jaeger Query] -->|Read| D
+    F[Grafana] -->|Exemplars| E
+    B -->|Metrics| G[Prometheus]
+```
+
+### Componentes Instrumentados
+
+Todos os serviços utilizam `neural_hive_observability==1.1.0` para instrumentação automática:
+
+- **Gateway-Intencoes**: ASR, NLU, Kafka producer (propagação de intent_id)
+- **Orchestrator-Dynamic**: Kafka consumers, Temporal workflows, gRPC clients (propagação de plan_id)
+- **Specialists (5)**: gRPC servicers, ML inference, model evaluation
+- **Core Services**: Queen-Agent, Execution-Ticket, Guard-Agents, Service-Registry
+- **Support Services**: MCP-Tool-Catalog, Memory-Layer, Consensus-Engine, etc.
+
+### Atributos Neural Hive
+
+Spans incluem atributos customizados para correlação:
+
+| Atributo | Descrição | Exemplo |
+|----------|-----------|---------|
+| `neural.hive.intent.id` | ID da intenção original | `intent-a1b2c3d4-...` |
+| `neural.hive.plan.id` | ID do plano gerado | `plan-e5f6g7h8-...` |
+| `neural.hive.user.id` | ID do usuário | `user-12345` |
+| `neural.hive.domain` | Domínio da operação | `experiencia`, `cognicao` |
+| `neural.hive.component` | Componente do serviço | `gateway`, `orchestrator` |
+| `neural.hive.layer` | Camada arquitetural | `experiencia`, `cognicao`, `execucao` |
+
+### Validação E2E de Tracing
+
+Execute os scripts de validação:
+
+```bash
+# Validar infraestrutura OTEL + Jaeger
+./scripts/observability/validate-otel-jaeger-complete.sh
+
+# Testar correlação de contexto
+./scripts/observability/test-correlation.sh --verbose
+
+# Smoke test rápido (<2 min)
+./scripts/observability/smoke-test-tracing.sh
+
+# Validar fluxo E2E completo (gateway → orchestrator → specialists)
+python scripts/observability/test-e2e-tracing-complete.py \
+  --gateway-url http://gateway-intencoes:8000 \
+  --jaeger-url http://jaeger-query:16686 \
+  --verbose \
+  --output-json reports/e2e-tracing-$(date +%Y%m%d).json
+```
+
+### Queries Jaeger Comuns
+
+**Buscar por Intent ID:**
+```
+Service: *
+Tags: neural.hive.intent.id=<intent-id>
+Lookback: 1h
+```
+
+**Buscar por Plan ID:**
+```
+Service: *
+Tags: neural.hive.plan.id=<plan-id>
+Lookback: 1h
+```
+
+**Buscar traces com erro:**
+```
+Service: *
+Tags: error=true
+Lookback: 1h
+```
+
+**Via API:**
+```bash
+curl "http://jaeger-query:16686/api/traces?tag=neural.hive.intent.id:<intent-id>" | jq
+```
+
+### Documentação de Observabilidade
+
+- 📖 **[Guia de Instrumentação](docs/observability/instrumentation-guide.md)** - Como instrumentar serviços
+- 🔧 **[Troubleshooting Jaeger](docs/observability/jaeger-troubleshooting.md)** - Diagnóstico e resolução de problemas
+- 🔍 **[Queries Customizadas](docs/observability/jaeger-queries-neural-hive.md)** - Queries avançadas para Neural Hive
+- 🏗️ **[Arquitetura de Observabilidade](docs/observability/architecture.md)** - Visão geral da stack
+
+### Sampling Strategies
+
+Configurado em `helm-charts/jaeger/values.yaml`:
+
+| Contexto | Taxa de Sampling | Descrição |
+|----------|------------------|-----------|
+| Default | 5% | Todos os traces |
+| Gateway-Intencoes | 25% | Entrada crítica |
+| Intents com intent_id | 70% | Via OTEL tail sampling |
+| Plans com plan_id | 70% | Via OTEL tail sampling |
+| Erros | 100% | Sempre capturados |
+| Health checks | 1% | Reduzir ruído |
+
+### Métricas de Observabilidade
+
+Prometheus expõe métricas de tracing:
+
+```
+otelcol_receiver_accepted_spans      # Spans recebidos pelo OTEL Collector
+otelcol_exporter_sent_spans          # Spans exportados para Jaeger
+jaeger_collector_spans_received_total # Spans recebidos pelo Jaeger
+jaeger_query_requests_total          # Queries no Jaeger UI
+```
+
+### Troubleshooting Rápido
+
+**Traces não aparecem no Jaeger:**
+```bash
+# 1. Verificar OTEL Collector está exportando
+kubectl logs -n observability deployment/neural-hive-otel-collector | grep "exporter.*jaeger"
+
+# 2. Verificar sampling não está descartando
+kubectl exec -n observability deployment/neural-hive-otel-collector -- \
+  curl -s http://localhost:8888/metrics | grep tail_sampling
+
+# 3. Verificar Jaeger está indexando
+kubectl exec -n observability deployment/jaeger-collector -- \
+  curl -s http://elasticsearch:9200/neural-hive-jaeger-*/_count
+```
+
+**Atributos Neural Hive não aparecem:**
+```bash
+# 1. Verificar baggage está sendo propagado
+kubectl logs -n neural-hive deployment/gateway-intencoes | grep "set_baggage"
+
+# 2. Verificar OTEL processor está ativo
+kubectl get configmap -n observability neural-hive-otel-collector -o yaml | grep "attributes/neural_hive"
+```
+
+Consulte [docs/observability/jaeger-troubleshooting.md](docs/observability/jaeger-troubleshooting.md) para cenários detalhados.
 
 ## 🤖 ML Pipeline - Specialist Model Training & Management
 

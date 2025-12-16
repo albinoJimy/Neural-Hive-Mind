@@ -1,23 +1,24 @@
 image:
-  repository: neural-hive/self-healing-engine
-  tag: 1.0.0
+  repository: 37.60.241.150:30500/self-healing-engine
+  tag: "1.0.0"
   pullPolicy: IfNotPresent
 
 replicaCount: 2
 
 autoscaling:
-  enabled: false
+  enabled: true
   minReplicas: 2
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
 
 resources:
   requests:
-    cpu: 500m
+    cpu: 300m      # Playbook execution
     memory: 512Mi
   limits:
-    cpu: 2000m
-    memory: 2Gi
+    cpu: 1200m
+    memory: 1536Mi
 
 config:
   serviceName: self-healing-engine
@@ -71,10 +72,17 @@ config:
     grpcPort: 50051
     logLevel: INFO
 
+# Secrets configuration
+# Use existingSecret para referenciar secrets criados pelo create-phase2-secrets.sh
+# Os Helm charts usam secretKeyRef para ler valores diretamente dos secrets K8s
 secrets:
-  mongodbPassword: ""
-  redisPassword: ""
-  kafkaSaslPassword: ""
+  existingSecret: "self-healing-engine-secrets"
+  # Mapeamento de chaves do secret para variáveis de ambiente
+  mongodbPasswordKey: MONGODB_PASSWORD
+  redisPasswordKey: REDIS_PASSWORD
+  kafkaSaslPasswordKey: KAFKA_SASL_PASSWORD
+  pagerdutyApiKeyKey: PAGERDUTY_API_KEY
+  slackWebhookUrlKey: SLACK_WEBHOOK_URL
 
 service:
   type: ClusterIP

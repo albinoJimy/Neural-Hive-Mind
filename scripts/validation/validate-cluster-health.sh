@@ -1,4 +1,10 @@
 #!/bin/bash
+echo "⚠️  AVISO: Este script foi consolidado no CLI unificado de validação."
+echo "⚠️  Use: scripts/validate.sh --target <TARGET>"
+echo "⚠️  Exemplo: scripts/validate.sh --target specialists"
+echo ""
+echo "Executando script legado..."
+echo ""
 # Validação refinada de saúde do cluster Neural Hive-Mind
 # Verifica compliance com SLOs, trends de utilização, backup readiness e security
 # Version: 2.0

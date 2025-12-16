@@ -62,43 +62,26 @@ jobs:
       - name: Gerar protobufs
         run: make proto-gen
 
-      - name: Executar testes unitários
-        working-directory: libraries/python/neural_hive_specialists
-        timeout-minutes: 10
-        run: pytest tests/ -m "unit" --cov --cov-report=xml --cov-report=term
-
-      - name: Executar testes de integração
-        working-directory: libraries/python/neural_hive_specialists
-        timeout-minutes: 15
-        env:
-          MONGODB_URI: mongodb://localhost:27017
-          REDIS_CLUSTER_NODES: localhost:6379
-        run: pytest tests/ -m "integration" --cov --cov-append --cov-report=xml
-
-      - name: Executar testes de contrato gRPC
-        working-directory: libraries/python/neural_hive_specialists
-        timeout-minutes: 10
-        run: pytest tests/ -m "contract" --cov --cov-append --cov-report=xml
+      - name: Run specialists test suite
+        run: ./tests/run-tests.sh --component specialists --coverage --report
 
       - name: Upload coverage para Codecov
         uses: codecov/codecov-action@v3
         with:
-          files: ./libraries/python/neural_hive_specialists/coverage.xml
+          files: ./tests/results/coverage/coverage.xml
           flags: specialists-python${{ matrix.python-version }}
           name: neural-hive-specialists-py${{ matrix.python-version }}
           fail_ci_if_error: false
 
-      - name: Gerar relatório HTML de cobertura
-        if: always()
-        working-directory: libraries/python/neural_hive_specialists
-        run: pytest tests/ --cov --cov-report=html:htmlcov
-
-      - name: Upload relatório HTML
+      - name: Upload HTML coverage report
         if: always()
         uses: actions/upload-artifact@v3
         with:
           name: coverage-report-py${{ matrix.python-version }}
-          path: libraries/python/neural_hive_specialists/htmlcov/
+          path: tests/results/coverage/
+
+      - name: Prepare coverage data for PR comment
+        run: cp tests/results/coverage/coverage.xml coverage.xml
 
       - name: Comentar PR com cobertura
         if: github.event_name == 'pull_request'

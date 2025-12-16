@@ -7,8 +7,8 @@ import asyncio
 import logging
 from typing import Optional
 
-from concurrent import futures
 import grpc
+from neural_hive_observability import create_instrumented_grpc_server
 from . import ticket_service_pb2_grpc
 from .ticket_servicer import TicketServiceServicer
 
@@ -25,8 +25,8 @@ async def start_grpc_server(settings) -> Optional[object]:
     Returns:
         gRPC server instance
     """
-    server = grpc.aio.server(
-        futures.ThreadPoolExecutor(max_workers=settings.grpc_max_workers),
+    server = create_instrumented_grpc_server(
+        max_workers=settings.grpc_max_workers,
         options=[
             ('grpc.max_concurrent_streams', settings.grpc_max_concurrent_rpcs),
             ('grpc.keepalive_time_ms', 30000),

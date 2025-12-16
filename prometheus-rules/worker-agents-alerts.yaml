@@ -1,0 +1,51 @@
+groups:
+  - name: worker-agents
+    rules:
+      - alert: WorkerAgentHighFailureRate
+        expr: |
+          (sum(rate(worker_agent_tickets_failed_total[5m])) by (task_type))
+          /
+          (sum(rate(worker_agent_tickets_consumed_total[5m])) by (task_type))
+          > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Worker Agents high failure rate"
+          description: "Failure rate above 10% for task {{ $labels.task_type }}"
+
+      - alert: WorkerAgentHighLatency
+        expr: histogram_quantile(0.95, sum(rate(worker_agent_task_duration_seconds_bucket[5m])) by (le, task_type)) > 60
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Worker Agents latency high"
+          description: "p95 latency above 60s for {{ $labels.task_type }}"
+
+      - alert: WorkerAgentCodeForgeDown
+        expr: sum(rate(worker_agent_code_forge_api_calls_total{status="error"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CodeForge API errors"
+          description: "CodeForge API call errors exceed threshold"
+
+      - alert: WorkerAgentArgocdDown
+        expr: sum(rate(worker_agent_argocd_api_calls_total{status="error"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ArgoCD API errors"
+          description: "ArgoCD API call errors exceed threshold"
+
+      - alert: WorkerAgentNoTasksProcessed
+        expr: sum(rate(worker_agent_tickets_consumed_total[10m])) == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No tasks processed"
+          description: "Worker Agents have not consumed tickets in 10m"

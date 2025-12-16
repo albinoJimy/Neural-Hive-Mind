@@ -1,0 +1,130 @@
+# Configuração local do Gateway de Intenções para cluster Kubeadm
+# Usado pelo script 08-prepare-gateway-values.sh para gerar values-local-generated.yaml
+
+gateway:
+  namespace: "fluxo-a"
+  release_name: "gateway-intencoes"
+  replicas: 1
+
+  image:
+    repository: "neural-hive-mind/gateway-intencoes"
+    tag: "1.0.0"
+    pullPolicy: "Never"  # Imagem local no containerd
+
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+
+  service:
+    type: "ClusterIP"
+    port: 80
+    targetPort: 8000
+
+  probes:
+    liveness:
+      initialDelaySeconds: 90
+      periodSeconds: 30
+      timeoutSeconds: 10
+      failureThreshold: 3
+    readiness:
+      initialDelaySeconds: 60
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+
+config:
+  environment: "local"
+  logLevel: "DEBUG"
+  debug: true
+
+  kafka:
+    bootstrapServers: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
+    schemaRegistryUrl: ""  # Sem schema registry no dev local
+    tls:
+      enabled: false
+    sasl:
+      enabled: false
+    performance:
+      batchSize: 16384
+      lingerMs: 10
+      compressionType: "snappy"
+
+  redis:
+    clusterNodes: "neural-hive-cache.redis-cluster.svc.cluster.local:6379"
+    defaultTtl: 600
+    maxConnections: 50
+    poolSize: 10
+    timeout: 5000
+    retryOnTimeout: true
+    ssl:
+      enabled: false
+
+  keycloak:
+    url: "http://keycloak.keycloak.svc.cluster.local:8080"
+    realm: "neural-hive"
+    clientId: "gateway-intencoes"
+    tokenValidationEnabled: false  # Desabilitar para dev inicial
+
+  asr:
+    modelName: "tiny"  # Modelo menor para dev (base, small, medium, large)
+    device: "cpu"
+    lazyLoading: true
+    modelCacheDir: "/app/models"
+
+  nlu:
+    languageModel: "pt_core_news_sm"
+    confidenceThreshold: 0.75
+    confidenceThresholdStrict: 0.85
+    adaptiveThresholdEnabled: true
+    routingThresholdHigh: 0.5
+    routingThresholdLow: 0.3
+    routingUseAdaptiveForDecisions: false
+
+  limits:
+    maxAudioSizeMb: 10
+    maxTextLength: 10000
+
+  cors:
+    allowedOrigins: ["*"]
+    allowedHosts: ["*"]
+
+secrets:
+  jwtSecretKey: "dev-secret-key-change-in-production"
+  kafka:
+    username: ""
+    password: ""
+  redis:
+    password: ""
+  keycloak:
+    clientSecret: "dev-client-secret"
+
+observability:
+  serviceMonitor:
+    enabled: false  # Habilitar após deploy do Prometheus
+  jaeger:
+    endpoint: "http://jaeger-collector.observability.svc.cluster.local:14268/api/traces"
+  prometheus:
+    enabled: false
+
+networkPolicy:
+  enabled: false  # Simplificar para dev local
+
+podDisruptionBudget:
+  enabled: false  # Não necessário com 1 replica
+
+istio:
+  enabled: false  # Desabilitar service mesh para dev
+
+volumes:
+  modelCache:
+    enabled: true
+    type: "emptyDir"  # Usar emptyDir para dev (PVC para prod)
+    size: "2Gi"
+
+initContainers:
+  modelDownloader:
+    enabled: false  # Modelos já incluídos na imagem Docker

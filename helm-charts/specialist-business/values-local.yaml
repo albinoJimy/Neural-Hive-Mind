@@ -40,9 +40,9 @@ config:
     experimentName: specialist-business
     modelName: business-evaluator
     modelStage: Production
-  # MongoDB configuration - no authentication for local
+  # MongoDB configuration - with authentication for local
   mongodb:
-    uri: mongodb://neural-hive-mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive
+    uri: mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin
     database: neural_hive
     opinionsCollection: specialist_opinions
   # Neo4j configuration - no SSL for local
@@ -94,7 +94,7 @@ serviceAccount:
   name: default
 # Simplified secrets for local development
 secrets:
-  mongodbUri: mongodb://neural-hive-mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive
+  mongodbUri: mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin
   neo4jPassword: neo4j
   redisPassword: ""
 # Relaxed probes for local development

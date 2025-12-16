@@ -1,0 +1,5 @@
+[22:51:12] START specialist-behavior → 84.247.138.35
+docker.io/neural hive mind/specialist be	saved	
+application/vnd.oci.image.manifest.v1+json sha256:06dda273e858247ab0d257bf0cd4373671c60dfe664f01d3ad6a82fd82ab00a4
+Importing	elapsed: 21401.3s	total:   0.0 B	(0.0 B/s)	
+[04:47:59] SUCCESS specialist-behavior → 84.247.138.35
