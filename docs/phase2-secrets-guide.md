@@ -121,7 +121,7 @@ kubectl apply -f k8s/bootstrap/namespaces-phase2.yaml
 ./scripts/create-phase2-secrets.sh --mode static --environment dev
 
 # Modo vault-agent para produção com Vault Agent Injector
-./scripts/create-phase2-secrets.sh --mode vault-agent --environment production
+./scripts/create-phase2-secrets.sh --mode vault-ag ent --environment production
 
 # Modo external-secrets para GitOps (ArgoCD/Flux)
 ./scripts/create-phase2-secrets.sh --mode external-secrets --environment production

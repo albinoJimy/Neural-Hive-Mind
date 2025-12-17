@@ -160,7 +160,15 @@
       "Bash(git fetch:*)",
       "Bash(git remote set-url:*)",
       "Bash(ssh-add:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: major update with ML pipelines, observability, helm charts and services improvements\n\n- Add ML training pipelines and specialist models\n- Improve observability with OpenTelemetry, Jaeger, Prometheus\n- Update all helm charts with local configurations\n- Add new services: queen-agent, temporal, docker-registry\n- Improve security with Vault/SPIFFE integration\n- Add comprehensive testing and validation scripts\n- Update all service dependencies and Dockerfiles\n- Add documentation for deployment, ML, and operations\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Bash(git reset:*)",
+      "Bash(# Verificar se minikube ainda está staged e removê-lo git rm --cached minikube || echo \"\"minikube não encontrado no staging\"\" # Verificar arquivos grandes restantes git diff --cached --stat)",
+      "Bash(# Adicionar .gitignore atualizado\ngit add .gitignore\n\n# Fazer o commit\ngit commit -m \"\"$(cat <<''EOF''\nfeat: major update with ML pipelines, observability, helm charts and services improvements\n\n- Add ML training pipelines and specialist models\n- Improve observability with OpenTelemetry, Jaeger, Prometheus\n- Update all helm charts with local configurations\n- Add new services: queen-agent, temporal, docker-registry\n- Improve security with Vault/SPIFFE integration\n- Add comprehensive testing and validation scripts\n- Update all service dependencies and Dockerfiles\n- Add documentation for deployment, ML, and operations\n- Exclude large terraform providers and binary files\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\"\")",
+      "Bash(git config:*)",
+      "Bash(git rm:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
