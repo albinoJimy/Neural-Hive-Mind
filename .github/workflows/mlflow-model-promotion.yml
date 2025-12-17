@@ -58,24 +58,34 @@ jobs:
         env:
           MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
         run: |
-          python scripts/mlflow/validate_model.py \
-            --model-name "${{ github.event.inputs.model_name }}" \
-            --model-version "${{ github.event.inputs.model_version }}" \
-            --min-precision ${{ github.event.inputs.min_precision }} \
-            --min-recall ${{ github.event.inputs.min_recall }} \
-            --min-f1 ${{ github.event.inputs.min_f1 }} \
-            --tracking-uri "$MLFLOW_TRACKING_URI"
+          # Usar CLI unificado de ML (fallback para script python)
+          if ./ml_pipelines/ml.sh validate --help | grep -q "min-precision"; then
+            ./ml_pipelines/ml.sh validate \
+              --model-name "${{ github.event.inputs.model_name }}" \
+              --model-version "${{ github.event.inputs.model_version }}" \
+              --min-precision ${{ github.event.inputs.min_precision }} \
+              --min-recall ${{ github.event.inputs.min_recall }} \
+              --min-f1 ${{ github.event.inputs.min_f1 }}
+          else
+            python scripts/mlflow/validate_model.py \
+              --model-name "${{ github.event.inputs.model_name }}" \
+              --model-version "${{ github.event.inputs.model_version }}" \
+              --min-precision ${{ github.event.inputs.min_precision }} \
+              --min-recall ${{ github.event.inputs.min_recall }} \
+              --min-f1 ${{ github.event.inputs.min_f1 }} \
+              --tracking-uri "$MLFLOW_TRACKING_URI"
+          fi
 
       - name: Promover modelo
         if: steps.validate.outcome == 'success'
         env:
           MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
         run: |
-          python scripts/mlflow/promote_model.py \
-            --model-name "${{ github.event.inputs.model_name }}" \
-            --model-version "${{ github.event.inputs.model_version }}" \
-            --target-stage "${{ github.event.inputs.target_stage }}" \
-            --tracking-uri "$MLFLOW_TRACKING_URI"
+          # Usar CLI unificado de ML
+          ./ml_pipelines/ml.sh promote \
+            --model "${{ github.event.inputs.model_name }}" \
+            --version "${{ github.event.inputs.model_version }}" \
+            --target-stage "${{ github.event.inputs.target_stage }}"
 
       - name: Notificar sucesso
         if: success()

@@ -43,6 +43,10 @@ COMANDOS:
     rollback           Fazer rollback de modelo
     generate-dataset   Gerar datasets de treinamento
     status             Verificar status de modelos
+    business-metrics   Coletar métricas de negócio
+    anomaly-detector   Treinar detector de anomalias
+    feedback           Registrar feedback manual
+    disaster-recovery  Rotinas de teste de DR
     help               Mostrar esta mensagem
     version            Mostrar versao
 
@@ -52,7 +56,7 @@ EXEMPLOS:
     ml.sh train --specialist technical
     ml.sh train --all --hyperparameter-tuning
     ml.sh validate --all
-    ml.sh promote --model technical-evaluator --version 3
+    ml.sh promote --model technical-evaluator --version 3 --stage Production
     ml.sh retrain --specialist business --hyperparameter-tuning
     ml.sh rollback --specialist evolution --reason "Alta latencia"
     ml.sh generate-dataset --specialist architecture --num-samples 1000
@@ -115,6 +119,18 @@ case "${COMMAND}" in
         ;;
     status)
         exec "${SCRIPT_DIR}/commands/status.sh" "$@"
+        ;;
+    business-metrics|business_metrics)
+        exec "${SCRIPT_DIR}/commands/business_metrics.sh" "$@"
+        ;;
+    anomaly-detector|anomaly_detector)
+        exec "${SCRIPT_DIR}/commands/anomaly_detector.sh" "$@"
+        ;;
+    feedback)
+        exec "${SCRIPT_DIR}/commands/feedback.sh" "$@"
+        ;;
+    disaster-recovery|disaster_recovery)
+        exec "${SCRIPT_DIR}/commands/disaster_recovery.sh" "$@"
         ;;
     help|--help|-h)
         usage

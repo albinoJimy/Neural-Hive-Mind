@@ -35,6 +35,7 @@ OPCOES OBRIGATORIAS:
 
 OPCOES OPCIONAIS:
     --target-stage STAGE  Stage de destino: Production (padrao), Staging, Archived
+    --stage STAGE         Alias para --target-stage
     --no-archive-existing Nao arquivar versao existente no stage de destino
     --skip-validation     Pular validacao de thresholds antes de promover
     --reason TEXT         Motivo da promocao (para auditoria)
@@ -72,7 +73,7 @@ while [[ $# -gt 0 ]]; do
             MODEL_VERSION="$2"
             shift 2
             ;;
-        --target-stage)
+        --target-stage|--stage)
             TARGET_STAGE="$2"
             shift 2
             ;;

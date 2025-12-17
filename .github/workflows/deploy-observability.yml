@@ -315,8 +315,8 @@ jobs:
     - name: Deploy monitoring configurations
       if: needs.validate.outputs.monitoring-changes == 'true'
       run: |
-        chmod +x scripts/deploy/deploy-observability.sh
-        scripts/deploy/deploy-observability.sh --environment ${{ matrix.environment }}
+        # Usar CLI unificado de deploy
+        ./scripts/deploy.sh --env eks --services observability --version latest
 
     - name: Setup Grafana dashboards
       if: needs.validate.outputs.monitoring-changes == 'true'
@@ -332,12 +332,13 @@ jobs:
         KUBECTL_PID=$!
         sleep 10
 
-        # Setup dashboards
+        # Setup dashboards usando módulo do deploy CLI
         export GRAFANA_URL="http://localhost:3000"
         export GRAFANA_API_KEY="${{ secrets.GRAFANA_API_KEY }}"
-
-        chmod +x scripts/observability/setup-dashboards.sh
-        scripts/observability/setup-dashboards.sh
+        
+        # Chamar módulo de observability diretamente
+        source scripts/deploy/modules/observability.sh
+        setup_grafana_dashboards
 
         # Cleanup
         kill $KUBECTL_PID || true
@@ -374,8 +375,8 @@ jobs:
 
     - name: Run observability validation
       run: |
-        chmod +x scripts/validate-observability.sh
-        scripts/validate-observability.sh --environment ${{ matrix.environment }}
+        # Usar CLI unificado de validação
+        ./scripts/validate.sh --target observability --report json --report-file /tmp/observability-validation.json
 
     - name: Health check endpoints
       run: |

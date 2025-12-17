@@ -26,11 +26,13 @@ jobs:
 
       - name: Run dependency audit script
         run: |
+          # Scripts especializados mantidos em scripts/ (não foram movidos)
           chmod +x scripts/audit-dependencies.sh
           ./scripts/audit-dependencies.sh --check-security --output-format markdown
 
       - name: Run unused imports scan
         run: |
+          # Script Python mantido em scripts/ (não foi movido)
           python scripts/scan-unused-imports.py --output reports/unused-imports.json
 
       - name: Upload audit reports

@@ -44,6 +44,11 @@ O QUE E VALIDADO:
     - Metricas atendem thresholds minimos
     - (Opcional) Modelo carregado no pod Kubernetes
 
+CODIGOS DE SAIDA:
+    0   Sucesso - todos os modelos validados
+    1   Falha - pelo menos um modelo com status FAIL
+    2   Avisos - pelo menos um modelo com status WARN (sem FAIL)
+
 EOF
     exit 0
 }
@@ -237,7 +242,7 @@ main() {
         exit 1
     elif [[ $warn -gt 0 ]]; then
         log_warning "Validacao concluida com avisos"
-        exit 0
+        exit 2
     else
         log_success "Todos os modelos validados com sucesso"
         exit 0

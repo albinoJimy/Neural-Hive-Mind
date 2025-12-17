@@ -1,50 +1,7 @@
-.PHONY: install proto test lint format docker-build docker-push helm-lint helm-install helm-upgrade clean
+.PHONY: deploy validate
 
-install:
-	pip install -r requirements.txt
+deploy:
+	@../../scripts/deploy.sh --services optimizer-agents --env $(ENV)
 
-proto:
-	python -m grpc_tools.protoc -I./src/proto --python_out=./src/proto --grpc_python_out=./src/proto ./src/proto/optimizer_agent.proto
-	sed -i 's/^import optimizer_agent_pb2/from . import optimizer_agent_pb2/' ./src/proto/optimizer_agent_pb2_grpc.py
-	python -m grpc_tools.protoc -I../analyst-agents/src/proto --python_out=./src/proto --grpc_python_out=./src/proto ../analyst-agents/src/proto/analyst_agent.proto
-	sed -i 's/^import analyst_agent_pb2/from . import analyst_agent_pb2/' ./src/proto/analyst_agent_pb2_grpc.py
-	python -m grpc_tools.protoc -I../queen-agent/src/proto --python_out=./src/proto --grpc_python_out=./src/proto ../queen-agent/src/proto/queen_agent.proto
-	sed -i 's/^import queen_agent_pb2/from . import queen_agent_pb2/' ./src/proto/queen_agent_pb2_grpc.py
-	python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out=./proto ./proto/consensus_engine_extensions.proto
-	python -m grpc_tools.protoc -I./proto --python_out=./proto --grpc_python_out=./proto ./proto/orchestrator_extensions.proto
-	@echo "Proto files compiled successfully"
-
-test:
-	pytest
-
-lint:
-	flake8 src/ tests/
-	black --check src/ tests/
-	isort --check-only src/ tests/
-
-format:
-	black src/ tests/
-	isort src/ tests/
-
-docker-build:
-	docker build -t optimizer-agents:latest .
-
-docker-push:
-	docker tag optimizer-agents:latest registry.neuralhivemind.io/optimizer-agents:latest
-	docker push registry.neuralhivemind.io/optimizer-agents:latest
-
-helm-lint:
-	helm lint helm-chart/
-
-helm-install:
-	helm install optimizer-agents helm-chart/ -n optimizer-agents --create-namespace
-
-helm-upgrade:
-	helm upgrade optimizer-agents helm-chart/ -n optimizer-agents
-
-clean:
-	find . -type d -name __pycache__ -exec rm -rf {} +
-	find . -type f -name "*.pyc" -delete
-	rm -rf .pytest_cache
-	rm -rf htmlcov
-	rm -rf .coverage
+validate:
+	@../../scripts/validate.sh --target services --component optimizer-agents

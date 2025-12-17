@@ -101,6 +101,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    # NOTA: Este workflow usa Docker build direto para CI/CD específico do Gateway.
+    # Para builds locais ou multi-serviço, use: ./scripts/build.sh --services gateway-intencoes
     steps:
     - uses: actions/checkout@v4
 

@@ -2475,3 +2475,17 @@ Este projeto é licenciado sob a MIT License - veja o arquivo [LICENSE](LICENSE)
 
 🤖 **Neural Hive-Mind Phase 1 - Foundation Layer**
 *Construindo a base para inteligência artificial distribuída*
+
+## Makefile v2.0 Quick Start
+- List categories: `make help`
+- Build: `make build-local` | Deploy: `make deploy-local` or `make deploy-eks`
+- Tests: `make test` (or component-specific like `make test-phase2`)
+- Validation: `make validate` | Security: `make security-validate`
+- Observability: `make observability-dashboards` | ML: `make ml-train SPECIALIST_TYPE=<type>`
+
+### Unified CLIs
+- `./scripts/observability.sh` — dashboards, validation, SLO/correlation tests
+- `./scripts/setup.sh` — minikube, eks (`--auto`), backend setup
+- `./scripts/maintenance.sh` — backup/restore, cluster tasks, cost optimization, DR status
+
+See `docs/MAKEFILE_MIGRATION.md` for migration details and deprecated commands.
