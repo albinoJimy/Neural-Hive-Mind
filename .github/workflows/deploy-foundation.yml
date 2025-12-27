@@ -1,4 +1,5 @@
 name: Deploy Foundation
+# NOTA: Este workflow mantém deploys diretos (Terraform/Helm/OPA) por serem práticas específicas do domínio. Para deploys gerais use os CLIs unificados.
 
 on:
   push:

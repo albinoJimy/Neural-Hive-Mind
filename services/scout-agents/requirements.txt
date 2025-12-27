@@ -1,11 +1,11 @@
 # Core dependencies
-fastapi>=0.104.1
-uvicorn[standard]>=0.24.0
-pydantic>=2.5.2
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.3
 pydantic-settings>=2.1.0
 
 # Logging and observability
-structlog>=23.2.0
+structlog==23.2.0
 prometheus-client>=0.19.0
 opentelemetry-api>=1.21.0
 opentelemetry-sdk>=1.21.0
@@ -18,7 +18,7 @@ aiokafka>=0.10.0
 avro-python3>=1.10.2
 
 # HTTP and gRPC clients
-httpx>=0.25.0
+httpx==0.25.2
 
 # gRPC - versão consolidada
 grpcio>=1.75.1
@@ -26,10 +26,10 @@ grpcio-tools>=1.75.1
 protobuf>=5.27.0
 
 # Redis
-redis[hiredis]>=5.0.1
+redis[hiredis]==5.0.1
 
 # ML and numerical computing (MVP stubs)
-numpy>=1.24.0
+numpy==1.26.2
 scipy>=1.11.0
 
 # Utilities

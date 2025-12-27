@@ -2,7 +2,7 @@ import asyncio
 import signal
 import grpc
 import structlog
-from grpc_health.v1 import health, health_pb2_grpc
+from grpc_health.v1 import health, health_pb2, health_pb2_grpc
 from neural_hive_observability import init_observability, create_instrumented_grpc_server
 
 from src.config import get_settings
@@ -91,9 +91,11 @@ class ServiceRegistryServer:
             )
 
         # Inicializar clientes
+        # Nota: EtcdClient é agora um alias para RedisRegistryClient
         self.etcd_client = EtcdClient(
-            endpoints=self.settings.ETCD_ENDPOINTS,
+            cluster_nodes=self.settings.ETCD_ENDPOINTS,
             prefix=self.settings.ETCD_PREFIX,
+            password=self.settings.REDIS_PASSWORD,
             timeout=self.settings.ETCD_TIMEOUT_SECONDS
         )
         await self.etcd_client.initialize()

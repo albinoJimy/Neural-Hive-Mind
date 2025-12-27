@@ -100,6 +100,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.0] - 2024-12-17
+
+### Fixed
+- **[CRITICAL]** Corrigido conflito entre grpcio 1.60.0 e grpcio-tools 1.68.0 em python-grpc-base
+- Atualizado scikit-learn de >=1.4.0 para >=1.5.0 em python-mlops-base para compatibilidade com specialist-base
+- Atualizado Python de 3.9 para 3.11 em ml_pipelines/k8s/Dockerfile.monitoring
+
+### Changed
+- python-grpc-base: grpcio 1.60.0 → 1.75.1, grpcio-tools 1.68.0 → 1.75.1, grpcio-health-checking 1.60.0 → 1.75.1
+- python-mlops-base: scikit-learn >=1.4.0 → >=1.5.0
+- ml-monitoring: Python 3.9 → 3.11
+
+---
+
 ## [1.0.7] - 2025-11-12
 
 ### Added

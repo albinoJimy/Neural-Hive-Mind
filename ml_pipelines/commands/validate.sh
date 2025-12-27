@@ -18,6 +18,11 @@ SPECIALIST=""
 ALL_SPECIALISTS=false
 VERBOSE=false
 CHECK_PODS=false
+MODEL_NAME=""
+MODEL_VERSION=""
+MIN_PRECISION=""
+MIN_RECALL=""
+MIN_F1=""
 
 # Funcao de ajuda
 show_help() {
@@ -29,6 +34,11 @@ Uso: ml.sh validate [OPCOES]
 OPCOES:
     --specialist TYPE   Validar especialista especifico (technical|business|behavior|evolution|architecture)
     --all               Validar todos os 5 especialistas (padrao se nenhum especificado)
+    --model-name NAME   Validar modelo especifico registrado no MLflow
+    --model-version N   Versao do modelo (default: Production)
+    --min-precision N   Threshold minimo de precision (override de PROMOTION_THRESHOLD_PRECISION)
+    --min-recall N      Threshold minimo de recall (override de PROMOTION_THRESHOLD_RECALL)
+    --min-f1 N          Threshold minimo de F1 (override de PROMOTION_THRESHOLD_F1)
     --verbose           Mostrar informacoes detalhadas
     --check-pods        Verificar modelos carregados nos pods Kubernetes
     -h, --help          Mostrar esta mensagem
@@ -36,6 +46,7 @@ OPCOES:
 EXEMPLOS:
     ml.sh validate --all
     ml.sh validate --specialist technical --verbose
+    ml.sh validate --model-name my-model --model-version 3 --min-f1 0.8
     ml.sh validate --all --check-pods --verbose
 
 O QUE E VALIDADO:
@@ -64,6 +75,26 @@ while [[ $# -gt 0 ]]; do
             ALL_SPECIALISTS=true
             shift
             ;;
+        --model-name)
+            MODEL_NAME="$2"
+            shift 2
+            ;;
+        --model-version)
+            MODEL_VERSION="$2"
+            shift 2
+            ;;
+        --min-precision)
+            MIN_PRECISION="$2"
+            shift 2
+            ;;
+        --min-recall)
+            MIN_RECALL="$2"
+            shift 2
+            ;;
+        --min-f1)
+            MIN_F1="$2"
+            shift 2
+            ;;
         --verbose)
             VERBOSE=true
             shift
@@ -82,14 +113,46 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Default para --all se nenhum especificado
-if [[ -z "$SPECIALIST" ]] && [[ "$ALL_SPECIALISTS" == "false" ]]; then
+# Validacoes de combinacao de parametros
+if [[ -n "$MODEL_NAME" ]] && { [[ "$ALL_SPECIALISTS" == "true" ]] || [[ -n "$SPECIALIST" ]]; }; then
+    log_error "Nao combine --model-name com --specialist/--all"
+    exit 1
+fi
+
+# Default para --all se nenhum especificado e sem modelo direto
+if [[ -z "$SPECIALIST" ]] && [[ "$ALL_SPECIALISTS" == "false" ]] && [[ -z "$MODEL_NAME" ]]; then
     ALL_SPECIALISTS=true
 fi
 
 if [[ -n "$SPECIALIST" ]]; then
     validate_specialist_type "$SPECIALIST" || exit 1
 fi
+
+THRESHOLD_PRECISION="${MIN_PRECISION:-${PROMOTION_THRESHOLD_PRECISION:-}}"
+THRESHOLD_RECALL="${MIN_RECALL:-${PROMOTION_THRESHOLD_RECALL:-}}"
+THRESHOLD_F1="${MIN_F1:-${PROMOTION_THRESHOLD_F1:-0.72}}"
+
+# Checa metricas contra thresholds configurados
+check_threshold() {
+    local value="$1"
+    local threshold="$2"
+    local label="$3"
+    local status_ref="$4"
+    local issues_ref="$5"
+
+    if [[ -z "$threshold" ]]; then
+        return
+    fi
+
+    if [[ -z "$value" ]] || [[ "$value" == "null" ]] || [[ "$value" == "N/A" ]]; then
+        return
+    fi
+
+    if (( $(echo "$value < $threshold" | bc -l 2>/dev/null || echo "1") )); then
+        eval "$status_ref=\"WARN\""
+        eval "$issues_ref+=(\"$label abaixo do threshold ($value < $threshold)\")"
+    fi
+}
 
 # Funcao para validar um specialist
 validate_specialist() {
@@ -116,16 +179,14 @@ validate_specialist() {
             # Verificar metricas
             local metrics
             if metrics=$(mlflow_get_version_metrics "$model_name" "$prod_version" 2>/dev/null); then
-                local f1
-                f1=$(echo "$metrics" | jq -r '.f1' 2>/dev/null)
+                local precision recall f1
+                precision=$(echo "$metrics" | jq -r '.precision' 2>/dev/null || echo "N/A")
+                recall=$(echo "$metrics" | jq -r '.recall' 2>/dev/null || echo "N/A")
+                f1=$(echo "$metrics" | jq -r '.f1' 2>/dev/null || echo "N/A")
 
-                if [[ "$f1" != "N/A" ]] && [[ "$f1" != "null" ]]; then
-                    local threshold_f1="${PROMOTION_THRESHOLD_F1:-0.72}"
-                    if (( $(echo "$f1 < $threshold_f1" | bc -l 2>/dev/null || echo "1") )); then
-                        status="WARN"
-                        issues+=("F1 Score abaixo do threshold ($f1 < $threshold_f1)")
-                    fi
-                fi
+                check_threshold "$precision" "$THRESHOLD_PRECISION" "Precision" status issues
+                check_threshold "$recall" "$THRESHOLD_RECALL" "Recall" status issues
+                check_threshold "$f1" "$THRESHOLD_F1" "F1 Score" status issues
             fi
         fi
     fi
@@ -200,6 +261,74 @@ validate_specialist() {
     return 2
 }
 
+validate_model_by_name() {
+    local model_name="$1"
+    local version="$2"
+    local status="OK"
+    local issues=()
+    local metrics="{}"
+
+    if ! mlflow_get_model_info "$model_name" > /dev/null 2>&1; then
+        status="FAIL"
+        issues+=("Modelo nao registrado no MLflow")
+    fi
+
+    if [[ "$status" != "FAIL" ]] && [[ -z "$version" ]]; then
+        if ! version=$(mlflow_get_production_version "$model_name" 2>/dev/null); then
+            status="WARN"
+            issues+=("Nenhuma versao em Production")
+        fi
+    fi
+
+    if [[ "$status" != "FAIL" ]] && [[ -n "$version" ]]; then
+        if metrics=$(mlflow_get_version_metrics "$model_name" "$version" 2>/dev/null); then
+            local precision recall f1
+            precision=$(echo "$metrics" | jq -r '.precision' 2>/dev/null || echo "N/A")
+            recall=$(echo "$metrics" | jq -r '.recall' 2>/dev/null || echo "N/A")
+            f1=$(echo "$metrics" | jq -r '.f1' 2>/dev/null || echo "N/A")
+
+            check_threshold "$precision" "$THRESHOLD_PRECISION" "Precision" status issues
+            check_threshold "$recall" "$THRESHOLD_RECALL" "Recall" status issues
+            check_threshold "$f1" "$THRESHOLD_F1" "F1 Score" status issues
+        else
+            status="FAIL"
+            issues+=("Metricas nao encontradas para versao $version")
+        fi
+    fi
+
+    local color icon
+    case "$status" in
+        OK)   color="${GREEN:-}"; icon="OK" ;;
+        WARN) color="${YELLOW:-}"; icon="WARN" ;;
+        FAIL) color="${RED:-}"; icon="FAIL" ;;
+    esac
+
+    if [[ "$VERBOSE" == "true" ]]; then
+        printf "%b[%s] %s v%s%b\n" "$color" "$icon" "$model_name" "${version:-N/A}" "${NC:-}"
+        if [[ ${#issues[@]} -gt 0 ]]; then
+            for issue in "${issues[@]}"; do
+                echo "    - $issue"
+            done
+        fi
+        local precision recall f1
+        precision=$(echo "$metrics" | jq -r '.precision' 2>/dev/null || echo "N/A")
+        recall=$(echo "$metrics" | jq -r '.recall' 2>/dev/null || echo "N/A")
+        f1=$(echo "$metrics" | jq -r '.f1' 2>/dev/null || echo "N/A")
+        echo "    Metrics: P=$precision R=$recall F1=$f1"
+    else
+        printf "%b%-20s [%s]%b" "$color" "$model_name" "$icon" "${NC:-}"
+        if [[ ${#issues[@]} -gt 0 ]]; then
+            echo " - ${issues[0]}"
+        else
+            echo ""
+        fi
+    fi
+
+    [[ "$status" == "OK" ]] && return 0
+    [[ "$status" == "WARN" ]] && return 1
+    return 2
+}
+
 # Main
 main() {
     log_phase "Neural Hive - Model Validation"
@@ -211,25 +340,35 @@ main() {
 
     echo ""
 
-    local specialists=()
-    if [[ -n "$SPECIALIST" ]]; then
-        specialists=("$SPECIALIST")
-    else
-        specialists=("technical" "business" "behavior" "evolution" "architecture")
-    fi
-
     local ok=0 warn=0 fail=0
 
-    for spec in "${specialists[@]}"; do
+    if [[ -n "$MODEL_NAME" ]]; then
         local result=0
-        validate_specialist "$spec" || result=$?
-
+        validate_model_by_name "$MODEL_NAME" "$MODEL_VERSION" || result=$?
         case $result in
             0) ((ok++)) ;;
             1) ((warn++)) ;;
             *) ((fail++)) ;;
         esac
-    done
+    else
+        local specialists=()
+        if [[ -n "$SPECIALIST" ]]; then
+            specialists=("$SPECIALIST")
+        else
+            specialists=("technical" "business" "behavior" "evolution" "architecture")
+        fi
+
+        for spec in "${specialists[@]}"; do
+            local result=0
+            validate_specialist "$spec" || result=$?
+
+            case $result in
+                0) ((ok++)) ;;
+                1) ((warn++)) ;;
+                *) ((fail++)) ;;
+            esac
+        done
+    fi
 
     echo ""
     log_section "Resumo"

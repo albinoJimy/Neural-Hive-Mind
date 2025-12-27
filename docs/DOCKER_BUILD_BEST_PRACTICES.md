@@ -237,6 +237,53 @@ FROM neural-hive-mind/python-grpc-base:1.0.0
 
 **Importante**: Use versões específicas (`:1.0.0`), não `:latest`, para reprodutibilidade.
 
+### 3.6 Quando NÃO Usar Base Images
+
+Nem todos os serviços devem usar base images. Use multi-stage builds com python:3.11-slim quando:
+
+**Critérios para NÃO usar base images:**
+- Serviço tem requisitos únicos (ex: gateway-intencoes com PyTorch/Whisper)
+- Dependências conflitam com base image (ex: diferentes versões de Kafka)
+- Serviço é leve e base image adicionaria overhead desnecessário
+- Serviço está em desenvolvimento ativo e muda frequentemente
+
+**Serviços que usam python:3.11-slim diretamente:**
+- gateway-intencoes (PyTorch, Whisper, spaCy)
+- queen-agent (aiokafka, múltiplas databases)
+- execution-ticket-service (PostgreSQL, webhooks)
+- guard-agents (Kubernetes client, security)
+- worker-agents (Temporal, Kafka)
+- scout-agents (discovery, lightweight)
+- self-healing-engine (Kubernetes, playbooks)
+- mcp-tool-catalog (genetic algorithms)
+- service-registry (gRPC registry)
+
+**Padrão recomendado para estes serviços:**
+```dockerfile
+# Multi-stage build com venv
+FROM python:3.11-slim AS builder
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
+RUN python -m venv /opt/venv && \
+    /opt/venv/bin/pip install --no-cache-dir --upgrade pip && \
+    /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+
+FROM python:3.11-slim
+WORKDIR /app
+COPY --from=builder /opt/venv /opt/venv
+COPY src/ ./src/
+ENV PATH="/opt/venv/bin:$PATH"
+USER appuser
+CMD ["python", "-m", "src.main"]
+```
+
+**Benefícios:**
+- Imagens finais menores (sem gcc/g++)
+- Flexibilidade para requisitos específicos
+- Builds mais rápidos (sem layers desnecessárias)
+- Isolamento de dependências via venv
+
 ## 4. BuildKit
 
 ### Ativação
@@ -479,19 +526,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc \
 | analyst-agents | ✅ | ✅ | python-grpc-base:1.0.0 |
 | code-forge | ✅ | ✅ | python:3.11-slim |
 | consensus-engine | ✅ | ✅ | python-grpc-base:1.0.0 |
-| execution-ticket-service | ✅ | ❌ | python:3.11-slim |
+| execution-ticket-service | ✅ | ✅ | python:3.11-slim |
 | explainability-api | ✅ | ❌ | python:3.11-slim |
 | gateway-intencoes | ✅ | ❌ | python:3.11-slim |
-| guard-agents | ✅ | ✅ | python-grpc-base:1.0.0 |
-| mcp-tool-catalog | ✅ | ❌ | python:3.11-slim |
+| guard-agents | ✅ | ✅ | python:3.11-slim |
+| mcp-tool-catalog | ✅ | ✅ | python:3.11-slim |
 | memory-layer-api | ✅ | ❌ | python:3.11-slim |
 | optimizer-agents | ✅ | ✅ | python-grpc-base:1.0.0 |
 | orchestrator-dynamic | ✅ | ❌ | python:3.11-slim |
-| queen-agent | ✅ | ✅ | python-grpc-base:1.0.0 |
-| scout-agents | ✅ | ✅ | python-grpc-base:1.0.0 |
-| self-healing-engine | ✅ | ❌ | python:3.11-slim |
+| queen-agent | ✅ | ✅ | python:3.11-slim |
+| scout-agents | ✅ | ✅ | python:3.11-slim |
+| self-healing-engine | ✅ | ✅ | python:3.11-slim |
 | semantic-translation-engine | ✅ | ✅ | python-nlp-base:1.0.0 |
-| service-registry | ✅ | ❌ | python:3.11-slim |
+| service-registry | ✅ | ✅ | python:3.11-slim |
 | sla-management-system | ✅ | ❌ | python:3.11-slim |
 | specialist-architecture | ✅ | ✅ | python-grpc-base:1.0.0 |
 | specialist-behavior | ✅ | ✅ | python-grpc-base:1.0.0 |

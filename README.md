@@ -20,6 +20,79 @@ A Fase 1 provisiona:
 - **🚦 Policy Engine**: OPA Gatekeeper para governança policy-as-code
 - **📊 Observabilidade**: Bases para métricas, logs e tracing distribuído
 
+## 🚀 Quick Start com CLIs Unificados
+O Neural Hive-Mind agora possui **6 CLIs unificados** que consolidam 178+ scripts em interfaces consistentes:
+
+### Build
+```bash
+# Build local
+./scripts/build.sh --target local
+
+# Build e push para ECR
+./scripts/build.sh --target ecr --push --version 1.0.8
+```
+
+### Deploy
+```bash
+# Deploy local (Minikube)
+./scripts/deploy.sh --env local --phase 1
+
+# Deploy EKS completo
+./scripts/deploy.sh --env eks --phase all
+```
+
+### Testes
+```bash
+# Testes E2E
+./tests/run-tests.sh --type e2e
+
+# Testes com cobertura
+./tests/run-tests.sh --type all --coverage
+```
+
+### Validação
+```bash
+# Validar tudo
+./scripts/validate.sh --target all
+
+# Validar specialists
+./scripts/validate.sh --target specialists
+```
+
+### Segurança
+```bash
+# Inicializar Vault
+./scripts/security.sh vault init
+
+# Deploy SPIRE
+./scripts/security.sh spire deploy
+```
+
+### Machine Learning
+```bash
+# Treinar modelos
+./ml_pipelines/ml.sh train --all
+
+# Promover modelo
+./ml_pipelines/ml.sh promote --model technical-evaluator --version 3
+```
+
+### Makefile Simplificado
+```bash
+make build-local      # Build local
+make deploy-eks       # Deploy EKS
+make test             # Executar testes
+make validate         # Validar deployment
+make security-init    # Inicializar segurança
+make ml-train         # Treinar modelos
+```
+
+📚 **Documentação Completa**: [docs/scripts/](docs/scripts/)
+- [Visão Geral da Estrutura](docs/scripts/README.md)
+- [Guia de Migração](docs/scripts/MIGRATION_GUIDE.md)
+- [Referência de CLIs](docs/scripts/CLI_REFERENCE.md)
+- [Exemplos](docs/scripts/EXAMPLES.md)
+
 ## 🏗️ Arquitetura
 
 ```
@@ -43,6 +116,45 @@ A Fase 1 provisiona:
 │  └── neural-hive-observability (Métricas e Logs)           │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+## 📁 Project Structure
+```
+Neural-Hive-Mind/
+├── scripts/                    # 🆕 CLIs unificados e módulos
+│   ├── build.sh               # CLI de build (consolida 15 scripts)
+│   ├── deploy.sh              # CLI de deploy (consolida 38 scripts)
+│   ├── validate.sh            # CLI de validação (consolida 75 scripts)
+│   ├── security.sh            # CLI de segurança (consolida 23 scripts)
+│   ├── lib/                   # 🆕 Bibliotecas compartilhadas
+│   │   ├── common.sh          # Logging, validações, retry
+│   │   ├── docker.sh          # Operações Docker
+│   │   ├── k8s.sh             # Operações Kubernetes
+│   │   └── aws.sh             # Operações AWS
+│   ├── build/                 # Módulos de build
+│   ├── deploy/                # Módulos de deploy
+│   ├── validation/            # Módulos de validação
+│   └── security/              # Módulos de segurança
+├── tests/                     # 🆕 Testes organizados
+│   ├── run-tests.sh           # CLI de testes (consolida 45 scripts)
+│   ├── unit/                  # Testes unitários
+│   ├── integration/           # Testes de integração
+│   └── e2e/                   # Testes end-to-end
+├── ml_pipelines/              # 🆕 ML operations
+│   ├── ml.sh                  # CLI de ML (consolida 25 scripts)
+│   ├── training/              # Scripts de treinamento
+│   └── monitoring/            # Monitoramento de modelos
+├── services/                  # Microserviços
+├── k8s/                       # Manifestos Kubernetes
+├── helm-charts/               # Helm charts
+├── infrastructure/            # Terraform
+└── docs/                      # Documentação
+    └── scripts/               # 🆕 Documentação de scripts
+        ├── README.md          # Visão geral
+        ├── MIGRATION_GUIDE.md # Guia de migração
+        ├── CLI_REFERENCE.md   # Referência de CLIs
+        └── EXAMPLES.md        # Exemplos práticos
+```
+> **Nota**: A estrutura de scripts foi reorganizada em 11 fases, consolidando 178 scripts em 6 CLIs unificados. Veja [docs/scripts/MIGRATION_GUIDE.md](docs/scripts/MIGRATION_GUIDE.md) para migração.
 
 ## 🤖 Machine Learning
 
@@ -108,19 +220,19 @@ Para fazer build local de todas as imagens Docker com paralelização:
 
 ```bash
 # Build padrão (4 jobs paralelos, versão 1.0.7)
-./scripts/build-local-parallel.sh
+./scripts/build.sh --target local --parallel 4
 
 # Build com mais paralelização (8 jobs)
-./scripts/build-local-parallel.sh --parallel 8
+./scripts/build.sh --target local --parallel 8
 
 # Build de serviços específicos
-./scripts/build-local-parallel.sh --services "gateway-intencoes,consensus-engine"
+./scripts/build.sh --target local --services "gateway-intencoes,consensus-engine"
 
 # Build com versão customizada
-./scripts/build-local-parallel.sh --version 1.0.8
+./scripts/build.sh --target local --version 1.0.8
 
 # Build sem cache (força rebuild completo)
-./scripts/build-local-parallel.sh --no-cache
+./scripts/build.sh --target local --no-cache
 ```
 
 **Características:**
@@ -141,26 +253,26 @@ Após buildar as imagens localmente, faça push para ECR:
 
 ```bash
 # Push padrão (4 jobs paralelos)
-./scripts/push-to-ecr.sh
+./scripts/build.sh --target ecr --push
 
 # Push com mais paralelização
-./scripts/push-to-ecr.sh --parallel 8
+./scripts/build.sh --target ecr --push --parallel 8
 
 # Push de serviços específicos
-./scripts/push-to-ecr.sh --services "gateway-intencoes,consensus-engine"
+./scripts/build.sh --target ecr --push --services "gateway-intencoes,consensus-engine"
 
 # Push com versão customizada
-./scripts/push-to-ecr.sh --version 1.0.8
+./scripts/build.sh --target ecr --push --version 1.0.8
 
 # Override de ambiente e região
-./scripts/push-to-ecr.sh --env staging --region us-west-2
+./scripts/build.sh --target ecr --push --env staging --region us-west-2
 ```
 
 **Pré-requisitos:**
 - AWS CLI configurado (`aws configure`)
 - Credenciais AWS válidas
 - Variáveis de ambiente em `~/.neural-hive-env` (ENV, AWS_REGION)
-- Imagens buildadas localmente (executar `build-local-parallel.sh` primeiro)
+- Imagens buildadas localmente (executar `./scripts/build.sh --target local` ou `make build-local` primeiro)
 
 **Features:**
 - ✅ Push paralelo (4 jobs simultâneos por padrão)
@@ -178,89 +290,51 @@ aws ecr list-images --repository-name neural-hive-dev/gateway-intencoes --region
 
 ### Build e Deploy Automatizado para EKS
 
-Para build local, push para ECR e atualização de manifestos em um único comando:
+Para build local, push para ECR e atualização de manifestos em um único fluxo usando os CLIs:
 
 ```bash
-# Fluxo completo
-./scripts/build-and-deploy-eks.sh
+# Build + push para ECR
+./scripts/build.sh --target ecr --push --version 1.0.8 --parallel 8
 
-# Com opções customizadas
-./scripts/build-and-deploy-eks.sh --version 1.0.8 --parallel 8 --env staging
+# Deploy completo em EKS
+./scripts/deploy.sh --env eks --phase all --version 1.0.8
 ```
 
-Este script orquestra:
-1. **Build local paralelo** (`build-local-parallel.sh`) - 4-8 minutos
-2. **Push para ECR** (`push-to-ecr.sh`) - 5-8 minutos
-3. **Atualização de manifestos** (`update-manifests-ecr.sh`) - <1 minuto
-
-**Controle granular**:
-- `--skip-build`: Pular build (usar imagens já buildadas)
-- `--skip-push`: Pular push (apenas atualizar manifestos)
-- `--skip-update`: Pular atualização de manifestos (apenas build e push)
-
-Veja `./scripts/build-and-deploy-eks.sh --help` para todas as opções.
-
-### Atualização de Manifestos para ECR
-
-Após fazer build e push das imagens para ECR, atualize os manifestos Kubernetes:
-
-```bash
-# Preview das mudanças (dry-run)
-./scripts/update-manifests-ecr.sh --dry-run
-
-# Atualizar todos os manifestos
-./scripts/update-manifests-ecr.sh
-
-# Atualizar serviços específicos
-./scripts/update-manifests-ecr.sh --services "gateway-intencoes,consensus-engine"
-
-# Atualizar para ambiente staging
-./scripts/update-manifests-ecr.sh --env staging --region us-west-2
-```
-
-O script atualiza automaticamente:
-- `image.repository` e `image.tag` em todos os Helm charts (`/helm-charts/*/values.yaml`)
-- Imagens hardcoded em manifests standalone (`/k8s/*.yaml`)
-
-**Opções disponíveis**:
-- `--version <ver>`: Versão das imagens (padrão: 1.0.7)
-- `--env <env>`: Ambiente (dev, staging, prod) (padrão: dev)
-- `--region <region>`: Região AWS (padrão: us-east-1)
+Use o deploy CLI para aplicar manifests com versão/tag corretas; tags vêm do `build.sh --version` e são propagadas no deploy via `--version`.
 - `--services <list>`: Lista de serviços separados por vírgula
 - `--dry-run`: Preview das mudanças sem aplicar
 - `--no-backup`: Não criar backup antes de modificar
 - `--help`: Exibir ajuda completa
 
-**Pré-requisitos**:
-- `yq` v4.x instalado (recomendado) ou `sed` como fallback
-- AWS CLI configurado
-- Credenciais AWS válidas
-
-**Workflow completo**:
+**Fluxo completo usando CLIs (equivalente aos scripts legados):**
 ```bash
-# 1. Build local das imagens
-./scripts/build-local-parallel.sh --version 1.0.7
+# Equiv. a build-local-parallel.sh
+./scripts/build.sh --target local --parallel 4 --version 1.0.7
 
-# 2. Push para ECR
-./scripts/push-to-ecr.sh --version 1.0.7
+# Equiv. a push-to-ecr.sh
+./scripts/build.sh --target ecr --push --version 1.0.7
 
-# 3. Atualizar manifestos
-./scripts/update-manifests-ecr.sh --version 1.0.7
-
-# 4. Deploy no EKS
-helm upgrade gateway-intencoes helm-charts/gateway-intencoes/ -n gateway
+# Equiv. a update-manifests-ecr.sh + deploy
+./scripts/deploy.sh --env eks --phase all --version 1.0.7
 ```
 
-Ver também: `QUICK_START_EKS.md` para guia completo de deployment no EKS.
+Ver também: `QUICK_START_EKS.md` para guia completo de deployment no EKS (atualizado para os CLIs).
 
 ## Gerenciamento de Dependências
 
 ### Estrutura de Requirements
 
-Cada serviço possui dois arquivos de dependências:
+Cada serviço possui arquivos de dependências:
 
-- **requirements.txt**: Dependências de produção (instaladas na imagem Docker).
+- **requirements.txt**: Dependências de produção (instaladas na imagem Docker). **FONTE DE VERDADE**.
 - **requirements-dev.txt**: Dependências de desenvolvimento e testes (não incluídas em produção).
+- **pyproject.toml** (opcional): Metadados do projeto e compatibilidade com Poetry. Deve ser mantido sincronizado com requirements.txt.
+
+**Importante**: Em caso de conflito entre `pyproject.toml` e `requirements.txt`, o `requirements.txt` prevalece pois é usado nos builds Docker de produção.
+
+### Arquivo Central de Versões
+
+O arquivo `versions.txt` na raiz contém versões canônicas de dependências compartilhadas. Consulte `docs/DEPENDENCY_MANAGEMENT.md` para detalhes.
 
 ### Consolidação de Versões
 
@@ -315,8 +389,8 @@ git clone <repository-url>
 cd Neural-Hive-Mind
 
 # Passo 1: Build das imagens Docker (recomendado antes do deploy)
-# O script de build paralelo constrói todas as 9 imagens da Fase 1
-./scripts/build-local-parallel.sh
+# Equivalente ao script legado build-local-parallel.sh via CLI unificado
+./scripts/build.sh --target local --parallel 4
 
 # Passo 2: Execute o setup completo do cluster
 make minikube-setup
@@ -396,8 +470,8 @@ aws sts get-caller-identity
 ### Deploy Rápido (Automatizado) ⚡
 
 ```bash
-# 0. (Opcional) Build local das imagens antes do push para ECR
-./scripts/build-local-parallel.sh
+# 0. (Opcional) Build local das imagens antes do push para ECR (equivalente ao build-local-parallel.sh)
+./scripts/build.sh --target local --parallel 4
 
 # 1. Configure ambiente e senhas
 export ENV=dev  # ou staging, prod
@@ -408,13 +482,13 @@ export TF_VAR_clickhouse_admin_password="<senha-forte>"
 export TF_VAR_clickhouse_readonly_password="<senha-forte>"
 export TF_VAR_clickhouse_writer_password="<senha-forte>"
 
-# 2. Deploy completo automatizado (20-30 min)
-chmod +x scripts/deploy/deploy-eks-complete.sh
-./scripts/deploy/deploy-eks-complete.sh
+# 2. Deploy completo automatizado (20-30 min) - equivalente ao deploy-eks-complete.sh
+./scripts/build.sh --target ecr --push --version ${ENV_VERSION:-latest}
+./scripts/deploy.sh --env ${ENV:-dev} --phase all --version ${ENV_VERSION:-latest}
 
 # 3. Validar deployment
 kubectl get pods --all-namespaces
-./tests/phase1-end-to-end-test.sh
+./tests/run-tests.sh --type e2e --phase 1
 ```
 
 ### Documentação Completa
@@ -2489,3 +2563,14 @@ Este projeto é licenciado sob a MIT License - veja o arquivo [LICENSE](LICENSE)
 - `./scripts/maintenance.sh` — backup/restore, cluster tasks, cost optimization, DR status
 
 See `docs/MAKEFILE_MIGRATION.md` for migration details and deprecated commands.
+
+## ⚠️ Scripts Deprecated
+Os seguintes scripts foram consolidados nos CLIs unificados e serão removidos na versão 2.0.0:
+- Scripts de build na raiz → `./scripts/build.sh`
+- Scripts de deploy individuais → `./scripts/deploy.sh`
+- Scripts de teste na raiz → `./tests/run-tests.sh`
+- Scripts de validação dispersos → `./scripts/validate.sh`
+- Scripts de segurança dispersos → `./scripts/security.sh`
+- Scripts de ML dispersos → `./ml_pipelines/ml.sh`
+
+Período de transição: 3 meses (até versão 2.0.0). Consulte [docs/scripts/MIGRATION_GUIDE.md](docs/scripts/MIGRATION_GUIDE.md) para migração.

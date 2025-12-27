@@ -24,25 +24,25 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
 # First install torch separately (large download, using retries)
 # Using CPU-only version to reduce download size (~200MB vs ~900MB)
 RUN pip install --no-cache-dir --retries 5 --timeout 120 \
-    torch --index-url https://download.pytorch.org/whl/cpu
+    torch==2.1.2 --index-url https://download.pytorch.org/whl/cpu
 
 # Then install sentence-transformers (depends on torch)
 RUN pip install --no-cache-dir --retries 5 --timeout 120 \
-    "sentence-transformers>=2.3.1"
+    "sentence-transformers==2.3.1"
 
 # Install remaining dependencies
 RUN pip install --no-cache-dir \
-    "fastapi>=0.104.1" \
-    "uvicorn[standard]>=0.24.0" \
+    "fastapi==0.104.1" \
+    "uvicorn[standard]==0.24.0" \
     "requests>=2.31.0" \
-    "pydantic>=2.5.2" \
-    "pydantic-settings>=2.1.0" \
+    "pydantic==2.5.3" \
+    "pydantic-settings==2.1.0" \
     "tenacity>=8.2.3" \
     "pybreaker>=1.0.1" \
-    "pandas>=2.1.3" \
-    "numpy>=1.26.2" \
-    "scikit-learn>=1.5.0,<1.6.0" \
-    "structlog>=23.2.0"
+    "pandas==2.1.3" \
+    "numpy==1.26.2" \
+    "scikit-learn==1.5.2" \
+    "structlog==23.2.0"
 
 # Verify installation including critical imports
 RUN python -c "\

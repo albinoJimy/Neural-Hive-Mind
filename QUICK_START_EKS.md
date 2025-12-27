@@ -62,8 +62,9 @@ source ~/.neural-hive-env
 ```bash
 cd /jimy/Neural-Hive-Mind
 
-# Executar deploy completo
-./scripts/deploy/deploy-eks-complete.sh
+# Executar deploy completo (equivalente ao deploy-eks-complete.sh via CLIs)
+./scripts/build.sh --target ecr --push --version ${ENV_VERSION:-latest}
+./scripts/deploy.sh --env ${ENV:-dev} --phase all --version ${ENV_VERSION:-latest}
 ```
 
 Este script irá:
@@ -84,36 +85,22 @@ Se preferir ter mais controle:
 ```bash
 cd /jimy/Neural-Hive-Mind
 
-# 1. Backend S3 (uma vez)
-./scripts/deploy/deploy-eks-complete.sh
-# Pressione Ctrl+C após criar S3 backend, ou:
-export SKIP_TERRAFORM=true
-export SKIP_ECR=true
-export SKIP_BUILD=true
-export SKIP_K8S_DEPLOY=true
-
-# 2. Deploy Terraform
+# 1. Backend S3 + Terraform (manual)
 cd infrastructure/terraform
 terraform init -backend-config=../../environments/${ENV}/backend.hcl
 terraform plan -var-file=../../environments/${ENV}/terraform.tfvars
 terraform apply -var-file=../../environments/${ENV}/terraform.tfvars
 
-# 3. Configurar kubectl
+# 2. Configurar kubectl
 aws eks update-kubeconfig --name neural-hive-${ENV} --region ${AWS_REGION}
 kubectl get nodes
 
-# 4. Build e Push Imagens
-export SKIP_TERRAFORM=true
-export SKIP_S3_BACKEND=true
-export SKIP_K8S_DEPLOY=true
-./scripts/deploy/deploy-eks-complete.sh
+# 3. Build e Push Imagens (equiv. push-to-ecr.sh)
+cd /jimy/Neural-Hive-Mind
+./scripts/build.sh --target ecr --push --version ${ENV_VERSION:-latest}
 
-# 5. Deploy Kubernetes
-export SKIP_TERRAFORM=true
-export SKIP_S3_BACKEND=true
-export SKIP_ECR=true
-export SKIP_BUILD=true
-./scripts/deploy/deploy-eks-complete.sh
+# 4. Deploy Kubernetes (equiv. update-manifests-ecr.sh + deploy)
+./scripts/deploy.sh --env ${ENV:-dev} --phase all --version ${ENV_VERSION:-latest}
 ```
 
 ### Opção C: Build Local + Push ECR + Deploy
@@ -127,17 +114,9 @@ Use o script orquestrador para executar todas as etapas automaticamente:
 ```bash
 cd /jimy/Neural-Hive-Mind
 
-# Fluxo completo: build + push + update manifestos
-./scripts/build-and-deploy-eks.sh
-
-# Com versão específica
-./scripts/build-and-deploy-eks.sh --version 1.0.8
-
-# Preview de mudanças antes de aplicar
-./scripts/build-and-deploy-eks.sh --dry-run
-
-# Apenas build e push (sem atualizar manifestos)
-./scripts/build-and-deploy-eks.sh --skip-update
+# Fluxo completo: build + push + deploy (equiv. build-and-deploy-eks.sh)
+./scripts/build.sh --target ecr --push --version 1.0.8
+./scripts/deploy.sh --env eks --phase all --version 1.0.8
 ```
 
 **Tempo estimado**: 10-15 minutos total.
@@ -149,6 +128,7 @@ cd /jimy/Neural-Hive-Mind
 Se preferir executar cada etapa manualmente:
 
 > **Nota**: Os passos abaixo podem ser executados automaticamente com `./scripts/build-and-deploy-eks.sh`. Use o workflow manual apenas se precisar de controle granular ou debugging.
+> Equivalente via CLIs: `./scripts/build.sh --target ecr --push` + `./scripts/deploy.sh --env eks --phase all`.
 
 #### Pré-requisitos
 
@@ -187,20 +167,17 @@ source ~/.neural-hive-env
 ```bash
 cd /jimy/Neural-Hive-Mind
 
-# Build de todos os serviços (9 serviços Phase 1)
-./scripts/build-local-parallel.sh
-
-# Build com versão específica
-./scripts/build-local-parallel.sh --version 1.0.8
+# Build de todos os serviços (9 serviços Phase 1) - equiv. build-local-parallel.sh
+./scripts/build.sh --target local --parallel 4 --version 1.0.8
 
 # Build com mais paralelização (8 jobs)
-./scripts/build-local-parallel.sh --parallel 8
+./scripts/build.sh --target local --parallel 8 --version 1.0.8
 
 # Build de serviços específicos
-./scripts/build-local-parallel.sh --services "gateway-intencoes,consensus-engine"
+./scripts/build.sh --target local --services "gateway-intencoes,consensus-engine" --version 1.0.8
 
 # Build sem cache (rebuild completo)
-./scripts/build-local-parallel.sh --no-cache
+./scripts/build.sh --target local --no-cache --version 1.0.8
 ```
 
 **Tempo estimado**: 5-8 minutos com 4 jobs paralelos.
@@ -213,17 +190,14 @@ docker images | grep neural-hive-mind
 #### Passo 2: Push para ECR
 
 ```bash
-# Push de todas as imagens
-./scripts/push-to-ecr.sh
-
-# Push com versão específica
-./scripts/push-to-ecr.sh --version 1.0.8
+# Push de todas as imagens (equiv. push-to-ecr.sh)
+./scripts/build.sh --target ecr --push --version 1.0.8
 
 # Push para ambiente staging
-./scripts/push-to-ecr.sh --env staging --region us-west-2
+./scripts/build.sh --target ecr --push --env staging --region us-west-2 --version 1.0.8
 
 # Push de serviços específicos
-./scripts/push-to-ecr.sh --services "gateway-intencoes,consensus-engine"
+./scripts/build.sh --target ecr --push --services "gateway-intencoes,consensus-engine" --version 1.0.8
 ```
 
 **Tempo estimado**: 5-8 minutos com 4 jobs paralelos.
@@ -244,16 +218,13 @@ aws ecr list-images --repository-name neural-hive-dev/gateway-intencoes --region
 
 ```bash
 # Preview das mudanças (recomendado)
-./scripts/update-manifests-ecr.sh --dry-run
+./scripts/deploy.sh --env eks --phase all --version 1.0.8 --dry-run
 
-# Atualizar todos os manifestos
-./scripts/update-manifests-ecr.sh
-
-# Atualizar com versão específica
-./scripts/update-manifests-ecr.sh --version 1.0.8
+# Atualizar e aplicar todos os manifestos
+./scripts/deploy.sh --env eks --phase all --version 1.0.8
 
 # Atualizar para ambiente staging
-./scripts/update-manifests-ecr.sh --env staging --region us-west-2
+./scripts/deploy.sh --env eks --phase all --version 1.0.8 --env staging --region us-west-2
 ```
 
 **O script automaticamente**:
@@ -279,26 +250,19 @@ helm template gateway-intencoes helm-charts/gateway-intencoes/ | grep image:
 #### Passo 4: Deploy no EKS
 
 ```bash
-# Deploy via Helm (recomendado)
-for service in gateway-intencoes semantic-translation-engine specialist-business specialist-technical specialist-behavior specialist-evolution specialist-architecture consensus-engine memory-layer-api; do
-  helm upgrade --install $service helm-charts/$service/ \
-    -n neural-hive \
-    --create-namespace \
-    --wait
-done
+# Deploy via CLI unificado (equiv. apply dos charts)
+./scripts/deploy.sh --env eks --phase all --version 1.0.8
 
 # Ou deploy de serviço específico
-helm upgrade --install gateway-intencoes helm-charts/gateway-intencoes/ -n gateway --create-namespace
+./scripts/deploy.sh --env eks --services gateway-intencoes --version 1.0.8
 ```
 
 #### Workflow Completo (One-liner)
 
 ```bash
-# Build + Push + Update + Deploy
-./scripts/build-local-parallel.sh --version 1.0.8 && \
-./scripts/push-to-ecr.sh --version 1.0.8 && \
-./scripts/update-manifests-ecr.sh --version 1.0.8 && \
-helm upgrade --install gateway-intencoes helm-charts/gateway-intencoes/ -n gateway
+# Build + Push + Deploy (equiv. build-and-deploy-eks.sh)
+./scripts/build.sh --target ecr --push --version 1.0.8 && \
+./scripts/deploy.sh --env eks --phase all --version 1.0.8
 ```
 
 #### Rollback de Manifestos
@@ -355,7 +319,7 @@ export AWS_REGION="us-east-1"
 docker images | grep neural-hive-mind
 
 # Re-executar build
-./scripts/build-local-parallel.sh
+./scripts/build.sh --target local --parallel 4
 ```
 
 #### Comparação de Opções

@@ -10,9 +10,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     make \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy local libraries first
+COPY libraries/python/neural_hive_observability/ /tmp/neural_hive_observability/
+
 # Copy requirements and install dependencies
 COPY services/service-registry/requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+
+# Install local library and requirements (excluding neural_hive_observability from pip)
+RUN pip install --no-cache-dir --user /tmp/neural_hive_observability/ && \
+    grep -v "neural_hive_observability" requirements.txt > requirements-filtered.txt && \
+    pip install --no-cache-dir --user -r requirements-filtered.txt
 
 # Final stage
 FROM python:3.11-slim

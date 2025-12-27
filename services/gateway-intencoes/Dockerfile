@@ -38,15 +38,10 @@ WORKDIR /app
 # Modelos ML (Whisper e spaCy) são gerenciados via init containers e volumes persistentes
 COPY services/gateway-intencoes/requirements.txt .
 
-# Copiar biblioteca neural_hive_observability
-COPY libraries/python/neural_hive_observability /app/libs/neural_hive_observability
-
 # Instalar dependências Python em uma única camada para otimizar build
 RUN pip install --no-cache-dir --upgrade pip==24.0 && \
-    pip install --no-cache-dir torch==2.1.0 torchaudio==2.1.0 && \
-    pip install --no-cache-dir --no-deps openai-whisper && \
     pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir /app/libs/neural_hive_observability
+    pip install --no-cache-dir --no-deps openai-whisper
 
 # Baixar modelo spaCy pt_core_news_sm
 RUN python -m spacy download pt_core_news_sm

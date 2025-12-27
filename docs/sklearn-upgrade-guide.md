@@ -53,9 +53,19 @@ Este fallback não modifica os atributos do modelo, apenas utiliza uma forma alt
 | `services/optimizer-agents/requirements.txt` | `==1.3.2` | `>=1.5.0,<1.6.0` |
 | `services/analyst-agents/requirements.txt` | `==1.3.2` | `>=1.5.0,<1.6.0` |
 | `services/orchestrator-dynamic/requirements.txt` | `>=1.3.0` | `>=1.5.0,<1.6.0` |
+| `services/analyst-agents/requirements.txt` | `>=1.4.0,<1.6.0` | `>=1.5.0,<1.6.0` |
+| `services/orchestrator-dynamic/requirements.txt` | `>=1.4.0,<1.6.0` | `>=1.5.0,<1.6.0` |
+| `libraries/python/neural_hive_ml/setup.py` | `>=1.3.0` | `>=1.5.0,<1.6.0` |
 | `ml_pipelines/training/conda.yaml` | `>=1.3.0` | `>=1.5.0,<1.6.0` |
 | `ml_pipelines/training/requirements-dataset-generation.txt` | `>=1.3.0` | `>=1.5.0,<1.6.0` |
 | `k8s/jobs/train-specialist-models-job.yaml` | `==1.3.0` | `>=1.5.0,<1.6.0` |
+
+## Versões Pinadas (numpy, pandas)
+
+Para garantir consistência, todas as dependências ML foram pinadas:
+- `numpy==1.26.2` (anteriormente `>=1.24.0`)
+- `pandas==2.1.3` (anteriormente `>=2.0.0` ou `>=1.5.0`)
+- `scikit-learn>=1.5.0,<1.6.0` (anteriormente `>=1.4.0` ou `>=1.3.0`)
 
 ## Procedimento de Migração
 

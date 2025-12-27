@@ -14,6 +14,8 @@ WORKDIR /app
 
 # Copy requirements and install dependencies
 COPY services/self-healing-engine/requirements.txt .
+
+# Install dependencies
 RUN pip install --no-cache-dir --prefix=/opt/venv -r requirements.txt
 
 # Copy source code
@@ -21,6 +23,11 @@ COPY services/self-healing-engine/src/ ./src/
 
 # Stage 2 - Runtime
 FROM python:3.11-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
 RUN groupadd -r healing-engine && useradd -r -u 1001 -g healing-engine healing-engine

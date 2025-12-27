@@ -354,44 +354,39 @@ done
 aws ecr list-images --repository-name neural-hive-${ENV}/gateway-intencoes --region ${AWS_REGION}
 ```
 
-### 3.5. Script Orquestrador Completo (Recomendado)
+### 3.5. Orquestração Completa via CLIs (Recomendado)
 
-Para executar build, push e atualização de manifestos em um único comando:
+Para executar build, push e deploy em um único fluxo usando os CLIs unificados (equivalente ao antigo `build-and-deploy-eks.sh`):
 
 ```bash
 cd /jimy/Neural-Hive-Mind
 
 # Executar fluxo completo
-./scripts/build-and-deploy-eks.sh
+./scripts/build.sh --target ecr --push --version 1.0.8 --parallel 8
+./scripts/deploy.sh --env eks --phase all --version 1.0.8 --region us-west-2
 
-# Com opções customizadas
-./scripts/build-and-deploy-eks.sh \
-  --version 1.0.8 \
-  --parallel 8 \
-  --env staging \
-  --region us-west-2
+# Preview de mudanças (dry-run)
+./scripts/deploy.sh --env eks --phase all --version 1.0.8 --region us-west-2 --dry-run
 ```
 
-Este script automatiza:
+Este fluxo automatiza:
 - ✅ Validação de pré-requisitos (Docker, AWS CLI, kubectl)
-- ✅ Build paralelo de todas as imagens (4-8 min)
-- ✅ Push paralelo para ECR com retry logic (5-8 min)
-- ✅ Atualização automática de manifestos Helm e K8s (<1 min)
-- ✅ Resumo final com estatísticas consolidadas
+- ✅ Build paralelo de todas as imagens (4-8 min) via `build.sh`
+- ✅ Push para ECR com retry (5-8 min)
+- ✅ Aplicação de manifestos Helm/K8s via `deploy.sh --phase all`
+- ✅ Resumo final com estatísticas
 
 **Controle de fluxo**:
 ```bash
-# Apenas build e push (sem atualizar manifestos)
-./scripts/build-and-deploy-eks.sh --skip-update
+# Apenas build e push
+./scripts/build.sh --target ecr --push --version 1.0.8
 
-# Apenas push (imagens já buildadas localmente)
-./scripts/build-and-deploy-eks.sh --skip-build
+# Apenas deploy (imagens já no ECR)
+./scripts/deploy.sh --env eks --phase all --version 1.0.8
 
-# Preview de mudanças nos manifestos
-./scripts/build-and-deploy-eks.sh --skip-build --skip-push --dry-run
+# Deploy de serviços específicos
+./scripts/deploy.sh --env eks --services gateway-intencoes,specialist-business --version 1.0.8
 ```
-
-Veja todas as opções: `./scripts/build-and-deploy-eks.sh --help`
 
 ---
 

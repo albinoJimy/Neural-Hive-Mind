@@ -1,4 +1,5 @@
 name: Validate Explainability
+# NOTA: Este workflow mantém validações diretas específicas de explainability; para validações gerais use scripts/validate.sh.
 
 on:
   pull_request:

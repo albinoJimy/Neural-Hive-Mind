@@ -2,12 +2,12 @@
 # neuralHiveSpecialists @ file:///app/libraries/python/neural_hive_specialists
 
 # HTTP server and client
-fastapi>=0.104.1
-uvicorn[standard]>=0.24.0
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
 requests>=2.31.0
 
 # Data validation
-pydantic>=2.5.2
+pydantic==2.5.3
 pydantic-settings>=2.1.0
 
 # Circuit breaker and resilience
@@ -15,8 +15,8 @@ tenacity>=8.2.3
 pybreaker>=1.0.1
 
 # Business-specific
-pandas>=2.1.3
-numpy>=1.26.2
+pandas==2.1.3
+numpy==1.26.2
 scikit-learn>=1.5.0,<1.6.0
 
 # Nota: Dependências de process mining (pm4py), time series forecasting (prophet, statsmodels),
@@ -24,4 +24,4 @@ scikit-learn>=1.5.0,<1.6.0
 # Estas dependências estão disponíveis no optimizer-agents onde são realmente necessárias.
 
 # Logging
-structlog>=23.2.0
+structlog==23.2.0

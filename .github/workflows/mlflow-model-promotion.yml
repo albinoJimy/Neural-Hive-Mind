@@ -58,23 +58,12 @@ jobs:
         env:
           MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
         run: |
-          # Usar CLI unificado de ML (fallback para script python)
-          if ./ml_pipelines/ml.sh validate --help | grep -q "min-precision"; then
-            ./ml_pipelines/ml.sh validate \
-              --model-name "${{ github.event.inputs.model_name }}" \
-              --model-version "${{ github.event.inputs.model_version }}" \
-              --min-precision ${{ github.event.inputs.min_precision }} \
-              --min-recall ${{ github.event.inputs.min_recall }} \
-              --min-f1 ${{ github.event.inputs.min_f1 }}
-          else
-            python scripts/mlflow/validate_model.py \
-              --model-name "${{ github.event.inputs.model_name }}" \
-              --model-version "${{ github.event.inputs.model_version }}" \
-              --min-precision ${{ github.event.inputs.min_precision }} \
-              --min-recall ${{ github.event.inputs.min_recall }} \
-              --min-f1 ${{ github.event.inputs.min_f1 }} \
-              --tracking-uri "$MLFLOW_TRACKING_URI"
-          fi
+          ./ml_pipelines/ml.sh validate \
+            --model-name "${{ github.event.inputs.model_name }}" \
+            --model-version "${{ github.event.inputs.model_version }}" \
+            --min-precision ${{ github.event.inputs.min_precision }} \
+            --min-recall ${{ github.event.inputs.min_recall }} \
+            --min-f1 ${{ github.event.inputs.min_f1 }}
 
       - name: Promover modelo
         if: steps.validate.outcome == 'success'

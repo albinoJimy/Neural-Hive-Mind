@@ -89,10 +89,10 @@ Estende python-ml-base com dependências gRPC para comunicação entre serviços
 
 **Conteúdo:**
 - Tudo de python-ml-base
-- grpcio >= 1.60.0
-- grpcio-tools >= 1.68.0
-- grpcio-health-checking >= 1.60.0
-- protobuf >= 5.27.0
+- grpcio == 1.75.1
+- grpcio-tools == 1.75.1
+- grpcio-health-checking == 1.75.1
+- protobuf == 5.27.0
 
 **Uso:** Base para python-nlp-base e serviços gRPC sem NLP.
 
@@ -105,7 +105,7 @@ Estende python-grpc-base com dependências MLOps para serviços de otimização 
 - pandas >= 2.1.3
 - numpy >= 1.26.2
 - scipy >= 1.11.0
-- scikit-learn >= 1.4.0, < 1.6.0
+- scikit-learn == 1.5.2
 - mlflow >= 2.9.0
 
 **Uso:** Base para optimizer-agents e futuros serviços de ML/otimização.
@@ -139,7 +139,7 @@ Estende python-nlp-base com biblioteca neural_hive_specialists e dependências c
   - FastAPI >= 0.104.1, Uvicorn >= 0.24.0
   - Pydantic >= 2.5.2
   - Tenacity >= 8.2.3, PyBreaker >= 1.0.1
-  - Pandas >= 2.1.3, NumPy >= 1.26.2, scikit-learn >= 1.4.0
+  - Pandas >= 2.1.3, NumPy >= 1.26.2, scikit-learn == 1.5.2
   - Structlog >= 23.2.0
 
 **Uso:** Usado diretamente pelos 5 specialists (business, technical, behavior, evolution, architecture).
@@ -283,8 +283,10 @@ docker push ${ECR_REGISTRY}/${ENV}/python-specialist-base:1.0.0
 
 - python-mlops-base (como base)
 - consensus-engine
-- (futuro) queen-agent
-- (futuro) outros serviços gRPC sem NLP/MLOps
+- Outros serviços gRPC que compartilham dependências comuns
+
+**Nota**: Serviços com requisitos únicos (queen-agent, gateway-intencoes, etc.) 
+devem usar multi-stage builds com python:3.11-slim para maior flexibilidade.
 
 ### python-ml-base:1.0.0
 

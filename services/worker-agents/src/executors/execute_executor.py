@@ -140,13 +140,14 @@ class ExecuteExecutor(BaseTaskExecutor):
             delay = random.uniform(2, 4)
             await asyncio.sleep(delay)
 
+            cmd = parameters.get('command', 'unknown')
             result = {
                 'success': True,
                 'output': {
                     'exit_code': 0,
-                    'stdout': f'stub output for command: {parameters.get(\"command\", \"unknown\")}',
+                    'stdout': f'stub output for command: {cmd}',
                     'stderr': '',
-                    'command': parameters.get('command', 'unknown')
+                    'command': cmd
                 },
                 'metadata': {
                     'executor': 'ExecuteExecutor',
@@ -155,7 +156,7 @@ class ExecuteExecutor(BaseTaskExecutor):
                 },
                 'logs': [
                     'Execution started',
-                    f'Running command: {parameters.get(\"command\", \"unknown\")}',
+                    f'Running command: {cmd}',
                     f'Simulated execution for {delay:.2f}s',
                     'Execution completed successfully'
                 ]

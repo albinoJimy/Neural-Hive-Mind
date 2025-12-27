@@ -17,18 +17,20 @@ class Settings(BaseSettings):
     GRPC_PORT: int = Field(default=50051, description="Porta do servidor gRPC")
     METRICS_PORT: int = Field(default=9090, description="Porta de métricas Prometheus")
 
-    # Configurações do etcd
+    # Configurações do Registry Backend (Redis)
+    # Nota: Mantemos nomes ETCD_* para compatibilidade com configs existentes
+    # mas agora usa Redis como backend
     ETCD_ENDPOINTS: List[str] = Field(
-        default=["http://etcd:2379"],
-        description="Endpoints do cluster etcd"
+        default=["redis:6379"],
+        description="Endpoints do Redis para registry (formato host:port)"
     )
     ETCD_PREFIX: str = Field(
-        default="/neural-hive/agents",
-        description="Prefixo das chaves no etcd"
+        default="neural-hive:agents",
+        description="Prefixo das chaves no Redis"
     )
     ETCD_TIMEOUT_SECONDS: int = Field(
         default=5,
-        description="Timeout para operações no etcd"
+        description="Timeout para operações no Redis"
     )
 
     # Configurações de health checks

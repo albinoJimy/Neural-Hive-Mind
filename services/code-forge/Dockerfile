@@ -11,9 +11,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy local libraries first
+COPY libraries/python/neural_hive_observability /tmp/neural_hive_observability
+COPY libraries/neural_hive_integration /tmp/neural_hive_integration
+
 # Copy requirements and install dependencies
 COPY services/code-forge/requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir --user /tmp/neural_hive_observability && \
+    pip install --no-cache-dir --user /tmp/neural_hive_integration || true && \
+    pip install --no-cache-dir --user -r requirements.txt
 
 # Stage 2: Runtime
 FROM python:3.11-slim

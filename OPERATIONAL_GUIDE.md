@@ -3,6 +3,7 @@
 ## Visão Geral
 
 Este guia consolidado fornece uma visão completa das operações do sistema Neural Hive-Mind, incluindo todas as melhorias de automação implementadas para deploy, validação e manutenção.
+Todos os fluxos operacionais agora estão centralizados nos CLIs unificados (`scripts/build.sh`, `scripts/deploy.sh`, `tests/run-tests.sh`, `scripts/validate.sh`, `scripts/security.sh`, `ml_pipelines/ml.sh`); use os guias em `docs/scripts/` para referência rápida.
 
 ## Estrutura do Sistema
 

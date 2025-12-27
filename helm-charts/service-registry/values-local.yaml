@@ -45,11 +45,11 @@ config:
   serviceName: service-registry
   serviceVersion: 1.0.0
 
-  # etcd configuration for local
+  # Registry backend configuration (Redis substituiu etcd)
   etcd:
     endpoints:
-      - http://etcd:2379
-    prefix: /neural-hive/agents
+      - neural-hive-cache.redis-cluster.svc.cluster.local:6379
+    prefix: neural-hive:agents
     timeoutSeconds: 5
 
   # Health check configuration

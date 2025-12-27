@@ -2,8 +2,8 @@
 python>=3.11
 
 # ML and Data Processing
-pandas>=2.0.0
-numpy>=1.24.0
+pandas==2.1.3
+numpy==1.26.2
 pyarrow>=14.0.0  # Para Parquet
 scikit-learn>=1.5.0,<1.6.0
 
@@ -21,7 +21,7 @@ sentence-transformers>=2.2.0  # Para embeddings
 networkx>=3.0  # Para graph analysis
 
 # Utilities
-structlog>=23.2.0
+structlog==23.2.0
 python-dotenv>=1.0.0
 tqdm>=4.66.0  # Progress bars
 

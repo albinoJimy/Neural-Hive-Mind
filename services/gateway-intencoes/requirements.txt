@@ -7,7 +7,7 @@ python-multipart==0.0.6
 confluent-kafka==2.3.0
 
 # Cache Redis Cluster
-redis[hiredis]>=5.0.1
+redis[hiredis]==5.0.1
 
 # Processamento de áudio (ASR)
 # NOTA: torch e torchaudio devem ser instalados ANTES de openai-whisper
@@ -21,16 +21,16 @@ spacy==3.7.2
 nltk==3.8.1
 
 # Validação e serialização
-pydantic[email]>=2.5.2
+pydantic[email]==2.5.3
 pydantic-settings>=2.1.0
 jsonschema==4.20.0
 
 # Esquemas Avro
-avro==1.11.3
+avro-python3==1.10.2
 fastavro==1.9.4
 
 # Observabilidade
-neural-hive-observability==1.1.0  # Biblioteca padronizada do Neural Hive-Mind
+neural_hive_observability==1.1.0  # Biblioteca padronizada do Neural Hive-Mind
 opentelemetry-api==1.21.0
 opentelemetry-sdk==1.21.0
 opentelemetry-instrumentation-fastapi==0.42b0
@@ -48,8 +48,8 @@ cryptography==41.0.7
 httpx==0.25.2
 aiofiles==23.2.1
 asyncio-mqtt==0.16.1
-numpy>=1.26.2
-pandas>=2.1.3
+numpy==1.26.2
+pandas==2.1.3
 
 # Logging e configuração
 python-dotenv==1.0.0

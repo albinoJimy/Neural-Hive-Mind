@@ -12,9 +12,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+# Copiar bibliotecas locais primeiro
+COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
+
 # Copiar requirements e instalar dependências
 COPY services/queen-agent/requirements.txt /tmp/
 RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir /tmp/neural_hive_resilience || true && \
     pip install --no-cache-dir -r /tmp/requirements.txt
 
 # Stage 2: Runtime

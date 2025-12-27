@@ -1,8 +1,8 @@
 # Code Forge - Neural Code Generation Pipeline Dependencies
 
 # Web Framework
-fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
 
 # gRPC - versão consolidada
 grpcio>=1.75.1
@@ -10,11 +10,11 @@ grpcio-tools>=1.75.1
 protobuf>=5.27.0
 
 # Kafka
-aiokafka>=0.8.1
+aiokafka==0.10.0
 
 # Data Validation
-pydantic>=2.4.0
-pydantic-settings>=2.0.3
+pydantic==2.5.3
+pydantic-settings>=2.1.0
 
 # Database - PostgreSQL
 sqlalchemy>=2.0.0
@@ -22,14 +22,14 @@ asyncpg>=0.29.0
 alembic>=1.12.0
 
 # Database - MongoDB
-motor>=3.3.0
+motor==3.3.2
 pymongo>=4.6.0
 
 # Database - Redis
-redis[hiredis]>=5.0.0
+redis[hiredis]==5.0.1
 
 # HTTP Client
-httpx>=0.25.0
+httpx==0.25.2
 
 # LLM SDKs
 openai>=1.12.0
@@ -48,7 +48,7 @@ opentelemetry-exporter-otlp>=1.21.0
 prometheus-client>=0.18.0
 
 # Logging
-structlog>=23.2.0
+structlog==23.2.0
 python-json-logger>=2.0.7
 
 # Template Engine
@@ -71,7 +71,5 @@ aiofiles>=23.2.1
 tenacity>=8.2.3
 
 # Integration library
-# Para desenvolvimento local, usar: pip install -e ../../libraries/neural_hive_integration
-# Para produção com registry privado: neural_hive_integration>=1.0.0
--e ../../libraries/neural_hive_integration
+# neural_hive_integration - instalado localmente via Dockerfile
 

@@ -18,13 +18,13 @@ setup(
     include_package_data=True,
     python_requires=">=3.11",
     install_requires=[
-        "httpx>=0.24.0",
-        "grpcio>=1.54.0",
+        "httpx>=0.25.2",
+        "grpcio>=1.75.1",
         "protobuf>=5.27.0",  # Adicionado: necessário para proto_stubs
         "structlog>=23.1.0",
-        "opentelemetry-api>=1.18.0",
-        "opentelemetry-sdk>=1.18.0",
-        "opentelemetry-instrumentation-httpx>=0.39b0",
+        "opentelemetry-api>=1.21.0",
+        "opentelemetry-sdk>=1.21.0",
+        "opentelemetry-instrumentation-httpx>=0.42b0",
         "pydantic>=2.0.0",
         "tenacity>=8.2.0",
         "prometheus-client>=0.17.0",

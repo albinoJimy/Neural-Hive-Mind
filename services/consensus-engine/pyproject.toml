@@ -6,42 +6,51 @@ authors = ["Neural Hive-Mind Team <team@neural-hive.com>"]
 readme = "README.md"
 packages = [{include = "src"}]
 
+# NOTA: Este arquivo pyproject.toml é mantido para metadados do projeto.
+# A FONTE DE VERDADE para dependências de produção é requirements.txt
+# (usado pelos Dockerfiles). Mantenha este arquivo sincronizado com requirements.txt.
+
 [tool.poetry.dependencies]
 python = "^3.11"
 neural-hive-specialists = "^1.0.8"
-neural-hive-observability = "^1.0.8"
+neural-hive-observability = "==1.1.0"
 
 # Web Framework
-fastapi = ">=0.104.1"
-uvicorn = {extras = ["standard"], version = ">=0.24.0"}
+fastapi = "==0.104.1"
+uvicorn = {extras = ["standard"], version = "==0.24.0"}
 
 # Data Validation
-pydantic = ">=2.5.2"
+pydantic = "==2.5.3"
 pydantic-settings = ">=2.1.0"
+httpx = "==0.25.2"
 
 # Kafka
-confluent-kafka = ">=2.3.0"
+confluent-kafka = "==2.3.0"
 attrs = ">=23.1.0"
 authlib = ">=1.3.0"
 fastavro = ">=1.8.0"
+cachetools = ">=5.3.0"
 
 # gRPC
-grpcio = ">=1.60.0"
-grpcio-tools = ">=1.60.0"
+# gRPC - versão 1.75.1 obrigatória para compatibilidade com protobuf 5.x
+grpcio = "==1.75.1"
+grpcio-tools = "==1.75.1"
+grpcio-health-checking = "==1.75.1"
+protobuf = "==5.27.0"
 
 # MongoDB
 pymongo = ">=4.6.0"
-motor = ">=3.3.0"
+motor = "==3.3.2"
 
 # Redis
-redis = {extras = ["hiredis"], version = ">=5.0.1"}
+redis = {extras = ["hiredis"], version = "==5.0.1"}
 
 # Scientific Computing
-numpy = ">=1.24.0"
+numpy = "==1.26.2"
 scipy = ">=1.11.0"
 
 # Logging
-structlog = ">=23.2.0"
+structlog = "==23.2.0"
 python-json-logger = ">=2.0.7"
 
 # OpenTelemetry

@@ -1,4 +1,5 @@
 name: Validate Infrastructure
+# NOTA: Este workflow mantém validações diretas (Terraform/Helm/OPA) por serem melhores práticas específicas do domínio.
 
 on:
   pull_request:
