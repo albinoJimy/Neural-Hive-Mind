@@ -125,8 +125,8 @@ async def startup():
         else:
             logger.info('Vault integration desabilitada')
 
-        # Inicializar clientes com SPIFFE manager do Vault client
-        registry_client = ServiceRegistryClient(config, spiffe_manager=spiffe_manager)
+        # Inicializar clientes
+        registry_client = ServiceRegistryClient(config)
         await registry_client.initialize()
         app_state['registry_client'] = registry_client
 
