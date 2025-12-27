@@ -119,6 +119,7 @@ class WorkerAgentSettings(BaseSettings):
     otel_exporter_endpoint: str = 'http://localhost:4317'
     prometheus_port: int = 9090
     http_port: int = 8080
+    grpc_port: int = 0  # Worker-agents usa apenas HTTP, não gRPC
     log_level: str = 'INFO'
 
     # Istio/mTLS
