@@ -74,9 +74,7 @@ async def startup():
             neural_hive_component='worker-agent',
             neural_hive_layer='execucao',
             neural_hive_domain='task-execution',
-            otel_endpoint=config.otel_endpoint,
-            enable_kafka=True,
-            enable_grpc=True
+            otel_endpoint=config.otel_exporter_endpoint,
         )
 
         # Inicializar métricas
