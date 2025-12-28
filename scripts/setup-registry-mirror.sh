@@ -8,9 +8,11 @@
 set -euo pipefail
 
 # Configuration
-REGISTRY_IP="${1:-37.60.241.150}"
-REGISTRY_PORT="${2:-30500}"
-REGISTRY_URL="${REGISTRY_IP}:${REGISTRY_PORT}"
+REGISTRY_DNS="${1:-registry.neural-hive.local:5000}"
+REGISTRY_IP_FALLBACK="${2:-37.60.241.150:30500}"
+REGISTRY_URL="${REGISTRY_DNS}"
+# Extract port from REGISTRY_DNS (e.g., "registry.neural-hive.local:5000" → "5000")
+REGISTRY_PORT="${REGISTRY_DNS##*:}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -126,7 +128,8 @@ verify_registry_access() {
 main() {
     log_info "=============================================="
     log_info "Configuring containerd registry mirror"
-    log_info "Registry URL: http://${REGISTRY_URL}"
+    log_info "Registry DNS: ${REGISTRY_DNS}"
+    log_info "Fallback IP: ${REGISTRY_IP_FALLBACK}"
     log_info "=============================================="
 
     for worker in "${WORKERS[@]}"; do

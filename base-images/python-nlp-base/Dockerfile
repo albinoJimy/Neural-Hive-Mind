@@ -8,10 +8,12 @@ ARG VERSION=1.0.0
 ARG BUILD_DATE
 
 # Install spaCy
-RUN pip install --no-cache-dir spacy>=3.7.0
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir spacy>=3.7.0
 
 # Download and install spaCy models
-RUN python -m pip install --no-cache-dir \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --no-cache-dir \
     https://github.com/explosion/spacy-models/releases/download/pt_core_news_sm-3.8.0/pt_core_news_sm-3.8.0-py3-none-any.whl \
     https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 

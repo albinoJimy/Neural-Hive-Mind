@@ -8,14 +8,17 @@ ARG VERSION=1.0.0
 ARG BUILD_DATE
 
 # Install essential build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip to version 24.0
-RUN pip install --no-cache-dir --upgrade pip==24.0
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --upgrade pip==24.0
 
 # Set working directory
 WORKDIR /app

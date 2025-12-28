@@ -3,7 +3,8 @@ FROM neural-hive-mind/python-grpc-base:1.0.0
 ARG VERSION=1.0.0
 ARG BUILD_DATE
 
-RUN pip install --no-cache-dir \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir \
     "pandas==2.2.3" \
     "numpy==1.26.4" \
     "scipy==1.14.1" \

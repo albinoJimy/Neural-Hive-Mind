@@ -1,78 +1,55 @@
 {{/*
-Expand the name of the chart.
+Specialist Technical - Helpers usando templates comuns do Neural Hive Mind
+*/}}
+
+{{/*
+Usa funções do template comum via dependência
 */}}
 {{- define "specialist-technical.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.name" . }}
 {{- end }}
 
-{{/*
-Create a default fully qualified app name.
-*/}}
 {{- define "specialist-technical.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
+{{- include "neural-hive.fullname" . }}
 {{- end }}
 
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
 {{- define "specialist-technical.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.chart" . }}
 {{- end }}
 
-{{/*
-Common labels
-*/}}
 {{- define "specialist-technical.labels" -}}
-helm.sh/chart: {{ include "specialist-technical.chart" . }}
-{{ include "specialist-technical.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- include "neural-hive.labels" (dict "context" . "component" "specialist-technical" "layer" "cognitiva") }}
 app.kubernetes.io/part-of: neural-hive-mind
-neural-hive.io/component: technical-specialist
-neural-hive.io/layer: cognitiva
 neural-hive.io/domain: technical-analysis
 {{- end }}
 
-{{/*
-Selector labels
-*/}}
 {{- define "specialist-technical.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "specialist-technical.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+{{- include "neural-hive.selectorLabels" . }}
 {{- end }}
 
-{{/*
-Create the name of the service account to use
-*/}}
 {{- define "specialist-technical.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "specialist-technical.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- include "neural-hive.serviceAccountName" . }}
 {{- end }}
 
-{{/*
-Create ConfigMap name
-*/}}
 {{- define "specialist-technical.configMapName" -}}
 {{ include "specialist-technical.fullname" . }}-config
 {{- end }}
 
-{{/*
-Create Secret name
-*/}}
 {{- define "specialist-technical.secretName" -}}
 {{ include "specialist-technical.fullname" . }}-secrets
+{{- end }}
+
+{{/*
+Contexto para uso nos templates comuns
+*/}}
+{{- define "specialist-technical.context" -}}
+fullname: {{ include "specialist-technical.fullname" . }}
+chartName: {{ .Chart.Name }}
+namespace: {{ .Release.Namespace }}
+appVersion: {{ .Chart.AppVersion }}
+labels:
+{{ include "specialist-technical.labels" . | indent 2 }}
+selectorLabels:
+{{ include "specialist-technical.selectorLabels" . | indent 2 }}
+serviceAccountName: {{ include "specialist-technical.serviceAccountName" . }}
 {{- end }}

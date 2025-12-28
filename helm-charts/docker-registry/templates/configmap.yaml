@@ -9,19 +9,58 @@ data:
   config.yml: |
     version: 0.1
     log:
+      level: info
       fields:
         service: registry
+
     storage:
-      cache:
-        blobdescriptor: inmemory
+      {{- if .Values.storage.s3.enabled }}
+      s3:
+        region: {{ .Values.storage.s3.region }}
+        bucket: {{ .Values.storage.s3.bucket }}
+        encrypt: {{ .Values.storage.s3.encrypt }}
+        secure: {{ .Values.storage.s3.secure }}
+        v4auth: {{ .Values.storage.s3.v4auth }}
+      {{- else }}
       filesystem:
         rootdirectory: /var/lib/registry
+      {{- end }}
+
+      cache:
+        {{- if .Values.redis.enabled }}
+        blobdescriptor: redis
+        {{- else }}
+        blobdescriptor: inmemory
+        {{- end }}
+
       delete:
         enabled: true
+
+    {{- if .Values.redis.enabled }}
+    redis:
+      addr: {{ .Values.redis.host }}:{{ .Values.redis.port }}
+      db: {{ .Values.redis.db }}
+      pool:
+        maxidle: {{ .Values.redis.pool.maxIdle }}
+        maxactive: {{ .Values.redis.pool.maxActive }}
+        idletimeout: {{ .Values.redis.pool.idleTimeout }}
+    {{- end }}
+
+    {{- if .Values.proxy.enabled }}
+    proxy:
+      remoteurl: {{ .Values.proxy.remoteurl }}
+      {{- if .Values.proxy.username }}
+      username: {{ .Values.proxy.username }}
+      password: {{ .Values.proxy.password }}
+      {{- end }}
+      ttl: {{ .Values.proxy.ttl }}
+    {{- end }}
+
     http:
       addr: :5000
       headers:
         X-Content-Type-Options: [nosniff]
+
     health:
       storagedriver:
         enabled: true

@@ -19,6 +19,35 @@ persistence:
   size: 50Gi
   accessMode: ReadWriteOnce
 
+# Storage S3 (desabilitado por padrão)
+storage:
+  s3:
+    enabled: false
+    region: us-east-1
+    bucket: ""
+    encrypt: true
+    secure: true
+    v4auth: true
+
+# Redis cache (desabilitado por padrão)
+redis:
+  enabled: false
+  host: redis-registry.registry.svc.cluster.local
+  port: 6379
+  db: 0
+  pool:
+    maxIdle: 16
+    maxActive: 64
+    idleTimeout: 300s
+
+# Docker Hub proxy (desabilitado por padrão)
+proxy:
+  enabled: false
+  remoteurl: https://registry-1.docker.io
+  username: ""
+  password: ""
+  ttl: 168h
+
 # Resource limits
 resources:
   requests:
@@ -37,6 +66,9 @@ tolerations:
   - key: "node-role.kubernetes.io/control-plane"
     operator: "Exists"
     effect: "NoSchedule"
+
+# Affinity (vazio por padrão)
+affinity: {}
 
 # Registry configuration
 config:

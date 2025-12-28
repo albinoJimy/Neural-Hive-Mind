@@ -4,6 +4,15 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/base-images.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/services.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/changed-services.sh"
+
+# Carregar smart-build se habilitado
+if [[ "${SMART_BUILD:-false}" == "true" ]]; then
+    source "$(dirname "${BASH_SOURCE[0]}")/smart-build.sh"
+fi
+
+# Global variable to store actually built services
+BUILT_SERVICES=()
 
 build_local() {
     local version="$1"
@@ -18,12 +27,44 @@ build_local() {
 
     log_section "BUILD LOCAL - Versão ${version}"
 
+    # Detecção de mudanças
+    if [[ "${BUILD_CHANGED_ONLY:-false}" == "true" ]]; then
+        log_info "Modo incremental: detectando mudanças..."
+        local changed_services
+        changed_services=$(get_services_to_build "HEAD~1" "${services[@]}")
+
+        if [[ -z "$changed_services" ]]; then
+            log_success "Nenhum serviço modificado - nada a buildar"
+            BUILT_SERVICES=()
+            return 0
+        fi
+
+        # Atualiza lista de serviços
+        readarray -t services <<< "$changed_services"
+        log_info "Serviços a buildar (${#services[@]}): ${services[*]}"
+    fi
+
     check_disk_space
     build_base_images "$version" "$no_cache" "$skip_base"
-    build_services_parallel "$version" "$parallel_jobs" "${services[@]}" "$no_cache"
+
+    # Usar smart build se habilitado
+    if [[ "${SMART_BUILD:-false}" == "true" ]]; then
+        log_info "Modo Smart Build habilitado (retry + fallback)"
+        build_services_parallel_smart "$version" "$parallel_jobs" "${services[@]}" "$no_cache"
+    else
+        build_services_parallel "$version" "$parallel_jobs" "${services[@]}" "$no_cache"
+    fi
+
+    # Export list of actually built services
+    BUILT_SERVICES=("${services[@]}")
 
     log_info "Serviços buildados: ${services[*]}"
     log_success "Build local concluído"
+}
+
+# Returns the list of services that were actually built
+get_built_services() {
+    printf '%s\n' "${BUILT_SERVICES[@]}"
 }
 
 check_disk_space() {

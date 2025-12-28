@@ -1,0 +1,23 @@
+{{- if .Values.pushgateway.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "prometheus-pushgateway.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "prometheus-pushgateway.labels" . | nindent 4 }}
+    prometheus: neural-hive
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus-pushgateway
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  endpoints:
+    - port: http
+      interval: 30s
+      scrapeTimeout: 10s
+      honorLabels: true
+      path: /metrics
+{{- end }}

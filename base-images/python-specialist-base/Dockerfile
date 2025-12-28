@@ -7,13 +7,15 @@ WORKDIR /app
 
 # Copy and install neural_hive_specialists library
 COPY libraries/python/neural_hive_specialists /tmp/neural_hive_specialists
-RUN pip install --no-cache-dir -r /tmp/neural_hive_specialists/requirements.txt && \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir -r /tmp/neural_hive_specialists/requirements.txt && \
     pip install --no-cache-dir /tmp/neural_hive_specialists && \
     rm -rf /tmp/neural_hive_specialists
 
 # Copy and install neural_hive_observability library for distributed tracing
 COPY libraries/python/neural_hive_observability /tmp/neural_hive_observability
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir /tmp/neural_hive_observability && \
     rm -rf /tmp/neural_hive_observability
 
@@ -24,16 +26,20 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
 # First install torch separately (large download, using retries)
 # Using CPU-only version to reduce download size
 # torch 2.4.1 is compatible with transformers >= 4.32.0 (required by sentence-transformers)
-RUN pip install --no-cache-dir --retries 5 --timeout 120 \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/root/.cache/torch \
+    pip install --no-cache-dir --retries 5 --timeout 120 \
     torch==2.4.1 --index-url https://download.pytorch.org/whl/cpu
 
 # Then install sentence-transformers (depends on torch)
 # Version 3.3.1 is stable and compatible with torch 2.4.x
-RUN pip install --no-cache-dir --retries 5 --timeout 120 \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --retries 5 --timeout 120 \
     "sentence-transformers==3.3.1"
 
 # Install remaining dependencies (aligned with services requirements)
-RUN pip install --no-cache-dir \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir \
     "fastapi==0.115.6" \
     "uvicorn[standard]==0.34.0" \
     "requests>=2.31.0" \

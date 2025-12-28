@@ -1,56 +1,53 @@
 {{/*
-Expand the name of the chart.
+Gateway Intenções - Helpers usando templates comuns do Neural Hive Mind
+*/}}
+
+{{/*
+Usa funções do template comum via dependência
 */}}
 {{- define "gateway-intencoes.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.name" . }}
 {{- end }}
 
-{{/*
-Create a default fully qualified app name.
-*/}}
 {{- define "gateway-intencoes.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- printf "%s" $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
+{{- include "neural-hive.fullname" . }}
 {{- end }}
 
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
 {{- define "gateway-intencoes.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.chart" . }}
 {{- end }}
 
-{{/*
-Common labels
-*/}}
 {{- define "gateway-intencoes.labels" -}}
-helm.sh/chart: {{ include "gateway-intencoes.chart" . }}
-{{ include "gateway-intencoes.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- include "neural-hive.labels" (dict "context" . "component" "gateway-intencoes" "layer" "application") }}
 {{- end }}
 
-{{/*
-Selector labels
-*/}}
 {{- define "gateway-intencoes.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "gateway-intencoes.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+{{- include "neural-hive.selectorLabels" . }}
+{{- end }}
+
+{{- define "gateway-intencoes.serviceAccountName" -}}
+{{- include "neural-hive.serviceAccountName" . }}
+{{- end }}
+
+{{- define "gateway-intencoes.configMapName" -}}
+{{- include "neural-hive.configMapName" . }}
+{{- end }}
+
+{{- define "gateway-intencoes.secretName" -}}
+{{- include "neural-hive.secretName" . }}
 {{- end }}
 
 {{/*
-Create the name of the service account to use
+Contexto para uso nos templates comuns
 */}}
-{{- define "gateway-intencoes.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "gateway-intencoes.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- define "gateway-intencoes.context" -}}
+fullname: {{ include "gateway-intencoes.fullname" . }}
+chartName: {{ .Chart.Name }}
+namespace: {{ .Release.Namespace }}
+appVersion: {{ .Chart.AppVersion }}
+labels:
+{{ include "gateway-intencoes.labels" . | indent 2 }}
+selectorLabels:
+{{ include "gateway-intencoes.selectorLabels" . | indent 2 }}
+serviceAccountName: {{ include "gateway-intencoes.serviceAccountName" . }}
 {{- end }}

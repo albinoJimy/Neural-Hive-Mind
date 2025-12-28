@@ -1,3 +1,7 @@
+# Metadados para templates comuns
+component: "consensus-engine"
+layer: "cognitiva"
+
 replicaCount: 2
 
 autoscaling:
@@ -14,8 +18,16 @@ image:
 
 service:
   type: ClusterIP
-  port: 8000
-  metricsPort: 8080
+  annotations: {}
+  ports:
+    http:
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+    metrics:
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
 
 # Pós-deploy (obrigatório após redução de memória e failureThreshold):
 # - Monitorar container_memory_usage_bytes e eventos dos pods no consensus-engine e nos specialists.

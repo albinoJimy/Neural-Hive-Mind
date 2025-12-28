@@ -22,13 +22,24 @@ initContainers:
         cpu: 200m
         memory: 512Mi
 
+# Metadados para templates comuns
+component: "gateway-intencoes"
+layer: "application"
+
 # Configurações do serviço
 service:
   type: ClusterIP
-  port: 80
-  targetPort: 8000
   annotations:
     neural-hive-mind.org/component: "gateway-intencoes"
+  ports:
+    http:
+      port: 80
+      targetPort: 8000
+      protocol: TCP
+    metrics:
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
 
 # Configurações de ingress
 ingress:

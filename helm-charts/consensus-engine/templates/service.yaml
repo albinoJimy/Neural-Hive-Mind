@@ -1,23 +1,2 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ include "consensus-engine.fullname" . }}
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "consensus-engine.labels" . | nindent 4 }}
-    neural.hive/metrics: "enabled"
-    neural.hive/component: "consensus-aggregator"
-    neural.hive/layer: "cognitiva"
-spec:
-  type: {{ .Values.service.type }}
-  ports:
-  - port: {{ .Values.service.port }}
-    targetPort: http
-    protocol: TCP
-    name: http
-  - port: {{ .Values.service.metricsPort }}
-    targetPort: metrics
-    protocol: TCP
-    name: metrics
-  selector:
-    {{- include "consensus-engine.selectorLabels" . | nindent 4 }}
+{{- $ctx := include "consensus-engine.context" . | fromYaml }}
+{{- include "neural-hive.service" (dict "values" .Values "context" $ctx) }}

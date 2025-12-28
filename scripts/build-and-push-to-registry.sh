@@ -29,9 +29,9 @@ sleep 2
 set -euo pipefail
 
 # Configuration
-REGISTRY_IP="${REGISTRY_IP:-37.60.241.150}"
-REGISTRY_PORT="${REGISTRY_PORT:-30500}"
-REGISTRY_URL="${REGISTRY_IP}:${REGISTRY_PORT}"
+REGISTRY_PRIMARY="${REGISTRY_PRIMARY:-registry.neural-hive.local:5000}"
+REGISTRY_SECONDARY="${REGISTRY_SECONDARY:-37.60.241.150:30500}"
+REGISTRY_URL="${REGISTRY_PRIMARY}"  # Backward compatibility
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEFAULT_TAG="${DEFAULT_TAG:-latest}"
 
@@ -200,9 +200,9 @@ Options:
     tag        Image tag (default: latest)
 
 Environment Variables:
-    REGISTRY_IP      Registry IP (default: 37.60.241.150)
-    REGISTRY_PORT    Registry port (default: 30500)
-    DEFAULT_TAG      Default tag (default: latest)
+    REGISTRY_PRIMARY    Registry primário DNS (default: registry.neural-hive.local:5000)
+    REGISTRY_SECONDARY  Registry secundário IP (default: 37.60.241.150:30500)
+    DEFAULT_TAG         Default tag (default: latest)
 
 Examples:
     $0 build gateway-intencoes v1.0.0

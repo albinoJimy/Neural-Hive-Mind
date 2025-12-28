@@ -23,9 +23,8 @@ annotations:
   neural-hive-mind.org/component: "gateway-intencoes"
   neural-hive-mind.org/layer: "application"
 
-# Dependencies desabilitadas para desenvolvimento local
-# dependencies:
-#   - name: kafka-topics
-#     version: "^0.1.0"
-#     repository: "file://../kafka-topics"
-#     condition: kafka.topics.enabled
+dependencies:
+  - name: _common-templates
+    version: "0.1.0"
+    repository: "file://../_common-templates"
+    alias: common

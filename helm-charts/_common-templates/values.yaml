@@ -1,0 +1,172 @@
+# Neural Hive Mind - Valores Padrão Compartilhados
+# Este arquivo define valores padrão para todos os charts
+# Charts individuais podem sobrescrever estes valores conforme necessário
+
+# Metadata comum
+component: ""  # Ex: "gateway", "consensus-engine", "specialist-business"
+layer: ""      # Ex: "application", "cognitiva", "infrastructure"
+
+# Configuração de imagem
+image:
+  pullPolicy: IfNotPresent
+  # repository e tag devem ser definidos por chart
+
+# Réplicas e autoscaling
+replicaCount: 2
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Estratégia de deployment
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+# Service padrão
+service:
+  type: ClusterIP
+  annotations: {}
+  ports:
+    http:
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+    metrics:
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+
+# Ingress padrão (desabilitado)
+ingress:
+  enabled: false
+  className: "istio"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts: []
+  tls: []
+
+# Resources padrão
+resources:
+  requests:
+    cpu: 300m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+# Probes padrão
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 15
+  successThreshold: 1
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 0
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Security contexts padrão
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+
+# Scheduling padrão
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+# Service Account
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Secrets
+secrets:
+  create: true
+
+# Observabilidade
+observability:
+  otelEnabled: true
+  otelEndpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+  prometheus:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+      scrapeTimeout: 10s
+      path: /metrics
+      labels:
+        prometheus: neural-hive
+  jaeger:
+    endpoint: "http://jaeger-collector.monitoring.svc.cluster.local:14268/api/traces"
+  tracing:
+    enabled: true
+
+# Istio
+istio:
+  enabled: true
+  sidecar:
+    inject: true
+  mtls:
+    mode: PERMISSIVE
+
+# Network Policy
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+    - Egress
+
+# Volumes e Volume Mounts padrão
+volumes: []
+volumeMounts: []
+
+# Init Containers
+initContainers: []
+
+# Annotations e labels customizados
+podAnnotations: {}
+podLabels: {}
+labels: {}
+imagePullSecrets: []

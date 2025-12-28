@@ -45,18 +45,17 @@ check_registry_available() {
 push_service_to_registry() {
     local service="$1"
     local version="$2"
-    local registry="$3"
+    local registry="$3"  # Mantido para backward compatibility
 
     local local_image="neural-hive-mind/${service}:${version}"
-    local registry_image="${registry}/${service}:${version}"
 
     if ! docker image inspect "$local_image" >/dev/null 2>&1; then
         log_error "Imagem local não encontrada: ${local_image}"
         return 1
     fi
 
-    docker_tag "$local_image" "$registry_image"
-    retry 3 2 docker push "$registry_image"
+    # Usar nova função com fallback - passa imagem fonte com prefixo
+    docker_push_with_fallback "${local_image}" "${service}" "${version}" 3
 }
 
 acquire_slot() {

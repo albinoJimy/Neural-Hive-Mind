@@ -17,7 +17,9 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 # Configurações
-REGISTRY="37.60.241.150:30500"
+REGISTRY_PRIMARY="${REGISTRY_PRIMARY:-registry.neural-hive.local:5000}"
+REGISTRY_SECONDARY="${REGISTRY_SECONDARY:-37.60.241.150:30500}"
+REGISTRY="${REGISTRY_PRIMARY}"  # Backward compatibility
 PROJECT_DIR="/jimy/Neural-Hive-Mind"
 
 # Ordem de build baseada em dependências

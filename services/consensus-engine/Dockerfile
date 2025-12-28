@@ -5,7 +5,8 @@ WORKDIR /app
 
 # Instalar apenas dependências necessárias do consenso
 COPY services/consensus-engine/requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt && \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --user -r requirements.txt && \
     python -m uvicorn --version && \
     echo "✓ uvicorn runtime verification passed"
 

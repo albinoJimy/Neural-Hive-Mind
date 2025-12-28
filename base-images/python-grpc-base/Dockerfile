@@ -9,7 +9,8 @@ ARG BUILD_DATE
 
 # Install gRPC dependencies
 # Versões normalizadas: grpcio 1.68.1 + protobuf 5.29.2
-RUN pip install --no-cache-dir \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir \
     grpcio==1.68.1 \
     grpcio-tools==1.68.1 \
     grpcio-health-checking==1.68.1 \

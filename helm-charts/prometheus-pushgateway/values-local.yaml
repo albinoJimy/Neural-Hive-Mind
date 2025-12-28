@@ -1,0 +1,29 @@
+# Configuração local para Prometheus Pushgateway
+# Deploy: helm upgrade --install prometheus-pushgateway ./helm-charts/prometheus-pushgateway -n observability -f ./helm-charts/prometheus-pushgateway/values-local.yaml
+
+pushgateway:
+  enabled: true
+
+prometheus-pushgateway:
+  replicaCount: 1
+
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 25m
+      memory: 32Mi
+
+  service:
+    type: NodePort
+    nodePort: 30091
+
+  serviceMonitor:
+    enabled: true
+    namespace: observability
+    additionalLabels:
+      prometheus: neural-hive
+
+  persistentVolume:
+    enabled: false

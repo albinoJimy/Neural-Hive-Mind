@@ -1,3 +1,7 @@
+# Metadados para templates comuns
+component: "specialist-behavior"
+layer: "cognitiva"
+
 replicaCount: 2
 
 autoscaling:

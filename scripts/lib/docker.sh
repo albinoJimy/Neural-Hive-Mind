@@ -88,6 +88,77 @@ docker_push() {
     log_success "Push concluído: ${full_image} ${digest}"
 }
 
+docker_push_with_fallback() {
+    local source_image="$1"
+    local image_name="$2"
+    local tag="$3"
+    local max_retries="${4:-3}"
+
+    # Registry chain: Primary DNS → Secondary IP → ECR fallback
+    local registries=(
+        "${REGISTRY_PRIMARY:-registry.neural-hive.local:5000}"
+        "${REGISTRY_SECONDARY:-37.60.241.150:30500}"
+    )
+
+    local pushed=false
+
+    # Verify source image exists
+    if ! docker image inspect "${source_image}" >/dev/null 2>&1; then
+        log_error "Imagem fonte não encontrada: ${source_image}"
+        return 1
+    fi
+
+    for registry in "${registries[@]}"; do
+        local full_image="${registry}/${image_name}:${tag}"
+
+        log_info "Tentando push para ${registry}..."
+
+        # Check registry availability
+        if ! curl -sf "http://${registry}/v2/" >/dev/null 2>&1; then
+            log_warning "Registry ${registry} indisponível, tentando próximo..."
+            continue
+        fi
+
+        # Tag from source image to registry target
+        docker_tag "${source_image}" "${full_image}"
+
+        # Try push with retry
+        if retry "${max_retries}" 2 docker push "${full_image}"; then
+            log_success "Push concluído para ${registry}"
+            pushed=true
+            break
+        else
+            log_warning "Push falhou para ${registry}, tentando próximo..."
+        fi
+    done
+
+    # Fallback to ECR if all registries failed
+    if [[ "${pushed}" == "false" ]] && [[ -n "${AWS_REGION:-}" ]]; then
+        log_warning "Todos os registries falharam, tentando ECR como fallback..."
+
+        local account_id
+        account_id=$(aws sts get-caller-identity --query Account --output text 2>/dev/null || echo "")
+
+        if [[ -n "${account_id}" ]]; then
+            docker_login_ecr "${AWS_REGION}" "${account_id}"
+            local ecr_image="${account_id}.dkr.ecr.${AWS_REGION}.amazonaws.com/${image_name}:${tag}"
+            docker_tag "${source_image}" "${ecr_image}"
+
+            if retry "${max_retries}" 2 docker push "${ecr_image}"; then
+                log_success "Push concluído para ECR (fallback)"
+                pushed=true
+            fi
+        fi
+    fi
+
+    if [[ "${pushed}" == "false" ]]; then
+        log_error "Push falhou em todos os registries disponíveis"
+        return 1
+    fi
+
+    return 0
+}
+
 docker_tag() {
     local source_image="$1"
     local target_image="$2"
@@ -159,6 +230,6 @@ docker_get_disk_usage() {
 }
 
 export -f docker_build docker_build_base_image docker_check_image_exists docker_get_image_size docker_get_image_id
-export -f docker_push docker_tag docker_push_parallel
+export -f docker_push docker_push_with_fallback docker_tag docker_push_parallel
 export -f docker_login_ecr docker_login_registry
 export -f docker_cleanup_dangling docker_cleanup_old_images docker_system_prune docker_get_disk_usage

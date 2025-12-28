@@ -19,7 +19,9 @@ LABEL org.opencontainers.image.created="${BUILD_DATE}"
 LABEL neural-hive-mind.org/component="python-observability-base"
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     && rm -rf /var/lib/apt/lists/*
@@ -28,7 +30,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY libraries/python/neural_hive_observability/ /tmp/neural_hive_observability/
 
 # Install the library with all dependencies
-RUN pip install --no-cache-dir /tmp/neural_hive_observability/ && \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir /tmp/neural_hive_observability/ && \
     rm -rf /tmp/neural_hive_observability
 
 # Verify installation including critical functions

@@ -1,0 +1,102 @@
+# Configuração HA - 3 réplicas
+replicaCount: 3
+
+image:
+  repository: registry
+  tag: "2.8.3"
+  pullPolicy: IfNotPresent
+
+# LoadBalancer para DNS
+service:
+  type: LoadBalancer
+  port: 5000
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    external-dns.alpha.kubernetes.io/hostname: "registry.neural-hive.local"
+
+# Storage S3 (substituir filesystem local)
+persistence:
+  enabled: false  # Desabilitar PVC local
+
+storage:
+  s3:
+    enabled: true
+    region: us-east-1
+    bucket: neural-hive-registry
+    encrypt: true
+    secure: true
+    v4auth: true
+    # Credentials via IRSA ou secrets
+
+# Redis para cache distribuído
+redis:
+  enabled: true
+  host: redis-registry.registry.svc.cluster.local
+  port: 6379
+  db: 0
+  pool:
+    maxIdle: 16
+    maxActive: 64
+    idleTimeout: 300s
+
+# Proxy para Docker Hub (cache pull)
+proxy:
+  enabled: true
+  remoteurl: https://registry-1.docker.io
+  username: ""  # Opcional: Docker Hub credentials
+  password: ""
+  ttl: 168h  # Cache por 7 dias
+
+# Resources para HA
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "250m"
+  limits:
+    memory: "1Gi"
+    cpu: "1000m"
+
+# Node selector - remover restrição de control-plane para HA
+nodeSelector: {}
+
+# Tolerations para HA
+tolerations: []
+
+# Anti-affinity para distribuir pods
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: docker-registry
+          topologyKey: kubernetes.io/hostname
+
+# Health checks robustos
+livenessProbe:
+  httpGet:
+    path: /v2/
+    port: 5000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /v2/
+    port: 5000
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 2
+
+# Garbage collection cronjob
+gc:
+  enabled: true
+  schedule: "0 2 * * 0"  # Domingo 2am
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"

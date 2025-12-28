@@ -17,7 +17,9 @@ LABEL org.opencontainers.image.title="Gateway de Intenções - Neural Hive-Mind"
       neural-hive-mind.org/layer="application"
 
 # Instalar dependências do sistema
-RUN apt-get update && apt-get install -y \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y \
     gcc \
     g++ \
     libasound2-dev \
@@ -39,12 +41,14 @@ WORKDIR /app
 COPY services/gateway-intencoes/requirements.txt .
 
 # Instalar dependências Python em uma única camada para otimizar build
-RUN pip install --no-cache-dir --upgrade pip==24.0 && \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --upgrade pip==24.0 && \
     pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir --no-deps openai-whisper
 
 # Baixar modelo spaCy pt_core_news_sm
-RUN python -m spacy download pt_core_news_sm
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m spacy download pt_core_news_sm
 
 # Copiar código da aplicação
 COPY services/gateway-intencoes/src/ ./src/

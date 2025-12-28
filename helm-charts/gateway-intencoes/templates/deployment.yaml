@@ -1,542 +1,232 @@
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "gateway-intencoes.fullname" . }}
-  labels:
-    {{- include "gateway-intencoes.labels" . | nindent 4 }}
-spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
-  selector:
-    matchLabels:
-      {{- include "gateway-intencoes.selectorLabels" . | nindent 6 }}
-  template:
-    metadata:
-      annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
-        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
-        {{- if .Values.istio.enabled }}
-        sidecar.istio.io/inject: "true"
-        {{- end }}
-      labels:
-        {{- include "gateway-intencoes.selectorLabels" . | nindent 8 }}
-        neural-hive-mind.org/component: "gateway-intencoes"
-        neural-hive-mind.org/layer: "application"
-    spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "gateway-intencoes.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+{{- $ctx := include "gateway-intencoes.context" . | fromYaml }}
+{{- $checksumConfig := include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+{{- $checksumSecret := include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
 
-      {{- if .Values.initContainers.modelDownloader.enabled }}
-      initContainers:
-      - name: model-downloader
-        image: {{ .Values.initContainers.modelDownloader.image }}
-        command:
-        - /bin/sh
-        - -c
-        - |
-          set -e
-          echo "=== Verificando e baixando modelos ML ==="
+{{/*
+Construir lista de env vars para o deployment
+*/}}
+{{- $envVars := list }}
 
-          # Verificar se modelo Whisper já existe
-          WHISPER_MODEL_PATH="/app/models/whisper/{{ .Values.config.asr.modelName }}.pt"
-          if [ -f "$WHISPER_MODEL_PATH" ]; then
-            echo "✓ Modelo Whisper {{ .Values.config.asr.modelName }} já existe no cache"
-          else
-            echo "→ Baixando modelo Whisper {{ .Values.config.asr.modelName }}..."
+{{/* ConfigMap refs */}}
+{{- $envVars = append $envVars (dict "name" "ENVIRONMENT" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "environment"))) }}
+{{- $envVars = append $envVars (dict "name" "LOG_LEVEL" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "log_level"))) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_BOOTSTRAP_SERVERS" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "kafka_bootstrap_servers"))) }}
+{{- $envVars = append $envVars (dict "name" "SCHEMA_REGISTRY_URL" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "schema_registry_url"))) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_SECURITY_PROTOCOL" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "kafka_security_protocol"))) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_BATCH_SIZE" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "kafka_batch_size"))) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_LINGER_MS" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "kafka_linger_ms"))) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_COMPRESSION_TYPE" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "kafka_compression_type"))) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_SSL_CA_LOCATION" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "kafka_ssl_ca_location"))) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_SSL_CERTIFICATE_LOCATION" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "kafka_ssl_certificate_location"))) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_SSL_KEY_LOCATION" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "kafka_ssl_key_location"))) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_SSL_ENABLED" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "kafka_ssl_enabled"))) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_SSL_CA_VERIFY_MODE" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "kafka_ssl_ca_verify_mode"))) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_SSL_PROTOCOL" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "kafka_ssl_protocol"))) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_SASL_ENABLED" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "kafka_sasl_enabled"))) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_SASL_MECHANISM" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "kafka_sasl_mechanism"))) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_SASL_OAUTH2_ENABLED" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "kafka_sasl_oauth2_enabled"))) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_SASL_OAUTH2_TOKEN_ENDPOINT" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "kafka_sasl_oauth2_token_endpoint"))) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_SASL_OAUTH2_SCOPE" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "kafka_sasl_oauth2_scope"))) }}
 
-            # Verificar se openai-whisper já está instalado (presente na imagem base)
-            if python -c "import whisper" 2>/dev/null; then
-              echo "  openai-whisper já instalado na imagem base"
-            else
-              # Instalar dependências pesadas primeiro se necessário
-              pip install --no-cache-dir torch torchaudio || true
-              # Instalar whisper sem re-baixar dependências já presentes
-              pip install --no-cache-dir --no-deps openai-whisper
-            fi
+{{/* Kafka secrets */}}
+{{- if .Values.secrets.kafka.username }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_SASL_USERNAME" "valueFrom" (dict "secretKeyRef" (dict "name" (include "gateway-intencoes.secretName" .) "key" "kafka-username"))) }}
+{{- end }}
+{{- if .Values.secrets.kafka.password }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_SASL_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" (include "gateway-intencoes.secretName" .) "key" "kafka-password"))) }}
+{{- end }}
+{{- if .Values.secrets.kafka.oauth2.clientId }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_SASL_OAUTH2_CLIENT_ID" "valueFrom" (dict "secretKeyRef" (dict "name" (include "gateway-intencoes.secretName" .) "key" "kafka-oauth2-client-id"))) }}
+{{- end }}
+{{- if .Values.secrets.kafka.oauth2.clientSecret }}
+{{- $envVars = append $envVars (dict "name" "KAFKA_SASL_OAUTH2_CLIENT_SECRET" "valueFrom" (dict "secretKeyRef" (dict "name" (include "gateway-intencoes.secretName" .) "key" "kafka-oauth2-client-secret"))) }}
+{{- end }}
 
-            export XDG_CACHE_HOME=/app/models
-            python -c "import whisper; whisper.load_model('{{ .Values.config.asr.modelName }}')"
-            echo "✓ Modelo Whisper {{ .Values.config.asr.modelName }} baixado com sucesso"
-          fi
+{{/* Redis ConfigMap */}}
+{{- $envVars = append $envVars (dict "name" "REDIS_CLUSTER_NODES" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "redis_cluster_nodes"))) }}
+{{- $envVars = append $envVars (dict "name" "REDIS_DEFAULT_TTL" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "redis_default_ttl"))) }}
+{{- $envVars = append $envVars (dict "name" "REDIS_MAX_CONNECTIONS" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "redis_max_connections"))) }}
+{{- $envVars = append $envVars (dict "name" "REDIS_POOL_SIZE" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "redis_pool_size"))) }}
+{{- $envVars = append $envVars (dict "name" "REDIS_TIMEOUT" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "redis_timeout"))) }}
+{{- $envVars = append $envVars (dict "name" "REDIS_RETRY_ON_TIMEOUT" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "redis_retry_on_timeout"))) }}
+{{- $envVars = append $envVars (dict "name" "REDIS_CONNECTION_POOL_MAX_CONNECTIONS" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "redis_connection_pool_max_connections"))) }}
+{{- $envVars = append $envVars (dict "name" "REDIS_SSL_ENABLED" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "redis_ssl_enabled"))) }}
+{{- $envVars = append $envVars (dict "name" "REDIS_SSL_CERT_REQS" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "redis_ssl_cert_reqs"))) }}
+{{- $envVars = append $envVars (dict "name" "REDIS_SSL_CA_CERTS" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "redis_ssl_ca_certs"))) }}
+{{- $envVars = append $envVars (dict "name" "REDIS_SSL_CERTFILE" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "redis_ssl_certfile"))) }}
+{{- $envVars = append $envVars (dict "name" "REDIS_SSL_KEYFILE" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "redis_ssl_keyfile"))) }}
+{{- if .Values.secrets.redis }}
+{{- $envVars = append $envVars (dict "name" "REDIS_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" (include "gateway-intencoes.secretName" .) "key" "redis-password"))) }}
+{{- end }}
 
-          # Verificar se modelo spaCy já existe
-          SPACY_MODEL_DIR="/app/models/spacy"
-          SPACY_MODEL_PATH="$SPACY_MODEL_DIR/{{ .Values.config.nlu.languageModel }}"
+{{/* Keycloak ConfigMap */}}
+{{- $envVars = append $envVars (dict "name" "KEYCLOAK_URL" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "keycloak_url"))) }}
+{{- $envVars = append $envVars (dict "name" "KEYCLOAK_REALM" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "keycloak_realm"))) }}
+{{- $envVars = append $envVars (dict "name" "KEYCLOAK_CLIENT_ID" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "keycloak_client_id"))) }}
+{{- $envVars = append $envVars (dict "name" "JWKS_URI" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "jwks_uri"))) }}
+{{- $envVars = append $envVars (dict "name" "TOKEN_VALIDATION_ENABLED" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "token_validation_enabled"))) }}
+{{- if .Values.secrets.keycloak }}
+{{- $envVars = append $envVars (dict "name" "KEYCLOAK_CLIENT_SECRET" "valueFrom" (dict "secretKeyRef" (dict "name" (include "gateway-intencoes.secretName" .) "key" "keycloak-client-secret"))) }}
+{{- end }}
 
-          # Criar diretório de modelos spaCy se não existir
-          mkdir -p "$SPACY_MODEL_DIR"
+{{/* Schema Registry secrets */}}
+{{- if .Values.secrets.schemaRegistry.username }}
+{{- $envVars = append $envVars (dict "name" "SCHEMA_REGISTRY_USERNAME" "valueFrom" (dict "secretKeyRef" (dict "name" (include "gateway-intencoes.secretName" .) "key" "schema-registry-username"))) }}
+{{- end }}
+{{- if .Values.secrets.schemaRegistry.password }}
+{{- $envVars = append $envVars (dict "name" "SCHEMA_REGISTRY_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" (include "gateway-intencoes.secretName" .) "key" "schema-registry-password"))) }}
+{{- end }}
 
-          if [ -d "$SPACY_MODEL_PATH" ]; then
-            echo "✓ Modelo spaCy {{ .Values.config.nlu.languageModel }} já existe no cache"
-          else
-            echo "→ Baixando modelo spaCy {{ .Values.config.nlu.languageModel }}..."
+{{/* JWT and ASR/NLU */}}
+{{- $envVars = append $envVars (dict "name" "JWT_SECRET_KEY" "valueFrom" (dict "secretKeyRef" (dict "name" (include "gateway-intencoes.secretName" .) "key" "jwt-secret-key"))) }}
+{{- $envVars = append $envVars (dict "name" "ASR_MODEL_NAME" "value" .Values.config.asr.modelName) }}
+{{- $envVars = append $envVars (dict "name" "ASR_DEVICE" "value" .Values.config.asr.device) }}
+{{- $envVars = append $envVars (dict "name" "ASR_LAZY_LOADING" "value" (.Values.config.asr.lazyLoading | toString)) }}
+{{- $envVars = append $envVars (dict "name" "ASR_MODEL_CACHE_DIR" "value" .Values.config.asr.modelCacheDir) }}
+{{- $envVars = append $envVars (dict "name" "NLU_LANGUAGE_MODEL" "value" .Values.config.nlu.languageModel) }}
+{{- $envVars = append $envVars (dict "name" "NLU_MODEL_CACHE_DIR" "value" "/app/models/spacy") }}
+{{- $envVars = append $envVars (dict "name" "NLU_CONFIDENCE_THRESHOLD" "value" (.Values.config.nlu.confidenceThreshold | toString)) }}
+{{- $envVars = append $envVars (dict "name" "NLU_CONFIDENCE_THRESHOLD_STRICT" "value" (.Values.config.nlu.confidenceThresholdStrict | toString)) }}
+{{- $envVars = append $envVars (dict "name" "NLU_ADAPTIVE_THRESHOLD_ENABLED" "value" (.Values.config.nlu.adaptiveThresholdEnabled | toString)) }}
+{{- $envVars = append $envVars (dict "name" "NLU_RULES_CONFIG_PATH" "value" .Values.config.nlu.rulesConfigPath) }}
+{{- $envVars = append $envVars (dict "name" "NLU_ROUTING_THRESHOLD_HIGH" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "nlu_routing_threshold_high"))) }}
+{{- $envVars = append $envVars (dict "name" "NLU_ROUTING_THRESHOLD_LOW" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "nlu_routing_threshold_low"))) }}
+{{- $envVars = append $envVars (dict "name" "NLU_ROUTING_USE_ADAPTIVE_FOR_DECISIONS" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "nlu_routing_use_adaptive_for_decisions"))) }}
+{{- $envVars = append $envVars (dict "name" "JAEGER_ENDPOINT" "value" .Values.observability.jaeger.endpoint) }}
+{{- $envVars = append $envVars (dict "name" "ENABLE_TRACING" "value" (default "true" (.Values.observability.tracing.enabled | toString))) }}
 
-            # Verificar se spaCy já está instalado (presente na imagem base)
-            if python -c "import spacy" 2>/dev/null; then
-              echo "  spaCy já instalado na imagem base"
-            else
-              pip install --no-cache-dir spacy
-            fi
+{{/* Kubernetes Downward API */}}
+{{- $envVars = append $envVars (dict "name" "POD_UID" "valueFrom" (dict "fieldRef" (dict "fieldPath" "metadata.uid"))) }}
+{{- $envVars = append $envVars (dict "name" "POD_NAME" "valueFrom" (dict "fieldRef" (dict "fieldPath" "metadata.name"))) }}
 
-            # Configurar variáveis de ambiente para instalar no volume persistente
-            export PYTHONUSERBASE="$SPACY_MODEL_DIR"
+{{/*
+Construir volume mounts
+*/}}
+{{- $volumeMounts := .Values.volumeMounts | default list }}
+{{- if .Values.secrets.redis.caCert }}
+{{- $volumeMounts = append $volumeMounts (dict "name" "redis-ca-cert" "mountPath" "/etc/ssl/certs/redis-ca.crt" "subPath" "redis-ca.crt" "readOnly" true) }}
+{{- end }}
+{{- if .Values.secrets.kafka.tls.caCert }}
+{{- $volumeMounts = append $volumeMounts (dict "name" "kafka-ca-cert" "mountPath" "/etc/ssl/certs/kafka-ca.crt" "subPath" "kafka-ca.crt" "readOnly" true) }}
+{{- end }}
+{{- if .Values.secrets.kafka.tls.clientCert }}
+{{- $volumeMounts = append $volumeMounts (dict "name" "kafka-client-cert" "mountPath" "/etc/ssl/certs/kafka-client.crt" "subPath" "kafka-client.crt" "readOnly" true) }}
+{{- end }}
+{{- if .Values.secrets.kafka.tls.clientKey }}
+{{- $volumeMounts = append $volumeMounts (dict "name" "kafka-client-key" "mountPath" "/etc/ssl/certs/kafka-client.key" "subPath" "kafka-client.key" "readOnly" true) }}
+{{- end }}
 
-            # Baixar modelo e instalá-lo no diretório compartilhado
-            python -m spacy download {{ .Values.config.nlu.languageModel }} --user
+{{/*
+Construir volumes
+*/}}
+{{- $volumes := list }}
+{{- if .Values.persistence.models.enabled }}
+{{- $volumes = append $volumes (dict "name" "model-cache" "persistentVolumeClaim" (dict "claimName" (printf "%s-models-pvc" (include "gateway-intencoes.fullname" .)))) }}
+{{- else }}
+{{- $volumes = .Values.volumes | default list }}
+{{- end }}
+{{- if .Values.secrets.redis.caCert }}
+{{- $volumes = append $volumes (dict "name" "redis-ca-cert" "secret" (dict "secretName" (include "gateway-intencoes.secretName" .) "items" (list (dict "key" "redis-ca-cert" "path" "redis-ca.crt")))) }}
+{{- end }}
+{{- if .Values.secrets.kafka.tls.caCert }}
+{{- $volumes = append $volumes (dict "name" "kafka-ca-cert" "secret" (dict "secretName" (include "gateway-intencoes.secretName" .) "items" (list (dict "key" "kafka-ca-cert" "path" "kafka-ca.crt")))) }}
+{{- end }}
+{{- if .Values.secrets.kafka.tls.clientCert }}
+{{- $volumes = append $volumes (dict "name" "kafka-client-cert" "secret" (dict "secretName" (include "gateway-intencoes.secretName" .) "items" (list (dict "key" "kafka-client-cert" "path" "kafka-client.crt")))) }}
+{{- end }}
+{{- if .Values.secrets.kafka.tls.clientKey }}
+{{- $volumes = append $volumes (dict "name" "kafka-client-key" "secret" (dict "secretName" (include "gateway-intencoes.secretName" .) "items" (list (dict "key" "kafka-client-key" "path" "kafka-client.key")))) }}
+{{- end }}
 
-            # Criar link simbólico para facilitar o acesso
-            SITE_PACKAGES=$(python -c "import site; print(site.USER_SITE)")
-            mkdir -p "$SITE_PACKAGES"
-            if [ -d "$SITE_PACKAGES/{{ .Values.config.nlu.languageModel }}" ]; then
-              ln -sf "$SITE_PACKAGES/{{ .Values.config.nlu.languageModel }}" "$SPACY_MODEL_PATH"
-            else
-              # Fallback: baixar diretamente para o diretório de destino usando --no-deps
-              pip download --no-deps {{ .Values.config.nlu.languageModel }} -d /tmp
-              pip install --no-cache-dir --no-deps --target="$SPACY_MODEL_PATH" /tmp/{{ .Values.config.nlu.languageModel }}*.tar.gz || \
-              pip install --no-cache-dir --no-deps --target="$SPACY_MODEL_PATH" /tmp/{{ .Values.config.nlu.languageModel }}*.whl
-            fi
+{{/*
+Construir init containers
+*/}}
+{{- $initContainers := list }}
+{{- if .Values.initContainers.modelDownloader.enabled }}
+{{- $initContainerEnv := list }}
+{{- $initContainerEnv = append $initContainerEnv (dict "name" "ASR_MODEL_NAME" "value" .Values.config.asr.modelName) }}
+{{- $initContainerEnv = append $initContainerEnv (dict "name" "NLU_LANGUAGE_MODEL" "value" .Values.config.nlu.languageModel) }}
+{{- $initContainerEnv = append $initContainerEnv (dict "name" "MODEL_CACHE_DIR" "value" "/app/models") }}
+{{- $initContainer := dict "name" "model-downloader" "image" .Values.initContainers.modelDownloader.image "command" (list "/bin/sh" "-c" (printf `set -e
+echo "=== Verificando e baixando modelos ML ==="
 
-            echo "✓ Modelo spaCy {{ .Values.config.nlu.languageModel }} baixado e instalado em $SPACY_MODEL_PATH"
-          fi
+# Verificar se modelo Whisper já existe
+WHISPER_MODEL_PATH="/app/models/whisper/%s.pt"
+if [ -f "$WHISPER_MODEL_PATH" ]; then
+  echo "✓ Modelo Whisper %s já existe no cache"
+else
+  echo "→ Baixando modelo Whisper %s..."
 
-          echo "=== Download de modelos concluído ==="
-        env:
-        - name: ASR_MODEL_NAME
-          value: "{{ .Values.config.asr.modelName }}"
-        - name: NLU_LANGUAGE_MODEL
-          value: "{{ .Values.config.nlu.languageModel }}"
-        - name: MODEL_CACHE_DIR
-          value: "/app/models"
-        resources:
-          {{- toYaml .Values.initContainers.modelDownloader.resources | nindent 10 }}
-        volumeMounts:
-        - name: model-cache
-          mountPath: /app/models
-        securityContext:
-          {{- toYaml .Values.securityContext | nindent 10 }}
-      {{- end }}
+  # Verificar se openai-whisper já está instalado (presente na imagem base)
+  if python -c "import whisper" 2>/dev/null; then
+    echo "  openai-whisper já instalado na imagem base"
+  else
+    # Instalar dependências pesadas primeiro se necessário
+    pip install --no-cache-dir torch torchaudio || true
+    # Instalar whisper sem re-baixar dependências já presentes
+    pip install --no-cache-dir --no-deps openai-whisper
+  fi
 
-      containers:
-      - name: {{ .Chart.Name }}
-        securityContext:
-          {{- toYaml .Values.securityContext | nindent 10 }}
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
+  export XDG_CACHE_HOME=/app/models
+  python -c "import whisper; whisper.load_model('%s')"
+  echo "✓ Modelo Whisper %s baixado com sucesso"
+fi
 
-        ports:
-        - name: http
-          containerPort: 8000
-          protocol: TCP
+# Verificar se modelo spaCy já existe
+SPACY_MODEL_DIR="/app/models/spacy"
+SPACY_MODEL_PATH="$SPACY_MODEL_DIR/%s"
 
-        livenessProbe:
-          {{- toYaml .Values.livenessProbe | nindent 10 }}
+# Criar diretório de modelos spaCy se não existir
+mkdir -p "$SPACY_MODEL_DIR"
 
-        readinessProbe:
-          {{- toYaml .Values.readinessProbe | nindent 10 }}
+if [ -d "$SPACY_MODEL_PATH" ]; then
+  echo "✓ Modelo spaCy %s já existe no cache"
+else
+  echo "→ Baixando modelo spaCy %s..."
 
-        resources:
-          {{- toYaml .Values.resources | nindent 10 }}
+  # Verificar se spaCy já está instalado (presente na imagem base)
+  if python -c "import spacy" 2>/dev/null; then
+    echo "  spaCy já instalado na imagem base"
+  else
+    pip install --no-cache-dir spacy
+  fi
 
-        env:
-        - name: ENVIRONMENT
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: environment
-        - name: LOG_LEVEL
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: log_level
-        - name: KAFKA_BOOTSTRAP_SERVERS
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: kafka_bootstrap_servers
-        - name: SCHEMA_REGISTRY_URL
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: schema_registry_url
+  # Configurar variáveis de ambiente para instalar no volume persistente
+  export PYTHONUSERBASE="$SPACY_MODEL_DIR"
 
-        # Kafka Security Protocol environment variable
-        - name: KAFKA_SECURITY_PROTOCOL
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: kafka_security_protocol
+  # Baixar modelo e instalá-lo no diretório compartilhado
+  python -m spacy download %s --user
 
-        # Kafka Performance environment variables
-        - name: KAFKA_BATCH_SIZE
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: kafka_batch_size
-        - name: KAFKA_LINGER_MS
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: kafka_linger_ms
-        - name: KAFKA_COMPRESSION_TYPE
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: kafka_compression_type
+  # Criar link simbólico para facilitar o acesso
+  SITE_PACKAGES=$(python -c "import site; print(site.USER_SITE)")
+  mkdir -p "$SITE_PACKAGES"
+  if [ -d "$SITE_PACKAGES/%s" ]; then
+    ln -sf "$SITE_PACKAGES/%s" "$SPACY_MODEL_PATH"
+  else
+    # Fallback: baixar diretamente para o diretório de destino usando --no-deps
+    pip download --no-deps %s -d /tmp
+    pip install --no-cache-dir --no-deps --target="$SPACY_MODEL_PATH" /tmp/%s*.tar.gz || \
+    pip install --no-cache-dir --no-deps --target="$SPACY_MODEL_PATH" /tmp/%s*.whl
+  fi
 
-        # Kafka TLS Certificate Path environment variables
-        - name: KAFKA_SSL_CA_LOCATION
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: kafka_ssl_ca_location
-        - name: KAFKA_SSL_CERTIFICATE_LOCATION
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: kafka_ssl_certificate_location
-        - name: KAFKA_SSL_KEY_LOCATION
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: kafka_ssl_key_location
+  echo "✓ Modelo spaCy %s baixado e instalado em $SPACY_MODEL_PATH"
+fi
 
-        # Legacy Kafka TLS/SSL environment variables
-        - name: KAFKA_SSL_ENABLED
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: kafka_ssl_enabled
-        - name: KAFKA_SSL_CA_VERIFY_MODE
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: kafka_ssl_ca_verify_mode
-        - name: KAFKA_SSL_PROTOCOL
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: kafka_ssl_protocol
+echo "=== Download de modelos concluído ==="` .Values.config.asr.modelName .Values.config.asr.modelName .Values.config.asr.modelName .Values.config.asr.modelName .Values.config.asr.modelName .Values.config.nlu.languageModel .Values.config.nlu.languageModel .Values.config.nlu.languageModel .Values.config.nlu.languageModel .Values.config.nlu.languageModel .Values.config.nlu.languageModel .Values.config.nlu.languageModel .Values.config.nlu.languageModel .Values.config.nlu.languageModel .Values.config.nlu.languageModel)) "env" $initContainerEnv "resources" .Values.initContainers.modelDownloader.resources "volumeMounts" (list (dict "name" "model-cache" "mountPath" "/app/models")) "securityContext" .Values.securityContext }}
+{{- $initContainers = append $initContainers $initContainer }}
+{{- end }}
 
-        # Kafka SASL environment variables
-        - name: KAFKA_SASL_ENABLED
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: kafka_sasl_enabled
-        - name: KAFKA_SASL_MECHANISM
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: kafka_sasl_mechanism
-        - name: KAFKA_SASL_OAUTH2_ENABLED
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: kafka_sasl_oauth2_enabled
-        - name: KAFKA_SASL_OAUTH2_TOKEN_ENDPOINT
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: kafka_sasl_oauth2_token_endpoint
-        - name: KAFKA_SASL_OAUTH2_SCOPE
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: kafka_sasl_oauth2_scope
+{{/*
+Construir valores modificados para o template comum
+*/}}
+{{- $modifiedValues := deepCopy .Values }}
+{{- $_ := set $modifiedValues "volumeMounts" $volumeMounts }}
+{{- $_ := set $modifiedValues "volumes" $volumes }}
+{{- $_ := set $modifiedValues "initContainers" $initContainers }}
 
-        # Kafka secrets
-        {{- if .Values.secrets.kafka.username }}
-        - name: KAFKA_SASL_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-secret
-              key: kafka-username
-        {{- end }}
-        {{- if .Values.secrets.kafka.password }}
-        - name: KAFKA_SASL_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-secret
-              key: kafka-password
-        {{- end }}
-        {{- if .Values.secrets.kafka.oauth2.clientId }}
-        - name: KAFKA_SASL_OAUTH2_CLIENT_ID
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-secret
-              key: kafka-oauth2-client-id
-        {{- end }}
-        {{- if .Values.secrets.kafka.oauth2.clientSecret }}
-        - name: KAFKA_SASL_OAUTH2_CLIENT_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-secret
-              key: kafka-oauth2-client-secret
-        {{- end }}
+{{/*
+Configuração para o template
+*/}}
+{{- $config := dict "checksumConfig" $checksumConfig "checksumSecret" $checksumSecret "env" $envVars }}
 
-        # Redis environment variables
-        - name: REDIS_CLUSTER_NODES
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: redis_cluster_nodes
-        - name: REDIS_DEFAULT_TTL
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: redis_default_ttl
-        - name: REDIS_MAX_CONNECTIONS
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: redis_max_connections
-        - name: REDIS_POOL_SIZE
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: redis_pool_size
-        - name: REDIS_TIMEOUT
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: redis_timeout
-        - name: REDIS_RETRY_ON_TIMEOUT
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: redis_retry_on_timeout
-        - name: REDIS_CONNECTION_POOL_MAX_CONNECTIONS
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: redis_connection_pool_max_connections
-
-        # Redis SSL environment variables
-        - name: REDIS_SSL_ENABLED
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: redis_ssl_enabled
-        - name: REDIS_SSL_CERT_REQS
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: redis_ssl_cert_reqs
-        - name: REDIS_SSL_CA_CERTS
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: redis_ssl_ca_certs
-        - name: REDIS_SSL_CERTFILE
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: redis_ssl_certfile
-        - name: REDIS_SSL_KEYFILE
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: redis_ssl_keyfile
-        {{- if .Values.secrets.redis }}
-        - name: REDIS_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-secret
-              key: redis-password
-        {{- end }}
-
-        # Keycloak environment variables
-        - name: KEYCLOAK_URL
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: keycloak_url
-        - name: KEYCLOAK_REALM
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: keycloak_realm
-        - name: KEYCLOAK_CLIENT_ID
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: keycloak_client_id
-        - name: JWKS_URI
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: jwks_uri
-        - name: TOKEN_VALIDATION_ENABLED
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: token_validation_enabled
-        {{- if .Values.secrets.keycloak }}
-        - name: KEYCLOAK_CLIENT_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-secret
-              key: keycloak-client-secret
-        {{- end }}
-
-        # Schema Registry secrets
-        {{- if .Values.secrets.schemaRegistry.username }}
-        - name: SCHEMA_REGISTRY_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-secret
-              key: schema-registry-username
-        {{- end }}
-        {{- if .Values.secrets.schemaRegistry.password }}
-        - name: SCHEMA_REGISTRY_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-secret
-              key: schema-registry-password
-        {{- end }}
-
-        - name: JWT_SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-secret
-              key: jwt-secret-key
-        - name: ASR_MODEL_NAME
-          value: "{{ .Values.config.asr.modelName }}"
-        - name: ASR_DEVICE
-          value: "{{ .Values.config.asr.device }}"
-        - name: ASR_LAZY_LOADING
-          value: "{{ .Values.config.asr.lazyLoading }}"
-        - name: ASR_MODEL_CACHE_DIR
-          value: "{{ .Values.config.asr.modelCacheDir }}"
-        - name: NLU_LANGUAGE_MODEL
-          value: "{{ .Values.config.nlu.languageModel }}"
-        - name: NLU_MODEL_CACHE_DIR
-          value: "/app/models/spacy"
-        - name: NLU_CONFIDENCE_THRESHOLD
-          value: "{{ .Values.config.nlu.confidenceThreshold }}"
-        - name: NLU_CONFIDENCE_THRESHOLD_STRICT
-          value: "{{ .Values.config.nlu.confidenceThresholdStrict }}"
-        - name: NLU_ADAPTIVE_THRESHOLD_ENABLED
-          value: "{{ .Values.config.nlu.adaptiveThresholdEnabled }}"
-        - name: NLU_RULES_CONFIG_PATH
-          value: "{{ .Values.config.nlu.rulesConfigPath }}"
-        # NLU Routing Thresholds
-        - name: NLU_ROUTING_THRESHOLD_HIGH
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: nlu_routing_threshold_high
-        - name: NLU_ROUTING_THRESHOLD_LOW
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: nlu_routing_threshold_low
-        - name: NLU_ROUTING_USE_ADAPTIVE_FOR_DECISIONS
-          valueFrom:
-            configMapKeyRef:
-              name: {{ include "gateway-intencoes.fullname" . }}-config
-              key: nlu_routing_use_adaptive_for_decisions
-        - name: JAEGER_ENDPOINT
-          value: "{{ .Values.observability.jaeger.endpoint }}"
-        - name: ENABLE_TRACING
-          value: {{ .Values.observability.tracing.enabled | default "true" | quote }}
-        # Kubernetes Downward API for unique transactional ID
-        - name: POD_UID
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.uid
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-
-        volumeMounts:
-        {{- with .Values.volumeMounts }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- if .Values.secrets.redis.caCert }}
-        - name: redis-ca-cert
-          mountPath: /etc/ssl/certs/redis-ca.crt
-          subPath: redis-ca.crt
-          readOnly: true
-        {{- end }}
-        {{- if .Values.secrets.kafka.tls.caCert }}
-        - name: kafka-ca-cert
-          mountPath: /etc/ssl/certs/kafka-ca.crt
-          subPath: kafka-ca.crt
-          readOnly: true
-        {{- end }}
-        {{- if .Values.secrets.kafka.tls.clientCert }}
-        - name: kafka-client-cert
-          mountPath: /etc/ssl/certs/kafka-client.crt
-          subPath: kafka-client.crt
-          readOnly: true
-        {{- end }}
-        {{- if .Values.secrets.kafka.tls.clientKey }}
-        - name: kafka-client-key
-          mountPath: /etc/ssl/certs/kafka-client.key
-          subPath: kafka-client.key
-          readOnly: true
-        {{- end }}
-
-      volumes:
-      {{- if .Values.persistence.models.enabled }}
-      - name: model-cache
-        persistentVolumeClaim:
-          claimName: {{ include "gateway-intencoes.fullname" . }}-models-pvc
-      {{- else }}
-      {{- with .Values.volumes }}
-      {{- toYaml . | nindent 6 }}
-      {{- end }}
-      {{- end }}
-      {{- if .Values.secrets.redis.caCert }}
-      - name: redis-ca-cert
-        secret:
-          secretName: {{ include "gateway-intencoes.fullname" . }}-secret
-          items:
-          - key: redis-ca-cert
-            path: redis-ca.crt
-      {{- end }}
-      {{- if .Values.secrets.kafka.tls.caCert }}
-      - name: kafka-ca-cert
-        secret:
-          secretName: {{ include "gateway-intencoes.fullname" . }}-secret
-          items:
-          - key: kafka-ca-cert
-            path: kafka-ca.crt
-      {{- end }}
-      {{- if .Values.secrets.kafka.tls.clientCert }}
-      - name: kafka-client-cert
-        secret:
-          secretName: {{ include "gateway-intencoes.fullname" . }}-secret
-          items:
-          - key: kafka-client-cert
-            path: kafka-client.crt
-      {{- end }}
-      {{- if .Values.secrets.kafka.tls.clientKey }}
-      - name: kafka-client-key
-        secret:
-          secretName: {{ include "gateway-intencoes.fullname" . }}-secret
-          items:
-          - key: kafka-client-key
-            path: kafka-client.key
-      {{- end }}
-
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+{{- include "neural-hive.deployment" (dict "values" $modifiedValues "context" $ctx "config" $config) }}

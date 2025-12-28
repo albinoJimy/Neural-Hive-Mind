@@ -4,6 +4,12 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/docker.sh"
 
+# Carregar métricas se disponível
+METRICS_ENABLED="${PUSH_METRICS:-false}"
+if [[ "$METRICS_ENABLED" == "true" ]] && [[ -f "$(dirname "${BASH_SOURCE[0]}")/../lib/metrics.sh" ]]; then
+    source "$(dirname "${BASH_SOURCE[0]}")/../lib/metrics.sh"
+fi
+
 build_services_parallel() {
     local version="$1"
     local parallel_jobs="$2"
@@ -69,7 +75,38 @@ build_service() {
     local context_dir="."
     log_info "Building service ${service}:${version}"
 
+    # Iniciar timer para métricas
+    local start_time
+    start_time=$(date +%s)
+
+    # Configurar log file para métricas de cache
+    export DOCKER_BUILD_LOG_FILE="/tmp/docker-build-${service}.log"
+
+    local build_result=0
     docker_build "neural-hive-mind/${service}" "$version" "$dockerfile" "$context_dir" \
         "VERSION=${version}" "BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
-        ${no_cache:+--no-cache}
+        ${no_cache:+--no-cache} || build_result=$?
+
+    # Coletar métricas se habilitado
+    if [[ "$METRICS_ENABLED" == "true" ]]; then
+        local end_time
+        end_time=$(date +%s)
+        local duration=$((end_time - start_time))
+
+        # Salvar métrica de duração
+        local metrics_file="${METRICS_DIR:-/tmp}/build-metrics-${service}.json"
+        mkdir -p "$(dirname "$metrics_file")"
+        printf '{"name":"build_duration_seconds","value":"%s","labels":"service=%s,success=%s","timestamp":"%s"}\n' \
+            "$duration" "$service" "$([[ $build_result -eq 0 ]] && echo "true" || echo "false")" "$(date +%s)" >> "$metrics_file"
+
+        # Coletar tamanho da imagem se build bem-sucedido
+        if [[ $build_result -eq 0 ]]; then
+            local size
+            size=$(docker image inspect "neural-hive-mind/${service}:${version}" --format='{{.Size}}' 2>/dev/null || echo "0")
+            printf '{"name":"build_image_size_bytes","value":"%s","labels":"service=%s,version=%s","timestamp":"%s"}\n' \
+                "$size" "$service" "$version" "$(date +%s)" >> "$metrics_file"
+        fi
+    fi
+
+    return $build_result
 }
