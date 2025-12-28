@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM python:3.11-slim AS builder
+FROM neural-hive-mind/python-observability-base:1.2.2 AS builder
 
 # Instalar dependências de build
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -42,6 +42,7 @@ RUN mkdir -p /app/logs /app/tmp && chown -R orchestrator:orchestrator /app
 
 # Copiar dependências instaladas do builder
 COPY --from=builder --chown=orchestrator:orchestrator /root/.local /home/orchestrator/.local
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
 # Definir PATH para incluir binários do usuário
 ENV PATH=/home/orchestrator/.local/bin:$PATH

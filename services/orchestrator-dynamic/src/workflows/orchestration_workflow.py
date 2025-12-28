@@ -72,7 +72,7 @@ class OrchestrationWorkflow:
         if intent_id:
             set_baggage('intent_id', intent_id)
 
-        tracer = get_tracer(__name__)
+        tracer = get_tracer()
         workflow.logger.info(
             f'Iniciando workflow de orquestração',
             workflow_id=workflow_id,

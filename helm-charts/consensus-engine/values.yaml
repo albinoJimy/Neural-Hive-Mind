@@ -9,7 +9,7 @@ autoscaling:
 
 image:
   repository: 077878370245.dkr.ecr.us-east-1.amazonaws.com/dev/consensus-engine
-  tag: "1.0.7"
+  tag: "1.2.0"
   pullPolicy: IfNotPresent
 
 service:

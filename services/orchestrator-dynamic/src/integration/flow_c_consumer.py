@@ -37,7 +37,7 @@ except ImportError:
 from neural_hive_integration.orchestration.flow_c_orchestrator import FlowCOrchestrator
 
 logger = structlog.get_logger()
-tracer = get_tracer(__name__)
+tracer = get_tracer()
 
 # Metrics
 messages_consumed = Counter(

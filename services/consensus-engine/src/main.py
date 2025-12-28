@@ -55,8 +55,6 @@ async def startup_event():
         neural_hive_layer='cognitiva',
         neural_hive_domain='consensus',
         otel_endpoint=settings.otel_endpoint,
-        enable_kafka=True,
-        enable_grpc=True
     )
 
     try:

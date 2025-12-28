@@ -9,7 +9,7 @@ pytest-mock>=3.10.0
 testcontainers>=3.7.0
 
 # HTTP client for tests
-httpx>=0.24.0
+httpx==0.28.1
 
 # Additional test utilities
 factory-boy>=3.2.0

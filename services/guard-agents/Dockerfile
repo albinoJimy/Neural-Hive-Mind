@@ -1,5 +1,5 @@
 # Stage 1 - Builder
-FROM python:3.11-slim AS builder
+FROM neural-hive-mind/python-observability-base:1.2.0 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -12,8 +12,8 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Copy local libraries
-COPY libraries/security/neural_hive_security /tmp/neural_hive_security
+# Copy local libraries (entire package with setup.py)
+COPY libraries/security /tmp/neural_hive_security
 
 # Copy requirements and install dependencies
 COPY services/guard-agents/requirements.txt .
@@ -34,6 +34,7 @@ WORKDIR /app
 
 # Copy installed dependencies from builder
 COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
 # Copy source code
 COPY --from=builder /app/src ./src

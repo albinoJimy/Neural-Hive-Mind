@@ -259,7 +259,35 @@ def create_instrumented_grpc_server(
     return server
 
 
-def extract_grpc_context(servicer_context: grpc.ServicerContext) -> Tuple[Dict[str, str], Optional[context.Token]]:
+def instrument_grpc_channel(
+    channel: grpc.Channel,
+    service_name: str = "",
+    target_service: str = ""
+) -> grpc.Channel:
+    """
+    Instrumenta um canal gRPC cliente com tracing OpenTelemetry.
+
+    Esta função é um wrapper que garante que o canal está instrumentado
+    para propagação de contexto. A instrumentação real é feita pelo
+    GrpcInstrumentorClient inicializado em init_grpc_instrumentation.
+
+    Args:
+        channel: Canal gRPC a ser instrumentado
+        service_name: Nome do serviço de origem (deprecated, mantido para compatibilidade)
+        target_service: Nome do serviço de destino (para logging/debugging)
+
+    Returns:
+        O mesmo canal (já instrumentado globalmente pelo GrpcInstrumentorClient)
+    """
+    logger.debug(
+        f"instrument_grpc_channel: {service_name or 'unknown'} -> {target_service or 'unknown'}"
+    )
+    # O canal já está instrumentado globalmente pelo GrpcInstrumentorClient
+    # Esta função serve como ponto de extensão para customizações futuras
+    return channel
+
+
+def extract_grpc_context(servicer_context: grpc.ServicerContext) -> Tuple[Dict[str, str], Optional[Any]]:
     """
     Extrai contexto e baggage de metadados gRPC.
 

@@ -211,8 +211,6 @@ async def lifespan(app: FastAPI):
                 environment=settings.environment,
                 otel_endpoint=settings.otel_endpoint,
                 prometheus_port=settings.prometheus_port,
-                enable_grpc=False,
-                enable_kafka=True
             )
 
             from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor

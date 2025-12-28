@@ -66,7 +66,10 @@ from .neural_hive_observability import (
     init_grpc_instrumentation,
     create_instrumented_grpc_server,
     extract_grpc_context,
+    instrument_grpc_channel,  # ADICIONADO - faltava no wrapper
     NeuralHiveGrpcServerInterceptor,
+    # Context propagation
+    inject_context_to_metadata,  # ADICIONADO - faltava no wrapper
     # Kafka instrumentation
     instrument_kafka_producer,
     instrument_kafka_consumer,
@@ -75,7 +78,7 @@ from .neural_hive_observability import (
     InstrumentedAIOKafkaProducer,
 )
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"  # Atualizado para corresponder ao pacote interno
 
 __all__ = [
     # Inicialização
@@ -100,7 +103,10 @@ __all__ = [
     "init_grpc_instrumentation",
     "create_instrumented_grpc_server",
     "extract_grpc_context",
+    "instrument_grpc_channel",  # ADICIONADO
     "NeuralHiveGrpcServerInterceptor",
+    # Context propagation
+    "inject_context_to_metadata",  # ADICIONADO
     # Kafka instrumentation
     "instrument_kafka_producer",
     "instrument_kafka_consumer",

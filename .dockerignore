@@ -43,7 +43,7 @@ docs
 tests
 **/tests
 **/*_test.py
-**/test_*.py
+# Note: removed **/test_*.py because it incorrectly excludes production files like test_executor.py
 conftest.py
 
 # Development files

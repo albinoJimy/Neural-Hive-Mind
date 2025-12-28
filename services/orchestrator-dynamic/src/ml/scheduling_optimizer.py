@@ -58,7 +58,7 @@ class SchedulingOptimizer:
         self.kafka_producer = kafka_producer
         self.metrics = metrics
         self.logger = logger.bind(component="scheduling_optimizer")
-        self.tracer = get_tracer(__name__)
+        self.tracer = get_tracer()
 
         # Thresholds
         self.confidence_threshold = 0.6  # Mínimo para aplicar recomendações RL

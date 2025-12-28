@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neural_hive_resilience"
+version = "1.0.0"
+description = "Resilience utilities for Neural Hive Mind services"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Neural Hive-Mind Team", email = "team@neural-hive-mind.org"}
+]
+
+dependencies = [
+    "pybreaker>=1.0.0",
+    "prometheus-client>=0.21.0",
+    "structlog>=24.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["neural_hive_resilience*"]

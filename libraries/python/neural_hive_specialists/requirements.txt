@@ -1,58 +1,58 @@
 # Core
-pydantic>=2.5.2
-pydantic-settings>=2.0.0
-structlog==23.2.0
-aiohttp==3.9.1
+pydantic==2.10.4
+pydantic-settings==2.7.1
+structlog==24.4.0
+aiohttp==3.11.11
 
 # NLP
 spacy>=3.7.0
 
 # gRPC
-grpcio>=1.75.1
-grpcio-tools>=1.75.1  # Version 1.75.1+ suporta protobuf 5.x / protoc 6.x (baseline nos serviços)
-grpcio-health-checking>=1.75.1
-protobuf>=5.27.0  # Supports runtime_version (needed for protoc 6.x generated code)
+grpcio==1.68.1
+grpcio-tools==1.68.1  # Version 1.75.1+ suporta protobuf==5.29.2 5.x / protoc 6.x (baseline nos serviços)
+grpcio-health-checking==1.68.1
+protobuf==5.29.2  # Supports runtime_version (needed for protoc 6.x generated code)
 
 # MLflow
-mlflow>=2.9.0
+mlflow==2.19.0
 
 # MongoDB
-pymongo>=4.6.0
-motor==3.3.2
+pymongo==4.10.1
+motor==3.7.1
 
 # Redis
-redis[hiredis]==5.0.1
+redis[hiredis]==5.2.1
 
 # Neo4j
 neo4j>=5.15.0
 
 # Observabilidade
-opentelemetry-api>=1.21.0
-opentelemetry-sdk>=1.21.0
-opentelemetry-instrumentation-grpc>=0.42b0
-opentelemetry-exporter-otlp-proto-grpc>=1.21.0
-prometheus-client>=0.19.0
+opentelemetry-api==1.39.1
+opentelemetry-sdk==1.39.1
+opentelemetry-instrumentation-grpc==0.60b1
+opentelemetry-exporter-otlp-proto-grpc==1.39.1
+prometheus-client==0.21.1
 
 # Utilities
-tenacity>=8.2.3
+tenacity==9.0.0
 circuitbreaker>=1.4.0
 python-json-logger>=2.0.7
 networkx>=3.0
 
 # ML/Data Science
-# NOTA: scikit-learn 1.5.x é a versão de referência para modelos em Production.
+# NOTA: scikit-learn==1.6.0 1.5.x é a versão de referência para modelos em Production.
 # Modelos foram retreinados com sklearn 1.5.2 em 2025-12-06 e promovidos ao MLflow.
 # Compatível com sklearn 1.5.x (parâmetro monotonic_cst foi removido na migração).
-scikit-learn>=1.5.0,<1.6.0
-pandas==2.1.3
-numpy==1.26.2
+scikit-learn==1.5.2
+pandas==2.2.3
+numpy==1.26.4
 
 # Business Metrics & Anomaly Detection
 joblib>=1.3.0  # Para persistência de modelos Isolation Forest
 clickhouse-driver>=0.2.6  # Opcional - apenas se usar ClickHouse
 
 # Statistical Analysis for A/B Testing
-scipy>=1.11.0  # Para chi-square test, t-test, Mann-Whitney U
+scipy==1.14.1  # Para chi-square test, t-test, Mann-Whitney U
 
 # JWT Authentication
 PyJWT>=2.8.0
@@ -72,7 +72,7 @@ cryptography>=41.0.0  # Para suporte a algoritmos RS256 (futuro)
 #   - evidently>=0.4.0      (usado em drift_monitoring/evidently_monitor.py)
 #
 # Análise semântica e embeddings:
-#   - sentence-transformers>=2.3.1  (usado em semantic_pipeline/ e feature_extraction/)
+#   - sentence-transformers==3.3.1  (usado em semantic_pipeline/ e feature_extraction/)
 #
 # Compliance e PII:
 #   - presidio-analyzer>=2.2.0      (não usado atualmente)
@@ -81,7 +81,7 @@ cryptography>=41.0.0  # Para suporte a algoritmos RS256 (futuro)
 # Análise estatística avançada:
 #   - statsmodels>=0.14.0   (mover para optimizer-agents se necessário)
 #
-# Para instalar: pip install shap lime evidently sentence-transformers
+# Para instalar: pip install shap lime evidently sentence-transformers==3.3.1
 # ============================================================================
 # Neural Hive dependencies
 # neuralHiveObservability @ file:///app/libraries/python/neural_hive_observability

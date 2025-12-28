@@ -23,7 +23,7 @@ storage:
 # Resource Configuration
 resources:
   requests:
-    cpu: 200m
+    cpu: 50m
     memory: 1Gi
   limits:
     cpu: 1

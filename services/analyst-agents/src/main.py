@@ -69,8 +69,6 @@ async def lifespan(app: FastAPI):
         neural_hive_layer='analise',
         neural_hive_domain='insight-generation',
         otel_endpoint=settings.OTEL_EXPORTER_OTLP_ENDPOINT,
-        enable_kafka=True,
-        enable_grpc=True
     )
     setup_metrics()
 

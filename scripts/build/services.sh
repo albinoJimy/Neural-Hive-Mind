@@ -65,7 +65,8 @@ build_service() {
         return 0
     fi
 
-    local context_dir="services/${service}"
+    # Use project root as context - Dockerfiles expect 'COPY services/SERVICE/...'
+    local context_dir="."
     log_info "Building service ${service}:${version}"
 
     docker_build "neural-hive-mind/${service}" "$version" "$dockerfile" "$context_dir" \

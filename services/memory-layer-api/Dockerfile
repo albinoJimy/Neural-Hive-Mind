@@ -1,6 +1,6 @@
 # Multi-stage build for Memory Layer API
 # Stage 1: Builder
-FROM python:3.11-slim as builder
+FROM neural-hive-mind/python-observability-base:1.2.0 AS builder
 
 WORKDIR /app
 
@@ -14,8 +14,7 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements and install dependencies
 COPY services/memory-layer-api/requirements.txt .
-COPY libraries/python/neural_hive_observability/requirements.txt ./observability_requirements.txt
-RUN pip install --no-cache-dir --user -r requirements.txt -r observability_requirements.txt
+RUN pip install --no-cache-dir --user -r requirements.txt
 
 # Stage 2: Runtime
 FROM python:3.11-slim
@@ -27,9 +26,9 @@ RUN useradd -m -u 1000 app
 
 # Copy Python dependencies from builder
 COPY --from=builder /root/.local /root/.local
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
 # Copy shared libraries BEFORE installing packages to avoid namespace conflicts
-COPY libraries/python/neural_hive_observability /app/neural_hive_observability
 
 # Install packages globally from /root/.local (excluding neural_hive_observability to avoid conflicts)
 RUN cp -r /root/.local/lib/python3.11/site-packages/* /usr/local/lib/python3.11/site-packages/ && \

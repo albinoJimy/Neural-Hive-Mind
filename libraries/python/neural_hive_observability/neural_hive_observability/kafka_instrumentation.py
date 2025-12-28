@@ -272,14 +272,19 @@ class InstrumentedAIOKafkaConsumer:
         return getattr(self._consumer, item)
 
 
-def instrument_kafka_producer(producer: Any, config: ObservabilityConfig):
+def instrument_kafka_producer(producer: Any, config: ObservabilityConfig = None):
     """
     Instrumenta producer Kafka (confluent-kafka ou aiokafka).
 
     Args:
         producer: Instância do producer
-        config: Configuração de observabilidade
+        config: Configuração de observabilidade (opcional, usa config global se não fornecido)
     """
+    # Se config não for fornecido, usar a configuração global
+    if config is None:
+        from . import _config as global_config
+        config = global_config
+
     try:
         from confluent_kafka import Producer as ConfluentProducer  # type: ignore
     except Exception:  # pragma: no cover - import opcional
@@ -300,14 +305,19 @@ def instrument_kafka_producer(producer: Any, config: ObservabilityConfig):
     return producer
 
 
-def instrument_kafka_consumer(consumer: Any, config: ObservabilityConfig):
+def instrument_kafka_consumer(consumer: Any, config: ObservabilityConfig = None):
     """
     Instrumenta consumer Kafka (aiokafka).
 
     Args:
         consumer: Instância do consumer
-        config: Configuração de observabilidade
+        config: Configuração de observabilidade (opcional, usa config global se não fornecido)
     """
+    # Se config não for fornecido, usar a configuração global
+    if config is None:
+        from . import _config as global_config
+        config = global_config
+
     try:
         from aiokafka import AIOKafkaConsumer  # type: ignore
     except Exception:  # pragma: no cover - import opcional

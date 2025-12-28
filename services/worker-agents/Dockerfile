@@ -1,5 +1,5 @@
 # Stage 1 - Builder
-FROM python:3.11-slim AS builder
+FROM neural-hive-mind/python-observability-base:1.2.2 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -11,9 +11,13 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
+# Copy local libraries
+COPY libraries/neural_hive_integration /tmp/neural_hive_integration
+
 # Copy requirements and install dependencies
 COPY services/worker-agents/requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir --user /tmp/neural_hive_integration && \
+    pip install --no-cache-dir --user -r requirements.txt
 
 # Stage 2 - Runtime
 FROM python:3.11-slim
@@ -26,12 +30,20 @@ WORKDIR /app
 
 # Copy installed dependencies from builder
 COPY --from=builder /root/.local /home/worker-agent/.local
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+
+# Copy neural_hive_observability library
+COPY --chown=worker-agent:worker-agent libraries/python/neural_hive_observability/neural_hive_observability /app/neural_hive_observability
+
+# Copy proto stubs from service-registry (needed by worker-agents client)
+COPY --chown=worker-agent:worker-agent services/service-registry/src/proto /app/proto
 
 # Copy source code from host context
 COPY services/worker-agents/src/ ./src
 
-# Set PATH to include user binaries
-ENV PATH=/home/worker-agent/.local/bin:$PATH
+# Set PATH and PYTHONPATH to include user binaries and local packages
+ENV PATH=/home/worker-agent/.local/bin:$PATH \
+    PYTHONPATH=/app:/home/worker-agent/.local/lib/python3.11/site-packages
 
 # Expose ports
 EXPOSE 8080 9090

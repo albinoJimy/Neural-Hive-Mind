@@ -18,7 +18,7 @@ from ..models import WebhookEvent
 from ..observability.metrics import TicketServiceMetrics
 
 logger = logging.getLogger(__name__)
-tracer = get_tracer(__name__)
+tracer = get_tracer()
 
 
 class WebhookManager:

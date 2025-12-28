@@ -24,11 +24,11 @@ data:
   postgresql_pool_max_size: {{ .Values.config.postgresql.poolMaxSize | quote }}
 
   # Redis configuration
-  redis_cluster_nodes: {{ .Values.config.redis.clusterNodes | quote }}
+  redis_cluster_nodes: {{ .Values.config.redis.clusterNodes | toJson | quote }}
   redis_cache_ttl_seconds: {{ .Values.config.redis.cacheTtlSeconds | quote }}
 
   # Kafka configuration
-  kafka_bootstrap_servers: {{ .Values.config.kafka.bootstrapServers | quote }}
+  kafka_bootstrap_servers: {{ .Values.config.kafka.bootstrapServers | toJson | quote }}
   kafka_budget_topic: {{ .Values.config.kafka.budgetTopic | quote }}
   kafka_freeze_topic: {{ .Values.config.kafka.freezeTopic | quote }}
   kafka_violations_topic: {{ .Values.config.kafka.violationsTopic | quote }}

@@ -169,8 +169,6 @@ def create_app() -> FastAPI:
             otel_endpoint=settings.otel_exporter_endpoint,
             prometheus_port=settings.prometheus_port,
             log_level=settings.log_level,
-            enable_kafka=True,
-            enable_grpc=True
         )
     except Exception as e:
         logger.warning(

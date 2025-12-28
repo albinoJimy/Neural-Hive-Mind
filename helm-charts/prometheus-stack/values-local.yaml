@@ -32,10 +32,10 @@ kube-prometheus-stack:
       # Recursos reduzidos
       resources:
         limits:
-          cpu: 1000m
+          cpu: 50m
           memory: 2Gi
         requests:
-          cpu: 500m
+          cpu: 50m
           memory: 1Gi
 
       # ServiceMonitor selector
@@ -109,10 +109,10 @@ kube-prometheus-stack:
       # Recursos reduzidos
       resources:
         limits:
-          cpu: 250m
+          cpu: 50m
           memory: 512Mi
         requests:
-          cpu: 100m
+          cpu: 50m
           memory: 256Mi
 
     # Configuração simplificada (apenas default receiver)
@@ -129,10 +129,10 @@ kube-prometheus-stack:
   prometheusOperator:
     resources:
       limits:
-        cpu: 200m
+        cpu: 50m
         memory: 256Mi
       requests:
-        cpu: 100m
+        cpu: 50m
         memory: 128Mi
 
   # Node Exporter
@@ -140,10 +140,10 @@ kube-prometheus-stack:
     enabled: true
     resources:
       limits:
-        cpu: 200m
+        cpu: 50m
         memory: 128Mi
       requests:
-        cpu: 100m
+        cpu: 50m
         memory: 64Mi
 
   # Kube State Metrics
@@ -151,10 +151,10 @@ kube-prometheus-stack:
     enabled: true
     resources:
       limits:
-        cpu: 200m
+        cpu: 50m
         memory: 256Mi
       requests:
-        cpu: 100m
+        cpu: 50m
         memory: 128Mi
 
   # Grafana (desabilitar - usar chart standalone)

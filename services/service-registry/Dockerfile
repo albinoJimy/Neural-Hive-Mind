@@ -1,5 +1,5 @@
 # Multi-stage build for Service Registry
-FROM python:3.11-slim AS builder
+FROM neural-hive-mind/python-observability-base:1.2.0 AS builder
 
 WORKDIR /app
 
@@ -11,14 +11,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy local libraries first
-COPY libraries/python/neural_hive_observability/ /tmp/neural_hive_observability/
 
 # Copy requirements and install dependencies
 COPY services/service-registry/requirements.txt .
 
 # Install local library and requirements (excluding neural_hive_observability from pip)
-RUN pip install --no-cache-dir --user /tmp/neural_hive_observability/ && \
-    grep -v "neural_hive_observability" requirements.txt > requirements-filtered.txt && \
+RUN grep -v "neural_hive_observability" requirements.txt > requirements-filtered.txt && \
     pip install --no-cache-dir --user -r requirements-filtered.txt
 
 # Final stage
@@ -37,8 +35,9 @@ RUN GRPC_HEALTH_PROBE_VERSION=v0.4.19 && \
     -o /bin/grpc_health_probe && \
     chmod +x /bin/grpc_health_probe
 
-# Copy Python dependencies from builder
+# Copy Python dependencies from builder (user packages + system packages from base)
 COPY --from=builder /root/.local /root/.local
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
 # Copy source code
 COPY services/service-registry/src/ ./src/

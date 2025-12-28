@@ -5,17 +5,17 @@
 replicaCount: 1
 
 image:
-  repository: neural-hive-mind/worker-agents
-  tag: 1.0.0
-  pullPolicy: Never
+  repository: 37.60.241.150:30500/worker-agents
+  tag: 1.2.0
+  pullPolicy: IfNotPresent
 
 # Reduced resources for local development (~50% of production)
 resources:
   requests:
-    cpu: 200m
+    cpu: 50m
     memory: 256Mi
   limits:
-    cpu: 500m
+    cpu: 50m
     memory: 512Mi
 
 # Disable autoscaling for local development
@@ -88,6 +88,10 @@ secrets:
   kafkaSaslUsername: ""
   kafkaSaslPassword: ""
   redisPassword: ""
+
+# Force pods to node with insecure registry configured
+nodeSelector:
+  kubernetes.io/hostname: vmi2911681
 
 # Relaxed probes for local development
 livenessProbe:

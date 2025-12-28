@@ -8,7 +8,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="neural_hive_integration",
-    version="1.1.2",  # Fix: hardcoded Kafka/Redis URLs corrigidos
+    version="1.1.3",  # Fix: relaxed grpcio requirement to match project standard
     description="Neural Hive Mind Phase 2 Integration Library",
     author="Neural Hive Team",
     packages=find_packages(),
@@ -19,8 +19,8 @@ setup(
     python_requires=">=3.11",
     install_requires=[
         "httpx>=0.25.2",
-        "grpcio>=1.75.1",
-        "protobuf>=5.27.0",  # Adicionado: necessário para proto_stubs
+        "grpcio>=1.68.1",  # Aligned with proto stubs GRPC_GENERATED_VERSION
+        "protobuf>=5.27.0",  # Required for proto_stubs
         "structlog>=23.1.0",
         "opentelemetry-api>=1.21.0",
         "opentelemetry-sdk>=1.21.0",

@@ -5,16 +5,16 @@
 replicaCount: 1
 image:
   repository: neural-hive-mind/specialist-architecture
-  tag: 1.0.0
+  tag: 1.2.0
   pullPolicy: IfNotPresent
   pullPolicy: IfNotPresent
 # Reduced resources for local development (~50% of production)
 resources:
   requests:
-    cpu: 250m
+    cpu: 50m
     memory: 512Mi
   limits:
-    cpu: 1000m
+    cpu: 50m
     memory: 2Gi
 # Disable autoscaling for local development
 autoscaling:

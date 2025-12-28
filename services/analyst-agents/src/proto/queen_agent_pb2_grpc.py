@@ -5,7 +5,7 @@ import warnings
 
 from . import queen_agent_pb2 as queen__agent__pb2
 
-GRPC_GENERATED_VERSION = '1.75.1'
+GRPC_GENERATED_VERSION = '1.68.1'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 

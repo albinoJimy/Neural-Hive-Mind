@@ -1,6 +1,6 @@
 # Multi-stage build for Semantic Translation Engine
 # Stage 1: Builder
-FROM python:3.11-slim as builder
+FROM neural-hive-mind/python-observability-base:1.2.0 AS builder
 
 WORKDIR /build
 
@@ -35,6 +35,7 @@ WORKDIR /app
 
 # Copy Python dependencies from builder
 COPY --from=builder /root/.local /home/app/.local
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
 # Copy shared libraries
 COPY --chown=app:app libraries/python/neural_hive_risk_scoring /app/libraries/neural_hive_risk_scoring

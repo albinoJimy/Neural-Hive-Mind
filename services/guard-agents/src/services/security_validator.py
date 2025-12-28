@@ -27,7 +27,7 @@ from src.models.security_validation import (
 )
 
 logger = structlog.get_logger(__name__)
-tracer = get_tracer(__name__)
+tracer = get_tracer()
 
 
 class SecurityValidator:

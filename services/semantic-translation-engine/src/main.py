@@ -55,7 +55,6 @@ async def lifespan(app: FastAPI):
         neural_hive_layer='cognitiva',
         neural_hive_domain='plan-generation',
         otel_endpoint=settings.otel_endpoint,
-        enable_kafka=True
     )
 
     try:

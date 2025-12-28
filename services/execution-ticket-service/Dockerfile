@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM python:3.11-slim AS builder
+FROM neural-hive-mind/python-observability-base:1.2.0 AS builder
 
 WORKDIR /build
 
@@ -30,6 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copiar virtualenv do builder
 COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copiar código fonte

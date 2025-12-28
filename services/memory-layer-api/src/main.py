@@ -45,7 +45,6 @@ async def lifespan(app: FastAPI):
         neural_hive_layer='conhecimento-dados',
         neural_hive_domain='unified-memory',
         otel_endpoint=settings.otel_endpoint,
-        enable_kafka=False
     )
     logger.info("Observability initialized")
 

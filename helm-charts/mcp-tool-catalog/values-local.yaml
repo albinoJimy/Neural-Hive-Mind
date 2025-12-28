@@ -10,10 +10,10 @@ image:
 # Reduced resources for local development (~50% of production)
 resources:
   requests:
-    cpu: 200m
+    cpu: 50m
     memory: 256Mi
   limits:
-    cpu: 500m
+    cpu: 50m
     memory: 512Mi
 
 # Disable autoscaling for local development
@@ -112,3 +112,7 @@ readinessProbe:
   periodSeconds: 5
   timeoutSeconds: 3
   failureThreshold: 3
+
+# Force pods to node with insecure registry configured
+nodeSelector:
+  kubernetes.io/hostname: vmi2911681

@@ -38,7 +38,7 @@ from ..models.jwt_token import generate_token
 from ..config import get_settings
 
 logger = logging.getLogger(__name__)
-tracer = get_tracer(__name__)
+tracer = get_tracer()
 
 
 class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):

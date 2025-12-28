@@ -15,26 +15,26 @@ python = "^3.11"
 neural-hive-specialists = "^1.0.8"
 
 # HTTP server and client
-fastapi = "==0.104.1"
-uvicorn = {extras = ["standard"], version = "==0.24.0"}
+fastapi = "==0.115.6"
+uvicorn = {extras = ["standard"], version = "==0.34.0"}
 requests = ">=2.31.0"
-pydantic = "==2.5.3"
-pydantic-settings = ">=2.1.0"
+pydantic = "==2.10.4"
+pydantic-settings = "==2.7.1"
 
 # Circuit breaker and resilience
-tenacity = ">=8.2.3"
+tenacity = "==9.0.0"
 pybreaker = ">=1.0.1"
 
 # Business-specific
-pandas = "==2.1.3"
-numpy = "==1.26.2"
-scikit-learn = ">=1.5.0,<1.6.0"
+pandas = "==2.2.3"
+numpy = "==1.26.4"
+scikit-learn = "==1.5.2"
 
 # Logging
 # Nota: Dependências de process mining (pm4py), time series forecasting (prophet, statsmodels),
 # e optimization (pulp) foram removidas pois não são utilizadas pelos specialists.
 # Estas dependências estão disponíveis no optimizer-agents onde são realmente necessárias.
-structlog = "==23.2.0"
+structlog = "==24.4.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.4.0"

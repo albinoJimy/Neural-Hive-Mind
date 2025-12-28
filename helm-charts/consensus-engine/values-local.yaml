@@ -4,9 +4,9 @@
 # Reduced replica count for local development
 replicaCount: 1
 image:
-  repository: neural-hive-mind/consensus-engine
-  pullPolicy: Never
-  tag: "1.0.0"
+  repository: 37.60.241.150:30500/consensus-engine
+  pullPolicy: IfNotPresent
+  tag: "1.2.0"
 # Custom command for local development (single worker)
 customCommand:
   enabled: true
@@ -15,10 +15,10 @@ customCommand:
 # Reduced resources for local development (~50% of production)
 resources:
   requests:
-    cpu: 250m
+    cpu: 50m
     memory: 512Mi
   limits:
-    cpu: 1000m
+    cpu: 50m
     memory: 2Gi
 # Disable autoscaling for local development
 autoscaling:
@@ -119,3 +119,7 @@ readinessProbe:
   periodSeconds: 5
   timeoutSeconds: 3
   failureThreshold: 3
+
+# Force pods to node with insecure registry configured
+nodeSelector:
+  kubernetes.io/hostname: vmi2911681

@@ -1,5 +1,5 @@
 # Stage 1 - Builder
-FROM python:3.11-slim AS builder
+FROM neural-hive-mind/python-observability-base:1.2.0 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -37,6 +37,7 @@ WORKDIR /app
 
 # Copy installed dependencies from builder
 COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
 # Copy source code and playbooks
 COPY --from=builder /app/src ./src

@@ -138,8 +138,6 @@ async def lifespan(app: FastAPI):
                 neural_hive_layer="orchestration",
                 environment=config.environment,
                 otel_endpoint=otel_endpoint,
-                enable_kafka=True,
-                enable_grpc=True
             )
             logger.info("OpenTelemetry tracing initialized via neural_hive_observability")
         except Exception as observability_error:

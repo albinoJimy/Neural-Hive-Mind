@@ -7,7 +7,7 @@ user_id e outros identificadores através de chamadas HTTP, Kafka e RPC.
 
 import logging
 from contextlib import contextmanager
-from typing import Dict, Optional, Any, Union
+from typing import Dict, List, Optional, Any, Tuple, Union
 import threading
 
 from opentelemetry import trace, baggage, context
@@ -431,12 +431,64 @@ def set_baggage_value(key: str, value: str) -> None:
         logger.debug(f"Failed to set baggage {key}: {e}")
 
 
+def inject_context_to_metadata(
+    metadata: Optional[List[Tuple[str, str]]] = None
+) -> List[Tuple[str, str]]:
+    """
+    Injeta contexto Neural Hive em metadados gRPC.
+
+    Esta função adiciona headers de contexto OpenTelemetry e Neural Hive
+    aos metadados gRPC para propagação distribuída.
+
+    Args:
+        metadata: Lista de tuplas (key, value) com metadados existentes
+
+    Returns:
+        Lista de metadados com contexto injetado
+    """
+    result = list(metadata) if metadata else []
+
+    # Converter para dicionário para injeção OpenTelemetry
+    headers_dict: Dict[str, str] = {}
+    inject(headers_dict)
+
+    # Adicionar headers OpenTelemetry ao resultado
+    for key, value in headers_dict.items():
+        result.append((key, value))
+
+    # Adicionar contexto Neural Hive do baggage atual
+    current_baggage = get_baggage()
+    if current_baggage:
+        header_mapping = {
+            "neural.hive.intent.id": "x-neural-hive-intent-id",
+            "neural.hive.plan.id": "x-neural-hive-plan-id",
+            "neural.hive.user.id": "x-neural-hive-user-id",
+            "neural.hive.domain": "x-neural-hive-domain",
+            "neural.hive.channel": "x-neural-hive-channel",
+            "neural.hive.correlation.id": "x-neural-hive-correlation-id",
+        }
+
+        for baggage_key, header_name in header_mapping.items():
+            value = current_baggage.get(baggage_key)
+            if value:
+                result.append((header_name, value))
+
+    return result
+
+
+# Alias para compatibilidade - extract_context_from_headers é o mesmo que extract_context_from_metadata
+# Muitos serviços usam esse nome alternativo
+extract_context_from_headers = extract_context_from_metadata
+
+
 # Re-export set_baggage from opentelemetry for convenience
 # This allows: from neural_hive_observability.context import set_baggage
 __all__ = [
     "ContextManager",
     "ChildContext",
     "extract_context_from_metadata",
+    "extract_context_from_headers",  # Alias para compatibilidade
     "set_baggage_value",
     "set_baggage",  # Re-exported from opentelemetry
+    "inject_context_to_metadata",
 ]

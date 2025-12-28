@@ -51,40 +51,40 @@ server:
       port: 7233
     resources:
       requests:
-        cpu: "100m"
+        cpu: "50m"
         memory: "256Mi"
       limits:
-        cpu: "500m"
+        cpu: "50m"
         memory: "512Mi"
 
   history:
     replicaCount: 1
     resources:
       requests:
-        cpu: "100m"
+        cpu: "50m"
         memory: "256Mi"
       limits:
-        cpu: "500m"
+        cpu: "50m"
         memory: "512Mi"
 
   matching:
     replicaCount: 1
     resources:
       requests:
-        cpu: "100m"
+        cpu: "50m"
         memory: "256Mi"
       limits:
-        cpu: "500m"
+        cpu: "50m"
         memory: "512Mi"
 
   worker:
     replicaCount: 1
     resources:
       requests:
-        cpu: "100m"
+        cpu: "50m"
         memory: "256Mi"
       limits:
-        cpu: "500m"
+        cpu: "50m"
         memory: "512Mi"
 
 # Admin Tools
@@ -95,7 +95,7 @@ admintools:
       cpu: "50m"
       memory: "128Mi"
     limits:
-      cpu: "200m"
+      cpu: "50m"
       memory: "256Mi"
 
 # Web UI
@@ -110,7 +110,7 @@ web:
       cpu: "50m"
       memory: "128Mi"
     limits:
-      cpu: "200m"
+      cpu: "50m"
       memory: "256Mi"
 
 # PostgreSQL - DESABILITADO (usando externo)

@@ -8,7 +8,7 @@ from neural_hive_observability import get_tracer
 
 
 logger = structlog.get_logger()
-tracer = get_tracer(__name__)
+tracer = get_tracer()
 
 
 # Métricas Prometheus

@@ -49,7 +49,7 @@ spec:
             - name: METRICS_PORT
               value: "9090"
             - name: ETCD_ENDPOINTS
-              value: {{ join "," .Values.config.etcd.endpoints }}
+              value: {{ .Values.config.etcd.endpoints | toJson | quote }}
             - name: ETCD_PREFIX
               value: {{ .Values.config.etcd.prefix }}
             - name: ETCD_TIMEOUT_SECONDS
@@ -59,7 +59,7 @@ spec:
             - name: HEARTBEAT_TIMEOUT_SECONDS
               value: "{{ .Values.config.heartbeat.timeoutSeconds }}"
             - name: REDIS_CLUSTER_NODES
-              value: {{ join "," .Values.config.redis.clusterNodes }}
+              value: {{ .Values.config.redis.clusterNodes | toJson | quote }}
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -87,6 +87,10 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 2
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with .Values.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}

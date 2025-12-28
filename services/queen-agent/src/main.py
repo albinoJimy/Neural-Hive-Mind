@@ -94,8 +94,6 @@ async def lifespan(app: FastAPI):
                 otel_endpoint=settings.OTEL_EXPORTER_ENDPOINT,
                 prometheus_port=settings.METRICS_PORT,
                 log_level=settings.LOG_LEVEL,
-                enable_kafka=True,
-                enable_grpc=True
             )
         except Exception as e:
             logger.warning(

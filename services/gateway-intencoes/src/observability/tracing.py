@@ -14,7 +14,7 @@ from neural_hive_observability.correlation import CorrelationContext
 logger = logging.getLogger(__name__)
 
 # Get tracer instance
-tracer = get_tracer(__name__)
+tracer = get_tracer()
 
 def trace_gateway_operation(operation_name: str, include_args: bool = False):
     """

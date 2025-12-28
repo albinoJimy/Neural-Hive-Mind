@@ -2,13 +2,13 @@
 python>=3.11
 
 # ML and Data Processing
-pandas==2.1.3
-numpy==1.26.2
+pandas==2.2.3
+numpy==1.26.4
 pyarrow>=14.0.0  # Para Parquet
-scikit-learn>=1.5.0,<1.6.0
+scikit-learn==1.5.2
 
 # LLM Clients
-httpx>=0.25.0
+httpx==0.28.1
 openai>=1.0.0  # Opcional, para OpenAI
 anthropic>=0.7.0  # Opcional, para Anthropic
 
@@ -17,12 +17,14 @@ anthropic>=0.7.0  # Opcional, para Anthropic
 # ou PYTHONPATH aponta para libraries/python
 
 # Feature Extraction Dependencies
-sentence-transformers>=2.2.0  # Para embeddings
+# torch 2.4.1 é requerido por sentence-transformers e compatível com transformers >= 4.32.0
+torch==2.4.1
+sentence-transformers==3.3.1  # Para embeddings
 networkx>=3.0  # Para graph analysis
 
 # Utilities
-structlog==23.2.0
-python-dotenv>=1.0.0
+structlog==24.4.0
+python-dotenv==1.0.1
 tqdm>=4.66.0  # Progress bars
 
 # Schema Validation

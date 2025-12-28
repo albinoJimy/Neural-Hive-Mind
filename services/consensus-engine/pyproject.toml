@@ -16,55 +16,54 @@ neural-hive-specialists = "^1.0.8"
 neural-hive-observability = "==1.1.0"
 
 # Web Framework
-fastapi = "==0.104.1"
-uvicorn = {extras = ["standard"], version = "==0.24.0"}
+fastapi = "==0.115.6"
+uvicorn = {extras = ["standard"], version = "==0.34.0"}
 
 # Data Validation
-pydantic = "==2.5.3"
-pydantic-settings = ">=2.1.0"
-httpx = "==0.25.2"
+pydantic = "==2.10.4"
+pydantic-settings = "==2.7.1"
+httpx = "==0.28.1"
 
 # Kafka
-confluent-kafka = "==2.3.0"
+confluent-kafka = "==2.6.1"
 attrs = ">=23.1.0"
 authlib = ">=1.3.0"
-fastavro = ">=1.8.0"
-cachetools = ">=5.3.0"
+fastavro = "==1.9.7"
+cachetools = "==5.5.0"
 
-# gRPC
-# gRPC - versão 1.75.1 obrigatória para compatibilidade com protobuf 5.x
-grpcio = "==1.75.1"
-grpcio-tools = "==1.75.1"
-grpcio-health-checking = "==1.75.1"
-protobuf = "==5.27.0"
+# gRPC - versão consolidada para todo o projeto
+grpcio = "==1.68.1"
+grpcio-tools = "==1.68.1"
+grpcio-health-checking = "==1.68.1"
+protobuf = "==5.29.2"
 
 # MongoDB
-pymongo = ">=4.6.0"
-motor = "==3.3.2"
+pymongo = "==4.10.1"
+motor = "==3.7.1"
 
 # Redis
-redis = {extras = ["hiredis"], version = "==5.0.1"}
+redis = {extras = ["hiredis"], version = "==5.2.1"}
 
 # Scientific Computing
-numpy = "==1.26.2"
-scipy = ">=1.11.0"
+numpy = "==1.26.4"
+scipy = "==1.14.1"
 
 # Logging
-structlog = "==23.2.0"
+structlog = "==24.4.0"
 python-json-logger = ">=2.0.7"
 
 # OpenTelemetry
-opentelemetry-api = ">=1.21.0"
-opentelemetry-sdk = ">=1.21.0"
-opentelemetry-exporter-otlp = ">=1.21.0"
-opentelemetry-instrumentation-fastapi = ">=0.42b0"
-opentelemetry-instrumentation-grpc = ">=0.42b0"
+opentelemetry-api = "==1.29.0"
+opentelemetry-sdk = "==1.29.0"
+opentelemetry-exporter-otlp = "==1.29.0"
+opentelemetry-instrumentation-fastapi = "==0.50b0"
+opentelemetry-instrumentation-grpc = "==0.50b0"
 
 # Prometheus
-prometheus-client = ">=0.19.0"
+prometheus-client = "==0.21.1"
 
 # Retry Logic
-tenacity = ">=8.2.3"
+tenacity = "==9.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.4.0"

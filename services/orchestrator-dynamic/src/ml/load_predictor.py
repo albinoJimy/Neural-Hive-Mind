@@ -54,7 +54,7 @@ class LoadPredictor:
         self.redis_client = redis_client
         self.metrics = metrics
         self.logger = logger.bind(component="load_predictor_local")
-        self.tracer = get_tracer(__name__)
+        self.tracer = get_tracer()
 
         # Parâmetros de predição
         self.window_minutes = config.ml_local_load_window_minutes

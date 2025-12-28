@@ -52,7 +52,6 @@ class MCPToolCatalogService:
             neural_hive_layer='ferramentas',
             neural_hive_domain='tool-selection',
             otel_endpoint=self.settings.otel_endpoint,
-            enable_kafka=True
         )
 
         try:

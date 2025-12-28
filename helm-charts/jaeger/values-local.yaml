@@ -13,10 +13,10 @@ allInOne:
   # Recursos reduzidos
   resources:
     limits:
-      cpu: 500m
+      cpu: 50m
       memory: 1Gi
     requests:
-      cpu: 250m
+      cpu: 50m
       memory: 512Mi
 
   # Ports

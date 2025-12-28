@@ -30,7 +30,7 @@ storage:
 # Resource Configuration
 resources:
   requests:
-    cpu: 200m
+    cpu: 50m
     memory: 1Gi
   limits:
     cpu: 1
@@ -39,10 +39,10 @@ resources:
 # ZooKeeper Resources
 zookeeperResources:
   requests:
-    cpu: 100m
+    cpu: 50m
     memory: 256Mi
   limits:
-    cpu: 500m
+    cpu: 50m
     memory: 512Mi
 
 # ClickHouse Configuration

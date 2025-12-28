@@ -15,7 +15,7 @@ mypy>=1.7.0
 isort>=5.13.0
 
 # Type stubs
-types-redis>=4.6.0
+types-redis==5.2.1
 
 # Test utilities
 faker>=22.0.0

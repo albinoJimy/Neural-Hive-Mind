@@ -8,12 +8,12 @@ ARG VERSION=1.0.0
 ARG BUILD_DATE
 
 # Install gRPC dependencies
-# protobuf >=6.31.1 required by grpcio-tools 1.75.1
+# Versões normalizadas: grpcio 1.68.1 + protobuf 5.29.2
 RUN pip install --no-cache-dir \
-    grpcio==1.75.1 \
-    grpcio-tools==1.75.1 \
-    grpcio-health-checking==1.75.1 \
-    protobuf>=6.31.1
+    grpcio==1.68.1 \
+    grpcio-tools==1.68.1 \
+    grpcio-health-checking==1.68.1 \
+    protobuf==5.29.2
 
 # Verify gRPC and protobuf installation
 RUN python -c "import grpc; import google.protobuf; print('✓ gRPC', grpc.__version__, 'protobuf', google.protobuf.__version__)"

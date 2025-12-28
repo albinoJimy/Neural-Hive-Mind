@@ -1,4 +1,5 @@
 {
     "traycer.enableAutoAnalysis": false,
-    "traycer.languagePreference": "Português"
+    "traycer.languagePreference": "Português",
+    "claudeCode.useTerminal": true
 }

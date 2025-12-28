@@ -42,10 +42,11 @@ PUSH_TO_ECR="false"
 # Array de imagens base em ordem de dependência
 readonly BASE_IMAGES=(
     "python-ml-base"
+    "python-observability-base"
     "python-grpc-base"
     "python-mlops-base"
     "python-nlp-base"
-    "python-specialist-base"  # ADICIONAR
+    "python-specialist-base"
 )
 
 # Funções de logging
@@ -194,11 +195,12 @@ Exemplos:
   $0 --version 1.0.0 --push-to-ecr
 
 Ordem de build:
-  1. python-ml-base         (Python 3.11 + build tools)
-  2. python-grpc-base       (ml-base + gRPC/protobuf)
-  3. python-mlops-base      (grpc-base + pandas/numpy/scikit-learn/mlflow)
-  4. python-nlp-base        (grpc-base + spaCy + models)
-  5. python-specialist-base (nlp-base + neural_hive_specialists + common deps)
+  1. python-ml-base           (Python 3.11 + build tools)
+  2. python-observability-base (ml-base + neural_hive_observability)
+  3. python-grpc-base         (ml-base + gRPC/protobuf)
+  4. python-mlops-base        (grpc-base + pandas/numpy/scikit-learn/mlflow)
+  5. python-nlp-base          (grpc-base + spaCy + models)
+  6. python-specialist-base   (nlp-base + neural_hive_specialists + common deps)
 
 EOF
 }

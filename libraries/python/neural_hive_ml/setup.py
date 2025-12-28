@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="neural-hive-ml",
-    version="1.0.0",
+    version="1.0.1",  # Updated to sync with project versions
     description="Biblioteca centralizada de modelos preditivos para Neural Hive-Mind",
     author="Neural Hive Mind Team",
     packages=find_packages(),
@@ -17,8 +17,8 @@ setup(
         "scikit-learn>=1.5.0,<1.6.0",
         "tensorflow>=2.13.0",
         "mlflow>=2.8.0",
-        "pandas==2.1.3",
-        "numpy==1.26.2",
+        "pandas>=2.1.3",  # Relaxed to allow 2.2.3
+        "numpy>=1.26.2",  # Relaxed to allow 1.26.4
         "optuna>=3.0.0",
         "redis>=5.0.0",
         "motor>=3.3.0",

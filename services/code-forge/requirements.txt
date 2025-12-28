@@ -1,20 +1,20 @@
 # Code Forge - Neural Code Generation Pipeline Dependencies
 
 # Web Framework
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
 
 # gRPC - versão consolidada
-grpcio>=1.75.1
-grpcio-tools>=1.75.1
-protobuf>=5.27.0
+grpcio==1.68.1
+grpcio-tools==1.68.1
+protobuf==5.29.2
 
 # Kafka
-aiokafka==0.10.0
+aiokafka==0.12.0
 
 # Data Validation
-pydantic==2.5.3
-pydantic-settings>=2.1.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
 
 # Database - PostgreSQL
 sqlalchemy>=2.0.0
@@ -22,33 +22,33 @@ asyncpg>=0.29.0
 alembic>=1.12.0
 
 # Database - MongoDB
-motor==3.3.2
-pymongo>=4.6.0
+motor==3.7.1
+pymongo==4.10.1
 
 # Database - Redis
-redis[hiredis]==5.0.1
+redis[hiredis]==5.2.1
 
 # HTTP Client
-httpx==0.25.2
+httpx==0.28.1
 
 # LLM SDKs
 openai>=1.12.0
 anthropic>=0.18.0
 
 # OpenTelemetry
-opentelemetry-api>=1.21.0
-opentelemetry-sdk>=1.21.0
-opentelemetry-instrumentation-fastapi>=0.42b0
-opentelemetry-instrumentation-grpc>=0.42b0
-opentelemetry-instrumentation-httpx>=0.42b0
-opentelemetry-instrumentation-sqlalchemy>=0.42b0
-opentelemetry-exporter-otlp>=1.21.0
+opentelemetry-api==1.39.1
+opentelemetry-sdk==1.39.1
+opentelemetry-instrumentation-fastapi==0.60b1
+opentelemetry-instrumentation-grpc==0.60b1
+opentelemetry-instrumentation-httpx==0.60b1
+opentelemetry-instrumentation-sqlalchemy==0.60b1
+opentelemetry-exporter-otlp==1.39.1
 
 # Prometheus
-prometheus-client>=0.18.0
+prometheus-client==0.21.1
 
 # Logging
-structlog==23.2.0
+structlog==24.4.0
 python-json-logger>=2.0.7
 
 # Template Engine
@@ -68,7 +68,7 @@ cryptography>=41.0.0
 # Utility
 python-dateutil>=2.8.2
 aiofiles>=23.2.1
-tenacity>=8.2.3
+tenacity==9.0.0
 
 # Integration library
 # neural_hive_integration - instalado localmente via Dockerfile

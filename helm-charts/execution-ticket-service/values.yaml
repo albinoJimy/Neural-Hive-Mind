@@ -9,7 +9,7 @@ serviceAccount:
 
 image:
   repository: 37.60.241.150:30500/execution-ticket-service
-  tag: "1.0.0"
+  tag: "1.2.0"
   pullPolicy: IfNotPresent
 
 service:

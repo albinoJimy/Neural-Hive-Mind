@@ -56,7 +56,7 @@ class AnomalyDetector:
         self.model_registry = model_registry
         self.metrics = metrics
         self.logger = logger.bind(component="anomaly_detector")
-        self.tracer = get_tracer(__name__)
+        self.tracer = get_tracer()
 
         # Modelo em memória
         self.model: Optional[IsolationForest] = None

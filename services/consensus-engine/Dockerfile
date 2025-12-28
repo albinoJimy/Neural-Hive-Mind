@@ -20,8 +20,8 @@ RUN useradd -m -u 1000 consensus
 # Copiar dependências do builder
 COPY --from=builder --chown=consensus:consensus /root/.local /home/consensus/.local
 
-# Copiar biblioteca de observabilidade
-COPY --chown=consensus:consensus libraries/python/neural_hive_observability /app/neural_hive_observability
+# Copiar biblioteca de observabilidade (pacote interno que tem todos os exports)
+COPY --chown=consensus:consensus libraries/python/neural_hive_observability/neural_hive_observability /app/neural_hive_observability
 
 # Copiar proto_gen da biblioteca neural_hive_specialists (apenas stubs gRPC necessários)
 COPY --chown=consensus:consensus libraries/python/neural_hive_specialists/proto_gen /app/neural_hive_specialists/proto_gen

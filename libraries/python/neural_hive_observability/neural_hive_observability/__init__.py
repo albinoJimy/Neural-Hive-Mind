@@ -46,8 +46,10 @@ from .grpc_instrumentation import (
     init_grpc_instrumentation,
     create_instrumented_grpc_server,
     extract_grpc_context,
+    instrument_grpc_channel,
     NeuralHiveGrpcServerInterceptor
 )
+from .context import inject_context_to_metadata
 from .kafka_instrumentation import (
     instrument_kafka_producer,
     instrument_kafka_consumer,
@@ -57,7 +59,7 @@ from .kafka_instrumentation import (
 )
 
 # Versão da biblioteca
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 # Logger da biblioteca
 logger = stdlib_logging.getLogger(__name__)
@@ -209,8 +211,12 @@ __all__ = [
     "init_grpc_instrumentation",
     "create_instrumented_grpc_server",
     "extract_grpc_context",
+    "instrument_grpc_channel",
     "NeuralHiveGrpcServerInterceptor",
     "trace_grpc_method",
+
+    # Context propagation
+    "inject_context_to_metadata",
 
     # Kafka instrumentation
     "instrument_kafka_producer",

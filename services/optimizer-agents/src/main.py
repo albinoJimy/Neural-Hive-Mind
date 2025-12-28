@@ -115,8 +115,6 @@ async def startup():
         neural_hive_layer='otimizacao',
         neural_hive_domain='continuous-improvement',
         otel_endpoint=settings.otel_endpoint,
-        enable_kafka=True,
-        enable_grpc=True
     )
     setup_metrics()
     # Criar instância de métricas para ML subsystem

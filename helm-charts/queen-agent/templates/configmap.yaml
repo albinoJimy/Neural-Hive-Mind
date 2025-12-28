@@ -12,7 +12,7 @@ data:
 
   FASTAPI_HOST: {{ .Values.config.fastapi.host | quote }}
   FASTAPI_PORT: {{ .Values.config.fastapi.port | quote }}
-  CORS_ORIGINS: {{ .Values.config.corsOrigins | join "," | quote }}
+  CORS_ORIGINS: {{ .Values.config.corsOrigins | toJson | quote }}
 
   GRPC_PORT: {{ .Values.config.grpc.port | quote }}
   GRPC_MAX_WORKERS: {{ .Values.config.grpc.maxWorkers | quote }}

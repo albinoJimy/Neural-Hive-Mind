@@ -2160,7 +2160,7 @@ graph LR
 
 ### Componentes Instrumentados
 
-Todos os serviços utilizam `neural_hive_observability==1.1.0` para instrumentação automática:
+Todos os serviços utilizam `neural_hive_observability==1.2.0` para instrumentação automática:
 
 - **Gateway-Intencoes**: ASR, NLU, Kafka producer (propagação de intent_id)
 - **Orchestrator-Dynamic**: Kafka consumers, Temporal workflows, gRPC clients (propagação de plan_id)

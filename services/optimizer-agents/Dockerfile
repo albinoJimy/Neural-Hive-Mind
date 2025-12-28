@@ -3,9 +3,15 @@ FROM neural-hive-mind/python-mlops-base:1.0.0 AS builder
 
 WORKDIR /app
 
+# Copiar e instalar bibliotecas internas
+COPY libraries/python/neural_hive_ml /tmp/neural_hive_ml
+COPY libraries/python/neural_hive_observability /tmp/neural_hive_observability
+
 # Instalar dependências específicas do serviço
 COPY services/optimizer-agents/requirements-optimizer.txt .
-RUN pip install --no-cache-dir --user -r requirements-optimizer.txt
+RUN pip install --no-cache-dir --user /tmp/neural_hive_ml && \
+    pip install --no-cache-dir --user /tmp/neural_hive_observability && \
+    pip install --no-cache-dir --user -r requirements-optimizer.txt
 
 # Copiar proto files e compilar
 COPY services/optimizer-agents/src/proto/ ./src/proto/
@@ -47,7 +53,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # Labels
 LABEL maintainer="Neural Hive-Mind Team <team@neuralhivemind.io>"
 LABEL description="Optimizer Agents - Continuous Improvement and Policy Recalibration"
-LABEL version="1.0.11"
+LABEL version="1.0.12"
 LABEL component="optimizer-agents"
 LABEL layer="estrategica"
 

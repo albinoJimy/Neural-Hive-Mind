@@ -55,7 +55,6 @@ async def lifespan(app: FastAPI):
         neural_hive_layer='governanca',
         neural_hive_domain='remediation',
         otel_endpoint=os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4317'),
-        enable_kafka=True
     )
 
     # Initialize Service Registry client (fail-open)

@@ -9,12 +9,12 @@ data:
   SERVICE_VERSION: {{ .Values.config.serviceVersion | quote }}
   ENVIRONMENT: {{ .Values.config.environment | quote }}
   LOG_LEVEL: {{ .Values.config.logLevel | quote }}
-  ETCD_ENDPOINTS: {{ join "," .Values.config.etcd.endpoints | quote }}
+  ETCD_ENDPOINTS: {{ .Values.config.etcd.endpoints | toJson | quote }}
   ETCD_PREFIX: {{ .Values.config.etcd.prefix | quote }}
   ETCD_TIMEOUT_SECONDS: {{ .Values.config.etcd.timeoutSeconds | quote }}
   HEALTH_CHECK_INTERVAL_SECONDS: {{ .Values.config.healthCheck.intervalSeconds | quote }}
   HEARTBEAT_TIMEOUT_SECONDS: {{ .Values.config.heartbeat.timeoutSeconds | quote }}
-  REDIS_CLUSTER_NODES: {{ join "," .Values.config.redis.clusterNodes | quote }}
+  REDIS_CLUSTER_NODES: {{ .Values.config.redis.clusterNodes | toJson | quote }}
   OTEL_EXPORTER_ENDPOINT: {{ .Values.config.otel.exporterEndpoint | quote }}
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.otel.exporterEndpoint | quote }}
   OTEL_SERVICE_NAME: {{ .Values.config.serviceName | quote }}

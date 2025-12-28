@@ -22,27 +22,29 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
 # NOTA: sentence-transformers é requerido pelo semantic_pipeline (import global em semantic_analyzer.py)
 
 # First install torch separately (large download, using retries)
-# Using CPU-only version to reduce download size (~200MB vs ~900MB)
+# Using CPU-only version to reduce download size
+# torch 2.4.1 is compatible with transformers >= 4.32.0 (required by sentence-transformers)
 RUN pip install --no-cache-dir --retries 5 --timeout 120 \
-    torch==2.1.2 --index-url https://download.pytorch.org/whl/cpu
+    torch==2.4.1 --index-url https://download.pytorch.org/whl/cpu
 
 # Then install sentence-transformers (depends on torch)
+# Version 3.3.1 is stable and compatible with torch 2.4.x
 RUN pip install --no-cache-dir --retries 5 --timeout 120 \
-    "sentence-transformers==2.3.1"
+    "sentence-transformers==3.3.1"
 
-# Install remaining dependencies
+# Install remaining dependencies (aligned with services requirements)
 RUN pip install --no-cache-dir \
-    "fastapi==0.104.1" \
-    "uvicorn[standard]==0.24.0" \
+    "fastapi==0.115.6" \
+    "uvicorn[standard]==0.34.0" \
     "requests>=2.31.0" \
-    "pydantic==2.5.3" \
-    "pydantic-settings==2.1.0" \
+    "pydantic==2.10.4" \
+    "pydantic-settings==2.7.1" \
     "tenacity>=8.2.3" \
     "pybreaker>=1.0.1" \
-    "pandas==2.1.3" \
-    "numpy==1.26.2" \
+    "pandas==2.2.3" \
+    "numpy==1.26.4" \
     "scikit-learn==1.5.2" \
-    "structlog==23.2.0"
+    "structlog==24.4.0"
 
 # Verify installation including critical imports
 RUN python -c "\

@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM python:3.11-slim AS builder
+FROM neural-hive-mind/python-observability-base:1.2.0 AS builder
 
 WORKDIR /app
 
@@ -15,6 +15,7 @@ WORKDIR /app
 
 # Copy dependencies from builder
 COPY --from=builder /root/.local /root/.local
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 ENV PATH=/root/.local/bin:$PATH
 
 # Copy application code

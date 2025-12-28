@@ -16,6 +16,7 @@ build_base_images() {
 
     local base_images=(
         "python-ml-base"
+        "python-observability-base"
         "python-grpc-base"
         "python-mlops-base"
         "python-nlp-base"

@@ -70,6 +70,9 @@ graph TD
     style F5 fill:#03a9f4
     style O fill:#0288d1
     style CO fill:#0277bd
+
+    B --> OBS[python-observability-base<br/>+150MB = 350MB<br/>neural_hive_observability<br/>OpenTelemetry, Prometheus]
+    OBS --> SVC1[gateway-intencoes<br/>worker-agents<br/>orchestrator-dynamic<br/>+outros 12 serviços]
 ```
 
 ### python-ml-base:1.0.0
@@ -146,6 +149,25 @@ Estende python-nlp-base com biblioteca neural_hive_specialists e dependências c
 
 **Benefício:** Elimina ~1.4GB de dependências duplicadas por specialist, reduzindo build time de ~8min para ~2min.
 
+### python-observability-base:1.2.0
+
+Estende python-ml-base com biblioteca neural_hive_observability pré-instalada para observabilidade distribuída.
+
+**Conteúdo:**
+- Tudo de python-ml-base
+- neural_hive_observability 1.2.0
+  - OpenTelemetry API/SDK (1.39.1)
+  - OpenTelemetry gRPC instrumentation (0.60b1)
+  - Prometheus client (0.21.1)
+  - gRPC (1.68.1)
+- Funções exportadas: `init_observability`, `get_metrics`, `get_logger`, `instrument_grpc_channel`, `inject_context_to_metadata`
+
+**Uso:** Base para serviços que requerem observabilidade distribuída com tracing, métricas e logging estruturado.
+
+**Serviços dependentes (15):** gateway-intencoes, worker-agents, orchestrator-dynamic, queen-agent, code-forge, semantic-translation-engine, execution-ticket-service, sla-management-system, mcp-tool-catalog, scout-agents, service-registry, memory-layer-api, self-healing-engine, guard-agents, analyst-agents.
+
+**Benefício:** Centraliza dependências de observabilidade, eliminando ~200MB de duplicação por serviço e garantindo versões consistentes de OpenTelemetry/Prometheus.
+
 ## Estratégia de Versionamento
 
 ### Semantic Versioning (SemVer)
@@ -206,12 +228,19 @@ docker build -t neural-hive-mind/python-specialist-base:1.0.0 \
   --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
   -f python-specialist-base/Dockerfile .
 
+# 5. Build python-observability-base
+docker build -t neural-hive-mind/python-observability-base:1.2.0 \
+  --build-arg VERSION=1.2.0 \
+  --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
+  -f python-observability-base/Dockerfile .
+
 # Tag como latest (apenas para desenvolvimento local)
 docker tag neural-hive-mind/python-ml-base:1.0.0 neural-hive-mind/python-ml-base:latest
 docker tag neural-hive-mind/python-grpc-base:1.0.0 neural-hive-mind/python-grpc-base:latest
 docker tag neural-hive-mind/python-mlops-base:1.0.0 neural-hive-mind/python-mlops-base:latest
 docker tag neural-hive-mind/python-nlp-base:1.0.0 neural-hive-mind/python-nlp-base:latest
 docker tag neural-hive-mind/python-specialist-base:1.0.0 neural-hive-mind/python-specialist-base:latest
+docker tag neural-hive-mind/python-observability-base:1.2.0 neural-hive-mind/python-observability-base:latest
 ```
 
 ### Build Automatizado
@@ -251,6 +280,7 @@ docker tag neural-hive-mind/python-grpc-base:1.0.0 ${ECR_REGISTRY}/${ENV}/python
 docker tag neural-hive-mind/python-mlops-base:1.0.0 ${ECR_REGISTRY}/${ENV}/python-mlops-base:1.0.0
 docker tag neural-hive-mind/python-nlp-base:1.0.0 ${ECR_REGISTRY}/${ENV}/python-nlp-base:1.0.0
 docker tag neural-hive-mind/python-specialist-base:1.0.0 ${ECR_REGISTRY}/${ENV}/python-specialist-base:1.0.0
+docker tag neural-hive-mind/python-observability-base:1.2.0 ${ECR_REGISTRY}/${ENV}/python-observability-base:1.2.0
 
 # Push para ECR
 docker push ${ECR_REGISTRY}/${ENV}/python-ml-base:1.0.0
@@ -258,6 +288,7 @@ docker push ${ECR_REGISTRY}/${ENV}/python-grpc-base:1.0.0
 docker push ${ECR_REGISTRY}/${ENV}/python-mlops-base:1.0.0
 docker push ${ECR_REGISTRY}/${ENV}/python-nlp-base:1.0.0
 docker push ${ECR_REGISTRY}/${ENV}/python-specialist-base:1.0.0
+docker push ${ECR_REGISTRY}/${ENV}/python-observability-base:1.2.0
 ```
 
 ## Serviços que Usam Cada Imagem
