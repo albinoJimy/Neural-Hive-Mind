@@ -777,7 +777,7 @@ class TestResultsDocumenter:
         try:
             import google.protobuf
             return google.protobuf.__version__
-        except:
+        except ImportError:
             return "unknown"
 
     def _get_grpcio_version(self) -> str:
@@ -785,7 +785,7 @@ class TestResultsDocumenter:
         try:
             import grpc
             return grpc.__version__
-        except:
+        except ImportError:
             return "unknown"
 
 
@@ -860,13 +860,13 @@ def print_banner(args):
     try:
         import google.protobuf
         print(f"Protobuf:     {google.protobuf.__version__}")
-    except:
+    except ImportError:
         print("Protobuf:     unknown")
 
     try:
         import grpc
         print(f"gRPC:         {grpc.__version__}")
-    except:
+    except ImportError:
         print("gRPC:         unknown")
 
     print(f"Python:       {sys.version.split()[0]}")
