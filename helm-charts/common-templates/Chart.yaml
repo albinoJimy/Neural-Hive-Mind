@@ -1,5 +1,5 @@
 apiVersion: v2
-name: _common-templates
+name: common-templates
 description: Templates comuns reutilizáveis para charts do Neural Hive-Mind
 type: library
 version: 0.1.0

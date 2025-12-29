@@ -11,7 +11,11 @@ metadata:
   name: {{ $context.fullname }}
   namespace: {{ $context.namespace }}
   labels:
+    {{- if kindIs "string" $context.labels }}
     {{- $context.labels | nindent 4 }}
+    {{- else }}
+    {{- toYaml $context.labels | nindent 4 }}
+    {{- end }}
     {{- if $values.observability.prometheus.enabled }}
     component: metrics
     neural.hive/metrics: "enabled"
@@ -40,5 +44,9 @@ spec:
       {{- end }}
   {{- end }}
   selector:
+    {{- if kindIs "string" $context.selectorLabels }}
     {{- $context.selectorLabels | nindent 4 }}
+    {{- else }}
+    {{- toYaml $context.selectorLabels | nindent 4 }}
+    {{- end }}
 {{- end -}}

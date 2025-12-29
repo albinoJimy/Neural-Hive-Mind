@@ -16,7 +16,7 @@ maintainers:
     email: team@neural-hive-mind.org
 
 dependencies:
-  - name: _common-templates
+  - name: common-templates
     version: "0.1.0"
-    repository: "file://../_common-templates"
+    repository: "file://../common-templates"
     alias: common

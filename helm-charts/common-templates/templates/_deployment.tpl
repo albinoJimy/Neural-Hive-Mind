@@ -12,14 +12,22 @@ metadata:
   name: {{ $context.fullname }}
   namespace: {{ $context.namespace }}
   labels:
+    {{- if kindIs "string" $context.labels }}
     {{- $context.labels | nindent 4 }}
+    {{- else }}
+    {{- toYaml $context.labels | nindent 4 }}
+    {{- end }}
 spec:
   {{- if not $values.autoscaling.enabled }}
   replicas: {{ $values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
+      {{- if kindIs "string" $context.selectorLabels }}
       {{- $context.selectorLabels | nindent 6 }}
+      {{- else }}
+      {{- toYaml $context.selectorLabels | nindent 6 }}
+      {{- end }}
   strategy:
     type: {{ $values.deployment.strategy.type | default "RollingUpdate" }}
     {{- if eq ($values.deployment.strategy.type | default "RollingUpdate") "RollingUpdate" }}
@@ -48,7 +56,11 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
+        {{- if kindIs "string" $context.selectorLabels }}
         {{- $context.selectorLabels | nindent 8 }}
+        {{- else }}
+        {{- toYaml $context.selectorLabels | nindent 8 }}
+        {{- end }}
         {{- with $values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
