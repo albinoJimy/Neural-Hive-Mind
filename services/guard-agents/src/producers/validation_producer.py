@@ -54,8 +54,7 @@ class ValidationProducer:
                 key_serializer=lambda k: k.encode('utf-8') if k else None,
                 acks='all',  # Garantir durabilidade
                 enable_idempotence=True,  # Evitar duplicatas
-                max_in_flight_requests_per_connection=5,
-                retries=3
+                max_in_flight_requests_per_connection=5
             )
 
             await self.producer.start()
