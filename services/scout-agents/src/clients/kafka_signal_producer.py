@@ -28,9 +28,8 @@ class KafkaSignalProducer:
                 value_serializer=lambda v: json.dumps(v).encode('utf-8'),
                 compression_type='snappy',
                 acks='all',
-                retries=3,
                 max_in_flight_requests_per_connection=5,
-                enable_idempotence=True
+                enable_idempotence=True  # Handles retries automatically
             )
 
             await self.producer.start()
