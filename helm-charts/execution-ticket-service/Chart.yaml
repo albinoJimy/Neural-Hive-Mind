@@ -14,3 +14,8 @@ keywords:
 maintainers:
   - name: Neural Hive-Mind Team
     email: team@neural-hive-mind.io
+dependencies:
+  - name: common-templates
+    version: "0.1.0"
+    repository: "file://../common-templates"
+    alias: common

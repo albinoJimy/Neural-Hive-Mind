@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM neural-hive-mind/python-observability-base:1.2.0 AS builder
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.3 AS builder
 
 # Instalar dependências de build
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -21,8 +21,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir /tmp/neural_hive_resilience || true && \
     pip install --no-cache-dir -r /tmp/requirements.txt
 
-# Stage 2: Runtime
-FROM python:3.11-slim
+# Stage 2: Runtime - usar mesma base image para ter neural_hive_observability
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.3
 
 # Instalar apenas runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -32,8 +32,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copiar virtualenv do builder
 COPY --from=builder /opt/venv /opt/venv
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 ENV PATH="/opt/venv/bin:$PATH"
+# Garantir acesso aos site-packages globais (onde neural_hive_observability está instalada)
+ENV PYTHONPATH="/usr/local/lib/python3.11/site-packages:$PYTHONPATH"
 
 # Criar usuário não-root
 RUN useradd -m -u 1000 -s /bin/bash queen-agent

@@ -29,15 +29,14 @@ class ServiceRegistryServicer:
 
     async def Register(self, request, context):
         """RPC: Registrar novo agente"""
-        metadata_dict = dict(context.invocation_metadata())
-        extract_grpc_context(metadata_dict)
+        extract_grpc_context(context)
         if hasattr(request, "agent_id") and request.agent_id:
             set_baggage("agent_id", request.agent_id)
 
         with tracer.start_as_current_span("register_agent") as span:
             try:
-                # Converter proto para tipos Python
-                agent_type = AgentType(request.agent_type)
+                # Converter proto enum (int) para AgentType Python
+                agent_type = AgentType.from_proto_value(request.agent_type)
                 capabilities = list(request.capabilities)
                 metadata = dict(request.metadata)
                 namespace = request.namespace or "default"
@@ -46,7 +45,7 @@ class ServiceRegistryServicer:
 
                 # Validações
                 if not capabilities:
-                    context.abort(
+                    return context.abort(
                         grpc.StatusCode.INVALID_ARGUMENT,
                         "Capabilities não podem estar vazias"
                     )
@@ -78,17 +77,16 @@ class ServiceRegistryServicer:
             except ValueError as e:
                 logger.error("register_validation_error", error=str(e))
                 span.set_status(Status(StatusCode.ERROR, str(e)))
-                context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(e))
+                return context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(e))
 
             except Exception as e:
                 logger.error("register_internal_error", error=str(e))
                 span.set_status(Status(StatusCode.ERROR, str(e)))
-                context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")
+                return context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")
 
     async def Heartbeat(self, request, context):
         """RPC: Enviar heartbeat"""
-        metadata_dict = dict(context.invocation_metadata())
-        extract_grpc_context(metadata_dict)
+        extract_grpc_context(context)
         if hasattr(request, "agent_id") and request.agent_id:
             set_baggage("agent_id", request.agent_id)
 
@@ -136,8 +134,7 @@ class ServiceRegistryServicer:
 
     async def Deregister(self, request, context):
         """RPC: Deregistrar agente"""
-        metadata_dict = dict(context.invocation_metadata())
-        extract_grpc_context(metadata_dict)
+        extract_grpc_context(context)
         if hasattr(request, "agent_id") and request.agent_id:
             set_baggage("agent_id", request.agent_id)
 
@@ -165,8 +162,7 @@ class ServiceRegistryServicer:
 
     async def DiscoverAgents(self, request, context):
         """RPC: Descobrir agentes baseado em capabilities"""
-        metadata_dict = dict(context.invocation_metadata())
-        extract_grpc_context(metadata_dict)
+        extract_grpc_context(context)
 
         with tracer.start_as_current_span("discover_agents") as span:
             try:
@@ -205,8 +201,7 @@ class ServiceRegistryServicer:
 
     async def GetAgent(self, request, context):
         """RPC: Obter informações de um agente específico"""
-        metadata_dict = dict(context.invocation_metadata())
-        extract_grpc_context(metadata_dict)
+        extract_grpc_context(context)
         if hasattr(request, "agent_id") and request.agent_id:
             set_baggage("agent_id", request.agent_id)
 
@@ -245,12 +240,14 @@ class ServiceRegistryServicer:
 
     async def ListAgents(self, request, context):
         """RPC: Listar todos os agentes"""
-        metadata_dict = dict(context.invocation_metadata())
-        extract_grpc_context(metadata_dict)
+        extract_grpc_context(context)
 
         with tracer.start_as_current_span("list_agents") as span:
             try:
-                agent_type = AgentType(request.agent_type) if request.agent_type else None
+                # Converter proto enum (int) para AgentType Python, se fornecido
+                agent_type = None
+                if request.agent_type:
+                    agent_type = AgentType.from_proto_value(request.agent_type)
                 filters = dict(request.filters) if request.filters else None
 
                 # Listar agentes
@@ -281,8 +278,7 @@ class ServiceRegistryServicer:
 
     async def WatchAgents(self, request, context) -> Iterator:
         """RPC: Observar mudanças em agentes (server streaming)"""
-        metadata_dict = dict(context.invocation_metadata())
-        extract_grpc_context(metadata_dict)
+        extract_grpc_context(context)
 
         with tracer.start_as_current_span("watch_agents") as span:
             try:
@@ -297,8 +293,7 @@ class ServiceRegistryServicer:
 
     async def NotifyAgent(self, request, context):
         """RPC: Envia notificação para agente (best-effort)."""
-        metadata_dict = dict(context.invocation_metadata())
-        extract_grpc_context(metadata_dict)
+        extract_grpc_context(context)
         if hasattr(request, "agent_id") and request.agent_id:
             set_baggage("agent_id", request.agent_id)
 

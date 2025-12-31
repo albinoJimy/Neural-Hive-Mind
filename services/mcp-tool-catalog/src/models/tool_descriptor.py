@@ -1,7 +1,7 @@
 """Pydantic models for Tool Descriptor mirroring Avro schema."""
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator
@@ -54,7 +54,7 @@ class ToolDescriptor(BaseModel):
     integration_type: IntegrationType
     endpoint_url: Optional[str] = None
     authentication_method: AuthenticationMethod
-    metadata: Dict[str, str] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=dict)  # Accept any value types from MongoDB
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     trace_id: Optional[str] = None

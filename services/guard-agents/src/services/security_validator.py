@@ -512,7 +512,7 @@ class SecurityValidator:
             risk_score = min(1.0, total_weight / len(violations))
 
             # Severidade máxima
-            severity = max(v.severity for v in violations, key=lambda s: severity_weights[s])
+            severity = max(violations, key=lambda v: severity_weights[v.severity]).severity
 
             # Análise de impacto
             critical_count = len([v for v in violations if v.severity == Severity.CRITICAL])

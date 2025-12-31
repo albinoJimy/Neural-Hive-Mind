@@ -5,6 +5,7 @@ uvicorn[standard]==0.34.0
 # Data validation and settings
 pydantic==2.10.4
 pydantic-settings==2.7.1
+typing_extensions>=4.8.0
 
 # Kafka client - versão consolidada
 confluent-kafka==2.6.1

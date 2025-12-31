@@ -1,90 +1,19 @@
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "execution-ticket-service.fullname" . }}
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "execution-ticket-service.labels" . | nindent 4 }}
-spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
-  selector:
-    matchLabels:
-      {{- include "execution-ticket-service.selectorLabels" . | nindent 6 }}
-  template:
-    metadata:
-      labels:
-        {{- include "execution-ticket-service.labels" . | nindent 8 }}
-        {{- with .Values.podLabels }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-      {{- if .Values.podAnnotations }}
-      annotations:
-        {{- toYaml .Values.podAnnotations | nindent 8 }}
-      {{- end }}
-    spec:
-      serviceAccountName: {{ include "execution-ticket-service.serviceAccountName" . }}
-      containers:
-      - name: {{ .Chart.Name }}
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
-        ports:
-        - containerPort: {{ .Values.service.ports.http }}
-          name: http
-        - containerPort: {{ .Values.service.ports.grpc }}
-          name: grpc
-        - containerPort: {{ .Values.service.ports.metrics }}
-          name: metrics
-        {{- if .Values.config.enabled }}
-        envFrom:
-        - configMapRef:
-            name: {{ include "execution-ticket-service.configMapName" . }}
-        {{- end }}
-        env:
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: {{ if .Values.secrets.create }}{{ include "execution-ticket-service.secretName" . }}{{ else }}{{ .Values.secrets.existingSecret }}{{ end }}
-              key: {{ default "postgres-password" .Values.secrets.postgresPasswordKey }}
-        - name: MONGODB_URI
-          valueFrom:
-            secretKeyRef:
-              name: {{ if .Values.secrets.create }}{{ include "execution-ticket-service.secretName" . }}{{ else }}{{ .Values.secrets.existingSecret }}{{ end }}
-              key: {{ default "mongodb-uri" .Values.secrets.mongodbUriKey }}
-        - name: JWT_SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: {{ if .Values.secrets.create }}{{ include "execution-ticket-service.secretName" . }}{{ else }}{{ .Values.secrets.existingSecret }}{{ end }}
-              key: {{ default "jwt-secret-key" .Values.secrets.jwtSecretKeyKey }}
-        resources:
-          requests:
-            cpu: {{ .Values.resources.requests.cpu }}
-            memory: {{ .Values.resources.requests.memory }}
-          limits:
-            cpu: {{ .Values.resources.limits.cpu }}
-            memory: {{ .Values.resources.limits.memory }}
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: http
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: http
-          initialDelaySeconds: 10
-          periodSeconds: 5
-      {{- if .Values.affinity }}
-      affinity:
-        {{- toYaml .Values.affinity | nindent 8 }}
-      {{- end }}
-      {{- if .Values.tolerations }}
-      tolerations:
-        {{- toYaml .Values.tolerations | nindent 8 }}
-      {{- end }}
-      {{- if .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml .Values.nodeSelector | nindent 8 }}
-      {{- end }}
+{{- $ctx := include "execution-ticket-service.context" . | fromYaml }}
+{{- $checksumConfig := "" }}
+{{- if .Values.config.enabled }}
+{{- $checksumConfig = include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+{{- end }}
+
+{{- $env := list }}
+{{- $env = append $env (dict "name" "POSTGRES_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" (ternary (include "execution-ticket-service.secretName" .) .Values.secrets.existingSecret .Values.secrets.create) "key" (default "postgres-password" .Values.secrets.postgresPasswordKey)))) }}
+{{- $env = append $env (dict "name" "MONGODB_URI" "valueFrom" (dict "secretKeyRef" (dict "name" (ternary (include "execution-ticket-service.secretName" .) .Values.secrets.existingSecret .Values.secrets.create) "key" (default "mongodb-uri" .Values.secrets.mongodbUriKey)))) }}
+{{- $env = append $env (dict "name" "JWT_SECRET_KEY" "valueFrom" (dict "secretKeyRef" (dict "name" (ternary (include "execution-ticket-service.secretName" .) .Values.secrets.existingSecret .Values.secrets.create) "key" (default "jwt-secret-key" .Values.secrets.jwtSecretKeyKey)))) }}
+
+{{- $envFrom := list }}
+{{- if .Values.config.enabled }}
+{{- $envFrom = append $envFrom (dict "configMapRef" (dict "name" (include "execution-ticket-service.configMapName" .))) }}
+{{- end }}
+
+{{- $config := dict "checksumConfig" $checksumConfig "env" $env "envFrom" $envFrom }}
+
+{{- include "neural-hive.deployment" (dict "values" .Values "context" $ctx "config" $config) }}

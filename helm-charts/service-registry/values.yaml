@@ -1,9 +1,19 @@
+component: "service-registry"
+layer: "infrastructure"
+
 image:
   repository: 37.60.241.150:30500/service-registry
   tag: "1.2.0"
   pullPolicy: IfNotPresent
 
 replicaCount: 2
+
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
 
 autoscaling:
   enabled: true
@@ -24,8 +34,16 @@ resources:
 
 service:
   type: ClusterIP
-  grpcPort: 50051
-  metricsPort: 9090
+  annotations: {}
+  ports:
+    grpc:
+      port: 50051
+      targetPort: 50051
+      protocol: TCP
+    metrics:
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
 
 config:
   serviceName: service-registry
@@ -57,6 +75,10 @@ serviceMonitor:
   enabled: true
   interval: 30s
   scrapeTimeout: 10s
+
+observability:
+  prometheus:
+    enabled: true
 
 podDisruptionBudget:
   enabled: true

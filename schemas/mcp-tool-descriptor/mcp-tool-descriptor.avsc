@@ -111,9 +111,9 @@
       "name": "metadata",
       "type": {
         "type": "map",
-        "values": "string"
+        "values": ["null", "string", "boolean", "int", "long", "double"]
       },
-      "doc": "Additional metadata (documentation, homepage, license, etc.)"
+      "doc": "Additional metadata (documentation, homepage, license, active status, etc.)"
     },
     {
       "name": "created_at",

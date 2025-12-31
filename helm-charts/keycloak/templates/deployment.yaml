@@ -1,232 +1,105 @@
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "keycloak.fullname" . }}
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "keycloak.labels" . | nindent 4 }}
-    {{- with .Values.labels }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
-spec:
-  replicas: {{ .Values.replicaCount }}
-  selector:
-    matchLabels:
-      {{- include "keycloak.selectorLabels" . | nindent 6 }}
-  template:
-    metadata:
-      annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
-        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
-        {{- if .Values.istio.injection }}
-        sidecar.istio.io/inject: "true"
-        {{- end }}
-        {{- with .Values.podAnnotations }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-      labels:
-        {{- include "keycloak.selectorLabels" . | nindent 8 }}
-        {{- with .Values.podLabels }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-        version: {{ .Values.image.tag | quote }}
-    spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "keycloak.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+{{- $ctx := include "keycloak.context" . | fromYaml }}
+{{- $checksumConfig := include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+{{- $checksumSecret := include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
 
-      {{- if .Values.postgresql.enabled }}
-      initContainers:
-        - name: wait-for-db
-          image: busybox:1.35
-          command:
-            - sh
-            - -c
-            - |
-              until nc -z {{ include "keycloak.databaseHost" . }} {{ .Values.postgresql.primary.service.ports.postgresql | default 5432 }}; do
-                echo 'Waiting for database...'
-                sleep 2
-              done
-              echo 'Database is ready!'
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-      {{- end }}
+{{/* Construir variáveis de ambiente */}}
+{{- $envVars := list }}
+{{- $envVars = append $envVars (dict "name" "KEYCLOAK_ADMIN" "valueFrom" (dict "secretKeyRef" (dict "name" (include "keycloak.secretName" .) "key" "admin-user"))) }}
+{{- $envVars = append $envVars (dict "name" "KEYCLOAK_ADMIN_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" (include "keycloak.secretName" .) "key" "admin-password"))) }}
+{{- $envVars = append $envVars (dict "name" "KC_DB_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" (include "keycloak.databaseSecretName" .) "key" (include "keycloak.databaseSecretPasswordKey" .)))) }}
+{{- $envVars = append $envVars (dict "name" "KC_HEALTH_ENABLED" "value" "true") }}
+{{- $envVars = append $envVars (dict "name" "KC_METRICS_ENABLED" "value" (.Values.metrics.enabled | toString)) }}
+{{- $envVars = append $envVars (dict "name" "KC_LOG_LEVEL" "value" .Values.logging.level) }}
+{{- $javaOpts := printf "%s -Djgroups.dns.query=%s-headless.%s.svc.cluster.local" .Values.javaOpts (include "keycloak.fullname" .) .Release.Namespace }}
+{{- $envVars = append $envVars (dict "name" "JAVA_OPTS_APPEND" "value" $javaOpts) }}
+{{- range .Values.extraEnv }}
+{{- $envVars = append $envVars (dict "name" .name "value" .value) }}
+{{- end }}
 
-      containers:
-        - name: {{ .Chart.Name }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+{{/* Construir volumes */}}
+{{- $volumes := list }}
+{{- $volumes = append $volumes (dict "name" "keycloak-config" "configMap" (dict "name" (printf "%s-config" (include "keycloak.fullname" .)))) }}
+{{- $volumes = append $volumes (dict "name" "realm-import" "configMap" (dict "name" (printf "%s-realm" (include "keycloak.fullname" .)))) }}
+{{- if .Values.tls.enabled }}
+{{- $volumes = append $volumes (dict "name" "tls-certs" "secret" (dict "secretName" (include "keycloak.tlsSecretName" .))) }}
+{{- end }}
+{{- range .Values.extraVolumes }}
+{{- $volumes = append $volumes . }}
+{{- end }}
 
-          args:
-            - start
-            - --config-file=/opt/keycloak/conf/keycloak.conf
-            - --import-realm
+{{/* Construir volumeMounts */}}
+{{- $volumeMounts := list }}
+{{- $volumeMounts = append $volumeMounts (dict "name" "keycloak-config" "mountPath" "/opt/keycloak/conf/keycloak.conf" "subPath" "keycloak.conf" "readOnly" true) }}
+{{- $volumeMounts = append $volumeMounts (dict "name" "realm-import" "mountPath" "/opt/keycloak/data/import/realm.json" "subPath" "realm.json" "readOnly" true) }}
+{{- if .Values.tls.enabled }}
+{{- $volumeMounts = append $volumeMounts (dict "name" "tls-certs" "mountPath" "/opt/keycloak/certs" "readOnly" true) }}
+{{- end }}
+{{- range .Values.extraVolumeMounts }}
+{{- $volumeMounts = append $volumeMounts . }}
+{{- end }}
 
-          ports:
-            - name: http
-              containerPort: 8080
-              protocol: TCP
-            - name: https
-              containerPort: 8443
-              protocol: TCP
-            - name: management
-              containerPort: 9000
-              protocol: TCP
+{{/* Construir initContainers */}}
+{{- $initContainers := list }}
+{{- if .Values.postgresql.enabled }}
+{{- $waitForDb := dict "name" "wait-for-db" "image" "busybox:1.35" "command" (list "sh" "-c" (printf "until nc -z %s %d; do echo 'Waiting for database...'; sleep 2; done; echo 'Database is ready!'" (include "keycloak.databaseHost" .) (int (.Values.postgresql.primary.service.ports.postgresql | default 5432)))) "securityContext" .Values.securityContext }}
+{{- $initContainers = append $initContainers $waitForDb }}
+{{- end }}
 
-          env:
-            - name: KEYCLOAK_ADMIN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "keycloak.secretName" . }}
-                  key: admin-user
+{{/* Modificar values para o template comum */}}
+{{- $modifiedValues := deepCopy .Values }}
+{{- $_ := set $modifiedValues "volumes" $volumes }}
+{{- $_ := set $modifiedValues "volumeMounts" $volumeMounts }}
+{{- $_ := set $modifiedValues "initContainers" $initContainers }}
 
-            - name: KEYCLOAK_ADMIN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "keycloak.secretName" . }}
-                  key: admin-password
+{{/* Construir probes no formato esperado pelo template comum */}}
+{{- if .Values.startupProbe.enabled }}
+{{- $startupProbe := dict "httpGet" (dict "path" "/health" "port" "management") "initialDelaySeconds" .Values.startupProbe.initialDelaySeconds "periodSeconds" .Values.startupProbe.periodSeconds "timeoutSeconds" .Values.startupProbe.timeoutSeconds "failureThreshold" .Values.startupProbe.failureThreshold }}
+{{- $_ := set $modifiedValues "startupProbe" $startupProbe }}
+{{- else }}
+{{- $_ := unset $modifiedValues "startupProbe" }}
+{{- end }}
 
-            - name: KC_DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "keycloak.databaseSecretName" . }}
-                  key: {{ include "keycloak.databaseSecretPasswordKey" . }}
+{{- if .Values.healthcheck.enabled }}
+{{- $livenessProbe := dict "httpGet" (dict "path" "/health/live" "port" "management") "initialDelaySeconds" .Values.healthcheck.initialDelaySeconds "periodSeconds" .Values.healthcheck.periodSeconds "timeoutSeconds" .Values.healthcheck.timeoutSeconds "failureThreshold" .Values.healthcheck.failureThreshold }}
+{{- $_ := set $modifiedValues "livenessProbe" $livenessProbe }}
+{{- else }}
+{{- $_ := unset $modifiedValues "livenessProbe" }}
+{{- end }}
 
-            - name: KC_HEALTH_ENABLED
-              value: "true"
+{{- if .Values.readinessProbe.enabled }}
+{{- $readinessProbe := dict "httpGet" (dict "path" "/health/ready" "port" "management") "initialDelaySeconds" .Values.readinessProbe.initialDelaySeconds "periodSeconds" .Values.readinessProbe.periodSeconds "timeoutSeconds" .Values.readinessProbe.timeoutSeconds "failureThreshold" .Values.readinessProbe.failureThreshold }}
+{{- $_ := set $modifiedValues "readinessProbe" $readinessProbe }}
+{{- else }}
+{{- $_ := unset $modifiedValues "readinessProbe" }}
+{{- end }}
 
-            - name: KC_METRICS_ENABLED
-              value: {{ .Values.metrics.enabled | quote }}
+{{/* Configurar deployment strategy */}}
+{{- if not $modifiedValues.deployment }}
+{{- $_ := set $modifiedValues "deployment" (dict "strategy" (dict "type" "RollingUpdate" "rollingUpdate" (dict "maxSurge" 1 "maxUnavailable" 0))) }}
+{{- end }}
 
-            - name: KC_LOG_LEVEL
-              value: {{ .Values.logging.level | quote }}
+{{/* Configurar autoscaling como desabilitado por padrão */}}
+{{- if not $modifiedValues.autoscaling }}
+{{- $_ := set $modifiedValues "autoscaling" (dict "enabled" false) }}
+{{- end }}
 
-            - name: JAVA_OPTS_APPEND
-              value: >-
-                {{ .Values.javaOpts }}
-                -Djgroups.dns.query={{ include "keycloak.fullname" . }}-headless.{{ .Release.Namespace }}.svc.cluster.local
+{{/* Configurar istio */}}
+{{- if not $modifiedValues.istio }}
+{{- $_ := set $modifiedValues "istio" (dict "enabled" .Values.istio.injection) }}
+{{- else }}
+{{- $_ := set $modifiedValues.istio "enabled" .Values.istio.injection }}
+{{- end }}
 
-            {{- range .Values.extraEnv }}
-            - name: {{ .name }}
-              value: {{ .value | quote }}
-            {{- end }}
+{{/* Configurar observability */}}
+{{- if not $modifiedValues.observability }}
+{{- $_ := set $modifiedValues "observability" (dict "prometheus" (dict "enabled" .Values.metrics.enabled)) }}
+{{- end }}
 
-          {{- if .Values.startupProbe.enabled }}
-          startupProbe:
-            httpGet:
-              path: /health
-              port: management
-            initialDelaySeconds: {{ .Values.startupProbe.initialDelaySeconds }}
-            periodSeconds: {{ .Values.startupProbe.periodSeconds }}
-            timeoutSeconds: {{ .Values.startupProbe.timeoutSeconds }}
-            failureThreshold: {{ .Values.startupProbe.failureThreshold }}
-          {{- end }}
+{{/* Construir args do container */}}
+{{- $containerArgs := list "start" "--config-file=/opt/keycloak/conf/keycloak.conf" "--import-realm" }}
 
-          {{- if .Values.healthcheck.enabled }}
-          livenessProbe:
-            httpGet:
-              path: /health/live
-              port: management
-            initialDelaySeconds: {{ .Values.healthcheck.initialDelaySeconds }}
-            periodSeconds: {{ .Values.healthcheck.periodSeconds }}
-            timeoutSeconds: {{ .Values.healthcheck.timeoutSeconds }}
-            failureThreshold: {{ .Values.healthcheck.failureThreshold }}
-          {{- end }}
+{{/* Criar config dict */}}
+{{- $config := dict "checksumConfig" $checksumConfig "checksumSecret" $checksumSecret "env" $envVars "args" $containerArgs }}
 
-          {{- if .Values.readinessProbe.enabled }}
-          readinessProbe:
-            httpGet:
-              path: /health/ready
-              port: management
-            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
-            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
-            timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
-            failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
-          {{- end }}
-
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-
-          volumeMounts:
-            - name: keycloak-config
-              mountPath: /opt/keycloak/conf/keycloak.conf
-              subPath: keycloak.conf
-              readOnly: true
-
-            - name: realm-import
-              mountPath: /opt/keycloak/data/import/realm.json
-              subPath: realm.json
-              readOnly: true
-
-            {{- if .Values.tls.enabled }}
-            - name: tls-certs
-              mountPath: /opt/keycloak/certs
-              readOnly: true
-            {{- end }}
-
-            {{- range .Values.extraVolumeMounts }}
-            - name: {{ .name }}
-              mountPath: {{ .mountPath }}
-              {{- if .subPath }}
-              subPath: {{ .subPath }}
-              {{- end }}
-              {{- if .readOnly }}
-              readOnly: {{ .readOnly }}
-              {{- end }}
-            {{- end }}
-
-      volumes:
-        - name: keycloak-config
-          configMap:
-            name: {{ include "keycloak.fullname" . }}-config
-
-        - name: realm-import
-          configMap:
-            name: {{ include "keycloak.fullname" . }}-realm
-
-        {{- if .Values.tls.enabled }}
-        - name: tls-certs
-          secret:
-            secretName: {{ include "keycloak.tlsSecretName" . }}
-        {{- end }}
-
-        {{- range .Values.extraVolumes }}
-        - name: {{ .name }}
-          {{- if .configMap }}
-          configMap:
-            name: {{ .configMap.name }}
-          {{- else if .secret }}
-          secret:
-            secretName: {{ .secret.secretName }}
-          {{- else if .persistentVolumeClaim }}
-          persistentVolumeClaim:
-            claimName: {{ .persistentVolumeClaim.claimName }}
-          {{- end }}
-        {{- end }}
-
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 25%
-      maxSurge: 25%
+{{/* Gerar deployment usando template comum */}}
+{{ include "neural-hive.deployment" (dict "values" $modifiedValues "context" $ctx "config" $config) }}

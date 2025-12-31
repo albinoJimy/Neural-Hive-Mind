@@ -1,5 +1,8 @@
 ## Valores padrão para semantic-translation-engine
 
+nameOverride: ""
+fullnameOverride: ""
+
 # Configuração de imagem
 image:
   repository: 077878370245.dkr.ecr.us-east-1.amazonaws.com/dev/semantic-translation-engine
@@ -34,10 +37,29 @@ resources:
     cpu: 1500m
     memory: 3Gi
 
+# Observability configuration for common templates
+observability:
+  prometheus:
+    enabled: true
+
+# Deployment configuration for common templates
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
 # Service
 service:
   type: ClusterIP
-  port: 8000
+  ports:
+    http:
+      port: 8000
+      targetPort: 8000
+    metrics:
+      port: 9090
+      targetPort: 9090
 
 # Configurações da aplicação
 config:
@@ -56,6 +78,10 @@ config:
     plansTopic: "plans.ready"
     securityProtocol: "SASL_SSL"
     saslMechanism: "SCRAM-SHA-512"
+
+  # Schema Registry
+  schemaRegistry:
+    url: "http://schema-registry.neural-hive-kafka.svc.cluster.local:8081"
 
   # Neo4j
   neo4j:

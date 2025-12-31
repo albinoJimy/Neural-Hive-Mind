@@ -16,3 +16,8 @@ maintainers:
 home: https://github.com/your-org/neural-hive-mind
 sources:
   - https://github.com/your-org/neural-hive-mind/tree/main/services/scout-agents
+dependencies:
+  - name: common-templates
+    version: "0.1.0"
+    repository: "file://../common-templates"
+    alias: common

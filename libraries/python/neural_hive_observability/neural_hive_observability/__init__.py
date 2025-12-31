@@ -45,6 +45,7 @@ from .context import ContextManager
 from .grpc_instrumentation import (
     init_grpc_instrumentation,
     create_instrumented_grpc_server,
+    create_instrumented_async_grpc_server,
     extract_grpc_context,
     instrument_grpc_channel,
     NeuralHiveGrpcServerInterceptor
@@ -59,7 +60,7 @@ from .kafka_instrumentation import (
 )
 
 # Versão da biblioteca
-__version__ = "1.2.0"
+__version__ = "1.2.2"
 
 # Logger da biblioteca
 logger = stdlib_logging.getLogger(__name__)
@@ -210,6 +211,7 @@ __all__ = [
     # gRPC instrumentation
     "init_grpc_instrumentation",
     "create_instrumented_grpc_server",
+    "create_instrumented_async_grpc_server",
     "extract_grpc_context",
     "instrument_grpc_channel",
     "NeuralHiveGrpcServerInterceptor",

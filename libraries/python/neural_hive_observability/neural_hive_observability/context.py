@@ -20,6 +20,38 @@ from .config import ObservabilityConfig
 logger = logging.getLogger(__name__)
 
 
+def extract_context_from_headers(headers: Dict[str, str]):
+    """
+    Extrai contexto OpenTelemetry de headers e define no contexto atual.
+
+    Função duplicada de tracing.py para evitar import circular.
+
+    Args:
+        headers: Headers com contexto
+
+    Returns:
+        Token de contexto para ser usado em detach() pelo chamador, ou None
+    """
+    from opentelemetry.propagate import extract as otel_extract
+
+    token = None
+    try:
+        ctx = otel_extract(headers)
+        token = attach(ctx)
+    except Exception:
+        token = None
+
+    # Extrair e definir baggage items
+    if "x-neural-hive-intent-id" in headers:
+        set_baggage("neural.hive.intent.id", headers["x-neural-hive-intent-id"])
+    if "x-neural-hive-plan-id" in headers:
+        set_baggage("neural.hive.plan.id", headers["x-neural-hive-plan-id"])
+    if "x-neural-hive-user-id" in headers:
+        set_baggage("neural.hive.user.id", headers["x-neural-hive-user-id"])
+
+    return token
+
+
 class ContextManager:
     """Gerenciador de contexto distribuído."""
 

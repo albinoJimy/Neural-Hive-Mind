@@ -26,9 +26,7 @@ class StrategicDecisionProducer:
                 bootstrap_servers=self.settings.KAFKA_BOOTSTRAP_SERVERS,
                 value_serializer=lambda v: json.dumps(v).encode('utf-8'),
                 acks='all',  # Garantir que todos os replicas confirmem
-                enable_idempotence=True,  # Evitar duplicatas
-                max_in_flight_requests_per_connection=1,  # Garantir ordem
-                compression_type='snappy'
+                enable_idempotence=True  # Evitar duplicatas
             )
 
             self.producer = instrument_kafka_producer(self.producer)

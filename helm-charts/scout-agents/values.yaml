@@ -1,3 +1,6 @@
+component: "scout-agents"
+layer: "exploration"
+
 image:
   repository: 37.60.241.150:30500/scout-agents
   tag: "1.2.0"
@@ -9,8 +12,14 @@ replicaCount: 2
 service:
   type: ClusterIP
   ports:
-    http: 8000
-    metrics: 9090
+    http:
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+    metrics:
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
 
 config:
   service:
@@ -98,6 +107,25 @@ networkPolicy:
   enabled: true
 
 securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+observability:
+  prometheus:
+    enabled: true
+
+istio:
+  enabled: true
+
+podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
   fsGroup: 1000

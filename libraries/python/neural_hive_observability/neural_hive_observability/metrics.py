@@ -20,18 +20,35 @@ logger = logging.getLogger(__name__)
 class NeuralHiveMetrics:
     """Conjunto padronizado de métricas do Neural Hive-Mind."""
 
+    _instance: Optional['NeuralHiveMetrics'] = None
+    _registry: Optional[CollectorRegistry] = None
+
+    def __new__(cls, config: ObservabilityConfig, registry: Optional[CollectorRegistry] = None):
+        """Singleton pattern para evitar duplicação de métricas."""
+        if cls._instance is not None:
+            logger.debug("Retornando instância existente de NeuralHiveMetrics")
+            return cls._instance
+        return super().__new__(cls)
+
     def __init__(self, config: ObservabilityConfig, registry: Optional[CollectorRegistry] = None):
         """
         Inicializa métricas padronizadas.
 
         Args:
             config: Configuração de observabilidade
-            registry: Registry Prometheus (opcional, usa default)
+            registry: Registry Prometheus (opcional, usa dedicado)
         """
+        if NeuralHiveMetrics._instance is not None:
+            return
+
         self.config = config
-        self.registry = registry or REGISTRY
+        # Usar registry dedicado para evitar conflitos
+        if NeuralHiveMetrics._registry is None:
+            NeuralHiveMetrics._registry = CollectorRegistry()
+        self.registry = registry or NeuralHiveMetrics._registry
         self._common_labels = list(config.common_labels.keys())
         self._common_label_values = list(config.common_labels.values())
+        NeuralHiveMetrics._instance = self
 
         # Inicializar métricas
         self._init_service_metrics()
@@ -39,6 +56,7 @@ class NeuralHiveMetrics:
         self._init_intent_metrics()
         self._init_plan_metrics()
         self._init_infrastructure_metrics()
+        self._init_tracing_export_metrics()
         self._init_slo_metrics()
 
     def _init_service_metrics(self):
@@ -181,6 +199,41 @@ class NeuralHiveMetrics:
             "neural_hive_health_status",
             "Status de saúde do serviço (1=healthy, 0=unhealthy)",
             self._common_labels + ["check_name"],
+            registry=self.registry
+        )
+
+    def _init_tracing_export_metrics(self):
+        """Inicializa métricas de export de spans para monitoramento de tracing."""
+        # Contador de falhas de export
+        self.span_export_failures_total = Counter(
+            "neural_hive_span_export_failures_total",
+            "Total de falhas no export de spans",
+            self._common_labels + ["error_type", "endpoint"],
+            registry=self.registry
+        )
+
+        # Contador de exports bem-sucedidos
+        self.span_export_success_total = Counter(
+            "neural_hive_span_export_success_total",
+            "Total de exports de spans bem-sucedidos",
+            self._common_labels + ["endpoint"],
+            registry=self.registry
+        )
+
+        # Histograma de duração de export
+        self.span_export_duration_seconds = Histogram(
+            "neural_hive_span_export_duration_seconds",
+            "Duração do export de spans em segundos",
+            self._common_labels + ["endpoint", "result"],
+            buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0],
+            registry=self.registry
+        )
+
+        # Gauge para tamanho da fila de spans pendentes
+        self.span_export_queue_size = Gauge(
+            "neural_hive_span_export_queue_size",
+            "Tamanho atual da fila de spans pendentes para export",
+            self._common_labels,
             registry=self.registry
         )
 
@@ -461,6 +514,29 @@ class NeuralHiveMetrics:
         except Exception:
             return 0.0
 
+    # Tracing export metrics methods
+    def increment_span_export_failures(self, error_type: str, endpoint: str):
+        """Incrementa contador de falhas de export de spans."""
+        self.span_export_failures_total.labels(
+            *self._common_label_values, error_type, endpoint
+        ).inc()
+
+    def increment_span_export_success(self, endpoint: str):
+        """Incrementa contador de exports de spans bem-sucedidos."""
+        self.span_export_success_total.labels(
+            *self._common_label_values, endpoint
+        ).inc()
+
+    def observe_span_export_duration(self, duration: float, endpoint: str, result: str):
+        """Observa duração de export de spans."""
+        self.span_export_duration_seconds.labels(
+            *self._common_label_values, endpoint, result
+        ).observe(duration)
+
+    def set_span_export_queue_size(self, size: int):
+        """Define tamanho da fila de spans pendentes."""
+        self.span_export_queue_size.labels(*self._common_label_values).set(size)
+
 
 # Métricas globais
 _metrics: Optional[NeuralHiveMetrics] = None
@@ -477,6 +553,9 @@ def init_metrics(config: ObservabilityConfig) -> NeuralHiveMetrics:
         Instância de métricas
     """
     global _metrics
+    if _metrics is not None:
+        logger.debug("Métricas já inicializadas, retornando instância existente")
+        return _metrics
     _metrics = NeuralHiveMetrics(config)
 
     # Iniciar servidor Prometheus se configurado

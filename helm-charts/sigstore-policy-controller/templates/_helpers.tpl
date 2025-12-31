@@ -1,60 +1,47 @@
 {{/*
-Expand the name of the chart.
+Sigstore Policy Controller - Helpers usando templates comuns do Neural Hive Mind
+*/}}
+
+{{/*
+Usa funções do template comum via dependência
 */}}
 {{- define "sigstore-policy-controller.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.name" . }}
 {{- end }}
 
-{{/*
-Create a default fully qualified app name.
-*/}}
 {{- define "sigstore-policy-controller.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
+{{- include "neural-hive.fullname" . }}
 {{- end }}
 
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
 {{- define "sigstore-policy-controller.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.chart" . }}
 {{- end }}
 
-{{/*
-Common labels
-*/}}
 {{- define "sigstore-policy-controller.labels" -}}
-helm.sh/chart: {{ include "sigstore-policy-controller.chart" . }}
-{{ include "sigstore-policy-controller.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- include "neural-hive.labels" (dict "context" . "component" "policy-controller" "layer" "security") }}
+app.kubernetes.io/part-of: neural-hive-mind
+neural-hive.io/domain: image-verification
 {{- end }}
 
-{{/*
-Selector labels
-*/}}
 {{- define "sigstore-policy-controller.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "sigstore-policy-controller.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+{{- include "neural-hive.selectorLabels" . }}
+{{- end }}
+
+{{- define "sigstore-policy-controller.serviceAccountName" -}}
+{{- include "neural-hive.serviceAccountName" . }}
 {{- end }}
 
 {{/*
-Create the name of the service account to use
+Contexto para uso nos templates comuns
 */}}
-{{- define "sigstore-policy-controller.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "sigstore-policy-controller.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- define "sigstore-policy-controller.context" -}}
+fullname: {{ include "sigstore-policy-controller.fullname" . }}
+chartName: {{ .Chart.Name }}
+namespace: {{ .Values.webhook.namespace }}
+appVersion: {{ .Chart.AppVersion }}
+labels:
+{{ include "sigstore-policy-controller.labels" . | indent 2 }}
+selectorLabels:
+{{ include "sigstore-policy-controller.selectorLabels" . | indent 2 }}
+serviceAccountName: {{ include "sigstore-policy-controller.serviceAccountName" . }}
 {{- end }}

@@ -45,7 +45,7 @@ config:
     logLevel: DEBUG
 
   kafka:
-    bootstrapServers: neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092
+    bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
     consumerGroupId: scout-agents-dev
     topics:
       signals: exploration-signals
@@ -56,7 +56,7 @@ config:
       enableSsl: false
 
   serviceRegistry:
-    host: service-registry.service-registry.svc.cluster.local
+    host: service-registry.neural-hive.svc.cluster.local
     port: 50051
     registrationInterval: 300
     heartbeatInterval: 30

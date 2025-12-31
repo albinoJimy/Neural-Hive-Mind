@@ -1,22 +1,19 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Values.webhook.name }}-service
-  namespace: {{ .Values.webhook.namespace }}
-  labels:
-    {{- include "sigstore-policy-controller.labels" . | nindent 4 }}
-spec:
-  type: ClusterIP
-  ports:
-  - name: https-webhook
-    port: 443
-    targetPort: {{ .Values.webhook.port }}
-    protocol: TCP
-  {{- if .Values.monitoring.enabled }}
-  - name: metrics
-    port: {{ .Values.monitoring.metrics.port }}
-    targetPort: {{ .Values.monitoring.metrics.port }}
-    protocol: TCP
-  {{- end }}
-  selector:
-    {{- include "sigstore-policy-controller.selectorLabels" . | nindent 4 }}
+{{- $ctx := include "sigstore-policy-controller.context" . | fromYaml }}
+
+{{/*
+Sobrescrever fullname para usar o nome do webhook + "-service" conforme padrão original
+*/}}
+{{- $modifiedCtx := deepCopy $ctx }}
+{{- $_ := set $modifiedCtx "fullname" (printf "%s-service" .Values.webhook.name) }}
+
+{{/*
+Construir valores modificados para remover porta de metrics se monitoring desabilitado
+*/}}
+{{- $modifiedValues := deepCopy .Values }}
+{{- if not .Values.monitoring.enabled }}
+{{- $httpsWebhookPort := index .Values.service.ports "https-webhook" }}
+{{- $ports := dict "https-webhook" $httpsWebhookPort }}
+{{- $_ := set $modifiedValues.service "ports" $ports }}
+{{- end }}
+
+{{- include "neural-hive.service" (dict "values" $modifiedValues "context" $modifiedCtx) }}

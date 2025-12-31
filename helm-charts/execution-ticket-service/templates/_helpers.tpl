@@ -1,78 +1,55 @@
 {{/*
-Expand the name of the chart.
+Execution Ticket Service - Helpers usando templates comuns do Neural Hive Mind
+*/}}
+
+{{/*
+Usa funções do template comum via dependência
 */}}
 {{- define "execution-ticket-service.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.name" . }}
 {{- end }}
 
-{{/*
-Create a default fully qualified app name.
-We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-If release name contains chart name it will be used as a full name.
-*/}}
 {{- define "execution-ticket-service.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
+{{- include "neural-hive.fullname" . }}
 {{- end }}
 
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
 {{- define "execution-ticket-service.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.chart" . }}
 {{- end }}
 
-{{/*
-Common labels
-*/}}
 {{- define "execution-ticket-service.labels" -}}
-helm.sh/chart: {{ include "execution-ticket-service.chart" . }}
-{{ include "execution-ticket-service.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/component: orchestration
-neural-hive.io/layer: orchestration
+{{- include "neural-hive.labels" (dict "context" . "component" "execution-ticket-service" "layer" "orchestration") }}
+app.kubernetes.io/part-of: neural-hive-mind
+neural-hive.io/domain: ticket-management
 {{- end }}
 
-{{/*
-Selector labels
-*/}}
 {{- define "execution-ticket-service.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "execution-ticket-service.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+{{- include "neural-hive.selectorLabels" . }}
 {{- end }}
 
-{{/*
-Create the name of the service account to use
-*/}}
 {{- define "execution-ticket-service.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "execution-ticket-service.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- include "neural-hive.serviceAccountName" . }}
 {{- end }}
 
-{{/*
-Create the name of the ConfigMap to use
-*/}}
 {{- define "execution-ticket-service.configMapName" -}}
-{{- printf "%s-config" (include "execution-ticket-service.fullname" .) }}
+{{ include "execution-ticket-service.fullname" . }}-config
+{{- end }}
+
+{{- define "execution-ticket-service.secretName" -}}
+{{ include "execution-ticket-service.fullname" . }}-secrets
 {{- end }}
 
 {{/*
-Create the name of the Secret to use
+Contexto para uso nos templates comuns
 */}}
-{{- define "execution-ticket-service.secretName" -}}
-{{- printf "%s-secrets" (include "execution-ticket-service.fullname" .) }}
+{{- define "execution-ticket-service.context" -}}
+fullname: {{ include "execution-ticket-service.fullname" . }}
+chartName: {{ .Chart.Name }}
+namespace: {{ .Release.Namespace }}
+appVersion: {{ .Chart.AppVersion }}
+labels:
+{{ include "execution-ticket-service.labels" . | indent 2 }}
+selectorLabels:
+{{ include "execution-ticket-service.selectorLabels" . | indent 2 }}
+serviceAccountName: {{ include "execution-ticket-service.serviceAccountName" . }}
 {{- end }}

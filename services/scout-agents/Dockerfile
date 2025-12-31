@@ -1,5 +1,5 @@
 # Multi-stage build for Scout Agents
-FROM neural-hive-mind/python-observability-base:1.2.0 AS builder
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.3 AS builder
 
 WORKDIR /app
 
@@ -13,11 +13,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY services/scout-agents/requirements.txt .
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
+ENV PYTHONPATH="/usr/local/lib/python3.11/site-packages:$PYTHONPATH"
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
+# Copy and install neural_hive_integration library with proto_stubs
+COPY libraries/neural_hive_integration/ /tmp/neural_hive_integration/
+RUN pip install --no-cache-dir /tmp/neural_hive_integration/ && \
+    rm -rf /tmp/neural_hive_integration
+
 # Runtime stage
-FROM python:3.11-slim
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.3
 
 WORKDIR /app
 
@@ -26,9 +32,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy virtualenv from builder
+# Copy virtualenv from builder (does not overwrite base image packages)
 COPY --from=builder /opt/venv /opt/venv
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
 # Copy application code
 COPY services/scout-agents/src/ ./src/
@@ -39,6 +44,7 @@ USER scout
 
 # Set environment variables
 ENV PATH="/opt/venv/bin:$PATH"
+ENV PYTHONPATH="/usr/local/lib/python3.11/site-packages:$PYTHONPATH"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 

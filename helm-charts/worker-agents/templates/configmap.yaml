@@ -8,7 +8,7 @@ data:
   SERVICE_NAME: {{ .Values.config.serviceName | quote }}
   NAMESPACE: {{ .Values.config.namespace | quote }}
   CLUSTER: {{ .Values.config.cluster | quote }}
-  SUPPORTED_TASK_TYPES: {{ join "," .Values.config.supportedTaskTypes | quote }}
+  SUPPORTED_TASK_TYPES: '{{ .Values.config.supportedTaskTypes | toJson }}'
   MAX_CONCURRENT_TASKS: {{ .Values.config.maxConcurrentTasks | quote }}
 
   KAFKA_BOOTSTRAP_SERVERS: {{ .Values.config.kafka.bootstrapServers | quote }}
@@ -65,7 +65,7 @@ data:
 
   # Test Execution Configuration
   TEST_EXECUTION_TIMEOUT_SECONDS: {{ .Values.config.testExecution.timeoutSeconds | quote }}
-  ALLOWED_TEST_COMMANDS: {{ join "," .Values.config.testExecution.allowedCommands | quote }}
+  ALLOWED_TEST_COMMANDS: '{{ .Values.config.testExecution.allowedCommands | toJson }}'
 
   # GitHub Actions
   GITHUB_ACTIONS_ENABLED: {{ .Values.config.githubActions.enabled | quote }}

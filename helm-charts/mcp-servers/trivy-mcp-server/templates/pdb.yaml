@@ -1,0 +1,13 @@
+{{- if .Values.podDisruptionBudget }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "trivy-mcp-server.fullname" . }}
+  labels:
+    {{- include "trivy-mcp-server.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "trivy-mcp-server.selectorLabels" . | nindent 6 }}
+{{- end }}

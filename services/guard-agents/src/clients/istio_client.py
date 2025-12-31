@@ -13,7 +13,7 @@ class IstioClient:
     Manipula AuthorizationPolicy, EnvoyFilter e outros CRDs Istio.
     """
 
-    def __init__(self, k8s_client, namespace: str = "neural-hive-resilience"):
+    def __init__(self, k8s_client, namespace: str = "neural-hive"):
         self.k8s_client = k8s_client
         self.namespace = namespace
         self.custom_api: Optional[client.CustomObjectsApi] = None

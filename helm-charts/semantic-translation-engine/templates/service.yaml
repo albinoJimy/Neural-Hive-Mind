@@ -1,19 +1,2 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ include "semantic-translation-engine.fullname" . }}
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "semantic-translation-engine.labels" . | nindent 4 }}
-    neural.hive/metrics: "enabled"
-    neural.hive/component: "semantic-translator"
-    neural.hive/layer: "cognitiva"
-spec:
-  type: {{ .Values.service.type }}
-  ports:
-  - port: {{ .Values.service.port }}
-    targetPort: http
-    protocol: TCP
-    name: http
-  selector:
-    {{- include "semantic-translation-engine.selectorLabels" . | nindent 4 }}
+{{- $ctx := include "semantic-translation-engine.context" . | fromYaml }}
+{{- include "neural-hive.service" (dict "values" .Values "context" $ctx) }}

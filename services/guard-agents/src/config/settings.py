@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     # Kafka Config
-    kafka_bootstrap_servers: str
+    kafka_bootstrap_servers: str = "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
     kafka_consumer_group: str = "guard-agents"
     kafka_incidents_topic: str = "security-incidents"
     kafka_orchestration_incidents_topic: str = "orchestration-incidents"
@@ -32,9 +32,9 @@ class Settings(BaseSettings):
     kafka_auto_offset_reset: str = "earliest"
     kafka_enable_auto_commit: bool = False
 
-    # Service Registry Config
-    service_registry_host: str
-    service_registry_port: int = 50051
+    # Service Registry Config (use _GRPC_ to avoid Kubernetes service discovery collision)
+    service_registry_grpc_host: str = "service-registry.neural-hive.svc.cluster.local"
+    service_registry_grpc_port: int = 50051
     registration_enabled: bool = True
     heartbeat_interval_seconds: int = 30
     capabilities: list[str] = Field(
@@ -50,33 +50,33 @@ class Settings(BaseSettings):
     )
 
     # MongoDB Config
-    mongodb_uri: str
+    mongodb_uri: str = "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
     mongodb_database: str = "neural_hive"
     mongodb_incidents_collection: str = "security_incidents"
     mongodb_remediation_collection: str = "remediation_actions"
     mongodb_validations_collection: str = "security_validations"
 
     # Redis Config
-    redis_host: str
+    redis_host: str = "neural-hive-cache.redis-cluster.svc.cluster.local"
     redis_port: int = 6379
     redis_db: int = 0
     redis_password: str | None = None
 
     # Prometheus Config
-    prometheus_url: str
+    prometheus_url: str = "http://neural-hive-prometheus-kub-prometheus.observability.svc.cluster.local:9090"
     prometheus_query_timeout_seconds: int = 10
 
     # Alertmanager Config
-    alertmanager_url: str
+    alertmanager_url: str = "http://alertmanager.observability.svc.cluster.local:9093"
     alertmanager_webhook_enabled: bool = True
 
     # Kubernetes Config
     kubernetes_in_cluster: bool = True
-    kubernetes_namespace: str = "neural-hive-resilience"
+    kubernetes_namespace: str = "neural-hive"
 
     # Self-Healing Engine Config
-    self_healing_engine_url: str
-    self_healing_engine_grpc_host: str
+    self_healing_engine_url: str = "http://self-healing-engine:8080"
+    self_healing_engine_grpc_host: str = "self-healing-engine.neural-hive.svc.cluster.local"
     self_healing_engine_grpc_port: int = 50051
 
     # Detection Thresholds
@@ -86,9 +86,9 @@ class Settings(BaseSettings):
     false_positive_threshold: float = 0.05
 
     # Enforcement Config
-    opa_enforcement_enabled: bool = True
-    istio_enforcement_enabled: bool = True
-    auto_remediation_enabled: bool = True
+    opa_enforcement_enabled: bool = False
+    istio_enforcement_enabled: bool = False
+    auto_remediation_enabled: bool = False
     manual_approval_required_for_critical: bool = True
 
     # OPA Config
@@ -96,13 +96,13 @@ class Settings(BaseSettings):
     opa_timeout_seconds: int = 5
 
     # Vault Integration
-    vault_enabled: bool = True
+    vault_enabled: bool = False
     vault_addr: str = "http://vault:8200"
     vault_namespace: str = "neural-hive"
-    vault_fail_open: bool = False
+    vault_fail_open: bool = True
 
     # Trivy Integration
-    trivy_enabled: bool = True
+    trivy_enabled: bool = False
     trivy_url: str = "http://trivy:8080"
     trivy_timeout_seconds: int = 30
 
@@ -118,7 +118,7 @@ class Settings(BaseSettings):
     max_blast_radius_percentage: float = 0.1
 
     # OpenTelemetry Config
-    otel_exporter_otlp_endpoint: str
+    otel_exporter_otlp_endpoint: str = "http://otel-collector.observability.svc.cluster.local:4317"
     otel_service_name: str = "guard-agents"
     otel_traces_sampler: str = "parentbased_traceidratio"
     otel_traces_sampler_arg: float = 0.1

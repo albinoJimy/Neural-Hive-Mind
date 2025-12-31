@@ -1,6 +1,6 @@
 # Multi-stage build for Semantic Translation Engine
 # Stage 1: Builder
-FROM neural-hive-mind/python-observability-base:1.2.0 AS builder
+FROM 37.60.241.150:30500/python-observability-base:latest AS builder
 
 WORKDIR /build
 
@@ -33,9 +33,9 @@ RUN useradd -m -u 1000 -s /bin/bash app
 
 WORKDIR /app
 
-# Copy Python dependencies from builder
+# Copy Python dependencies from builder - ensure all packages are available
 COPY --from=builder /root/.local /home/app/.local
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/lib/python3.11/site-packages /home/app/.local/lib/python3.11/site-packages
 
 # Copy shared libraries
 COPY --chown=app:app libraries/python/neural_hive_risk_scoring /app/libraries/neural_hive_risk_scoring
@@ -51,7 +51,7 @@ COPY --chown=app:app schemas/cognitive-plan/cognitive-plan.avsc /app/schemas/cog
 
 # Set environment variables
 ENV PATH=/home/app/.local/bin:$PATH \
-    PYTHONPATH=/app:/app/libraries \
+    PYTHONPATH=/app:/app/libraries:/home/app/.local/lib/python3.11/site-packages \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     ENVIRONMENT=production \

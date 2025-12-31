@@ -1,3 +1,6 @@
+component: "code-forge"
+layer: "execution"
+
 replicaCount: 2
 
 image:
@@ -5,12 +8,29 @@ image:
   tag: "1.2.0"
   pullPolicy: IfNotPresent
 
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
 service:
   type: ClusterIP
+  annotations: {}
   ports:
-    http: 8080
-    grpc: 50051
-    metrics: 9090
+    http:
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    grpc:
+      port: 50051
+      targetPort: 50051
+      protocol: TCP
+    metrics:
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
 
 resources:
   # Git clone + template rendering bursts demand but average utilization stays <600m CPU.
@@ -39,6 +59,13 @@ serviceAccount:
 
 serviceMonitor:
   enabled: true
+
+observability:
+  prometheus:
+    enabled: true
+
+istio:
+  enabled: false
 
 config:
   SERVICE_NAME: code-forge

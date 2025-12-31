@@ -42,6 +42,31 @@ class MCPToolCatalogMetrics:
             ["converged", "timeout"],
         )
 
+        # Métricas para arquitetura híbrida (MCP Server vs Adapter Local)
+        self.mcp_server_executions_total = Counter(
+            "mcp_server_executions_total",
+            "Total de execuções via MCP Server externo",
+            ["tool_id", "mcp_server", "status"],
+        )
+
+        self.adapter_executions_total = Counter(
+            "mcp_adapter_executions_total",
+            "Total de execuções via adapters locais (CLI/REST/Container)",
+            ["tool_id", "adapter_type", "status"],
+        )
+
+        self.execution_route_total = Counter(
+            "mcp_execution_route_total",
+            "Total de execuções por rota (mcp, adapter, fallback)",
+            ["route", "status"],
+        )
+
+        self.mcp_fallback_total = Counter(
+            "mcp_fallback_total",
+            "Total de fallbacks de MCP para adapters locais",
+            ["tool_id", "reason"],
+        )
+
         # Histograms
         self.tool_selection_duration_seconds = Histogram(
             "mcp_tool_selection_duration_seconds",
@@ -101,6 +126,17 @@ class MCPToolCatalogMetrics:
             "Current genetic algorithm generation number",
         )
 
+        # Gauges para arquitetura híbrida
+        self.mcp_clients_connected = Gauge(
+            "mcp_clients_connected",
+            "Número de clientes MCP conectados",
+        )
+
+        self.mcp_circuit_breakers_open = Gauge(
+            "mcp_circuit_breakers_open",
+            "Número de circuit breakers abertos em clientes MCP",
+        )
+
     def record_selection(self, method: str, cached: bool, duration: float, fitness: float):
         """Record tool selection metrics."""
         self.tool_selections_total.labels(selection_method=method, cached=str(cached)).inc()
@@ -112,10 +148,47 @@ class MCPToolCatalogMetrics:
         else:
             self.cache_misses_total.inc()
 
-    def record_tool_execution(self, tool_id: str, category: str, status: str, duration: float):
-        """Record tool execution metrics."""
+    def record_tool_execution(
+        self,
+        tool_id: str,
+        category: str,
+        status: str,
+        duration: float,
+        execution_route: str = "adapter",
+        adapter_type: str = None,
+        mcp_server: str = None
+    ):
+        """
+        Registra métricas de execução de ferramenta.
+
+        Args:
+            tool_id: ID da ferramenta
+            category: Categoria da ferramenta
+            status: 'success' ou 'failure'
+            duration: Duração em segundos
+            execution_route: 'mcp', 'adapter', ou 'fallback'
+            adapter_type: Tipo de adapter (CLI/REST/Container) se route='adapter'
+            mcp_server: URL do MCP server se route='mcp'
+        """
+        # Métricas existentes (backward compatible)
         self.tool_executions_total.labels(tool_id=tool_id, category=category, status=status).inc()
         self.tool_execution_duration_seconds.labels(tool_id=tool_id).observe(duration)
+
+        # Métricas híbridas
+        self.execution_route_total.labels(route=execution_route, status=status).inc()
+
+        if execution_route == "mcp" and mcp_server:
+            self.mcp_server_executions_total.labels(
+                tool_id=tool_id,
+                mcp_server=mcp_server,
+                status=status
+            ).inc()
+        elif execution_route == "adapter" and adapter_type:
+            self.adapter_executions_total.labels(
+                tool_id=tool_id,
+                adapter_type=adapter_type,
+                status=status
+            ).inc()
 
     def record_feedback(self, tool_id: str, success: bool):
         """Record tool feedback."""
@@ -131,3 +204,24 @@ class MCPToolCatalogMetrics:
         """Update tool registry metrics."""
         self.registered_tools_total.labels(category=category).set(total)
         self.healthy_tools_total.labels(category=category).set(healthy)
+
+    def record_mcp_fallback(self, tool_id: str, reason: str):
+        """
+        Registra fallback de MCP para adapter local.
+
+        Args:
+            tool_id: ID da ferramenta
+            reason: Razão do fallback (circuit_breaker, timeout, error)
+        """
+        self.mcp_fallback_total.labels(tool_id=tool_id, reason=reason).inc()
+
+    def update_mcp_clients_status(self, connected: int, circuit_breakers_open: int = 0):
+        """
+        Atualiza status dos clientes MCP.
+
+        Args:
+            connected: Número de clientes MCP conectados
+            circuit_breakers_open: Número de circuit breakers abertos
+        """
+        self.mcp_clients_connected.set(connected)
+        self.mcp_circuit_breakers_open.set(circuit_breakers_open)

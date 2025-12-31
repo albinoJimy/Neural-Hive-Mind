@@ -1,3 +1,7 @@
+# Metadados para templates comuns
+component: "orchestrator-dynamic"
+layer: "orchestration"
+
 image:
   repository: 37.60.241.150:30500/orchestrator-dynamic
   tag: "1.2.0"
@@ -6,6 +10,14 @@ image:
 imagePullSecrets: []
 
 replicaCount: 2
+
+# Estratégia de deployment
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
 
 autoscaling:
   enabled: true
@@ -27,9 +39,21 @@ resources:
 
 service:
   type: ClusterIP
-  port: 8000
-  targetPort: 8000
   annotations: {}
+  ports:
+    http:
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+    metrics:
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+
+# Configuração de observabilidade para templates comuns
+observability:
+  prometheus:
+    enabled: true
 
 config:
   serviceName: orchestrator-dynamic
@@ -419,6 +443,32 @@ networkPolicy:
       - namespaceSelector:
           matchLabels:
             name: mongodb-cluster
+
+# Volumes para o container
+volumes:
+  - name: tmp
+    emptyDir: {}
+  - name: logs
+    emptyDir: {}
+
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+  - name: logs
+    mountPath: /app/logs
+
+# Segurança no nível do pod
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
 
 podAnnotations:
   prometheus.io/scrape: "true"

@@ -26,8 +26,7 @@ class KafkaResponseProducer:
         self.producer = AIOKafkaProducer(
             bootstrap_servers=self.bootstrap_servers,
             acks="all",
-            compression_type="snappy",
-            max_in_flight_requests_per_connection=5,
+            compression_type="gzip",
             enable_idempotence=True,
         )
         await self.producer.start()

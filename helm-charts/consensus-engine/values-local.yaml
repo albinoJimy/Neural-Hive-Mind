@@ -1,3 +1,10 @@
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
 # Local development values for consensus-engine
 # Override production values for local Kubernetes clusters
 
@@ -6,7 +13,7 @@ replicaCount: 1
 image:
   repository: 37.60.241.150:30500/consensus-engine
   pullPolicy: IfNotPresent
-  tag: "1.2.0"
+  tag: "latest"
 # Custom command for local development (single worker)
 customCommand:
   enabled: true
@@ -123,3 +130,7 @@ readinessProbe:
 # Force pods to node with insecure registry configured
 nodeSelector:
   kubernetes.io/hostname: vmi2911681
+
+observability:
+  prometheus:
+    enabled: false

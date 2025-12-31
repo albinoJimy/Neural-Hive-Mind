@@ -52,9 +52,8 @@ class ValidationProducer:
                 bootstrap_servers=self.bootstrap_servers,
                 value_serializer=lambda v: json.dumps(v).encode('utf-8'),
                 key_serializer=lambda k: k.encode('utf-8') if k else None,
-                acks='all',  # Garantir durabilidade
-                enable_idempotence=True,  # Evitar duplicatas
-                max_in_flight_requests_per_connection=5
+                acks='all',
+                enable_idempotence=True
             )
 
             await self.producer.start()

@@ -44,7 +44,7 @@ config:
 
   # Kafka configuration - no TLS/SASL for local
   kafka:
-    bootstrapServers: neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092
+    bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
     securityProtocol: PLAINTEXT
     enableSasl: false
     enableSsl: false
@@ -66,7 +66,7 @@ config:
 
   # Service Registry endpoint
   serviceRegistry:
-    endpoint: service-registry.service-registry.svc.cluster.local:50051
+    endpoint: service-registry.neural-hive.svc.cluster.local:50051
 
   # OpenTelemetry configuration - disabled for local
   openTelemetry:

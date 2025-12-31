@@ -1,62 +1,55 @@
 {{/*
-Expand the name of the chart.
+Service Registry - Helpers usando templates comuns do Neural Hive Mind
+*/}}
+
+{{/*
+Usa funções do template comum via dependência
 */}}
 {{- define "service-registry.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.name" . }}
 {{- end }}
 
-{{/*
-Create a default fully qualified app name.
-*/}}
 {{- define "service-registry.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
+{{- include "neural-hive.fullname" . }}
 {{- end }}
 
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
 {{- define "service-registry.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.chart" . }}
 {{- end }}
 
-{{/*
-Common labels
-*/}}
 {{- define "service-registry.labels" -}}
-helm.sh/chart: {{ include "service-registry.chart" . }}
-{{ include "service-registry.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/component: coordination
+{{- include "neural-hive.labels" (dict "context" . "component" "service-registry" "layer" "infrastructure") }}
 app.kubernetes.io/part-of: neural-hive-mind
+neural-hive.io/domain: service-discovery
 {{- end }}
 
-{{/*
-Selector labels
-*/}}
 {{- define "service-registry.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "service-registry.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+{{- include "neural-hive.selectorLabels" . }}
+{{- end }}
+
+{{- define "service-registry.serviceAccountName" -}}
+{{- include "neural-hive.serviceAccountName" . }}
+{{- end }}
+
+{{- define "service-registry.configMapName" -}}
+{{ include "service-registry.fullname" . }}-config
+{{- end }}
+
+{{- define "service-registry.secretName" -}}
+{{ include "service-registry.fullname" . }}-secrets
 {{- end }}
 
 {{/*
-Create the name of the service account to use
+Contexto para uso nos templates comuns
 */}}
-{{- define "service-registry.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "service-registry.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- define "service-registry.context" -}}
+fullname: {{ include "service-registry.fullname" . }}
+chartName: {{ .Chart.Name }}
+namespace: {{ .Release.Namespace }}
+appVersion: {{ .Chart.AppVersion }}
+labels:
+{{ include "service-registry.labels" . | indent 2 }}
+selectorLabels:
+{{ include "service-registry.selectorLabels" . | indent 2 }}
+serviceAccountName: {{ include "service-registry.serviceAccountName" . }}
 {{- end }}

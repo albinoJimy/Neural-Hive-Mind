@@ -13,7 +13,6 @@ from typing import Optional, Dict, Any, Callable, Union
 import inspect
 
 from opentelemetry import trace, context
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.resources import Resource
@@ -24,6 +23,7 @@ from opentelemetry.context import attach, detach
 
 from .config import ObservabilityConfig
 from .context import ContextManager
+from .exporters import ResilientOTLPSpanExporter, _sanitize_header_value
 
 logger = logging.getLogger(__name__)
 
@@ -58,15 +58,21 @@ def init_tracing(config: ObservabilityConfig) -> None:
     tracer_provider = TracerProvider(resource=resource)
     trace.set_tracer_provider(tracer_provider)
 
-    # Configurar exporter OTLP
+    # Configurar exporter OTLP com wrapper resiliente
     try:
-        otlp_exporter = OTLPSpanExporter(
+        # Sanitizar valores de headers para evitar bug do OpenTelemetry 1.39.1
+        # O bug causa TypeError durante formatação de strings com caracteres especiais
+        sanitized_headers = {
+            "X-Neural-Hive-Source": _sanitize_header_value(config.service_name),
+            "X-Neural-Hive-Component": _sanitize_header_value(config.neural_hive_component),
+        }
+
+        # Usar wrapper resiliente que captura exceções durante export
+        otlp_exporter = ResilientOTLPSpanExporter(
             endpoint=config.otel_endpoint,
+            service_name=config.service_name,
             insecure=True,  # TODO: Configurar TLS em produção
-            headers={
-                "X-Neural-Hive-Source": config.service_name,
-                "X-Neural-Hive-Component": config.neural_hive_component,
-            }
+            headers=sanitized_headers
         )
 
         # Adicionar batch processor
@@ -78,7 +84,10 @@ def init_tracing(config: ObservabilityConfig) -> None:
         )
         tracer_provider.add_span_processor(span_processor)
 
-        logger.info(f"Tracing inicializado para {config.service_name}")
+        logger.info(
+            f"Tracing inicializado para {config.service_name} "
+            f"com ResilientOTLPSpanExporter (endpoint: {config.otel_endpoint})"
+        )
     except Exception as e:
         logger.warning(f"Erro ao configurar OTLP exporter: {e}")
 

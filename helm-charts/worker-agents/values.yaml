@@ -1,9 +1,24 @@
+component: "worker-agents"
+layer: "execution"
+
 image:
   repository: 37.60.241.150:30500/worker-agents
-  tag: "1.0.0"
+  tag: "1.3.4"
   pullPolicy: IfNotPresent
 
 replicaCount: 3
+
+service:
+  type: ClusterIP
+  ports:
+    http:
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    metrics:
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
 
 autoscaling:
   enabled: true
@@ -35,11 +50,11 @@ config:
   maxConcurrentTasks: 5
 
   kafka:
-    bootstrapServers: kafka-bootstrap.kafka.svc.cluster.local:9092
+    bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
     ticketsTopic: execution.tickets
     resultsTopic: execution.results
     consumerGroupId: worker-agents
-    schemaRegistryUrl: http://schema-registry.neural-hive-kafka.svc.cluster.local:8081
+    schemaRegistryUrl: http://schema-registry.kafka.svc.cluster.local:8081
     securityProtocol: PLAINTEXT
     saslMechanism: SCRAM-SHA-512
     saslUsername: ""
@@ -50,7 +65,7 @@ config:
     schemasBasePath: /app/schemas
 
   serviceRegistry:
-    host: service-registry.neural-hive-registry.svc.cluster.local
+    host: service-registry.neural-hive.svc.cluster.local
     port: 50051
     heartbeatIntervalSeconds: 30
 
@@ -144,6 +159,23 @@ config:
       enabled: false
 
 securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  readOnlyRootFilesystem: true
+
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+observability:
+  prometheus:
+    enabled: true
+
+podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
   fsGroup: 1000

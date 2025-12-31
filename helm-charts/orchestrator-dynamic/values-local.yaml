@@ -1,12 +1,22 @@
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
 # Local development values for orchestrator-dynamic
 # Override production values for local Kubernetes clusters
 
 # Reduced replica count for local development
 replicaCount: 1
+# Desabilitar service links para evitar conflito de env vars do Kubernetes
+# (SERVICE_REGISTRY_PORT sendo setado como tcp://... em vez de int)
+enableServiceLinks: false
 image:
   pullPolicy: IfNotPresent
   repository: 37.60.241.150:30500/orchestrator-dynamic
-  tag: 1.2.0
+  tag: latest
 # Custom command for local development
 customCommand:
   enabled: true
@@ -144,11 +154,20 @@ secrets:
   kafkaSaslPassword: ""
   redisPassword: ""
 # Relaxed probes for local development
+# StartupProbe permite inicialização lenta (até 5 minutos)
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30
 livenessProbe:
   httpGet:
     path: /health
     port: 8000
-  initialDelaySeconds: 60
+  initialDelaySeconds: 10
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 3
@@ -156,7 +175,7 @@ readinessProbe:
   httpGet:
     path: /ready
     port: 8000
-  initialDelaySeconds: 30
+  initialDelaySeconds: 10
   periodSeconds: 5
   timeoutSeconds: 3
   failureThreshold: 3

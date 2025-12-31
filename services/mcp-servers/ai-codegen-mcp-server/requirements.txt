@@ -1,0 +1,22 @@
+# FastMCP - Framework oficial para MCP Servers
+fastmcp>=0.2.0
+
+# FastAPI e servidor ASGI
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+
+# Validação e configuração
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# Logging estruturado
+structlog>=24.1.0
+
+# Métricas Prometheus
+prometheus-client>=0.19.0
+
+# Cliente HTTP async
+aiohttp>=3.9.0
+
+# OpenAI SDK (opcional, usa aiohttp diretamente)
+openai>=1.10.0

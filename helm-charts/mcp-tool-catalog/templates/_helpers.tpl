@@ -1,60 +1,55 @@
 {{/*
-Expand the name of the chart.
+MCP Tool Catalog - Helpers usando templates comuns do Neural Hive Mind
+*/}}
+
+{{/*
+Usa funções do template comum via dependência
 */}}
 {{- define "mcp-tool-catalog.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.name" . }}
 {{- end }}
 
-{{/*
-Create a default fully qualified app name.
-*/}}
 {{- define "mcp-tool-catalog.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
+{{- include "neural-hive.fullname" . }}
 {{- end }}
 
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
 {{- define "mcp-tool-catalog.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.chart" . }}
 {{- end }}
 
-{{/*
-Common labels
-*/}}
 {{- define "mcp-tool-catalog.labels" -}}
-helm.sh/chart: {{ include "mcp-tool-catalog.chart" . }}
-{{ include "mcp-tool-catalog.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- include "neural-hive.labels" (dict "context" . "component" "mcp-tool-catalog" "layer" "infrastructure") }}
+app.kubernetes.io/part-of: neural-hive-mind
+neural-hive.io/domain: tool-management
 {{- end }}
 
-{{/*
-Selector labels
-*/}}
 {{- define "mcp-tool-catalog.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "mcp-tool-catalog.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+{{- include "neural-hive.selectorLabels" . }}
+{{- end }}
+
+{{- define "mcp-tool-catalog.serviceAccountName" -}}
+{{- include "neural-hive.serviceAccountName" . }}
+{{- end }}
+
+{{- define "mcp-tool-catalog.configMapName" -}}
+{{ include "mcp-tool-catalog.fullname" . }}-config
+{{- end }}
+
+{{- define "mcp-tool-catalog.secretName" -}}
+{{ include "mcp-tool-catalog.fullname" . }}-secrets
 {{- end }}
 
 {{/*
-Create the name of the service account to use
+Contexto para uso nos templates comuns
 */}}
-{{- define "mcp-tool-catalog.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "mcp-tool-catalog.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- define "mcp-tool-catalog.context" -}}
+fullname: {{ include "mcp-tool-catalog.fullname" . }}
+chartName: {{ .Chart.Name }}
+namespace: {{ .Release.Namespace }}
+appVersion: {{ .Chart.AppVersion }}
+labels:
+{{ include "mcp-tool-catalog.labels" . | indent 2 }}
+selectorLabels:
+{{ include "mcp-tool-catalog.selectorLabels" . | indent 2 }}
+serviceAccountName: {{ include "mcp-tool-catalog.serviceAccountName" . }}
 {{- end }}

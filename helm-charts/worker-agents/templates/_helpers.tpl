@@ -1,69 +1,55 @@
 {{/*
-Expand the name of the chart.
+Worker Agents - Helpers usando templates comuns do Neural Hive Mind
+*/}}
+
+{{/*
+Usa funções do template comum via dependência
 */}}
 {{- define "worker-agents.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.name" . }}
 {{- end }}
 
-{{/*
-Create a default fully qualified app name.
-*/}}
 {{- define "worker-agents.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
+{{- include "neural-hive.fullname" . }}
 {{- end }}
 
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
 {{- define "worker-agents.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.chart" . }}
 {{- end }}
 
-{{/*
-Common labels
-*/}}
 {{- define "worker-agents.labels" -}}
-helm.sh/chart: {{ include "worker-agents.chart" . }}
-{{ include "worker-agents.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-neural-hive.io/component: execution
-neural-hive.io/phase: phase-2
+{{- include "neural-hive.labels" (dict "context" . "component" "worker-agents" "layer" "execution") }}
+app.kubernetes.io/part-of: neural-hive-mind
+neural-hive.io/domain: task-execution
 {{- end }}
 
-{{/*
-Selector labels
-*/}}
 {{- define "worker-agents.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "worker-agents.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+{{- include "neural-hive.selectorLabels" . }}
 {{- end }}
 
-{{/*
-Create the name of the service account to use
-*/}}
 {{- define "worker-agents.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "worker-agents.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- include "neural-hive.serviceAccountName" . }}
 {{- end }}
 
-{{/*
-Create Secret name
-*/}}
+{{- define "worker-agents.configMapName" -}}
+{{ include "worker-agents.fullname" . }}-config
+{{- end }}
+
 {{- define "worker-agents.secretName" -}}
 {{ include "worker-agents.fullname" . }}-secrets
+{{- end }}
+
+{{/*
+Contexto para uso nos templates comuns
+*/}}
+{{- define "worker-agents.context" -}}
+fullname: {{ include "worker-agents.fullname" . }}
+chartName: {{ .Chart.Name }}
+namespace: {{ .Release.Namespace }}
+appVersion: {{ .Chart.AppVersion }}
+labels:
+{{ include "worker-agents.labels" . | indent 2 }}
+selectorLabels:
+{{ include "worker-agents.selectorLabels" . | indent 2 }}
+serviceAccountName: {{ include "worker-agents.serviceAccountName" . }}
 {{- end }}

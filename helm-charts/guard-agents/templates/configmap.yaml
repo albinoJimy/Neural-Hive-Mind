@@ -1,60 +1,44 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "guard-agents.fullname" . }}
+  name: {{ include "guard-agents.fullname" . }}-config
   labels:
     {{- include "guard-agents.labels" . | nindent 4 }}
 data:
-  SERVICE__NAME: {{ .Values.config.serviceName | quote }}
+  SERVICE_NAME: {{ .Values.config.serviceName | quote }}
+  SERVICE_VERSION: {{ .Values.image.tag | default .Chart.AppVersion | quote }}
+  ENVIRONMENT: {{ .Values.config.environment | default "production" | quote }}
+  LOG_LEVEL: {{ .Values.config.observability.logLevel | default "INFO" | quote }}
 
-  KAFKA__BOOTSTRAP_SERVERS: {{ .Values.config.kafka.bootstrapServers | quote }}
-  KAFKA__INCIDENTS_TOPIC: {{ .Values.config.kafka.incidentsTopic | quote }}
-  KAFKA__ORCHESTRATION_INCIDENTS_TOPIC: {{ .Values.config.kafka.orchestrationIncidentsTopic | quote }}
-  KAFKA__REMEDIATION_TOPIC: {{ .Values.config.kafka.remediationTopic | quote }}
-  KAFKA__CONSUMER_GROUP_ID: {{ .Values.config.kafka.consumerGroupId | quote }}
+  KAFKA_BOOTSTRAP_SERVERS: {{ .Values.config.kafka.bootstrapServers | quote }}
+  KAFKA_CONSUMER_GROUP: {{ .Values.config.kafka.consumerGroupId | quote }}
+  KAFKA_INCIDENTS_TOPIC: {{ .Values.config.kafka.incidentsTopic | quote }}
+  KAFKA_ORCHESTRATION_INCIDENTS_TOPIC: {{ .Values.config.kafka.orchestrationIncidentsTopic | quote }}
+  KAFKA_REMEDIATION_TOPIC: {{ .Values.config.kafka.remediationTopic | quote }}
 
-  SERVICE_REGISTRY__HOST: {{ .Values.config.serviceRegistry.host | quote }}
-  SERVICE_REGISTRY__PORT: {{ .Values.config.serviceRegistry.port | quote }}
-  SERVICE_REGISTRY__HEARTBEAT_INTERVAL_SECONDS: {{ .Values.config.serviceRegistry.heartbeatIntervalSeconds | quote }}
-  SERVICE_REGISTRY__CAPABILITIES: {{ .Values.config.serviceRegistry.capabilities | join "," | quote }}
+  SERVICE_REGISTRY_GRPC_HOST: {{ .Values.config.serviceRegistry.host | quote }}
+  SERVICE_REGISTRY_GRPC_PORT: {{ .Values.config.serviceRegistry.port | quote }}
+  HEARTBEAT_INTERVAL_SECONDS: {{ .Values.config.serviceRegistry.heartbeatIntervalSeconds | quote }}
 
-  MONGODB__URI: {{ .Values.config.mongodb.uri | quote }}
-  MONGODB__DATABASE: {{ .Values.config.mongodb.database | quote }}
-  MONGODB__INCIDENTS_COLLECTION: {{ .Values.config.mongodb.incidentsCollection | quote }}
-  MONGODB__REMEDIATION_COLLECTION: {{ .Values.config.mongodb.remediationCollection | quote }}
+  MONGODB_URI: {{ .Values.config.mongodb.uri | quote }}
+  MONGODB_DATABASE: {{ .Values.config.mongodb.database | quote }}
+  MONGODB_INCIDENTS_COLLECTION: {{ .Values.config.mongodb.incidentsCollection | quote }}
+  MONGODB_REMEDIATION_COLLECTION: {{ .Values.config.mongodb.remediationCollection | quote }}
 
-  REDIS__HOST: {{ .Values.config.redis.host | quote }}
-  REDIS__PORT: {{ .Values.config.redis.port | quote }}
-  REDIS__DB: {{ .Values.config.redis.db | quote }}
+  REDIS_HOST: {{ .Values.config.redis.host | quote }}
+  REDIS_PORT: {{ .Values.config.redis.port | quote }}
+  REDIS_DB: {{ .Values.config.redis.db | quote }}
 
-  PROMETHEUS__URL: {{ .Values.config.prometheus.url | quote }}
-  PROMETHEUS__QUERY_TIMEOUT_SECONDS: {{ .Values.config.prometheus.queryTimeoutSeconds | quote }}
+  PROMETHEUS_URL: {{ .Values.config.prometheus.url | quote }}
+  PROMETHEUS_QUERY_TIMEOUT_SECONDS: {{ .Values.config.prometheus.queryTimeoutSeconds | quote }}
 
-  ALERTMANAGER__URL: {{ .Values.config.alertmanager.url | quote }}
-  ALERTMANAGER__WEBHOOK_ENABLED: {{ .Values.config.alertmanager.webhookEnabled | quote }}
+  ALERTMANAGER_URL: {{ .Values.config.alertmanager.url | quote }}
+  ALERTMANAGER_WEBHOOK_ENABLED: {{ .Values.config.alertmanager.webhookEnabled | quote }}
 
-  KUBERNETES__IN_CLUSTER: {{ .Values.config.kubernetes.inCluster | quote }}
-  KUBERNETES__NAMESPACE: {{ .Values.config.kubernetes.namespace | quote }}
+  SELF_HEALING_ENGINE_URL: {{ .Values.config.selfHealingEngine.url | quote }}
+  SELF_HEALING_ENGINE_GRPC_HOST: {{ .Values.config.selfHealingEngine.grpcHost | quote }}
+  SELF_HEALING_ENGINE_GRPC_PORT: {{ .Values.config.selfHealingEngine.grpcPort | quote }}
 
-  SELF_HEALING_ENGINE__URL: {{ .Values.config.selfHealingEngine.url | quote }}
-  SELF_HEALING_ENGINE__GRPC_HOST: {{ .Values.config.selfHealingEngine.grpcHost | quote }}
-  SELF_HEALING_ENGINE__GRPC_PORT: {{ .Values.config.selfHealingEngine.grpcPort | quote }}
-
-  DETECTION__MTTD_TARGET_SECONDS: {{ .Values.config.detection.mttdTargetSeconds | quote }}
-  DETECTION__MTTR_TARGET_SECONDS: {{ .Values.config.detection.mttrTargetSeconds | quote }}
-  DETECTION__ANOMALY_THRESHOLD: {{ .Values.config.detection.anomalyThreshold | quote }}
-  DETECTION__FALSE_POSITIVE_THRESHOLD: {{ .Values.config.detection.falsePositiveThreshold | quote }}
-
-  ENFORCEMENT__OPA_ENABLED: {{ .Values.config.enforcement.opaEnabled | quote }}
-  ENFORCEMENT__ISTIO_ENABLED: {{ .Values.config.enforcement.istioEnabled | quote }}
-  ENFORCEMENT__AUTO_REMEDIATION_ENABLED: {{ .Values.config.enforcement.autoRemediationEnabled | quote }}
-  ENFORCEMENT__MANUAL_APPROVAL_REQUIRED_FOR_CRITICAL: {{ .Values.config.enforcement.manualApprovalRequiredForCritical | quote }}
-
-  OBSERVABILITY__OTEL_ENDPOINT: {{ .Values.config.observability.otelEndpoint | quote }}
-  OBSERVABILITY__PROMETHEUS_PORT: {{ .Values.config.observability.prometheusPort | quote }}
-  OBSERVABILITY__HTTP_PORT: {{ .Values.config.observability.httpPort | quote }}
-  OBSERVABILITY__GRPC_PORT: {{ .Values.config.observability.grpcPort | quote }}
-  OBSERVABILITY__LOG_LEVEL: {{ .Values.config.observability.logLevel | quote }}
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.observability.otelEndpoint | quote }}
   OTEL_SERVICE_NAME: {{ .Values.config.serviceName | quote }}
-  OTEL_RESOURCE_ATTRIBUTES: "service.version={{ .Values.image.tag | default .Chart.AppVersion }},deployment.environment={{ .Values.config.environment | default \"production\" }}"
+  OTEL_RESOURCE_ATTRIBUTES: {{ printf "service.version=%s,deployment.environment=%s" (.Values.image.tag | default .Chart.AppVersion) (.Values.config.environment | default "production") | quote }}

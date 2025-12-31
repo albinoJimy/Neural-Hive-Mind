@@ -3,7 +3,7 @@ import signal
 import grpc
 import structlog
 from grpc_health.v1 import health, health_pb2, health_pb2_grpc
-from neural_hive_observability import init_observability, create_instrumented_grpc_server, ObservabilityConfig
+from neural_hive_observability import init_observability, create_instrumented_async_grpc_server, ObservabilityConfig
 
 from src.config import get_settings
 from src.clients import EtcdClient, PheromoneClient
@@ -161,10 +161,9 @@ class ServiceRegistryServer:
             prometheus_port=self.settings.METRICS_PORT
         )
 
-        # Iniciar servidor gRPC
-        self.server = create_instrumented_grpc_server(
+        # Iniciar servidor gRPC async
+        self.server = create_instrumented_async_grpc_server(
             config=otel_config,
-            max_workers=10,
             interceptors=interceptors if interceptors else None
         )
 
@@ -200,8 +199,8 @@ class ServiceRegistryServer:
         # Inicializar
         await self.initialize()
 
-        # Iniciar servidor gRPC (síncrono)
-        self.server.start()
+        # Iniciar servidor gRPC async
+        await self.server.start()
 
         # Iniciar health check manager
         await self.health_check_manager.start()
@@ -223,9 +222,9 @@ class ServiceRegistryServer:
         if self.health_check_manager:
             await self.health_check_manager.stop()
 
-        # Parar servidor gRPC (síncrono)
+        # Parar servidor gRPC async
         if self.server:
-            self.server.stop(grace=5)
+            await self.server.stop(grace=5)
 
         # Fechar SPIFFE manager
         if self.spiffe_manager:

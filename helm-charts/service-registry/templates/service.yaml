@@ -1,23 +1,2 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ include "service-registry.fullname" . }}
-  labels:
-    {{- include "service-registry.labels" . | nindent 4 }}
-  annotations:
-    prometheus.io/scrape: "true"
-    prometheus.io/port: "9090"
-    prometheus.io/path: "/metrics"
-spec:
-  type: {{ .Values.service.type }}
-  ports:
-    - port: 50051
-      targetPort: grpc
-      protocol: TCP
-      name: grpc
-    - port: 9090
-      targetPort: metrics
-      protocol: TCP
-      name: metrics
-  selector:
-    {{- include "service-registry.selectorLabels" . | nindent 4 }}
+{{- $ctx := include "service-registry.context" . | fromYaml }}
+{{- include "neural-hive.service" (dict "values" .Values "context" $ctx) }}

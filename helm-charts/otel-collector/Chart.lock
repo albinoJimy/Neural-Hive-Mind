@@ -1,0 +1,9 @@
+dependencies:
+- name: common-templates
+  repository: file://../common-templates
+  version: 0.1.0
+- name: opentelemetry-collector
+  repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+  version: 0.66.0
+digest: sha256:2daf0f64e451f6454ac8d0b566ce50668b7640762c64b39ab648f0a5fbadb1c7
+generated: "2025-12-29T10:00:25.766243362+01:00"

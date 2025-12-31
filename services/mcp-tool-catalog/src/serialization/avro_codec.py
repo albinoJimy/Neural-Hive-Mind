@@ -29,12 +29,18 @@ class AvroCodec:
         Args:
             schema_registry_path: Caminho para diretório de schemas (opcional)
         """
-        # Calcular caminho para repo root: src/serialization -> src -> mcp-tool-catalog -> services -> repo root
+        # Calcular caminho para schemas - prioriza variável de ambiente
         if schema_registry_path is None:
-            # __file__ resolve: .../services/mcp-tool-catalog/src/serialization/avro_codec.py
-            # parents[4] = repo root
-            repo_root = Path(__file__).resolve().parents[4]
-            schema_registry_path = os.environ.get('SCHEMAS_DIR', str(repo_root / "schemas"))
+            schema_registry_path = os.environ.get('SCHEMAS_DIR')
+            if schema_registry_path is None:
+                # Fallback: calcular caminho relativo ao arquivo
+                # __file__ resolve: .../services/mcp-tool-catalog/src/serialization/avro_codec.py
+                try:
+                    repo_root = Path(__file__).resolve().parents[4]
+                    schema_registry_path = str(repo_root / "schemas")
+                except IndexError:
+                    # Em container, estrutura é diferente - usar /app/schemas como fallback
+                    schema_registry_path = "/app/schemas"
 
         self.schema_registry_path = Path(schema_registry_path)
         self.schemas: Dict[str, any] = {}

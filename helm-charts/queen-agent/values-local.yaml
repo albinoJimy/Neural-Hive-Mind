@@ -1,0 +1,48 @@
+# Local values for queen-agent
+image:
+  repository: 37.60.241.150:30500/queen-agent
+  tag: "1.2.8"
+  pullPolicy: Always
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+config:
+  mongodb:
+    uri: mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin
+    database: neural_hive
+    ledgerCollection: strategic_decisions_ledger
+    exceptionsCollection: exception_approvals
+
+  redis:
+    clusterNodes: neural-hive-cache.redis-cluster.svc.cluster.local:6379
+    password: ""
+    sslEnabled: false
+
+  neo4j:
+    uri: bolt://neo4j.neo4j-cluster.svc.cluster.local:7687
+    user: neo4j
+    password: local_dev_password
+
+  kafka:
+    bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
+
+  observability:
+    otelExporterEndpoint: http://otel-collector.observability.svc.cluster.local:4317
+    prometheusPort: 9090
+
+  orchestrator:
+    grpcHost: orchestrator-dynamic.neural-hive.svc.cluster.local
+    grpcPort: 50051
+
+  serviceRegistry:
+    grpcHost: service-registry.neural-hive.svc.cluster.local
+    grpcPort: 50051
+
+  prometheus:
+    url: http://neural-hive-prometheus-kub-prometheus.observability.svc.cluster.local:9090

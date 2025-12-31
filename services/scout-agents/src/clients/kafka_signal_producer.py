@@ -26,9 +26,8 @@ class KafkaSignalProducer:
             self.producer = AIOKafkaProducer(
                 bootstrap_servers=self.settings.kafka.bootstrap_servers,
                 value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-                compression_type='snappy',
+                compression_type='gzip',
                 acks='all',
-                max_in_flight_requests_per_connection=5,
                 enable_idempotence=True  # Handles retries automatically
             )
 

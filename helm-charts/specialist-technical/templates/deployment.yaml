@@ -6,39 +6,40 @@ Construir lista de env vars para o deployment
 */}}
 {{- $envVars := list }}
 
-{{- $envVars = append $envVars (dict "name" "ENVIRONMENT" "value" (.Values.config.environment | quote)) }}
-{{- $envVars = append $envVars (dict "name" "LOG_LEVEL" "value" (.Values.config.logLevel | quote)) }}
-{{- $envVars = append $envVars (dict "name" "ENABLE_JWT_AUTH" "value" (ternary "true" "false" .Values.config.enableJwtAuth | quote)) }}
+{{- $envVars = append $envVars (dict "name" "ENVIRONMENT" "value" .Values.config.environment) }}
+{{- $envVars = append $envVars (dict "name" "LOG_LEVEL" "value" .Values.config.logLevel) }}
+{{- $envVars = append $envVars (dict "name" "ENABLE_JWT_AUTH" "value" (ternary "true" "false" .Values.config.enableJwtAuth)) }}
 
 {{- if .Values.secrets.jwtSecretKey }}
 {{- $envVars = append $envVars (dict "name" "JWT_SECRET_KEY" "valueFrom" (dict "secretKeyRef" (dict "name" (include "specialist-technical.secretName" .) "key" "jwt_secret_key"))) }}
 {{- end }}
 
 {{- $envVars = append $envVars (dict "name" "ENABLE_PII_DETECTION" "value" "false") }}
-{{- $envVars = append $envVars (dict "name" "MLFLOW_TRACKING_URI" "value" (.Values.config.mlflow.trackingUri | quote)) }}
-{{- $envVars = append $envVars (dict "name" "MLFLOW_EXPERIMENT_NAME" "value" (.Values.config.mlflow.experimentName | quote)) }}
-{{- $envVars = append $envVars (dict "name" "MLFLOW_MODEL_NAME" "value" (.Values.config.mlflow.modelName | quote)) }}
-{{- $envVars = append $envVars (dict "name" "MLFLOW_MODEL_STAGE" "value" (.Values.config.mlflow.modelStage | quote)) }}
+{{- $envVars = append $envVars (dict "name" "MLFLOW_TRACKING_URI" "value" .Values.config.mlflow.trackingUri) }}
+{{- $envVars = append $envVars (dict "name" "MLFLOW_EXPERIMENT_NAME" "value" .Values.config.mlflow.experimentName) }}
+{{- $envVars = append $envVars (dict "name" "MLFLOW_MODEL_NAME" "value" .Values.config.mlflow.modelName) }}
+{{- $envVars = append $envVars (dict "name" "MLFLOW_MODEL_STAGE" "value" .Values.config.mlflow.modelStage) }}
 {{- $envVars = append $envVars (dict "name" "MONGODB_URI" "valueFrom" (dict "secretKeyRef" (dict "name" (include "specialist-technical.secretName" .) "key" "mongodb_uri"))) }}
-{{- $envVars = append $envVars (dict "name" "MONGODB_DATABASE" "value" (.Values.config.mongodb.database | quote)) }}
-{{- $envVars = append $envVars (dict "name" "NEO4J_URI" "value" (.Values.config.neo4j.uri | quote)) }}
-{{- $envVars = append $envVars (dict "name" "NEO4J_USER" "value" (.Values.config.neo4j.user | quote)) }}
+{{- $envVars = append $envVars (dict "name" "MONGODB_DATABASE" "value" .Values.config.mongodb.database) }}
+{{- $envVars = append $envVars (dict "name" "NEO4J_URI" "value" .Values.config.neo4j.uri) }}
+{{- $envVars = append $envVars (dict "name" "NEO4J_USER" "value" .Values.config.neo4j.user) }}
 {{- $envVars = append $envVars (dict "name" "NEO4J_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" (include "specialist-technical.secretName" .) "key" "neo4j_password"))) }}
-{{- $envVars = append $envVars (dict "name" "NEO4J_DATABASE" "value" (.Values.config.neo4j.database | quote)) }}
-{{- $envVars = append $envVars (dict "name" "REDIS_CLUSTER_NODES" "value" (.Values.config.redis.clusterNodes | quote)) }}
-{{- $envVars = append $envVars (dict "name" "REDIS_SSL_ENABLED" "value" (.Values.config.redis.sslEnabled | toString | quote)) }}
-{{- $envVars = append $envVars (dict "name" "OTEL_EXPORTER_OTLP_ENDPOINT" "value" (.Values.config.otel.endpoint | quote)) }}
-{{- $envVars = append $envVars (dict "name" "GRPC_PORT" "value" (.Values.config.grpc.port | toString | quote)) }}
-{{- $envVars = append $envVars (dict "name" "HTTP_PORT" "value" (.Values.config.http.port | toString | quote)) }}
-{{- $envVars = append $envVars (dict "name" "PROMETHEUS_PORT" "value" (.Values.config.prometheus.port | toString | quote)) }}
-{{- $envVars = append $envVars (dict "name" "ENABLE_LEDGER" "value" (default "true" .Values.config.enableLedger | toString | quote)) }}
-{{- $envVars = append $envVars (dict "name" "LEDGER_REQUIRED" "value" (default "false" .Values.config.ledgerRequired | toString | quote)) }}
-{{- $envVars = append $envVars (dict "name" "LEDGER_INIT_RETRY_ATTEMPTS" "value" (default "5" .Values.config.ledgerInitRetryAttempts | toString | quote)) }}
-{{- $envVars = append $envVars (dict "name" "LEDGER_INIT_RETRY_MAX_WAIT_SECONDS" "value" (default "30" .Values.config.ledgerInitRetryMaxWaitSeconds | toString | quote)) }}
-{{- $envVars = append $envVars (dict "name" "STARTUP_SKIP_WARMUP_ON_DEPENDENCY_FAILURE" "value" (default "true" .Values.config.startupSkipWarmupOnDependencyFailure | toString | quote)) }}
-{{- $envVars = append $envVars (dict "name" "STARTUP_DEPENDENCY_CHECK_TIMEOUT_SECONDS" "value" (default "10" .Values.config.startupDependencyCheckTimeoutSeconds | toString | quote)) }}
-{{- $envVars = append $envVars (dict "name" "ENABLE_TRACING" "value" (default "true" .Values.config.features.enableTracing | toString | quote)) }}
-{{- $envVars = append $envVars (dict "name" "USE_SEMANTIC_FALLBACK" "value" (default "true" .Values.config.features.useSemanticFallback | toString | quote)) }}
+{{- $envVars = append $envVars (dict "name" "NEO4J_DATABASE" "value" .Values.config.neo4j.database) }}
+{{- $envVars = append $envVars (dict "name" "REDIS_CLUSTER_NODES" "value" .Values.config.redis.clusterNodes) }}
+{{- $envVars = append $envVars (dict "name" "REDIS_SSL_ENABLED" "value" (.Values.config.redis.sslEnabled | toString)) }}
+{{- $envVars = append $envVars (dict "name" "OTEL_EXPORTER_OTLP_ENDPOINT" "value" .Values.config.otel.endpoint) }}
+{{- $envVars = append $envVars (dict "name" "GRPC_PORT" "value" (.Values.config.grpc.port | toString)) }}
+{{- $envVars = append $envVars (dict "name" "HTTP_PORT" "value" (.Values.config.http.port | toString)) }}
+{{- $envVars = append $envVars (dict "name" "PROMETHEUS_PORT" "value" (.Values.config.prometheus.port | toString)) }}
+{{- $envVars = append $envVars (dict "name" "ENABLE_LEDGER" "value" (default "true" .Values.config.enableLedger | toString)) }}
+{{- $envVars = append $envVars (dict "name" "LEDGER_REQUIRED" "value" (default "false" .Values.config.ledgerRequired | toString)) }}
+{{- $envVars = append $envVars (dict "name" "LEDGER_INIT_RETRY_ATTEMPTS" "value" (default "5" .Values.config.ledgerInitRetryAttempts | toString)) }}
+{{- $envVars = append $envVars (dict "name" "LEDGER_INIT_RETRY_MAX_WAIT_SECONDS" "value" (default "30" .Values.config.ledgerInitRetryMaxWaitSeconds | toString)) }}
+{{- $envVars = append $envVars (dict "name" "MODEL_REQUIRED" "value" (default "true" .Values.config.modelRequired | toString)) }}
+{{- $envVars = append $envVars (dict "name" "STARTUP_SKIP_WARMUP_ON_DEPENDENCY_FAILURE" "value" (default "true" .Values.config.startupSkipWarmupOnDependencyFailure | toString)) }}
+{{- $envVars = append $envVars (dict "name" "STARTUP_DEPENDENCY_CHECK_TIMEOUT_SECONDS" "value" (default "10" .Values.config.startupDependencyCheckTimeoutSeconds | toString)) }}
+{{- $envVars = append $envVars (dict "name" "ENABLE_TRACING" "value" (default "true" .Values.config.features.enableTracing | toString)) }}
+{{- $envVars = append $envVars (dict "name" "USE_SEMANTIC_FALLBACK" "value" (default "true" .Values.config.features.useSemanticFallback | toString)) }}
 
 {{/*
 Construir volumes e volumeMounts

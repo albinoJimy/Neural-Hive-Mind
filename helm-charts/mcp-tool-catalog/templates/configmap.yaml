@@ -1,19 +1,24 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "mcp-tool-catalog.fullname" . }}
+  name: {{ include "mcp-tool-catalog.fullname" . }}-config
   labels:
     {{- include "mcp-tool-catalog.labels" . | nindent 4 }}
 data:
   SERVICE_NAME: "mcp-tool-catalog"
-  HTTP_PORT: {{ .Values.service.httpPort | quote }}
-  METRICS_PORT: {{ .Values.service.metricsPort | quote }}
+  HTTP_PORT: {{ .Values.service.httpPort | default 8080 | quote }}
+  METRICS_PORT: {{ .Values.service.metricsPort | default 9091 | quote }}
   KAFKA_BOOTSTRAP_SERVERS: {{ .Values.kafka.bootstrapServers | quote }}
   KAFKA_TOOL_SELECTION_REQUEST_TOPIC: {{ .Values.kafka.requestTopic | quote }}
   KAFKA_TOOL_SELECTION_RESPONSE_TOPIC: {{ .Values.kafka.responseTopic | quote }}
   KAFKA_CONSUMER_GROUP_ID: {{ .Values.kafka.consumerGroupId | quote }}
+  MONGODB_URL: {{ .Values.mongodb.url | quote }}
   MONGODB_DATABASE: {{ .Values.mongodb.database | quote }}
+  REDIS_URL: {{ .Values.redis.url | quote }}
   CACHE_TTL_SECONDS: {{ .Values.redis.cacheTtl | quote }}
+  SERVICE_REGISTRY_GRPC_HOST: {{ .Values.serviceRegistry.grpcHost | default "service-registry.neural-hive.svc.cluster.local" | quote }}
+  SERVICE_REGISTRY_GRPC_PORT: {{ .Values.serviceRegistry.grpcPort | default 50051 | quote }}
+  HEARTBEAT_INTERVAL_SECONDS: {{ .Values.serviceRegistry.heartbeatInterval | default 30 | quote }}
   GA_POPULATION_SIZE: {{ .Values.geneticAlgorithm.populationSize | quote }}
   GA_MAX_GENERATIONS: {{ .Values.geneticAlgorithm.maxGenerations | quote }}
   GA_CROSSOVER_PROB: {{ .Values.geneticAlgorithm.crossoverProb | quote }}
@@ -24,4 +29,41 @@ data:
   LOG_LEVEL: {{ .Values.observability.logLevel | quote }}
   LOG_FORMAT: {{ .Values.observability.logFormat | quote }}
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.observability.otelEndpoint | quote }}
-  HEARTBEAT_INTERVAL_SECONDS: {{ .Values.serviceRegistry.heartbeatInterval | quote }}
+  # Tool Execution Configuration
+  TOOL_EXECUTION_TIMEOUT_SECONDS: {{ .Values.toolExecution.timeout | default 300 | quote }}
+  MAX_CONCURRENT_TOOL_EXECUTIONS: {{ .Values.toolExecution.maxConcurrent | default 10 | quote }}
+  TOOL_RETRY_MAX_ATTEMPTS: {{ .Values.toolExecution.retryMaxAttempts | default 3 | quote }}
+  # MCP Server Configuration (Arquitetura Híbrida)
+  MCP_SERVERS: {{ .Values.mcpServers | toJson | quote }}
+  MCP_SERVER_TIMEOUT_SECONDS: {{ .Values.mcpServerConfig.timeoutSeconds | default 30 | quote }}
+  MCP_SERVER_MAX_RETRIES: {{ .Values.mcpServerConfig.maxRetries | default 3 | quote }}
+  MCP_SERVER_CIRCUIT_BREAKER_THRESHOLD: {{ .Values.mcpServerConfig.circuitBreakerThreshold | default 5 | quote }}
+  MCP_SERVER_CIRCUIT_BREAKER_TIMEOUT_SECONDS: {{ .Values.mcpServerConfig.circuitBreakerTimeoutSeconds | default 60 | quote }}
+  # ========================================
+  # Tool Endpoints Configuration
+  # ========================================
+  # ANALYSIS Tools
+  SONARQUBE_URL: {{ .Values.toolEndpoints.sonarqube.url | default "http://sonarqube:9000/api" | quote }}
+  CHECKMARX_URL: {{ .Values.toolEndpoints.checkmarx.url | default "https://checkmarx.example.com/api" | quote }}
+  VERACODE_URL: {{ .Values.toolEndpoints.veracode.url | default "https://analysiscenter.veracode.com/api" | quote }}
+  FORTIFY_URL: {{ .Values.toolEndpoints.fortify.url | default "https://fortify.example.com/api" | quote }}
+  # GENERATION Tools
+  GITHUB_COPILOT_URL: {{ .Values.toolEndpoints.githubCopilot.url | default "https://api.github.com/copilot" | quote }}
+  SPRING_INITIALIZR_URL: {{ .Values.toolEndpoints.springInitializr.url | default "https://start.spring.io" | quote }}
+  OPENAI_CODEX_URL: {{ .Values.toolEndpoints.openaiCodex.url | default "https://api.openai.com/v1" | quote }}
+  # VALIDATION Tools
+  BURP_SUITE_URL: {{ .Values.toolEndpoints.burpSuite.url | default "http://burpsuite:8080" | quote }}
+  # AUTOMATION Tools
+  GITHUB_ACTIONS_URL: {{ .Values.toolEndpoints.githubActions.url | default "https://api.github.com" | quote }}
+  ARGOCD_URL: {{ .Values.toolEndpoints.argocd.url | default "http://argocd-server:80/api" | quote }}
+  GITLAB_CI_URL: {{ .Values.toolEndpoints.gitlabCi.url | default "https://gitlab.com/api/v4" | quote }}
+  JENKINS_URL: {{ .Values.toolEndpoints.jenkins.url | default "http://jenkins:8080" | quote }}
+  CIRCLECI_URL: {{ .Values.toolEndpoints.circleci.url | default "https://circleci.com/api/v2" | quote }}
+  TRAVIS_CI_URL: {{ .Values.toolEndpoints.travisCi.url | default "https://api.travis-ci.com" | quote }}
+  # INTEGRATION Tools
+  KAFKA_CONNECT_URL: {{ .Values.toolEndpoints.kafkaConnect.url | default "http://kafka-connect:8083" | quote }}
+  AIRFLOW_URL: {{ .Values.toolEndpoints.airflow.url | default "http://airflow-webserver:8080/api/v1" | quote }}
+  MULESOFT_URL: {{ .Values.toolEndpoints.mulesoft.url | default "https://anypoint.mulesoft.com/api" | quote }}
+  AWS_EVENTBRIDGE_URL: {{ .Values.toolEndpoints.awsEventBridge.url | default "https://events.amazonaws.com" | quote }}
+  AZURE_LOGIC_APPS_URL: {{ .Values.toolEndpoints.azureLogicApps.url | default "https://management.azure.com" | quote }}
+  GOOGLE_WORKFLOWS_URL: {{ .Values.toolEndpoints.googleWorkflows.url | default "https://workflowexecutions.googleapis.com" | quote }}

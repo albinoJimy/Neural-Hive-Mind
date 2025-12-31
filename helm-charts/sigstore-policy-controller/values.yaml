@@ -1,4 +1,6 @@
-# Configuração padrão do Sigstore Policy Controller
+# Metadados para templates comuns
+component: "policy-controller"
+layer: "security"
 
 # Configurações da imagem
 image:
@@ -18,7 +20,6 @@ serviceAccount:
   create: true
   name: policy-controller
   annotations:
-    # IRSA annotation para workload identity
     eks.amazonaws.com/role-arn: ""
 
 # Recursos
@@ -32,6 +33,35 @@ resources:
 
 # Replicas e disponibilidade
 replicaCount: 2
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Deployment strategy
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+# Estrutura compatível com neural-hive.service
+service:
+  type: ClusterIP
+  annotations: {}
+  ports:
+    https-webhook:
+      port: 443
+      targetPort: 8443
+      protocol: TCP
+    metrics:
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
 
 # NodeSelector e afinidade
 nodeSelector: {}
@@ -61,13 +91,9 @@ tls:
 
 # Configurações Cosign
 cosign:
-  # Cosign root configuration
   cosignRoot: ""
-  # Rekor URL
   rekorURL: https://rekor.sigstore.dev
-  # Fulcio URL
   fulcioURL: https://fulcio.sigstore.dev
-  # CTLOG public key
   ctlogPublicKeySecret: ""
 
 # Configurações específicas do cluster
@@ -77,26 +103,30 @@ cluster:
 
 # Políticas padrão
 policies:
-  # Require signatures for all images by default
   requireSignatures: true
-
-  # Allowed registries for signed images
   allowedRegistries:
-    - "*.amazonaws.com/*"  # ECR registries
-    - "public.ecr.aws/*"   # Public ECR
-    - "docker.io/library/*" # Official Docker images
-    - "gcr.io/distroless/*" # Distroless images
-    - "registry.k8s.io/*"  # Kubernetes images
-
-  # Subjects that can sign images (OIDC identities)
+    - "*.amazonaws.com/*"
+    - "public.ecr.aws/*"
+    - "docker.io/library/*"
+    - "gcr.io/distroless/*"
+    - "registry.k8s.io/*"
   allowedSubjects:
     - "https://github.com/*"
     - "https://token.actions.githubusercontent.com"
-
-  # Issuers that can sign images
   allowedIssuers:
     - "https://token.actions.githubusercontent.com"
     - "https://oauth2.sigstore.dev/auth"
+
+# Istio integration
+istio:
+  enabled: false
+  mtls:
+    mode: STRICT
+
+# Observability
+observability:
+  prometheus:
+    enabled: true
 
 # Configurações de monitoramento
 monitoring:
@@ -127,3 +157,29 @@ securityContext:
   readOnlyRootFilesystem: true
   runAsNonRoot: true
   runAsUser: 65534
+
+podAnnotations: {}
+
+podLabels:
+  neural-hive.io/domain: image-verification
+
+# Probes
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: https-webhook
+    scheme: HTTPS
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: https-webhook
+    scheme: HTTPS
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 5
+  failureThreshold: 3

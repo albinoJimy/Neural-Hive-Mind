@@ -6,7 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from grpc import aio
 from neural_hive_observability import (
     init_observability,
-    create_instrumented_grpc_server
+    create_instrumented_async_grpc_server,
+    ObservabilityConfig
 )
 
 from .config import get_settings
@@ -201,8 +202,16 @@ async def lifespan(app: FastAPI):
             app_state.telemetry_aggregator
         )
 
-        app_state.grpc_server = create_instrumented_grpc_server(
-            max_workers=settings.GRPC_MAX_WORKERS
+        obs_config = ObservabilityConfig(
+            service_name=settings.SERVICE_NAME,
+            service_version=settings.SERVICE_VERSION,
+            neural_hive_component="queen-agent",
+            neural_hive_layer="coordination",
+            environment=settings.ENVIRONMENT,
+            otel_endpoint=settings.OTEL_EXPORTER_ENDPOINT
+        )
+        app_state.grpc_server = create_instrumented_async_grpc_server(
+            config=obs_config
         )
         queen_agent_pb2_grpc.add_QueenAgentServicer_to_server(
             app_state.grpc_servicer,
@@ -315,7 +324,7 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
-        "main:app",
+        app,  # Usar objeto app diretamente em vez de string
         host=settings.FASTAPI_HOST,
         port=settings.FASTAPI_PORT,
         log_level=settings.LOG_LEVEL.lower()

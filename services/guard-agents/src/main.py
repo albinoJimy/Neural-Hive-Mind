@@ -71,8 +71,8 @@ async def lifespan(app: FastAPI):
     # Inicializar Service Registry
     logger.info("guard_agent.initializing_service_registry")
     service_registry = ServiceRegistryClient(
-        host=settings.service_registry_host,
-        port=settings.service_registry_port,
+        host=settings.service_registry_grpc_host,
+        port=settings.service_registry_grpc_port,
         agent_type="GUARD",
         capabilities=settings.capabilities,
         metadata={
@@ -125,13 +125,19 @@ async def lifespan(app: FastAPI):
     await remediation_producer.connect()
     app.state.remediation_producer = remediation_producer
 
-    # Inicializar Self-Healing Client
+    # Inicializar Self-Healing Client (opcional - graceful degradation)
+    self_healing_client = None
     logger.info("guard_agent.initializing_self_healing_client")
-    self_healing_client = SelfHealingClient(
-        base_url=settings.self_healing_engine_url,
-        timeout=30.0
-    )
-    await self_healing_client.connect()
+    try:
+        self_healing_client = SelfHealingClient(
+            base_url=settings.self_healing_engine_url,
+            timeout=30.0
+        )
+        await self_healing_client.connect()
+        logger.info("guard_agent.self_healing_client_ready")
+    except Exception as e:
+        logger.warning("guard_agent.self_healing_client_failed", error=str(e))
+        self_healing_client = None
     app.state.self_healing_client = self_healing_client
 
     # Inicializar OPA Client (opcional - graceful degradation)

@@ -1,80 +1,55 @@
 {{/*
-Expand the name of the chart.
+Semantic Translation Engine - Helpers usando templates comuns do Neural Hive Mind
+*/}}
+
+{{/*
+Usa funções do template comum via dependência
 */}}
 {{- define "semantic-translation-engine.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.name" . }}
 {{- end }}
 
-{{/*
-Create a default fully qualified app name.
-*/}}
 {{- define "semantic-translation-engine.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
+{{- include "neural-hive.fullname" . }}
 {{- end }}
 
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
 {{- define "semantic-translation-engine.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.chart" . }}
 {{- end }}
 
-{{/*
-Common labels
-*/}}
 {{- define "semantic-translation-engine.labels" -}}
-helm.sh/chart: {{ include "semantic-translation-engine.chart" . }}
-{{ include "semantic-translation-engine.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/component: semantic-translator
-neural-hive.io/layer: cognitiva
+{{- include "neural-hive.labels" (dict "context" . "component" "semantic-translation-engine" "layer" "cognitiva") }}
+app.kubernetes.io/part-of: neural-hive-mind
 neural-hive.io/domain: plan-generation
-{{- with .Values.labels }}
-{{- toYaml . | nindent 0 }}
-{{- end }}
 {{- end }}
 
-{{/*
-Selector labels
-*/}}
 {{- define "semantic-translation-engine.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "semantic-translation-engine.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+{{- include "neural-hive.selectorLabels" . }}
 {{- end }}
 
-{{/*
-Create the name of the service account to use
-*/}}
 {{- define "semantic-translation-engine.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "semantic-translation-engine.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- include "neural-hive.serviceAccountName" . }}
 {{- end }}
 
-{{/*
-Create the name of the ConfigMap
-*/}}
 {{- define "semantic-translation-engine.configMapName" -}}
-{{- printf "%s-config" (include "semantic-translation-engine.fullname" .) }}
+{{ include "semantic-translation-engine.fullname" . }}-config
+{{- end }}
+
+{{- define "semantic-translation-engine.secretName" -}}
+{{ include "semantic-translation-engine.fullname" . }}-secrets
 {{- end }}
 
 {{/*
-Create the name of the Secret
+Contexto para uso nos templates comuns
 */}}
-{{- define "semantic-translation-engine.secretName" -}}
-{{- printf "%s-secrets" (include "semantic-translation-engine.fullname" .) }}
+{{- define "semantic-translation-engine.context" -}}
+fullname: {{ include "semantic-translation-engine.fullname" . }}
+chartName: {{ .Chart.Name }}
+namespace: {{ .Release.Namespace }}
+appVersion: {{ .Chart.AppVersion }}
+labels:
+{{ include "semantic-translation-engine.labels" . | indent 2 }}
+selectorLabels:
+{{ include "semantic-translation-engine.selectorLabels" . | indent 2 }}
+serviceAccountName: {{ include "semantic-translation-engine.serviceAccountName" . }}
 {{- end }}

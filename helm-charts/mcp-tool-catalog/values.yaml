@@ -1,3 +1,6 @@
+component: "mcp-tool-catalog"
+layer: "infrastructure"
+
 replicaCount: 2
 
 image:
@@ -5,10 +8,25 @@ image:
   pullPolicy: IfNotPresent
   tag: "1.2.0"
 
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
 service:
   type: ClusterIP
-  httpPort: 8080
-  metricsPort: 9091
+  annotations: {}
+  ports:
+    http:
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    metrics:
+      port: 9091
+      targetPort: 9091
+      protocol: TCP
 
 resources:
   requests:
@@ -43,8 +61,8 @@ redis:
   cacheEnabled: true
 
 serviceRegistry:
-  host: service-registry
-  port: 8080
+  grpcHost: service-registry.neural-hive.svc.cluster.local
+  grpcPort: 50051
   heartbeatInterval: 30
 
 geneticAlgorithm:
@@ -61,14 +79,145 @@ toolExecution:
   maxConcurrent: 10
   retryMaxAttempts: 3
 
+# MCP Server Configuration (Arquitetura Híbrida)
+# Mapeamento tool_id → MCP Server URL para roteamento híbrido
+# Ferramentas com MCP Server configurado usam o servidor externo (prioridade 1)
+# Ferramentas sem configuração usam adapters locais (CLI/REST/Container)
+mcpServers:
+  # Trivy - Vulnerability Scanner
+  trivy-001: "http://trivy-mcp-server.neural-hive-mcp.svc.cluster.local:3000"
+  # SonarQube - Code Quality
+  sonarqube-001: "http://sonarqube-mcp-server.neural-hive-mcp.svc.cluster.local:3000"
+  # GitHub Copilot - AI Code Generation
+  github-copilot-001: "http://ai-codegen-mcp-server.neural-hive-mcp.svc.cluster.local:3000"
+  # OpenAI Codex - AI Code Generation
+  openai-codex-001: "http://ai-codegen-mcp-server.neural-hive-mcp.svc.cluster.local:3000"
+
+mcpServerConfig:
+  timeoutSeconds: 30
+  maxRetries: 3
+  circuitBreakerThreshold: 5
+  circuitBreakerTimeoutSeconds: 60
+
 observability:
   otelEndpoint: http://otel-collector:4317
   logLevel: INFO
   logFormat: json
+  prometheus:
+    enabled: true
+
+istio:
+  enabled: false
 
 analystAgents:
   host: analyst-agents
   port: 9090
+
+# ========================================
+# Tool Endpoints Configuration
+# Endpoints configuráveis para ferramentas REST_API
+# ========================================
+toolEndpoints:
+  # ANALYSIS Tools
+  sonarqube:
+    url: "http://sonarqube.neural-hive-tools.svc.cluster.local:9000/api"
+    enabled: true
+  checkmarx:
+    url: "https://checkmarx.example.com/api"
+    enabled: false
+  veracode:
+    url: "https://analysiscenter.veracode.com/api"
+    enabled: false
+  fortify:
+    url: "https://fortify.example.com/api"
+    enabled: false
+  # GENERATION Tools
+  githubCopilot:
+    url: "https://api.github.com/copilot"
+    enabled: false
+  springInitializr:
+    url: "https://start.spring.io"
+    enabled: true
+  openaiCodex:
+    url: "https://api.openai.com/v1"
+    enabled: false
+  # VALIDATION Tools
+  burpSuite:
+    url: "http://burpsuite.neural-hive-tools.svc.cluster.local:8080"
+    enabled: false
+  # AUTOMATION Tools
+  githubActions:
+    url: "https://api.github.com"
+    enabled: true
+  argocd:
+    url: "http://argocd-server.argocd.svc.cluster.local:80/api"
+    enabled: true
+  gitlabCi:
+    url: "https://gitlab.com/api/v4"
+    enabled: false
+  jenkins:
+    url: "http://jenkins.neural-hive-tools.svc.cluster.local:8080"
+    enabled: false
+  circleci:
+    url: "https://circleci.com/api/v2"
+    enabled: false
+  travisCi:
+    url: "https://api.travis-ci.com"
+    enabled: false
+  # INTEGRATION Tools
+  kafkaConnect:
+    url: "http://kafka-connect.kafka.svc.cluster.local:8083"
+    enabled: true
+  airflow:
+    url: "http://airflow-webserver.airflow.svc.cluster.local:8080/api/v1"
+    enabled: false
+  mulesoft:
+    url: "https://anypoint.mulesoft.com/api"
+    enabled: false
+  awsEventBridge:
+    url: "https://events.amazonaws.com"
+    enabled: false
+  azureLogicApps:
+    url: "https://management.azure.com"
+    enabled: false
+  googleWorkflows:
+    url: "https://workflowexecutions.googleapis.com"
+    enabled: false
+
+# ========================================
+# Tool Credentials Configuration
+# Credenciais para ferramentas que requerem autenticação
+# NOTA: Em produção, usar External Secrets Operator ou Sealed Secrets
+# ========================================
+toolCredentials:
+  # ANALYSIS Tools
+  sonarqubeToken: ""
+  snykToken: ""
+  checkmarxApiKey: ""
+  veracodeApiId: ""
+  veracodeApiKey: ""
+  fortifyToken: ""
+  # GENERATION Tools
+  githubToken: ""
+  openaiApiKey: ""
+  pulumiAccessToken: ""
+  # VALIDATION Tools
+  burpSuiteApiKey: ""
+  # AUTOMATION Tools
+  gitlabToken: ""
+  jenkinsToken: ""
+  circleciToken: ""
+  travisToken: ""
+  argoCdToken: ""
+  # INTEGRATION Tools
+  mulesoftClientId: ""
+  mulesoftClientSecret: ""
+  awsAccessKeyId: ""
+  awsSecretAccessKey: ""
+  azureClientId: ""
+  azureClientSecret: ""
+  azureTenantId: ""
+  googleCredentialsJson: ""
 
 serviceAccount:
   create: true
@@ -129,6 +278,13 @@ networkPolicy:
       ports:
         - protocol: TCP
           port: 9090
+    - to:  # MCP Servers namespace
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-mcp
+      ports:
+        - protocol: TCP
+          port: 3000
     - to: []  # DNS
       ports:
         - protocol: UDP

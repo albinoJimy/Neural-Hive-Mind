@@ -1,62 +1,55 @@
 {{/*
-Expand the name of the chart.
+Scout Agents - Helpers usando templates comuns do Neural Hive Mind
+*/}}
+
+{{/*
+Usa funções do template comum via dependência
 */}}
 {{- define "scout-agents.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.name" . }}
 {{- end }}
 
-{{/*
-Create a default fully qualified app name.
-*/}}
 {{- define "scout-agents.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
+{{- include "neural-hive.fullname" . }}
 {{- end }}
 
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
 {{- define "scout-agents.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.chart" . }}
 {{- end }}
 
-{{/*
-Common labels
-*/}}
 {{- define "scout-agents.labels" -}}
-helm.sh/chart: {{ include "scout-agents.chart" . }}
-{{ include "scout-agents.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-neural-hive.io/layer: exploration
-neural-hive.io/component: scout-agents
+{{- include "neural-hive.labels" (dict "context" . "component" "scout-agents" "layer" "exploration") }}
+app.kubernetes.io/part-of: neural-hive-mind
+neural-hive.io/domain: reconnaissance
 {{- end }}
 
-{{/*
-Selector labels
-*/}}
 {{- define "scout-agents.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "scout-agents.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+{{- include "neural-hive.selectorLabels" . }}
+{{- end }}
+
+{{- define "scout-agents.serviceAccountName" -}}
+{{- include "neural-hive.serviceAccountName" . }}
+{{- end }}
+
+{{- define "scout-agents.configMapName" -}}
+{{ include "scout-agents.fullname" . }}-config
+{{- end }}
+
+{{- define "scout-agents.secretName" -}}
+{{ include "scout-agents.fullname" . }}-secrets
 {{- end }}
 
 {{/*
-Create the name of the service account to use
+Contexto para uso nos templates comuns
 */}}
-{{- define "scout-agents.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "scout-agents.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- define "scout-agents.context" -}}
+fullname: {{ include "scout-agents.fullname" . }}
+chartName: {{ .Chart.Name }}
+namespace: {{ .Release.Namespace }}
+appVersion: {{ .Chart.AppVersion }}
+labels:
+{{ include "scout-agents.labels" . | indent 2 }}
+selectorLabels:
+{{ include "scout-agents.selectorLabels" . | indent 2 }}
+serviceAccountName: {{ include "scout-agents.serviceAccountName" . }}
 {{- end }}

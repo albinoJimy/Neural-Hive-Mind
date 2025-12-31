@@ -9,9 +9,6 @@ import sys
 import threading
 import structlog
 
-# Adicionar paths
-sys.path.insert(0, '/app/libraries/python')
-
 from config import BusinessSpecialistConfig
 from specialist import BusinessSpecialist
 
@@ -23,13 +20,8 @@ except ImportError:
     USE_FASTAPI = False
     from http_server import create_http_server
 
-# Imports simulados (em produção viriam de neural_hive_specialists)
-try:
-    from neural_hive_specialists import create_grpc_server_with_observability
-except ImportError:
-    # Fallback para desenvolvimento local
-    sys.path.insert(0, '/app')
-    from libraries.python.neural_hive_specialists import create_grpc_server_with_observability
+# Import from neural_hive_specialists (installed as pip package)
+from neural_hive_specialists import create_grpc_server_with_observability
 
 logger = structlog.get_logger()
 
@@ -147,6 +139,21 @@ def main():
     # Registrar signal handlers
     signal.signal(signal.SIGINT, shutdown_handler)
     signal.signal(signal.SIGTERM, shutdown_handler)
+
+    # Registrar no service-registry (com retry/backoff)
+    try:
+        agent_id = specialist.register_with_service_registry()
+        if agent_id:
+            specialist._registered_agent_id = agent_id
+            logger.info(
+                "Registered with service-registry",
+                agent_id=agent_id
+            )
+    except Exception as e:
+        logger.warning(
+            "Service-registry registration failed - continuing without",
+            error=str(e)
+        )
 
     logger.info(
         "Business Specialist is ready",

@@ -56,7 +56,26 @@ health_breakers = HealthCheckCircuitBreaker()
     retry=retry_if_exception_type(Exception)
 )
 async def check_mongodb_health(specialist) -> Dict[str, Any]:
-    """Verifica saúde do MongoDB com retry e circuit breaker."""
+    """Verifica saúde do MongoDB com retry e circuit breaker.
+
+    Se ledger_client é None ou ledger está desabilitado/não obrigatório,
+    retorna healthy para não bloquear readiness.
+    """
+    # Guard: skip check if ledger_client is None or ledger is disabled
+    if specialist.ledger_client is None:
+        ledger_enabled = getattr(specialist.config, 'enable_ledger', True)
+        ledger_required = getattr(specialist.config, 'ledger_required', False)
+        logger.debug(
+            "Ledger client not available - skipping MongoDB health check",
+            ledger_enabled=ledger_enabled,
+            ledger_required=ledger_required
+        )
+        # Return healthy if ledger is not required, otherwise circuit_open
+        if not ledger_required:
+            return {"status": "healthy", "service": "mongodb", "reason": "ledger_not_required"}
+        else:
+            return {"status": "circuit_open", "service": "mongodb", "reason": "ledger_required_but_unavailable"}
+
     try:
         result = await asyncio.wait_for(
             asyncio.to_thread(
@@ -149,6 +168,7 @@ def create_fastapi_app(specialist, config) -> FastAPI:
         """
         Readiness probe - verifica dependências críticas com circuit breakers.
         Retorna 200 se pronto, 503 se não pronto.
+        Considera model_required para permitir modo heurístico.
         """
         try:
             # Executar health checks em paralelo com timeout total
@@ -169,14 +189,47 @@ def create_fastapi_app(specialist, config) -> FastAPI:
             mongodb_ready = isinstance(mongodb_health, dict) and mongodb_health.get("status") in ["healthy", "circuit_open"]
             neo4j_ready = isinstance(neo4j_health, dict) and neo4j_health.get("status") in ["healthy", "circuit_open"]
 
+            # Verificar model_required para modo heurístico
+            model_required = getattr(specialist.config, 'model_required', True)
+            model_loaded = specialist.model is not None
+            heuristic_mode = not model_loaded and not model_required
+
+            # Log modo de operação
+            if heuristic_mode:
+                logger.info(
+                    "Specialist em modo heurístico (sem modelo ML)",
+                    specialist_type=specialist.specialist_type,
+                    model_required=model_required
+                )
+
             is_ready = mongodb_ready and neo4j_ready
+
+            # Se modelo é obrigatório e não está carregado, não está pronto
+            if model_required and not model_loaded:
+                is_ready = False
+                logger.warning(
+                    "Readiness falhou: modelo obrigatório não carregado",
+                    specialist_type=specialist.specialist_type,
+                    model_required=model_required,
+                    model_loaded=model_loaded
+                )
 
             if not is_ready:
                 response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+                logger.warning(
+                    "Readiness check failed",
+                    specialist_type=specialist.specialist_type,
+                    mongodb_ready=mongodb_ready,
+                    neo4j_ready=neo4j_ready,
+                    model_loaded=model_loaded,
+                    model_required=model_required
+                )
 
             return {
                 "ready": is_ready,
                 "specialist_type": specialist.specialist_type,
+                "heuristic_mode": heuristic_mode,
+                "model_loaded": model_loaded,
                 "dependencies": {
                     "mongodb": mongodb_health if isinstance(mongodb_health, dict) else {"status": "error"},
                     "neo4j": neo4j_health if isinstance(neo4j_health, dict) else {"status": "error"}

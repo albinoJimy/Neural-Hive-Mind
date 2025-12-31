@@ -1,0 +1,71 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "sonarqube-mcp-server.fullname" . }}
+  labels:
+    {{- include "sonarqube-mcp-server.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "sonarqube-mcp-server.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Aceitar conexões do MCP Tool Catalog (namespace neural-hive)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mcp-tool-catalog
+      ports:
+        - protocol: TCP
+          port: 3000
+    # Aceitar conexões do Prometheus para métricas
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: observability
+      ports:
+        - protocol: TCP
+          port: 9091
+  egress:
+    # DNS
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+    # SonarQube API - mesmo namespace (se SonarQube estiver no mesmo namespace)
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: sonarqube
+      ports:
+        - protocol: TCP
+          port: 9000
+    # SonarQube API - namespace observability
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: observability
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: sonarqube
+      ports:
+        - protocol: TCP
+          port: 9000
+    # SonarQube API - namespace sonarqube (se existir namespace dedicado)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: sonarqube
+      ports:
+        - protocol: TCP
+          port: 9000
+    # HTTPS para SonarQube externo
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443

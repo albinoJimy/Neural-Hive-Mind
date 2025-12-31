@@ -282,6 +282,71 @@ result = await adapter.execute(
 )
 ```
 
+## 🔌 MCP Server Integration
+
+Cliente para comunicação com servidores MCP externos seguindo o protocolo Anthropic Model Context Protocol via JSON-RPC 2.0.
+
+### Métodos Disponíveis
+
+- `list_tools()`: Lista ferramentas disponíveis no servidor MCP
+- `call_tool(name, arguments)`: Executa ferramenta no servidor MCP
+- `get_resource(uri)`: Obtém recurso contextual do servidor
+- `list_prompts()`: Lista prompts reutilizáveis disponíveis
+
+### Configuração
+
+```python
+# Variáveis de ambiente
+MCP_SERVER_TIMEOUT_SECONDS=30
+MCP_SERVER_MAX_RETRIES=3
+MCP_SERVER_CIRCUIT_BREAKER_THRESHOLD=5
+MCP_SERVER_CIRCUIT_BREAKER_TIMEOUT_SECONDS=60
+MCP_SERVERS='{"trivy-001": "http://trivy-mcp-server:3000"}'
+```
+
+### Uso
+
+```python
+from src.clients.mcp_server_client import MCPServerClient
+
+client = MCPServerClient("http://trivy-mcp-server:3000")
+await client.start()
+
+# Listar ferramentas
+tools = await client.list_tools()
+
+# Executar ferramenta
+result = await client.call_tool("scan_image", {"image": "nginx:latest"})
+
+# Obter recurso
+resource = await client.get_resource("file:///config.yaml")
+
+await client.stop()
+```
+
+### Context Manager
+
+```python
+async with MCPServerClient("http://mcp-server:3000") as client:
+    tools = await client.list_tools()
+    result = await client.call_tool("tool_name", {"arg": "value"})
+```
+
+### Características
+
+- **Retry com exponential backoff**: Delays de `2^attempt` segundos entre tentativas
+- **Circuit breaker**: Abre após threshold de falhas consecutivas, fecha após timeout
+- **Connection pooling**: `aiohttp.TCPConnector` com `limit=100`, `limit_per_host=30`
+- **Logging estruturado**: Eventos `mcp_client_started`, `mcp_tools_listed`, `mcp_tool_called`, etc.
+
+### Tratamento de Erros
+
+- `MCPServerError`: Erro retornado pelo servidor MCP (códigos -32xxx)
+- `MCPTransportError`: Erro de transporte (timeout, conexão recusada, circuit breaker)
+- `MCPProtocolError`: Erro de protocolo (JSON inválido, schema incorreto)
+- `MCPToolNotFoundError`: Ferramenta não encontrada (código -32601)
+- `MCPInvalidParamsError`: Parâmetros inválidos (código -32602)
+
 ## 📊 Observabilidade
 
 ### Métricas Prometheus

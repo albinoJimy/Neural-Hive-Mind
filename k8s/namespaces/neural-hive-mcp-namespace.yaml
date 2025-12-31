@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neural-hive-mcp
+  labels:
+    name: neural-hive-mcp
+    neural-hive-mind.org/component: mcp-servers
+    app.kubernetes.io/part-of: neural-hive-mind
+    istio-injection: enabled

@@ -1,12 +1,19 @@
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
 # Local development values for semantic-translation-engine
 # Override production values for local Kubernetes clusters
 
 # Reduced replica count for local development
 replicaCount: 1
 image:
-  repository: neural-hive-mind/semantic-translation-engine
-  tag: 1.2.0
-  pullPolicy: IfNotPresent
+  repository: 37.60.241.150:30500/semantic-translation-engine
+  tag: "1.2.4"
+  pullPolicy: Always
 # Reduced resources for local development (~50% of production)
 resources:
   requests:
@@ -100,11 +107,20 @@ secrets:
   mongodbPassword: ""
   redisPassword: ""
 # Relaxed probes for local development
+# startupProbe dá tempo para inicialização lenta (conectar Kafka, Neo4j, MongoDB, Redis)
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30
 livenessProbe:
   httpGet:
     path: /health
     port: 8000
-  initialDelaySeconds: 60
+  initialDelaySeconds: 0
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 3
@@ -112,7 +128,7 @@ readinessProbe:
   httpGet:
     path: /ready
     port: 8000
-  initialDelaySeconds: 30
+  initialDelaySeconds: 0
   periodSeconds: 5
   timeoutSeconds: 3
   failureThreshold: 3
@@ -120,3 +136,7 @@ readinessProbe:
 # Force pods to node with insecure registry configured
 nodeSelector:
   kubernetes.io/hostname: vmi2911681
+
+observability:
+  prometheus:
+    enabled: false

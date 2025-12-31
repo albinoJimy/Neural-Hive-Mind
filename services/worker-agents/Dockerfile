@@ -1,5 +1,5 @@
 # Stage 1 - Builder
-FROM neural-hive-mind/python-observability-base:1.2.2 AS builder
+FROM 37.60.241.150:30500/python-observability-base:1.2.2 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -40,6 +40,10 @@ COPY --chown=worker-agent:worker-agent services/service-registry/src/proto /app/
 
 # Copy source code from host context
 COPY services/worker-agents/src/ ./src
+
+# Copy Avro schemas for Kafka serialization
+COPY --chown=worker-agent:worker-agent schemas/execution-result/ /app/schemas/execution-result/
+COPY --chown=worker-agent:worker-agent schemas/execution-ticket/ /app/schemas/execution-ticket/
 
 # Set PATH and PYTHONPATH to include user binaries and local packages
 ENV PATH=/home/worker-agent/.local/bin:$PATH \

@@ -1,151 +1,59 @@
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "sla-management-system.fullname" . }}
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "sla-management-system.labels" . | nindent 4 }}
-spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
-  selector:
-    matchLabels:
-      {{- include "sla-management-system.selectorLabels" . | nindent 6 }}
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
-  template:
-    metadata:
-      annotations:
-        {{- with .Values.podAnnotations }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-      labels:
-        {{- include "sla-management-system.selectorLabels" . | nindent 8 }}
-        {{- with .Values.podLabels }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-    spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "sla-management-system.serviceAccountName" . }}
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        fsGroup: 1000
-      containers:
-      - name: sla-management-system
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
-        ports:
-        - name: http
-          containerPort: 8000
-          protocol: TCP
-        - name: metrics
-          containerPort: 9090
-          protocol: TCP
-        env:
-        - name: SERVICE_NAME
-          value: {{ .Values.config.serviceName | quote }}
-        - name: VERSION
-          value: {{ .Values.config.version | quote }}
-        - name: ENVIRONMENT
-          value: {{ .Values.config.environment | quote }}
-        - name: LOG_LEVEL
-          value: {{ .Values.config.logLevel | quote }}
-        - name: PROMETHEUS__URL
-          value: {{ .Values.config.prometheus.url | quote }}
-        - name: PROMETHEUS__TIMEOUT_SECONDS
-          value: {{ .Values.config.prometheus.timeoutSeconds | quote }}
-        - name: PROMETHEUS__MAX_RETRIES
-          value: {{ .Values.config.prometheus.maxRetries | quote }}
-        - name: POSTGRESQL__HOST
-          value: {{ .Values.config.postgresql.host | quote }}
-        - name: POSTGRESQL__PORT
-          value: {{ .Values.config.postgresql.port | quote }}
-        - name: POSTGRESQL__DATABASE
-          value: {{ .Values.config.postgresql.database | quote }}
-        - name: POSTGRESQL__USER
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "sla-management-system.fullname" . }}-secret
-              key: POSTGRESQL__USER
-        - name: POSTGRESQL__PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "sla-management-system.fullname" . }}-secret
-              key: POSTGRESQL__PASSWORD
-        - name: POSTGRESQL__POOL_MIN_SIZE
-          value: {{ .Values.config.postgresql.poolMinSize | quote }}
-        - name: POSTGRESQL__POOL_MAX_SIZE
-          value: {{ .Values.config.postgresql.poolMaxSize | quote }}
-        - name: REDIS__CLUSTER_NODES
-          value: {{ .Values.config.redis.clusterNodes | quote }}
-        - name: REDIS__PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: {{ include "sla-management-system.fullname" . }}-secret
-              key: REDIS__PASSWORD
-        - name: REDIS__CACHE_TTL_SECONDS
-          value: {{ .Values.config.redis.cacheTtlSeconds | quote }}
-        - name: KAFKA__BOOTSTRAP_SERVERS
-          value: {{ .Values.config.kafka.bootstrapServers | quote }}
-        - name: KAFKA__BUDGET_TOPIC
-          value: {{ .Values.config.kafka.budgetTopic | quote }}
-        - name: KAFKA__FREEZE_TOPIC
-          value: {{ .Values.config.kafka.freezeTopic | quote }}
-        - name: KAFKA__VIOLATIONS_TOPIC
-          value: {{ .Values.config.kafka.violationsTopic | quote }}
-        - name: ALERTMANAGER__URL
-          value: {{ .Values.config.alertmanager.url | quote }}
-        - name: ALERTMANAGER__WEBHOOK_PATH
-          value: {{ .Values.config.alertmanager.webhookPath | quote }}
-        - name: CALCULATOR__CALCULATION_INTERVAL_SECONDS
-          value: {{ .Values.config.calculator.calculationIntervalSeconds | quote }}
-        - name: CALCULATOR__ERROR_BUDGET_WINDOW_DAYS
-          value: {{ .Values.config.calculator.errorBudgetWindowDays | quote }}
-        - name: CALCULATOR__BURN_RATE_FAST_THRESHOLD
-          value: {{ .Values.config.calculator.burnRateFastThreshold | quote }}
-        - name: CALCULATOR__BURN_RATE_SLOW_THRESHOLD
-          value: {{ .Values.config.calculator.burnRateSlowThreshold | quote }}
-        - name: POLICY__FREEZE_THRESHOLD_PERCENT
-          value: {{ .Values.config.policy.freezeThresholdPercent | quote }}
-        - name: POLICY__AUTO_UNFREEZE_ENABLED
-          value: {{ .Values.config.policy.autoUnfreezeEnabled | quote }}
-        - name: POLICY__UNFREEZE_THRESHOLD_PERCENT
-          value: {{ .Values.config.policy.unfreezeThresholdPercent | quote }}
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: http
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: http
-          initialDelaySeconds: 10
-          periodSeconds: 5
-          timeoutSeconds: 3
-          failureThreshold: 3
-        resources:
-          {{- toYaml .Values.resources | nindent 10 }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+{{- $ctx := include "sla-management-system.context" . | fromYaml }}
+
+{{/*
+Construir lista de variáveis de ambiente
+*/}}
+{{- $envVars := list }}
+
+{{/* Variáveis básicas de serviço */}}
+{{- $envVars = append $envVars (dict "name" "SERVICE_NAME" "value" (.Values.config.serviceName | quote)) }}
+{{- $envVars = append $envVars (dict "name" "VERSION" "value" (.Values.config.version | quote)) }}
+{{- $envVars = append $envVars (dict "name" "ENVIRONMENT" "value" (.Values.config.environment | quote)) }}
+{{- $envVars = append $envVars (dict "name" "LOG_LEVEL" "value" (.Values.config.logLevel | quote)) }}
+
+{{/* Prometheus */}}
+{{- $envVars = append $envVars (dict "name" "PROMETHEUS__URL" "value" (.Values.config.prometheus.url | quote)) }}
+{{- $envVars = append $envVars (dict "name" "PROMETHEUS__TIMEOUT_SECONDS" "value" (.Values.config.prometheus.timeoutSeconds | quote)) }}
+{{- $envVars = append $envVars (dict "name" "PROMETHEUS__MAX_RETRIES" "value" (.Values.config.prometheus.maxRetries | quote)) }}
+
+{{/* PostgreSQL */}}
+{{- $envVars = append $envVars (dict "name" "POSTGRESQL__HOST" "value" (.Values.config.postgresql.host | quote)) }}
+{{- $envVars = append $envVars (dict "name" "POSTGRESQL__PORT" "value" (.Values.config.postgresql.port | quote)) }}
+{{- $envVars = append $envVars (dict "name" "POSTGRESQL__DATABASE" "value" (.Values.config.postgresql.database | quote)) }}
+{{- $envVars = append $envVars (dict "name" "POSTGRESQL__USER" "valueFrom" (dict "secretKeyRef" (dict "name" (printf "%s-secret" (include "sla-management-system.fullname" .)) "key" "POSTGRESQL__USER"))) }}
+{{- $envVars = append $envVars (dict "name" "POSTGRESQL__PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" (printf "%s-secret" (include "sla-management-system.fullname" .)) "key" "POSTGRESQL__PASSWORD"))) }}
+{{- $envVars = append $envVars (dict "name" "POSTGRESQL__POOL_MIN_SIZE" "value" (.Values.config.postgresql.poolMinSize | quote)) }}
+{{- $envVars = append $envVars (dict "name" "POSTGRESQL__POOL_MAX_SIZE" "value" (.Values.config.postgresql.poolMaxSize | quote)) }}
+
+{{/* Redis */}}
+{{- $envVars = append $envVars (dict "name" "REDIS__CLUSTER_NODES" "value" (.Values.config.redis.clusterNodes | quote)) }}
+{{- $envVars = append $envVars (dict "name" "REDIS__PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" (printf "%s-secret" (include "sla-management-system.fullname" .)) "key" "REDIS__PASSWORD"))) }}
+{{- $envVars = append $envVars (dict "name" "REDIS__CACHE_TTL_SECONDS" "value" (.Values.config.redis.cacheTtlSeconds | quote)) }}
+
+{{/* Kafka */}}
+{{- $envVars = append $envVars (dict "name" "KAFKA__BOOTSTRAP_SERVERS" "value" (.Values.config.kafka.bootstrapServers | quote)) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA__BUDGET_TOPIC" "value" (.Values.config.kafka.budgetTopic | quote)) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA__FREEZE_TOPIC" "value" (.Values.config.kafka.freezeTopic | quote)) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA__VIOLATIONS_TOPIC" "value" (.Values.config.kafka.violationsTopic | quote)) }}
+
+{{/* Alertmanager */}}
+{{- $envVars = append $envVars (dict "name" "ALERTMANAGER__URL" "value" (.Values.config.alertmanager.url | quote)) }}
+{{- $envVars = append $envVars (dict "name" "ALERTMANAGER__WEBHOOK_PATH" "value" (.Values.config.alertmanager.webhookPath | quote)) }}
+
+{{/* Calculator */}}
+{{- $envVars = append $envVars (dict "name" "CALCULATOR__CALCULATION_INTERVAL_SECONDS" "value" (.Values.config.calculator.calculationIntervalSeconds | quote)) }}
+{{- $envVars = append $envVars (dict "name" "CALCULATOR__ERROR_BUDGET_WINDOW_DAYS" "value" (.Values.config.calculator.errorBudgetWindowDays | quote)) }}
+{{- $envVars = append $envVars (dict "name" "CALCULATOR__BURN_RATE_FAST_THRESHOLD" "value" (.Values.config.calculator.burnRateFastThreshold | quote)) }}
+{{- $envVars = append $envVars (dict "name" "CALCULATOR__BURN_RATE_SLOW_THRESHOLD" "value" (.Values.config.calculator.burnRateSlowThreshold | quote)) }}
+
+{{/* Policy */}}
+{{- $envVars = append $envVars (dict "name" "POLICY__FREEZE_THRESHOLD_PERCENT" "value" (.Values.config.policy.freezeThresholdPercent | quote)) }}
+{{- $envVars = append $envVars (dict "name" "POLICY__AUTO_UNFREEZE_ENABLED" "value" (.Values.config.policy.autoUnfreezeEnabled | quote)) }}
+{{- $envVars = append $envVars (dict "name" "POLICY__UNFREEZE_THRESHOLD_PERCENT" "value" (.Values.config.policy.unfreezeThresholdPercent | quote)) }}
+
+{{/*
+Configuração para o template
+*/}}
+{{- $config := dict "env" $envVars }}
+
+{{- include "neural-hive.deployment" (dict "values" .Values "context" $ctx "config" $config) }}

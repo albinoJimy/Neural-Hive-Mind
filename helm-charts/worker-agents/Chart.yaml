@@ -13,3 +13,8 @@ keywords:
   - execution
   - orchestration
   - phase-2
+dependencies:
+  - name: common-templates
+    version: "0.1.0"
+    repository: "file://../common-templates"
+    alias: common

@@ -63,6 +63,7 @@ class PheromoneConfig(BaseModel):
     ttl: int = Field(default=3600, description="Pheromone TTL in seconds (1 hour)")
     decay_rate: float = Field(default=0.15, description="Decay rate per hour (15%)")
     redis_key_prefix: str = Field(default="pheromone:exploration:", description="Redis key prefix")
+    redis_url: str = Field(default="redis://neural-hive-cache.redis-cluster.svc.cluster.local:6379", description="Redis URL")
 
     @field_validator('decay_rate')
     @classmethod

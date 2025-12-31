@@ -1,0 +1,17 @@
+apiVersion: v2
+name: trivy-mcp-server
+description: Trivy MCP Server para Neural Hive-Mind - Scanner de vulnerabilidades via protocolo MCP
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+dependencies:
+  - name: common-templates
+    version: "0.1.0"
+    repository: "file://../../common-templates"
+keywords:
+  - trivy
+  - mcp
+  - security
+  - vulnerability-scanner
+maintainers:
+  - name: Neural Hive-Mind Team

@@ -1,5 +1,5 @@
 # Multi-stage build for MCP Tool Catalog Service
-FROM neural-hive-mind/python-observability-base:1.2.0 AS builder
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.3 AS builder
 
 WORKDIR /build
 
@@ -9,12 +9,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install dependencies to global site-packages
+# Create and activate virtualenv
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy requirements and install dependencies to venv
 COPY services/mcp-tool-catalog/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Runtime stage
-FROM python:3.11-slim
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.3
 
 WORKDIR /app
 
@@ -23,9 +28,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Python dependencies from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Copy virtualenv from builder (does not overwrite base image packages)
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+# Ensure access to global site-packages (where neural_hive_observability is installed)
+ENV PYTHONPATH="/usr/local/lib/python3.11/site-packages:$PYTHONPATH"
 
 # Copy application code
 COPY services/mcp-tool-catalog/src/ ./src/
@@ -33,7 +40,6 @@ COPY services/mcp-tool-catalog/src/ ./src/
 # Create non-root user
 RUN useradd -m -u 1000 mcp-user && chown -R mcp-user:mcp-user /app
 USER mcp-user
-ENV PYTHONPATH=/app
 
 # Expose ports
 EXPOSE 8080 9091

@@ -4,16 +4,11 @@ import time
 import structlog
 import grpc
 from tenacity import retry, stop_after_attempt, wait_exponential
-import sys
-from pathlib import Path
 
 from ..config import get_settings
 
-# Adicionar caminho para os protos do service-registry
-service_registry_proto_path = Path(__file__).parent.parent.parent.parent / 'service-registry' / 'src'
-sys.path.insert(0, str(service_registry_proto_path))
-
-from proto import service_registry_pb2, service_registry_pb2_grpc
+# Usar proto_stubs da biblioteca neural_hive_integration
+from neural_hive_integration.proto_stubs import service_registry_pb2, service_registry_pb2_grpc
 
 logger = structlog.get_logger()
 

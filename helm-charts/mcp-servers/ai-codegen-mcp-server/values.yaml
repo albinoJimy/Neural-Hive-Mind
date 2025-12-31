@@ -1,0 +1,96 @@
+# AI Code Generation MCP Server - Configurações Helm
+
+component: "ai-codegen-mcp-server"
+layer: "tools"
+
+replicaCount: 2
+
+image:
+  repository: 37.60.241.150:30500/ai-codegen-mcp-server
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  ports:
+    http:
+      port: 3000
+      targetPort: 3000
+    metrics:
+      port: 9091
+      targetPort: 9091
+
+# Configurações dos providers
+providers:
+  defaultProvider: auto
+  openai:
+    model: gpt-4-turbo-preview
+    codeModel: gpt-4-turbo-preview
+  github:
+    apiUrl: https://api.github.com
+
+# Variáveis de ambiente
+env:
+  SERVICE_NAME: ai-codegen-mcp-server
+  HTTP_PORT: "3000"
+  METRICS_PORT: "9091"
+  LOG_LEVEL: INFO
+  DEFAULT_PROVIDER: auto
+  API_TIMEOUT: "60"
+  MAX_TOKENS: "2048"
+
+# Secrets
+secrets:
+  openaiApiKey: ""
+  githubToken: ""
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+observability:
+  otelEndpoint: http://otel-collector:4317
+  logLevel: INFO
+  prometheus:
+    enabled: true
+
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  path: /metrics
+
+podDisruptionBudget:
+  minAvailable: 1
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 3000
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 3000
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000

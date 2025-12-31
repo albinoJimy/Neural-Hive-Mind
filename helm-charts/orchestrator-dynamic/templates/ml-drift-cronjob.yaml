@@ -1,4 +1,4 @@
-{{- if and (.Values.config.ml.drift.enabled) (.Values.config.ml.trainingJob.enabled) }}
+{{- if and .Values.config.ml .Values.config.ml.drift .Values.config.ml.drift.enabled .Values.config.ml.trainingJob .Values.config.ml.trainingJob.enabled }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -59,7 +59,7 @@ spec:
               # MLflow Configuration
               - name: MLFLOW_TRACKING_URI
                 value: {{ .Values.config.ml.mlflow.trackingUri | quote }}
-              {{- if .Values.config.ml.mlflow.auth.enabled }}
+              {{- if and .Values.config.ml.mlflow.auth .Values.config.ml.mlflow.auth.enabled }}
               - name: MLFLOW_TRACKING_USERNAME
                 valueFrom:
                   secretKeyRef:
@@ -89,7 +89,7 @@ spec:
                 value: {{ .Values.config.prometheusPushgateway.url | quote }}
               # Logging
               - name: LOG_LEVEL
-                value: {{ .Values.config.logging.level | quote }}
+                value: {{ .Values.config.logLevel | quote }}
               - name: LOG_FORMAT
                 value: "json"
             resources:

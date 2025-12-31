@@ -1,80 +1,55 @@
 {{/*
-Expand the name of the chart.
+Self Healing Engine - Helpers usando templates comuns do Neural Hive Mind
+*/}}
+
+{{/*
+Usa funções do template comum via dependência
 */}}
 {{- define "self-healing-engine.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.name" . }}
 {{- end }}
 
-{{/*
-Create a default fully qualified app name.
-*/}}
 {{- define "self-healing-engine.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
+{{- include "neural-hive.fullname" . }}
 {{- end }}
 
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
 {{- define "self-healing-engine.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.chart" . }}
 {{- end }}
 
-{{/*
-Common labels
-*/}}
 {{- define "self-healing-engine.labels" -}}
-helm.sh/chart: {{ include "self-healing-engine.chart" . }}
-{{ include "self-healing-engine.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/component: self-healing
-neural-hive.io/layer: resilience
+{{- include "neural-hive.labels" (dict "context" . "component" "self-healing-engine" "layer" "resilience") }}
+app.kubernetes.io/part-of: neural-hive-mind
 neural-hive.io/domain: remediation
-{{- with .Values.labels }}
-{{- toYaml . | nindent 0 }}
-{{- end }}
 {{- end }}
 
-{{/*
-Selector labels
-*/}}
 {{- define "self-healing-engine.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "self-healing-engine.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+{{- include "neural-hive.selectorLabels" . }}
 {{- end }}
 
-{{/*
-Create the name of the service account to use
-*/}}
 {{- define "self-healing-engine.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "self-healing-engine.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- include "neural-hive.serviceAccountName" . }}
 {{- end }}
 
-{{/*
-Create the name of the ConfigMap
-*/}}
 {{- define "self-healing-engine.configMapName" -}}
-{{- printf "%s-config" (include "self-healing-engine.fullname" .) }}
+{{ include "self-healing-engine.fullname" . }}-config
+{{- end }}
+
+{{- define "self-healing-engine.secretName" -}}
+{{ include "self-healing-engine.fullname" . }}-secrets
 {{- end }}
 
 {{/*
-Create the name of the Secret
+Contexto para uso nos templates comuns
 */}}
-{{- define "self-healing-engine.secretName" -}}
-{{- printf "%s-secrets" (include "self-healing-engine.fullname" .) }}
+{{- define "self-healing-engine.context" -}}
+fullname: {{ include "self-healing-engine.fullname" . }}
+chartName: {{ .Chart.Name }}
+namespace: {{ .Release.Namespace }}
+appVersion: {{ .Chart.AppVersion }}
+labels:
+{{ include "self-healing-engine.labels" . | indent 2 }}
+selectorLabels:
+{{ include "self-healing-engine.selectorLabels" . | indent 2 }}
+serviceAccountName: {{ include "self-healing-engine.serviceAccountName" . }}
 {{- end }}

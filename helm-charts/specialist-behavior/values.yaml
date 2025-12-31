@@ -229,14 +229,15 @@ livenessProbe:
   failureThreshold: 3
 
 # Readiness probe - only runs after startup probe succeeds
+# Valores ajustados para permitir tempo de inicialização de dependências (MLflow, MongoDB, Redis)
 readinessProbe:
   httpGet:
     path: /ready
     port: 8000
-  initialDelaySeconds: 30
+  initialDelaySeconds: 45
   periodSeconds: 10
   timeoutSeconds: 5
-  failureThreshold: 3
+  failureThreshold: 5
 
 labels:
   app.kubernetes.io/name: specialist-behavior

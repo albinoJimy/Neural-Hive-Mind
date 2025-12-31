@@ -1,26 +1,2 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: guard-agents
-  namespace: {{ .Values.config.namespace }}
-  labels:
-    app: guard-agents
-    neural-hive.io/component: guard-agents
-    neural-hive.io/layer: resilience
-spec:
-  type: {{ .Values.service.type }}
-  ports:
-  - name: http
-    port: {{ .Values.service.ports.http }}
-    targetPort: http
-    protocol: TCP
-  - name: grpc
-    port: {{ .Values.service.ports.grpc }}
-    targetPort: grpc
-    protocol: TCP
-  - name: metrics
-    port: {{ .Values.service.ports.metrics }}
-    targetPort: metrics
-    protocol: TCP
-  selector:
-    app: guard-agents
+{{- $ctx := include "guard-agents.context" . | fromYaml }}
+{{- include "neural-hive.service" (dict "values" .Values "context" $ctx) }}

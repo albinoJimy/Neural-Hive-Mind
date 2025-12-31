@@ -1,0 +1,199 @@
+name: Test MCP Tool Catalog
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'services/mcp-tool-catalog/**'
+      - '.github/workflows/test-mcp-tool-catalog.yml'
+  pull_request:
+    branches: ["**"]
+    paths:
+      - 'services/mcp-tool-catalog/**'
+  workflow_dispatch:
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Checkout codigo
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-mcp-${{ hashFiles('services/mcp-tool-catalog/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-mcp-
+
+      - name: Instalar dependencias
+        working-directory: services/mcp-tool-catalog
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov pytest-aiohttp aioresponses
+
+      - name: Executar testes unitarios
+        working-directory: services/mcp-tool-catalog
+        run: |
+          pytest tests/test_*.py -v --cov=src --cov-report=xml --cov-report=term
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: services/mcp-tool-catalog/coverage.xml
+          flags: mcp-tool-catalog-unit-py${{ matrix.python-version }}
+          name: mcp-tool-catalog-unit
+          fail_ci_if_error: false
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd="echo 'db.runCommand({ping:1}).ok' | mongosh --quiet localhost/test || exit 1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout codigo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        working-directory: services/mcp-tool-catalog
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov pytest-aiohttp aioresponses
+
+      - name: Executar testes de integracao
+        working-directory: services/mcp-tool-catalog
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+          MONGODB_DATABASE: mcp_tool_catalog_test
+        run: |
+          pytest tests/integration/ -v --cov=src --cov-report=xml
+
+      - name: Upload coverage integracao
+        uses: codecov/codecov-action@v3
+        with:
+          files: services/mcp-tool-catalog/coverage.xml
+          flags: mcp-tool-catalog-integration
+          name: mcp-tool-catalog-integration
+          fail_ci_if_error: false
+
+  performance-tests:
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout codigo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        working-directory: services/mcp-tool-catalog
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-benchmark
+
+      - name: Executar testes de performance
+        working-directory: services/mcp-tool-catalog
+        run: |
+          pytest tests/performance/ -v --benchmark-json=benchmark.json
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-results
+          path: services/mcp-tool-catalog/benchmark.json
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout codigo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        working-directory: services/mcp-tool-catalog
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-aiohttp aiohttp
+
+      - name: Executar testes E2E pytest
+        working-directory: services/mcp-tool-catalog
+        run: |
+          pytest tests/e2e/ -v
+
+      - name: Executar script E2E bash
+        working-directory: services/mcp-tool-catalog
+        run: |
+          chmod +x tests/e2e/test_mcp_hybrid_execution.sh
+          ./tests/e2e/test_mcp_hybrid_execution.sh --verbose
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout codigo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias de linting
+        run: |
+          pip install flake8 black mypy
+
+      - name: Executar flake8
+        working-directory: services/mcp-tool-catalog
+        run: |
+          flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Verificar formatacao com black
+        working-directory: services/mcp-tool-catalog
+        run: |
+          black --check src/ || echo "Formatacao precisa de ajustes"
+
+      - name: Executar mypy
+        working-directory: services/mcp-tool-catalog
+        continue-on-error: true
+        run: |
+          mypy src/ --ignore-missing-imports

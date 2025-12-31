@@ -29,9 +29,9 @@ class PheromoneClient:
             return
 
         try:
-            # Conecta ao Redis (assumindo configuração via variáveis de ambiente)
+            # Conecta ao Redis usando configuração
             self.redis_client = await redis.from_url(
-                "redis://localhost:6379",
+                self.settings.pheromone.redis_url,
                 encoding="utf-8",
                 decode_responses=True
             )

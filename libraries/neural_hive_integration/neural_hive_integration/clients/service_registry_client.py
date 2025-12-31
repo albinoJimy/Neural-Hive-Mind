@@ -57,7 +57,7 @@ class ServiceRegistryClient:
 
     def __init__(
         self,
-        host: str = "service-registry.neural-hive-orchestration",
+        host: str = "service-registry.neural-hive.svc.cluster.local",
         port: int = 50051,
     ):
         self.host = host
@@ -97,6 +97,7 @@ class ServiceRegistryClient:
                     'worker': service_registry_pb2.WORKER,
                     'scout': service_registry_pb2.SCOUT,
                     'guard': service_registry_pb2.GUARD,
+                    'specialist': service_registry_pb2.SPECIALIST if hasattr(service_registry_pb2, 'SPECIALIST') else service_registry_pb2.WORKER,
                 }
                 agent_type_enum = agent_type_map.get(
                     agent_info.agent_type.lower(),
@@ -222,6 +223,9 @@ class ServiceRegistryClient:
             service_registry_pb2.SCOUT: 'scout',
             service_registry_pb2.GUARD: 'guard',
         }
+        # Adicionar SPECIALIST se disponível no proto
+        if hasattr(service_registry_pb2, 'SPECIALIST'):
+            type_map[service_registry_pb2.SPECIALIST] = 'specialist'
         return type_map.get(agent_type, 'unknown')
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))

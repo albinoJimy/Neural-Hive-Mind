@@ -30,7 +30,6 @@ class RemediationProducer:
                 value_serializer=lambda v: json.dumps(v).encode('utf-8'),
                 compression_type='gzip',
                 acks='all',
-                max_in_flight_requests_per_connection=1,
                 enable_idempotence=True
             )
             self.producer = instrument_kafka_producer(self.producer)

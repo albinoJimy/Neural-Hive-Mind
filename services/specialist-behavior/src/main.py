@@ -9,9 +9,6 @@ import sys
 import threading
 import structlog
 
-# Adicionar paths
-sys.path.insert(0, '/app/libraries/python')
-
 from config import BehaviorSpecialistConfig
 from specialist import BehaviorSpecialist
 
@@ -23,13 +20,8 @@ except ImportError:
     USE_FASTAPI = False
     from http_server import create_http_server
 
-# Imports simulados (em produção viriam de neural_hive_specialists)
-try:
-    from neural_hive_specialists import create_grpc_server_with_observability
-except ImportError:
-    # Fallback para desenvolvimento local
-    sys.path.insert(0, '/app')
-    from libraries.python.neural_hive_specialists import create_grpc_server_with_observability
+# Import from neural_hive_specialists (installed as pip package)
+from neural_hive_specialists import create_grpc_server_with_observability
 
 logger = structlog.get_logger()
 

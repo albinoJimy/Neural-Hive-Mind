@@ -23,6 +23,10 @@ dependencies:
     version: "12.12.10"
     repository: "https://charts.bitnami.com/bitnami"
     condition: postgresql.enabled
+  - name: common-templates
+    version: "0.1.0"
+    repository: "file://../common-templates"
+    alias: common
 annotations:
   category: Security
   licenses: Apache-2.0

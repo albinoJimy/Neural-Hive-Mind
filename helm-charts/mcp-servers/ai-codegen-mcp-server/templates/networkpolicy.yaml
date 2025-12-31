@@ -1,0 +1,44 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "ai-codegen-mcp-server.fullname" . }}
+  labels:
+    {{- include "ai-codegen-mcp-server.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "ai-codegen-mcp-server.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Aceitar conexões do MCP Tool Catalog (namespace neural-hive)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mcp-tool-catalog
+      ports:
+        - protocol: TCP
+          port: 3000
+    # Aceitar conexões do Prometheus para métricas
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: observability
+      ports:
+        - protocol: TCP
+          port: 9091
+  egress:
+    # DNS
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+    # HTTPS para OpenAI e GitHub APIs
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443

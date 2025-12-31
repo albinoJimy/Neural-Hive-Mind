@@ -108,8 +108,8 @@ data:
       # Memory limiter crítico para evitar OOM
       memory_limiter:
         check_interval: 1s
-        limit_mib: {{ .Values.collector.resources.limits.memory | regexReplaceAll "Gi" "" | mul 1024 | mul 0.8 | int }}
-        spike_limit_mib: {{ .Values.collector.resources.limits.memory | regexReplaceAll "Gi" "" | mul 1024 | mul 0.2 | int }}
+        limit_mib: {{ .Values.resources.limits.memory | regexReplaceAll "Gi" "" | mul 1024 | mul 0.8 | int }}
+        spike_limit_mib: {{ .Values.resources.limits.memory | regexReplaceAll "Gi" "" | mul 1024 | mul 0.2 | int }}
 
       # Batch processor otimizado para throughput
       batch:

@@ -1,69 +1,55 @@
 {{/*
-Expand the name of the chart.
+Guard Agents - Helpers usando templates comuns do Neural Hive Mind
+*/}}
+
+{{/*
+Usa funções do template comum via dependência
 */}}
 {{- define "guard-agents.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.name" . }}
 {{- end }}
 
-{{/*
-Create a default fully qualified app name.
-*/}}
 {{- define "guard-agents.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
+{{- include "neural-hive.fullname" . }}
 {{- end }}
 
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
 {{- define "guard-agents.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.chart" . }}
 {{- end }}
 
-{{/*
-Common labels
-*/}}
 {{- define "guard-agents.labels" -}}
-helm.sh/chart: {{ include "guard-agents.chart" . }}
-{{ include "guard-agents.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-neural-hive.io/layer: resilience
-neural-hive.io/component: guard-agents
+{{- include "neural-hive.labels" (dict "context" . "component" "guard-agents" "layer" "resilience") }}
+app.kubernetes.io/part-of: neural-hive-mind
+neural-hive.io/domain: security-validation
 {{- end }}
 
-{{/*
-Selector labels
-*/}}
 {{- define "guard-agents.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "guard-agents.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+{{- include "neural-hive.selectorLabels" . }}
 {{- end }}
 
-{{/*
-Create the name of the service account to use
-*/}}
 {{- define "guard-agents.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "guard-agents.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- include "neural-hive.serviceAccountName" . }}
 {{- end }}
 
-{{/*
-Create Secret name
-*/}}
+{{- define "guard-agents.configMapName" -}}
+{{ include "guard-agents.fullname" . }}-config
+{{- end }}
+
 {{- define "guard-agents.secretName" -}}
 {{ include "guard-agents.fullname" . }}-secrets
+{{- end }}
+
+{{/*
+Contexto para uso nos templates comuns
+*/}}
+{{- define "guard-agents.context" -}}
+fullname: {{ include "guard-agents.fullname" . }}
+chartName: {{ .Chart.Name }}
+namespace: {{ .Release.Namespace }}
+appVersion: {{ .Chart.AppVersion }}
+labels:
+{{ include "guard-agents.labels" . | indent 2 }}
+selectorLabels:
+{{ include "guard-agents.selectorLabels" . | indent 2 }}
+serviceAccountName: {{ include "guard-agents.serviceAccountName" . }}
 {{- end }}

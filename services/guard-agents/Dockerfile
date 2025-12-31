@@ -1,5 +1,5 @@
 # Stage 1 - Builder
-FROM neural-hive-mind/python-observability-base:1.2.0 AS builder
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.3 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -12,19 +12,24 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
+# Create and activate virtualenv
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
 # Copy local libraries (entire package with setup.py)
 COPY libraries/security /tmp/neural_hive_security
 
-# Copy requirements and install dependencies
+# Copy requirements and install dependencies to venv
 COPY services/guard-agents/requirements.txt .
-RUN pip install --no-cache-dir --prefix=/opt/venv /tmp/neural_hive_security && \
-    pip install --no-cache-dir --prefix=/opt/venv -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir /tmp/neural_hive_security || true && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
 COPY services/guard-agents/src/ ./src/
 
 # Stage 2 - Runtime
-FROM python:3.11-slim
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.3
 
 # Create non-root user
 RUN groupadd -r guard-agent && useradd -r -u 1000 -g guard-agent guard-agent
@@ -32,15 +37,14 @@ RUN groupadd -r guard-agent && useradd -r -u 1000 -g guard-agent guard-agent
 # Set working directory
 WORKDIR /app
 
-# Copy installed dependencies from builder
+# Copy virtualenv from builder (does not overwrite base image packages)
 COPY --from=builder /opt/venv /opt/venv
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+ENV PATH="/opt/venv/bin:$PATH"
+# Ensure access to global site-packages (where neural_hive_observability is installed)
+ENV PYTHONPATH="/usr/local/lib/python3.11/site-packages:$PYTHONPATH"
 
 # Copy source code
 COPY --from=builder /app/src ./src
-
-# Set PATH to include venv binaries
-ENV PATH=/opt/venv/bin:$PATH
 
 # Labels for traceability
 LABEL neural-hive.io/component="guard-agents" \

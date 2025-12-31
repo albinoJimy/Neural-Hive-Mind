@@ -1,72 +1,54 @@
 {{/*
-Expand the name of the chart.
+OpenTelemetry Collector - Helpers usando templates comuns do Neural Hive Mind
+*/}}
+
+{{/*
+Usa funções do template comum via dependência
 */}}
 {{- define "neural-hive-otel-collector.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.name" . }}
 {{- end }}
 
-{{/*
-Create a default fully qualified app name.
-We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-If release name contains chart name it will be used as a full name.
-*/}}
 {{- define "neural-hive-otel-collector.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
+{{- include "neural-hive.fullname" . }}
 {{- end }}
 
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
 {{- define "neural-hive-otel-collector.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.chart" . }}
 {{- end }}
 
-{{/*
-Common labels
-*/}}
 {{- define "neural-hive-otel-collector.labels" -}}
-helm.sh/chart: {{ include "neural-hive-otel-collector.chart" . }}
-{{ include "neural-hive-otel-collector.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/component: telemetry-collector
+{{- include "neural-hive.labels" (dict "context" . "component" "telemetry-collector" "layer" "observabilidade") }}
 app.kubernetes.io/part-of: neural-hive-mind
 neural.hive/component: telemetry-collector
 neural.hive/layer: observabilidade
 {{- end }}
 
-{{/*
-Selector labels
-*/}}
 {{- define "neural-hive-otel-collector.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "neural-hive-otel-collector.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+{{- include "neural-hive.selectorLabels" . }}
 {{- end }}
 
-{{/*
-Create the name of the service account to use
-*/}}
 {{- define "neural-hive-otel-collector.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "neural-hive-otel-collector.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- include "neural-hive.serviceAccountName" . }}
 {{- end }}
 
 {{/*
-Neural Hive-Mind correlation headers
+Contexto para uso nos templates comuns
+*/}}
+{{- define "neural-hive-otel-collector.context" -}}
+fullname: {{ include "neural-hive-otel-collector.fullname" . }}
+chartName: {{ .Chart.Name }}
+namespace: {{ .Release.Namespace }}
+appVersion: {{ .Chart.AppVersion }}
+labels:
+{{ include "neural-hive-otel-collector.labels" . | indent 2 }}
+selectorLabels:
+{{ include "neural-hive-otel-collector.selectorLabels" . | indent 2 }}
+serviceAccountName: {{ include "neural-hive-otel-collector.serviceAccountName" . }}
+{{- end }}
+
+{{/*
+Neural Hive-Mind correlation headers - CUSTOMIZAÇÃO ESPECÍFICA DO OTEL-COLLECTOR
 */}}
 {{- define "neural-hive-otel-collector.correlationHeaders" -}}
 - name: X-Neural-Hive-Intent-ID
@@ -80,7 +62,7 @@ Neural Hive-Mind correlation headers
 {{- end }}
 
 {{/*
-Neural Hive-Mind baggage keys
+Neural Hive-Mind baggage keys - CUSTOMIZAÇÃO ESPECÍFICA DO OTEL-COLLECTOR
 */}}
 {{- define "neural-hive-otel-collector.baggageKeys" -}}
 neural.hive.intent.id: "X-Neural-Hive-Intent-ID"
@@ -90,7 +72,7 @@ neural.hive.user.id: "X-Neural-Hive-User-ID"
 {{- end }}
 
 {{/*
-Environment-specific sampling rate
+Environment-specific sampling rate - CUSTOMIZAÇÃO ESPECÍFICA DO OTEL-COLLECTOR
 */}}
 {{- define "neural-hive-otel-collector.samplingRate" -}}
 {{- if eq .Values.global.environment "production" -}}
@@ -103,7 +85,7 @@ Environment-specific sampling rate
 {{- end }}
 
 {{/*
-Environment-specific log level
+Environment-specific log level - CUSTOMIZAÇÃO ESPECÍFICA DO OTEL-COLLECTOR
 */}}
 {{- define "neural-hive-otel-collector.logLevel" -}}
 {{- if eq .Values.global.environment "production" -}}
@@ -114,7 +96,7 @@ info
 {{- end }}
 
 {{/*
-Memory limit calculation for memory_limiter
+Memory limit calculation for memory_limiter - CUSTOMIZAÇÃO ESPECÍFICA DO OTEL-COLLECTOR
 */}}
 {{- define "neural-hive-otel-collector.memoryLimit" -}}
 {{- $memoryLimit := .Values.collector.resources.limits.memory | regexReplaceAll "Gi" "" | float64 -}}

@@ -1,0 +1,41 @@
+"""Configurações do SonarQube MCP Server."""
+
+from functools import lru_cache
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    """Configurações do servidor via environment variables."""
+
+    # Informações do serviço
+    service_name: str = "sonarqube-mcp-server"
+    service_version: str = "1.0.0"
+
+    # Servidor HTTP
+    http_host: str = "0.0.0.0"
+    http_port: int = 3000
+
+    # SonarQube API
+    sonarqube_url: str = "http://sonarqube:9000"
+    sonarqube_token: str = ""
+    sonarqube_timeout: int = 60
+    sonarqube_poll_interval: int = 5
+    sonarqube_max_poll_attempts: int = 60
+
+    # Observability
+    otel_endpoint: str = "http://otel-collector:4317"
+    log_level: str = "INFO"
+    metrics_port: int = 9091
+
+    # CORS
+    cors_origins: str = "*"
+
+    class Config:
+        env_prefix = ""
+        case_sensitive = False
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    """Retorna instância singleton das configurações."""
+    return Settings()

@@ -70,6 +70,9 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ $context.serviceAccountName }}
+      {{- if hasKey $values "enableServiceLinks" }}
+      enableServiceLinks: {{ $values.enableServiceLinks }}
+      {{- end }}
       {{- with $values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -84,6 +87,14 @@ spec:
         - name: {{ $context.chartName }}
           image: "{{ $values.image.repository }}:{{ $values.image.tag | default $context.appVersion }}"
           imagePullPolicy: {{ $values.image.pullPolicy }}
+          {{- with $config.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $config.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with $values.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}

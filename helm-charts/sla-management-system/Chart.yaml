@@ -13,3 +13,9 @@ keywords:
   - monitoring
 maintainers:
   - name: Neural Hive-Mind Team
+
+dependencies:
+  - name: common-templates
+    version: "0.1.0"
+    repository: "file://../common-templates"
+    alias: common

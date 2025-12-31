@@ -1,4 +1,7 @@
 # Configurações do Memory Layer API
+component: "memory-layer-api"
+layer: "conhecimento-dados"
+
 image:
   repository: 077878370245.dkr.ecr.us-east-1.amazonaws.com/dev/memory-layer-api
   pullPolicy: IfNotPresent
@@ -9,14 +12,27 @@ replicaCount: 2
 nameOverride: ""
 fullnameOverride: ""
 
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
 # Configurações do serviço
 service:
   type: ClusterIP
-  port: 80
-  targetPort: 8000
-  metricsPort: 8080
   annotations:
     neural-hive-mind.org/component: "memory-layer-api"
+  ports:
+    http:
+      port: 80
+      targetPort: 8000
+      protocol: TCP
+    metrics:
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
 
 # Configurações de ingress
 ingress:
@@ -204,6 +220,10 @@ serviceMonitor:
   path: /metrics
   labels:
     neural-hive-mind.org/monitoring: "enabled"
+
+observability:
+  prometheus:
+    enabled: true
 
 topologySpreadConstraints:
   - maxSkew: 1

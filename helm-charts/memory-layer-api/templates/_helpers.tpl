@@ -1,58 +1,55 @@
 {{/*
-Expand the name of the chart.
+Memory Layer API - Helpers usando templates comuns do Neural Hive Mind
+*/}}
+
+{{/*
+Usa funções do template comum via dependência
 */}}
 {{- define "memory-layer-api.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.name" . }}
 {{- end }}
 
-{{/*
-Create a default fully qualified app name.
-*/}}
 {{- define "memory-layer-api.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- printf "%s" $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
+{{- include "neural-hive.fullname" . }}
 {{- end }}
 
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
 {{- define "memory-layer-api.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.chart" . }}
 {{- end }}
 
-{{/*
-Common labels
-*/}}
 {{- define "memory-layer-api.labels" -}}
-helm.sh/chart: {{ include "memory-layer-api.chart" . }}
-{{ include "memory-layer-api.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-neural-hive-mind.org/component: memory-layer-api
-neural-hive-mind.org/layer: conhecimento-dados
+{{- include "neural-hive.labels" (dict "context" . "component" "memory-layer-api" "layer" "conhecimento-dados") }}
+app.kubernetes.io/part-of: neural-hive-mind
+neural-hive.io/domain: memory-management
 {{- end }}
 
-{{/*
-Selector labels
-*/}}
 {{- define "memory-layer-api.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "memory-layer-api.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+{{- include "neural-hive.selectorLabels" . }}
+{{- end }}
+
+{{- define "memory-layer-api.serviceAccountName" -}}
+{{- include "neural-hive.serviceAccountName" . }}
+{{- end }}
+
+{{- define "memory-layer-api.configMapName" -}}
+{{ include "memory-layer-api.fullname" . }}-config
+{{- end }}
+
+{{- define "memory-layer-api.secretName" -}}
+{{ include "memory-layer-api.fullname" . }}-secrets
 {{- end }}
 
 {{/*
-Create the name of the service account to use
+Contexto para uso nos templates comuns
 */}}
-{{- define "memory-layer-api.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "memory-layer-api.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- define "memory-layer-api.context" -}}
+fullname: {{ include "memory-layer-api.fullname" . }}
+chartName: {{ .Chart.Name }}
+namespace: {{ .Release.Namespace }}
+appVersion: {{ .Chart.AppVersion }}
+labels:
+{{ include "memory-layer-api.labels" . | indent 2 }}
+selectorLabels:
+{{ include "memory-layer-api.selectorLabels" . | indent 2 }}
+serviceAccountName: {{ include "memory-layer-api.serviceAccountName" . }}
 {{- end }}

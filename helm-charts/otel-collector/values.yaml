@@ -1,84 +1,180 @@
+# Metadados para templates comuns
+component: "otel-collector"
+layer: "observabilidade"
+
 nameOverride: ""
 fullnameOverride: ""
+
+# Service Account configuration
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
 
 # Configuração global
 global:
   domain: neural-hive.local
   environment: production
 
+replicaCount: 2
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+  tag: ""  # Usa .Chart.AppVersion
+  pullPolicy: IfNotPresent
+
+# Estrutura compatível com neural-hive.service
+service:
+  type: ClusterIP
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    neural.hive/metrics: "enabled"
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8888"
+    prometheus.io/path: "/metrics"
+  ports:
+    otlp-grpc:
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+    otlp-http:
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+    jaeger-grpc:
+      port: 14250
+      targetPort: 14250
+      protocol: TCP
+    jaeger-http:
+      port: 14268
+      targetPort: 14268
+      protocol: TCP
+    zipkin:
+      port: 9411
+      targetPort: 9411
+      protocol: TCP
+    metrics:
+      port: 8888
+      targetPort: 8888
+      protocol: TCP
+    health:
+      port: 13133
+      targetPort: 13133
+      protocol: TCP
+    pprof:
+      port: 1777
+      targetPort: 1777
+      protocol: TCP
+    zpages:
+      port: 55679
+      targetPort: 55679
+      protocol: TCP
+
+# Configurações de recursos
+resources:
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
+# Configurações de segurança
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  fsGroup: 65534
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+# Anti-affinity para alta disponibilidade
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - neural-hive-otel-collector
+        topologyKey: kubernetes.io/hostname
+
+nodeSelector: {}
+tolerations: []
+
+# Deployment strategy
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+# Istio integration
+istio:
+  enabled: true
+  mtls:
+    mode: STRICT
+
+# Observability
+observability:
+  prometheus:
+    enabled: true
+
+podAnnotations:
+  sidecar.istio.io/inject: "true"
+  neural.hive/metrics: "enabled"
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8888"
+  prometheus.io/path: "/metrics"
+
+podLabels:
+  neural.hive/component: telemetry-collector
+  neural.hive/layer: observabilidade
+  neural.hive/instrumented: "true"
+
+# Probes
+livenessProbe:
+  httpGet:
+    path: /
+    port: health
+  initialDelaySeconds: 15
+  periodSeconds: 20
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: health
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Command override para o container
+containerCommand:
+  - /otelcol-contrib
+  - --config=/conf/otelcol.yaml
+
 # Configuração do OpenTelemetry Collector
 collector:
-  enabled: true
-  mode: deployment
-  replicas: 2
-
-  # Configurações de recursos
-  resources:
-    limits:
-      cpu: 1000m
-      memory: 2Gi
-    requests:
-      cpu: 500m
-      memory: 1Gi
-
-  # Configurações de segurança
-  securityContext:
-    runAsNonRoot: true
-    runAsUser: 65534
-    fsGroup: 65534
-    seccompProfile:
-      type: RuntimeDefault
-
-  # Anti-affinity para alta disponibilidade
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-            - key: app.kubernetes.io/name
-              operator: In
-              values:
-              - neural-hive-otel-collector
-          topologyKey: kubernetes.io/hostname
-
-  # Service configuration
-  service:
-    type: ClusterIP
-    ports:
-      otlp:
-        port: 4317
-        targetPort: 4317
-        protocol: TCP
-        appProtocol: grpc
-      otlp-http:
-        port: 4318
-        targetPort: 4318
-        protocol: TCP
-        appProtocol: http
-      jaeger-grpc:
-        port: 14250
-        targetPort: 14250
-        protocol: TCP
-        appProtocol: grpc
-      jaeger-thrift:
-        port: 14268
-        targetPort: 14268
-        protocol: TCP
-        appProtocol: http
-      metrics:
-        port: 8888
-        targetPort: 8888
-        protocol: TCP
-        appProtocol: http
-      health:
-        port: 13133
-        targetPort: 13133
-        protocol: TCP
-        appProtocol: http
-
-  # Configuração do OpenTelemetry
   config:
     extensions:
       health_check:
@@ -95,7 +191,6 @@ collector:
         endpoint: 0.0.0.0:55679
       memory_ballast:
         size_mib: 683
-      # Resource detection para metadados automáticos
       resourcedetection:
         detectors: [env, system, k8snode, kubernetes]
         timeout: 2s
@@ -128,8 +223,6 @@ collector:
             endpoint: 0.0.0.0:4317
           http:
             endpoint: 0.0.0.0:4318
-
-      # Receiver para métricas Prometheus
       prometheus:
         config:
           global:
@@ -159,16 +252,12 @@ collector:
               target_label: __address__
             - action: labelmap
               regex: __meta_kubernetes_pod_label_(.+)
-
-      # Receiver para Jaeger traces
       jaeger:
         protocols:
           grpc:
             endpoint: 0.0.0.0:14250
           thrift_http:
             endpoint: 0.0.0.0:14268
-
-      # Receiver para logs via OTLP
       otlp/logs:
         protocols:
           grpc:
@@ -177,18 +266,13 @@ collector:
             endpoint: 0.0.0.0:4318
 
     processors:
-      # Memory limiter para evitar OOM
       memory_limiter:
         check_interval: 1s
         limit_mib: 1536
-
-      # Batch processor para otimizar throughput
       batch:
         send_batch_size: 1024
         timeout: 10s
         send_batch_max_size: 2048
-
-      # Resource processor para adicionar atributos padrão
       resource:
         attributes:
         - key: deployment.environment
@@ -200,8 +284,6 @@ collector:
         - key: neural.hive.cluster
           value: main
           action: upsert
-
-      # Processor para correlação Neural Hive-Mind
       attributes/neural_hive:
         actions:
         - key: neural.hive.intent.id
@@ -216,13 +298,9 @@ collector:
         - key: neural.hive.user.id
           from_attribute: http.request.header.x-neural-hive-user-id
           action: upsert
-
-      # Tail sampling otimizado para Neural Hive-Mind
-      # Tail sampling configurado via templates/configmap.yaml para evitar divergência
       tail_sampling: {}
 
     exporters:
-      # Prometheus exporter para métricas
       prometheus:
         endpoint: "0.0.0.0:8888"
         const_labels:
@@ -230,26 +308,18 @@ collector:
         send_timestamps: true
         metric_expiration: 180m
         enable_open_metrics: true
-
-      # Jaeger exporter para traces
       jaeger:
         endpoint: jaeger-collector:14250
         tls:
           insecure: true
-
-      # OTLP exporter para backends externos
       otlp/traces:
         endpoint: jaeger-collector:4317
         tls:
           insecure: true
         headers:
           X-Neural-Hive-Source: "otel-collector"
-
-      # Debug exporter para troubleshooting
       debug:
         verbosity: normal
-
-      # Logging exporter para desenvolvimento
       logging:
         loglevel: info
         sampling_initial: 5
@@ -262,17 +332,14 @@ collector:
           receivers: [otlp, jaeger]
           processors: [memory_limiter, resource, attributes/neural_hive, tail_sampling, batch]
           exporters: [jaeger, otlp/traces]
-
         metrics:
           receivers: [otlp, prometheus]
           processors: [memory_limiter, resource, attributes/neural_hive, batch]
           exporters: [prometheus]
-
         logs:
           receivers: [otlp/logs]
           processors: [memory_limiter, resource, attributes/neural_hive, batch]
           exporters: [logging]
-
       telemetry:
         logs:
           level: "info"
@@ -321,29 +388,31 @@ networkPolicy:
             name: observability
       ports:
       - protocol: TCP
-        port: 9090  # Prometheus
+        port: 9090
       - protocol: TCP
-        port: 14250 # Jaeger Collector
+        port: 14250
+
+# Configuração do subchart opentelemetry-collector
+opentelemetry-collector:
+  mode: deployment
 
 # Configurações de ambiente específicas
 environments:
   development:
+    replicaCount: 1
     collector:
-      replicas: 1
       config:
         processors:
           tail_sampling: {}
-
   staging:
+    replicaCount: 1
     collector:
-      replicas: 1
       config:
         processors:
           tail_sampling: {}
-
   production:
+    replicaCount: 2
     collector:
-      replicas: 2
       config:
         processors:
           tail_sampling: {}

@@ -16,12 +16,11 @@ except ImportError:
     _version_not_supported = True
 
 if _version_not_supported:
-    raise RuntimeError(
+    warnings.warn(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + f' but the generated code in service_registry_pb2_grpc.py depends on'
-        + f' grpcio>={GRPC_GENERATED_VERSION}.'
-        + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
-        + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
+        + f' but the generated code in service_registry_pb2_grpc.py was generated with'
+        + f' grpcio>={GRPC_GENERATED_VERSION}. This may cause compatibility issues.',
+        RuntimeWarning
     )
 
 

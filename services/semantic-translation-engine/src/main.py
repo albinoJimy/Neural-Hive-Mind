@@ -55,6 +55,7 @@ async def lifespan(app: FastAPI):
         neural_hive_layer='cognitiva',
         neural_hive_domain='plan-generation',
         otel_endpoint=settings.otel_endpoint,
+        prometheus_port=0,  # Desabilitado - usando /metrics endpoint do FastAPI
     )
 
     try:
@@ -277,6 +278,6 @@ if __name__ == "__main__":
         "src.main:app",
         host="0.0.0.0",
         port=8000,
-        workers=2,
+        workers=1,
         log_level=settings.log_level.lower()
     )

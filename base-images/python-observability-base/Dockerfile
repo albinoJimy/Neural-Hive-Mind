@@ -8,7 +8,7 @@
 FROM python:3.11-slim
 
 # Build arguments
-ARG VERSION=1.2.0
+ARG VERSION=1.2.2
 ARG BUILD_DATE
 
 # Labels
@@ -17,6 +17,7 @@ LABEL org.opencontainers.image.description="Base image with neural_hive_observab
 LABEL org.opencontainers.image.version="${VERSION}"
 LABEL org.opencontainers.image.created="${BUILD_DATE}"
 LABEL neural-hive-mind.org/component="python-observability-base"
+LABEL neural-hive-mind.org/fix="opentelemetry-context-token-compatibility"
 
 # Install build dependencies
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \

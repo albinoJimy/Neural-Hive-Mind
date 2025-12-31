@@ -1,76 +1,55 @@
 {{/*
-Expand the name of the chart.
+Orchestrator Dynamic - Helpers usando templates comuns do Neural Hive Mind
+*/}}
+
+{{/*
+Usa funções do template comum via dependência
 */}}
 {{- define "orchestrator-dynamic.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.name" . }}
 {{- end }}
 
-{{/*
-Create a default fully qualified app name.
-*/}}
 {{- define "orchestrator-dynamic.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
+{{- include "neural-hive.fullname" . }}
 {{- end }}
 
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
 {{- define "orchestrator-dynamic.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- include "neural-hive.chart" . }}
 {{- end }}
 
-{{/*
-Common labels
-*/}}
 {{- define "orchestrator-dynamic.labels" -}}
-helm.sh/chart: {{ include "orchestrator-dynamic.chart" . }}
-{{ include "orchestrator-dynamic.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/component: {{ index .Values.podLabels "app.kubernetes.io/component" | default "orchestration" }}
-neural-hive.io/layer: {{ index .Values.podLabels "neural-hive.io/layer" | default "orchestration" }}
+{{- include "neural-hive.labels" (dict "context" . "component" "orchestrator-dynamic" "layer" "orchestration") }}
+app.kubernetes.io/part-of: neural-hive-mind
+neural-hive.io/domain: workflow-orchestration
 {{- end }}
 
-{{/*
-Selector labels
-*/}}
 {{- define "orchestrator-dynamic.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "orchestrator-dynamic.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+{{- include "neural-hive.selectorLabels" . }}
 {{- end }}
 
-{{/*
-Create the name of the service account to use
-*/}}
 {{- define "orchestrator-dynamic.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "orchestrator-dynamic.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- include "neural-hive.serviceAccountName" . }}
 {{- end }}
 
-{{/*
-Create ConfigMap name
-*/}}
 {{- define "orchestrator-dynamic.configMapName" -}}
 {{ include "orchestrator-dynamic.fullname" . }}-config
 {{- end }}
 
-{{/*
-Create Secret name
-*/}}
 {{- define "orchestrator-dynamic.secretName" -}}
 {{ include "orchestrator-dynamic.fullname" . }}-secrets
+{{- end }}
+
+{{/*
+Contexto para uso nos templates comuns
+*/}}
+{{- define "orchestrator-dynamic.context" -}}
+fullname: {{ include "orchestrator-dynamic.fullname" . }}
+chartName: {{ .Chart.Name }}
+namespace: {{ .Release.Namespace }}
+appVersion: {{ .Chart.AppVersion }}
+labels:
+{{ include "orchestrator-dynamic.labels" . | indent 2 }}
+selectorLabels:
+{{ include "orchestrator-dynamic.selectorLabels" . | indent 2 }}
+serviceAccountName: {{ include "orchestrator-dynamic.serviceAccountName" . }}
 {{- end }}

@@ -1,0 +1,17 @@
+apiVersion: v2
+name: sonarqube-mcp-server
+description: SonarQube MCP Server para Neural Hive-Mind - Análise de qualidade de código via protocolo MCP
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+dependencies:
+  - name: common-templates
+    version: "0.1.0"
+    repository: "file://../../common-templates"
+keywords:
+  - sonarqube
+  - mcp
+  - code-quality
+  - static-analysis
+maintainers:
+  - name: Neural Hive-Mind Team

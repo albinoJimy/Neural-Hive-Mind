@@ -20,7 +20,11 @@ home: https://sigstore.dev
 sources:
   - https://github.com/sigstore/policy-controller
 
-dependencies: []
+dependencies:
+  - name: common-templates
+    version: "0.1.0"
+    repository: "file://../common-templates"
+    alias: common
 
 annotations:
   category: Security

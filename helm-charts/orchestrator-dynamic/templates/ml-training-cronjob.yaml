@@ -1,4 +1,4 @@
-{{- if .Values.config.ml.trainingJob.enabled }}
+{{- if and .Values.config.spiffe .Values.config.spiffe.trainingJob .Values.config.spiffe.trainingJob.enabled }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -7,13 +7,13 @@ metadata:
   labels:
     {{- include "orchestrator-dynamic.labels" . | nindent 4 }}
 spec:
-  schedule: {{ .Values.config.ml.trainingJob.schedule | quote }}
-  successfulJobsHistoryLimit: {{ .Values.config.ml.trainingJob.successfulJobsHistoryLimit }}
-  failedJobsHistoryLimit: {{ .Values.config.ml.trainingJob.failedJobsHistoryLimit }}
+  schedule: {{ .Values.config.spiffe.trainingJob.schedule | quote }}
+  successfulJobsHistoryLimit: {{ .Values.config.spiffe.trainingJob.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.config.spiffe.trainingJob.failedJobsHistoryLimit }}
   jobTemplate:
     spec:
-      backoffLimit: {{ .Values.config.ml.trainingJob.backoffLimit }}
-      activeDeadlineSeconds: {{ .Values.config.ml.trainingJob.timeoutSeconds }}
+      backoffLimit: {{ .Values.config.spiffe.trainingJob.backoffLimit }}
+      activeDeadlineSeconds: {{ .Values.config.spiffe.trainingJob.timeoutSeconds }}
       template:
         metadata:
           labels:
@@ -27,9 +27,9 @@ spec:
             imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
             command: ["python3", "/app/scripts/train_models_production.py"]
             args:
-              - "--window-days={{ default .Values.config.ml.training.windowDays .Values.config.ml.trainingJob.windowDaysOverride }}"
-              - "--min-samples={{ .Values.config.ml.trainingJob.minSamples }}"
-              {{- if .Values.config.ml.trainingJob.backfillErrors }}
+              - "--window-days={{ default .Values.config.spiffe.training.windowDays .Values.config.spiffe.trainingJob.windowDaysOverride }}"
+              - "--min-samples={{ .Values.config.spiffe.trainingJob.minSamples }}"
+              {{- if .Values.config.spiffe.trainingJob.backfillErrors }}
               - "--backfill-errors"
               {{- end }}
             envFrom:
@@ -38,7 +38,7 @@ spec:
             - secretRef:
                 name: orchestrator-secrets
             resources:
-              {{- toYaml .Values.config.ml.trainingJob.resources | nindent 14 }}
+              {{- toYaml .Values.config.spiffe.trainingJob.resources | nindent 14 }}
             volumeMounts:
             - name: training-logs
               mountPath: /tmp/training_logs

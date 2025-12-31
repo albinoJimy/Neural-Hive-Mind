@@ -36,17 +36,22 @@ networkPolicy:
 istio:
   enabled: false
 
+# Service configuration
+service:
+  httpPort: 8080
+  metricsPort: 9091
+
 # Application configuration
 # Note: Top-level keys kafka, mongodb, redis, serviceRegistry match base schema
 
 kafka:
-  bootstrapServers: neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092
+  bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
   requestTopic: mcp.tool.selection.requests
   responseTopic: mcp.tool.selection.responses
   consumerGroupId: mcp-tool-catalog-group
 
 mongodb:
-  url: mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017
+  url: mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/mcp_tool_catalog?authSource=admin
   database: mcp_tool_catalog
   toolsCollection: tools
   selectionsCollection: selections_history
@@ -57,8 +62,8 @@ redis:
   cacheEnabled: true
 
 serviceRegistry:
-  host: service-registry
-  port: 8080
+  grpcHost: service-registry.neural-hive.svc.cluster.local
+  grpcPort: 50051
   heartbeatInterval: 30
 
 geneticAlgorithm:

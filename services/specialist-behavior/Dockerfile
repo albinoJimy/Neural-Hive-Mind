@@ -15,9 +15,9 @@ RUN python -c "import spacy; nlp = spacy.load('pt_core_news_sm'); print('✓ Bas
 # Copiar código da aplicação
 COPY services/specialist-behavior/src /app/src
 
-# Ajustar PATH
+# Ajustar PATH e PYTHONPATH
 ENV PATH=/home/specialist/.local/bin:$PATH
-ENV PYTHONPATH=/app:$PYTHONPATH
+ENV PYTHONPATH=/app/src:/app:$PYTHONPATH
 
 # Mudar para usuário não-root
 USER specialist

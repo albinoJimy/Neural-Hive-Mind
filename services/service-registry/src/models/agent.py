@@ -11,6 +11,63 @@ class AgentType(str, Enum):
     SCOUT = "SCOUT"
     GUARD = "GUARD"
 
+    @classmethod
+    def from_proto_value(cls, value) -> "AgentType":
+        """
+        Converte valor protobuf (int ou string) para AgentType enum.
+
+        Protobuf enums são transmitidos como inteiros:
+        - 0: AGENT_TYPE_UNSPECIFIED (inválido)
+        - 1: WORKER
+        - 2: SCOUT
+        - 3: GUARD
+
+        Args:
+            value: Pode ser int (1, 2, 3), string ("WORKER", "SCOUT", "GUARD"),
+                   ou já um AgentType enum
+
+        Returns:
+            AgentType enum correspondente
+
+        Raises:
+            ValueError: Se o valor não puder ser mapeado para um AgentType válido
+        """
+        # Se já é AgentType, retorna diretamente
+        if isinstance(value, cls):
+            return value
+
+        # Mapeamento de int protobuf para enum
+        proto_int_map = {
+            1: cls.WORKER,
+            2: cls.SCOUT,
+            3: cls.GUARD,
+        }
+
+        # Se é inteiro, usar mapeamento direto
+        if isinstance(value, int):
+            if value in proto_int_map:
+                return proto_int_map[value]
+            raise ValueError(
+                f"Invalid AgentType int value: {value}. "
+                f"Expected 1 (WORKER), 2 (SCOUT), or 3 (GUARD)"
+            )
+
+        # Se é string, tentar converter para enum
+        if isinstance(value, str):
+            value_upper = value.upper()
+            try:
+                return cls(value_upper)
+            except ValueError:
+                raise ValueError(
+                    f"Invalid AgentType string value: '{value}'. "
+                    f"Expected 'WORKER', 'SCOUT', or 'GUARD'"
+                )
+
+        raise ValueError(
+            f"Cannot convert {type(value).__name__} to AgentType. "
+            f"Expected int, str, or AgentType"
+        )
+
 
 class AgentStatus(str, Enum):
     """Status de saúde do agente"""
@@ -78,7 +135,7 @@ class AgentInfo(BaseModel):
         telemetry_data = data.get("telemetry", {})
         return cls(
             agent_id=UUID(data["agent_id"]),
-            agent_type=AgentType(data["agent_type"]),
+            agent_type=AgentType.from_proto_value(data["agent_type"]),
             capabilities=data.get("capabilities", []),
             metadata=data.get("metadata", {}),
             telemetry=AgentTelemetry(

@@ -26,3 +26,8 @@ annotations:
   neural-hive-mind.org/component: "memory-layer-api"
   neural-hive-mind.org/layer: "conhecimento-dados"
   neural-hive-mind.org/domain: "unified-memory"
+dependencies:
+  - name: common-templates
+    version: "0.1.0"
+    repository: "file://../common-templates"
+    alias: common

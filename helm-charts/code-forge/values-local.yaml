@@ -44,7 +44,7 @@ config:
 
   # Kafka configuration - no TLS/SASL for local
   kafka:
-    bootstrapServers: neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092
+    bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
     securityProtocol: PLAINTEXT
     enableSasl: false
     enableSsl: false

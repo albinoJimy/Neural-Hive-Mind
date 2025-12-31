@@ -1,5 +1,9 @@
 # Keycloak Configuration para Neural Hive-Mind
 
+# Configuração para templates comuns
+component: "auth"
+layer: "security"
+
 # Configuração Geral
 nameOverride: ""
 fullnameOverride: ""
@@ -101,10 +105,39 @@ externalDatabase:
 service:
   type: ClusterIP
   ports:
-    http: 8080
-    https: 8443
+    http:
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    https:
+      port: 8443
+      targetPort: 8443
+      protocol: TCP
+    management:
+      port: 9000
+      targetPort: 9000
+      protocol: TCP
+    metrics:
+      port: 9000
+      targetPort: 9000
+      protocol: TCP
   annotations:
     neural-hive.io/service-type: "auth"
+
+# Configuração de Deployment Strategy
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+# Configuração de Observability
+observability:
+  prometheus:
+    enabled: true
+  tracing:
+    enabled: false
 
 # Configuração de Ingress
 ingress:

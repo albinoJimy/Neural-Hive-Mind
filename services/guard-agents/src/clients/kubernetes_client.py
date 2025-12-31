@@ -10,7 +10,7 @@ logger = structlog.get_logger()
 class KubernetesClient:
     """Cliente Kubernetes para Guard Agents"""
 
-    def __init__(self, in_cluster: bool = True, namespace: str = "neural-hive-resilience"):
+    def __init__(self, in_cluster: bool = True, namespace: str = "neural-hive"):
         self.in_cluster = in_cluster
         self.namespace = namespace
         self.core_v1: Optional[client.CoreV1Api] = None
@@ -27,8 +27,8 @@ class KubernetesClient:
             self.core_v1 = client.CoreV1Api()
             self.apps_v1 = client.AppsV1Api()
 
-            # Testa conexão listando namespaces
-            self.core_v1.list_namespace()
+            # Testa conexão verificando pods no próprio namespace (não requer permissões de cluster)
+            self.core_v1.list_namespaced_pod(self.namespace, limit=1)
             logger.info("kubernetes.connected", in_cluster=self.in_cluster, namespace=self.namespace)
         except Exception as e:
             logger.error("kubernetes.connection_failed", error=str(e))

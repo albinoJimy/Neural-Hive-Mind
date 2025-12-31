@@ -24,6 +24,10 @@ annotations:
   neural.hive/component: telemetry-collector
   neural.hive/layer: observabilidade
 dependencies:
+  - name: common-templates
+    version: "0.1.0"
+    repository: "file://../common-templates"
+    alias: common
   - name: opentelemetry-collector
     version: "0.66.0"
     repository: https://open-telemetry.github.io/opentelemetry-helm-charts

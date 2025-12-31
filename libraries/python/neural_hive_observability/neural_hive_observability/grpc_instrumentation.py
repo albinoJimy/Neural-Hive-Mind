@@ -259,6 +259,37 @@ def create_instrumented_grpc_server(
     return server
 
 
+def create_instrumented_async_grpc_server(
+    config: ObservabilityConfig,
+    interceptors: Optional[List[grpc.aio.ServerInterceptor]] = None
+) -> grpc.aio.Server:
+    """
+    Cria servidor gRPC assíncrono com interceptors padrão Neural Hive.
+
+    Args:
+        config: Configuração de observabilidade
+        interceptors: Lista adicional de interceptors
+
+    Returns:
+        Instância configurada de servidor gRPC assíncrono
+    """
+    options = [
+        ("grpc.max_receive_message_length", 50 * 1024 * 1024),
+        ("grpc.max_send_message_length", 50 * 1024 * 1024),
+        ("grpc.keepalive_time_ms", 30000),
+        ("grpc.keepalive_timeout_ms", 10000),
+    ]
+
+    all_interceptors = list(interceptors) if interceptors else []
+
+    server = grpc.aio.server(
+        interceptors=all_interceptors,
+        options=options
+    )
+
+    return server
+
+
 def instrument_grpc_channel(
     channel: grpc.Channel,
     service_name: str = "",
@@ -295,7 +326,10 @@ def extract_grpc_context(servicer_context: grpc.ServicerContext) -> Tuple[Dict[s
         servicer_context: Contexto do serviço gRPC
 
     Returns:
-        Tuple com dicionário extraído e token de contexto (para detach)
+        Tuple contendo:
+            - Dicionário com valores extraídos dos headers Neural Hive
+            - Token genérico para detach do contexto (pode ser de qualquer tipo
+              retornado por context.attach, ou None se o attach falhar)
     """
     metadata = {}
     for key, value in servicer_context.invocation_metadata() or []:

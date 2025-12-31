@@ -152,6 +152,11 @@ class SpecialistConfig(BaseSettings):
         env="LEDGER_REQUIRED",
         description="Se True, falha fatal se ledger indisponível; se False, continua em modo degradado"
     )
+    model_required: bool = Field(
+        default=True,
+        env="MODEL_REQUIRED",
+        description="Se True, exige modelo ML carregado para SERVING; se False, permite modo heurístico sem modelo"
+    )
     ledger_init_retry_attempts: int = Field(
         default=5,
         env="LEDGER_INIT_RETRY_ATTEMPTS",

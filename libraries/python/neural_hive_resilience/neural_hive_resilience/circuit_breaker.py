@@ -36,6 +36,9 @@ class MonitoredCircuitBreaker(CircuitBreaker):
         if timeout_duration is not None:
             kwargs["reset_timeout"] = timeout_duration
         self.recovery_timeout = recovery_timeout or kwargs.get("reset_timeout")
+        # Remove unsupported parameters for pybreaker >= 1.0
+        kwargs.pop("expected_exception", None)
+        kwargs.pop("expected_exceptions", None)
         super().__init__(**kwargs)
         self.service_name = service_name
         self.circuit_name = circuit_name

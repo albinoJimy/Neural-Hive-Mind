@@ -87,8 +87,16 @@ class MCPToolCatalogService:
             # Initialize Tool Executor
             from src.services.tool_executor import ToolExecutor
 
-            self.tool_executor = ToolExecutor()
+            self.tool_executor = ToolExecutor(
+                tool_registry=self.tool_registry,
+                metrics=self.metrics,
+                settings=self.settings
+            )
             logger.info("tool_executor_initialized")
+
+            # Inicializar clientes MCP (se configurados)
+            await self.tool_executor.start()
+            logger.info("tool_executor_mcp_clients_started")
 
             # Initialize Kafka clients
             from src.clients.kafka_request_consumer import KafkaRequestConsumer
@@ -115,7 +123,7 @@ class MCPToolCatalogService:
             from src.clients.service_registry_client import ServiceRegistryClient
 
             self.service_registry_client = ServiceRegistryClient(
-                self.settings.SERVICE_REGISTRY_HOST, self.settings.SERVICE_REGISTRY_PORT
+                self.settings.SERVICE_REGISTRY_GRPC_HOST, self.settings.SERVICE_REGISTRY_GRPC_PORT
             )
             await self.service_registry_client.register(
                 self.settings.SERVICE_NAME,
@@ -145,6 +153,10 @@ class MCPToolCatalogService:
             await self.kafka_consumer.stop()
         if self.kafka_producer:
             await self.kafka_producer.stop()
+
+        # Parar Tool Executor (fechar MCP clients)
+        if hasattr(self, 'tool_executor') and self.tool_executor:
+            await self.tool_executor.stop()
 
         # Deregister from Service Registry
         if self.service_registry_client:

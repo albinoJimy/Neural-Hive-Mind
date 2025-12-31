@@ -1,11 +1,18 @@
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
 # Local development values for specialist-technical
 # Override production values for local Kubernetes clusters
 
 # Reduced replica count for local development
 replicaCount: 1
 image:
-  repository: neural-hive-mind/specialist-technical
-  tag: 1.2.0
+  repository: 37.60.241.150:30500/specialist-technical
+  tag: latest
   pullPolicy: IfNotPresent
   pullPolicy: IfNotPresent
 # Reduced resources for local development (~50% of production)
@@ -35,6 +42,7 @@ istio:
 config:
   environment: dev
   logLevel: DEBUG
+  modelRequired: true
   # MLflow configuration - production model for ML inference
   mlflow:
     trackingUri: http://mlflow.mlflow.svc.cluster.local:5000
@@ -115,3 +123,7 @@ readinessProbe:
   periodSeconds: 5
   timeoutSeconds: 3
   failureThreshold: 3
+
+observability:
+  prometheus:
+    enabled: false

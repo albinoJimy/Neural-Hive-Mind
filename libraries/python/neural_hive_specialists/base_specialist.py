@@ -35,8 +35,15 @@ from .schemas import (
 )
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+import os
 
 logger = structlog.get_logger()
+
+# Service Registry configuration
+SERVICE_REGISTRY_HOST = os.getenv("SERVICE_REGISTRY_HOST", "service-registry.neural-hive.svc.cluster.local")
+SERVICE_REGISTRY_PORT = int(os.getenv("SERVICE_REGISTRY_PORT", "50051"))
+SERVICE_REGISTRY_ENABLED = os.getenv("SERVICE_REGISTRY_ENABLED", "true").lower() == "true"
 
 
 class BaseSpecialist(ABC):
@@ -102,17 +109,41 @@ class BaseSpecialist(ABC):
             logger.info("Ledger disabled via configuration (enable_ledger=False)")
             self.ledger_client = None
         else:
+            # Função interna para inicialização com retry
+            def _init_ledger_with_retry():
+                """Inicializa LedgerClient com retry exponential backoff."""
+                @retry(
+                    stop=stop_after_attempt(config.ledger_init_retry_attempts),
+                    wait=wait_exponential(multiplier=1, min=2, max=config.ledger_init_retry_max_wait_seconds),
+                    retry=retry_if_exception_type(Exception),
+                    before_sleep=lambda retry_state: logger.warning(
+                        "Ledger init retry",
+                        attempt=retry_state.attempt_number,
+                        max_attempts=config.ledger_init_retry_attempts,
+                        wait_time=retry_state.next_action.sleep
+                    )
+                )
+                def _init():
+                    return LedgerClient(config, metrics=self.metrics)
+                return _init()
+
             try:
-                self.ledger_client = LedgerClient(config, metrics=self.metrics)
+                if config.ledger_required:
+                    # Usar retry quando ledger é obrigatório
+                    self.ledger_client = _init_ledger_with_retry()
+                else:
+                    # Sem retry quando ledger é opcional
+                    self.ledger_client = LedgerClient(config, metrics=self.metrics)
                 logger.info("Ledger client initialized successfully")
             except Exception as e:
                 if config.ledger_required:
                     logger.error(
-                        "Ledger is required but unavailable - failing initialization",
+                        "Ledger is required but unavailable after retries - failing initialization",
                         error=str(e),
-                        ledger_required=True
+                        ledger_required=True,
+                        retry_attempts=config.ledger_init_retry_attempts
                     )
-                    raise RuntimeError(f"Ledger required but unavailable: {e}")
+                    raise RuntimeError(f"Ledger required but unavailable after {config.ledger_init_retry_attempts} retries: {e}")
                 else:
                     logger.warning(
                         "Ledger client unavailable - continuing without ledger persistence",
@@ -289,13 +320,17 @@ class BaseSpecialist(ABC):
         else:
             self.model = self._load_model()
 
+        # Inicializar atributo para agent_id do service-registry
+        self._registered_agent_id = None
+
         logger.info(
             "Specialist initialized successfully",
             specialist_type=self.specialist_type,
             model_loaded=self.model is not None,
             feature_extractor_ready=True,
             semantic_pipeline_ready=True,
-            drift_monitoring_enabled=self.drift_detector is not None
+            drift_monitoring_enabled=self.drift_detector is not None,
+            service_registry_enabled=SERVICE_REGISTRY_ENABLED
         )
 
     @abstractmethod
@@ -1818,24 +1853,34 @@ class BaseSpecialist(ABC):
         if degraded_reasons:
             details['degraded_reasons'] = degraded_reasons
 
-        # Determinar status considerando modo degradado opcional do ledger
-        if self.config.ledger_required:
-            # Se ledger é obrigatório, exigir conexão para SERVING
-            critical_healthy = (
-                details['model_loaded'] == 'True' and
-                details['ledger_connected'] == 'True'
-            )
-        else:
-            # Se ledger é opcional, não exigir conexão para SERVING
-            # Marcar degraded_reasons adequadamente se ledger indisponível
-            critical_healthy = details['model_loaded'] == 'True'
+        # Determinar status considerando model_required e ledger_required
+        model_loaded = details['model_loaded'] == 'True'
+        ledger_connected = details.get('ledger_connected') == 'True'
+        model_required = getattr(self.config, 'model_required', True)
+        ledger_required = self.config.ledger_required
 
-            # Verificar se ledger está indisponível (mas não desabilitado propositalmente)
-            if self.config.enable_ledger and details.get('ledger_connected') == 'False':
-                # Ledger está habilitado mas indisponível - modo degradado
-                if 'ledger_unavailable' not in degraded_reasons:
-                    degraded_reasons.append('ledger_unavailable')
-                details['degraded_reasons'] = degraded_reasons
+        # Lógica de critical_healthy baseada em model_required e ledger_required
+        if model_required and ledger_required:
+            critical_healthy = model_loaded and ledger_connected
+        elif model_required and not ledger_required:
+            critical_healthy = model_loaded
+        elif not model_required and ledger_required:
+            critical_healthy = ledger_connected
+        else:
+            # Nem modelo nem ledger são obrigatórios - modo heurístico sempre disponível
+            critical_healthy = True
+
+        # Marcar degraded_reasons para componentes indisponíveis (mas não obrigatórios)
+        if not model_loaded:
+            if 'model_unavailable_heuristic_mode' not in degraded_reasons:
+                degraded_reasons.append('model_unavailable_heuristic_mode')
+
+        if self.config.enable_ledger and not ledger_connected:
+            if 'ledger_unavailable' not in degraded_reasons:
+                degraded_reasons.append('ledger_unavailable')
+
+        if degraded_reasons:
+            details['degraded_reasons'] = degraded_reasons
 
         status = 'SERVING' if critical_healthy else 'NOT_SERVING'
 
@@ -1889,10 +1934,176 @@ class BaseSpecialist(ABC):
                 self.opinion_cache.close()
             if self.feature_store:
                 self.feature_store.close()
+            # Deregister from service-registry
+            if hasattr(self, '_registered_agent_id') and self._registered_agent_id:
+                try:
+                    self._deregister_from_service_registry()
+                except Exception as e:
+                    logger.warning(
+                        "Failed to deregister from service-registry",
+                        agent_id=self._registered_agent_id,
+                        error=str(e)
+                    )
             logger.info("Specialist resources closed", specialist_type=self.specialist_type)
         except Exception as e:
             logger.warning(
                 "Error closing specialist resources",
                 specialist_type=self.specialist_type,
+                error=str(e)
+            )
+
+    def register_with_service_registry(self) -> Optional[str]:
+        """
+        Registra o especialista no service-registry com retry/backoff.
+
+        Returns:
+            agent_id se registro bem-sucedido, None caso contrário
+        """
+        if not SERVICE_REGISTRY_ENABLED:
+            logger.info(
+                "Service registry disabled, skipping registration",
+                specialist_type=self.specialist_type
+            )
+            return None
+
+        try:
+            # Importar cliente do service-registry
+            from neural_hive_integration.clients.service_registry_client import (
+                ServiceRegistryClient,
+                AgentInfo
+            )
+
+            # Executar registro assíncrono em thread separada
+            agent_id = self._register_sync()
+            return agent_id
+
+        except ImportError as e:
+            logger.warning(
+                "Service registry client not available",
+                error=str(e),
+                specialist_type=self.specialist_type
+            )
+            return None
+        except Exception as e:
+            logger.error(
+                "Failed to register with service-registry",
+                error=str(e),
+                specialist_type=self.specialist_type
+            )
+            return None
+
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=2, min=2, max=60),
+        retry=retry_if_exception_type(Exception),
+        before_sleep=lambda retry_state: logger.warning(
+            "Retrying service-registry registration",
+            attempt=retry_state.attempt_number,
+            wait_time=retry_state.next_action.sleep if hasattr(retry_state.next_action, 'sleep') else 0
+        )
+    )
+    def _register_sync(self) -> str:
+        """
+        Executa registro síncrono com service-registry usando exponential backoff.
+
+        Returns:
+            agent_id do registro
+
+        Raises:
+            Exception: Se registro falhar após todas as tentativas
+        """
+        import asyncio
+        from neural_hive_integration.clients.service_registry_client import (
+            ServiceRegistryClient,
+            AgentInfo
+        )
+
+        async def _do_register():
+            client = ServiceRegistryClient(
+                host=SERVICE_REGISTRY_HOST,
+                port=SERVICE_REGISTRY_PORT
+            )
+            try:
+                # Construir agent_info com formato esperado pelo service-registry
+                agent_info = AgentInfo(
+                    agent_id="",  # Será preenchido pelo registry
+                    agent_type="specialist",
+                    capabilities=[
+                        f"evaluate_{self.specialist_type}",
+                        "plan_evaluation",
+                        "explainability"
+                    ],
+                    endpoint=f"{self.config.service_name}:{self.config.grpc_port}",
+                    metadata={
+                        "specialist_type": self.specialist_type,
+                        "version": self.version,
+                        "namespace": os.getenv("POD_NAMESPACE", "neural-hive"),
+                        "cluster": os.getenv("CLUSTER_NAME", "default"),
+                        "service_name": self.config.service_name,
+                        "grpc_port": str(self.config.grpc_port),
+                        "http_port": str(self.config.http_port),
+                        "model_loaded": str(self.model is not None)
+                    }
+                )
+
+                success = await client.register_agent(agent_info)
+                if success:
+                    logger.info(
+                        "Specialist registered with service-registry",
+                        agent_id=agent_info.agent_id,
+                        specialist_type=self.specialist_type,
+                        endpoint=agent_info.endpoint
+                    )
+                    return agent_info.agent_id
+                else:
+                    raise Exception("Registration returned False")
+            finally:
+                await client.close()
+
+        # Executar em novo event loop se não houver um rodando
+        try:
+            loop = asyncio.get_running_loop()
+            # Se há loop rodando, agendar e esperar
+            future = asyncio.run_coroutine_threadsafe(_do_register(), loop)
+            return future.result(timeout=30)
+        except RuntimeError:
+            # Sem loop rodando, criar novo
+            return asyncio.run(_do_register())
+
+    def _deregister_from_service_registry(self):
+        """Remove registro do service-registry no shutdown."""
+        if not hasattr(self, '_registered_agent_id') or not self._registered_agent_id:
+            return
+
+        try:
+            import asyncio
+            from neural_hive_integration.clients.service_registry_client import ServiceRegistryClient
+
+            async def _do_deregister():
+                client = ServiceRegistryClient(
+                    host=SERVICE_REGISTRY_HOST,
+                    port=SERVICE_REGISTRY_PORT
+                )
+                try:
+                    await client.deregister_agent(self._registered_agent_id)
+                    logger.info(
+                        "Specialist deregistered from service-registry",
+                        agent_id=self._registered_agent_id,
+                        specialist_type=self.specialist_type
+                    )
+                finally:
+                    await client.close()
+
+            try:
+                loop = asyncio.get_running_loop()
+                future = asyncio.run_coroutine_threadsafe(_do_deregister(), loop)
+                future.result(timeout=10)
+            except RuntimeError:
+                asyncio.run(_do_deregister())
+
+        except Exception as e:
+            logger.warning(
+                "Failed to deregister from service-registry",
+                agent_id=self._registered_agent_id,
                 error=str(e)
             )
