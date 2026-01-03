@@ -153,7 +153,7 @@ podSecurityContext:
   fsGroup: 1000
 
 istio:
-  enabled: false
+  enabled: true
   mtls:
     mode: STRICT
 

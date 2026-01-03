@@ -1,9 +1,35 @@
 {{- $ctx := include "queen-agent.context" . | fromYaml }}
 {{- $checksumConfig := include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+{{- $checksumSecret := include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
 
+{{/*
+Construir envFrom para o deployment
+*/}}
 {{- $envFrom := list }}
 {{- $envFrom = append $envFrom (dict "configMapRef" (dict "name" (include "queen-agent.configMapName" .))) }}
+{{- $envFrom = append $envFrom (dict "secretRef" (dict "name" (include "queen-agent.secretName" .))) }}
 
-{{- $config := dict "checksumConfig" $checksumConfig "envFrom" $envFrom }}
+{{/*
+Construir volumes e volumeMounts
+*/}}
+{{- $volumes := list }}
+{{- $volumes = append $volumes (dict "name" "tmp" "emptyDir" (dict)) }}
+{{- $volumes = append $volumes (dict "name" "logs" "emptyDir" (dict)) }}
 
-{{- include "neural-hive.deployment" (dict "values" .Values "context" $ctx "config" $config) }}
+{{- $volumeMounts := list }}
+{{- $volumeMounts = append $volumeMounts (dict "name" "tmp" "mountPath" "/tmp") }}
+{{- $volumeMounts = append $volumeMounts (dict "name" "logs" "mountPath" "/app/logs") }}
+
+{{/*
+Construir valores modificados para o template comum
+*/}}
+{{- $modifiedValues := deepCopy .Values }}
+{{- $_ := set $modifiedValues "volumeMounts" $volumeMounts }}
+{{- $_ := set $modifiedValues "volumes" $volumes }}
+
+{{/*
+Configuração para o template
+*/}}
+{{- $config := dict "checksumConfig" $checksumConfig "checksumSecret" $checksumSecret "envFrom" $envFrom }}
+
+{{- include "neural-hive.deployment" (dict "values" $modifiedValues "context" $ctx "config" $config) }}

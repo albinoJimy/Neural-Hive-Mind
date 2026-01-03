@@ -61,9 +61,11 @@ config:
     maxWorkers: 10
 
   kafka:
-    bootstrapServers: kafka:9092
+    bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
     consumerGroup: queen-agent-group
     autoOffsetReset: earliest
+    securityProtocol: SASL_SSL
+    saslMechanism: SCRAM-SHA-512
     topics:
       consensus: plans.consensus
       telemetry: telemetry.aggregated
@@ -71,7 +73,8 @@ config:
       strategic: strategic.decisions
 
   mongodb:
-    uri: mongodb://root:local_dev_password@mongodb:27017
+    # Password injected via Secret (MONGODB_PASSWORD env var)
+    uri: mongodb://root@mongodb.mongodb-cluster.svc.cluster.local:27017
     database: neural_hive
     ledgerCollection: strategic_decisions_ledger
     exceptionsCollection: exception_approvals
@@ -79,34 +82,34 @@ config:
     minPoolSize: 10
 
   redis:
-    clusterNodes: redis-cluster:6379
-    password: ""
+    clusterNodes: neural-hive-cache.redis-cluster.svc.cluster.local:6379
+    # Password injected via Secret (REDIS_PASSWORD env var)
     sslEnabled: true
     pheromonePrefix: "pheromone:strategic:"
     cacheTtlSeconds: 300
 
   neo4j:
-    uri: bolt://neo4j:7687
+    uri: bolt://neo4j.neo4j.svc.cluster.local:7687
     user: neo4j
-    password: password
+    # Password injected via Secret (NEO4J_PASSWORD env var)
     database: neo4j
     maxConnectionPoolSize: 50
 
   prometheus:
-    url: http://prometheus-server:9090
+    url: http://prometheus-server.monitoring.svc.cluster.local:9090
     queryTimeoutSeconds: 30
 
   orchestrator:
-    grpcHost: orchestrator-dynamic
+    grpcHost: orchestrator-dynamic.neural-hive.svc.cluster.local
     grpcPort: 50051
 
   serviceRegistry:
-    grpcHost: service-registry
+    grpcHost: service-registry.neural-hive.svc.cluster.local
     grpcPort: 50051
 
   observability:
     # OpenTelemetry Collector endpoint (gRPC)
-    otelExporterEndpoint: http://otel-collector:4317
+    otelExporterEndpoint: http://otel-collector.observability.svc.cluster.local:4317
     # Prometheus metrics port
     prometheusPort: 9090
 
@@ -148,3 +151,44 @@ autoscaling:
   enabled: false
   minReplicas: 1
   maxReplicas: 5
+
+# Secrets - credenciais injetadas como variáveis de ambiente
+# Em produção, usar External Secrets Operator ou Vault
+secrets:
+  mongodbPassword: ""
+  redisPassword: ""
+  neo4jPassword: ""
+  kafkaSaslPassword: ""
+
+# Segurança do pod
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+# Startup probe para aguardar dependências
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 18
+  successThreshold: 1
+
+# Network policy
+networkPolicy:
+  enabled: true
+
+# Pod Disruption Budget
+pdb:
+  enabled: true
+  minAvailable: 1

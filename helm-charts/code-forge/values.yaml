@@ -68,7 +68,9 @@ observability:
     enabled: true
 
 istio:
-  enabled: false
+  enabled: true
+  mtls:
+    mode: STRICT
 
 config:
   SERVICE_NAME: code-forge
