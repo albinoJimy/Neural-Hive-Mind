@@ -2,12 +2,12 @@ apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
   name: mcp-tool-selection-responses
-  namespace: neural-hive-kafka
+  namespace: kafka
   labels:
     app.kubernetes.io/name: mcp-tool-catalog
     app.kubernetes.io/component: messaging
     app.kubernetes.io/part-of: neural-hive-mind
-    strimzi.io/cluster: kafka-cluster
+    strimzi.io/cluster: neural-hive-kafka
 spec:
   partitions: 3
   replicas: 3

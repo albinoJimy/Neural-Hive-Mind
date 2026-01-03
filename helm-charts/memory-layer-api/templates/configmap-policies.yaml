@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: memory-layer-policies
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "memory-layer-api.labels" . | nindent 4 }}
+    app.kubernetes.io/component: policies
+data:
+  quality-rules.yaml: |
+    # Data Quality Rules for Memory Layer
+    version: "1.0"
+    rules:
+      completeness:
+        enabled: {{ .Values.config.quality.checkEnabled }}
+        threshold: {{ .Values.config.quality.completenessThreshold }}
+        required_fields:
+          - intent_id
+          - timestamp
+          - source
+      accuracy:
+        enabled: {{ .Values.config.quality.checkEnabled }}
+        threshold: {{ .Values.config.quality.accuracyThreshold }}
+      freshness:
+        enabled: {{ .Values.config.quality.checkEnabled }}
+        max_age_hours: {{ .Values.config.quality.freshnessThresholdHours }}
+  retention-policy.yaml: |
+    # Data Retention Policy
+    version: "1.0"
+    tiers:
+      hot:
+        storage: redis
+        max_age_seconds: {{ .Values.config.routing.hotDataThresholdSeconds }}
+      warm:
+        storage: mongodb
+        max_age_days: {{ .Values.config.routing.warmDataThresholdDays }}
+      cold:
+        storage: clickhouse
+        max_age_months: {{ .Values.config.routing.coldDataThresholdMonths }}
+    mongodb:
+      retention_days: {{ .Values.config.mongodb.retentionDays }}
+    clickhouse:
+      retention_months: {{ .Values.config.clickhouse.retentionMonths }}

@@ -43,6 +43,12 @@ spec:
         ports:
         - containerPort: 5000
           name: http
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-postgres-secret
+              key: password
         command:
         - mlflow
         - server
@@ -51,7 +57,7 @@ spec:
         - --port
         - "5000"
         - --backend-store-uri
-        - "sqlite:////mlflow/mlflow.db"
+        - "postgresql://mlflow:$(POSTGRES_PASSWORD)@mlflow-postgresql:5432/mlflow"
         - --default-artifact-root
         - "/mlflow/artifacts"
         volumeMounts:
@@ -59,23 +65,37 @@ spec:
           mountPath: /mlflow
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "100m"
-          limits:
-            memory: "768Mi"
+            memory: "1Gi"
             cpu: "200m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 45
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 15
+          successThreshold: 1
         livenessProbe:
           httpGet:
             path: /health
             port: 5000
-          initialDelaySeconds: 30
-          periodSeconds: 10
+          initialDelaySeconds: 0
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /health
             port: 5000
-          initialDelaySeconds: 15
-          periodSeconds: 5
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
       volumes:
       - name: mlflow-data
-        emptyDir: {}
+        persistentVolumeClaim:
+          claimName: mlflow-artifacts-pvc

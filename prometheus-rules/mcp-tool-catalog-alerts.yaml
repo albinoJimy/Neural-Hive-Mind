@@ -1,0 +1,93 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: mcp-tool-catalog-alerts
+  labels:
+    app: mcp-tool-catalog
+    prometheus: neural-hive
+    role: alert-rules
+spec:
+  groups:
+    - name: mcp-tool-catalog.observability
+      interval: 30s
+      rules:
+        - alert: MCPToolCatalogSpanExportTypeError
+          expr: |
+            rate(neural_hive_span_export_failures_total{
+              service="mcp-tool-catalog",
+              error_type="TypeError"
+            }[5m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+            component: mcp-tool-catalog
+            layer: infrastructure
+          annotations:
+            summary: "MCP Tool Catalog: TypeError em export de spans (bug OpenTelemetry 1.39.1)"
+            description: |
+              O serviço mcp-tool-catalog está apresentando TypeErrors durante export de spans.
+              Isso indica que o bug do OpenTelemetry 1.39.1 está ocorrendo apesar da mitigação.
+
+              Taxa de falhas: {{ $value | humanize }} erros/segundo
+
+              Ações:
+              1. Verificar logs: kubectl logs -n <namespace> deployment/mcp-tool-catalog | grep TypeError
+              2. Verificar headers customizados em uso
+              3. Considerar upgrade para OpenTelemetry 1.40+
+
+        - alert: MCPToolCatalogHighSpanExportFailureRate
+          expr: |
+            (
+              rate(neural_hive_span_export_failures_total{service="mcp-tool-catalog"}[5m])
+              /
+              (rate(neural_hive_span_export_success_total{service="mcp-tool-catalog"}[5m]) + rate(neural_hive_span_export_failures_total{service="mcp-tool-catalog"}[5m]))
+            ) > 0.05
+          for: 10m
+          labels:
+            severity: warning
+            component: mcp-tool-catalog
+            layer: infrastructure
+          annotations:
+            summary: "MCP Tool Catalog: Alta taxa de falhas em export de spans (>5%)"
+            description: |
+              Taxa de falhas de export: {{ $value | humanizePercentage }}
+
+              Possíveis causas:
+              - Problemas de conectividade com OTLP collector
+              - Bug do OpenTelemetry 1.39.1
+              - Configuração incorreta de headers
+
+    - name: mcp-tool-catalog.health
+      rules:
+        - alert: MCPToolCatalogHighRestartRate
+          expr: rate(kube_pod_container_status_restarts_total{pod=~"mcp-tool-catalog-.*"}[15m]) > 0.1
+          for: 5m
+          labels:
+            severity: warning
+            component: mcp-tool-catalog
+          annotations:
+            summary: "MCP Tool Catalog restart rate alto"
+            description: "MCP Tool Catalog pod {{ $labels.pod }} está reiniciando frequentemente (>0.1/15m)"
+
+        - alert: MCPToolCatalogPodNotReady
+          expr: kube_pod_status_ready{pod=~"mcp-tool-catalog-.*",condition="true"} == 0
+          for: 5m
+          labels:
+            severity: warning
+            component: mcp-tool-catalog
+          annotations:
+            summary: "MCP Tool Catalog pod não está ready"
+            description: "MCP Tool Catalog pod {{ $labels.pod }} não está ready por mais de 5 minutos"
+
+        - alert: MCPToolCatalogHighMemoryUsage
+          expr: |
+            (container_memory_usage_bytes{pod=~"mcp-tool-catalog-.*"}
+            / container_spec_memory_limit_bytes{pod=~"mcp-tool-catalog-.*"})
+            > 0.85
+          for: 5m
+          labels:
+            severity: warning
+            component: mcp-tool-catalog
+          annotations:
+            summary: "MCP Tool Catalog memória alta"
+            description: "MCP Tool Catalog pod {{ $labels.pod }} usando >85% da memória limite"

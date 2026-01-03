@@ -13,7 +13,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: orchestrator-dynamic
     app.kubernetes.io/part-of: neural-hive-mind
-    app.kubernetes.io/version: 1.0.0
+    app.kubernetes.io/version: "1.2.0"
     helm.sh/chart: orchestrator-dynamic-1.0.0
     neural-hive.io/component: orchestrator-dynamic
     neural-hive.io/domain: workflow-orchestration
@@ -68,7 +68,7 @@ spec:
             name: orchestrator-dynamic-config
         - secretRef:
             name: orchestrator-dynamic-secrets
-        image: 37.60.241.150:30500/orchestrator-dynamic:latest
+        image: 37.60.241.150:30500/orchestrator-dynamic:1.2.0
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3

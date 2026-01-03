@@ -1,7 +1,7 @@
 {{- $ctx := include "mcp-tool-catalog.context" . | fromYaml }}
 
 {{- $env := list }}
-{{- $env = append $env (dict "name" "SERVICE_VERSION" "value" (.Values.image.tag | quote)) }}
+{{- $env = append $env (dict "name" "SERVICE_VERSION" "value" .Values.image.tag) }}
 
 {{- $envFrom := list }}
 {{- $envFrom = append $envFrom (dict "configMapRef" (dict "name" (printf "%s-config" (include "mcp-tool-catalog.fullname" .)))) }}

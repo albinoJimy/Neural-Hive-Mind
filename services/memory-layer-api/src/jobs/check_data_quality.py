@@ -4,14 +4,18 @@ Job de verificação de qualidade de dados
 
 Verifica a qualidade dos dados armazenados no MongoDB e registra métricas.
 Roda como CronJob a cada 6 horas.
+
+As regras de qualidade são carregadas do arquivo YAML montado em /etc/memory-layer/policies/quality-rules.yaml
 """
 
 import asyncio
 import os
 import sys
 import structlog
+import yaml
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from pathlib import Path
+from typing import Dict, List, Optional, Any
 
 # Adiciona o diretório raiz ao path para importações
 sys.path.insert(0, '/app')
@@ -22,15 +26,112 @@ from src.config.settings import Settings
 
 logger = structlog.get_logger(__name__)
 
+# Caminho padrão do arquivo de regras de qualidade
+DEFAULT_QUALITY_RULES_PATH = '/etc/memory-layer/policies/quality-rules.yaml'
+
+
+def load_quality_rules(rules_path: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Carrega regras de qualidade do arquivo YAML
+
+    Args:
+        rules_path: Caminho do arquivo de regras (usa env var ou padrão se não fornecido)
+
+    Returns:
+        Dicionário com as regras de qualidade
+    """
+    if rules_path is None:
+        rules_path = os.getenv('QUALITY_RULES_FILE', DEFAULT_QUALITY_RULES_PATH)
+
+    rules_file = Path(rules_path)
+
+    if not rules_file.exists():
+        logger.warning(
+            "Arquivo de regras de qualidade não encontrado, usando valores padrão",
+            path=rules_path
+        )
+        return get_default_quality_rules()
+
+    try:
+        with open(rules_file, 'r') as f:
+            rules = yaml.safe_load(f)
+            logger.info("Regras de qualidade carregadas do arquivo", path=rules_path)
+            return rules
+    except Exception as e:
+        logger.error(
+            "Erro ao carregar regras de qualidade, usando valores padrão",
+            path=rules_path,
+            error=str(e)
+        )
+        return get_default_quality_rules()
+
+
+def get_default_quality_rules() -> Dict[str, Any]:
+    """Retorna regras de qualidade padrão como fallback"""
+    return {
+        'version': '1.0',
+        'rules': {
+            'completeness': {
+                'enabled': True,
+                'threshold': 0.95,
+                'required_fields': ['intent_id', 'timestamp', 'source']
+            },
+            'accuracy': {
+                'enabled': True,
+                'threshold': 0.95
+            },
+            'freshness': {
+                'enabled': True,
+                'max_age_hours': 24
+            }
+        }
+    }
+
 
 class DataQualityChecker:
     """Verificador de qualidade de dados"""
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, rules: Optional[Dict[str, Any]] = None):
         self.settings = settings
         self.mongodb_client = None
         self.sample_size = int(os.getenv('SAMPLE_SIZE', '1000'))
-        self.quality_threshold = float(os.getenv('QUALITY_THRESHOLD', '95.0'))
+
+        # Carrega regras do arquivo YAML ou usa as fornecidas
+        self.rules = rules if rules is not None else load_quality_rules()
+
+        # Extrai thresholds das regras carregadas
+        rules_config = self.rules.get('rules', {})
+
+        self.completeness_threshold = rules_config.get('completeness', {}).get(
+            'threshold',
+            self.settings.completeness_threshold
+        )
+        self.accuracy_threshold = rules_config.get('accuracy', {}).get(
+            'threshold',
+            self.settings.accuracy_threshold
+        )
+        self.freshness_threshold_hours = rules_config.get('freshness', {}).get(
+            'max_age_hours',
+            self.settings.freshness_threshold_hours
+        )
+        self.required_fields = rules_config.get('completeness', {}).get(
+            'required_fields',
+            ['intent_id', 'timestamp', 'source']
+        )
+
+        # Calcula quality_threshold como média dos thresholds (convertido para porcentagem)
+        self.quality_threshold = (
+            (self.completeness_threshold + self.accuracy_threshold) / 2
+        ) * 100
+
+        logger.info(
+            "DataQualityChecker inicializado com regras",
+            completeness_threshold=self.completeness_threshold,
+            accuracy_threshold=self.accuracy_threshold,
+            freshness_threshold_hours=self.freshness_threshold_hours,
+            quality_threshold=self.quality_threshold,
+            rules_version=self.rules.get('version', 'unknown')
+        )
 
     async def initialize(self):
         """Inicializa o cliente MongoDB"""
@@ -119,9 +220,9 @@ class DataQualityChecker:
         """
         logger.info(f"Verificando frescor em {collection}...")
 
-        # Calcula threshold de frescor
+        # Calcula threshold de frescor usando valor carregado das regras
         freshness_cutoff = datetime.utcnow() - timedelta(
-            hours=self.settings.freshness_threshold_hours
+            hours=self.freshness_threshold_hours
         )
 
         # Conta documentos recentes vs antigos
@@ -145,7 +246,7 @@ class DataQualityChecker:
             'total_documents': total_docs,
             'fresh_documents': fresh_docs,
             'stale_documents': total_docs - fresh_docs,
-            'threshold_hours': self.settings.freshness_threshold_hours
+            'threshold_hours': self.freshness_threshold_hours
         }
 
         logger.info(
@@ -284,8 +385,10 @@ class DataQualityChecker:
             await self.initialize()
 
             # Define coleções e campos obrigatórios
+            # Usa required_fields das regras carregadas como padrão
+            default_required = self.required_fields
             collections_config = {
-                'operational_context': ['intent_id', 'context', 'timestamp'],
+                'operational_context': default_required + ['context'] if 'context' not in default_required else default_required,
                 'data_lineage': ['entity_id', 'operation', 'timestamp'],
                 'data_quality_metrics': ['collection', 'metrics', 'timestamp']
             }

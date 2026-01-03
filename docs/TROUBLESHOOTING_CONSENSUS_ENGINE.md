@@ -240,6 +240,61 @@ resources:
 helm upgrade consensus-engine ./helm-charts/consensus-engine --namespace consensus-engine --values ./helm-charts/consensus-engine/values-local.yaml
 ```
 
+## Problema 7: Restarts Frequentes (8+ restarts)
+
+### Causa Provável
+OOM devido ao processamento Bayesiano intensivo ou startup timeout com dependências lentas
+
+### Diagnóstico
+```bash
+# Verificar OOMKill
+kubectl get pods -n consensus-engine -l app.kubernetes.io/name=consensus-engine \
+  -o jsonpath='{.items[0].status.containerStatuses[0].lastState.terminated.reason}'
+
+kubectl describe pod -n consensus-engine -l app.kubernetes.io/name=consensus-engine | grep -i "oomkilled"
+
+# Verificar uso de memória
+kubectl top pod -n consensus-engine -l app.kubernetes.io/name=consensus-engine
+```
+
+### Soluções
+
+#### 7.1. OOM Confirmado
+**Sintoma**: `lastState.terminated.reason=OOMKilled` ou uso de memória >850Mi
+
+**Solução**: Aumentar memória limit de 1Gi para 1.25Gi conforme guidance do `helm-charts/consensus-engine/values.yaml` linha 34:
+```bash
+helm upgrade consensus-engine ./helm-charts/consensus-engine \
+  --set resources.limits.memory=1280Mi \
+  -n consensus-engine
+```
+
+#### 7.2. Startup Timeout
+**Sintoma**: Logs mostram "Startup probe failed", dependências lentas
+
+**Solução**: Aumentar `startupProbe.failureThreshold` de 15 para 20:
+```bash
+helm upgrade consensus-engine ./helm-charts/consensus-engine \
+  --set startupProbe.failureThreshold=20 \
+  -n consensus-engine
+```
+
+#### 7.3. Deadlock/Hang com Specialists
+**Sintoma**: Logs param de aparecer, CPU usage cai para 0
+
+**Solução**: Aumentar timeout gRPC:
+```bash
+kubectl edit configmap -n consensus-engine consensus-engine-config
+# Alterar SPECIALIST_GRPC_TIMEOUT_MS de 120000 para 180000
+kubectl rollout restart deployment/consensus-engine -n consensus-engine
+```
+
+### Monitoramento
+- Alerta Prometheus: `ConsensusEngineHighMemoryUsage`, `ConsensusEngineOOMKilled`, `ConsensusEngineHighRestarts`
+- Dashboard Grafana: "Consensus & Governance" > painéis "Memory Usage", "Restart Count", "CPU Usage"
+
+---
+
 ## Comandos Úteis
 
 ### Restart completo

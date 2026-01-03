@@ -12,6 +12,9 @@ opentelemetry-sdk==1.39.1
 opentelemetry-instrumentation-fastapi==0.60b1
 opentelemetry-exporter-otlp==1.39.1
 
+# Neural Hive Observability
+neural-hive-observability==1.2.2
+
 # Data storage
 redis[hiredis]==5.2.1
 motor==3.7.1

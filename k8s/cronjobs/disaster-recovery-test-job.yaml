@@ -56,7 +56,7 @@ spec:
           containers:
           - name: disaster-recovery-test
             # Usar mesma imagem dos especialistas
-            image: neural-hive/specialist-base:latest
+            image: neural-hive/specialist-base:1.0.0
             imagePullPolicy: IfNotPresent
 
             # Comando para executar script de teste

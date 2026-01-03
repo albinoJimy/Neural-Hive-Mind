@@ -25,7 +25,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: retraining-trigger-checker
-              image: neural-hive/specialist-base:latest
+              image: neural-hive/specialist-base:1.0.0
               imagePullPolicy: IfNotPresent
               command:
                 - python

@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: memory-cleanup-retention
-  namespace: memory-layer-api
+  namespace: neural-hive
   labels:
     neural-hive.io/component: memory-cleanup
     neural-hive.io/layer: conhecimento-dados

@@ -38,13 +38,13 @@ resources:
   # Image reduced from ~1.5GB to ~480MB (68% reduction)
   # Bayesian aggregation saturates brief CPU bursts when reconciling 5 specialists + pheromone metrics
   # Profiling showed average usage <300m CPU / 400Mi (down from 650Mi), so we right-size requests to 400m/512Mi
-  # while still allowing 1.5 CPU / 1Gi for reconciliation spikes without starving Kafka consumers
+  # while still allowing 1.5 CPU / 1.25Gi for reconciliation spikes without starving Kafka consumers
   requests:
     cpu: 400m
     memory: 512Mi
   limits:
     cpu: 1500m
-    memory: 1Gi
+    memory: 1280Mi
 
 config:
   environment: production

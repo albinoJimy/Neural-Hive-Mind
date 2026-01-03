@@ -183,3 +183,32 @@ resource.attributes:
 - OpenTelemetry Specification: https://opentelemetry.io/docs/specs/
 - OpenTelemetry Python: https://opentelemetry-python.readthedocs.io/
 - Sampling Strategies: https://opentelemetry.io/docs/concepts/sampling/
+
+## Updates
+
+### 2026-01-03: Mitigação do Bug OpenTelemetry 1.39.1
+
+#### Contexto
+OpenTelemetry 1.39.1 possui um bug conhecido que causa `TypeError` durante formatação de strings quando headers customizados contêm caracteres especiais (`%`, `{`, `}`, `\n`, `\r`, `\t`, `\x00`).
+
+#### Mitigação Implementada
+A biblioteca `neural_hive_observability` v1.2.2 implementa mitigação completa:
+
+1. **Sanitização de Headers**: Função `_sanitize_header_value()` remove caracteres problemáticos
+2. **Exporter Resiliente**: Wrapper `ResilientOTLPSpanExporter` captura TypeErrors sem crashar
+3. **Métricas e Logging**: Falhas são registradas em métricas Prometheus e logs estruturados
+
+#### Status de Validação
+- ✅ Mitigação implementada em `neural_hive_observability` v1.2.2
+- ✅ Serviço `mcp-tool-catalog` usa a biblioteca corretamente
+- ⏳ Validação em produção pendente (verificar logs e métricas)
+- ⏳ Upgrade para OpenTelemetry 1.40+ a ser avaliado
+
+#### Monitoramento
+- Alerta Prometheus: `MCPToolCatalogSpanExportTypeError`
+- Métricas: `neural_hive_span_export_failures_total{error_type="TypeError"}`
+
+#### Próximos Passos
+1. Monitorar métricas por 30 dias
+2. Se taxa de TypeError > 1%, considerar upgrade para OpenTelemetry 1.40+
+3. Se taxa de TypeError = 0%, manter versão atual e mitigação

@@ -4,14 +4,18 @@ Job de aplicação de políticas de retenção
 
 Aplica políticas de retenção de dados em todas as camadas de memória.
 Roda como CronJob diariamente às 3h UTC.
+
+As políticas são carregadas do arquivo YAML montado em /etc/memory-layer/policies/retention-policy.yaml
 """
 
 import asyncio
 import os
 import sys
 import structlog
+import yaml
 from datetime import datetime, timedelta
-from typing import Dict, List
+from pathlib import Path
+from typing import Dict, List, Optional, Any
 
 # Adiciona o diretório raiz ao path para importações
 sys.path.insert(0, '/app')
@@ -24,16 +28,89 @@ from src.config.settings import Settings
 
 logger = structlog.get_logger(__name__)
 
+# Caminho padrão do arquivo de política de retenção
+DEFAULT_RETENTION_POLICY_PATH = '/etc/memory-layer/policies/retention-policy.yaml'
+
+
+def load_retention_policy(policy_path: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Carrega políticas de retenção do arquivo YAML
+
+    Args:
+        policy_path: Caminho do arquivo de política (usa env var ou padrão se não fornecido)
+
+    Returns:
+        Dicionário com as políticas de retenção
+    """
+    if policy_path is None:
+        policy_path = os.getenv('RETENTION_POLICY_FILE', DEFAULT_RETENTION_POLICY_PATH)
+
+    policy_file = Path(policy_path)
+
+    if not policy_file.exists():
+        logger.warning(
+            "Arquivo de política de retenção não encontrado, usando valores padrão",
+            path=policy_path
+        )
+        return get_default_retention_policy()
+
+    try:
+        with open(policy_file, 'r') as f:
+            policy = yaml.safe_load(f)
+            logger.info("Política de retenção carregada do arquivo", path=policy_path)
+            return policy
+    except Exception as e:
+        logger.error(
+            "Erro ao carregar política de retenção, usando valores padrão",
+            path=policy_path,
+            error=str(e)
+        )
+        return get_default_retention_policy()
+
+
+def get_default_retention_policy() -> Dict[str, Any]:
+    """Retorna política de retenção padrão como fallback"""
+    return {
+        'version': '1.0',
+        'tiers': {
+            'hot': {'storage': 'redis', 'max_age_seconds': 300},
+            'warm': {'storage': 'mongodb', 'max_age_days': 30},
+            'cold': {'storage': 'clickhouse', 'max_age_months': 18}
+        },
+        'mongodb': {'retention_days': 30},
+        'clickhouse': {'retention_months': 18}
+    }
+
 
 class RetentionEnforcer:
     """Aplicador de políticas de retenção"""
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, policy: Optional[Dict[str, Any]] = None):
         self.settings = settings
-        self.dry_run = os.getenv('DRY_RUN', 'false').lower() == 'true'
+        self.dry_run = os.getenv('RETENTION_DRY_RUN', 'false').lower() == 'true'
         self.mongodb_client = None
         self.neo4j_client = None
         self.clickhouse_client = None
+
+        # Carrega política do arquivo YAML ou usa a fornecida
+        self.policy = policy if policy is not None else load_retention_policy()
+
+        # Extrai valores de retenção da política
+        self.mongodb_retention_days = self.policy.get('mongodb', {}).get(
+            'retention_days',
+            self.settings.mongodb_retention_days
+        )
+        self.clickhouse_retention_months = self.policy.get('clickhouse', {}).get(
+            'retention_months',
+            self.settings.clickhouse_retention_months
+        )
+
+        logger.info(
+            "RetentionEnforcer inicializado com política",
+            mongodb_retention_days=self.mongodb_retention_days,
+            clickhouse_retention_months=self.clickhouse_retention_months,
+            policy_version=self.policy.get('version', 'unknown')
+        )
 
     async def initialize(self):
         """Inicializa os clientes de banco de dados"""
@@ -70,7 +147,7 @@ class RetentionEnforcer:
         """
         logger.info("Aplicando retenção no MongoDB...")
 
-        cutoff_date = datetime.utcnow() - timedelta(days=self.settings.mongodb_retention_days)
+        cutoff_date = datetime.utcnow() - timedelta(days=self.mongodb_retention_days)
 
         collections = [
             'operational_context',
@@ -167,7 +244,7 @@ class RetentionEnforcer:
         """
         logger.info("Aplicando retenção no ClickHouse...")
 
-        cutoff_date = datetime.utcnow() - timedelta(days=self.settings.clickhouse_retention_months * 30)
+        cutoff_date = datetime.utcnow() - timedelta(days=self.clickhouse_retention_months * 30)
 
         tables = [
             'operational_context_history',

@@ -37,7 +37,7 @@ spec:
             fsGroup: 1000
           containers:
           - name: trainer
-            image: 077878370245.dkr.ecr.us-east-1.amazonaws.com/neural-hive-mind/pipelines:latest
+            image: 077878370245.dkr.ecr.us-east-1.amazonaws.com/neural-hive-mind/pipelines:1.0.7
             securityContext:
               allowPrivilegeEscalation: false
               capabilities:

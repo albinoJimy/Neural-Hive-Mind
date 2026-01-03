@@ -110,7 +110,7 @@ spec:
 
           containers:
           - name: training
-            image: neural-hive-ml-training:latest
+            image: neural-hive-ml-training:1.0.7
             imagePullPolicy: IfNotPresent
 
             command:

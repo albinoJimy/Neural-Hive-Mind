@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 2025-12-14
 
+### Added
+- **Consensus Engine Resource Alerts**: Adicionados alertas Prometheus para monitoramento de recursos (`prometheus-rules/consensus-engine-resource-alerts.yaml`):
+  - `ConsensusEngineHighMemoryUsage`: Alerta warning quando uso de memória >85% do limit
+  - `ConsensusEngineOOMKilled`: Alerta critical quando pod é terminado por OOM
+  - `ConsensusEngineHighRestarts`: Alerta warning quando >3 restarts/hora
+  - `ConsensusEngineCriticalRestarts`: Alerta critical quando >8 restarts/hora
+  - `ConsensusEngineCPUThrottling`: Alerta warning quando CPU está sendo throttled
+  - `ConsensusEngineStartupTimeout`: Alerta critical para CrashLoopBackOff/ImagePullBackOff
+  - `ConsensusEnginePodNotReady`: Alerta warning quando pod Running mas não Ready
+- **Dashboard Grafana atualizado**: Adicionados painéis de recursos ao dashboard "Consensus & Governance" (`monitoring/dashboards/consensus-governance.json`):
+  - Painel "Memory Usage" com uso vs limits e thresholds visuais
+  - Painel "Restart Count" com indicador colorido por severidade
+  - Painel "CPU Usage" com taxa de uso por pod
+
 ### Changed
 - **Phase 2 Deployment**: Substituido deployment de stubs nginx por servicos reais via Helm
   - Removido `scripts/deploy/quick-deploy-phase2-stubs.sh` (deprecated)

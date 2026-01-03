@@ -1,0 +1,96 @@
+groups:
+  - name: neural-hive.consensus-resource
+    rules:
+      - alert: ConsensusEngineHighMemoryUsage
+        expr: |
+          container_memory_working_set_bytes{pod=~"consensus-engine.*"}
+          /
+          container_spec_memory_limit_bytes{pod=~"consensus-engine.*"}
+          > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          neural_hive_component: consensus-engine
+          neural_hive_layer: cognitiva
+        annotations:
+          summary: "Consensus Engine com uso de memoria >85%"
+          description: "Pod {{ $labels.pod }} usando {{ $value | humanizePercentage }} da memoria limit. Considerar aumentar resources.limits.memory em +256Mi conforme guidance do values.yaml."
+          runbook_url: "https://docs.neural-hive.local/runbooks/consensus-high-memory"
+
+      - alert: ConsensusEngineOOMKilled
+        expr: increase(kube_pod_container_status_terminated_reason{reason="OOMKilled", pod=~"consensus-engine.*"}[10m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          neural_hive_component: consensus-engine
+          neural_hive_layer: cognitiva
+        annotations:
+          summary: "Consensus Engine foi OOMKilled"
+          description: "Pod {{ $labels.pod }} foi terminado por OOM. Acao imediata: aumentar resources.limits.memory de 1Gi para 1.25Gi conforme helm-charts/consensus-engine/values.yaml linha 34."
+          runbook_url: "https://docs.neural-hive.local/runbooks/consensus-oomkilled"
+
+      - alert: ConsensusEngineHighRestarts
+        expr: increase(kube_pod_container_status_restarts_total{pod=~"consensus-engine.*"}[1h]) > 3
+        for: 5m
+        labels:
+          severity: warning
+          neural_hive_component: consensus-engine
+          neural_hive_layer: cognitiva
+        annotations:
+          summary: "Consensus Engine com restarts frequentes"
+          description: "Pod {{ $labels.pod }} teve {{ $value | humanize }} restarts na ultima hora. Verificar OOMKill, startup probe timeout ou dependencias (MongoDB/Redis/Kafka/Specialists)."
+          runbook_url: "https://docs.neural-hive.local/runbooks/consensus-high-restarts"
+
+      - alert: ConsensusEngineCriticalRestarts
+        expr: increase(kube_pod_container_status_restarts_total{pod=~"consensus-engine.*"}[1h]) > 8
+        for: 2m
+        labels:
+          severity: critical
+          neural_hive_component: consensus-engine
+          neural_hive_layer: cognitiva
+        annotations:
+          summary: "Consensus Engine com restarts criticos (>8/hora)"
+          description: "Pod {{ $labels.pod }} teve {{ $value | humanize }} restarts na ultima hora. Investigacao urgente necessaria: verificar kubectl describe pod e logs --previous."
+          runbook_url: "https://docs.neural-hive.local/runbooks/consensus-critical-restarts"
+
+      - alert: ConsensusEngineCPUThrottling
+        expr: rate(container_cpu_cfs_throttled_seconds_total{pod=~"consensus-engine.*"}[5m]) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          neural_hive_component: consensus-engine
+          neural_hive_layer: cognitiva
+        annotations:
+          summary: "Consensus Engine com CPU throttling"
+          description: "Pod {{ $labels.pod }} esta sendo throttled por {{ $value | humanize }}s/s. Considerar aumentar resources.limits.cpu de 1.5 para 2.0."
+          runbook_url: "https://docs.neural-hive.local/runbooks/consensus-cpu-throttling"
+
+      - alert: ConsensusEngineStartupTimeout
+        expr: |
+          kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff", pod=~"consensus-engine.*"} == 1
+          or
+          kube_pod_container_status_waiting_reason{reason="ImagePullBackOff", pod=~"consensus-engine.*"} == 1
+        for: 5m
+        labels:
+          severity: critical
+          neural_hive_component: consensus-engine
+          neural_hive_layer: cognitiva
+        annotations:
+          summary: "Consensus Engine em CrashLoopBackOff ou ImagePullBackOff"
+          description: "Pod {{ $labels.pod }} em estado {{ $labels.reason }}. Verificar eventos do pod e logs anteriores."
+          runbook_url: "https://docs.neural-hive.local/runbooks/consensus-crashloop"
+
+      - alert: ConsensusEnginePodNotReady
+        expr: |
+          kube_pod_status_ready{pod=~"consensus-engine.*", condition="true"} == 0
+          and
+          kube_pod_status_phase{pod=~"consensus-engine.*", phase="Running"} == 1
+        for: 5m
+        labels:
+          severity: warning
+          neural_hive_component: consensus-engine
+          neural_hive_layer: cognitiva
+        annotations:
+          summary: "Consensus Engine Running mas nao Ready"
+          description: "Pod {{ $labels.pod }} esta Running mas readiness check esta falhando. Verificar dependencias (MongoDB, Redis, Specialists)."
+          runbook_url: "https://docs.neural-hive.local/runbooks/consensus-not-ready"

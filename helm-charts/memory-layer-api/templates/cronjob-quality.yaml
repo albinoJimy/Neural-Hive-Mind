@@ -41,6 +41,9 @@ spec:
               value: {{ .Values.config.environment | quote }}
             - name: LOG_LEVEL
               value: {{ .Values.config.logLevel | quote }}
+            # Caminho do arquivo de regras de qualidade (fonte primária de configuração)
+            - name: QUALITY_RULES_FILE
+              value: "/etc/memory-layer/policies/quality-rules.yaml"
             - name: MONGODB_URI
               valueFrom:
                 secretKeyRef:
@@ -50,14 +53,6 @@ spec:
               value: {{ .Values.config.mongodb.database | quote }}
             - name: MONGODB_QUALITY_COLLECTION
               value: {{ .Values.config.mongodb.qualityCollection | quote }}
-            - name: QUALITY_CHECK_ENABLED
-              value: {{ .Values.config.quality.checkEnabled | quote }}
-            - name: QUALITY_THRESHOLD_COMPLETENESS
-              value: {{ .Values.config.quality.completenessThreshold | quote }}
-            - name: QUALITY_THRESHOLD_ACCURACY
-              value: {{ .Values.config.quality.accuracyThreshold | quote }}
-            - name: QUALITY_THRESHOLD_FRESHNESS_HOURS
-              value: {{ .Values.config.quality.freshnessThresholdHours | quote }}
             - name: OTEL_ENDPOINT
               value: {{ .Values.config.otel.endpoint | quote }}
             {{- with .Values.securityContext }}

@@ -64,7 +64,7 @@ spec:
     spec:
       containers:
       - name: gateway
-        image: docker.io/neural-hive/gateway-intencoes:latest
+        image: docker.io/neural-hive/gateway-intencoes:1.1.2
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8000

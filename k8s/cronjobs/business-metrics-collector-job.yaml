@@ -54,7 +54,7 @@ spec:
           containers:
           - name: business-metrics-collector
             # Usar mesma image dos especialistas
-            image: neural-hive/specialist-business:latest
+            image: neural-hive/specialist-business:1.0.8
             imagePullPolicy: IfNotPresent
 
             command:

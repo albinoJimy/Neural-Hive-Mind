@@ -424,6 +424,35 @@ kubectl top pods -n neural-hive-mind --sort-by=cpu
 kubectl describe nodes
 ```
 
+**OpenTelemetry Span Export Failures (TypeError):**
+
+Sintomas:
+- Alerta `MCPToolCatalogSpanExportTypeError` disparado
+- Logs contendo "TypeError durante export de spans"
+- Métrica `neural_hive_span_export_failures_total{error_type="TypeError"}` > 0
+
+Diagnóstico:
+```bash
+# Verificar Logs
+kubectl logs -n <namespace> deployment/mcp-tool-catalog | grep -A 10 "TypeError.*export"
+
+# Verificar Métricas
+curl -s 'http://prometheus:9090/api/v1/query?query=rate(neural_hive_span_export_failures_total{service="mcp-tool-catalog",error_type="TypeError"}[5m])'
+
+# Verificar Headers Customizados
+# Revisar helm-charts/mcp-tool-catalog/templates/configmap.yaml
+```
+
+Resolução Curto Prazo:
+1. Verificar que `neural_hive_observability` v1.2.2 está instalado
+2. Confirmar que headers estão sendo sanitizados
+3. Reiniciar pods se necessário
+
+Resolução Longo Prazo:
+1. Avaliar upgrade para OpenTelemetry 1.40+
+2. Testar em ambiente de staging
+3. Aplicar em produção se validado
+
 ## Contatos de Emergência
 
 ### Escalação

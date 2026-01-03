@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: data-quality-check
-  namespace: memory-layer-api
+  namespace: neural-hive
   labels:
     neural-hive.io/component: data-quality
     neural-hive.io/layer: conhecimento-dados

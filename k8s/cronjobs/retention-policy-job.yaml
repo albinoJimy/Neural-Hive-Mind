@@ -55,7 +55,7 @@ spec:
           containers:
           - name: retention-policy-runner
             # Usar mesma imagem dos especialistas
-            image: neural-hive/specialist-base:latest
+            image: neural-hive/specialist-base:1.0.0
             imagePullPolicy: IfNotPresent
 
             # Comando para executar script de retenção

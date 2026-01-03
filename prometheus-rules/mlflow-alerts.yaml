@@ -1,0 +1,77 @@
+groups:
+  - name: mlflow
+    rules:
+      - alert: MLflowHighRestartRate
+        expr: rate(kube_pod_container_status_restarts_total{namespace="mlflow",pod=~"mlflow-.*"}[15m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MLflow restart rate alto"
+          description: "MLflow pod {{ $labels.pod }} está reiniciando frequentemente (>0.1/15m)"
+
+      - alert: MLflowPostgreSQLDown
+        expr: up{job="mlflow-postgresql"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL do MLflow indisponível"
+          description: "A instância PostgreSQL do MLflow está down por mais de 2 minutos"
+
+      - alert: MLflowPodNotReady
+        expr: kube_pod_status_ready{namespace="mlflow",pod=~"mlflow-.*",condition="true"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MLflow pod não está ready"
+          description: "MLflow pod {{ $labels.pod }} não está ready por mais de 5 minutos"
+
+      - alert: MLflowHighMemoryUsage
+        expr: |
+          (container_memory_usage_bytes{namespace="mlflow",pod=~"mlflow-.*"}
+          / container_spec_memory_limit_bytes{namespace="mlflow",pod=~"mlflow-.*"})
+          > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MLflow memória alta"
+          description: "MLflow pod {{ $labels.pod }} usando >80% da memória limite"
+
+      - alert: MLflowPVCAlmostFull
+        expr: |
+          (kubelet_volume_stats_used_bytes{namespace="mlflow",persistentvolumeclaim="mlflow-artifacts-pvc"}
+          / kubelet_volume_stats_capacity_bytes{namespace="mlflow",persistentvolumeclaim="mlflow-artifacts-pvc"})
+          > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MLflow PVC quase cheio"
+          description: "PVC mlflow-artifacts-pvc está >85% cheio"
+
+      - alert: MLflowPVCFull
+        expr: |
+          (kubelet_volume_stats_used_bytes{namespace="mlflow",persistentvolumeclaim="mlflow-artifacts-pvc"}
+          / kubelet_volume_stats_capacity_bytes{namespace="mlflow",persistentvolumeclaim="mlflow-artifacts-pvc"})
+          > 0.95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MLflow PVC cheio"
+          description: "PVC mlflow-artifacts-pvc está >95% cheio - ação imediata necessária"
+
+      - alert: MLflowPostgreSQLHighConnections
+        expr: |
+          pg_stat_activity_count{datname="mlflow"}
+          / pg_settings_max_connections
+          > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL MLflow conexões altas"
+          description: "PostgreSQL do MLflow usando >80% das conexões máximas"

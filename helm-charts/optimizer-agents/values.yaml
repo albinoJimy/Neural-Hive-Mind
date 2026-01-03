@@ -46,7 +46,7 @@ resources:
     cpu: 500m
     memory: 1Gi
   limits:
-    cpu: 2000m
+    cpu: "2"
     memory: 4Gi
 
 config:
@@ -162,7 +162,7 @@ podSecurityContext:
   fsGroup: 1000
 
 istio:
-  enabled: false
+  enabled: true
   mtls:
     mode: STRICT
 
@@ -174,10 +174,10 @@ startupProbe:
   httpGet:
     path: /health
     port: 8000
-  initialDelaySeconds: 30
+  initialDelaySeconds: 60
   periodSeconds: 10
-  timeoutSeconds: 5
-  failureThreshold: 30
+  timeoutSeconds: 10
+  failureThreshold: 60
   successThreshold: 1
 
 livenessProbe:
@@ -185,9 +185,9 @@ livenessProbe:
     path: /health
     port: 8000
   initialDelaySeconds: 0
-  periodSeconds: 15
-  timeoutSeconds: 5
-  failureThreshold: 3
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 5
 
 readinessProbe:
   httpGet:

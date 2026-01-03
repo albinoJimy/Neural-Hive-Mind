@@ -1,0 +1,20 @@
+fullnameOverride: mlflow-postgresql
+
+auth:
+  username: mlflow
+  database: mlflow
+  existingSecret: mlflow-postgres-secret
+  secretKeys:
+    userPasswordKey: password
+primary:
+  persistence:
+    enabled: true
+    storageClass: local-path
+    size: 20Gi
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 500m
