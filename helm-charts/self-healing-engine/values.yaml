@@ -28,7 +28,7 @@ config:
   namespace: neural-hive-resilience
 
   kafka:
-    bootstrapServers: kafka-bootstrap.kafka.svc.cluster.local:9092
+    bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
     remediationTopic: remediation-actions
     consumerGroupId: self-healing-engine
 
@@ -43,7 +43,7 @@ config:
       - validation
 
   mongodb:
-    uri: mongodb://mongodb.neural-hive-persistence.svc.cluster.local:27017
+    uri: mongodb://root:local_dev_password@mongodb.neural-hive-persistence.svc.cluster.local:27017
     database: neural_hive
     remediationCollection: remediation_actions
     playbookExecutionsCollection: playbook_executions

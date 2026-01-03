@@ -1,0 +1,142 @@
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+replicaCount: 1
+
+image:
+  repository: 37.60.241.150:30500/analyst-agents
+  tag: "latest"
+  pullPolicy: Always
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 768Mi
+
+autoscaling:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false
+
+serviceMonitor:
+  enabled: false
+
+networkPolicy:
+  enabled: false
+
+istio:
+  enabled: false
+
+config:
+  serviceName: analyst-agents
+  serviceVersion: "1.2.0"
+
+  mongodb:
+    uri: mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017
+    database: neural_hive
+    collectionInsights: insights
+    maxPoolSize: 10
+    minPoolSize: 2
+
+  redis:
+    host: neural-hive-cache.redis-cluster.svc.cluster.local
+    port: 6379
+    password: ""
+    db: 0
+    insightsTtl: 3600
+
+  neo4j:
+    uri: bolt://neo4j.neo4j-cluster.svc.cluster.local:7687
+    user: neo4j
+    password: "local_dev_password"
+    database: neo4j
+
+  clickhouse:
+    host: clickhouse.clickhouse.svc.cluster.local
+    port: 9000
+    user: default
+    password: ""
+    database: neural_hive
+
+  elasticsearch:
+    hosts:
+      - http://elasticsearch.elasticsearch.svc.cluster.local:9200
+    user: elastic
+    password: ""
+
+  prometheus:
+    url: http://neural-hive-prometheus-kub-prometheus.observability.svc.cluster.local:9090
+
+  queenAgent:
+    grpcHost: queen-agent.neural-hive.svc.cluster.local
+    grpcPort: 50051
+
+  kafka:
+    bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
+    consumerGroup: analyst-agents
+    topics:
+      telemetry: observability.telemetry
+      consensus: consensus.decisions
+      execution: execution.results
+      pheromones: pheromones.signals
+      insights: analytics.insights
+
+  grpc:
+    enabled: true
+    host: "0.0.0.0"
+    port: 50051
+
+  observability:
+    otelEndpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
+    prometheusPort: 9090
+    httpPort: 8000
+    logLevel: DEBUG
+
+  analytics:
+    minConfidence: 0.7
+    windowSizeSeconds: 300
+
+  fastapi:
+    host: "0.0.0.0"
+    port: 8000
+    corsOrigins:
+      - "*"
+
+serviceAccount:
+  create: false
+  name: analyst-agents
+
+secrets:
+  mongodbPassword: ""
+  redisPassword: ""
+  neo4jPassword: ""
+  clickhousePassword: ""
+  elasticsearchPassword: ""
+
+nodeSelector: {}
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3

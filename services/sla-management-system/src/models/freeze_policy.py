@@ -16,11 +16,19 @@ class FreezeScope(str, Enum):
     GLOBAL = "GLOBAL"
 
 
+# Alias for backward compatibility with operator
+PolicyScope = FreezeScope
+
+
 class FreezeAction(str, Enum):
     """Ação de freeze."""
     BLOCK_DEPLOY = "BLOCK_DEPLOY"
     BLOCK_SCALE = "BLOCK_SCALE"
     ALERT_ONLY = "ALERT_ONLY"
+
+
+# Alias for backward compatibility with operator
+PolicyAction = FreezeAction
 
 
 class FreezePolicy(BaseModel):

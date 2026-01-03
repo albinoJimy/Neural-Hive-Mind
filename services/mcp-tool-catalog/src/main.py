@@ -42,105 +42,181 @@ class MCPToolCatalogService:
         self.genetic_selector = None
 
     async def startup(self):
-        """Initialize all service components."""
+        """Initialize all service components with graceful degradation."""
         logger.info("starting_mcp_tool_catalog", version=self.settings.SERVICE_VERSION)
 
         init_observability(
             service_name=self.settings.SERVICE_NAME,
             service_version=self.settings.SERVICE_VERSION,
-            neural_hive_component='mcp-tool-catalog',
-            neural_hive_layer='ferramentas',
-            neural_hive_domain='tool-selection',
+            neural_hive_component="mcp-tool-catalog",
+            neural_hive_layer="ferramentas",
+            neural_hive_domain="tool-selection",
             otel_endpoint=self.settings.otel_endpoint,
+            prometheus_port=self.settings.METRICS_PORT,
         )
 
+        critical_failures = []
+
+        # 1. MongoDB (CRÍTICO)
         try:
-            # Initialize MongoDB client
             from src.clients.mongodb_client import MongoDBClient
 
             self.mongodb_client = MongoDBClient(
-                self.settings.MONGODB_URL, self.settings.MONGODB_DATABASE
+                mongodb_url=self.settings.MONGODB_URL,
+                database_name=self.settings.MONGODB_DATABASE,
+                server_selection_timeout_ms=self.settings.MONGODB_SERVER_SELECTION_TIMEOUT_MS,
+                connect_timeout_ms=self.settings.MONGODB_CONNECT_TIMEOUT_MS,
+                socket_timeout_ms=self.settings.MONGODB_CONNECT_TIMEOUT_MS,
             )
-            await self.mongodb_client.start()
+            await self.mongodb_client.start(
+                max_retries=self.settings.MAX_CONNECTION_RETRIES,
+                initial_delay=self.settings.INITIAL_RETRY_DELAY_SECONDS,
+            )
             logger.info("mongodb_connected")
+        except Exception as e:
+            logger.error("mongodb_connection_failed_critical", error=str(e))
+            critical_failures.append("mongodb")
 
-            # Initialize Redis client
+        # 2. Redis (CRÍTICO)
+        try:
             from src.clients.redis_client import RedisClient
 
-            self.redis_client = RedisClient(self.settings.REDIS_URL, self.settings.CACHE_TTL_SECONDS)
-            await self.redis_client.start()
+            self.redis_client = RedisClient(
+                redis_url=self.settings.REDIS_URL,
+                cache_ttl_seconds=self.settings.CACHE_TTL_SECONDS,
+                socket_timeout_seconds=float(self.settings.REDIS_SOCKET_TIMEOUT_SECONDS),
+                connect_timeout_seconds=float(self.settings.REDIS_CONNECT_TIMEOUT_SECONDS),
+            )
+            await self.redis_client.start(
+                max_retries=self.settings.MAX_CONNECTION_RETRIES,
+                initial_delay=self.settings.INITIAL_RETRY_DELAY_SECONDS,
+            )
             logger.info("redis_connected")
+        except Exception as e:
+            logger.error("redis_connection_failed_critical", error=str(e))
+            critical_failures.append("redis")
 
-            # Initialize Tool Registry
+        # Se dependências críticas falharam, não podemos continuar
+        if critical_failures:
+            raise RuntimeError(f"Critical dependencies failed: {critical_failures}")
+
+        # 3. Tool Registry (CRÍTICO - depende de MongoDB e Redis)
+        try:
             from src.services.tool_registry import ToolRegistry
 
-            self.tool_registry = ToolRegistry(self.mongodb_client, self.redis_client, self.metrics)
+            self.tool_registry = ToolRegistry(
+                self.mongodb_client, self.redis_client, self.metrics
+            )
             await self.tool_registry.bootstrap_initial_catalog()
             logger.info("tool_registry_initialized")
+        except Exception as e:
+            logger.error("tool_registry_initialization_failed", error=str(e))
+            raise
 
-            # Initialize Genetic Tool Selector
+        # 4. Genetic Selector (CRÍTICO)
+        try:
             from src.services.genetic_tool_selector import GeneticToolSelector
 
-            self.genetic_selector = GeneticToolSelector(self.tool_registry, self.settings, self.metrics)
+            self.genetic_selector = GeneticToolSelector(
+                self.tool_registry, self.settings, self.metrics
+            )
             logger.info("genetic_selector_initialized")
+        except Exception as e:
+            logger.error("genetic_selector_initialization_failed", error=str(e))
+            raise
 
-            # Initialize Tool Executor
+        # 5. Tool Executor (CRÍTICO)
+        try:
             from src.services.tool_executor import ToolExecutor
 
             self.tool_executor = ToolExecutor(
                 tool_registry=self.tool_registry,
                 metrics=self.metrics,
-                settings=self.settings
+                settings=self.settings,
             )
-            logger.info("tool_executor_initialized")
-
-            # Inicializar clientes MCP (se configurados)
             await self.tool_executor.start()
-            logger.info("tool_executor_mcp_clients_started")
+            logger.info("tool_executor_initialized")
+        except Exception as e:
+            logger.error("tool_executor_initialization_failed", error=str(e))
+            raise
 
-            # Initialize Kafka clients
+        # 6. Kafka (NÃO-CRÍTICO - pode falhar sem derrubar o serviço)
+        kafka_consumer_started = False
+        try:
             from src.clients.kafka_request_consumer import KafkaRequestConsumer
             from src.clients.kafka_response_producer import KafkaResponseProducer
 
             self.kafka_consumer = KafkaRequestConsumer(
-                self.settings.KAFKA_BOOTSTRAP_SERVERS,
-                self.settings.KAFKA_TOOL_SELECTION_REQUEST_TOPIC,
-                self.settings.KAFKA_CONSUMER_GROUP_ID,
+                bootstrap_servers=self.settings.KAFKA_BOOTSTRAP_SERVERS,
+                topic=self.settings.KAFKA_TOOL_SELECTION_REQUEST_TOPIC,
+                group_id=self.settings.KAFKA_CONSUMER_GROUP_ID,
+                session_timeout_ms=self.settings.KAFKA_SESSION_TIMEOUT_MS,
+                request_timeout_ms=self.settings.KAFKA_REQUEST_TIMEOUT_MS,
             )
-            await self.kafka_consumer.start()
+            await self.kafka_consumer.start(
+                max_retries=self.settings.MAX_CONNECTION_RETRIES,
+                initial_delay=self.settings.INITIAL_RETRY_DELAY_SECONDS,
+            )
             self.kafka_consumer = instrument_kafka_consumer(self.kafka_consumer)
+            kafka_consumer_started = True
             logger.info("kafka_consumer_started")
 
             self.kafka_producer = KafkaResponseProducer(
-                self.settings.KAFKA_BOOTSTRAP_SERVERS,
-                self.settings.KAFKA_TOOL_SELECTION_RESPONSE_TOPIC,
+                bootstrap_servers=self.settings.KAFKA_BOOTSTRAP_SERVERS,
+                topic=self.settings.KAFKA_TOOL_SELECTION_RESPONSE_TOPIC,
+                request_timeout_ms=self.settings.KAFKA_REQUEST_TIMEOUT_MS,
             )
-            await self.kafka_producer.start()
+            await self.kafka_producer.start(
+                max_retries=self.settings.MAX_CONNECTION_RETRIES,
+                initial_delay=self.settings.INITIAL_RETRY_DELAY_SECONDS,
+            )
             self.kafka_producer = instrument_kafka_producer(self.kafka_producer)
             logger.info("kafka_producer_started")
 
-            # Initialize Service Registry client
+            # Iniciar background task apenas se Kafka estiver disponível
+            asyncio.create_task(self._process_requests())
+
+        except Exception as e:
+            logger.warning("kafka_initialization_failed_non_critical", error=str(e))
+            # If consumer started but producer failed, close the consumer to avoid leaks
+            if kafka_consumer_started and self.kafka_consumer:
+                try:
+                    await self.kafka_consumer.stop()
+                    logger.info("kafka_consumer_stopped_due_to_producer_failure")
+                except Exception as stop_err:
+                    logger.warning("kafka_consumer_stop_failed", error=str(stop_err))
+                self.kafka_consumer = None
+            self.kafka_producer = None
+            # Serviço continua sem Kafka - apenas HTTP API estará disponível
+
+        # 7. Service Registry (NÃO-CRÍTICO)
+        try:
             from src.clients.service_registry_client import ServiceRegistryClient
 
             self.service_registry_client = ServiceRegistryClient(
-                self.settings.SERVICE_REGISTRY_GRPC_HOST, self.settings.SERVICE_REGISTRY_GRPC_PORT
+                host=self.settings.SERVICE_REGISTRY_GRPC_HOST,
+                port=self.settings.SERVICE_REGISTRY_GRPC_PORT,
+                connect_timeout_seconds=float(self.settings.SERVICE_REGISTRY_CONNECT_TIMEOUT_SECONDS),
             )
             await self.service_registry_client.register(
                 self.settings.SERVICE_NAME,
                 ["tool_discovery", "tool_selection", "genetic_optimization"],
                 {"version": self.settings.SERVICE_VERSION},
+                max_retries=self.settings.MAX_CONNECTION_RETRIES,
+                initial_delay=self.settings.INITIAL_RETRY_DELAY_SECONDS,
             )
             logger.info("service_registered")
 
-            # Start background tasks
-            asyncio.create_task(self._process_requests())
+            # Iniciar heartbeat apenas se Service Registry estiver disponível
             asyncio.create_task(self._heartbeat_loop())
 
-            logger.info("mcp_tool_catalog_started")
-
         except Exception as e:
-            logger.error("startup_failed", error=str(e))
-            raise
+            logger.warning(
+                "service_registry_registration_failed_non_critical", error=str(e)
+            )
+            # Serviço continua sem Service Registry
+
+        logger.info("mcp_tool_catalog_started")
 
     async def shutdown(self):
         """Graceful shutdown of all components."""

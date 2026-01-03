@@ -13,15 +13,15 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 from kubernetes import client, config
 
-from ..services.slo_manager import SLOManager
-from ..services.policy_enforcer import PolicyEnforcer
-from ..clients.postgresql_client import PostgreSQLClient
-from ..clients.prometheus_client import PrometheusClient
-from ..clients.redis_client import RedisClient
-from ..config.settings import Settings
-from ..models.slo_definition import SLODefinition, SLOType
-from ..models.freeze_policy import FreezePolicy, PolicyScope, PolicyAction
-from ..observability.metrics import sla_metrics
+from src.services.slo_manager import SLOManager
+from src.services.policy_enforcer import PolicyEnforcer
+from src.clients.postgresql_client import PostgreSQLClient
+from src.clients.prometheus_client import PrometheusClient
+from src.clients.redis_client import RedisClient
+from src.config.settings import Settings
+from src.models.slo_definition import SLODefinition, SLOType
+from src.models.freeze_policy import FreezePolicy, PolicyScope, PolicyAction
+from src.observability.metrics import sla_metrics
 
 # Initialize logger
 logger = structlog.get_logger(__name__)
@@ -37,7 +37,7 @@ reconciliation_interval: float = 300.0  # Default 5 minutes
 
 
 @kopf.on.startup()
-async def startup_handler(settings_obj: kopf.OperatorSettings, **kwargs):
+async def startup_handler(memo: kopf.Memo, **kwargs):
     """
     Initialize clients and services on operator startup.
     """
@@ -52,44 +52,35 @@ async def startup_handler(settings_obj: kopf.OperatorSettings, **kwargs):
     reconciliation_interval = float(os.getenv('RECONCILIATION_INTERVAL', '300'))
     logger.info(f"Reconciliation interval set to {reconciliation_interval} seconds")
 
-    # Configure Kopf settings
-    settings_obj.persistence.finalizer = 'neural-hive.io/sla-finalizer'
-    settings_obj.persistence.progress_storage = kopf.AnnotationsProgressStorage(prefix='neural-hive.io')
-    settings_obj.persistence.diffbase_storage = kopf.AnnotationsDiffBaseStorage(prefix='neural-hive.io')
-
     # Initialize Kubernetes client
     try:
         config.load_incluster_config()
     except config.ConfigException:
         config.load_kube_config()
 
-    # Initialize clients
-    postgresql_client = PostgreSQLClient(settings)
+    # Initialize clients with their specific settings
+    postgresql_client = PostgreSQLClient(settings.postgresql)
     await postgresql_client.connect()
     logger.info("PostgreSQL client connected")
 
-    prometheus_client = PrometheusClient(settings)
+    prometheus_client = PrometheusClient(settings.prometheus)
     logger.info("Prometheus client initialized")
 
-    redis_client = RedisClient(settings)
+    redis_client = RedisClient(settings.redis)
     await redis_client.connect()
     logger.info("Redis client connected")
 
     # Initialize services
     slo_manager = SLOManager(
         postgresql_client=postgresql_client,
-        prometheus_client=prometheus_client,
-        redis_client=redis_client,
-        settings=settings
+        prometheus_client=prometheus_client
     )
     logger.info("SLO Manager initialized")
 
-    policy_enforcer = PolicyEnforcer(
-        postgresql_client=postgresql_client,
-        redis_client=redis_client,
-        settings=settings
-    )
-    logger.info("Policy Enforcer initialized")
+    # PolicyEnforcer requires kafka_producer - create a minimal one or skip for now
+    # For now, skip PolicyEnforcer initialization in operator (not strictly needed for CRD sync)
+    policy_enforcer = None
+    logger.info("Policy Enforcer skipped (Kafka producer not configured for operator)")
 
     logger.info("SLA Management System Operator started successfully")
 
@@ -670,15 +661,17 @@ async def policy_reconciliation_timer(spec: Dict[str, Any], name: str, namespace
                 }]
             }
 
-        # Get active freezes for this policy
-        active_freezes = await policy_enforcer.get_active_freezes(policy_id=policy_id)
+        # Get active freezes for this policy (if policy_enforcer is available)
+        active_freezes = []
+        if policy_enforcer:
+            active_freezes = await policy_enforcer.get_active_freezes(policy_id=policy_id)
 
         # Update status with current values
         return {
             'synced': True,
             'lastSyncTime': datetime.utcnow().isoformat(),
             'policyId': policy_id,
-            'activeFreezes': len(active_freezes),
+            'activeFreezes': len(active_freezes) if active_freezes else 0,
             'lastTriggeredAt': max([f.triggered_at for f in active_freezes]).isoformat() if active_freezes else None,
             'conditions': [{
                 'type': 'Synced',

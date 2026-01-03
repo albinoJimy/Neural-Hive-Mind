@@ -291,8 +291,8 @@ async def check_tool_health(
 
 @router.post("/{tool_id}/feedback", status_code=204)
 async def submit_tool_feedback(
-    feedback: ToolFeedbackRequest,
-    tool_id: str = Path(..., description="ID da ferramenta")
+    tool_id: str = Path(..., description="ID da ferramenta"),
+    feedback: ToolFeedbackRequest = None
 ):
     """Recebe feedback de execução de ferramenta."""
     if not tool_registry:

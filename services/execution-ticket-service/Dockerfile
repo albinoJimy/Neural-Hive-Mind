@@ -1,40 +1,27 @@
-# Stage 1: Builder
-FROM neural-hive-mind/python-observability-base:1.2.0 AS builder
+# Single stage build using observability base
+FROM 37.60.241.150:30500/python-observability-base:1.2.1
 
-WORKDIR /build
+WORKDIR /app
 
-# Instalar dependências de build
+# Instalar dependências de build e runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     libpq-dev \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copiar e instalar dependências Python
-COPY services/execution-ticket-service/requirements.txt .
-RUN python -m venv /opt/venv && \
-    /opt/venv/bin/pip install --no-cache-dir --upgrade pip && \
-    /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
-
-# Stage 2: Runtime
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Instalar apenas dependências de runtime
-RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar virtualenv do builder
-COPY --from=builder /opt/venv /opt/venv
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-ENV PATH="/opt/venv/bin:$PATH"
+# Copiar e instalar dependências Python diretamente no sistema
+COPY services/execution-ticket-service/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código fonte
 COPY services/execution-ticket-service/src/ ./src/
+
+# Copiar modelos compartilhados do orchestrator-dynamic (dependência do models/__init__.py)
+RUN mkdir -p /orchestrator-dynamic/src/models
+COPY services/orchestrator-dynamic/src/models/execution_ticket.py /orchestrator-dynamic/src/models/
 
 # Criar usuário não-root
 RUN useradd -m -u 1000 ticketservice && \
@@ -57,8 +44,8 @@ LABEL org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.title="Execution Ticket Service" \
       org.opencontainers.image.description="Serviço de gerenciamento de ciclo de vida de tickets de execução"
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+# Health check (start-period aumentado para permitir retry logic com exponential backoff)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Comando de inicialização

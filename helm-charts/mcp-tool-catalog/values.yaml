@@ -3,10 +3,13 @@ layer: "infrastructure"
 
 replicaCount: 2
 
+# Disable Kubernetes service links to prevent env var collisions with pydantic settings
+enableServiceLinks: false
+
 image:
   repository: 37.60.241.150:30500/mcp-tool-catalog
   pullPolicy: IfNotPresent
-  tag: "1.2.0"
+  tag: "1.2.1"
 
 deployment:
   strategy:
@@ -44,19 +47,19 @@ autoscaling:
   targetMemoryUtilizationPercentage: 80
 
 kafka:
-  bootstrapServers: kafka-cluster-kafka-bootstrap:9092
+  bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
   requestTopic: mcp.tool.selection.requests
   responseTopic: mcp.tool.selection.responses
   consumerGroupId: mcp-tool-catalog-group
 
 mongodb:
-  url: mongodb://mongodb-svc:27017
+  url: mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017
   database: mcp_tool_catalog
   toolsCollection: tools
   selectionsCollection: selections_history
 
 redis:
-  url: redis://redis-cluster:6379
+  url: redis://neural-hive-cache.redis-cluster.svc.cluster.local:6379
   cacheTtl: 3600
   cacheEnabled: true
 
@@ -98,6 +101,49 @@ mcpServerConfig:
   maxRetries: 3
   circuitBreakerThreshold: 5
   circuitBreakerTimeoutSeconds: 60
+
+# Connection Timeouts Configuration
+# Configurable timeouts for all client connections
+timeouts:
+  mongodb:
+    connectMs: 10000
+    serverSelectionMs: 5000
+  redis:
+    connectSeconds: 10
+    socketSeconds: 10
+  kafka:
+    requestMs: 30000
+    sessionMs: 30000
+  serviceRegistry:
+    connectSeconds: 10
+
+# Health Checks Configuration
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 60  # 10 minutos total (60 * 10s)
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 0
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8080
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
 
 observability:
   otelEndpoint: http://otel-collector:4317

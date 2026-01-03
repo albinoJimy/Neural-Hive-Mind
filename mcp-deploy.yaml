@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "22"
+    meta.helm.sh/release-name: mcp-tool-catalog
+    meta.helm.sh/release-namespace: neural-hive
+  creationTimestamp: "2025-12-30T15:56:56Z"
+  generation: 22
+  labels:
+    app.kubernetes.io/component: mcp-tool-catalog
+    app.kubernetes.io/instance: mcp-tool-catalog
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mcp-tool-catalog
+    app.kubernetes.io/part-of: neural-hive-mind
+    app.kubernetes.io/version: 1.0.0
+    helm.sh/chart: mcp-tool-catalog-1.0.0
+    neural-hive.io/component: mcp-tool-catalog
+    neural-hive.io/domain: tool-management
+    neural-hive.io/layer: infrastructure
+  name: mcp-tool-catalog
+  namespace: neural-hive
+  resourceVersion: "15321835"
+  uid: c19951a4-7c4e-485f-bf1e-3cb07d13ee5b
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: mcp-tool-catalog
+      app.kubernetes.io/name: mcp-tool-catalog
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/restartedAt: "2026-01-01T00:44:33+01:00"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "9091"
+        prometheus.io/scrape: "true"
+      creationTimestamp: null
+      labels:
+        app.kubernetes.io/instance: mcp-tool-catalog
+        app.kubernetes.io/name: mcp-tool-catalog
+    spec:
+      containers:
+      - env:
+        - name: SERVICE_VERSION
+          value: '"1.2.6"'
+        envFrom:
+        - configMapRef:
+            name: mcp-tool-catalog-config
+        - secretRef:
+            name: mcp-tool-catalog
+        image: 37.60.241.150:30500/neural-hive-mind/mcp-tool-catalog:1.0.7
+        imagePullPolicy: Always
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: 8000
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        name: mcp-tool-catalog
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 9091
+          name: metrics
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /ready
+            port: 8000
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 3
+        resources:
+          limits:
+            cpu: 50m
+            memory: 512Mi
+          requests:
+            cpu: 50m
+            memory: 256Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        kubernetes.io/hostname: vmi2911681
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: default
+      serviceAccountName: default
+      terminationGracePeriodSeconds: 30
+status:
+  conditions:
+  - lastTransitionTime: "2025-12-30T18:49:33Z"
+    lastUpdateTime: "2025-12-31T23:47:30Z"
+    message: ReplicaSet "mcp-tool-catalog-d9cc88bd8" has successfully progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  - lastTransitionTime: "2026-01-01T00:08:41Z"
+    lastUpdateTime: "2026-01-01T00:08:41Z"
+    message: Deployment does not have minimum availability.
+    reason: MinimumReplicasUnavailable
+    status: "False"
+    type: Available
+  observedGeneration: 22
+  replicas: 1
+  unavailableReplicas: 1
+  updatedReplicas: 1

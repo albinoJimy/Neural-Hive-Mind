@@ -54,7 +54,7 @@ config:
       - guardrail-enforcement
 
   mongodb:
-    uri: mongodb://mongodb.neural-hive-persistence.svc.cluster.local:27017
+    uri: mongodb://root:local_dev_password@mongodb.neural-hive-persistence.svc.cluster.local:27017
     database: neural_hive
     incidentsCollection: security_incidents
     remediationCollection: remediation_actions

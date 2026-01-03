@@ -1,0 +1,77 @@
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+replicaCount: 1
+
+image:
+  repository: 37.60.241.150:30500/explainability-api
+  tag: "latest"
+  pullPolicy: Always
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false
+
+serviceMonitor:
+  enabled: false
+
+networkPolicy:
+  enabled: false
+
+istio:
+  enabled: false
+
+config:
+  serviceName: explainability-api
+  serviceVersion: "1.0.0"
+
+  mongodb:
+    uri: mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017
+    database: neural_hive
+
+  observability:
+    otelEndpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
+    logLevel: DEBUG
+    prometheusPort: 9090
+    httpPort: 8000
+
+serviceAccount:
+  create: false
+  name: default
+
+secrets:
+  mongodbPassword: ""
+
+nodeSelector: {}
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+  initialDelaySeconds: 15
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3

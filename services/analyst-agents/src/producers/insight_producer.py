@@ -31,7 +31,7 @@ class InsightProducer:
                 key_serializer=lambda k: k.encode('utf-8') if k else None,
                 enable_idempotence=True,
                 acks='all',
-                compression_type='snappy'
+                compression_type='gzip'
             )
             await self.producer.start()
             logger.info('insight_producer_initialized', bootstrap_servers=self.bootstrap_servers)

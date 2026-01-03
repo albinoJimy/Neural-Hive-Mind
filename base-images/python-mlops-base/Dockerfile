@@ -1,4 +1,4 @@
-FROM neural-hive-mind/python-grpc-base:1.0.0
+FROM neural-hive-mind/python-grpc-base:1.0.7
 
 ARG VERSION=1.0.0
 ARG BUILD_DATE

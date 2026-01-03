@@ -1,0 +1,56 @@
+# Local environment values for sla-management-system
+
+image:
+  repository: 37.60.241.150:30500/sla-management-system
+  tag: "latest"
+  pullPolicy: Always
+
+replicaCount: 1
+
+autoscaling:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi
+
+config:
+  # Redis - usando standalone (não cluster)
+  redis:
+    clusterNodes: neural-hive-cache.redis-cluster.svc.cluster.local:6379
+    cacheTtlSeconds: 60
+
+  # Kafka
+  kafka:
+    bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
+    budgetTopic: sla.budgets
+    freezeTopic: sla.freeze.events
+    violationsTopic: sla.violations
+
+  # PostgreSQL
+  postgresql:
+    host: postgres-sla.neural-hive-data.svc.cluster.local
+    port: 5432
+    database: sla_management
+    poolMinSize: 2
+    poolMaxSize: 10
+
+  # Prometheus
+  prometheus:
+    url: http://neural-hive-prometheus-kub-prometheus.observability.svc.cluster.local:9090
+    timeoutSeconds: 30
+    maxRetries: 3
+
+  # Alertmanager
+  alertmanager:
+    url: http://alertmanager.monitoring.svc.cluster.local:9093
+    webhookPath: /webhooks/alertmanager
+
+# Service Registry
+serviceRegistry:
+  grpcHost: "service-registry.neural-hive.svc.cluster.local"
+  grpcPort: 50051

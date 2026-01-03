@@ -39,6 +39,17 @@ data:
   MCP_SERVER_MAX_RETRIES: {{ .Values.mcpServerConfig.maxRetries | default 3 | quote }}
   MCP_SERVER_CIRCUIT_BREAKER_THRESHOLD: {{ .Values.mcpServerConfig.circuitBreakerThreshold | default 5 | quote }}
   MCP_SERVER_CIRCUIT_BREAKER_TIMEOUT_SECONDS: {{ .Values.mcpServerConfig.circuitBreakerTimeoutSeconds | default 60 | quote }}
+  # Connection Timeouts
+  MONGODB_CONNECT_TIMEOUT_MS: {{ .Values.timeouts.mongodb.connectMs | default 10000 | quote }}
+  MONGODB_SERVER_SELECTION_TIMEOUT_MS: {{ .Values.timeouts.mongodb.serverSelectionMs | default 5000 | quote }}
+  REDIS_CONNECT_TIMEOUT_SECONDS: {{ .Values.timeouts.redis.connectSeconds | default 10 | quote }}
+  REDIS_SOCKET_TIMEOUT_SECONDS: {{ .Values.timeouts.redis.socketSeconds | default 10 | quote }}
+  KAFKA_REQUEST_TIMEOUT_MS: {{ .Values.timeouts.kafka.requestMs | default 30000 | quote }}
+  KAFKA_SESSION_TIMEOUT_MS: {{ .Values.timeouts.kafka.sessionMs | default 30000 | quote }}
+  SERVICE_REGISTRY_CONNECT_TIMEOUT_SECONDS: {{ .Values.timeouts.serviceRegistry.connectSeconds | default 10 | quote }}
+  # Retry Configuration
+  MAX_CONNECTION_RETRIES: "5"
+  INITIAL_RETRY_DELAY_SECONDS: "1.0"
   # ========================================
   # Tool Endpoints Configuration
   # ========================================

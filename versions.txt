@@ -63,11 +63,11 @@ motor==3.7.1
 numpy==1.26.4
 pandas==2.2.3
 scipy==1.14.1
-scikit-learn==1.5.2
+scikit-learn==1.6.0
 
 # ML/AI
 mlflow==2.19.0
-torch==2.4.1  # Compatible with sentence-transformers 3.3.1
+torch==2.5.1  # Compatible with sentence-transformers 3.3.1+ (requires PyTorch 1.11.0+)
 sentence-transformers==3.3.1
 
 # Utils

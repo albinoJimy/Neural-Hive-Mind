@@ -2,7 +2,6 @@ from typing import Dict, Optional
 
 import structlog
 from redis.asyncio import Redis
-from redis.asyncio.cluster import RedisCluster
 
 from src.config.settings import get_settings
 
@@ -17,17 +16,17 @@ class RedisClient:
         self.client: Optional[Redis] = None
 
     async def connect(self):
-        """Estabelecer conexão Redis Cluster."""
+        """Estabelecer conexão Redis."""
         try:
-            # Parse cluster nodes
+            # Parse first node (single Redis or first cluster node)
             nodes = self.settings.redis_cluster_nodes.split(",")
-            startup_nodes = []
-            for node in nodes:
-                host, port = node.strip().split(":")
-                startup_nodes.append({"host": host, "port": int(port)})
+            first_node = nodes[0].strip()
+            host, port = first_node.split(":")
 
-            self.client = RedisCluster(
-                startup_nodes=startup_nodes,
+            # Use single Redis client (works for both single and sentinel setups)
+            self.client = Redis(
+                host=host,
+                port=int(port),
                 decode_responses=True,
                 password=self.settings.redis_password if self.settings.redis_password else None,
                 ssl=self.settings.redis_ssl_enabled,
@@ -36,7 +35,7 @@ class RedisClient:
             # Test connection
             await self.client.ping()
 
-            logger.info("redis_connected", nodes=len(startup_nodes))
+            logger.info("redis_connected", host=host, port=port)
         except Exception as e:
             logger.error("redis_connection_failed", error=str(e))
             raise

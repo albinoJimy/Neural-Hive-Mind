@@ -1,0 +1,217 @@
+component: "analyst-agents"
+layer: "analise"
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+
+image:
+  repository: 37.60.241.150:30500/analyst-agents
+  tag: "1.2.1"
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+# Disable Kubernetes service links to prevent env var collisions with pydantic settings
+enableServiceLinks: false
+
+service:
+  type: ClusterIP
+  ports:
+    http:
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+    grpc:
+      port: 50051
+      targetPort: 50051
+      protocol: TCP
+    metrics:
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+config:
+  serviceName: analyst-agents
+  serviceVersion: "1.2.0"
+
+  # Database connections
+  mongodb:
+    uri: mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017
+    database: neural_hive
+    collectionInsights: insights
+    maxPoolSize: 50
+    minPoolSize: 10
+
+  redis:
+    host: neural-hive-cache.redis-cluster.svc.cluster.local
+    port: 6379
+    password: ""
+    db: 0
+    insightsTtl: 3600
+
+  neo4j:
+    uri: bolt://neo4j.neo4j.svc.cluster.local:7687
+    user: neo4j
+    password: ""
+    database: neo4j
+
+  clickhouse:
+    host: clickhouse.clickhouse.svc.cluster.local
+    port: 9000
+    user: default
+    password: ""
+    database: neural_hive
+
+  elasticsearch:
+    hosts:
+      - http://elasticsearch.elasticsearch.svc.cluster.local:9200
+    user: elastic
+    password: ""
+
+  prometheus:
+    url: http://prometheus.observability.svc.cluster.local:9090
+
+  # Queen Agent connection
+  queenAgent:
+    grpcHost: queen-agent.neural-hive.svc.cluster.local
+    grpcPort: 50051
+
+  # Kafka configuration
+  kafka:
+    bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
+    consumerGroup: analyst-agents
+    topics:
+      telemetry: observability.telemetry
+      consensus: consensus.decisions
+      execution: execution.results
+      pheromones: pheromones.signals
+      insights: analytics.insights
+
+  # gRPC server
+  grpc:
+    enabled: true
+    host: "0.0.0.0"
+    port: 50051
+
+  # Observability
+  observability:
+    otelEndpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
+    prometheusPort: 9090
+    httpPort: 8000
+    logLevel: INFO
+
+  # Analytics
+  analytics:
+    minConfidence: 0.7
+    windowSizeSeconds: 300
+
+  # FastAPI
+  fastapi:
+    host: "0.0.0.0"
+    port: 8000
+    corsOrigins:
+      - "*"
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+observability:
+  prometheus:
+    enabled: true
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+istio:
+  enabled: false
+  mtls:
+    mode: STRICT
+
+serviceMonitor:
+  enabled: true
+  interval: 30s
+
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30
+  successThreshold: 1
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 0
+  periodSeconds: 15
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+networkPolicy:
+  enabled: true
+
+secrets:
+  mongodbPassword: ""
+  redisPassword: ""
+  neo4jPassword: ""
+  clickhousePassword: ""
+  elasticsearchPassword: ""
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - analyst-agents
+          topologyKey: topology.kubernetes.io/zone

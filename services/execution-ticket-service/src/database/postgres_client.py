@@ -1,4 +1,5 @@
 """Cliente PostgreSQL para persistência de tickets usando SQLAlchemy async."""
+import asyncio
 import logging
 from typing import Optional, List, Dict
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession, AsyncEngine
@@ -21,8 +22,58 @@ class PostgresClient:
         self._engine: Optional[AsyncEngine] = None
         self._session_maker: Optional[async_sessionmaker] = None
 
+    async def start(self, max_retries: int = 5, initial_delay: float = 1.0):
+        """Estabelece conexão com PostgreSQL com retry logic.
+
+        Args:
+            max_retries: Número máximo de tentativas de conexão
+            initial_delay: Delay inicial entre retries (exponential backoff)
+        """
+        for attempt in range(max_retries):
+            try:
+                logger.info(
+                    "connecting_to_postgresql",
+                    extra={
+                        "host": self.settings.postgres_host,
+                        "database": self.settings.postgres_database,
+                        "attempt": attempt + 1,
+                        "max_retries": max_retries
+                    }
+                )
+
+                await self._connect_internal()
+
+                # Test connection
+                async with self._session_maker() as session:
+                    await session.execute(select(func.count()).select_from(TicketORM))
+
+                logger.info("postgresql_connected", extra={"host": self.settings.postgres_host})
+                return
+
+            except Exception as e:
+                delay = initial_delay * (2 ** attempt)  # Exponential backoff
+                logger.warning(
+                    "postgresql_connection_failed",
+                    extra={
+                        "error": str(e),
+                        "attempt": attempt + 1,
+                        "max_retries": max_retries,
+                        "retry_in_seconds": delay
+                    }
+                )
+
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(delay)
+                else:
+                    logger.error("postgresql_connection_exhausted_retries", extra={"max_retries": max_retries})
+                    raise
+
     async def connect(self):
-        """Estabelece conexão com PostgreSQL."""
+        """Estabelece conexão com PostgreSQL (backward compatibility)."""
+        await self.start()
+
+    async def _connect_internal(self):
+        """Método interno de conexão."""
         connection_string = (
             f"postgresql+asyncpg://{self.settings.postgres_user}:{self.settings.postgres_password}"
             f"@{self.settings.postgres_host}:{self.settings.postgres_port}/{self.settings.postgres_database}"
@@ -40,8 +91,6 @@ class PostgresClient:
             class_=AsyncSession,
             expire_on_commit=False
         )
-
-        logger.info("PostgreSQL client connected", host=self.settings.postgres_host)
 
     async def disconnect(self):
         """Fecha conexão com PostgreSQL."""
@@ -152,12 +201,18 @@ class PostgresClient:
 _postgres_client: Optional[PostgresClient] = None
 
 
-async def get_postgres_client() -> PostgresClient:
-    """Retorna singleton do PostgreSQL client."""
+async def get_postgres_client(auto_connect: bool = False) -> PostgresClient:
+    """Retorna singleton do PostgreSQL client.
+
+    Args:
+        auto_connect: Se True, conecta automaticamente (para compatibilidade).
+                     Se False, retorna cliente sem conectar (padrão).
+    """
     global _postgres_client
     if _postgres_client is None:
         from ..config import get_settings
         settings = get_settings()
         _postgres_client = PostgresClient(settings)
-        await _postgres_client.connect()
+        if auto_connect:
+            await _postgres_client.connect()
     return _postgres_client

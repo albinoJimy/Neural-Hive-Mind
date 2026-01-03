@@ -2,7 +2,7 @@ import hashlib
 import json
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -22,24 +22,39 @@ class ApprovalStatus(str, Enum):
     AUTO_APPROVED = "AUTO_APPROVED"
     QUEEN_APPROVED = "QUEEN_APPROVED"
     PENDING_REVIEW = "PENDING_REVIEW"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 
 class CausalAnalysis(BaseModel):
     """Causal analysis evidence."""
 
-    method: str = Field(..., description="Causal analysis method used")
-    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score")
+    method: str = Field(default="", description="Causal analysis method used")
+    root_cause: str = Field(default="", description="Root cause identified")
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0, description="Confidence score")
+    confidence_score: float = Field(default=0.0, ge=0.0, le=1.0, description="Alias for confidence")
     confounders: List[str] = Field(default_factory=list, description="Identified confounders")
-    effect_size: float = Field(..., description="Effect size of causal relationship")
+    contributing_factors: List[str] = Field(default_factory=list, description="Contributing factors")
+    effect_size: float = Field(default=0.0, description="Effect size of causal relationship")
 
 
 class Adjustment(BaseModel):
     """Parameter adjustment."""
 
-    parameter_name: str = Field(..., description="Name of adjusted parameter")
-    old_value: str = Field(..., description="Previous value")
-    new_value: str = Field(..., description="New value")
-    justification: str = Field(..., description="Justification for adjustment")
+    parameter_name: str = Field(default="", description="Name of adjusted parameter")
+    parameter: str = Field(default="", description="Alias for parameter_name")
+    old_value: str = Field(default="", description="Previous value")
+    previous_value: float = Field(default=0.0, description="Previous value as float")
+    new_value: str = Field(default="", description="New value")
+    justification: str = Field(default="", description="Justification for adjustment")
+
+
+class RollbackPlan(BaseModel):
+    """Rollback plan for optimization."""
+
+    rollback_strategy: str = Field(..., description="Strategy for rollback")
+    rollback_steps: List[str] = Field(default_factory=list, description="Steps to rollback")
+    validation_criteria: List[str] = Field(default_factory=list, description="Criteria to validate rollback")
 
 
 class OptimizationEvent(BaseModel):
@@ -47,22 +62,22 @@ class OptimizationEvent(BaseModel):
 
     optimization_id: str = Field(..., description="Unique identifier (UUID)")
     version: str = Field(default="1.0.0", description="Schema version")
-    correlation_id: str = Field(..., description="Correlation ID for tracing")
-    trace_id: str = Field(..., description="OpenTelemetry trace ID")
-    span_id: str = Field(..., description="OpenTelemetry span ID")
+    correlation_id: str = Field(default="", description="Correlation ID for tracing")
+    trace_id: str = Field(default="", description="OpenTelemetry trace ID")
+    span_id: str = Field(default="", description="OpenTelemetry span ID")
     optimization_type: OptimizationType = Field(..., description="Type of optimization")
-    target_component: str = Field(..., description="Target component")
+    target_component: str = Field(default="", description="Target component")
     experiment_id: Optional[str] = Field(None, description="Reference to experiment")
-    hypothesis: str = Field(..., description="Hypothesis that was tested")
-    baseline_metrics: Dict[str, float] = Field(..., description="Metrics before optimization")
-    optimized_metrics: Dict[str, float] = Field(..., description="Metrics after optimization")
-    improvement_percentage: float = Field(..., description="Percentage improvement")
-    causal_analysis: CausalAnalysis = Field(..., description="Causal analysis evidence")
-    adjustments: List[Adjustment] = Field(..., description="List of adjustments applied")
-    approval_status: ApprovalStatus = Field(..., description="Approval status")
+    hypothesis: str = Field(default="", description="Hypothesis that was tested")
+    baseline_metrics: Dict[str, float] = Field(default_factory=dict, description="Metrics before optimization")
+    optimized_metrics: Dict[str, float] = Field(default_factory=dict, description="Metrics after optimization")
+    improvement_percentage: float = Field(default=0.0, description="Percentage improvement")
+    causal_analysis: Optional[CausalAnalysis] = Field(None, description="Causal analysis evidence")
+    adjustments: List[Adjustment] = Field(default_factory=list, description="List of adjustments applied")
+    approval_status: ApprovalStatus = Field(default=ApprovalStatus.PENDING_REVIEW, description="Approval status")
     approved_by: Optional[str] = Field(None, description="Agent that approved")
-    rollback_plan: str = Field(..., description="Rollback plan")
-    applied_at: int = Field(..., description="Timestamp (Unix millis)")
+    rollback_plan: Union[str, RollbackPlan] = Field(default="", description="Rollback plan")
+    applied_at: Optional[int] = Field(None, description="Timestamp (Unix millis)")
     valid_until: Optional[int] = Field(None, description="Expiration timestamp")
     metadata: Dict[str, str] = Field(default_factory=dict, description="Additional metadata")
     hash: str = Field(default="", description="SHA-256 hash for integrity")

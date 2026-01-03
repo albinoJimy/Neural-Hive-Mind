@@ -1,0 +1,21 @@
+apiVersion: v2
+name: optimizer-agents
+description: Optimizer Agents para otimizacao continua e recalibracao de politicas no Neural Hive-Mind
+type: application
+version: 1.0.0
+appVersion: "1.0.12"
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: team@neuralhivemind.io
+keywords:
+  - neural-hive-mind
+  - optimizer-agents
+  - optimization
+  - ml
+  - reinforcement-learning
+  - phase-2
+dependencies:
+  - name: common-templates
+    version: "0.1.0"
+    repository: "file://../common-templates"
+    alias: common

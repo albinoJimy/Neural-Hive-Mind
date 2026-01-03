@@ -13,22 +13,22 @@ data:
 
   # Prometheus configuration
   prometheus_url: {{ .Values.config.prometheus.url | quote }}
-  prometheus_timeout_seconds: {{ .Values.config.prometheus.timeoutSeconds | quote }}
-  prometheus_max_retries: {{ .Values.config.prometheus.maxRetries | quote }}
+  prometheus_timeout_seconds: "{{ .Values.config.prometheus.timeoutSeconds }}"
+  prometheus_max_retries: "{{ .Values.config.prometheus.maxRetries }}"
 
   # PostgreSQL configuration
   postgresql_host: {{ .Values.config.postgresql.host | quote }}
-  postgresql_port: {{ .Values.config.postgresql.port | quote }}
+  postgresql_port: "{{ .Values.config.postgresql.port }}"
   postgresql_database: {{ .Values.config.postgresql.database | quote }}
-  postgresql_pool_min_size: {{ .Values.config.postgresql.poolMinSize | quote }}
-  postgresql_pool_max_size: {{ .Values.config.postgresql.poolMaxSize | quote }}
+  postgresql_pool_min_size: "{{ .Values.config.postgresql.poolMinSize }}"
+  postgresql_pool_max_size: "{{ .Values.config.postgresql.poolMaxSize }}"
 
   # Redis configuration
-  redis_cluster_nodes: {{ .Values.config.redis.clusterNodes | toJson | quote }}
-  redis_cache_ttl_seconds: {{ .Values.config.redis.cacheTtlSeconds | quote }}
+  redis_cluster_nodes: {{ .Values.config.redis.clusterNodes | quote }}
+  redis_cache_ttl_seconds: "{{ .Values.config.redis.cacheTtlSeconds }}"
 
   # Kafka configuration
-  kafka_bootstrap_servers: {{ .Values.config.kafka.bootstrapServers | toJson | quote }}
+  kafka_bootstrap_servers: {{ .Values.config.kafka.bootstrapServers | quote }}
   kafka_budget_topic: {{ .Values.config.kafka.budgetTopic | quote }}
   kafka_freeze_topic: {{ .Values.config.kafka.freezeTopic | quote }}
   kafka_violations_topic: {{ .Values.config.kafka.violationsTopic | quote }}
@@ -38,12 +38,12 @@ data:
   alertmanager_webhook_path: {{ .Values.config.alertmanager.webhookPath | quote }}
 
   # Calculator configuration
-  calculator_interval_seconds: {{ .Values.config.calculator.calculationIntervalSeconds | quote }}
-  calculator_window_days: {{ .Values.config.calculator.errorBudgetWindowDays | quote }}
-  calculator_burn_rate_fast_threshold: {{ .Values.config.calculator.burnRateFastThreshold | quote }}
-  calculator_burn_rate_slow_threshold: {{ .Values.config.calculator.burnRateSlowThreshold | quote }}
+  calculator_interval_seconds: "{{ .Values.config.calculator.calculationIntervalSeconds }}"
+  calculator_window_days: "{{ .Values.config.calculator.errorBudgetWindowDays }}"
+  calculator_burn_rate_fast_threshold: "{{ .Values.config.calculator.burnRateFastThreshold }}"
+  calculator_burn_rate_slow_threshold: "{{ .Values.config.calculator.burnRateSlowThreshold }}"
 
   # Policy configuration
-  policy_freeze_threshold_percent: {{ .Values.config.policy.freezeThresholdPercent | quote }}
-  policy_auto_unfreeze_enabled: {{ .Values.config.policy.autoUnfreezeEnabled | quote }}
-  policy_unfreeze_threshold_percent: {{ .Values.config.policy.unfreezeThresholdPercent | quote }}
+  policy_freeze_threshold_percent: "{{ .Values.config.policy.freezeThresholdPercent }}"
+  policy_auto_unfreeze_enabled: "{{ .Values.config.policy.autoUnfreezeEnabled }}"
+  policy_unfreeze_threshold_percent: "{{ .Values.config.policy.unfreezeThresholdPercent }}"

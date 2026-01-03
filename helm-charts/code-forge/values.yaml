@@ -3,9 +3,12 @@ layer: "execution"
 
 replicaCount: 2
 
+# Disable Kubernetes service links to prevent env var collisions with pydantic settings
+enableServiceLinks: false
+
 image:
   repository: 37.60.241.150:30500/code-forge
-  tag: "1.2.0"
+  tag: "1.2.1"
   pullPolicy: IfNotPresent
 
 deployment:
@@ -73,23 +76,23 @@ config:
   CLUSTER: production
 
   # Kafka
-  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  KAFKA_BOOTSTRAP_SERVERS: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
   KAFKA_TICKETS_TOPIC: execution.tickets
   KAFKA_RESULTS_TOPIC: code-forge.results
   KAFKA_CONSUMER_GROUP_ID: code-forge
 
   # PostgreSQL
-  POSTGRES_HOST: postgres
+  POSTGRES_HOST: postgresql.postgresql.svc.cluster.local
   POSTGRES_PORT: 5432
   POSTGRES_DB: code_forge
 
   # MongoDB
-  MONGODB_HOST: mongodb
+  MONGODB_HOST: mongodb.mongodb-cluster.svc.cluster.local
   MONGODB_PORT: 27017
   MONGODB_DB: code_forge
 
   # Redis
-  REDIS_HOST: redis
+  REDIS_HOST: neural-hive-cache.redis-cluster.svc.cluster.local
   REDIS_PORT: 6379
 
   # Service Registry

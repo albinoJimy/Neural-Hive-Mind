@@ -1,0 +1,145 @@
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+replicaCount: 1
+
+image:
+  repository: 37.60.241.150:30500/optimizer-agents
+  tag: "latest"
+  pullPolicy: Always
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1536Mi  # Aumentado de 768Mi para evitar OOMKilled
+
+autoscaling:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false
+
+serviceMonitor:
+  enabled: false
+
+networkPolicy:
+  enabled: false
+
+istio:
+  enabled: false
+
+config:
+  serviceName: optimizer-agents
+  serviceVersion: "1.0.12"
+  environment: dev
+
+  mongodb:
+    uri: mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017
+    database: neural_hive
+    maxPoolSize: 10
+    minPoolSize: 2
+
+  redis:
+    host: neural-hive-cache.redis-cluster.svc.cluster.local
+    port: 6379
+    password: ""
+    db: 0
+
+  clickhouse:
+    host: clickhouse.clickhouse.svc.cluster.local
+    port: 9000
+    user: default
+    password: ""
+    database: neural_hive
+
+  mlflow:
+    trackingUri: http://mlflow.mlflow.svc.cluster.local:5000
+    experimentPrefix: neural-hive-ml
+
+  argo:
+    serverUrl: http://argo-workflows-server.argo.svc.cluster.local:2746
+    namespace: argo
+
+  grpcClients:
+    consensusEngine:
+      host: consensus-engine.neural-hive.svc.cluster.local
+      port: 50051
+    orchestrator:
+      host: orchestrator-dynamic.neural-hive.svc.cluster.local
+      port: 50051
+    analystAgents:
+      host: analyst-agents.neural-hive.svc.cluster.local
+      port: 50051
+    queenAgent:
+      host: queen-agent.neural-hive.svc.cluster.local
+      port: 50051
+    serviceRegistry:
+      host: service-registry.neural-hive.svc.cluster.local
+      port: 50051
+
+  kafka:
+    bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
+    consumerGroup: optimizer-agents
+    topics:
+      insights: analytics.insights
+      telemetry: observability.telemetry
+      experiments: optimization.experiments
+      optimizations: optimization.results
+
+  grpc:
+    enabled: true
+    host: "0.0.0.0"
+    port: 50051
+
+  observability:
+    otelEndpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
+    prometheusPort: 9090
+    httpPort: 8000
+    logLevel: DEBUG
+
+  optimization:
+    minImprovementThreshold: 0.05
+    experimentTimeoutSeconds: 3600
+    rollbackOnDegradation: true
+    degradationThreshold: 0.1
+
+  training:
+    enabled: false
+    intervalMinutes: 60
+    minSamplesForTraining: 100
+
+serviceAccount:
+  create: false
+  name: optimizer-agents
+
+secrets:
+  mongodbPassword: ""
+  redisPassword: ""
+  clickhousePassword: ""
+
+nodeSelector: {}
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 120
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 60
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3

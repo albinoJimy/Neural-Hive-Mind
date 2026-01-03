@@ -1,0 +1,224 @@
+component: "optimizer-agents"
+layer: "otimizacao"
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+
+image:
+  repository: 37.60.241.150:30500/optimizer-agents
+  tag: "1.2.1"
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+# Disable Kubernetes service links to prevent env var collisions with pydantic settings
+enableServiceLinks: false
+
+service:
+  type: ClusterIP
+  ports:
+    http:
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+    grpc:
+      port: 50051
+      targetPort: 50051
+      protocol: TCP
+    metrics:
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+
+config:
+  serviceName: optimizer-agents
+  serviceVersion: "1.0.12"
+  environment: production
+
+  # MongoDB
+  mongodb:
+    uri: mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017
+    database: neural_hive
+    maxPoolSize: 50
+    minPoolSize: 10
+
+  # Redis
+  redis:
+    host: neural-hive-cache.redis-cluster.svc.cluster.local
+    port: 6379
+    password: ""
+    db: 0
+
+  # ClickHouse
+  clickhouse:
+    host: clickhouse.clickhouse.svc.cluster.local
+    port: 9000
+    user: default
+    password: ""
+    database: neural_hive
+
+  # MLflow
+  mlflow:
+    trackingUri: http://mlflow.mlflow.svc.cluster.local:5000
+    experimentPrefix: neural-hive-ml
+
+  # Argo Workflows
+  argo:
+    serverUrl: http://argo-workflows-server.argo.svc.cluster.local:2746
+    namespace: argo
+
+  # gRPC Clients
+  grpcClients:
+    consensusEngine:
+      host: consensus-engine.neural-hive.svc.cluster.local
+      port: 50051
+    orchestrator:
+      host: orchestrator-dynamic.neural-hive.svc.cluster.local
+      port: 50051
+    analystAgents:
+      host: analyst-agents.neural-hive.svc.cluster.local
+      port: 50051
+    queenAgent:
+      host: queen-agent.neural-hive.svc.cluster.local
+      port: 50051
+    serviceRegistry:
+      host: service-registry.neural-hive.svc.cluster.local
+      port: 50051
+
+  # Kafka configuration
+  kafka:
+    bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
+    consumerGroup: optimizer-agents
+    topics:
+      insights: analytics.insights
+      telemetry: observability.telemetry
+      experiments: optimization.experiments
+      optimizations: optimization.results
+
+  # gRPC server
+  grpc:
+    enabled: true
+    host: "0.0.0.0"
+    port: 50051
+
+  # Observability
+  observability:
+    otelEndpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
+    prometheusPort: 9090
+    httpPort: 8000
+    logLevel: INFO
+
+  # Optimization settings
+  optimization:
+    minImprovementThreshold: 0.05
+    experimentTimeoutSeconds: 3600
+    rollbackOnDegradation: true
+    degradationThreshold: 0.1
+
+  # Training pipeline
+  training:
+    enabled: true
+    intervalMinutes: 60
+    minSamplesForTraining: 1000
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+observability:
+  prometheus:
+    enabled: true
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+istio:
+  enabled: false
+  mtls:
+    mode: STRICT
+
+serviceMonitor:
+  enabled: true
+  interval: 30s
+
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30
+  successThreshold: 1
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 0
+  periodSeconds: 15
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+networkPolicy:
+  enabled: true
+
+secrets:
+  mongodbPassword: ""
+  redisPassword: ""
+  clickhousePassword: ""
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - optimizer-agents
+          topologyKey: topology.kubernetes.io/zone

@@ -3,11 +3,7 @@ import structlog
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from neural_hive_observability import (
-    init_observability,
-    instrument_kafka_consumer,
-    instrument_kafka_producer,
-)
+from neural_hive_observability import init_observability
 
 from .config import get_settings
 from .clients import MongoDBClient, RedisClient, Neo4jClient, ClickHouseClient, ElasticsearchClient, PrometheusClient, QueenAgentGRPCClient
@@ -173,7 +169,6 @@ async def lifespan(app: FastAPI):
             default_topic=settings.KAFKA_TOPICS_INSIGHTS
         )
         await app_state.insight_producer.initialize()
-        app_state.insight_producer = instrument_kafka_producer(app_state.insight_producer)
         logger.info('kafka_producer_initialized')
 
     except Exception as e:
@@ -196,7 +191,6 @@ async def lifespan(app: FastAPI):
             window_size_seconds=settings.ANALYTICS_WINDOW_SIZE_SECONDS
         )
         await app_state.telemetry_consumer.initialize()
-        app_state.telemetry_consumer = instrument_kafka_consumer(app_state.telemetry_consumer)
 
         # Consensus Consumer
         app_state.consensus_consumer = ConsensusConsumer(
@@ -211,7 +205,6 @@ async def lifespan(app: FastAPI):
             queen_agent_client=app_state.queen_agent_client
         )
         await app_state.consensus_consumer.initialize()
-        app_state.consensus_consumer = instrument_kafka_consumer(app_state.consensus_consumer)
 
         # Execution Consumer
         app_state.execution_consumer = ExecutionConsumer(
@@ -225,7 +218,6 @@ async def lifespan(app: FastAPI):
             queen_agent_client=app_state.queen_agent_client
         )
         await app_state.execution_consumer.initialize()
-        app_state.execution_consumer = instrument_kafka_consumer(app_state.execution_consumer)
 
         # Pheromone Consumer
         app_state.pheromone_consumer = PheromoneConsumer(
@@ -239,7 +231,6 @@ async def lifespan(app: FastAPI):
             queen_agent_client=app_state.queen_agent_client
         )
         await app_state.pheromone_consumer.initialize()
-        app_state.pheromone_consumer = instrument_kafka_consumer(app_state.pheromone_consumer)
 
         logger.info('kafka_consumers_initialized')
 

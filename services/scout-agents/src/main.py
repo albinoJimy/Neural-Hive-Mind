@@ -133,6 +133,7 @@ async def startup():
         neural_hive_layer='exploracao',
         neural_hive_domain='signal-detection',
         otel_endpoint=os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4317'),
+        prometheus_port=settings.observability.prometheus_port,
     )
 
     ScoutMetrics.record_startup()

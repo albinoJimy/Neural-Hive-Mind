@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM neural-hive-mind/python-mlops-base:1.0.0 AS builder
+FROM neural-hive-mind/python-mlops-base:1.0.7 AS builder
 
 WORKDIR /app
 
@@ -13,16 +13,10 @@ RUN pip install --no-cache-dir --user /tmp/neural_hive_ml && \
     pip install --no-cache-dir --user /tmp/neural_hive_observability && \
     pip install --no-cache-dir --user -r requirements-optimizer.txt
 
-# Copiar proto files e compilar
-COPY services/optimizer-agents/src/proto/ ./src/proto/
-RUN python -m grpc_tools.protoc \
-    -I./src/proto \
-    --python_out=./src/proto \
-    --grpc_python_out=./src/proto \
-    ./src/proto/optimizer_agent.proto
+# Proto files já compilados no source com imports relativos corretos
 
 # Stage 2: Runtime
-FROM neural-hive-mind/python-mlops-base:1.0.0
+FROM neural-hive-mind/python-mlops-base:1.0.7
 
 WORKDIR /app
 
@@ -32,13 +26,18 @@ RUN useradd -m -u 1000 optimizer
 # Copiar dependências do builder
 COPY --from=builder --chown=optimizer:optimizer /root/.local /home/optimizer/.local
 
-# Copiar código da aplicação
+# Fix pydantic-settings conflict - remove old versions and install correct ones
+RUN rm -rf /home/optimizer/.local/lib/python3.11/site-packages/pydantic* && \
+    rm -rf /usr/local/lib/python3.11/site-packages/pydantic* 2>/dev/null || true && \
+    pip install --no-cache-dir --target=/home/optimizer/.local/lib/python3.11/site-packages \
+        pydantic==2.10.4 pydantic-settings==2.6.1
+
+# Copiar código da aplicação (proto files já têm imports relativos corretos)
 COPY --chown=optimizer:optimizer services/optimizer-agents/src/ ./src/
-COPY --from=builder --chown=optimizer:optimizer /app/src/proto/*.py ./src/proto/
 
 # Ajustar PATH e PYTHONPATH
 ENV PATH=/home/optimizer/.local/bin:$PATH
-ENV PYTHONPATH=/app:$PYTHONPATH
+ENV PYTHONPATH=/home/optimizer/.local/lib/python3.11/site-packages:/app
 
 # Mudar para usuário não-root
 USER optimizer

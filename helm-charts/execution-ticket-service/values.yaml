@@ -1,7 +1,10 @@
 component: "execution-ticket-service"
 layer: "orchestration"
 
-replicaCount: 2
+replicaCount: 1
+
+# Disable Kubernetes service links to prevent env var collisions with pydantic settings
+enableServiceLinks: false
 
 nameOverride: ""
 fullnameOverride: ""
@@ -12,8 +15,8 @@ serviceAccount:
 
 image:
   repository: 37.60.241.150:30500/execution-ticket-service
-  tag: "1.2.0"
-  pullPolicy: IfNotPresent
+  tag: "1.2.1"
+  pullPolicy: Always
 
 deployment:
   strategy:
@@ -51,16 +54,16 @@ podLabels:
 
 resources:
   requests:
-    cpu: 400m      # REST + gRPC + Kafka
-    memory: 768Mi
+    cpu: 100m      # Reduced for local development
+    memory: 256Mi
   limits:
-    cpu: 1500m
-    memory: 2Gi
+    cpu: 500m
+    memory: 512Mi
 
 autoscaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 10
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
 
@@ -72,18 +75,18 @@ config:
   logLevel: INFO
 
   postgres:
-    host: postgresql
+    host: postgres-sla.neural-hive-data.svc.cluster.local
     port: 5432
-    database: neural_hive_tickets
-    user: postgres
-    sslMode: require
+    database: sla_management
+    user: sla_user
+    sslMode: disable  # Internal cluster connection
 
   mongodb:
-    uri: mongodb://mongodb:27017
+    uri: mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017
     database: neural_hive_orchestration
 
   kafka:
-    bootstrapServers: kafka:9092
+    bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
     consumerGroupId: execution-ticket-service
     ticketsTopic: execution.tickets
     schemaRegistryUrl: http://schema-registry.neural-hive-kafka.svc.cluster.local:8081
@@ -166,3 +169,37 @@ topologySpreadConstraints:
     labelSelector:
       matchLabels:
         app.kubernetes.io/name: execution-ticket-service
+
+# Health Checks Configuration
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 30  # Allow time for container initialization before first probe
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30  # 5 minutos total (30 * 10s) para conectar PostgreSQL, MongoDB, criar índices
+  successThreshold: 1
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 0
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Connection retry configuration
+connectionRetry:
+  maxRetries: 5
+  initialDelaySeconds: 1.0

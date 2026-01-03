@@ -33,7 +33,7 @@ QoS = _orchestrator_models.QoS
 
 from .ticket_orm import TicketORM
 from .webhook_event import WebhookEvent
-from .jwt_token import JWTToken, JWTTokenPayload
+from .jwt_token import JWTToken, JWTTokenPayload, generate_token, decode_token
 
 __all__ = [
     'ExecutionTicket',
@@ -50,5 +50,7 @@ __all__ = [
     'TicketORM',
     'WebhookEvent',
     'JWTToken',
-    'JWTTokenPayload'
+    'JWTTokenPayload',
+    'generate_token',
+    'decode_token'
 ]

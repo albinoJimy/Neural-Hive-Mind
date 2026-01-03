@@ -1,7 +1,7 @@
 # Neural Hive-Mind Python NLP Base Image
 # Base image with spaCy and pre-installed language models (pt, en)
 
-FROM neural-hive-mind/python-grpc-base:1.0.0
+FROM neural-hive-mind/python-grpc-base:1.0.7
 
 # Build arguments for versioning
 ARG VERSION=1.0.0

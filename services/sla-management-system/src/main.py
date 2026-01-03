@@ -80,11 +80,21 @@ async def lifespan(app: FastAPI):
         redis_client = RedisClient(settings.redis)
         await redis_client.connect()
 
+        # Kafka é opcional - continua sem ele se não conectar
         kafka_producer = KafkaProducerClient(settings.kafka)
-        await kafka_producer.start()
+        try:
+            if settings.kafka.enabled:
+                await kafka_producer.start()
+                logger.info("kafka_producer_connected")
+        except Exception as e:
+            logger.warning("kafka_connection_failed_continuing_without", error=str(e))
+            kafka_producer = None
 
         alertmanager_client = AlertmanagerClient(settings.alertmanager)
-        await alertmanager_client.connect()
+        try:
+            await alertmanager_client.connect()
+        except Exception as e:
+            logger.warning("alertmanager_connection_failed", error=str(e))
 
         # Inicializar serviços
         budget_calculator = BudgetCalculator(
@@ -240,18 +250,21 @@ async def ready():
     except Exception as e:
         checks["prometheus"] = f"error: {str(e)}"
 
-    # Verificar Kafka
-    try:
-        kafka_ok = await kafka_producer.health_check()
-        checks["kafka"] = "ok" if kafka_ok else "error"
-    except Exception as e:
-        checks["kafka"] = f"error: {str(e)}"
+    # Verificar Kafka (opcional)
+    if kafka_producer:
+        try:
+            kafka_ok = await kafka_producer.health_check()
+            checks["kafka"] = "ok" if kafka_ok else "error"
+        except Exception as e:
+            checks["kafka"] = f"error: {str(e)}"
+    else:
+        checks["kafka"] = "disabled"
 
-    # Determinar status geral
-    all_ok = all(v == "ok" for v in checks.values())
+    # Determinar status geral (considera "disabled" como OK)
+    all_ok = all(v in ("ok", "disabled") for v in checks.values())
     status_code = 200 if all_ok else 503
 
-    return {"status": "ready" if all_ok else "not ready", "checks": checks}, status_code
+    return {"status": "ready" if all_ok else "not ready", "checks": checks}
 
 
 # Métricas Prometheus

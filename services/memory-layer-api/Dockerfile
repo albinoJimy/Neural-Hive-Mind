@@ -1,50 +1,32 @@
-# Multi-stage build for Memory Layer API
-# Stage 1: Builder
-FROM neural-hive-mind/python-observability-base:1.2.0 AS builder
+# Single stage build for Memory Layer API using observability base
+FROM 37.60.241.150:30500/python-observability-base:1.2.1
 
 WORKDIR /app
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     make \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install dependencies
+# Copy requirements and install dependencies into system Python (alongside neural_hive_observability)
 COPY services/memory-layer-api/requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Stage 2: Runtime
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Create non-root user first
+# Create non-root user
 RUN useradd -m -u 1000 app
-
-# Copy Python dependencies from builder
-COPY --from=builder /root/.local /root/.local
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-
-# Copy shared libraries BEFORE installing packages to avoid namespace conflicts
-
-# Install packages globally from /root/.local (excluding neural_hive_observability to avoid conflicts)
-RUN cp -r /root/.local/lib/python3.11/site-packages/* /usr/local/lib/python3.11/site-packages/ && \
-    rm -rf /usr/local/lib/python3.11/site-packages/neural_hive_observability* && \
-    python -m uvicorn --version && echo "✓ uvicorn accessible"
 
 # Copy application code
 COPY services/memory-layer-api/src/ ./src/
 
 # Fix ownership for non-root user
-RUN chown -R app:app /app /usr/local/lib/python3.11/site-packages
+RUN chown -R app:app /app
 
-# Update PATH and PYTHONPATH
-ENV PYTHONPATH=/app:/usr/local/lib/python3.11/site-packages \
-    PYTHONUNBUFFERED=1 \
-    PATH=/usr/local/bin:$PATH
+# Update PYTHONPATH
+ENV PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1
 
 # Switch to non-root user
 USER app

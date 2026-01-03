@@ -2,7 +2,7 @@
 Cliente para Redis Cluster (cache de budgets).
 """
 
-from typing import Optional
+from typing import Optional, Union
 import json
 import redis.asyncio as redis
 import structlog
@@ -17,31 +17,53 @@ class RedisClient:
 
     def __init__(self, settings: RedisSettings):
         self.settings = settings
-        self.cluster: Optional[redis.RedisCluster] = None
+        self.cluster: Optional[Union[redis.RedisCluster, redis.Redis]] = None
         self.ttl_seconds = settings.cache_ttl_seconds
         self.logger = structlog.get_logger(__name__)
 
     async def connect(self) -> None:
-        """Inicializa conexão com Redis Cluster."""
+        """Inicializa conexão com Redis (Standalone primeiro, Cluster como fallback)."""
         try:
-            startup_nodes = [
-                {"host": node.split(":")[0], "port": int(node.split(":")[1])}
-                for node in self.settings.cluster_nodes
-            ]
+            # Parse first node for connection
+            first_node = self.settings.cluster_nodes[0] if self.settings.cluster_nodes else "localhost:6379"
+            host, port_str = first_node.split(":")
+            port = int(port_str)
 
-            self.cluster = redis.RedisCluster(
-                startup_nodes=startup_nodes,
-                password=self.settings.password if self.settings.password else None,
-                ssl=self.settings.ssl,
-                decode_responses=self.settings.decode_responses
-            )
-
-            await self.cluster.ping()
-            self.logger.info("redis_connected", nodes=self.settings.cluster_nodes)
+            # Try standalone mode first (mais comum em desenvolvimento)
+            try:
+                self.cluster = redis.Redis(
+                    host=host,
+                    port=port,
+                    password=self.settings.password if self.settings.password else None,
+                    ssl=self.settings.ssl,
+                    decode_responses=self.settings.decode_responses
+                )
+                await self.cluster.ping()
+                self.logger.info("redis_standalone_connected", host=host, port=port)
+            except Exception as standalone_error:
+                # Fallback to cluster mode
+                self.logger.warning(
+                    "redis_standalone_unavailable_trying_cluster",
+                    error=str(standalone_error)
+                )
+                try:
+                    self.cluster = redis.RedisCluster(
+                        host=host,
+                        port=port,
+                        password=self.settings.password if self.settings.password else None,
+                        ssl=self.settings.ssl,
+                        decode_responses=self.settings.decode_responses
+                    )
+                    await self.cluster.ping()
+                    self.logger.info("redis_cluster_connected", nodes=self.settings.cluster_nodes)
+                except Exception as cluster_error:
+                    self.logger.error("redis_cluster_also_failed", error=str(cluster_error))
+                    raise
         except Exception as e:
             self.logger.error("redis_connection_failed", error=str(e))
             sla_metrics.record_redis_error()
-            raise
+            # Don't raise - allow service to start without Redis cache
+            self.cluster = None
 
     async def disconnect(self) -> None:
         """Fecha conexões."""
@@ -51,6 +73,8 @@ class RedisClient:
 
     async def cache_budget(self, slo_id: str, budget: ErrorBudget) -> bool:
         """Armazena budget em cache."""
+        if not self.cluster:
+            return False
         try:
             key = f"sla:budget:{slo_id}"
             value = budget.model_dump_json()
@@ -63,6 +87,8 @@ class RedisClient:
 
     async def get_cached_budget(self, slo_id: str) -> Optional[ErrorBudget]:
         """Busca budget no cache."""
+        if not self.cluster:
+            return None
         try:
             key = f"sla:budget:{slo_id}"
             value = await self.cluster.get(key)
@@ -78,6 +104,8 @@ class RedisClient:
 
     async def invalidate_budget(self, slo_id: str) -> bool:
         """Remove budget do cache."""
+        if not self.cluster:
+            return False
         try:
             key = f"sla:budget:{slo_id}"
             await self.cluster.delete(key)
@@ -94,6 +122,8 @@ class RedisClient:
         ttl: Optional[int] = None
     ) -> bool:
         """Armazena status de freeze."""
+        if not self.cluster:
+            return False
         try:
             key = f"sla:freeze:{service_name}"
             value = "true" if is_frozen else "false"
@@ -107,6 +137,8 @@ class RedisClient:
 
     async def get_freeze_status(self, service_name: str) -> Optional[bool]:
         """Busca status de freeze no cache."""
+        if not self.cluster:
+            return None
         try:
             key = f"sla:freeze:{service_name}"
             value = await self.cluster.get(key)
@@ -119,6 +151,8 @@ class RedisClient:
 
     async def health_check(self) -> bool:
         """Verifica conectividade com Redis."""
+        if not self.cluster:
+            return False
         try:
             await self.cluster.ping()
             return True

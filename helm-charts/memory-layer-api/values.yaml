@@ -3,11 +3,14 @@ component: "memory-layer-api"
 layer: "conhecimento-dados"
 
 image:
-  repository: 077878370245.dkr.ecr.us-east-1.amazonaws.com/dev/memory-layer-api
-  pullPolicy: IfNotPresent
-  tag: "1.2.0"
+  repository: 37.60.241.150:30500/memory-layer-api
+  pullPolicy: Always
+  tag: "1.2.1"
 
-replicaCount: 2
+replicaCount: 1
+
+# Disable Kubernetes service links to prevent env var collisions with pydantic settings
+enableServiceLinks: false
 
 nameOverride: ""
 fullnameOverride: ""
@@ -51,23 +54,20 @@ ingress:
       hosts:
         - memory-api.neural-hive-mind.org
 
-# Resources
+# Resources - Reduced for local development
 resources:
-  # Multi-datastore routing (Redis+MongoDB+Neo4j+ClickHouse) peaks around 1.2 vCPU briefly,
-  # but average CPU stays under 400m; memory pressure is dominated by query caches (~1Gi).
-  # Requests keep a safe 550m/1280Mi floor and burst allowance is trimmed to 1.4 CPU / 2.5Gi.
   limits:
-    cpu: 1400m
-    memory: 2.5Gi
+    cpu: 500m
+    memory: 512Mi
   requests:
-    cpu: 550m
-    memory: 1280Mi
+    cpu: 100m
+    memory: 256Mi
 
-# Autoscaling
+# Autoscaling - Disabled for local development
 autoscaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 8
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
 
@@ -145,7 +145,7 @@ config:
 
   # MongoDB (Operacional)
   mongodb:
-    uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+    uri: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017"
     database: "neural_hive"
     contextCollection: "operational_context"
     lineageCollection: "data_lineage"
@@ -203,7 +203,7 @@ secrets:
 
   # MongoDB
   mongodb:
-    uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+    uri: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017"
 
   # Neo4j
   neo4j:

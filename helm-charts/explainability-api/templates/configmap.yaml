@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "explainability-api.fullname" . }}
+  labels:
+    {{- include "explainability-api.labels" . | nindent 4 }}
+data:
+  SERVICE_NAME: {{ .Values.config.serviceName | quote }}
+  SERVICE_VERSION: {{ .Values.config.serviceVersion | quote }}
+
+  # MongoDB
+  MONGODB_URI: {{ .Values.config.mongodb.uri | quote }}
+  MONGODB_DATABASE: {{ .Values.config.mongodb.database | quote }}
+
+  # Observability
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.observability.otelEndpoint | quote }}
+  LOG_LEVEL: {{ .Values.config.observability.logLevel | quote }}
+  PROMETHEUS_PORT: {{ .Values.config.observability.prometheusPort | default 9090 | quote }}

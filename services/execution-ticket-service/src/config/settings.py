@@ -88,6 +88,10 @@ class TicketServiceSettings(BaseSettings):
     enable_audit_trail: bool = Field(default=True, description='Habilitar audit trail no MongoDB')
     enable_status_updates: bool = Field(default=True, description='Habilitar atualizações de status')
 
+    # Connection retry configuration
+    max_connection_retries: int = Field(default=5, description='Número máximo de tentativas de conexão')
+    initial_retry_delay_seconds: float = Field(default=1.0, description='Delay inicial entre retries (exponential backoff)')
+
     @validator('environment')
     def validate_environment(cls, v):
         """Validar ambiente."""

@@ -94,7 +94,7 @@ config:
   mongodb:
     # Note: config.mongodb.uri is used for documentation/NOTES.txt display only.
     # The service uses MONGODB_URI from secrets (with authentication).
-    uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+    uri: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017"
     database: "neural_hive"
     opinionsCollection: "specialist_opinions"
 

@@ -1,5 +1,5 @@
 # Multi-stage build for MCP Tool Catalog Service
-FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.3 AS builder
+FROM neural-hive-mind/python-observability-base:1.0.7 AS builder
 
 WORKDIR /build
 
@@ -18,8 +18,18 @@ COPY services/mcp-tool-catalog/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
+# Copy and install neural_hive_integration library with proto_stubs
+COPY libraries/neural_hive_integration/ /tmp/neural_hive_integration/
+RUN pip install --no-cache-dir /tmp/neural_hive_integration/ && \
+    rm -rf /tmp/neural_hive_integration
+
+# Copy and install updated neural_hive_observability library
+COPY libraries/python/neural_hive_observability/ /tmp/neural_hive_observability/
+RUN pip install --no-cache-dir /tmp/neural_hive_observability/ && \
+    rm -rf /tmp/neural_hive_observability
+
 # Runtime stage
-FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.3
+FROM neural-hive-mind/python-observability-base:1.0.7
 
 WORKDIR /app
 
@@ -28,14 +38,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy virtualenv from builder (does not overwrite base image packages)
+# Copy virtualenv from builder
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-# Ensure access to global site-packages (where neural_hive_observability is installed)
-ENV PYTHONPATH="/usr/local/lib/python3.11/site-packages:$PYTHONPATH"
+# Venv packages have priority over global site-packages
+ENV PYTHONPATH="/opt/venv/lib/python3.11/site-packages:/usr/local/lib/python3.11/site-packages"
 
 # Copy application code
 COPY services/mcp-tool-catalog/src/ ./src/
+COPY schemas/ ./schemas/
 
 # Create non-root user
 RUN useradd -m -u 1000 mcp-user && chown -R mcp-user:mcp-user /app

@@ -72,18 +72,23 @@ async def lifespan(app: FastAPI):
     app_state['mongodb_client'] = mongodb_client
     logger.info("MongoDB client initialized")
 
-    # Neo4j client (local implementation)
-    from src.clients.neo4j_client import Neo4jClient
-    neo4j_client = Neo4jClient(
-        uri=settings.neo4j_uri,
-        user=settings.neo4j_user,
-        password=settings.neo4j_password,
-        database=settings.neo4j_database,
-        encrypted=(settings.environment == 'production')
-    )
-    await neo4j_client.initialize()
-    app_state['neo4j_client'] = neo4j_client
-    logger.info("Neo4j client initialized")
+    # Neo4j client (optional for local development)
+    neo4j_client = None
+    try:
+        from src.clients.neo4j_client import Neo4jClient
+        neo4j_client = Neo4jClient(
+            uri=settings.neo4j_uri,
+            user=settings.neo4j_user,
+            password=settings.neo4j_password,
+            database=settings.neo4j_database,
+            encrypted=(settings.environment == 'production')
+        )
+        await neo4j_client.initialize()
+        app_state['neo4j_client'] = neo4j_client
+        logger.info("Neo4j client initialized")
+    except Exception as e:
+        logger.warning("Neo4j initialization failed, continuing without it", error=str(e))
+        app_state['neo4j_client'] = None
 
     # ClickHouse client (optional for local development)
     clickhouse_client = None
@@ -156,24 +161,27 @@ async def health_check():
 
 @app.get("/ready")
 async def readiness_check():
-    """Readiness check - verify all memory layers are connected"""
+    """Readiness check - verify core memory layers are connected"""
     ready = True
     layers = {}
     settings = app_state.get('settings')
 
-    # Check each layer
-    for layer in ['redis_client', 'mongodb_client', 'neo4j_client', 'clickhouse_client']:
+    # Core layers (required)
+    for layer in ['redis_client', 'mongodb_client']:
         client = app_state.get(layer)
         if client:
-            # Simple connectivity check
             layers[layer.replace('_client', '')] = "connected"
         else:
             layers[layer.replace('_client', '')] = "disconnected"
-            # ClickHouse is optional in dev environment
-            if layer == 'clickhouse_client' and settings and settings.environment == 'dev':
-                # Don't mark as not ready if ClickHouse is missing in dev
-                continue
             ready = False
+
+    # Optional layers (Neo4j, ClickHouse - don't fail readiness if missing)
+    for layer in ['neo4j_client', 'clickhouse_client']:
+        client = app_state.get(layer)
+        if client:
+            layers[layer.replace('_client', '')] = "connected"
+        else:
+            layers[layer.replace('_client', '')] = "not_configured"
 
     return {
         "ready": ready,

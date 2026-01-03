@@ -89,7 +89,8 @@ async def lifespan(app: FastAPI):
         playbook_executor=playbook_executor
     )
     await remediation_consumer.start()
-    remediation_consumer = instrument_kafka_consumer(remediation_consumer)
+    # Instrumentação Kafka temporariamente desabilitada
+    # remediation_consumer = instrument_kafka_consumer(remediation_consumer)
     app.state.remediation_consumer = remediation_consumer
 
     # Initialize Orchestration Incident Consumer (Kafka)
@@ -110,7 +111,8 @@ async def lifespan(app: FastAPI):
         incident_schema=incident_schema
     )
     await incident_consumer.start()
-    incident_consumer = instrument_kafka_consumer(incident_consumer)
+    # Instrumentação Kafka temporariamente desabilitada
+    # incident_consumer = instrument_kafka_consumer(incident_consumer)
     app.state.incident_consumer = incident_consumer
 
     logger.info("self_healing_engine.startup_complete")

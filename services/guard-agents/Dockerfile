@@ -1,5 +1,5 @@
 # Stage 1 - Builder
-FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.3 AS builder
+FROM neural-hive-mind/python-observability-base:1.0.7 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -29,7 +29,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY services/guard-agents/src/ ./src/
 
 # Stage 2 - Runtime
-FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.3
+FROM neural-hive-mind/python-observability-base:1.0.7
 
 # Create non-root user
 RUN groupadd -r guard-agent && useradd -r -u 1000 -g guard-agent guard-agent

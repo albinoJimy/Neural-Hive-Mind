@@ -72,7 +72,7 @@ config:
     grpcMaxRetries: 3
 
   mongodb:
-    uri: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+    uri: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017"
     database: "neural_hive"
     consensusCollection: "consensus_decisions"
 

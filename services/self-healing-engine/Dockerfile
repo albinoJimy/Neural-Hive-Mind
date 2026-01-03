@@ -1,5 +1,5 @@
 # Stage 1 - Builder
-FROM neural-hive-mind/python-observability-base:1.2.0 AS builder
+FROM neural-hive-mind/python-observability-base:1.0.7 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -39,12 +39,16 @@ WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
+# Copy packages globally from builder
+RUN cp -r /opt/venv/lib/python3.11/site-packages/* /usr/local/lib/python3.11/site-packages/ 2>/dev/null || true
+
 # Copy source code and playbooks
 COPY --from=builder /app/src ./src
 COPY services/self-healing-engine/playbooks/ ./playbooks/
 
-# Set PATH to include venv binaries
-ENV PATH=/opt/venv/bin:$PATH
+# Set PATH and PYTHONPATH
+ENV PATH=/usr/local/bin:$PATH \
+    PYTHONPATH=/usr/local/lib/python3.11/site-packages:/app
 
 # Labels for traceability
 LABEL neural-hive.io/component="self-healing-engine" \

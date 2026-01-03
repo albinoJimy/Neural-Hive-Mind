@@ -1,0 +1,19 @@
+Analyst Agents deployado com sucesso!
+
+Servico: {{ include "analyst-agents.fullname" . }}
+Namespace: {{ .Release.Namespace }}
+Replicas: {{ .Values.replicaCount }}
+
+Portas:
+  - HTTP: {{ .Values.service.ports.http.port }}
+  - gRPC: {{ .Values.service.ports.grpc.port }}
+  - Metrics: {{ .Values.service.ports.metrics.port }}
+
+Para verificar o status:
+  kubectl get pods -l app.kubernetes.io/name={{ include "analyst-agents.name" . }} -n {{ .Release.Namespace }}
+
+Para ver os logs:
+  kubectl logs -l app.kubernetes.io/name={{ include "analyst-agents.name" . }} -n {{ .Release.Namespace }} -f
+
+Para testar o health check:
+  kubectl exec -it deploy/{{ include "analyst-agents.fullname" . }} -n {{ .Release.Namespace }} -- curl http://localhost:8000/health

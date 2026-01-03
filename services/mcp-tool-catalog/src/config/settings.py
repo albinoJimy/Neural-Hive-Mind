@@ -73,6 +73,20 @@ class Settings(BaseSettings):
     MCP_SERVER_MAX_RETRIES: int = 3
     MCP_SERVER_CIRCUIT_BREAKER_THRESHOLD: int = 5
     MCP_SERVER_CIRCUIT_BREAKER_TIMEOUT_SECONDS: int = 60
+
+    # Connection Timeouts
+    MONGODB_CONNECT_TIMEOUT_MS: int = 10000
+    MONGODB_SERVER_SELECTION_TIMEOUT_MS: int = 5000
+    REDIS_CONNECT_TIMEOUT_SECONDS: int = 10
+    REDIS_SOCKET_TIMEOUT_SECONDS: int = 10
+    KAFKA_REQUEST_TIMEOUT_MS: int = 30000
+    KAFKA_SESSION_TIMEOUT_MS: int = 30000
+    SERVICE_REGISTRY_CONNECT_TIMEOUT_SECONDS: int = 10
+
+    # Retry Configuration
+    MAX_CONNECTION_RETRIES: int = 5
+    INITIAL_RETRY_DELAY_SECONDS: float = 1.0
+
     MCP_SERVERS: Dict[str, str] = Field(
         default_factory=dict,
         description="Mapeamento tool_id → MCP server URL (ex: {'trivy-001': 'http://trivy-mcp-server:3000'})"
@@ -114,8 +128,9 @@ class Settings(BaseSettings):
         return self.OTEL_EXPORTER_OTLP_ENDPOINT or self.OTEL_EXPORTER_ENDPOINT
 
     # Analyst Agents Integration (for RAG)
-    ANALYST_AGENTS_HOST: str = "analyst-agents"
-    ANALYST_AGENTS_PORT: int = 9090
+    # Use MCP_ prefix to avoid collision with Kubernetes service discovery env vars
+    MCP_ANALYST_AGENTS_HOST: str = "analyst-agents"
+    MCP_ANALYST_AGENTS_GRPC_PORT: int = 9090
 
     # ========================================
     # Tool Endpoints Configuration

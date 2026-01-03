@@ -1,4 +1,5 @@
 """Cliente MongoDB para audit trail de tickets."""
+import asyncio
 import logging
 from typing import Optional, List, Dict
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection
@@ -21,8 +22,54 @@ class MongoDBClient:
         self.tickets_collection: Optional[AsyncIOMotorCollection] = None
         self.audit_collection: Optional[AsyncIOMotorCollection] = None
 
+    async def start(self, max_retries: int = 5, initial_delay: float = 1.0):
+        """Estabelece conexão com MongoDB com retry logic.
+
+        Args:
+            max_retries: Número máximo de tentativas de conexão
+            initial_delay: Delay inicial entre retries (exponential backoff)
+        """
+        for attempt in range(max_retries):
+            try:
+                logger.info(
+                    "connecting_to_mongodb",
+                    extra={
+                        "uri": self.settings.mongodb_uri.split('@')[-1] if '@' in self.settings.mongodb_uri else self.settings.mongodb_uri,
+                        "database": self.settings.mongodb_database,
+                        "attempt": attempt + 1,
+                        "max_retries": max_retries
+                    }
+                )
+
+                await self._connect_internal()
+
+                logger.info("mongodb_connected", extra={"database": self.settings.mongodb_database})
+                return
+
+            except Exception as e:
+                delay = initial_delay * (2 ** attempt)  # Exponential backoff
+                logger.warning(
+                    "mongodb_connection_failed",
+                    extra={
+                        "error": str(e),
+                        "attempt": attempt + 1,
+                        "max_retries": max_retries,
+                        "retry_in_seconds": delay
+                    }
+                )
+
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(delay)
+                else:
+                    logger.error("mongodb_connection_exhausted_retries", extra={"max_retries": max_retries})
+                    raise
+
     async def connect(self):
-        """Estabelece conexão com MongoDB."""
+        """Estabelece conexão com MongoDB (backward compatibility)."""
+        await self.start()
+
+    async def _connect_internal(self):
+        """Método interno de conexão."""
         self.client = AsyncIOMotorClient(
             self.settings.mongodb_uri,
             maxPoolSize=100,
@@ -35,26 +82,27 @@ class MongoDBClient:
         self.tickets_collection = self.db[self.settings.mongodb_collection_tickets]
         self.audit_collection = self.db[self.settings.mongodb_collection_audit]
 
-        # Criar índices
+        # Criar índices (em background para não bloquear)
         await self._create_indexes()
 
         # Ping para verificar
         await self.client.admin.command('ping')
-        logger.info("MongoDB client connected")
 
     async def _create_indexes(self):
-        """Cria índices necessários."""
-        # Índices para tickets
-        await self.tickets_collection.create_index('ticket_id', unique=True)
-        await self.tickets_collection.create_index('plan_id')
-        await self.tickets_collection.create_index('intent_id')
-        await self.tickets_collection.create_index('status')
-        await self.tickets_collection.create_index([('status', 1), ('created_at', -1)])
+        """Cria índices necessários de forma não-bloqueante."""
+        # Índices para tickets (background=True evita bloqueio durante startup)
+        await self.tickets_collection.create_index('ticket_id', unique=True, background=True)
+        await self.tickets_collection.create_index('plan_id', background=True)
+        await self.tickets_collection.create_index('intent_id', background=True)
+        await self.tickets_collection.create_index('status', background=True)
+        await self.tickets_collection.create_index([('status', 1), ('created_at', -1)], background=True)
 
         # Índices para audit log
-        await self.audit_collection.create_index('ticket_id')
-        await self.audit_collection.create_index('timestamp')
-        await self.audit_collection.create_index([('ticket_id', 1), ('timestamp', -1)])
+        await self.audit_collection.create_index('ticket_id', background=True)
+        await self.audit_collection.create_index('timestamp', background=True)
+        await self.audit_collection.create_index([('ticket_id', 1), ('timestamp', -1)], background=True)
+
+        logger.info("mongodb_indexes_created")
 
     async def disconnect(self):
         """Fecha conexão."""
@@ -129,12 +177,18 @@ class MongoDBClient:
 _mongodb_client: Optional[MongoDBClient] = None
 
 
-async def get_mongodb_client() -> MongoDBClient:
-    """Retorna singleton do MongoDB client."""
+async def get_mongodb_client(auto_connect: bool = False) -> MongoDBClient:
+    """Retorna singleton do MongoDB client.
+
+    Args:
+        auto_connect: Se True, conecta automaticamente (para compatibilidade).
+                     Se False, retorna cliente sem conectar (padrão).
+    """
     global _mongodb_client
     if _mongodb_client is None:
         from ..config import get_settings
         settings = get_settings()
         _mongodb_client = MongoDBClient(settings)
-        await _mongodb_client.connect()
+        if auto_connect:
+            await _mongodb_client.connect()
     return _mongodb_client

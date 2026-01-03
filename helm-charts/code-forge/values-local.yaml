@@ -11,10 +11,10 @@ image:
 resources:
   requests:
     cpu: 50m
-    memory: 1Gi
+    memory: 256Mi
   limits:
-    cpu: 50m
-    memory: 2Gi
+    cpu: 500m
+    memory: 1Gi
 
 # Disable autoscaling for local development
 autoscaling:
@@ -82,10 +82,10 @@ config:
     formattingEnabled: true
     testGenerationEnabled: false
 
-# Use default service account for local
+# Use code-forge service account
 serviceAccount:
   create: false
-  name: default
+  name: code-forge
 
 # Simplified secrets for local development
 secrets:
@@ -114,6 +114,6 @@ readinessProbe:
   timeoutSeconds: 3
   failureThreshold: 3
 
-# Force pods to node with insecure registry configured
+# Allow scheduling on any worker node
 nodeSelector:
-  kubernetes.io/hostname: vmi2911681
+  kubernetes.io/hostname: vmi2911680

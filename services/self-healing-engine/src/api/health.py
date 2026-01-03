@@ -25,12 +25,14 @@ async def health() -> HealthResponse:
 
 
 @router.get("/health/liveness", status_code=status.HTTP_200_OK)
+@router.get("/health/live", status_code=status.HTTP_200_OK)
 async def liveness() -> dict:
     """Liveness probe"""
     return {"status": "healthy", "timestamp": datetime.utcnow()}
 
 
 @router.get("/health/readiness", status_code=status.HTTP_200_OK)
+@router.get("/health/ready", status_code=status.HTTP_200_OK)
 async def readiness() -> dict:
     """Readiness probe"""
     return {"status": "healthy", "timestamp": datetime.utcnow()}

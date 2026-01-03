@@ -6,7 +6,7 @@ pydantic-settings==2.7.1
 
 # gRPC - versão consolidada
 grpcio==1.68.1
-grpcio-tools==1.68.1
+grpcio-tools>=1.60.0
 protobuf==5.29.2
 
 # Database - PostgreSQL

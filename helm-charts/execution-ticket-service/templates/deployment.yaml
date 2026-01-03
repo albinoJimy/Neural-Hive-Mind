@@ -8,6 +8,8 @@
 {{- $env = append $env (dict "name" "POSTGRES_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" (ternary (include "execution-ticket-service.secretName" .) .Values.secrets.existingSecret .Values.secrets.create) "key" (default "postgres-password" .Values.secrets.postgresPasswordKey)))) }}
 {{- $env = append $env (dict "name" "MONGODB_URI" "valueFrom" (dict "secretKeyRef" (dict "name" (ternary (include "execution-ticket-service.secretName" .) .Values.secrets.existingSecret .Values.secrets.create) "key" (default "mongodb-uri" .Values.secrets.mongodbUriKey)))) }}
 {{- $env = append $env (dict "name" "JWT_SECRET_KEY" "valueFrom" (dict "secretKeyRef" (dict "name" (ternary (include "execution-ticket-service.secretName" .) .Values.secrets.existingSecret .Values.secrets.create) "key" (default "jwt-secret-key" .Values.secrets.jwtSecretKeyKey)))) }}
+{{- $env = append $env (dict "name" "MAX_CONNECTION_RETRIES" "value" (.Values.connectionRetry.maxRetries | default 5 | toString)) }}
+{{- $env = append $env (dict "name" "INITIAL_RETRY_DELAY_SECONDS" "value" (.Values.connectionRetry.initialDelaySeconds | default 1.0 | toString)) }}
 
 {{- $envFrom := list }}
 {{- if .Values.config.enabled }}

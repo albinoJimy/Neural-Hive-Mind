@@ -1,0 +1,30 @@
+{{- $ctx := include "analyst-agents.context" . | fromYaml }}
+{{- $checksumConfig := include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+
+{{- $envFrom := list }}
+{{- $envFrom = append $envFrom (dict "configMapRef" (dict "name" (include "analyst-agents.fullname" .))) }}
+{{- if or .Values.secrets.mongodbPassword .Values.secrets.redisPassword }}
+{{- $envFrom = append $envFrom (dict "secretRef" (dict "name" (include "analyst-agents.secretName" .))) }}
+{{- end }}
+
+{{- $env := list }}
+{{- $env = append $env (dict "name" "POD_NAME" "valueFrom" (dict "fieldRef" (dict "fieldPath" "metadata.name"))) }}
+{{- $env = append $env (dict "name" "POD_NAMESPACE" "valueFrom" (dict "fieldRef" (dict "fieldPath" "metadata.namespace"))) }}
+{{- $env = append $env (dict "name" "NODE_NAME" "valueFrom" (dict "fieldRef" (dict "fieldPath" "spec.nodeName"))) }}
+
+{{- $volumes := list }}
+{{- $volumes = append $volumes (dict "name" "tmp" "emptyDir" (dict)) }}
+
+{{- $volumeMounts := list }}
+{{- $volumeMounts = append $volumeMounts (dict "name" "tmp" "mountPath" "/tmp") }}
+
+{{- $modifiedValues := deepCopy .Values }}
+{{- $_ := set $modifiedValues "volumeMounts" $volumeMounts }}
+{{- $_ := set $modifiedValues "volumes" $volumes }}
+
+{{- $podAnnotations := dict }}
+{{- $_ := set $modifiedValues "podAnnotations" $podAnnotations }}
+
+{{- $config := dict "checksumConfig" $checksumConfig "envFrom" $envFrom "env" $env }}
+
+{{- include "neural-hive.deployment" (dict "values" $modifiedValues "context" $ctx "config" $config) }}

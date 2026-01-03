@@ -57,6 +57,8 @@ spec:
           containerPort: 8080
           protocol: TCP
         env:
+        - name: PYTHONPATH
+          value: "/app"
         - name: SERVICE_NAME
           value: {{ .Values.config.serviceName }}-operator
         - name: VERSION

@@ -46,67 +46,116 @@ logger = structlog.get_logger()
 async def lifespan(app: FastAPI):
     """Gerencia ciclo de vida da aplicação."""
     settings = get_settings()
-    logger.info('Starting Execution Ticket Service', version='1.0.0')
+    logger.info(
+        'starting_execution_ticket_service',
+        version='1.0.0',
+        environment=settings.environment
+    )
 
-    # Conectar PostgreSQL
+    # Lista para rastrear falhas em dependências críticas
+    critical_failures = []
+
+    # Conectar PostgreSQL (CRÍTICO - serviço não funciona sem ele)
+    postgres_client = None
     try:
         postgres_client = await get_postgres_client()
-        logger.info('PostgreSQL connected')
+        await postgres_client.start(
+            max_retries=settings.max_connection_retries,
+            initial_delay=settings.initial_retry_delay_seconds
+        )
+        logger.info('postgresql_connected')
     except Exception as e:
-        logger.error(f'Failed to connect to PostgreSQL: {e}')
-        raise
+        logger.error('postgresql_connection_failed_critical', error=str(e))
+        critical_failures.append('postgresql')
 
-    # Conectar MongoDB
+    # Conectar MongoDB (CRÍTICO - audit trail é essencial)
+    mongodb_client = None
     try:
         mongodb_client = await get_mongodb_client()
-        logger.info('MongoDB connected')
+        await mongodb_client.start(
+            max_retries=settings.max_connection_retries,
+            initial_delay=settings.initial_retry_delay_seconds
+        )
+        logger.info('mongodb_connected')
     except Exception as e:
-        logger.error(f'Failed to connect to MongoDB: {e}')
-        raise
+        logger.error('mongodb_connection_failed_critical', error=str(e))
+        critical_failures.append('mongodb')
+
+    # Se dependências críticas falharam, não podemos continuar
+    if critical_failures:
+        raise RuntimeError(f"Dependências críticas falharam: {critical_failures}")
 
     # Inicializar métricas
     app.state.metrics = TicketServiceMetrics()
-    logger.info('Metrics initialized')
+    logger.info('metrics_initialized')
 
-    # Iniciar Kafka Consumer
+    # Initialize state for non-critical components
     app.state.ticket_consumer = None
-    if settings.kafka_bootstrap_servers:
+    app.state.webhook_manager = None
+    app.state.grpc_server = None
+    app.state.background_init_tasks = []
+
+    # Helper functions to start non-critical components in background
+    async def start_kafka_consumer_background():
+        """Start Kafka consumer in background (non-blocking)."""
+        if not settings.kafka_bootstrap_servers:
+            return
         try:
             from .consumers import start_ticket_consumer
             app.state.ticket_consumer = await start_ticket_consumer(app.state.metrics)
-
-            # Iniciar consumo em background
             app.state.consumer_task = asyncio.create_task(app.state.ticket_consumer.consume())
-            logger.info('Kafka consumer started')
+            logger.info('kafka_consumer_started')
         except Exception as e:
-            logger.error(f'Failed to start Kafka consumer: {e}', exc_info=True)
+            logger.warning('kafka_consumer_failed_non_critical', error=str(e))
 
-    # Iniciar Webhook Manager
-    app.state.webhook_manager = None
-    if settings.enable_webhooks:
+    async def start_webhook_manager_background():
+        """Start webhook manager in background (non-blocking)."""
+        if not settings.enable_webhooks:
+            return
         try:
             from .webhooks import start_webhook_manager
             app.state.webhook_manager = await start_webhook_manager(app.state.metrics)
-            logger.info('Webhook manager started')
+            logger.info('webhook_manager_started')
         except Exception as e:
-            logger.error(f'Failed to start webhook manager: {e}', exc_info=True)
+            logger.warning('webhook_manager_failed_non_critical', error=str(e))
 
-    # Iniciar gRPC Server
-    app.state.grpc_server = None
-    try:
-        from .grpc_service import start_grpc_server
-        app.state.grpc_server = await start_grpc_server(settings)
-        if app.state.grpc_server:
-            logger.info('gRPC server started')
-    except Exception as e:
-        logger.warning(f'gRPC server not started: {e}')
+    async def start_grpc_server_background():
+        """Start gRPC server in background (non-blocking)."""
+        try:
+            from .grpc_service import start_grpc_server
+            app.state.grpc_server = await start_grpc_server(settings)
+            if app.state.grpc_server:
+                logger.info('grpc_server_started')
+        except Exception as e:
+            logger.warning('grpc_server_failed_non_critical', error=str(e))
 
-    logger.info('Service startup complete')
+    # Start non-critical components as background tasks (non-blocking)
+    # This allows startup to complete without waiting for Kafka, webhooks, or gRPC
+    app.state.background_init_tasks = [
+        asyncio.create_task(start_kafka_consumer_background()),
+        asyncio.create_task(start_webhook_manager_background()),
+        asyncio.create_task(start_grpc_server_background()),
+    ]
+
+    logger.info(
+        'execution_ticket_service_started',
+        critical_components=['postgresql', 'mongodb'],
+        optional_components_starting=['kafka', 'webhooks', 'grpc']
+    )
 
     yield
 
     # Shutdown
-    logger.info('Shutting down service')
+    logger.info('shutting_down_service')
+
+    # Cancel any pending background init tasks
+    for task in app.state.background_init_tasks:
+        if not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
     # Parar Kafka Consumer
     if app.state.ticket_consumer:
@@ -128,10 +177,12 @@ async def lifespan(app: FastAPI):
         await stop_grpc_server(app.state.grpc_server)
 
     # Desconectar databases
-    await postgres_client.disconnect()
-    await mongodb_client.disconnect()
+    if postgres_client:
+        await postgres_client.disconnect()
+    if mongodb_client:
+        await mongodb_client.disconnect()
 
-    logger.info('Service shutdown complete')
+    logger.info('service_shutdown_complete')
 
 
 def create_app() -> FastAPI:

@@ -44,17 +44,16 @@ class RedisSettings(BaseSettings):
 class KafkaSettings(BaseSettings):
     """Configurações do Kafka."""
     bootstrap_servers: List[str] = Field(
-        default=["kafka-bootstrap.kafka.svc.cluster.local:9092"]
+        default=["neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"]
     )
+    enabled: bool = Field(default=True, description="Habilitar conexão Kafka")
     budget_topic: str = Field(default="sla.budgets")
     freeze_topic: str = Field(default="sla.freeze.events")
     violations_topic: str = Field(default="sla.violations")
     producer_config: Dict[str, Any] = Field(
         default={
             "compression_type": "gzip",
-            "acks": "all",
-            "retries": 3,
-            "max_in_flight_requests_per_connection": 5
+            "acks": "all"
         }
     )
 

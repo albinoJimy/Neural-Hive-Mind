@@ -68,7 +68,7 @@ def upgrade() -> None:
     )
 
     # Criar índices
-    op.create_index('idx_ticket_id', 'execution_tickets', ['ticket_id'], unique=True, schema='public')
+    # Note: ticket_id uniqueness is enforced by UniqueConstraint 'uq_ticket_id' above
     op.create_index('idx_plan_id', 'execution_tickets', ['plan_id'], unique=False, schema='public')
     op.create_index('idx_intent_id', 'execution_tickets', ['intent_id'], unique=False, schema='public')
     op.create_index('idx_status', 'execution_tickets', ['status'], unique=False, schema='public')
@@ -107,7 +107,6 @@ def downgrade() -> None:
     op.drop_index('idx_status', table_name='execution_tickets', schema='public')
     op.drop_index('idx_intent_id', table_name='execution_tickets', schema='public')
     op.drop_index('idx_plan_id', table_name='execution_tickets', schema='public')
-    op.drop_index('idx_ticket_id', table_name='execution_tickets', schema='public')
 
     # Drop tabela
     op.drop_table('execution_tickets', schema='public')

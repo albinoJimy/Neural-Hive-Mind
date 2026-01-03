@@ -1,4 +1,5 @@
 """MongoDB client for tool catalog persistence."""
+import asyncio
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -14,29 +15,86 @@ logger = structlog.get_logger()
 class MongoDBClient:
     """Async MongoDB client using Motor."""
 
-    def __init__(self, mongodb_url: str, database_name: str):
+    def __init__(
+        self,
+        mongodb_url: str,
+        database_name: str,
+        server_selection_timeout_ms: int = 5000,
+        connect_timeout_ms: int = 10000,
+        socket_timeout_ms: int = 10000,
+    ):
         """Initialize MongoDB client.
 
         Args:
             mongodb_url: MongoDB connection URL
             database_name: Database name
+            server_selection_timeout_ms: Server selection timeout in milliseconds
+            connect_timeout_ms: Connection timeout in milliseconds
+            socket_timeout_ms: Socket timeout in milliseconds
         """
         self.mongodb_url = mongodb_url
         self.database_name = database_name
+        self.server_selection_timeout_ms = server_selection_timeout_ms
+        self.connect_timeout_ms = connect_timeout_ms
+        self.socket_timeout_ms = socket_timeout_ms
         self.client: Optional[AsyncIOMotorClient] = None
         self.db: Optional[AsyncIOMotorDatabase] = None
 
-    async def start(self):
-        """Connect to MongoDB and create indexes."""
-        logger.info("connecting_to_mongodb", url=self.mongodb_url, database=self.database_name)
+    async def start(self, max_retries: int = 5, initial_delay: float = 1.0):
+        """Connect to MongoDB with retry logic.
 
-        self.client = AsyncIOMotorClient(self.mongodb_url)
-        self.db = self.client[self.database_name]
+        Args:
+            max_retries: Maximum number of connection attempts
+            initial_delay: Initial delay between retries (exponential backoff)
+        """
+        for attempt in range(max_retries):
+            try:
+                logger.info(
+                    "connecting_to_mongodb",
+                    url=self.mongodb_url,
+                    database=self.database_name,
+                    attempt=attempt + 1,
+                )
 
-        # Create indexes
-        await self._create_indexes()
+                self.client = AsyncIOMotorClient(
+                    self.mongodb_url,
+                    serverSelectionTimeoutMS=self.server_selection_timeout_ms,
+                    connectTimeoutMS=self.connect_timeout_ms,
+                    socketTimeoutMS=self.socket_timeout_ms,
+                )
 
-        logger.info("mongodb_connected")
+                # Test connection
+                await self.client.admin.command("ping")
+
+                self.db = self.client[self.database_name]
+
+                # Create indexes (non-critical, continue if fails)
+                try:
+                    await self._create_indexes()
+                except Exception as idx_err:
+                    logger.warning(
+                        "mongodb_indexes_creation_failed",
+                        error=str(idx_err),
+                        note="Continuing without indexes - may affect query performance",
+                    )
+
+                logger.info("mongodb_connected")
+                return
+
+            except Exception as e:
+                delay = initial_delay * (2**attempt)  # Exponential backoff
+                logger.warning(
+                    "mongodb_connection_failed",
+                    error=str(e),
+                    attempt=attempt + 1,
+                    retry_in_seconds=delay,
+                )
+
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(delay)
+                else:
+                    logger.error("mongodb_connection_exhausted_retries")
+                    raise
 
     async def stop(self):
         """Close MongoDB connection."""

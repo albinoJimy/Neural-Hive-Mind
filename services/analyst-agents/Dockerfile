@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM neural-hive-mind/python-observability-base:1.2.0 AS builder
+FROM neural-hive-mind/python-observability-base:1.0.7 AS builder
 
 WORKDIR /app
 
@@ -8,21 +8,30 @@ RUN pip install --no-cache-dir --user -r requirements.txt && \
     find /root/.local -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true && \
     find /root/.local -type f -name '*.pyc' -delete 2>/dev/null || true
 
-# Stage 2: Runtime
-FROM python:3.11-slim
+# Stage 2: Runtime - use same base to get neural_hive_observability
+FROM neural-hive-mind/python-observability-base:1.0.7
 
 WORKDIR /app
 
-# Copy dependencies from builder
-COPY --from=builder /root/.local /root/.local
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-ENV PATH=/root/.local/bin:$PATH
+# Create non-root user first
+RUN useradd -m -u 1000 analyst
+
+# Copy dependencies from builder to user home
+COPY --from=builder --chown=analyst:analyst /root/.local /home/analyst/.local
+
+# Fix pydantic-settings conflict - remove old versions and install correct ones
+RUN rm -rf /home/analyst/.local/lib/python3.11/site-packages/pydantic* && \
+    rm -rf /usr/local/lib/python3.11/site-packages/pydantic* 2>/dev/null || true && \
+    pip install --no-cache-dir --target=/home/analyst/.local/lib/python3.11/site-packages \
+        pydantic==2.10.4 pydantic-settings==2.6.1
 
 # Copy application code
-COPY services/analyst-agents/src/ ./src/
+COPY --chown=analyst:analyst services/analyst-agents/src/ ./src/
 
-# Create non-root user
-RUN useradd -m -u 1000 analyst && chown -R analyst:analyst /app
+# Set environment
+ENV PATH=/home/analyst/.local/bin:$PATH
+ENV PYTHONPATH=/home/analyst/.local/lib/python3.11/site-packages:/app
+
 USER analyst
 
 # Health check

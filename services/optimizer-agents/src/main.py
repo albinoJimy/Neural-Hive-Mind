@@ -134,17 +134,21 @@ async def startup():
         await redis_client.connect()
         logger.info("redis_client_initialized")
 
-        # ClickHouse
+    except Exception as e:
+        logger.error("storage_clients_initialization_failed", error=str(e))
+        raise
+
+    # ClickHouse (optional - may not be deployed)
+    try:
         clickhouse_client = ClickHouseClient(
             redis_client=redis_client,
             config=settings.model_dump()
         )
         await clickhouse_client.initialize()
         logger.info("clickhouse_client_initialized")
-
     except Exception as e:
-        logger.error("storage_clients_initialization_failed", error=str(e))
-        raise
+        logger.warning("clickhouse_client_initialization_failed_continuing_without", error=str(e))
+        clickhouse_client = None
 
     # Inicializar clientes gRPC
     try:

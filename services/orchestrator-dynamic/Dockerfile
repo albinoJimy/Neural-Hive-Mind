@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM neural-hive-mind/python-observability-base:1.2.2 AS builder
+FROM neural-hive-mind/python-observability-base:1.0.7 AS builder
 
 # Instalar dependências de build
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -52,6 +52,9 @@ WORKDIR /app
 
 # Copiar código fonte
 COPY --chown=orchestrator:orchestrator services/orchestrator-dynamic/src/ ./src/
+
+# Copiar scripts de treinamento ML
+COPY --chown=orchestrator:orchestrator services/orchestrator-dynamic/scripts/ ./scripts/
 
 # Proto stubs não precisam mais ser copiados separadamente
 # Eles agora estão incluídos no pacote neural_hive_integration.proto_stubs

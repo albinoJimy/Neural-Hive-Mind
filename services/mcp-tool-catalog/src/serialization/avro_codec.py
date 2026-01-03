@@ -33,14 +33,20 @@ class AvroCodec:
         if schema_registry_path is None:
             schema_registry_path = os.environ.get('SCHEMAS_DIR')
             if schema_registry_path is None:
-                # Fallback: calcular caminho relativo ao arquivo
-                # __file__ resolve: .../services/mcp-tool-catalog/src/serialization/avro_codec.py
+                # Fallback: tentar caminhos relativos conhecidos
                 try:
+                    # Em desenvolvimento (5 níveis acima de src/serialization/avro_codec.py)
                     repo_root = Path(__file__).resolve().parents[4]
                     schema_registry_path = str(repo_root / "schemas")
-                except IndexError:
-                    # Em container, estrutura é diferente - usar /app/schemas como fallback
-                    schema_registry_path = "/app/schemas"
+                    if not Path(schema_registry_path).exists():
+                        raise IndexError("Schemas not at repo root")
+                except (IndexError, ValueError):
+                    # Em container (/app/src/serialization/avro_codec.py) ou se falhar acima
+                    if Path("/app/schemas").exists():
+                        schema_registry_path = "/app/schemas"
+                    else:
+                        # Fallback final: assumir schemas no mesmo nível do app
+                        schema_registry_path = str(Path(__file__).resolve().parents[2] / "schemas")
 
         self.schema_registry_path = Path(schema_registry_path)
         self.schemas: Dict[str, any] = {}

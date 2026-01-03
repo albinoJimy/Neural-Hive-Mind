@@ -6,50 +6,52 @@ Construir lista de variáveis de ambiente
 {{- $envVars := list }}
 
 {{/* Variáveis básicas de serviço */}}
-{{- $envVars = append $envVars (dict "name" "SERVICE_NAME" "value" (.Values.config.serviceName | quote)) }}
-{{- $envVars = append $envVars (dict "name" "VERSION" "value" (.Values.config.version | quote)) }}
-{{- $envVars = append $envVars (dict "name" "ENVIRONMENT" "value" (.Values.config.environment | quote)) }}
-{{- $envVars = append $envVars (dict "name" "LOG_LEVEL" "value" (.Values.config.logLevel | quote)) }}
+{{- $envVars = append $envVars (dict "name" "SERVICE_NAME" "value" .Values.config.serviceName) }}
+{{- $envVars = append $envVars (dict "name" "VERSION" "value" .Values.config.version) }}
+{{- $envVars = append $envVars (dict "name" "ENVIRONMENT" "value" .Values.config.environment) }}
+{{- $envVars = append $envVars (dict "name" "LOG_LEVEL" "value" .Values.config.logLevel) }}
 
 {{/* Prometheus */}}
-{{- $envVars = append $envVars (dict "name" "PROMETHEUS__URL" "value" (.Values.config.prometheus.url | quote)) }}
-{{- $envVars = append $envVars (dict "name" "PROMETHEUS__TIMEOUT_SECONDS" "value" (.Values.config.prometheus.timeoutSeconds | quote)) }}
-{{- $envVars = append $envVars (dict "name" "PROMETHEUS__MAX_RETRIES" "value" (.Values.config.prometheus.maxRetries | quote)) }}
+{{- $envVars = append $envVars (dict "name" "PROMETHEUS__URL" "value" .Values.config.prometheus.url) }}
+{{- $envVars = append $envVars (dict "name" "PROMETHEUS__TIMEOUT_SECONDS" "value" (.Values.config.prometheus.timeoutSeconds | toString)) }}
+{{- $envVars = append $envVars (dict "name" "PROMETHEUS__MAX_RETRIES" "value" (.Values.config.prometheus.maxRetries | toString)) }}
 
 {{/* PostgreSQL */}}
-{{- $envVars = append $envVars (dict "name" "POSTGRESQL__HOST" "value" (.Values.config.postgresql.host | quote)) }}
-{{- $envVars = append $envVars (dict "name" "POSTGRESQL__PORT" "value" (.Values.config.postgresql.port | quote)) }}
-{{- $envVars = append $envVars (dict "name" "POSTGRESQL__DATABASE" "value" (.Values.config.postgresql.database | quote)) }}
+{{- $envVars = append $envVars (dict "name" "POSTGRESQL__HOST" "value" .Values.config.postgresql.host) }}
+{{- $envVars = append $envVars (dict "name" "POSTGRESQL__PORT" "value" (.Values.config.postgresql.port | toString)) }}
+{{- $envVars = append $envVars (dict "name" "POSTGRESQL__DATABASE" "value" .Values.config.postgresql.database) }}
 {{- $envVars = append $envVars (dict "name" "POSTGRESQL__USER" "valueFrom" (dict "secretKeyRef" (dict "name" (printf "%s-secret" (include "sla-management-system.fullname" .)) "key" "POSTGRESQL__USER"))) }}
 {{- $envVars = append $envVars (dict "name" "POSTGRESQL__PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" (printf "%s-secret" (include "sla-management-system.fullname" .)) "key" "POSTGRESQL__PASSWORD"))) }}
-{{- $envVars = append $envVars (dict "name" "POSTGRESQL__POOL_MIN_SIZE" "value" (.Values.config.postgresql.poolMinSize | quote)) }}
-{{- $envVars = append $envVars (dict "name" "POSTGRESQL__POOL_MAX_SIZE" "value" (.Values.config.postgresql.poolMaxSize | quote)) }}
+{{- $envVars = append $envVars (dict "name" "POSTGRESQL__POOL_MIN_SIZE" "value" (.Values.config.postgresql.poolMinSize | toString)) }}
+{{- $envVars = append $envVars (dict "name" "POSTGRESQL__POOL_MAX_SIZE" "value" (.Values.config.postgresql.poolMaxSize | toString)) }}
 
-{{/* Redis */}}
-{{- $envVars = append $envVars (dict "name" "REDIS__CLUSTER_NODES" "value" (.Values.config.redis.clusterNodes | quote)) }}
+{{/* Redis - cluster_nodes precisa ser JSON array */}}
+{{- $redisNodes := list .Values.config.redis.clusterNodes }}
+{{- $envVars = append $envVars (dict "name" "REDIS__CLUSTER_NODES" "value" ($redisNodes | toJson)) }}
 {{- $envVars = append $envVars (dict "name" "REDIS__PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" (printf "%s-secret" (include "sla-management-system.fullname" .)) "key" "REDIS__PASSWORD"))) }}
-{{- $envVars = append $envVars (dict "name" "REDIS__CACHE_TTL_SECONDS" "value" (.Values.config.redis.cacheTtlSeconds | quote)) }}
+{{- $envVars = append $envVars (dict "name" "REDIS__CACHE_TTL_SECONDS" "value" (.Values.config.redis.cacheTtlSeconds | toString)) }}
 
-{{/* Kafka */}}
-{{- $envVars = append $envVars (dict "name" "KAFKA__BOOTSTRAP_SERVERS" "value" (.Values.config.kafka.bootstrapServers | quote)) }}
-{{- $envVars = append $envVars (dict "name" "KAFKA__BUDGET_TOPIC" "value" (.Values.config.kafka.budgetTopic | quote)) }}
-{{- $envVars = append $envVars (dict "name" "KAFKA__FREEZE_TOPIC" "value" (.Values.config.kafka.freezeTopic | quote)) }}
-{{- $envVars = append $envVars (dict "name" "KAFKA__VIOLATIONS_TOPIC" "value" (.Values.config.kafka.violationsTopic | quote)) }}
+{{/* Kafka - bootstrap_servers precisa ser JSON array */}}
+{{- $kafkaServers := list .Values.config.kafka.bootstrapServers }}
+{{- $envVars = append $envVars (dict "name" "KAFKA__BOOTSTRAP_SERVERS" "value" ($kafkaServers | toJson)) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA__BUDGET_TOPIC" "value" .Values.config.kafka.budgetTopic) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA__FREEZE_TOPIC" "value" .Values.config.kafka.freezeTopic) }}
+{{- $envVars = append $envVars (dict "name" "KAFKA__VIOLATIONS_TOPIC" "value" .Values.config.kafka.violationsTopic) }}
 
 {{/* Alertmanager */}}
-{{- $envVars = append $envVars (dict "name" "ALERTMANAGER__URL" "value" (.Values.config.alertmanager.url | quote)) }}
-{{- $envVars = append $envVars (dict "name" "ALERTMANAGER__WEBHOOK_PATH" "value" (.Values.config.alertmanager.webhookPath | quote)) }}
+{{- $envVars = append $envVars (dict "name" "ALERTMANAGER__URL" "value" .Values.config.alertmanager.url) }}
+{{- $envVars = append $envVars (dict "name" "ALERTMANAGER__WEBHOOK_PATH" "value" .Values.config.alertmanager.webhookPath) }}
 
 {{/* Calculator */}}
-{{- $envVars = append $envVars (dict "name" "CALCULATOR__CALCULATION_INTERVAL_SECONDS" "value" (.Values.config.calculator.calculationIntervalSeconds | quote)) }}
-{{- $envVars = append $envVars (dict "name" "CALCULATOR__ERROR_BUDGET_WINDOW_DAYS" "value" (.Values.config.calculator.errorBudgetWindowDays | quote)) }}
-{{- $envVars = append $envVars (dict "name" "CALCULATOR__BURN_RATE_FAST_THRESHOLD" "value" (.Values.config.calculator.burnRateFastThreshold | quote)) }}
-{{- $envVars = append $envVars (dict "name" "CALCULATOR__BURN_RATE_SLOW_THRESHOLD" "value" (.Values.config.calculator.burnRateSlowThreshold | quote)) }}
+{{- $envVars = append $envVars (dict "name" "CALCULATOR__CALCULATION_INTERVAL_SECONDS" "value" (.Values.config.calculator.calculationIntervalSeconds | toString)) }}
+{{- $envVars = append $envVars (dict "name" "CALCULATOR__ERROR_BUDGET_WINDOW_DAYS" "value" (.Values.config.calculator.errorBudgetWindowDays | toString)) }}
+{{- $envVars = append $envVars (dict "name" "CALCULATOR__BURN_RATE_FAST_THRESHOLD" "value" (.Values.config.calculator.burnRateFastThreshold | toString)) }}
+{{- $envVars = append $envVars (dict "name" "CALCULATOR__BURN_RATE_SLOW_THRESHOLD" "value" (.Values.config.calculator.burnRateSlowThreshold | toString)) }}
 
 {{/* Policy */}}
-{{- $envVars = append $envVars (dict "name" "POLICY__FREEZE_THRESHOLD_PERCENT" "value" (.Values.config.policy.freezeThresholdPercent | quote)) }}
-{{- $envVars = append $envVars (dict "name" "POLICY__AUTO_UNFREEZE_ENABLED" "value" (.Values.config.policy.autoUnfreezeEnabled | quote)) }}
-{{- $envVars = append $envVars (dict "name" "POLICY__UNFREEZE_THRESHOLD_PERCENT" "value" (.Values.config.policy.unfreezeThresholdPercent | quote)) }}
+{{- $envVars = append $envVars (dict "name" "POLICY__FREEZE_THRESHOLD_PERCENT" "value" (.Values.config.policy.freezeThresholdPercent | toString)) }}
+{{- $envVars = append $envVars (dict "name" "POLICY__AUTO_UNFREEZE_ENABLED" "value" (.Values.config.policy.autoUnfreezeEnabled | toString)) }}
+{{- $envVars = append $envVars (dict "name" "POLICY__UNFREEZE_THRESHOLD_PERCENT" "value" (.Values.config.policy.unfreezeThresholdPercent | toString)) }}
 
 {{/*
 Configuração para o template

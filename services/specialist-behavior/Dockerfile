@@ -1,4 +1,4 @@
-FROM neural-hive-mind/python-specialist-base:1.0.0
+FROM neural-hive-mind/python-specialist-base:1.0.7
 
 WORKDIR /app
 

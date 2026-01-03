@@ -1,0 +1,2 @@
+{{- $ctx := include "analyst-agents.context" . | fromYaml }}
+{{- include "neural-hive.service" (dict "values" .Values "context" $ctx) }}

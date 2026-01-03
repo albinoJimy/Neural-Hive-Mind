@@ -18,16 +18,17 @@ redis[hiredis]==5.2.1
 neo4j==5.14.0
 clickhouse-driver==0.2.6
 elasticsearch==8.11.0
+aiohttp==3.11.11  # Necessário para elasticsearch async
 
 # Analytics & ML
 pandas==2.2.3
 numpy==1.26.4
-scikit-learn==1.5.2
+scikit-learn==1.6.0
 scipy==1.14.1
 
 # Embeddings & Vector Search
-# torch 2.4.1 é requerido por sentence-transformers e compatível com transformers >= 4.32.0
-torch==2.4.1
+# torch 2.5.1 é compatível com sentence-transformers 3.3.1+ (requer PyTorch 1.11.0+)
+torch==2.5.1
 sentence-transformers==3.3.1
 faiss-cpu==1.7.4
 

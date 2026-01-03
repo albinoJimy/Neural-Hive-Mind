@@ -1,0 +1,27 @@
+Explainability API deployado com sucesso!
+
+Servico: {{ include "explainability-api.fullname" . }}
+Namespace: {{ .Release.Namespace }}
+Replicas: {{ .Values.replicaCount }}
+
+Portas:
+  - HTTP: {{ .Values.service.ports.http.port }}
+  - Metrics: {{ .Values.service.ports.metrics.port }}
+
+Para verificar o status:
+  kubectl get pods -l app.kubernetes.io/name={{ include "explainability-api.name" . }} -n {{ .Release.Namespace }}
+
+Para ver os logs:
+  kubectl logs -l app.kubernetes.io/name={{ include "explainability-api.name" . }} -n {{ .Release.Namespace }} -f
+
+Para testar o health check:
+  kubectl exec -it deploy/{{ include "explainability-api.fullname" . }} -n {{ .Release.Namespace }} -- curl http://localhost:8000/health
+
+Endpoints disponiveis:
+  - GET /health - Health check
+  - GET /ready - Readiness check
+  - GET /metrics - Metricas Prometheus
+  - GET /api/v1/explainability/{token} - Buscar explicacao por token
+  - GET /api/v1/explainability/by-plan/{plan_id} - Explicacoes por plano
+  - GET /api/v1/explainability/by-decision/{decision_id} - Explicacoes por decisao
+  - GET /api/v1/explainability/stats - Estatisticas

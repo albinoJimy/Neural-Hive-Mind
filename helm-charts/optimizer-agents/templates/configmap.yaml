@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "optimizer-agents.fullname" . }}
+  labels:
+    {{- include "optimizer-agents.labels" . | nindent 4 }}
+data:
+  SERVICE_NAME: {{ .Values.config.serviceName | quote }}
+  SERVICE_VERSION: {{ .Values.config.serviceVersion | quote }}
+  ENVIRONMENT: {{ .Values.config.environment | quote }}
+
+  # MongoDB
+  MONGODB_URI: {{ .Values.config.mongodb.uri | quote }}
+  MONGODB_DATABASE: {{ .Values.config.mongodb.database | quote }}
+  MONGODB_MAX_POOL_SIZE: {{ .Values.config.mongodb.maxPoolSize | quote }}
+  MONGODB_MIN_POOL_SIZE: {{ .Values.config.mongodb.minPoolSize | quote }}
+
+  # Redis
+  REDIS_CLUSTER_NODES: "{{ .Values.config.redis.host }}:{{ .Values.config.redis.port }}"
+  REDIS_PASSWORD: {{ .Values.config.redis.password | default "" | quote }}
+  REDIS_SSL_ENABLED: "false"
+
+  # ClickHouse
+  CLICKHOUSE_HOST: {{ .Values.config.clickhouse.host | quote }}
+  CLICKHOUSE_PORT: {{ .Values.config.clickhouse.port | quote }}
+  CLICKHOUSE_USER: {{ .Values.config.clickhouse.user | quote }}
+  CLICKHOUSE_DATABASE: {{ .Values.config.clickhouse.database | quote }}
+
+  # MLflow
+  MLFLOW_TRACKING_URI: {{ .Values.config.mlflow.trackingUri | quote }}
+  MLFLOW_EXPERIMENT_PREFIX: {{ .Values.config.mlflow.experimentPrefix | quote }}
+
+  # Argo Workflows
+  ARGO_SERVER_URL: {{ .Values.config.argo.serverUrl | quote }}
+  ARGO_NAMESPACE: {{ .Values.config.argo.namespace | quote }}
+
+  # gRPC Clients
+  CONSENSUS_ENGINE_HOST: {{ .Values.config.grpcClients.consensusEngine.host | quote }}
+  CONSENSUS_ENGINE_PORT: {{ .Values.config.grpcClients.consensusEngine.port | quote }}
+  ORCHESTRATOR_HOST: {{ .Values.config.grpcClients.orchestrator.host | quote }}
+  ORCHESTRATOR_PORT: {{ .Values.config.grpcClients.orchestrator.port | quote }}
+  ANALYST_AGENTS_HOST: {{ .Values.config.grpcClients.analystAgents.host | quote }}
+  ANALYST_AGENTS_PORT: {{ .Values.config.grpcClients.analystAgents.port | quote }}
+  QUEEN_AGENT_HOST: {{ .Values.config.grpcClients.queenAgent.host | quote }}
+  QUEEN_AGENT_PORT: {{ .Values.config.grpcClients.queenAgent.port | quote }}
+  SERVICE_REGISTRY_HOST: {{ .Values.config.grpcClients.serviceRegistry.host | quote }}
+  SERVICE_REGISTRY_PORT: {{ .Values.config.grpcClients.serviceRegistry.port | quote }}
+
+  # Kafka
+  KAFKA_BOOTSTRAP_SERVERS: {{ .Values.config.kafka.bootstrapServers | quote }}
+  KAFKA_CONSUMER_GROUP: {{ .Values.config.kafka.consumerGroup | quote }}
+  KAFKA_TOPICS_INSIGHTS: {{ .Values.config.kafka.topics.insights | quote }}
+  KAFKA_TOPICS_TELEMETRY: {{ .Values.config.kafka.topics.telemetry | quote }}
+  KAFKA_TOPICS_EXPERIMENTS: {{ .Values.config.kafka.topics.experiments | quote }}
+  KAFKA_TOPICS_OPTIMIZATIONS: {{ .Values.config.kafka.topics.optimizations | quote }}
+
+  # gRPC Server
+  GRPC_ENABLED: {{ .Values.config.grpc.enabled | quote }}
+  GRPC_HOST: {{ .Values.config.grpc.host | quote }}
+  GRPC_PORT: {{ .Values.config.grpc.port | quote }}
+
+  # Observability
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.observability.otelEndpoint | quote }}
+  PROMETHEUS_PORT: {{ .Values.config.observability.prometheusPort | quote }}
+  HTTP_PORT: {{ .Values.config.observability.httpPort | quote }}
+  LOG_LEVEL: {{ .Values.config.observability.logLevel | quote }}
+
+  # Optimization
+  MIN_IMPROVEMENT_THRESHOLD: {{ .Values.config.optimization.minImprovementThreshold | quote }}
+  EXPERIMENT_TIMEOUT_SECONDS: {{ .Values.config.optimization.experimentTimeoutSeconds | quote }}
+  ROLLBACK_ON_DEGRADATION: {{ .Values.config.optimization.rollbackOnDegradation | quote }}
+  DEGRADATION_THRESHOLD: {{ .Values.config.optimization.degradationThreshold | quote }}
+
+  # Training Pipeline
+  TRAINING_ENABLED: {{ .Values.config.training.enabled | quote }}
+  TRAINING_INTERVAL_MINUTES: {{ .Values.config.training.intervalMinutes | quote }}
+  MIN_SAMPLES_FOR_TRAINING: {{ .Values.config.training.minSamplesForTraining | quote }}

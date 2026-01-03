@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class ServiceConfig(BaseModel):
     """Service configuration"""
     service_name: str = Field(default="scout-agents", description="Service name")
-    version: str = Field(default="1.0.0", description="Service version")
+    version: str = Field(default="1.0.7", description="Service version")
     environment: str = Field(default="dev", description="Environment (dev/staging/prod)")
     log_level: str = Field(default="INFO", description="Log level")
 

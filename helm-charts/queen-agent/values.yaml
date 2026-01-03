@@ -71,7 +71,7 @@ config:
       strategic: strategic.decisions
 
   mongodb:
-    uri: mongodb://mongodb:27017
+    uri: mongodb://root:local_dev_password@mongodb:27017
     database: neural_hive
     ledgerCollection: strategic_decisions_ledger
     exceptionsCollection: exception_approvals
