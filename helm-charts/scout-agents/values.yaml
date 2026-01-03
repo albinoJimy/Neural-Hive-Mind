@@ -29,7 +29,7 @@ config:
     logLevel: INFO
 
   kafka:
-    bootstrapServers: neural-hive-kafka-bootstrap.kafka.svc.cluster.local:9092
+    bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
     consumerGroupId: scout-agents-dev
     topics:
       signals: exploration-signals
@@ -130,11 +130,21 @@ podSecurityContext:
   runAsUser: 1000
   fsGroup: 1000
 
+startupProbe:
+  httpGet:
+    path: /health/live
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 18
+  successThreshold: 1
+
 livenessProbe:
   httpGet:
     path: /health/live
     port: http
-  initialDelaySeconds: 30
+  initialDelaySeconds: 0
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 3

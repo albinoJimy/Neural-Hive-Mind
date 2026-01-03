@@ -43,6 +43,7 @@ from src.services.experiment_manager import ExperimentManager
 from src.services.optimization_engine import OptimizationEngine
 from src.services.weight_recalibrator import WeightRecalibrator
 from src.services.slo_adjuster import SLOAdjuster
+from src.api import api_router
 
 logger = structlog.get_logger()
 
@@ -812,6 +813,9 @@ app = FastAPI(
     description="Continuous Improvement and Policy Recalibration",
     version="1.0.0",
 )
+
+# Include API routers
+app.include_router(api_router)
 
 app.add_event_handler("startup", startup)
 app.add_event_handler("shutdown", shutdown)

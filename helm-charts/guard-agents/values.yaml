@@ -54,14 +54,15 @@ config:
       - guardrail-enforcement
 
   mongodb:
-    uri: mongodb://root:local_dev_password@mongodb.neural-hive-persistence.svc.cluster.local:27017
+    # Password injected via Secret (MONGODB_PASSWORD env var)
+    uri: mongodb://root@mongodb.mongodb-cluster.svc.cluster.local:27017
     database: neural_hive
     incidentsCollection: security_incidents
     remediationCollection: remediation_actions
     validationsCollection: security_validations
 
   redis:
-    host: redis.neural-hive-persistence.svc.cluster.local
+    host: neural-hive-cache.redis-cluster.svc.cluster.local
     port: 6379
     db: 0
 
