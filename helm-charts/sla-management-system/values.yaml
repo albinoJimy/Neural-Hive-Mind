@@ -84,7 +84,7 @@ config:
 
   # Kafka configuration
   kafka:
-    bootstrapServers: kafka-bootstrap.kafka.svc.cluster.local:9092
+    bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
     budgetTopic: sla.budgets
     freezeTopic: sla.freeze.events
     violationsTopic: sla.violations

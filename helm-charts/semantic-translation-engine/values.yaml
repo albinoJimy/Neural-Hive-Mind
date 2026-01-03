@@ -68,7 +68,7 @@ config:
 
   # Kafka
   kafka:
-    bootstrapServers: "neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092"
+    bootstrapServers: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
     consumerGroupId: "semantic-translation-engine"
     topics:
       - "intentions.business"
@@ -81,7 +81,7 @@ config:
 
   # Schema Registry
   schemaRegistry:
-    url: "http://schema-registry.neural-hive-kafka.svc.cluster.local:8081"
+    url: "http://schema-registry.kafka.svc.cluster.local:8081"
 
   # Neo4j
   neo4j:

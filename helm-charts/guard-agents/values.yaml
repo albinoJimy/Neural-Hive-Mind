@@ -29,7 +29,7 @@ config:
   namespace: neural-hive
 
   kafka:
-    bootstrapServers: kafka-bootstrap.kafka.svc.cluster.local:9092
+    bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
     incidentsTopic: security-incidents
     orchestrationIncidentsTopic: orchestration-incidents
     remediationTopic: remediation-actions

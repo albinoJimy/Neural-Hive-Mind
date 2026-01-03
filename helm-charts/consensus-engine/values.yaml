@@ -51,7 +51,7 @@ config:
   logLevel: DEBUG
 
   kafka:
-    bootstrapServers: "neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092"
+    bootstrapServers: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
     consumerGroupId: "consensus-engine"
     # Nomenclatura atual: plans.ready (consumo) e plans.consensus (produção)
     # Nota: Difere do padrão specialists.opinions.* / decisions.* solicitado
