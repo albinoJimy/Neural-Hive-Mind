@@ -3,7 +3,7 @@ name: optimizer-agents
 description: Optimizer Agents para otimizacao continua e recalibracao de politicas no Neural Hive-Mind
 type: application
 version: 1.0.0
-appVersion: "1.0.12"
+appVersion: "1.0.13"
 maintainers:
   - name: Neural Hive-Mind Team
     email: team@neuralhivemind.io
