@@ -49,12 +49,14 @@ class OrchestratorGrpcClient:
             else:
                 logger.warning("orchestrator_stub_not_created", reason="proto_not_compiled")
 
-            await self.channel.channel_ready()
-
-            logger.info("orchestrator_grpc_connected", endpoint=self.settings.orchestrator_endpoint)
+            import asyncio
+            try:
+                await asyncio.wait_for(self.channel.channel_ready(), timeout=5.0)
+                logger.info("orchestrator_grpc_connected", endpoint=self.settings.orchestrator_endpoint)
+            except asyncio.TimeoutError:
+                logger.warning("orchestrator_grpc_connection_timeout", endpoint=self.settings.orchestrator_endpoint)
         except Exception as e:
             logger.error("orchestrator_grpc_connection_failed", error=str(e))
-            raise
 
     async def disconnect(self):
         """Fechar canal gRPC."""

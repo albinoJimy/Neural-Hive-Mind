@@ -51,11 +51,14 @@ class ExperimentsConsumer:
 
     async def _consume_loop(self):
         """Loop de consumo de mensagens."""
+        loop = asyncio.get_event_loop()
         try:
             while self.running:
-                msg = self.consumer.poll(timeout=1.0)
+                # Executar poll em thread separado para não bloquear o event loop
+                msg = await loop.run_in_executor(None, lambda: self.consumer.poll(timeout=1.0))
 
                 if msg is None:
+                    await asyncio.sleep(0.01)  # Yield para o event loop
                     continue
 
                 if msg.error():
@@ -66,7 +69,8 @@ class ExperimentsConsumer:
                     continue
 
                 await self._process_message(msg)
-                self.consumer.commit(asynchronous=False)
+                # Commit em thread separado
+                await loop.run_in_executor(None, lambda: self.consumer.commit(asynchronous=False))
 
                 if self.metrics:
                     self.metrics.increment_counter("experiment_results_consumed_total")

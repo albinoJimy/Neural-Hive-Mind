@@ -255,12 +255,21 @@ async def startup():
         logger.info("slo_adjuster_initialized")
 
         # ML Subsystem initialization
-        # ModelRegistry (usando centralizado)
-        model_registry = CentralizedModelRegistry(
-            tracking_uri=settings.mlflow_tracking_uri,
-            experiment_prefix="neural-hive-ml"
-        )
-        logger.info("model_registry_initialized")
+        # ModelRegistry (usando centralizado ou local)
+        if ML_CENTRALIZED:
+            model_registry = CentralizedModelRegistry(
+                tracking_uri=settings.mlflow_tracking_uri,
+                experiment_prefix="neural-hive-ml"
+            )
+        else:
+            model_registry = CentralizedModelRegistry(
+                mlflow_client=mlflow_client,
+                config={
+                    'mlflow_tracking_uri': settings.mlflow_tracking_uri,
+                    'ml_model_cache_ttl_seconds': settings.ml_model_cache_ttl_seconds,
+                }
+            )
+        logger.info("model_registry_initialized", centralized=ML_CENTRALIZED)
 
         # LoadPredictor (configurar para centralizado se disponível)
         if ML_CENTRALIZED:
@@ -358,12 +367,13 @@ async def startup():
         logger.error("kafka_producers_initialization_failed", error=str(e))
         raise
 
-    # Inicializar Kafka consumers
+    # Inicializar Kafka consumers (corrigidos para não bloquear event loop)
     try:
         # Insights Consumer
         insights_consumer = InsightsConsumer(
             settings=settings,
             optimization_engine=optimization_engine,
+            metrics=metrics_instance,
         )
         insights_consumer.start()
         insights_consumer = instrument_kafka_consumer(insights_consumer)
@@ -373,6 +383,7 @@ async def startup():
         telemetry_consumer = TelemetryConsumer(
             settings=settings,
             optimization_engine=optimization_engine,
+            metrics=metrics_instance,
         )
         telemetry_consumer.start()
         telemetry_consumer = instrument_kafka_consumer(telemetry_consumer)
@@ -381,7 +392,9 @@ async def startup():
         # Experiments Consumer
         experiments_consumer = ExperimentsConsumer(
             settings=settings,
+            optimization_engine=optimization_engine,
             experiment_manager=experiment_manager,
+            metrics=metrics_instance,
         )
         experiments_consumer.start()
         experiments_consumer = instrument_kafka_consumer(experiments_consumer)
@@ -825,4 +838,6 @@ signal.signal(signal.SIGTERM, signal_handler)
 signal.signal(signal.SIGINT, signal_handler)
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
+    server = uvicorn.Server(config)
+    asyncio.run(server.serve())

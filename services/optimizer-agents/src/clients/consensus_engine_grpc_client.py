@@ -50,13 +50,17 @@ class ConsensusEngineGrpcClient:
             else:
                 logger.warning("consensus_engine_stub_not_created", reason="proto_not_compiled")
 
-            # Testar conexão
-            await self.channel.channel_ready()
-
-            logger.info("consensus_engine_grpc_connected", endpoint=self.settings.consensus_engine_endpoint)
+            # Testar conexão com timeout
+            import asyncio
+            try:
+                await asyncio.wait_for(self.channel.channel_ready(), timeout=5.0)
+                logger.info("consensus_engine_grpc_connected", endpoint=self.settings.consensus_engine_endpoint)
+            except asyncio.TimeoutError:
+                logger.warning("consensus_engine_grpc_connection_timeout", endpoint=self.settings.consensus_engine_endpoint)
+                # Continue without blocking - service will use stub fallbacks
         except Exception as e:
             logger.error("consensus_engine_grpc_connection_failed", error=str(e))
-            raise
+            # Don't raise - allow service to start with stub fallbacks
 
     async def disconnect(self):
         """Fechar canal gRPC."""

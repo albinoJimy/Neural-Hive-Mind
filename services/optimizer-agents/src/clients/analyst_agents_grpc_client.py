@@ -41,12 +41,14 @@ class AnalystAgentsGrpcClient:
             # Criar stub real
             self.stub = analyst_agent_pb2_grpc.AnalystAgentServiceStub(self.channel)
 
-            await self.channel.channel_ready()
-
-            logger.info("analyst_agents_grpc_connected", endpoint=self.settings.analyst_agents_endpoint)
+            import asyncio
+            try:
+                await asyncio.wait_for(self.channel.channel_ready(), timeout=5.0)
+                logger.info("analyst_agents_grpc_connected", endpoint=self.settings.analyst_agents_endpoint)
+            except asyncio.TimeoutError:
+                logger.warning("analyst_agents_grpc_connection_timeout", endpoint=self.settings.analyst_agents_endpoint)
         except Exception as e:
             logger.error("analyst_agents_grpc_connection_failed", error=str(e))
-            raise
 
     async def disconnect(self):
         """Fechar canal gRPC."""

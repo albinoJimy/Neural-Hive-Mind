@@ -40,12 +40,14 @@ class QueenAgentGrpcClient:
 
             self.stub = queen_agent_pb2_grpc.QueenAgentStub(self.channel)
 
-            await self.channel.channel_ready()
-
-            logger.info("queen_agent_grpc_connected", endpoint=self.settings.queen_agent_endpoint)
+            import asyncio
+            try:
+                await asyncio.wait_for(self.channel.channel_ready(), timeout=5.0)
+                logger.info("queen_agent_grpc_connected", endpoint=self.settings.queen_agent_endpoint)
+            except asyncio.TimeoutError:
+                logger.warning("queen_agent_grpc_connection_timeout", endpoint=self.settings.queen_agent_endpoint)
         except Exception as e:
             logger.error("queen_agent_grpc_connection_failed", error=str(e))
-            raise
 
     async def disconnect(self):
         """Fechar canal gRPC."""

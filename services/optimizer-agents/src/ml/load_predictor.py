@@ -111,6 +111,13 @@ class LoadPredictor:
                     logger.error(f"Erro ao carregar modelo {horizon}m: {e}")
                     self.models[horizon] = self._create_default_prophet_model()
 
+            # Verificar quantos modelos foram criados com sucesso
+            valid_models = sum(1 for m in self.models.values() if m is not None)
+            if valid_models == 0:
+                logger.warning("Nenhum modelo Prophet disponível - usando apenas ARIMA fallback")
+            else:
+                logger.info(f"{valid_models}/{len(self.forecast_horizons)} modelos Prophet carregados")
+
             duration = (datetime.utcnow() - start_time).total_seconds()
             self.metrics.record_ml_model_load('load_predictor', 'success', duration)
 
@@ -122,28 +129,32 @@ class LoadPredictor:
             self.metrics.record_ml_model_load('load_predictor', 'error', 0)
             raise
 
-    def _create_default_prophet_model(self) -> Prophet:
+    def _create_default_prophet_model(self) -> Optional[Prophet]:
         """Cria modelo Prophet padrão com configurações otimizadas."""
-        # Criar DataFrame de feriados
-        holidays_df = pd.DataFrame({
-            'ds': pd.to_datetime([str(date) for date in self.br_holidays.keys()]),
-            'holiday': 'brazil_holiday'
-        })
+        try:
+            # Criar DataFrame de feriados
+            holidays_df = pd.DataFrame({
+                'ds': pd.to_datetime([str(date) for date in self.br_holidays.keys()]),
+                'holiday': 'brazil_holiday'
+            })
 
-        model = Prophet(
-            seasonality_mode=self.seasonality_mode,
-            changepoint_prior_scale=self.changepoint_prior_scale,
-            holidays=holidays_df,
-            daily_seasonality=True,
-            weekly_seasonality=True,
-            yearly_seasonality=True,
-            interval_width=0.95  # 95% confidence interval
-        )
+            model = Prophet(
+                seasonality_mode=self.seasonality_mode,
+                changepoint_prior_scale=self.changepoint_prior_scale,
+                holidays=holidays_df,
+                daily_seasonality=True,
+                weekly_seasonality=True,
+                yearly_seasonality=True,
+                interval_width=0.95  # 95% confidence interval
+            )
 
-        # Adicionar sazonalidade horária
-        model.add_seasonality(name='hourly', period=1, fourier_order=8)
+            # Adicionar sazonalidade horária
+            model.add_seasonality(name='hourly', period=1, fourier_order=8)
 
-        return model
+            return model
+        except Exception as e:
+            logger.warning(f"Failed to create Prophet model: {e}. Forecasting will use ARIMA fallback.")
+            return None
 
     async def predict_load(
         self,
@@ -177,15 +188,16 @@ class LoadPredictor:
             model_horizon = min(self.forecast_horizons, key=lambda x: abs(x - horizon_minutes))
             model = self.models.get(model_horizon)
 
-            if not model:
-                raise ValueError(f"Modelo não encontrado para horizonte {model_horizon}m")
-
             # Buscar dados históricos recentes para contexto
             historical_data = await self._fetch_recent_historical_data(days=30)
 
+            # Se modelo Prophet não disponível ou dados insuficientes, usar ARIMA
+            if not model:
+                logger.info(f"Modelo Prophet não disponível para {model_horizon}m, usando ARIMA")
+                return await self._predict_with_arima(horizon_minutes, historical_data)
+
             if len(historical_data) < 100:
-                logger.warning(f"Dados insuficientes para previsão: {len(historical_data)} amostras")
-                # Fallback para ARIMA
+                logger.warning(f"Dados insuficientes para Prophet: {len(historical_data)} amostras, usando ARIMA")
                 return await self._predict_with_arima(horizon_minutes, historical_data)
 
             # Preparar dados no formato Prophet (ds, y)
@@ -351,6 +363,11 @@ class LoadPredictor:
 
                 # Criar modelo
                 model = self._create_default_prophet_model()
+
+                if model is None:
+                    logger.warning(f"Prophet não disponível para {horizon}m, pulando treinamento")
+                    training_results[horizon] = {'error': 'Prophet not available', 'mape': float('inf')}
+                    continue
 
                 # Split train/test (últimos 7 dias para validação)
                 split_date = df['ds'].max() - timedelta(days=7)
