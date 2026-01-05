@@ -30,9 +30,15 @@ help-security: ; @$(SEC) --help
 help-ml: ; @$(ML) --help
 help-observability: ; @$(OBS) --help
 
-.PHONY: proto-gen proto-gen-all clean-proto
+.PHONY: proto-gen proto-gen-all proto-service-registry clean-proto
 proto-gen: ; @./scripts/compile_protos.sh --service specialists
-proto-gen-all: ; @./scripts/compile_protos.sh --all
+proto-gen-all:
+	@./scripts/compile_protos.sh --all
+	@make proto-service-registry
+proto-service-registry:
+	@echo "Compiling Service Registry protos..."
+	@bash services/service-registry/scripts/compile_protos.sh
+	@echo "Service Registry protos compiled"
 clean-proto: ; @rm -rf libraries/python/neural_hive_specialists/proto_gen
 
 .PHONY: minikube-setup minikube-start minikube-stop minikube-clean minikube-reset minikube-validate minikube-status minikube-dashboard

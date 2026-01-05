@@ -123,6 +123,25 @@ class Settings(BaseSettings):
     otel_traces_sampler: str = "parentbased_traceidratio"
     otel_traces_sampler_arg: float = 0.1
 
+    # MLflow Config
+    mlflow_tracking_uri: str = "http://mlflow.observability.svc.cluster.local:5000"
+
+    # Keycloak Admin Config
+    keycloak_url: str = "http://keycloak.auth.svc.cluster.local:8080"
+    keycloak_realm: str = "neural-hive"
+    keycloak_admin_client_id: str = "guard-agents-admin"
+    keycloak_admin_client_secret: str | None = Field(default=None)
+    keycloak_admin_timeout_seconds: int = 10
+    keycloak_token_cache_ttl_seconds: int = 300
+
+    # MongoDB Post-Mortems Config
+    mongodb_postmortems_collection: str = "incident_postmortems"
+
+    # Anomaly Detector Config
+    anomaly_detector_enabled: bool = True
+    anomaly_detector_model_type: str = "isolation_forest"
+    anomaly_detector_contamination: float = 0.05
+
 
 @lru_cache()
 def get_settings() -> Settings:

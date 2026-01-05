@@ -6,7 +6,65 @@ Este guia documenta as melhores práticas para gestão de secrets em ambientes d
 
 **⚠️ IMPORTANTE**: Nunca commite senhas reais no repositório Git. Use sempre uma solução de gestão de secrets apropriada para produção.
 
-## Por que Não Usar Secrets Inline?
+## Politicas de Seguranca Obrigatorias
+
+O Neural Hive-Mind implementa **validacao automatica em tempo de inicializacao** para garantir configuracoes seguras em producao:
+
+### Validacoes Automaticas
+
+| Servico | Configuracao | Regra | Acao em Violacao |
+|---------|--------------|-------|------------------|
+| `orchestrator-dynamic` | `VAULT_FAIL_OPEN` | Deve ser `false` em producao | Falha na inicializacao |
+| `orchestrator-dynamic` | `REDIS_PASSWORD` | Nao pode ser vazio em producao | Falha na inicializacao |
+| `service-registry` | `REDIS_PASSWORD` | Nao pode ser vazio em producao | Falha na inicializacao |
+
+### Ambientes Reconhecidos
+
+As validacoes sao ativadas quando `ENVIRONMENT` esta configurado como:
+- `production`
+- `prod`
+
+Em ambientes `development`, `dev`, `staging`, as validacoes sao relaxadas para facilitar desenvolvimento local.
+
+### Exemplo de Erro de Validacao
+
+```bash
+# Tentativa de iniciar orchestrator-dynamic em producao com vault_fail_open=true
+$ ENVIRONMENT=production VAULT_FAIL_OPEN=true python -m src.main
+
+pydantic_core._pydantic_core.ValidationError: 1 validation error for OrchestratorSettings
+vault_fail_open
+  vault_fail_open=True nao e permitido em ambiente production.
+  Configure VAULT_FAIL_OPEN=false ou ENVIRONMENT=development.
+  Em producao, o servico deve falhar se Vault estiver indisponivel (fail-closed).
+```
+
+### Como Corrigir
+
+**Opcao 1: Configurar corretamente para producao**
+```bash
+export ENVIRONMENT=production
+export VAULT_FAIL_OPEN=false
+export REDIS_PASSWORD="$(openssl rand -base64 32)"
+```
+
+**Opcao 2: Usar External Secrets Operator (Recomendado)**
+```yaml
+# k8s/external-secrets/orchestrator-secrets.yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: orchestrator-dynamic-secrets
+spec:
+  secretStoreRef:
+    name: aws-secrets-manager
+  data:
+  - secretKey: redis_password
+    remoteRef:
+      key: neural-hive/redis-password
+```
+
+## Por que Nao Usar Secrets Inline?
 
 1. **Segurança**: Senhas em plain text no Git podem vazar
 2. **Auditabilidade**: Difícil rastrear quem acessou/modificou secrets
@@ -385,11 +443,15 @@ kubectl get secrets -n neural-hive-specialists
 kubectl get secret specialist-business-secret -n neural-hive-specialists -o jsonpath='{.data}' | jq 'keys'
 ```
 
-## Checklist de Segurança para Produção
+## Checklist de Seguranca para Producao
 
-Antes de fazer deploy em produção, verifique:
+Antes de fazer deploy em producao, verifique:
 
-- [ ] ✅ Secrets são gerenciados via External Secrets Operator ou Sealed Secrets (não inline no values.yaml)
+- [ ] **Validacoes automaticas passando**: Servicos iniciam sem erros de validacao de configuracao
+- [ ] `VAULT_FAIL_OPEN=false` em orchestrator-dynamic (fail-closed em producao)
+- [ ] `REDIS_PASSWORD` configurado em orchestrator-dynamic e service-registry
+- [ ] `ENVIRONMENT=production` configurado corretamente em todos os servicos
+- [ ] Secrets sao gerenciados via External Secrets Operator ou Sealed Secrets (nao inline no values.yaml)
 - [ ] ✅ Flag `secrets.create=false` está configurado nos values.yaml quando usar External Secrets ou Sealed Secrets
 - [ ] ✅ ExternalSecret ou SealedSecret está criando o Secret **ANTES** do deploy do specialist
 - [ ] ✅ Senhas seguem política de complexidade da organização (min 16 chars, letras, números, símbolos)

@@ -360,7 +360,7 @@ class IncidentOrchestrator:
         remediation_result: Dict[str, Any],
         sla_validation: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """E6: Documentar lições aprendidas (Registro em até 4h)"""
+        """E6: Documentar licoes aprendidas (Registro em ate 4h)"""
         logger.debug(
             "incident_orchestrator.e6_documenting",
             incident_id=incident.get("incident_id")
@@ -386,23 +386,52 @@ class IncidentOrchestrator:
             "documented_at": datetime.now(timezone.utc).isoformat(),
         }
 
-        # Persistir no Knowledge Base
-        if self.mongodb:
+        # Persistir no Knowledge Base (colecao de post-mortems)
+        if self.mongodb and self.mongodb.postmortems_collection:
             try:
-                # TODO: Inserir em coleção de post-mortems/knowledge base
+                await self.mongodb.postmortems_collection.insert_one(lessons)
                 logger.info(
                     "incident_orchestrator.e6_documented",
-                    incident_id=incident.get("incident_id")
+                    incident_id=incident.get("incident_id"),
+                    collection="incident_postmortems"
                 )
             except Exception as e:
-                # E6: Atraso → alerta compliance
+                # E6: Atraso -> alerta compliance
                 logger.error(
                     "incident_orchestrator.e6_documentation_delayed",
                     incident_id=incident.get("incident_id"),
                     error=str(e)
                 )
+                # Publicar alerta de compliance
+                await self._publish_compliance_alert(incident.get("incident_id"), str(e))
 
         return lessons
+
+    async def _publish_compliance_alert(self, incident_id: str, error: str):
+        """Publica alerta de compliance quando documentacao atrasa"""
+        if self.kafka_producer:
+            try:
+                alert = {
+                    "type": "COMPLIANCE_VIOLATION",
+                    "incident_id": incident_id,
+                    "violation": "E6_DOCUMENTATION_DELAYED",
+                    "error": error,
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+                # Tentar publicar via metodo generico do producer
+                if hasattr(self.kafka_producer, 'publish_compliance_alert'):
+                    await self.kafka_producer.publish_compliance_alert(alert)
+                else:
+                    logger.warning(
+                        "incident_orchestrator.compliance_alert_method_not_found",
+                        incident_id=incident_id
+                    )
+            except Exception as e:
+                logger.error(
+                    "incident_orchestrator.compliance_alert_failed",
+                    incident_id=incident_id,
+                    error=str(e)
+                )
 
     def _generate_incident_summary(
         self,

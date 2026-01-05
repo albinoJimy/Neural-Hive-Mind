@@ -194,6 +194,15 @@ config:
     enableLineageTracking: true
     enableQualityMonitoring: true
     enableAutoRouting: true
+    enableRealtimeSync: true
+
+  # Kafka (Real-time Sync)
+  kafka:
+    bootstrapServers: "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+    syncTopic: "memory.sync.events"
+    dlqTopic: "memory.sync.events.dlq"
+    consumerGroup: "memory-sync-consumer"
+    securityProtocol: "PLAINTEXT"
 
 # Secrets
 secrets:
@@ -353,6 +362,18 @@ quality:
     limits:
       cpu: 500m
       memory: 512Mi
+
+# Sync Consumer (Kafka -> ClickHouse)
+syncConsumer:
+  enabled: true
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
 
 # Service Account
 serviceAccount:

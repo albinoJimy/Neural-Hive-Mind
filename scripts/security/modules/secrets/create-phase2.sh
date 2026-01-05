@@ -66,7 +66,7 @@ declare -a PHASE2_SERVICES=(
     "neural-hive-estrategica|optimizer-agents-secrets|MONGODB_URI,REDIS_PASSWORD,MLFLOW_TRACKING_TOKEN|secret/optimizer-agents"
 
     # neural-hive-resilience
-    "neural-hive-resilience|guard-agents-secrets|MONGODB_PASSWORD,REDIS_PASSWORD,KAFKA_SASL_USERNAME,KAFKA_SASL_PASSWORD|secret/guard-agents"
+    "neural-hive-resilience|guard-agents-secrets|MONGODB_PASSWORD,REDIS_PASSWORD,KAFKA_SASL_USERNAME,KAFKA_SASL_PASSWORD,KEYCLOAK_ADMIN_CLIENT_SECRET|secret/guard-agents"
     "neural-hive-resilience|self-healing-engine-secrets|MONGODB_PASSWORD,REDIS_PASSWORD,KAFKA_SASL_PASSWORD,PAGERDUTY_API_KEY,SLACK_WEBHOOK_URL|secret/self-healing-engine"
 
     # neural-hive-monitoring
@@ -580,11 +580,12 @@ create_resilience_secrets() {
         "MONGODB_PASSWORD" \
         "REDIS_PASSWORD" \
         "KAFKA_SASL_USERNAME" \
-        "KAFKA_SASL_PASSWORD"
+        "KAFKA_SASL_PASSWORD" \
+        "KEYCLOAK_ADMIN_CLIENT_SECRET"
 
     create_external_secret "neural-hive-resilience" "guard-agents-secrets" \
         "secret/guard-agents" \
-        "MONGODB_PASSWORD" "REDIS_PASSWORD" "KAFKA_SASL_USERNAME" "KAFKA_SASL_PASSWORD"
+        "MONGODB_PASSWORD" "REDIS_PASSWORD" "KAFKA_SASL_USERNAME" "KAFKA_SASL_PASSWORD" "KEYCLOAK_ADMIN_CLIENT_SECRET"
 
     # self-healing-engine-secrets
     create_secret "neural-hive-resilience" "self-healing-engine-secrets" \

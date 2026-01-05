@@ -319,6 +319,154 @@ helm upgrade --install neural-hive-prometheus ./helm-charts/prometheus-stack \
 - AlertManager: Integração com Slack/PagerDuty
 - Backup: Habilitado (schedule diário)
 
+## Configuração TLS para OpenTelemetry Exporter
+
+### Visão Geral
+
+Por padrão, o OpenTelemetry Exporter usa conexões inseguras (sem TLS). Para ambientes de produção, é **altamente recomendado** habilitar TLS.
+
+### Pré-requisitos
+
+1. **cert-manager** instalado no cluster
+2. **ClusterIssuer** configurado (ex: `letsencrypt-prod` ou `selfsigned-cluster-issuer`)
+3. Namespace com label `cert-manager.io/inject-ca-from`
+
+### Passo 1: Criar Certificados com cert-manager
+
+```bash
+# Criar Certificate para otel-collector
+cat <<EOF | kubectl apply -f -
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: otel-collector-tls
+  namespace: neural-hive-observability
+spec:
+  secretName: otel-collector-tls
+  issuerRef:
+    name: selfsigned-cluster-issuer
+    kind: ClusterIssuer
+  commonName: otel-collector.neural-hive-observability.svc.cluster.local
+  dnsNames:
+  - otel-collector
+  - otel-collector.neural-hive-observability
+  - otel-collector.neural-hive-observability.svc
+  - otel-collector.neural-hive-observability.svc.cluster.local
+EOF
+
+# Criar Certificate para clientes (serviços)
+cat <<EOF | kubectl apply -f -
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: neural-hive-otel-client-certs
+  namespace: neural-hive
+spec:
+  secretName: neural-hive-otel-client-certs
+  issuerRef:
+    name: selfsigned-cluster-issuer
+    kind: ClusterIssuer
+  commonName: neural-hive-client
+  usages:
+  - client auth
+  - digital signature
+  - key encipherment
+EOF
+```
+
+### Passo 2: Habilitar TLS no otel-collector
+
+```bash
+helm upgrade neural-hive-otel-collector ./helm-charts/otel-collector \
+  --namespace neural-hive-observability \
+  --set tls.enabled=true \
+  --set tls.certSecret=otel-collector-tls \
+  --reuse-values
+```
+
+### Passo 3: Habilitar TLS nos Serviços
+
+```bash
+# Exemplo para gateway-intencoes
+helm upgrade gateway-intencoes ./helm-charts/gateway-intencoes \
+  --namespace neural-hive \
+  --set observability.tls.enabled=true \
+  --set observability.tls.certSecret=neural-hive-otel-client-certs \
+  --reuse-values
+```
+
+### Passo 4: Validar Conexões TLS
+
+```bash
+# Verificar logs do otel-collector
+kubectl logs -n neural-hive-observability \
+  -l app.kubernetes.io/name=otel-collector \
+  --tail=50 | grep -i tls
+
+# Verificar logs de um serviço
+kubectl logs -n neural-hive \
+  -l app.kubernetes.io/name=gateway-intencoes \
+  --tail=50 | grep -i "TLS habilitado"
+
+# Testar conectividade
+kubectl exec -n neural-hive deploy/gateway-intencoes -- \
+  openssl s_client -connect otel-collector.neural-hive-observability:4317
+```
+
+### Troubleshooting TLS
+
+**Problema:** Certificados não encontrados
+
+```bash
+# Verificar se secret existe
+kubectl get secret -n neural-hive neural-hive-otel-client-certs
+
+# Verificar conteúdo do secret
+kubectl get secret -n neural-hive neural-hive-otel-client-certs -o yaml
+
+# Verificar se certificado está montado no pod
+kubectl exec -n neural-hive deploy/gateway-intencoes -- ls -la /etc/otel-tls/
+```
+
+**Problema:** Erro de validação de certificado
+
+```bash
+# Verificar se CA está correto
+kubectl exec -n neural-hive deploy/gateway-intencoes -- \
+  openssl verify -CAfile /etc/otel-tls/ca.crt /etc/otel-tls/tls.crt
+
+# Desabilitar verificação temporariamente (apenas dev)
+export OTEL_EXPORTER_TLS_INSECURE_SKIP_VERIFY=true
+```
+
+### Migração Gradual
+
+Para migrar de insecure para TLS sem downtime:
+
+1. Habilitar TLS no otel-collector (suporta ambos)
+2. Habilitar TLS serviço por serviço
+3. Monitorar métricas de export (sucesso/falha)
+4. Após todos migrarem, desabilitar suporte insecure no collector
+
+### Variáveis de Ambiente
+
+| Variável | Padrão | Descrição |
+|----------|--------|-----------|
+| `OTEL_EXPORTER_TLS_ENABLED` | `false` | Habilita TLS |
+| `OTEL_EXPORTER_TLS_CERT_PATH` | - | Caminho para certificado cliente (mTLS) |
+| `OTEL_EXPORTER_TLS_KEY_PATH` | - | Caminho para chave privada (mTLS) |
+| `OTEL_EXPORTER_TLS_CA_CERT_PATH` | - | Caminho para CA raiz |
+| `OTEL_EXPORTER_CERTIFICATE` | - | Alias para CA raiz (padrão OTEL) |
+| `OTEL_EXPORTER_TLS_INSECURE_SKIP_VERIFY` | `false` | Pula verificação de certificado (apenas dev) |
+
+**Notas sobre TLS:**
+
+1. **`OTEL_EXPORTER_CERTIFICATE`** é um alias para `OTEL_EXPORTER_TLS_CA_CERT_PATH`, seguindo a convenção padrão do OpenTelemetry. Se ambos forem definidos, `OTEL_EXPORTER_TLS_CA_CERT_PATH` tem prioridade.
+
+2. **Comportamento quando TLS falha:** Se `OTEL_EXPORTER_TLS_ENABLED=true` mas os certificados não são encontrados ou são inválidos, o exporter **NÃO fará fallback silencioso para conexão insegura**. Em vez disso, o exporter não será inicializado e uma mensagem de erro será logada. Para usar conexão insegura, defina explicitamente `OTEL_EXPORTER_TLS_ENABLED=false`.
+
+3. **`OTEL_EXPORTER_TLS_INSECURE_SKIP_VERIFY`**: Quando `true`, cria credenciais TLS sem validação de CA (aceita qualquer certificado do servidor). Isso é útil apenas para desenvolvimento com certificados auto-assinados. **NÃO USE EM PRODUÇÃO.**
+
 ## Manutenção
 
 ### Backup de Dashboards

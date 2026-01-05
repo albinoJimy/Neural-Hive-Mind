@@ -1,7 +1,7 @@
 from functools import lru_cache
-from typing import List
-from pydantic import Field
-from pydantic_settings import BaseSettings
+from typing import List, Optional
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -48,7 +48,31 @@ class Settings(BaseSettings):
         default=["redis:6379"],
         description="Nós do cluster Redis"
     )
-    REDIS_PASSWORD: str = Field(default="", description="Senha do Redis")
+    REDIS_PASSWORD: Optional[str] = Field(
+        default=None,
+        description="Senha do Redis. Obrigatorio em producao (validacao automatica)."
+    )
+
+    @field_validator('REDIS_PASSWORD')
+    @classmethod
+    def validate_redis_password_in_production(cls, v: Optional[str], info) -> Optional[str]:
+        """
+        Validar que REDIS_PASSWORD nao esta vazio em producao.
+
+        Em producao, Redis deve sempre ter autenticacao habilitada para prevenir
+        acesso nao autorizado ao registry de agentes.
+        """
+        environment = info.data.get('ENVIRONMENT', 'development')
+
+        if environment in ['production', 'prod']:
+            if not v or v == '':
+                raise ValueError(
+                    'REDIS_PASSWORD nao pode ser vazio em ambiente production. '
+                    'Configure REDIS_PASSWORD com uma senha segura ou use External Secrets Operator. '
+                    'Consulte docs/SECRETS_MANAGEMENT_GUIDE.md para melhores praticas.'
+                )
+
+        return v
 
     # Configurações de observabilidade
     OTEL_EXPORTER_ENDPOINT: str = Field(
@@ -82,15 +106,25 @@ class Settings(BaseSettings):
         default="neural-hive.local",
         description="Trust domain SPIFFE"
     )
+    SPIFFE_JWT_AUDIENCE: str = Field(
+        default="service-registry.neural-hive.local",
+        description="Audience para validação de JWT-SVID"
+    )
     SPIFFE_VERIFY_PEER: bool = Field(
         default=True,
         description="Verificar peer SPIFFE IDs em chamadas gRPC"
     )
+    SPIFFE_ENABLE_X509: bool = Field(
+        default=True,
+        description="Habilitar X.509-SVID para mTLS no servidor"
+    )
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = True
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        extra='ignore'
+    )
 
 
 @lru_cache()

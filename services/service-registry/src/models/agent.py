@@ -10,6 +10,7 @@ class AgentType(str, Enum):
     WORKER = "WORKER"
     SCOUT = "SCOUT"
     GUARD = "GUARD"
+    ANALYST = "ANALYST"
 
     @classmethod
     def from_proto_value(cls, value) -> "AgentType":
@@ -21,9 +22,10 @@ class AgentType(str, Enum):
         - 1: WORKER
         - 2: SCOUT
         - 3: GUARD
+        - 4: ANALYST
 
         Args:
-            value: Pode ser int (1, 2, 3), string ("WORKER", "SCOUT", "GUARD"),
+            value: Pode ser int (1, 2, 3, 4), string ("WORKER", "SCOUT", "GUARD", "ANALYST"),
                    ou já um AgentType enum
 
         Returns:
@@ -41,6 +43,7 @@ class AgentType(str, Enum):
             1: cls.WORKER,
             2: cls.SCOUT,
             3: cls.GUARD,
+            4: cls.ANALYST,
         }
 
         # Se é inteiro, usar mapeamento direto
@@ -49,7 +52,7 @@ class AgentType(str, Enum):
                 return proto_int_map[value]
             raise ValueError(
                 f"Invalid AgentType int value: {value}. "
-                f"Expected 1 (WORKER), 2 (SCOUT), or 3 (GUARD)"
+                f"Expected 1 (WORKER), 2 (SCOUT), 3 (GUARD), or 4 (ANALYST)"
             )
 
         # Se é string, tentar converter para enum
@@ -60,7 +63,7 @@ class AgentType(str, Enum):
             except ValueError:
                 raise ValueError(
                     f"Invalid AgentType string value: '{value}'. "
-                    f"Expected 'WORKER', 'SCOUT', or 'GUARD'"
+                    f"Expected 'WORKER', 'SCOUT', 'GUARD', or 'ANALYST'"
                 )
 
         raise ValueError(

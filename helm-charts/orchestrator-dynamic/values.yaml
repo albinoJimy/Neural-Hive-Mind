@@ -171,7 +171,7 @@ config:
     mountDatabase: database
     timeoutSeconds: 5
     maxRetries: 3
-    failOpen: true  # Fallback para credenciais estáticas se Vault indisponível
+    failOpen: false  # Fail-closed por padrao em producao
 
   # SPIFFE Integration
   # Habilitado por padrão em produção para autenticação mTLS entre serviços
@@ -405,7 +405,7 @@ secrets:
   postgresUser: temporal
   postgresPassword: "<sealed-secret-ref>"
   mongodbUri: "<sealed-secret-ref>"
-  redisPassword: "<sealed-secret-ref>"
+  redisPassword: "<sealed-secret-ref>"  # Obrigatorio em producao (validacao automatica)
   kafkaSaslUsername: ""
   kafkaSaslPassword: ""
 

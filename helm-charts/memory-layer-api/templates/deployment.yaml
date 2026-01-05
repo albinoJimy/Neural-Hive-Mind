@@ -28,6 +28,12 @@
 {{- $env = append $env (dict "name" "ENABLE_CACHE" "valueFrom" (dict "configMapKeyRef" (dict "name" (printf "%s-config" (include "memory-layer-api.fullname" .)) "key" "enable_cache"))) }}
 {{- $env = append $env (dict "name" "ENABLE_LINEAGE_TRACKING" "valueFrom" (dict "configMapKeyRef" (dict "name" (printf "%s-config" (include "memory-layer-api.fullname" .)) "key" "enable_lineage_tracking"))) }}
 {{- $env = append $env (dict "name" "ENABLE_QUALITY_MONITORING" "valueFrom" (dict "configMapKeyRef" (dict "name" (printf "%s-config" (include "memory-layer-api.fullname" .)) "key" "enable_quality_monitoring"))) }}
+{{- $env = append $env (dict "name" "ENABLE_REALTIME_SYNC" "valueFrom" (dict "configMapKeyRef" (dict "name" (printf "%s-config" (include "memory-layer-api.fullname" .)) "key" "enable_realtime_sync"))) }}
+{{- $env = append $env (dict "name" "KAFKA_BOOTSTRAP_SERVERS" "valueFrom" (dict "configMapKeyRef" (dict "name" (printf "%s-config" (include "memory-layer-api.fullname" .)) "key" "kafka_bootstrap_servers"))) }}
+{{- $env = append $env (dict "name" "KAFKA_SYNC_TOPIC" "valueFrom" (dict "configMapKeyRef" (dict "name" (printf "%s-config" (include "memory-layer-api.fullname" .)) "key" "kafka_sync_topic"))) }}
+{{- $env = append $env (dict "name" "KAFKA_DLQ_TOPIC" "valueFrom" (dict "configMapKeyRef" (dict "name" (printf "%s-config" (include "memory-layer-api.fullname" .)) "key" "kafka_dlq_topic"))) }}
+{{- $env = append $env (dict "name" "KAFKA_CONSUMER_GROUP" "valueFrom" (dict "configMapKeyRef" (dict "name" (printf "%s-config" (include "memory-layer-api.fullname" .)) "key" "kafka_consumer_group"))) }}
+{{- $env = append $env (dict "name" "KAFKA_SECURITY_PROTOCOL" "valueFrom" (dict "configMapKeyRef" (dict "name" (printf "%s-config" (include "memory-layer-api.fullname" .)) "key" "kafka_security_protocol"))) }}
 
 {{- $config := dict "checksumConfig" $checksumConfig "checksumSecret" $checksumSecret "env" $env }}
 

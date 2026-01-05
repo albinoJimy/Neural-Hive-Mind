@@ -7,6 +7,7 @@ from neural_hive_observability import init_observability
 
 from src.config.settings import get_settings
 from src.api import health
+from src.services.threat_detector import ThreatDetector
 
 # Configurar logger estruturado
 structlog.configure(
@@ -220,6 +221,54 @@ async def lifespan(app: FastAPI):
         prometheus_client = None
     app.state.prometheus_client = prometheus_client
 
+    # Inicializar AnomalyDetector com MLflow (opcional - graceful degradation)
+    anomaly_detector = None
+    if settings.anomaly_detector_enabled:
+        logger.info("guard_agent.initializing_anomaly_detector")
+        try:
+            from neural_hive_ml.predictive_models import AnomalyDetector
+            from neural_hive_ml.predictive_models.model_registry import ModelRegistry
+
+            model_registry = ModelRegistry(
+                tracking_uri=settings.mlflow_tracking_uri,
+                experiment_prefix="neural-hive-ml"
+            )
+
+            detector_config = {
+                'model_name': 'anomaly-detector',
+                'model_type': settings.anomaly_detector_model_type,
+                'contamination': settings.anomaly_detector_contamination
+            }
+
+            anomaly_detector = AnomalyDetector(
+                config=detector_config,
+                model_registry=model_registry,
+                metrics=None
+            )
+
+            await anomaly_detector.initialize()
+
+            if anomaly_detector.model:
+                logger.info(
+                    "guard_agent.anomaly_detector_ready",
+                    model_type=detector_config['model_type']
+                )
+            else:
+                logger.warning("guard_agent.anomaly_detector_no_model_loaded")
+
+        except Exception as e:
+            logger.warning("guard_agent.anomaly_detector_init_failed", error=str(e))
+            anomaly_detector = None
+    app.state.anomaly_detector = anomaly_detector
+
+    # Inicializar ThreatDetector
+    logger.info("guard_agent.initializing_threat_detector")
+    threat_detector = ThreatDetector(
+        redis_client=redis_client,
+        anomaly_detector=anomaly_detector
+    )
+    app.state.threat_detector = threat_detector
+
     # Inicializar Security Validator
     logger.info("guard_agent.initializing_security_validator")
     from src.services.security_validator import SecurityValidator
@@ -265,7 +314,8 @@ async def lifespan(app: FastAPI):
         self_healing_client=self_healing_client,
         opa_client=app.state.opa_client,
         istio_client=app.state.istio_client,
-        prometheus_client=app.state.prometheus_client
+        prometheus_client=app.state.prometheus_client,
+        threat_detector=app.state.threat_detector
     )
     app.state.message_handler = message_handler
 

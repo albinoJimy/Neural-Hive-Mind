@@ -58,3 +58,11 @@ data:
   enable_lineage_tracking: {{ .Values.config.features.enableLineageTracking | quote }}
   enable_quality_monitoring: {{ .Values.config.features.enableQualityMonitoring | quote }}
   enable_auto_routing: {{ .Values.config.features.enableAutoRouting | quote }}
+  enable_realtime_sync: {{ .Values.config.features.enableRealtimeSync | default true | quote }}
+
+  # Kafka (Real-time Sync)
+  kafka_bootstrap_servers: {{ .Values.config.kafka.bootstrapServers | default "kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092" | quote }}
+  kafka_sync_topic: {{ .Values.config.kafka.syncTopic | default "memory.sync.events" | quote }}
+  kafka_dlq_topic: {{ .Values.config.kafka.dlqTopic | default "memory.sync.events.dlq" | quote }}
+  kafka_consumer_group: {{ .Values.config.kafka.consumerGroup | default "memory-sync-consumer" | quote }}
+  kafka_security_protocol: {{ .Values.config.kafka.securityProtocol | default "PLAINTEXT" | quote }}

@@ -83,3 +83,11 @@ data:
   # OpenTelemetry Configuration
   otel_enabled: {{ .Values.observability.otelEnabled | default "false" | quote }}
   otel_endpoint: {{ .Values.observability.otelEndpoint | default "http://opentelemetry-collector.observability.svc.cluster.local:4317" | quote }}
+
+  # Rate Limiting Configuration
+  rate_limit_enabled: {{ .Values.config.rateLimit.enabled | default "true" | quote }}
+  rate_limit_requests_per_minute: {{ .Values.config.rateLimit.requestsPerMinute | default "1000" | quote }}
+  rate_limit_burst_size: {{ .Values.config.rateLimit.burstSize | default "100" | quote }}
+  rate_limit_fail_open: {{ .Values.config.rateLimit.failOpen | default "true" | quote }}
+  rate_limit_tenant_overrides: {{ .Values.config.rateLimit.tenantOverrides | default "{}" | quote }}
+  rate_limit_user_overrides: {{ .Values.config.rateLimit.userOverrides | default "{}" | quote }}

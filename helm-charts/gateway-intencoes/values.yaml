@@ -243,6 +243,17 @@ config:
     maxAudioSizeMb: 10
     maxTextLength: 10000
 
+  # Rate Limiting
+  rateLimit:
+    enabled: true
+    requestsPerMinute: 1000
+    burstSize: 100
+    failOpen: true
+    # Limites especificos por tenant (JSON)
+    tenantOverrides: '{}'
+    # Limites especificos por usuario (JSON)
+    userOverrides: '{}'
+
   # CORS
   cors:
     allowedOrigins: ["*"]
@@ -333,6 +344,11 @@ istio:
 observability:
   otelEnabled: true  # Habilitar OpenTelemetry em produção
   otelEndpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+  # TLS Configuration para OpenTelemetry Exporter
+  tls:
+    enabled: false  # Habilitar em produção
+    certSecret: "neural-hive-otel-client-certs"
+    mountPath: "/etc/otel-tls"
   prometheus:
     enabled: true
     serviceMonitor:

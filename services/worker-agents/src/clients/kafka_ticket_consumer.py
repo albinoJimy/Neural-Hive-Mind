@@ -15,9 +15,10 @@ logger = structlog.get_logger()
 class KafkaTicketConsumer:
     '''Consumer Kafka para tópico execution.tickets'''
 
-    def __init__(self, config, execution_engine):
+    def __init__(self, config, execution_engine, metrics=None):
         self.config = config
         self.execution_engine = execution_engine
+        self.metrics = metrics
         self.logger = logger.bind(service='kafka_ticket_consumer')
         self.consumer: Optional[Consumer] = None
         self.schema_registry_client: Optional[SchemaRegistryClient] = None
@@ -65,7 +66,8 @@ class KafkaTicketConsumer:
                 group_id=self.config.kafka_consumer_group_id
             )
 
-            # TODO: Incrementar métrica worker_agent_kafka_consumer_initialized_total
+            if self.metrics:
+                self.metrics.kafka_consumer_initialized_total.inc()
 
         except Exception as e:
             self.logger.error('kafka_consumer_init_failed', error=str(e))
@@ -152,7 +154,8 @@ class KafkaTicketConsumer:
                         plan_id=ticket.get('plan_id')
                     )
 
-                    # TODO: Incrementar métrica worker_agent_tickets_consumed_total{task_type=...}
+                    if self.metrics:
+                        self.metrics.tickets_consumed_total.labels(task_type=task_type).inc()
 
                     await self.execution_engine.process_ticket(ticket)
 
@@ -171,7 +174,9 @@ class KafkaTicketConsumer:
                         offset=message.offset
                     )
                     # Não commit - permite retry
-                    # TODO: Incrementar métrica worker_agent_kafka_consumer_errors_total{error_type=...}
+                    if self.metrics:
+                        error_type = type(e).__name__
+                        self.metrics.kafka_consumer_errors_total.labels(error_type=error_type).inc()
 
         except Exception as e:
             self.logger.error('kafka_consumer_loop_failed', error=str(e))

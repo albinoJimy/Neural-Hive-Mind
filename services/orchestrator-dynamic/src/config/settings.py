@@ -7,7 +7,7 @@ NOTA: Este módulo usa Pydantic v2 com pydantic-settings.
 """
 from typing import Optional, List
 from functools import lru_cache
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -94,8 +94,31 @@ class OrchestratorSettings(BaseSettings):
 
     # Redis (cache opcional)
     redis_cluster_nodes: str = Field(..., description='Nodes do cluster Redis')
-    redis_password: Optional[str] = Field(default=None, description='Senha Redis')
+    redis_password: Optional[str] = Field(
+        default=None,
+        description='Senha Redis. ⚠️ Obrigatório em produção (validação automática).'
+    )
     redis_ssl_enabled: bool = Field(default=False, description='Habilitar SSL para Redis')
+
+    @field_validator('redis_password')
+    @classmethod
+    def validate_redis_password_in_production(cls, v: Optional[str], info) -> Optional[str]:
+        """
+        Validar que redis_password não está vazio em produção.
+
+        Em produção, Redis deve sempre ter autenticação habilitada.
+        """
+        environment = info.data.get('environment', 'development')
+
+        if environment in ['production', 'prod']:
+            if v is None or v == '':
+                raise ValueError(
+                    'redis_password não pode ser vazio em ambiente production. '
+                    'Configure REDIS_PASSWORD com uma senha segura ou use External Secrets Operator. '
+                    'Consulte docs/SECRETS_MANAGEMENT_GUIDE.md para melhores práticas.'
+                )
+
+        return v
 
     # Service Registry
     service_registry_host: str = Field(
@@ -194,8 +217,33 @@ class OrchestratorSettings(BaseSettings):
     vault_max_retries: int = Field(default=3, description='Número de tentativas de retry')
     vault_fail_open: bool = Field(
         default=True,
-        description='Fail-open em erros do Vault (fallback para env vars); propagado para VaultConfig.fail_open'
+        description=(
+            'Fail-open em erros do Vault (fallback para env vars); propagado para VaultConfig.fail_open. '
+            '⚠️ ATENÇÃO: Deve ser False em produção para garantir zero-trust security. '
+            'Validação automática impede True em environment=production.'
+        )
     )
+
+    @field_validator('vault_fail_open')
+    @classmethod
+    def validate_vault_fail_open_in_production(cls, v: bool, info) -> bool:
+        """
+        Validar que vault_fail_open está desabilitado em produção.
+
+        Em produção, fail_open=True é inseguro pois permite operação com credenciais
+        estáticas em caso de falha do Vault, violando princípios zero-trust.
+        """
+        environment = info.data.get('environment', 'development')
+
+        if environment in ['production', 'prod'] and v is True:
+            raise ValueError(
+                'vault_fail_open=True não é permitido em ambiente production. '
+                'Configure VAULT_FAIL_OPEN=false ou ENVIRONMENT=development. '
+                'Em produção, o serviço deve falhar se Vault estiver indisponível (fail-closed).'
+            )
+
+        return v
+
     vault_token_renewal_threshold: float = Field(
         default=0.2,
         description='Threshold para renovação de token Vault (0.2 = renovar quando 80% do TTL foi consumido)'

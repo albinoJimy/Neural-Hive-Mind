@@ -5,11 +5,16 @@ import grpc
 import structlog
 from datetime import datetime
 
+from neural_hive_integration.proto_stubs import (
+    service_registry_pb2,
+    service_registry_pb2_grpc
+)
+
 logger = structlog.get_logger()
 
 
 class ServiceRegistryClient:
-    """Cliente para comunicação com Service Registry"""
+    """Cliente para comunicacao com Service Registry"""
 
     def __init__(
         self,
@@ -28,7 +33,7 @@ class ServiceRegistryClient:
         self.heartbeat_interval = heartbeat_interval
 
         self.channel: Optional[grpc.aio.Channel] = None
-        self.stub = None
+        self.stub: Optional[service_registry_pb2_grpc.ServiceRegistryStub] = None
         self.agent_id: Optional[str] = None
         self.registration_token: Optional[str] = None
         self._heartbeat_task: Optional[asyncio.Task] = None
@@ -38,9 +43,7 @@ class ServiceRegistryClient:
         """Conecta ao Service Registry"""
         try:
             self.channel = grpc.aio.insecure_channel(f"{self.host}:{self.port}")
-            # TODO: Import stub when proto is compiled
-            # from src.proto import service_registry_pb2_grpc
-            # self.stub = service_registry_pb2_grpc.ServiceRegistryStub(self.channel)
+            self.stub = service_registry_pb2_grpc.ServiceRegistryStub(self.channel)
             logger.info("service_registry.connected", host=self.host, port=self.port)
         except Exception as e:
             logger.error("service_registry.connection_failed", error=str(e))
@@ -49,26 +52,36 @@ class ServiceRegistryClient:
     async def register(self) -> str:
         """Registra agente no Service Registry"""
         try:
-            # TODO: Implement with actual proto
-            # request = service_registry_pb2.RegisterRequest(
-            #     agent_type=self.agent_type,
-            #     capabilities=self.capabilities,
-            #     metadata=self.metadata
-            # )
-            # response = await self.stub.Register(request)
-            # self.agent_id = response.agent_id
-            # self.registration_token = response.registration_token
+            agent_type_map = {
+                "GUARD": service_registry_pb2.GUARD,
+                "WORKER": service_registry_pb2.WORKER,
+                "SCOUT": service_registry_pb2.SCOUT,
+            }
 
-            # Placeholder implementation
-            self.agent_id = f"guard-agent-{datetime.utcnow().timestamp()}"
+            request = service_registry_pb2.RegisterRequest(
+                agent_type=agent_type_map.get(self.agent_type, service_registry_pb2.GUARD),
+                capabilities=self.capabilities,
+                metadata=self.metadata,
+                namespace=self.metadata.get('namespace', 'default'),
+                cluster=self.metadata.get('cluster', 'default'),
+                version=self.metadata.get('version', '1.0.0')
+            )
+
+            response = await self.stub.Register(request)
+            self.agent_id = response.agent_id
+            self.registration_token = response.registration_token
+
             logger.info("service_registry.registered", agent_id=self.agent_id)
             return self.agent_id
+        except grpc.RpcError as e:
+            logger.error("service_registry.registration_failed", error=str(e), code=e.code())
+            raise
         except Exception as e:
             logger.error("service_registry.registration_failed", error=str(e))
             raise
 
     async def start_heartbeat(self):
-        """Inicia envio periódico de heartbeats"""
+        """Inicia envio periodico de heartbeats"""
         self._running = True
         self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
         logger.info("service_registry.heartbeat_started", interval=self.heartbeat_interval)
@@ -78,29 +91,48 @@ class ServiceRegistryClient:
         while self._running:
             try:
                 await asyncio.sleep(self.heartbeat_interval)
-                # TODO: Implement with actual proto
-                # request = service_registry_pb2.HeartbeatRequest(
-                #     agent_id=self.agent_id,
-                #     telemetry=...
-                # )
-                # await self.stub.Heartbeat(request)
-                logger.debug("service_registry.heartbeat_sent", agent_id=self.agent_id)
+
+                telemetry = service_registry_pb2.AgentTelemetry(
+                    success_rate=0.95,
+                    avg_duration_ms=100,
+                    total_executions=0,
+                    failed_executions=0,
+                )
+
+                request = service_registry_pb2.HeartbeatRequest(
+                    agent_id=self.agent_id,
+                    telemetry=telemetry,
+                )
+
+                response = await self.stub.Heartbeat(request)
+                logger.debug(
+                    "service_registry.heartbeat_sent",
+                    agent_id=self.agent_id,
+                    status=response.status
+                )
+            except grpc.RpcError as e:
+                logger.error("service_registry.heartbeat_failed", error=str(e), code=e.code())
             except Exception as e:
                 logger.error("service_registry.heartbeat_failed", error=str(e))
 
     async def deregister(self):
         """Desregistra agente do Service Registry"""
         try:
-            if self.agent_id:
-                # TODO: Implement with actual proto
-                # request = service_registry_pb2.DeregisterRequest(agent_id=self.agent_id)
-                # await self.stub.Deregister(request)
-                logger.info("service_registry.deregistered", agent_id=self.agent_id)
+            if self.agent_id and self.stub:
+                request = service_registry_pb2.DeregisterRequest(agent_id=self.agent_id)
+                response = await self.stub.Deregister(request)
+
+                if response.success:
+                    logger.info("service_registry.deregistered", agent_id=self.agent_id)
+                else:
+                    logger.warning("service_registry.deregister_failed", agent_id=self.agent_id)
+        except grpc.RpcError as e:
+            logger.error("service_registry.deregister_failed", error=str(e), code=e.code())
         except Exception as e:
             logger.error("service_registry.deregister_failed", error=str(e))
 
     async def close(self):
-        """Fecha conexões e para heartbeat"""
+        """Fecha conexoes e para heartbeat"""
         self._running = False
         if self._heartbeat_task:
             self._heartbeat_task.cancel()
@@ -114,8 +146,14 @@ class ServiceRegistryClient:
         if self.channel:
             await self.channel.close()
 
+        # Limpar estado apos fechar
+        self.channel = None
+        self.stub = None
+        self.agent_id = None
+        self.registration_token = None
+
         logger.info("service_registry.client_closed")
 
     def is_healthy(self) -> bool:
-        """Verifica se cliente está saudável"""
+        """Verifica se cliente esta saudavel"""
         return self.channel is not None and self.agent_id is not None

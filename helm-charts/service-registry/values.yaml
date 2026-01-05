@@ -62,9 +62,16 @@ config:
   redis:
     clusterNodes:
       - redis:6379
-    password: ""
+    password: ""  # Obrigatorio em producao (validacao automatica). Use External Secrets.
   otel:
     exporterEndpoint: http://otel-collector:4317
+
+  spiffe:
+    enabled: false
+    enableX509: true
+    verifyPeer: true
+    socketPath: unix:///run/spire/sockets/agent.sock
+    trustDomain: neural-hive.local
 
 istio:
   enabled: true
@@ -79,6 +86,11 @@ serviceMonitor:
 observability:
   prometheus:
     enabled: true
+  # TLS Configuration para OpenTelemetry Exporter
+  tls:
+    enabled: false  # Habilitar em produção
+    certSecret: "neural-hive-otel-client-certs"
+    mountPath: "/etc/otel-tls"
 
 podDisruptionBudget:
   enabled: true

@@ -114,3 +114,47 @@ selectorLabels:
 {{ include "neural-hive.selectorLabels" . | indent 2 }}
 serviceAccountName: {{ include "neural-hive.serviceAccountName" . }}
 {{- end }}
+
+{{/*
+Environment variables para TLS do OpenTelemetry Exporter
+Uso: {{ include "neural-hive.observability-tls-env" . | nindent 12 }}
+*/}}
+{{- define "neural-hive.observability-tls-env" -}}
+{{- if and .Values.observability .Values.observability.tls .Values.observability.tls.enabled }}
+- name: OTEL_EXPORTER_TLS_ENABLED
+  value: "true"
+- name: OTEL_EXPORTER_TLS_CERT_PATH
+  value: {{ .Values.observability.tls.mountPath }}/tls.crt
+- name: OTEL_EXPORTER_TLS_KEY_PATH
+  value: {{ .Values.observability.tls.mountPath }}/tls.key
+- name: OTEL_EXPORTER_TLS_CA_CERT_PATH
+  value: {{ .Values.observability.tls.mountPath }}/ca.crt
+{{- else }}
+- name: OTEL_EXPORTER_TLS_ENABLED
+  value: "false"
+{{- end }}
+{{- end }}
+
+{{/*
+Volume mounts para certificados TLS do OpenTelemetry
+Uso: {{ include "neural-hive.observability-tls-volume-mounts" . | nindent 12 }}
+*/}}
+{{- define "neural-hive.observability-tls-volume-mounts" -}}
+{{- if and .Values.observability .Values.observability.tls .Values.observability.tls.enabled }}
+- name: otel-tls-certs
+  mountPath: {{ .Values.observability.tls.mountPath }}
+  readOnly: true
+{{- end }}
+{{- end }}
+
+{{/*
+Volumes para certificados TLS do OpenTelemetry
+Uso: {{ include "neural-hive.observability-tls-volumes" . | nindent 8 }}
+*/}}
+{{- define "neural-hive.observability-tls-volumes" -}}
+{{- if and .Values.observability .Values.observability.tls .Values.observability.tls.enabled }}
+- name: otel-tls-certs
+  secret:
+    secretName: {{ .Values.observability.tls.certSecret }}
+{{- end }}
+{{- end }}

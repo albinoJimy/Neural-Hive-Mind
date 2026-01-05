@@ -106,3 +106,32 @@ Memory limit calculation for memory_limiter - CUSTOMIZAÇÃO ESPECÍFICA DO OTEL
 limit_mib: {{ $limitMiB }}
 spike_limit_mib: {{ $spikeLimitMiB }}
 {{- end }}
+
+{{/*
+TLS Volumes para certificados
+*/}}
+{{- define "neural-hive-otel-collector.tls-volumes" -}}
+{{- if .Values.tls.enabled }}
+- name: otel-tls-certs
+  secret:
+    secretName: {{ .Values.tls.certSecret }}
+    items:
+    - key: tls.crt
+      path: tls.crt
+    - key: tls.key
+      path: tls.key
+    - key: ca.crt
+      path: ca.crt
+{{- end }}
+{{- end }}
+
+{{/*
+TLS Volume Mounts para certificados
+*/}}
+{{- define "neural-hive-otel-collector.tls-volume-mounts" -}}
+{{- if .Values.tls.enabled }}
+- name: otel-tls-certs
+  mountPath: {{ .Values.tls.mountPath }}
+  readOnly: true
+{{- end }}
+{{- end }}

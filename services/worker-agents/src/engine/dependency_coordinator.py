@@ -17,9 +17,10 @@ class DependencyTimeoutError(Exception):
 class DependencyCoordinator:
     '''Coordenador de dependências entre tickets'''
 
-    def __init__(self, config, ticket_client):
+    def __init__(self, config, ticket_client, metrics=None):
         self.config = config
         self.ticket_client = ticket_client
+        self.metrics = metrics
         self.logger = logger.bind(service='dependency_coordinator')
         self._status_cache: Dict[str, Dict] = {}
 
@@ -72,7 +73,8 @@ class DependencyCoordinator:
                     ticket_id=ticket_id,
                     failed_dependencies=failed_deps
                 )
-                # TODO: Incrementar métrica worker_agent_dependency_checks_total{result=failed}
+                if self.metrics:
+                    self.metrics.dependency_checks_total.labels(result='failed').inc()
                 raise DependencyFailedError(f'Dependencies failed: {failed_deps}')
 
             if all_completed:
@@ -83,7 +85,9 @@ class DependencyCoordinator:
                     dependencies=dependencies,
                     wait_duration_seconds=duration
                 )
-                # TODO: Incrementar métrica worker_agent_dependency_checks_total{result=success}
+                if self.metrics:
+                    self.metrics.dependency_checks_total.labels(result='success').inc()
+                    self.metrics.dependency_wait_duration_seconds.observe(duration)
                 return True
 
             # Aguardar antes da próxima verificação
@@ -97,7 +101,8 @@ class DependencyCoordinator:
             dependencies=dependencies,
             wait_duration_seconds=duration
         )
-        # TODO: Incrementar métrica worker_agent_dependency_checks_total{result=timeout}
+        if self.metrics:
+            self.metrics.dependency_checks_total.labels(result='timeout').inc()
         raise DependencyTimeoutError(f'Timeout waiting for dependencies: {dependencies}')
 
     async def _check_dependency_status(self, dependency_ticket_id: str) -> str:

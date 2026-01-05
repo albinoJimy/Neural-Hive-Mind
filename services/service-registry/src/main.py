@@ -45,7 +45,7 @@ logger = structlog.get_logger()
 
 
 class ServiceRegistryServer:
-    """Servidor gRPC do Service Registry"""
+    """Servidor gRPC do Service Registry com suporte a mTLS via SPIFFE"""
 
     def __init__(self):
         self.settings = get_settings()
@@ -58,6 +58,48 @@ class ServiceRegistryServer:
         self.spiffe_manager = None
         self.auth_interceptor = None
         self._shutdown_event = asyncio.Event()
+
+    async def _create_server_credentials(self):
+        """
+        Criar credenciais de servidor para mTLS usando X.509-SVID
+
+        Returns:
+            grpc.ServerCredentials ou None se mTLS nao estiver habilitado
+        """
+        spiffe_x509_enabled = (
+            self.settings.SPIFFE_ENABLED
+            and getattr(self.settings, 'SPIFFE_ENABLE_X509', False)
+            and self.spiffe_manager is not None
+        )
+
+        if not spiffe_x509_enabled:
+            return None
+
+        try:
+            # Buscar X.509-SVID do SPIRE Workload API
+            x509_svid = await self.spiffe_manager.fetch_x509_svid()
+
+            # Criar credenciais de servidor com certificados SPIFFE
+            # require_client_auth=True forca mTLS (cliente deve apresentar certificado)
+            credentials = grpc.ssl_server_credentials(
+                [(x509_svid.private_key.encode('utf-8'), x509_svid.certificate.encode('utf-8'))],
+                root_certificates=x509_svid.ca_bundle.encode('utf-8'),
+                require_client_auth=True  # Forca mTLS
+            )
+
+            logger.info(
+                'server_mtls_credentials_created',
+                spiffe_id=x509_svid.spiffe_id,
+                expires_at=x509_svid.expires_at.isoformat()
+            )
+
+            return credentials
+        except Exception as e:
+            logger.error('server_credentials_creation_failed', error=str(e))
+            # Em producao, falhar se mTLS nao puder ser configurado
+            if self.settings.ENVIRONMENT in ['production', 'prod']:
+                raise RuntimeError(f"Failed to create mTLS credentials in production: {e}")
+            return None
 
     async def initialize(self):
         """Inicializa componentes do serviço"""
@@ -125,7 +167,10 @@ class ServiceRegistryServer:
 
                 spiffe_config = SPIFFEConfig(
                     workload_api_socket=self.settings.SPIFFE_SOCKET_PATH,
-                    trust_domain=self.settings.SPIFFE_TRUST_DOMAIN
+                    trust_domain=self.settings.SPIFFE_TRUST_DOMAIN,
+                    jwt_audience=getattr(self.settings, 'SPIFFE_JWT_AUDIENCE', 'vault.neural-hive.local'),
+                    enable_x509=getattr(self.settings, 'SPIFFE_ENABLE_X509', True),
+                    environment=self.settings.ENVIRONMENT
                 )
 
                 self.spiffe_manager = SPIFFEManager(spiffe_config)
@@ -183,13 +228,38 @@ class ServiceRegistryServer:
         health_pb2_grpc.add_HealthServicer_to_server(health_servicer, self.server)
         health_servicer.set("", health_pb2.HealthCheckResponse.SERVING)
 
-        # Adicionar porta
-        self.server.add_insecure_port(f'[::]:{self.settings.GRPC_PORT}')
+        # Criar credenciais de servidor para mTLS (se habilitado)
+        server_credentials = await self._create_server_credentials()
+
+        if server_credentials:
+            # Usar porta segura com mTLS
+            self.server.add_secure_port(f'[::]:{self.settings.GRPC_PORT}', server_credentials)
+            logger.info(
+                'secure_port_added',
+                grpc_port=self.settings.GRPC_PORT,
+                mtls_enabled=True
+            )
+        else:
+            # Fallback para porta insegura (apenas desenvolvimento)
+            if self.settings.ENVIRONMENT in ['production', 'prod']:
+                raise RuntimeError(
+                    "mTLS is required in production but server credentials could not be created. "
+                    "Ensure SPIFFE is enabled and configured correctly."
+                )
+
+            self.server.add_insecure_port(f'[::]:{self.settings.GRPC_PORT}')
+            logger.warning(
+                'insecure_port_added',
+                grpc_port=self.settings.GRPC_PORT,
+                environment=self.settings.ENVIRONMENT,
+                warning='mTLS disabled - not for production use'
+            )
 
         logger.info(
             "service_registry_initialized",
             grpc_port=self.settings.GRPC_PORT,
-            metrics_port=self.settings.METRICS_PORT
+            metrics_port=self.settings.METRICS_PORT,
+            mtls_enabled=server_credentials is not None
         )
 
     async def start(self):

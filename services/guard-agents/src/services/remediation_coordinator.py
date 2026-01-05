@@ -1,5 +1,6 @@
 """Remediation coordinator for self-healing playbooks (Fluxo E4)"""
-from typing import Dict, Any, Optional, List
+import asyncio
+from typing import Dict, Any, Optional, List, Tuple
 import structlog
 from datetime import datetime, timezone
 from enum import Enum
@@ -406,20 +407,246 @@ class RemediationCoordinator:
     async def _restart_pod(
         self, action: Dict[str, Any], incident: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Reinicia pod"""
+        """
+        Reinicia pod via delete (Kubernetes recria automaticamente)
+
+        Parses namespace and pod name from affected_resources entries (namespace/kind/name),
+        deletes the pod with the correct namespace, then polls until a replacement pod
+        reaches Running status (timeout ~60s).
+        """
         selector = action.get("selector", "app")
         resources = incident.get("affected_resources", [])
 
         logger.info("remediation_coordinator.restarting_pod", selector=selector)
 
+        success = False
+        details = {"selector": selector, "resources": resources}
+
         if self.k8s:
-            # TODO: Delete pod para forçar restart
-            pass
+            # Parse namespace and pod name from affected_resources
+            namespace, pod_name = self._parse_pod_resource(resources)
+
+            if pod_name:
+                try:
+                    # Get pod info before deletion to extract labels for finding replacement
+                    pod_info = await self.k8s.get_pod(pod_name, namespace)
+                    pod_labels = {}
+                    pod_prefix = pod_name.rsplit("-", 2)[0] if "-" in pod_name else pod_name
+
+                    if pod_info:
+                        pod_labels = pod_info.get("metadata", {}).get("labels", {})
+
+                    # Delete pod with the correct namespace
+                    deleted = await self.k8s.delete_pod(pod_name, namespace)
+                    if deleted:
+                        details["pod_deleted"] = pod_name
+                        details["namespace"] = namespace
+                        logger.info(
+                            "remediation_coordinator.pod_deleted",
+                            pod=pod_name,
+                            namespace=namespace
+                        )
+
+                        # Wait for replacement pod to reach Running status
+                        replacement_result = await self._wait_for_replacement_pod(
+                            pod_name=pod_name,
+                            pod_prefix=pod_prefix,
+                            pod_labels=pod_labels,
+                            namespace=namespace,
+                            timeout=60.0,
+                            poll_interval=2.0
+                        )
+
+                        if replacement_result.get("success"):
+                            success = True
+                            details["replacement_pod"] = replacement_result.get("replacement_pod")
+                            details["replacement_status"] = replacement_result.get("status")
+                            logger.info(
+                                "remediation_coordinator.pod_restarted",
+                                pod=pod_name,
+                                replacement=replacement_result.get("replacement_pod"),
+                                namespace=namespace
+                            )
+                        else:
+                            # Pod deleted but replacement not ready within timeout
+                            success = False
+                            details["warning"] = replacement_result.get("reason", "Replacement pod not ready")
+                            details["replacement_pod"] = replacement_result.get("replacement_pod")
+                            logger.warning(
+                                "remediation_coordinator.replacement_pod_not_ready",
+                                pod=pod_name,
+                                namespace=namespace,
+                                reason=replacement_result.get("reason")
+                            )
+                    else:
+                        details["error"] = "Failed to delete pod"
+                except Exception as e:
+                    details["error"] = str(e)
+                    logger.error(
+                        "remediation_coordinator.restart_pod_failed",
+                        pod=pod_name,
+                        namespace=namespace,
+                        error=str(e)
+                    )
+            else:
+                logger.warning(
+                    "remediation_coordinator.no_pod_found",
+                    resources=resources
+                )
+                success = True  # Nao bloquear fluxo
+                details["warning"] = "No pod name found in affected_resources"
+        else:
+            logger.warning("remediation_coordinator.k8s_not_available")
+            success = True
+            details["warning"] = "Kubernetes client not available"
 
         return {
-            "success": True,
+            "success": success,
             "action_type": RemediationType.RESTART_POD,
-            "details": {"selector": selector, "resources": resources}
+            "details": details
+        }
+
+    def _parse_pod_resource(self, resources: List[str]) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Parse namespace and pod name from affected_resources entries.
+
+        Supports formats:
+        - "namespace/pod/name" or "namespace/Pod/name"
+        - "pod/name" (uses default namespace)
+        - "name" (uses default namespace)
+
+        Args:
+            resources: List of resource strings
+
+        Returns:
+            Tuple of (namespace, pod_name), namespace may be None to use client default
+        """
+        for resource in resources:
+            parts = resource.split("/")
+
+            if len(parts) >= 3:
+                # Format: namespace/kind/name
+                namespace = parts[0]
+                kind = parts[1]
+                name = parts[2]
+                if kind.lower() == "pod":
+                    return (namespace, name)
+
+            elif len(parts) == 2:
+                # Format: kind/name (no namespace)
+                kind = parts[0]
+                name = parts[1]
+                if kind.lower() == "pod":
+                    return (None, name)
+
+            elif len(parts) == 1 and resource:
+                # Just the name, assume it's a pod
+                return (None, resource)
+
+        return (None, None)
+
+    async def _wait_for_replacement_pod(
+        self,
+        pod_name: str,
+        pod_prefix: str,
+        pod_labels: Dict[str, str],
+        namespace: Optional[str],
+        timeout: float = 60.0,
+        poll_interval: float = 2.0
+    ) -> Dict[str, Any]:
+        """
+        Wait for a replacement pod to reach Running status after deletion.
+
+        Args:
+            pod_name: Original pod name that was deleted
+            pod_prefix: Pod name prefix to match replacement pods
+            pod_labels: Labels from the original pod for filtering
+            namespace: Namespace to search in
+            timeout: Maximum wait time in seconds
+            poll_interval: Time between polling attempts
+
+        Returns:
+            Dict with success status and replacement pod info
+        """
+        start_time = asyncio.get_event_loop().time()
+        replacement_pod = None
+
+        # Build label selector from pod labels (prefer 'app' label)
+        label_selector = None
+        if pod_labels:
+            if "app" in pod_labels:
+                label_selector = f"app={pod_labels['app']}"
+            elif "app.kubernetes.io/name" in pod_labels:
+                label_selector = f"app.kubernetes.io/name={pod_labels['app.kubernetes.io/name']}"
+
+        logger.info(
+            "remediation_coordinator.waiting_for_replacement",
+            pod_name=pod_name,
+            pod_prefix=pod_prefix,
+            label_selector=label_selector,
+            namespace=namespace,
+            timeout=timeout
+        )
+
+        while (asyncio.get_event_loop().time() - start_time) < timeout:
+            await asyncio.sleep(poll_interval)
+
+            # First check if the original pod still exists (shouldn't)
+            original_exists = await self.k8s.get_pod(pod_name, namespace)
+            if original_exists:
+                # Pod still being terminated
+                continue
+
+            # List pods matching the label selector or prefix
+            pods = await self.k8s.list_pods(
+                namespace=namespace,
+                label_selector=label_selector
+            )
+
+            # Find a replacement pod (different name, Running status)
+            for pod in pods:
+                current_pod_name = pod.get("metadata", {}).get("name", "")
+                pod_phase = pod.get("status", {}).get("phase", "")
+
+                # Skip if it's the same pod name (shouldn't exist after deletion)
+                if current_pod_name == pod_name:
+                    continue
+
+                # Check if pod matches prefix (same deployment/replicaset)
+                if current_pod_name.startswith(pod_prefix):
+                    replacement_pod = current_pod_name
+
+                    if pod_phase == "Running":
+                        # Check container statuses for readiness
+                        container_statuses = pod.get("status", {}).get("containerStatuses", [])
+                        all_ready = all(
+                            cs.get("ready", False) for cs in container_statuses
+                        ) if container_statuses else False
+
+                        if all_ready or not container_statuses:
+                            logger.info(
+                                "remediation_coordinator.replacement_pod_ready",
+                                replacement_pod=replacement_pod,
+                                phase=pod_phase
+                            )
+                            return {
+                                "success": True,
+                                "replacement_pod": replacement_pod,
+                                "status": pod_phase
+                            }
+
+        # Timeout reached
+        logger.warning(
+            "remediation_coordinator.replacement_pod_timeout",
+            pod_name=pod_name,
+            replacement_pod=replacement_pod,
+            timeout=timeout
+        )
+
+        return {
+            "success": False,
+            "replacement_pod": replacement_pod,
+            "reason": f"Timeout after {timeout}s waiting for replacement pod to reach Running status"
         }
 
     async def _scale_deployment(
@@ -429,52 +656,179 @@ class RemediationCoordinator:
         replicas = action.get("replicas", 3)
         resources = incident.get("affected_resources", [])
 
+        # Validar replicas (min: 0, max: 50)
+        if replicas < 0:
+            replicas = 0
+        elif replicas > 50:
+            replicas = 50
+
         logger.info("remediation_coordinator.scaling_deployment", replicas=replicas)
 
+        success = False
+        details = {"replicas": replicas, "resources": resources}
+
         if self.k8s:
-            # TODO: Patch deployment scale
-            pass
+            deployment_name = self._extract_resource_name(resources, "deployment")
+
+            if deployment_name:
+                try:
+                    scaled = await self.k8s.scale_deployment(deployment_name, replicas)
+                    if scaled:
+                        success = True
+                        details["deployment_scaled"] = deployment_name
+                        logger.info(
+                            "remediation_coordinator.deployment_scaled",
+                            deployment=deployment_name,
+                            replicas=replicas
+                        )
+                    else:
+                        details["error"] = "Failed to scale deployment"
+                except Exception as e:
+                    details["error"] = str(e)
+                    logger.error(
+                        "remediation_coordinator.scale_deployment_failed",
+                        deployment=deployment_name,
+                        error=str(e)
+                    )
+            else:
+                logger.warning(
+                    "remediation_coordinator.no_deployment_found",
+                    resources=resources
+                )
+                success = True
+                details["warning"] = "No deployment name found in affected_resources"
+        else:
+            logger.warning("remediation_coordinator.k8s_not_available")
+            success = True
+            details["warning"] = "Kubernetes client not available"
 
         return {
-            "success": True,
+            "success": success,
             "action_type": RemediationType.SCALE_DEPLOYMENT,
-            "details": {"replicas": replicas, "resources": resources}
+            "details": details
         }
 
     async def _rollback_deployment(
         self, action: Dict[str, Any], incident: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Faz rollback de deployment"""
-        revision = action.get("revision", "previous")
+        revision_str = action.get("revision", "previous")
+        resources = incident.get("affected_resources", [])
 
-        logger.info("remediation_coordinator.rolling_back_deployment", revision=revision)
+        # Converter revision para int se especificado
+        revision = None
+        if revision_str and revision_str != "previous":
+            try:
+                revision = int(revision_str)
+            except ValueError:
+                revision = None
+
+        logger.info("remediation_coordinator.rolling_back_deployment", revision=revision_str)
+
+        success = False
+        details = {"revision": revision_str, "resources": resources}
 
         if self.k8s:
-            # TODO: kubectl rollout undo deployment
-            pass
+            deployment_name = self._extract_resource_name(resources, "deployment")
+
+            if deployment_name:
+                try:
+                    result = await self.k8s.rollback_deployment(deployment_name, revision)
+                    if result.get("success"):
+                        success = True
+                        details["deployment_rolled_back"] = deployment_name
+                        details["previous_revision"] = result.get("previous_revision")
+                        details["target_revision"] = result.get("target_revision")
+                        logger.info(
+                            "remediation_coordinator.deployment_rolled_back",
+                            deployment=deployment_name,
+                            revision=revision_str
+                        )
+                    else:
+                        details["error"] = result.get("error", "Rollback failed")
+                except Exception as e:
+                    details["error"] = str(e)
+                    logger.error(
+                        "remediation_coordinator.rollback_deployment_failed",
+                        deployment=deployment_name,
+                        error=str(e)
+                    )
+            else:
+                logger.warning(
+                    "remediation_coordinator.no_deployment_found",
+                    resources=resources
+                )
+                success = True
+                details["warning"] = "No deployment name found in affected_resources"
+        else:
+            logger.warning("remediation_coordinator.k8s_not_available")
+            success = True
+            details["warning"] = "Kubernetes client not available"
 
         return {
-            "success": True,
+            "success": success,
             "action_type": RemediationType.ROLLBACK_DEPLOYMENT,
-            "details": {"revision": revision}
+            "details": details
         }
 
     async def _apply_network_policy(
         self, action: Dict[str, Any], incident: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Aplica NetworkPolicy"""
-        target = action.get("target")
+        target = action.get("target", "isolate")
+        resources = incident.get("affected_resources", [])
+        incident_id = incident.get("incident_id", "unknown")
 
         logger.info("remediation_coordinator.applying_network_policy", target=target)
 
+        success = False
+        details = {"target": target, "resources": resources}
+
         if self.k8s:
-            # TODO: Apply K8s NetworkPolicy
-            pass
+            # Gerar nome da policy baseado no incidente
+            policy_name = f"guard-agents-{target}-{incident_id[:8]}"
+
+            # Extrair pod selector de resources
+            pod_selector = {}
+            resource_name = self._extract_resource_name(resources, "pod")
+            if resource_name:
+                pod_selector = {"app": resource_name.split("-")[0]}
+
+            policy_spec = {
+                "target": target,
+                "pod_selector": pod_selector,
+                "type": "remediation"
+            }
+
+            try:
+                result = await self.k8s.apply_network_policy(policy_name, policy_spec)
+                if result.get("success"):
+                    success = True
+                    details["policy_name"] = policy_name
+                    details["policy_action"] = result.get("action")
+                    logger.info(
+                        "remediation_coordinator.network_policy_applied",
+                        policy=policy_name,
+                        target=target
+                    )
+                else:
+                    details["error"] = result.get("error", "Failed to apply policy")
+            except Exception as e:
+                details["error"] = str(e)
+                logger.error(
+                    "remediation_coordinator.apply_network_policy_failed",
+                    policy=policy_name,
+                    error=str(e)
+                )
+        else:
+            logger.warning("remediation_coordinator.k8s_not_available")
+            success = True
+            details["warning"] = "Kubernetes client not available"
 
         return {
-            "success": True,
+            "success": success,
             "action_type": RemediationType.APPLY_NETWORK_POLICY,
-            "details": {"target": target}
+            "details": details
         }
 
     async def _clear_cache(
@@ -639,3 +993,27 @@ class RemediationCoordinator:
                 "actions": [],
                 "rollback_actions": []
             }
+
+    def _extract_resource_name(
+        self, resources: List[str], resource_type: str
+    ) -> Optional[str]:
+        """
+        Extrai nome do recurso da lista de affected_resources
+
+        Args:
+            resources: Lista de recursos no formato "namespace/kind/name"
+            resource_type: Tipo de recurso a buscar (pod, deployment, etc.)
+
+        Returns:
+            Nome do recurso ou None se nao encontrado
+        """
+        for resource in resources:
+            parts = resource.split("/")
+            if len(parts) >= 3 and parts[1].lower() == resource_type.lower():
+                return parts[2]
+            elif len(parts) == 2 and parts[0].lower() == resource_type.lower():
+                return parts[1]
+            elif len(parts) == 1:
+                # Se nao tiver formato estruturado, usar como nome direto
+                return resource
+        return None

@@ -130,7 +130,7 @@ async def startup():
         await registry_client.initialize()
         app_state['registry_client'] = registry_client
 
-        ticket_client = ExecutionTicketClient(config)
+        ticket_client = ExecutionTicketClient(config, metrics=metrics)
         await ticket_client.initialize()
         app_state['ticket_client'] = ticket_client
 
@@ -159,18 +159,19 @@ async def startup():
         result_producer = KafkaResultProducer(
             config,
             sasl_username_override=kafka_username,
-            sasl_password_override=kafka_password
+            sasl_password_override=kafka_password,
+            metrics=metrics
         )
         await result_producer.initialize()
         result_producer = instrument_kafka_producer(result_producer)
         app_state['result_producer'] = result_producer
 
         # Criar componentes de execução
-        dependency_coordinator = DependencyCoordinator(config, ticket_client)
+        dependency_coordinator = DependencyCoordinator(config, ticket_client, metrics=metrics)
         app_state['dependency_coordinator'] = dependency_coordinator
 
         # Criar e configurar registry de executores com Vault client
-        executor_registry = TaskExecutorRegistry(config)
+        executor_registry = TaskExecutorRegistry(config, metrics=metrics)
         executor_registry.register_executor(BuildExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client, metrics=metrics))
         executor_registry.register_executor(DeployExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client, metrics=metrics))
         executor_registry.register_executor(TestExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client, metrics=metrics))
@@ -191,7 +192,7 @@ async def startup():
         app_state['execution_engine'] = execution_engine
 
         # Criar Kafka consumer
-        kafka_consumer = KafkaTicketConsumer(config, execution_engine)
+        kafka_consumer = KafkaTicketConsumer(config, execution_engine, metrics=metrics)
         await kafka_consumer.initialize()
         kafka_consumer = instrument_kafka_consumer(kafka_consumer)
         app_state['kafka_consumer'] = kafka_consumer

@@ -26,6 +26,7 @@ from kafka.producer import KafkaIntentProducer
 from cache.redis_client import get_redis_client, close_redis_client
 from security.oauth2_validator import get_oauth2_validator, close_oauth2_validator
 from middleware.auth_middleware import create_auth_middleware, get_current_user, get_current_admin_user
+from middleware.rate_limiter import RateLimiter, set_rate_limiter, close_rate_limiter
 # Tentar importar observabilidade - usar stubs se não disponível
 try:
     from neural_hive_observability import trace_intent, get_metrics, get_context_manager
@@ -156,11 +157,12 @@ kafka_producer: Optional[KafkaIntentProducer] = None
 redis_client = None
 oauth2_validator = None
 health_manager: Optional[HealthManager] = None
+rate_limiter: Optional[RateLimiter] = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Gerenciamento do ciclo de vida da aplicação"""
-    global asr_pipeline, nlu_pipeline, kafka_producer, redis_client, oauth2_validator, health_manager
+    global asr_pipeline, nlu_pipeline, kafka_producer, redis_client, oauth2_validator, health_manager, rate_limiter
 
     logger.info("Iniciando Gateway de Intenções com camada de memória")
 
@@ -172,6 +174,40 @@ async def lifespan(app: FastAPI):
         # Inicializar OAuth2 Validator
         logger.info("Inicializando validador OAuth2")
         oauth2_validator = await get_oauth2_validator()
+
+        # Inicializar Rate Limiter
+        import json
+        logger.info("Inicializando Rate Limiter")
+        rate_limiter = RateLimiter(
+            redis_client=redis_client,
+            enabled=settings.rate_limit_enabled,
+            default_limit=settings.rate_limit_requests_per_minute,
+            burst_size=settings.rate_limit_burst_size,
+            fail_open=settings.rate_limit_fail_open
+        )
+
+        # Carregar configuracoes de rate limit por tenant/user
+        try:
+            tenant_overrides = json.loads(settings.rate_limit_tenant_overrides)
+            for tenant_id, limit in tenant_overrides.items():
+                rate_limiter.set_tenant_limit(tenant_id, limit)
+        except json.JSONDecodeError as e:
+            logger.warning(f"Erro ao parsear rate_limit_tenant_overrides: {e}")
+
+        try:
+            user_overrides = json.loads(settings.rate_limit_user_overrides)
+            for user_id, limit in user_overrides.items():
+                rate_limiter.set_user_limit(user_id, limit)
+        except json.JSONDecodeError as e:
+            logger.warning(f"Erro ao parsear rate_limit_user_overrides: {e}")
+
+        set_rate_limiter(rate_limiter)
+        logger.info(
+            "rate_limiter_initialized",
+            enabled=settings.rate_limit_enabled,
+            default_limit=settings.rate_limit_requests_per_minute,
+            fail_open=settings.rate_limit_fail_open
+        )
 
         # Inicializar pipelines de processamento
         logger.info("Carregando pipeline ASR")
@@ -293,6 +329,8 @@ async def lifespan(app: FastAPI):
             await close_redis_client()
         if oauth2_validator:
             await close_oauth2_validator()
+        if rate_limiter:
+            close_rate_limiter()
 
 # Criar aplicação FastAPI
 app = FastAPI(

@@ -1,9 +1,12 @@
+"""Service Registry gRPC client for Optimizer Agents"""
+import asyncio
 from typing import Dict, List, Optional
 
 import grpc
 import structlog
 
 from neural_hive_observability import instrument_grpc_channel
+from neural_hive_integration.proto_stubs import service_registry_pb2, service_registry_pb2_grpc
 from src.config.settings import get_settings
 
 logger = structlog.get_logger()
@@ -13,14 +16,15 @@ class ServiceRegistryClient:
     """
     Cliente gRPC para Service Registry.
 
-    Responsável por registro e descoberta de serviços.
+    Responsavel por registro e descoberta de servicos.
     """
 
     def __init__(self, settings=None):
         self.settings = settings or get_settings()
         self.channel: Optional[grpc.aio.Channel] = None
-        self.stub = None
+        self.stub: Optional[service_registry_pb2_grpc.ServiceRegistryStub] = None
         self.agent_id: Optional[str] = None
+        self._registered = False
 
     async def connect(self):
         """Estabelecer canal gRPC com Service Registry."""
@@ -34,12 +38,8 @@ class ServiceRegistryClient:
                 ],
             )
             self.channel = instrument_grpc_channel(self.channel, service_name='service-registry')
+            self.stub = service_registry_pb2_grpc.ServiceRegistryStub(self.channel)
 
-            # TODO: Criar stub quando proto estendido for compilado
-            # from service_registry_pb2_grpc import ServiceRegistryStub
-            # self.stub = ServiceRegistryStub(self.channel)
-
-            import asyncio
             try:
                 await asyncio.wait_for(self.channel.channel_ready(), timeout=5.0)
                 logger.info("service_registry_grpc_connected", endpoint=self.settings.service_registry_endpoint)
@@ -51,7 +51,6 @@ class ServiceRegistryClient:
     async def disconnect(self):
         """Fechar canal gRPC."""
         if self.channel:
-            # Deregistrar antes de desconectar
             if self.agent_id:
                 await self.deregister()
 
@@ -70,19 +69,22 @@ class ServiceRegistryClient:
             Agent ID ou None se falhou
         """
         try:
-            # TODO: Implementar quando proto estendido
-            # request = RegisterAgentRequest(
-            #     agent_type="OPTIMIZER",
-            #     capabilities=capabilities,
-            #     metadata=metadata or {}
-            # )
-            # response = await self.stub.RegisterAgent(request, timeout=self.settings.grpc_timeout)
-            # self.agent_id = response.agent_id
+            if not self.stub:
+                logger.warning("register_called_without_connection")
+                return None
 
-            # Stub temporário
-            logger.warning("register_stub_called", capabilities=capabilities)
+            request = service_registry_pb2.RegisterRequest(
+                agent_type=service_registry_pb2.WORKER,  # Usando WORKER para optimizer
+                capabilities=capabilities,
+                metadata=metadata or {},
+                namespace=getattr(self.settings, 'namespace', 'default'),
+                cluster=getattr(self.settings, 'cluster', 'neural-hive'),
+                version=getattr(self.settings, 'service_version', '1.0.0')
+            )
 
-            self.agent_id = "optimizer-agent-001"
+            response = await self.stub.Register(request)
+            self.agent_id = response.agent_id
+            self._registered = True
 
             logger.info("agent_registered", agent_id=self.agent_id, capabilities=capabilities)
             return self.agent_id
@@ -102,20 +104,17 @@ class ServiceRegistryClient:
             True se bem-sucedido
         """
         try:
-            if not self.agent_id:
+            if not self.agent_id or not self.stub:
                 logger.warning("deregister_called_without_agent_id")
                 return False
 
-            # TODO: Implementar quando proto estendido
-            # request = DeregisterAgentRequest(agent_id=self.agent_id)
-            # response = await self.stub.DeregisterAgent(request, timeout=self.settings.grpc_timeout)
+            request = service_registry_pb2.DeregisterRequest(agent_id=self.agent_id)
+            response = await self.stub.Deregister(request)
+            self._registered = False
 
-            # Stub temporário
-            logger.warning("deregister_stub_called", agent_id=self.agent_id)
-
-            logger.info("agent_deregistered", agent_id=self.agent_id)
+            logger.info("agent_deregistered", agent_id=self.agent_id, success=response.success)
             self.agent_id = None
-            return True
+            return response.success
 
         except grpc.RpcError as e:
             logger.error("deregister_failed", agent_id=self.agent_id, error=str(e), code=e.code())
@@ -129,28 +128,32 @@ class ServiceRegistryClient:
         Enviar heartbeat ao Service Registry.
 
         Args:
-            health_status: Status de saúde
-            metrics: Métricas atuais
+            health_status: Status de saude
+            metrics: Metricas atuais
 
         Returns:
             True se bem-sucedido
         """
         try:
-            if not self.agent_id:
+            if not self.agent_id or not self.stub:
                 logger.warning("heartbeat_called_without_agent_id")
                 return False
 
-            # TODO: Implementar quando proto estendido
-            # request = HeartbeatRequest(
-            #     agent_id=self.agent_id,
-            #     health_status=health_status,
-            #     metrics=metrics or {}
-            # )
-            # response = await self.stub.Heartbeat(request, timeout=self.settings.grpc_timeout)
+            metrics = metrics or {}
+            telemetry = service_registry_pb2.AgentTelemetry(
+                success_rate=metrics.get('success_rate', 1.0),
+                avg_duration_ms=int(metrics.get('avg_duration_ms', 0)),
+                total_executions=int(metrics.get('total_executions', 0)),
+                failed_executions=int(metrics.get('failed_executions', 0)),
+            )
 
-            # Stub temporário
-            logger.debug("heartbeat_stub_called", agent_id=self.agent_id, health_status=health_status)
+            request = service_registry_pb2.HeartbeatRequest(
+                agent_id=self.agent_id,
+                telemetry=telemetry
+            )
 
+            response = await self.stub.Heartbeat(request)
+            logger.debug("heartbeat_sent", agent_id=self.agent_id, status=response.status)
             return True
 
         except grpc.RpcError as e:
@@ -162,7 +165,7 @@ class ServiceRegistryClient:
 
     async def discover_agents(self, capabilities: List[str], filters: Optional[Dict] = None) -> Optional[List[Dict]]:
         """
-        Descobrir agentes com capacidades específicas.
+        Descobrir agentes com capacidades especificas.
 
         Args:
             capabilities: Capacidades requeridas
@@ -172,33 +175,32 @@ class ServiceRegistryClient:
             Lista de agentes ou None se falhou
         """
         try:
-            # TODO: Implementar quando proto estendido
-            # request = DiscoverAgentsRequest(
-            #     capabilities=capabilities,
-            #     filters=filters or {}
-            # )
-            # response = await self.stub.DiscoverAgents(request, timeout=self.settings.grpc_timeout)
+            if not self.stub:
+                logger.warning("discover_agents_called_without_connection")
+                return None
 
-            # Stub temporário
-            logger.warning("discover_agents_stub_called", capabilities=capabilities)
+            request = service_registry_pb2.DiscoverRequest(
+                capabilities=capabilities,
+                filters=filters or {},
+                max_results=100
+            )
 
-            # Retornar lista simulada
-            agents = [
-                {
-                    "agent_id": "analyst-001",
-                    "agent_type": "ANALYST",
-                    "capabilities": ["causal_analysis", "anomaly_detection"],
-                    "health_status": "HEALTHY",
-                    "composite_score": 0.95,
-                },
-                {
-                    "agent_id": "consensus-001",
-                    "agent_type": "CONSENSUS",
-                    "capabilities": ["decision_making", "weight_calibration"],
-                    "health_status": "HEALTHY",
-                    "composite_score": 0.88,
-                },
-            ]
+            response = await self.stub.DiscoverAgents(request)
+
+            agents = []
+            for agent in response.agents:
+                if agent.status == service_registry_pb2.HEALTHY:
+                    agents.append({
+                        "agent_id": agent.agent_id,
+                        "agent_type": self._agent_type_to_string(agent.agent_type),
+                        "capabilities": list(agent.capabilities),
+                        "status": "HEALTHY",
+                        "metadata": dict(agent.metadata),
+                        "telemetry": {
+                            "success_rate": agent.telemetry.success_rate if agent.telemetry else 0.0,
+                            "avg_duration_ms": agent.telemetry.avg_duration_ms if agent.telemetry else 0,
+                        }
+                    })
 
             logger.info("agents_discovered", count=len(agents), capabilities=capabilities)
             return agents
@@ -210,39 +212,24 @@ class ServiceRegistryClient:
             logger.error("discover_agents_failed", error=str(e))
             return None
 
+    def _agent_type_to_string(self, agent_type: int) -> str:
+        """Converter enum AgentType para string."""
+        type_map = {
+            service_registry_pb2.WORKER: 'WORKER',
+            service_registry_pb2.SCOUT: 'SCOUT',
+            service_registry_pb2.GUARD: 'GUARD',
+        }
+        return type_map.get(agent_type, 'UNKNOWN')
+
     async def update_health_status(self, health_status: str, metrics: Optional[Dict] = None) -> bool:
         """
-        Atualizar status de saúde.
+        Atualizar status de saude.
 
         Args:
-            health_status: Novo status de saúde
-            metrics: Métricas atualizadas
+            health_status: Novo status de saude
+            metrics: Metricas atualizadas
 
         Returns:
             True se bem-sucedido
         """
-        try:
-            if not self.agent_id:
-                logger.warning("update_health_status_called_without_agent_id")
-                return False
-
-            # TODO: Implementar quando proto estendido
-            # request = UpdateHealthStatusRequest(
-            #     agent_id=self.agent_id,
-            #     health_status=health_status,
-            #     metrics=metrics or {}
-            # )
-            # response = await self.stub.UpdateHealthStatus(request, timeout=self.settings.grpc_timeout)
-
-            # Stub temporário
-            logger.warning("update_health_status_stub_called", agent_id=self.agent_id, health_status=health_status)
-
-            logger.info("health_status_updated", agent_id=self.agent_id, health_status=health_status)
-            return True
-
-        except grpc.RpcError as e:
-            logger.error("update_health_status_failed", agent_id=self.agent_id, error=str(e), code=e.code())
-            return False
-        except Exception as e:
-            logger.error("update_health_status_failed", agent_id=self.agent_id, error=str(e))
-            return False
+        return await self.heartbeat(health_status, metrics)

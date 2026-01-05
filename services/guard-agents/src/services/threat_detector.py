@@ -1,8 +1,11 @@
 """Threat detection service for identifying security anomalies (Fluxo E1)"""
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, TYPE_CHECKING
 import structlog
 from datetime import datetime, timezone
 from enum import Enum
+
+if TYPE_CHECKING:
+    from neural_hive_ml.predictive_models import AnomalyDetector
 
 logger = structlog.get_logger()
 
@@ -21,8 +24,9 @@ class ThreatType(str, Enum):
 class ThreatDetector:
     """Detecta anomalias e ameaças seguindo Fluxo E1"""
 
-    def __init__(self, redis_client=None):
+    def __init__(self, redis_client=None, anomaly_detector: Optional["AnomalyDetector"] = None):
         self.redis = redis_client
+        self.anomaly_detector = anomaly_detector
         self.detection_rules = self._initialize_detection_rules()
         self.adaptive_thresholds = self._load_adaptive_thresholds()
 
@@ -224,10 +228,37 @@ class ThreatDetector:
     async def _detect_behavioral_anomaly(
         self, event: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
-        """Detecta anomalias comportamentais usando ML (placeholder para modelo real)"""
-        # TODO: Integrar com modelo ML real (autoencoder/isolationForest)
-        anomaly_score = event.get("anomaly_score", 0)
+        """Detecta anomalias comportamentais usando ML"""
 
+        # Se temos modelo ML, usar detecção avançada
+        if self.anomaly_detector and self.anomaly_detector.model:
+            try:
+                # Converter evento para formato de ticket
+                ticket_data = self._event_to_ticket(event)
+
+                # Detectar anomalia com ML
+                result = await self.anomaly_detector.detect_anomaly(ticket_data)
+
+                if result.get('is_anomaly'):
+                    return {
+                        "threat_type": ThreatType.ANOMALOUS_BEHAVIOR,
+                        "severity": self._map_severity(result.get('anomaly_score', 0)),
+                        "confidence": result.get('anomaly_score', 0),
+                        "details": {
+                            "anomaly_type": result.get('anomaly_type'),
+                            "explanation": result.get('explanation'),
+                            "model_type": result.get('model_type'),
+                            "features": event.get("features", {})
+                        },
+                        "detected_at": datetime.now(timezone.utc).isoformat(),
+                        "raw_event": event,
+                    }
+            except Exception as e:
+                logger.warning("ml_anomaly_detection_failed", error=str(e))
+                # Fallback para heurística
+
+        # Fallback: detecção heurística baseada em threshold
+        anomaly_score = event.get("anomaly_score", 0)
         if anomaly_score > self.detection_rules["anomaly_score_threshold"]:
             return {
                 "threat_type": ThreatType.ANOMALOUS_BEHAVIOR,
@@ -237,12 +268,39 @@ class ThreatDetector:
                     "anomaly_score": anomaly_score,
                     "threshold": self.detection_rules["anomaly_score_threshold"],
                     "features": event.get("features", {}),
+                    "detection_method": "heuristic"
                 },
                 "detected_at": datetime.now(timezone.utc).isoformat(),
                 "raw_event": event,
             }
 
         return None
+
+    def _event_to_ticket(self, event: Dict[str, Any]) -> Dict[str, Any]:
+        """Converte evento de telemetria para formato de ticket"""
+        return {
+            "ticket_id": event.get("event_id", "unknown"),
+            "type": event.get("type", "UNKNOWN"),
+            "risk_weight": event.get("risk_weight", 50),
+            "capabilities": event.get("capabilities", []),
+            "qos": event.get("qos", {}),
+            "parameters": event.get("parameters", {}),
+            "timestamp": event.get("timestamp", datetime.now(timezone.utc).timestamp()),
+            "estimated_duration_ms": event.get("estimated_duration_ms", 0),
+            "sla_timeout_ms": event.get("sla_timeout_ms", 300000),
+            "retry_count": event.get("retry_count", 0)
+        }
+
+    def _map_severity(self, score: float) -> str:
+        """Mapeia score de anomalia para severidade"""
+        if score > 0.8:
+            return "critical"
+        elif score > 0.6:
+            return "high"
+        elif score > 0.4:
+            return "medium"
+        else:
+            return "low"
 
     async def _cache_anomaly(self, anomaly: Dict[str, Any]):
         """Cacheia anomalia para acesso rápido"""

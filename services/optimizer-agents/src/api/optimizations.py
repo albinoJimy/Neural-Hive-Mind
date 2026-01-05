@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from src.clients.mongodb_client import MongoDBClient
@@ -53,32 +53,38 @@ class OptimizationStatisticsResponse(BaseModel):
     by_component: dict
 
 
-# Dependency injection placeholders (substituir por dependências reais)
-mongodb_client: Optional[MongoDBClient] = None
-redis_client: Optional[RedisClient] = None
-optimization_engine: Optional[OptimizationEngine] = None
-weight_recalibrator: Optional[WeightRecalibrator] = None
-slo_adjuster: Optional[SLOAdjuster] = None
+# Dependency injection functions (será configurado via app.dependency_overrides no main.py)
+def get_mongodb_client() -> MongoDBClient:
+    """Dependency para injetar MongoDBClient."""
+    raise NotImplementedError("MongoDBClient dependency not configured")
 
 
-def set_dependencies(
-    mongodb: MongoDBClient,
-    redis: RedisClient,
-    opt_engine: OptimizationEngine,
-    weight_recal: WeightRecalibrator,
-    slo_adj: SLOAdjuster,
-):
-    """Configurar dependências (chamado no startup)."""
-    global mongodb_client, redis_client, optimization_engine, weight_recalibrator, slo_adjuster
-    mongodb_client = mongodb
-    redis_client = redis
-    optimization_engine = opt_engine
-    weight_recalibrator = weight_recal
-    slo_adjuster = slo_adj
+def get_redis_client() -> RedisClient:
+    """Dependency para injetar RedisClient."""
+    raise NotImplementedError("RedisClient dependency not configured")
+
+
+def get_optimization_engine() -> OptimizationEngine:
+    """Dependency para injetar OptimizationEngine."""
+    raise NotImplementedError("OptimizationEngine dependency not configured")
+
+
+def get_weight_recalibrator() -> WeightRecalibrator:
+    """Dependency para injetar WeightRecalibrator."""
+    raise NotImplementedError("WeightRecalibrator dependency not configured")
+
+
+def get_slo_adjuster() -> SLOAdjuster:
+    """Dependency para injetar SLOAdjuster."""
+    raise NotImplementedError("SLOAdjuster dependency not configured")
 
 
 @router.post("/trigger", response_model=TriggerOptimizationResponse)
-async def trigger_optimization(request: TriggerOptimizationRequest):
+async def trigger_optimization(
+    request: TriggerOptimizationRequest,
+    weight_recalibrator: WeightRecalibrator = Depends(get_weight_recalibrator),
+    slo_adjuster: SLOAdjuster = Depends(get_slo_adjuster),
+):
     """
     Trigger manual de otimização.
 
@@ -105,13 +111,9 @@ async def trigger_optimization(request: TriggerOptimizationRequest):
         optimization_event = None
 
         if request.optimization_type == OptimizationType.WEIGHT_RECALIBRATION:
-            if not weight_recalibrator:
-                raise HTTPException(status_code=503, detail="WeightRecalibrator not initialized")
             optimization_event = await weight_recalibrator.apply_weight_recalibration(hypothesis)
 
         elif request.optimization_type == OptimizationType.SLO_ADJUSTMENT:
-            if not slo_adjuster:
-                raise HTTPException(status_code=503, detail="SLOAdjuster not initialized")
             optimization_event = await slo_adjuster.apply_slo_adjustment(hypothesis)
 
         else:
@@ -141,6 +143,7 @@ async def list_optimizations(
     optimization_type: Optional[OptimizationType] = None,
     target_component: Optional[str] = None,
     status: Optional[str] = None,
+    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
 ):
     """
     Listar otimizações com filtros.
@@ -148,9 +151,6 @@ async def list_optimizations(
     Retorna lista paginada de otimizações aplicadas.
     """
     try:
-        if not mongodb_client:
-            raise HTTPException(status_code=503, detail="MongoDB client not initialized")
-
         # Construir filtros
         filters = {}
         if optimization_type:
@@ -179,16 +179,16 @@ async def list_optimizations(
 
 
 @router.get("/{optimization_id}")
-async def get_optimization(optimization_id: str):
+async def get_optimization(
+    optimization_id: str,
+    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
+):
     """
     Obter detalhes de uma otimização.
 
     Retorna informações completas sobre uma otimização específica.
     """
     try:
-        if not mongodb_client:
-            raise HTTPException(status_code=503, detail="MongoDB client not initialized")
-
         optimization = await mongodb_client.get_optimization(optimization_id)
 
         if not optimization:
@@ -203,16 +203,18 @@ async def get_optimization(optimization_id: str):
 
 
 @router.post("/{optimization_id}/rollback")
-async def rollback_optimization(optimization_id: str):
+async def rollback_optimization(
+    optimization_id: str,
+    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
+    weight_recalibrator: WeightRecalibrator = Depends(get_weight_recalibrator),
+    slo_adjuster: SLOAdjuster = Depends(get_slo_adjuster),
+):
     """
     Reverter uma otimização.
 
     Reverte uma otimização aplicada para o estado anterior.
     """
     try:
-        if not mongodb_client:
-            raise HTTPException(status_code=503, detail="MongoDB client not initialized")
-
         # Obter otimização
         optimization = await mongodb_client.get_optimization(optimization_id)
 
@@ -225,13 +227,9 @@ async def rollback_optimization(optimization_id: str):
         success = False
 
         if optimization_type == OptimizationType.WEIGHT_RECALIBRATION:
-            if not weight_recalibrator:
-                raise HTTPException(status_code=503, detail="WeightRecalibrator not initialized")
             success = await weight_recalibrator.rollback_weight_recalibration(optimization_id)
 
         elif optimization_type == OptimizationType.SLO_ADJUSTMENT:
-            if not slo_adjuster:
-                raise HTTPException(status_code=503, detail="SLOAdjuster not initialized")
             success = await slo_adjuster.rollback_slo_adjustment(optimization_id)
 
         if not success:
@@ -246,16 +244,15 @@ async def rollback_optimization(optimization_id: str):
 
 
 @router.get("/statistics/summary", response_model=OptimizationStatisticsResponse)
-async def get_statistics():
+async def get_statistics(
+    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
+):
     """
     Obter estatísticas de otimizações.
 
     Retorna métricas agregadas sobre otimizações aplicadas.
     """
     try:
-        if not mongodb_client:
-            raise HTTPException(status_code=503, detail="MongoDB client not initialized")
-
         # Buscar todas otimizações (simplificado - idealmente seria agregação MongoDB)
         all_optimizations = await mongodb_client.list_optimizations(filters={}, skip=0, limit=1000)
 

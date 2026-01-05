@@ -20,9 +20,11 @@ class KafkaResultProducer:
         self,
         config,
         sasl_username_override: Optional[str] = None,
-        sasl_password_override: Optional[str] = None
+        sasl_password_override: Optional[str] = None,
+        metrics=None
     ):
         self.config = config
+        self.metrics = metrics
         self.logger = logger.bind(service='kafka_result_producer')
         self.producer: Optional[Producer] = None
         self.schema_registry_client: Optional[SchemaRegistryClient] = None
@@ -69,7 +71,8 @@ class KafkaResultProducer:
                 topic=self.config.kafka_results_topic
             )
 
-            # TODO: Incrementar métrica worker_agent_kafka_producer_initialized_total
+            if self.metrics:
+                self.metrics.kafka_producer_initialized_total.inc()
 
         except Exception as e:
             self.logger.error('kafka_producer_init_failed', error=str(e))
@@ -139,7 +142,8 @@ class KafkaResultProducer:
                 offset=msg.offset()
             )
 
-            # TODO: Incrementar métrica worker_agent_results_published_total{status=...}
+            if self.metrics:
+                self.metrics.results_published_total.labels(status=status).inc()
 
             return {
                 'topic': msg.topic(),
@@ -154,7 +158,8 @@ class KafkaResultProducer:
                 status=status,
                 error=str(e)
             )
-            # TODO: Incrementar métrica worker_agent_kafka_producer_errors_total
+            if self.metrics:
+                self.metrics.kafka_producer_errors_total.inc()
             raise
 
     async def stop(self):

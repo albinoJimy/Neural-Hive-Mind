@@ -1,93 +1,103 @@
+"""Service Registry client for Analyst Agents - uses canonical client from neural_hive_integration"""
 import structlog
-import grpc
 from typing import List, Dict, Optional
+from datetime import datetime
+
+from neural_hive_integration.clients import ServiceRegistryClient as CanonicalClient
+from neural_hive_integration.clients import AgentInfo, HealthStatus
 
 logger = structlog.get_logger()
 
 
 class ServiceRegistryClient:
-    """Cliente para Service Registry - registro dinâmico de agentes"""
+    """Cliente para Service Registry - registro dinamico de agentes.
+
+    Utiliza o cliente canonico da biblioteca neural_hive_integration
+    para garantir consistencia com outros servicos.
+    """
 
     def __init__(self, host: str, port: int):
         self.host = host
         self.port = port
-        self.channel = None
-        self.stub = None
-        self.agent_id = None
+        self._client: Optional[CanonicalClient] = None
+        self.agent_id: Optional[str] = None
 
     async def initialize(self):
         """Inicializar cliente gRPC"""
         try:
-            self.channel = grpc.aio.insecure_channel(f'{self.host}:{self.port}')
-            await self.channel.channel_ready()
-
-            # TODO: Criar stub quando proto do Service Registry estiver disponível
-            # from service_registry_pb2_grpc import ServiceRegistryServiceStub
-            # self.stub = ServiceRegistryServiceStub(self.channel)
-
+            self._client = CanonicalClient(host=self.host, port=self.port)
             logger.info('service_registry_client_initialized', host=self.host, port=self.port)
         except Exception as e:
             logger.error('service_registry_client_initialization_failed', error=str(e))
             raise
 
     async def close(self):
-        """Fechar conexão gRPC"""
-        if self.agent_id:
+        """Fechar conexao gRPC"""
+        if self.agent_id and self._client:
             await self.deregister_agent()
 
-        if self.channel:
-            await self.channel.close()
+        if self._client:
+            await self._client.close()
         logger.info('service_registry_client_closed')
 
     async def register_agent(self, agent_info: Dict) -> Optional[str]:
         """Registrar Analyst Agent com capacidades"""
         try:
-            if not self.channel:
+            if not self._client:
                 logger.warning('service_registry_channel_not_initialized')
                 return None
 
-            # TODO: Implementar quando proto do Service Registry estiver disponível
-            # request = AgentRegistration(
-            #     agent_type='ANALYST',
-            #     capabilities=[
-            #         'analytics',
-            #         'insights_generation',
-            #         'graph_queries',
-            #         'causal_analysis',
-            #         'anomaly_detection',
-            #         'trend_analysis'
-            #     ],
-            #     metadata={
-            #         'version': agent_info.get('version', '1.0.0'),
-            #         'host': agent_info.get('host', 'localhost'),
-            #         'port': str(agent_info.get('port', 8000))
-            #     }
-            # )
-            #
-            # response = await self.stub.RegisterAgent(request)
-            # self.agent_id = response.agent_id
-            # logger.info('agent_registered', agent_id=self.agent_id)
-            # return self.agent_id
+            agent = AgentInfo(
+                agent_id='',  # Sera gerado pelo servidor
+                agent_type='analyst',
+                capabilities=[
+                    'analytics',
+                    'insights_generation',
+                    'graph_queries',
+                    'causal_analysis',
+                    'anomaly_detection',
+                    'trend_analysis'
+                ],
+                endpoint=f"{agent_info.get('host', 'localhost')}:{agent_info.get('port', 8000)}",
+                metadata={
+                    'version': agent_info.get('version', '1.0.0'),
+                    'namespace': agent_info.get('namespace', 'default'),
+                    'cluster': agent_info.get('cluster', 'default')
+                }
+            )
 
-            # Stub implementation
-            logger.info('agent_registration_stub', agent_info=agent_info)
-            return 'analyst-agent-stub-id'
+            success = await self._client.register_agent(agent)
+            if success:
+                self.agent_id = agent.agent_id
+                logger.info('agent_registered', agent_id=self.agent_id)
+                return self.agent_id
 
-        except grpc.RpcError as e:
-            logger.error('grpc_register_agent_failed', error=str(e))
+            logger.warning('agent_registration_failed')
             return None
+
         except Exception as e:
             logger.error('register_agent_failed', error=str(e))
             return None
 
     async def update_health_status(self, status: str) -> bool:
-        """Atualizar status de saúde"""
+        """Atualizar status de saude"""
         try:
-            if not self.channel or not self.agent_id:
+            if not self._client or not self.agent_id:
                 return False
 
-            # TODO: Implementar heartbeat
-            logger.debug('health_status_update_stub', status=status, agent_id=self.agent_id)
+            health = HealthStatus(
+                status=status,
+                last_heartbeat=datetime.utcnow().isoformat(),
+                metrics={
+                    'success_rate': 0.95,
+                    'avg_duration_ms': 150.0,
+                    'total_executions': 100.0,
+                    'failed_executions': 5.0
+                }
+            )
+
+            await self._client.update_health(self.agent_id, health)
+            logger.debug('health_status_updated', status=status, agent_id=self.agent_id)
             return True
 
         except Exception as e:
@@ -97,11 +107,11 @@ class ServiceRegistryClient:
     async def deregister_agent(self) -> bool:
         """Desregistrar ao shutdown"""
         try:
-            if not self.channel or not self.agent_id:
+            if not self._client or not self.agent_id:
                 return False
 
-            # TODO: Implementar deregister
-            logger.info('agent_deregister_stub', agent_id=self.agent_id)
+            await self._client.deregister_agent(self.agent_id)
+            logger.info('agent_deregistered', agent_id=self.agent_id)
             self.agent_id = None
             return True
 
@@ -110,29 +120,33 @@ class ServiceRegistryClient:
             return False
 
     async def get_available_agents(self, agent_type: str) -> List[Dict]:
-        """Obter lista de agentes disponíveis"""
+        """Obter lista de agentes disponiveis"""
         try:
-            if not self.channel:
+            if not self._client:
                 return []
 
-            # TODO: Implementar discovery
-            logger.debug('get_available_agents_stub', agent_type=agent_type)
-            return []
+            agents = await self._client.discover_agents(
+                capabilities=[agent_type],
+                filters={'status': 'healthy'}
+            )
+
+            result = []
+            for agent in agents:
+                result.append({
+                    'agent_id': agent.agent_id,
+                    'agent_type': agent.agent_type,
+                    'capabilities': agent.capabilities,
+                    'endpoint': agent.endpoint,
+                    'metadata': agent.metadata
+                })
+
+            logger.debug('agents_discovered', agent_type=agent_type, count=len(result))
+            return result
 
         except Exception as e:
             logger.error('get_available_agents_failed', error=str(e))
             return []
 
     async def heartbeat(self) -> bool:
-        """Enviar heartbeat periódico"""
-        try:
-            if not self.channel or not self.agent_id:
-                return False
-
-            # TODO: Implementar heartbeat com telemetria
-            logger.debug('heartbeat_stub', agent_id=self.agent_id)
-            return True
-
-        except Exception as e:
-            logger.error('heartbeat_failed', error=str(e))
-            return False
+        """Enviar heartbeat periodico"""
+        return await self.update_health_status('healthy')

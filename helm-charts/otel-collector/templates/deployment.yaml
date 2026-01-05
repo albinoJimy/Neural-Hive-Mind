@@ -16,9 +16,15 @@ Construir volumes e volumeMounts para config
 */}}
 {{- $volumes := list }}
 {{- $volumes = append $volumes (dict "name" "config" "configMap" (dict "name" (printf "%s-config" $ctx.fullname) "items" (list (dict "key" "otelcol.yaml" "path" "otelcol.yaml")))) }}
+{{- if .Values.tls.enabled }}
+{{- $volumes = append $volumes (dict "name" "otel-tls-certs" "secret" (dict "secretName" .Values.tls.certSecret "items" (list (dict "key" "tls.crt" "path" "tls.crt") (dict "key" "tls.key" "path" "tls.key") (dict "key" "ca.crt" "path" "ca.crt")))) }}
+{{- end }}
 
 {{- $volumeMounts := list }}
 {{- $volumeMounts = append $volumeMounts (dict "name" "config" "mountPath" "/conf" "readOnly" true) }}
+{{- if .Values.tls.enabled }}
+{{- $volumeMounts = append $volumeMounts (dict "name" "otel-tls-certs" "mountPath" .Values.tls.mountPath "readOnly" true) }}
+{{- end }}
 
 {{/*
 Construir valores modificados para o template comum

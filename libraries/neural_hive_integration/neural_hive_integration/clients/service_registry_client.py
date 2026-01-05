@@ -97,6 +97,7 @@ class ServiceRegistryClient:
                     'worker': service_registry_pb2.WORKER,
                     'scout': service_registry_pb2.SCOUT,
                     'guard': service_registry_pb2.GUARD,
+                    'analyst': service_registry_pb2.ANALYST if hasattr(service_registry_pb2, 'ANALYST') else service_registry_pb2.WORKER,
                     'specialist': service_registry_pb2.SPECIALIST if hasattr(service_registry_pb2, 'SPECIALIST') else service_registry_pb2.WORKER,
                 }
                 agent_type_enum = agent_type_map.get(
@@ -223,6 +224,9 @@ class ServiceRegistryClient:
             service_registry_pb2.SCOUT: 'scout',
             service_registry_pb2.GUARD: 'guard',
         }
+        # Adicionar ANALYST se disponível no proto
+        if hasattr(service_registry_pb2, 'ANALYST'):
+            type_map[service_registry_pb2.ANALYST] = 'analyst'
         # Adicionar SPECIALIST se disponível no proto
         if hasattr(service_registry_pb2, 'SPECIALIST'):
             type_map[service_registry_pb2.SPECIALIST] = 'specialist'

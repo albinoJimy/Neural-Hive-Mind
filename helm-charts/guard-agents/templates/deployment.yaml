@@ -3,7 +3,7 @@
 
 {{- $envFrom := list }}
 {{- $envFrom = append $envFrom (dict "configMapRef" (dict "name" (printf "%s-config" (include "guard-agents.fullname" .)))) }}
-{{- if or .Values.secrets.kafkaSaslUsername .Values.secrets.kafkaSaslPassword .Values.secrets.mongodbPassword .Values.secrets.redisPassword }}
+{{- if or .Values.secrets.kafkaSaslUsername .Values.secrets.kafkaSaslPassword .Values.secrets.mongodbPassword .Values.secrets.redisPassword .Values.secrets.keycloakAdminClientSecret }}
 {{- $envFrom = append $envFrom (dict "secretRef" (dict "name" (include "guard-agents.secretName" .))) }}
 {{- end }}
 

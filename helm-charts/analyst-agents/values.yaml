@@ -146,6 +146,11 @@ deployment:
 observability:
   prometheus:
     enabled: true
+  # TLS Configuration para OpenTelemetry Exporter
+  tls:
+    enabled: false  # Habilitar em produção
+    certSecret: "neural-hive-otel-client-certs"
+    mountPath: "/etc/otel-tls"
 
 podSecurityContext:
   runAsNonRoot: true

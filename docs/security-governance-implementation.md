@@ -629,6 +629,160 @@ ECR_REGISTRY_URL=$(terraform output -raw registry_urls | jq -r 'values[0]' | cut
 sed -i "s|ECR_REGISTRY_URL_PLACEHOLDER|${ECR_REGISTRY_URL}|g" policies/constraints/enforce-signed-images.yaml
 ```
 
+## Guard Agents - Pipeline de Incidentes E1-E6
+
+### Visão Geral
+
+O Guard Agents implementa um pipeline completo de governança de segurança em 6 etapas (E1-E6) para detecção, classificação, enforcement, remediação, validação e documentação de incidentes de segurança.
+
+### Etapas do Pipeline
+
+```mermaid
+graph LR
+    E1[E1: Detecção] --> E2[E2: Classificação]
+    E2 --> E3[E3: Enforcement]
+    E3 --> E4[E4: Remediação]
+    E4 --> E5[E5: Validação SLA]
+    E5 --> E6[E6: Post-Mortem]
+```
+
+#### E1 - Detecção de Anomalias (ThreatDetector)
+- Detecção de acesso não autorizado (brute force, tentativas de login)
+- Detecção de ataques DoS (alto volume de requisições)
+- Detecção de abuso de recursos (CPU/memória anormais)
+- Integração com Redis para rate limiting e deduplicação
+
+#### E2 - Classificação de Incidentes (IncidentClassifier)
+- Classificação de severidade: critical, high, medium, low, info
+- Mapeamento automático para runbooks (RB-SEC-*, RB-AVAIL-*, RB-PERF-*)
+- Persistência em MongoDB (security_incidents collection)
+
+#### E3 - Enforcement de Políticas (PolicyEnforcer)
+- Integração com OPA para validação de políticas
+- Integração com Istio para controle de tráfego
+- **Integração com Keycloak Admin API** para revogação de tokens/sessões
+- Ações disponíveis:
+  - `revoke_access`: Revoga sessões e tokens via Keycloak
+  - `block_ip`: Bloqueia IP via NetworkPolicy
+  - `rate_limit`: Aplica rate limiting via Istio
+
+#### E4 - Remediação Automatizada (RemediationCoordinator)
+- **Operações Kubernetes integradas**:
+  - `restart_pod`: Reinicia pods comprometidos
+  - `scale_deployment`: Escala deployments (up/down)
+  - `rollback_deployment`: Rollback para revisão anterior
+  - `apply_network_policy`: Isola ou restaura conectividade
+- Coordenação com Self-Healing Engine
+- Persistência em MongoDB (remediation_actions collection)
+
+#### E5 - Validação de SLA
+- Cálculo de MTTD (Mean Time to Detect): target < 15s
+- Cálculo de MTTR (Mean Time to Recover): target < 90s
+- Validação de recuperação de serviços
+
+#### E6 - Documentação de Lições Aprendidas
+- **Persistência automática de post-mortems** em MongoDB (incident_postmortems collection)
+- Estrutura do post-mortem:
+  - Resumo do incidente
+  - Root cause analysis
+  - Ações tomadas (enforcement + remediação)
+  - Métricas de SLA (MTTD, MTTR)
+  - Recomendações
+
+### Integrações Implementadas
+
+#### Keycloak Admin API
+```yaml
+# Configuração Helm values.yaml
+config:
+  keycloak:
+    url: http://keycloak.auth.svc.cluster.local:8080
+    realm: neural-hive
+    adminClientId: guard-agents-admin
+    adminTimeoutSeconds: 10
+    tokenCacheTtlSeconds: 300
+```
+
+**Operações suportadas**:
+- `revoke_user_sessions(user_id)`: Revoga todas as sessões ativas
+- `disable_user(user_id)`: Desabilita conta de usuário
+- `enable_user(user_id)`: Reabilita conta de usuário
+- `logout_user(user_id)`: Força logout do usuário
+- `get_user_sessions(user_id)`: Lista sessões ativas
+
+#### Kubernetes Client (Remediação)
+```python
+# Operações de remediação
+k8s_client.delete_pod(pod_name, namespace)
+k8s_client.scale_deployment(deployment_name, replicas, namespace)
+k8s_client.rollback_deployment(deployment_name, revision, namespace)
+k8s_client.apply_network_policy(policy_name, policy_spec, namespace)
+k8s_client.patch_pod_labels(pod_name, labels, namespace)
+```
+
+#### MongoDB (Post-Mortems)
+```python
+# Persistência de post-mortems
+mongodb_client.insert_postmortem({
+    "incident_id": "INC-2024-001",
+    "threat_type": "unauthorized_access",
+    "severity": "high",
+    "summary": "...",
+    "root_cause": "...",
+    "actions_taken": [...],
+    "sla_performance": {"met": True, "recovery_time_s": 45.5},
+    "recommendations": [...]
+})
+```
+
+### Métricas Prometheus
+
+#### KeycloakAdminClient
+- `keycloak_admin_operations_total{operation, status}`: Total de operações
+- `keycloak_admin_operation_duration_seconds{operation}`: Latência por operação
+- `keycloak_admin_token_refresh_total{status}`: Renovações de token
+
+#### KubernetesClient (Remediação)
+- `k8s_remediation_operations_total{operation, status}`: Total de operações
+- `k8s_remediation_operation_duration_seconds{operation}`: Latência por operação
+
+#### IncidentOrchestrator
+- `guard_agents_incidents_total{threat_type, severity}`: Total de incidentes
+- `guard_agents_incident_duration_seconds`: Tempo total do pipeline
+- `guard_agents_postmortems_total{status}`: Post-mortems gerados
+
+### Secrets Kubernetes
+
+Os secrets para Guard Agents são gerenciados via script centralizado:
+
+```bash
+# Criar secrets (inclui KEYCLOAK_ADMIN_CLIENT_SECRET)
+./scripts/security.sh secrets create --phase 2
+
+# Secrets incluídos:
+# - MONGODB_PASSWORD
+# - REDIS_PASSWORD
+# - KAFKA_SASL_USERNAME
+# - KAFKA_SASL_PASSWORD
+# - KEYCLOAK_ADMIN_CLIENT_SECRET
+```
+
+### Testes
+
+#### Testes de Integração
+- `test_keycloak_admin_integration.py`: Testes do KeycloakAdminClient
+- `test_kubernetes_remediation_integration.py`: Testes de operações K8s
+- `test_mongodb_postmortems_integration.py`: Testes de persistência
+
+#### Testes E2E
+- `test_incident_pipeline_e2e.py`: Testes do pipeline completo E1-E6
+
+```bash
+# Executar testes
+cd services/guard-agents
+pytest tests/ -v
+```
+
 ## Próximos Passos
 
 ### Melhorias Planejadas

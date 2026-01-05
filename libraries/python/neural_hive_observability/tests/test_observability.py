@@ -53,6 +53,108 @@ class TestObservabilityConfig:
             assert config.neural_hive_component == "test-component"
             assert config.log_level == "DEBUG"
 
+    def test_config_tls_defaults(self):
+        """Testa valores padrão de configuração TLS."""
+        config = ObservabilityConfig(
+            service_name="test-service",
+            neural_hive_component="test"
+        )
+
+        assert config.otel_tls_enabled is False
+        assert config.otel_tls_cert_path is None
+        assert config.otel_tls_key_path is None
+        assert config.otel_tls_ca_cert_path is None
+        assert config.otel_tls_insecure_skip_verify is False
+
+    def test_config_tls_from_env(self):
+        """Testa configuração TLS via variáveis de ambiente."""
+        with patch.dict('os.environ', {
+            'OTEL_EXPORTER_TLS_ENABLED': 'true',
+            'OTEL_EXPORTER_TLS_CERT_PATH': '/etc/tls/cert.pem',
+            'OTEL_EXPORTER_TLS_KEY_PATH': '/etc/tls/key.pem',
+            'OTEL_EXPORTER_TLS_CA_CERT_PATH': '/etc/tls/ca.crt',
+            'OTEL_EXPORTER_TLS_INSECURE_SKIP_VERIFY': 'false'
+        }):
+            config = ObservabilityConfig(
+                service_name="test-service",
+                neural_hive_component="test"
+            )
+
+            assert config.otel_tls_enabled is True
+            assert config.otel_tls_cert_path == '/etc/tls/cert.pem'
+            assert config.otel_tls_key_path == '/etc/tls/key.pem'
+            assert config.otel_tls_ca_cert_path == '/etc/tls/ca.crt'
+            assert config.otel_tls_insecure_skip_verify is False
+
+    def test_config_tls_boolean_conversion(self):
+        """Testa conversão de boolean para TLS enabled."""
+        with patch.dict('os.environ', {
+            'OTEL_EXPORTER_TLS_ENABLED': '1'
+        }):
+            config = ObservabilityConfig(
+                service_name="test-service",
+                neural_hive_component="test"
+            )
+            assert config.otel_tls_enabled is True
+
+        with patch.dict('os.environ', {
+            'OTEL_EXPORTER_TLS_ENABLED': 'yes'
+        }):
+            config = ObservabilityConfig(
+                service_name="test-service",
+                neural_hive_component="test"
+            )
+            assert config.otel_tls_enabled is True
+
+        with patch.dict('os.environ', {
+            'OTEL_EXPORTER_TLS_ENABLED': 'false'
+        }):
+            config = ObservabilityConfig(
+                service_name="test-service",
+                neural_hive_component="test"
+            )
+            assert config.otel_tls_enabled is False
+
+    def test_config_otel_exporter_certificate_env(self):
+        """Testa OTEL_EXPORTER_CERTIFICATE como alias para CA cert path."""
+        with patch.dict('os.environ', {
+            'OTEL_EXPORTER_CERTIFICATE': '/etc/tls/ca.crt'
+        }):
+            config = ObservabilityConfig(
+                service_name="test-service",
+                neural_hive_component="test"
+            )
+            # OTEL_EXPORTER_CERTIFICATE should be aliased to otel_tls_ca_cert_path
+            assert config.otel_exporter_certificate == '/etc/tls/ca.crt'
+            assert config.otel_tls_ca_cert_path == '/etc/tls/ca.crt'
+
+    def test_config_otel_exporter_certificate_priority(self):
+        """Testa que OTEL_EXPORTER_TLS_CA_CERT_PATH tem prioridade sobre OTEL_EXPORTER_CERTIFICATE."""
+        with patch.dict('os.environ', {
+            'OTEL_EXPORTER_TLS_CA_CERT_PATH': '/etc/tls/priority-ca.crt',
+            'OTEL_EXPORTER_CERTIFICATE': '/etc/tls/fallback-ca.crt'
+        }):
+            config = ObservabilityConfig(
+                service_name="test-service",
+                neural_hive_component="test"
+            )
+            # TLS_CA_CERT_PATH should have priority
+            assert config.otel_tls_ca_cert_path == '/etc/tls/priority-ca.crt'
+            # But the alias still has its value
+            assert config.otel_exporter_certificate == '/etc/tls/fallback-ca.crt'
+
+    def test_config_otel_exporter_certificate_fallback(self):
+        """Testa que OTEL_EXPORTER_CERTIFICATE funciona como fallback."""
+        with patch.dict('os.environ', {
+            'OTEL_EXPORTER_CERTIFICATE': '/etc/tls/ca.crt'
+        }, clear=False):
+            config = ObservabilityConfig(
+                service_name="test-service",
+                neural_hive_component="test"
+            )
+            # When TLS_CA_CERT_PATH is not set, OTEL_EXPORTER_CERTIFICATE should be used
+            assert config.otel_tls_ca_cert_path == '/etc/tls/ca.crt'
+
 
 class TestInitObservability:
     """Testes para inicialização da observabilidade."""

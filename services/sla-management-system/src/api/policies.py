@@ -32,11 +32,35 @@ class FreezeListResponse(BaseModel):
 
 # Dependency injection
 def get_policy_enforcer() -> PolicyEnforcer:
-    raise NotImplementedError
+    """
+    Returns the PolicyEnforcer instance from application state.
+
+    In production, this is overridden via FastAPI dependency_overrides in main.py.
+    This fallback accesses the module-level singleton directly.
+    """
+    from .. import main
+    if main.policy_enforcer is None:
+        raise HTTPException(
+            status_code=503,
+            detail="PolicyEnforcer not initialized. Service is starting up."
+        )
+    return main.policy_enforcer
 
 
 def get_postgresql_client() -> PostgreSQLClient:
-    raise NotImplementedError
+    """
+    Returns the PostgreSQLClient instance from application state.
+
+    In production, this is overridden via FastAPI dependency_overrides in main.py.
+    This fallback accesses the module-level singleton directly.
+    """
+    from .. import main
+    if main.postgresql_client is None:
+        raise HTTPException(
+            status_code=503,
+            detail="PostgreSQLClient not initialized. Service is starting up."
+        )
+    return main.postgresql_client
 
 
 @router.post("", response_model=PolicyCreateResponse, status_code=201)

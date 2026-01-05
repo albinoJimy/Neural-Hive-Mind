@@ -37,6 +37,10 @@ class LoadTestConfig:
     test_duration_seconds: int = 60
     ramp_up_seconds: int = 10
     request_timeout: int = 30
+    # Rate limiting test config
+    test_rate_limit: bool = False
+    rate_limit_user_id: str = "test_user"
+    expected_rate_limit: int = 1000
 
 
 @dataclass
@@ -348,6 +352,53 @@ class GatewayLoadTester:
 
         return all_results
 
+    async def test_rate_limiting(self) -> Dict:
+        """
+        Testar comportamento de rate limiting
+
+        Envia requisicoes ate exceder o limite e valida:
+        - Headers de rate limit (X-RateLimit-*)
+        - Status code 429
+        - Retry-After header
+        """
+        logger.info(f"Testing rate limiting for user {self.config.rate_limit_user_id}")
+        logger.info(f"Expected limit: {self.config.expected_rate_limit} requests/minute")
+
+        results = []
+        rate_limit_hit = False
+        rate_limit_headers = {}
+
+        # Enviar requisicoes ate atingir limite + margem
+        max_requests = self.config.expected_rate_limit + 100
+
+        for i in range(max_requests):
+            result = await self.send_text_request(i)
+            results.append(result)
+
+            # Verificar headers de rate limit na resposta
+            if result.status_code == 429:
+                rate_limit_hit = True
+                logger.info(f"Rate limit hit at request {i+1}")
+                break
+
+            # Log a cada 100 requisicoes
+            if (i + 1) % 100 == 0:
+                logger.info(f"Sent {i + 1} requests, last status: {result.status_code}")
+
+        # Calcular metricas
+        successful = [r for r in results if r.success]
+        rate_limited = [r for r in results if r.status_code == 429]
+
+        return {
+            'rate_limit_hit': rate_limit_hit,
+            'requests_before_limit': len(successful),
+            'total_requests': len(results),
+            'expected_limit': self.config.expected_rate_limit,
+            'rate_limited_count': len(rate_limited),
+            'within_expected_range': abs(len(successful) - self.config.expected_rate_limit) <= 10,
+            'success': rate_limit_hit and len(successful) >= self.config.expected_rate_limit * 0.9
+        }
+
     def calculate_statistics(self, results: List[RequestResult]) -> LoadTestResults:
         """Calcular estatísticas dos resultados"""
         if not results:
@@ -514,6 +565,10 @@ async def main():
     parser.add_argument('--timeout', type=int, default=30, help='Request timeout in seconds')
     parser.add_argument('--output', help='Output file for JSON results')
     parser.add_argument('--verbose', '-v', action='store_true', help='Verbose logging')
+    # Rate limiting test arguments
+    parser.add_argument('--test-rate-limit', action='store_true', help='Test rate limiting behavior')
+    parser.add_argument('--rate-limit-user', default='test_user', help='User ID for rate limit testing')
+    parser.add_argument('--expected-rate-limit', type=int, default=1000, help='Expected rate limit (requests/minute)')
 
     args = parser.parse_args()
 
@@ -526,26 +581,55 @@ async def main():
         total_requests=args.requests,
         concurrent_requests=args.concurrent,
         ramp_up_seconds=args.ramp_up,
-        request_timeout=args.timeout
+        request_timeout=args.timeout,
+        test_rate_limit=args.test_rate_limit,
+        rate_limit_user_id=args.rate_limit_user,
+        expected_rate_limit=args.expected_rate_limit
     )
 
     tester = GatewayLoadTester(config)
-    results = await tester.run_test()
 
-    # Print results
-    print_results(results)
+    # Rate limiting test mode
+    if args.test_rate_limit:
+        await tester.setup_session()
+        try:
+            rate_limit_results = await tester.test_rate_limiting()
 
-    # Save to file if requested
-    if args.output:
-        with open(args.output, 'w') as f:
-            json.dump(asdict(results), f, indent=2, default=str)
-        print(f"\nResults saved to {args.output}")
+            print("\n" + "="*60)
+            print("         RATE LIMITING TEST RESULTS")
+            print("="*60)
+            print(f"Rate limit hit: {rate_limit_results['rate_limit_hit']}")
+            print(f"Requests before limit: {rate_limit_results['requests_before_limit']}")
+            print(f"Expected limit: {rate_limit_results['expected_limit']}")
+            print(f"Total requests sent: {rate_limit_results['total_requests']}")
+            print(f"Within expected range: {rate_limit_results['within_expected_range']}")
 
-    # Exit with error code if test failed
-    if results.success_rate < 0.95:
-        exit(1)
+            if rate_limit_results['success']:
+                print("\n🟢 Rate limiting test PASSED")
+                exit(0)
+            else:
+                print("\n🔴 Rate limiting test FAILED")
+                exit(1)
+        finally:
+            await tester.cleanup_session()
     else:
-        exit(0)
+        # Normal load test
+        results = await tester.run_test()
+
+        # Print results
+        print_results(results)
+
+        # Save to file if requested
+        if args.output:
+            with open(args.output, 'w') as f:
+                json.dump(asdict(results), f, indent=2, default=str)
+            print(f"\nResults saved to {args.output}")
+
+        # Exit with error code if test failed
+        if results.success_rate < 0.95:
+            exit(1)
+        else:
+            exit(0)
 
 
 if __name__ == "__main__":

@@ -118,6 +118,11 @@ class WorkerAgentMetrics:
             'Total de inicializações do consumer Kafka'
         )
 
+        self.kafka_producer_initialized_total = Counter(
+            'worker_agent_kafka_producer_initialized_total',
+            'Total de inicializações do producer Kafka'
+        )
+
         self.kafka_consumer_errors_total = Counter(
             'worker_agent_kafka_consumer_errors_total',
             'Total de erros no consumer Kafka',

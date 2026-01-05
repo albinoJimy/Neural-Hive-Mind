@@ -31,9 +31,10 @@ class AuthenticationError(Exception):
 class AuthMiddleware(BaseHTTPMiddleware):
     """Middleware de autenticação híbrida OAuth2 + mTLS"""
 
-    def __init__(self, app, exclude_paths: Optional[List[str]] = None):
+    def __init__(self, app, exclude_paths: Optional[List[str]] = None, rate_limiter=None):
         super().__init__(app)
         self.settings = get_settings()
+        self.rate_limiter = rate_limiter  # Injetar rate limiter
         self.exclude_paths = exclude_paths or [
             "/health",
             "/ready",
@@ -76,16 +77,23 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     f"via {'JWT+mTLS' if mtls_context else 'JWT'}"
                 )
 
-                return await call_next(request)
+                # 5. Processar requisição e capturar resposta
+                response = await call_next(request)
+
+                # 6. Adicionar headers de rate limit à resposta de sucesso
+                response = self._add_rate_limit_headers_to_response(request, response)
+
+                return response
 
         except AuthenticationError as e:
             logger.warning(f"Falha na autenticação para {request.url.path}: {e.message}")
-            return self._create_auth_error_response(e)
+            return self._create_auth_error_response(e, request)
 
         except Exception as e:
             logger.error(f"Erro interno na autenticação: {e}")
             return self._create_auth_error_response(
-                AuthenticationError("Erro interno de autenticação", status.HTTP_500_INTERNAL_SERVER_ERROR)
+                AuthenticationError("Erro interno de autenticação", status.HTTP_500_INTERNAL_SERVER_ERROR),
+                request
             )
 
     def _should_skip_auth(self, path: str) -> bool:
@@ -208,11 +216,29 @@ class AuthMiddleware(BaseHTTPMiddleware):
             if not user_context.get("client_id", "").startswith("service-"):
                 raise AuthenticationError("Acesso negado: endpoint interno")
 
-        # Rate limiting por usuário (poderia integrar com Redis)
+        # Rate limiting por usuário
         user_id = user_context.get("user_id")
-        if user_id:
-            # TODO: Implementar rate limiting per user
-            pass
+        tenant_id = user_context.get("tenant_id") or user_context.get("client_id")
+
+        if user_id and self.rate_limiter:
+            rate_limit_result = await self.rate_limiter.check_rate_limit(
+                user_id=user_id,
+                tenant_id=tenant_id,
+                endpoint=path
+            )
+
+            # Armazenar headers de rate limit para adicionar na resposta
+            request.state.rate_limit_headers = {
+                "X-RateLimit-Limit": str(rate_limit_result.limit),
+                "X-RateLimit-Remaining": str(rate_limit_result.remaining),
+                "X-RateLimit-Reset": str(rate_limit_result.reset_at)
+            }
+
+            if not rate_limit_result.allowed:
+                raise AuthenticationError(
+                    f"Rate limit excedido. Tente novamente em {rate_limit_result.retry_after}s",
+                    status.HTTP_429_TOO_MANY_REQUESTS
+                )
 
     def _add_context_headers(
         self,
@@ -242,13 +268,37 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 "X-Auth-Method": "oauth2-jwt+mtls"
             })
 
-    def _create_auth_error_response(self, error: AuthenticationError) -> Response:
+    def _add_rate_limit_headers_to_response(
+        self,
+        request: Request,
+        response: Response
+    ) -> Response:
+        """Adicionar headers de rate limit à resposta de sucesso"""
+        if hasattr(request, 'state') and hasattr(request.state, 'rate_limit_headers'):
+            rate_limit_headers = request.state.rate_limit_headers
+            if rate_limit_headers:
+                for header_name, header_value in rate_limit_headers.items():
+                    response.headers[header_name] = header_value
+        return response
+
+    def _create_auth_error_response(self, error: AuthenticationError, request: Optional[Request] = None) -> Response:
         """Criar resposta de erro de autenticação"""
+        import re
 
         headers = {
             "WWW-Authenticate": f'Bearer realm="{self.settings.keycloak_realm}"',
             "X-Auth-Error": error.message
         }
+
+        # Adicionar headers de rate limit se disponíveis
+        if request and hasattr(request, 'state') and hasattr(request.state, 'rate_limit_headers'):
+            headers.update(request.state.rate_limit_headers)
+
+        # Se erro 429, adicionar Retry-After header
+        if error.status_code == status.HTTP_429_TOO_MANY_REQUESTS:
+            match = re.search(r'(\d+)s', error.message)
+            if match:
+                headers["Retry-After"] = match.group(1)
 
         # Adicionar informações de debugging em desenvolvimento
         if self.settings.environment == "dev":
@@ -336,7 +386,8 @@ class OptionalAuthMiddleware(BaseHTTPMiddleware):
 
 def create_auth_middleware(
     exclude_paths: Optional[List[str]] = None,
-    optional: bool = False
+    optional: bool = False,
+    rate_limiter=None
 ) -> BaseHTTPMiddleware:
     """Factory para criar middleware de autenticação"""
 
@@ -344,6 +395,11 @@ def create_auth_middleware(
         return OptionalAuthMiddleware
 
     def middleware_factory(app):
-        return AuthMiddleware(app, exclude_paths)
+        # Se rate_limiter nao foi passado, tentar obter do singleton
+        rl = rate_limiter
+        if rl is None:
+            from middleware.rate_limiter import get_rate_limiter
+            rl = get_rate_limiter()
+        return AuthMiddleware(app, exclude_paths, rate_limiter=rl)
 
     return middleware_factory

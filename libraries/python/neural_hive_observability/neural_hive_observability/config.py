@@ -31,6 +31,15 @@ class ObservabilityConfig:
     # OpenTelemetry
     otel_endpoint: str = "http://opentelemetry-collector:4317"
 
+    # OpenTelemetry TLS Configuration
+    otel_tls_enabled: bool = False
+    otel_tls_cert_path: Optional[str] = None
+    otel_tls_key_path: Optional[str] = None
+    otel_tls_ca_cert_path: Optional[str] = None
+    otel_tls_insecure_skip_verify: bool = False  # Para desenvolvimento apenas
+    # OTEL_EXPORTER_CERTIFICATE - alias for CA cert path (backward compatibility)
+    otel_exporter_certificate: Optional[str] = None
+
     # Métricas Prometheus
     prometheus_port: int = 8000
 
@@ -61,6 +70,11 @@ class ObservabilityConfig:
         # Aplicar overrides de variáveis de ambiente
         self._apply_env_overrides()
 
+        # Resolve OTEL_EXPORTER_CERTIFICATE as alias for CA cert path
+        # Priority: otel_tls_ca_cert_path > otel_exporter_certificate
+        if not self.otel_tls_ca_cert_path and self.otel_exporter_certificate:
+            self.otel_tls_ca_cert_path = self.otel_exporter_certificate
+
     def _apply_env_overrides(self):
         """Aplica overrides de variáveis de ambiente."""
         env_mappings = {
@@ -71,14 +85,27 @@ class ObservabilityConfig:
             "LOG_LEVEL": "log_level",
             "OTEL_EXPORTER_OTLP_ENDPOINT": "otel_endpoint",
             "PROMETHEUS_PORT": "prometheus_port",
+            # TLS Configuration
+            "OTEL_EXPORTER_TLS_ENABLED": "otel_tls_enabled",
+            "OTEL_EXPORTER_TLS_CERT_PATH": "otel_tls_cert_path",
+            "OTEL_EXPORTER_TLS_KEY_PATH": "otel_tls_key_path",
+            "OTEL_EXPORTER_TLS_CA_CERT_PATH": "otel_tls_ca_cert_path",
+            "OTEL_EXPORTER_TLS_INSECURE_SKIP_VERIFY": "otel_tls_insecure_skip_verify",
+            # OTEL_EXPORTER_CERTIFICATE - alias for CA cert (standard OTEL convention)
+            "OTEL_EXPORTER_CERTIFICATE": "otel_exporter_certificate",
         }
+
+        # Campos que devem ser convertidos para inteiro
+        int_fields = {"prometheus_port"}
+        # Campos que devem ser convertidos para booleano
+        bool_fields = {"enable_health_checks", "otel_tls_enabled", "otel_tls_insecure_skip_verify"}
 
         for env_var, attr_name in env_mappings.items():
             env_value = os.getenv(env_var)
             if env_value:
-                if attr_name == "prometheus_port":
+                if attr_name in int_fields:
                     setattr(self, attr_name, int(env_value))
-                elif attr_name == "enable_health_checks":
+                elif attr_name in bool_fields:
                     setattr(self, attr_name, env_value.lower() in ("true", "1", "yes"))
                 else:
                     setattr(self, attr_name, env_value)

@@ -8,6 +8,7 @@ enum AgentType {
   WORKER = 1;
   SCOUT = 2;
   GUARD = 3;
+  ANALYST = 4;
 }
 
 // Enumeração de status de saúde

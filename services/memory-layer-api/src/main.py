@@ -1,6 +1,7 @@
 """
 Memory Layer API - Unified access to multicamadas memory
 """
+import asyncio
 import structlog
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -11,6 +12,8 @@ from typing import Dict, Any
 from src.config.settings import Settings
 from src.clients.clickhouse_client import ClickHouseClient
 from src.clients.unified_memory_client import UnifiedMemoryClient
+from src.clients.kafka_sync_producer import KafkaSyncProducer
+from src.consumers.sync_event_consumer import SyncEventConsumer
 from src.services.data_quality_monitor import DataQualityMonitor
 from src.services.lineage_tracker import LineageTracker
 from src.services.retention_policy_manager import RetentionPolicyManager
@@ -101,16 +104,45 @@ async def lifespan(app: FastAPI):
         logger.warning("ClickHouse initialization failed, continuing without it", error=str(e))
         app_state['clickhouse_client'] = None
 
-    # Initialize unified memory client
+    # Kafka sync producer (para sincronização em tempo real)
+    kafka_producer = None
+    if settings.enable_realtime_sync:
+        try:
+            kafka_producer = KafkaSyncProducer(settings)
+            await kafka_producer.start()
+            app_state['kafka_producer'] = kafka_producer
+            logger.info("Kafka sync producer initialized")
+        except Exception as e:
+            logger.warning("Kafka producer initialization failed, continuing without it", error=str(e))
+            app_state['kafka_producer'] = None
+
+    # Initialize unified memory client (com Kafka producer opcional)
     unified_client = UnifiedMemoryClient(
         redis_client,
         mongodb_client,
         neo4j_client,
         clickhouse_client,
-        settings
+        settings,
+        kafka_producer=kafka_producer
     )
     app_state['unified_client'] = unified_client
     logger.info("Unified Memory client initialized")
+
+    # Kafka sync consumer (consome eventos e insere no ClickHouse)
+    sync_consumer = None
+    if settings.enable_realtime_sync and clickhouse_client:
+        try:
+            sync_consumer = SyncEventConsumer(
+                settings,
+                clickhouse_client,
+                dlq_producer=kafka_producer  # Usa mesmo producer para DLQ
+            )
+            await sync_consumer.start()
+            app_state['sync_consumer'] = sync_consumer
+            logger.info("Kafka sync consumer initialized")
+        except Exception as e:
+            logger.warning("Kafka consumer initialization failed, continuing without it", error=str(e))
+            app_state['sync_consumer'] = None
 
     # Initialize services
     quality_monitor = DataQualityMonitor(mongodb_client, settings)
@@ -121,7 +153,12 @@ async def lifespan(app: FastAPI):
     app_state['lineage_tracker'] = lineage_tracker
     logger.info("Lineage Tracker initialized")
 
-    retention_manager = RetentionPolicyManager(settings)
+    retention_manager = RetentionPolicyManager(
+        settings,
+        mongodb_client=mongodb_client,
+        clickhouse_client=clickhouse_client,
+        neo4j_client=neo4j_client
+    )
     app_state['retention_manager'] = retention_manager
     logger.info("Retention Policy Manager initialized")
 
@@ -131,6 +168,16 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("Shutting down Memory Layer API...")
+
+    # Para Kafka consumer primeiro (graceful shutdown)
+    if 'sync_consumer' in app_state and app_state['sync_consumer'] is not None:
+        await app_state['sync_consumer'].stop()
+        logger.info("Kafka sync consumer stopped")
+
+    # Para Kafka producer
+    if 'kafka_producer' in app_state and app_state['kafka_producer'] is not None:
+        await app_state['kafka_producer'].stop()
+        logger.info("Kafka sync producer stopped")
 
     if 'clickhouse_client' in app_state and app_state['clickhouse_client'] is not None:
         await app_state['clickhouse_client'].close()
@@ -182,6 +229,17 @@ async def readiness_check():
             layers[layer.replace('_client', '')] = "connected"
         else:
             layers[layer.replace('_client', '')] = "not_configured"
+
+    # Kafka sync status (opcional)
+    kafka_producer = app_state.get('kafka_producer')
+    sync_consumer = app_state.get('sync_consumer')
+
+    if settings and settings.enable_realtime_sync:
+        layers['kafka_producer'] = "running" if (kafka_producer and kafka_producer.is_running) else "not_configured"
+        layers['kafka_consumer'] = "running" if (sync_consumer and sync_consumer.is_running) else "not_configured"
+    else:
+        layers['kafka_producer'] = "disabled"
+        layers['kafka_consumer'] = "disabled"
 
     return {
         "ready": ready,

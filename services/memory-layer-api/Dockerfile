@@ -21,6 +21,9 @@ RUN useradd -m -u 1000 app
 # Copy application code
 COPY services/memory-layer-api/src/ ./src/
 
+# Copy Avro schemas
+COPY schemas/memory-sync-event/ ./schemas/memory-sync-event/
+
 # Fix ownership for non-root user
 RUN chown -R app:app /app
 

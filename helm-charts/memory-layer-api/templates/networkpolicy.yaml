@@ -33,4 +33,12 @@ spec:
     ports:
     - protocol: TCP
       port: 4317
+  # Permitir acesso ao Kafka (real-time sync)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kafka
+    ports:
+    - protocol: TCP
+      port: 9092
 {{- end }}

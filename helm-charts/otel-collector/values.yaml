@@ -77,6 +77,13 @@ service:
       targetPort: 55679
       protocol: TCP
 
+# TLS Configuration
+tls:
+  enabled: false
+  # Certificados podem vir de cert-manager ou secrets manuais
+  certSecret: "otel-collector-tls"
+  mountPath: "/etc/otel-tls"
+
 # Configurações de recursos
 resources:
   limits:

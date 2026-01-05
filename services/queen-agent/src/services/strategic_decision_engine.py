@@ -245,16 +245,14 @@ class StrategicDecisionEngine:
     async def _aggregate_context(self, trigger: Dict[str, Any]) -> DecisionContext:
         """Agregar contexto de múltiplas fontes"""
         try:
-            # Buscar planos ativos (placeholder - pode vir do trigger ou Neo4j)
-            active_plans = trigger.get('decision_data', {}).get('plan_id', [])
-            if isinstance(active_plans, str):
-                active_plans = [active_plans]
+            # Buscar planos ativos do Neo4j
+            active_plans = await self._get_active_plans(trigger)
 
-            # Buscar incidentes críticos (Prometheus ou cache)
-            critical_incidents = []
+            # Buscar incidentes críticos do MongoDB
+            critical_incidents = await self._get_critical_incidents()
 
-            # Buscar violações de SLA (Prometheus)
-            sla_violations = []
+            # Buscar violações de SLA do Prometheus
+            sla_violations = await self._get_sla_violations()
 
             # Calcular saturação de recursos
             resource_data = await self.prometheus_client.get_resource_saturation()
@@ -270,6 +268,102 @@ class StrategicDecisionEngine:
         except Exception as e:
             logger.error("aggregate_context_failed", error=str(e))
             return DecisionContext()
+
+    async def _get_active_plans(self, trigger: Dict[str, Any]) -> List[str]:
+        """
+        Buscar planos ativos do Neo4j ou trigger
+
+        Returns:
+            Lista de plan_ids ativos
+        """
+        try:
+            # Primeiro, tentar obter do trigger (se disponível)
+            trigger_plans = trigger.get('decision_data', {}).get('plan_id', [])
+            if isinstance(trigger_plans, str):
+                trigger_plans = [trigger_plans]
+
+            if trigger_plans:
+                logger.debug("active_plans_from_trigger", count=len(trigger_plans))
+                return trigger_plans
+
+            # Caso contrário, buscar do Neo4j
+            async with self.neo4j_client.driver.session(
+                database=self.neo4j_client.settings.NEO4J_DATABASE
+            ) as session:
+                query = """
+                MATCH (p:CognitivePlan)
+                WHERE p.status = 'ACTIVE' OR p.status = 'IN_PROGRESS'
+                RETURN p.plan_id as plan_id
+                ORDER BY p.created_at DESC
+                LIMIT 50
+                """
+
+                result = await session.run(query)
+                records = await result.data()
+
+                active_plans = [record['plan_id'] for record in records if 'plan_id' in record]
+
+                logger.debug("active_plans_from_neo4j", count=len(active_plans))
+                return active_plans
+
+        except Exception as e:
+            logger.error("get_active_plans_failed", error=str(e))
+            return []
+
+    async def _get_critical_incidents(self) -> List[str]:
+        """
+        Buscar incidentes críticos do MongoDB
+
+        Returns:
+            Lista de incident_ids críticos
+        """
+        try:
+            # Query MongoDB para incidentes críticos não resolvidos
+            incidents = await self.mongodb_client.db.incidents.find({
+                'severity': {'$in': ['CRITICAL', 'HIGH']},
+                'resolved': False
+            }).to_list(length=20)
+
+            incident_ids = [str(inc['_id']) for inc in incidents]
+
+            logger.debug("critical_incidents_found", count=len(incident_ids))
+            return incident_ids
+
+        except Exception as e:
+            logger.error("get_critical_incidents_failed", error=str(e))
+            return []
+
+    async def _get_sla_violations(self) -> List[str]:
+        """
+        Buscar violações de SLA do Prometheus
+
+        Returns:
+            Lista de serviços com violações de SLA
+        """
+        try:
+            # Query PromQL para serviços com SLA < 95%
+            query = '''
+            (
+              sum by (service) (rate(http_requests_total{status=~"2.."}[5m])) /
+              sum by (service) (rate(http_requests_total[5m]))
+            ) < 0.95
+            '''
+
+            result = await self.prometheus_client.query(query)
+
+            violations = []
+            if result.get('status') == 'success' and result.get('data', {}).get('result'):
+                for item in result['data']['result']:
+                    service = item.get('metric', {}).get('service')
+                    if service:
+                        violations.append(service)
+
+            logger.debug("sla_violations_found", count=len(violations))
+            return violations
+
+        except Exception as e:
+            logger.error("get_sla_violations_failed", error=str(e))
+            return []
 
     async def _perform_analysis(self, context: DecisionContext, trigger: Dict[str, Any]) -> DecisionAnalysis:
         """Realizar análise do contexto"""
@@ -396,8 +490,8 @@ class StrategicDecisionEngine:
             pheromone_strength = sum(pheromone_values) / len(pheromone_values) if pheromone_values else 0.5
             pheromone_strength = max(0.0, min(1.0, (pheromone_strength + 1.0) / 2.0))  # Normalizar [-1, 1] -> [0, 1]
 
-            # Historical success rate (placeholder - seria calculado de decisões anteriores)
-            historical_success_rate = 0.8
+            # Historical success rate - calcular de decisões anteriores
+            historical_success_rate = await self._get_historical_success_rate()
 
             confidence = (
                 context_completeness * 0.3 +
@@ -410,6 +504,102 @@ class StrategicDecisionEngine:
         except Exception as e:
             logger.error("calculate_confidence_failed", error=str(e))
             return 0.5
+
+    async def _get_historical_success_rate(self) -> float:
+        """
+        Calcular taxa de sucesso histórica de decisões estratégicas
+
+        Busca decisões dos últimos 7 dias e calcula taxa de sucesso
+
+        Returns:
+            Taxa de sucesso (0.0 a 1.0)
+        """
+        try:
+            # Calcular timestamp de 7 dias atrás
+            cutoff_timestamp = int((datetime.now() - timedelta(days=7)).timestamp() * 1000)
+
+            # Query MongoDB para decisões recentes
+            pipeline = [
+                {
+                    '$match': {
+                        'created_at': {'$gte': cutoff_timestamp}
+                    }
+                },
+                {
+                    '$group': {
+                        '_id': None,
+                        'total': {'$sum': 1},
+                        'successful': {
+                            '$sum': {
+                                '$cond': [
+                                    {'$gte': ['$confidence_score', 0.7]},
+                                    1,
+                                    0
+                                ]
+                            }
+                        }
+                    }
+                }
+            ]
+
+            cursor = self.mongodb_client.db.strategic_decisions.aggregate(pipeline)
+            results = await cursor.to_list(length=1)
+
+            if results and results[0]['total'] > 0:
+                success_rate = results[0]['successful'] / results[0]['total']
+                logger.debug(
+                    "historical_success_rate_calculated",
+                    rate=success_rate,
+                    total=results[0]['total'],
+                    successful=results[0]['successful']
+                )
+                return success_rate
+
+            # Fallback: buscar do Neo4j se MongoDB não tem dados
+            success_rate = await self._get_success_rate_from_neo4j()
+            if success_rate is not None:
+                return success_rate
+
+            # Se não há dados históricos, assumir taxa moderada
+            logger.warning("historical_success_rate_no_data_available")
+            return 0.75
+
+        except Exception as e:
+            logger.error("get_historical_success_rate_failed", error=str(e))
+            return 0.75
+
+    async def _get_success_rate_from_neo4j(self) -> Optional[float]:
+        """
+        Buscar taxa de sucesso do Neo4j como fallback
+
+        Returns:
+            Taxa de sucesso ou None se não disponível
+        """
+        try:
+            async with self.neo4j_client.driver.session(
+                database=self.neo4j_client.settings.NEO4J_DATABASE
+            ) as session:
+                query = """
+                MATCH (d:StrategicDecision)
+                WHERE d.created_at > timestamp() - (7 * 24 * 60 * 60 * 1000)
+                RETURN
+                    count(d) as total,
+                    sum(CASE WHEN d.confidence_score >= 0.7 THEN 1 ELSE 0 END) as successful
+                """
+
+                result = await session.run(query)
+                record = await result.single()
+
+                if record and record['total'] > 0:
+                    success_rate = record['successful'] / record['total']
+                    logger.debug("success_rate_from_neo4j", rate=success_rate)
+                    return success_rate
+
+            return None
+
+        except Exception as e:
+            logger.warning("get_success_rate_from_neo4j_failed", error=str(e))
+            return None
 
     async def _assess_risk(
         self,

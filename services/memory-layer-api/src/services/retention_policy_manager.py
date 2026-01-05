@@ -1,18 +1,23 @@
 """
 Retention Policy Manager
+
+Gerencia políticas de retenção e TTL nas camadas de memória.
 """
 import structlog
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 
 logger = structlog.get_logger(__name__)
 
 
 class RetentionPolicyManager:
-    """Manage TTL and retention policies across memory layers"""
+    """Gerencia TTL e políticas de retenção nas camadas de memória"""
 
-    def __init__(self, settings):
+    def __init__(self, settings, mongodb_client=None, clickhouse_client=None, neo4j_client=None):
         self.settings = settings
+        self.mongodb = mongodb_client
+        self.clickhouse = clickhouse_client
+        self.neo4j = neo4j_client
         self.policies = self._load_policies()
 
     def _load_policies(self) -> Dict[str, Dict]:
@@ -157,25 +162,198 @@ class RetentionPolicyManager:
             return results
 
     async def _cleanup_mongodb(self, dry_run: bool) -> int:
-        """Cleanup old MongoDB documents"""
-        # TODO: Implement MongoDB cleanup
-        # Query documents with ttl_expires_at < now
-        # Delete if not dry_run
-        logger.info("MongoDB cleanup not yet implemented", dry_run=dry_run)
-        return 0
+        """
+        Remove documentos antigos do MongoDB baseado nas políticas de retenção.
+
+        Args:
+            dry_run: Se True, apenas conta registros sem deletar
+
+        Returns:
+            Número de documentos removidos (ou que seriam removidos em dry_run)
+        """
+        if not self.mongodb:
+            logger.warning("MongoDB client não configurado para cleanup")
+            return 0
+
+        total_deleted = 0
+        collections = [
+            ('operational_context', 'operational_context'),
+            ('data_lineage', 'data_lineage'),
+            ('data_quality_metrics', 'data_quality_metrics')
+        ]
+
+        for collection_name, data_type in collections:
+            try:
+                retention_days = self.get_ttl_for_data_type(data_type, 'mongodb')
+                cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
+
+                filter_query = {'created_at': {'$lt': cutoff_date}}
+
+                if dry_run:
+                    count = await self.mongodb.count_documents(collection_name, filter_query)
+                    logger.info(
+                        "[DRY-RUN] Documentos a serem removidos",
+                        collection=collection_name,
+                        count=count,
+                        cutoff_date=cutoff_date.isoformat()
+                    )
+                    total_deleted += count
+                else:
+                    deleted = await self.mongodb.delete_many(collection_name, filter_query)
+                    logger.info(
+                        "Documentos removidos",
+                        collection=collection_name,
+                        count=deleted,
+                        cutoff_date=cutoff_date.isoformat()
+                    )
+                    total_deleted += deleted
+
+            except Exception as e:
+                logger.error(
+                    "Erro no cleanup do MongoDB",
+                    collection=collection_name,
+                    error=str(e)
+                )
+
+        return total_deleted
 
     async def _cleanup_clickhouse(self, dry_run: bool) -> int:
-        """Cleanup old ClickHouse data"""
-        # TODO: Implement ClickHouse cleanup
-        # ClickHouse TTL handles automatic cleanup
-        # Can manually trigger with ALTER TABLE ... DELETE WHERE
-        logger.info("ClickHouse cleanup (TTL-based)", dry_run=dry_run)
-        return 0
+        """
+        Remove dados antigos do ClickHouse.
+
+        Nota: ClickHouse tem TTL nativo, mas podemos forçar cleanup manual.
+
+        Args:
+            dry_run: Se True, apenas conta registros sem deletar
+
+        Returns:
+            Número de registros removidos (ou que seriam removidos em dry_run)
+        """
+        if not self.clickhouse:
+            logger.warning("ClickHouse client não configurado para cleanup")
+            return 0
+
+        total_deleted = 0
+        tables = [
+            ('cognitive_plans_history', 'cognitive_plans_history'),
+            ('consensus_decisions_history', 'consensus_decisions_history'),
+            ('specialist_opinions_history', 'specialist_opinions_history'),
+            ('telemetry_events', 'telemetry_events')
+        ]
+
+        for table_name, data_type in tables:
+            try:
+                retention_months = self.get_ttl_for_data_type(data_type, 'clickhouse')
+                cutoff_date = datetime.utcnow() - timedelta(days=retention_months * 30)
+
+                if dry_run:
+                    count_query = f"""
+                        SELECT count(*) as count
+                        FROM {self.clickhouse.database}.{table_name}
+                        WHERE created_at < %(cutoff_date)s
+                    """
+                    result = self.clickhouse.client.query(
+                        count_query,
+                        parameters={'cutoff_date': cutoff_date}
+                    )
+                    count = result.result_rows[0][0] if result.result_rows else 0
+                    logger.info(
+                        "[DRY-RUN] Registros a serem removidos",
+                        table=table_name,
+                        count=count,
+                        cutoff_date=cutoff_date.isoformat()
+                    )
+                    total_deleted += count
+                else:
+                    # ClickHouse DELETE é assíncrono via ALTER TABLE
+                    delete_query = f"""
+                        ALTER TABLE {self.clickhouse.database}.{table_name}
+                        DELETE WHERE created_at < %(cutoff_date)s
+                    """
+                    self.clickhouse.client.command(
+                        delete_query,
+                        parameters={'cutoff_date': cutoff_date}
+                    )
+                    logger.info(
+                        "Cleanup iniciado para tabela",
+                        table=table_name,
+                        cutoff_date=cutoff_date.isoformat()
+                    )
+                    # ClickHouse não retorna contagem em DELETE
+
+            except Exception as e:
+                logger.error(
+                    "Erro no cleanup do ClickHouse",
+                    table=table_name,
+                    error=str(e)
+                )
+
+        return total_deleted
 
     async def _cleanup_neo4j(self, dry_run: bool) -> int:
-        """Cleanup old Neo4j versions"""
-        # TODO: Implement Neo4j version pruning
-        # Find ontologies with > max_versions
-        # Archive or delete old versions
-        logger.info("Neo4j version pruning not yet implemented", dry_run=dry_run)
-        return 0
+        """
+        Remove versões antigas de ontologias no Neo4j.
+
+        Mantém apenas max_versions_per_ontology versões de cada ontologia.
+
+        Args:
+            dry_run: Se True, apenas conta versões sem deletar
+
+        Returns:
+            Número de versões removidas (ou que seriam removidas em dry_run)
+        """
+        if not self.neo4j:
+            logger.warning("Neo4j client não configurado para cleanup")
+            return 0
+
+        max_versions = self.policies['neo4j']['max_versions_per_ontology']
+        total_pruned = 0
+
+        try:
+            # Encontra ontologias com mais versões que o limite
+            query = """
+                MATCH (o:Ontology)
+                WITH o.name as ontology_name, collect(o) as versions
+                WHERE size(versions) > $max_versions
+                RETURN ontology_name, size(versions) as version_count
+                ORDER BY ontology_name
+            """
+            results = await self.neo4j.run_query(query, {'max_versions': max_versions})
+
+            for record in results:
+                ontology_name = record['ontology_name']
+                version_count = record['version_count']
+                versions_to_delete = version_count - max_versions
+
+                if dry_run:
+                    logger.info(
+                        "[DRY-RUN] Versões a serem removidas",
+                        ontology=ontology_name,
+                        count=versions_to_delete,
+                        current=version_count,
+                        max_allowed=max_versions
+                    )
+                    total_pruned += versions_to_delete
+                else:
+                    # Remove versões mais antigas, mantendo as mais recentes
+                    delete_query = """
+                        MATCH (o:Ontology {name: $ontology_name})
+                        WITH o ORDER BY o.created_at DESC
+                        SKIP $max_versions
+                        DETACH DELETE o
+                    """
+                    await self.neo4j.run_query(delete_query, {
+                        'ontology_name': ontology_name,
+                        'max_versions': max_versions
+                    })
+                    logger.info(
+                        "Versões removidas",
+                        ontology=ontology_name,
+                        count=versions_to_delete
+                    )
+                    total_pruned += versions_to_delete
+
+        except Exception as e:
+            logger.error("Erro no cleanup do Neo4j", error=str(e))
+
+        return total_pruned

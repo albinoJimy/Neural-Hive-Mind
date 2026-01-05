@@ -31,8 +31,15 @@ class MongoToClickHouseSync:
         self.settings = settings
         self.mongodb_client = None
         self.clickhouse_client = None
-        self.batch_size = int(os.getenv('BATCH_SIZE', '1000'))
-        self.date_range_days = int(os.getenv('DATE_RANGE_DAYS', '1'))
+        # Suporta ambos os nomes de variáveis para retrocompatibilidade
+        self.batch_size = int(os.getenv('SYNC_BATCH_SIZE', os.getenv('BATCH_SIZE', '1000')))
+        # SYNC_LOOKBACK_HOURS converte horas para dias (arredonda para cima)
+        lookback_hours = int(os.getenv('SYNC_LOOKBACK_HOURS', '0'))
+        if lookback_hours > 0:
+            # Converte horas para dias (mínimo 1 dia)
+            self.date_range_days = max(1, (lookback_hours + 23) // 24)
+        else:
+            self.date_range_days = int(os.getenv('DATE_RANGE_DAYS', '1'))
 
     async def initialize(self):
         """Inicializa os clientes de banco de dados"""
@@ -124,33 +131,95 @@ class MongoToClickHouseSync:
         # Prepara dados para inserção
         rows = []
         for doc in documents:
-            row = self._prepare_row(doc)
+            row = self._prepare_row(doc, table_name)
             if row:
                 rows.append(row)
 
         if rows:
-            await self.clickhouse_client.insert_batch(table_name, rows)
+            column_names = self._get_column_names(table_name)
+            await self.clickhouse_client.insert_batch(table_name, rows, column_names)
 
-    def _prepare_row(self, document: Dict) -> Dict:
+    def _get_column_names(self, table_name: str) -> List[str]:
+        """
+        Retorna nomes das colunas para a tabela.
+
+        Args:
+            table_name: Nome da tabela
+
+        Returns:
+            Lista de nomes de colunas
+        """
+        table_columns = {
+            'operational_context_history': [
+                'entity_id', 'data_type', 'created_at', 'data', 'metadata'
+            ],
+            'data_lineage_history': [
+                'entity_id', 'operation', 'created_at', 'source', 'target', 'metadata'
+            ],
+            'quality_metrics_history': [
+                'collection', 'created_at', 'completeness_score',
+                'freshness_score', 'consistency_score', 'metadata'
+            ]
+        }
+        return table_columns.get(table_name, ['entity_id', 'created_at', 'data', 'metadata'])
+
+    def _prepare_row(self, document: Dict, table_name: str = None) -> List:
         """
         Prepara documento MongoDB para inserção no ClickHouse
 
         Args:
             document: Documento do MongoDB
+            table_name: Nome da tabela de destino
 
         Returns:
-            Linha formatada para ClickHouse
+            Lista de valores para inserção no ClickHouse
         """
+        import json
+
         # Remove _id do MongoDB
         doc = document.copy()
         doc.pop('_id', None)
 
-        # Converte datetime para string ISO
-        for key, value in doc.items():
-            if isinstance(value, datetime):
-                doc[key] = value.isoformat()
+        # Extrai timestamp
+        created_at = doc.get('created_at') or doc.get('timestamp') or datetime.utcnow()
+        if isinstance(created_at, str):
+            created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
 
-        return doc
+        # Formata baseado na tabela de destino
+        if table_name == 'operational_context_history':
+            return [
+                doc.get('entity_id', ''),
+                doc.get('data_type', 'context'),
+                created_at,
+                json.dumps(doc, default=str),
+                json.dumps(doc.get('metadata', {}), default=str)
+            ]
+        elif table_name == 'data_lineage_history':
+            return [
+                doc.get('entity_id', ''),
+                doc.get('operation', 'UNKNOWN'),
+                created_at,
+                doc.get('source', ''),
+                doc.get('target', ''),
+                json.dumps(doc.get('metadata', {}), default=str)
+            ]
+        elif table_name == 'quality_metrics_history':
+            return [
+                doc.get('collection', 'unknown'),
+                created_at,
+                float(doc.get('completeness_score', 0.0)),
+                float(doc.get('freshness_score', 0.0)),
+                float(doc.get('consistency_score', 0.0)),
+                json.dumps(doc.get('metadata', {}), default=str)
+            ]
+        else:
+            # Fallback genérico
+            return [
+                doc.get('entity_id', ''),
+                created_at,
+                json.dumps(doc, default=str),
+                json.dumps(doc.get('metadata', {}), default=str)
+            ]
 
     async def run(self):
         """Executa sincronização completa"""

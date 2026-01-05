@@ -165,6 +165,34 @@ class ClickHouseClient:
             logger.error("Failed to insert decision", error=str(e), decision_id=decision.get('decision_id'))
             raise
 
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+    async def insert_batch(self, table: str, rows: List[List[Any]], column_names: List[str]) -> bool:
+        """
+        Insere batch de linhas em uma tabela.
+
+        Args:
+            table: Nome da tabela (sem prefixo do database)
+            rows: Lista de linhas (cada linha é uma lista de valores)
+            column_names: Nomes das colunas correspondentes
+
+        Returns:
+            True se inserido com sucesso
+        """
+        if not rows:
+            return True
+
+        try:
+            self.client.insert(
+                f"{self.database}.{table}",
+                rows,
+                column_names=column_names
+            )
+            logger.info("Batch inserido", table=table, row_count=len(rows))
+            return True
+        except Exception as e:
+            logger.error("Falha ao inserir batch", error=str(e), table=table, row_count=len(rows))
+            raise
+
     async def query_historical_plans(
         self,
         start_date: datetime,

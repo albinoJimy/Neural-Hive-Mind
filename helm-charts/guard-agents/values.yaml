@@ -60,6 +60,16 @@ config:
     incidentsCollection: security_incidents
     remediationCollection: remediation_actions
     validationsCollection: security_validations
+    postmortemsCollection: incident_postmortems
+
+  keycloak:
+    # Keycloak Admin API para revogacao de tokens e sessoes
+    url: http://keycloak.auth.svc.cluster.local:8080
+    realm: neural-hive
+    adminClientId: guard-agents-admin
+    # Secret injected via Secret (KEYCLOAK_ADMIN_CLIENT_SECRET env var)
+    adminTimeoutSeconds: 10
+    tokenCacheTtlSeconds: 300
 
   redis:
     host: neural-hive-cache.redis-cluster.svc.cluster.local
@@ -88,6 +98,11 @@ config:
     mttrTargetSeconds: 90
     anomalyThreshold: 0.8
     falsePositiveThreshold: 0.05
+
+  anomalyDetector:
+    enabled: true
+    modelType: isolation_forest
+    contamination: 0.05
 
   enforcement:
     opaEnabled: true
@@ -154,6 +169,11 @@ deployment:
 observability:
   prometheus:
     enabled: true
+  # TLS Configuration para OpenTelemetry Exporter
+  tls:
+    enabled: false  # Habilitar em produção
+    certSecret: "neural-hive-otel-client-certs"
+    mountPath: "/etc/otel-tls"
 
 podSecurityContext:
   runAsNonRoot: true
@@ -231,6 +251,7 @@ secrets:
   redisPasswordKey: REDIS_PASSWORD
   kafkaSaslUsernameKey: KAFKA_SASL_USERNAME
   kafkaSaslPasswordKey: KAFKA_SASL_PASSWORD
+  keycloakAdminClientSecretKey: KEYCLOAK_ADMIN_CLIENT_SECRET
 
 topologySpreadConstraints:
   - maxSkew: 1

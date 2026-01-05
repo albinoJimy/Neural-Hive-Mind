@@ -97,6 +97,18 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = Field(default=True)
     rate_limit_requests_per_minute: int = Field(default=1000)
     rate_limit_burst_size: int = Field(default=100)
+    rate_limit_fail_open: bool = Field(
+        default=True,
+        description="Permitir requisicoes se Redis falhar (fail-open) ou bloquear (fail-closed)"
+    )
+    rate_limit_tenant_overrides: str = Field(
+        default="{}",
+        description="Rate limits especificos por tenant_id em formato JSON"
+    )
+    rate_limit_user_overrides: str = Field(
+        default="{}",
+        description="Rate limits especificos por user_id em formato JSON"
+    )
 
     # Security Features
     mtls_validation_enabled: bool = Field(default=False)

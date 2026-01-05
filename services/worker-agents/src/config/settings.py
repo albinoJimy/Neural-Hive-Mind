@@ -166,6 +166,10 @@ class WorkerAgentSettings(BaseSettings):
         default=3600,
         description='TTL desejado (segundos) para JWT-SVIDs solicitados ao SPIRE Workload API'
     )
+    spiffe_enable_x509: bool = Field(
+        default=True,
+        description='Habilitar X.509-SVID para mTLS'
+    )
 
     def get_metadata(self) -> Dict[str, str]:
         '''Retorna metadata para registro no Service Registry'''

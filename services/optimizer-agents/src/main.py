@@ -450,6 +450,40 @@ async def startup():
             background_tasks.append(training_task)
             logger.info("training_pipeline_started")
 
+    # Configurar dependency overrides para injetar serviços nos routers
+    from src.api import optimizations, experiments
+
+    def override_mongodb_client():
+        return mongodb_client
+
+    def override_redis_client():
+        return redis_client
+
+    def override_optimization_engine():
+        return optimization_engine
+
+    def override_weight_recalibrator():
+        return weight_recalibrator
+
+    def override_slo_adjuster():
+        return slo_adjuster
+
+    def override_experiment_manager():
+        return experiment_manager
+
+    # Registrar overrides para API de otimizações
+    app.dependency_overrides[optimizations.get_mongodb_client] = override_mongodb_client
+    app.dependency_overrides[optimizations.get_redis_client] = override_redis_client
+    app.dependency_overrides[optimizations.get_optimization_engine] = override_optimization_engine
+    app.dependency_overrides[optimizations.get_weight_recalibrator] = override_weight_recalibrator
+    app.dependency_overrides[optimizations.get_slo_adjuster] = override_slo_adjuster
+
+    # Registrar overrides para API de experimentos
+    app.dependency_overrides[experiments.get_mongodb_client] = override_mongodb_client
+    app.dependency_overrides[experiments.get_experiment_manager] = override_experiment_manager
+
+    logger.info("api_dependencies_configured")
+
     logger.info("optimizer_agents_started")
 
 

@@ -130,7 +130,11 @@ helm-charts/
   - Histórico de incidentes similares
 
 #### 2. Classificação de Incidentes (Fluxo E2)
-- **Heurísticas MVP**:
+- **Detecção ML (Padrão)**:
+  - Isolation Forest para detecção de anomalias (habilitado por padrão via `ANOMALY_DETECTOR_ENABLED=true`)
+  - Modelo treinado automaticamente com dados de produção
+  - Fallback para heurísticas se modelo ML indisponível
+- **Heurísticas (Fallback)**:
   - Confidence score (0-1) baseado em completude de dados
   - Risk score (0-1) baseado em severidade + impacto + entidades afetadas
   - Impact assessment (LOW/MEDIUM/HIGH/CRITICAL)
@@ -407,6 +411,11 @@ MTTD_TARGET_SECONDS=15
 MTTR_TARGET_SECONDS=90
 ANOMALY_THRESHOLD=0.8
 FALSE_POSITIVE_THRESHOLD=0.05
+
+# Anomaly Detector (ML-based detection)
+ANOMALY_DETECTOR_ENABLED=true  # Enable ML-based detection (default: true)
+ANOMALY_DETECTOR_MODEL_TYPE=isolation_forest
+ANOMALY_DETECTOR_CONTAMINATION=0.05
 
 # Enforcement
 OPA_ENFORCEMENT_ENABLED=true

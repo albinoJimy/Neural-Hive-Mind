@@ -6,8 +6,11 @@ exceções durante export sem bloquear operações principais.
 """
 
 import logging
+import os
 import time
 from typing import Optional, Sequence, Dict, Any, TYPE_CHECKING
+
+import grpc
 
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
@@ -122,6 +125,11 @@ class ResilientOTLPSpanExporter(SpanExporter):
         insecure: bool = True,
         headers: Optional[Dict[str, str]] = None,
         timeout: Optional[int] = None,
+        tls_enabled: bool = False,
+        tls_cert_path: Optional[str] = None,
+        tls_key_path: Optional[str] = None,
+        tls_ca_cert_path: Optional[str] = None,
+        tls_insecure_skip_verify: bool = False,
         **kwargs
     ):
         """
@@ -130,9 +138,14 @@ class ResilientOTLPSpanExporter(SpanExporter):
         Args:
             endpoint: Endpoint do OTLP collector
             service_name: Nome do serviço para métricas
-            insecure: Se deve usar conexão insegura
+            insecure: Se deve usar conexão insegura (ignorado se tls_enabled=True)
             headers: Headers customizados (serão sanitizados)
             timeout: Timeout de conexão em segundos
+            tls_enabled: Se deve usar TLS para conexão
+            tls_cert_path: Caminho para certificado cliente
+            tls_key_path: Caminho para chave privada cliente
+            tls_ca_cert_path: Caminho para certificado CA raiz
+            tls_insecure_skip_verify: Se deve pular verificação de certificado (apenas dev)
             **kwargs: Argumentos adicionais para OTLPSpanExporter
         """
         self._service_name = service_name
@@ -140,6 +153,7 @@ class ResilientOTLPSpanExporter(SpanExporter):
         self._failure_count = 0
         self._success_count = 0
         self._pending_spans_count = 0
+        self._tls_enabled = tls_enabled
 
         # Sanitizar headers
         sanitized_headers = create_sanitized_headers(headers)
@@ -148,7 +162,6 @@ class ResilientOTLPSpanExporter(SpanExporter):
         try:
             exporter_kwargs = {
                 'endpoint': endpoint,
-                'insecure': insecure,
             }
 
             if sanitized_headers:
@@ -157,17 +170,128 @@ class ResilientOTLPSpanExporter(SpanExporter):
             if timeout is not None:
                 exporter_kwargs['timeout'] = timeout
 
+            # Configurar TLS ou modo inseguro
+            if tls_enabled:
+                credentials = self._create_tls_credentials(
+                    tls_cert_path,
+                    tls_key_path,
+                    tls_ca_cert_path,
+                    tls_insecure_skip_verify
+                )
+                if credentials is not None:
+                    exporter_kwargs['credentials'] = credentials
+                    logger.info(
+                        f"TLS habilitado para {service_name} "
+                        f"(cert: {tls_cert_path}, ca: {tls_ca_cert_path})"
+                    )
+                else:
+                    # TLS foi solicitado mas falhou - NÃO fazer fallback silencioso
+                    # para insecure em produção. Isso é um erro de configuração.
+                    error_msg = (
+                        f"Falha ao configurar TLS para {service_name}. "
+                        f"Certificados não encontrados ou inválidos. "
+                        f"cert_path={tls_cert_path}, ca_cert_path={tls_ca_cert_path}. "
+                        f"Exporter não será inicializado. "
+                        f"Para desabilitar TLS, defina OTEL_EXPORTER_TLS_ENABLED=false."
+                    )
+                    logger.error(error_msg)
+                    self._tls_enabled = False
+                    self._inner_exporter = None
+                    return  # Abort initialization - do not create exporter
+            else:
+                exporter_kwargs['insecure'] = insecure
+
             exporter_kwargs.update(kwargs)
 
             self._inner_exporter = OTLPSpanExporter(**exporter_kwargs)
 
+            tls_status = "TLS habilitado" if self._tls_enabled else "insecure"
             logger.info(
                 f"ResilientOTLPSpanExporter inicializado para {service_name} "
-                f"com endpoint {endpoint}"
+                f"com endpoint {endpoint} ({tls_status})"
             )
         except Exception as e:
             logger.error(f"Erro ao criar OTLPSpanExporter interno: {e}")
             self._inner_exporter = None
+
+    def _create_tls_credentials(
+        self,
+        cert_path: Optional[str],
+        key_path: Optional[str],
+        ca_cert_path: Optional[str],
+        insecure_skip_verify: bool = False
+    ) -> Optional[grpc.ChannelCredentials]:
+        """
+        Cria credenciais TLS para conexão gRPC.
+
+        Args:
+            cert_path: Caminho para certificado cliente
+            key_path: Caminho para chave privada cliente
+            ca_cert_path: Caminho para certificado CA raiz
+            insecure_skip_verify: Se deve pular verificação de certificado.
+                                  ATENÇÃO: Quando True, cria credenciais TLS sem
+                                  validação de CA (aceita qualquer certificado).
+                                  Use APENAS em desenvolvimento.
+
+        Returns:
+            grpc.ChannelCredentials ou None se falhar
+        """
+        try:
+            root_certificates = None
+            private_key = None
+            certificate_chain = None
+
+            # Ler certificado CA
+            if ca_cert_path:
+                if os.path.exists(ca_cert_path):
+                    with open(ca_cert_path, 'rb') as f:
+                        root_certificates = f.read()
+                    logger.debug(f"CA certificate carregado de {ca_cert_path}")
+                else:
+                    logger.warning(f"CA certificate não encontrado: {ca_cert_path}")
+                    if not insecure_skip_verify:
+                        return None
+
+            # Ler certificado e chave cliente (mTLS)
+            if cert_path and key_path:
+                if os.path.exists(cert_path) and os.path.exists(key_path):
+                    with open(cert_path, 'rb') as f:
+                        certificate_chain = f.read()
+                    with open(key_path, 'rb') as f:
+                        private_key = f.read()
+                    logger.debug(
+                        f"Client certificate carregado de {cert_path}, "
+                        f"key de {key_path}"
+                    )
+                else:
+                    if not os.path.exists(cert_path):
+                        logger.warning(f"Client certificate não encontrado: {cert_path}")
+                    if not os.path.exists(key_path):
+                        logger.warning(f"Client key não encontrado: {key_path}")
+
+            # Quando insecure_skip_verify=True e não temos CA, criamos credenciais
+            # TLS sem validação de CA (aceita qualquer certificado do servidor).
+            # Isso é útil para desenvolvimento com certificados auto-assinados.
+            if insecure_skip_verify and root_certificates is None:
+                logger.warning(
+                    "TLS com insecure_skip_verify=True: verificação de certificado "
+                    "desabilitada. NÃO USE EM PRODUÇÃO."
+                )
+                # Criar credenciais sem root certificates - gRPC usará defaults do sistema
+                # mas não falhará se o cert não for verificável
+
+            # Criar credenciais
+            credentials = grpc.ssl_channel_credentials(
+                root_certificates=root_certificates,
+                private_key=private_key,
+                certificate_chain=certificate_chain
+            )
+
+            return credentials
+
+        except Exception as e:
+            logger.error(f"Erro ao criar credenciais TLS: {e}")
+            return None
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """

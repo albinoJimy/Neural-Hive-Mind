@@ -1,41 +1,31 @@
 """
 ServiceRegistryClient - Cliente gRPC para Service Registry.
 
-Cliente assíncrono para descoberta de agentes via Service Registry.
+Cliente assincrono para descoberta de agentes via Service Registry.
 """
 
-import sys
 import grpc
 import structlog
 from typing import List, Dict, Optional, TYPE_CHECKING
 from tenacity import retry, stop_after_attempt, wait_exponential
 from prometheus_client import Counter
 
+from neural_hive_integration.proto_stubs import service_registry_pb2, service_registry_pb2_grpc
 from src.config.settings import OrchestratorSettings
 
 if TYPE_CHECKING:
     from neural_hive_security import SPIFFEManager
 
-# Adicionar path para protos do service-registry
-sys.path.insert(0, '../service-registry/src')
-
-try:
-    from proto import service_registry_pb2, service_registry_pb2_grpc
-except ImportError:
-    # Fallback para import relativo caso path não funcione
-    service_registry_pb2 = None
-    service_registry_pb2_grpc = None
-
 logger = structlog.get_logger(__name__)
 
 grpc_jwt_auth_attempts_total = Counter(
     "grpc_jwt_auth_attempts_total",
-    "Tentativas de autenticação JWT-SVID em chamadas gRPC",
+    "Tentativas de autenticacao JWT-SVID em chamadas gRPC",
     ["service", "status"]
 )
 grpc_jwt_auth_failures_total = Counter(
     "grpc_jwt_auth_failures_total",
-    "Falhas de autenticação JWT-SVID",
+    "Falhas de autenticacao JWT-SVID",
     ["service", "reason"]
 )
 
@@ -56,21 +46,17 @@ class ServiceRegistryClient:
         Inicializa o cliente.
 
         Args:
-            config: Configurações do orchestrator
-            spiffe_manager: Gerenciador SPIFFE opcional para autenticação mTLS/JWT
+            config: Configuracoes do orchestrator
+            spiffe_manager: Gerenciador SPIFFE opcional para autenticacao mTLS/JWT
         """
         self.config = config
         self.spiffe_manager = spiffe_manager
         self.logger = logger.bind(component='service_registry_client')
         self.channel: Optional[grpc.aio.Channel] = None
-        self.stub = None
+        self.stub: Optional[service_registry_pb2_grpc.ServiceRegistryStub] = None
 
     async def initialize(self):
         """Inicializa canal gRPC e stub."""
-        if service_registry_pb2 is None or service_registry_pb2_grpc is None:
-            self.logger.error('service_registry_proto_not_found')
-            raise ImportError('Service Registry proto files not found')
-
         host = self.config.service_registry_host
         port = self.config.service_registry_port
         target = f'{host}:{port}'
@@ -78,7 +64,7 @@ class ServiceRegistryClient:
         self.logger.info('initializing_grpc_channel', target=target)
 
         try:
-            # Verificar se SPIFFE está habilitado para mTLS
+            # Verificar se SPIFFE esta habilitado para mTLS
             use_mtls = (
                 self.spiffe_manager is not None
                 and self.config.spiffe_enabled
@@ -92,7 +78,7 @@ class ServiceRegistryClient:
                     # Obter X.509-SVID do SPIRE Agent
                     x509_svid = await self.spiffe_manager.fetch_x509_svid()
 
-                    # Verificar se é placeholder (não deveria acontecer em produção)
+                    # Verificar se e placeholder (nao deveria acontecer em producao)
                     if hasattr(x509_svid, 'is_placeholder') and x509_svid.is_placeholder:
                         self.logger.warning(
                             'x509_svid_is_placeholder',
@@ -118,11 +104,11 @@ class ServiceRegistryClient:
                     )
 
                 except Exception as e:
-                    # Importar exceção SPIFFE
+                    # Importar excecao SPIFFE
                     from neural_hive_security.spiffe_manager import SPIFFEFetchError
 
                     if isinstance(e, SPIFFEFetchError):
-                        # SPIFFE fetch falhou - decisão crítica
+                        # SPIFFE fetch falhou - decisao critica
                         self.logger.error(
                             'spiffe_x509_fetch_failed',
                             error=str(e),
@@ -130,11 +116,11 @@ class ServiceRegistryClient:
                             message='X.509-SVID fetch failed - check SPIRE agent availability'
                         )
 
-                        # Verificar se fallback é permitido
+                        # Verificar se fallback e permitido
                         fallback_allowed = getattr(self.config, 'spiffe_fallback_allowed', False)
 
                         if not fallback_allowed:
-                            # Fail-closed: não permitir fallback insecure
+                            # Fail-closed: nao permitir fallback insecure
                             self.logger.error(
                                 'mtls_required_fallback_disabled',
                                 target=target,
@@ -196,7 +182,7 @@ class ServiceRegistryClient:
         Args:
             capabilities: Lista de capabilities requeridas
             filters: Filtros adicionais (namespace, status, security_level)
-            max_results: Máximo de resultados
+            max_results: Maximo de resultados
 
         Returns:
             Lista de AgentInfo convertidos para dict
@@ -230,20 +216,20 @@ class ServiceRegistryClient:
 
             # Criar request usando campos corretos do proto
             request = service_registry_pb2.DiscoverRequest(
-                capabilities=capabilities,  # Campo correto: capabilities
-                filters=proto_filters,       # Campo correto: filters (map<string,string>)
+                capabilities=capabilities,
+                filters=proto_filters,
                 max_results=max_results
             )
 
-            # Preparar metadata para autenticação JWT-SVID se disponível
+            # Preparar metadata para autenticacao JWT-SVID se disponivel
             metadata = []
             if self.spiffe_manager and self.config.spiffe_enabled:
                 try:
-                    # Obter JWT-SVID para autenticação
+                    # Obter JWT-SVID para autenticacao
                     audience = self.config.spiffe_jwt_audience or 'service-registry.neural-hive.local'
                     jwt_svid = await self.spiffe_manager.fetch_jwt_svid(audience=audience)
 
-                    # Verificar se é placeholder
+                    # Verificar se e placeholder
                     if hasattr(jwt_svid, 'is_placeholder') and jwt_svid.is_placeholder:
                         self.logger.warning(
                             'jwt_svid_is_placeholder',
@@ -262,7 +248,7 @@ class ServiceRegistryClient:
                     )
 
                 except Exception as e:
-                    # Importar exceção SPIFFE
+                    # Importar excecao SPIFFE
                     from neural_hive_security.spiffe_manager import SPIFFEFetchError
 
                     grpc_jwt_auth_attempts_total.labels(service="service_registry", status="error").inc()
@@ -277,11 +263,11 @@ class ServiceRegistryClient:
                             message='JWT-SVID fetch failed - check SPIRE agent availability'
                         )
 
-                        # Verificar se fallback é permitido
+                        # Verificar se fallback e permitido
                         fallback_allowed = getattr(self.config, 'spiffe_fallback_allowed', False)
 
                         if not fallback_allowed:
-                            # Fail-closed: autenticação é obrigatória
+                            # Fail-closed: autenticacao e obrigatoria
                             self.logger.error(
                                 'jwt_auth_required_fallback_disabled',
                                 error='JWT-SVID authentication required but SPIFFE unavailable'
@@ -325,14 +311,14 @@ class ServiceRegistryClient:
             return agents
 
         except grpc.RpcError as e:
-            # Log específico para erros de autenticação
+            # Log especifico para erros de autenticacao
             if e.code() == grpc.StatusCode.UNAUTHENTICATED:
                 grpc_jwt_auth_failures_total.labels(service="service_registry", reason="unauthenticated").inc()
                 self.logger.error(
                     'authentication_failed',
                     error=str(e),
                     details=e.details(),
-                    hint='Verifique se JWT-SVID está sendo enviado corretamente'
+                    hint='Verifique se JWT-SVID esta sendo enviado corretamente'
                 )
             elif e.code() == grpc.StatusCode.PERMISSION_DENIED:
                 grpc_jwt_auth_failures_total.labels(service="service_registry", reason="permission_denied").inc()
@@ -340,7 +326,7 @@ class ServiceRegistryClient:
                     'authorization_failed',
                     error=str(e),
                     details=e.details(),
-                    hint='Verifique se SPIFFE ID está autorizado no Service Registry'
+                    hint='Verifique se SPIFFE ID esta autorizado no Service Registry'
                 )
             else:
                 self.logger.error(
@@ -371,9 +357,9 @@ class ServiceRegistryClient:
             agent_info: Mensagem AgentInfo do proto
 
         Returns:
-            Dict com informações do agente mapeadas para o modelo usado pelo scheduler
+            Dict com informacoes do agente mapeadas para o modelo usado pelo scheduler
         """
-        # Extrair telemetria se disponível
+        # Extrair telemetria se disponivel
         telemetry_data = {}
         if agent_info.telemetry:
             telemetry_data = {

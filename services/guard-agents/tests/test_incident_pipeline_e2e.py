@@ -27,6 +27,7 @@ def mock_mongodb_client():
     client = MagicMock()
     client.incidents_collection = AsyncMock()
     client.remediation_collection = AsyncMock()
+    client.postmortems_collection = AsyncMock()
     return client
 
 
@@ -60,9 +61,33 @@ def incident_classifier(mock_mongodb_client):
 
 
 @pytest.fixture
-def policy_enforcer(mock_k8s_client, mock_redis_client):
-    """Fixture do PolicyEnforcer"""
-    return PolicyEnforcer(k8s_client=mock_k8s_client, redis_client=mock_redis_client)
+def mock_keycloak_client():
+    """Mock Keycloak Admin client"""
+    client = AsyncMock()
+    client.revoke_user_sessions = AsyncMock(return_value={
+        "success": True,
+        "user_id": "test-user",
+        "action": "revoke_sessions",
+        "timestamp": "2024-01-01T00:00:00Z"
+    })
+    client.disable_user = AsyncMock(return_value={
+        "success": True,
+        "user_id": "test-user",
+        "action": "disable_user",
+        "timestamp": "2024-01-01T00:00:00Z"
+    })
+    return client
+
+
+@pytest.fixture
+def policy_enforcer(mock_k8s_client, mock_redis_client, mock_keycloak_client, mock_mongodb_client):
+    """Fixture do PolicyEnforcer com Keycloak Admin"""
+    return PolicyEnforcer(
+        k8s_client=mock_k8s_client,
+        redis_client=mock_redis_client,
+        keycloak_client=mock_keycloak_client,
+        mongodb_client=mock_mongodb_client
+    )
 
 
 @pytest.fixture

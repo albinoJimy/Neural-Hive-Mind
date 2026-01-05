@@ -37,6 +37,12 @@ class TestAgentTypeFromProtoValue:
         assert result == AgentType.GUARD
         assert result.value == "GUARD"
 
+    def test_int_4_returns_analyst(self):
+        """Testa que int 4 retorna ANALYST"""
+        result = AgentType.from_proto_value(4)
+        assert result == AgentType.ANALYST
+        assert result.value == "ANALYST"
+
     # Testes com valores inteiros inválidos
 
     def test_int_0_raises_value_error(self):
@@ -45,11 +51,11 @@ class TestAgentTypeFromProtoValue:
             AgentType.from_proto_value(0)
         assert "Invalid AgentType int value: 0" in str(exc_info.value)
 
-    def test_int_4_raises_value_error(self):
-        """Testa que int 4 (fora do range) levanta ValueError"""
+    def test_int_5_raises_value_error(self):
+        """Testa que int 5 (fora do range) levanta ValueError"""
         with pytest.raises(ValueError) as exc_info:
-            AgentType.from_proto_value(4)
-        assert "Invalid AgentType int value: 4" in str(exc_info.value)
+            AgentType.from_proto_value(5)
+        assert "Invalid AgentType int value: 5" in str(exc_info.value)
 
     def test_int_negative_raises_value_error(self):
         """Testa que int negativo levanta ValueError"""
@@ -79,6 +85,11 @@ class TestAgentTypeFromProtoValue:
         """Testa que string 'GUARD' retorna GUARD"""
         result = AgentType.from_proto_value("GUARD")
         assert result == AgentType.GUARD
+
+    def test_string_analyst_returns_analyst(self):
+        """Testa que string 'ANALYST' retorna ANALYST"""
+        result = AgentType.from_proto_value("ANALYST")
+        assert result == AgentType.ANALYST
 
     def test_string_lowercase_worker_returns_worker(self):
         """Testa que string 'worker' (lowercase) retorna WORKER"""
@@ -133,6 +144,13 @@ class TestAgentTypeFromProtoValue:
         assert result == AgentType.GUARD
         assert result is input_value
 
+    def test_agent_type_analyst_returns_same(self):
+        """Testa que AgentType.ANALYST retorna o mesmo objeto"""
+        input_value = AgentType.ANALYST
+        result = AgentType.from_proto_value(input_value)
+        assert result == AgentType.ANALYST
+        assert result is input_value
+
     # Testes com tipos inválidos
 
     def test_float_raises_value_error(self):
@@ -175,12 +193,17 @@ class TestAgentTypeEnumValues:
         """Verifica que GUARD.value é 'GUARD'"""
         assert AgentType.GUARD.value == "GUARD"
 
-    def test_enum_has_exactly_three_members(self):
-        """Verifica que o enum tem exatamente 3 membros"""
-        assert len(AgentType) == 3
+    def test_analyst_value_is_string_analyst(self):
+        """Verifica que ANALYST.value é 'ANALYST'"""
+        assert AgentType.ANALYST.value == "ANALYST"
+
+    def test_enum_has_exactly_four_members(self):
+        """Verifica que o enum tem exatamente 4 membros"""
+        assert len(AgentType) == 4
 
     def test_enum_is_str_enum(self):
         """Verifica que AgentType é um str enum"""
         assert isinstance(AgentType.WORKER, str)
         assert isinstance(AgentType.SCOUT, str)
         assert isinstance(AgentType.GUARD, str)
+        assert isinstance(AgentType.ANALYST, str)

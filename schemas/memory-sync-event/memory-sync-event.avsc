@@ -1,0 +1,54 @@
+{
+  "type": "record",
+  "name": "MemorySyncEvent",
+  "namespace": "com.neuralhive.memory",
+  "doc": "Evento de sincronização entre camadas de memória (MongoDB -> ClickHouse)",
+  "fields": [
+    {
+      "name": "event_id",
+      "type": "string",
+      "doc": "Identificador único do evento"
+    },
+    {
+      "name": "entity_id",
+      "type": "string",
+      "doc": "Identificador da entidade sendo sincronizada"
+    },
+    {
+      "name": "data_type",
+      "type": "string",
+      "doc": "Tipo de dado (context, lineage, quality_metrics)"
+    },
+    {
+      "name": "operation",
+      "type": {
+        "type": "enum",
+        "name": "Operation",
+        "symbols": ["INSERT", "UPDATE", "DELETE"]
+      },
+      "doc": "Tipo de operação realizada"
+    },
+    {
+      "name": "collection",
+      "type": "string",
+      "doc": "Nome da coleção MongoDB de origem"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Timestamp em milissegundos"
+    },
+    {
+      "name": "data",
+      "type": "string",
+      "doc": "Dados serializados em JSON"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Metadados adicionais em JSON (opcional)"
+    }
+  ]
+}

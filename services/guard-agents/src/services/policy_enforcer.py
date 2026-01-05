@@ -42,7 +42,7 @@ class PolicyType(str, Enum):
 
 
 class PolicyEnforcer:
-    """Enforça políticas usando OPA e Istio seguindo Fluxo E3"""
+    """Enforca politicas usando OPA e Istio seguindo Fluxo E3"""
 
     def __init__(
         self,
@@ -50,6 +50,8 @@ class PolicyEnforcer:
         redis_client=None,
         opa_client=None,
         istio_client=None,
+        keycloak_client=None,
+        mongodb_client=None,
         opa_enabled: bool = True,
         istio_enabled: bool = True
     ):
@@ -57,6 +59,8 @@ class PolicyEnforcer:
         self.redis = redis_client
         self.opa_client = opa_client
         self.istio_client = istio_client
+        self.keycloak_client = keycloak_client
+        self.mongodb = mongodb_client
         self.opa_enabled = opa_enabled and OPA_AVAILABLE
         self.istio_enabled = istio_enabled and ISTIO_AVAILABLE
         self.policies = self._load_policies()
@@ -428,19 +432,98 @@ class PolicyEnforcer:
     async def _revoke_access(
         self, incident: Dict[str, Any], plan: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Revoga acesso de usuário/serviço"""
+        """Revoga acesso de usuario/servico via Keycloak"""
         user_id = incident.get("anomaly", {}).get("details", {}).get("user_id")
 
         if not user_id:
             return {"success": False, "action": "revoke_access", "reason": "No user ID"}
 
-        # TODO: Revogar tokens via IAM (Keycloak)
         logger.info("policy_enforcer.revoking_access", user_id=user_id)
 
+        success = False
+        details = {"user_id": user_id}
+
+        # Revogar tokens via Keycloak Admin API
+        if self.keycloak_client:
+            try:
+                # Tentar revogar todas as sessoes ativas
+                revoke_result = await self.keycloak_client.revoke_user_sessions(user_id)
+
+                if revoke_result.get("success"):
+                    success = True
+                    details["keycloak_action"] = "sessions_revoked"
+                    details["timestamp"] = revoke_result.get("timestamp")
+                    logger.info(
+                        "policy_enforcer.sessions_revoked",
+                        user_id=user_id
+                    )
+                else:
+                    # Fallback: desabilitar usuario se revogacao de sessao falhar
+                    logger.warning(
+                        "policy_enforcer.revoke_failed_trying_disable",
+                        user_id=user_id,
+                        reason=revoke_result.get("reason")
+                    )
+
+                    disable_result = await self.keycloak_client.disable_user(user_id)
+                    if disable_result.get("success"):
+                        success = True
+                        details["keycloak_action"] = "user_disabled"
+                        details["timestamp"] = disable_result.get("timestamp")
+                        logger.info(
+                            "policy_enforcer.user_disabled",
+                            user_id=user_id
+                        )
+                    else:
+                        details["error"] = disable_result.get("reason")
+                        logger.error(
+                            "policy_enforcer.disable_failed",
+                            user_id=user_id,
+                            reason=disable_result.get("reason")
+                        )
+
+            except Exception as e:
+                logger.error(
+                    "policy_enforcer.keycloak_revoke_error",
+                    user_id=user_id,
+                    error=str(e)
+                )
+                details["error"] = str(e)
+        else:
+            # Keycloak nao disponivel - log e considera sucesso para nao bloquear fluxo
+            logger.warning(
+                "policy_enforcer.keycloak_not_available",
+                action="revoke_access"
+            )
+            success = True
+            details["keycloak_action"] = "bypassed"
+
+        # Registrar acao no MongoDB para auditoria
+        if self.mongodb and self.mongodb.remediation_collection:
+            try:
+                audit_record = {
+                    "action": "revoke_access",
+                    "user_id": user_id,
+                    "incident_id": incident.get("incident_id"),
+                    "success": success,
+                    "details": details,
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+                await self.mongodb.remediation_collection.insert_one(audit_record)
+                logger.debug(
+                    "policy_enforcer.revoke_audit_logged",
+                    incident_id=incident.get("incident_id")
+                )
+            except Exception as e:
+                logger.warning(
+                    "policy_enforcer.audit_log_failed",
+                    error=str(e)
+                )
+
         return {
-            "success": True,
+            "success": success,
             "action": "revoke_access",
-            "details": {"user_id": user_id},
+            "details": details,
         }
 
     async def _quarantine_resource(

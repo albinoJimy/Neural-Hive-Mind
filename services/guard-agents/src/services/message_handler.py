@@ -29,7 +29,8 @@ class MessageHandler:
         self_healing_client=None,
         opa_client=None,
         istio_client=None,
-        prometheus_client=None
+        prometheus_client=None,
+        threat_detector=None
     ):
         self.mongodb = mongodb_client
         self.redis = redis_client
@@ -47,7 +48,8 @@ class MessageHandler:
         from src.services.remediation_coordinator import RemediationCoordinator
         from src.services.incident_orchestrator import IncidentOrchestrator
 
-        self.threat_detector = ThreatDetector(redis_client=redis_client)
+        # Usar ThreatDetector injetado ou criar novo
+        self.threat_detector = threat_detector if threat_detector else ThreatDetector(redis_client=redis_client)
         self.incident_classifier = IncidentClassifier(mongodb_client=mongodb_client)
         self.policy_enforcer = PolicyEnforcer(
             k8s_client=k8s_client,

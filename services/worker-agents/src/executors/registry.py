@@ -12,8 +12,9 @@ class ExecutorNotFoundError(Exception):
 class TaskExecutorRegistry:
     '''Registry de executores de tarefas'''
 
-    def __init__(self, config):
+    def __init__(self, config, metrics=None):
         self.config = config
+        self.metrics = metrics
         self.executors: Dict[str, BaseTaskExecutor] = {}
         self.logger = logger.bind(service='task_executor_registry')
 
@@ -28,7 +29,8 @@ class TaskExecutorRegistry:
             executor_class=executor.__class__.__name__
         )
 
-        # TODO: Incrementar métrica worker_agent_executors_registered_total{task_type=...}
+        if self.metrics:
+            self.metrics.executors_registered_total.labels(task_type=task_type).inc()
 
     def get_executor(self, task_type: str) -> BaseTaskExecutor:
         '''Obter executor por task_type'''

@@ -13,8 +13,9 @@ class TicketNotFoundError(Exception):
 class ExecutionTicketClient:
     '''Cliente HTTP para Execution Ticket Service'''
 
-    def __init__(self, config):
+    def __init__(self, config, metrics=None):
         self.config = config
+        self.metrics = metrics
         self.logger = logger.bind(service='execution_ticket_client')
         self.client = None
         self._token_cache: Dict[str, Dict[str, Any]] = {}
@@ -41,6 +42,7 @@ class ExecutionTicketClient:
     )
     async def get_ticket(self, ticket_id: str) -> Dict[str, Any]:
         '''Obter ticket por ID'''
+        status = 'error'
         try:
             response = await self.client.get(f'/api/v1/tickets/{ticket_id}')
 
@@ -50,7 +52,8 @@ class ExecutionTicketClient:
             response.raise_for_status()
 
             self.logger.debug('ticket_retrieved', ticket_id=ticket_id)
-            # TODO: Incrementar métrica worker_agent_ticket_api_calls_total{method=get_ticket, status=...}
+            if response.status_code == 200:
+                status = 'success'
 
             return response.json()
 
@@ -59,6 +62,9 @@ class ExecutionTicketClient:
         except Exception as e:
             self.logger.error('get_ticket_failed', ticket_id=ticket_id, error=str(e))
             raise
+        finally:
+            if self.metrics:
+                self.metrics.ticket_api_calls_total.labels(method='get_ticket', status=status).inc()
 
     @retry(
         stop=stop_after_attempt(3),
@@ -72,6 +78,7 @@ class ExecutionTicketClient:
         actual_duration_ms: Optional[int] = None
     ) -> Dict[str, Any]:
         '''Atualizar status do ticket'''
+        api_status = 'error'
         try:
             payload = {
                 'status': status,
@@ -92,8 +99,10 @@ class ExecutionTicketClient:
                 error_message=error_message
             )
 
-            # TODO: Incrementar métrica worker_agent_ticket_status_updates_total{status=...}
+            if self.metrics:
+                self.metrics.ticket_status_updates_total.labels(status=status).inc()
 
+            api_status = 'success'
             return response.json()
 
         except Exception as e:
@@ -104,6 +113,9 @@ class ExecutionTicketClient:
                 error=str(e)
             )
             raise
+        finally:
+            if self.metrics:
+                self.metrics.ticket_api_calls_total.labels(method='update_ticket_status', status=api_status).inc()
 
     async def get_ticket_token(self, ticket_id: str) -> str:
         '''Obter token JWT para ticket'''
@@ -121,7 +133,8 @@ class ExecutionTicketClient:
             self._token_cache[ticket_id] = token_data
 
             self.logger.debug('ticket_token_obtained', ticket_id=ticket_id)
-            # TODO: Incrementar métrica worker_agent_ticket_tokens_obtained_total
+            if self.metrics:
+                self.metrics.ticket_tokens_obtained_total.inc()
 
             return token_data['access_token']
 

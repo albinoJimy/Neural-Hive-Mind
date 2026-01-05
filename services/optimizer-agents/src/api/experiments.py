@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from src.clients.mongodb_client import MongoDBClient
@@ -55,29 +55,28 @@ class ExperimentStatisticsResponse(BaseModel):
     success_rate: float
 
 
-# Dependency injection placeholders
-mongodb_client: Optional[MongoDBClient] = None
-experiment_manager: Optional[ExperimentManager] = None
+# Dependency injection functions (será configurado via app.dependency_overrides no main.py)
+def get_mongodb_client() -> MongoDBClient:
+    """Dependency para injetar MongoDBClient."""
+    raise NotImplementedError("MongoDBClient dependency not configured")
 
 
-def set_dependencies(mongodb: MongoDBClient, exp_manager: ExperimentManager):
-    """Configurar dependências (chamado no startup)."""
-    global mongodb_client, experiment_manager
-    mongodb_client = mongodb
-    experiment_manager = exp_manager
+def get_experiment_manager() -> ExperimentManager:
+    """Dependency para injetar ExperimentManager."""
+    raise NotImplementedError("ExperimentManager dependency not configured")
 
 
 @router.post("/submit", response_model=SubmitExperimentResponse)
-async def submit_experiment(request: SubmitExperimentRequest):
+async def submit_experiment(
+    request: SubmitExperimentRequest,
+    experiment_manager: ExperimentManager = Depends(get_experiment_manager),
+):
     """
     Submeter novo experimento.
 
     Cria e submete um novo experimento para validação de hipótese.
     """
     try:
-        if not experiment_manager:
-            raise HTTPException(status_code=503, detail="ExperimentManager not initialized")
-
         # Criar hipótese sintética para ExperimentManager
         from src.models.optimization_hypothesis import OptimizationHypothesis, OptimizationType
 
@@ -118,6 +117,7 @@ async def list_experiments(
     page_size: int = Query(default=20, ge=1, le=100),
     status: Optional[str] = None,
     experiment_type: Optional[ExperimentType] = None,
+    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
 ):
     """
     Listar experimentos com filtros.
@@ -125,9 +125,6 @@ async def list_experiments(
     Retorna lista paginada de experimentos.
     """
     try:
-        if not mongodb_client:
-            raise HTTPException(status_code=503, detail="MongoDB client not initialized")
-
         # Construir filtros
         filters = {}
         if status:
@@ -149,16 +146,16 @@ async def list_experiments(
 
 
 @router.get("/{experiment_id}")
-async def get_experiment(experiment_id: str):
+async def get_experiment(
+    experiment_id: str,
+    experiment_manager: ExperimentManager = Depends(get_experiment_manager),
+):
     """
     Obter detalhes de um experimento.
 
     Retorna informações completas sobre um experimento específico.
     """
     try:
-        if not experiment_manager:
-            raise HTTPException(status_code=503, detail="ExperimentManager not initialized")
-
         experiment = await experiment_manager.get_experiment(experiment_id)
 
         if not experiment:
@@ -173,16 +170,16 @@ async def get_experiment(experiment_id: str):
 
 
 @router.post("/{experiment_id}/abort")
-async def abort_experiment(experiment_id: str):
+async def abort_experiment(
+    experiment_id: str,
+    experiment_manager: ExperimentManager = Depends(get_experiment_manager),
+):
     """
     Abortar experimento em execução.
 
     Interrompe um experimento que está em andamento.
     """
     try:
-        if not experiment_manager:
-            raise HTTPException(status_code=503, detail="ExperimentManager not initialized")
-
         # Obter experimento
         experiment = await experiment_manager.get_experiment(experiment_id)
 
@@ -211,16 +208,16 @@ async def abort_experiment(experiment_id: str):
 
 
 @router.get("/{experiment_id}/results")
-async def get_experiment_results(experiment_id: str):
+async def get_experiment_results(
+    experiment_id: str,
+    experiment_manager: ExperimentManager = Depends(get_experiment_manager),
+):
     """
     Obter resultados de um experimento.
 
     Retorna análise detalhada dos resultados de um experimento completado.
     """
     try:
-        if not experiment_manager:
-            raise HTTPException(status_code=503, detail="ExperimentManager not initialized")
-
         # Obter experimento
         experiment = await experiment_manager.get_experiment(experiment_id)
 
@@ -249,16 +246,15 @@ async def get_experiment_results(experiment_id: str):
 
 
 @router.get("/statistics/summary", response_model=ExperimentStatisticsResponse)
-async def get_statistics():
+async def get_statistics(
+    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
+):
     """
     Obter estatísticas de experimentos.
 
     Retorna métricas agregadas sobre experimentos executados.
     """
     try:
-        if not mongodb_client:
-            raise HTTPException(status_code=503, detail="MongoDB client not initialized")
-
         # Placeholder - idealmente seria agregação MongoDB
         return ExperimentStatisticsResponse(
             total_experiments=0,

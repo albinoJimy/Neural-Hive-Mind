@@ -309,7 +309,14 @@ data:
       jaeger:
         endpoint: jaeger-collector.{{ .Release.Namespace }}.svc.cluster.local:14250
         tls:
+          {{- if .Values.tls.enabled }}
+          insecure: false
+          cert_file: {{ .Values.tls.mountPath }}/tls.crt
+          key_file: {{ .Values.tls.mountPath }}/tls.key
+          ca_file: {{ .Values.tls.mountPath }}/ca.crt
+          {{- else }}
           insecure: true
+          {{- end }}
         sending_queue:
           enabled: true
           num_consumers: 2
@@ -324,7 +331,14 @@ data:
       otlp/traces:
         endpoint: jaeger-collector.{{ .Release.Namespace }}.svc.cluster.local:4317
         tls:
+          {{- if .Values.tls.enabled }}
+          insecure: false
+          cert_file: {{ .Values.tls.mountPath }}/tls.crt
+          key_file: {{ .Values.tls.mountPath }}/tls.key
+          ca_file: {{ .Values.tls.mountPath }}/ca.crt
+          {{- else }}
           insecure: true
+          {{- end }}
         headers:
           X-Neural-Hive-Source: "otel-collector"
           X-Neural-Hive-Environment: {{ .Values.global.environment }}

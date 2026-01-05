@@ -1,6 +1,7 @@
 """
 Unified Memory Client - Orchestrates access to 4 memory layers
 """
+import json
 import structlog
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, Tuple, List
@@ -12,12 +13,21 @@ logger = structlog.get_logger(__name__)
 class UnifiedMemoryClient:
     """Unified client with intelligent routing across memory layers"""
 
-    def __init__(self, redis_client, mongodb_client, neo4j_client, clickhouse_client, settings):
+    def __init__(
+        self,
+        redis_client,
+        mongodb_client,
+        neo4j_client,
+        clickhouse_client,
+        settings,
+        kafka_producer=None
+    ):
         self.redis = redis_client
         self.mongodb = mongodb_client
         self.neo4j = neo4j_client
         self.clickhouse = clickhouse_client
         self.settings = settings
+        self.kafka_producer = kafka_producer
 
     async def query(
         self,
@@ -273,8 +283,9 @@ class UnifiedMemoryClient:
             )
             logger.debug("Saved to MongoDB", entity_id=entity_id)
 
-            # 3. TODO: Publish Kafka event for ClickHouse sync
-            # await self._publish_sync_event(entity_id, data_type, data)
+            # 3. Publica evento Kafka para sincronização assíncrona com ClickHouse
+            if self.kafka_producer and self.settings.enable_realtime_sync:
+                await self._publish_sync_event(entity_id, data_type, data)
 
             # 4. Update Neo4j if semantic data
             if data.get('relationships'):
@@ -305,6 +316,37 @@ class UnifiedMemoryClient:
             logger.debug("Updated semantic graph", entity_id=entity_id)
         except Exception as e:
             logger.warning("Semantic graph update failed", error=str(e))
+
+    async def _publish_sync_event(self, entity_id: str, data_type: str, data: Dict):
+        """
+        Publica evento de sincronização no Kafka para ingestão assíncrona no ClickHouse.
+
+        Args:
+            entity_id: Identificador da entidade
+            data_type: Tipo de dado (context, lineage, etc)
+            data: Dados a serem sincronizados
+        """
+        try:
+            sync_event = {
+                'event_id': str(uuid.uuid4()),
+                'entity_id': entity_id,
+                'data_type': data_type,
+                'operation': 'INSERT',
+                'collection': self.settings.mongodb_context_collection,
+                'timestamp': int(datetime.utcnow().timestamp() * 1000),
+                'data': json.dumps(data, default=str),
+                'metadata': json.dumps({'source': 'unified_memory_client'})
+            }
+            await self.kafka_producer.publish_sync_event(sync_event)
+            logger.debug("Evento de sincronização publicado", entity_id=entity_id, data_type=data_type)
+        except Exception as e:
+            # Fail-open: não bloqueia operação principal se Kafka falhar
+            logger.warning(
+                "Falha ao publicar evento de sincronização",
+                error=str(e),
+                entity_id=entity_id,
+                data_type=data_type
+            )
 
     async def get_lineage(self, entity_id: str, depth: int = 3) -> Dict[str, Any]:
         """Get data lineage tree"""

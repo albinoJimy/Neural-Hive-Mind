@@ -245,6 +245,7 @@ class RetentionEnforcer:
         logger.info("Aplicando retenção no ClickHouse...")
 
         cutoff_date = datetime.utcnow() - timedelta(days=self.clickhouse_retention_months * 30)
+        database = self.clickhouse_client.database
 
         tables = [
             'operational_context_history',
@@ -254,30 +255,38 @@ class RetentionEnforcer:
 
         total_deleted = 0
         for table in tables:
+            full_table_name = f"{database}.{table}"
             if self.dry_run:
-                # Conta linhas que seriam removidas
+                # Conta linhas que seriam removidas usando client.query()
                 count_query = f"""
                 SELECT count(*) as count
-                FROM {table}
-                WHERE timestamp < '{cutoff_date.isoformat()}'
+                FROM {full_table_name}
+                WHERE created_at < %(cutoff_date)s
                 """
-                result = await self.clickhouse_client.execute_query(count_query)
-                count = result[0]['count'] if result else 0
+                result = self.clickhouse_client.client.query(
+                    count_query,
+                    parameters={'cutoff_date': cutoff_date}
+                )
+                count = result.result_rows[0][0] if result.result_rows else 0
                 logger.info(
-                    f"[DRY-RUN] Linhas a remover",
+                    "[DRY-RUN] Linhas a remover",
                     table=table,
                     count=count
                 )
                 total_deleted += count
             else:
-                # Remove linhas expiradas
+                # Remove linhas expiradas usando client.command()
                 delete_query = f"""
-                ALTER TABLE {table}
-                DELETE WHERE timestamp < '{cutoff_date.isoformat()}'
+                ALTER TABLE {full_table_name}
+                DELETE WHERE created_at < %(cutoff_date)s
                 """
-                await self.clickhouse_client.execute_query(delete_query)
+                self.clickhouse_client.client.command(
+                    delete_query,
+                    parameters={'cutoff_date': cutoff_date}
+                )
                 logger.info(
-                    f"Linhas removidas de {table}"
+                    "Linhas removidas de tabela",
+                    table=table
                 )
 
         logger.info(

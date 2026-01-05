@@ -131,8 +131,8 @@ class TelemetryAggregator:
             resource_data = await self.prometheus_client.get_resource_saturation()
             resource_saturation = max(resource_data.values()) if resource_data else 0.0
 
-            # Workflow success rate (placeholder - seria calculado de métricas reais)
-            workflow_success_rate = 0.95
+            # Calcular workflow success rate de métricas reais
+            workflow_success_rate = await self._get_workflow_success_rate()
 
             score = (
                 sla_compliance * 0.3 +
@@ -146,6 +146,57 @@ class TelemetryAggregator:
         except Exception as e:
             logger.error("calculate_system_score_failed", error=str(e))
             return 0.5
+
+    async def _get_workflow_success_rate(self) -> float:
+        """
+        Calcular taxa de sucesso de workflows dos últimos 5 minutos
+
+        Returns:
+            Taxa de sucesso (0.0 a 1.0)
+        """
+        try:
+            # Query PromQL para workflows completados com sucesso vs total
+            query = '''
+            sum(rate(temporal_workflow_completed_total{status="COMPLETED"}[5m])) /
+            sum(rate(temporal_workflow_completed_total[5m]))
+            '''
+
+            result = await self.prometheus_client.query(query)
+
+            if result.get('status') == 'success' and result.get('data', {}).get('result'):
+                value = result['data']['result'][0].get('value', [])
+                if len(value) > 1:
+                    success_rate = float(value[1])
+                    # Tratar NaN (divisão por zero)
+                    if success_rate != success_rate:  # NaN check
+                        return 0.95
+                    logger.debug("workflow_success_rate_calculated", rate=success_rate)
+                    return success_rate
+
+            # Fallback: tentar query alternativa para execution tickets
+            fallback_query = '''
+            sum(rate(execution_tickets_completed_total{status="COMPLETED"}[5m])) /
+            sum(rate(execution_tickets_completed_total[5m]))
+            '''
+
+            fallback_result = await self.prometheus_client.query(fallback_query)
+
+            if fallback_result.get('status') == 'success' and fallback_result.get('data', {}).get('result'):
+                value = fallback_result['data']['result'][0].get('value', [])
+                if len(value) > 1:
+                    success_rate = float(value[1])
+                    if success_rate != success_rate:  # NaN check
+                        return 0.95
+                    logger.debug("workflow_success_rate_calculated_fallback", rate=success_rate)
+                    return success_rate
+
+            # Se não há dados, assumir taxa otimista
+            logger.warning("workflow_success_rate_no_data_available")
+            return 0.95
+
+        except Exception as e:
+            logger.error("get_workflow_success_rate_failed", error=str(e))
+            return 0.95
 
     async def cache_telemetry_snapshot(self, snapshot: Dict[str, Any]) -> None:
         """Cachear snapshot de telemetria no Redis"""

@@ -404,5 +404,155 @@ class TestExporterMetrics:
             mock_counter_labels.inc.assert_called()
 
 
+class TestTLSConfiguration:
+    """Testes para configuração TLS do ResilientOTLPSpanExporter."""
+
+    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    def test_tls_disabled_by_default(self, mock_otlp_class):
+        """Testa que TLS está desabilitado por padrão."""
+        mock_inner = Mock()
+        mock_otlp_class.return_value = mock_inner
+
+        exporter = ResilientOTLPSpanExporter(
+            endpoint="http://localhost:4317",
+            service_name="test-service"
+        )
+
+        # Verificar que insecure=True foi passado
+        call_kwargs = mock_otlp_class.call_args[1]
+        assert call_kwargs.get('insecure') is True
+        assert 'credentials' not in call_kwargs
+
+    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    def test_tls_enabled_without_certs_does_not_fallback_to_insecure(self, mock_otlp_class):
+        """Testa que TLS sem certificados NÃO faz fallback para insecure."""
+        mock_inner = Mock()
+        mock_otlp_class.return_value = mock_inner
+
+        exporter = ResilientOTLPSpanExporter(
+            endpoint="http://localhost:4317",
+            service_name="test-service",
+            tls_enabled=True,
+            tls_cert_path="/nonexistent/cert.pem"
+        )
+
+        # Exporter should NOT be initialized (no silent fallback to insecure)
+        assert exporter._inner_exporter is None
+        assert exporter._tls_enabled is False
+
+    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    @patch('neural_hive_observability.exporters.grpc.ssl_channel_credentials')
+    @patch('builtins.open', create=True)
+    @patch('os.path.exists')
+    def test_tls_enabled_with_valid_certs(self, mock_exists, mock_open, mock_ssl_creds, mock_otlp_class):
+        """Testa TLS com certificados válidos."""
+        import io
+
+        # Simular arquivos de certificado existentes
+        mock_exists.return_value = True
+
+        # Simular leitura de arquivos
+        cert_content = b"-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----"
+        key_content = b"-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----"
+        ca_content = b"-----BEGIN CERTIFICATE-----\nca\n-----END CERTIFICATE-----"
+
+        def open_side_effect(path, *args, **kwargs):
+            if 'cert' in path and 'ca' not in path:
+                return io.BytesIO(cert_content)
+            elif 'key' in path:
+                return io.BytesIO(key_content)
+            elif 'ca' in path:
+                return io.BytesIO(ca_content)
+            return io.BytesIO(b"")
+
+        mock_open.side_effect = open_side_effect
+
+        mock_credentials = Mock()
+        mock_ssl_creds.return_value = mock_credentials
+
+        mock_inner = Mock()
+        mock_otlp_class.return_value = mock_inner
+
+        exporter = ResilientOTLPSpanExporter(
+            endpoint="https://localhost:4317",
+            service_name="test-service",
+            tls_enabled=True,
+            tls_cert_path="/etc/tls/cert.pem",
+            tls_key_path="/etc/tls/key.pem",
+            tls_ca_cert_path="/etc/tls/ca.crt"
+        )
+
+        # Verificar que credentials foi passado
+        call_kwargs = mock_otlp_class.call_args[1]
+        assert 'credentials' in call_kwargs or 'insecure' not in call_kwargs or call_kwargs.get('insecure') is False
+
+    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    @patch('neural_hive_observability.exporters.grpc.ssl_channel_credentials')
+    def test_tls_insecure_skip_verify(self, mock_ssl_creds, mock_otlp_class):
+        """Testa parâmetro insecure_skip_verify."""
+        mock_inner = Mock()
+        mock_otlp_class.return_value = mock_inner
+
+        mock_credentials = Mock()
+        mock_ssl_creds.return_value = mock_credentials
+
+        exporter = ResilientOTLPSpanExporter(
+            endpoint="http://localhost:4317",
+            service_name="test-service",
+            tls_enabled=True,
+            tls_insecure_skip_verify=True
+        )
+
+        # Exporter should be created with TLS credentials (even without CA)
+        assert exporter._inner_exporter is not None
+        # ssl_channel_credentials should be called (with None root_certificates when skipping verify)
+        mock_ssl_creds.assert_called_once()
+
+    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    def test_tls_status_logged(self, mock_otlp_class):
+        """Testa que status TLS é logado corretamente."""
+        mock_inner = Mock()
+        mock_otlp_class.return_value = mock_inner
+
+        # Com TLS desabilitado
+        exporter_insecure = ResilientOTLPSpanExporter(
+            endpoint="http://localhost:4317",
+            service_name="test-service",
+            tls_enabled=False
+        )
+        assert exporter_insecure._tls_enabled is False
+        assert exporter_insecure._inner_exporter is not None
+
+        # Com TLS habilitado sem certificados - exporter não deve ser inicializado
+        exporter_tls = ResilientOTLPSpanExporter(
+            endpoint="http://localhost:4317",
+            service_name="test-service",
+            tls_enabled=True
+        )
+        # Sem certificados válidos, exporter não é inicializado (não faz fallback silencioso)
+        assert exporter_tls._tls_enabled is False
+        assert exporter_tls._inner_exporter is None
+
+    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    def test_tls_enabled_without_certs_logs_error(self, mock_otlp_class):
+        """Testa que TLS sem certificados loga erro e não inicializa exporter."""
+        mock_inner = Mock()
+        mock_otlp_class.return_value = mock_inner
+
+        exporter = ResilientOTLPSpanExporter(
+            endpoint="http://localhost:4317",
+            service_name="test-service",
+            tls_enabled=True,
+            tls_ca_cert_path="/nonexistent/ca.crt"
+        )
+
+        # Exporter não deve ser inicializado
+        assert exporter._inner_exporter is None
+        # TLS deve estar desabilitado
+        assert exporter._tls_enabled is False
+        # OTLPSpanExporter não deve ter sido chamado
+        mock_otlp_class.assert_not_called()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

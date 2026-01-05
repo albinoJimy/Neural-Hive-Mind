@@ -71,8 +71,13 @@ def init_tracing(config: ObservabilityConfig) -> None:
         otlp_exporter = ResilientOTLPSpanExporter(
             endpoint=config.otel_endpoint,
             service_name=config.service_name,
-            insecure=True,  # TODO: Configurar TLS em produção
-            headers=sanitized_headers
+            insecure=not config.otel_tls_enabled,
+            headers=sanitized_headers,
+            tls_enabled=config.otel_tls_enabled,
+            tls_cert_path=config.otel_tls_cert_path,
+            tls_key_path=config.otel_tls_key_path,
+            tls_ca_cert_path=config.otel_tls_ca_cert_path,
+            tls_insecure_skip_verify=config.otel_tls_insecure_skip_verify,
         )
 
         # Adicionar batch processor
@@ -84,9 +89,10 @@ def init_tracing(config: ObservabilityConfig) -> None:
         )
         tracer_provider.add_span_processor(span_processor)
 
+        tls_status = "TLS habilitado" if config.otel_tls_enabled else "insecure"
         logger.info(
             f"Tracing inicializado para {config.service_name} "
-            f"com ResilientOTLPSpanExporter (endpoint: {config.otel_endpoint})"
+            f"com ResilientOTLPSpanExporter ({tls_status}, endpoint: {config.otel_endpoint})"
         )
     except Exception as e:
         logger.warning(f"Erro ao configurar OTLP exporter: {e}")

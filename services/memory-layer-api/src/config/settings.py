@@ -70,6 +70,38 @@ class Settings(BaseSettings):
         description="ClickHouse retention period in months"
     )
 
+    # Kafka (Real-time Sync)
+    kafka_bootstrap_servers: str = Field(
+        default='kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092',
+        description="Kafka bootstrap servers"
+    )
+    kafka_sync_topic: str = Field(
+        default='memory.sync.events',
+        description="Topic para eventos de sincronização de memória"
+    )
+    kafka_dlq_topic: str = Field(
+        default='memory.sync.events.dlq',
+        description="Topic de Dead Letter Queue para eventos com falha"
+    )
+    kafka_schema_registry_url: str = Field(
+        default='http://schema-registry.kafka.svc.cluster.local:8081',
+        description="URL do Schema Registry"
+    )
+    kafka_security_protocol: str = Field(
+        default='PLAINTEXT',
+        description="Protocolo de segurança Kafka"
+    )
+    kafka_sasl_username: Optional[str] = Field(default=None, description="Username SASL Kafka")
+    kafka_sasl_password: Optional[str] = Field(default=None, description="Password SASL Kafka")
+    kafka_consumer_group: str = Field(
+        default='memory-sync-consumer',
+        description="Consumer group para sincronização"
+    )
+    enable_realtime_sync: bool = Field(
+        default=True,
+        description="Habilitar sincronização em tempo real via Kafka"
+    )
+
     # Observabilidade
     otel_endpoint: str = Field(
         default='http://opentelemetry-collector.observability.svc.cluster.local:4317',
