@@ -5,7 +5,77 @@ All notable changes to the Neural Hive-Mind project will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2025-12-14
+## [Unreleased] - 2026-01-05
+
+### Removed
+- **[CLEANUP]** Módulos de tracing deprecated removidos de 4 serviços
+  - `services/analyst-agents/src/observability/tracing.py` - Substituído por `neural_hive_observability==1.1.0`
+  - `services/optimizer-agents/src/observability/tracing.py` - Substituído por `neural_hive_observability==1.1.0`
+  - `services/execution-ticket-service/src/observability/tracing.py` - Substituído por `neural_hive_observability==1.1.0`
+  - `services/queen-agent/src/observability/tracing.py` - Substituído por `neural_hive_observability==1.1.0`
+- **[CLEANUP]** Função deprecated `configure_tracing()` removida de `scout-agents/src/main.py`
+- **[CLEANUP]** Debug logs excessivos removidos de `consensus-engine/src/clients/specialists_grpc_client.py`
+  - Removidos logs de serialização de cognitive_plan (linhas 93-101, 110-117)
+
+### Changed
+- **Observability Exports**: Atualizados `__init__.py` de 3 serviços para remover exports de `setup_tracing` deprecated
+  - `analyst-agents/src/observability/__init__.py`
+  - `execution-ticket-service/src/observability/__init__.py`
+  - `queen-agent/src/observability/__init__.py`
+
+### Added
+- **Integração ML Completa**: Modelos ML reais integrados aos serviços
+  - `AnomalyDetector` com Isolation Forest/Autoencoder no Guard Agent (`services/guard-agents/src/services/threat_detector.py`)
+  - Queries reais de Prometheus para workflow success rate no Queen Agent (`services/queen-agent/src/services/telemetry_aggregator.py`)
+  - Queries Neo4j para buscar planos ativos (`services/queen-agent/src/services/strategic_decision_engine.py`)
+  - Queries MongoDB/Neo4j para calcular taxas de sucesso históricas
+  - Script de validação de acurácia de modelos (`ml_pipelines/training/test_model_accuracy.py`)
+  - Documentação de deployment de modelos ML (`docs/ML_MODELS_DEPLOYMENT.md`)
+
+### Changed
+- **Guard Agent**: `ThreatDetector` agora aceita `AnomalyDetector` para detecção comportamental ML
+- **Guard Agent**: `MessageHandler` agora aceita `ThreatDetector` injetado
+- **Guard Agent**: Novas configurações para MLflow e Anomaly Detector em `settings.py`
+- **Queen Agent**: `TelemetryAggregator.calculate_system_score()` calcula workflow success rate de métricas reais
+- **Queen Agent**: `StrategicDecisionEngine._aggregate_context()` busca dados reais de Neo4j, MongoDB e Prometheus
+- **Queen Agent**: `StrategicDecisionEngine._calculate_confidence()` usa taxa de sucesso histórica real
+
+### Fixed
+- Removido placeholder de ML em `_detect_behavioral_anomaly()` (linha 228 de `threat_detector.py`)
+- Removido valor hardcoded `0.95` para workflow_success_rate em `telemetry_aggregator.py` (linha 135)
+- Removido valor hardcoded `0.8` para historical_success_rate em `strategic_decision_engine.py` (linha 400)
+- Removidos placeholders de active_plans, critical_incidents e sla_violations em `_aggregate_context()`
+
+## [Unreleased-previous] - 2026-01-04
+
+### Added
+- **[SECURITY]** Suporte TLS para OpenTelemetry Exporter (`libraries/python/neural_hive_observability`)
+  - Novos campos em `ObservabilityConfig`: `otel_tls_enabled`, `otel_tls_cert_path`, `otel_tls_key_path`, `otel_tls_ca_cert_path`, `otel_tls_insecure_skip_verify`
+  - `ResilientOTLPSpanExporter` agora suporta conexões TLS com certificados mTLS
+  - Variáveis de ambiente: `OTEL_EXPORTER_TLS_ENABLED`, `OTEL_EXPORTER_TLS_CERT_PATH`, etc.
+- **Helm Templates TLS**: Template comum `neural-hive.observability-tls-env` para facilitar adoção em serviços
+- **Script de Migração TLS**: `scripts/observability/enable-tls-migration.sh` para migração gradual
+- **Documentação TLS**: Nova seção "Configuração TLS para OpenTelemetry Exporter" em `docs/OBSERVABILITY_DEPLOYMENT.md`
+- **Testes TLS**: Testes unitários para configuração e exporter TLS em `tests/test_exporters.py` e `tests/test_observability.py`
+- Testes de integração para validação de Dependency Injection em APIs (`services/optimizer-agents/tests/integration/test_api_dependencies.py`)
+- Testes de integração para SLA Management System (`services/sla-management-system/tests/integration/test_api_dependencies.py`)
+- Testes E2E para APIs do Optimizer Agents (`tests/e2e/test_optimizer_apis.py`)
+- Documentação de padrões de Dependency Injection (`docs/API_DEPENDENCY_INJECTION_GUIDE.md`)
+
+### Fixed
+- **[SECURITY]** Removido `insecure=True` hardcoded em `tracing.py` (linha 74) - agora configurável via `otel_tls_enabled`
+- **Optimizer Agents**: Configurada injeção de dependências nas APIs de otimizações e experimentos
+  - Endpoints `/api/v1/optimizations` e `/api/v1/experiments` agora funcionam corretamente
+  - Migrado de variáveis globais para padrão FastAPI `dependency_overrides`
+
+### Changed
+- **otel-collector Helm chart**: Agora suporta TLS para exporters Jaeger/OTLP via `tls.enabled`
+- **Helm charts de serviços**: Adicionada seção `observability.tls` em 9 serviços principais (gateway-intencoes, queen-agent, optimizer-agents, service-registry, worker-agents, guard-agents, analyst-agents, code-forge, self-healing-engine)
+- **Optimizer Agents**: Refatorado `src/api/optimizations.py` para usar `Depends()` em vez de variáveis globais
+- **Optimizer Agents**: Refatorado `src/api/experiments.py` para usar `Depends()` em vez de variáveis globais
+- **Optimizer Agents**: Configurado `app.dependency_overrides` no `main.py` para injetar serviços reais
+
+## [1.0.13] - 2025-12-14
 
 ### Added
 - **Consensus Engine Resource Alerts**: Adicionados alertas Prometheus para monitoramento de recursos (`prometheus-rules/consensus-engine-resource-alerts.yaml`):

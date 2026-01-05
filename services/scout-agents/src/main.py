@@ -44,11 +44,6 @@ def configure_logging():
     )
 
 
-def configure_tracing(settings):
-    """DEPRECATED: tracing is handled by neural_hive_observability.init_observability."""
-    return
-
-
 def handle_signal(signum, frame):
     """Handle shutdown signals"""
     logger.info("shutdown_signal_received", signal=signum)

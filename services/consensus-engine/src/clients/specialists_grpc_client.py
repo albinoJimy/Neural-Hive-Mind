@@ -89,31 +89,12 @@ class SpecialistsGrpcClient:
                 if not stub:
                     raise ValueError(f'Especialista {specialist_type} não configurado')
 
-                # DEBUG: Log estado do cognitive_plan antes da serialização
-                logger.debug(
-                    'Preparando cognitive_plan para gRPC',
-                    specialist_type=specialist_type,
-                    plan_id=cognitive_plan.get('plan_id'),
-                    has_version='version' in cognitive_plan,
-                    version_value=cognitive_plan.get('version'),
-                    cognitive_plan_keys=list(cognitive_plan.keys())
-                )
-
                 # Serializar plano para bytes (JSON)
                 # Usar serializer customizado para lidar com datetime do Avro deserializer
                 plan_bytes = json.dumps(
                     cognitive_plan,
                     default=_json_datetime_serializer
                 ).encode('utf-8')
-
-                # DEBUG: Log do JSON serializado para verificar integridade
-                logger.debug(
-                    'cognitive_plan serializado para JSON',
-                    specialist_type=specialist_type,
-                    plan_id=cognitive_plan.get('plan_id'),
-                    json_size_bytes=len(plan_bytes),
-                    json_preview=plan_bytes[:500].decode('utf-8')
-                )
 
                 # Criar request
                 request = specialist_pb2.EvaluatePlanRequest(
