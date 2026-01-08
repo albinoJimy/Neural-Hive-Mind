@@ -328,6 +328,41 @@ class OrchestratorMetrics:
             ['circuit_name']
         )
 
+        # Métricas adicionais de OPA para observabilidade avançada
+        self.opa_policy_decision_duration_seconds = Histogram(
+            'orchestration_opa_policy_decision_duration_seconds',
+            'Duração de decisões OPA por policy_path',
+            ['policy_path'],
+            buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5]
+        )
+
+        self.opa_policy_violation_rate = Counter(
+            'orchestration_opa_policy_violation_rate_total',
+            'Taxa de violações por policy_name e rule',
+            ['policy_name', 'rule']
+        )
+
+        self.opa_cache_hit_ratio = Gauge(
+            'orchestration_opa_cache_hit_ratio',
+            'Razão de cache hits OPA (hits / (hits + misses))'
+        )
+
+        self.opa_circuit_breaker_transitions_total = Counter(
+            'orchestration_opa_circuit_breaker_transitions_total',
+            'Total de transições de estado do circuit breaker',
+            ['from_state', 'to_state']
+        )
+
+        self.opa_batch_evaluation_size = Histogram(
+            'orchestration_opa_batch_evaluation_size',
+            'Tamanho de batch evaluations OPA',
+            buckets=[1, 2, 3, 4, 5, 10, 20, 50, 100]
+        )
+
+        # Contadores internos para cálculo de hit ratio
+        self._opa_cache_hits = 0
+        self._opa_cache_misses = 0
+
         # Security Metrics
         self.security_violations_total = Counter(
             'orchestration_security_violations_total',
@@ -635,6 +670,59 @@ class OrchestratorMetrics:
     def record_scheduler_rejection(self, reason: str):
         """Registra rejeição de alocação pelo scheduler."""
         self.scheduler_rejections_total.labels(reason=reason).inc()
+
+    def record_ticket_rejected(self, rejection_reason: str):
+        """
+        Registra ticket rejeitado pelo scheduler.
+
+        Args:
+            rejection_reason: Motivo da rejeição (no_workers, no_suitable_worker, scheduling_error)
+        """
+        self.scheduler_rejections_total.labels(reason=rejection_reason).inc()
+        self.tickets_published_total.labels(status='rejected').inc()
+
+    def record_priority_adjustment(
+        self,
+        workflow_id: str,
+        old_priority: int,
+        new_priority: int
+    ):
+        """
+        Registra ajuste de prioridade de workflow.
+
+        Args:
+            workflow_id: ID do workflow
+            old_priority: Prioridade anterior
+            new_priority: Nova prioridade
+        """
+        logger.info(
+            'workflow_priority_adjusted',
+            workflow_id=workflow_id,
+            old_priority=old_priority,
+            new_priority=new_priority
+        )
+
+    def record_resource_reallocation(
+        self,
+        workflow_id: str,
+        cpu_millicores: int,
+        memory_mb: int
+    ):
+        """
+        Registra realocação de recursos de workflow.
+
+        Args:
+            workflow_id: ID do workflow
+            cpu_millicores: CPU alocada
+            memory_mb: Memória alocada
+        """
+        self.resource_allocations_total.labels(status='rebalanced').inc()
+        logger.info(
+            'workflow_resources_reallocated',
+            workflow_id=workflow_id,
+            cpu_millicores=cpu_millicores,
+            memory_mb=memory_mb
+        )
 
     def record_mongodb_pool_metrics(self, client):
         """Registra métricas de pool do MongoDB."""
@@ -981,8 +1069,41 @@ class OrchestratorMetrics:
         self.opa_evaluation_errors_total.labels(error_type=error_type).inc()
 
     def record_opa_cache_hit(self):
-        """Registra cache hit OPA."""
+        """Registra cache hit OPA e atualiza hit ratio."""
         self.opa_cache_hits_total.inc()
+        self._opa_cache_hits += 1
+        self._update_opa_cache_hit_ratio()
+
+    def record_opa_cache_miss(self):
+        """Registra cache miss OPA e atualiza hit ratio."""
+        self._opa_cache_misses += 1
+        self._update_opa_cache_hit_ratio()
+
+    def _update_opa_cache_hit_ratio(self):
+        """Atualiza gauge de hit ratio do cache OPA."""
+        total = self._opa_cache_hits + self._opa_cache_misses
+        if total > 0:
+            ratio = self._opa_cache_hits / total
+            self.opa_cache_hit_ratio.set(ratio)
+
+    def record_opa_policy_decision_duration(self, policy_path: str, duration_seconds: float):
+        """Registra duração de decisão OPA por policy_path."""
+        self.opa_policy_decision_duration_seconds.labels(policy_path=policy_path).observe(duration_seconds)
+
+    def record_opa_violation_rate(self, policy_name: str, rule: str):
+        """Registra violação para cálculo de taxa."""
+        self.opa_policy_violation_rate.labels(policy_name=policy_name, rule=rule).inc()
+
+    def record_opa_circuit_breaker_transition(self, from_state: str, to_state: str):
+        """Registra transição de estado do circuit breaker OPA."""
+        self.opa_circuit_breaker_transitions_total.labels(
+            from_state=from_state,
+            to_state=to_state
+        ).inc()
+
+    def record_opa_batch_evaluation(self, batch_size: int):
+        """Registra tamanho de batch evaluation OPA."""
+        self.opa_batch_evaluation_size.observe(batch_size)
 
     def update_feature_flag(self, flag_name: str, namespace: str, enabled: bool):
         """Atualiza status de feature flag."""

@@ -45,6 +45,10 @@ service:
       port: 8000
       targetPort: 8000
       protocol: TCP
+    grpc:
+      port: 50053
+      targetPort: 50053
+      protocol: TCP
     metrics:
       port: 9090
       targetPort: 9090
@@ -138,10 +142,19 @@ config:
     # Timeouts e Otimização
     optimizationTimeoutSeconds: 2
 
+  # gRPC Server para comandos estratégicos da Queen Agent
+  grpc:
+    enabled: true
+    port: 50053
+    maxWorkers: 10
+
   sla:
     defaultTimeoutMs: 3600000
     checkIntervalSeconds: 30
     alertThresholdPercent: 0.8
+    proactiveMonitoringEnabled: true  # Monitoramento proativo de SLA em C2/C4
+    budgetCriticalThreshold: 0.2      # Threshold para alertas de budget crítico (20%)
+    deadlineWarningThreshold: 0.8     # Threshold para alertas de deadline (80%)
 
   retry:
     maxAttempts: 3

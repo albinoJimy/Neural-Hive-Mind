@@ -408,16 +408,58 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
     """
     Publica Execution Ticket no tópico Kafka execution.tickets.
 
+    Tickets rejeitados pelo scheduler (status='rejected') não são publicados
+    e são registrados como falha de alocação.
+
     Args:
         ticket: Execution ticket a ser publicado
 
     Returns:
         Resultado da publicação: {'published': bool, 'ticket_id': str, 'kafka_offset': int, 'ticket': dict}
+        Para tickets rejeitados: {'published': False, 'ticket_id': str, 'rejected': True, 'rejection_reason': str}
     """
     ticket_id = ticket['ticket_id']
     activity.logger.info(f'Publicando ticket {ticket_id} no Kafka')
 
     try:
+        # === Gate: Verificar se ticket foi rejeitado pelo scheduler ===
+        if ticket.get('status') == 'rejected' or ticket.get('allocation_metadata') is None:
+            rejection_metadata = ticket.get('rejection_metadata', {})
+            rejection_reason = rejection_metadata.get('rejection_reason', 'unknown')
+            rejection_message = rejection_metadata.get('rejection_message', 'Ticket rejeitado sem motivo especificado')
+
+            activity.logger.error(
+                'ticket_rejected_not_published',
+                ticket_id=ticket_id,
+                rejection_reason=rejection_reason,
+                rejection_message=rejection_message,
+                plan_id=ticket.get('plan_id')
+            )
+
+            # Persistir ticket rejeitado no MongoDB para auditoria
+            if _mongodb_client is not None:
+                try:
+                    ticket['status'] = 'rejected'
+                    await _mongodb_client.save_execution_ticket(ticket)
+                    activity.logger.info(
+                        f'Ticket rejeitado {ticket_id} persistido no MongoDB para auditoria',
+                        plan_id=ticket.get('plan_id')
+                    )
+                except Exception as db_error:
+                    activity.logger.warning(
+                        f'Erro ao persistir ticket rejeitado no MongoDB: {db_error}',
+                        ticket_id=ticket_id
+                    )
+
+            return {
+                'published': False,
+                'ticket_id': ticket_id,
+                'rejected': True,
+                'rejection_reason': rejection_reason,
+                'rejection_message': rejection_message,
+                'ticket': ticket
+            }
+
         # Verificar se dependências foram injetadas
         if _kafka_producer is None:
             raise RuntimeError('Kafka producer não foi injetado nas activities')

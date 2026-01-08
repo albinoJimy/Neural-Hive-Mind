@@ -7,7 +7,7 @@ NOTA: Este módulo usa Pydantic v2 com pydantic-settings.
 """
 from typing import Optional, List
 from functools import lru_cache
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -54,9 +54,11 @@ class OrchestratorSettings(BaseSettings):
     kafka_enable_idempotence: bool = Field(default=True, description='Habilitar idempotência')
     kafka_transactional_id: Optional[str] = Field(default=None, description='ID transacional')
     kafka_schema_registry_url: str = Field(
-        default='http://schema-registry.neural-hive-kafka.svc.cluster.local:8081',
+        default='https://schema-registry.neural-hive-kafka.svc.cluster.local:8081',
         description='URL do Schema Registry para serialização Avro'
     )
+    schema_registry_tls_verify: bool = Field(default=True, description='Verificar certificado TLS do Schema Registry')
+    schema_registry_ca_bundle: Optional[str] = Field(default=None, description='Caminho para CA bundle do Schema Registry')
     schemas_base_path: str = Field(
         default='/app/schemas',
         description='Diretório base para schemas Avro'
@@ -64,9 +66,11 @@ class OrchestratorSettings(BaseSettings):
 
     # Self-Healing Engine
     self_healing_engine_url: str = Field(
-        default='http://self-healing-engine:8080',
+        default='https://self-healing-engine.neural-hive.svc.cluster.local:8443',
         description='Base URL do Self-Healing Engine'
     )
+    self_healing_tls_verify: bool = Field(default=True, description='Verificar certificado TLS do Self-Healing Engine')
+    self_healing_ca_bundle: Optional[str] = Field(default=None, description='Caminho para CA bundle do Self-Healing Engine')
     self_healing_enabled: bool = Field(
         default=True,
         description='Flag para habilitar acionamento de autocura'
@@ -148,9 +152,11 @@ class OrchestratorSettings(BaseSettings):
         description="Habilita predições ML centralizadas"
     )
     mlflow_tracking_uri: str = Field(
-        default="http://mlflow.mlflow:5000",
+        default="https://mlflow.mlflow.svc.cluster.local:5000",
         description="URI do servidor MLflow"
     )
+    mlflow_tls_verify: bool = Field(default=True, description='Verificar certificado TLS do MLflow')
+    mlflow_ca_bundle: Optional[str] = Field(default=None, description='Caminho para CA bundle do MLflow')
     ml_scheduling_model_type: str = Field(
         default="xgboost",
         description="Tipo de modelo para SchedulingPredictor"
@@ -198,9 +204,11 @@ class OrchestratorSettings(BaseSettings):
     # Vault Integration
     vault_enabled: bool = Field(default=False, description='Habilitar integração com Vault')
     vault_address: str = Field(
-        default='http://vault.vault.svc.cluster.local:8200',
+        default='https://vault.vault.svc.cluster.local:8200',
         description='Endereço do servidor Vault'
     )
+    vault_tls_verify: bool = Field(default=True, description='Verificar certificado TLS do Vault')
+    vault_ca_bundle: Optional[str] = Field(default=None, description='Caminho para CA bundle do Vault')
     vault_namespace: str = Field(default='', description='Namespace Vault')
     vault_auth_method: str = Field(default='kubernetes', description='Método de autenticação Vault')
     vault_kubernetes_role: str = Field(
@@ -216,30 +224,41 @@ class OrchestratorSettings(BaseSettings):
     vault_timeout_seconds: int = Field(default=5, description='Timeout para requisições Vault')
     vault_max_retries: int = Field(default=3, description='Número de tentativas de retry')
     vault_fail_open: bool = Field(
-        default=True,
+        default=False,
         description=(
             'Fail-open em erros do Vault (fallback para env vars); propagado para VaultConfig.fail_open. '
-            '⚠️ ATENÇÃO: Deve ser False em produção para garantir zero-trust security. '
-            'Validação automática impede True em environment=production.'
+            '⚠️ ATENÇÃO: Deve ser False por default para garantir zero-trust security. '
+            'Validação automática permite True apenas em environment=development ou local.'
         )
     )
 
     @field_validator('vault_fail_open')
     @classmethod
-    def validate_vault_fail_open_in_production(cls, v: bool, info) -> bool:
+    def validate_vault_fail_open_requires_dev_environment(cls, v: bool, info) -> bool:
         """
-        Validar que vault_fail_open está desabilitado em produção.
+        Validar que vault_fail_open só pode ser True em ambientes de desenvolvimento.
 
-        Em produção, fail_open=True é inseguro pois permite operação com credenciais
+        Em qualquer ambiente que não seja explicitamente development/local,
+        fail_open=True é inseguro pois permite operação com credenciais
         estáticas em caso de falha do Vault, violando princípios zero-trust.
-        """
-        environment = info.data.get('environment', 'development')
 
-        if environment in ['production', 'prod'] and v is True:
+        Esta validação é fail-closed por design: se o environment não for
+        explicitamente configurado como dev/local, fail_open=True é bloqueado.
+        """
+        if v is not True:
+            return v
+
+        environment = info.data.get('environment', '')
+
+        # Ambientes permitidos para fail_open=True
+        allowed_environments = ['development', 'dev', 'local', 'test']
+
+        if environment.lower() not in allowed_environments:
             raise ValueError(
-                'vault_fail_open=True não é permitido em ambiente production. '
+                f'vault_fail_open=True não é permitido em ambiente "{environment}". '
+                f'Apenas ambientes {allowed_environments} permitem fail_open. '
                 'Configure VAULT_FAIL_OPEN=false ou ENVIRONMENT=development. '
-                'Em produção, o serviço deve falhar se Vault estiver indisponível (fail-closed).'
+                'O serviço deve usar fail-closed em produção/staging para segurança zero-trust.'
             )
 
         return v
@@ -283,6 +302,17 @@ class OrchestratorSettings(BaseSettings):
         default=False,
         description='Permitir fallback insecure quando SPIFFE indisponível (PERIGOSO - apenas desenvolvimento)'
     )
+
+    # gRPC Server para Queen Agent
+    enable_grpc_server: bool = Field(
+        default=True,
+        description='Habilitar servidor gRPC para comandos estratégicos da Queen Agent'
+    )
+    grpc_server_port: int = Field(
+        default=50053,
+        description='Porta do servidor gRPC para comandos estratégicos'
+    )
+
     sla_management_cache_ttl_seconds: int = Field(
         default=10,
         description='TTL do cache de budgets em Redis'
@@ -362,7 +392,7 @@ class OrchestratorSettings(BaseSettings):
         description='TTL para deduplicação de alertas (5 minutos)'
     )
     sla_proactive_monitoring_enabled: bool = Field(
-        default=False,
+        default=True,
         description='Habilitar verificações proativas de SLA durante execução do workflow (C2/C4)'
     )
     sla_proactive_checkpoints: list = Field(
@@ -382,9 +412,11 @@ class OrchestratorSettings(BaseSettings):
 
     # Observabilidade
     otel_exporter_endpoint: str = Field(
-        default='http://otel-collector:4317',
+        default='https://opentelemetry-collector.observability.svc.cluster.local:4317',
         description='Endpoint do OpenTelemetry Collector'
     )
+    otel_tls_verify: bool = Field(default=True, description='Verificar certificado TLS do OTEL Collector')
+    otel_ca_bundle: Optional[str] = Field(default=None, description='Caminho para CA bundle do OTEL Collector')
     prometheus_port: int = Field(default=9090, description='Porta para métricas Prometheus')
 
     # OPA Policy Engine
@@ -518,7 +550,7 @@ class OrchestratorSettings(BaseSettings):
         description='Habilitar predições ML para tickets'
     )
     mlflow_tracking_uri: str = Field(
-        default='http://mlflow.mlflow.svc.cluster.local:5000',
+        default='https://mlflow.mlflow.svc.cluster.local:5000',
         description='MLflow tracking server URI'
     )
     mlflow_experiment_name: str = Field(
@@ -604,8 +636,71 @@ class OrchestratorSettings(BaseSettings):
 
     # Prometheus Pushgateway (for CronJob metrics)
     prometheus_pushgateway_url: str = Field(
-        default='http://prometheus-pushgateway.monitoring.svc.cluster.local:9091',
+        default='https://prometheus-pushgateway.monitoring.svc.cluster.local:9091',
         description='URL do Prometheus Pushgateway'
+    )
+    pushgateway_tls_verify: bool = Field(default=True, description='Verificar certificado TLS do Prometheus Pushgateway')
+    pushgateway_ca_bundle: Optional[str] = Field(default=None, description='Caminho para CA bundle do Prometheus Pushgateway')
+
+    # ClickHouse Integration
+    clickhouse_host: str = Field(
+        default='clickhouse.clickhouse.svc.cluster.local',
+        description='Host do servidor ClickHouse'
+    )
+    clickhouse_port: int = Field(default=9000, description='Porta do ClickHouse (native protocol)')
+    clickhouse_database: str = Field(default='neural_hive_analytics', description='Database ClickHouse')
+    clickhouse_user: str = Field(default='orchestrator', description='Usuário ClickHouse')
+    clickhouse_password: str = Field(default='', description='Senha ClickHouse')
+    ml_use_clickhouse_for_features: bool = Field(
+        default=True,
+        description='Usar ClickHouse para computar features históricas (mais rápido que MongoDB)'
+    )
+
+    # Re-training Triggers
+    ml_retraining_triggers_enabled: bool = Field(
+        default=True,
+        description='Habilitar triggers automáticos de re-treinamento'
+    )
+    ml_drift_trigger_threshold: float = Field(
+        default=0.25,
+        description='Threshold PSI para trigger de re-treinamento por drift'
+    )
+    ml_performance_trigger_threshold: float = Field(
+        default=1.5,
+        description='Threshold de degradação de MAE (ratio atual/treino) para trigger'
+    )
+    ml_data_volume_trigger_threshold: int = Field(
+        default=10000,
+        description='Volume de novos dados para trigger de re-treinamento'
+    )
+
+    # Model Validation
+    ml_validation_enabled: bool = Field(default=True, description='Habilitar validação de modelos')
+    ml_validation_mae_threshold: float = Field(
+        default=0.15,
+        description='Threshold MAE (15%) para validação de DurationPredictor'
+    )
+    ml_validation_precision_threshold: float = Field(
+        default=0.75,
+        description='Threshold precision para validação de AnomalyDetector'
+    )
+    ml_auto_rollback_enabled: bool = Field(
+        default=True,
+        description='Habilitar rollback automático quando modelo novo performa pior'
+    )
+
+    # Canary Deployment
+    ml_canary_enabled: bool = Field(
+        default=False,
+        description='Habilitar canary deployment para modelos ML'
+    )
+    ml_canary_traffic_percentage: float = Field(
+        default=0.1,
+        description='Percentual de tráfego para canary (10%)'
+    )
+    ml_canary_duration_minutes: int = Field(
+        default=60,
+        description='Duração do período de canary em minutos'
     )
 
     # Pydantic v2: model_config substitui class Config
@@ -615,6 +710,40 @@ class OrchestratorSettings(BaseSettings):
         case_sensitive=False,
         extra='ignore',  # Ignorar variáveis de ambiente extras
     )
+
+    @model_validator(mode='after')
+    def validate_https_in_production(self) -> 'OrchestratorSettings':
+        """
+        Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
+        Endpoints verificados: Schema Registry, MLflow, OTEL, Vault, Prometheus Pushgateway.
+        """
+        is_prod_staging = self.environment.lower() in ('production', 'staging', 'prod')
+        if not is_prod_staging:
+            return self
+
+        # Endpoints criticos que devem usar HTTPS em producao
+        http_endpoints = []
+        if self.kafka_schema_registry_url.startswith('http://'):
+            http_endpoints.append(('kafka_schema_registry_url', self.kafka_schema_registry_url))
+        if self.mlflow_tracking_uri.startswith('http://'):
+            http_endpoints.append(('mlflow_tracking_uri', self.mlflow_tracking_uri))
+        if self.otel_exporter_endpoint.startswith('http://'):
+            http_endpoints.append(('otel_exporter_endpoint', self.otel_exporter_endpoint))
+        if self.vault_enabled and self.vault_address.startswith('http://'):
+            http_endpoints.append(('vault_address', self.vault_address))
+        if self.prometheus_pushgateway_url.startswith('http://'):
+            http_endpoints.append(('prometheus_pushgateway_url', self.prometheus_pushgateway_url))
+        if self.self_healing_engine_url.startswith('http://'):
+            http_endpoints.append(('self_healing_engine_url', self.self_healing_engine_url))
+
+        if http_endpoints:
+            endpoint_list = ', '.join(f'{name}={url}' for name, url in http_endpoints)
+            raise ValueError(
+                f"Endpoints HTTP inseguros detectados em ambiente {self.environment}: {endpoint_list}. "
+                "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+            )
+
+        return self
 
 
 @lru_cache()

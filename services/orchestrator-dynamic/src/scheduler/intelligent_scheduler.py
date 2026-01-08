@@ -89,6 +89,12 @@ class IntelligentScheduler:
         self._discovery_cache: Dict[str, tuple[List[Dict], datetime]] = {}
         self._cache_ttl = timedelta(seconds=config.service_registry_cache_ttl_seconds)
 
+        # Cache de prioridades de workflows: {workflow_id: priority}
+        self._workflow_priorities: Dict[str, int] = {}
+
+        # Cache de alocações de recursos: {workflow_id: allocation_dict}
+        self._workflow_allocations: Dict[str, Dict] = {}
+
     async def schedule_ticket(self, ticket: Dict) -> Dict:
         """
         Agenda um ticket para execução.
@@ -205,15 +211,15 @@ class IntelligentScheduler:
             workers = await self._discover_workers_cached(ticket)
 
             if not workers:
-                self.logger.warning(
-                    'no_workers_discovered',
+                self.logger.error(
+                    'no_workers_discovered_ticket_rejected',
                     ticket_id=ticket_id,
-                    using_fallback=True
+                    required_capabilities=ticket.get('required_capabilities'),
+                    namespace=ticket.get('namespace', 'default')
                 )
-                # Registrar rejeição por falta de workers
+                # Registrar rejeição e marcar ticket como rejeitado
                 self.metrics.record_scheduler_rejection('no_workers')
-                fallback_used = True
-                return self._create_fallback_allocation(ticket)
+                return self._reject_ticket(ticket, 'no_workers', 'Nenhum worker disponível para o ticket')
 
             self.metrics.record_workers_discovered(len(workers))
 
@@ -226,16 +232,20 @@ class IntelligentScheduler:
             )
 
             if not best_worker:
-                self.logger.warning(
-                    'no_suitable_worker',
+                self.logger.error(
+                    'no_suitable_worker_ticket_rejected',
                     ticket_id=ticket_id,
                     workers_count=len(workers),
-                    using_fallback=True
+                    required_capabilities=ticket.get('required_capabilities'),
+                    namespace=ticket.get('namespace', 'default')
                 )
-                # Registrar rejeição por nenhum worker adequado
+                # Registrar rejeição e marcar ticket como rejeitado
                 self.metrics.record_scheduler_rejection('no_suitable_worker')
-                fallback_used = True
-                return self._create_fallback_allocation(ticket)
+                return self._reject_ticket(
+                    ticket,
+                    'no_suitable_worker',
+                    f'Nenhum worker adequado entre {len(workers)} candidatos'
+                )
 
             # Etapa 4: Atualizar ticket com allocation metadata
             allocation_metadata = {
@@ -301,10 +311,10 @@ class IntelligentScheduler:
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds()
             self.logger.error(
-                'scheduling_error',
+                'scheduling_error_ticket_rejected',
                 ticket_id=ticket_id,
                 error=str(e),
-                using_fallback=True
+                error_type=type(e).__name__
             )
 
             # Verificar se tem predictions antes de registrar erro
@@ -312,12 +322,12 @@ class IntelligentScheduler:
 
             self.metrics.record_scheduler_allocation(
                 status='error',
-                fallback=True,
+                fallback=False,
                 duration_seconds=duration,
                 has_predictions=has_predictions
             )
 
-            return self._create_fallback_allocation(ticket)
+            return self._reject_ticket(ticket, 'scheduling_error', str(e))
 
     async def _discover_workers_cached(self, ticket: Dict) -> List[Dict]:
         """
@@ -433,27 +443,47 @@ class IntelligentScheduler:
         composite = (agent_score * 0.6) + (priority_score * 0.4)
         return min(max(composite, 0.0), 1.0)
 
-    def _create_fallback_allocation(self, ticket: Dict) -> Dict:
+    def _reject_ticket(self, ticket: Dict, rejection_reason: str, rejection_message: str) -> Dict:
         """
-        Cria alocação fallback quando Service Registry indisponível.
+        Rejeita ticket quando não é possível alocar um worker válido.
+
+        Marca o ticket como rejeitado em vez de retornar alocação fictícia.
+        O ticket rejeitado não deve ser publicado no Kafka.
 
         Args:
-            ticket: Ticket a ser alocado
+            ticket: Ticket a ser rejeitado
+            rejection_reason: Código do motivo da rejeição (no_workers, no_suitable_worker, scheduling_error)
+            rejection_message: Mensagem descritiva da rejeição
 
         Returns:
-            Ticket com allocation_metadata de fallback
+            Ticket com status 'rejected' e metadata de rejeição
         """
-        ticket['allocation_metadata'] = {
-            'allocated_at': int(datetime.now().timestamp() * 1000),
-            'agent_id': 'worker-agent-pool',
-            'agent_type': 'worker-agent',
-            'priority_score': 0.5,
-            'agent_score': 0.5,
-            'composite_score': 0.5,
-            'allocation_method': 'fallback_stub',
-            'workers_evaluated': 0,
-            'ml_optimization_attempted': False
+        ticket_id = ticket.get('ticket_id', 'unknown')
+
+        # Marcar ticket como rejeitado
+        ticket['status'] = 'rejected'
+        ticket['rejection_metadata'] = {
+            'rejected_at': int(datetime.now().timestamp() * 1000),
+            'rejection_reason': rejection_reason,
+            'rejection_message': rejection_message,
+            'required_capabilities': ticket.get('required_capabilities', []),
+            'namespace': ticket.get('namespace', 'default'),
+            'allocation_method': 'rejected'
         }
+
+        # Não incluir allocation_metadata válido para evitar publicação
+        ticket['allocation_metadata'] = None
+
+        self.logger.warning(
+            'ticket_rejected',
+            ticket_id=ticket_id,
+            rejection_reason=rejection_reason,
+            rejection_message=rejection_message
+        )
+
+        # Emitir evento/alerta de rejeição
+        if self.metrics:
+            self.metrics.record_ticket_rejected(rejection_reason)
 
         return ticket
 
@@ -531,3 +561,146 @@ class IntelligentScheduler:
             ticket['predictions'] = predictions
 
         return ticket
+
+    async def update_workflow_priority(
+        self,
+        workflow_id: str,
+        new_priority: int,
+        reason: str = ''
+    ) -> bool:
+        """
+        Atualiza a prioridade de um workflow no scheduler.
+
+        Afeta o cálculo de priority_score para tickets subsequentes do workflow.
+
+        Args:
+            workflow_id: ID do workflow
+            new_priority: Nova prioridade (1-10)
+            reason: Razão do ajuste
+
+        Returns:
+            True se atualizado com sucesso
+        """
+        try:
+            old_priority = self._workflow_priorities.get(workflow_id, 5)
+            self._workflow_priorities[workflow_id] = new_priority
+
+            self.logger.info(
+                'workflow_priority_updated',
+                workflow_id=workflow_id,
+                old_priority=old_priority,
+                new_priority=new_priority,
+                reason=reason
+            )
+
+            # Registrar métrica de ajuste de prioridade
+            if self.metrics:
+                self.metrics.record_priority_adjustment(
+                    workflow_id=workflow_id,
+                    old_priority=old_priority,
+                    new_priority=new_priority
+                )
+
+            return True
+
+        except Exception as e:
+            self.logger.error(
+                'workflow_priority_update_failed',
+                workflow_id=workflow_id,
+                new_priority=new_priority,
+                error=str(e)
+            )
+            return False
+
+    async def reallocate_resources(
+        self,
+        workflow_id: str,
+        target_allocation: Dict
+    ) -> Dict:
+        """
+        Realoca recursos para um workflow específico.
+
+        Atualiza o cache de alocações e notifica o ResourceAllocator.
+
+        Args:
+            workflow_id: ID do workflow
+            target_allocation: Dict com cpu_millicores, memory_mb, max_parallel_tickets, scheduling_priority
+
+        Returns:
+            Dict com resultado da realocação
+        """
+        try:
+            old_allocation = self._workflow_allocations.get(workflow_id, {})
+
+            # Armazenar nova alocação
+            self._workflow_allocations[workflow_id] = {
+                'cpu_millicores': target_allocation.get('cpu_millicores', 1000),
+                'memory_mb': target_allocation.get('memory_mb', 2048),
+                'max_parallel_tickets': target_allocation.get('max_parallel_tickets', 10),
+                'scheduling_priority': target_allocation.get('scheduling_priority', 5),
+                'updated_at': datetime.now()
+            }
+
+            self.logger.info(
+                'workflow_resources_reallocated',
+                workflow_id=workflow_id,
+                old_allocation=old_allocation,
+                new_allocation=self._workflow_allocations[workflow_id]
+            )
+
+            # Registrar métrica de realocação
+            if self.metrics:
+                self.metrics.record_resource_reallocation(
+                    workflow_id=workflow_id,
+                    cpu_millicores=target_allocation.get('cpu_millicores', 1000),
+                    memory_mb=target_allocation.get('memory_mb', 2048)
+                )
+
+            return {
+                'success': True,
+                'workflow_id': workflow_id,
+                'previous_allocation': old_allocation,
+                'applied_allocation': self._workflow_allocations[workflow_id],
+                'message': 'Recursos realocados com sucesso'
+            }
+
+        except Exception as e:
+            self.logger.error(
+                'workflow_resource_reallocation_failed',
+                workflow_id=workflow_id,
+                error=str(e)
+            )
+            return {
+                'success': False,
+                'workflow_id': workflow_id,
+                'message': f'Falha na realocação: {str(e)}'
+            }
+
+    def get_workflow_priority(self, workflow_id: str) -> int:
+        """
+        Obtém a prioridade atual de um workflow.
+
+        Args:
+            workflow_id: ID do workflow
+
+        Returns:
+            Prioridade do workflow (default: 5)
+        """
+        return self._workflow_priorities.get(workflow_id, 5)
+
+    def get_workflow_allocation(self, workflow_id: str) -> Dict:
+        """
+        Obtém a alocação de recursos atual de um workflow.
+
+        Args:
+            workflow_id: ID do workflow
+
+        Returns:
+            Dict com alocação de recursos (default values se não definido)
+        """
+        return self._workflow_allocations.get(workflow_id, {
+            'cpu_millicores': 1000,
+            'memory_mb': 2048,
+            'max_parallel_tickets': 10,
+            'scheduling_priority': 5
+        })
