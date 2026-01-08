@@ -78,19 +78,29 @@ async def submit_experiment(
     """
     try:
         # Criar hipótese sintética para ExperimentManager
-        from src.models.optimization_hypothesis import OptimizationHypothesis, OptimizationType
+        from src.models.optimization_hypothesis import OptimizationHypothesis
+        from src.models.optimization_event import OptimizationType
+
+        # Convert baseline_configuration values to float for metrics
+        baseline_metrics = {}
+        for k, v in request.baseline_configuration.items():
+            try:
+                baseline_metrics[k] = float(v) if isinstance(v, (int, float, str)) else 0.0
+            except (ValueError, TypeError):
+                baseline_metrics[k] = 0.0
 
         hypothesis = OptimizationHypothesis(
             hypothesis_id=f"exp-{request.experiment_type.value}",
             optimization_type=OptimizationType.POLICY_CHANGE,  # Default
             target_component=request.hypothesis.get("target_component", "unknown"),
             hypothesis_text=request.objective,
-            rationale=request.objective,
             proposed_adjustments=[],
-            baseline_metrics=request.baseline_configuration,
+            baseline_metrics=baseline_metrics,
+            target_metrics=baseline_metrics,  # Start with same, will be updated by experiment
             expected_improvement=0.1,
-            confidence=0.8,
+            confidence_score=0.8,
             risk_score=0.3,
+            priority=3,  # Medium priority
         )
 
         # Submeter experimento

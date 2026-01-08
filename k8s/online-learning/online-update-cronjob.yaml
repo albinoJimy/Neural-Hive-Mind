@@ -1,0 +1,191 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: online-learning-update
+  namespace: mlflow
+  labels:
+    app: neural-hive
+    component: online-learning
+    layer: ml-ops
+spec:
+  # Executar a cada 30 minutos
+  schedule: "*/30 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 1800
+  jobTemplate:
+    metadata:
+      labels:
+        app: neural-hive
+        component: online-learning
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            app: neural-hive
+            component: online-learning
+          annotations:
+            prometheus.io/scrape: "true"
+            prometheus.io/port: "8080"
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
+          serviceAccountName: online-learning-sa
+          containers:
+          - name: online-learner
+            image: 077878370245.dkr.ecr.us-east-1.amazonaws.com/neural-hive-mind/pipelines:1.0.7
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                  - ALL
+              readOnlyRootFilesystem: false
+            command:
+            - python
+            - -m
+            - ml_pipelines.online_learning.deployment_orchestrator
+            args:
+            - --mode
+            - incremental
+            - --specialist-types
+            - all
+            env:
+            - name: ONLINE_LEARNING_ENABLED
+              value: "true"
+            - name: INCREMENTAL_ALGORITHM
+              value: "sgd"
+            - name: MINI_BATCH_SIZE
+              value: "32"
+            - name: LEARNING_RATE
+              value: "0.01"
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow.mlflow.svc.cluster.local:5000"
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: uri
+                  optional: true
+            - name: MONGODB_DATABASE
+              value: "neural_hive"
+            - name: ONLINE_CHECKPOINT_PATH
+              value: "/data/online_learning/checkpoints"
+            - name: SHADOW_ACCURACY_THRESHOLD
+              value: "0.02"
+            - name: SHADOW_MAX_LATENCY_RATIO
+              value: "1.5"
+            - name: ROLLOUT_STAGES
+              value: "0.1,0.5,1.0"
+            - name: ROLLOUT_STAGE_DURATION_MINUTES
+              value: "60"
+            - name: ROLLBACK_ENABLED
+              value: "true"
+            - name: ROLLBACK_F1_DROP_THRESHOLD
+              value: "0.05"
+            - name: MAX_VERSIONS_TO_KEEP
+              value: "10"
+            - name: ENSEMBLE_STRATEGY
+              value: "weighted_average"
+            - name: BATCH_MODEL_WEIGHT
+              value: "0.7"
+            - name: ONLINE_MODEL_WEIGHT
+              value: "0.3"
+            - name: ENVIRONMENT
+              value: "production"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: model-monitor-secrets
+                  key: slack-webhook-url
+                  optional: true
+            - name: SLACK_CHANNEL
+              value: "#ml-alerts"
+            - name: PROMETHEUS_PUSHGATEWAY_URL
+              value: "http://prometheus-pushgateway.monitoring:9091"
+            volumeMounts:
+            - name: online-checkpoints
+              mountPath: /data/online_learning/checkpoints
+            - name: feedback-data
+              mountPath: /data/feedback
+            resources:
+              requests:
+                memory: "512Mi"
+                cpu: "250m"
+              limits:
+                memory: "1Gi"
+                cpu: "1000m"
+          volumes:
+          - name: online-checkpoints
+            persistentVolumeClaim:
+              claimName: online-learning-checkpoints-pvc
+          - name: feedback-data
+            persistentVolumeClaim:
+              claimName: ml-training-data-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: online-learning-checkpoints-pvc
+  namespace: mlflow
+  labels:
+    app: neural-hive
+    component: online-learning
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: online-learning-sa
+  namespace: mlflow
+  labels:
+    app: neural-hive
+    component: online-learning
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: online-learning-role
+  namespace: mlflow
+  labels:
+    app: neural-hive
+    component: online-learning
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: online-learning-rolebinding
+  namespace: mlflow
+  labels:
+    app: neural-hive
+    component: online-learning
+subjects:
+- kind: ServiceAccount
+  name: online-learning-sa
+  namespace: mlflow
+roleRef:
+  kind: Role
+  name: online-learning-role
+  apiGroup: rbac.authorization.k8s.io

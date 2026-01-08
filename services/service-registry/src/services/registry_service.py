@@ -1,40 +1,59 @@
+import json
 import structlog
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from src.models import AgentInfo, AgentType, AgentStatus, AgentTelemetry
 from src.clients import EtcdClient
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Histogram, REGISTRY
 
 
 logger = structlog.get_logger()
 
 
+def _get_or_create_counter(name: str, description: str, labelnames=None):
+    """Get existing counter or create new one to avoid duplicate registration errors"""
+    try:
+        return Counter(name, description, labelnames or [])
+    except ValueError:
+        # Already registered, get existing
+        return REGISTRY._names_to_collectors.get(name)
+
+
+def _get_or_create_histogram(name: str, description: str):
+    """Get existing histogram or create new one to avoid duplicate registration errors"""
+    try:
+        return Histogram(name, description)
+    except ValueError:
+        # Already registered, get existing
+        return REGISTRY._names_to_collectors.get(name)
+
+
 # Métricas Prometheus
-agents_registered_total = Counter(
+agents_registered_total = _get_or_create_counter(
     'agents_registered_total',
     'Total de agentes registrados',
     ['agent_type']
 )
 
-agents_deregistered_total = Counter(
+agents_deregistered_total = _get_or_create_counter(
     'agents_deregistered_total',
     'Total de agentes desregistrados',
     ['agent_type']
 )
 
-heartbeats_received_total = Counter(
+heartbeats_received_total = _get_or_create_counter(
     'heartbeats_received_total',
     'Total de heartbeats recebidos',
     ['agent_type', 'status']
 )
 
-heartbeat_latency_seconds = Histogram(
+heartbeat_latency_seconds = _get_or_create_histogram(
     'heartbeat_latency_seconds',
     'Latência de processamento de heartbeat'
 )
 
-registry_operations_total = Counter(
+registry_operations_total = _get_or_create_counter(
     'registry_operations_total',
     'Total de operações do registry',
     ['operation', 'status']
@@ -127,6 +146,9 @@ class RegistryService:
             if not agent_info:
                 raise ValueError(f"Agente {agent_id} não encontrado")
 
+            # Guardar status anterior para detectar mudança
+            old_status = agent_info.status
+
             # Atualizar last_seen
             agent_info.last_seen = int(datetime.now(timezone.utc).timestamp())
 
@@ -142,8 +164,21 @@ class RegistryService:
             else:
                 agent_info.status = AgentStatus.HEALTHY
 
-            # Salvar no etcd
-            await self.etcd_client.put_agent(agent_info)
+            # Salvar no etcd (não publica evento, apenas atualiza)
+            await self._put_agent_without_event(agent_info)
+
+            # Publicar evento de atualização
+            await self.etcd_client.client.publish(
+                f"{self.etcd_client.prefix}:events",
+                json.dumps({"event": "updated", "agent_id": str(agent_id)})
+            )
+
+            # Se status mudou, publicar evento adicional
+            if old_status != agent_info.status:
+                await self.etcd_client.client.publish(
+                    f"{self.etcd_client.prefix}:events",
+                    json.dumps({"event": "status_changed", "agent_id": str(agent_id)})
+                )
 
             # Métricas
             heartbeats_received_total.labels(
@@ -164,6 +199,24 @@ class RegistryService:
         except Exception as e:
             registry_operations_total.labels(operation="heartbeat", status="error").inc()
             logger.error("heartbeat_update_failed", agent_id=str(agent_id), error=str(e))
+            raise
+
+    async def _put_agent_without_event(self, agent_info: AgentInfo) -> bool:
+        """Salva agente sem publicar evento de registro (para updates)"""
+        try:
+            key = self.etcd_client._get_agent_key(agent_info.agent_type, str(agent_info.agent_id))
+            value = json.dumps(agent_info.to_proto_dict())
+
+            # Salvar com TTL de 5 minutos
+            await self.etcd_client.client.setex(key, 300, value)
+
+            # Atualizar índice
+            type_set_key = f"{self.etcd_client.prefix}:index:{agent_info.agent_type.value.lower()}"
+            await self.etcd_client.client.sadd(type_set_key, str(agent_info.agent_id))
+
+            return True
+        except Exception as e:
+            logger.error("put_agent_without_event_failed", agent_id=str(agent_info.agent_id), error=str(e))
             raise
 
     async def deregister_agent(self, agent_id: UUID) -> bool:

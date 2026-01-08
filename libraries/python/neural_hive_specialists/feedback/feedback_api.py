@@ -6,7 +6,7 @@ sobre opiniões de especialistas.
 """
 
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Callable
 import structlog
 from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel, Field, field_validator
@@ -505,4 +505,252 @@ def create_feedback_router(
                 detail=f"Erro ao calcular estatísticas: {str(e)}"
             )
 
+    @router.post(
+        '/feedback/trigger-online-update',
+        summary="Disparar atualização de modelo online",
+        description="Dispara atualização incremental do modelo online com feedbacks recentes"
+    )
+    async def trigger_online_update(
+        specialist_type: str,
+        force: bool = False,
+        authorization: Optional[str] = Header(None)
+    ):
+        """
+        Dispara atualização de modelo online.
+
+        Este endpoint permite disparar manualmente uma atualização incremental
+        do modelo online usando feedbacks coletados recentemente.
+
+        Args:
+            specialist_type: Tipo do especialista
+            force: Forçar update ignorando cooldown
+            authorization: Header Authorization com Bearer token
+
+        Returns:
+            Dict com status da atualização
+        """
+        try:
+            # Verificar autenticação (requer role admin)
+            payload = verify_jwt_token(authorization, config, audit_logger, '/api/v1/feedback/trigger-online-update')
+            user_role = payload.get('role', '').lower()
+
+            if user_role not in ['admin', 'ml_engineer']:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Apenas admin ou ml_engineer podem disparar atualizações online"
+                )
+
+            # Tentar importar e executar o orchestrator
+            try:
+                from ml_pipelines.online_learning import OnlineDeploymentOrchestrator, OnlineLearningConfig
+                import asyncio
+
+                ol_config = OnlineLearningConfig()
+
+                if not ol_config.online_learning_enabled:
+                    return {
+                        'status': 'disabled',
+                        'message': 'Online learning está desabilitado',
+                        'specialist_type': specialist_type
+                    }
+
+                logger.info(
+                    "online_update_triggered",
+                    specialist_type=specialist_type,
+                    force=force,
+                    triggered_by=payload.get('sub', 'unknown')
+                )
+
+                # Carregar modelo batch do MLflow ou usar stub
+                batch_model = _load_batch_model_for_update(specialist_type, ol_config)
+
+                # Criar orchestrator com assinaturas corretas
+                orchestrator = OnlineDeploymentOrchestrator(
+                    config=ol_config,
+                    specialist_type=specialist_type,
+                    batch_model=batch_model,
+                    feedback_collector=feedback_collector,
+                    feature_extractor=_get_feature_extractor_for_update(specialist_type)
+                )
+
+                # Executar ciclo de deployment de forma assíncrona
+                try:
+                    # Criar loop se necessário ou usar existente
+                    try:
+                        loop = asyncio.get_running_loop()
+                    except RuntimeError:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+
+                    # Executar deployment cycle
+                    result = loop.run_until_complete(
+                        orchestrator.run_deployment_cycle(
+                            force=force,
+                            validation_data=None
+                        )
+                    )
+
+                    orchestrator.close()
+
+                    return {
+                        'status': result.get('status', 'unknown'),
+                        'message': f"Atualização online executada para {specialist_type}",
+                        'specialist_type': specialist_type,
+                        'force': force,
+                        'triggered_by': payload.get('sub', 'unknown'),
+                        'deployment_id': result.get('deployment_id'),
+                        'model_version': result.get('model_version'),
+                        'duration_seconds': result.get('duration_seconds'),
+                        'reason': result.get('reason')
+                    }
+
+                except Exception as e:
+                    orchestrator.close()
+                    logger.error(
+                        "online_update_execution_failed",
+                        specialist_type=specialist_type,
+                        error=str(e)
+                    )
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Falha ao executar atualização online: {str(e)}"
+                    )
+
+            except ImportError:
+                logger.warning(
+                    "online_learning_module_not_available",
+                    specialist_type=specialist_type
+                )
+                return {
+                    'status': 'unavailable',
+                    'message': 'Módulo de online learning não está disponível',
+                    'specialist_type': specialist_type
+                }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(
+                "trigger_online_update_failed",
+                specialist_type=specialist_type,
+                error=str(e)
+            )
+            if metrics:
+                metrics.increment_feedback_api_error('online_update_failed')
+            raise HTTPException(
+                status_code=503,
+                detail=f"Erro ao disparar atualização online: {str(e)}"
+            )
+
     return router
+
+
+# ============================================================================
+# Funções auxiliares para trigger de online update
+# ============================================================================
+
+def _load_batch_model_for_update(specialist_type: str, config: Any) -> Any:
+    """
+    Carrega modelo batch do MLflow ou retorna stub para trigger de update.
+
+    Args:
+        specialist_type: Tipo do especialista
+        config: Configuração de online learning
+
+    Returns:
+        Modelo batch ou stub se não disponível
+    """
+    try:
+        import mlflow
+        from mlflow.tracking import MlflowClient
+
+        mlflow.set_tracking_uri(config.mlflow_tracking_uri)
+        model_name = f"{specialist_type}_specialist"
+
+        try:
+            model_uri = f"models:/{model_name}/Production"
+            model = mlflow.pyfunc.load_model(model_uri)
+            logger.info(
+                "batch_model_loaded_for_update",
+                specialist_type=specialist_type,
+                model_name=model_name
+            )
+            return model
+        except Exception as e:
+            logger.warning(
+                "mlflow_model_not_found_for_update",
+                specialist_type=specialist_type,
+                error=str(e)
+            )
+    except ImportError:
+        logger.warning("mlflow_not_available_for_update")
+    except Exception as e:
+        logger.warning(
+            "batch_model_load_failed_for_update",
+            specialist_type=specialist_type,
+            error=str(e)
+        )
+
+    # Retornar stub com interface mínima
+    return _BatchModelStubForUpdate(specialist_type)
+
+
+class _BatchModelStubForUpdate:
+    """Stub para modelo batch quando MLflow não disponível no trigger."""
+
+    def __init__(self, specialist_type: str):
+        self.specialist_type = specialist_type
+
+    def predict_proba(self, X):
+        """Retorna probabilidades uniformes para stub."""
+        import numpy as np
+        n_samples = len(X) if hasattr(X, '__len__') else 1
+        return np.ones((n_samples, 3)) / 3.0
+
+    def predict(self, X):
+        """Retorna predição default para stub."""
+        import numpy as np
+        n_samples = len(X) if hasattr(X, '__len__') else 1
+        return np.array(['review_required'] * n_samples)
+
+
+def _get_feature_extractor_for_update(specialist_type: str) -> Optional[callable]:
+    """
+    Obtém função de extração de features para trigger de update.
+
+    Args:
+        specialist_type: Tipo do especialista
+
+    Returns:
+        Função de extração ou None
+    """
+    try:
+        from ..feature_extraction import FeatureExtractor
+
+        extractor = FeatureExtractor()
+
+        def extract_features(feedback: dict) -> list:
+            """Extrai features de um feedback."""
+            plan_data = feedback.get('cognitive_plan_snapshot', {})
+            if not plan_data:
+                import numpy as np
+                return np.zeros(64).tolist()
+
+            features = extractor.extract_features(plan_data)
+            return features.get('aggregated_features', [])
+
+        return extract_features
+
+    except ImportError:
+        logger.warning(
+            "feature_extractor_not_available_for_update",
+            specialist_type=specialist_type
+        )
+        return None
+    except Exception as e:
+        logger.warning(
+            "feature_extractor_init_failed_for_update",
+            specialist_type=specialist_type,
+            error=str(e)
+        )
+        return None

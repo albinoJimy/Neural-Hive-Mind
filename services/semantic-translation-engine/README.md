@@ -64,9 +64,17 @@ services/semantic-translation-engine/
 │   │   ├── dag_generator.py
 │   │   ├── risk_scorer.py
 │   │   ├── explainability_generator.py
+│   │   ├── nlp_processor.py         # Processamento NLP com spaCy
 │   │   └── orchestrator.py
 │   └── observability/               # Métricas e tracing
 │       └── metrics.py
+├── tests/                           # Testes
+│   ├── unit/
+│   │   └── test_nlp_processor.py
+│   ├── integration/
+│   │   └── test_semantic_parser_nlp.py
+│   └── performance/
+│       └── test_nlp_performance.py
 ├── Dockerfile                       # Multi-stage build
 ├── requirements.txt                 # Dependências Python
 └── README.md                        # Este arquivo
@@ -213,9 +221,18 @@ helm upgrade --install semantic-translation-engine \
 - `neural_hive_plan_generation_duration_seconds{domain}`: Latência de geração de planos
 - `neural_hive_neo4j_query_duration_seconds{query_type}`: Latência de queries Neo4j
 - `neural_hive_mongodb_operation_duration_seconds{operation}`: Latência de operações MongoDB
+- `neural_hive_nlp_extraction_duration_seconds{operation}`: Latência de extração NLP (keywords, objectives, entities)
+- `neural_hive_nlp_keywords_extracted`: Quantidade de keywords extraídas
+- `neural_hive_nlp_objectives_extracted`: Quantidade de objectives extraídos
+- `neural_hive_nlp_entities_extracted`: Quantidade de entidades extraídas
 
 ### Gauges
 - `neural_hive_redis_cache_hit_rate`: Taxa de acerto do cache Redis
+
+### Métricas NLP
+- `neural_hive_nlp_cache_hits_total`: Total de cache hits NLP
+- `neural_hive_nlp_cache_misses_total`: Total de cache misses NLP
+- `neural_hive_nlp_extraction_errors_total{operation, error_type}`: Total de erros de extração NLP
 
 ## Testes
 
@@ -375,6 +392,52 @@ O serviço está instrumentado com OpenTelemetry e envia traces para o collector
 Métricas Prometheus podem ser visualizadas em:
 - Grafana (via port-forward para `grafana-service:3000`)
 - Visualização de traces em Jaeger (porta 16686)
+
+Dashboard específico para NLP disponível em: `monitoring/dashboards/semantic-translation-nlp.json`
+
+## Processamento NLP
+
+O Semantic Translation Engine utiliza **spaCy 3.7.2** para processamento avançado de linguagem natural.
+
+### Funcionalidades NLP
+
+- **Extração de Keywords**: POS tagging + lematização + TF ranking
+- **Extração de Objectives**: Análise sintática de verbos e dependências
+- **Extração de Entidades**: NER + noun chunks + padrões de tecnologia
+
+### Modelos Suportados
+
+- Português: `pt_core_news_sm`
+- Inglês: `en_core_web_sm`
+
+### Cache NLP
+
+Resultados de extração são cacheados no Redis com TTL de 600s para otimização de performance.
+
+### Configuração NLP
+
+```bash
+# Habilitar/desabilitar NLP
+export NLP_ENABLED=true
+
+# Configuração de cache
+export NLP_CACHE_ENABLED=true
+export NLP_CACHE_TTL_SECONDS=600
+
+# Modelos
+export NLP_MODEL_PT=pt_core_news_sm
+export NLP_MODEL_EN=en_core_web_sm
+
+# Limites
+export NLP_MAX_KEYWORDS=10
+```
+
+### SLOs de Performance NLP
+
+- Extração de keywords: P95 < 50ms
+- Extração de objectives: P95 < 50ms
+- Extração de entidades: P95 < 100ms
+- Cache hit rate: > 70%
 
 ## Licença
 

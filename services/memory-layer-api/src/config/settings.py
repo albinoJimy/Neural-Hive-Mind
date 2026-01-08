@@ -2,7 +2,7 @@
 Memory Layer API Settings
 """
 from pydantic_settings import BaseSettings
-from pydantic import Field, validator
+from pydantic import Field, validator, model_validator
 from typing import Optional
 
 
@@ -84,9 +84,11 @@ class Settings(BaseSettings):
         description="Topic de Dead Letter Queue para eventos com falha"
     )
     kafka_schema_registry_url: str = Field(
-        default='http://schema-registry.kafka.svc.cluster.local:8081',
+        default='https://schema-registry.kafka.svc.cluster.local:8081',
         description="URL do Schema Registry"
     )
+    schema_registry_tls_verify: bool = Field(default=True, description="Verificar certificado TLS do Schema Registry")
+    schema_registry_ca_bundle: Optional[str] = Field(default=None, description="Caminho para CA bundle do Schema Registry")
     kafka_security_protocol: str = Field(
         default='PLAINTEXT',
         description="Protocolo de segurança Kafka"
@@ -104,9 +106,11 @@ class Settings(BaseSettings):
 
     # Observabilidade
     otel_endpoint: str = Field(
-        default='http://opentelemetry-collector.observability.svc.cluster.local:4317',
+        default='https://opentelemetry-collector.observability.svc.cluster.local:4317',
         description="OpenTelemetry collector endpoint"
     )
+    otel_tls_verify: bool = Field(default=True, description="Verificar certificado TLS do OTEL Collector")
+    otel_ca_bundle: Optional[str] = Field(default=None, description="Caminho para CA bundle do OTEL Collector")
     prometheus_port: int = Field(default=8080, description="Prometheus metrics port")
     jaeger_sampling_rate: float = Field(default=1.0, description="Jaeger sampling rate")
 
@@ -159,6 +163,32 @@ class Settings(BaseSettings):
         if v <= 0:
             raise ValueError('Retention periods must be positive')
         return v
+
+    @model_validator(mode='after')
+    def validate_https_in_production(self) -> 'Settings':
+        """
+        Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
+        Endpoints verificados: Schema Registry, OTEL Collector.
+        """
+        is_prod_staging = self.environment.lower() in ('production', 'staging', 'prod')
+        if not is_prod_staging:
+            return self
+
+        # Endpoints criticos que devem usar HTTPS em producao
+        http_endpoints = []
+        if self.kafka_schema_registry_url.startswith('http://'):
+            http_endpoints.append(('kafka_schema_registry_url', self.kafka_schema_registry_url))
+        if self.otel_endpoint.startswith('http://'):
+            http_endpoints.append(('otel_endpoint', self.otel_endpoint))
+
+        if http_endpoints:
+            endpoint_list = ', '.join(f'{name}={url}' for name, url in http_endpoints)
+            raise ValueError(
+                f"Endpoints HTTP inseguros detectados em ambiente {self.environment}: {endpoint_list}. "
+                "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+            )
+
+        return self
 
     class Config:
         env_file = '.env'

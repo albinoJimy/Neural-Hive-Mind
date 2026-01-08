@@ -1,0 +1,221 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: self-healing-engine
+  namespace: neural-hive-resilience
+  labels:
+    app: self-healing-engine
+    component: chaos-engineering
+    neural-hive/layer: governanca
+    neural-hive/domain: chaos
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: chaos-engineering
+  labels:
+    app: self-healing-engine
+    component: chaos-engineering
+    neural-hive/layer: governanca
+rules:
+  # Pods - operações de chaos
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "delete", "create"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["pods/eviction"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+
+  # Deployments e ReplicaSets - para scale e restart
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch", "patch", "update", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets/scale"]
+    verbs: ["patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["daemonsets"]
+    verbs: ["get", "list", "watch"]
+
+  # Services e Endpoints - para health checks
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch"]
+
+  # NetworkPolicies - para network partition
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Istio VirtualService - para HTTP fault injection
+  - apiGroups: ["networking.istio.io"]
+    resources: ["virtualservices"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["networking.istio.io"]
+    resources: ["destinationrules"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.istio.io"]
+    resources: ["gateways"]
+    verbs: ["get", "list", "watch"]
+
+  # ConfigMaps - para configuração
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+
+  # Secrets - somente leitura para health checks
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+    resourceNames: ["chaos-engineering-config"]
+
+  # Events - para monitoramento e auditoria
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch", "create", "update"]
+
+  # Nodes - para verificar recursos e status
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+
+  # Namespaces - para verificar existência
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+
+  # ResourceQuotas e LimitRanges - para verificar limites
+  - apiGroups: [""]
+    resources: ["resourcequotas", "limitranges"]
+    verbs: ["get", "list", "watch"]
+
+  # HPA - para verificar auto-scaling
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
+
+  # PodDisruptionBudgets - para verificar limites de disruption
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch"]
+
+  # Jobs e CronJobs - para game days
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: chaos-engineering
+  labels:
+    app: self-healing-engine
+    component: chaos-engineering
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: chaos-engineering
+subjects:
+  - kind: ServiceAccount
+    name: self-healing-engine
+    namespace: neural-hive-resilience
+---
+# Role específica para namespace de chaos-test
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: chaos-engineering-full
+  namespace: chaos-test
+  labels:
+    app: self-healing-engine
+    component: chaos-engineering
+rules:
+  # Todas as operações em chaos-test namespace
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: chaos-engineering-full
+  namespace: chaos-test
+  labels:
+    app: self-healing-engine
+    component: chaos-engineering
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: chaos-engineering-full
+subjects:
+  - kind: ServiceAccount
+    name: self-healing-engine
+    namespace: neural-hive-resilience
+---
+# NetworkPolicy para permitir tráfego do chaos engine
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-chaos-engine
+  namespace: neural-hive-resilience
+  labels:
+    app: self-healing-engine
+    component: chaos-engineering
+spec:
+  podSelector:
+    matchLabels:
+      app: self-healing-engine
+  policyTypes:
+    - Egress
+  egress:
+    # Permitir acesso a todos os namespaces para chaos testing
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 50051
+    # Permitir acesso ao API server
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 6443
+        - protocol: TCP
+          port: 443
+    # Permitir DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

@@ -1,0 +1,160 @@
+groups:
+  - name: orchestrator-opa-policy-alerts
+    rules:
+      # Alerta: Taxa alta de violações de políticas OPA
+      - alert: OPAPolicyViolationRateHigh
+        expr: |
+          (
+            sum(rate(orchestration_opa_policy_rejections_total[5m]))
+            /
+            sum(rate(orchestration_opa_validations_total[5m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator
+          subsystem: opa
+        annotations:
+          summary: "Taxa alta de violações OPA (> 10%)"
+          description: "A taxa de violações de políticas OPA está acima de 10% nos últimos 5 minutos. Valor atual: {{ $value | printf \"%.2f\" }}%"
+          runbook_url: "https://docs.neuralhive/runbooks/opa-policy-violation-spike"
+
+      # Alerta: Circuit breaker OPA aberto
+      - alert: OPACircuitBreakerOpen
+        expr: orchestration_opa_circuit_breaker_state{circuit_name="opa_client"} == 2
+        for: 2m
+        labels:
+          severity: critical
+          component: orchestrator
+          subsystem: opa
+        annotations:
+          summary: "Circuit breaker OPA está aberto"
+          description: "O circuit breaker do cliente OPA está no estado OPEN por mais de 2 minutos, indicando falhas persistentes de conexão com o servidor OPA."
+          runbook_url: "https://docs.neuralhive/runbooks/opa-circuit-breaker-open"
+
+      # Alerta: Latência alta de políticas OPA
+      - alert: OPALatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(orchestration_opa_validation_duration_seconds_bucket[5m])) by (le, policy_name)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator
+          subsystem: opa
+        annotations:
+          summary: "Latência P95 OPA alta para {{ $labels.policy_name }}"
+          description: "A latência P95 de avaliação OPA para política {{ $labels.policy_name }} está acima de 500ms. Valor atual: {{ $value | printf \"%.3f\" }}s"
+          runbook_url: "https://docs.neuralhive/runbooks/opa-latency-high"
+
+      # Alerta: Cache hit ratio baixo
+      - alert: OPACacheHitRateLow
+        expr: orchestration_opa_cache_hit_ratio < 0.5
+        for: 10m
+        labels:
+          severity: warning
+          component: orchestrator
+          subsystem: opa
+        annotations:
+          summary: "OPA cache hit ratio baixo (< 50%)"
+          description: "O cache hit ratio do OPA está abaixo de 50% por mais de 10 minutos. Isso pode indicar padrões de acesso não otimizados ou TTL de cache muito curto. Valor atual: {{ $value | printf \"%.2f\" }}"
+          runbook_url: "https://docs.neuralhive/runbooks/opa-cache-optimization"
+
+      # Alerta: Health check OPA falhando
+      - alert: OPAHealthCheckFailing
+        expr: |
+          sum(rate(orchestration_opa_evaluation_errors_total{error_type="connection"}[1m])) > 0.5
+        for: 1m
+        labels:
+          severity: critical
+          component: orchestrator
+          subsystem: opa
+        annotations:
+          summary: "OPA health check falhando"
+          description: "O servidor OPA não está respondendo corretamente aos health checks. Verificar conectividade e status do servidor OPA."
+          runbook_url: "https://docs.neuralhive/runbooks/opa-health-check-failing"
+
+      # Alerta: Muitos erros de timeout OPA
+      - alert: OPATimeoutErrorsHigh
+        expr: |
+          sum(rate(orchestration_opa_evaluation_errors_total{error_type="timeout"}[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator
+          subsystem: opa
+        annotations:
+          summary: "Taxa alta de timeouts OPA"
+          description: "A taxa de erros de timeout nas avaliações OPA está acima do limite. Verificar carga do servidor OPA e configuração de timeout."
+          runbook_url: "https://docs.neuralhive/runbooks/opa-timeout-errors"
+
+      # Alerta: Política OPA não encontrada
+      - alert: OPAPolicyNotFound
+        expr: |
+          sum(rate(orchestration_opa_evaluation_errors_total{error_type="policy_not_found"}[5m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: orchestrator
+          subsystem: opa
+        annotations:
+          summary: "Política OPA não encontrada"
+          description: "Uma ou mais políticas OPA configuradas não estão disponíveis no servidor. Verificar deploy de políticas Rego."
+          runbook_url: "https://docs.neuralhive/runbooks/opa-policy-not-found"
+
+  - name: orchestrator-opa-security-alerts
+    rules:
+      # Alerta: Violação de isolamento de tenant
+      - alert: TenantIsolationViolation
+        expr: sum(rate(orchestration_security_tenant_isolation_violations_total[5m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: orchestrator
+          subsystem: security
+        annotations:
+          summary: "Violação de isolamento de tenant detectada"
+          description: "Uma tentativa de acesso cross-tenant foi detectada e bloqueada. Investigar origem do request."
+          runbook_url: "https://docs.neuralhive/runbooks/tenant-isolation-violation"
+
+      # Alerta: Alta taxa de falhas de autenticação
+      - alert: AuthenticationFailureRateHigh
+        expr: |
+          sum(rate(orchestration_security_authentication_failures_total[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator
+          subsystem: security
+        annotations:
+          summary: "Taxa alta de falhas de autenticação"
+          description: "A taxa de falhas de autenticação está acima do limite normal. Pode indicar tentativa de ataque ou problema com serviço de autenticação."
+          runbook_url: "https://docs.neuralhive/runbooks/auth-failure-spike"
+
+      # Alerta: Rate limit excedido frequentemente
+      - alert: RateLimitExceededFrequently
+        expr: |
+          sum(rate(orchestration_security_rate_limit_exceeded_total[5m])) by (tenant_id) > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator
+          subsystem: security
+        annotations:
+          summary: "Rate limit excedido frequentemente para tenant {{ $labels.tenant_id }}"
+          description: "O tenant {{ $labels.tenant_id }} está excedendo o rate limit com frequência. Verificar se é uso legítimo ou possível abuso."
+          runbook_url: "https://docs.neuralhive/runbooks/rate-limit-exceeded"
+
+      # Alerta: Violação de governança de dados
+      - alert: DataGovernanceViolation
+        expr: sum(rate(orchestration_security_data_governance_violations_total[5m])) > 0
+        for: 1m
+        labels:
+          severity: high
+          component: orchestrator
+          subsystem: compliance
+        annotations:
+          summary: "Violação de governança de dados detectada"
+          description: "Uma tentativa de manipulação de dados PII ou violação de residência de dados foi bloqueada. Investigar origem do request."
+          runbook_url: "https://docs.neuralhive/runbooks/data-governance-violation"

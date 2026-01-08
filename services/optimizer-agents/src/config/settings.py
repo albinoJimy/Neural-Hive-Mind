@@ -1,7 +1,8 @@
 from functools import lru_cache
-from typing import List
+from typing import List, Optional
+import warnings
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -54,7 +55,9 @@ class Settings(BaseSettings):
     redis_cache_ttl: int = Field(default=300, description="Cache TTL in seconds")
 
     # MLflow
-    mlflow_tracking_uri: str = Field(default="http://mlflow.mlflow.svc.cluster.local:5000")
+    mlflow_tracking_uri: str = Field(default="https://mlflow.mlflow.svc.cluster.local:5000")
+    mlflow_tls_verify: bool = Field(default=True, description="Verificar certificado TLS do MLflow")
+    mlflow_ca_bundle: Optional[str] = Field(default=None, description="Caminho para CA bundle do MLflow")
     mlflow_experiment_name: str = Field(default="optimizer-agents")
 
     # Argo Workflows
@@ -63,7 +66,9 @@ class Settings(BaseSettings):
     argo_workflows_namespace: str = Field(default="argo")
 
     # Observability
-    otel_endpoint: str = Field(default="http://opentelemetry-collector.observability.svc.cluster.local:4317")
+    otel_endpoint: str = Field(default="https://opentelemetry-collector.observability.svc.cluster.local:4317")
+    otel_tls_verify: bool = Field(default=True, description="Verificar certificado TLS do OTEL Collector")
+    otel_ca_bundle: Optional[str] = Field(default=None, description="Caminho para CA bundle do OTEL Collector")
     prometheus_port: int = Field(default=8080)
     jaeger_sampling_rate: float = Field(default=1.0)
 
@@ -111,6 +116,45 @@ class Settings(BaseSettings):
     enable_load_prediction: bool = Field(default=True, description="Enable load prediction features")
     enable_scheduling_optimization: bool = Field(default=True, description="Enable scheduling optimization")
 
+    # Configurações para Consensus Optimization (extensões gRPC)
+    weight_cache_ttl_seconds: int = Field(default=300, description="TTL do cache de pesos no Redis")
+    min_weight_value: float = Field(default=0.05, description="Valor mínimo permitido para peso de especialista")
+    max_weight_value: float = Field(default=0.50, description="Valor máximo permitido para peso de especialista")
+
+    # Configurações para Orchestrator Optimization (extensões gRPC)
+    min_error_budget_percentage: float = Field(default=0.20, description="Mínimo error budget para aplicar SLO")
+    slo_cache_ttl_seconds: int = Field(default=300, description="TTL do cache de SLOs no Redis")
+    gradual_rollout_enabled: bool = Field(default=True, description="Habilitar rollout gradual de SLOs")
+    min_slo_latency_ms: int = Field(default=100, description="Latência mínima permitida para SLO")
+    min_slo_availability: float = Field(default=0.95, description="Disponibilidade mínima permitida para SLO")
+    max_slo_error_rate: float = Field(default=0.10, description="Error rate máximo permitido para SLO")
+
+    # Configuração RL para extensões
+    rl_learning_rate: float = Field(default=0.1, description="Taxa de aprendizado do Q-learning para extensões")
+    rl_discount_factor: float = Field(default=0.9, description="Fator de desconto do Q-learning para extensões")
+    rl_exploration_rate: float = Field(default=0.1, description="Taxa de exploração (epsilon) para extensões")
+
+    # SPIFFE/SPIRE Configuration (mTLS)
+    spiffe_enabled: bool = Field(default=False, description="Habilitar integração SPIFFE/SPIRE")
+    spiffe_enable_x509: bool = Field(default=False, description="Habilitar X.509-SVID para mTLS")
+    spiffe_socket_path: str = Field(default="unix:///run/spire/sockets/agent.sock", description="SPIRE Workload API socket")
+    spiffe_trust_domain: str = Field(default="neural-hive.local", description="SPIFFE trust domain")
+    spiffe_jwt_audience: str = Field(default="neural-hive.local", description="JWT-SVID audience")
+    spiffe_jwt_ttl_seconds: int = Field(default=3600, description="TTL do JWT-SVID em segundos")
+
+    # A/B Testing Configuration
+    ab_test_default_alpha: float = Field(default=0.05, description="Nivel de significancia padrao para testes A/B")
+    ab_test_default_power: float = Field(default=0.80, description="Power estatistico padrao")
+    ab_test_min_sample_size: int = Field(default=100, description="Tamanho minimo de amostra por grupo")
+    ab_test_max_sample_size: int = Field(default=1000000, description="Tamanho maximo de amostra por grupo")
+    ab_test_early_stopping_enabled: bool = Field(default=True, description="Habilitar parada antecipada por default")
+    ab_test_sequential_testing_enabled: bool = Field(default=True, description="Habilitar sequential testing (SPRT)")
+    ab_test_bayesian_analysis_enabled: bool = Field(default=True, description="Habilitar analise Bayesiana por default")
+    ab_test_guardrail_check_interval_seconds: int = Field(default=30, description="Intervalo de verificacao de guardrails")
+    ab_test_default_traffic_split: float = Field(default=0.5, description="Split de trafego padrao (50/50)")
+    ab_test_max_duration_days: int = Field(default=30, description="Duracao maxima de experimentos em dias")
+    ab_test_metrics_retention_days: int = Field(default=14, description="Dias de retencao de metricas no Redis")
+
     @field_validator("min_improvement_threshold", "max_weight_adjustment", "max_slo_adjustment_percentage")
     @classmethod
     def validate_positive(cls, v: float) -> float:
@@ -124,6 +168,32 @@ class Settings(BaseSettings):
         if not 0 <= v <= 1:
             raise ValueError("Value must be between 0 and 1")
         return v
+
+    @model_validator(mode='after')
+    def validate_https_in_production(self) -> 'Settings':
+        """
+        Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
+        Endpoints verificados: MLflow, OTEL, Schema Registry, Prometheus.
+        """
+        is_prod_staging = self.environment.lower() in ('production', 'staging', 'prod')
+        if not is_prod_staging:
+            return self
+
+        # Endpoints criticos que devem usar HTTPS em producao
+        http_endpoints = []
+        if self.mlflow_tracking_uri.startswith('http://'):
+            http_endpoints.append(('mlflow_tracking_uri', self.mlflow_tracking_uri))
+        if self.otel_endpoint.startswith('http://'):
+            http_endpoints.append(('otel_endpoint', self.otel_endpoint))
+
+        if http_endpoints:
+            endpoint_list = ', '.join(f'{name}={url}' for name, url in http_endpoints)
+            raise ValueError(
+                f"Endpoints HTTP inseguros detectados em ambiente {self.environment}: {endpoint_list}. "
+                "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+            )
+
+        return self
 
 
 @lru_cache()

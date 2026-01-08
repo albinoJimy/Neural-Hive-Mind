@@ -1,0 +1,212 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ml-model-training
+  namespace: neural-hive
+  labels:
+    app: ml-model-training
+    component: orchestrator-dynamic
+    tier: ml
+spec:
+  # Executa diariamente às 2:00 AM UTC
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 5
+  startingDeadlineSeconds: 600
+  jobTemplate:
+    metadata:
+      labels:
+        app: ml-model-training
+        component: orchestrator-dynamic
+    spec:
+      activeDeadlineSeconds: 3600  # 1 hora timeout
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: ml-model-training
+          annotations:
+            prometheus.io/scrape: "true"
+            prometheus.io/port: "8000"
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: orchestrator-dynamic
+          containers:
+            - name: ml-trainer
+              image: neural-hive/orchestrator-dynamic:latest
+              imagePullPolicy: IfNotPresent
+              command:
+                - python
+                - -m
+                - src.scripts.train_models_production
+              args:
+                - --models
+                - "duration,anomaly"
+                - --window-days
+                - "90"
+                - --backfill-errors
+                - "true"
+              resources:
+                requests:
+                  cpu: "2"
+                  memory: "4Gi"
+                limits:
+                  cpu: "4"
+                  memory: "8Gi"
+              env:
+                - name: ENVIRONMENT
+                  value: "production"
+                - name: LOG_LEVEL
+                  value: "INFO"
+                - name: MONGODB_URI
+                  valueFrom:
+                    secretKeyRef:
+                      name: mongodb-credentials
+                      key: uri
+                - name: MLFLOW_TRACKING_URI
+                  value: "http://mlflow.mlflow.svc.cluster.local:5000"
+                - name: REDIS_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: redis-credentials
+                      key: url
+                - name: CLICKHOUSE_HOST
+                  value: "clickhouse.clickhouse.svc.cluster.local"
+                - name: CLICKHOUSE_PORT
+                  value: "9000"
+                - name: CLICKHOUSE_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: clickhouse-credentials
+                      key: username
+                - name: CLICKHOUSE_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: clickhouse-credentials
+                      key: password
+                - name: PROMETHEUS_PUSHGATEWAY_URL
+                  value: "http://prometheus-pushgateway.monitoring.svc.cluster.local:9091"
+                - name: TRAINING_JOB_NAME
+                  value: "ml-model-training-cronjob"
+              volumeMounts:
+                - name: ml-config
+                  mountPath: /app/config
+                  readOnly: true
+          volumes:
+            - name: ml-config
+              configMap:
+                name: ml-training-config
+          nodeSelector:
+            workload-type: ml-training
+          tolerations:
+            - key: "ml-workload"
+              operator: "Equal"
+              value: "true"
+              effect: "NoSchedule"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ml-training-config
+  namespace: neural-hive
+data:
+  training_config.yaml: |
+    # Configuração de treinamento ML
+    models:
+      duration_predictor:
+        enabled: true
+        min_samples: 500
+        training_window_days: 90
+        promotion_threshold_mae_pct: 0.15
+        hyperparameter_tuning: false
+
+      anomaly_detector:
+        enabled: true
+        min_samples: 500
+        training_window_days: 90
+        promotion_threshold_precision: 0.75
+        hyperparameter_tuning: false
+        synthetic_ratio: 0.1
+
+    # Configuração de drift detection
+    drift:
+      enabled: true
+      psi_threshold: 0.25
+      mae_ratio_threshold: 1.5
+      ks_pvalue_threshold: 0.05
+
+    # Notificações
+    notifications:
+      slack_webhook: ""
+      pagerduty_routing_key: ""
+      on_success: false
+      on_failure: true
+      on_promotion: true
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ml-drift-check
+  namespace: neural-hive
+  labels:
+    app: ml-drift-check
+    component: orchestrator-dynamic
+    tier: ml
+spec:
+  # Executa a cada 6 horas
+  schedule: "0 */6 * * *"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 2
+  successfulJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels:
+        app: ml-drift-check
+    spec:
+      activeDeadlineSeconds: 600  # 10 min timeout
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: ml-drift-check
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: orchestrator-dynamic
+          containers:
+            - name: drift-checker
+              image: neural-hive/orchestrator-dynamic:latest
+              imagePullPolicy: IfNotPresent
+              command:
+                - python
+                - -m
+                - src.scripts.check_drift
+              args:
+                - --window-days
+                - "7"
+                - --trigger-retraining
+                - "true"
+              resources:
+                requests:
+                  cpu: "500m"
+                  memory: "1Gi"
+                limits:
+                  cpu: "1"
+                  memory: "2Gi"
+              env:
+                - name: ENVIRONMENT
+                  value: "production"
+                - name: LOG_LEVEL
+                  value: "INFO"
+                - name: MONGODB_URI
+                  valueFrom:
+                    secretKeyRef:
+                      name: mongodb-credentials
+                      key: uri
+                - name: REDIS_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: redis-credentials
+                      key: url
+          nodeSelector:
+            workload-type: general

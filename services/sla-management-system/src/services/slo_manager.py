@@ -2,13 +2,31 @@
 Serviço para gerenciar definições de SLO.
 """
 
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Dict, Any, Tuple, TYPE_CHECKING
+from datetime import datetime
 import yaml
 import structlog
+from prometheus_client import Counter, Histogram
 
 from ..clients.postgresql_client import PostgreSQLClient
 from ..clients.prometheus_client import PrometheusClient
 from ..models.slo_definition import SLODefinition
+
+if TYPE_CHECKING:
+    from ..clients.kubernetes_client import KubernetesClient
+
+# Metricas para sincronizacao de CRDs
+sla_crd_sync_total = Counter(
+    'sla_crd_sync_total',
+    'Total de sincronizacoes de CRDs',
+    ['status']
+)
+
+sla_crd_sync_duration = Histogram(
+    'sla_crd_sync_duration_seconds',
+    'Duracao da sincronizacao de CRDs',
+    buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0)
+)
 
 
 class SLOManager:
@@ -17,10 +35,12 @@ class SLOManager:
     def __init__(
         self,
         postgresql_client: PostgreSQLClient,
-        prometheus_client: PrometheusClient
+        prometheus_client: PrometheusClient,
+        kubernetes_client: Optional["KubernetesClient"] = None
     ):
         self.postgresql_client = postgresql_client
         self.prometheus_client = prometheus_client
+        self.kubernetes_client = kubernetes_client
         self.logger = structlog.get_logger(__name__)
 
     async def create_slo(self, slo: SLODefinition) -> str:
@@ -187,13 +207,223 @@ class SLOManager:
             )
             raise
 
-    async def sync_from_crds(self) -> List[str]:
-        """Sincroniza SLOs de CRDs Kubernetes."""
-        # TODO: Implementar quando operator estiver pronto
-        # Listar recursos SLODefinition no cluster
-        # Criar/atualizar SLOs no PostgreSQL
-        self.logger.info("crd_sync_not_implemented")
-        return []
+    async def sync_from_crds(
+        self,
+        namespace: Optional[str] = None
+    ) -> List[str]:
+        """
+        Sincroniza SLOs de CRDs Kubernetes para PostgreSQL.
+
+        Complementa o operator (tempo real) com reconciliacao periodica.
+        Usado pelo CronJob para recuperacao de drift e consistencia.
+
+        Args:
+            namespace: Namespace especifico ou None para todos.
+
+        Returns:
+            Lista de slo_ids sincronizados.
+        """
+        if not self.kubernetes_client:
+            self.logger.warning(
+                "crd_sync.kubernetes_client_not_available",
+                reason="kubernetes_client nao foi configurado"
+            )
+            return []
+
+        if not self.kubernetes_client.is_healthy():
+            self.logger.warning(
+                "crd_sync.kubernetes_client_not_healthy",
+                reason="cliente nao conectado ao cluster"
+            )
+            return []
+
+        synced_ids: List[str] = []
+
+        with sla_crd_sync_duration.time():
+            try:
+                # Listar todos os CRDs SLODefinition
+                crds = await self.kubernetes_client.list_slo_definitions(namespace)
+
+                self.logger.info(
+                    "crd_sync.started",
+                    crd_count=len(crds),
+                    namespace=namespace or "all"
+                )
+
+                for crd in crds:
+                    try:
+                        slo_id = await self._sync_single_crd(crd)
+                        if slo_id:
+                            synced_ids.append(slo_id)
+                    except Exception as e:
+                        crd_name = crd.get("metadata", {}).get("name", "unknown")
+                        crd_namespace = crd.get("metadata", {}).get("namespace", "unknown")
+                        self.logger.error(
+                            "crd_sync.single_crd_failed",
+                            crd_name=crd_name,
+                            crd_namespace=crd_namespace,
+                            error=str(e)
+                        )
+
+                sla_crd_sync_total.labels(status="success").inc()
+
+                self.logger.info(
+                    "crd_sync.completed",
+                    synced_count=len(synced_ids),
+                    total_crds=len(crds)
+                )
+
+                return synced_ids
+
+            except Exception as e:
+                sla_crd_sync_total.labels(status="error").inc()
+                self.logger.error(
+                    "crd_sync.failed",
+                    error=str(e)
+                )
+                return []
+
+    async def _sync_single_crd(self, crd: Dict[str, Any]) -> Optional[str]:
+        """
+        Sincroniza um unico CRD para PostgreSQL.
+
+        Args:
+            crd: CRD completo do Kubernetes.
+
+        Returns:
+            slo_id se sincronizado, None se erro.
+        """
+        metadata = crd.get("metadata", {})
+        spec = crd.get("spec", {})
+        crd_name = metadata.get("name")
+        crd_namespace = metadata.get("namespace")
+
+        if not spec:
+            self.logger.warning(
+                "crd_sync.missing_spec",
+                crd_name=crd_name,
+                crd_namespace=crd_namespace
+            )
+            return None
+
+        # Converter CRD para SLODefinition
+        # Mapear campos camelCase do CRD para snake_case do modelo
+        sli_query_spec = spec.get("sliQuery", {})
+        slo_data = SLODefinition.from_crd({
+            "name": spec.get("name"),
+            "description": spec.get("description", ""),
+            "sloType": spec.get("sloType"),
+            "serviceName": spec.get("serviceName"),
+            "component": spec.get("component"),
+            "layer": spec.get("layer"),
+            "target": spec.get("target"),
+            "windowDays": spec.get("windowDays", 30),
+            "sliQuery": {
+                "metricName": sli_query_spec.get("metricName"),
+                "query": sli_query_spec.get("query"),
+                "aggregation": sli_query_spec.get("aggregation", "avg"),
+                "labels": sli_query_spec.get("labels", {})
+            },
+            "enabled": spec.get("enabled", True),
+            "metadata": spec.get("metadata", {})
+        })
+
+        # Adicionar metadados do CRD
+        slo_data.metadata["crd_name"] = crd_name
+        slo_data.metadata["crd_namespace"] = crd_namespace
+
+        # Verificar se SLO ja existe (por nome + namespace no metadata)
+        existing_slos = await self.list_slos({
+            "service_name": slo_data.service_name,
+            "enabled": None  # Incluir desabilitados
+        })
+
+        existing_slo = None
+        for slo in existing_slos:
+            if (slo.metadata.get("crd_name") == crd_name and
+                    slo.metadata.get("crd_namespace") == crd_namespace):
+                existing_slo = slo
+                break
+
+        slo_id: str
+
+        if existing_slo:
+            # Verificar se houve mudancas
+            if self._slo_needs_update(existing_slo, slo_data):
+                updates = {
+                    "name": slo_data.name,
+                    "description": slo_data.description,
+                    "target": slo_data.target,
+                    "window_days": slo_data.window_days,
+                    "sli_query": slo_data.sli_query.model_dump(),
+                    "enabled": slo_data.enabled,
+                    "metadata": slo_data.metadata
+                }
+                await self.update_slo(existing_slo.slo_id, updates)
+                self.logger.info(
+                    "crd_sync.slo_updated",
+                    slo_id=existing_slo.slo_id,
+                    crd_name=crd_name
+                )
+            else:
+                self.logger.debug(
+                    "crd_sync.slo_unchanged",
+                    slo_id=existing_slo.slo_id,
+                    crd_name=crd_name
+                )
+            slo_id = existing_slo.slo_id
+        else:
+            # Criar novo SLO
+            slo_id = await self.create_slo(slo_data)
+            self.logger.info(
+                "crd_sync.slo_created",
+                slo_id=slo_id,
+                crd_name=crd_name
+            )
+
+        # Atualizar status do CRD
+        if self.kubernetes_client:
+            await self.kubernetes_client.update_slo_status(
+                name=crd_name,
+                namespace=crd_namespace,
+                status={
+                    "synced": True,
+                    "sloId": slo_id
+                }
+            )
+
+        return slo_id
+
+    def _slo_needs_update(
+        self,
+        existing: SLODefinition,
+        new_data: SLODefinition
+    ) -> bool:
+        """
+        Verifica se SLO precisa ser atualizado.
+
+        Compara campos relevantes para detectar mudancas.
+        """
+        if existing.name != new_data.name:
+            return True
+        if existing.description != new_data.description:
+            return True
+        if abs(existing.target - new_data.target) > 0.0001:
+            return True
+        if existing.window_days != new_data.window_days:
+            return True
+        if existing.enabled != new_data.enabled:
+            return True
+        if existing.sli_query.query != new_data.sli_query.query:
+            return True
+        if existing.sli_query.metric_name != new_data.sli_query.metric_name:
+            return True
+        if existing.sli_query.aggregation != new_data.sli_query.aggregation:
+            return True
+        if existing.sli_query.labels != new_data.sli_query.labels:
+            return True
+
+        return False
 
     def validate_slo(self, slo: SLODefinition) -> Tuple[bool, Optional[str]]:
         """Valida definição de SLO."""

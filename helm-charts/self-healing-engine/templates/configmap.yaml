@@ -53,3 +53,22 @@ data:
   HTTP_PORT: {{ .Values.config.observability.httpPort | quote }}
   GRPC_PORT: {{ .Values.config.observability.grpcPort | quote }}
   LOG_LEVEL: {{ .Values.config.observability.logLevel | quote }}
+
+  # Execution Ticket Service Integration
+  EXECUTION_TICKET_SERVICE_URL: {{ .Values.config.executionTicketService.url | quote }}
+  EXECUTION_TICKET_SERVICE_TIMEOUT: {{ .Values.config.executionTicketService.timeout | quote }}
+  EXECUTION_TICKET_CIRCUIT_BREAKER_THRESHOLD: {{ .Values.config.executionTicketService.circuitBreaker.threshold | quote }}
+  EXECUTION_TICKET_CIRCUIT_BREAKER_RESET_SECONDS: {{ .Values.config.executionTicketService.circuitBreaker.resetSeconds | quote }}
+
+  # Orchestrator Dynamic gRPC Integration
+  ORCHESTRATOR_GRPC_HOST: {{ .Values.config.orchestrator.grpcHost | quote }}
+  ORCHESTRATOR_GRPC_PORT: {{ .Values.config.orchestrator.grpcPort | quote }}
+  ORCHESTRATOR_GRPC_USE_TLS: {{ .Values.config.orchestrator.useTls | quote }}
+  ORCHESTRATOR_GRPC_TIMEOUT_SECONDS: {{ .Values.config.orchestrator.timeout | quote }}
+
+  # OPA Policy Engine Integration
+  OPA_HOST: {{ .Values.config.opa.host | quote }}
+  OPA_PORT: {{ .Values.config.opa.port | quote }}
+  OPA_ENABLED: {{ .Values.config.opa.enabled | quote }}
+  OPA_FAIL_OPEN: {{ .Values.config.opa.failOpen | quote }}
+  OPA_POLICY_PATH: {{ .Values.config.opa.policyPath | quote }}

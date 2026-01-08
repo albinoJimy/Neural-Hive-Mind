@@ -70,6 +70,9 @@ python-dateutil>=2.8.2
 aiofiles>=23.2.1
 tenacity==9.0.0
 
+# AWS SDK
+boto3>=1.34.0
+
 # Integration library
 # neural_hive_integration - instalado localmente via Dockerfile
 

@@ -1,0 +1,464 @@
+{
+  "dashboard": {
+    "title": "Orchestrator - Scheduler Performance",
+    "uid": "orchestrator-scheduler-perf",
+    "tags": ["orchestrator", "scheduler", "performance", "slo"],
+    "description": "Dashboard de performance do IntelligentScheduler com métricas de latência, throughput e compliance de SLOs",
+    "timezone": "browser",
+    "refresh": "10s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "annotations": {
+      "list": [
+        {
+          "datasource": "Prometheus",
+          "enable": true,
+          "name": "SLO Violations",
+          "expr": "changes(orchestration_scheduler_allocations_total{status=\"error\"}[1m]) > 0",
+          "tagKeys": "status",
+          "titleFormat": "Scheduler Error"
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Latência P50 / P95 / P99",
+        "type": "timeseries",
+        "description": "Distribuição de latência de alocações ao longo do tempo",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(orchestration_scheduler_allocation_duration_seconds_bucket[5m]))",
+            "legendFormat": "P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(orchestration_scheduler_allocation_duration_seconds_bucket[5m]))",
+            "legendFormat": "P95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(orchestration_scheduler_allocation_duration_seconds_bucket[5m]))",
+            "legendFormat": "P99"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "custom": {
+              "lineWidth": 2,
+              "fillOpacity": 10,
+              "gradientMode": "scheme",
+              "showPoints": "never",
+              "spanNulls": true
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 0.2, "color": "yellow"},
+                {"value": 0.5, "color": "red"}
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "P99"},
+              "properties": [
+                {"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}
+              ]
+            },
+            {
+              "matcher": {"id": "byName", "options": "P95"},
+              "properties": [
+                {"id": "color", "value": {"mode": "fixed", "fixedColor": "orange"}}
+              ]
+            },
+            {
+              "matcher": {"id": "byName", "options": "P50"},
+              "properties": [
+                {"id": "color", "value": {"mode": "fixed", "fixedColor": "green"}}
+              ]
+            }
+          ]
+        },
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "bottom",
+            "calcs": ["mean", "max"]
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Throughput (tickets/s)",
+        "type": "timeseries",
+        "description": "Taxa de alocações por segundo",
+        "targets": [
+          {
+            "expr": "rate(orchestration_scheduler_allocations_total[1m])",
+            "legendFormat": "Total"
+          },
+          {
+            "expr": "rate(orchestration_scheduler_allocations_total{status=\"success\"}[1m])",
+            "legendFormat": "Sucesso"
+          },
+          {
+            "expr": "rate(orchestration_scheduler_allocations_total{fallback=\"true\"}[1m])",
+            "legendFormat": "Fallback"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "custom": {
+              "lineWidth": 2,
+              "fillOpacity": 20,
+              "gradientMode": "scheme"
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "bottom",
+            "calcs": ["mean", "max"]
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Taxa de Sucesso",
+        "type": "gauge",
+        "description": "Percentual de alocações bem-sucedidas (não-fallback)",
+        "targets": [
+          {
+            "expr": "rate(orchestration_scheduler_allocations_total{status=\"success\",fallback=\"false\"}[5m]) / rate(orchestration_scheduler_allocations_total[5m]) * 100",
+            "legendFormat": "Success Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 90, "color": "yellow"},
+                {"value": 95, "color": "#73BF69"},
+                {"value": 99, "color": "green"}
+              ]
+            }
+          }
+        },
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        },
+        "gridPos": {"h": 6, "w": 4, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Cache Hit Rate",
+        "type": "gauge",
+        "description": "Percentual de cache hits em descobertas de workers",
+        "targets": [
+          {
+            "expr": "rate(orchestration_scheduler_cache_hits_total[5m]) / rate(orchestration_scheduler_allocations_total[5m]) * 100",
+            "legendFormat": "Cache Hit Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 60, "color": "yellow"},
+                {"value": 80, "color": "green"}
+              ]
+            }
+          }
+        },
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        },
+        "gridPos": {"h": 6, "w": 4, "x": 4, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "Latência P95 (SLO: 200ms)",
+        "type": "gauge",
+        "description": "Latência P95 com SLO de 200ms",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(orchestration_scheduler_allocation_duration_seconds_bucket[5m])) * 1000",
+            "legendFormat": "P95 (ms)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "min": 0,
+            "max": 500,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 100, "color": "#73BF69"},
+                {"value": 200, "color": "yellow"},
+                {"value": 300, "color": "orange"},
+                {"value": 500, "color": "red"}
+              ]
+            }
+          }
+        },
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        },
+        "gridPos": {"h": 6, "w": 4, "x": 8, "y": 8}
+      },
+      {
+        "id": 6,
+        "title": "Discovery Time",
+        "type": "timeseries",
+        "description": "Tempo de descoberta de workers",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(orchestration_scheduler_workers_discovered_bucket[5m]))",
+            "legendFormat": "P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(orchestration_scheduler_workers_discovered_bucket[5m]))",
+            "legendFormat": "P95"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "custom": {
+              "lineWidth": 2,
+              "fillOpacity": 10
+            }
+          }
+        },
+        "gridPos": {"h": 6, "w": 6, "x": 12, "y": 8}
+      },
+      {
+        "id": 7,
+        "title": "Workers Descobertos",
+        "type": "stat",
+        "description": "Número médio de workers encontrados por alocação",
+        "targets": [
+          {
+            "expr": "avg(orchestration_scheduler_workers_discovered)",
+            "legendFormat": "Workers"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 1, "color": "yellow"},
+                {"value": 3, "color": "green"}
+              ]
+            }
+          }
+        },
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value"
+        },
+        "gridPos": {"h": 6, "w": 6, "x": 18, "y": 8}
+      },
+      {
+        "id": 8,
+        "title": "Distribuição de Priority Scores por Risk Band",
+        "type": "heatmap",
+        "description": "Histograma de priority scores agrupados por risk_band",
+        "targets": [
+          {
+            "expr": "sum by (risk_band, le) (rate(orchestration_scheduler_priority_score_bucket[5m]))",
+            "legendFormat": "{{risk_band}}"
+          }
+        ],
+        "options": {
+          "calculate": false,
+          "color": {
+            "mode": "scheme",
+            "scheme": "Spectral"
+          },
+          "yAxis": {
+            "unit": "short"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14}
+      },
+      {
+        "id": 9,
+        "title": "SLO Compliance - Error Budget",
+        "type": "timeseries",
+        "description": "Consumo de error budget do scheduler",
+        "targets": [
+          {
+            "expr": "1 - (rate(orchestration_scheduler_allocations_total{status=\"error\"}[5m]) / rate(orchestration_scheduler_allocations_total[5m]))",
+            "legendFormat": "Compliance Rate"
+          },
+          {
+            "expr": "0.99",
+            "legendFormat": "SLO Target (99%)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0.9,
+            "max": 1.0,
+            "custom": {
+              "lineWidth": 2,
+              "fillOpacity": 10
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0.95, "color": "red"},
+                {"value": 0.99, "color": "yellow"},
+                {"value": 0.995, "color": "green"}
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "SLO Target (99%)"},
+              "properties": [
+                {"id": "color", "value": {"mode": "fixed", "fixedColor": "blue"}},
+                {"id": "custom.lineStyle", "value": {"fill": "dash"}}
+              ]
+            }
+          ]
+        },
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "bottom"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14}
+      },
+      {
+        "id": 10,
+        "title": "Falhas de Discovery",
+        "type": "timeseries",
+        "description": "Taxa de falhas na descoberta de workers por tipo de erro",
+        "targets": [
+          {
+            "expr": "rate(orchestration_scheduler_discovery_failures_total[5m])",
+            "legendFormat": "{{error_type}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "custom": {
+              "lineWidth": 2,
+              "fillOpacity": 30,
+              "stacking": {"mode": "normal"}
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right"
+          }
+        },
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 22}
+      },
+      {
+        "id": 11,
+        "title": "Rejeições por Motivo",
+        "type": "piechart",
+        "description": "Distribuição de rejeições de alocação por motivo",
+        "targets": [
+          {
+            "expr": "sum by (reason) (increase(orchestration_scheduler_rejections_total[1h]))",
+            "legendFormat": "{{reason}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "values": ["value", "percent"]
+          },
+          "pieType": "donut"
+        },
+        "gridPos": {"h": 6, "w": 6, "x": 12, "y": 22}
+      },
+      {
+        "id": 12,
+        "title": "ML Priority Boost",
+        "type": "stat",
+        "description": "Percentual de alocações com boost de prioridade via ML",
+        "targets": [
+          {
+            "expr": "sum(rate(orchestration_scheduler_priority_score{boosted=\"true\"}[5m])) / sum(rate(orchestration_scheduler_priority_score[5m])) * 100",
+            "legendFormat": "ML Boost Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "blue"},
+                {"value": 10, "color": "purple"}
+              ]
+            }
+          }
+        },
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value"
+        },
+        "gridPos": {"h": 6, "w": 6, "x": 18, "y": 22}
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "datasource",
+          "type": "datasource",
+          "query": "prometheus"
+        },
+        {
+          "name": "interval",
+          "type": "interval",
+          "query": "1m,5m,10m,30m,1h",
+          "current": {
+            "value": "5m"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -52,3 +52,12 @@ data:
   OTEL_EXPORTER_ENDPOINT: {{ .Values.config.OTEL_EXPORTER_ENDPOINT | quote }}
   LOG_LEVEL: {{ .Values.config.LOG_LEVEL | quote }}
   LOG_FORMAT: {{ .Values.config.LOG_FORMAT | quote }}
+
+  # S3 Configuration
+  {{- if .Values.s3.enabled }}
+  ARTIFACTS_S3_BUCKET: {{ .Values.s3.bucket | quote }}
+  ARTIFACTS_S3_REGION: {{ .Values.s3.region | quote }}
+  {{- if .Values.s3.endpoint }}
+  ARTIFACTS_S3_ENDPOINT: {{ .Values.s3.endpoint | quote }}
+  {{- end }}
+  {{- end }}

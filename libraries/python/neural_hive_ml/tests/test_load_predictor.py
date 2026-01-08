@@ -566,3 +566,83 @@ async def test_clickhouse_integration(
 
         assert len(historical_data) > 0
         assert 'timestamp' in historical_data.columns or 'ds' in historical_data.columns
+
+
+# =============================================================================
+# Testes de Medição de Latência
+# =============================================================================
+
+@pytest.mark.asyncio
+async def test_predict_load_latency_measurement(mock_config, mock_registry):
+    """Testa que a latência de predição é medida e registrada corretamente."""
+    # Mock de métricas que captura os valores passados
+    recorded_latencies = []
+
+    async def mock_record_load_forecast(horizon_minutes, status, latency, mape):
+        recorded_latencies.append({
+            'horizon_minutes': horizon_minutes,
+            'status': status,
+            'latency': latency,
+            'mape': mape
+        })
+
+    mock_metrics = Mock()
+    mock_metrics.record_load_forecast = AsyncMock(side_effect=mock_record_load_forecast)
+    mock_metrics.record_forecast_cache_hit = AsyncMock()
+
+    # Configuração para usar dados sintéticos
+    config = {**mock_config, 'use_synthetic_data': True}
+
+    predictor = LoadPredictor(
+        config=config,
+        model_registry=mock_registry,
+        metrics=mock_metrics,
+        redis_client=None
+    )
+
+    # Fazer predição (usará fallback ARIMA pois não há modelo carregado)
+    await predictor.predict_load(horizon_minutes=60)
+
+    # Verificar que record_load_forecast foi chamado
+    assert len(recorded_latencies) > 0, "Métricas de latência não foram registradas"
+
+    # Verificar que a latência registrada é maior que 0
+    last_record = recorded_latencies[-1]
+    assert last_record['latency'] > 0, f"Latência deveria ser > 0, mas foi {last_record['latency']}"
+    assert last_record['horizon_minutes'] == 60
+
+
+@pytest.mark.asyncio
+async def test_predict_load_latency_on_error(mock_config, mock_registry):
+    """Testa que a latência é medida mesmo quando ocorre erro."""
+    recorded_latencies = []
+
+    async def mock_record_load_forecast(horizon_minutes, status, latency, mape):
+        recorded_latencies.append({
+            'status': status,
+            'latency': latency
+        })
+
+    mock_metrics = Mock()
+    mock_metrics.record_load_forecast = AsyncMock(side_effect=mock_record_load_forecast)
+    mock_metrics.record_forecast_cache_hit = AsyncMock()
+
+    predictor = LoadPredictor(
+        config=mock_config,
+        model_registry=mock_registry,
+        metrics=mock_metrics,
+        redis_client=None
+    )
+
+    # Forçar erro no método interno de predição
+    with patch.object(predictor, '_predict_with_arima', side_effect=Exception("Erro simulado")):
+        result = await predictor.predict_load(horizon_minutes=60)
+
+    # Deve retornar erro mas ainda registrar métricas
+    assert 'error' in result
+    assert len(recorded_latencies) > 0
+
+    # Latência deve ser registrada mesmo em caso de erro
+    last_record = recorded_latencies[-1]
+    assert last_record['status'] == 'error'
+    assert last_record['latency'] >= 0

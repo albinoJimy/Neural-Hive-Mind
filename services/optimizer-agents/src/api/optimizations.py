@@ -55,28 +55,83 @@ class OptimizationStatisticsResponse(BaseModel):
 
 # Dependency injection functions (será configurado via app.dependency_overrides no main.py)
 def get_mongodb_client() -> MongoDBClient:
-    """Dependency para injetar MongoDBClient."""
-    raise NotImplementedError("MongoDBClient dependency not configured")
+    """
+    Retorna a instância de MongoDBClient do estado da aplicação.
+
+    Em produção, este fallback acessa o singleton global diretamente.
+    Pode ser sobrescrito via FastAPI dependency_overrides no main.py.
+    """
+    from src import main
+    if main.mongodb_client is None:
+        raise HTTPException(
+            status_code=503,
+            detail="MongoDBClient not initialized. Service is starting up."
+        )
+    return main.mongodb_client
 
 
 def get_redis_client() -> RedisClient:
-    """Dependency para injetar RedisClient."""
-    raise NotImplementedError("RedisClient dependency not configured")
+    """
+    Retorna a instância de RedisClient do estado da aplicação.
+
+    Em produção, este fallback acessa o singleton global diretamente.
+    Pode ser sobrescrito via FastAPI dependency_overrides no main.py.
+    """
+    from src import main
+    if main.redis_client is None:
+        raise HTTPException(
+            status_code=503,
+            detail="RedisClient not initialized. Service is starting up."
+        )
+    return main.redis_client
 
 
 def get_optimization_engine() -> OptimizationEngine:
-    """Dependency para injetar OptimizationEngine."""
-    raise NotImplementedError("OptimizationEngine dependency not configured")
+    """
+    Retorna a instância de OptimizationEngine do estado da aplicação.
+
+    Em produção, este fallback acessa o singleton global diretamente.
+    Pode ser sobrescrito via FastAPI dependency_overrides no main.py.
+    """
+    from src import main
+    if main.optimization_engine is None:
+        raise HTTPException(
+            status_code=503,
+            detail="OptimizationEngine not initialized. Service is starting up."
+        )
+    return main.optimization_engine
 
 
 def get_weight_recalibrator() -> WeightRecalibrator:
-    """Dependency para injetar WeightRecalibrator."""
-    raise NotImplementedError("WeightRecalibrator dependency not configured")
+    """
+    Retorna a instância de WeightRecalibrator do estado da aplicação.
+
+    Em produção, este fallback acessa o singleton global diretamente.
+    Pode ser sobrescrito via FastAPI dependency_overrides no main.py.
+    """
+    from src import main
+    if main.weight_recalibrator is None:
+        raise HTTPException(
+            status_code=503,
+            detail="WeightRecalibrator not initialized. Service is starting up."
+        )
+    return main.weight_recalibrator
 
 
 def get_slo_adjuster() -> SLOAdjuster:
-    """Dependency para injetar SLOAdjuster."""
-    raise NotImplementedError("SLOAdjuster dependency not configured")
+    """
+    Retorna a instância de SLOAdjuster do estado da aplicação.
+
+    Em produção, este fallback acessa o singleton global diretamente.
+    Pode ser sobrescrito via FastAPI dependency_overrides no main.py.
+    """
+    from src import main
+    if main.slo_adjuster is None:
+        raise HTTPException(
+            status_code=503,
+            detail="SLOAdjuster not initialized. Service is starting up."
+        )
+    return main.slo_adjuster
 
 
 @router.post("/trigger", response_model=TriggerOptimizationResponse)
@@ -93,18 +148,32 @@ async def trigger_optimization(
     try:
         # Criar hipótese sintética
         from src.models.optimization_hypothesis import OptimizationHypothesis
+        from src.models.optimization_event import Adjustment
+
+        # Converter proposed_adjustments para objetos Adjustment
+        adjustments = [
+            Adjustment(
+                parameter_name=adj.get('parameter_name', adj.get('key', '')),
+                parameter=adj.get('parameter', ''),
+                old_value=str(adj.get('old_value', '')),
+                new_value=str(adj.get('new_value', adj.get('value', ''))),
+                justification=adj.get('justification', request.justification),
+            )
+            for adj in request.proposed_adjustments
+        ]
 
         hypothesis = OptimizationHypothesis(
             hypothesis_id=f"manual-{request.target_component}-{request.optimization_type.value}",
             optimization_type=request.optimization_type,
             target_component=request.target_component,
             hypothesis_text=request.justification,
-            rationale=request.justification,
-            proposed_adjustments=request.proposed_adjustments,
+            proposed_adjustments=adjustments,
             baseline_metrics={},
+            target_metrics={},  # Will be populated during optimization
             expected_improvement=0.1,  # Placeholder
-            confidence=0.8,
+            confidence_score=0.8,
             risk_score=0.3,
+            priority=3,  # Medium priority for manual triggers
         )
 
         # Aplicar otimização baseado no tipo

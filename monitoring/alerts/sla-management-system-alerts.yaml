@@ -89,6 +89,48 @@ data:
           runbook_url: "https://docs.neural-hive.io/runbooks/budget-exhausted"
           dashboard_url: "https://grafana.neural-hive.io/d/sla-management-system?var-slo={{ $labels.slo_id }}"
 
+      - alert: BudgetHistoryQuerySlow
+        expr: histogram_quantile(0.95, rate(sla_budget_history_query_duration_seconds_bucket[5m])) > 5
+        for: 10m
+        labels:
+          severity: warning
+          component: sla-management-system
+          layer: monitoring
+        annotations:
+          summary: "Queries de histórico de budget lentas"
+          description: "P95 de duração de queries de histórico é {{ $value | humanize }}s (threshold: 5s). Agregação: {{ $labels.aggregation }}."
+          runbook_url: "https://docs.neural-hive.io/runbooks/budget-history-slow"
+          dashboard_url: "https://grafana.neural-hive.io/d/sla-management-system"
+
+      - alert: BudgetHistoryHighErrorRate
+        expr: |
+          sum(rate(sla_budget_history_queries_total{status="error"}[5m])) /
+          sum(rate(sla_budget_history_queries_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: sla-management-system
+          layer: monitoring
+        annotations:
+          summary: "Taxa de erro alta em queries de histórico"
+          description: "{{ $value | humanizePercentage }} das queries de histórico estão falhando nos últimos 5 minutos."
+          runbook_url: "https://docs.neural-hive.io/runbooks/budget-history-errors"
+          dashboard_url: "https://grafana.neural-hive.io/d/sla-management-system"
+
+      - alert: BudgetDailySummaryRefreshStale
+        expr: |
+          (time() - max(materialized_view_last_refresh_timestamp{view_name="error_budgets_daily_summary"})) > 7200
+        for: 15m
+        labels:
+          severity: warning
+          component: sla-management-system
+          layer: monitoring
+        annotations:
+          summary: "View materializada de budget desatualizada"
+          description: "A view error_budgets_daily_summary não é atualizada há mais de 2 horas. Último refresh: {{ $value | humanizeDuration }} atrás."
+          runbook_url: "https://docs.neural-hive.io/runbooks/budget-view-stale"
+          dashboard_url: "https://grafana.neural-hive.io/d/sla-management-system"
+
       - alert: MultipleCriticalBudgets
         expr: count(sla_budget_status == 2) > 3
         for: 5m

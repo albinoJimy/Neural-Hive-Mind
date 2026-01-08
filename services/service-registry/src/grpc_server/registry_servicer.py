@@ -1,7 +1,8 @@
 import grpc
+import json
 import structlog
 from uuid import UUID
-from typing import Iterator
+from typing import Iterator, AsyncIterator
 from datetime import datetime, timezone
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
@@ -276,19 +277,109 @@ class ServiceRegistryServicer:
                 logger.error("list_agents_error", error=str(e))
                 context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")
 
-    async def WatchAgents(self, request, context) -> Iterator:
+    async def WatchAgents(self, request, context) -> AsyncIterator:
         """RPC: Observar mudanças em agentes (server streaming)"""
         extract_grpc_context(context)
 
         with tracer.start_as_current_span("watch_agents") as span:
+            pubsub = None
+            cancelled = False
+
+            def on_rpc_done():
+                nonlocal cancelled
+                cancelled = True
+                logger.info("watch_agents_rpc_done_callback")
+
+            # Register done callback for clean cancellation handling
+            context.add_done_callback(on_rpc_done)
+
             try:
-                # TODO: Implementar watch usando etcd watch API
-                # Por enquanto, retornar stream vazio
-                logger.warning("watch_agents_not_implemented")
-                return iter([])
+                # Filtro de tipo (opcional)
+                agent_type_filter = None
+                if request.agent_type:
+                    agent_type_filter = AgentType.from_proto_value(request.agent_type)
+                    span.set_attribute("agent_type_filter", agent_type_filter.value)
+
+                # Criar pubsub client para watch
+                pubsub = self.registry_service.etcd_client.client.pubsub()
+                await pubsub.subscribe(f"{self.registry_service.etcd_client.prefix}:events")
+
+                logger.info("watch_agents_started", agent_type=agent_type_filter.value if agent_type_filter else "all")
+
+                try:
+                    async for message in pubsub.listen():
+                        # Verificar se cliente desconectou usando context.is_active()
+                        if not context.is_active() or cancelled:
+                            logger.info("watch_agents_cancelled")
+                            break
+
+                        # Processar apenas mensagens de dados
+                        if message["type"] != "message":
+                            continue
+
+                        try:
+                            # Parse evento Redis
+                            data = json.loads(message["data"])
+                            event_type = data.get("event", "unknown")
+                            agent_id_str = data.get("agent_id")
+
+                            if not agent_id_str:
+                                continue
+
+                            # Buscar informações do agente
+                            agent_id = UUID(agent_id_str)
+                            agent = await self.registry_service.get_agent(agent_id)
+
+                            # Aplicar filtro de tipo
+                            if agent_type_filter and agent and agent.agent_type != agent_type_filter:
+                                continue
+
+                            # Mapear evento Redis para proto EventType
+                            from src.proto import service_registry_pb2
+                            event_type_map = {
+                                "registered": service_registry_pb2.AgentChangeEvent.REGISTERED,
+                                "updated": service_registry_pb2.AgentChangeEvent.UPDATED,
+                                "deregistered": service_registry_pb2.AgentChangeEvent.DEREGISTERED,
+                                "status_changed": service_registry_pb2.AgentChangeEvent.STATUS_CHANGED
+                            }
+                            proto_event_type = event_type_map.get(event_type, service_registry_pb2.AgentChangeEvent.EVENT_TYPE_UNSPECIFIED)
+
+                            # Criar AgentChangeEvent
+                            if agent:
+                                agent_dict = agent.to_proto_dict()
+                                agent_proto = service_registry_pb2.AgentInfo(**agent_dict)
+                            else:
+                                # Agente foi deregistrado - criar AgentInfo mínimo
+                                agent_proto = service_registry_pb2.AgentInfo(
+                                    agent_id=agent_id_str,
+                                    agent_type=service_registry_pb2.AGENT_TYPE_UNSPECIFIED
+                                )
+
+                            event = service_registry_pb2.AgentChangeEvent(
+                                event_type=proto_event_type,
+                                agent=agent_proto,
+                                timestamp=int(datetime.now(timezone.utc).timestamp())
+                            )
+
+                            # Yield evento para stream
+                            yield event
+
+                            logger.debug("watch_event_sent", event_type=event_type, agent_id=agent_id_str)
+
+                        except Exception as e:
+                            logger.error("watch_event_processing_error", error=str(e))
+                            continue
+
+                finally:
+                    # Cleanup pubsub
+                    if pubsub:
+                        await pubsub.unsubscribe()
+                        await pubsub.close()
+                    logger.info("watch_agents_stopped")
 
             except Exception as e:
                 logger.error("watch_agents_error", error=str(e))
+                span.set_status(Status(StatusCode.ERROR, str(e)))
                 context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")
 
     async def NotifyAgent(self, request, context):

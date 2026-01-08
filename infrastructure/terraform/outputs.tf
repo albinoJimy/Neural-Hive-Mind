@@ -214,3 +214,19 @@ output "secret_name" {
   description = "Nome do secret no AWS Secrets Manager para SPIRE datastore"
   value       = module.spire-datastore.secret_name
 }
+
+# Outputs Artifacts Storage
+output "artifacts_bucket_name" {
+  description = "Nome do bucket S3 para artefatos e SBOMs"
+  value       = module.artifacts_storage.bucket_name
+}
+
+output "artifacts_bucket_arn" {
+  description = "ARN do bucket S3 para artefatos e SBOMs"
+  value       = module.artifacts_storage.bucket_arn
+}
+
+output "code_forge_s3_role_arn" {
+  description = "ARN da IAM role para Code Forge acessar S3"
+  value       = module.artifacts_storage.code_forge_role_arn
+}

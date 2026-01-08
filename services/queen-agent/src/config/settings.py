@@ -1,5 +1,5 @@
 from functools import lru_cache
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -62,9 +62,16 @@ class Settings(BaseSettings):
     PROMETHEUS_URL: str = 'http://prometheus-server:9090'
     PROMETHEUS_QUERY_TIMEOUT_SECONDS: int = 30
 
-    # Orchestrator Integration
-    ORCHESTRATOR_GRPC_HOST: str = 'orchestrator-dynamic'
-    ORCHESTRATOR_GRPC_PORT: int = 50051
+    # Orchestrator Integration (Strategic Commands gRPC)
+    ORCHESTRATOR_GRPC_HOST: str = 'orchestrator-dynamic.neural-hive-orchestration.svc.cluster.local'
+    ORCHESTRATOR_GRPC_PORT: int = 50053
+    ORCHESTRATOR_GRPC_TIMEOUT: int = 10
+
+    # SPIFFE/SPIRE mTLS
+    SPIFFE_ENABLED: bool = False
+    SPIFFE_SOCKET_PATH: str = 'unix:///run/spire/sockets/agent.sock'
+    SPIFFE_TRUST_DOMAIN: str = 'neural-hive.local'
+    SPIFFE_ENABLE_X509: bool = False
 
     # Service Registry Integration
     SERVICE_REGISTRY_GRPC_HOST: str = 'service-registry'
@@ -83,6 +90,40 @@ class Settings(BaseSettings):
     CIRCUIT_BREAKER_FAIL_MAX: int = 5
     CIRCUIT_BREAKER_TIMEOUT: int = 60
     CIRCUIT_BREAKER_RECOVERY_TIMEOUT: int = 30
+
+    # OPA Policy Engine
+    OPA_ENABLED: bool = True
+    OPA_URL: str = 'http://opa.neural-hive-governance:8181'
+    OPA_TIMEOUT_SECONDS: int = 5
+    OPA_FAIL_OPEN: bool = False  # Fail closed em produção
+
+    @model_validator(mode='after')
+    def validate_https_in_production(self) -> 'Settings':
+        """
+        Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
+        Endpoints verificados: Prometheus, OTEL, OPA.
+        """
+        is_prod_staging = self.ENVIRONMENT.lower() in ('production', 'staging', 'prod')
+        if not is_prod_staging:
+            return self
+
+        # Endpoints criticos que devem usar HTTPS em producao
+        http_endpoints = []
+        if self.PROMETHEUS_URL.startswith('http://'):
+            http_endpoints.append(('PROMETHEUS_URL', self.PROMETHEUS_URL))
+        if self.OTEL_EXPORTER_ENDPOINT.startswith('http://'):
+            http_endpoints.append(('OTEL_EXPORTER_ENDPOINT', self.OTEL_EXPORTER_ENDPOINT))
+        if self.OPA_URL.startswith('http://'):
+            http_endpoints.append(('OPA_URL', self.OPA_URL))
+
+        if http_endpoints:
+            endpoint_list = ', '.join(f'{name}={url}' for name, url in http_endpoints)
+            raise ValueError(
+                f"Endpoints HTTP inseguros detectados em ambiente {self.ENVIRONMENT}: {endpoint_list}. "
+                "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+            )
+
+        return self
 
 
 @lru_cache()

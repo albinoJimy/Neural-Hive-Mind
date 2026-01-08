@@ -5,7 +5,7 @@ Implementa FastAPI para API REST e gerencia lifecycle do Temporal Worker e Kafka
 import asyncio
 import os
 from contextlib import asynccontextmanager
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 import structlog
 from fastapi import FastAPI, HTTPException
@@ -22,6 +22,14 @@ from src.clients.kafka_producer import KafkaProducerClient
 from src.clients.self_healing_client import SelfHealingClient
 from src.clients.optimizer_grpc_client import OptimizerGrpcClient
 from src.clients.execution_ticket_client import ExecutionTicketClient
+from src.clients.redis_client import (
+    get_redis_client,
+    close_redis_client,
+    get_circuit_breaker_state,
+    get_cache_metrics,
+    redis_get_safe,
+    redis_setex_safe
+)
 from src.integration.flow_c_consumer import FlowCConsumer
 from src.workflows.orchestration_workflow import OrchestrationWorkflow
 from pydantic import BaseModel, Field
@@ -67,6 +75,10 @@ class AppState:
         self.anomaly_detector = None
         self.model_registry = None
         self.spiffe_manager = None
+        # gRPC Server para comandos estratégicos da Queen Agent
+        self.grpc_server = None
+        self.opa_client = None
+        self.intelligent_scheduler = None
 
 
 app_state = AppState()
@@ -224,6 +236,25 @@ async def lifespan(app: FastAPI):
             )
             app_state.mongodb_client = None
 
+        # Inicializar Redis Client (fail-open para cache de predições ML)
+        try:
+            logger.info('Inicializando Redis Client para cache de predições ML')
+            app_state.redis_client = await get_redis_client(config)
+            if app_state.redis_client:
+                logger.info(
+                    'Redis Client inicializado com sucesso',
+                    redis_nodes=config.redis_cluster_nodes,
+                    ssl_enabled=config.redis_ssl_enabled
+                )
+            else:
+                logger.warning('Redis Client retornou None - operando sem cache')
+        except Exception as redis_error:
+            logger.warning(
+                'Falha ao inicializar Redis Client, continuando sem cache',
+                error=str(redis_error)
+            )
+            app_state.redis_client = None
+
         # Inicializar modelos preditivos centralizados (se habilitado)
         if getattr(config, 'ml_predictions_enabled', False):
             try:
@@ -273,10 +304,13 @@ async def lifespan(app: FastAPI):
                     config=load_config,
                     model_registry=app_state.model_registry,
                     metrics=metrics,
-                    redis_client=None  # TODO: add Redis client if available
+                    redis_client=app_state.redis_client
                 )
                 await app_state.load_predictor.initialize()
-                logger.info('LoadPredictor inicializado')
+                logger.info(
+                    'LoadPredictor inicializado',
+                    redis_cache_enabled=app_state.redis_client is not None
+                )
 
                 # AnomalyDetector
                 anomaly_config = {
@@ -449,6 +483,54 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.warning(f'Falha ao inicializar Drift Detector: {e}')
 
+        # Inicializar gRPC Server para comandos estratégicos da Queen Agent
+        if getattr(config, 'enable_grpc_server', True):
+            try:
+                from src.grpc_server import (
+                    OrchestratorStrategicServicer,
+                    start_grpc_server
+                )
+                from src.policies.opa_client import OPAClient
+
+                # Inicializar OPA Client
+                if config.opa_enabled:
+                    app_state.opa_client = OPAClient(config)
+                    await app_state.opa_client.initialize()
+                    logger.info('OPA Client inicializado para gRPC servicer')
+
+                # Criar servicer com dependências
+                grpc_servicer = OrchestratorStrategicServicer(
+                    temporal_client=app_state.temporal_client,
+                    intelligent_scheduler=app_state.intelligent_scheduler,
+                    opa_client=app_state.opa_client,
+                    mongodb_client=app_state.mongodb_client,
+                    kafka_producer=app_state.kafka_producer,
+                    config=config
+                )
+
+                # Iniciar servidor gRPC
+                grpc_port = getattr(config, 'grpc_server_port', 50053)
+                enable_mtls = getattr(config, 'spiffe_enable_x509', False)
+
+                app_state.grpc_server = await start_grpc_server(
+                    servicer=grpc_servicer,
+                    port=grpc_port,
+                    spiffe_manager=app_state.spiffe_manager,
+                    enable_mtls=enable_mtls
+                )
+
+                logger.info(
+                    'gRPC Server iniciado para comandos estratégicos',
+                    port=grpc_port,
+                    mtls_enabled=enable_mtls
+                )
+            except Exception as grpc_error:
+                logger.warning(
+                    'Falha ao inicializar gRPC Server, continuando sem suporte a comandos estratégicos',
+                    error=str(grpc_error)
+                )
+                app_state.grpc_server = None
+
         logger.info('Orchestrator Dynamic inicializado com sucesso')
 
     except Exception as e:
@@ -516,10 +598,37 @@ async def lifespan(app: FastAPI):
             logger.info('Fechando Self-Healing client')
             await app_state.self_healing_client.close()
 
+        # Fechar gRPC Server
+        if app_state.grpc_server:
+            try:
+                from src.grpc_server import stop_grpc_server
+                logger.info('Parando gRPC Server')
+                await stop_grpc_server(app_state.grpc_server, grace_seconds=5)
+                logger.info('gRPC Server parado com sucesso')
+            except Exception as grpc_close_error:
+                logger.warning('Erro ao fechar gRPC Server', error=str(grpc_close_error))
+
+        # Fechar OPA Client
+        if app_state.opa_client:
+            try:
+                logger.info('Fechando OPA Client')
+                await app_state.opa_client.close()
+            except Exception as opa_close_error:
+                logger.warning('Erro ao fechar OPA Client', error=str(opa_close_error))
+
         # Fechar MongoDB
         if app_state.mongodb_client:
             logger.info('Fechando MongoDB client')
             await app_state.mongodb_client.close()
+
+        # Fechar Redis Client
+        if app_state.redis_client:
+            try:
+                logger.info('Fechando Redis Client')
+                await close_redis_client()
+                logger.info('Redis Client fechado com sucesso')
+            except Exception as redis_close_error:
+                logger.warning('Erro ao fechar Redis Client', error=str(redis_close_error))
 
         # Fechar Vault client
         if app_state.vault_client:
@@ -552,6 +661,157 @@ app.add_middleware(
 # Montar métricas Prometheus
 metrics_app = make_asgi_app()
 app.mount('/metrics', metrics_app)
+
+
+# =============================================================================
+# Workflow State Cache
+# =============================================================================
+
+# TTL padrão para cache de estado de workflow (5 minutos)
+WORKFLOW_CACHE_TTL_SECONDS = 300
+
+
+async def get_cached_workflow_state(workflow_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Obtém estado de workflow do cache Redis.
+
+    Args:
+        workflow_id: ID do workflow
+
+    Returns:
+        Estado do workflow ou None se não encontrado no cache
+    """
+    import json
+
+    cache_key = f"workflow_state:{workflow_id}"
+    cached = await redis_get_safe(cache_key)
+
+    if cached:
+        try:
+            return json.loads(cached)
+        except json.JSONDecodeError:
+            logger.warning("workflow_cache_decode_error", workflow_id=workflow_id)
+            return None
+
+    return None
+
+
+async def cache_workflow_state(workflow_id: str, state: Dict[str, Any], ttl: int = WORKFLOW_CACHE_TTL_SECONDS) -> bool:
+    """
+    Armazena estado de workflow no cache Redis.
+
+    Args:
+        workflow_id: ID do workflow
+        state: Estado do workflow a cachear
+        ttl: TTL em segundos (default: 300)
+
+    Returns:
+        True se cacheado com sucesso, False caso contrário
+    """
+    import json
+
+    cache_key = f"workflow_state:{workflow_id}"
+
+    try:
+        state_json = json.dumps(state)
+        return await redis_setex_safe(cache_key, ttl, state_json)
+    except (TypeError, ValueError) as e:
+        logger.warning("workflow_cache_encode_error", workflow_id=workflow_id, error=str(e))
+        return False
+
+
+async def get_cached_tickets_by_workflow(workflow_id: str) -> Optional[list]:
+    """
+    Obtém tickets de workflow do cache Redis.
+
+    Args:
+        workflow_id: ID do workflow
+
+    Returns:
+        Lista de tickets ou None se não encontrado no cache
+    """
+    import json
+
+    cache_key = f"workflow_tickets:{workflow_id}"
+    cached = await redis_get_safe(cache_key)
+
+    if cached:
+        try:
+            return json.loads(cached)
+        except json.JSONDecodeError:
+            logger.warning("workflow_tickets_cache_decode_error", workflow_id=workflow_id)
+            return None
+
+    return None
+
+
+async def cache_tickets_by_workflow(workflow_id: str, tickets: list, ttl: int = WORKFLOW_CACHE_TTL_SECONDS) -> bool:
+    """
+    Armazena tickets de workflow no cache Redis.
+
+    Args:
+        workflow_id: ID do workflow
+        tickets: Lista de tickets a cachear
+        ttl: TTL em segundos (default: 300)
+
+    Returns:
+        True se cacheado com sucesso, False caso contrário
+    """
+    import json
+
+    cache_key = f"workflow_tickets:{workflow_id}"
+
+    try:
+        tickets_json = json.dumps(tickets)
+        return await redis_setex_safe(cache_key, ttl, tickets_json)
+    except (TypeError, ValueError) as e:
+        logger.warning("workflow_tickets_cache_encode_error", workflow_id=workflow_id, error=str(e))
+        return False
+
+
+async def get_cached_flow_c_status() -> Optional[Dict[str, Any]]:
+    """
+    Obtém estatísticas de Flow C do cache Redis.
+
+    Returns:
+        Estatísticas ou None se não encontrado no cache
+    """
+    import json
+
+    cache_key = "flow_c_status:aggregated"
+    cached = await redis_get_safe(cache_key)
+
+    if cached:
+        try:
+            return json.loads(cached)
+        except json.JSONDecodeError:
+            logger.warning("flow_c_status_cache_decode_error")
+            return None
+
+    return None
+
+
+async def cache_flow_c_status(status: Dict[str, Any], ttl: int = 60) -> bool:
+    """
+    Armazena estatísticas de Flow C no cache Redis.
+
+    Args:
+        status: Estatísticas a cachear
+        ttl: TTL em segundos (default: 60 - mais curto para dados agregados)
+
+    Returns:
+        True se cacheado com sucesso, False caso contrário
+    """
+    import json
+
+    cache_key = "flow_c_status:aggregated"
+
+    try:
+        status_json = json.dumps(status)
+        return await redis_setex_safe(cache_key, ttl, status_json)
+    except (TypeError, ValueError) as e:
+        logger.warning("flow_c_status_cache_encode_error", error=str(e))
+        return False
 
 
 # =============================================================================
@@ -607,15 +867,151 @@ def _get_predictor_info(model_name: str) -> Optional[dict]:
 
 @app.get('/health')
 async def health_check():
-    """Health check básico."""
+    """Health check básico com status do Redis."""
+    config = get_settings()
+
+    # Verificar Redis (opcional - fail-open)
+    redis_status = {
+        'available': False,
+        'circuit_breaker_state': 'UNKNOWN'
+    }
+
+    if app_state.redis_client:
+        try:
+            await asyncio.wait_for(app_state.redis_client.ping(), timeout=2.0)
+            redis_status['available'] = True
+            cb_state = get_circuit_breaker_state()
+            redis_status['circuit_breaker_state'] = cb_state['state']
+        except asyncio.TimeoutError:
+            redis_status['error'] = 'timeout'
+            cb_state = get_circuit_breaker_state()
+            redis_status['circuit_breaker_state'] = cb_state['state']
+        except Exception as e:
+            redis_status['error'] = str(e)
+            cb_state = get_circuit_breaker_state()
+            redis_status['circuit_breaker_state'] = cb_state['state']
+    else:
+        cb_state = get_circuit_breaker_state()
+        redis_status['circuit_breaker_state'] = cb_state['state']
+        redis_status['error'] = 'not_initialized'
+
     return JSONResponse(
         status_code=200,
         content={
             'status': 'healthy',
             'service': 'orchestrator-dynamic',
-            'version': '1.0.0'
+            'version': '1.0.0',
+            'redis': redis_status
         }
     )
+
+
+@app.get('/health/opa')
+async def opa_health_check():
+    """
+    Health check para integração OPA.
+
+    Retorna status de saúde do OPA server, estado do circuit breaker,
+    métricas de cache e informações de configuração.
+
+    Returns:
+        JSON com status detalhado da integração OPA:
+        - status: 'healthy', 'unhealthy', ou 'disabled'
+        - enabled: booleano indicando se OPA está habilitado
+        - opa_server: URL do servidor OPA
+        - circuit_breaker: estado atual do circuit breaker
+        - cache_size: número de decisões em cache
+        - last_check: timestamp da última verificação
+    """
+    from datetime import datetime
+
+    config = get_settings()
+
+    # Verificar se OPA está habilitado
+    if not getattr(config, 'opa_enabled', False):
+        return JSONResponse(
+            status_code=200,
+            content={
+                'status': 'disabled',
+                'enabled': False,
+                'message': 'OPA integration está desabilitada via configuração'
+            }
+        )
+
+    # Verificar se Temporal Worker e OPA Client estão disponíveis
+    if not app_state.temporal_worker:
+        return JSONResponse(
+            status_code=503,
+            content={
+                'status': 'unavailable',
+                'enabled': True,
+                'error': 'Temporal Worker não inicializado'
+            }
+        )
+
+    # Verificar se OPA client está disponível no worker
+    opa_client = getattr(app_state.temporal_worker, 'opa_client', None)
+    if not opa_client:
+        return JSONResponse(
+            status_code=503,
+            content={
+                'status': 'unavailable',
+                'enabled': True,
+                'error': 'OPA Client não inicializado no Temporal Worker'
+            }
+        )
+
+    try:
+        # Executar health check no OPA server
+        is_healthy = await opa_client.health_check()
+        circuit_state = opa_client.get_circuit_breaker_state()
+
+        # Calcular métricas de cache
+        cache_size = len(opa_client._cache) if hasattr(opa_client, '_cache') else 0
+
+        # Determinar status geral
+        # Se circuit breaker está aberto por muito tempo, considerar unhealthy
+        status = 'healthy'
+        if not is_healthy:
+            status = 'unhealthy'
+        elif circuit_state.get('state') == 'open':
+            status = 'degraded'
+
+        response = {
+            'status': status,
+            'enabled': True,
+            'opa_server': f"http://{config.opa_host}:{config.opa_port}",
+            'circuit_breaker': circuit_state,
+            'cache_size': cache_size,
+            'cache_ttl_seconds': config.opa_cache_ttl_seconds,
+            'fail_open': config.opa_fail_open,
+            'last_check': datetime.now().isoformat()
+        }
+
+        # Adicionar informações de políticas configuradas
+        response['policies'] = {
+            'resource_limits': config.opa_policy_resource_limits,
+            'sla_enforcement': config.opa_policy_sla_enforcement,
+            'feature_flags': config.opa_policy_feature_flags,
+            'security_constraints': config.opa_policy_security_constraints if config.opa_security_enabled else 'disabled'
+        }
+
+        return JSONResponse(
+            status_code=200 if status in ['healthy', 'degraded'] else 503,
+            content=response
+        )
+
+    except Exception as e:
+        logger.error('opa_health_check_error', error=str(e))
+        return JSONResponse(
+            status_code=503,
+            content={
+                'status': 'error',
+                'enabled': True,
+                'error': str(e),
+                'last_check': datetime.now().isoformat()
+            }
+        )
 
 
 @app.get('/ready')
@@ -759,6 +1155,60 @@ async def ml_health_check():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get('/redis/stats')
+async def get_redis_stats():
+    """
+    Estatísticas do cache Redis em tempo real.
+
+    Retorna informações sobre:
+    - Estado do Redis e circuit breaker
+    - Métricas de cache: total_hits, total_misses, hit_ratio
+    - Latência média recente das operações
+
+    Dados retornados mesmo quando Redis está degradado (fallback values).
+    """
+    config = get_settings()
+
+    # Sempre incluir métricas de cache (disponível mesmo com Redis degradado)
+    cache_telemetry = get_cache_metrics()
+    circuit_breaker_state = get_circuit_breaker_state()
+
+    # Base response com fallback values
+    base_response = {
+        'available': False,
+        'circuit_breaker': circuit_breaker_state,
+        'cache_telemetry': cache_telemetry,
+        'cache_ttl_seconds': getattr(config, 'ml_forecast_cache_ttl_seconds', 300),
+        'redis_nodes': config.redis_cluster_nodes,
+        'ssl_enabled': config.redis_ssl_enabled
+    }
+
+    if not app_state.redis_client:
+        base_response['error'] = 'Redis not initialized'
+        return JSONResponse(status_code=503, content=base_response)
+
+    try:
+        # Testar conexão usando wrapper seguro
+        from src.clients.redis_client import redis_ping_safe
+
+        ping_result = await asyncio.wait_for(redis_ping_safe(), timeout=2.0)
+
+        if ping_result:
+            base_response['available'] = True
+            return JSONResponse(status_code=200, content=base_response)
+        else:
+            base_response['error'] = 'Redis ping failed (circuit breaker may be open)'
+            return JSONResponse(status_code=503, content=base_response)
+
+    except asyncio.TimeoutError:
+        base_response['error'] = 'Redis timeout'
+        return JSONResponse(status_code=503, content=base_response)
+    except Exception as e:
+        logger.error('redis_stats_error', error=str(e))
+        base_response['error'] = str(e)
+        return JSONResponse(status_code=503, content=base_response)
+
+
 @app.get('/api/v1/tickets/{ticket_id}')
 async def get_ticket(ticket_id: str):
     """Consultar ticket por ID."""
@@ -777,8 +1227,16 @@ async def get_tickets_by_plan(plan_id: str):
 async def get_flow_c_status():
     """
     Retorna estatísticas de execução do Flow C agregadas do MongoDB.
+
+    Utiliza cache Redis para reduzir carga no MongoDB (TTL: 60s).
     """
     try:
+        # Verificar cache primeiro
+        cached_status = await get_cached_flow_c_status()
+        if cached_status:
+            cached_status['cached'] = True
+            return JSONResponse(status_code=200, content=cached_status)
+
         if not app_state.mongodb_client:
             raise HTTPException(status_code=503, detail="MongoDB não inicializado")
 
@@ -831,27 +1289,33 @@ async def get_flow_c_status():
 
             active = data['active'][0]['count'] if data['active'] else 0
 
-            return JSONResponse(
-                status_code=200,
-                content={
-                    'total_processed': total,
-                    'success_rate': round(success_rate, 2),
-                    'average_latency_ms': avg_latency,
-                    'p95_latency_ms': p95_latency,
-                    'active_executions': active,
-                }
-            )
+            status_data = {
+                'total_processed': total,
+                'success_rate': round(success_rate, 2),
+                'average_latency_ms': avg_latency,
+                'p95_latency_ms': p95_latency,
+                'active_executions': active,
+                'cached': False
+            }
+
+            # Cachear resultado (fail-open - não bloqueia se Redis indisponível)
+            await cache_flow_c_status(status_data, ttl=60)
+
+            return JSONResponse(status_code=200, content=status_data)
         else:
-            return JSONResponse(
-                status_code=200,
-                content={
-                    'total_processed': 0,
-                    'success_rate': 0.0,
-                    'average_latency_ms': 0,
-                    'p95_latency_ms': 0,
-                    'active_executions': 0,
-                }
-            )
+            status_data = {
+                'total_processed': 0,
+                'success_rate': 0.0,
+                'average_latency_ms': 0,
+                'p95_latency_ms': 0,
+                'active_executions': 0,
+                'cached': False
+            }
+
+            # Cachear resultado vazio também
+            await cache_flow_c_status(status_data, ttl=60)
+
+            return JSONResponse(status_code=200, content=status_data)
 
     except Exception as e:
         logger.error('flow_c_status_error', error=str(e))
@@ -881,6 +1345,19 @@ class WorkflowStartResponse(BaseModel):
     workflow_id: str = Field(..., description="ID do workflow iniciado")
     status: str = Field(..., description="Status do workflow")
     correlation_id: str = Field(..., description="ID de correlação")
+
+
+class WorkflowQueryRequest(BaseModel):
+    """Request para query de workflow Temporal."""
+    query_name: str = Field(..., description="Nome da query a executar (ex: get_tickets, get_status)")
+    args: List[Any] = Field(default_factory=list, description="Argumentos opcionais da query")
+
+
+class WorkflowQueryResponse(BaseModel):
+    """Response de query de workflow Temporal."""
+    workflow_id: str = Field(..., description="ID do workflow consultado")
+    query_name: str = Field(..., description="Nome da query executada")
+    result: Dict[str, Any] = Field(..., description="Resultado da query")
 
 
 @app.post('/api/v1/ml/train')
@@ -1378,6 +1855,147 @@ async def start_workflow(request: WorkflowStartRequest):
             status_code=500,
             detail=f'Failed to start workflow: {str(e)}'
         )
+
+
+@app.post('/api/v1/workflows/{workflow_id}/query')
+async def query_workflow(workflow_id: str, request: WorkflowQueryRequest):
+    """
+    Executa query no workflow Temporal para consultar estado.
+
+    Queries disponíveis:
+    - get_tickets: Retorna lista de tickets gerados pelo workflow
+    - get_status: Retorna status atual do workflow
+
+    Args:
+        workflow_id: ID do workflow Temporal
+        request: WorkflowQueryRequest com query_name e args opcionais
+
+    Returns:
+        WorkflowQueryResponse com resultado da query
+
+    Raises:
+        HTTPException 503: Temporal client não disponível
+        HTTPException 404: Workflow não encontrado
+        HTTPException 500: Erro ao executar query
+    """
+    from opentelemetry import trace as otel_trace
+
+    tracer = otel_trace.get_tracer(__name__)
+
+    with tracer.start_as_current_span(
+        "orchestrator.query_workflow",
+        attributes={
+            "workflow.id": workflow_id,
+            "query.name": request.query_name,
+        }
+    ) as span:
+        # Validar disponibilidade do Temporal client
+        if not app_state.temporal_client:
+            logger.warning(
+                'workflow_query_rejected',
+                reason='temporal_client_unavailable',
+                workflow_id=workflow_id,
+                query_name=request.query_name
+            )
+            raise HTTPException(
+                status_code=503,
+                detail='Temporal client not available. Service running in degraded mode.'
+            )
+
+        # Verificar cache primeiro (para queries de tickets)
+        if request.query_name == 'get_tickets':
+            cached_tickets = await get_cached_tickets_by_workflow(workflow_id)
+            if cached_tickets is not None:
+                logger.info(
+                    'workflow_query_cache_hit',
+                    workflow_id=workflow_id,
+                    query_name=request.query_name,
+                    tickets_count=len(cached_tickets)
+                )
+                span.set_attribute("cache.hit", True)
+                return JSONResponse(
+                    status_code=200,
+                    content=WorkflowQueryResponse(
+                        workflow_id=workflow_id,
+                        query_name=request.query_name,
+                        result={"tickets": cached_tickets, "cached": True}
+                    ).model_dump()
+                )
+
+        logger.info(
+            'workflow_query_attempt',
+            workflow_id=workflow_id,
+            query_name=request.query_name
+        )
+
+        try:
+            # Obter handle do workflow
+            handle = app_state.temporal_client.get_workflow_handle(workflow_id)
+
+            # Executar query
+            if request.query_name == 'get_tickets':
+                result = await handle.query("get_tickets")
+                # Normalizar resultado para dict
+                if isinstance(result, list):
+                    query_result = {"tickets": result}
+                else:
+                    query_result = {"tickets": result} if result else {"tickets": []}
+
+                # Cachear resultado (fail-open)
+                await cache_tickets_by_workflow(workflow_id, query_result.get("tickets", []))
+
+            elif request.query_name == 'get_status':
+                result = await handle.query("get_status")
+                query_result = result if isinstance(result, dict) else {"status": result}
+
+            else:
+                # Query genérica
+                result = await handle.query(request.query_name, *request.args)
+                query_result = result if isinstance(result, dict) else {"result": result}
+
+            logger.info(
+                'workflow_query_success',
+                workflow_id=workflow_id,
+                query_name=request.query_name
+            )
+            span.set_attribute("query.success", True)
+
+            return JSONResponse(
+                status_code=200,
+                content=WorkflowQueryResponse(
+                    workflow_id=workflow_id,
+                    query_name=request.query_name,
+                    result=query_result
+                ).model_dump()
+            )
+
+        except Exception as e:
+            error_str = str(e)
+            span.record_exception(e)
+
+            # Verificar se é erro de workflow não encontrado
+            if 'not found' in error_str.lower() or 'does not exist' in error_str.lower():
+                logger.warning(
+                    'workflow_query_not_found',
+                    workflow_id=workflow_id,
+                    query_name=request.query_name,
+                    error=error_str
+                )
+                raise HTTPException(
+                    status_code=404,
+                    detail=f'Workflow {workflow_id} not found'
+                )
+
+            logger.error(
+                'workflow_query_failed',
+                workflow_id=workflow_id,
+                query_name=request.query_name,
+                error=error_str
+            )
+            raise HTTPException(
+                status_code=500,
+                detail=f'Failed to query workflow: {error_str}'
+            )
 
 
 if __name__ == '__main__':

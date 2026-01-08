@@ -148,19 +148,36 @@ class OrchestratorClient:
         query_name: str,
     ) -> Dict[str, Any]:
         """
-        Query workflow state.
+        Query workflow state via Temporal.
 
         Args:
             workflow_id: Workflow identifier
-            query_name: Query name
+            query_name: Query name (ex: get_tickets, get_status)
 
         Returns:
-            Query result
+            Query result dict contendo o resultado da query
         """
+        self.logger.info(
+            "querying_workflow",
+            workflow_id=workflow_id,
+            query_name=query_name,
+        )
+
         response = await self.client.post(
             f"{self.base_url}/api/v1/workflows/{workflow_id}/query",
             json={"query_name": query_name},
+            headers={"X-Workflow-ID": workflow_id},
         )
         response.raise_for_status()
 
-        return response.json()
+        data = response.json()
+        # Extrair 'result' do WorkflowQueryResponse
+        result = data.get("result", data)
+
+        self.logger.info(
+            "workflow_query_completed",
+            workflow_id=workflow_id,
+            query_name=query_name,
+        )
+
+        return result

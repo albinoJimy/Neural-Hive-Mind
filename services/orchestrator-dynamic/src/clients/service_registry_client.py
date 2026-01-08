@@ -118,22 +118,28 @@ class ServiceRegistryClient:
 
                         # Verificar se fallback e permitido
                         fallback_allowed = getattr(self.config, 'spiffe_fallback_allowed', False)
+                        # Obter ambiente atual
+                        environment = getattr(self.config, 'environment', 'development')
+                        is_dev_environment = environment.lower() in ('dev', 'development')
 
-                        if not fallback_allowed:
-                            # Fail-closed: nao permitir fallback insecure
+                        # Fallback inseguro so e permitido em ambiente de desenvolvimento
+                        if not fallback_allowed or not is_dev_environment:
+                            # Fail-closed: nao permitir fallback insecure em prod/staging
                             self.logger.error(
                                 'mtls_required_fallback_disabled',
                                 target=target,
+                                environment=environment,
                                 error='mTLS required but SPIFFE unavailable'
                             )
                             raise RuntimeError(
-                                f"mTLS authentication required but SPIFFE unavailable: {e}"
+                                f"mTLS authentication required but SPIFFE unavailable in {environment}: {e}"
                             )
 
                         # Fallback permitido (apenas em desenvolvimento)
                         self.logger.warning(
                             'mtls_fallback_to_insecure',
                             target=target,
+                            environment=environment,
                             warning='Falling back to insecure channel - NOT FOR PRODUCTION'
                         )
                         self.channel = grpc.aio.insecure_channel(target)
@@ -265,20 +271,26 @@ class ServiceRegistryClient:
 
                         # Verificar se fallback e permitido
                         fallback_allowed = getattr(self.config, 'spiffe_fallback_allowed', False)
+                        # Obter ambiente atual
+                        jwt_environment = getattr(self.config, 'environment', 'development')
+                        is_jwt_dev_env = jwt_environment.lower() in ('dev', 'development')
 
-                        if not fallback_allowed:
-                            # Fail-closed: autenticacao e obrigatoria
+                        # Fallback so e permitido em ambiente de desenvolvimento
+                        if not fallback_allowed or not is_jwt_dev_env:
+                            # Fail-closed: autenticacao e obrigatoria em prod/staging
                             self.logger.error(
                                 'jwt_auth_required_fallback_disabled',
+                                environment=jwt_environment,
                                 error='JWT-SVID authentication required but SPIFFE unavailable'
                             )
                             raise RuntimeError(
-                                f"JWT-SVID authentication required but SPIFFE unavailable: {e}"
+                                f"JWT-SVID authentication required but SPIFFE unavailable in {jwt_environment}: {e}"
                             )
 
-                        # Fallback permitido: continuar sem metadata
+                        # Fallback permitido: continuar sem metadata (apenas em desenvolvimento)
                         self.logger.warning(
                             'jwt_auth_fallback_unauthenticated',
+                            environment=jwt_environment,
                             warning='Proceeding without JWT-SVID - NOT FOR PRODUCTION'
                         )
                         grpc_jwt_auth_attempts_total.labels(service="service_registry", status="fallback").inc()

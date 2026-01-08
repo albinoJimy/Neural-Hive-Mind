@@ -4,31 +4,47 @@ from datetime import datetime, timezone
 from typing import Optional
 from src.clients import EtcdClient
 from src.models import AgentStatus, AgentType
-from prometheus_client import Counter, Gauge
+from prometheus_client import Counter, Gauge, REGISTRY
 
 
 logger = structlog.get_logger()
 
 
+def _get_or_create_counter(name: str, description: str, labelnames=None):
+    """Get existing counter or create new one to avoid duplicate registration errors"""
+    try:
+        return Counter(name, description, labelnames or [])
+    except ValueError:
+        return REGISTRY._names_to_collectors.get(name)
+
+
+def _get_or_create_gauge(name: str, description: str, labelnames=None):
+    """Get existing gauge or create new one to avoid duplicate registration errors"""
+    try:
+        return Gauge(name, description, labelnames or [])
+    except ValueError:
+        return REGISTRY._names_to_collectors.get(name)
+
+
 # Métricas Prometheus
-health_checks_total = Counter(
+health_checks_total = _get_or_create_counter(
     'health_checks_total',
     'Total de health checks executados'
 )
 
-agents_marked_unhealthy_total = Counter(
+agents_marked_unhealthy_total = _get_or_create_counter(
     'agents_marked_unhealthy_total',
     'Total de agentes marcados como unhealthy',
     ['agent_type']
 )
 
-agents_removed_total = Counter(
+agents_removed_total = _get_or_create_counter(
     'agents_removed_total',
     'Total de agentes removidos por inatividade',
     ['agent_type']
 )
 
-agents_active = Gauge(
+agents_active = _get_or_create_gauge(
     'agents_active',
     'Número de agentes ativos',
     ['agent_type', 'status']

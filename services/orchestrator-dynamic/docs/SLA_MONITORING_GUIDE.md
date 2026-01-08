@@ -1289,6 +1289,101 @@ kubectl rollout restart deployment/orchestrator-dynamic
 
 ---
 
-**Última Atualização:** 2025-11-16
-**Versão:** 1.0
+## 13. Validacao de Deployment
+
+### 13.1 Checklist de Deployment
+
+- [ ] **Servicos Dependentes**
+  - [ ] SLA Management System rodando e saudavel
+  - [ ] Redis cluster disponivel
+  - [ ] Kafka cluster disponivel
+  - [ ] Prometheus/Grafana configurados
+
+- [ ] **Configuracao**
+  - [ ] Variaveis de ambiente configuradas (`SLA_MANAGEMENT_ENABLED=true`)
+  - [ ] Thresholds ajustados (`SLA_DEADLINE_WARNING_THRESHOLD=0.8`)
+  - [ ] Topics Kafka criados (`sla.alerts`, `sla.violations`)
+  - [ ] Alertmanager configurado (Slack/PagerDuty)
+
+- [ ] **Alertas Prometheus**
+  - [ ] ConfigMap `orchestrator-sla-alerts` aplicado
+  - [ ] Alertas carregados no Prometheus
+  - [ ] Alertmanager recebendo alertas
+
+- [ ] **Dashboard Grafana**
+  - [ ] Dashboard `orchestrator-sla-compliance` importado
+  - [ ] Metricas aparecendo nos paineis
+  - [ ] Annotations de violacoes funcionando
+
+- [ ] **Testes**
+  - [ ] Testes unitarios passando
+  - [ ] Testes de integracao passando
+  - [ ] Script de validacao executado com sucesso
+
+### 13.2 Smoke Tests
+
+Execute apos deployment:
+
+```bash
+# 1. Verificar health do orchestrator
+kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
+  curl -s http://localhost:8080/health | jq '.sla_monitoring'
+
+# 2. Verificar metricas SLA
+curl -s "http://prometheus:9090/api/v1/query?query=orchestration_sla_check_duration_seconds_count" | \
+  jq '.data.result[0].value[1]'
+
+# 3. Verificar alertas enviados
+kubectl logs -n neural-hive-orchestration deployment/orchestrator-dynamic | \
+  grep "proactive_alert_sent"
+```
+
+### 13.3 Performance Benchmarks
+
+Targets de performance esperados:
+
+| Metrica | Target | Medicao |
+|---------|--------|---------|
+| Latencia deadline check | <50ms P95 | `orchestration_sla_check_duration_seconds{check_type="deadline"}` |
+| Latencia budget check | <100ms P95 | `orchestration_sla_check_duration_seconds{check_type="budget"}` |
+| Cache hit rate | >80% | `sla_cache_hits / (sla_cache_hits + sla_cache_misses)` |
+| Error rate | <1% | `rate(orchestration_sla_monitor_errors_total[5m])` |
+| Alert deduplication | >90% | `sla_alerts_deduplicated / sla_alerts_attempted` |
+
+### 13.4 Troubleshooting Pos-Deployment
+
+**Problema**: Metricas SLA nao aparecem no Grafana
+
+**Diagnostico**:
+```bash
+# Verificar se metricas estao sendo expostas
+kubectl port-forward -n neural-hive-orchestration svc/orchestrator-dynamic 9090:9090
+curl http://localhost:9090/metrics | grep orchestration_sla
+
+# Verificar ServiceMonitor
+kubectl get servicemonitor -n neural-hive-orchestration orchestrator-dynamic -o yaml
+```
+
+**Solucao**: Verificar que `prometheus_port: 9090` esta configurado e ServiceMonitor tem labels corretos.
+
+---
+
+**Problema**: Alertas nao chegam no Slack/PagerDuty
+
+**Diagnostico**:
+```bash
+# Verificar Alertmanager config
+kubectl get secret -n monitoring alertmanager-config -o yaml
+
+# Verificar alertas firing
+kubectl port-forward -n monitoring svc/alertmanager 9093:9093
+curl http://localhost:9093/api/v2/alerts | jq '.[] | select(.labels.component=="orchestrator-dynamic")'
+```
+
+**Solucao**: Verificar webhook URLs e routing na configuracao do Alertmanager.
+
+---
+
+**Ultima Atualizacao:** 2026-01-07
+**Versao:** 1.1
 **Mantenedores:** Time de Orchestration

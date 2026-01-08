@@ -1,0 +1,165 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shadow-validator
+  namespace: mlflow
+  labels:
+    app: neural-hive
+    component: shadow-validator
+    layer: ml-ops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: neural-hive
+      component: shadow-validator
+  template:
+    metadata:
+      labels:
+        app: neural-hive
+        component: shadow-validator
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      serviceAccountName: online-learning-sa
+      containers:
+      - name: shadow-validator
+        image: 077878370245.dkr.ecr.us-east-1.amazonaws.com/neural-hive-mind/pipelines:1.0.7
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          readOnlyRootFilesystem: false
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
+        command:
+        - python
+        - -m
+        - ml_pipelines.online_learning.shadow_validator
+        args:
+        - --serve
+        - --port
+        - "8080"
+        env:
+        - name: SHADOW_VALIDATION_ENABLED
+          value: "true"
+        - name: SHADOW_ACCURACY_THRESHOLD
+          value: "0.02"
+        - name: SHADOW_MAX_LATENCY_RATIO
+          value: "1.5"
+        - name: SHADOW_MAX_KL_DIVERGENCE
+          value: "0.1"
+        - name: SHADOW_MIN_SAMPLES
+          value: "100"
+        - name: MLFLOW_TRACKING_URI
+          value: "http://mlflow.mlflow.svc.cluster.local:5000"
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: uri
+              optional: true
+        - name: MONGODB_DATABASE
+          value: "neural_hive"
+        - name: ONLINE_CHECKPOINT_PATH
+          value: "/data/online_learning/checkpoints"
+        - name: ENVIRONMENT
+          value: "production"
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: LOG_LEVEL
+          value: "INFO"
+        volumeMounts:
+        - name: online-checkpoints
+          mountPath: /data/online_learning/checkpoints
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: online-checkpoints
+        persistentVolumeClaim:
+          claimName: online-learning-checkpoints-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shadow-validator
+  namespace: mlflow
+  labels:
+    app: neural-hive
+    component: shadow-validator
+spec:
+  type: ClusterIP
+  selector:
+    app: neural-hive
+    component: shadow-validator
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: shadow-validator-hpa
+  namespace: mlflow
+  labels:
+    app: neural-hive
+    component: shadow-validator
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: shadow-validator
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

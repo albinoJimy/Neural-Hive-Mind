@@ -1105,6 +1105,7 @@ open http://localhost:5000
 - [Operações dos Especialistas](docs/operations/specialists-operations.md)
 - [Camada Cognitiva](docs/observability/services/agentes/camada-cognitiva.md)
 - [Catálogo de Agentes](docs/observability/services/agentes.md)
+- [Arquitetura gRPC dos Especialistas](docs/GRPC_SPECIALISTS_ARCHITECTURE.md)
 
 ## Mecanismo de Consenso Multi-Agente (Fase 1)
 

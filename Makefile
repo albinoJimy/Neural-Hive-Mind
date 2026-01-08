@@ -152,3 +152,66 @@ observability-validate: ; @$(OBS) validate
 observability-dashboards: ; @$(OBS) dashboards access
 observability-test-slos: ; @$(OBS) test slos
 observability-test-correlation: ; @$(OBS) test correlation
+
+# SLA Monitoring Validation
+.PHONY: validate-sla-monitoring test-sla-unit test-sla-integration test-sla-real deploy-sla-dashboard
+validate-sla-monitoring: ## Validar deployment de SLA monitoring
+	@echo "Validando SLA monitoring..."
+	@bash scripts/validate-sla-monitoring.sh
+
+test-sla-unit: ## Executar testes unitarios de SLA
+	@echo "Executando testes unitarios SLA..."
+	@cd services/orchestrator-dynamic && \
+	pytest tests/unit/test_sla_monitor.py tests/unit/test_alert_manager.py -v
+
+test-sla-integration: ## Executar testes de integracao SLA (mocked)
+	@echo "Executando testes de integracao SLA..."
+	@cd services/orchestrator-dynamic && \
+	pytest tests/integration/test_sla_integration.py -v -m "not real_integration"
+
+test-sla-real: ## Executar testes de integracao real (requer servicos)
+	@echo "Executando testes de integracao real..."
+	@cd services/orchestrator-dynamic && \
+	pytest -m real_integration tests/integration/test_sla_real_integration.py -v
+
+deploy-sla-dashboard: ## Deploy dashboard Grafana de SLA compliance
+	@echo "Deploying SLA compliance dashboard..."
+	@kubectl apply -f k8s/configmaps/orchestrator-sla-compliance-dashboard.yaml
+	@echo "Dashboard deployed. Access at: /d/orchestrator-sla-compliance"
+
+# Online Learning
+.PHONY: online-learning-update online-learning-validate online-learning-rollback online-learning-status online-learning-deploy online-learning-test
+online-learning-update: ## Disparar atualizacao de online learning
+	@echo "Disparando atualizacao de online learning..."
+	@python -m ml_pipelines.online_learning.cli update --specialist-types $(SPECIALIST_TYPE) --verbose
+
+online-learning-validate: ## Executar validacao shadow
+	@echo "Executando validacao shadow..."
+	@python -m ml_pipelines.online_learning.cli validate --specialist-type $(SPECIALIST_TYPE)
+
+online-learning-rollback: ## Executar rollback de modelo online
+	@echo "Executando rollback..."
+	@python -m ml_pipelines.online_learning.cli rollback --specialist-type $(SPECIALIST_TYPE) --reason "Manual rollback via Makefile"
+
+online-learning-status: ## Mostrar status do online learning
+	@python -m ml_pipelines.online_learning.cli status
+
+online-learning-deploy: ## Deploy manifests de online learning
+	@echo "Deploying online learning manifests..."
+	@kubectl apply -f k8s/online-learning/online-learning-configmap.yaml
+	@kubectl apply -f k8s/online-learning/online-update-cronjob.yaml
+	@kubectl apply -f k8s/online-learning/shadow-validator-deployment.yaml
+	@kubectl apply -f k8s/online-learning/online-monitor-deployment.yaml
+	@echo "Online learning deployed."
+
+online-learning-test: ## Executar testes de online learning
+	@echo "Executando testes de online learning..."
+	@pytest ml_pipelines/online_learning/tests/ -v
+
+deploy-online-learning-dashboard: ## Deploy dashboard Grafana de online learning
+	@echo "Deploying online learning dashboard..."
+	@kubectl create configmap online-learning-dashboard \
+		--from-file=monitoring/dashboards/online-learning-overview.json \
+		-n monitoring --dry-run=client -o yaml | kubectl apply -f -
+	@kubectl apply -f monitoring/alerts/online-learning-alerts.yaml
+	@echo "Dashboard and alerts deployed."

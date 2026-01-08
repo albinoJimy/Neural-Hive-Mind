@@ -1,18 +1,22 @@
 from typing import List, Optional
-from pydantic import Field, validator
+from pydantic import Field, validator, model_validator
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     """Configurações da aplicação Gateway de Intenções"""
-    
+
     # Aplicação
     environment: str = Field(default="dev")
     debug: bool = Field(default=False)
     log_level: str = Field(default="INFO")
-    
+
     # Kafka
     kafka_bootstrap_servers: str = Field(default="neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092")
-    schema_registry_url: str = Field(default="http://schema-registry.neural-hive-kafka.svc.cluster.local:8081")
+    schema_registry_url: str = Field(default="https://schema-registry.neural-hive-kafka.svc.cluster.local:8081")
+
+    # Schema Registry TLS
+    schema_registry_tls_verify: bool = Field(default=True, description="Verificar certificado TLS do Schema Registry")
+    schema_registry_ca_bundle: Optional[str] = Field(default=None, description="Caminho para CA bundle do Schema Registry")
 
     # Kafka Security
     kafka_security_protocol: str = Field(default="PLAINTEXT")  # PLAINTEXT, SASL_SSL, SSL
@@ -125,7 +129,9 @@ class Settings(BaseSettings):
     
     # Observabilidade - OpenTelemetry Collector OTLP endpoint
     otel_enabled: bool = Field(default=False, description="Habilitar OpenTelemetry para tracing distribuído")
-    otel_endpoint: str = Field(default="http://opentelemetry-collector.observability.svc.cluster.local:4317")
+    otel_endpoint: str = Field(default="https://opentelemetry-collector.observability.svc.cluster.local:4317")
+    otel_tls_verify: bool = Field(default=True, description="Verificar certificado TLS do OTEL Collector")
+    otel_ca_bundle: Optional[str] = Field(default=None, description="Caminho para CA bundle do OTEL Collector")
     prometheus_port: int = Field(default=8080)
     jaeger_sampling_rate: float = Field(default=0.1)
     
@@ -173,6 +179,32 @@ class Settings(BaseSettings):
         if v >= high_threshold:
             raise ValueError(f'nlu_routing_threshold_low ({v}) must be < nlu_routing_threshold_high ({high_threshold})')
         return v
+
+    @model_validator(mode='after')
+    def validate_https_in_production(self) -> 'Settings':
+        """
+        Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
+        Endpoints verificados: Schema Registry, OTEL Collector.
+        """
+        is_prod_staging = self.environment.lower() in ('production', 'staging', 'prod')
+        if not is_prod_staging:
+            return self
+
+        # Endpoints criticos que devem usar HTTPS em producao
+        http_endpoints = []
+        if self.schema_registry_url.startswith('http://'):
+            http_endpoints.append(('schema_registry_url', self.schema_registry_url))
+        if self.otel_enabled and self.otel_endpoint.startswith('http://'):
+            http_endpoints.append(('otel_endpoint', self.otel_endpoint))
+
+        if http_endpoints:
+            endpoint_list = ', '.join(f'{name}={url}' for name, url in http_endpoints)
+            raise ValueError(
+                f"Endpoints HTTP inseguros detectados em ambiente {self.environment}: {endpoint_list}. "
+                "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+            )
+
+        return self
 
     class Config:
         env_file = ".env"

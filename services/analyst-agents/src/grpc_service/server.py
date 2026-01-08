@@ -4,6 +4,9 @@ import grpc
 from concurrent import futures
 from neural_hive_observability import create_instrumented_grpc_server
 
+from .analyst_servicer import AnalystServicer
+from ..proto import analyst_agent_pb2_grpc
+
 logger = structlog.get_logger()
 
 
@@ -19,6 +22,7 @@ class AnalystGRPCServer:
         query_engine,
         analytics_engine,
         insight_generator,
+        neo4j_client=None,
         max_workers: int = 10
     ):
         self.host = host
@@ -32,6 +36,7 @@ class AnalystGRPCServer:
         self.query_engine = query_engine
         self.analytics_engine = analytics_engine
         self.insight_generator = insight_generator
+        self.neo4j_client = neo4j_client
 
     async def start(self):
         """Iniciar servidor gRPC"""
@@ -44,18 +49,16 @@ class AnalystGRPCServer:
             )
             self.server = create_instrumented_grpc_server(base_server)
 
-            # Registrar servicer (quando proto estiver compilado)
-            # from .analyst_servicer import AnalystServicer
-            # from ..proto import analyst_agent_pb2_grpc
-            #
-            # servicer = AnalystServicer(
-            #     mongodb_client=self.mongodb_client,
-            #     redis_client=self.redis_client,
-            #     query_engine=self.query_engine,
-            #     analytics_engine=self.analytics_engine,
-            #     insight_generator=self.insight_generator
-            # )
-            # analyst_agent_pb2_grpc.add_AnalystAgentServiceServicer_to_server(servicer, self.server)
+            # Registrar servicer
+            servicer = AnalystServicer(
+                mongodb_client=self.mongodb_client,
+                redis_client=self.redis_client,
+                query_engine=self.query_engine,
+                analytics_engine=self.analytics_engine,
+                insight_generator=self.insight_generator,
+                neo4j_client=self.neo4j_client
+            )
+            analyst_agent_pb2_grpc.add_AnalystAgentServiceServicer_to_server(servicer, self.server)
 
             # Adicionar porta
             self.server.add_insecure_port(f'{self.host}:{self.port}')

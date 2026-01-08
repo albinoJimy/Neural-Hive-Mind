@@ -1,0 +1,289 @@
+name: Scheduler Load Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: 'Número de iterações do benchmark'
+        required: false
+        default: '5'
+      concurrency:
+        description: 'Nível de concorrência'
+        required: false
+        default: '100'
+  push:
+    branches: [main]
+    paths:
+      - 'services/orchestrator-dynamic/src/scheduler/**'
+      - 'services/orchestrator-dynamic/tests/load/**'
+      - '.github/workflows/scheduler-load-tests.yml'
+  pull_request:
+    paths:
+      - 'services/orchestrator-dynamic/src/scheduler/**'
+      - 'services/orchestrator-dynamic/tests/load/**'
+
+env:
+  PYTHON_VERSION: "3.11"
+  WORKING_DIR: services/orchestrator-dynamic
+
+jobs:
+  unit-tests:
+    name: Testes Unitários do Scheduler
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Instalar dependências
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov
+
+      - name: Executar testes unitários do scheduler
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          pytest tests/unit/test_intelligent_scheduler.py \
+            tests/unit/test_priority_calculator.py \
+            tests/unit/test_resource_allocator.py \
+            -v \
+            --tb=short \
+            --cov=src/scheduler \
+            --cov-report=xml:coverage-scheduler-unit.xml \
+            --junit-xml=test-results/scheduler-unit.xml
+
+      - name: Upload resultados
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scheduler-unit-results
+          path: |
+            ${{ env.WORKING_DIR }}/coverage-scheduler-unit.xml
+            ${{ env.WORKING_DIR }}/test-results/
+
+  integration-tests:
+    name: Testes de Integração do Scheduler
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Instalar dependências
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov
+
+      - name: Executar testes de integração do scheduler
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          pytest tests/integration/test_scheduler_integration.py \
+            -v \
+            --tb=short \
+            --cov=src/scheduler \
+            --cov-report=xml:coverage-scheduler-integration.xml \
+            --junit-xml=test-results/scheduler-integration.xml
+
+      - name: Upload resultados
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scheduler-integration-results
+          path: |
+            ${{ env.WORKING_DIR }}/coverage-scheduler-integration.xml
+            ${{ env.WORKING_DIR }}/test-results/
+
+  load-tests:
+    name: Testes de Carga
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: integration-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Instalar dependências
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov
+
+      - name: Executar testes de carga
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          pytest tests/load/test_scheduler_load.py \
+            -v \
+            --tb=short \
+            --junit-xml=test-results/scheduler-load.xml \
+            -x
+
+      - name: Executar testes de QoS
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          pytest tests/load/test_qos_validation.py \
+            -v \
+            --tb=short \
+            --junit-xml=test-results/scheduler-qos.xml \
+            -x
+
+      - name: Upload resultados
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scheduler-load-results
+          path: ${{ env.WORKING_DIR }}/test-results/
+
+  stress-tests:
+    name: Testes de Stress
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: load-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Instalar dependências
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio
+
+      - name: Executar testes de stress
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          pytest tests/load/test_scheduler_stress.py \
+            -v \
+            --tb=short \
+            --junit-xml=test-results/scheduler-stress.xml \
+            -x
+
+      - name: Upload resultados
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scheduler-stress-results
+          path: ${{ env.WORKING_DIR }}/test-results/
+
+  benchmark:
+    name: Benchmark de Performance
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: stress-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Instalar dependências
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Executar benchmark
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          python scripts/benchmark_scheduler.py \
+            --iterations ${{ github.event.inputs.iterations || '5' }} \
+            --tickets 500 \
+            --concurrency ${{ github.event.inputs.concurrency || '100' }} \
+            --output benchmark-results.json
+
+      - name: Upload resultados do benchmark
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            ${{ env.WORKING_DIR }}/benchmark-results.json
+
+      - name: Comentar no PR (se aplicável)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('${{ env.WORKING_DIR }}/benchmark-results.json', 'utf8'));
+            const summary = results.summary;
+
+            const status = summary.meets_slos ? '✅' : '⚠️';
+            const body = `## ${status} Benchmark do Scheduler
+
+            | Métrica | Valor | SLO |
+            |---------|-------|-----|
+            | Throughput | ${summary.avg_throughput.toFixed(2)} t/s | ≥100 t/s |
+            | Latência P95 | ${summary.avg_latency_p95_ms.toFixed(2)}ms | ≤200ms |
+            | Latência P99 | ${summary.avg_latency_p99_ms.toFixed(2)}ms | ≤500ms |
+            | Taxa de Sucesso | ${(summary.avg_success_rate * 100).toFixed(1)}% | ≥99% |
+            | Cache Hit Rate | ${(summary.avg_cache_hit_rate * 100).toFixed(1)}% | ≥80% |
+
+            **SLOs atendidos:** ${summary.meets_slos ? 'Sim ✓' : 'Não ✗'}
+
+            ${summary.slo_violations.length > 0 ? '**Violações:**\n' + summary.slo_violations.map(v => '- ' + v).join('\n') : ''}
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  summary:
+    name: Resumo Final
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, load-tests, stress-tests, benchmark]
+    if: always()
+    steps:
+      - name: Download todos os artefatos
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Gerar resumo
+        run: |
+          echo "## Resumo dos Testes do Scheduler" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Etapa | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Testes Unitários | ${{ needs.unit-tests.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Testes de Integração | ${{ needs.integration-tests.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Testes de Carga | ${{ needs.load-tests.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Testes de Stress | ${{ needs.stress-tests.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Benchmark | ${{ needs.benchmark.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Falhar se algum teste falhou
+        if: |
+          needs.unit-tests.result != 'success' ||
+          needs.integration-tests.result != 'success' ||
+          needs.load-tests.result != 'success' ||
+          needs.stress-tests.result != 'success' ||
+          needs.benchmark.result != 'success'
+        run: |
+          echo "Um ou mais testes falharam"
+          exit 1

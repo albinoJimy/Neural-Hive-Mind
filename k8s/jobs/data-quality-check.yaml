@@ -46,6 +46,12 @@ spec:
                   value: "95.0"
                 - name: LOG_LEVEL
                   value: "INFO"
+                - name: ENABLE_ANOMALY_DETECTION
+                  value: "true"
+                - name: ANOMALY_WINDOW_HOURS
+                  value: "24"
+                - name: ANOMALY_BASELINE_DAYS
+                  value: "7"
               resources:
                 requests:
                   cpu: 200m

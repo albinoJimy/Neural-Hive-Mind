@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sla-management-sa
+  namespace: neural-hive
+  labels:
+    neural-hive.io/component: sla-management
+    app.kubernetes.io/name: sla-management-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: slo-crd-reader
+  labels:
+    neural-hive.io/component: sla-management
+    app.kubernetes.io/name: sla-management-system
+rules:
+  - apiGroups: ["neural-hive.io"]
+    resources: ["slodefinitions"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["neural-hive.io"]
+    resources: ["slodefinitions/status"]
+    verbs: ["get", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: sla-management-crd-sync
+  labels:
+    neural-hive.io/component: sla-management
+    app.kubernetes.io/name: sla-management-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: slo-crd-reader
+subjects:
+  - kind: ServiceAccount
+    name: sla-management-sa
+    namespace: neural-hive

@@ -16,6 +16,8 @@ from .clients.sonarqube_client import SonarQubeClient
 from .clients.snyk_client import SnykClient
 from .clients.trivy_client import TrivyClient
 from .clients.sigstore_client import SigstoreClient
+from .clients.s3_artifact_client import S3ArtifactClient
+from .clients.artifact_registry_client import ArtifactRegistryClient
 from .clients.postgres_client import PostgresClient
 from .clients.mongodb_client import MongoDBClient
 from .clients.redis_client import RedisClient
@@ -85,18 +87,61 @@ async def main():
     sonarqube_client = SonarQubeClient(
         settings.SONARQUBE_URL,
         settings.SONARQUBE_TOKEN,
-        settings.SONARQUBE_ENABLED
+        settings.SONARQUBE_ENABLED,
+        scanner_timeout=settings.SONARQUBE_SCANNER_TIMEOUT,
+        poll_interval=settings.SONARQUBE_POLL_INTERVAL,
+        poll_timeout=settings.SONARQUBE_POLL_TIMEOUT,
+        metrics=metrics
     )
 
-    snyk_client = SnykClient(settings.SNYK_TOKEN, settings.SNYK_ENABLED)
+    snyk_client = SnykClient(
+        settings.SNYK_TOKEN,
+        settings.SNYK_ENABLED,
+        timeout=settings.SNYK_TIMEOUT,
+        metrics=metrics
+    )
 
-    trivy_client = TrivyClient(settings.TRIVY_ENABLED, settings.TRIVY_SEVERITY)
+    trivy_client = TrivyClient(
+        settings.TRIVY_ENABLED,
+        settings.TRIVY_SEVERITY,
+        timeout=settings.TRIVY_TIMEOUT,
+        metrics=metrics
+    )
+
+    # Cliente S3 para artefatos e SBOMs
+    s3_artifact_client = None
+    if settings.ARTIFACTS_S3_BUCKET:
+        s3_artifact_client = S3ArtifactClient(
+            bucket=settings.ARTIFACTS_S3_BUCKET,
+            region=settings.ARTIFACTS_S3_REGION,
+            endpoint=settings.ARTIFACTS_S3_ENDPOINT or None,
+            metrics=metrics
+        )
+        logger.info(
+            's3_artifact_client_initialized',
+            bucket=settings.ARTIFACTS_S3_BUCKET,
+            region=settings.ARTIFACTS_S3_REGION
+        )
 
     sigstore_client = SigstoreClient(
         settings.SIGSTORE_FULCIO_URL,
         settings.SIGSTORE_REKOR_URL,
-        settings.SIGSTORE_ENABLED
+        settings.SIGSTORE_ENABLED,
+        s3_client=s3_artifact_client
     )
+
+    # Cliente Artifact Registry para registrar SBOMs
+    artifact_registry_client = None
+    if settings.OCI_REGISTRY_URL:
+        artifact_registry_client = ArtifactRegistryClient(
+            registry_url=settings.OCI_REGISTRY_URL,
+            metrics=metrics
+        )
+        await artifact_registry_client.start()
+        logger.info(
+            'artifact_registry_client_initialized',
+            registry_url=settings.OCI_REGISTRY_URL
+        )
 
     postgres_client = PostgresClient(settings.POSTGRES_URL)
     mongodb_client = MongoDBClient(settings.MONGODB_URL, 'code_forge')
@@ -149,7 +194,7 @@ async def main():
     code_composer = CodeComposer(mongodb_client, llm_client, analyst_client, mcp_client)
     validator = Validator(sonarqube_client, snyk_client, trivy_client, mcp_client, metrics)
     test_runner = TestRunner(settings.MIN_TEST_COVERAGE)
-    packager = Packager(sigstore_client)
+    packager = Packager(sigstore_client, s3_artifact_client, artifact_registry_client)
     approval_gate = ApprovalGate(
         git_client,
         settings.AUTO_APPROVAL_THRESHOLD,
@@ -175,7 +220,11 @@ async def main():
 
     # 5.5. Inicializar webhook handler
     logger.info('initializing_webhook_handler')
-    webhook_handler_instance = WebhookHandler()
+    webhook_handler_instance = WebhookHandler(
+        webhook_secret=settings.WEBHOOK_SECRET if hasattr(settings, 'WEBHOOK_SECRET') else None,
+        mongodb_client=mongodb_client,
+        postgres_client=postgres_client
+    )
     await webhook_handler_instance.initialize()
     # Set global instance
     import src.integration.generation_webhook as webhook_module
@@ -238,6 +287,24 @@ async def main():
     logger.info('starting_http_server', port=settings.HTTP_PORT)
     app = create_app()
 
+    # Armazenar clients no app.state para readiness check
+    app.state.postgres_client = postgres_client
+    app.state.mongodb_client = mongodb_client
+    app.state.redis_client = redis_client
+    app.state.kafka_consumer = kafka_consumer
+    app.state.kafka_producer = kafka_producer
+    app.state.git_client = git_client
+    app.state.snyk_client = snyk_client
+    app.state.trivy_client = trivy_client
+    app.state.sonarqube_client = sonarqube_client
+    app.state.sigstore_client = sigstore_client
+    app.state.s3_artifact_client = s3_artifact_client
+    app.state.service_registry = service_registry
+    app.state.ticket_client = ticket_client
+    app.state.mcp_client = mcp_client
+    app.state.llm_client = llm_client
+    app.state.analyst_client = analyst_client
+
     config = uvicorn.Config(
         app,
         host='0.0.0.0',
@@ -275,6 +342,13 @@ async def main():
                 logger.info('analyst_client_stopped')
             except Exception as e:
                 logger.error('analyst_client_shutdown_error', error=str(e))
+
+        if artifact_registry_client:
+            try:
+                await artifact_registry_client.stop()
+                logger.info('artifact_registry_client_stopped')
+            except Exception as e:
+                logger.error('artifact_registry_client_shutdown_error', error=str(e))
 
         logger.info('all_clients_stopped')
 

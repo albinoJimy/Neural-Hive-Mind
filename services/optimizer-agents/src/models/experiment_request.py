@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -48,6 +48,19 @@ class Guardrail(BaseModel):
     abort_threshold: float = Field(..., description="Threshold to abort experiment")
 
 
+class ABTestConfig(BaseModel):
+    """Configuracao especifica para testes A/B."""
+
+    traffic_split: float = Field(default=0.5, ge=0.0, le=1.0, description="Proporcao de trafego para treatment")
+    primary_metrics: List[str] = Field(default_factory=list, description="Metricas primarias para decisao")
+    secondary_metrics: List[str] = Field(default_factory=list, description="Metricas secundarias observacionais")
+    early_stopping_enabled: bool = Field(default=True, description="Habilitar parada antecipada")
+    bayesian_analysis_enabled: bool = Field(default=True, description="Habilitar analise Bayesiana")
+    sequential_testing_enabled: bool = Field(default=True, description="Habilitar sequential testing (SPRT)")
+    strata_key: str = Field(default="", description="Chave de estrato para randomizacao estratificada")
+    block_size: int = Field(default=10, ge=2, description="Tamanho do bloco para randomizacao em blocos")
+
+
 class ExperimentRequest(BaseModel):
     """Experiment request model matching Avro schema."""
 
@@ -74,6 +87,15 @@ class ExperimentRequest(BaseModel):
     created_at: int = Field(..., description="Creation timestamp (Unix millis)")
     created_by: str = Field(..., description="Agent that created the experiment")
     metadata: Dict[str, str] = Field(default_factory=dict, description="Additional metadata")
+
+    # Campos especificos para A/B Testing
+    control_group_size: int = Field(default=0, description="Tamanho atual do grupo controle")
+    treatment_group_size: int = Field(default=0, description="Tamanho atual do grupo tratamento")
+    control_metrics: Dict[str, List[float]] = Field(default_factory=dict, description="Metricas coletadas do controle")
+    treatment_metrics: Dict[str, List[float]] = Field(default_factory=dict, description="Metricas coletadas do tratamento")
+    statistical_results: Dict[str, Any] = Field(default_factory=dict, description="Resultados da analise estatistica")
+    ab_test_config: ABTestConfig = Field(default_factory=ABTestConfig, description="Configuracao especifica A/B")
+    minimum_sample_size: int = Field(default=100, description="Tamanho minimo de amostra por grupo")
 
     @field_validator("traffic_percentage")
     @classmethod

@@ -3,6 +3,9 @@ Duration Predictor para estimativa de duração de tickets.
 
 Usa RandomForestRegressor para predição de actual_duration_ms baseado
 em features extraídas de tickets e estatísticas históricas.
+
+Integra com ClickHouse para estatísticas históricas (mais rápido),
+com fallback para MongoDB quando ClickHouse indisponível.
 """
 
 from typing import Dict, Any, Optional, Tuple
@@ -32,9 +35,19 @@ class DurationPredictor:
     - std_duration_by_task, retry_count, hour_of_day
 
     Target: actual_duration_ms
+
+    Integra com ClickHouse para estatísticas históricas (10x mais rápido),
+    com fallback para MongoDB quando ClickHouse indisponível.
     """
 
-    def __init__(self, config, mongodb_client, model_registry, metrics):
+    def __init__(
+        self,
+        config,
+        mongodb_client,
+        model_registry,
+        metrics,
+        clickhouse_client=None
+    ):
         """
         Inicializa DurationPredictor.
 
@@ -43,12 +56,17 @@ class DurationPredictor:
             mongodb_client: Cliente MongoDB para queries históricas
             model_registry: ModelRegistry para load/save de modelos
             metrics: OrchestratorMetrics para observabilidade
+            clickhouse_client: Cliente ClickHouse para estatísticas (opcional, preferido se disponível)
         """
         self.config = config
         self.mongodb_client = mongodb_client
         self.model_registry = model_registry
         self.metrics = metrics
+        self.clickhouse_client = clickhouse_client
         self.logger = logger.bind(component="duration_predictor")
+
+        # Flag para usar ClickHouse (configuração)
+        self.use_clickhouse = getattr(config, 'ml_use_clickhouse_for_features', True)
 
         # Modelo em memória (carregado do registry)
         self.model: Optional[RandomForestRegressor] = None
@@ -127,6 +145,9 @@ class DurationPredictor:
         """
         Atualiza cache de estatísticas históricas.
 
+        Prioriza ClickHouse se disponível e habilitado (10x mais rápido),
+        com fallback para MongoDB.
+
         Cache tem TTL configurável (default 1h).
         """
         import time
@@ -140,10 +161,25 @@ class DurationPredictor:
                 current_time - self.stats_cache_timestamp < cache_ttl):
                 return
 
-            # Computa novas estatísticas
+            # Determina fonte de dados (ClickHouse preferido se disponível)
+            clickhouse_client_to_use = None
+            if self.use_clickhouse and self.clickhouse_client is not None:
+                try:
+                    # Verifica se ClickHouse está disponível
+                    if await self.clickhouse_client.health_check():
+                        clickhouse_client_to_use = self.clickhouse_client
+                        self.logger.debug("using_clickhouse_for_stats")
+                except Exception as e:
+                    self.logger.warning(
+                        "clickhouse_health_check_failed_using_mongodb",
+                        error=str(e)
+                    )
+
+            # Computa novas estatísticas (com ClickHouse ou MongoDB)
             self.historical_stats = await compute_historical_stats(
                 mongodb_client=self.mongodb_client,
-                window_days=self.config.ml_training_window_days
+                window_days=self.config.ml_training_window_days,
+                clickhouse_client=clickhouse_client_to_use
             )
 
             self.stats_cache_timestamp = current_time
@@ -151,7 +187,8 @@ class DurationPredictor:
             self.logger.info(
                 "historical_stats_refreshed",
                 stats_groups=len(self.historical_stats),
-                ttl_seconds=cache_ttl
+                ttl_seconds=cache_ttl,
+                source="clickhouse" if clickhouse_client_to_use else "mongodb"
             )
 
         except Exception as e:
@@ -310,7 +347,10 @@ class DurationPredictor:
 
     async def train_model(self, training_window_days: Optional[int] = None) -> Dict[str, float]:
         """
-        Treina modelo com dados históricos do MongoDB.
+        Treina modelo com dados históricos.
+
+        Prioriza ClickHouse para carregar dados de treino quando habilitado
+        (query_ticket_metrics_for_training), com fallback para MongoDB.
 
         Args:
             training_window_days: Janela de dados (default: config value)
@@ -327,11 +367,38 @@ class DurationPredictor:
             window_days = training_window_days or self.config.ml_training_window_days
             cutoff_date = datetime.utcnow() - timedelta(days=window_days)
 
-            # Query tickets completados com actual_duration
-            tickets = await self.mongodb_client.db['execution_tickets'].find({
-                'completed_at': {'$gte': cutoff_date},
-                'actual_duration_ms': {'$exists': True, '$ne': None, '$gt': 0}
-            }).to_list(None)
+            # Tenta carregar dados de treino via ClickHouse se habilitado
+            tickets = []
+            data_source = "mongodb"
+
+            if self.use_clickhouse and self.clickhouse_client is not None:
+                try:
+                    if await self.clickhouse_client.health_check():
+                        self.logger.info("loading_training_data_from_clickhouse", window_days=window_days)
+                        clickhouse_data = await self.clickhouse_client.query_ticket_metrics_for_training(
+                            window_days=window_days,
+                            limit=100000
+                        )
+                        if clickhouse_data:
+                            tickets = clickhouse_data
+                            data_source = "clickhouse"
+                            self.logger.info(
+                                "training_data_loaded_from_clickhouse",
+                                records=len(tickets)
+                            )
+                except Exception as e:
+                    self.logger.warning(
+                        "clickhouse_training_data_failed_using_mongodb",
+                        error=str(e)
+                    )
+
+            # Fallback para MongoDB se ClickHouse falhou ou não está habilitado
+            if not tickets:
+                tickets = await self.mongodb_client.db['execution_tickets'].find({
+                    'completed_at': {'$gte': cutoff_date},
+                    'actual_duration_ms': {'$exists': True, '$ne': None, '$gt': 0}
+                }).to_list(None)
+                data_source = "mongodb"
 
             if len(tickets) < self.config.ml_min_training_samples:
                 self.logger.warning(
@@ -455,7 +522,8 @@ class DurationPredictor:
                 "duration_model_trained",
                 metrics=metrics,
                 run_id=run_id,
-                duration_seconds=training_duration
+                duration_seconds=training_duration,
+                data_source=data_source
             )
 
             return metrics

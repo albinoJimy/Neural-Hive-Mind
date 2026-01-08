@@ -179,3 +179,129 @@ class CodeForgeMetrics:
             'Total feedback sent to MCP',
             ['status']  # success, failure
         )
+
+        # External Tools Metrics
+        self.snyk_scan_duration_seconds = Histogram(
+            'code_forge_snyk_scan_duration_seconds',
+            'Duration of Snyk dependency scans',
+            buckets=[5, 10, 30, 60, 120, 300]
+        )
+
+        self.trivy_scan_duration_seconds = Histogram(
+            'code_forge_trivy_scan_duration_seconds',
+            'Duration of Trivy vulnerability scans',
+            ['scan_type'],  # image, fs, config
+            buckets=[5, 10, 30, 60, 120, 300, 600]
+        )
+
+        self.sonarqube_analysis_duration_seconds = Histogram(
+            'code_forge_sonarqube_analysis_duration_seconds',
+            'Duration of SonarQube code analysis',
+            buckets=[30, 60, 120, 300, 600, 900]
+        )
+
+        self.git_operations_total = Counter(
+            'code_forge_git_operations_total',
+            'Total Git operations',
+            ['operation', 'provider', 'status']  # operation: create_branch, commit, push, create_mr; provider: gitlab, github
+        )
+
+        self.external_tool_errors_total = Counter(
+            'code_forge_external_tool_errors_total',
+            'Total errors from external tools',
+            ['tool', 'error_type']  # tool: snyk, trivy, sonarqube, git; error_type: timeout, api_error, cli_error
+        )
+
+        # ========================================================================
+        # Métricas de Clients de Banco de Dados
+        # ========================================================================
+
+        # MongoDB Metrics
+        self.mongodb_operations_total = Counter(
+            'code_forge_mongodb_operations_total',
+            'Total de operações MongoDB',
+            ['operation', 'status']  # operation: save_artifact, get_artifact, save_logs; status: success, failure
+        )
+        self.mongodb_operation_duration_seconds = Histogram(
+            'code_forge_mongodb_operation_duration_seconds',
+            'Duração de operações MongoDB',
+            ['operation'],
+            buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0]
+        )
+
+        # PostgreSQL Metrics
+        self.postgres_operations_total = Counter(
+            'code_forge_postgres_operations_total',
+            'Total de operações PostgreSQL',
+            ['operation', 'status']  # operation: save_pipeline, get_pipeline, list, update; status: success, failure
+        )
+        self.postgres_operation_duration_seconds = Histogram(
+            'code_forge_postgres_operation_duration_seconds',
+            'Duração de operações PostgreSQL',
+            ['operation'],
+            buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0]
+        )
+
+        # Redis Metrics
+        self.redis_cache_hits_total = Counter(
+            'code_forge_redis_cache_hits_total',
+            'Total de cache hits Redis'
+        )
+        self.redis_cache_misses_total = Counter(
+            'code_forge_redis_cache_misses_total',
+            'Total de cache misses Redis'
+        )
+        self.redis_operations_total = Counter(
+            'code_forge_redis_operations_total',
+            'Total de operações Redis',
+            ['operation', 'status']  # operation: cache_template, get_template, set_state, acquire_lock; status: success, failure
+        )
+        self.redis_operation_duration_seconds = Histogram(
+            'code_forge_redis_operation_duration_seconds',
+            'Duração de operações Redis',
+            ['operation'],
+            buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5]
+        )
+
+        # Sigstore Metrics
+        self.sigstore_signatures_total = Counter(
+            'code_forge_sigstore_signatures_total',
+            'Total de assinaturas Sigstore',
+            ['status']  # success, failure, mock
+        )
+        self.sigstore_sbom_generations_total = Counter(
+            'code_forge_sigstore_sbom_generations_total',
+            'Total de gerações de SBOM',
+            ['status']  # success, failure, mock
+        )
+        self.sigstore_operation_duration_seconds = Histogram(
+            'code_forge_sigstore_operation_duration_seconds',
+            'Duração de operações Sigstore',
+            ['operation'],  # sign, verify, sbom, rekor_upload
+            buckets=[1.0, 5.0, 10.0, 30.0, 60.0, 120.0]
+        )
+        self.sigstore_rekor_uploads_total = Counter(
+            'code_forge_sigstore_rekor_uploads_total',
+            'Total de uploads para Rekor',
+            ['status']  # success, failure
+        )
+
+        # S3 Artifact Storage Metrics
+        self.s3_upload_duration_seconds = Histogram(
+            'code_forge_s3_upload_duration_seconds',
+            'Duração de uploads S3',
+            ['operation'],  # sbom, artifact
+            buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0]
+        )
+
+        self.s3_upload_total = Counter(
+            'code_forge_s3_upload_total',
+            'Total de uploads S3',
+            ['status', 'operation']  # success/failure, sbom/artifact
+        )
+
+        self.s3_integrity_check_total = Counter(
+            'code_forge_s3_integrity_check_total',
+            'Total de verificações de integridade S3',
+            ['status']  # success/failure
+        )

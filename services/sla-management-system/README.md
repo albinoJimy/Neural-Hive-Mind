@@ -420,6 +420,185 @@ pytest tests/ -v
 - **Scope**: Namespace, Service (Deployment/StatefulSet), Global
 - **Enforcement**: Via Kubernetes operator
 
+## Dependency Injection Pattern
+
+### Visão Geral
+
+O SLA Management System utiliza **Dependency Injection** do FastAPI com um padrão híbrido:
+
+- **Produção**: Overrides configurados no `lifespan` do `main.py`
+- **Fallback**: Funções de dependency acessam módulo `main` diretamente (para compatibilidade)
+- **Testes**: Overrides manuais com mocks
+
+### Arquitetura de DI
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              main.py (lifespan context)                 │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │ async def lifespan(app: FastAPI):                │  │
+│  │   # Startup                                      │  │
+│  │   1. Inicializar clientes e serviços            │  │
+│  │      - prometheus_client, postgresql_client     │  │
+│  │      - budget_calculator, policy_enforcer       │  │
+│  │   2. Configurar app.dependency_overrides        │  │
+│  │      - slos.get_slo_manager                     │  │
+│  │      - budgets.get_budget_calculator            │  │
+│  │   yield                                         │  │
+│  │   # Shutdown                                    │  │
+│  │   3. Fechar conexões                            │  │
+│  └──────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+                          │
+                          ↓
+┌─────────────────────────────────────────────────────────┐
+│                API Routers (policies.py)                │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │ def get_policy_enforcer() -> PolicyEnforcer:     │  │
+│  │     from .. import main                          │  │
+│  │     if main.policy_enforcer is None:             │  │
+│  │         raise HTTPException(503, "Not init")     │  │
+│  │     return main.policy_enforcer                  │  │
+│  │                                                   │  │
+│  │ @router.get("/freezes/active")                   │  │
+│  │ async def get_active_freezes(                    │  │
+│  │     enforcer: PolicyEnforcer = Depends(get_...)  │  │
+│  │ ):                                               │  │
+│  │     # Usa instância injetada                     │  │
+│  └──────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Dependências Configuradas
+
+#### API de SLOs (`src/api/slos.py`)
+
+| Função de Dependency | Serviço Injetado | Uso |
+|---------------------|------------------|-----|
+| `get_slo_manager()` | `SLOManager` | Gestão de SLOs |
+
+#### API de Budgets (`src/api/budgets.py`)
+
+| Função de Dependency | Serviço Injetado | Uso |
+|---------------------|------------------|-----|
+| `get_budget_calculator()` | `BudgetCalculator` | Cálculo de budgets |
+| `get_postgresql_client()` | `PostgreSQLClient` | Persistência |
+| `get_prometheus_client()` | `PrometheusClient` | Queries de métricas |
+
+#### API de Políticas (`src/api/policies.py`)
+
+| Função de Dependency | Serviço Injetado | Uso |
+|---------------------|------------------|-----|
+| `get_policy_enforcer()` | `PolicyEnforcer` | Enforcement de políticas |
+| `get_postgresql_client()` | `PostgreSQLClient` | Persistência |
+
+#### API de Webhooks (`src/api/webhooks.py`)
+
+| Função de Dependency | Serviço Injetado | Uso |
+|---------------------|------------------|-----|
+| `get_slo_manager()` | `SLOManager` | Busca de SLOs |
+| `get_budget_calculator()` | `BudgetCalculator` | Cálculo de budgets |
+| `get_policy_enforcer()` | `PolicyEnforcer` | Avaliação de políticas |
+| `get_postgresql_client()` | `PostgreSQLClient` | Persistência |
+
+### Padrão Híbrido (Fallback)
+
+As funções de dependency têm um **fallback** que acessa o módulo `main` diretamente:
+
+```python
+# src/api/policies.py
+def get_policy_enforcer() -> PolicyEnforcer:
+    """
+    Returns the PolicyEnforcer instance from application state.
+
+    In production, this is overridden via FastAPI dependency_overrides in main.py.
+    This fallback accesses the module-level singleton directly.
+    """
+    from .. import main
+    if main.policy_enforcer is None:
+        raise HTTPException(
+            status_code=503,
+            detail="PolicyEnforcer not initialized. Service is starting up."
+        )
+    return main.policy_enforcer
+```
+
+**Vantagens**:
+- Funciona mesmo sem overrides (útil para testes rápidos)
+- Retorna erro 503 claro se serviço não inicializou
+- Compatível com padrão de overrides do FastAPI
+
+### Exemplo de Uso em Testes
+
+```python
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from unittest.mock import AsyncMock, MagicMock
+
+def test_list_policies_with_mock():
+    from src.api import policies
+
+    # Criar app de teste
+    app = FastAPI()
+    app.include_router(policies.router)
+
+    # Criar mock do PostgreSQL
+    mock_pg = MagicMock()
+    mock_pg.list_policies = AsyncMock(return_value=[])
+
+    # Configurar override
+    app.dependency_overrides[policies.get_postgresql_client] = lambda: mock_pg
+
+    # Testar endpoint
+    client = TestClient(app)
+    response = client.get('/api/v1/policies')
+
+    assert response.status_code == 200
+    assert response.json()['total'] == 0
+```
+
+### Configuração em Produção
+
+Em produção, os overrides são configurados no `lifespan` do `main.py`:
+
+```python
+# services/sla-management-system/src/main.py (linhas 179-210)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    # ... inicializar serviços ...
+
+    # Configurar dependency overrides
+    app.dependency_overrides[slos.get_slo_manager] = override_slo_manager
+    app.dependency_overrides[budgets.get_budget_calculator] = override_budget_calculator
+    # ... outros overrides ...
+
+    yield
+
+    # Shutdown
+    # ... fechar conexões ...
+```
+
+### Troubleshooting
+
+#### Erro: "HTTPException 503: PolicyEnforcer not initialized"
+
+**Causa**: Endpoint foi chamado antes do `lifespan` completar inicialização.
+
+**Solução**:
+1. Verificar que o serviço iniciou completamente (logs: `"sla_management_system_started"`)
+2. Usar endpoint `/ready` para verificar readiness
+3. Em testes, sempre configurar overrides manualmente
+
+#### Erro: "AttributeError: 'NoneType' object has no attribute 'list_policies'"
+
+**Causa**: Serviço global (`postgresql_client`) é `None` quando override é chamado.
+
+**Solução**:
+1. Verificar ordem de inicialização no `lifespan` (serviços antes de overrides)
+2. Verificar que conexões foram estabelecidas com sucesso
+3. Checar logs de erro durante inicialização
+
 ## Escalabilidade e Resiliência
 
 - **Autoscaling**: HPA com 2-10 réplicas baseado em CPU/memória

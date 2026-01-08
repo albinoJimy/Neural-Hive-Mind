@@ -1,0 +1,245 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: chaos-game-day
+  namespace: neural-hive-resilience
+  labels:
+    app: chaos-game-day
+    component: chaos-engineering
+    neural-hive/layer: governanca
+    neural-hive/domain: chaos
+spec:
+  # Executa toda segunda-feira às 03:00 UTC (fora do horário comercial)
+  schedule: "0 3 * * 1"
+  timeZone: "America/Sao_Paulo"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 600
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 7200  # 2 horas máximo
+      template:
+        metadata:
+          labels:
+            app: chaos-game-day
+            component: chaos-engineering
+          annotations:
+            prometheus.io/scrape: "true"
+            prometheus.io/port: "9090"
+        spec:
+          serviceAccountName: chaos-game-day-runner
+          restartPolicy: Never
+          containers:
+            - name: game-day-runner
+              image: neural-hive/self-healing-engine:latest
+              imagePullPolicy: IfNotPresent
+              command:
+                - python
+                - -m
+                - src.chaos.game_day_runner
+                - game-day
+                - --config
+                - /etc/game-day/config.json
+                - --environment
+                - staging
+                - --executed-by
+                - cronjob
+                - --output
+                - /var/log/game-day/report.json
+                - --in-cluster
+                - --json
+              env:
+                - name: ENVIRONMENT
+                  value: "staging"
+                - name: LOG_LEVEL
+                  value: "INFO"
+                - name: KAFKA_BOOTSTRAP_SERVERS
+                  valueFrom:
+                    configMapKeyRef:
+                      name: self-healing-engine-config
+                      key: KAFKA_BOOTSTRAP_SERVERS
+                - name: OPA_HOST
+                  value: "opa.neural-hive-governance.svc.cluster.local"
+                - name: OPA_PORT
+                  value: "8181"
+                - name: PROMETHEUS_PUSHGATEWAY
+                  value: "prometheus-pushgateway.monitoring:9091"
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+              volumeMounts:
+                - name: game-day-config
+                  mountPath: /etc/game-day
+                  readOnly: true
+                - name: game-day-logs
+                  mountPath: /var/log/game-day
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+          volumes:
+            - name: game-day-config
+              configMap:
+                name: chaos-game-day-config
+            - name: game-day-logs
+              emptyDir: {}
+          nodeSelector:
+            kubernetes.io/os: linux
+          tolerations:
+            - key: "dedicated"
+              operator: "Equal"
+              value: "chaos-testing"
+              effect: "NoSchedule"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chaos-game-day-config
+  namespace: neural-hive-resilience
+  labels:
+    app: chaos-game-day
+    component: chaos-engineering
+data:
+  config.json: |
+    {
+      "name": "Weekly Resilience Game Day",
+      "description": "Validação semanal de resiliência dos serviços críticos",
+      "scenarios": [
+        {
+          "scenario_name": "pod_failure",
+          "target_service": "worker-agents",
+          "target_namespace": "neural-hive-execution",
+          "playbook_to_validate": "restart-pod",
+          "custom_parameters": {
+            "pod_percentage": 30,
+            "max_recovery_time": 180
+          }
+        },
+        {
+          "scenario_name": "pod_failure",
+          "target_service": "scout-agents",
+          "target_namespace": "neural-hive-execution",
+          "playbook_to_validate": "restart-pod",
+          "custom_parameters": {
+            "pod_percentage": 30,
+            "max_recovery_time": 180
+          }
+        },
+        {
+          "scenario_name": "resource_exhaustion",
+          "target_service": "optimizer-agents",
+          "target_namespace": "neural-hive-orchestration",
+          "playbook_to_validate": "scale-up-deployment",
+          "custom_parameters": {
+            "resource_type": "cpu",
+            "cpu_load": 70,
+            "max_recovery_time": 300
+          }
+        },
+        {
+          "scenario_name": "slow_dependency",
+          "target_service": "consensus-engine",
+          "target_namespace": "neural-hive-orchestration",
+          "custom_parameters": {
+            "latency_ms": 1000,
+            "affected_percentage": 25
+          }
+        },
+        {
+          "scenario_name": "network_partition",
+          "target_service": "mcp-tool-catalog",
+          "target_namespace": "neural-hive-mcp",
+          "custom_parameters": {
+            "partition_duration": 30
+          }
+        }
+      ],
+      "notifications": {
+        "slack_channel": "#chaos-engineering",
+        "email_recipients": ["sre-team@company.com"]
+      },
+      "abort_on_first_failure": false,
+      "generate_report": true
+    }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: chaos-game-day-runner
+  namespace: neural-hive-resilience
+  labels:
+    app: chaos-game-day
+    component: chaos-engineering
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: chaos-game-day-runner
+  labels:
+    app: chaos-game-day
+    component: chaos-engineering
+rules:
+  # Pods - criar, deletar, listar para chaos testing
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "delete", "create"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["pods/eviction"]
+    verbs: ["create"]
+  # Deployments - para scale up/down
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+  # Services - para health checks
+  - apiGroups: [""]
+    resources: ["services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+  # NetworkPolicies - para network partition
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  # Istio VirtualService - para HTTP fault injection
+  - apiGroups: ["networking.istio.io"]
+    resources: ["virtualservices"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # ConfigMaps e Secrets (somente leitura)
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  # Events - para monitoramento
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch", "create"]
+  # Nodes - para verificar recursos
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: chaos-game-day-runner
+  labels:
+    app: chaos-game-day
+    component: chaos-engineering
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: chaos-game-day-runner
+subjects:
+  - kind: ServiceAccount
+    name: chaos-game-day-runner
+    namespace: neural-hive-resilience

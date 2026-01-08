@@ -1,6 +1,6 @@
 from functools import lru_cache
 from typing import List, Optional
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -76,16 +76,20 @@ class Settings(BaseSettings):
 
     # Configurações de observabilidade
     OTEL_EXPORTER_ENDPOINT: str = Field(
-        default="http://otel-collector:4317",
+        default="https://opentelemetry-collector.observability.svc.cluster.local:4317",
         description="Endpoint do coletor OpenTelemetry"
     )
+    OTEL_TLS_VERIFY: bool = Field(default=True, description="Verificar certificado TLS do OTEL Collector")
+    OTEL_CA_BUNDLE: Optional[str] = Field(default=None, description="Caminho para CA bundle do OTEL Collector")
 
     # Vault Integration
     VAULT_ENABLED: bool = Field(default=False, description="Habilitar integração com Vault")
     VAULT_ADDRESS: str = Field(
-        default="http://vault.vault.svc.cluster.local:8200",
+        default="https://vault.vault.svc.cluster.local:8200",
         description="Endereço do servidor Vault"
     )
+    VAULT_TLS_VERIFY: bool = Field(default=True, description="Verificar certificado TLS do Vault")
+    VAULT_CA_BUNDLE: Optional[str] = Field(default=None, description="Caminho para CA bundle do Vault")
     VAULT_KUBERNETES_ROLE: str = Field(
         default="service-registry",
         description="Role Kubernetes para autenticação Vault"
@@ -125,6 +129,32 @@ class Settings(BaseSettings):
         case_sensitive=True,
         extra='ignore'
     )
+
+    @model_validator(mode='after')
+    def validate_https_in_production(self) -> 'Settings':
+        """
+        Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
+        Endpoints verificados: OTEL Collector, Vault.
+        """
+        is_prod_staging = self.ENVIRONMENT.lower() in ('production', 'staging', 'prod')
+        if not is_prod_staging:
+            return self
+
+        # Endpoints criticos que devem usar HTTPS em producao
+        http_endpoints = []
+        if self.OTEL_EXPORTER_ENDPOINT.startswith('http://'):
+            http_endpoints.append(('OTEL_EXPORTER_ENDPOINT', self.OTEL_EXPORTER_ENDPOINT))
+        if self.VAULT_ENABLED and self.VAULT_ADDRESS.startswith('http://'):
+            http_endpoints.append(('VAULT_ADDRESS', self.VAULT_ADDRESS))
+
+        if http_endpoints:
+            endpoint_list = ', '.join(f'{name}={url}' for name, url in http_endpoints)
+            raise ValueError(
+                f"Endpoints HTTP inseguros detectados em ambiente {self.ENVIRONMENT}: {endpoint_list}. "
+                "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+            )
+
+        return self
 
 
 @lru_cache()

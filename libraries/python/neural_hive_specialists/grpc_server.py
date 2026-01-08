@@ -241,16 +241,14 @@ class SpecialistServicer:
                     plan_id=request.plan_id,
                     error=error_msg
                 )
-                context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                context.set_details(f"Tenant inválido: {error_msg}")
+                context.abort(grpc.StatusCode.INVALID_ARGUMENT, f"Tenant inválido: {error_msg}")
             elif 'Tenant inativo' in error_msg:
                 logger.warning(
                     "Inactive tenant",
                     plan_id=request.plan_id,
                     error=error_msg
                 )
-                context.set_code(grpc.StatusCode.PERMISSION_DENIED)
-                context.set_details(f"Acesso negado: {error_msg}")
+                context.abort(grpc.StatusCode.PERMISSION_DENIED, f"Acesso negado: {error_msg}")
             else:
                 logger.error(
                     "Validation error in EvaluatePlan",
@@ -258,9 +256,7 @@ class SpecialistServicer:
                     error=error_msg,
                     exc_info=True
                 )
-                context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                context.set_details(str(e))
-            raise
+                context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(e))
         except Exception as e:
             logger.error(
                 "EvaluatePlan failed",
@@ -268,9 +264,7 @@ class SpecialistServicer:
                 error=str(e),
                 exc_info=True
             )
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(e))
-            raise
+            context.abort(grpc.StatusCode.INTERNAL, str(e))
 
     def HealthCheck(self, request, context):
         """
@@ -301,9 +295,7 @@ class SpecialistServicer:
 
         except Exception as e:
             logger.error("HealthCheck failed", error=str(e))
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(e))
-            raise
+            context.abort(grpc.StatusCode.INTERNAL, str(e))
 
     def GetCapabilities(self, request, context):
         """
@@ -334,9 +326,7 @@ class SpecialistServicer:
 
         except Exception as e:
             logger.error("GetCapabilities failed", error=str(e))
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(e))
-            raise
+            context.abort(grpc.StatusCode.INTERNAL, str(e))
 
     def _build_evaluate_plan_response(self, result: dict, processing_time_ms: int):
         """Constrói EvaluatePlanResponse a partir de dict."""
@@ -528,46 +518,70 @@ class SpecialistServicer:
 
 
 class HealthServicer:
-    """Implementação do serviço gRPC Health."""
+    """Implementação do serviço gRPC Health conforme grpc_health.v1."""
 
     def __init__(self, specialist: Any):
         self.specialist = specialist
+        self._health_pb2 = None
+        # Importar health_pb2 para construir responses corretas
+        try:
+            from grpc_health.v1 import health_pb2
+            self._health_pb2 = health_pb2
+        except ImportError:
+            logger.warning("grpc_health.v1.health_pb2 não disponível")
         logger.info("Health servicer initialized")
 
     def Check(self, request, context):
-        """Handler para health check."""
+        """Handler para health check - retorna HealthCheckResponse protobuf."""
         try:
             health_result = self.specialist.health_check()
 
             # Mapear para enum do gRPC Health
-            if health_result['status'] == 'SERVING':
-                status = 1  # SERVING
+            if self._health_pb2:
+                if health_result['status'] == 'SERVING':
+                    status = self._health_pb2.HealthCheckResponse.SERVING
+                else:
+                    status = self._health_pb2.HealthCheckResponse.NOT_SERVING
+                return self._health_pb2.HealthCheckResponse(status=status)
             else:
-                status = 2  # NOT_SERVING
-
-            return {
-                'status': status
-            }
+                # Fallback sem protobuf (não recomendado)
+                logger.warning("Retornando dict - health_pb2 não disponível")
+                if health_result['status'] == 'SERVING':
+                    return {'status': 1}
+                return {'status': 2}
 
         except Exception as e:
             logger.error("Health check failed", error=str(e))
-            return {
-                'status': 2  # NOT_SERVING
-            }
+            if self._health_pb2:
+                return self._health_pb2.HealthCheckResponse(
+                    status=self._health_pb2.HealthCheckResponse.NOT_SERVING
+                )
+            return {'status': 2}
 
     def Watch(self, request, context):
-        """Handler para watch health status (streaming)."""
-        # Implementação simplificada - retornar status atual
+        """Handler para watch health status (streaming) - yield HealthCheckResponse protobuf."""
         try:
             health_result = self.specialist.health_check()
 
-            if health_result['status'] == 'SERVING':
-                status = 1
+            if self._health_pb2:
+                if health_result['status'] == 'SERVING':
+                    status = self._health_pb2.HealthCheckResponse.SERVING
+                else:
+                    status = self._health_pb2.HealthCheckResponse.NOT_SERVING
+                yield self._health_pb2.HealthCheckResponse(status=status)
             else:
-                status = 2
-
-            yield {'status': status}
+                # Fallback sem protobuf (não recomendado)
+                logger.warning("Retornando dict em Watch - health_pb2 não disponível")
+                if health_result['status'] == 'SERVING':
+                    yield {'status': 1}
+                else:
+                    yield {'status': 2}
 
         except Exception as e:
             logger.error("Health watch failed", error=str(e))
-            yield {'status': 2}
+            if self._health_pb2:
+                yield self._health_pb2.HealthCheckResponse(
+                    status=self._health_pb2.HealthCheckResponse.NOT_SERVING
+                )
+            else:
+                yield {'status': 2}

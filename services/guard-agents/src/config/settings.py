@@ -1,5 +1,6 @@
 from functools import lru_cache
-from pydantic import Field
+from typing import Optional
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -63,11 +64,15 @@ class Settings(BaseSettings):
     redis_password: str | None = None
 
     # Prometheus Config
-    prometheus_url: str = "http://neural-hive-prometheus-kub-prometheus.observability.svc.cluster.local:9090"
+    prometheus_url: str = "https://prometheus-server.monitoring.svc.cluster.local:9090"
+    prometheus_tls_verify: bool = Field(default=True, description="Verificar certificado TLS do Prometheus")
+    prometheus_ca_bundle: Optional[str] = Field(default=None, description="Caminho para CA bundle do Prometheus")
     prometheus_query_timeout_seconds: int = 10
 
     # Alertmanager Config
-    alertmanager_url: str = "http://alertmanager.observability.svc.cluster.local:9093"
+    alertmanager_url: str = "https://alertmanager.monitoring.svc.cluster.local:9093"
+    alertmanager_tls_verify: bool = Field(default=True, description="Verificar certificado TLS do Alertmanager")
+    alertmanager_ca_bundle: Optional[str] = Field(default=None, description="Caminho para CA bundle do Alertmanager")
     alertmanager_webhook_enabled: bool = True
 
     # Kubernetes Config
@@ -118,16 +123,22 @@ class Settings(BaseSettings):
     max_blast_radius_percentage: float = 0.1
 
     # OpenTelemetry Config
-    otel_exporter_otlp_endpoint: str = "http://otel-collector.observability.svc.cluster.local:4317"
+    otel_exporter_otlp_endpoint: str = "https://opentelemetry-collector.observability.svc.cluster.local:4317"
+    otel_tls_verify: bool = Field(default=True, description="Verificar certificado TLS do OTEL Collector")
+    otel_ca_bundle: Optional[str] = Field(default=None, description="Caminho para CA bundle do OTEL Collector")
     otel_service_name: str = "guard-agents"
     otel_traces_sampler: str = "parentbased_traceidratio"
     otel_traces_sampler_arg: float = 0.1
 
     # MLflow Config
-    mlflow_tracking_uri: str = "http://mlflow.observability.svc.cluster.local:5000"
+    mlflow_tracking_uri: str = "https://mlflow.mlflow.svc.cluster.local:5000"
+    mlflow_tls_verify: bool = Field(default=True, description="Verificar certificado TLS do MLflow")
+    mlflow_ca_bundle: Optional[str] = Field(default=None, description="Caminho para CA bundle do MLflow")
 
     # Keycloak Admin Config
-    keycloak_url: str = "http://keycloak.auth.svc.cluster.local:8080"
+    keycloak_url: str = "https://keycloak.auth.svc.cluster.local:8443"
+    keycloak_tls_verify: bool = Field(default=True, description="Verificar certificado TLS do Keycloak")
+    keycloak_ca_bundle: Optional[str] = Field(default=None, description="Caminho para CA bundle do Keycloak")
     keycloak_realm: str = "neural-hive"
     keycloak_admin_client_id: str = "guard-agents-admin"
     keycloak_admin_client_secret: str | None = Field(default=None)
@@ -141,6 +152,38 @@ class Settings(BaseSettings):
     anomaly_detector_enabled: bool = True
     anomaly_detector_model_type: str = "isolation_forest"
     anomaly_detector_contamination: float = 0.05
+
+    @model_validator(mode='after')
+    def validate_https_in_production(self) -> 'Settings':
+        """
+        Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
+        Endpoints verificados: Prometheus, Alertmanager, OTEL, MLflow, Keycloak.
+        """
+        is_prod_staging = self.environment.lower() in ('production', 'staging', 'prod')
+        if not is_prod_staging:
+            return self
+
+        # Endpoints criticos que devem usar HTTPS em producao
+        http_endpoints = []
+        if self.prometheus_url.startswith('http://'):
+            http_endpoints.append(('prometheus_url', self.prometheus_url))
+        if self.alertmanager_url.startswith('http://'):
+            http_endpoints.append(('alertmanager_url', self.alertmanager_url))
+        if self.otel_exporter_otlp_endpoint.startswith('http://'):
+            http_endpoints.append(('otel_exporter_otlp_endpoint', self.otel_exporter_otlp_endpoint))
+        if self.mlflow_tracking_uri.startswith('http://'):
+            http_endpoints.append(('mlflow_tracking_uri', self.mlflow_tracking_uri))
+        if self.keycloak_url.startswith('http://'):
+            http_endpoints.append(('keycloak_url', self.keycloak_url))
+
+        if http_endpoints:
+            endpoint_list = ', '.join(f'{name}={url}' for name, url in http_endpoints)
+            raise ValueError(
+                f"Endpoints HTTP inseguros detectados em ambiente {self.environment}: {endpoint_list}. "
+                "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+            )
+
+        return self
 
 
 @lru_cache()

@@ -37,6 +37,8 @@ from src.ml import SchedulingOptimizer, TrainingPipeline
 from src.consumers import InsightsConsumer, TelemetryConsumer, ExperimentsConsumer
 from src.producers import OptimizationProducer, ExperimentProducer
 from src.grpc_service import OptimizerServicer, GrpcServer
+from src.grpc_service.consensus_optimization_servicer import ConsensusOptimizationServicer
+from src.grpc_service.orchestrator_optimization_servicer import OrchestratorOptimizationServicer
 from src.config.settings import get_settings
 from src.observability.metrics import setup_metrics
 from src.services.experiment_manager import ExperimentManager
@@ -418,7 +420,38 @@ async def startup():
             scheduling_optimizer=scheduling_optimizer,
             settings=settings
         )
-        grpc_server = GrpcServer(servicer=servicer, settings=settings)
+
+        # Criar servicers de extensão para Consensus Engine e Orchestrator
+        consensus_servicer = ConsensusOptimizationServicer(
+            weight_recalibrator=weight_recalibrator,
+            mongodb_client=mongodb_client,
+            redis_client=redis_client,
+            clickhouse_client=clickhouse_client,
+            scheduling_optimizer=scheduling_optimizer,
+            settings=settings,
+            metrics=metrics_instance,
+        )
+        logger.info("consensus_optimization_servicer_initialized")
+
+        orchestrator_servicer = OrchestratorOptimizationServicer(
+            slo_adjuster=slo_adjuster,
+            mongodb_client=mongodb_client,
+            redis_client=redis_client,
+            clickhouse_client=clickhouse_client,
+            orchestrator_client=orchestrator_client,
+            load_predictor=load_predictor,
+            scheduling_optimizer=scheduling_optimizer,
+            settings=settings,
+            metrics=metrics_instance,
+        )
+        logger.info("orchestrator_optimization_servicer_initialized")
+
+        grpc_server = GrpcServer(
+            servicer=servicer,
+            consensus_servicer=consensus_servicer,
+            orchestrator_servicer=orchestrator_servicer,
+            settings=settings,
+        )
         grpc_task = asyncio.create_task(grpc_server.start())
         logger.info("grpc_server_started")
 
@@ -450,8 +483,19 @@ async def startup():
             background_tasks.append(training_task)
             logger.info("training_pipeline_started")
 
+    # Inicializar ABTestingEngine
+    from src.experimentation.ab_testing_engine import ABTestingEngine
+
+    ab_testing_engine = ABTestingEngine(
+        settings=settings,
+        mongodb_client=mongodb_client,
+        redis_client=redis_client,
+        metrics=metrics_instance,
+    )
+    logger.info("ab_testing_engine_initialized")
+
     # Configurar dependency overrides para injetar serviços nos routers
-    from src.api import optimizations, experiments
+    from src.api import optimizations, experiments, ab_testing
 
     def override_mongodb_client():
         return mongodb_client
@@ -471,6 +515,9 @@ async def startup():
     def override_experiment_manager():
         return experiment_manager
 
+    def override_ab_testing_engine():
+        return ab_testing_engine
+
     # Registrar overrides para API de otimizações
     app.dependency_overrides[optimizations.get_mongodb_client] = override_mongodb_client
     app.dependency_overrides[optimizations.get_redis_client] = override_redis_client
@@ -481,6 +528,11 @@ async def startup():
     # Registrar overrides para API de experimentos
     app.dependency_overrides[experiments.get_mongodb_client] = override_mongodb_client
     app.dependency_overrides[experiments.get_experiment_manager] = override_experiment_manager
+
+    # Registrar overrides para API de A/B Testing
+    app.dependency_overrides[ab_testing.get_mongodb_client] = override_mongodb_client
+    app.dependency_overrides[ab_testing.get_redis_client] = override_redis_client
+    app.dependency_overrides[ab_testing.get_ab_testing_engine] = override_ab_testing_engine
 
     logger.info("api_dependencies_configured")
 

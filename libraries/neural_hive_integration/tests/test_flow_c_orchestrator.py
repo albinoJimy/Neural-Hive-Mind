@@ -134,13 +134,29 @@ async def test_execute_c2_generate_tickets(orchestrator, sample_decision):
     """Testa C2 geração de tickets."""
     orchestrator.orchestrator_client.start_workflow = AsyncMock(return_value="workflow-123")
 
+    # Mock query_workflow para evitar chamada HTTP externa ao Orchestrator
+    mock_ticket_data = {
+        "ticket_id": "ticket-001",
+        "plan_id": "plan-456",
+        "intent_id": "intent-123",
+        "decision_id": "decision-789",
+        "task_id": "task-1",
+        "task_type": "BUILD",
+        "status": "PENDING",
+        "priority": "NORMAL",
+        "risk_band": "medium",
+        "sla": {"deadline": 1704067200000, "timeout_ms": 30000, "max_retries": 3},
+        "qos": {"delivery_mode": "AT_LEAST_ONCE", "consistency": "EVENTUAL", "durability": "PERSISTENT"},
+        "payload": {"template_id": "microservice", "ticket_id": "ticket-001"},
+    }
+    orchestrator.orchestrator_client.query_workflow = AsyncMock(
+        return_value={"tickets": [mock_ticket_data]}
+    )
+
+    # Mock ticket_client para fallback (não deve ser chamado se query_workflow funcionar)
     mock_ticket = MagicMock()
     mock_ticket.ticket_id = "ticket-001"
-    mock_ticket.model_dump.return_value = {
-        "ticket_id": "ticket-001",
-        "task_type": "code_generation",
-        "payload": {"template_id": "microservice", "ticket_id": "ticket-001"}
-    }
+    mock_ticket.model_dump.return_value = mock_ticket_data
     orchestrator.ticket_client.create_ticket = AsyncMock(return_value=mock_ticket)
 
     context = MagicMock()
@@ -154,8 +170,12 @@ async def test_execute_c2_generate_tickets(orchestrator, sample_decision):
     assert workflow_id == "workflow-123"
     assert len(tickets) == 1
     assert tickets[0]["ticket_id"] == "ticket-001"
-    assert "template_id" in tickets[0]["payload"]
-    assert tickets[0]["payload"]["ticket_id"] == "ticket-001"
+
+    # Verificar que query_workflow foi chamado em vez de criar tickets via fallback
+    orchestrator.orchestrator_client.query_workflow.assert_called_once_with(
+        workflow_id="workflow-123",
+        query_name="get_tickets",
+    )
 
 
 @pytest.mark.asyncio
@@ -273,3 +293,332 @@ async def test_flow_c_failure_handling(orchestrator, sample_decision):
     assert result.success is False
     assert result.error == "Workflow failed"
     assert result.tickets_generated == 0
+
+
+@pytest.mark.asyncio
+async def test_get_tickets_from_workflow_success(orchestrator):
+    """Testa obtenção de tickets do workflow via query Temporal."""
+    mock_tickets = [
+        {
+            "ticket_id": "ticket-001",
+            "plan_id": "plan-456",
+            "task_id": "task-1",
+            "task_type": "BUILD",
+            "status": "PENDING",
+            "priority": "NORMAL",
+        },
+        {
+            "ticket_id": "ticket-002",
+            "plan_id": "plan-456",
+            "task_id": "task-2",
+            "task_type": "DEPLOY",
+            "status": "PENDING",
+            "priority": "HIGH",
+        },
+    ]
+
+    orchestrator.orchestrator_client.query_workflow = AsyncMock(
+        return_value={"tickets": mock_tickets}
+    )
+
+    context = MagicMock()
+    context.plan_id = "plan-456"
+
+    tickets = await orchestrator._get_tickets_from_workflow(
+        workflow_id="workflow-123",
+        cognitive_plan={},
+        context=context,
+    )
+
+    assert len(tickets) == 2
+    assert tickets[0]["ticket_id"] == "ticket-001"
+    assert tickets[1]["ticket_id"] == "ticket-002"
+    orchestrator.orchestrator_client.query_workflow.assert_called_once_with(
+        workflow_id="workflow-123",
+        query_name="get_tickets",
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_tickets_from_workflow_fallback(orchestrator):
+    """Testa fallback para _extract_tickets_from_plan quando query falha."""
+    orchestrator.orchestrator_client.query_workflow = AsyncMock(
+        side_effect=Exception("Query failed")
+    )
+
+    mock_ticket = MagicMock()
+    mock_ticket.ticket_id = "fallback-ticket-001"
+    mock_ticket.model_dump.return_value = {
+        "ticket_id": "fallback-ticket-001",
+        "task_type": "code_generation",
+        "payload": {"template_id": "default_template", "ticket_id": "fallback-ticket-001"},
+    }
+    orchestrator.ticket_client.create_ticket = AsyncMock(return_value=mock_ticket)
+
+    context = MagicMock()
+    context.plan_id = "plan-456"
+    context.priority = 5
+    context.sla_deadline = datetime.utcnow() + timedelta(hours=4)
+
+    cognitive_plan = {
+        "tasks": [
+            {"type": "code_generation", "description": "Test task"}
+        ]
+    }
+
+    tickets = await orchestrator._get_tickets_from_workflow(
+        workflow_id="workflow-123",
+        cognitive_plan=cognitive_plan,
+        context=context,
+    )
+
+    assert len(tickets) == 1
+    assert tickets[0]["ticket_id"] == "fallback-ticket-001"
+    orchestrator.ticket_client.create_ticket.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_tickets_from_workflow_empty_result(orchestrator):
+    """Testa fallback quando workflow retorna lista vazia de tickets."""
+    orchestrator.orchestrator_client.query_workflow = AsyncMock(
+        return_value={"tickets": []}
+    )
+
+    mock_ticket = MagicMock()
+    mock_ticket.ticket_id = "fallback-ticket-001"
+    mock_ticket.model_dump.return_value = {
+        "ticket_id": "fallback-ticket-001",
+        "task_type": "code_generation",
+        "payload": {"ticket_id": "fallback-ticket-001"},
+    }
+    orchestrator.ticket_client.create_ticket = AsyncMock(return_value=mock_ticket)
+
+    context = MagicMock()
+    context.plan_id = "plan-456"
+    context.priority = 5
+    context.sla_deadline = datetime.utcnow() + timedelta(hours=4)
+
+    tickets = await orchestrator._get_tickets_from_workflow(
+        workflow_id="workflow-123",
+        cognitive_plan={"tasks": [{"type": "test"}]},
+        context=context,
+    )
+
+    assert len(tickets) == 1
+    orchestrator.ticket_client.create_ticket.assert_called_once()
+
+
+def test_validate_ticket_schema_valid(orchestrator):
+    """Testa validação de ticket válido conforme schema Avro."""
+    valid_ticket = {
+        "ticket_id": "ticket-001",
+        "plan_id": "plan-456",
+        "intent_id": "intent-123",
+        "decision_id": "decision-789",
+        "task_id": "task-1",
+        "task_type": "BUILD",
+        "status": "PENDING",
+        "priority": "NORMAL",
+        "risk_band": "medium",
+        "sla": {"deadline": 1704067200000, "timeout_ms": 30000, "max_retries": 3},
+        "qos": {"delivery_mode": "AT_LEAST_ONCE", "consistency": "EVENTUAL", "durability": "PERSISTENT"},
+        "schema_version": 1,
+    }
+
+    is_valid, errors = orchestrator._validate_ticket_schema(valid_ticket)
+
+    assert is_valid is True
+    assert len(errors) == 0
+
+
+def test_validate_ticket_schema_missing_fields(orchestrator):
+    """Testa validação de ticket com campos faltando."""
+    invalid_ticket = {
+        "ticket_id": "ticket-001",
+        # Falta plan_id, intent_id, decision_id, task_id, task_type, status, priority, risk_band, sla, qos
+    }
+
+    is_valid, errors = orchestrator._validate_ticket_schema(invalid_ticket)
+
+    assert is_valid is False
+    assert len(errors) > 0
+    assert any("plan_id" in e for e in errors)
+    assert any("intent_id" in e for e in errors)
+    assert any("decision_id" in e for e in errors)
+    assert any("task_id" in e for e in errors)
+    assert any("risk_band" in e for e in errors)
+    assert any("sla" in e for e in errors)
+    assert any("qos" in e for e in errors)
+
+
+def test_validate_ticket_schema_invalid_status(orchestrator):
+    """Testa validação de ticket com status inválido."""
+    invalid_ticket = {
+        "ticket_id": "ticket-001",
+        "plan_id": "plan-456",
+        "intent_id": "intent-123",
+        "decision_id": "decision-789",
+        "task_id": "task-1",
+        "task_type": "BUILD",
+        "status": "INVALID_STATUS",
+        "priority": "NORMAL",
+        "risk_band": "medium",
+        "sla": {"deadline": 1704067200000, "timeout_ms": 30000, "max_retries": 3},
+        "qos": {"delivery_mode": "AT_LEAST_ONCE", "consistency": "EVENTUAL", "durability": "PERSISTENT"},
+    }
+
+    is_valid, errors = orchestrator._validate_ticket_schema(invalid_ticket)
+
+    assert is_valid is False
+    assert any("Status inválido" in e for e in errors)
+
+
+def test_validate_ticket_schema_with_sla(orchestrator):
+    """Testa validação de ticket com estrutura SLA completa."""
+    ticket_with_sla = {
+        "ticket_id": "ticket-001",
+        "plan_id": "plan-456",
+        "intent_id": "intent-123",
+        "decision_id": "decision-789",
+        "task_id": "task-1",
+        "task_type": "BUILD",
+        "status": "PENDING",
+        "priority": "NORMAL",
+        "risk_band": "medium",
+        "sla": {
+            "deadline": 1704067200000,
+            "timeout_ms": 30000,
+            "max_retries": 3,
+        },
+        "qos": {"delivery_mode": "AT_LEAST_ONCE", "consistency": "EVENTUAL", "durability": "PERSISTENT"},
+    }
+
+    is_valid, errors = orchestrator._validate_ticket_schema(ticket_with_sla)
+
+    assert is_valid is True
+    assert len(errors) == 0
+
+
+def test_validate_ticket_schema_with_incomplete_sla(orchestrator):
+    """Testa validação de ticket com SLA incompleto."""
+    ticket_with_bad_sla = {
+        "ticket_id": "ticket-001",
+        "plan_id": "plan-456",
+        "intent_id": "intent-123",
+        "decision_id": "decision-789",
+        "task_id": "task-1",
+        "task_type": "BUILD",
+        "status": "PENDING",
+        "priority": "NORMAL",
+        "risk_band": "medium",
+        "sla": {
+            "deadline": 1704067200000,
+            # Falta timeout_ms e max_retries
+        },
+        "qos": {"delivery_mode": "AT_LEAST_ONCE", "consistency": "EVENTUAL", "durability": "PERSISTENT"},
+    }
+
+    is_valid, errors = orchestrator._validate_ticket_schema(ticket_with_bad_sla)
+
+    assert is_valid is False
+    assert any("timeout_ms" in e for e in errors)
+    assert any("max_retries" in e for e in errors)
+
+
+def test_validate_ticket_schema_numeric_priority(orchestrator):
+    """Testa validação de ticket com prioridade numérica (1-10)."""
+    ticket_with_numeric_priority = {
+        "ticket_id": "ticket-001",
+        "plan_id": "plan-456",
+        "intent_id": "intent-123",
+        "decision_id": "decision-789",
+        "task_id": "task-1",
+        "task_type": "BUILD",
+        "status": "PENDING",
+        "priority": 5,  # Numérico em vez de enum
+        "risk_band": "medium",
+        "sla": {"deadline": 1704067200000, "timeout_ms": 30000, "max_retries": 3},
+        "qos": {"delivery_mode": "AT_LEAST_ONCE", "consistency": "EVENTUAL", "durability": "PERSISTENT"},
+    }
+
+    is_valid, errors = orchestrator._validate_ticket_schema(ticket_with_numeric_priority)
+
+    assert is_valid is True
+    assert len(errors) == 0
+
+
+@pytest.mark.asyncio
+async def test_execute_c2_with_workflow_query(orchestrator, sample_decision):
+    """Testa C2 usando query do workflow em vez de fallback."""
+    orchestrator.orchestrator_client.start_workflow = AsyncMock(return_value="workflow-123")
+
+    mock_workflow_tickets = [
+        {
+            "ticket_id": "workflow-ticket-001",
+            "plan_id": "plan-456",
+            "task_id": "task-1",
+            "task_type": "BUILD",
+            "status": "PENDING",
+            "priority": "NORMAL",
+        }
+    ]
+    orchestrator.orchestrator_client.query_workflow = AsyncMock(
+        return_value={"tickets": mock_workflow_tickets}
+    )
+
+    context = MagicMock()
+    context.plan_id = "plan-456"
+    context.correlation_id = "corr-abc"
+    context.priority = 5
+    context.sla_deadline = datetime.utcnow() + timedelta(hours=4)
+
+    workflow_id, tickets = await orchestrator._execute_c2_generate_tickets(sample_decision, context)
+
+    assert workflow_id == "workflow-123"
+    assert len(tickets) == 1
+    assert tickets[0]["ticket_id"] == "workflow-ticket-001"
+
+    # Verificar que usou query do workflow, não fallback
+    orchestrator.orchestrator_client.query_workflow.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_extract_tickets_from_plan(orchestrator):
+    """Testa extração de tickets do cognitive_plan como fallback."""
+    mock_ticket = MagicMock()
+    mock_ticket.ticket_id = "extracted-ticket-001"
+    mock_ticket.model_dump.return_value = {
+        "ticket_id": "extracted-ticket-001",
+        "task_type": "code_generation",
+        "required_capabilities": ["python", "fastapi"],
+        "payload": {"template_id": "microservice", "ticket_id": "extracted-ticket-001"},
+    }
+    orchestrator.ticket_client.create_ticket = AsyncMock(return_value=mock_ticket)
+
+    context = MagicMock()
+    context.plan_id = "plan-456"
+    context.priority = 5
+    context.sla_deadline = datetime.utcnow() + timedelta(hours=4)
+
+    cognitive_plan = {
+        "tasks": [
+            {
+                "type": "code_generation",
+                "template_id": "microservice",
+                "parameters": {"language": "python"},
+                "capabilities": ["python", "fastapi"],
+                "description": "Generate microservice",
+            },
+            {
+                "type": "deployment",
+                "template_id": "k8s",
+                "capabilities": ["kubernetes"],
+                "description": "Deploy to k8s",
+            },
+        ]
+    }
+
+    tickets = await orchestrator._extract_tickets_from_plan(cognitive_plan, context)
+
+    assert len(tickets) == 2
+    assert orchestrator.ticket_client.create_ticket.call_count == 2

@@ -19,20 +19,36 @@ except ImportError:
     PROTO_AVAILABLE = False
     logger.warning("proto_not_compiled", message="Run 'make proto' to compile protocol buffers")
 
+# Extension proto imports
+try:
+    from proto import consensus_engine_extensions_pb2_grpc, orchestrator_extensions_pb2_grpc
+    EXTENSION_PROTO_AVAILABLE = True
+except ImportError:
+    EXTENSION_PROTO_AVAILABLE = False
+    logger.warning("extension_proto_not_compiled", message="Run 'make proto' to compile extension protocol buffers")
+
 
 class GrpcServer:
     """
     gRPC server para Optimizer Agent.
 
     Gerencia lifecycle do servidor gRPC.
+    Registra servicers para:
+    - OptimizerAgent (serviço principal)
+    - ConsensusOptimization (extensões para Consensus Engine)
+    - OrchestratorOptimization (extensões para Orchestrator Dynamic)
     """
 
     def __init__(
         self,
         servicer: OptimizerServicer,
+        consensus_servicer=None,
+        orchestrator_servicer=None,
         settings=None,
     ):
         self.servicer = servicer
+        self.consensus_servicer = consensus_servicer
+        self.orchestrator_servicer = orchestrator_servicer
         self.settings = settings or get_settings()
         self.server: Optional[grpc.aio.Server] = None
 
@@ -57,15 +73,39 @@ class GrpcServer:
                 optimizer_agent_pb2_grpc.add_OptimizerAgentServicer_to_server(
                     self.servicer, self.server
                 )
+                logger.info("optimizer_servicer_registered")
 
                 # Habilitar reflexão gRPC para debugging
                 from src.proto import optimizer_agent_pb2
-                SERVICE_NAMES = (
+                SERVICE_NAMES = [
                     optimizer_agent_pb2.DESCRIPTOR.services_by_name['OptimizerAgent'].full_name,
                     reflection.SERVICE_NAME,
-                )
+                ]
+
+                # Registrar extensão ConsensusOptimization
+                if EXTENSION_PROTO_AVAILABLE and self.consensus_servicer:
+                    consensus_engine_extensions_pb2_grpc.add_ConsensusOptimizationServicer_to_server(
+                        self.consensus_servicer, self.server
+                    )
+                    from proto import consensus_engine_extensions_pb2
+                    SERVICE_NAMES.append(
+                        consensus_engine_extensions_pb2.DESCRIPTOR.services_by_name['ConsensusOptimization'].full_name
+                    )
+                    logger.info("consensus_optimization_servicer_registered")
+
+                # Registrar extensão OrchestratorOptimization
+                if EXTENSION_PROTO_AVAILABLE and self.orchestrator_servicer:
+                    orchestrator_extensions_pb2_grpc.add_OrchestratorOptimizationServicer_to_server(
+                        self.orchestrator_servicer, self.server
+                    )
+                    from proto import orchestrator_extensions_pb2
+                    SERVICE_NAMES.append(
+                        orchestrator_extensions_pb2.DESCRIPTOR.services_by_name['OrchestratorOptimization'].full_name
+                    )
+                    logger.info("orchestrator_optimization_servicer_registered")
+
                 reflection.enable_server_reflection(SERVICE_NAMES, self.server)
-                logger.info("grpc_servicer_registered", reflection_enabled=True)
+                logger.info("grpc_servicer_registered", reflection_enabled=True, services_count=len(SERVICE_NAMES))
             else:
                 logger.warning("grpc_servicer_not_registered", reason="proto_not_compiled")
 

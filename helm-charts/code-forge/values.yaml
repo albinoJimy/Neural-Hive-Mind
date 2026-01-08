@@ -59,6 +59,15 @@ podDisruptionBudget:
 serviceAccount:
   create: true
   name: code-forge
+  annotations: {}
+    # eks.amazonaws.com/role-arn: ""  # ARN do IRSA role para S3
+
+# Configuração S3 para artefatos e SBOMs
+s3:
+  enabled: false
+  bucket: ""
+  region: "us-east-1"
+  endpoint: ""  # Para MinIO/LocalStack
 
 serviceMonitor:
   enabled: true

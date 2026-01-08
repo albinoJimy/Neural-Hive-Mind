@@ -1,6 +1,6 @@
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from ..models.insight import AnalystInsight
 
 logger = structlog.get_logger()
@@ -149,3 +149,70 @@ class MongoDBClient:
         except Exception as e:
             logger.error('delete_expired_insights_failed', error=str(e))
             return 0
+
+    async def get_insight_statistics(self, time_filter: Optional[Dict] = None) -> Dict:
+        """Obter estatisticas agregadas de insights"""
+        try:
+            match_stage = time_filter if time_filter else {}
+
+            pipeline = [
+                {'$match': match_stage},
+                {
+                    '$facet': {
+                        'by_type': [
+                            {'$group': {'_id': '$insight_type', 'count': {'$sum': 1}}}
+                        ],
+                        'by_priority': [
+                            {'$group': {'_id': '$priority', 'count': {'$sum': 1}}}
+                        ],
+                        'averages': [
+                            {
+                                '$group': {
+                                    '_id': None,
+                                    'avg_confidence': {'$avg': '$confidence_score'},
+                                    'avg_impact': {'$avg': '$impact_score'},
+                                    'total': {'$sum': 1}
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+
+            cursor = self.collection.aggregate(pipeline)
+            results = await cursor.to_list(length=1)
+
+            if not results:
+                return {
+                    'by_type': {},
+                    'by_priority': {},
+                    'avg_confidence': 0.0,
+                    'avg_impact': 0.0,
+                    'total': 0
+                }
+
+            result = results[0]
+
+            by_type = {item['_id']: item['count'] for item in result.get('by_type', []) if item['_id']}
+            by_priority = {item['_id']: item['count'] for item in result.get('by_priority', []) if item['_id']}
+
+            averages = result.get('averages', [{}])
+            avg_data = averages[0] if averages else {}
+
+            return {
+                'by_type': by_type,
+                'by_priority': by_priority,
+                'avg_confidence': avg_data.get('avg_confidence', 0.0) or 0.0,
+                'avg_impact': avg_data.get('avg_impact', 0.0) or 0.0,
+                'total': avg_data.get('total', 0)
+            }
+
+        except Exception as e:
+            logger.error('get_insight_statistics_failed', error=str(e))
+            return {
+                'by_type': {},
+                'by_priority': {},
+                'avg_confidence': 0.0,
+                'avg_impact': 0.0,
+                'total': 0
+            }

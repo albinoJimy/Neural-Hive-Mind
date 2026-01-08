@@ -1,0 +1,238 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: online-learning-alerts
+  namespace: mlflow
+  labels:
+    app: neural-hive
+    component: online-learning
+    prometheus: neural-hive
+spec:
+  groups:
+  - name: online-learning-convergence
+    interval: 1m
+    rules:
+    - alert: OnlineLearningConvergenceStall
+      expr: |
+        abs(neural_hive_online_convergence_rate{}) < 0.001
+        and neural_hive_online_updates_total{} > 100
+      for: 30m
+      labels:
+        severity: warning
+        component: online-learning
+        layer: ml-ops
+      annotations:
+        summary: "Convergencia do modelo online estagnada"
+        description: "O modelo online {{ $labels.specialist_type }} nao esta convergindo. Taxa de convergencia: {{ $value }}. Considere ajustar learning rate ou verificar qualidade dos dados."
+
+    - alert: OnlineLearningHighLoss
+      expr: |
+        neural_hive_online_model_loss{} > 0.5
+        and neural_hive_online_updates_total{} > 50
+      for: 15m
+      labels:
+        severity: warning
+        component: online-learning
+        layer: ml-ops
+      annotations:
+        summary: "Loss do modelo online muito alto"
+        description: "O modelo online {{ $labels.specialist_type }} tem loss alto: {{ $value }}. Verificar se ha drift nos dados ou problemas no pipeline de feedback."
+
+    - alert: OnlineLearningLossDiverging
+      expr: |
+        increase(neural_hive_online_model_loss{}[1h]) > 0.1
+        and neural_hive_online_updates_total{} > 100
+      for: 15m
+      labels:
+        severity: critical
+        component: online-learning
+        layer: ml-ops
+      annotations:
+        summary: "Loss do modelo online divergindo"
+        description: "O loss do modelo {{ $labels.specialist_type }} esta aumentando: {{ $value }}. Rollback automatico pode ser necessario."
+
+  - name: online-learning-shadow-validation
+    interval: 1m
+    rules:
+    - alert: ShadowValidationHighKLDivergence
+      expr: |
+        neural_hive_shadow_kl_divergence{} > 0.1
+      for: 10m
+      labels:
+        severity: warning
+        component: online-learning
+        layer: ml-ops
+      annotations:
+        summary: "KL Divergence alta na validacao shadow"
+        description: "A divergencia KL entre batch e online para {{ $labels.specialist_type }} e {{ $value }}. Modelos podem estar divergindo significativamente."
+
+    - alert: ShadowValidationLatencyRatioHigh
+      expr: |
+        neural_hive_shadow_latency_ratio{} > 1.5
+      for: 15m
+      labels:
+        severity: warning
+        component: online-learning
+        layer: ml-ops
+      annotations:
+        summary: "Modelo online muito mais lento que batch"
+        description: "O modelo online {{ $labels.specialist_type }} esta {{ $value }}x mais lento que o batch. Verificar complexidade do modelo ou recursos."
+
+    - alert: ShadowValidationLowApprovalRate
+      expr: |
+        neural_hive_online_shadow_approval_rate{} < 0.5
+        and increase(neural_hive_shadow_validation_total{}[1h]) > 5
+      for: 30m
+      labels:
+        severity: warning
+        component: online-learning
+        layer: ml-ops
+      annotations:
+        summary: "Taxa de aprovacao shadow muito baixa"
+        description: "Apenas {{ $value | humanizePercentage }} das validacoes shadow para {{ $labels.specialist_type }} estao sendo aprovadas. Verificar qualidade do modelo online."
+
+  - name: online-learning-rollback
+    interval: 1m
+    rules:
+    - alert: OnlineLearningRollbackExecuted
+      expr: |
+        increase(neural_hive_online_rollback_total{}[5m]) > 0
+      for: 0m
+      labels:
+        severity: info
+        component: online-learning
+        layer: ml-ops
+      annotations:
+        summary: "Rollback de modelo online executado"
+        description: "Um rollback foi executado para o modelo {{ $labels.specialist_type }}. Razao: {{ $labels.reason }}."
+
+    - alert: OnlineLearningMultipleRollbacks
+      expr: |
+        increase(neural_hive_online_rollback_total{}[24h]) > 3
+      for: 5m
+      labels:
+        severity: critical
+        component: online-learning
+        layer: ml-ops
+      annotations:
+        summary: "Multiplos rollbacks em 24h"
+        description: "O modelo {{ $labels.specialist_type }} teve {{ $value }} rollbacks nas ultimas 24h. Investigar causa raiz - pode haver problema sistematico."
+
+    - alert: OnlineLearningRollbackFailed
+      expr: |
+        increase(neural_hive_online_rollback_failed_total{}[5m]) > 0
+      for: 0m
+      labels:
+        severity: critical
+        component: online-learning
+        layer: ml-ops
+      annotations:
+        summary: "Falha no rollback de modelo online"
+        description: "O rollback do modelo {{ $labels.specialist_type }} falhou. Intervencao manual pode ser necessaria."
+
+  - name: online-learning-deployment
+    interval: 1m
+    rules:
+    - alert: OnlineLearningDeploymentStuck
+      expr: |
+        time() - neural_hive_online_deployment_last_success_timestamp{} > 7200
+        and neural_hive_online_deployment_total{} > 0
+      for: 15m
+      labels:
+        severity: warning
+        component: online-learning
+        layer: ml-ops
+      annotations:
+        summary: "Deploy de modelo online parado"
+        description: "Nenhum deploy bem-sucedido para {{ $labels.specialist_type }} nas ultimas 2h. Verificar pipeline de deployment."
+
+    - alert: OnlineLearningCronJobFailed
+      expr: |
+        kube_job_status_failed{job_name=~"online-learning-update-.*"} > 0
+      for: 5m
+      labels:
+        severity: critical
+        component: online-learning
+        layer: ml-ops
+      annotations:
+        summary: "CronJob de online learning falhou"
+        description: "O job {{ $labels.job_name }} falhou. Verificar logs: kubectl logs -n mlflow job/{{ $labels.job_name }}"
+
+    - alert: OnlineLearningCronJobMissed
+      expr: |
+        time() - kube_cronjob_status_last_successful_time{cronjob="online-learning-update"} > 3600
+      for: 15m
+      labels:
+        severity: warning
+        component: online-learning
+        layer: ml-ops
+      annotations:
+        summary: "CronJob de online learning nao executou"
+        description: "O CronJob online-learning-update nao teve execucao bem-sucedida na ultima hora."
+
+  - name: online-learning-performance
+    interval: 1m
+    rules:
+    - alert: OnlineLearningHighPredictionLatency
+      expr: |
+        histogram_quantile(0.95, rate(neural_hive_online_prediction_latency_bucket{}[5m])) > 100
+      for: 10m
+      labels:
+        severity: warning
+        component: online-learning
+        layer: ml-ops
+      annotations:
+        summary: "Latencia de predicao online alta"
+        description: "P95 de latencia para {{ $labels.specialist_type }} e {{ $value }}ms. Considere otimizar modelo ou aumentar recursos."
+
+    - alert: OnlineLearningLowEnsembleRate
+      expr: |
+        neural_hive_online_ensemble_rate{} < 0.1
+        and neural_hive_online_prediction_total{} > 100
+      for: 1h
+      labels:
+        severity: info
+        component: online-learning
+        layer: ml-ops
+      annotations:
+        summary: "Taxa de ensemble muito baixa"
+        description: "Apenas {{ $value | humanizePercentage }} das predicoes de {{ $labels.specialist_type }} estao usando ensemble. Modelo online pode estar indisponivel."
+
+    - alert: OnlineLearningCircuitBreakerOpen
+      expr: |
+        neural_hive_online_circuit_breaker_state{state="open"} == 1
+      for: 5m
+      labels:
+        severity: warning
+        component: online-learning
+        layer: ml-ops
+      annotations:
+        summary: "Circuit breaker do online learning aberto"
+        description: "O circuit breaker para {{ $labels.specialist_type }} esta aberto. Predicoes estao usando fallback para modelo batch."
+
+  - name: online-learning-resources
+    interval: 1m
+    rules:
+    - alert: OnlineLearningHighMemoryUsage
+      expr: |
+        container_memory_usage_bytes{pod=~"online-.*"} / container_spec_memory_limit_bytes{pod=~"online-.*"} > 0.85
+      for: 10m
+      labels:
+        severity: warning
+        component: online-learning
+        layer: ml-ops
+      annotations:
+        summary: "Uso de memoria alto em pod de online learning"
+        description: "O pod {{ $labels.pod }} esta usando {{ $value | humanizePercentage }} da memoria limite."
+
+    - alert: OnlineLearningPodRestarting
+      expr: |
+        increase(kube_pod_container_status_restarts_total{pod=~"online-.*|shadow-validator-.*"}[1h]) > 3
+      for: 5m
+      labels:
+        severity: warning
+        component: online-learning
+        layer: ml-ops
+      annotations:
+        summary: "Pod de online learning reiniciando frequentemente"
+        description: "O pod {{ $labels.pod }} reiniciou {{ $value }} vezes na ultima hora."

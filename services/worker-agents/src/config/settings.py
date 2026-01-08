@@ -1,7 +1,7 @@
 from typing import List, Dict, Optional
 from uuid import uuid4
 from functools import lru_cache
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 import os
 
@@ -39,9 +39,11 @@ class WorkerAgentSettings(BaseSettings):
     kafka_ssl_certificate_location: Optional[str] = None
     kafka_ssl_key_location: Optional[str] = None
     kafka_schema_registry_url: str = Field(
-        default='http://schema-registry.neural-hive-kafka.svc.cluster.local:8081',
+        default='https://schema-registry.neural-hive-kafka.svc.cluster.local:8081',
         description='URL do Schema Registry'
     )
+    schema_registry_tls_verify: bool = Field(default=True, description='Verificar certificado TLS do Schema Registry')
+    schema_registry_ca_bundle: Optional[str] = Field(default=None, description='Caminho para CA bundle do Schema Registry')
     schemas_base_path: str = Field(
         default='/app/schemas',
         description='Diretório base para schemas Avro'
@@ -116,7 +118,9 @@ class WorkerAgentSettings(BaseSettings):
     dependency_check_max_attempts: int = 60
 
     # Observabilidade
-    otel_exporter_endpoint: str = 'http://localhost:4317'
+    otel_exporter_endpoint: str = 'https://opentelemetry-collector.observability.svc.cluster.local:4317'
+    otel_tls_verify: bool = Field(default=True, description='Verificar certificado TLS do OTEL Collector')
+    otel_ca_bundle: Optional[str] = Field(default=None, description='Caminho para CA bundle do OTEL Collector')
     prometheus_port: int = 9090
     http_port: int = 8080
     grpc_port: int = 0  # Worker-agents usa apenas HTTP, não gRPC
@@ -131,9 +135,11 @@ class WorkerAgentSettings(BaseSettings):
     # As flags vault_enabled e spiffe_enabled são independentes; SPIFFE pode ser habilitado sem Vault para autenticação mTLS/JWT.
     vault_enabled: bool = Field(default=False, description='Habilitar integração com Vault')
     vault_address: str = Field(
-        default='http://vault.vault.svc.cluster.local:8200',
+        default='https://vault.vault.svc.cluster.local:8200',
         description='Endereço do servidor Vault'
     )
+    vault_tls_verify: bool = Field(default=True, description='Verificar certificado TLS do Vault')
+    vault_ca_bundle: Optional[str] = Field(default=None, description='Caminho para CA bundle do Vault')
     vault_kubernetes_role: str = Field(
         default='worker-agents',
         description='Role Kubernetes para autenticação Vault'
@@ -189,6 +195,34 @@ class WorkerAgentSettings(BaseSettings):
                 metadata['spiffe_id'] = spiffe_id
 
         return metadata
+
+    @model_validator(mode='after')
+    def validate_https_in_production(self) -> 'WorkerAgentSettings':
+        """
+        Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
+        Endpoints verificados: Schema Registry, OTEL, Vault.
+        """
+        is_prod_staging = self.environment.lower() in ('production', 'staging', 'prod')
+        if not is_prod_staging:
+            return self
+
+        # Endpoints criticos que devem usar HTTPS em producao
+        http_endpoints = []
+        if self.kafka_schema_registry_url.startswith('http://'):
+            http_endpoints.append(('kafka_schema_registry_url', self.kafka_schema_registry_url))
+        if self.otel_exporter_endpoint.startswith('http://'):
+            http_endpoints.append(('otel_exporter_endpoint', self.otel_exporter_endpoint))
+        if self.vault_enabled and self.vault_address.startswith('http://'):
+            http_endpoints.append(('vault_address', self.vault_address))
+
+        if http_endpoints:
+            endpoint_list = ', '.join(f'{name}={url}' for name, url in http_endpoints)
+            raise ValueError(
+                f"Endpoints HTTP inseguros detectados em ambiente {self.environment}: {endpoint_list}. "
+                "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+            )
+
+        return self
 
     class Config:
         env_file = '.env'

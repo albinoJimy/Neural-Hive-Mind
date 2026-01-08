@@ -43,6 +43,38 @@ class Settings(BaseSettings):
     otel_exporter_otlp_endpoint: str = "http://tempo:4317"
     otel_service_name: str = "self-healing-engine"
 
+    # Execution Ticket Service Config
+    execution_ticket_service_url: str = "http://execution-ticket-service.neural-hive-orchestration:8000"
+    execution_ticket_service_timeout: int = 30
+    execution_ticket_circuit_breaker_threshold: int = 5
+    execution_ticket_circuit_breaker_reset_seconds: int = 60
+
+    # Orchestrator Dynamic gRPC Config
+    orchestrator_grpc_host: str = "orchestrator-dynamic.neural-hive-orchestration.svc.cluster.local"
+    orchestrator_grpc_port: int = 50052
+    orchestrator_grpc_use_tls: bool = True
+    orchestrator_grpc_timeout_seconds: int = 10
+
+    # OPA Policy Engine Config
+    opa_host: str = "opa.neural-hive-governance.svc.cluster.local"
+    opa_port: int = 8181
+    opa_timeout_seconds: int = 5
+    opa_enabled: bool = True
+    opa_fail_open: bool = True  # Allow actions if OPA is unavailable
+    opa_cache_ttl_seconds: int = 60
+    opa_circuit_breaker_enabled: bool = True
+    opa_circuit_breaker_failure_threshold: int = 5
+    opa_circuit_breaker_reset_timeout: int = 30
+    opa_retry_attempts: int = 3
+    opa_max_concurrent_evaluations: int = 20
+
+    # Chaos Engineering Config
+    chaos_enabled: bool = False
+    chaos_max_concurrent_experiments: int = 3
+    chaos_default_timeout_seconds: int = 600
+    chaos_require_opa_approval: bool = True
+    chaos_blast_radius_limit: int = 5
+
 
 @lru_cache()
 def get_settings() -> Settings:

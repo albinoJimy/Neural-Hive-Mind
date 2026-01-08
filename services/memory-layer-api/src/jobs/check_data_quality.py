@@ -22,6 +22,7 @@ sys.path.insert(0, '/app')
 
 from src.clients.mongodb_client import MongoDBClient
 from src.config.settings import Settings
+from src.services.data_quality_monitor import QUALITY_SCORE_GAUGE
 
 
 logger = structlog.get_logger(__name__)
@@ -94,7 +95,13 @@ class DataQualityChecker:
     def __init__(self, settings: Settings, rules: Optional[Dict[str, Any]] = None):
         self.settings = settings
         self.mongodb_client = None
+        self.clickhouse_client = None
         self.sample_size = int(os.getenv('SAMPLE_SIZE', '1000'))
+
+        # Configurações de detecção de anomalias
+        self.enable_anomaly_detection = os.getenv('ENABLE_ANOMALY_DETECTION', 'false').lower() == 'true'
+        self.anomaly_window_hours = int(os.getenv('ANOMALY_WINDOW_HOURS', '24'))
+        self.anomaly_baseline_days = int(os.getenv('ANOMALY_BASELINE_DAYS', '7'))
 
         # Carrega regras do arquivo YAML ou usa as fornecidas
         self.rules = rules if rules is not None else load_quality_rules()
@@ -319,24 +326,28 @@ class DataQualityChecker:
 
         return result
 
-    async def save_quality_metrics(self, collection: str, metrics: Dict):
+    async def save_quality_metrics(self, collection: str, metrics: Dict, anomalies: List[Dict] = None):
         """
-        Salva métricas de qualidade no MongoDB
+        Salva métricas de qualidade no MongoDB e publica para Prometheus
 
         Args:
             collection: Coleção verificada
             metrics: Métricas coletadas
+            anomalies: Lista de anomalias detectadas (opcional)
         """
+        overall_score = round(
+            (metrics['completeness']['completeness_score'] +
+             metrics['freshness']['freshness_score'] +
+             metrics['consistency']['consistency_score']) / 3,
+            2
+        )
+
         quality_doc = {
             'collection': collection,
             'timestamp': datetime.utcnow(),
             'metrics': metrics,
-            'overall_score': round(
-                (metrics['completeness']['completeness_score'] +
-                 metrics['freshness']['freshness_score'] +
-                 metrics['consistency']['consistency_score']) / 3,
-                2
-            )
+            'overall_score': overall_score,
+            'anomalies': anomalies or []
         }
 
         await self.mongodb_client.insert_one(
@@ -344,10 +355,14 @@ class DataQualityChecker:
             document=quality_doc
         )
 
+        # Publica métrica para Prometheus (normaliza para 0-1)
+        QUALITY_SCORE_GAUGE.labels(data_type=collection).set(overall_score / 100.0)
+
         logger.info(
             "Métricas de qualidade salvas",
             collection=collection,
-            overall_score=quality_doc['overall_score']
+            overall_score=quality_doc['overall_score'],
+            anomalies_count=len(anomalies) if anomalies else 0
         )
 
     async def check_collection(self, collection: str, required_fields: List[str]) -> Dict:
@@ -374,8 +389,35 @@ class DataQualityChecker:
             'consistency': consistency
         }
 
-        # Salva métricas
-        await self.save_quality_metrics(collection, metrics)
+        # Detecta anomalias se habilitado
+        anomalies = []
+        if self.enable_anomaly_detection:
+            from src.services.data_quality_monitor import DataQualityMonitor
+
+            monitor = DataQualityMonitor(
+                self.mongodb_client,
+                self.settings,
+                clickhouse_client=self.clickhouse_client
+            )
+
+            for metric_name in ['completeness_score', 'freshness_score', 'consistency_score']:
+                detected = await monitor.detect_anomalies(
+                    data_type=collection,
+                    metric=metric_name,
+                    window_hours=self.anomaly_window_hours,
+                    baseline_days=self.anomaly_baseline_days
+                )
+                anomalies.extend(detected)
+
+            if anomalies:
+                logger.warning(
+                    "Anomalias detectadas",
+                    collection=collection,
+                    count=len(anomalies)
+                )
+
+        # Salva métricas com anomalias
+        await self.save_quality_metrics(collection, metrics, anomalies)
 
         return metrics
 

@@ -1,5 +1,5 @@
-"""Cliente gRPC para Service Registry"""
-from typing import Optional, Dict, List, Any
+"""Cliente gRPC para Service Registry com suporte a mTLS via SPIFFE."""
+from typing import Optional, Dict, List, Any, Tuple
 import time
 import structlog
 import grpc
@@ -10,11 +10,25 @@ from ..config import get_settings
 # Usar proto_stubs da biblioteca neural_hive_integration
 from neural_hive_integration.proto_stubs import service_registry_pb2, service_registry_pb2_grpc
 
+# Importar SPIFFE/mTLS se disponível
+try:
+    from neural_hive_security import (
+        SPIFFEManager,
+        SPIFFEConfig,
+        create_secure_grpc_channel,
+        get_grpc_metadata_with_jwt,
+    )
+    SECURITY_LIB_AVAILABLE = True
+except ImportError:
+    SECURITY_LIB_AVAILABLE = False
+    SPIFFEManager = None
+    SPIFFEConfig = None
+
 logger = structlog.get_logger()
 
 
 class ServiceRegistryClient:
-    """Cliente para registro e heartbeat no Service Registry"""
+    """Cliente para registro e heartbeat no Service Registry com suporte a mTLS via SPIFFE."""
 
     def __init__(self, scout_agent_id: str):
         self.scout_agent_id = scout_agent_id
@@ -23,17 +37,63 @@ class ServiceRegistryClient:
         self.stub = None
         self.agent_id: Optional[str] = None
         self._registered = False
+        self.spiffe_manager: Optional[SPIFFEManager] = None
 
     async def start(self):
-        """Inicializa conexão gRPC com Service Registry"""
+        """Inicializa conexão gRPC com Service Registry com suporte a mTLS."""
         try:
             service_registry_url = (
                 f"{self.settings.service_registry.host}:"
                 f"{self.settings.service_registry.port}"
             )
 
-            # Cria canal gRPC assíncrono
-            self.channel = grpc.aio.insecure_channel(service_registry_url)
+            # Verificar se mTLS via SPIFFE está habilitado
+            spiffe_enabled = getattr(self.settings, 'spiffe_enabled', False)
+            spiffe_enable_x509 = getattr(self.settings, 'spiffe_enable_x509', False)
+            environment = getattr(self.settings.service, 'environment', 'development')
+
+            spiffe_x509_enabled = (
+                spiffe_enabled
+                and spiffe_enable_x509
+                and SECURITY_LIB_AVAILABLE
+            )
+
+            if spiffe_x509_enabled:
+                # Criar configuração SPIFFE
+                spiffe_config = SPIFFEConfig(
+                    workload_api_socket=getattr(self.settings, 'spiffe_socket_path', 'unix:///run/spire/sockets/agent.sock'),
+                    trust_domain=getattr(self.settings, 'spiffe_trust_domain', 'neural-hive.local'),
+                    jwt_audience=getattr(self.settings, 'spiffe_jwt_audience', 'neural-hive.local'),
+                    jwt_ttl_seconds=getattr(self.settings, 'spiffe_jwt_ttl_seconds', 3600),
+                    enable_x509=True,
+                    environment=environment
+                )
+
+                # Criar SPIFFE manager
+                self.spiffe_manager = SPIFFEManager(spiffe_config)
+                await self.spiffe_manager.initialize()
+
+                # Criar canal seguro com mTLS
+                # Permitir fallback inseguro apenas em ambientes de desenvolvimento
+                is_dev_env = environment.lower() in ('dev', 'development')
+                self.channel = await create_secure_grpc_channel(
+                    target=service_registry_url,
+                    spiffe_config=spiffe_config,
+                    spiffe_manager=self.spiffe_manager,
+                    fallback_insecure=is_dev_env
+                )
+
+                logger.info('mtls_channel_configured', target=service_registry_url, environment=environment)
+            else:
+                # Fallback para canal inseguro (apenas desenvolvimento)
+                if environment in ['production', 'staging', 'prod']:
+                    raise RuntimeError(
+                        f"mTLS is required in {environment} but SPIFFE X.509 is disabled."
+                    )
+
+                logger.warning('using_insecure_channel', target=service_registry_url, environment=environment)
+                self.channel = grpc.aio.insecure_channel(service_registry_url)
+
             self.stub = service_registry_pb2_grpc.ServiceRegistryStub(self.channel)
 
             logger.info(
@@ -45,11 +105,39 @@ class ServiceRegistryClient:
             logger.error("service_registry_client_start_failed", error=str(e))
             raise
 
+    async def _get_grpc_metadata(self) -> List[Tuple[str, str]]:
+        """Obter metadata gRPC com JWT-SVID para autenticação."""
+        spiffe_enabled = getattr(self.settings, 'spiffe_enabled', False)
+        if not spiffe_enabled or not self.spiffe_manager:
+            return []
+
+        try:
+            trust_domain = getattr(self.settings, 'spiffe_trust_domain', 'neural-hive.local')
+            environment = getattr(self.settings.service, 'environment', 'development')
+            audience = f"service-registry.{trust_domain}"
+            return await get_grpc_metadata_with_jwt(
+                spiffe_manager=self.spiffe_manager,
+                audience=audience,
+                environment=environment
+            )
+        except Exception as e:
+            logger.warning('jwt_svid_fetch_failed', error=str(e))
+            environment = getattr(self.settings.service, 'environment', 'development')
+            if environment in ['production', 'staging', 'prod']:
+                raise
+            return []
+
     async def stop(self):
-        """Encerra conexão gRPC"""
+        """Encerra conexão gRPC e SPIFFE manager"""
         if self.channel:
             await self.channel.close()
-            logger.info("service_registry_client_stopped")
+
+        # Fechar SPIFFE manager
+        if self.spiffe_manager:
+            await self.spiffe_manager.close()
+            self.spiffe_manager = None
+
+        logger.info("service_registry_client_stopped")
 
     @retry(
         stop=stop_after_attempt(5),
@@ -76,7 +164,10 @@ class ServiceRegistryClient:
                 version=self.settings.service.version
             )
 
-            response = await self.stub.Register(request)
+            # Obter metadata com JWT-SVID
+            grpc_metadata = await self._get_grpc_metadata()
+
+            response = await self.stub.Register(request, metadata=grpc_metadata)
             self.agent_id = response.agent_id
             self._registered = True
 
@@ -129,7 +220,10 @@ class ServiceRegistryClient:
                 telemetry=telemetry_pb
             )
 
-            response = await self.stub.Heartbeat(request)
+            # Obter metadata com JWT-SVID
+            grpc_metadata = await self._get_grpc_metadata()
+
+            response = await self.stub.Heartbeat(request, metadata=grpc_metadata)
 
             logger.debug(
                 "heartbeat_sent",
@@ -164,7 +258,10 @@ class ServiceRegistryClient:
                 agent_id=self.agent_id
             )
 
-            response = await self.stub.Deregister(request)
+            # Obter metadata com JWT-SVID
+            grpc_metadata = await self._get_grpc_metadata()
+
+            response = await self.stub.Deregister(request, metadata=grpc_metadata)
             self._registered = False
 
             logger.info(

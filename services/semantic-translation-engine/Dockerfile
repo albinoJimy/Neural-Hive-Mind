@@ -16,7 +16,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY services/semantic-translation-engine/requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt && \
     python -m uvicorn --version && \
-    echo "✓ uvicorn runtime verification passed"
+    echo "✓ uvicorn runtime verification passed" && \
+    python -m spacy download pt_core_news_sm && \
+    python -m spacy download en_core_web_sm && \
+    echo "✓ spaCy models downloaded"
 
 # Stage 2: Runtime
 FROM python:3.11-slim

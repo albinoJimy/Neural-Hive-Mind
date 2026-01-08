@@ -1,0 +1,254 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: chaos-engineering-alerts
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: alerts
+    neural-hive/layer: governanca
+    neural-hive/domain: chaos
+spec:
+  groups:
+    - name: chaos-engineering.experiments
+      rules:
+        # Alerta quando há muitos experimentos falhando
+        - alert: ChaosExperimentHighFailureRate
+          expr: |
+            (
+              sum(rate(chaos_experiments_total{status="failed"}[1h]))
+              /
+              sum(rate(chaos_experiments_total[1h]))
+            ) > 0.3
+          for: 15m
+          labels:
+            severity: warning
+            team: sre
+            domain: chaos-engineering
+          annotations:
+            summary: "Alta taxa de falha em experimentos de chaos"
+            description: "Mais de 30% dos experimentos de chaos estão falhando na última hora."
+            runbook_url: "https://docs.neuralhive.io/runbooks/chaos-engineering/high-failure-rate"
+            dashboard_url: "/d/chaos-engineering/chaos-engineering"
+
+        # Alerta quando experimentos ficam muito tempo em execução
+        - alert: ChaosExperimentStuck
+          expr: |
+            chaos_active_experiments > 0
+            and
+            time() - chaos_experiment_start_timestamp > 3600
+          for: 5m
+          labels:
+            severity: warning
+            team: sre
+            domain: chaos-engineering
+          annotations:
+            summary: "Experimento de chaos está travado"
+            description: "Experimento {{ $labels.experiment_id }} está em execução há mais de 1 hora."
+            runbook_url: "https://docs.neuralhive.io/runbooks/chaos-engineering/stuck-experiment"
+
+        # Alerta quando muitos experimentos estão ativos simultaneamente
+        - alert: ChaosExperimentsConcurrencyHigh
+          expr: chaos_active_experiments >= 3
+          for: 5m
+          labels:
+            severity: warning
+            team: sre
+            domain: chaos-engineering
+          annotations:
+            summary: "Muitos experimentos de chaos ativos"
+            description: "{{ $value }} experimentos de chaos estão ativos simultaneamente."
+
+    - name: chaos-engineering.injections
+      rules:
+        # Alerta quando rollbacks estão falhando
+        - alert: ChaosRollbackFailure
+          expr: |
+            sum(rate(chaos_rollback_total{status="failure"}[30m])) > 0
+          for: 5m
+          labels:
+            severity: critical
+            team: sre
+            domain: chaos-engineering
+          annotations:
+            summary: "Rollback de chaos falhou"
+            description: "Rollbacks de injeção de falha estão falhando. Pode haver falhas não revertidas no sistema."
+            runbook_url: "https://docs.neuralhive.io/runbooks/chaos-engineering/rollback-failure"
+
+        # Alerta quando blast radius excede limite
+        - alert: ChaosBlastRadiusExceeded
+          expr: chaos_blast_radius_current > 5
+          for: 1m
+          labels:
+            severity: warning
+            team: sre
+            domain: chaos-engineering
+          annotations:
+            summary: "Blast radius de chaos excede limite"
+            description: "Experimento {{ $labels.experiment_id }} tem blast radius {{ $value }} que excede o limite."
+
+        # Alerta quando injeções de rede estão demorando muito
+        - alert: ChaosNetworkInjectionSlow
+          expr: |
+            histogram_quantile(0.95, rate(chaos_injection_duration_seconds_bucket{fault_type=~"network.*"}[30m])) > 60
+          for: 10m
+          labels:
+            severity: warning
+            team: sre
+            domain: chaos-engineering
+          annotations:
+            summary: "Injeções de rede lentas"
+            description: "Injeções de falha de rede estão levando mais de 60 segundos (P95)."
+
+    - name: chaos-engineering.playbooks
+      rules:
+        # Alerta quando validação de playbook falha repetidamente
+        - alert: ChaosPlaybookValidationFailing
+          expr: |
+            sum by (playbook) (
+              rate(chaos_playbook_validation_total{result="failed"}[1h])
+            ) > 0.5
+          for: 30m
+          labels:
+            severity: warning
+            team: sre
+            domain: chaos-engineering
+          annotations:
+            summary: "Validação de playbook falhando"
+            description: "Playbook {{ $labels.playbook }} está falhando nas validações de chaos."
+            runbook_url: "https://docs.neuralhive.io/runbooks/chaos-engineering/playbook-validation-failure"
+
+        # Alerta quando MTTR está muito alto
+        - alert: ChaosHighMTTR
+          expr: |
+            avg(chaos_playbook_recovery_duration_seconds) > 180
+          for: 30m
+          labels:
+            severity: warning
+            team: sre
+            domain: chaos-engineering
+          annotations:
+            summary: "MTTR alto detectado via chaos"
+            description: "O tempo médio de recuperação (MTTR) está acima de 3 minutos."
+            dashboard_url: "/d/chaos-engineering/chaos-engineering"
+
+        # Alerta quando playbook específico tem MTTR degradado
+        - alert: ChaosPlaybookMTTRDegraded
+          expr: |
+            chaos_playbook_recovery_duration_seconds > 120
+            and
+            chaos_playbook_recovery_duration_seconds > (
+              avg_over_time(chaos_playbook_recovery_duration_seconds[7d]) * 1.5
+            )
+          for: 15m
+          labels:
+            severity: warning
+            team: sre
+            domain: chaos-engineering
+          annotations:
+            summary: "MTTR de playbook degradado"
+            description: "Playbook {{ $labels.playbook }} tem MTTR 50% maior que a média de 7 dias."
+
+    - name: chaos-engineering.game-days
+      rules:
+        # Alerta quando Game Day tem muitas falhas
+        - alert: ChaosGameDayHighFailureRate
+          expr: |
+            (chaos_game_day_scenarios_failed / chaos_game_day_scenarios_total) > 0.2
+          for: 1m
+          labels:
+            severity: warning
+            team: sre
+            domain: chaos-engineering
+          annotations:
+            summary: "Game Day com alta taxa de falhas"
+            description: "Game Day {{ $labels.game_day_id }} tem {{ $value | humanizePercentage }} de cenários falhando."
+
+        # Alerta quando Game Day está demorando muito
+        - alert: ChaosGameDayTimeout
+          expr: |
+            chaos_game_day_duration_seconds > 7200
+          for: 5m
+          labels:
+            severity: warning
+            team: sre
+            domain: chaos-engineering
+          annotations:
+            summary: "Game Day excedeu tempo limite"
+            description: "Game Day está em execução há mais de 2 horas."
+
+    - name: chaos-engineering.safety
+      rules:
+        # Alerta quando chaos tenta atingir namespace protegido
+        - alert: ChaosProtectedNamespaceAttempt
+          expr: |
+            sum(rate(chaos_policy_violations_total{violation="protected_namespace"}[1h])) > 0
+          for: 1m
+          labels:
+            severity: critical
+            team: security
+            domain: chaos-engineering
+          annotations:
+            summary: "Tentativa de chaos em namespace protegido"
+            description: "Experimento tentou injetar falha em namespace protegido."
+            runbook_url: "https://docs.neuralhive.io/runbooks/chaos-engineering/protected-namespace"
+
+        # Alerta quando OPA rejeita muitos experimentos
+        - alert: ChaosOPAHighRejectionRate
+          expr: |
+            (
+              sum(rate(chaos_policy_violations_total[1h]))
+              /
+              sum(rate(chaos_experiments_total[1h]))
+            ) > 0.5
+          for: 30m
+          labels:
+            severity: warning
+            team: sre
+            domain: chaos-engineering
+          annotations:
+            summary: "Alta taxa de rejeição OPA"
+            description: "Mais de 50% dos experimentos estão sendo rejeitados por políticas OPA."
+
+        # Alerta quando experimento executa fora do horário permitido
+        - alert: ChaosOutsideMaintenanceWindow
+          expr: |
+            chaos_experiment_outside_maintenance_window > 0
+          for: 1m
+          labels:
+            severity: warning
+            team: sre
+            domain: chaos-engineering
+          annotations:
+            summary: "Experimento executando fora da janela"
+            description: "Experimento de chaos está sendo executado fora da janela de manutenção permitida."
+
+    - name: chaos-engineering.infrastructure
+      rules:
+        # Alerta quando ChaosEngine não está saudável
+        - alert: ChaosEngineUnhealthy
+          expr: |
+            up{job="self-healing-engine"} == 0
+            or
+            absent(up{job="self-healing-engine"})
+          for: 5m
+          labels:
+            severity: critical
+            team: sre
+            domain: chaos-engineering
+          annotations:
+            summary: "Chaos Engine não está saudável"
+            description: "O Self-Healing Engine (que inclui Chaos Engine) não está respondendo."
+
+        # Alerta quando Kafka consumer está atrasado
+        - alert: ChaosKafkaConsumerLag
+          expr: |
+            kafka_consumer_group_lag{group="chaos-events"} > 1000
+          for: 10m
+          labels:
+            severity: warning
+            team: sre
+            domain: chaos-engineering
+          annotations:
+            summary: "Lag alto no consumer de chaos"
+            description: "O consumer de eventos de chaos tem {{ $value }} mensagens atrasadas."

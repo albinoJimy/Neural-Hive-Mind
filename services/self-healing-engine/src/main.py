@@ -13,10 +13,12 @@ from neural_hive_observability import (
 )
 
 from src.config.settings import get_settings
-from src.api import health, remediation
+from src.api import health, remediation, chaos
 from src.services.playbook_executor import PlaybookExecutor
 from src.services.remediation_manager import RemediationManager
 from src.clients.service_registry_client import ServiceRegistryClient
+from src.clients.execution_ticket_client import SelfHealingTicketClient
+from src.clients.orchestrator_client import OrchestratorClient
 from src.consumers.remediation_consumer import RemediationConsumer
 from src.consumers.orchestration_incident_consumer import OrchestrationIncidentConsumer
 
@@ -66,13 +68,73 @@ async def lifespan(app: FastAPI):
     await service_registry_client.initialize()
     app.state.service_registry_client = service_registry_client
 
+    # Initialize Execution Ticket Service client (fail-open)
+    logger.info("self_healing_engine.initializing_execution_ticket_client")
+    execution_ticket_client = SelfHealingTicketClient(
+        base_url=settings.execution_ticket_service_url,
+        timeout=settings.execution_ticket_service_timeout,
+        circuit_breaker_threshold=settings.execution_ticket_circuit_breaker_threshold,
+        circuit_breaker_reset_seconds=settings.execution_ticket_circuit_breaker_reset_seconds,
+    )
+    await execution_ticket_client.initialize()
+    app.state.execution_ticket_client = execution_ticket_client
+
+    # Initialize Orchestrator gRPC client (fail-open)
+    logger.info("self_healing_engine.initializing_orchestrator_client")
+    orchestrator_client = OrchestratorClient(
+        host=settings.orchestrator_grpc_host,
+        port=settings.orchestrator_grpc_port,
+        use_tls=settings.orchestrator_grpc_use_tls,
+        timeout_seconds=settings.orchestrator_grpc_timeout_seconds,
+        environment=settings.environment,
+    )
+    try:
+        await orchestrator_client.initialize()
+        app.state.orchestrator_client = orchestrator_client
+    except Exception as e:
+        logger.warning(
+            "self_healing_engine.orchestrator_client_init_failed",
+            error=str(e),
+            note="Continuing without Orchestrator integration"
+        )
+        orchestrator_client = None
+        app.state.orchestrator_client = None
+
+    # Initialize OPA client (optional, fail-open)
+    opa_client = None
+    if settings.opa_enabled:
+        logger.info("self_healing_engine.initializing_opa_client")
+        try:
+            # Import OPA client from orchestrator-dynamic module
+            # This uses the same OPA client implementation
+            from src.clients.opa_client import OPAClient as SelfHealingOPAClient
+            opa_client = SelfHealingOPAClient(settings)
+            await opa_client.initialize()
+            app.state.opa_client = opa_client
+        except ImportError:
+            logger.warning(
+                "self_healing_engine.opa_client_import_failed",
+                note="OPA client not available, continuing without OPA validation"
+            )
+        except Exception as e:
+            logger.warning(
+                "self_healing_engine.opa_client_init_failed",
+                error=str(e),
+                note="Continuing without OPA validation"
+            )
+
     # Initialize Playbook Executor
     logger.info("self_healing_engine.initializing_playbook_executor")
     playbook_executor = PlaybookExecutor(
         playbooks_dir=settings.playbooks_dir,
         k8s_in_cluster=settings.kubernetes_in_cluster,
         default_timeout_seconds=settings.playbook_timeout_seconds,
-        service_registry_client=service_registry_client
+        service_registry_client=service_registry_client,
+        execution_ticket_client=execution_ticket_client,
+        orchestrator_client=orchestrator_client,
+        opa_client=opa_client,
+        opa_enabled=settings.opa_enabled,
+        opa_fail_open=settings.opa_fail_open,
     )
     await playbook_executor.initialize()
     app.state.playbook_executor = playbook_executor
@@ -115,6 +177,35 @@ async def lifespan(app: FastAPI):
     # incident_consumer = instrument_kafka_consumer(incident_consumer)
     app.state.incident_consumer = incident_consumer
 
+    # Initialize Chaos Engine (optional)
+    if settings.chaos_enabled:
+        logger.info("self_healing_engine.initializing_chaos_engine")
+        try:
+            from src.chaos import ChaosEngine
+            chaos_engine = ChaosEngine(
+                k8s_in_cluster=settings.kubernetes_in_cluster,
+                playbook_executor=playbook_executor,
+                service_registry_client=service_registry_client,
+                opa_client=opa_client,
+                max_concurrent_experiments=settings.chaos_max_concurrent_experiments,
+                default_timeout_seconds=settings.chaos_default_timeout_seconds,
+                require_opa_approval=settings.chaos_require_opa_approval,
+                blast_radius_limit=settings.chaos_blast_radius_limit,
+            )
+            await chaos_engine.initialize()
+            app.state.chaos_engine = chaos_engine
+            logger.info("self_healing_engine.chaos_engine_initialized")
+        except Exception as e:
+            logger.warning(
+                "self_healing_engine.chaos_engine_init_failed",
+                error=str(e),
+                note="Continuando sem Chaos Engine"
+            )
+            app.state.chaos_engine = None
+    else:
+        app.state.chaos_engine = None
+        logger.info("self_healing_engine.chaos_engine_disabled")
+
     logger.info("self_healing_engine.startup_complete")
 
     yield
@@ -137,6 +228,30 @@ async def lifespan(app: FastAPI):
     if service_registry_client:
         await service_registry_client.close()
 
+    # Close Execution Ticket Service client
+    execution_ticket_client = getattr(app.state, "execution_ticket_client", None)
+    if execution_ticket_client:
+        logger.info("self_healing_engine.closing_execution_ticket_client")
+        await execution_ticket_client.close()
+
+    # Close Orchestrator gRPC client
+    orchestrator_client = getattr(app.state, "orchestrator_client", None)
+    if orchestrator_client:
+        logger.info("self_healing_engine.closing_orchestrator_client")
+        await orchestrator_client.close()
+
+    # Close OPA client
+    opa_client = getattr(app.state, "opa_client", None)
+    if opa_client:
+        logger.info("self_healing_engine.closing_opa_client")
+        await opa_client.close()
+
+    # Close Chaos Engine
+    chaos_engine = getattr(app.state, "chaos_engine", None)
+    if chaos_engine:
+        logger.info("self_healing_engine.closing_chaos_engine")
+        await chaos_engine.close()
+
     logger.info("self_healing_engine.shutdown_complete")
 
 
@@ -151,6 +266,7 @@ app = FastAPI(
 # Include routers
 app.include_router(health.router, tags=["health"])
 app.include_router(remediation.router, tags=["remediation"])
+app.include_router(chaos.router, tags=["chaos"])
 
 
 # Signal handling for graceful shutdown

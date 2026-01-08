@@ -960,6 +960,61 @@ ML_DURATION_ERROR_THRESHOLD: 0.15
 
 Ver `docs/ML_FEEDBACK_LOOP_ARCHITECTURE.md` para arquitetura completa.
 
+## API Endpoints
+
+### Workflow Query (`POST /api/v1/workflows/{workflow_id}/query`)
+
+Executa queries no workflow Temporal para consultar estado em tempo real.
+
+**Request:**
+```json
+{
+    "query_name": "get_tickets",
+    "args": []
+}
+```
+
+**Response (200 OK):**
+```json
+{
+    "workflow_id": "nhm-flow-c-corr-123",
+    "query_name": "get_tickets",
+    "result": {
+        "tickets": [
+            {
+                "ticket_id": "ticket-001",
+                "plan_id": "plan-456",
+                "task_id": "task-1",
+                "task_type": "BUILD",
+                "status": "PENDING"
+            }
+        ]
+    }
+}
+```
+
+**Queries disponíveis:**
+
+| Query | Descrição |
+|-------|-----------|
+| `get_tickets` | Lista tickets gerados pelo workflow |
+| `get_status` | Status atual do workflow (status, tickets_generated, sla_warnings) |
+
+**Códigos de Status:**
+- `200`: Query executada com sucesso
+- `404`: Workflow não encontrado
+- `503`: Temporal client não disponível
+- `500`: Erro ao executar query
+
+**Caching:** Queries de `get_tickets` são cacheadas no Redis (TTL: 5min) para reduzir carga no Temporal.
+
+**Exemplo curl:**
+```bash
+curl -X POST http://orchestrator-dynamic:8000/api/v1/workflows/nhm-flow-c-corr-123/query \
+  -H "Content-Type: application/json" \
+  -d '{"query_name": "get_tickets"}'
+```
+
 ## Schemas
 
 ### Execution Ticket (Avro)

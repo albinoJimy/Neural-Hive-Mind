@@ -147,6 +147,40 @@ class SLAMetrics:
             ["crd_type"]
         )
 
+        # Métricas de histórico de budgets
+        self.budget_history_query_duration = Histogram(
+            "sla_budget_history_query_duration_seconds",
+            "Duração das queries de histórico de budget",
+            ["aggregation", "days_range"],
+            buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
+        )
+
+        self.budget_history_queries_total = Counter(
+            "sla_budget_history_queries_total",
+            "Total de queries de histórico de budget",
+            ["aggregation", "status"]
+        )
+
+        self.budget_history_result_size = Gauge(
+            "sla_budget_history_result_size",
+            "Número de registros retornados em queries de histórico",
+            ["slo_id", "aggregation"]
+        )
+
+        # Métricas de view materializada
+        self.materialized_view_last_refresh = Gauge(
+            "materialized_view_last_refresh_timestamp",
+            "Timestamp Unix do último refresh da view materializada",
+            ["view_name"]
+        )
+
+        self.materialized_view_refresh_duration = Histogram(
+            "materialized_view_refresh_duration_seconds",
+            "Duração do refresh da view materializada",
+            ["view_name"],
+            buckets=[1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0]
+        )
+
     def record_calculation(
         self,
         slo_id: str,
@@ -306,6 +340,54 @@ class SLAMetrics:
     def record_crd_sync_error(self, crd_type: str) -> None:
         """Registra erro de sincronização de CRD."""
         self.crd_sync_errors_total.labels(crd_type=crd_type).inc()
+
+    def record_budget_history_query(
+        self,
+        aggregation: str,
+        days: int,
+        duration: float,
+        success: bool,
+        result_count: int = 0,
+        slo_id: str = ""
+    ) -> None:
+        """Registra query de histórico de budget."""
+        agg_label = aggregation or "none"
+        days_range = f"{days}d"
+        status = "success" if success else "error"
+
+        self.budget_history_query_duration.labels(
+            aggregation=agg_label,
+            days_range=days_range
+        ).observe(duration)
+
+        self.budget_history_queries_total.labels(
+            aggregation=agg_label,
+            status=status
+        ).inc()
+
+        if success and slo_id:
+            self.budget_history_result_size.labels(
+                slo_id=slo_id,
+                aggregation=agg_label
+            ).set(result_count)
+
+    def record_materialized_view_refresh(
+        self,
+        view_name: str,
+        duration: float,
+        success: bool
+    ) -> None:
+        """Registra refresh de view materializada."""
+        import time
+
+        if success:
+            self.materialized_view_last_refresh.labels(
+                view_name=view_name
+            ).set(time.time())
+
+            self.materialized_view_refresh_duration.labels(
+                view_name=view_name
+            ).observe(duration)
 
 
 # Instância global

@@ -1,5 +1,6 @@
 from functools import lru_cache
-from pydantic import Field
+from typing import Optional
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -73,14 +74,19 @@ class Settings(BaseSettings):
     SONARQUBE_URL: str = Field(default='', description='URL do SonarQube')
     SONARQUBE_TOKEN: str = Field(default='', description='Token de autenticação SonarQube')
     SONARQUBE_ENABLED: bool = Field(default=True, description='Habilitar validação SonarQube')
+    SONARQUBE_SCANNER_TIMEOUT: int = Field(default=900, description='Timeout do scanner SonarQube (segundos)')
+    SONARQUBE_POLL_INTERVAL: int = Field(default=5, description='Intervalo de polling SonarQube (segundos)')
+    SONARQUBE_POLL_TIMEOUT: int = Field(default=300, description='Timeout de polling SonarQube (segundos)')
 
     # Ferramentas Externas - Snyk
     SNYK_TOKEN: str = Field(default='', description='Token de autenticação Snyk')
     SNYK_ENABLED: bool = Field(default=True, description='Habilitar validação Snyk')
+    SNYK_TIMEOUT: int = Field(default=300, description='Timeout do scan Snyk (segundos)')
 
     # Ferramentas Externas - Trivy
     TRIVY_ENABLED: bool = Field(default=True, description='Habilitar validação Trivy')
     TRIVY_SEVERITY: str = Field(default='CRITICAL,HIGH', description='Severidades Trivy')
+    TRIVY_TIMEOUT: int = Field(default=600, description='Timeout do scan Trivy (segundos)')
 
     # Ferramentas Externas - GitLab
     GITLAB_URL: str = Field(default='https://gitlab.com', description='URL do GitLab')
@@ -105,7 +111,9 @@ class Settings(BaseSettings):
     MIN_TEST_COVERAGE: float = Field(default=0.8, description='Cobertura mínima de testes')
 
     # Observability - OpenTelemetry
-    OTEL_EXPORTER_ENDPOINT: str = Field(default='http://otel-collector:4317', description='Endpoint OpenTelemetry')
+    OTEL_EXPORTER_ENDPOINT: str = Field(default='https://opentelemetry-collector.observability.svc.cluster.local:4317', description='Endpoint OpenTelemetry')
+    OTEL_TLS_VERIFY: bool = Field(default=True, description='Verificar certificado TLS do OTEL Collector')
+    OTEL_CA_BUNDLE: Optional[str] = Field(default=None, description='Caminho para CA bundle do OTEL Collector')
     OTEL_SERVICE_NAME: str = Field(default='code-forge', description='Nome do serviço OpenTelemetry')
 
     # Observability - Prometheus
@@ -141,6 +149,33 @@ class Settings(BaseSettings):
     @property
     def ANALYST_AGENTS_URL(self) -> str:
         return f'http://{self.ANALYST_AGENTS_HOST}:{self.ANALYST_AGENTS_PORT}'
+
+    # Ambiente
+    ENVIRONMENT: str = Field(default='development', description='Ambiente de execução')
+
+    @model_validator(mode='after')
+    def validate_https_in_production(self) -> 'Settings':
+        """
+        Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
+        Endpoints verificados: OTEL Collector.
+        """
+        is_prod_staging = self.ENVIRONMENT.lower() in ('production', 'staging', 'prod')
+        if not is_prod_staging:
+            return self
+
+        # Endpoints criticos que devem usar HTTPS em producao
+        http_endpoints = []
+        if self.OTEL_EXPORTER_ENDPOINT.startswith('http://'):
+            http_endpoints.append(('OTEL_EXPORTER_ENDPOINT', self.OTEL_EXPORTER_ENDPOINT))
+
+        if http_endpoints:
+            endpoint_list = ', '.join(f'{name}={url}' for name, url in http_endpoints)
+            raise ValueError(
+                f"Endpoints HTTP inseguros detectados em ambiente {self.ENVIRONMENT}: {endpoint_list}. "
+                "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+            )
+
+        return self
 
     class Config:
         env_file = '.env'

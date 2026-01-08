@@ -151,6 +151,26 @@ istio:
   mtls:
     mode: PERMISSIVE
 
+# SPIFFE/SPIRE - Identidade de Workload e mTLS
+spiffe:
+  enabled: false
+  enableX509: false
+  socketPath: "unix:///run/spire/sockets/agent.sock"
+  trustDomain: "neural-hive.local"
+  jwtAudience: "neural-hive.local"
+  jwtTtlSeconds: 3600
+  # Volume mount para socket do SPIRE Agent
+  volumeMount:
+    name: spire-agent-socket
+    mountPath: /run/spire/sockets
+    readOnly: true
+  # Volume para socket do SPIRE Agent
+  volume:
+    name: spire-agent-socket
+    hostPath:
+      path: /run/spire/sockets
+      type: DirectoryOrCreate
+
 # Network Policy
 networkPolicy:
   enabled: true

@@ -1,0 +1,181 @@
+name: Online Learning Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      specialist_type:
+        description: 'Tipo de especialista (all, feasibility, risk, cost, technical, security)'
+        required: false
+        default: 'all'
+        type: string
+      action:
+        description: 'Acao a executar'
+        required: true
+        type: choice
+        options:
+          - update
+          - validate
+          - rollback
+          - status
+      force:
+        description: 'Forcar atualizacao mesmo sem dados suficientes'
+        required: false
+        default: false
+        type: boolean
+      rollback_reason:
+        description: 'Motivo do rollback (obrigatorio para action=rollback)'
+        required: false
+        type: string
+
+  schedule:
+    # Executar a cada 6 horas para validacao de health
+    - cron: '0 */6 * * *'
+
+jobs:
+  online-learning-action:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ml_pipelines/requirements.txt
+
+      - name: Configurar credenciais
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          echo "MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}" >> $GITHUB_ENV
+          echo "MONGODB_URI=${MONGODB_URI}" >> $GITHUB_ENV
+
+      - name: Executar Online Learning Update
+        if: github.event.inputs.action == 'update' || github.event_name == 'schedule'
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          ONLINE_LEARNING_ENABLED: 'true'
+        run: |
+          FORCE_FLAG=""
+          if [ "${{ github.event.inputs.force }}" == "true" ]; then
+            FORCE_FLAG="--force"
+          fi
+
+          python -m ml_pipelines.online_learning.cli update \
+            --specialist-types "${{ github.event.inputs.specialist_type || 'all' }}" \
+            $FORCE_FLAG \
+            --verbose
+
+      - name: Executar Shadow Validation
+        if: github.event.inputs.action == 'validate'
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          python -m ml_pipelines.online_learning.cli validate \
+            --specialist-type "${{ github.event.inputs.specialist_type }}" \
+            --samples 100
+
+      - name: Executar Rollback
+        if: github.event.inputs.action == 'rollback'
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          if [ -z "${{ github.event.inputs.rollback_reason }}" ]; then
+            echo "Erro: rollback_reason e obrigatorio para action=rollback"
+            exit 1
+          fi
+
+          python -m ml_pipelines.online_learning.cli rollback \
+            --specialist-type "${{ github.event.inputs.specialist_type }}" \
+            --reason "${{ github.event.inputs.rollback_reason }}" \
+            --verbose
+
+      - name: Mostrar Status
+        if: github.event.inputs.action == 'status'
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          python -m ml_pipelines.online_learning.cli status --json
+
+      - name: Notificar Slack em caso de falha
+        if: failure()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "channel": "#ml-alerts",
+              "text": "Online Learning Pipeline falhou",
+              "attachments": [
+                {
+                  "color": "danger",
+                  "fields": [
+                    {
+                      "title": "Acao",
+                      "value": "${{ github.event.inputs.action || 'scheduled update' }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Specialist",
+                      "value": "${{ github.event.inputs.specialist_type || 'all' }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Run",
+                      "value": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Ver logs>",
+                      "short": false
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+  test-online-learning:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'update'
+
+    steps:
+      - name: Checkout codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Instalar dependencias de teste
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ml_pipelines/requirements.txt
+          pip install pytest pytest-asyncio pytest-cov
+
+      - name: Executar testes de online learning
+        run: |
+          pytest ml_pipelines/online_learning/tests/ \
+            -v \
+            --cov=ml_pipelines/online_learning \
+            --cov-report=xml \
+            --cov-report=term
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          flags: online-learning
+          name: online-learning-coverage

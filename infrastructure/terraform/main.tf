@@ -226,6 +226,26 @@ module "neo4j_cluster" {
   depends_on = [module.k8s-cluster]
 }
 
+# Módulo Artifacts Storage
+# Bucket S3 para SBOMs e artefatos do Code Forge
+module "artifacts_storage" {
+  source = "./modules/artifacts-storage"
+
+  cluster_name              = var.cluster_name
+  environment               = var.environment
+  enable_versioning         = true
+  lifecycle_glacier_days    = 90
+  lifecycle_expiration_days = 365
+
+  # OIDC provider para IRSA
+  oidc_provider_arn = module.k8s-cluster.oidc_provider_arn
+  oidc_provider_url = module.k8s-cluster.oidc_issuer_url
+
+  tags = local.common_tags
+
+  depends_on = [module.k8s-cluster]
+}
+
 # Módulo ClickHouse Cluster
 # Analytics histórico (18 meses de retenção)
 module "clickhouse_cluster" {

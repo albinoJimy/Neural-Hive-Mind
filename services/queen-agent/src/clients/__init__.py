@@ -5,6 +5,7 @@ from .prometheus_client import PrometheusClient
 from .orchestrator_client import OrchestratorClient
 from .service_registry_client import ServiceRegistryClient
 from .pheromone_client import PheromoneClient
+from .opa_client import OPAClient
 
 __all__ = [
     'MongoDBClient',
@@ -13,5 +14,6 @@ __all__ = [
     'PrometheusClient',
     'OrchestratorClient',
     'ServiceRegistryClient',
-    'PheromoneClient'
+    'PheromoneClient',
+    'OPAClient'
 ]

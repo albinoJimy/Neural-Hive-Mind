@@ -7,12 +7,17 @@ import hmac
 import hashlib
 import os
 import json
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, Header, Request
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from prometheus_client import Counter
 
 from neural_hive_integration import ExecutionTicketClient
+
+from ..clients.mongodb_client import MongoDBClient
+from ..clients.postgres_client import PostgresClient
+from ..models.artifact import PipelineResult, PipelineStatus
 
 logger = structlog.get_logger()
 
@@ -67,8 +72,23 @@ class PipelineCompletedPayload(BaseModel):
 class WebhookHandler:
     """Handler para webhooks de pipelines."""
 
-    def __init__(self, webhook_secret: Optional[str] = None):
+    def __init__(
+        self,
+        webhook_secret: Optional[str] = None,
+        mongodb_client: Optional[MongoDBClient] = None,
+        postgres_client: Optional[PostgresClient] = None
+    ):
+        """
+        Inicializa o handler de webhooks.
+
+        Args:
+            webhook_secret: Secret para validação HMAC de webhooks
+            mongodb_client: Cliente MongoDB para salvar logs detalhados
+            postgres_client: Cliente PostgreSQL para salvar metadados de pipeline
+        """
         self.ticket_client = ExecutionTicketClient()
+        self.mongodb_client = mongodb_client
+        self.postgres_client = postgres_client
         self.logger = logger.bind(component="webhook_handler")
         # Obter secret do ambiente ou usar parâmetro
         self.webhook_secret = webhook_secret or os.getenv("WEBHOOK_SECRET", "")
@@ -200,8 +220,61 @@ class WebhookHandler:
                     error=str(e),
                 )
 
-        # Publicar evento em telemetria
-        # TODO: Integrar com FlowCTelemetryPublisher
+        # Persistir logs detalhados no MongoDB
+        if self.mongodb_client and payload.logs_url:
+            try:
+                logs_data = [
+                    {
+                        "pipeline_id": payload.pipeline_id,
+                        "status": payload.status,
+                        "duration_ms": payload.duration_ms,
+                        "artifacts_count": len(payload.artifacts),
+                        "logs_url": payload.logs_url,
+                        "metadata": payload.metadata,
+                    }
+                ]
+                await self.mongodb_client.save_pipeline_logs(payload.pipeline_id, logs_data)
+                self.logger.debug("pipeline_logs_saved_to_mongodb", pipeline_id=payload.pipeline_id)
+            except Exception as e:
+                self.logger.warning("mongodb_save_logs_failed", pipeline_id=payload.pipeline_id, error=str(e))
+
+        # Persistir resultado do pipeline no PostgreSQL
+        if self.postgres_client:
+            try:
+                # Mapeia status do webhook para PipelineStatus
+                status_map = {
+                    "completed": PipelineStatus.COMPLETED,
+                    "failed": PipelineStatus.FAILED,
+                    "cancelled": PipelineStatus.FAILED,
+                }
+                pipeline_status = status_map.get(payload.status, PipelineStatus.FAILED)
+
+                pipeline_result = PipelineResult(
+                    pipeline_id=payload.pipeline_id,
+                    ticket_id=payload.ticket_id or "",
+                    plan_id=payload.metadata.get("plan_id", ""),
+                    intent_id=payload.metadata.get("intent_id", ""),
+                    decision_id=payload.metadata.get("decision_id", ""),
+                    correlation_id=payload.metadata.get("correlation_id"),
+                    trace_id=payload.metadata.get("trace_id"),
+                    span_id=payload.metadata.get("span_id"),
+                    status=pipeline_status,
+                    artifacts=[],  # Artefatos não são persistidos neste contexto
+                    pipeline_stages=[],
+                    total_duration_ms=payload.duration_ms,
+                    approval_required=False,
+                    approval_reason=None,
+                    error_message=None if payload.status == "completed" else payload.metadata.get("error_message"),
+                    git_mr_url=payload.metadata.get("git_mr_url"),
+                    metadata={k: str(v) for k, v in payload.metadata.items()},
+                    created_at=datetime.utcnow(),
+                    completed_at=datetime.utcnow(),
+                )
+
+                await self.postgres_client.save_pipeline(pipeline_result)
+                self.logger.debug("pipeline_result_saved_to_postgres", pipeline_id=payload.pipeline_id)
+            except Exception as e:
+                self.logger.warning("postgres_save_pipeline_failed", pipeline_id=payload.pipeline_id, error=str(e))
 
         return {
             "status": "processed",

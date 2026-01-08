@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: online-learning-config
+  namespace: mlflow
+  labels:
+    app: neural-hive
+    component: online-learning
+    layer: ml-ops
+data:
+  # Configuracoes de Incremental Learning
+  online-learning-enabled: "true"
+  incremental-algorithm: "sgd"
+  mini-batch-size: "32"
+  learning-rate: "0.01"
+  regularization-alpha: "0.0001"
+
+  # Configuracoes de Shadow Validation
+  shadow-validation-enabled: "true"
+  shadow-accuracy-threshold: "0.02"
+  shadow-max-latency-ratio: "1.5"
+  shadow-max-kl-divergence: "0.1"
+  shadow-min-samples: "100"
+
+  # Configuracoes de Rollback
+  rollback-enabled: "true"
+  rollback-f1-drop-threshold: "0.05"
+  rollback-accuracy-drop-threshold: "0.03"
+  rollback-latency-increase-threshold: "1.5"
+  max-versions-to-keep: "10"
+
+  # Configuracoes de Deployment
+  rollout-stages: "0.1,0.5,1.0"
+  rollout-stage-duration-minutes: "60"
+  deployment-approval-required: "false"
+
+  # Configuracoes de Ensemble
+  ensemble-strategy: "weighted_average"
+  batch-model-weight: "0.7"
+  online-model-weight: "0.3"
+  dynamic-routing-enabled: "false"
+
+  # Configuracoes de Monitoring
+  convergence-window-size: "100"
+  convergence-rate-threshold: "0.01"
+  prediction-stability-window: "1000"
+  prediction-stability-threshold: "0.1"
+  memory-growth-threshold-mb: "100"
+
+  # Paths
+  online-checkpoint-path: "/data/online_learning/checkpoints"
+  feedback-data-path: "/data/feedback"
+
+  # Specialist Types
+  enabled-specialists: "feasibility,risk,cost,technical,security"

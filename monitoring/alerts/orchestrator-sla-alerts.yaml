@@ -57,7 +57,7 @@ data:
       rules:
       - alert: OrchestratorBudgetCritical
         expr: |
-          orchestration_sla_budget_remaining_percent < 20
+          orchestration_sla_budget_remaining_percent < 0.2
         for: 5m
         labels:
           severity: warning
@@ -65,7 +65,7 @@ data:
           layer: orchestration
         annotations:
           summary: "Error budget crítico para {{ $labels.service_name }}"
-          description: "Budget restante é {{ $value }}% para SLO {{ $labels.slo_id }}."
+          description: "Budget restante é {{ $value | humanizePercentage }} para SLO {{ $labels.slo_id }}."
           runbook_url: "https://docs.neural-hive.io/runbooks/budget-critical"
           dashboard_url: "https://grafana.neural-hive.io/d/sla-management-system"
 
@@ -97,7 +97,7 @@ data:
 
       - alert: OrchestratorBudgetWarning
         expr: |
-          orchestration_sla_budget_remaining_percent < 50 and orchestration_sla_budget_remaining_percent >= 20
+          orchestration_sla_budget_remaining_percent < 0.5 and orchestration_sla_budget_remaining_percent >= 0.2
         for: 10m
         labels:
           severity: info
@@ -105,7 +105,7 @@ data:
           layer: orchestration
         annotations:
           summary: "Error budget em nível de atenção para {{ $labels.service_name }}"
-          description: "Budget restante é {{ $value }}% para SLO {{ $labels.slo_id }}. Monitorar de perto."
+          description: "Budget restante é {{ $value | humanizePercentage }} para SLO {{ $labels.slo_id }}. Monitorar de perto."
           runbook_url: "https://docs.neural-hive.io/runbooks/budget-warning"
 
     - name: orchestrator-sla-monitoring

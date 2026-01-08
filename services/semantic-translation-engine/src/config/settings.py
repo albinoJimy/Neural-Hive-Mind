@@ -5,7 +5,7 @@ Manages all configuration using Pydantic Settings with environment variable supp
 """
 
 from typing import List, Optional
-from pydantic import Field, validator
+from pydantic import Field, validator, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -92,9 +92,11 @@ class Settings(BaseSettings):
 
     # Observability configuration
     otel_endpoint: str = Field(
-        default='http://opentelemetry-collector.observability.svc.cluster.local:4317',
+        default='https://opentelemetry-collector.observability.svc.cluster.local:4317',
         description='OpenTelemetry endpoint'
     )
+    otel_tls_verify: bool = Field(default=True, description='Verificar certificado TLS do OTEL Collector')
+    otel_ca_bundle: Optional[str] = Field(default=None, description='Caminho para CA bundle do OTEL Collector')
     prometheus_port: int = Field(default=8000, description='Prometheus metrics port')
     jaeger_sampling_rate: float = Field(default=1.0, description='Jaeger sampling rate')
 
@@ -110,6 +112,14 @@ class Settings(BaseSettings):
     ledger_enabled: bool = Field(default=True, description='Enable Ledger')
     explainability_enabled: bool = Field(default=True, description='Enable Explainability')
     circuit_breaker_enabled: bool = Field(default=True, description='Enable Circuit Breaker')
+
+    # NLP Configuration
+    nlp_enabled: bool = Field(default=True, description='Habilita processamento NLP')
+    nlp_cache_enabled: bool = Field(default=True, description='Habilita cache de resultados NLP')
+    nlp_cache_ttl_seconds: int = Field(default=600, description='TTL do cache NLP em segundos')
+    nlp_model_pt: str = Field(default='pt_core_news_sm', description='Modelo spaCy português')
+    nlp_model_en: str = Field(default='en_core_web_sm', description='Modelo spaCy inglês')
+    nlp_max_keywords: int = Field(default=10, description='Máximo de keywords a extrair')
 
     @validator('kafka_topics', pre=True)
     def parse_topics(cls, v):
@@ -147,6 +157,30 @@ class Settings(BaseSettings):
         if values.get('environment') == 'production' and v == 'PLAINTEXT':
             raise ValueError('Production environment requires encrypted Kafka connection')
         return v
+
+    @model_validator(mode='after')
+    def validate_https_in_production(self) -> 'Settings':
+        """
+        Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
+        Endpoints verificados: OTEL Collector.
+        """
+        is_prod_staging = self.environment.lower() in ('production', 'staging', 'prod')
+        if not is_prod_staging:
+            return self
+
+        # Endpoints criticos que devem usar HTTPS em producao
+        http_endpoints = []
+        if self.otel_endpoint.startswith('http://'):
+            http_endpoints.append(('otel_endpoint', self.otel_endpoint))
+
+        if http_endpoints:
+            endpoint_list = ', '.join(f'{name}={url}' for name, url in http_endpoints)
+            raise ValueError(
+                f"Endpoints HTTP inseguros detectados em ambiente {self.environment}: {endpoint_list}. "
+                "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+            )
+
+        return self
 
     class Config:
         env_file = '.env'

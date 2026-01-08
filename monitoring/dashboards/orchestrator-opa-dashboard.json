@@ -303,6 +303,94 @@
           }
         ],
         "gridPos": {"h": 6, "w": 12, "x": 6, "y": 48}
+      },
+      {
+        "id": 17,
+        "title": "OPA Cache Hit Ratio",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "orchestration_opa_cache_hit_ratio",
+            "legendFormat": "Hit Ratio"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 0.5, "color": "yellow"},
+                {"value": 0.8, "color": "green"}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0}
+      },
+      {
+        "id": 18,
+        "title": "Policy Decision Duration (P95 por Policy Path)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(orchestration_opa_policy_decision_duration_seconds_bucket[5m])) by (le, policy_path))",
+            "legendFormat": "{{policy_path}} P95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(orchestration_opa_policy_decision_duration_seconds_bucket[5m])) by (le, policy_path))",
+            "legendFormat": "{{policy_path}} P99"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Latency"}
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 54}
+      },
+      {
+        "id": 19,
+        "title": "Circuit Breaker Transitions",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(orchestration_opa_circuit_breaker_transitions_total[5m])) by (from_state, to_state)",
+            "legendFormat": "{{from_state}} -> {{to_state}}"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Transitions/s"}
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 54}
+      },
+      {
+        "id": 20,
+        "title": "Batch Evaluation Size Distribution",
+        "type": "heatmap",
+        "targets": [
+          {
+            "expr": "sum(increase(orchestration_opa_batch_evaluation_size_bucket[5m])) by (le)",
+            "legendFormat": "{{le}}",
+            "format": "heatmap"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 62}
+      },
+      {
+        "id": 21,
+        "title": "Violation Rate by Rule (Top 10)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "topk(10, sum(rate(orchestration_opa_policy_violation_rate_total[5m])) by (policy_name, rule))",
+            "legendFormat": "{{policy_name}}/{{rule}}"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Violations/s"}
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 62}
       }
     ],
     "refresh": "30s",

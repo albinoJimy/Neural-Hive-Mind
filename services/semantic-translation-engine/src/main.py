@@ -28,6 +28,7 @@ from src.services.dag_generator import DAGGenerator
 from src.services.risk_scorer import RiskScorer
 from src.services.explainability_generator import ExplainabilityGenerator
 from src.services.orchestrator import SemanticTranslationOrchestrator
+from src.services.nlp_processor import NLPProcessor
 from src.observability.metrics import register_metrics
 
 # Configure structured logging
@@ -77,6 +78,32 @@ async def lifespan(app: FastAPI):
         await redis_client.initialize()
         state['redis'] = redis_client
 
+        # Initialize NLP Processor
+        nlp_processor = None
+        if settings.nlp_enabled:
+            try:
+                nlp_processor = NLPProcessor(
+                    redis_client=redis_client,
+                    cache_enabled=settings.nlp_cache_enabled,
+                    cache_ttl_seconds=settings.nlp_cache_ttl_seconds,
+                    model_pt=settings.nlp_model_pt,
+                    model_en=settings.nlp_model_en
+                )
+                await nlp_processor.initialize()
+                state['nlp_processor'] = nlp_processor
+                logger.info(
+                    'NLP Processor inicializado',
+                    cache_enabled=settings.nlp_cache_enabled,
+                    cache_ttl=settings.nlp_cache_ttl_seconds,
+                    model_pt=settings.nlp_model_pt,
+                    model_en=settings.nlp_model_en
+                )
+            except Exception as e:
+                logger.warning(
+                    'NLP Processor não inicializado, usando fallback heurístico',
+                    error=str(e)
+                )
+
         # Initialize Kafka producer
         plan_producer = KafkaPlanProducer(settings)
         await plan_producer.initialize()
@@ -86,7 +113,15 @@ async def lifespan(app: FastAPI):
         # Initialize services
         logger.info("Initializing processing services...")
 
-        semantic_parser = SemanticParser(neo4j_client, mongodb_client, redis_client)
+        # Passar nlp_processor para Neo4jClient
+        neo4j_client.nlp_processor = nlp_processor
+
+        semantic_parser = SemanticParser(
+            neo4j_client,
+            mongodb_client,
+            redis_client,
+            nlp_processor=nlp_processor
+        )
         dag_generator = DAGGenerator()
         risk_scorer = RiskScorer(settings)
         explainability_generator = ExplainabilityGenerator(mongodb_client)
@@ -192,7 +227,8 @@ async def readiness_check():
         "kafka_producer": False,
         "neo4j": False,
         "mongodb": False,
-        "redis": False
+        "redis": False,
+        "nlp_processor": False
     }
 
     try:
@@ -241,6 +277,14 @@ async def readiness_check():
                     logger.warning("Kafka consumer has no topic assignments yet")
             except Exception as e:
                 logger.warning("Kafka consumer check failed", error=str(e))
+
+        # Check NLP Processor
+        if 'nlp_processor' in state:
+            checks['nlp_processor'] = state['nlp_processor'].is_ready()
+        else:
+            # NLP é opcional, marcar como ready se não estiver habilitado
+            settings = get_settings()
+            checks['nlp_processor'] = not settings.nlp_enabled
 
         all_ready = all(checks.values())
 

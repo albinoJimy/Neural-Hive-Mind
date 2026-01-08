@@ -1,5 +1,6 @@
 """Testes unitários para MCPServerClient."""
 import asyncio
+import json
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -483,7 +484,7 @@ class TestStdioTransport:
     def test_stdio_transport_accepted_in_init(self):
         """Verificar que transporte stdio é aceito na inicialização."""
         client = MCPServerClient(
-            server_url="stdio://test",
+            server_url="stdio:///usr/bin/mcp-server",
             transport="stdio",
         )
         assert client.transport == "stdio"
@@ -499,29 +500,297 @@ class TestStdioTransport:
         assert "suportado" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
-    async def test_stdio_transport_raises_not_implemented(self):
-        """Verificar que requisição com transporte stdio lança NotImplementedError."""
+    async def test_empty_server_url_raises_valueerror(self):
+        """Verificar que server_url vazio para stdio lança ValueError."""
         client = MCPServerClient(
-            server_url="stdio://test",
+            server_url="stdio://",
             transport="stdio",
         )
-
-        async with client:
-            with pytest.raises(NotImplementedError) as exc_info:
-                await client.list_tools()
-
-        assert "stdio" in str(exc_info.value).lower()
+        with pytest.raises(ValueError) as exc_info:
+            await client.start()
+        assert "caminho do executável" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
-    async def test_stdio_call_tool_raises_not_implemented(self):
-        """Verificar que call_tool com transporte stdio lança NotImplementedError."""
-        client = MCPServerClient(
-            server_url="stdio://test",
-            transport="stdio",
-        )
+    async def test_stdio_subprocess_lifecycle(self):
+        """Verificar ciclo de vida do subprocess."""
+        # Mock subprocess
+        mock_process = MagicMock()
+        mock_process.pid = 12345
+        mock_process.returncode = None
+        mock_process.stdin = MagicMock()
+        mock_process.stdin.close = MagicMock()
+        mock_process.stdin.wait_closed = AsyncMock()
+        mock_process.stdout = MagicMock()
+        mock_process.stderr = MagicMock()
+        mock_process.stderr.readline = AsyncMock(return_value=b"")
+        mock_process.wait = AsyncMock(return_value=0)
 
-        async with client:
-            with pytest.raises(NotImplementedError) as exc_info:
-                await client.call_tool("test_tool", {"arg": "value"})
+        with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process):
+            client = MCPServerClient(
+                server_url="stdio:///usr/bin/test-server",
+                transport="stdio",
+            )
 
-        assert "stdio" in str(exc_info.value).lower()
+            await client.start()
+            assert client._process is not None
+            assert client._process.pid == 12345
+
+            await client.stop()
+            assert client._process is None
+
+    @pytest.mark.asyncio
+    async def test_stdio_list_tools_success(self):
+        """Mock subprocess com resposta válida para list_tools."""
+        # Mock subprocess
+        mock_process = MagicMock()
+        mock_process.pid = 12345
+        mock_process.returncode = None
+
+        # Mock stdin
+        mock_stdin = MagicMock()
+        mock_stdin.write = MagicMock()
+        mock_stdin.drain = AsyncMock()
+        mock_stdin.close = MagicMock()
+        mock_stdin.wait_closed = AsyncMock()
+
+        # Mock stdout com resposta JSON-RPC válida
+        response_json = json.dumps({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {
+                "tools": [
+                    {
+                        "name": "test_tool",
+                        "description": "Test tool",
+                        "inputSchema": {"type": "object"},
+                    }
+                ]
+            },
+        }) + "\n"
+        mock_stdout = MagicMock()
+        mock_stdout.readline = AsyncMock(return_value=response_json.encode("utf-8"))
+
+        # Mock stderr
+        mock_stderr = MagicMock()
+        mock_stderr.readline = AsyncMock(return_value=b"")
+
+        mock_process.stdin = mock_stdin
+        mock_process.stdout = mock_stdout
+        mock_process.stderr = mock_stderr
+        mock_process.wait = AsyncMock(return_value=0)
+
+        with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process):
+            client = MCPServerClient(
+                server_url="stdio:///usr/bin/test-server",
+                transport="stdio",
+            )
+
+            async with client:
+                tools = await client.list_tools()
+
+            assert len(tools) == 1
+            assert tools[0].name == "test_tool"
+
+    @pytest.mark.asyncio
+    async def test_stdio_call_tool_success(self):
+        """Mock subprocess com resposta válida para call_tool."""
+        mock_process = MagicMock()
+        mock_process.pid = 12345
+        mock_process.returncode = None
+
+        mock_stdin = MagicMock()
+        mock_stdin.write = MagicMock()
+        mock_stdin.drain = AsyncMock()
+        mock_stdin.close = MagicMock()
+        mock_stdin.wait_closed = AsyncMock()
+
+        response_json = json.dumps({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {
+                "content": [{"type": "text", "text": "Execution result"}],
+                "isError": False,
+            },
+        }) + "\n"
+        mock_stdout = MagicMock()
+        mock_stdout.readline = AsyncMock(return_value=response_json.encode("utf-8"))
+
+        mock_stderr = MagicMock()
+        mock_stderr.readline = AsyncMock(return_value=b"")
+
+        mock_process.stdin = mock_stdin
+        mock_process.stdout = mock_stdout
+        mock_process.stderr = mock_stderr
+        mock_process.wait = AsyncMock(return_value=0)
+
+        with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process):
+            client = MCPServerClient(
+                server_url="stdio:///usr/bin/test-server",
+                transport="stdio",
+            )
+
+            async with client:
+                result = await client.call_tool("test_tool", {"arg": "value"})
+
+            assert result.isError is False
+            assert len(result.content) == 1
+            assert result.content[0].text == "Execution result"
+
+    @pytest.mark.asyncio
+    async def test_stdio_subprocess_terminated_raises_error(self):
+        """Verificar erro quando subprocess termina inesperadamente."""
+        mock_process = MagicMock()
+        mock_process.pid = 12345
+        mock_process.returncode = 1  # Processo terminou
+
+        mock_stdin = MagicMock()
+        mock_stdin.write = MagicMock()
+        mock_stdin.drain = AsyncMock()
+        mock_stdin.close = MagicMock()
+        mock_stdin.wait_closed = AsyncMock()
+
+        mock_stdout = MagicMock()
+        mock_stdout.readline = AsyncMock(return_value=b"")  # EOF
+
+        mock_stderr = MagicMock()
+        mock_stderr.readline = AsyncMock(return_value=b"")
+
+        mock_process.stdin = mock_stdin
+        mock_process.stdout = mock_stdout
+        mock_process.stderr = mock_stderr
+        mock_process.wait = AsyncMock(return_value=1)
+
+        with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process):
+            client = MCPServerClient(
+                server_url="stdio:///usr/bin/test-server",
+                transport="stdio",
+                max_retries=1,
+            )
+
+            await client.start()
+            with patch("asyncio.sleep", new_callable=AsyncMock):
+                with pytest.raises(MCPTransportError) as exc_info:
+                    await client.list_tools()
+
+            assert "terminated" in str(exc_info.value.message).lower()
+
+    @pytest.mark.asyncio
+    async def test_stdio_timeout_raises_error(self):
+        """Verificar timeout em requisição stdio."""
+        mock_process = MagicMock()
+        mock_process.pid = 12345
+        mock_process.returncode = None
+
+        mock_stdin = MagicMock()
+        mock_stdin.write = MagicMock()
+        mock_stdin.drain = AsyncMock()
+        mock_stdin.close = MagicMock()
+        mock_stdin.wait_closed = AsyncMock()
+
+        mock_stdout = MagicMock()
+        mock_stdout.readline = AsyncMock(side_effect=asyncio.TimeoutError())
+
+        mock_stderr = MagicMock()
+        mock_stderr.readline = AsyncMock(return_value=b"")
+
+        mock_process.stdin = mock_stdin
+        mock_process.stdout = mock_stdout
+        mock_process.stderr = mock_stderr
+        mock_process.wait = AsyncMock(return_value=0)
+
+        with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process):
+            # Patch asyncio.wait_for para simular timeout
+            original_wait_for = asyncio.wait_for
+
+            async def mock_wait_for(coro, timeout):
+                raise asyncio.TimeoutError()
+
+            with patch("asyncio.wait_for", side_effect=mock_wait_for):
+                client = MCPServerClient(
+                    server_url="stdio:///usr/bin/test-server",
+                    transport="stdio",
+                    timeout_seconds=1,
+                    max_retries=1,
+                )
+
+                await client.start()
+                with patch("asyncio.sleep", new_callable=AsyncMock):
+                    with pytest.raises(MCPTransportError) as exc_info:
+                        await client.list_tools()
+
+                assert "timeout" in str(exc_info.value.message).lower()
+
+    @pytest.mark.asyncio
+    async def test_stdio_invalid_json_raises_protocol_error(self):
+        """Verificar erro quando resposta não é JSON válido."""
+        mock_process = MagicMock()
+        mock_process.pid = 12345
+        mock_process.returncode = None
+
+        mock_stdin = MagicMock()
+        mock_stdin.write = MagicMock()
+        mock_stdin.drain = AsyncMock()
+        mock_stdin.close = MagicMock()
+        mock_stdin.wait_closed = AsyncMock()
+
+        mock_stdout = MagicMock()
+        mock_stdout.readline = AsyncMock(return_value=b"not valid json\n")
+
+        mock_stderr = MagicMock()
+        mock_stderr.readline = AsyncMock(return_value=b"")
+
+        mock_process.stdin = mock_stdin
+        mock_process.stdout = mock_stdout
+        mock_process.stderr = mock_stderr
+        mock_process.wait = AsyncMock(return_value=0)
+
+        with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process):
+            client = MCPServerClient(
+                server_url="stdio:///usr/bin/test-server",
+                transport="stdio",
+            )
+
+            async with client:
+                with pytest.raises(MCPProtocolError) as exc_info:
+                    await client.list_tools()
+
+            assert "Invalid JSON" in str(exc_info.value.message)
+
+    @pytest.mark.asyncio
+    async def test_stdio_circuit_breaker_opens(self):
+        """Verificar que circuit breaker abre após falhas consecutivas."""
+        mock_process = MagicMock()
+        mock_process.pid = 12345
+        mock_process.returncode = None
+
+        mock_stdin = MagicMock()
+        mock_stdin.write = MagicMock()
+        mock_stdin.drain = AsyncMock()
+        mock_stdin.close = MagicMock()
+        mock_stdin.wait_closed = AsyncMock()
+
+        mock_stdout = MagicMock()
+        mock_stdout.readline = AsyncMock(return_value=b"")  # EOF - simula falha
+
+        mock_stderr = MagicMock()
+        mock_stderr.readline = AsyncMock(return_value=b"")
+
+        mock_process.stdin = mock_stdin
+        mock_process.stdout = mock_stdout
+        mock_process.stderr = mock_stderr
+        mock_process.wait = AsyncMock(return_value=0)
+
+        with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process):
+            client = MCPServerClient(
+                server_url="stdio:///usr/bin/test-server",
+                transport="stdio",
+                max_retries=3,
+                circuit_breaker_threshold=3,
+            )
+
+            await client.start()
+            with patch("asyncio.sleep", new_callable=AsyncMock):
+                with pytest.raises(MCPTransportError):
+                    await client.list_tools()
+
+            assert client._circuit_breaker_open_until is not None

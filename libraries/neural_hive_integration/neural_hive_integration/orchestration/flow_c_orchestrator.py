@@ -37,6 +37,25 @@ flow_c_steps_duration = Histogram(
 flow_c_success = Counter("neural_hive_flow_c_success_total", "Flow C successful executions")
 flow_c_failures = Counter("neural_hive_flow_c_failures_total", "Flow C failed executions", ["reason"])
 flow_c_sla_violations = Counter("neural_hive_flow_c_sla_violations_total", "Flow C SLA violations")
+flow_c_workflow_query_duration = Histogram(
+    "neural_hive_flow_c_workflow_query_duration_seconds",
+    "Duration of workflow state queries",
+    ["query_name"],
+)
+flow_c_workflow_query_failures = Counter(
+    "neural_hive_flow_c_workflow_query_failures_total",
+    "Failed workflow state queries",
+    ["query_name", "reason"],
+)
+flow_c_ticket_validation_failures = Counter(
+    "neural_hive_flow_c_ticket_validation_failures_total",
+    "Ticket schema validation failures",
+)
+flow_c_ticket_schema_version = Counter(
+    "neural_hive_flow_c_ticket_schema_version_total",
+    "Ticket schema versions processed",
+    ["schema_version"],
+)
 
 
 class FlowCOrchestrator:
@@ -301,41 +320,295 @@ class FlowCOrchestrator:
                 sla_deadline_seconds=14400,
             )
 
-            # Wait for ticket generation (simulated)
+            # Aguardar geração de tickets pelo workflow
             await asyncio.sleep(2)
 
-            # Query workflow for tickets
-            tickets = []
-            # TODO: Get actual tickets from workflow state
-            # For now, extract from cognitive_plan if available
-            cognitive_plan = decision.get("cognitive_plan", {})
-            tasks = cognitive_plan.get("tasks", [])
-
-            if not tasks:
-                # Fallback: criar ticket genérico
-                tasks = [{"type": "code_generation", "description": "Generate code based on plan"}]
-
-            for i, task in enumerate(tasks):
-                ticket_data = {
-                    "plan_id": context.plan_id,
-                    "task_type": task.get("type", "code_generation"),
-                    "required_capabilities": task.get("capabilities", ["python", "fastapi"]),
-                    "payload": {
-                        "template_id": task.get("template_id", "default_template"),
-                        "parameters": task.get("parameters", {}),
-                        "description": task.get("description", ""),
-                    },
-                    "sla_deadline": context.sla_deadline.isoformat(),
-                    "priority": context.priority,
-                }
-                ticket = await self.ticket_client.create_ticket(ticket_data)
-
-                # Adicionar ticket_id ao payload para workers/Code Forge
-                ticket_dict = ticket.model_dump()
-                ticket_dict["payload"]["ticket_id"] = ticket.ticket_id
-                tickets.append(ticket_dict)
+            # Obter tickets do workflow state via query Temporal
+            tickets = await self._get_tickets_from_workflow(
+                workflow_id=workflow_id,
+                cognitive_plan=decision.get("cognitive_plan", {}),
+                context=context,
+            )
 
             return workflow_id, tickets
+
+    async def _get_tickets_from_workflow(
+        self,
+        workflow_id: str,
+        cognitive_plan: Dict[str, Any],
+        context: FlowCContext,
+    ) -> List[Dict[str, Any]]:
+        """
+        Obtém tickets do workflow state via query Temporal.
+
+        Args:
+            workflow_id: ID do workflow Temporal
+            cognitive_plan: Plano cognitivo para fallback
+            context: Contexto do Flow C
+
+        Returns:
+            Lista de tickets em formato dict
+        """
+        import time
+
+        start_time = time.time()
+        tickets = []
+
+        try:
+            # Query workflow for tickets via Temporal query
+            query_result = await self.orchestrator_client.query_workflow(
+                workflow_id=workflow_id,
+                query_name="get_tickets",
+            )
+
+            # Extrair tickets do resultado
+            if isinstance(query_result, dict):
+                tickets = query_result.get("tickets", [])
+            elif isinstance(query_result, list):
+                tickets = query_result
+            else:
+                tickets = []
+
+            duration = time.time() - start_time
+            flow_c_workflow_query_duration.labels(query_name="get_tickets").observe(duration)
+
+            if not tickets:
+                self.logger.warning(
+                    "no_tickets_from_workflow",
+                    workflow_id=workflow_id,
+                    plan_id=context.plan_id,
+                    reason="workflow returned empty tickets list",
+                )
+                # Fallback para extração do cognitive_plan
+                tickets = await self._extract_tickets_from_plan(cognitive_plan, context)
+            else:
+                # Validar schema dos tickets
+                for ticket in tickets:
+                    is_valid, errors = self._validate_ticket_schema(ticket)
+                    if not is_valid:
+                        self.logger.warning(
+                            "ticket_schema_validation_warning",
+                            ticket_id=ticket.get("ticket_id", "unknown"),
+                            errors=errors,
+                        )
+                        flow_c_ticket_validation_failures.inc()
+
+                self.logger.info(
+                    "tickets_retrieved_from_workflow",
+                    workflow_id=workflow_id,
+                    tickets_count=len(tickets),
+                )
+
+        except Exception as e:
+            duration = time.time() - start_time
+            flow_c_workflow_query_duration.labels(query_name="get_tickets").observe(duration)
+            flow_c_workflow_query_failures.labels(
+                query_name="get_tickets",
+                reason=type(e).__name__,
+            ).inc()
+
+            self.logger.error(
+                "failed_to_query_workflow_tickets",
+                workflow_id=workflow_id,
+                plan_id=context.plan_id,
+                error=str(e),
+            )
+            # Fallback para extração do cognitive_plan
+            tickets = await self._extract_tickets_from_plan(cognitive_plan, context)
+
+        return tickets
+
+    async def _extract_tickets_from_plan(
+        self,
+        cognitive_plan: Dict[str, Any],
+        context: FlowCContext,
+    ) -> List[Dict[str, Any]]:
+        """
+        Extrai tickets do cognitive_plan como fallback.
+
+        Args:
+            cognitive_plan: Plano cognitivo contendo tasks
+            context: Contexto do Flow C
+
+        Returns:
+            Lista de tickets criados via ticket_client
+        """
+        self.logger.info(
+            "extracting_tickets_from_plan_fallback",
+            plan_id=context.plan_id,
+            reason="workflow query failed or returned empty",
+        )
+
+        tickets = []
+        tasks = cognitive_plan.get("tasks", [])
+
+        if not tasks:
+            # Fallback: criar ticket genérico
+            tasks = [{"type": "code_generation", "description": "Generate code based on plan"}]
+
+        for task in tasks:
+            ticket_data = {
+                "plan_id": context.plan_id,
+                "task_type": task.get("type", "code_generation"),
+                "required_capabilities": task.get("capabilities", ["python", "fastapi"]),
+                "payload": {
+                    "template_id": task.get("template_id", "default_template"),
+                    "parameters": task.get("parameters", {}),
+                    "description": task.get("description", ""),
+                },
+                "sla_deadline": context.sla_deadline.isoformat(),
+                "priority": context.priority,
+            }
+            ticket = await self.ticket_client.create_ticket(ticket_data)
+
+            # Adicionar ticket_id ao payload para workers/Code Forge
+            ticket_dict = ticket.model_dump()
+            ticket_dict["payload"]["ticket_id"] = ticket.ticket_id
+            tickets.append(ticket_dict)
+
+        self.logger.info(
+            "tickets_extracted_from_plan",
+            plan_id=context.plan_id,
+            tickets_count=len(tickets),
+        )
+
+        return tickets
+
+    def _validate_ticket_schema(self, ticket: Dict[str, Any]) -> tuple[bool, List[str]]:
+        """
+        Valida schema do ticket conforme execution-ticket.avsc.
+
+        Campos obrigatórios conforme schema Avro:
+        - ticket_id, plan_id, intent_id, decision_id, task_id, task_type,
+          description, status, priority, risk_band, sla, qos, security_level, created_at
+
+        Args:
+            ticket: Ticket a validar
+
+        Returns:
+            Tuple (is_valid, errors)
+        """
+        errors = []
+
+        # Campos obrigatórios conforme execution-ticket.avsc
+        required_fields = [
+            "ticket_id",
+            "plan_id",
+            "intent_id",
+            "decision_id",
+            "task_id",
+            "task_type",
+            "status",
+            "priority",
+            "risk_band",
+        ]
+
+        for field in required_fields:
+            if field not in ticket:
+                errors.append(f"Campo obrigatório ausente: {field}")
+
+        # Validar enums conforme schema Avro
+        valid_task_types = ["BUILD", "DEPLOY", "TEST", "VALIDATE", "EXECUTE", "COMPENSATE"]
+        task_type = ticket.get("task_type")
+        if task_type:
+            if isinstance(task_type, str) and task_type.upper() not in valid_task_types:
+                # Permitir valores legados (ex: code_generation) com warning
+                self.logger.debug(
+                    "legacy_task_type_detected",
+                    ticket_id=ticket.get("ticket_id"),
+                    task_type=task_type,
+                )
+
+        valid_statuses = ["PENDING", "RUNNING", "COMPLETED", "FAILED", "COMPENSATING", "COMPENSATED"]
+        status = ticket.get("status")
+        if status and isinstance(status, str) and status.upper() not in valid_statuses:
+            errors.append(f"Status inválido: {status}")
+
+        valid_priorities = ["LOW", "NORMAL", "HIGH", "CRITICAL"]
+        priority = ticket.get("priority")
+        if priority is not None:
+            if isinstance(priority, int):
+                # Aceitar prioridade numérica (1-10) para compatibilidade legada
+                if priority < 1 or priority > 10:
+                    errors.append(f"Prioridade numérica deve estar entre 1-10: {priority}")
+            elif isinstance(priority, str) and priority.upper() not in valid_priorities:
+                errors.append(f"Prioridade inválida: {priority}")
+
+        # Validar risk_band conforme schema Avro
+        valid_risk_bands = ["low", "medium", "high", "critical"]
+        risk_band = ticket.get("risk_band")
+        if risk_band:
+            if isinstance(risk_band, str) and risk_band.lower() not in valid_risk_bands:
+                errors.append(f"risk_band inválido: {risk_band}")
+
+        # Validar estrutura SLA (obrigatória conforme schema)
+        sla = ticket.get("sla")
+        if sla is None:
+            errors.append("Campo obrigatório ausente: sla")
+        elif not isinstance(sla, dict):
+            errors.append("SLA deve ser um objeto")
+        else:
+            # Validar campos obrigatórios do SLA
+            if "deadline" not in sla:
+                errors.append("Campo SLA ausente: deadline")
+            elif not isinstance(sla["deadline"], (int, float)):
+                errors.append("SLA.deadline deve ser timestamp numérico (long)")
+
+            if "timeout_ms" not in sla:
+                errors.append("Campo SLA ausente: timeout_ms")
+            elif not isinstance(sla["timeout_ms"], (int, float)):
+                errors.append("SLA.timeout_ms deve ser numérico (long)")
+
+            if "max_retries" not in sla:
+                errors.append("Campo SLA ausente: max_retries")
+            elif not isinstance(sla["max_retries"], int):
+                errors.append("SLA.max_retries deve ser inteiro (int)")
+
+        # Validar estrutura QoS (obrigatória conforme schema)
+        qos = ticket.get("qos")
+        if qos is None:
+            errors.append("Campo obrigatório ausente: qos")
+        elif not isinstance(qos, dict):
+            errors.append("QoS deve ser um objeto")
+        else:
+            # Validar delivery_mode enum
+            valid_delivery_modes = ["AT_MOST_ONCE", "AT_LEAST_ONCE", "EXACTLY_ONCE"]
+            if "delivery_mode" not in qos:
+                errors.append("Campo QoS ausente: delivery_mode")
+            elif qos["delivery_mode"] not in valid_delivery_modes:
+                errors.append(f"QoS.delivery_mode inválido: {qos['delivery_mode']}")
+
+            # Validar consistency enum
+            valid_consistencies = ["EVENTUAL", "STRONG"]
+            if "consistency" not in qos:
+                errors.append("Campo QoS ausente: consistency")
+            elif qos["consistency"] not in valid_consistencies:
+                errors.append(f"QoS.consistency inválido: {qos['consistency']}")
+
+            # Validar durability enum
+            valid_durabilities = ["TRANSIENT", "PERSISTENT"]
+            if "durability" not in qos:
+                errors.append("Campo QoS ausente: durability")
+            elif qos["durability"] not in valid_durabilities:
+                errors.append(f"QoS.durability inválido: {qos['durability']}")
+
+        # Verificar e registrar schema_version
+        schema_version = ticket.get("schema_version", 1)
+        supported_versions = [1, 2]
+
+        # Registrar métrica de versão
+        flow_c_ticket_schema_version.labels(schema_version=str(schema_version)).inc()
+
+        if schema_version not in supported_versions:
+            self.logger.warning(
+                "unknown_ticket_schema_version",
+                ticket_id=ticket.get("ticket_id"),
+                schema_version=schema_version,
+                supported_versions=supported_versions,
+            )
+            errors.append(f"schema_version não suportado: {schema_version} (suportados: {supported_versions})")
+
+        return (len(errors) == 0, errors)
 
     async def _execute_c3_discover_workers(
         self, tickets: List[Dict[str, Any]], context: FlowCContext

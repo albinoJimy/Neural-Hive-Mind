@@ -1,6 +1,6 @@
+from typing import Optional
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional
 
 
 class Settings(BaseSettings):
@@ -93,9 +93,11 @@ class Settings(BaseSettings):
 
     # Observabilidade
     otel_endpoint: str = Field(
-        default='http://opentelemetry-collector.observability.svc.cluster.local:4317',
+        default='https://opentelemetry-collector.observability.svc.cluster.local:4317',
         description='Endpoint do OpenTelemetry Collector'
     )
+    otel_tls_verify: bool = Field(default=True, description='Verificar certificado TLS do OTEL Collector')
+    otel_ca_bundle: Optional[str] = Field(default=None, description='Caminho para CA bundle do OTEL Collector')
     prometheus_port: int = Field(default=8080, description='Porta de métricas Prometheus', gt=0)
     jaeger_sampling_rate: float = Field(default=1.0, description='Taxa de sampling Jaeger', ge=0.0, le=1.0)
 
@@ -239,6 +241,30 @@ class Settings(BaseSettings):
                 f'consumer_max_backoff_seconds ({self.consumer_max_backoff_seconds}) deve ser '
                 f'>= consumer_base_backoff_seconds ({self.consumer_base_backoff_seconds})'
             )
+        return self
+
+    @model_validator(mode='after')
+    def validate_https_in_production(self) -> 'Settings':
+        """
+        Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
+        Endpoints verificados: OTEL Collector.
+        """
+        is_prod_staging = self.environment.lower() in ('production', 'staging', 'prod')
+        if not is_prod_staging:
+            return self
+
+        # Endpoints criticos que devem usar HTTPS em producao
+        http_endpoints = []
+        if self.otel_endpoint.startswith('http://'):
+            http_endpoints.append(('otel_endpoint', self.otel_endpoint))
+
+        if http_endpoints:
+            endpoint_list = ', '.join(f'{name}={url}' for name, url in http_endpoints)
+            raise ValueError(
+                f"Endpoints HTTP inseguros detectados em ambiente {self.environment}: {endpoint_list}. "
+                "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+            )
+
         return self
 
 

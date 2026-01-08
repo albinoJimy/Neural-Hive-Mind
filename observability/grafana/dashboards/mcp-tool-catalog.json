@@ -370,6 +370,101 @@
             ]
           }
         ]
+      },
+      {
+        "title": "MCP Server Integration (Stdio Transport)",
+        "panels": [
+          {
+            "title": "Stdio Request Rate",
+            "type": "graph",
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+            "targets": [
+              {
+                "expr": "rate(mcp_stdio_requests_total[5m])",
+                "legendFormat": "{{method}} - {{status}}"
+              }
+            ],
+            "yaxes": [
+              {
+                "format": "reqps"
+              }
+            ]
+          },
+          {
+            "title": "Stdio Latency (p50, p95, p99)",
+            "type": "graph",
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.50, rate(mcp_stdio_request_duration_seconds_bucket[5m]))",
+                "legendFormat": "p50"
+              },
+              {
+                "expr": "histogram_quantile(0.95, rate(mcp_stdio_request_duration_seconds_bucket[5m]))",
+                "legendFormat": "p95"
+              },
+              {
+                "expr": "histogram_quantile(0.99, rate(mcp_stdio_request_duration_seconds_bucket[5m]))",
+                "legendFormat": "p99"
+              }
+            ],
+            "yaxes": [
+              {
+                "format": "s"
+              }
+            ]
+          },
+          {
+            "title": "Stdio Success Rate",
+            "type": "gauge",
+            "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8},
+            "targets": [
+              {
+                "expr": "sum(rate(mcp_stdio_requests_total{status=\"success\"}[5m])) / sum(rate(mcp_stdio_requests_total[5m]))"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percentunit",
+                "max": 1,
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {"value": 0, "color": "red"},
+                    {"value": 0.9, "color": "yellow"},
+                    {"value": 0.98, "color": "green"}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "title": "Subprocess Restarts",
+            "type": "graph",
+            "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8},
+            "targets": [
+              {
+                "expr": "rate(mcp_stdio_subprocess_restarts_total[5m])",
+                "legendFormat": "restarts/s"
+              }
+            ],
+            "yaxes": [
+              {
+                "format": "short"
+              }
+            ]
+          },
+          {
+            "title": "Stdio Requests by Method",
+            "type": "piechart",
+            "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8},
+            "targets": [
+              {
+                "expr": "sum(mcp_stdio_requests_total) by (method)"
+              }
+            ]
+          }
+        ]
       }
     ]
   }

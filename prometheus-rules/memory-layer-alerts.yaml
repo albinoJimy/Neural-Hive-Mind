@@ -1,0 +1,83 @@
+groups:
+  - name: memory_layer_data_quality
+    interval: 30s
+    rules:
+      - alert: DataQualityScoreLow
+        expr: neural_hive_data_quality_score < 0.90
+        for: 10m
+        labels:
+          severity: warning
+          component: memory-layer
+        annotations:
+          summary: "Score de qualidade de dados abaixo do threshold"
+          description: "Data type {{ $labels.data_type }} com score {{ $value | humanizePercentage }}"
+
+      - alert: DataQualityAnomalyDetected
+        expr: rate(memory_data_quality_anomalies_detected_total{severity="high"}[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: memory-layer
+        annotations:
+          summary: "Anomalia de alta severidade detectada"
+          description: "Métrica {{ $labels.metric }} em {{ $labels.data_type }}"
+
+      - alert: DataQualityAnomalyMedium
+        expr: rate(memory_data_quality_anomalies_detected_total{severity="medium"}[5m]) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          component: memory-layer
+        annotations:
+          summary: "Múltiplas anomalias de média severidade detectadas"
+          description: "Métrica {{ $labels.metric }} em {{ $labels.data_type }} - Taxa: {{ $value }}/s"
+
+      - alert: LineageIntegrityViolation
+        expr: rate(memory_lineage_integrity_checks_total{result="failed_timestamp"}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: memory-layer
+        annotations:
+          summary: "Violações de integridade de lineage detectadas"
+          description: "Taxa de falhas de timestamp: {{ $value | humanize }} checks/s"
+
+      - alert: LineageIntegrityCycleDetected
+        expr: rate(memory_lineage_integrity_checks_total{result="failed_cycle"}[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: memory-layer
+        annotations:
+          summary: "Ciclo detectado no grafo de lineage"
+          description: "Ciclos de dependência detectados no lineage"
+
+      - alert: LineageIntegrityMissingSource
+        expr: rate(memory_lineage_integrity_checks_total{result="failed_missing"}[5m]) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          component: memory-layer
+        annotations:
+          summary: "Sources faltantes no lineage"
+          description: "Taxa de sources não encontradas: {{ $value | humanize }}/s"
+
+      - alert: LineageValidationSlow
+        expr: histogram_quantile(0.95, rate(memory_lineage_validation_duration_seconds_bucket[5m])) > 2.0
+        for: 10m
+        labels:
+          severity: warning
+          component: memory-layer
+        annotations:
+          summary: "Validação de lineage lenta"
+          description: "P95 latency: {{ $value | humanizeDuration }}"
+
+      - alert: LineageValidationHighLatency
+        expr: histogram_quantile(0.99, rate(memory_lineage_validation_duration_seconds_bucket[5m])) > 5.0
+        for: 5m
+        labels:
+          severity: critical
+          component: memory-layer
+        annotations:
+          summary: "Latência crítica na validação de lineage"
+          description: "P99 latency: {{ $value | humanizeDuration }}"

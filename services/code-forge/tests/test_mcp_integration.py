@@ -265,3 +265,138 @@ async def test_pipeline_end_to_end_with_mcp(pipeline_context, mock_git_client, m
     assert result.metadata.get('mcp_selection_id') == "sel-99"
     assert result.metadata.get('mcp_tools_count') == 1
     assert pipeline_context.generated_artifacts
+
+
+# =============================================================================
+# Testes de Health Check
+# =============================================================================
+
+class TestCodeForgeHealthCheck:
+    """Testes para health check do Code Forge."""
+
+    def test_readiness_check_with_all_connected(self):
+        """Validar que readiness retorna ready quando todos os clients estão conectados."""
+        from fastapi.testclient import TestClient
+        from src.api.http_server import create_app
+
+        app = create_app()
+
+        # Mock dos clients no app.state
+        mock_postgres = MagicMock()
+        mock_mongodb = MagicMock()
+        mock_redis = MagicMock()
+        mock_redis.ping = AsyncMock(return_value=True)
+        mock_kafka_consumer = MagicMock()
+        mock_kafka_producer = MagicMock()
+        mock_git = MagicMock()
+
+        app.state.postgres_client = mock_postgres
+        app.state.mongodb_client = mock_mongodb
+        app.state.redis_client = mock_redis
+        app.state.kafka_consumer = mock_kafka_consumer
+        app.state.kafka_producer = mock_kafka_producer
+        app.state.git_client = mock_git
+        app.state.mcp_client = None
+        app.state.llm_client = None
+        app.state.analyst_client = None
+
+        client = TestClient(app)
+        response = client.get('/ready')
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['ready'] is True
+        assert data['status'] == 'ready'
+        assert data['dependencies']['postgres'] == 'connected'
+        assert data['dependencies']['mongodb'] == 'connected'
+        assert data['dependencies']['redis'] == 'connected'
+
+    def test_readiness_check_with_disconnected_postgres(self):
+        """Validar que readiness retorna not_ready quando Postgres está desconectado."""
+        from fastapi.testclient import TestClient
+        from src.api.http_server import create_app
+
+        app = create_app()
+
+        # Postgres None = desconectado
+        mock_mongodb = MagicMock()
+        mock_redis = MagicMock()
+        mock_redis.ping = AsyncMock(return_value=True)
+        mock_kafka_consumer = MagicMock()
+        mock_kafka_producer = MagicMock()
+        mock_git = MagicMock()
+
+        app.state.postgres_client = None
+        app.state.mongodb_client = mock_mongodb
+        app.state.redis_client = mock_redis
+        app.state.kafka_consumer = mock_kafka_consumer
+        app.state.kafka_producer = mock_kafka_producer
+        app.state.git_client = mock_git
+        app.state.mcp_client = None
+        app.state.llm_client = None
+        app.state.analyst_client = None
+
+        client = TestClient(app)
+        response = client.get('/ready')
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['ready'] is False
+        assert data['status'] == 'not_ready'
+        assert data['dependencies']['postgres'] == 'disconnected'
+
+    def test_readiness_check_with_optional_clients(self):
+        """Validar que clientes opcionais (MCP, LLM, Analyst) não afetam readiness."""
+        from fastapi.testclient import TestClient
+        from src.api.http_server import create_app
+
+        app = create_app()
+
+        # Todos os core clients conectados
+        mock_postgres = MagicMock()
+        mock_mongodb = MagicMock()
+        mock_redis = MagicMock()
+        mock_redis.ping = AsyncMock(return_value=True)
+        mock_kafka_consumer = MagicMock()
+        mock_kafka_producer = MagicMock()
+        mock_git = MagicMock()
+
+        # Clientes opcionais conectados
+        mock_mcp = MagicMock()
+        mock_llm = MagicMock()
+        mock_analyst = MagicMock()
+
+        app.state.postgres_client = mock_postgres
+        app.state.mongodb_client = mock_mongodb
+        app.state.redis_client = mock_redis
+        app.state.kafka_consumer = mock_kafka_consumer
+        app.state.kafka_producer = mock_kafka_producer
+        app.state.git_client = mock_git
+        app.state.mcp_client = mock_mcp
+        app.state.llm_client = mock_llm
+        app.state.analyst_client = mock_analyst
+
+        client = TestClient(app)
+        response = client.get('/ready')
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['ready'] is True
+        # Clientes opcionais devem aparecer nas dependencies
+        assert data['dependencies'].get('mcp') == 'connected'
+        assert data['dependencies'].get('llm') == 'connected'
+        assert data['dependencies'].get('analyst') == 'connected'
+
+    def test_health_check_liveness(self):
+        """Validar que health check liveness retorna healthy."""
+        from fastapi.testclient import TestClient
+        from src.api.http_server import create_app
+
+        app = create_app()
+        client = TestClient(app)
+        response = client.get('/health')
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['status'] == 'healthy'
+        assert data['service'] == 'code-forge'

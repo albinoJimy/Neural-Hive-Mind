@@ -140,6 +140,16 @@ class MongoDBClient:
             logger.error("strategic_decisions_list_failed", error=str(e))
             return []
 
+    async def count_strategic_decisions(self, filters: Dict[str, Any]) -> int:
+        """Contar total de decisões com filtros para suporte a paginação"""
+        try:
+            count = await self.ledger_collection.count_documents(filters)
+            return count
+
+        except Exception as e:
+            logger.error("strategic_decisions_count_failed", error=str(e))
+            return 0
+
     async def get_recent_decisions(self, hours: int = 24) -> List[Dict[str, Any]]:
         """Buscar decisões recentes"""
         cutoff_time = datetime.now() - timedelta(hours=hours)

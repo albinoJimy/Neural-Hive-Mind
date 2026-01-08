@@ -258,7 +258,8 @@ async def lifespan(app: FastAPI):
                 redis_client=app_state.redis_client,
                 query_engine=app_state.query_engine,
                 analytics_engine=app_state.analytics_engine,
-                insight_generator=app_state.insight_generator
+                insight_generator=app_state.insight_generator,
+                neo4j_client=app_state.neo4j_client
             )
             await app_state.grpc_server.start()
             logger.info('grpc_server_started')

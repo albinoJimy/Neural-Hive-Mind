@@ -3,17 +3,19 @@ Configurações do SLA Management System usando Pydantic Settings.
 """
 
 from functools import lru_cache
-from typing import List, Dict, Any
-from pydantic import Field
+from typing import List, Dict, Any, Optional
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 
 class PrometheusSettings(BaseSettings):
     """Configurações do Prometheus."""
     url: str = Field(
-        default="http://prometheus-server.monitoring.svc.cluster.local:9090",
+        default="https://prometheus-server.monitoring.svc.cluster.local:9090",
         description="URL do Prometheus"
     )
+    tls_verify: bool = Field(default=True, description="Verificar certificado TLS do Prometheus")
+    ca_bundle: Optional[str] = Field(default=None, description="Caminho para CA bundle do Prometheus")
     timeout_seconds: int = Field(default=30, description="Timeout para queries")
     max_retries: int = Field(default=3, description="Retries em caso de falha")
 
@@ -61,8 +63,10 @@ class KafkaSettings(BaseSettings):
 class AlertmanagerSettings(BaseSettings):
     """Configurações do Alertmanager."""
     url: str = Field(
-        default="http://alertmanager.monitoring.svc.cluster.local:9093"
+        default="https://alertmanager.monitoring.svc.cluster.local:9093"
     )
+    tls_verify: bool = Field(default=True, description="Verificar certificado TLS do Alertmanager")
+    ca_bundle: Optional[str] = Field(default=None, description="Caminho para CA bundle do Alertmanager")
     webhook_path: str = Field(default="/webhooks/alertmanager")
     api_timeout_seconds: int = Field(default=10)
 
@@ -103,6 +107,22 @@ class PolicySettings(BaseSettings):
     )
 
 
+class KubernetesSettings(BaseSettings):
+    """Configurações do Kubernetes."""
+    in_cluster: bool = Field(
+        default=True,
+        description="Executando dentro do cluster"
+    )
+    namespace: str = Field(
+        default="neural-hive",
+        description="Namespace padrao para operacoes"
+    )
+    crd_sync_enabled: bool = Field(
+        default=True,
+        description="Habilitar sincronizacao de CRDs"
+    )
+
+
 class Settings(BaseSettings):
     """Configurações principais do SLA Management System."""
 
@@ -120,12 +140,39 @@ class Settings(BaseSettings):
     alertmanager: AlertmanagerSettings = Field(default_factory=AlertmanagerSettings)
     calculator: CalculatorSettings = Field(default_factory=CalculatorSettings)
     policy: PolicySettings = Field(default_factory=PolicySettings)
+    kubernetes: KubernetesSettings = Field(default_factory=KubernetesSettings)
 
     model_config = {
         "env_file": ".env",
         "env_nested_delimiter": "__",
         "case_sensitive": False
     }
+
+    @model_validator(mode='after')
+    def validate_https_in_production(self) -> 'Settings':
+        """
+        Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
+        Endpoints verificados: Prometheus, Alertmanager.
+        """
+        is_prod_staging = self.environment.lower() in ('production', 'staging', 'prod')
+        if not is_prod_staging:
+            return self
+
+        # Endpoints criticos que devem usar HTTPS em producao
+        http_endpoints = []
+        if self.prometheus.url.startswith('http://'):
+            http_endpoints.append(('prometheus.url', self.prometheus.url))
+        if self.alertmanager.url.startswith('http://'):
+            http_endpoints.append(('alertmanager.url', self.alertmanager.url))
+
+        if http_endpoints:
+            endpoint_list = ', '.join(f'{name}={url}' for name, url in http_endpoints)
+            raise ValueError(
+                f"Endpoints HTTP inseguros detectados em ambiente {self.environment}: {endpoint_list}. "
+                "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+            )
+
+        return self
 
 
 @lru_cache

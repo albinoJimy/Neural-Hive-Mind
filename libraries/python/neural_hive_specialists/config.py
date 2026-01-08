@@ -760,6 +760,35 @@ class SpecialistConfig(BaseSettings):
     )
 
     # =========================================================================
+    # Online Learning Configuration
+    # =========================================================================
+    use_online_model: bool = Field(
+        default=False,
+        env="USE_ONLINE_MODEL",
+        description="Habilitar uso de modelo online em conjunto com batch"
+    )
+    online_checkpoint_path: str = Field(
+        default='/data/online_learning/checkpoints',
+        env="ONLINE_CHECKPOINT_PATH",
+        description="Path para checkpoints de modelos online"
+    )
+    online_model_weight: float = Field(
+        default=0.3,
+        env="ONLINE_MODEL_WEIGHT",
+        description="Peso do modelo online no ensemble (0.0-1.0)"
+    )
+    batch_model_weight: float = Field(
+        default=0.7,
+        env="BATCH_MODEL_WEIGHT",
+        description="Peso do modelo batch no ensemble (0.0-1.0)"
+    )
+    online_model_cache_ttl_seconds: int = Field(
+        default=300,
+        env="ONLINE_MODEL_CACHE_TTL_SECONDS",
+        description="TTL do cache local de modelos online (5 minutos)"
+    )
+
+    # =========================================================================
     # Multi-Tenancy Configuration
     # =========================================================================
     enable_multi_tenancy: bool = Field(

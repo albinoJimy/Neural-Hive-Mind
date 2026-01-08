@@ -2,33 +2,48 @@ import structlog
 from typing import Dict, List, Optional
 from src.models import AgentInfo, AgentType, AgentStatus
 from src.clients import EtcdClient, PheromoneClient
-from prometheus_client import Counter, Histogram
-
-from neural_hive_observability import get_tracer
+from prometheus_client import Counter, Histogram, REGISTRY
+from opentelemetry import trace
 
 
 logger = structlog.get_logger()
-tracer = get_tracer()
+tracer = trace.get_tracer(__name__)
+
+
+def _get_or_create_counter(name: str, description: str, labelnames=None):
+    """Get existing counter or create new one to avoid duplicate registration errors"""
+    try:
+        return Counter(name, description, labelnames or [])
+    except ValueError:
+        return REGISTRY._names_to_collectors.get(name)
+
+
+def _get_or_create_histogram(name: str, description: str):
+    """Get existing histogram or create new one to avoid duplicate registration errors"""
+    try:
+        return Histogram(name, description)
+    except ValueError:
+        return REGISTRY._names_to_collectors.get(name)
 
 
 # Métricas Prometheus
-discovery_requests_total = Counter(
+discovery_requests_total = _get_or_create_counter(
     'discovery_requests_total',
     'Total de requisições de discovery',
     ['agent_type']
 )
 
-discovery_duration_seconds = Histogram(
+discovery_duration_seconds = _get_or_create_histogram(
     'discovery_duration_seconds',
     'Duração de requisições de discovery'
 )
 
-matching_candidates_evaluated = Histogram(
+matching_candidates_evaluated = _get_or_create_histogram(
     'matching_candidates_evaluated',
     'Número de candidatos avaliados no matching'
 )
 
-agents_matched = Histogram(
+agents_matched = _get_or_create_histogram(
     'agents_matched',
     'Número de agentes retornados no matching'
 )

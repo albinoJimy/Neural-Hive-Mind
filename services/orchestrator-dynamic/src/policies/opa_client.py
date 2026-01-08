@@ -1,5 +1,12 @@
 """
 Cliente HTTP assíncrono para OPA REST API.
+
+Otimizações de performance:
+- Connection pooling com reutilização de conexões
+- Cache LRU com TTL para decisões
+- Batch evaluation paralelo com semaphore
+- Prefetching de políticas comuns
+- Circuit breaker para prevenir cascading failures
 """
 
 import asyncio
@@ -8,6 +15,7 @@ from datetime import datetime, timedelta
 import aiohttp
 from cachetools import TTLCache
 import structlog
+import time
 
 from ..observability.metrics import get_metrics
 
@@ -51,12 +59,29 @@ class OPAClient:
             ttl=config.opa_cache_ttl_seconds
         )
 
+        # Estatísticas de cache para métricas
+        self._cache_hits: int = 0
+        self._cache_misses: int = 0
+
+        # Semaphore para limitar concorrência de batch evaluation
+        self._batch_semaphore = asyncio.Semaphore(
+            getattr(config, 'opa_max_concurrent_evaluations', 20)
+        )
+
         # Circuit Breaker para prevenir cascading failures (implementação assíncrona manual)
         self._circuit_breaker_enabled = config.opa_circuit_breaker_enabled
         self._circuit_state: str = 'closed'  # closed, half_open, open
         self._circuit_failure_count: int = 0
         self._circuit_opened_at: Optional[datetime] = None
         self._last_failure_time: Optional[datetime] = None
+
+        # Políticas comuns para prefetch
+        self._common_policies: List[str] = [
+            'neuralhive/orchestrator/resource_limits',
+            'neuralhive/orchestrator/sla_enforcement',
+            'neuralhive/orchestrator/feature_flags',
+            'neuralhive/orchestrator/security_constraints'
+        ]
 
         logger.info(
             "OPAClient inicializado",
@@ -76,6 +101,7 @@ class OPAClient:
 
         self._circuit_state = new_state
         self.metrics.record_opa_circuit_breaker_state(new_state, self._circuit_failure_count)
+        self.metrics.record_opa_circuit_breaker_transition(previous_state, new_state)
 
         logger.warning(
             "Circuit breaker OPA mudou de estado",
@@ -106,6 +132,13 @@ class OPAClient:
         )
 
         logger.info("OPA session criada")
+
+    def _update_cache_hit_ratio(self):
+        """Atualizar métrica de cache hit ratio."""
+        total = self._cache_hits + self._cache_misses
+        if total > 0:
+            ratio = self._cache_hits / total
+            self.metrics.opa_cache_hit_ratio.set(ratio)
 
     async def close(self):
         """Fechar sessão aiohttp gracefully."""
@@ -291,9 +324,16 @@ class OPAClient:
         # Verificar cache
         cache_key = self._get_cache_key(policy_path, input_data)
         if cache_key in self._cache:
+            self._cache_hits += 1
+            self._update_cache_hit_ratio()
             logger.debug("Cache hit", policy_path=policy_path)
             self.metrics.record_opa_cache_hit()
             return self._cache[cache_key]
+
+        # Cache miss - registrar métrica
+        self._cache_misses += 1
+        self._update_cache_hit_ratio()
+        self.metrics.record_opa_cache_miss()
 
         # Verificar estado do circuit breaker
         if self._circuit_breaker_enabled:
@@ -338,12 +378,44 @@ class OPAClient:
 
             raise
 
+    async def _evaluate_with_semaphore(
+        self,
+        policy_path: str,
+        input_data: dict
+    ) -> dict:
+        """
+        Avaliar política com controle de concorrência via semaphore.
+
+        Args:
+            policy_path: Path da política
+            input_data: Dados de entrada
+
+        Returns:
+            Resultado da avaliação
+        """
+        async with self._batch_semaphore:
+            start_time = time.perf_counter()
+            try:
+                result = await self.evaluate_policy(policy_path, input_data)
+                duration = time.perf_counter() - start_time
+                self.metrics.record_opa_policy_decision_duration(policy_path, duration)
+                return result
+            except Exception as e:
+                duration = time.perf_counter() - start_time
+                self.metrics.record_opa_policy_decision_duration(policy_path, duration)
+                raise
+
     async def batch_evaluate(
         self,
         evaluations: List[Tuple[str, dict]]
     ) -> List[dict]:
         """
-        Avaliar múltiplas políticas em paralelo.
+        Avaliar múltiplas políticas em paralelo com controle de concorrência.
+
+        Otimizações:
+        - Semaphore para limitar requisições concorrentes
+        - Métricas de duração por policy_path
+        - Separação de cache hits vs misses
 
         Args:
             evaluations: Lista de tuplas (policy_path, input_data)
@@ -351,29 +423,65 @@ class OPAClient:
         Returns:
             Lista de resultados na mesma ordem
         """
-        tasks = [
-            self.evaluate_policy(policy_path, input_data)
-            for policy_path, input_data in evaluations
-        ]
+        if not evaluations:
+            return []
 
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Registrar tamanho do batch
+        batch_size = len(evaluations)
+        self.metrics.record_opa_batch_evaluation(batch_size)
 
-        # Converter exceções em dicts de erro
-        processed_results = []
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                policy_path = evaluations[i][0]
-                logger.error(
-                    "Erro em batch evaluation",
-                    policy_path=policy_path,
-                    error=str(result)
-                )
-                processed_results.append({
-                    'error': str(result),
-                    'policy_path': policy_path
-                })
+        start_time = time.perf_counter()
+
+        # Separar cache hits de misses para otimizar
+        cache_results: Dict[int, dict] = {}
+        pending_evaluations: List[Tuple[int, str, dict]] = []
+
+        for idx, (policy_path, input_data) in enumerate(evaluations):
+            cache_key = self._get_cache_key(policy_path, input_data)
+            if cache_key in self._cache:
+                self._cache_hits += 1
+                self.metrics.record_opa_cache_hit()
+                cache_results[idx] = self._cache[cache_key]
             else:
-                processed_results.append(result)
+                pending_evaluations.append((idx, policy_path, input_data))
+
+        # Avaliar apenas os que não estão em cache (com semaphore)
+        if pending_evaluations:
+            tasks = [
+                self._evaluate_with_semaphore(policy_path, input_data)
+                for _, policy_path, input_data in pending_evaluations
+            ]
+
+            pending_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for i, (idx, policy_path, _) in enumerate(pending_evaluations):
+                result = pending_results[i]
+                if isinstance(result, Exception):
+                    logger.error(
+                        "Erro em batch evaluation",
+                        policy_path=policy_path,
+                        error=str(result)
+                    )
+                    cache_results[idx] = {
+                        'error': str(result),
+                        'policy_path': policy_path
+                    }
+                else:
+                    cache_results[idx] = result
+
+        # Reconstruir lista na ordem original
+        processed_results = [cache_results[i] for i in range(len(evaluations))]
+
+        self._update_cache_hit_ratio()
+
+        total_duration = time.perf_counter() - start_time
+        logger.info(
+            "Batch evaluation concluído",
+            batch_size=batch_size,
+            cache_hits=len(evaluations) - len(pending_evaluations),
+            cache_misses=len(pending_evaluations),
+            total_duration_ms=total_duration * 1000
+        )
 
         return processed_results
 
@@ -432,3 +540,353 @@ class OPAClient:
             'failure_count': self._circuit_failure_count,
             'last_failure_time': self._last_failure_time.isoformat() if self._last_failure_time else None
         }
+
+    def get_cache_stats(self) -> dict:
+        """
+        Obter estatísticas do cache.
+
+        Returns:
+            Dicionário com estatísticas de cache:
+            - size: número atual de entradas
+            - maxsize: tamanho máximo do cache
+            - hits: total de cache hits
+            - misses: total de cache misses
+            - hit_ratio: proporção de hits
+        """
+        total = self._cache_hits + self._cache_misses
+        hit_ratio = self._cache_hits / total if total > 0 else 0.0
+
+        return {
+            'size': len(self._cache),
+            'maxsize': self._cache.maxsize,
+            'ttl_seconds': self._cache.ttl,
+            'hits': self._cache_hits,
+            'misses': self._cache_misses,
+            'hit_ratio': hit_ratio
+        }
+
+    def invalidate_cache(self, policy_path: Optional[str] = None):
+        """
+        Invalidar cache de decisões.
+
+        Args:
+            policy_path: Se fornecido, invalida apenas entradas para esta política.
+                        Se None, invalida todo o cache.
+        """
+        if policy_path is None:
+            self._cache.clear()
+            logger.info("Cache OPA completamente invalidado")
+        else:
+            # Remover entradas que começam com o policy_path
+            keys_to_remove = [
+                key for key in self._cache.keys()
+                if key.startswith(policy_path)
+            ]
+            for key in keys_to_remove:
+                del self._cache[key]
+            logger.info(
+                "Cache OPA invalidado para política",
+                policy_path=policy_path,
+                entries_removed=len(keys_to_remove)
+            )
+
+    async def warm_cache(self, warmup_inputs: Optional[List[Tuple[str, dict]]] = None):
+        """
+        Pré-aquecer cache com avaliações comuns.
+
+        Args:
+            warmup_inputs: Lista opcional de (policy_path, input_data) para pré-carregar.
+                          Se None, usa configuração padrão de policies.
+        """
+        if not self.session:
+            logger.warning("Sessão não inicializada, pulando warm-up de cache")
+            return
+
+        if warmup_inputs:
+            policies_to_warm = warmup_inputs
+        else:
+            # Usar uma avaliação básica para cada política comum
+            default_input = {'input': {'resource': {}, 'context': {}}}
+            policies_to_warm = [
+                (policy, default_input) for policy in self._common_policies
+            ]
+
+        logger.info(
+            "Iniciando warm-up de cache OPA",
+            num_policies=len(policies_to_warm)
+        )
+
+        results = await self.batch_evaluate(policies_to_warm)
+
+        success_count = sum(1 for r in results if 'error' not in r)
+        logger.info(
+            "Warm-up de cache OPA concluído",
+            total=len(policies_to_warm),
+            success=success_count,
+            failed=len(policies_to_warm) - success_count
+        )
+
+    # =========================================================================
+    # Policy Versioning Support
+    # =========================================================================
+
+    async def get_policy_revision(self, policy_path: str) -> Optional[str]:
+        """
+        Obter revisão atual de uma política via GET /v1/policies/{policy_path}.
+
+        Args:
+            policy_path: Path da política (ex: 'neuralhive/orchestrator/resource_limits')
+
+        Returns:
+            String de revisão ou None se não disponível
+        """
+        if not self.session:
+            return None
+
+        try:
+            url = f"{self.base_url}/v1/policies/{policy_path}"
+            async with self.session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    # OPA retorna 'id' e opcionalmente 'raw' com o conteúdo
+                    return data.get('id')
+                elif response.status == 404:
+                    logger.warning(
+                        "Política não encontrada para revisão",
+                        policy_path=policy_path
+                    )
+                    return None
+                else:
+                    logger.error(
+                        "Erro ao obter revisão de política",
+                        policy_path=policy_path,
+                        status=response.status
+                    )
+                    return None
+        except Exception as e:
+            logger.error(
+                "Exceção ao obter revisão de política",
+                policy_path=policy_path,
+                error=str(e)
+            )
+            return None
+
+    async def list_policies(self) -> List[dict]:
+        """
+        Listar todas as políticas carregadas via GET /v1/policies.
+
+        Returns:
+            Lista de políticas com seus metadados
+        """
+        if not self.session:
+            return []
+
+        try:
+            url = f"{self.base_url}/v1/policies"
+            async with self.session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    policies = data.get('result', [])
+                    logger.info(
+                        "Políticas listadas",
+                        count=len(policies)
+                    )
+                    return policies
+                else:
+                    logger.error(
+                        "Erro ao listar políticas",
+                        status=response.status
+                    )
+                    return []
+        except Exception as e:
+            logger.error(
+                "Exceção ao listar políticas",
+                error=str(e)
+            )
+            return []
+
+    async def get_policy_metadata(self, policy_path: str) -> Optional[dict]:
+        """
+        Obter metadados completos de uma política.
+
+        Args:
+            policy_path: Path da política
+
+        Returns:
+            Dicionário com metadados ou None se não disponível
+        """
+        if not self.session:
+            return None
+
+        try:
+            url = f"{self.base_url}/v1/policies/{policy_path}"
+            async with self.session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return {
+                        'id': data.get('id'),
+                        'path': policy_path,
+                        'raw': data.get('raw'),  # Conteúdo Rego
+                        'ast': data.get('ast'),  # AST compilado
+                    }
+                elif response.status == 404:
+                    return None
+                else:
+                    logger.error(
+                        "Erro ao obter metadados de política",
+                        policy_path=policy_path,
+                        status=response.status
+                    )
+                    return None
+        except Exception as e:
+            logger.error(
+                "Exceção ao obter metadados de política",
+                policy_path=policy_path,
+                error=str(e)
+            )
+            return None
+
+    async def upload_policy(
+        self,
+        policy_path: str,
+        rego_content: str,
+        invalidate_cache: bool = True
+    ) -> bool:
+        """
+        Fazer upload/atualização de uma política via PUT /v1/policies/{policy_path}.
+
+        NOTA: Esta operação requer permissões de administração no OPA.
+
+        Args:
+            policy_path: Path da política
+            rego_content: Conteúdo Rego da política
+            invalidate_cache: Se True, invalida cache para esta política
+
+        Returns:
+            True se upload bem-sucedido, False caso contrário
+        """
+        if not self.session:
+            return False
+
+        try:
+            url = f"{self.base_url}/v1/policies/{policy_path}"
+            headers = {'Content-Type': 'text/plain'}
+
+            async with self.session.put(url, data=rego_content, headers=headers) as response:
+                if response.status in (200, 201):
+                    logger.info(
+                        "Política atualizada com sucesso",
+                        policy_path=policy_path,
+                        status=response.status
+                    )
+
+                    if invalidate_cache:
+                        self.invalidate_cache(policy_path)
+
+                    return True
+                else:
+                    error_text = await response.text()
+                    logger.error(
+                        "Erro ao fazer upload de política",
+                        policy_path=policy_path,
+                        status=response.status,
+                        error=error_text
+                    )
+                    return False
+        except Exception as e:
+            logger.error(
+                "Exceção ao fazer upload de política",
+                policy_path=policy_path,
+                error=str(e)
+            )
+            return False
+
+    async def delete_policy(
+        self,
+        policy_path: str,
+        invalidate_cache: bool = True
+    ) -> bool:
+        """
+        Deletar uma política via DELETE /v1/policies/{policy_path}.
+
+        NOTA: Esta operação requer permissões de administração no OPA.
+
+        Args:
+            policy_path: Path da política
+            invalidate_cache: Se True, invalida cache para esta política
+
+        Returns:
+            True se deleção bem-sucedida, False caso contrário
+        """
+        if not self.session:
+            return False
+
+        try:
+            url = f"{self.base_url}/v1/policies/{policy_path}"
+
+            async with self.session.delete(url) as response:
+                if response.status in (200, 204):
+                    logger.info(
+                        "Política deletada com sucesso",
+                        policy_path=policy_path
+                    )
+
+                    if invalidate_cache:
+                        self.invalidate_cache(policy_path)
+
+                    return True
+                elif response.status == 404:
+                    logger.warning(
+                        "Política não encontrada para deleção",
+                        policy_path=policy_path
+                    )
+                    return False
+                else:
+                    error_text = await response.text()
+                    logger.error(
+                        "Erro ao deletar política",
+                        policy_path=policy_path,
+                        status=response.status,
+                        error=error_text
+                    )
+                    return False
+        except Exception as e:
+            logger.error(
+                "Exceção ao deletar política",
+                policy_path=policy_path,
+                error=str(e)
+            )
+            return False
+
+    async def check_policy_versions(self) -> dict:
+        """
+        Verificar versões de todas as políticas configuradas.
+
+        Returns:
+            Dicionário mapeando policy_path -> revision/status
+        """
+        versions = {}
+
+        for policy_path in self._common_policies:
+            metadata = await self.get_policy_metadata(policy_path)
+            if metadata:
+                versions[policy_path] = {
+                    'status': 'loaded',
+                    'id': metadata.get('id'),
+                    'has_content': bool(metadata.get('raw'))
+                }
+            else:
+                versions[policy_path] = {
+                    'status': 'not_found',
+                    'id': None,
+                    'has_content': False
+                }
+
+        logger.info(
+            "Verificação de versões de políticas concluída",
+            total=len(self._common_policies),
+            loaded=sum(1 for v in versions.values() if v['status'] == 'loaded'),
+            not_found=sum(1 for v in versions.values() if v['status'] == 'not_found')
+        )
+
+        return versions

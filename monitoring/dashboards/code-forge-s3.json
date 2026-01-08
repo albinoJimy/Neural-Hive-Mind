@@ -1,0 +1,713 @@
+{
+  "dashboard": {
+    "title": "Code Forge - S3 SBOM Storage",
+    "tags": ["code-forge", "s3", "sbom", "artifacts", "neural-hive"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["30s", "1m", "5m", "15m", "30m", "1h"]
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "datasource",
+          "type": "datasource",
+          "query": "prometheus",
+          "current": {
+            "value": "Prometheus",
+            "text": "Prometheus"
+          }
+        },
+        {
+          "name": "operation",
+          "type": "query",
+          "datasource": "${datasource}",
+          "query": "label_values(code_forge_s3_upload_total, operation)",
+          "multi": true,
+          "includeAll": true,
+          "current": {
+            "value": ["$__all"],
+            "text": "All"
+          },
+          "refresh": 2
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "S3 Failures",
+          "datasource": "${datasource}",
+          "enable": true,
+          "expr": "increase(code_forge_s3_upload_total{status=\"failure\"}[5m]) > 0",
+          "iconColor": "red",
+          "tagKeys": "operation"
+        },
+        {
+          "name": "Integrity Failures",
+          "datasource": "${datasource}",
+          "enable": true,
+          "expr": "increase(code_forge_s3_integrity_check_total{status=\"failure\"}[5m]) > 0",
+          "iconColor": "orange",
+          "tagKeys": "status"
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "S3 Upload Overview",
+        "type": "row",
+        "gridPos": {"x": 0, "y": 0, "w": 24, "h": 1},
+        "collapsed": false
+      },
+      {
+        "id": 2,
+        "title": "Upload Success Rate",
+        "type": "gauge",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 0, "y": 1, "w": 6, "h": 6},
+        "targets": [
+          {
+            "expr": "sum(rate(code_forge_s3_upload_total{status=\"success\", operation=~\"$operation\"}[5m])) / sum(rate(code_forge_s3_upload_total{operation=~\"$operation\"}[5m])) * 100",
+            "legendFormat": "Success Rate",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "orientation": "auto",
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "red"},
+                {"value": 90, "color": "yellow"},
+                {"value": 95, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Total Uploads (24h)",
+        "type": "stat",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 6, "y": 1, "w": 4, "h": 3},
+        "targets": [
+          {
+            "expr": "sum(increase(code_forge_s3_upload_total{operation=~\"$operation\"}[24h]))",
+            "legendFormat": "Total",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "textMode": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "blue"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Successful Uploads (24h)",
+        "type": "stat",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 10, "y": 1, "w": 4, "h": 3},
+        "targets": [
+          {
+            "expr": "sum(increase(code_forge_s3_upload_total{status=\"success\", operation=~\"$operation\"}[24h]))",
+            "legendFormat": "Success",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "textMode": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Failed Uploads (24h)",
+        "type": "stat",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 14, "y": 1, "w": 4, "h": 3},
+        "targets": [
+          {
+            "expr": "sum(increase(code_forge_s3_upload_total{status=\"failure\", operation=~\"$operation\"}[24h]))",
+            "legendFormat": "Failures",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "textMode": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "green"},
+                {"value": 1, "color": "yellow"},
+                {"value": 5, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Integrity Checks (24h)",
+        "type": "stat",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 18, "y": 1, "w": 6, "h": 3},
+        "targets": [
+          {
+            "expr": "sum(increase(code_forge_s3_integrity_check_total{status=\"success\"}[24h]))",
+            "legendFormat": "Valid",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(increase(code_forge_s3_integrity_check_total{status=\"failure\"}[24h]))",
+            "legendFormat": "Invalid",
+            "refId": "B"
+          }
+        ],
+        "options": {
+          "graphMode": "none",
+          "colorMode": "background",
+          "textMode": "value_and_name",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "Valid"},
+              "properties": [
+                {"id": "color", "value": {"fixedColor": "green", "mode": "fixed"}}
+              ]
+            },
+            {
+              "matcher": {"id": "byName", "options": "Invalid"},
+              "properties": [
+                {"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": 7,
+        "title": "SBOM Uploads (24h)",
+        "type": "stat",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 6, "y": 4, "w": 6, "h": 3},
+        "targets": [
+          {
+            "expr": "sum(increase(code_forge_s3_upload_total{operation=\"sbom\", status=\"success\"}[24h]))",
+            "legendFormat": "SBOMs",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "textMode": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "purple"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "Artifact Uploads (24h)",
+        "type": "stat",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 12, "y": 4, "w": 6, "h": 3},
+        "targets": [
+          {
+            "expr": "sum(increase(code_forge_s3_upload_total{operation=\"artifact\", status=\"success\"}[24h]))",
+            "legendFormat": "Artifacts",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "textMode": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "orange"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "Upload Latency",
+        "type": "row",
+        "gridPos": {"x": 0, "y": 7, "w": 24, "h": 1},
+        "collapsed": false
+      },
+      {
+        "id": 10,
+        "title": "Upload Latency by Percentile",
+        "type": "timeseries",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(code_forge_s3_upload_duration_seconds_bucket{operation=~\"$operation\"}[5m])) by (le))",
+            "legendFormat": "P50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(code_forge_s3_upload_duration_seconds_bucket{operation=~\"$operation\"}[5m])) by (le))",
+            "legendFormat": "P95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(code_forge_s3_upload_duration_seconds_bucket{operation=~\"$operation\"}[5m])) by (le))",
+            "legendFormat": "P99",
+            "refId": "C"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom",
+            "calcs": ["lastNotNull", "max"]
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "custom": {
+              "drawStyle": "line",
+              "lineWidth": 2,
+              "fillOpacity": 10,
+              "pointSize": 5,
+              "showPoints": "auto"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "green"},
+                {"value": 5, "color": "yellow"},
+                {"value": 10, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "Upload Latency by Operation",
+        "type": "timeseries",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(code_forge_s3_upload_duration_seconds_bucket[5m])) by (le, operation))",
+            "legendFormat": "{{operation}} P95",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom",
+            "calcs": ["lastNotNull", "max"]
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "custom": {
+              "drawStyle": "line",
+              "lineWidth": 2,
+              "fillOpacity": 10
+            }
+          }
+        }
+      },
+      {
+        "id": 12,
+        "title": "Upload Rate & Errors",
+        "type": "row",
+        "gridPos": {"x": 0, "y": 16, "w": 24, "h": 1},
+        "collapsed": false
+      },
+      {
+        "id": 13,
+        "title": "Upload Rate by Status",
+        "type": "timeseries",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 0, "y": 17, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(code_forge_s3_upload_total{status=\"success\", operation=~\"$operation\"}[5m])) * 60",
+            "legendFormat": "Success",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(code_forge_s3_upload_total{status=\"failure\", operation=~\"$operation\"}[5m])) * 60",
+            "legendFormat": "Failure",
+            "refId": "B"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom",
+            "calcs": ["mean", "sum"]
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "opm",
+            "custom": {
+              "drawStyle": "bars",
+              "fillOpacity": 80,
+              "stacking": {"mode": "normal"}
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "Success"},
+              "properties": [
+                {"id": "color", "value": {"fixedColor": "green", "mode": "fixed"}}
+              ]
+            },
+            {
+              "matcher": {"id": "byName", "options": "Failure"},
+              "properties": [
+                {"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": 14,
+        "title": "Upload Rate by Operation",
+        "type": "timeseries",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 12, "y": 17, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(code_forge_s3_upload_total{status=\"success\"}[5m])) by (operation) * 60",
+            "legendFormat": "{{operation}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom",
+            "calcs": ["mean", "sum"]
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "opm",
+            "custom": {
+              "drawStyle": "line",
+              "lineWidth": 2,
+              "fillOpacity": 20
+            }
+          }
+        }
+      },
+      {
+        "id": 15,
+        "title": "Integrity Checks",
+        "type": "row",
+        "gridPos": {"x": 0, "y": 25, "w": 24, "h": 1},
+        "collapsed": false
+      },
+      {
+        "id": 16,
+        "title": "Integrity Check Rate",
+        "type": "timeseries",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 0, "y": 26, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(code_forge_s3_integrity_check_total{status=\"success\"}[5m])) * 60",
+            "legendFormat": "Valid",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(code_forge_s3_integrity_check_total{status=\"failure\"}[5m])) * 60",
+            "legendFormat": "Invalid",
+            "refId": "B"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom",
+            "calcs": ["mean", "sum"]
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "opm",
+            "custom": {
+              "drawStyle": "bars",
+              "fillOpacity": 80,
+              "stacking": {"mode": "normal"}
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "Valid"},
+              "properties": [
+                {"id": "color", "value": {"fixedColor": "green", "mode": "fixed"}}
+              ]
+            },
+            {
+              "matcher": {"id": "byName", "options": "Invalid"},
+              "properties": [
+                {"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": 17,
+        "title": "Integrity Failure Rate",
+        "type": "gauge",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 12, "y": 26, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(code_forge_s3_integrity_check_total{status=\"failure\"}[1h])) / sum(rate(code_forge_s3_integrity_check_total[1h])) * 100",
+            "legendFormat": "Failure Rate",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "orientation": "auto",
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "green"},
+                {"value": 1, "color": "yellow"},
+                {"value": 5, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 18,
+        "title": "Sigstore Integration",
+        "type": "row",
+        "gridPos": {"x": 0, "y": 34, "w": 24, "h": 1},
+        "collapsed": false
+      },
+      {
+        "id": 19,
+        "title": "SBOM Generation Rate",
+        "type": "timeseries",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 0, "y": 35, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(code_forge_sigstore_sbom_generations_total{status=\"success\"}[5m])) * 60",
+            "legendFormat": "Success",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(code_forge_sigstore_sbom_generations_total{status=\"failure\"}[5m])) * 60",
+            "legendFormat": "Failure",
+            "refId": "B"
+          },
+          {
+            "expr": "sum(rate(code_forge_sigstore_sbom_generations_total{status=\"mock\"}[5m])) * 60",
+            "legendFormat": "Mock",
+            "refId": "C"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom",
+            "calcs": ["mean", "sum"]
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "opm",
+            "custom": {
+              "drawStyle": "line",
+              "lineWidth": 2,
+              "fillOpacity": 20
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "Success"},
+              "properties": [
+                {"id": "color", "value": {"fixedColor": "green", "mode": "fixed"}}
+              ]
+            },
+            {
+              "matcher": {"id": "byName", "options": "Failure"},
+              "properties": [
+                {"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}
+              ]
+            },
+            {
+              "matcher": {"id": "byName", "options": "Mock"},
+              "properties": [
+                {"id": "color", "value": {"fixedColor": "blue", "mode": "fixed"}}
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": 20,
+        "title": "Sigstore Operation Duration",
+        "type": "timeseries",
+        "datasource": "${datasource}",
+        "gridPos": {"x": 12, "y": 35, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(code_forge_sigstore_operation_duration_seconds_bucket[5m])) by (le, operation))",
+            "legendFormat": "{{operation}} P95",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom",
+            "calcs": ["lastNotNull", "max"]
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "custom": {
+              "drawStyle": "line",
+              "lineWidth": 2,
+              "fillOpacity": 10
+            }
+          }
+        }
+      }
+    ]
+  }
+}

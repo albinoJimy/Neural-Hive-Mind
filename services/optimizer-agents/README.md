@@ -230,6 +230,138 @@ if optimization.risk_score > 0.7:
     approval = queen_client.request_approval(optimization_event)
 ```
 
+## Dependency Injection Pattern
+
+### Visão Geral
+
+O Optimizer Agents utiliza o padrão de **Dependency Injection** do FastAPI para desacoplar as APIs REST dos serviços internos. Isso permite:
+
+- **Testabilidade**: Substituir dependências reais por mocks em testes
+- **Flexibilidade**: Trocar implementações sem modificar código das APIs
+- **Manutenibilidade**: Centralizar inicialização de serviços no `main.py`
+
+### Arquitetura de DI
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    main.py (startup)                    │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │ 1. Inicializar serviços globais                  │  │
+│  │    - mongodb_client, redis_client                │  │
+│  │    - optimization_engine, experiment_manager     │  │
+│  │    - weight_recalibrator, slo_adjuster           │  │
+│  └──────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │ 2. Configurar app.dependency_overrides           │  │
+│  │    - optimizations.get_mongodb_client            │  │
+│  │    - optimizations.get_optimization_engine       │  │
+│  │    - experiments.get_experiment_manager          │  │
+│  └──────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+                          │
+                          ↓
+┌─────────────────────────────────────────────────────────┐
+│              API Routers (optimizations.py)             │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │ def get_mongodb_client() -> MongoDBClient:       │  │
+│  │     raise NotImplementedError  # Placeholder     │  │
+│  │                                                   │  │
+│  │ @router.get("")                                  │  │
+│  │ async def list_optimizations(                    │  │
+│  │     mongodb: MongoDBClient = Depends(get_...)    │  │
+│  │ ):                                               │  │
+│  │     # Usa instância injetada via override        │  │
+│  └──────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Dependências Configuradas
+
+#### API de Otimizações (`src/api/optimizations.py`)
+
+| Função de Dependency | Serviço Injetado | Uso |
+|---------------------|------------------|-----|
+| `get_mongodb_client()` | `MongoDBClient` | Persistência de otimizações |
+| `get_redis_client()` | `RedisClient` | Cache de estado |
+| `get_optimization_engine()` | `OptimizationEngine` | Geração de hipóteses |
+| `get_weight_recalibrator()` | `WeightRecalibrator` | Recalibração de pesos |
+| `get_slo_adjuster()` | `SLOAdjuster` | Ajuste de SLOs |
+
+#### API de Experimentos (`src/api/experiments.py`)
+
+| Função de Dependency | Serviço Injetado | Uso |
+|---------------------|------------------|-----|
+| `get_mongodb_client()` | `MongoDBClient` | Persistência de experimentos |
+| `get_experiment_manager()` | `ExperimentManager` | Gestão de experimentos |
+
+### Exemplo de Uso em Testes
+
+```python
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from unittest.mock import AsyncMock, MagicMock
+
+def test_list_optimizations_with_mock():
+    from src.api import optimizations
+
+    # Criar app de teste
+    app = FastAPI()
+    app.include_router(optimizations.router)
+
+    # Criar mock do MongoDB
+    mock_mongodb = MagicMock()
+    mock_mongodb.list_optimizations = AsyncMock(return_value=[
+        {'optimization_id': 'opt-123', 'status': 'APPROVED'}
+    ])
+
+    # Configurar override
+    app.dependency_overrides[optimizations.get_mongodb_client] = lambda: mock_mongodb
+
+    # Testar endpoint
+    client = TestClient(app)
+    response = client.get('/api/v1/optimizations')
+
+    assert response.status_code == 200
+    assert len(response.json()['optimizations']) == 1
+```
+
+### Configuração em Produção
+
+Em produção, os overrides são configurados automaticamente no `startup()` do `main.py`:
+
+```python
+# services/optimizer-agents/src/main.py (linhas 486-518)
+async def startup():
+    # ... inicializar serviços ...
+
+    # Configurar dependency overrides
+    app.dependency_overrides[optimizations.get_mongodb_client] = override_mongodb_client
+    app.dependency_overrides[optimizations.get_redis_client] = override_redis_client
+    # ... outros overrides ...
+```
+
+**Importante**: As funções `get_*()` nas APIs **sempre** lançam `NotImplementedError` por padrão. Elas são substituídas pelos overrides no startup.
+
+### Troubleshooting
+
+#### Erro: "NotImplementedError: MongoDBClient dependency not configured"
+
+**Causa**: Endpoint foi chamado antes do `startup()` completar ou overrides não foram configurados.
+
+**Solução**:
+1. Verificar que o serviço iniciou completamente (logs: `"optimizer_agents_started"`)
+2. Verificar que `app.dependency_overrides` está populado no `main.py`
+3. Em testes, sempre configurar overrides manualmente
+
+#### Erro: "AttributeError: 'NoneType' object has no attribute 'list_optimizations'"
+
+**Causa**: Serviço global (`mongodb_client`) é `None` quando override é chamado.
+
+**Solução**:
+1. Verificar ordem de inicialização no `startup()` (serviços antes de overrides)
+2. Verificar que conexões foram estabelecidas com sucesso
+3. Checar logs de erro durante inicialização
+
 ## Métricas Prometheus
 
 ### Counters

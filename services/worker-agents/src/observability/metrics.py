@@ -256,6 +256,25 @@ class WorkerAgentMetrics:
             ['status']
         )
 
+        # Discovery
+        self.discovery_requests_total = Counter(
+            'worker_agent_discovery_requests_total',
+            'Total de requisicoes de descoberta de agentes',
+            ['status']
+        )
+
+        self.discovery_agents_found = Histogram(
+            'worker_agent_discovery_agents_found',
+            'Numero de agentes encontrados por descoberta',
+            buckets=[0, 1, 2, 3, 5, 10, 20, 50]
+        )
+
+        self.discovery_duration_seconds = Histogram(
+            'worker_agent_discovery_duration_seconds',
+            'Duracao de requisicoes de descoberta',
+            buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
+        )
+
         logger.info('worker_agent_metrics_initialized')
 
 

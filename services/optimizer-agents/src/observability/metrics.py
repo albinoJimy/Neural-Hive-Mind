@@ -174,6 +174,136 @@ class OptimizerMetrics:
             buckets=(0.01, 0.05, 0.1, 0.5, 1),
         )
 
+        # Métricas para Consensus Optimization (extensões gRPC)
+        self.consensus_weight_updates_total = Counter(
+            "optimizer_consensus_weight_updates_total",
+            "Total de atualizações de peso aplicadas via gRPC",
+            ["specialist_type", "status"],
+        )
+
+        self.consensus_weight_rollbacks_total = Counter(
+            "optimizer_consensus_weight_rollbacks_total",
+            "Total de rollbacks de peso",
+            ["optimization_id"],
+        )
+
+        self.consensus_weight_validations_total = Counter(
+            "optimizer_consensus_weight_validations_total",
+            "Total de validações de peso",
+            ["result"],
+        )
+
+        # Métricas para Orchestrator Optimization (extensões gRPC)
+        self.orchestrator_slo_updates_total = Counter(
+            "optimizer_orchestrator_slo_updates_total",
+            "Total de atualizações de SLO aplicadas via gRPC",
+            ["service", "status"],
+        )
+
+        self.orchestrator_slo_rollbacks_total = Counter(
+            "optimizer_orchestrator_slo_rollbacks_total",
+            "Total de rollbacks de SLO",
+            ["optimization_id"],
+        )
+
+        self.orchestrator_slo_validations_total = Counter(
+            "optimizer_orchestrator_slo_validations_total",
+            "Total de validações de SLO",
+            ["result"],
+        )
+
+        self.orchestrator_error_budget_queries_total = Counter(
+            "optimizer_orchestrator_error_budget_queries_total",
+            "Total de consultas de error budget",
+            ["service"],
+        )
+
+        # Métricas RL para extensões
+        self.rl_q_value_updates_total = Counter(
+            "optimizer_rl_q_value_updates_total",
+            "Total de atualizações de Q-value no RL",
+            ["action"],
+        )
+
+        # Histogram para recompensas RL
+        self.rl_reward_distribution = Histogram(
+            "optimizer_rl_reward_distribution",
+            "Distribuição de recompensas RL",
+            buckets=(-1.0, -0.5, 0.0, 0.5, 1.0, 2.0),
+        )
+
+        # Gauges para estado atual das extensões
+        self.consensus_active_weights_count = Gauge(
+            "optimizer_consensus_active_weights_count",
+            "Número de especialistas com pesos ativos",
+        )
+
+        self.orchestrator_active_slos_count = Gauge(
+            "optimizer_orchestrator_active_slos_count",
+            "Número de serviços com SLOs ativos",
+        )
+
+        # Metricas A/B Testing
+        self.ab_test_assignments_total = Counter(
+            "neural_hive_ab_test_assignments_total",
+            "Total de atribuicoes a grupos em testes A/B",
+            ["experiment_id", "group"],
+        )
+
+        self.ab_test_sample_size = Gauge(
+            "neural_hive_ab_test_sample_size",
+            "Tamanho atual da amostra por grupo",
+            ["experiment_id", "group"],
+        )
+
+        self.ab_test_statistical_significance = Gauge(
+            "neural_hive_ab_test_statistical_significance",
+            "P-value do teste estatistico",
+            ["experiment_id", "metric_name"],
+        )
+
+        self.ab_test_effect_size = Gauge(
+            "neural_hive_ab_test_effect_size",
+            "Effect size (Cohen's d)",
+            ["experiment_id", "metric_name"],
+        )
+
+        self.ab_test_guardrail_violations_total = Counter(
+            "neural_hive_ab_test_guardrail_violations_total",
+            "Total de violacoes de guardrails",
+            ["experiment_id", "metric_name"],
+        )
+
+        self.ab_test_early_stops_total = Counter(
+            "neural_hive_ab_test_early_stops_total",
+            "Total de paradas antecipadas",
+            ["experiment_id", "reason"],
+        )
+
+        self.ab_test_probability_of_superiority = Gauge(
+            "neural_hive_ab_test_probability_of_superiority",
+            "Probabilidade de superioridade do treatment (Bayesiano)",
+            ["experiment_id", "metric_name"],
+        )
+
+        self.ab_test_expected_lift = Gauge(
+            "neural_hive_ab_test_expected_lift",
+            "Lift esperado do treatment vs control",
+            ["experiment_id", "metric_name"],
+        )
+
+        self.ab_test_duration_seconds = Histogram(
+            "neural_hive_ab_test_duration_seconds",
+            "Duracao de testes A/B em segundos",
+            buckets=(3600, 86400, 172800, 604800, 1209600),
+        )
+
+        self.ab_test_analysis_duration_seconds = Histogram(
+            "neural_hive_ab_test_analysis_duration_seconds",
+            "Duracao da analise estatistica em segundos",
+            buckets=(0.1, 0.5, 1.0, 5.0, 10.0),
+        )
+
     def increment_counter(self, metric_name: str, labels: Optional[Dict[str, str]] = None):
         """Increment a counter metric."""
         counter = getattr(self, metric_name, None)

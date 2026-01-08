@@ -69,6 +69,29 @@ config:
     executionTimeoutSeconds: 600
     rollbackOnFailure: true
 
+  # Integration: Execution Ticket Service
+  executionTicketService:
+    url: http://execution-ticket-service.neural-hive-orchestration.svc.cluster.local:8000
+    timeout: 30
+    circuitBreaker:
+      threshold: 5
+      resetSeconds: 60
+
+  # Integration: Orchestrator Dynamic (gRPC)
+  orchestrator:
+    grpcHost: orchestrator-dynamic.neural-hive-orchestration.svc.cluster.local
+    grpcPort: 50052
+    useTls: true
+    timeout: 10
+
+  # Integration: OPA Policy Engine
+  opa:
+    host: opa.neural-hive-governance.svc.cluster.local
+    port: 8181
+    enabled: true
+    failOpen: true
+    policyPath: neuralhive/self_healing/playbook_validation
+
   observability:
     otelEndpoint: http://otel-collector:4317
     prometheusPort: 9090
@@ -189,34 +212,56 @@ networkPolicy:
   - namespace: neural-hive-services
     ports: [50051]
   egress:
+  # DNS resolution
   - namespaceSelector: {}
     ports:
     - port: 53
       protocol: UDP
+  # Kafka
   - namespaceSelector:
       matchLabels: kafka
     ports:
     - port: 9092
+  # Service Registry gRPC
   - namespaceSelector:
-      matchLabels: neural-hive-services
+      matchLabels: neural-hive-registry
     ports:
     - port: 50051
+  # MongoDB
   - namespaceSelector:
       matchLabels: mongodb-cluster
     ports:
     - port: 27017
+  # Redis
   - namespaceSelector:
       matchLabels: redis-cluster
     ports:
     - port: 6379
+  # External HTTPS (K8s API)
   - namespaceSelector:
       matchLabels: default
     ports:
     - port: 443
+  # OpenTelemetry Collector
   - namespaceSelector:
       matchLabels: observability
     ports:
     - port: 4317
+  # Execution Ticket Service (HTTP)
+  - namespaceSelector:
+      matchLabels: neural-hive-orchestration
+    ports:
+    - port: 8000
+  # Orchestrator Dynamic (gRPC)
+  - namespaceSelector:
+      matchLabels: neural-hive-orchestration
+    ports:
+    - port: 50052
+  # OPA Policy Engine (HTTP)
+  - namespaceSelector:
+      matchLabels: neural-hive-governance
+    ports:
+    - port: 8181
 
 podDisruptionBudget:
   enabled: true

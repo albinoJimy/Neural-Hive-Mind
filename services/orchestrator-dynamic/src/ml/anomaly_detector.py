@@ -7,9 +7,10 @@ que podem indicar problemas de configuração ou comportamento inesperado.
 
 from typing import Dict, Any, Optional, List
 import numpy as np
+import pandas as pd
 from sklearn.ensemble import IsolationForest
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import precision_score, recall_score, f1_score
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.metrics import precision_score, recall_score, f1_score, make_scorer
 import structlog
 from neural_hive_observability import get_tracer
 from opentelemetry import trace
@@ -18,6 +19,11 @@ from .feature_engineering import (
     extract_ticket_features,
     normalize_features,
     compute_historical_stats
+)
+from .anomaly_training_utils import (
+    prepare_anomaly_training_data,
+    compute_anomaly_features_from_ticket,
+    validate_anomaly_training_data
 )
 
 logger = structlog.get_logger(__name__)
@@ -395,12 +401,20 @@ class AnomalyDetector:
             self.logger.warning("heuristic_detection_failed", error=str(e))
             return (False, None, 'Detecção falhou')
 
-    async def train_model(self, training_window_days: Optional[int] = None) -> Dict[str, float]:
+    async def train_model(
+        self,
+        training_window_days: Optional[int] = None,
+        hyperparameter_tuning: bool = False
+    ) -> Dict[str, float]:
         """
         Treina modelo com dados históricos do MongoDB.
 
+        Usa prepare_anomaly_training_data para preparação avançada de dados
+        incluindo labeling heurístico e geração de anomalias sintéticas.
+
         Args:
             training_window_days: Janela de dados (default: config value)
+            hyperparameter_tuning: Se True, executa GridSearchCV (mais lento)
 
         Returns:
             Dict com métricas de avaliação (precision, recall, f1)
@@ -421,7 +435,7 @@ class AnomalyDetector:
             try:
                 cutoff_date = datetime.utcnow() - timedelta(days=window_days)
 
-                # Query todos os tickets (anomalias são raras)
+                # Query todos os tickets
                 tickets = await self.mongodb_client.db['execution_tickets'].find({
                     'completed_at': {'$gte': cutoff_date}
                 }).to_list(None)
@@ -439,80 +453,91 @@ class AnomalyDetector:
                         'test_samples': 0
                     }
 
-                # Atualiza stats antes de extrair features
-                await self._refresh_historical_stats()
+                # Converter para DataFrame
+                df = pd.DataFrame(tickets)
 
-                # Extrai features
-                X_list = []
-                y_list = []  # Labels de anomalia (heurístico)
-
-                for ticket in tickets:
-                    try:
-                        features_dict = extract_ticket_features(
-                            ticket=ticket,
-                            historical_stats=self.historical_stats
-                        )
-                        features = normalize_features(features_dict)
-
-                        # Label de anomalia baseado em heurística
-                        is_anomaly, _, _ = self._heuristic_detection(features_dict, ticket)
-
-                        X_list.append(features[0])
-                        y_list.append(1 if is_anomaly else 0)
-
-                    except Exception as e:
-                        self.logger.warning("feature_extraction_failed", error=str(e))
-                        continue
-
-                X = np.array(X_list)
-                y = np.array(y_list)
-
-                # Treina modelo (unsupervised, não usa y)
-                model = self._create_default_model()
-                model.fit(X)
-
-                # Avalia com labels heurísticos
-                predictions = model.predict(X)
-                y_pred = np.where(predictions == -1, 1, 0)  # -1 = anomalia
-
-                # Split para métricas
-                X_train, X_test, y_train, y_test = train_test_split(
-                    X, y, test_size=0.2, random_state=42
+                # Preparar dados usando utilitários avançados
+                X_train, X_test, y_train, y_test = prepare_anomaly_training_data(
+                    df=df,
+                    label_column='is_anomaly',
+                    features_to_use=None,  # Auto-select
+                    synthetic_ratio=0.1  # Adicionar 10% de anomalias sintéticas
                 )
 
-                predictions_test = model.predict(X_test)
+                # Validar dados de treinamento
+                is_valid, issues = validate_anomaly_training_data(
+                    X_train, y_train,
+                    min_samples=self.config.ml_min_training_samples,
+                    min_anomaly_ratio=0.01,
+                    max_anomaly_ratio=0.5
+                )
+
+                if not is_valid and len(X_train) < 50:
+                    self.logger.warning(
+                        "training_data_validation_failed",
+                        issues=issues
+                    )
+                    # Fallback para método antigo se preparação falhar
+                    return await self._train_model_legacy(window_days, span)
+
+                # Hyperparameter tuning opcional
+                if hyperparameter_tuning and len(X_train) >= 200:
+                    model, best_params = self._tune_hyperparameters(
+                        X_train.values, y_train
+                    )
+                    self.logger.info(
+                        "hyperparameter_tuning_completed",
+                        best_params=best_params
+                    )
+                else:
+                    # Treinar com hiperparâmetros padrão
+                    model = self._create_default_model()
+                    model.fit(X_train.values)
+                    best_params = None
+
+                # Avaliar no conjunto de teste
+                predictions_test = model.predict(X_test.values)
                 y_pred_test = np.where(predictions_test == -1, 1, 0)
 
-                # Calcula métricas (pode ter warnings se sem anomalias)
+                # Calcular métricas
                 try:
                     precision = precision_score(y_test, y_pred_test, zero_division=0)
                     recall = recall_score(y_test, y_pred_test, zero_division=0)
                     f1 = f1_score(y_test, y_pred_test, zero_division=0)
-                except:
+                except Exception:
                     precision = recall = f1 = 0.0
 
-                anomaly_rate = np.mean(y_pred)
+                # Taxa de anomalia predita
+                predictions_all = model.predict(X_train.values)
+                anomaly_rate = np.mean(np.where(predictions_all == -1, 1, 0))
 
                 metrics = {
                     'precision': float(precision),
                     'recall': float(recall),
                     'f1_score': float(f1),
                     'anomaly_rate': float(anomaly_rate),
-                    'train_samples': len(X),
-                    'contamination': self.contamination
+                    'train_samples': len(X_train),
+                    'test_samples': len(X_test),
+                    'contamination': self.contamination,
+                    'features_used': list(X_train.columns)
                 }
 
-                # Salva modelo no registry
+                # Salvar modelo no registry
                 params = {
-                    'n_estimators': 100,
-                    'contamination': self.contamination,
+                    'n_estimators': model.n_estimators,
+                    'contamination': model.contamination,
                     'training_window_days': window_days,
-                    'feature_count': X.shape[1]
+                    'feature_count': X_train.shape[1],
+                    'hyperparameter_tuning': hyperparameter_tuning
                 }
+
+                if best_params:
+                    params.update(best_params)
 
                 tags = {
                     'model_type': 'anomaly_detector',
-                    'timestamp': datetime.utcnow().isoformat()
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'training_method': 'advanced'
                 }
 
                 run_id = await self.model_registry.save_model(
@@ -523,27 +548,41 @@ class AnomalyDetector:
                     tags=tags
                 )
 
-                # Atualiza modelo em memória se precision razoável
+                # Atualizar modelo em memória se precision suficiente
                 promoted = False
                 latest_version = await self._get_latest_version()
                 metrics['version'] = latest_version
 
-                if precision >= 0.6:
+                # Critérios de promoção
+                min_precision = getattr(
+                    self.config, 'ml_validation_precision_threshold', 0.75
+                )
+                if precision >= min_precision:
                     self.model = model
-                    self.logger.info("model_updated_in_memory", precision=precision)
+                    self.logger.info(
+                        "model_updated_in_memory",
+                        precision=precision,
+                        threshold=min_precision
+                    )
                     promoted = True
 
-                    # Promove modelo se passar critérios
+                    # Promover modelo
                     if latest_version:
                         await self.model_registry.promote_model(
                             model_name=self.model_name,
                             version=latest_version,
                             stage='Production'
                         )
+                else:
+                    self.logger.warning(
+                        "model_not_promoted_low_precision",
+                        precision=precision,
+                        threshold=min_precision
+                    )
 
                 metrics['promoted'] = promoted
 
-                # Métricas
+                # Registrar métricas de treinamento
                 training_duration = time.time() - start_time
                 self.metrics.record_ml_training(
                     model_type='anomaly',
@@ -557,8 +596,11 @@ class AnomalyDetector:
                     run_id=run_id,
                     duration_seconds=training_duration
                 )
-                span.set_attribute("neural.hive.ml.train_samples", len(X))
+                span.set_attribute("neural.hive.ml.train_samples", len(X_train))
+                span.set_attribute("neural.hive.ml.test_samples", len(X_test))
                 span.set_attribute("neural.hive.ml.precision", float(precision))
+                span.set_attribute("neural.hive.ml.recall", float(recall))
+                span.set_attribute("neural.hive.ml.f1", float(f1))
                 span.set_attribute("neural.hive.ml.promoted", promoted)
 
                 return metrics
@@ -573,6 +615,129 @@ class AnomalyDetector:
                     'train_samples': 0,
                     'test_samples': 0
                 }
+
+    def _tune_hyperparameters(
+        self,
+        X_train: np.ndarray,
+        y_train: np.ndarray
+    ) -> tuple:
+        """
+        Executa GridSearchCV para tuning de hiperparâmetros.
+
+        Args:
+            X_train: Features de treino
+            y_train: Labels de treino
+
+        Returns:
+            Tupla (best_model, best_params)
+        """
+        param_grid = {
+            'n_estimators': [50, 100, 200],
+            'contamination': [0.05, 0.1, 0.15],
+            'max_samples': [0.5, 0.75, 1.0]
+        }
+
+        # Scorer customizado para anomaly detection
+        def anomaly_scorer(estimator, X, y):
+            predictions = estimator.predict(X)
+            y_pred = np.where(predictions == -1, 1, 0)
+            return f1_score(y, y_pred, zero_division=0)
+
+        base_model = IsolationForest(random_state=42, n_jobs=-1)
+
+        grid_search = GridSearchCV(
+            estimator=base_model,
+            param_grid=param_grid,
+            scoring=anomaly_scorer,
+            cv=3,
+            n_jobs=-1,
+            verbose=0
+        )
+
+        grid_search.fit(X_train, y_train)
+
+        self.logger.info(
+            "grid_search_completed",
+            best_score=grid_search.best_score_,
+            best_params=grid_search.best_params_
+        )
+
+        return grid_search.best_estimator_, grid_search.best_params_
+
+    async def _train_model_legacy(
+        self,
+        window_days: int,
+        span
+    ) -> Dict[str, float]:
+        """
+        Método de treinamento legado (fallback).
+
+        Usado quando preparação avançada de dados falha.
+        """
+        from datetime import datetime, timedelta
+
+        cutoff_date = datetime.utcnow() - timedelta(days=window_days)
+
+        # Query tickets
+        tickets = await self.mongodb_client.db['execution_tickets'].find({
+            'completed_at': {'$gte': cutoff_date}
+        }).to_list(None)
+
+        # Atualiza stats
+        await self._refresh_historical_stats()
+
+        # Extrai features método antigo
+        X_list = []
+        y_list = []
+
+        for ticket in tickets:
+            try:
+                features_dict = extract_ticket_features(
+                    ticket=ticket,
+                    historical_stats=self.historical_stats
+                )
+                features = normalize_features(features_dict)
+                is_anomaly, _, _ = self._heuristic_detection(features_dict, ticket)
+
+                X_list.append(features[0])
+                y_list.append(1 if is_anomaly else 0)
+            except Exception:
+                continue
+
+        X = np.array(X_list)
+        y = np.array(y_list)
+
+        # Treina modelo
+        model = self._create_default_model()
+        model.fit(X)
+
+        # Avalia
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
+
+        predictions_test = model.predict(X_test)
+        y_pred_test = np.where(predictions_test == -1, 1, 0)
+
+        precision = precision_score(y_test, y_pred_test, zero_division=0)
+        recall = recall_score(y_test, y_pred_test, zero_division=0)
+        f1 = f1_score(y_test, y_pred_test, zero_division=0)
+
+        metrics = {
+            'precision': float(precision),
+            'recall': float(recall),
+            'f1_score': float(f1),
+            'train_samples': len(X),
+            'test_samples': len(X_test),
+            'contamination': self.contamination,
+            'training_method': 'legacy',
+            'promoted': False,
+            'version': None
+        }
+
+        self.logger.info("anomaly_model_trained_legacy", metrics=metrics)
+
+        return metrics
 
     async def _get_latest_version(self) -> Optional[str]:
         """

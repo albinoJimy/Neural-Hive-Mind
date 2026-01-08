@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional
 
 import aiohttp
 import structlog
+from prometheus_client import Counter, Histogram
 from pydantic import ValidationError
 
 from ..models.mcp_messages import (
@@ -35,6 +36,25 @@ class MCPServerClient:
     """Cliente para comunicação com servidores MCP via JSON-RPC 2.0."""
 
     SUPPORTED_TRANSPORTS = ("http", "stdio")
+
+    # Métricas Prometheus para transporte stdio
+    _stdio_requests_total = Counter(
+        "mcp_stdio_requests_total",
+        "Total de requisições via stdio transport",
+        ["method", "status"],
+    )
+
+    _stdio_request_duration_seconds = Histogram(
+        "mcp_stdio_request_duration_seconds",
+        "Duração de requisições stdio",
+        ["method"],
+        buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0],
+    )
+
+    _stdio_subprocess_restarts_total = Counter(
+        "mcp_stdio_subprocess_restarts_total",
+        "Total de restarts de subprocess stdio",
+    )
 
     def __init__(
         self,
@@ -65,7 +85,9 @@ class MCPServerClient:
                 f"Use um de: {self.SUPPORTED_TRANSPORTS}"
             )
 
-        self.server_url = server_url.rstrip("/")
+        # Para HTTP, rstrip('/') normaliza a URL; para stdio, preservar original
+        self._original_server_url = server_url
+        self.server_url = server_url.rstrip("/") if transport == "http" else server_url
         self.transport = transport
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
@@ -82,7 +104,21 @@ class MCPServerClient:
             transport=transport,
         )
 
+        # Atributos para transporte stdio
+        self._process: Optional[asyncio.subprocess.Process] = None
+        self._stdin_writer: Optional[asyncio.StreamWriter] = None
+        self._stdout_reader: Optional[asyncio.StreamReader] = None
+        self._stderr_task: Optional[asyncio.Task] = None
+        self._stdio_lock: asyncio.Lock = asyncio.Lock()
+
     async def start(self) -> None:
+        """Inicializa sessão HTTP ou subprocess stdio."""
+        if self.transport == "http":
+            await self._start_http()
+        elif self.transport == "stdio":
+            await self._start_stdio()
+
+    async def _start_http(self) -> None:
         """Inicializa sessão HTTP com connection pooling."""
         if self._session is not None:
             return
@@ -99,14 +135,119 @@ class MCPServerClient:
             timeout=timeout,
         )
 
-        self._logger.info("mcp_client_started")
+        self._logger.info("mcp_client_started", transport="http")
+
+    async def _start_stdio(self) -> None:
+        """Inicializa subprocess para transporte stdio."""
+        if self._process is not None:
+            return
+
+        # Parse server_url para extrair comando
+        # Formato esperado: "stdio://path/to/server" ou "stdio:///usr/bin/mcp-server"
+        if self.server_url.startswith("stdio://"):
+            command = self.server_url[len("stdio://"):]
+        else:
+            command = self.server_url
+
+        # Validar que o comando não está vazio ou só contém espaços
+        if not command or not command.strip():
+            raise ValueError("server_url deve conter caminho do executável para stdio")
+
+        try:
+            # Incrementar contador de restarts se não é primeira inicialização
+            if self._request_id > 0:
+                self._stdio_subprocess_restarts_total.inc()
+
+            self._process = await asyncio.create_subprocess_exec(
+                *command.split(),
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+
+            self._stdin_writer = self._process.stdin
+            self._stdout_reader = self._process.stdout
+
+            # Iniciar task para capturar stderr
+            self._stderr_task = asyncio.create_task(self._capture_stderr())
+
+            self._logger.info(
+                "mcp_client_started",
+                transport="stdio",
+                command=command,
+                pid=self._process.pid,
+            )
+
+        except FileNotFoundError:
+            raise MCPTransportError(
+                message=f"MCP server executable not found: {command}",
+                data={"command": command},
+            )
+        except Exception as e:
+            raise MCPTransportError(
+                message=f"Failed to start MCP server subprocess: {str(e)}",
+                data={"command": command, "error": type(e).__name__},
+            )
 
     async def stop(self) -> None:
+        """Fecha sessão HTTP ou subprocess stdio gracefully."""
+        if self.transport == "http":
+            await self._stop_http()
+        elif self.transport == "stdio":
+            await self._stop_stdio()
+
+    async def _stop_http(self) -> None:
         """Fecha sessão HTTP gracefully."""
         if self._session is not None:
             await self._session.close()
             self._session = None
-            self._logger.info("mcp_client_stopped")
+            self._logger.info("mcp_client_stopped", transport="http")
+
+    async def _stop_stdio(self) -> None:
+        """Fecha subprocess stdio gracefully."""
+        if self._process is None:
+            return
+
+        try:
+            # Cancelar task de stderr
+            if self._stderr_task and not self._stderr_task.done():
+                self._stderr_task.cancel()
+                try:
+                    await self._stderr_task
+                except asyncio.CancelledError:
+                    pass
+
+            # Fechar stdin para sinalizar término
+            if self._stdin_writer:
+                self._stdin_writer.close()
+                await self._stdin_writer.wait_closed()
+
+            # Aguardar término do processo (timeout 5s)
+            try:
+                await asyncio.wait_for(self._process.wait(), timeout=5.0)
+            except asyncio.TimeoutError:
+                self._logger.warning("mcp_subprocess_timeout_on_stop", pid=self._process.pid)
+                self._process.kill()
+                await self._process.wait()
+
+            self._logger.info(
+                "mcp_client_stopped",
+                transport="stdio",
+                pid=self._process.pid,
+                returncode=self._process.returncode,
+            )
+
+        except Exception as e:
+            self._logger.error(
+                "mcp_client_stop_error",
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+        finally:
+            self._process = None
+            self._stdin_writer = None
+            self._stdout_reader = None
+            self._stderr_task = None
 
     async def list_tools(self) -> List[MCPToolDescriptor]:
         """
@@ -328,15 +469,213 @@ class MCPServerClient:
         params: Dict[str, Any],
     ) -> Dict[str, Any]:
         """
-        Envia requisição via transporte stdio.
+        Envia requisição JSON-RPC 2.0 via transporte stdio com retry e circuit breaker.
+
+        Args:
+            method: Nome do método JSON-RPC.
+            params: Parâmetros da requisição.
+
+        Returns:
+            Campo 'result' da resposta JSON-RPC.
 
         Raises:
-            NotImplementedError: Transporte stdio ainda não implementado.
+            MCPTransportError: Erro de transporte ou circuit breaker aberto.
+            MCPProtocolError: Resposta JSON inválida.
+            MCPServerError: Erro retornado pelo servidor.
         """
-        raise NotImplementedError(
-            "Transporte stdio ainda não implementado. "
-            "Use transport='http' ou contribua com a implementação stdio."
-        )
+        # Verificar circuit breaker
+        if self._circuit_breaker_open_until is not None:
+            if datetime.now() < self._circuit_breaker_open_until:
+                raise MCPTransportError(
+                    message="Circuit breaker open",
+                    data={
+                        "open_until": self._circuit_breaker_open_until.isoformat(),
+                        "failures": self._circuit_breaker_failures,
+                    },
+                )
+            # Circuit breaker expirou, resetar
+            self._circuit_breaker_open_until = None
+            self._circuit_breaker_failures = 0
+
+        # Limpar processo morto para forçar recriação
+        if self._process is not None and self._process.returncode is not None:
+            self._process = None
+            self._stdin_writer = None
+            self._stdout_reader = None
+            if self._stderr_task and not self._stderr_task.done():
+                self._stderr_task.cancel()
+                try:
+                    await self._stderr_task
+                except asyncio.CancelledError:
+                    pass
+            self._stderr_task = None
+
+        if self._process is None:
+            await self.start()
+
+        last_error: Optional[Exception] = None
+        start_time = time.monotonic()
+
+        for attempt in range(1, self.max_retries + 1):
+            self._request_id += 1
+            current_request_id = self._request_id
+
+            payload = {
+                "jsonrpc": "2.0",
+                "id": current_request_id,
+                "method": method,
+                "params": params,
+            }
+
+            try:
+                # Usar lock para evitar race conditions em I/O
+                async with self._stdio_lock:
+                    # Serializar e enviar via stdin (newline-delimited)
+                    message = json.dumps(payload) + "\n"
+                    self._stdin_writer.write(message.encode("utf-8"))
+                    await self._stdin_writer.drain()
+
+                    # Ler resposta do stdout (newline-delimited)
+                    try:
+                        response_line = await asyncio.wait_for(
+                            self._stdout_reader.readline(),
+                            timeout=self.timeout_seconds,
+                        )
+                    except asyncio.TimeoutError:
+                        self._circuit_breaker_failures += 1
+                        last_error = MCPTransportError(message="Request timeout")
+                        raise last_error
+
+                    if not response_line:
+                        # EOF - processo terminou
+                        self._circuit_breaker_failures += 1
+                        last_error = MCPTransportError(
+                            message="MCP server process terminated unexpectedly",
+                            data={"returncode": self._process.returncode},
+                        )
+                        raise last_error
+
+                    # Parse JSON
+                    try:
+                        data = json.loads(response_line.decode("utf-8"))
+                    except json.JSONDecodeError as e:
+                        raise MCPProtocolError(
+                            message="Invalid JSON response",
+                            data=str(e),
+                        )
+
+                    # Validar versão JSON-RPC
+                    if data.get("jsonrpc") != "2.0":
+                        raise MCPProtocolError(
+                            message="Invalid or missing 'jsonrpc' version in response",
+                            data=data,
+                        )
+
+                    # Validar correspondência de ID
+                    if data.get("id") != current_request_id:
+                        raise MCPProtocolError(
+                            message=f"Response ID mismatch: expected {current_request_id}, got {data.get('id')}",
+                            data=data,
+                        )
+
+                    # Verificar erro JSON-RPC
+                    if "error" in data and data["error"] is not None:
+                        error = data["error"]
+                        raise create_exception_from_error(
+                            code=error.get("code", -32603),
+                            message=error.get("message", "Unknown error"),
+                            data=error.get("data"),
+                        )
+
+                    # Verificar campo result
+                    if "result" not in data:
+                        raise MCPProtocolError(
+                            message="Missing 'result' field in response",
+                            data=data,
+                        )
+
+                    # Resetar circuit breaker e registrar métricas em sucesso
+                    self._circuit_breaker_failures = 0
+                    elapsed = time.monotonic() - start_time
+                    self._stdio_requests_total.labels(method=method, status="success").inc()
+                    self._stdio_request_duration_seconds.labels(method=method).observe(elapsed)
+                    return data["result"]
+
+            except MCPError:
+                # Re-raise MCP errors sem retry
+                self._stdio_requests_total.labels(method=method, status="error").inc()
+                raise
+
+            except Exception as e:
+                self._circuit_breaker_failures += 1
+                last_error = MCPTransportError(
+                    message=f"Unexpected error: {type(e).__name__}",
+                    data=str(e),
+                )
+
+            # Verificar se deve abrir circuit breaker
+            if self._circuit_breaker_failures >= self.circuit_breaker_threshold:
+                self._circuit_breaker_open_until = datetime.now() + timedelta(
+                    seconds=self.circuit_breaker_timeout
+                )
+                self._logger.warning(
+                    "mcp_circuit_breaker_opened",
+                    failures=self._circuit_breaker_failures,
+                    open_until=self._circuit_breaker_open_until.isoformat(),
+                )
+
+            # Retry com exponential backoff
+            if attempt < self.max_retries:
+                backoff = 2 ** attempt
+                self._logger.warning(
+                    "mcp_request_retry",
+                    attempt=attempt,
+                    method=method,
+                    error=str(last_error),
+                    backoff_seconds=backoff,
+                )
+                await asyncio.sleep(backoff)
+
+        # Todas tentativas falharam
+        self._stdio_requests_total.labels(method=method, status="error").inc()
+        if last_error:
+            raise last_error
+
+        raise MCPTransportError(message="All retry attempts failed")
+
+    async def _capture_stderr(self) -> None:
+        """
+        Captura e loga stderr do subprocess MCP server.
+
+        Segundo especificação MCP, stderr pode conter logs informativos,
+        debug ou erros, mas não indica necessariamente falha.
+        """
+        if not self._process or not self._process.stderr:
+            return
+
+        try:
+            while True:
+                line = await self._process.stderr.readline()
+                if not line:
+                    break  # EOF
+
+                stderr_text = line.decode("utf-8", errors="replace").strip()
+                if stderr_text:
+                    self._logger.debug(
+                        "mcp_server_stderr",
+                        message=stderr_text,
+                        pid=self._process.pid,
+                    )
+
+        except asyncio.CancelledError:
+            # Task foi cancelada no stop()
+            pass
+        except Exception as e:
+            self._logger.warning(
+                "mcp_stderr_capture_error",
+                error=str(e),
+                error_type=type(e).__name__,
+            )
 
     async def _send_request_http(
         self,

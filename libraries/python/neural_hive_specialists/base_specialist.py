@@ -323,6 +323,31 @@ class BaseSpecialist(ABC):
         # Inicializar atributo para agent_id do service-registry
         self._registered_agent_id = None
 
+        # Inicializar cliente de online learning
+        self.online_learning_client = None
+        self._use_online_model = getattr(config, 'use_online_model', False)
+        if self._use_online_model:
+            try:
+                from .online_learning_client import OnlineLearningClient
+                self.online_learning_client = OnlineLearningClient(
+                    specialist_type=self.specialist_type,
+                    online_learning_enabled=True,
+                    cache_ttl_seconds=300,
+                    mongodb_uri=config.mongodb_uri,
+                    checkpoint_path=getattr(config, 'online_checkpoint_path', None)
+                )
+                logger.info(
+                    "Online learning client initialized",
+                    specialist_type=self.specialist_type
+                )
+            except Exception as e:
+                logger.warning(
+                    "Online learning client unavailable - continuing without",
+                    error=str(e),
+                    specialist_type=self.specialist_type
+                )
+                self.online_learning_client = None
+
         logger.info(
             "Specialist initialized successfully",
             specialist_type=self.specialist_type,
@@ -330,6 +355,7 @@ class BaseSpecialist(ABC):
             feature_extractor_ready=True,
             semantic_pipeline_ready=True,
             drift_monitoring_enabled=self.drift_detector is not None,
+            online_learning_enabled=self.online_learning_client is not None,
             service_registry_enabled=SERVICE_REGISTRY_ENABLED
         )
 
@@ -385,6 +411,9 @@ class BaseSpecialist(ABC):
         """
         Executa inferência de modelo com timeout e fallback.
 
+        Quando online_learning_client está disponível e use_online_model está ativo,
+        combina predições do modelo batch com o modelo online via ensemble.
+
         Args:
             cognitive_plan: Plano cognitivo validado
             timeout_ms: Timeout em milissegundos (usa config se None)
@@ -396,6 +425,13 @@ class BaseSpecialist(ABC):
         if self.model is None:
             logger.debug("Model not available, skipping ML inference and embeddings")
             return None
+
+        # Verificar se deve usar modelo online (ensemble)
+        use_online = (
+            self._use_online_model and
+            self.online_learning_client is not None and
+            self.online_learning_client.is_online_model_available()
+        )
 
         timeout_seconds = (timeout_ms or self.config.model_inference_timeout_ms) / 1000.0
 
@@ -487,6 +523,7 @@ class BaseSpecialist(ABC):
             def _run_inference():
                 # Converter features para DataFrame com schema consistente
                 import pandas as pd
+                import numpy as np
 
                 # Importar definições centralizadas de features
                 try:
@@ -518,6 +555,61 @@ class BaseSpecialist(ABC):
                 else:
                     # Fallback: usar feature_vector diretamente
                     feature_df = pd.DataFrame([feature_vector])
+
+                # =====================================================================
+                # Usar ensemble (batch + online) se online learning estiver disponível
+                # =====================================================================
+                if use_online:
+                    try:
+                        # Converter DataFrame para array numpy para o cliente
+                        features_array = feature_df.values
+
+                        # Usar predict_with_ensemble do online_learning_client
+                        ensemble_result = self.online_learning_client.predict_with_ensemble(
+                            features=features_array,
+                            batch_model=self.model,
+                            batch_weight=self.config.batch_model_weight,
+                            online_weight=self.config.online_model_weight
+                        )
+
+                        # Converter resultado do ensemble para formato esperado
+                        prediction = np.array(ensemble_result['probabilities'])
+                        prediction_method = f"ensemble_{ensemble_result['model_used']}"
+
+                        logger.info(
+                            "Using ensemble prediction (batch + online)",
+                            plan_id=cognitive_plan.get('plan_id'),
+                            model_used=ensemble_result['model_used'],
+                            batch_latency_ms=ensemble_result.get('batch_latency_ms'),
+                            online_latency_ms=ensemble_result.get('online_latency_ms'),
+                            online_model_version=self.online_learning_client.get_online_model_version()
+                        )
+
+                        # Log input/output para auditoria
+                        logger.info(
+                            "Ensemble inference completed",
+                            plan_id=cognitive_plan.get('plan_id'),
+                            model_version=self._get_model_version(),
+                            online_model_version=self.online_learning_client.get_online_model_version(),
+                            prediction_method=prediction_method,
+                            prediction=prediction.tolist() if hasattr(prediction, 'tolist') else prediction
+                        )
+
+                        return prediction, prediction_method
+
+                    except Exception as e:
+                        # Fallback para batch em caso de falha no ensemble
+                        logger.warning(
+                            "Ensemble prediction failed, falling back to batch model",
+                            plan_id=cognitive_plan.get('plan_id'),
+                            error_type=type(e).__name__,
+                            error=str(e)
+                        )
+                        # Continuar com predição batch abaixo
+
+                # =====================================================================
+                # Predição batch (default ou fallback)
+                # =====================================================================
 
                 # Predição - tentar predict_proba para obter probabilidades calibradas
                 try:
@@ -593,6 +685,16 @@ class BaseSpecialist(ABC):
                     result['metadata']['inference_duration_ms'] = int(inference_duration * 1000)
                     result['metadata']['mlflow_model_signature_version'] = self.config.mlflow_model_signature_version
                     result['metadata']['prediction_method'] = prediction_method
+
+                    # Documentar uso de ensemble no metadata se aplicável
+                    if prediction_method.startswith('ensemble_'):
+                        result['metadata']['model_source'] = 'ensemble'
+                        result['metadata']['online_model_version'] = (
+                            self.online_learning_client.get_online_model_version()
+                            if self.online_learning_client else None
+                        )
+                        result['metadata']['ensemble_batch_weight'] = self.config.batch_model_weight
+                        result['metadata']['ensemble_online_weight'] = self.config.online_model_weight
 
                     # Adicionar feature_id se features foram persistidas
                     if self.feature_store and plan_id:

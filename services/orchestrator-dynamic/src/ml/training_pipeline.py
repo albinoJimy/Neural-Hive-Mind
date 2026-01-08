@@ -3,9 +3,12 @@ Training Pipeline para treinamento incremental de modelos ML.
 
 Orquestra ciclo completo de treinamento: query de dados históricos,
 delegação de treinamento para modelos especializados, e retreinamento periódico.
+
+Integra com RetrainingTriggerSystem para re-treinamento automático
+baseado em drift, performance e volume de dados.
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 import asyncio
 import pandas as pd
@@ -13,16 +16,26 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
+# Import opcional do RetrainingTriggerSystem
+try:
+    from .retraining_triggers import RetrainingTriggerSystem, TriggerType
+    HAS_RETRAINING_TRIGGERS = True
+except ImportError:
+    HAS_RETRAINING_TRIGGERS = False
+
 
 class TrainingPipeline:
     """
     Pipeline de treinamento incremental para modelos ML.
 
     Responsável por:
-    - Query de dados históricos do MongoDB
+    - Query de dados históricos do MongoDB ou ClickHouse
     - Delegação de treinamento para DurationPredictor e AnomalyDetector
       (cada predictor gerencia sua própria preparação de features)
     - Agendamento de retreinamento periódico
+
+    Integra com ClickHouse para queries de dados históricos (mais rápido),
+    com fallback para MongoDB quando ClickHouse indisponível.
     """
 
     def __init__(
@@ -33,7 +46,8 @@ class TrainingPipeline:
         duration_predictor,
         anomaly_detector,
         metrics,
-        drift_detector=None
+        drift_detector=None,
+        clickhouse_client=None
     ):
         """
         Inicializa Training Pipeline.
@@ -46,6 +60,7 @@ class TrainingPipeline:
             anomaly_detector: AnomalyDetector instance
             metrics: OrchestratorMetrics
             drift_detector: DriftDetector instance (opcional)
+            clickhouse_client: Cliente ClickHouse para queries (opcional, preferido se disponível)
         """
         self.config = config
         self.mongodb_client = mongodb_client
@@ -54,11 +69,119 @@ class TrainingPipeline:
         self.anomaly_detector = anomaly_detector
         self.metrics = metrics
         self.drift_detector = drift_detector
+        self.clickhouse_client = clickhouse_client
         self.logger = logger.bind(component="training_pipeline")
+
+        # Flag para usar ClickHouse (configuração)
+        self.use_clickhouse = getattr(config, 'ml_use_clickhouse_for_features', True)
 
         # Task de treinamento periódico
         self._training_task: Optional[asyncio.Task] = None
         self._stop_training = False
+
+        # Fila de treinamento para evitar concorrência
+        self._training_queue: asyncio.Queue = asyncio.Queue()
+        self._training_lock = asyncio.Lock()
+
+        # Sistema de triggers (inicializado posteriormente)
+        self._trigger_system: Optional['RetrainingTriggerSystem'] = None
+
+        # Histórico de treinamentos
+        self._training_history: List[Dict[str, Any]] = []
+
+    def initialize_trigger_system(self):
+        """Inicializa sistema de triggers de re-treinamento."""
+        if not HAS_RETRAINING_TRIGGERS:
+            self.logger.warning("retraining_triggers_not_available")
+            return
+
+        self._trigger_system = RetrainingTriggerSystem(
+            config=self.config,
+            mongodb_client=self.mongodb_client,
+            drift_detector=self.drift_detector,
+            metrics=self.metrics
+        )
+
+        # Registrar callback para executar treinamento
+        self._trigger_system.register_callback(self._on_trigger_activated)
+
+        self.logger.info("trigger_system_initialized")
+
+    async def _on_trigger_activated(self, model_name: str, trigger):
+        """Callback executado quando um trigger é ativado."""
+        self.logger.info(
+            "trigger_callback_received",
+            model_name=model_name,
+            trigger_type=trigger.trigger_type.value
+        )
+
+        # Adicionar à fila de treinamento
+        await self._training_queue.put({
+            'model_name': model_name,
+            'trigger': trigger
+        })
+
+    async def should_retrain(self, model_name: str = 'duration-predictor') -> bool:
+        """
+        Verifica se modelo deve ser re-treinado.
+
+        Args:
+            model_name: Nome do modelo
+
+        Returns:
+            True se re-treinamento necessário
+        """
+        if not self._trigger_system:
+            return False
+
+        return await self._trigger_system.should_retrain(model_name)
+
+    async def check_and_trigger_retraining(
+        self,
+        model_name: str = 'duration-predictor'
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Verifica triggers e executa re-treinamento se necessário.
+
+        Args:
+            model_name: Nome do modelo
+
+        Returns:
+            Dict com resultado ou None se nenhum trigger ativo
+        """
+        if not self._trigger_system:
+            return None
+
+        triggers = await self._trigger_system.evaluate_triggers(model_name)
+
+        if not triggers:
+            return None
+
+        # Usar trigger de maior prioridade
+        primary_trigger = triggers[0]
+
+        # Executar re-treinamento
+        async with self._training_lock:
+            result = await self.run_training_cycle()
+
+            # Registrar histórico
+            training_record = {
+                'timestamp': datetime.utcnow(),
+                'model_name': model_name,
+                'trigger_type': primary_trigger.trigger_type.value,
+                'trigger_reason': primary_trigger.reason,
+                'result': result
+            }
+
+            self._training_history.append(training_record)
+
+            # Persistir no MongoDB
+            try:
+                await self.mongodb_client.db['ml_training_history'].insert_one(training_record)
+            except Exception as e:
+                self.logger.warning("failed_to_record_training_history", error=str(e))
+
+            return result
 
     def run_training_cycle_sync(
         self,
@@ -203,7 +326,10 @@ class TrainingPipeline:
 
     async def _query_training_data(self, window_days: int) -> pd.DataFrame:
         """
-        Query dados de treino do MongoDB e converte para DataFrame.
+        Query dados de treino e converte para DataFrame.
+
+        Prioriza ClickHouse se disponível e habilitado (mais rápido),
+        com fallback para MongoDB.
 
         Campos buscados:
         - ticket_id, task_type, risk_band, qos, sla
@@ -220,8 +346,34 @@ class TrainingPipeline:
         """
         try:
             cutoff_date = datetime.utcnow() - timedelta(days=window_days)
+            data_source = "mongodb"
 
-            # Query MongoDB
+            # Tenta ClickHouse primeiro se habilitado
+            if self.use_clickhouse and self.clickhouse_client is not None:
+                try:
+                    if await self.clickhouse_client.health_check():
+                        self.logger.info("querying_training_data_from_clickhouse", window_days=window_days)
+                        clickhouse_data = await self.clickhouse_client.query_ticket_metrics_for_training(
+                            window_days=window_days,
+                            limit=100000
+                        )
+                        if clickhouse_data:
+                            df = pd.DataFrame(clickhouse_data)
+                            data_source = "clickhouse"
+                            self.logger.info(
+                                "training_data_queried",
+                                tickets=len(df),
+                                window_days=window_days,
+                                source=data_source
+                            )
+                            return df
+                except Exception as e:
+                    self.logger.warning(
+                        "clickhouse_query_failed_using_mongodb",
+                        error=str(e)
+                    )
+
+            # Fallback para MongoDB
             tickets = await self.mongodb_client.db['execution_tickets'].find({
                 'completed_at': {'$gte': cutoff_date}
             }).to_list(None)
@@ -229,7 +381,8 @@ class TrainingPipeline:
             self.logger.info(
                 "training_data_queried",
                 tickets=len(tickets),
-                window_days=window_days
+                window_days=window_days,
+                source=data_source
             )
 
             # Converte para DataFrame
@@ -370,8 +523,8 @@ class TrainingPipeline:
             # Obter MAE do treinamento
             training_mae = duration_metrics.get('mae', 0)
 
-            # Salvar baseline usando drift detector
-            self.drift_detector.save_feature_baseline(
+            # Salvar baseline usando drift detector (async)
+            await self.drift_detector.save_feature_baseline(
                 features_data=features_data,
                 target_values=target_values,
                 training_mae=training_mae,

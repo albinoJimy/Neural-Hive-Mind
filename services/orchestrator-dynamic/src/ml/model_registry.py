@@ -492,6 +492,475 @@ class ModelRegistry:
             self.logger.error("list_models_failed", error=str(e))
             return []
 
+    async def compare_models(
+        self,
+        model_name: str,
+        version_a: str,
+        version_b: str
+    ) -> Dict[str, Any]:
+        """
+        Compara duas versões de um modelo.
+
+        Args:
+            model_name: Nome do modelo
+            version_a: Primeira versão
+            version_b: Segunda versão
+
+        Returns:
+            Dict com comparação de métricas e recomendação
+        """
+        try:
+            # Busca versões em thread separada
+            versions = await asyncio.to_thread(
+                self.client.search_model_versions,
+                f"name='{model_name}'"
+            )
+
+            versions_dict = {v.version: v for v in versions}
+
+            if version_a not in versions_dict or version_b not in versions_dict:
+                return {'error': 'Uma ou ambas versões não encontradas'}
+
+            v_a = versions_dict[version_a]
+            v_b = versions_dict[version_b]
+
+            # Busca runs associados
+            run_a = await asyncio.to_thread(self.client.get_run, v_a.run_id)
+            run_b = await asyncio.to_thread(self.client.get_run, v_b.run_id)
+
+            metrics_a = run_a.data.metrics
+            metrics_b = run_b.data.metrics
+
+            # Calcular diferenças
+            comparison = {
+                'model_name': model_name,
+                'version_a': {
+                    'version': version_a,
+                    'stage': v_a.current_stage,
+                    'metrics': metrics_a,
+                    'created_at': v_a.creation_timestamp
+                },
+                'version_b': {
+                    'version': version_b,
+                    'stage': v_b.current_stage,
+                    'metrics': metrics_b,
+                    'created_at': v_b.creation_timestamp
+                },
+                'differences': {}
+            }
+
+            # Calcular diferenças percentuais para cada métrica
+            all_metrics = set(metrics_a.keys()) | set(metrics_b.keys())
+            for metric in all_metrics:
+                val_a = metrics_a.get(metric)
+                val_b = metrics_b.get(metric)
+
+                if val_a is not None and val_b is not None and val_a != 0:
+                    pct_change = ((val_b - val_a) / abs(val_a)) * 100
+                    comparison['differences'][metric] = {
+                        'value_a': val_a,
+                        'value_b': val_b,
+                        'change_pct': round(pct_change, 2)
+                    }
+
+            # Determinar recomendação
+            recommendation = self._determine_recommendation(
+                model_name, metrics_a, metrics_b
+            )
+            comparison['recommendation'] = recommendation
+
+            self.logger.info(
+                "models_compared",
+                model_name=model_name,
+                version_a=version_a,
+                version_b=version_b,
+                recommendation=recommendation['preferred_version']
+            )
+
+            return comparison
+
+        except Exception as e:
+            self.logger.error(
+                "compare_models_failed",
+                model_name=model_name,
+                error=str(e)
+            )
+            return {'error': str(e)}
+
+    def _determine_recommendation(
+        self,
+        model_name: str,
+        metrics_a: Dict[str, float],
+        metrics_b: Dict[str, float]
+    ) -> Dict[str, Any]:
+        """Determina qual versão é recomendada baseado nas métricas."""
+        if 'duration' in model_name.lower():
+            # Para duration: menor MAE é melhor
+            mae_a = metrics_a.get('mae', metrics_a.get('mae_percentage', float('inf')))
+            mae_b = metrics_b.get('mae', metrics_b.get('mae_percentage', float('inf')))
+
+            return {
+                'preferred_version': 'a' if mae_a <= mae_b else 'b',
+                'reason': f"MAE: {mae_a:.4f} vs {mae_b:.4f}",
+                'primary_metric': 'mae'
+            }
+
+        elif 'anomaly' in model_name.lower():
+            # Para anomaly: maior F1 é melhor
+            f1_a = metrics_a.get('f1_score', metrics_a.get('f1', 0))
+            f1_b = metrics_b.get('f1_score', metrics_b.get('f1', 0))
+
+            return {
+                'preferred_version': 'a' if f1_a >= f1_b else 'b',
+                'reason': f"F1: {f1_a:.4f} vs {f1_b:.4f}",
+                'primary_metric': 'f1_score'
+            }
+
+        return {
+            'preferred_version': 'unknown',
+            'reason': 'Tipo de modelo não reconhecido',
+            'primary_metric': None
+        }
+
+    async def get_model_history(
+        self,
+        model_name: str,
+        limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        Recupera histórico de versões do modelo.
+
+        Args:
+            model_name: Nome do modelo
+            limit: Número máximo de versões (default: 10)
+
+        Returns:
+            Lista de versões ordenadas da mais recente para a mais antiga
+        """
+        try:
+            versions = await asyncio.to_thread(
+                self.client.search_model_versions,
+                f"name='{model_name}'"
+            )
+
+            if not versions:
+                return []
+
+            # Ordena por versão (mais recente primeiro)
+            sorted_versions = sorted(
+                versions,
+                key=lambda v: int(v.version),
+                reverse=True
+            )[:limit]
+
+            history = []
+            for v in sorted_versions:
+                # Busca run associado
+                try:
+                    run = await asyncio.to_thread(self.client.get_run, v.run_id)
+                    metrics = run.data.metrics
+                    params = run.data.params
+                except Exception:
+                    metrics = {}
+                    params = {}
+
+                history.append({
+                    'version': v.version,
+                    'stage': v.current_stage,
+                    'run_id': v.run_id,
+                    'created_at': v.creation_timestamp,
+                    'metrics': metrics,
+                    'params': params,
+                    'status': v.status
+                })
+
+            self.logger.debug(
+                "model_history_retrieved",
+                model_name=model_name,
+                versions_count=len(history)
+            )
+
+            return history
+
+        except Exception as e:
+            self.logger.error(
+                "get_model_history_failed",
+                model_name=model_name,
+                error=str(e)
+            )
+            return []
+
+    async def get_best_model(
+        self,
+        model_name: str,
+        metric_name: str,
+        minimize: bool = True
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Encontra a melhor versão do modelo baseado em uma métrica.
+
+        Args:
+            model_name: Nome do modelo
+            metric_name: Nome da métrica para otimizar
+            minimize: Se True, menor é melhor (default: True)
+
+        Returns:
+            Dict com informações da melhor versão ou None
+        """
+        try:
+            versions = await asyncio.to_thread(
+                self.client.search_model_versions,
+                f"name='{model_name}'"
+            )
+
+            if not versions:
+                return None
+
+            best_version = None
+            best_metric_value = float('inf') if minimize else float('-inf')
+
+            for v in versions:
+                try:
+                    run = await asyncio.to_thread(self.client.get_run, v.run_id)
+                    metric_value = run.data.metrics.get(metric_name)
+
+                    if metric_value is None:
+                        continue
+
+                    is_better = (
+                        metric_value < best_metric_value if minimize
+                        else metric_value > best_metric_value
+                    )
+
+                    if is_better:
+                        best_metric_value = metric_value
+                        best_version = {
+                            'version': v.version,
+                            'stage': v.current_stage,
+                            'run_id': v.run_id,
+                            metric_name: metric_value,
+                            'metrics': run.data.metrics,
+                            'params': run.data.params
+                        }
+
+                except Exception:
+                    continue
+
+            if best_version:
+                self.logger.info(
+                    "best_model_found",
+                    model_name=model_name,
+                    version=best_version['version'],
+                    metric_name=metric_name,
+                    metric_value=best_metric_value
+                )
+
+            return best_version
+
+        except Exception as e:
+            self.logger.error(
+                "get_best_model_failed",
+                model_name=model_name,
+                error=str(e)
+            )
+            return None
+
+    async def rollback_model(
+        self,
+        model_name: str,
+        target_version: Optional[str] = None,
+        reason: str = "manual_rollback"
+    ) -> Dict[str, Any]:
+        """
+        Faz rollback do modelo para uma versão anterior.
+
+        Args:
+            model_name: Nome do modelo
+            target_version: Versão alvo (default: versão anterior à atual)
+            reason: Motivo do rollback
+
+        Returns:
+            Dict com resultado do rollback
+        """
+        try:
+            # Busca versões
+            versions = await asyncio.to_thread(
+                self.client.search_model_versions,
+                f"name='{model_name}'"
+            )
+
+            if not versions:
+                return {
+                    'success': False,
+                    'error': 'Modelo não encontrado'
+                }
+
+            # Ordena por versão
+            sorted_versions = sorted(
+                versions,
+                key=lambda v: int(v.version),
+                reverse=True
+            )
+
+            # Encontra versão atual em Production
+            current_prod = None
+            for v in sorted_versions:
+                if v.current_stage == 'Production':
+                    current_prod = v
+                    break
+
+            if not current_prod:
+                return {
+                    'success': False,
+                    'error': 'Nenhuma versão em Production'
+                }
+
+            # Determina versão alvo
+            if target_version:
+                target = next(
+                    (v for v in sorted_versions if v.version == target_version),
+                    None
+                )
+            else:
+                # Versão anterior
+                current_idx = next(
+                    (i for i, v in enumerate(sorted_versions)
+                     if v.version == current_prod.version),
+                    -1
+                )
+                if current_idx < 0 or current_idx + 1 >= len(sorted_versions):
+                    return {
+                        'success': False,
+                        'error': 'Nenhuma versão anterior disponível'
+                    }
+                target = sorted_versions[current_idx + 1]
+
+            if not target:
+                return {
+                    'success': False,
+                    'error': f'Versão {target_version} não encontrada'
+                }
+
+            # Executa rollback
+            # 1. Arquiva versão atual
+            await asyncio.to_thread(
+                self.client.transition_model_version_stage,
+                name=model_name,
+                version=current_prod.version,
+                stage='Archived',
+                archive_existing_versions=False
+            )
+
+            # 2. Promove versão alvo
+            await asyncio.to_thread(
+                self.client.transition_model_version_stage,
+                name=model_name,
+                version=target.version,
+                stage='Production',
+                archive_existing_versions=False
+            )
+
+            # Limpa cache
+            self._model_cache.clear()
+
+            # Log rollback
+            rollback_info = {
+                'success': True,
+                'model_name': model_name,
+                'previous_version': current_prod.version,
+                'new_version': target.version,
+                'reason': reason,
+                'timestamp': datetime.utcnow().isoformat()
+            }
+
+            self.logger.warning(
+                "model_rollback_executed",
+                **rollback_info
+            )
+
+            # Registra métrica de rollback
+            try:
+                metrics_obj = _get_metrics()
+                metrics_obj.ml_model_rollbacks.labels(
+                    model_name=model_name
+                ).inc()
+            except Exception:
+                pass
+
+            return rollback_info
+
+        except Exception as e:
+            self.logger.error(
+                "rollback_failed",
+                model_name=model_name,
+                error=str(e)
+            )
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    async def enrich_model_metadata(
+        self,
+        model_name: str,
+        version: str,
+        metadata: Dict[str, Any]
+    ) -> bool:
+        """
+        Enriquece metadados de uma versão do modelo.
+
+        Args:
+            model_name: Nome do modelo
+            version: Versão do modelo
+            metadata: Metadados adicionais
+
+        Returns:
+            True se sucesso, False caso contrário
+        """
+        try:
+            # Busca versão
+            versions = await asyncio.to_thread(
+                self.client.search_model_versions,
+                f"name='{model_name}' AND version='{version}'"
+            )
+
+            if not versions:
+                self.logger.warning(
+                    "version_not_found_for_enrichment",
+                    model_name=model_name,
+                    version=version
+                )
+                return False
+
+            v = versions[0]
+
+            # Adiciona tags ao run
+            for key, value in metadata.items():
+                await asyncio.to_thread(
+                    self.client.set_tag,
+                    v.run_id,
+                    f"enrichment.{key}",
+                    str(value)
+                )
+
+            self.logger.info(
+                "model_metadata_enriched",
+                model_name=model_name,
+                version=version,
+                keys=list(metadata.keys())
+            )
+
+            return True
+
+        except Exception as e:
+            self.logger.error(
+                "enrich_metadata_failed",
+                model_name=model_name,
+                version=version,
+                error=str(e)
+            )
+            return False
+
     async def close(self):
         """
         Limpa recursos do Model Registry.

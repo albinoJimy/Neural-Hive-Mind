@@ -4,9 +4,30 @@ import structlog
 from typing import Dict, Any, Optional, List, Tuple
 import asyncio
 from tenacity import retry, stop_after_attempt, wait_exponential
+from prometheus_client import Counter, Histogram
 
 from neural_hive_observability import instrument_grpc_channel
 from neural_hive_integration.proto_stubs import service_registry_pb2, service_registry_pb2_grpc
+
+
+# Metricas Prometheus para discovery
+discovery_requests_total = Counter(
+    'worker_agent_discovery_requests_total',
+    'Total de requisicoes de descoberta feitas pelo Worker Agent',
+    ['status']
+)
+
+discovery_agents_found = Histogram(
+    'worker_agent_discovery_agents_found',
+    'Numero de agentes encontrados por requisicao de descoberta',
+    buckets=[0, 1, 2, 5, 10, 20, 50, 100]
+)
+
+discovery_duration_seconds = Histogram(
+    'worker_agent_discovery_duration_seconds',
+    'Duracao das requisicoes de descoberta em segundos',
+    buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+)
 
 # Importar SPIFFE manager se disponivel
 try:
@@ -250,6 +271,89 @@ class ServiceRegistryClient:
         except Exception as e:
             self.logger.error('deregister_failed', error=str(e))
             return False
+
+    async def discover_agents(
+        self,
+        capabilities: List[str],
+        filters: Optional[Dict[str, str]] = None,
+        max_results: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Descobrir agentes baseado em capabilities
+
+        Args:
+            capabilities: Lista de capabilities requeridas
+            filters: Filtros adicionais (namespace, cluster, version, status)
+            max_results: Numero maximo de resultados (default: 5)
+
+        Returns:
+            Lista de dicionarios com informacoes dos agentes descobertos
+        """
+        import time
+        start_time = time.perf_counter()
+
+        try:
+            request = service_registry_pb2.DiscoverRequest(
+                capabilities=capabilities,
+                filters=filters or {},
+                max_results=max_results
+            )
+
+            # Obter metadata com JWT-SVID
+            metadata = await self._get_grpc_metadata()
+
+            # Chamar RPC com metadata
+            response = await self.stub.DiscoverAgents(request, metadata=metadata)
+
+            # Converter AgentInfo proto para dicionarios Python
+            agents = []
+            for agent_proto in response.agents:
+                agent_dict = {
+                    'agent_id': agent_proto.agent_id,
+                    'agent_type': service_registry_pb2.AgentType.Name(agent_proto.agent_type),
+                    'capabilities': list(agent_proto.capabilities),
+                    'metadata': dict(agent_proto.metadata),
+                    'status': service_registry_pb2.AgentStatus.Name(agent_proto.status),
+                    'telemetry': {
+                        'success_rate': agent_proto.telemetry.success_rate,
+                        'avg_duration_ms': agent_proto.telemetry.avg_duration_ms,
+                        'total_executions': agent_proto.telemetry.total_executions,
+                    },
+                    'namespace': agent_proto.namespace,
+                    'cluster': agent_proto.cluster,
+                    'version': agent_proto.version,
+                }
+                agents.append(agent_dict)
+
+            # Registrar metricas de sucesso
+            duration = time.perf_counter() - start_time
+            discovery_duration_seconds.observe(duration)
+            discovery_requests_total.labels(status='success').inc()
+            discovery_agents_found.observe(len(agents))
+
+            self.logger.info(
+                'agents_discovered',
+                capabilities=capabilities,
+                filters=filters,
+                agents_found=len(agents),
+                ranked=response.ranked
+            )
+
+            return agents
+
+        except Exception as e:
+            # Registrar metricas de erro
+            duration = time.perf_counter() - start_time
+            discovery_duration_seconds.observe(duration)
+            discovery_requests_total.labels(status='error').inc()
+            discovery_agents_found.observe(0)
+
+            self.logger.error(
+                'discover_agents_failed',
+                capabilities=capabilities,
+                error=str(e)
+            )
+            return []
 
     async def close(self):
         """Fechar conexao gRPC"""

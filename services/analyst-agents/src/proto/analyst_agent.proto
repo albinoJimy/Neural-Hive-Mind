@@ -8,6 +8,7 @@ service AnalystAgentService {
   rpc ExecuteAnalysis(ExecuteAnalysisRequest) returns (ExecuteAnalysisResponse);
   rpc GetStatistics(GetStatisticsRequest) returns (GetStatisticsResponse);
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+  rpc GenerateInsight(GenerateInsightRequest) returns (GenerateInsightResponse);
 }
 
 message GetInsightRequest {
@@ -26,6 +27,8 @@ message QueryInsightsRequest {
   int64 end_timestamp = 4;
   int32 limit = 5;
   int32 offset = 6;
+  bool use_graph_enrichment = 7;
+  string related_entity_id = 8;
 }
 
 message QueryInsightsResponse {
@@ -87,4 +90,30 @@ message Recommendation {
   string action = 1;
   string priority = 2;
   double estimated_impact = 3;
+}
+
+message RelatedEntity {
+  string entity_type = 1;
+  string entity_id = 2;
+  string relationship = 3;
+}
+
+message GenerateInsightRequest {
+  string insight_type = 1;
+  string title = 2;
+  string summary = 3;
+  string detailed_analysis = 4;
+  repeated string data_sources = 5;
+  map<string, double> metrics = 6;
+  string correlation_id = 7;
+  repeated RelatedEntity related_entities = 8;
+  repeated string tags = 9;
+  map<string, string> metadata = 10;
+  bool persist_to_neo4j = 11;
+}
+
+message GenerateInsightResponse {
+  Insight insight = 1;
+  bool success = 2;
+  string error_message = 3;
 }

@@ -102,3 +102,57 @@ result = await llm_client.generate_code(
 **Error: `openai_rate_limit`**
 - Wait for retry (automatic)
 - Check API quota at https://platform.openai.com/usage
+
+## External Tools Integration
+
+Code Forge integrates with external security and validation tools:
+
+| Tool | Purpose | Auth Required |
+|------|---------|---------------|
+| **Snyk** | Dependency vulnerability scanning | Token |
+| **Trivy** | Container/IaC vulnerability scanning | No |
+| **SonarQube** | Static code analysis (SAST) | Token |
+| **GitLab** | Git operations, Merge Requests | Token |
+| **GitHub** | Git operations, Pull Requests | Token |
+
+### Configuration
+
+```bash
+# Snyk
+SNYK_TOKEN=your-token
+SNYK_ENABLED=true
+
+# Trivy
+TRIVY_ENABLED=true
+TRIVY_SEVERITY=CRITICAL,HIGH
+
+# SonarQube
+SONARQUBE_URL=http://sonarqube:9000
+SONARQUBE_TOKEN=your-token
+SONARQUBE_ENABLED=true
+
+# GitLab
+GITLAB_URL=https://gitlab.com
+GITLAB_TOKEN=your-token
+
+# GitHub
+GITHUB_TOKEN=your-token
+```
+
+### Detailed Setup
+
+See [docs/EXTERNAL_TOOLS_SETUP.md](docs/EXTERNAL_TOOLS_SETUP.md) for:
+- Installation instructions for each tool
+- Authentication setup
+- Usage examples
+- Troubleshooting guides
+
+### Metrics
+
+```
+code_forge_snyk_scan_duration_seconds
+code_forge_trivy_scan_duration_seconds{scan_type}
+code_forge_sonarqube_analysis_duration_seconds
+code_forge_git_operations_total{operation,provider,status}
+code_forge_external_tool_errors_total{tool,error_type}
+```

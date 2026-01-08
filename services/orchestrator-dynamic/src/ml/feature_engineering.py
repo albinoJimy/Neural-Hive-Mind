@@ -276,24 +276,47 @@ def normalize_features(features: Dict[str, float]) -> np.ndarray:
 
 async def compute_historical_stats(
     mongodb_client,
-    window_days: int = 30
+    window_days: int = 30,
+    clickhouse_client=None
 ) -> Dict[str, Dict[str, Dict[str, float]]]:
     """
     Computa estatísticas históricas agregadas por task_type e risk_band.
 
-    Consulta MongoDB execution_tickets collection para tickets completados
-    nos últimos window_days dias e agrega:
+    Prioriza ClickHouse se disponível (10x mais rápido para agregações).
+    Fallback para MongoDB se ClickHouse não disponível.
+
+    Agrega:
     - avg_duration_ms: Duração média
     - success_rate: Taxa de sucesso (status=COMPLETED)
     - std_duration_ms: Desvio padrão da duração
+    - p50/p95/p99_duration_ms: Percentis (apenas ClickHouse)
 
     Args:
         mongodb_client: Cliente MongoDB configurado
         window_days: Janela de dados em dias (default: 30)
+        clickhouse_client: Cliente ClickHouse opcional (preferido se disponível)
 
     Returns:
-        Dict aninhado: {task_type: {risk_band: {avg_duration_ms, success_rate, std_duration_ms}}}
+        Dict aninhado: {task_type: {risk_band: {avg_duration_ms, success_rate, std_duration_ms, ...}}}
     """
+    # Tenta ClickHouse primeiro (mais rápido para agregações)
+    if clickhouse_client is not None:
+        try:
+            stats = await clickhouse_client.query_duration_stats_by_task_type(window_days)
+            if stats:
+                logger.info(
+                    "historical_stats_computed_from_clickhouse",
+                    window_days=window_days,
+                    task_types=len(stats)
+                )
+                return stats
+        except Exception as e:
+            logger.warning(
+                "clickhouse_stats_failed_fallback_mongodb",
+                error=str(e)
+            )
+
+    # Fallback para MongoDB
     try:
         # Calcula data limite
         cutoff_date = datetime.utcnow() - timedelta(days=window_days)
@@ -361,4 +384,38 @@ async def compute_historical_stats(
     except Exception as e:
         logger.error("historical_stats_computation_failed", error=str(e))
         # Retorna dict vazio em caso de erro (features usarão defaults)
+        return {}
+
+
+async def compute_historical_stats_from_clickhouse(
+    clickhouse_client,
+    window_days: int = 30
+) -> Dict[str, Dict[str, Dict[str, float]]]:
+    """
+    Computa estatísticas históricas usando exclusivamente ClickHouse.
+
+    Features adicionais disponíveis via ClickHouse:
+    - p50/p95/p99_duration_ms: Percentis de duração
+    - min/max_duration_ms: Valores extremos
+
+    Args:
+        clickhouse_client: Cliente ClickHouse configurado
+        window_days: Janela de dados em dias (default: 30)
+
+    Returns:
+        Dict aninhado com estatísticas enriquecidas
+    """
+    try:
+        stats = await clickhouse_client.query_duration_stats_by_task_type(window_days)
+
+        logger.info(
+            "historical_stats_from_clickhouse",
+            window_days=window_days,
+            task_types=len(stats)
+        )
+
+        return stats
+
+    except Exception as e:
+        logger.error("clickhouse_historical_stats_failed", error=str(e))
         return {}

@@ -36,7 +36,7 @@ class DriftDetector:
 
         Args:
             config: Configurações do orchestrator
-            mongodb_client: Cliente MongoDB para consultas
+            mongodb_client: Cliente MongoDB para consultas (async)
             metrics: Instância de métricas para registro
         """
         self.config = config
@@ -96,7 +96,7 @@ class DriftDetector:
 
         return float(psi)
 
-    def detect_feature_drift(self, window_days: int = 7) -> Dict[str, float]:
+    async def detect_feature_drift(self, window_days: int = 7) -> Dict[str, float]:
         """
         Detecta drift nas features de entrada usando PSI.
 
@@ -107,14 +107,14 @@ class DriftDetector:
             Dict com PSI score por feature
         """
         try:
-            # Query tickets recentes
+            # Query tickets recentes via cliente async
             end_date = datetime.utcnow()
             start_date = end_date - timedelta(days=window_days)
 
-            recent_tickets = list(self.mongodb_client.execution_tickets.find({
+            recent_tickets = await self.mongodb_client.db['execution_tickets'].find({
                 "created_at": {"$gte": start_date, "$lte": end_date},
                 "status": "completed"
-            }).limit(1000))
+            }).limit(1000).to_list(length=1000)
 
             if len(recent_tickets) < 50:
                 logger.warning(
@@ -133,8 +133,8 @@ class DriftDetector:
                 logger.warning("No features extracted from recent tickets")
                 return {}
 
-            # Carregar baseline de features do MongoDB
-            baseline_doc = self.mongodb_client.ml_feature_baselines.find_one(
+            # Carregar baseline de features do MongoDB (async)
+            baseline_doc = await self.mongodb_client.db['ml_feature_baselines'].find_one(
                 {},
                 sort=[("timestamp", -1)]
             )
@@ -194,7 +194,7 @@ class DriftDetector:
             logger.error(f"Error detecting feature drift: {e}", exc_info=True)
             return {}
 
-    def detect_prediction_drift(self, window_days: int = 7) -> Dict[str, float]:
+    async def detect_prediction_drift(self, window_days: int = 7) -> Dict[str, float]:
         """
         Detecta degradação na acurácia das predições comparando MAE atual vs treino.
 
@@ -216,13 +216,13 @@ class DriftDetector:
 
                 start_date = end_date - timedelta(days=days)
 
-                # Query tickets completos com predições
-                tickets = list(self.mongodb_client.execution_tickets.find({
+                # Query tickets completos com predições (async)
+                tickets = await self.mongodb_client.db['execution_tickets'].find({
                     "created_at": {"$gte": start_date, "$lte": end_date},
                     "status": "completed",
                     "actual_duration_ms": {"$exists": True, "$gt": 0},
                     "predictions.duration_ms": {"$exists": True, "$gt": 0}
-                }).limit(500))
+                }).limit(500).to_list(length=500)
 
                 if not tickets:
                     continue
@@ -242,7 +242,7 @@ class DriftDetector:
                     mae_results[f'mae_{days}d'] = float(mae)
 
             # Obter MAE de treino do MLflow (via baseline ou metadata)
-            training_mae = self._get_training_mae()
+            training_mae = await self._get_training_mae()
             if training_mae:
                 mae_results['mae_training'] = training_mae
 
@@ -278,7 +278,7 @@ class DriftDetector:
             logger.error(f"Error detecting prediction drift: {e}", exc_info=True)
             return {}
 
-    def detect_target_drift(self, window_days: int = 7) -> Dict[str, Any]:
+    async def detect_target_drift(self, window_days: int = 7) -> Dict[str, Any]:
         """
         Detecta mudanças na distribuição da variável alvo (actual_duration_ms)
         usando Kolmogorov-Smirnov test.
@@ -293,12 +293,12 @@ class DriftDetector:
             end_date = datetime.utcnow()
             start_date = end_date - timedelta(days=window_days)
 
-            # Query tickets recentes
-            recent_tickets = list(self.mongodb_client.execution_tickets.find({
+            # Query tickets recentes (async)
+            recent_tickets = await self.mongodb_client.db['execution_tickets'].find({
                 "created_at": {"$gte": start_date, "$lte": end_date},
                 "status": "completed",
                 "actual_duration_ms": {"$exists": True, "$gt": 0}
-            }).limit(1000))
+            }).limit(1000).to_list(length=1000)
 
             if len(recent_tickets) < 50:
                 logger.warning(f"Insufficient tickets for target drift: {len(recent_tickets)}")
@@ -309,8 +309,8 @@ class DriftDetector:
                 if 'actual_duration_ms' in t and t['actual_duration_ms'] > 0
             ])
 
-            # Carregar distribuição baseline
-            baseline_doc = self.mongodb_client.ml_feature_baselines.find_one(
+            # Carregar distribuição baseline (async)
+            baseline_doc = await self.mongodb_client.db['ml_feature_baselines'].find_one(
                 {},
                 sort=[("timestamp", -1)]
             )
@@ -386,7 +386,7 @@ class DriftDetector:
             logger.error(f"Error detecting target drift: {e}", exc_info=True)
             return {}
 
-    def run_drift_check(self) -> Dict[str, Any]:
+    async def run_drift_check(self) -> Dict[str, Any]:
         """
         Executa verificação completa de drift (features, predictions, target).
 
@@ -397,10 +397,10 @@ class DriftDetector:
 
         logger.info(f"Running drift check with {window_days} day window")
 
-        # Executar detecções
-        feature_drift = self.detect_feature_drift(window_days)
-        prediction_drift = self.detect_prediction_drift(window_days)
-        target_drift = self.detect_target_drift(window_days)
+        # Executar detecções (async)
+        feature_drift = await self.detect_feature_drift(window_days)
+        prediction_drift = await self.detect_prediction_drift(window_days)
+        target_drift = await self.detect_target_drift(window_days)
 
         # Determinar status geral
         overall_status = self._determine_overall_status(
@@ -529,10 +529,10 @@ class DriftDetector:
 
         return recommendations
 
-    def _get_training_mae(self) -> Optional[float]:
+    async def _get_training_mae(self) -> Optional[float]:
         """Obtém MAE de treino do baseline mais recente."""
         try:
-            baseline_doc = self.mongodb_client.ml_feature_baselines.find_one(
+            baseline_doc = await self.mongodb_client.db['ml_feature_baselines'].find_one(
                 {},
                 sort=[("timestamp", -1)]
             )
@@ -546,7 +546,7 @@ class DriftDetector:
             logger.error(f"Error getting training MAE: {e}")
             return None
 
-    def save_feature_baseline(
+    async def save_feature_baseline(
         self,
         features_data: List[Dict[str, Any]],
         target_values: List[float],
@@ -585,7 +585,7 @@ class DriftDetector:
                         'max': float(np.max(values))
                     }
 
-            # Salvar baseline no MongoDB
+            # Salvar baseline no MongoDB (async)
             baseline_doc = {
                 'model_name': model_name,
                 'version': version,
@@ -605,7 +605,7 @@ class DriftDetector:
                 'sample_count': len(features_data)
             }
 
-            self.mongodb_client.ml_feature_baselines.insert_one(baseline_doc)
+            await self.mongodb_client.db['ml_feature_baselines'].insert_one(baseline_doc)
 
             logger.info(
                 "Feature baseline saved",

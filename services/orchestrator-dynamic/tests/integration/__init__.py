@@ -1,1 +1,1 @@
-# Makes integration tests a package for relative imports.
+"""Testes de integração do Orchestrator Dynamic"""

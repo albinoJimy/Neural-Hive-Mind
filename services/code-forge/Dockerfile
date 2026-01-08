@@ -24,15 +24,29 @@ FROM neural-hive-mind/python-observability-base:1.0.7
 
 WORKDIR /app
 
-# Install runtime dependencies (git for template cloning, docker-cli for builds)
+# Install runtime dependencies (git for template cloning, docker-cli for builds, unzip for sonar-scanner)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     ca-certificates \
+    unzip \
     && curl -fsSL https://get.docker.com -o get-docker.sh \
     && sh get-docker.sh \
     && rm get-docker.sh \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Snyk CLI
+RUN curl -o /usr/local/bin/snyk https://static.snyk.io/cli/latest/snyk-linux \
+    && chmod +x /usr/local/bin/snyk
+
+# Install Trivy
+RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.45.0
+
+# Install SonarQube Scanner
+RUN curl -o /tmp/sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip \
+    && unzip /tmp/sonar-scanner.zip -d /opt \
+    && ln -s /opt/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner /usr/local/bin/sonar-scanner \
+    && rm /tmp/sonar-scanner.zip
 
 # Create non-root user first
 RUN useradd -m -u 1000 codeforge

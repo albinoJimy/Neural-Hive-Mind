@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = Field(default=['*'])
 
     # gRPC
-    GRPC_ENABLED: bool = False  # Ativar quando proto estiver compilado
+    GRPC_ENABLED: bool = True
     GRPC_HOST: str = '0.0.0.0'
     GRPC_PORT: int = 50051
     GRPC_MAX_WORKERS: int = 10

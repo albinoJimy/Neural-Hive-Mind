@@ -406,3 +406,106 @@ class TestMLSchedulingIntegration:
         assert metrics.record_predicted_queue_time.called
         assert metrics.record_predicted_worker_load.called
         assert metrics.record_ml_optimization.called
+
+
+class TestRedisIntegration:
+    """Testes de integração para Redis com LoadPredictor."""
+
+    @pytest.mark.asyncio
+    async def test_redis_integration_with_load_predictor(
+        self,
+        config,
+        mongodb_client_with_data,
+        metrics
+    ):
+        """Testa integração Redis com LoadPredictor (cache hit)."""
+        # Redis mock que retorna cache hit
+        redis_client = AsyncMock()
+        redis_client.get = AsyncMock(return_value='2500.0')
+        redis_client.setex = AsyncMock()
+        redis_client.ping = AsyncMock()
+
+        load_predictor = LoadPredictor(
+            config=config,
+            mongodb_client=mongodb_client_with_data,
+            redis_client=redis_client,
+            metrics=metrics
+        )
+
+        # Primeira chamada deve usar cache
+        queue_time = await load_predictor.predict_queue_time('worker-1')
+        assert queue_time == 2500.0
+        redis_client.get.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_redis_cache_miss_falls_through_to_mongodb(
+        self,
+        config,
+        mongodb_client_with_data,
+        metrics
+    ):
+        """Testa que cache miss faz query ao MongoDB."""
+        redis_client = AsyncMock()
+        redis_client.get = AsyncMock(return_value=None)  # Cache miss
+        redis_client.setex = AsyncMock()
+        redis_client.ping = AsyncMock()
+
+        load_predictor = LoadPredictor(
+            config=config,
+            mongodb_client=mongodb_client_with_data,
+            redis_client=redis_client,
+            metrics=metrics
+        )
+
+        queue_time = await load_predictor.predict_queue_time('worker-1')
+
+        # Deve ter tentado Redis primeiro
+        redis_client.get.assert_called()
+        # Deve ter feito cache do resultado
+        redis_client.setex.assert_called()
+        # Resultado deve vir do MongoDB
+        assert queue_time > 0
+
+    @pytest.mark.asyncio
+    async def test_fail_open_when_redis_unavailable(
+        self,
+        config,
+        mongodb_client_with_data,
+        metrics
+    ):
+        """Testa que LoadPredictor funciona sem Redis (fail-open)."""
+        load_predictor = LoadPredictor(
+            config=config,
+            mongodb_client=mongodb_client_with_data,
+            redis_client=None,  # Redis indisponível
+            metrics=metrics
+        )
+
+        # Deve funcionar em modo degradado sem cache
+        queue_time = await load_predictor.predict_queue_time('worker-1')
+        assert queue_time > 0
+
+    @pytest.mark.asyncio
+    async def test_redis_error_does_not_break_prediction(
+        self,
+        config,
+        mongodb_client_with_data,
+        metrics
+    ):
+        """Testa que erro no Redis não quebra a predição."""
+        # Redis que sempre falha
+        failing_redis = AsyncMock()
+        failing_redis.get = AsyncMock(side_effect=ConnectionError('Connection refused'))
+        failing_redis.setex = AsyncMock(side_effect=ConnectionError('Connection refused'))
+        failing_redis.ping = AsyncMock(side_effect=ConnectionError('Connection refused'))
+
+        load_predictor = LoadPredictor(
+            config=config,
+            mongodb_client=mongodb_client_with_data,
+            redis_client=failing_redis,
+            metrics=metrics
+        )
+
+        # Deve funcionar mesmo com Redis falhando
+        queue_time = await load_predictor.predict_queue_time('worker-1')
+        assert queue_time > 0

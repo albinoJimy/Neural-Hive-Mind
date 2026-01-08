@@ -633,7 +633,14 @@
       "Bash(services/queen-agent/src/observability/tracing.py )",
       "Bash(services/scout-agents/src/main.py )",
       "Bash(services/consensus-engine/src/clients/specialists_grpc_client.py )",
-      "Bash(CHANGELOG.md)"
+      "Bash(CHANGELOG.md)",
+      "Bash(git push)",
+      "Bash(python:*)",
+      "Bash(pip3 list:*)",
+      "Bash(PYTHONPATH=\"src:$PYTHONPATH\" python3 -m pytest:*)",
+      "Bash(pytest:*)",
+      "Bash(PYTHONPATH=\"${PYTHONPATH}:libraries/python/neural_hive_specialists:libraries/python/neural_hive_observability\" pytest:*)",
+      "Bash(PYTHONPATH=\".:../../libraries/python/neural_hive_specialists:../../libraries/python/neural_hive_observability\" pytest:*)"
     ],
     "deny": [],
     "ask": []

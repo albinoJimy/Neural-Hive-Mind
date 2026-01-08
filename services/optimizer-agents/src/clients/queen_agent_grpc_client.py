@@ -1,5 +1,7 @@
+"""Cliente gRPC para Queen Agent com suporte a mTLS via SPIFFE."""
+
 import time
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Tuple
 
 import grpc
 import structlog
@@ -10,12 +12,26 @@ from src.config.settings import get_settings
 
 from ..proto import queen_agent_pb2, queen_agent_pb2_grpc
 
+# Importar SPIFFE/mTLS se disponível
+try:
+    from neural_hive_security import (
+        SPIFFEManager,
+        SPIFFEConfig,
+        create_secure_grpc_channel,
+        get_grpc_metadata_with_jwt,
+    )
+    SECURITY_LIB_AVAILABLE = True
+except ImportError:
+    SECURITY_LIB_AVAILABLE = False
+    SPIFFEManager = None
+    SPIFFEConfig = None
+
 logger = structlog.get_logger()
 
 
 class QueenAgentGrpcClient:
     """
-    Cliente gRPC para Queen Agent.
+    Cliente gRPC para Queen Agent com suporte a mTLS via SPIFFE.
 
     Responsável por solicitar aprovação de otimizações de alto risco.
     """
@@ -24,33 +40,98 @@ class QueenAgentGrpcClient:
         self.settings = settings or get_settings()
         self.channel: Optional[grpc.aio.Channel] = None
         self.stub = None
+        self.spiffe_manager: Optional[SPIFFEManager] = None
 
     async def connect(self):
-        """Estabelecer canal gRPC com Queen Agent."""
+        """Estabelecer canal gRPC com Queen Agent com suporte a mTLS."""
         try:
-            self.channel = grpc.aio.insecure_channel(
-                self.settings.queen_agent_endpoint,
-                options=[
-                    ("grpc.max_send_message_length", 100 * 1024 * 1024),
-                    ("grpc.max_receive_message_length", 100 * 1024 * 1024),
-                    ("grpc.keepalive_time_ms", 30000),
-                ],
-            )
-            self.channel = instrument_grpc_channel(self.channel, service_name='queen-agent')
+            target = self.settings.queen_agent_endpoint
 
+            # Verificar se mTLS via SPIFFE está habilitado
+            spiffe_x509_enabled = (
+                getattr(self.settings, 'spiffe_enabled', False)
+                and getattr(self.settings, 'spiffe_enable_x509', False)
+                and SECURITY_LIB_AVAILABLE
+            )
+
+            if spiffe_x509_enabled:
+                # Criar configuração SPIFFE
+                spiffe_config = SPIFFEConfig(
+                    workload_api_socket=self.settings.spiffe_socket_path,
+                    trust_domain=self.settings.spiffe_trust_domain,
+                    jwt_audience=self.settings.spiffe_jwt_audience,
+                    jwt_ttl_seconds=self.settings.spiffe_jwt_ttl_seconds,
+                    enable_x509=True,
+                    environment=self.settings.environment
+                )
+
+                # Criar SPIFFE manager
+                self.spiffe_manager = SPIFFEManager(spiffe_config)
+                await self.spiffe_manager.initialize()
+
+                # Criar canal seguro com mTLS
+                # Permitir fallback inseguro apenas em ambientes de desenvolvimento
+                is_dev_env = self.settings.environment.lower() in ('dev', 'development')
+                self.channel = await create_secure_grpc_channel(
+                    target=target,
+                    spiffe_config=spiffe_config,
+                    spiffe_manager=self.spiffe_manager,
+                    fallback_insecure=is_dev_env
+                )
+
+                logger.info('mtls_channel_configured', target=target, environment=self.settings.environment)
+            else:
+                # Fallback para canal inseguro (apenas desenvolvimento)
+                if self.settings.environment in ['production', 'staging', 'prod']:
+                    raise RuntimeError(
+                        f"mTLS is required in {self.settings.environment} but SPIFFE X.509 is disabled."
+                    )
+
+                logger.warning('using_insecure_channel', target=target, environment=self.settings.environment)
+                self.channel = grpc.aio.insecure_channel(
+                    target,
+                    options=[
+                        ("grpc.max_send_message_length", 100 * 1024 * 1024),
+                        ("grpc.max_receive_message_length", 100 * 1024 * 1024),
+                        ("grpc.keepalive_time_ms", 30000),
+                    ],
+                )
+
+            self.channel = instrument_grpc_channel(self.channel, service_name='queen-agent')
             self.stub = queen_agent_pb2_grpc.QueenAgentStub(self.channel)
 
             import asyncio
             try:
                 await asyncio.wait_for(self.channel.channel_ready(), timeout=5.0)
-                logger.info("queen_agent_grpc_connected", endpoint=self.settings.queen_agent_endpoint)
+                logger.info("queen_agent_grpc_connected", endpoint=target)
             except asyncio.TimeoutError:
-                logger.warning("queen_agent_grpc_connection_timeout", endpoint=self.settings.queen_agent_endpoint)
+                logger.warning("queen_agent_grpc_connection_timeout", endpoint=target)
         except Exception as e:
             logger.error("queen_agent_grpc_connection_failed", error=str(e))
+            raise
+
+    async def _get_grpc_metadata(self) -> List[Tuple[str, str]]:
+        """Obter metadata gRPC com JWT-SVID para autenticação."""
+        if not getattr(self.settings, 'spiffe_enabled', False) or not self.spiffe_manager:
+            return []
+
+        try:
+            audience = f"queen-agent.{self.settings.spiffe_trust_domain}"
+            return await get_grpc_metadata_with_jwt(
+                spiffe_manager=self.spiffe_manager,
+                audience=audience,
+                environment=self.settings.environment
+            )
+        except Exception as e:
+            logger.warning('jwt_svid_fetch_failed', error=str(e))
+            if self.settings.environment in ['production', 'staging', 'prod']:
+                raise
+            return []
 
     async def disconnect(self):
-        """Fechar canal gRPC."""
+        """Fechar canal gRPC e SPIFFE manager."""
+        if self.spiffe_manager:
+            await self.spiffe_manager.close()
         if self.channel:
             await self.channel.close()
             logger.info("queen_agent_grpc_disconnected")
@@ -81,7 +162,11 @@ class QueenAgentGrpcClient:
                 guardrails_affected=[],
                 expires_at=int(time.time() * 1000) + 3600000,
             )
-            response = await self.stub.RequestExceptionApproval(request, timeout=self.settings.grpc_timeout)
+
+            # Obter metadata com JWT-SVID
+            metadata = await self._get_grpc_metadata()
+
+            response = await self.stub.RequestExceptionApproval(request, timeout=self.settings.grpc_timeout, metadata=metadata)
 
             response_dict = MessageToDict(response, preserving_proto_field_name=True)
             decision = {
@@ -155,7 +240,11 @@ class QueenAgentGrpcClient:
                 raise RuntimeError("QueenAgent gRPC stub not initialized")
 
             request = queen_agent_pb2.GetSystemStatusRequest()
-            response = await self.stub.GetSystemStatus(request, timeout=self.settings.grpc_timeout)
+
+            # Obter metadata com JWT-SVID
+            metadata = await self._get_grpc_metadata()
+
+            response = await self.stub.GetSystemStatus(request, timeout=self.settings.grpc_timeout, metadata=metadata)
 
             priorities = {
                 "current_focus": "PERFORMANCE_OPTIMIZATION",

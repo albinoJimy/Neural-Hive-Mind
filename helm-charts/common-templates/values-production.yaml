@@ -1,0 +1,140 @@
+# Neural Hive Mind - Valores de Produção
+# Este arquivo define valores específicos para ambiente de produção
+# Use como overlay: helm install -f values.yaml -f values-production.yaml
+
+# Ambiente
+environment: production
+
+# SPIFFE/SPIRE - Habilitado em produção para mTLS obrigatório
+spiffe:
+  enabled: true
+  enableX509: true
+  socketPath: "unix:///run/spire/sockets/agent.sock"
+  trustDomain: "neural-hive.prod"
+  jwtAudience: "neural-hive.prod"
+  jwtTtlSeconds: 3600
+
+# Istio - mTLS obrigatório em produção
+istio:
+  enabled: true
+  sidecar:
+    inject: true
+  mtls:
+    mode: STRICT
+
+# TLS para comunicações internas - obrigatório em produção
+tls:
+  enabled: true
+  verify: true
+  caBundle: "/etc/ssl/certs/ca-certificates.crt"
+  # Schema Registry
+  schemaRegistry:
+    url: "https://schema-registry.neural-hive-kafka.svc.cluster.local:8081"
+    verify: true
+  # OpenTelemetry Collector
+  otel:
+    endpoint: "https://opentelemetry-collector.observability.svc.cluster.local:4317"
+    verify: true
+  # MLflow
+  mlflow:
+    uri: "https://mlflow.mlflow.svc.cluster.local:5000"
+    verify: true
+  # Prometheus
+  prometheus:
+    url: "https://prometheus-server.monitoring.svc.cluster.local:9090"
+    verify: true
+  # Alertmanager
+  alertmanager:
+    url: "https://alertmanager.monitoring.svc.cluster.local:9093"
+    verify: true
+  # Vault
+  vault:
+    address: "https://vault.vault.svc.cluster.local:8200"
+    verify: true
+
+# Réplicas para alta disponibilidade
+replicaCount: 3
+
+# Autoscaling habilitado em produção
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Pod Disruption Budget habilitado
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Resources mais robustos para produção
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+# Probes mais conservadores para produção
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30
+  successThreshold: 1
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 0
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Security contexts mais restritivos
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Network Policy habilitado
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+    - Egress
+
+# Topology Spread Constraints para distribuição entre zonas
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/part-of: neural-hive-mind

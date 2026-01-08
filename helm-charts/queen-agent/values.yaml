@@ -101,11 +101,33 @@ config:
 
   orchestrator:
     grpcHost: orchestrator-dynamic.neural-hive.svc.cluster.local
-    grpcPort: 50051
+    grpcPort: 50053
+    grpcTimeout: 10
 
   serviceRegistry:
     grpcHost: service-registry.neural-hive.svc.cluster.local
     grpcPort: 50051
+
+  # SPIFFE/SPIRE mTLS para comunicação segura com Orchestrator
+  spiffe:
+    enabled: false  # Habilitar em produção para mTLS
+    socketPath: unix:///run/spire/sockets/agent.sock
+    trustDomain: neural-hive.local
+    enableX509: true
+
+  # Circuit Breaker para resiliência
+  circuitBreaker:
+    enabled: true
+    failMax: 5
+    timeoutSeconds: 60
+    recoveryTimeoutSeconds: 30
+
+  # OPA Policy Engine
+  opa:
+    enabled: true
+    url: http://opa.neural-hive-governance.svc.cluster.local:8181
+    timeoutSeconds: 5
+    failOpen: false  # Fail closed em produção
 
   observability:
     # OpenTelemetry Collector endpoint (gRPC)

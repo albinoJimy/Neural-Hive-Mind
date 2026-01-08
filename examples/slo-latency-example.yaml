@@ -1,0 +1,24 @@
+apiVersion: neural-hive.io/v1
+kind: SLODefinition
+metadata:
+  name: gateway-latency-p99
+  namespace: neural-hive
+  labels:
+    neural-hive.io/layer: experiencia
+    neural-hive.io/service: gateway-intencoes
+spec:
+  name: "Gateway P99 Latency"
+  description: "99th percentile latency for gateway requests must be under 500ms"
+  sloType: LATENCY
+  serviceName: gateway-intencoes
+  layer: experiencia
+  target: 0.999
+  windowDays: 30
+  sliQuery:
+    metricName: http_request_duration_seconds
+    query: |
+      histogram_quantile(0.99,
+        sum(rate(http_request_duration_seconds_bucket{service="gateway-intencoes"}[5m])) by (le)
+      )
+    aggregation: avg
+  enabled: true

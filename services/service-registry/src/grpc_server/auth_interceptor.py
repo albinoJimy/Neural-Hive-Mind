@@ -9,7 +9,7 @@ import json
 import base64
 from typing import Callable, Any, Dict, Optional
 from datetime import datetime
-from prometheus_client import Counter
+from prometheus_client import Counter, REGISTRY
 
 # Import security library (optional)
 try:
@@ -32,13 +32,21 @@ except ImportError:
 logger = structlog.get_logger(__name__)
 
 
+def _get_or_create_counter(name: str, description: str, labelnames=None):
+    """Get existing counter or create new one to avoid duplicate registration errors"""
+    try:
+        return Counter(name, description, labelnames or [])
+    except ValueError:
+        return REGISTRY._names_to_collectors.get(name)
+
+
 # Metrics
-grpc_auth_attempts_total = Counter(
+grpc_auth_attempts_total = _get_or_create_counter(
     "grpc_auth_attempts_total",
     "Total gRPC authentication attempts",
     ["method", "status"]
 )
-grpc_auth_failures_total = Counter(
+grpc_auth_failures_total = _get_or_create_counter(
     "grpc_auth_failures_total",
     "Total gRPC authentication failures",
     ["method", "reason"]

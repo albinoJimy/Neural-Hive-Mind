@@ -1,19 +1,36 @@
 """
 Data Quality Monitor
 """
+import statistics
 import structlog
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Any, Optional
 
+from prometheus_client import Counter, Gauge
+
 logger = structlog.get_logger(__name__)
+
+# Métricas Prometheus
+ANOMALIES_DETECTED = Counter(
+    'memory_data_quality_anomalies_detected_total',
+    'Total de anomalias detectadas em métricas de qualidade',
+    ['data_type', 'metric', 'severity']
+)
+
+QUALITY_SCORE_GAUGE = Gauge(
+    'neural_hive_data_quality_score',
+    'Score geral de qualidade de dados (0-1)',
+    ['data_type']
+)
 
 
 class DataQualityMonitor:
     """Monitor data quality across memory layers"""
 
-    def __init__(self, mongodb_client, settings):
+    def __init__(self, mongodb_client, settings, clickhouse_client=None):
         self.mongodb = mongodb_client
         self.settings = settings
+        self.clickhouse = clickhouse_client
 
     async def validate_data(
         self,
@@ -220,17 +237,296 @@ class DataQualityMonitor:
         self,
         data_type: str,
         metric: str,
-        window_hours: int = 24
+        window_hours: int = 24,
+        baseline_days: int = 7
     ) -> List[Dict]:
         """
-        Detect anomalies using simple statistical method (mean ± 3*std)
+        Detecta anomalias usando método estatístico (mean ± 3*std)
+
+        Utiliza ClickHouse como fonte primária para estatísticas agregadas,
+        com fallback para MongoDB se ClickHouse estiver indisponível.
+
+        Args:
+            data_type: Tipo de dado (context, plan, decision)
+            metric: Métrica a analisar (completeness_score, freshness_score, consistency_score)
+            window_hours: Janela de análise atual (padrão 24h)
+            baseline_days: Dias para calcular baseline (padrão 7 dias)
+
+        Returns:
+            Lista de anomalias detectadas com timestamp, valor, z_score e severidade
         """
-        # TODO: Implement anomaly detection
-        # Query historical metrics from ClickHouse
-        # Calculate mean and std deviation
-        # Compare with current window
-        logger.info("Anomaly detection not yet implemented")
-        return []
+        try:
+            now = datetime.utcnow()
+            baseline_start = now - timedelta(days=baseline_days)
+            window_start = now - timedelta(hours=window_hours)
+
+            # Tenta usar ClickHouse como fonte primária
+            baseline_stats = await self._get_baseline_from_clickhouse(
+                data_type, metric, baseline_start, window_start
+            )
+
+            # Fallback para MongoDB se ClickHouse falhar ou não estiver disponível
+            if baseline_stats is None:
+                baseline_stats = await self._get_baseline_from_mongodb(
+                    data_type, metric, baseline_start, window_start
+                )
+
+            if baseline_stats is None:
+                logger.info(
+                    "Dados de baseline insuficientes para detecção de anomalias",
+                    data_type=data_type,
+                    metric=metric
+                )
+                return []
+
+            mean_val, std_val, count = baseline_stats
+
+            if std_val == 0:
+                logger.info(
+                    "Desvio padrão zero, não é possível calcular Z-score",
+                    data_type=data_type,
+                    metric=metric
+                )
+                return []
+
+            # Query dados da janela atual do MongoDB
+            current_data = await self.mongodb.find(
+                collection=self.settings.mongodb_quality_collection,
+                filter={
+                    'collection': data_type,
+                    'timestamp': {'$gte': window_start}
+                },
+                sort=[('timestamp', 1)],
+                limit=1000
+            )
+
+            anomalies = []
+            for doc in current_data:
+                metrics = doc.get('metrics', {})
+                metric_category = metric.replace('_score', '')
+                if metric_category in metrics:
+                    score = metrics[metric_category].get(metric, 0.0)
+                    if score > 0:
+                        # Calcula Z-score
+                        z_score = (score - mean_val) / std_val
+
+                        # Identifica anomalias (|z| > 3)
+                        if abs(z_score) > 3:
+                            # Classifica severidade
+                            if abs(z_score) > 5:
+                                severity = 'high'
+                            elif abs(z_score) > 4:
+                                severity = 'medium'
+                            else:
+                                severity = 'low'
+
+                            anomaly = {
+                                'timestamp': doc.get('timestamp'),
+                                'value': score,
+                                'z_score': round(z_score, 3),
+                                'severity': severity,
+                                'metric': metric,
+                                'data_type': data_type,
+                                'baseline_mean': round(mean_val, 3),
+                                'baseline_std': round(std_val, 3)
+                            }
+                            anomalies.append(anomaly)
+
+                            # Incrementa métrica Prometheus
+                            ANOMALIES_DETECTED.labels(
+                                data_type=data_type,
+                                metric=metric,
+                                severity=severity
+                            ).inc()
+
+                            logger.warning(
+                                "Anomalia detectada",
+                                data_type=data_type,
+                                metric=metric,
+                                z_score=z_score,
+                                severity=severity,
+                                value=score,
+                                baseline_mean=mean_val
+                            )
+
+            logger.info(
+                "Detecção de anomalias concluída",
+                data_type=data_type,
+                metric=metric,
+                anomalies_found=len(anomalies)
+            )
+
+            return anomalies
+
+        except Exception as e:
+            logger.error(
+                "Erro na detecção de anomalias",
+                error=str(e),
+                data_type=data_type,
+                metric=metric
+            )
+            return []
+
+    async def _get_baseline_from_clickhouse(
+        self,
+        data_type: str,
+        metric: str,
+        baseline_start: datetime,
+        window_start: datetime
+    ) -> Optional[tuple]:
+        """
+        Busca estatísticas de baseline do ClickHouse.
+
+        Returns:
+            Tuple (mean, std, count) ou None se falhar
+        """
+        if not self.clickhouse or not hasattr(self.clickhouse, 'client') or not self.clickhouse.client:
+            logger.debug("ClickHouse não disponível, usando fallback MongoDB")
+            return None
+
+        try:
+            metric_column = self._map_metric_to_column(metric)
+
+            # Query agregada para calcular mean e std diretamente no ClickHouse
+            query = f"""
+                SELECT
+                    avg({metric_column}) as mean_val,
+                    stddevPop({metric_column}) as std_val,
+                    count() as cnt
+                FROM {self.clickhouse.database}.data_quality_metrics
+                WHERE data_type = %(data_type)s
+                  AND timestamp >= %(baseline_start)s
+                  AND timestamp < %(window_start)s
+                  AND {metric_column} > 0
+            """
+
+            result = self.clickhouse.client.query(
+                query,
+                parameters={
+                    'data_type': data_type,
+                    'baseline_start': baseline_start,
+                    'window_start': window_start
+                }
+            )
+
+            if result.result_rows and len(result.result_rows) > 0:
+                row = result.result_rows[0]
+                mean_val, std_val, count = row[0], row[1], row[2]
+
+                if count >= 10 and mean_val is not None:
+                    logger.info(
+                        "Baseline obtido do ClickHouse",
+                        data_type=data_type,
+                        metric=metric,
+                        mean=mean_val,
+                        std=std_val,
+                        count=count
+                    )
+                    return (float(mean_val), float(std_val or 0), int(count))
+
+            logger.info(
+                "Dados insuficientes no ClickHouse",
+                data_type=data_type,
+                metric=metric
+            )
+            return None
+
+        except Exception as e:
+            logger.warning(
+                "Falha ao buscar baseline do ClickHouse, usando fallback MongoDB",
+                error=str(e),
+                data_type=data_type,
+                metric=metric
+            )
+            return None
+
+    async def _get_baseline_from_mongodb(
+        self,
+        data_type: str,
+        metric: str,
+        baseline_start: datetime,
+        window_start: datetime
+    ) -> Optional[tuple]:
+        """
+        Busca estatísticas de baseline do MongoDB (fallback).
+
+        Returns:
+            Tuple (mean, std, count) ou None se falhar
+        """
+        try:
+            historical_data = await self.mongodb.find(
+                collection=self.settings.mongodb_quality_collection,
+                filter={
+                    'collection': data_type,
+                    'timestamp': {'$gte': baseline_start, '$lt': window_start}
+                },
+                sort=[('timestamp', 1)],
+                limit=10000
+            )
+
+            if len(historical_data) < 10:
+                logger.info(
+                    "Dados históricos insuficientes no MongoDB",
+                    data_type=data_type,
+                    metric=metric,
+                    count=len(historical_data)
+                )
+                return None
+
+            # Extrai valores da métrica do histórico
+            baseline_values = []
+            for doc in historical_data:
+                metrics = doc.get('metrics', {})
+                metric_category = metric.replace('_score', '')
+                if metric_category in metrics:
+                    score = metrics[metric_category].get(metric, 0.0)
+                    if score > 0:
+                        baseline_values.append(score)
+
+            if len(baseline_values) < 5:
+                logger.info(
+                    "Valores de baseline insuficientes no MongoDB",
+                    data_type=data_type,
+                    metric=metric,
+                    count=len(baseline_values)
+                )
+                return None
+
+            mean_val = statistics.mean(baseline_values)
+            std_val = statistics.stdev(baseline_values) if len(baseline_values) > 1 else 0.0
+
+            logger.info(
+                "Baseline obtido do MongoDB (fallback)",
+                data_type=data_type,
+                metric=metric,
+                mean=mean_val,
+                std=std_val,
+                count=len(baseline_values)
+            )
+
+            return (mean_val, std_val, len(baseline_values))
+
+        except Exception as e:
+            logger.error(
+                "Falha ao buscar baseline do MongoDB",
+                error=str(e),
+                data_type=data_type,
+                metric=metric
+            )
+            return None
+
+    def _map_metric_to_column(self, metric: str) -> str:
+        """Mapeia nome da métrica para coluna do ClickHouse"""
+        metric_mapping = {
+            'completeness_score': 'completeness_score',
+            'accuracy_score': 'accuracy_score',
+            'freshness_score': 'freshness_score',
+            'timeliness_score': 'timeliness_score',
+            'uniqueness_score': 'uniqueness_score',
+            'consistency_score': 'consistency_score',
+            'overall_score': 'overall_score'
+        }
+        return metric_mapping.get(metric, 'overall_score')
 
     async def check_freshness(self, data_type: str) -> Dict[str, Any]:
         """Check data freshness"""

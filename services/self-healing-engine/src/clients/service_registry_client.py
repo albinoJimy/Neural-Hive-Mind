@@ -1,33 +1,112 @@
-"""Service Registry gRPC client for Self-Healing Engine (fail-open)."""
-from typing import Dict, Optional
+"""Service Registry gRPC client for Self-Healing Engine (fail-open) com suporte a mTLS via SPIFFE."""
+from typing import Dict, List, Optional, Tuple
 import structlog
 
 import grpc
 from neural_hive_integration.proto_stubs import service_registry_pb2, service_registry_pb2_grpc
 
+# Importar SPIFFE/mTLS se disponível
+try:
+    from neural_hive_security import (
+        SPIFFEManager,
+        SPIFFEConfig,
+        create_secure_grpc_channel,
+        get_grpc_metadata_with_jwt,
+    )
+    SECURITY_LIB_AVAILABLE = True
+except ImportError:
+    SECURITY_LIB_AVAILABLE = False
+    SPIFFEManager = None
+    SPIFFEConfig = None
+
 logger = structlog.get_logger()
 
 
 class ServiceRegistryClient:
-    """Cliente gRPC do Service Registry (fail-open)."""
+    """Cliente gRPC do Service Registry (fail-open) com suporte a mTLS via SPIFFE."""
 
-    def __init__(self, host: str, port: int, timeout_seconds: int = 3):
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        timeout_seconds: int = 3,
+        spiffe_enabled: bool = False,
+        spiffe_config: Optional[SPIFFEConfig] = None,
+        environment: str = "development",
+    ):
         self.host = host
         self.port = port
         self.timeout_seconds = timeout_seconds
+        self.spiffe_enabled = spiffe_enabled
+        self.spiffe_config = spiffe_config
+        self.environment = environment
         self.channel: Optional[grpc.aio.Channel] = None
         self.stub: Optional[service_registry_pb2_grpc.ServiceRegistryStub] = None
+        self.spiffe_manager: Optional[SPIFFEManager] = None
 
     async def initialize(self):
-        """Inicializa canal gRPC."""
+        """Inicializa canal gRPC com suporte a mTLS."""
         try:
             target = f"{self.host}:{self.port}"
-            self.channel = grpc.aio.insecure_channel(target)
+
+            # Verificar se mTLS via SPIFFE está habilitado
+            spiffe_x509_enabled = (
+                self.spiffe_enabled
+                and self.spiffe_config
+                and getattr(self.spiffe_config, 'enable_x509', False)
+                and SECURITY_LIB_AVAILABLE
+            )
+
+            if spiffe_x509_enabled:
+                # Criar SPIFFE manager
+                self.spiffe_manager = SPIFFEManager(self.spiffe_config)
+                await self.spiffe_manager.initialize()
+
+                # Criar canal seguro com mTLS
+                # Permitir fallback inseguro apenas em ambientes de desenvolvimento
+                is_dev_env = self.environment.lower() in ('dev', 'development')
+                self.channel = await create_secure_grpc_channel(
+                    target=target,
+                    spiffe_config=self.spiffe_config,
+                    spiffe_manager=self.spiffe_manager,
+                    fallback_insecure=is_dev_env
+                )
+
+                logger.info('mtls_channel_configured', target=target, environment=self.environment)
+            else:
+                # Fallback para canal inseguro (apenas desenvolvimento)
+                if self.environment in ['production', 'staging', 'prod']:
+                    raise RuntimeError(
+                        f"mTLS is required in {self.environment} but SPIFFE X.509 is disabled."
+                    )
+
+                logger.warning('using_insecure_channel', target=target, environment=self.environment)
+                self.channel = grpc.aio.insecure_channel(target)
+
             self.stub = service_registry_pb2_grpc.ServiceRegistryStub(self.channel)
             logger.info("service_registry_client.initialized", target=target)
         except Exception as e:
             logger.warning("service_registry_client.init_failed", error=str(e))
             # Fail-open: continuar sem Service Registry
+
+    async def _get_grpc_metadata(self) -> List[Tuple[str, str]]:
+        """Obter metadata gRPC com JWT-SVID para autenticação."""
+        if not self.spiffe_enabled or not self.spiffe_manager:
+            return []
+
+        try:
+            trust_domain = self.spiffe_config.trust_domain if self.spiffe_config else "neural-hive.local"
+            audience = f"service-registry.{trust_domain}"
+            return await get_grpc_metadata_with_jwt(
+                spiffe_manager=self.spiffe_manager,
+                audience=audience,
+                environment=self.environment
+            )
+        except Exception as e:
+            logger.warning('jwt_svid_fetch_failed', error=str(e))
+            if self.environment in ['production', 'staging', 'prod']:
+                raise
+            return []
 
     async def notify_agent(self, agent_id: str, notification: Dict) -> bool:
         """Envia notificacao para agente via gRPC (best-effort)."""
@@ -46,7 +125,11 @@ class ServiceRegistryClient:
                 message=notification.get("message", ""),
                 metadata=notification.get("metadata", {})
             )
-            await self.stub.NotifyAgent(request, timeout=self.timeout_seconds)
+
+            # Obter metadata com JWT-SVID
+            grpc_metadata = await self._get_grpc_metadata()
+
+            await self.stub.NotifyAgent(request, timeout=self.timeout_seconds, metadata=grpc_metadata)
             logger.info("service_registry_client.notify_agent_sent", agent_id=agent_id)
             return True
         except grpc.RpcError as e:
@@ -73,7 +156,11 @@ class ServiceRegistryClient:
 
         try:
             request = service_registry_pb2.GetAgentRequest(agent_id=agent_id)
-            response = await self.stub.GetAgent(request, timeout=self.timeout_seconds)
+
+            # Obter metadata com JWT-SVID
+            grpc_metadata = await self._get_grpc_metadata()
+
+            response = await self.stub.GetAgent(request, timeout=self.timeout_seconds, metadata=grpc_metadata)
 
             # Converter AgentStatus enum para string
             status_map = {
@@ -110,7 +197,13 @@ class ServiceRegistryClient:
             return None
 
     async def close(self):
-        """Fecha canal gRPC (se inicializado)."""
+        """Fecha canal gRPC e SPIFFE manager (se inicializado)."""
         if self.channel:
             await self.channel.close()
-            logger.info("service_registry_client.closed")
+
+        # Fechar SPIFFE manager
+        if self.spiffe_manager:
+            await self.spiffe_manager.close()
+            self.spiffe_manager = None
+
+        logger.info("service_registry_client.closed")

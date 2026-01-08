@@ -1,0 +1,353 @@
+syntax = "proto3";
+
+package orchestrator;
+
+option go_package = "github.com/neural-hive-mind/orchestrator/proto";
+
+// Serviço gRPC para ajustes estratégicos do Orchestrator Dynamic.
+// Este serviço permite que a Queen Agent envie comandos estratégicos
+// para o Orchestrator, incluindo ajustes de prioridade, recursos,
+// pausas de workflows e acionamento de replanejamento.
+service OrchestratorStrategic {
+  // Ajustar prioridade de um workflow
+  rpc AdjustPriorities(AdjustPrioritiesRequest) returns (AdjustPrioritiesResponse);
+
+  // Rebalancear alocação de recursos entre workflows
+  rpc RebalanceResources(RebalanceResourcesRequest) returns (RebalanceResourcesResponse);
+
+  // Pausar workflow em execução
+  rpc PauseWorkflow(PauseWorkflowRequest) returns (PauseWorkflowResponse);
+
+  // Retomar workflow pausado
+  rpc ResumeWorkflow(ResumeWorkflowRequest) returns (ResumeWorkflowResponse);
+
+  // Acionar replanejamento de um plano
+  rpc TriggerReplanning(TriggerReplanningRequest) returns (TriggerReplanningResponse);
+
+  // Obter status detalhado de um workflow
+  rpc GetWorkflowStatus(GetWorkflowStatusRequest) returns (GetWorkflowStatusResponse);
+}
+
+// ============================================================================
+// AdjustPriorities - Ajuste de prioridade de workflow
+// ============================================================================
+
+message AdjustPrioritiesRequest {
+  // ID do workflow a ajustar
+  string workflow_id = 1;
+
+  // ID do plano associado
+  string plan_id = 2;
+
+  // Nova prioridade (1-10, onde 10 é a mais alta)
+  int32 new_priority = 3;
+
+  // Razão do ajuste
+  string reason = 4;
+
+  // ID único do ajuste para rastreabilidade
+  string adjustment_id = 5;
+
+  // Metadados adicionais
+  map<string, string> metadata = 6;
+}
+
+message AdjustPrioritiesResponse {
+  // Se o ajuste foi bem-sucedido
+  bool success = 1;
+
+  // Mensagem de resultado
+  string message = 2;
+
+  // Prioridade anterior
+  int32 previous_priority = 3;
+
+  // Prioridade aplicada
+  int32 applied_priority = 4;
+
+  // Timestamp da aplicação (Unix millis)
+  int64 applied_at = 5;
+}
+
+// ============================================================================
+// RebalanceResources - Rebalanceamento de recursos
+// ============================================================================
+
+message ResourceAllocation {
+  // CPU em millicores (ex: 1000 = 1 CPU)
+  int32 cpu_millicores = 1;
+
+  // Memória em MB
+  int32 memory_mb = 2;
+
+  // Máximo de tickets paralelos
+  int32 max_parallel_tickets = 3;
+
+  // GPU allocation (opcional)
+  optional int32 gpu_count = 4;
+
+  // Prioridade de scheduling (1-10)
+  int32 scheduling_priority = 5;
+}
+
+message RebalanceResourcesRequest {
+  // IDs dos workflows a rebalancear
+  repeated string workflow_ids = 1;
+
+  // Alocação alvo por workflow: workflow_id -> ResourceAllocation
+  map<string, ResourceAllocation> target_allocation = 2;
+
+  // Razão do rebalanceamento
+  string reason = 3;
+
+  // ID único do rebalanceamento
+  string rebalance_id = 4;
+
+  // Se deve forçar rebalanceamento mesmo com workflows em execução
+  bool force = 5;
+}
+
+message WorkflowRebalanceResult {
+  // ID do workflow
+  string workflow_id = 1;
+
+  // Se foi bem-sucedido
+  bool success = 2;
+
+  // Mensagem de resultado
+  string message = 3;
+
+  // Alocação anterior
+  ResourceAllocation previous_allocation = 4;
+
+  // Alocação aplicada
+  ResourceAllocation applied_allocation = 5;
+}
+
+message RebalanceResourcesResponse {
+  // Se o rebalanceamento geral foi bem-sucedido
+  bool success = 1;
+
+  // Mensagem geral
+  string message = 2;
+
+  // Resultados por workflow
+  repeated WorkflowRebalanceResult results = 3;
+
+  // Timestamp da aplicação
+  int64 applied_at = 4;
+}
+
+// ============================================================================
+// PauseWorkflow - Pausar workflow
+// ============================================================================
+
+message PauseWorkflowRequest {
+  // ID do workflow a pausar
+  string workflow_id = 1;
+
+  // Razão da pausa
+  string reason = 2;
+
+  // Duração da pausa em segundos (0 = indefinido)
+  optional int64 pause_duration_seconds = 3;
+
+  // ID do ajuste para rastreabilidade
+  string adjustment_id = 4;
+}
+
+message PauseWorkflowResponse {
+  // Se a pausa foi bem-sucedida
+  bool success = 1;
+
+  // Mensagem de resultado
+  string message = 2;
+
+  // Timestamp da pausa
+  int64 paused_at = 3;
+
+  // Quando será retomado automaticamente (se configurado)
+  optional int64 scheduled_resume_at = 4;
+}
+
+// ============================================================================
+// ResumeWorkflow - Retomar workflow
+// ============================================================================
+
+message ResumeWorkflowRequest {
+  // ID do workflow a retomar
+  string workflow_id = 1;
+
+  // Razão da retomada (opcional)
+  string reason = 2;
+
+  // ID do ajuste para rastreabilidade
+  string adjustment_id = 3;
+}
+
+message ResumeWorkflowResponse {
+  // Se a retomada foi bem-sucedida
+  bool success = 1;
+
+  // Mensagem de resultado
+  string message = 2;
+
+  // Timestamp da retomada
+  int64 resumed_at = 3;
+
+  // Duração total da pausa em segundos
+  int64 pause_duration_seconds = 4;
+}
+
+// ============================================================================
+// TriggerReplanning - Acionar replanejamento
+// ============================================================================
+
+// Tipos de trigger para replanejamento
+enum ReplanningTriggerType {
+  TRIGGER_TYPE_UNSPECIFIED = 0;
+  TRIGGER_TYPE_DRIFT = 1;        // Drift detectado no modelo
+  TRIGGER_TYPE_FAILURE = 2;      // Falha crítica
+  TRIGGER_TYPE_STRATEGIC = 3;    // Decisão estratégica da Queen
+  TRIGGER_TYPE_SLA_VIOLATION = 4; // Violação de SLA
+  TRIGGER_TYPE_RESOURCE_CONSTRAINT = 5; // Restrição de recursos
+}
+
+message TriggerReplanningRequest {
+  // ID do plano a replanjar
+  string plan_id = 1;
+
+  // Razão do replanejamento
+  string reason = 2;
+
+  // Tipo de trigger
+  ReplanningTriggerType trigger_type = 3;
+
+  // ID do ajuste para rastreabilidade
+  string adjustment_id = 4;
+
+  // Contexto adicional para o replanejamento
+  map<string, string> context = 5;
+
+  // Se deve preservar progresso existente
+  bool preserve_progress = 6;
+
+  // Prioridade do replanejamento (1-10)
+  int32 priority = 7;
+}
+
+message TriggerReplanningResponse {
+  // Se o trigger foi bem-sucedido
+  bool success = 1;
+
+  // Mensagem de resultado
+  string message = 2;
+
+  // ID do replanejamento gerado
+  string replanning_id = 3;
+
+  // Timestamp do trigger
+  int64 triggered_at = 4;
+
+  // Tempo estimado para novo plano (segundos)
+  optional int64 estimated_completion_seconds = 5;
+}
+
+// ============================================================================
+// GetWorkflowStatus - Obter status de workflow
+// ============================================================================
+
+// Estados possíveis de um workflow
+enum WorkflowState {
+  WORKFLOW_STATE_UNSPECIFIED = 0;
+  WORKFLOW_STATE_PENDING = 1;
+  WORKFLOW_STATE_RUNNING = 2;
+  WORKFLOW_STATE_PAUSED = 3;
+  WORKFLOW_STATE_COMPLETED = 4;
+  WORKFLOW_STATE_FAILED = 5;
+  WORKFLOW_STATE_CANCELLED = 6;
+  WORKFLOW_STATE_REPLANNING = 7;
+}
+
+message GetWorkflowStatusRequest {
+  // ID do workflow
+  string workflow_id = 1;
+
+  // Incluir detalhes de tickets
+  bool include_tickets = 2;
+
+  // Incluir histórico de eventos
+  bool include_history = 3;
+}
+
+message TicketSummary {
+  // Total de tickets
+  int32 total = 1;
+
+  // Tickets completados
+  int32 completed = 2;
+
+  // Tickets pendentes
+  int32 pending = 3;
+
+  // Tickets em execução
+  int32 running = 4;
+
+  // Tickets falhados
+  int32 failed = 5;
+}
+
+message WorkflowEvent {
+  // Tipo do evento
+  string event_type = 1;
+
+  // Timestamp do evento
+  int64 timestamp = 2;
+
+  // Descrição do evento
+  string description = 3;
+
+  // Metadados do evento
+  map<string, string> metadata = 4;
+}
+
+message GetWorkflowStatusResponse {
+  // ID do workflow
+  string workflow_id = 1;
+
+  // ID do plano associado
+  string plan_id = 2;
+
+  // Estado atual
+  WorkflowState state = 3;
+
+  // Prioridade atual
+  int32 current_priority = 4;
+
+  // Recursos alocados
+  ResourceAllocation allocated_resources = 5;
+
+  // Resumo de tickets
+  TicketSummary tickets = 6;
+
+  // Progresso em percentual (0-100)
+  float progress_percent = 7;
+
+  // Timestamp de início
+  int64 started_at = 8;
+
+  // Timestamp de última atualização
+  int64 updated_at = 9;
+
+  // Deadline do SLA (se aplicável)
+  optional int64 sla_deadline = 10;
+
+  // Tempo restante para deadline (segundos)
+  optional int64 sla_remaining_seconds = 11;
+
+  // Histórico de eventos (se solicitado)
+  repeated WorkflowEvent history = 12;
+
+  // Metadados adicionais
+  map<string, string> metadata = 13;
+}

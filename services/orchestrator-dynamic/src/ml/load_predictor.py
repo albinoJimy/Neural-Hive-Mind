@@ -396,7 +396,7 @@ class LoadPredictor:
 
     async def _get_from_cache(self, key: str) -> Optional[float]:
         """
-        Obtém valor do cache Redis.
+        Obtém valor do cache Redis usando wrapper seguro com circuit breaker.
 
         Args:
             key: Chave do cache
@@ -404,11 +404,11 @@ class LoadPredictor:
         Returns:
             Valor cached ou None
         """
-        try:
-            if not self.redis_client:
-                return None
+        # Importar wrapper seguro que aplica circuit breaker
+        from src.clients.redis_client import redis_get_safe
 
-            value = await self.redis_client.get(key)
+        try:
+            value = await redis_get_safe(key)
 
             if value is not None:
                 return float(value)
@@ -425,21 +425,17 @@ class LoadPredictor:
 
     async def _save_to_cache(self, key: str, value: float):
         """
-        Salva valor no cache Redis com TTL.
+        Salva valor no cache Redis com TTL usando wrapper seguro com circuit breaker.
 
         Args:
             key: Chave do cache
             value: Valor a salvar
         """
-        try:
-            if not self.redis_client:
-                return
+        # Importar wrapper seguro que aplica circuit breaker
+        from src.clients.redis_client import redis_setex_safe
 
-            await self.redis_client.setex(
-                key,
-                self.cache_ttl_seconds,
-                str(value)
-            )
+        try:
+            await redis_setex_safe(key, self.cache_ttl_seconds, str(value))
 
         except Exception as e:
             self.logger.warning(

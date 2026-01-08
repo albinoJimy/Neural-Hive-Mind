@@ -1,0 +1,67 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: slo-crd-sync
+  namespace: neural-hive
+  labels:
+    neural-hive.io/component: slo-crd-sync
+    neural-hive.io/layer: orquestracao
+    app.kubernetes.io/name: slo-crd-sync
+    app.kubernetes.io/part-of: neural-hive-mind
+spec:
+  schedule: "*/15 * * * *"  # A cada 15 minutos
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels:
+        neural-hive.io/component: slo-crd-sync
+        app.kubernetes.io/name: slo-crd-sync-job
+    spec:
+      backoffLimit: 3
+      template:
+        metadata:
+          labels:
+            neural-hive.io/component: slo-crd-sync
+            app.kubernetes.io/name: slo-crd-sync-job
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: sla-management-sa
+          containers:
+            - name: sync-job
+              image: neural-hive-mind/sla-management-system:1.0.0
+              imagePullPolicy: IfNotPresent
+              command:
+                - python
+                - -m
+                - src.jobs.sync_crds_to_postgresql
+              env:
+                - name: POSTGRESQL__HOST
+                  value: "postgres-sla.neural-hive-data.svc.cluster.local"
+                - name: POSTGRESQL__PORT
+                  value: "5432"
+                - name: POSTGRESQL__DATABASE
+                  value: "sla_management"
+                - name: POSTGRESQL__USER
+                  value: "sla_user"
+                - name: POSTGRESQL__PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: sla-management-secrets
+                      key: postgresql_password
+                - name: PROMETHEUS__URL
+                  value: "http://prometheus-server.monitoring.svc.cluster.local:9090"
+                - name: KUBERNETES__IN_CLUSTER
+                  value: "true"
+                - name: KUBERNETES__NAMESPACE
+                  value: "neural-hive"
+                - name: LOG_LEVEL
+                  value: "INFO"
+              resources:
+                requests:
+                  cpu: 200m
+                  memory: 256Mi
+                limits:
+                  cpu: 1
+                  memory: 1Gi

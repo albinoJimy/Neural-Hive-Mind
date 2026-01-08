@@ -29,6 +29,11 @@ from .config import (
     SecuritySettings,
     AuthMethod,
 )
+from .grpc_channel_factory import (
+    create_secure_grpc_channel,
+    create_secure_grpc_channel_sync,
+    get_grpc_metadata_with_jwt,
+)
 
 __version__ = "1.0.0"
 
@@ -53,4 +58,8 @@ __all__ = [
     "SPIFFEConfig",
     "SecuritySettings",
     "AuthMethod",
+    # gRPC channel factory
+    "create_secure_grpc_channel",
+    "create_secure_grpc_channel_sync",
+    "get_grpc_metadata_with_jwt",
 ]

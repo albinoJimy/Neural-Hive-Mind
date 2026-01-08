@@ -7,11 +7,14 @@ Parses intents, maps entities to ontology, and enriches with historical context.
 import structlog
 import hashlib
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional, TYPE_CHECKING
 
 from src.clients.neo4j_client import Neo4jClient
 from src.clients.mongodb_client import MongoDBClient
 from src.clients.redis_client import RedisClient
+
+if TYPE_CHECKING:
+    from src.services.nlp_processor import NLPProcessor
 
 logger = structlog.get_logger()
 
@@ -23,11 +26,13 @@ class SemanticParser:
         self,
         neo4j_client: Neo4jClient,
         mongodb_client: MongoDBClient,
-        redis_client: RedisClient
+        redis_client: RedisClient,
+        nlp_processor: Optional['NLPProcessor'] = None
     ):
         self.neo4j = neo4j_client
         self.mongodb = mongodb_client
         self.redis = redis_client
+        self.nlp_processor = nlp_processor
 
     async def parse(self, intent_envelope: Dict) -> Dict[str, Any]:
         """
@@ -49,10 +54,20 @@ class SemanticParser:
         domain = intent.get('domain') or 'unknown'
 
         # Extract objectives
-        objectives = self._extract_objectives(intent.get('text', ''))
+        objectives = await self._extract_objectives(intent.get('text', ''))
 
         # Map entities to ontology
         entities = intent.get('entities', [])
+
+        # Enriquecer entidades com extração NLP avançada
+        if self.nlp_processor and self.nlp_processor.is_ready():
+            nlp_entities = await self._extract_entities_advanced(intent.get('text', ''))
+            # Merge com entidades existentes (evitar duplicatas)
+            existing_values = {e.get('value', '').lower() for e in entities}
+            for nlp_entity in nlp_entities:
+                if nlp_entity['value'].lower() not in existing_values:
+                    entities.append(nlp_entity)
+
         mapped_entities = await self._map_entities_to_ontology(entities)
 
         # Extract constraints
@@ -106,30 +121,51 @@ class SemanticParser:
 
         return intermediate_representation
 
-    def _extract_objectives(self, text: str) -> List[str]:
-        """Extract main objectives from text"""
-        # Simple heuristics (MVP)
-        # TODO: Use NLP for better extraction
-        objectives = []
+    async def _extract_objectives(self, text: str) -> List[str]:
+        """Extrai objectives principais do texto usando NLP ou fallback heurístico"""
+        if self.nlp_processor and self.nlp_processor.is_ready():
+            # Usar NLP processor para extração avançada (com cache)
+            objectives = await self.nlp_processor.extract_objectives_async(text)
 
-        text_lower = text.lower()
+            # Garantir pelo menos um objective (fallback para 'query')
+            if not objectives:
+                objectives = ['query']
 
-        if 'criar' in text_lower or 'create' in text_lower:
-            objectives.append('create')
-        if 'atualizar' in text_lower or 'update' in text_lower:
-            objectives.append('update')
-        if 'deletar' in text_lower or 'delete' in text_lower:
-            objectives.append('delete')
-        if 'consultar' in text_lower or 'query' in text_lower or 'buscar' in text_lower:
-            objectives.append('query')
-        if 'transformar' in text_lower or 'transform' in text_lower:
-            objectives.append('transform')
+            logger.debug(
+                'Objectives extraídos via NLP',
+                objectives=objectives,
+                text_preview=text[:100]
+            )
 
-        # Default to query if no objectives found
-        if not objectives:
-            objectives.append('query')
+            return objectives
+        else:
+            # Fallback para extração heurística (backward compatibility)
+            objectives = []
+            text_lower = text.lower()
 
-        return objectives
+            if 'criar' in text_lower or 'create' in text_lower:
+                objectives.append('create')
+            if 'atualizar' in text_lower or 'update' in text_lower:
+                objectives.append('update')
+            if 'deletar' in text_lower or 'delete' in text_lower:
+                objectives.append('delete')
+            if 'consultar' in text_lower or 'query' in text_lower or 'buscar' in text_lower:
+                objectives.append('query')
+            if 'transformar' in text_lower or 'transform' in text_lower:
+                objectives.append('transform')
+
+            # Default to query if no objectives found
+            if not objectives:
+                objectives.append('query')
+
+            return objectives
+
+    async def _extract_entities_advanced(self, text: str) -> List[Dict]:
+        """Extrai entidades usando NLP avançado (com cache)"""
+        if self.nlp_processor and self.nlp_processor.is_ready():
+            return await self.nlp_processor.extract_entities_advanced_async(text)
+        else:
+            return []
 
     async def _map_entities_to_ontology(self, entities: List[Dict]) -> List[Dict]:
         """Map entities to canonical ontology"""

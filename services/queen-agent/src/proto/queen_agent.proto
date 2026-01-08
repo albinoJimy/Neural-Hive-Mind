@@ -10,6 +10,9 @@ service QueenAgent {
   // Listar decisões estratégicas recentes
   rpc ListStrategicDecisions(ListStrategicDecisionsRequest) returns (ListStrategicDecisionsResponse);
 
+  // Criar nova decisão estratégica
+  rpc MakeStrategicDecision(MakeStrategicDecisionRequest) returns (MakeStrategicDecisionResponse);
+
   // Obter status geral do sistema
   rpc GetSystemStatus(GetSystemStatusRequest) returns (SystemStatusResponse);
 
@@ -57,6 +60,23 @@ message ListStrategicDecisionsRequest {
 message ListStrategicDecisionsResponse {
   repeated StrategicDecisionResponse decisions = 1;
   int32 total = 2;
+}
+
+// Mensagens para MakeStrategicDecision
+message MakeStrategicDecisionRequest {
+  string event_type = 1;
+  string source_id = 2;
+  map<string, string> trigger_data = 3;
+}
+
+message MakeStrategicDecisionResponse {
+  bool success = 1;
+  string decision_id = 2;
+  string decision_type = 3;
+  double confidence_score = 4;
+  double risk_score = 5;
+  string reasoning_summary = 6;
+  string message = 7;
 }
 
 message GetSystemStatusRequest {}

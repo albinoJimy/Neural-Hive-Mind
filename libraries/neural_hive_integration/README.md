@@ -187,7 +187,49 @@ pipeline = await forge.trigger_pipeline(
 status = await forge.get_pipeline_status(pipeline.pipeline_id)
 ```
 
-### 6. FlowCTelemetryPublisher
+### 6. OrchestratorClient - Workflow State Queries
+
+Cliente para Orchestrator Dynamic com suporte a queries de workflow state:
+
+```python
+from neural_hive_integration import OrchestratorClient
+
+orchestrator = OrchestratorClient(
+    base_url="http://orchestrator-dynamic:8000"
+)
+
+# Iniciar workflow
+workflow_id = await orchestrator.start_workflow(
+    cognitive_plan={"tasks": [...]},
+    correlation_id="corr-123",
+    priority=5,
+    sla_deadline_seconds=14400  # 4h
+)
+
+# Consultar tickets gerados pelo workflow
+tickets_result = await orchestrator.query_workflow(
+    workflow_id=workflow_id,
+    query_name="get_tickets"
+)
+tickets = tickets_result.get("tickets", [])
+
+# Consultar status do workflow
+status_result = await orchestrator.query_workflow(
+    workflow_id=workflow_id,
+    query_name="get_status"
+)
+print(f"Status: {status_result['status']}")
+print(f"Tickets gerados: {status_result['tickets_generated']}")
+```
+
+**Queries disponíveis:**
+
+| Query Name | Descrição | Retorno |
+|------------|-----------|---------|
+| `get_tickets` | Lista tickets gerados | `{"tickets": [...]}` |
+| `get_status` | Status atual do workflow | `{"status": "...", "tickets_generated": N}` |
+
+### 7. FlowCTelemetryPublisher
 
 Publisher de telemetria com buffer Redis:
 
@@ -261,12 +303,17 @@ result = FlowCResult(
 A biblioteca expõe métricas Prometheus:
 
 ```python
-# Flow C
+# Flow C - Execução
 neural_hive_flow_c_duration_seconds          # Histogram
 neural_hive_flow_c_steps_duration_seconds    # Histogram per step
 neural_hive_flow_c_success_total             # Counter
 neural_hive_flow_c_failures_total            # Counter per reason
 neural_hive_flow_c_sla_violations_total      # Counter
+
+# Flow C - Workflow Queries
+neural_hive_flow_c_workflow_query_duration_seconds  # Histogram per query_name
+neural_hive_flow_c_workflow_query_failures_total    # Counter per query_name, reason
+neural_hive_flow_c_ticket_validation_failures_total # Counter
 
 # Service Registry
 neural_hive_service_registry_calls_total     # Counter per operation

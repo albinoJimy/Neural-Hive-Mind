@@ -2,6 +2,7 @@
 
 from typing import Dict, Any, List, Optional
 import logging
+import time
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
@@ -86,6 +87,7 @@ class LoadPredictor(BasePredictor):
         Returns:
             Dict com forecast, timestamps, e opcionalmente confidence intervals
         """
+        start_time = time.time()
         try:
             # Verifica cache
             if self.redis_client:
@@ -117,24 +119,27 @@ class LoadPredictor(BasePredictor):
                 if self.metrics:
                     await self.metrics.record_forecast_cache_hit(False)
 
-            # Registra métricas
+            # Registra métricas com latência real
+            # Usa latência específica do modelo se disponível, senão calcula total
+            model_latency = result.get('latency_seconds', time.time() - start_time)
             if self.metrics:
                 await self.metrics.record_load_forecast(
                     horizon_minutes=horizon_minutes,
                     status="success",
-                    latency=0.0,  # TODO: medir
+                    latency=model_latency,
                     mape=result.get('mape', 0.0)
                 )
 
             return result
 
         except Exception as e:
+            latency_seconds = time.time() - start_time
             logger.error(f"Erro ao prever carga: {e}")
             if self.metrics:
                 await self.metrics.record_load_forecast(
                     horizon_minutes=horizon_minutes,
                     status="error",
-                    latency=0.0,
+                    latency=latency_seconds,
                     mape=100.0
                 )
             return {
@@ -335,6 +340,8 @@ class LoadPredictor(BasePredictor):
         include_confidence: bool
     ) -> Dict[str, Any]:
         """Gera forecast usando Prophet."""
+        start_time = time.time()
+
         model = self.prophet_models[horizon_minutes]
 
         # Cria dataframe de datas futuras
@@ -349,11 +356,14 @@ class LoadPredictor(BasePredictor):
         # Extrai apenas previsões futuras
         forecast = forecast.tail(horizon_minutes)
 
+        latency_seconds = time.time() - start_time
+
         result = {
             'forecast': forecast['yhat'].tolist(),
             'timestamps': forecast['ds'].dt.isoformat().tolist(),
             'model_type': 'prophet',
-            'horizon_minutes': horizon_minutes
+            'horizon_minutes': horizon_minutes,
+            'latency_seconds': latency_seconds
         }
 
         if include_confidence:
@@ -367,6 +377,7 @@ class LoadPredictor(BasePredictor):
         horizon_minutes: int
     ) -> Dict[str, Any]:
         """Fallback usando ARIMA."""
+        start_time = time.time()
         try:
             # Carrega dados recentes
             recent_data = await self._load_historical_data(days=7)
@@ -396,21 +407,26 @@ class LoadPredictor(BasePredictor):
                 for i in range(1, horizon_minutes + 1)
             ]
 
+            latency_seconds = time.time() - start_time
+
             return {
                 'forecast': forecast_values.tolist(),
                 'timestamps': timestamps,
                 'model_type': 'arima',
                 'horizon_minutes': horizon_minutes,
                 'confidence_lower': conf_int[:, 0].tolist(),
-                'confidence_upper': conf_int[:, 1].tolist()
+                'confidence_upper': conf_int[:, 1].tolist(),
+                'latency_seconds': latency_seconds
             }
 
         except Exception as e:
+            latency_seconds = time.time() - start_time
             logger.error(f"Erro em ARIMA fallback: {e}")
             return {
                 'forecast': [],
                 'timestamps': [],
-                'error': str(e)
+                'error': str(e),
+                'latency_seconds': latency_seconds
             }
 
     def _evaluate_forecast(

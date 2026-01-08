@@ -74,7 +74,13 @@ class PostgreSQLClient:
         return data
 
     async def _create_tables(self) -> None:
-        """Cria tabelas se não existirem."""
+        """
+        Cria tabelas se não existirem.
+
+        Nota: A tabela error_budgets é gerenciada pela migração de particionamento
+        (migrations/001_add_budget_history_partitioning.sql). Este método só cria
+        a tabela se ela não existir E se as migrações não foram aplicadas.
+        """
         async with self.pool.acquire() as conn:
             # Tabela slo_definitions
             await conn.execute('''
@@ -97,27 +103,44 @@ class PostgreSQLClient:
                 )
             ''')
 
-            # Tabela error_budgets
-            await conn.execute('''
-                CREATE TABLE IF NOT EXISTS error_budgets (
-                    budget_id VARCHAR(255) PRIMARY KEY,
-                    slo_id VARCHAR(255) NOT NULL REFERENCES slo_definitions(slo_id),
-                    service_name VARCHAR(255) NOT NULL,
-                    calculated_at TIMESTAMP NOT NULL,
-                    window_start TIMESTAMP NOT NULL,
-                    window_end TIMESTAMP NOT NULL,
-                    sli_value FLOAT NOT NULL,
-                    slo_target FLOAT NOT NULL,
-                    error_budget_total FLOAT NOT NULL,
-                    error_budget_consumed FLOAT NOT NULL,
-                    error_budget_remaining FLOAT NOT NULL,
-                    status VARCHAR(50) NOT NULL,
-                    burn_rates JSONB,
-                    violations_count INTEGER DEFAULT 0,
-                    last_violation_at TIMESTAMP,
-                    metadata JSONB
+            # Verificar se error_budgets já existe (particionada ou não)
+            error_budgets_exists = await conn.fetchval('''
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_name = 'error_budgets' AND table_schema = 'public'
                 )
             ''')
+
+            # Só criar tabela error_budgets se não existir
+            # Quando as migrações forem aplicadas, a tabela será particionada
+            if not error_budgets_exists:
+                self.logger.info("error_budgets_table_not_found_creating_basic")
+                await conn.execute('''
+                    CREATE TABLE IF NOT EXISTS error_budgets (
+                        budget_id VARCHAR(255) NOT NULL,
+                        slo_id VARCHAR(255) NOT NULL,
+                        service_name VARCHAR(255) NOT NULL,
+                        calculated_at TIMESTAMP NOT NULL,
+                        window_start TIMESTAMP NOT NULL,
+                        window_end TIMESTAMP NOT NULL,
+                        sli_value FLOAT NOT NULL,
+                        slo_target FLOAT NOT NULL,
+                        error_budget_total FLOAT NOT NULL,
+                        error_budget_consumed FLOAT NOT NULL,
+                        error_budget_remaining FLOAT NOT NULL,
+                        status VARCHAR(50) NOT NULL,
+                        burn_rates JSONB,
+                        violations_count INTEGER DEFAULT 0,
+                        last_violation_at TIMESTAMP,
+                        metadata JSONB,
+                        PRIMARY KEY (budget_id, calculated_at)
+                    ) PARTITION BY RANGE (calculated_at)
+                ''')
+                # Criar partição default para evitar erros de insert
+                await conn.execute('''
+                    CREATE TABLE IF NOT EXISTS error_budgets_default
+                    PARTITION OF error_budgets DEFAULT
+                ''')
 
             # Tabela freeze_policies
             await conn.execute('''
@@ -155,11 +178,13 @@ class PostgreSQLClient:
                 )
             ''')
 
-            # Criar índices
-            await conn.execute('''
-                CREATE INDEX IF NOT EXISTS idx_error_budgets_slo_id_calculated_at
-                ON error_budgets(slo_id, calculated_at DESC)
-            ''')
+            # Criar índices (exceto para error_budgets que são gerenciados pela migração)
+            # Índice para error_budgets só é criado se a tabela foi criada neste método
+            if not error_budgets_exists:
+                await conn.execute('''
+                    CREATE INDEX IF NOT EXISTS idx_error_budgets_slo_id_calculated_at
+                    ON error_budgets(slo_id, calculated_at DESC)
+                ''')
             await conn.execute('''
                 CREATE INDEX IF NOT EXISTS idx_slo_definitions_service_enabled
                 ON slo_definitions(service_name, enabled)
@@ -348,6 +373,257 @@ class PostgreSQLClient:
             if row:
                 return ErrorBudget(**dict(row))
             return None
+
+    async def get_budget_history(
+        self,
+        slo_id: str,
+        days: int = 7,
+        aggregation: Optional[str] = None
+    ) -> List[ErrorBudget]:
+        """
+        Busca histórico de budgets para um SLO.
+
+        Args:
+            slo_id: ID do SLO
+            days: Número de dias de histórico (1-90)
+            aggregation: Tipo de agregação ('hourly', 'daily', None)
+
+        Returns:
+            Lista de ErrorBudget ordenada por calculated_at DESC
+        """
+        import time
+        start_time = time.time()
+
+        try:
+            async with self.pool.acquire() as conn:
+                if aggregation == 'daily':
+                    # Usar view materializada para agregação diária
+                    rows = await conn.fetch('''
+                        SELECT
+                            CONCAT(slo_id, '-', summary_date::TEXT) as budget_id,
+                            slo_id,
+                            service_name,
+                            summary_date::TIMESTAMP as calculated_at,
+                            summary_date::TIMESTAMP as window_start,
+                            (summary_date + INTERVAL '1 day')::TIMESTAMP as window_end,
+                            avg_remaining as sli_value,
+                            100.0 as slo_target,
+                            100.0 as error_budget_total,
+                            avg_consumed as error_budget_consumed,
+                            avg_remaining as error_budget_remaining,
+                            CASE
+                                WHEN avg_remaining > 50 THEN 'HEALTHY'
+                                WHEN avg_remaining > 20 THEN 'WARNING'
+                                WHEN avg_remaining > 10 THEN 'CRITICAL'
+                                ELSE 'EXHAUSTED'
+                            END as status,
+                            '[]'::JSONB as burn_rates,
+                            violations_count::INTEGER,
+                            NULL::TIMESTAMP as last_violation_at,
+                            '{}'::JSONB as metadata
+                        FROM error_budgets_daily_summary
+                        WHERE slo_id = $1
+                          AND summary_date >= CURRENT_DATE - $2::INTEGER
+                        ORDER BY summary_date DESC
+                    ''', slo_id, days)
+
+                elif aggregation == 'hourly':
+                    # Agregação por hora usando window functions
+                    rows = await conn.fetch('''
+                        WITH hourly_agg AS (
+                            SELECT
+                                slo_id,
+                                service_name,
+                                date_trunc('hour', calculated_at) as hour_start,
+                                AVG(error_budget_remaining) as avg_remaining,
+                                AVG(error_budget_consumed) as avg_consumed,
+                                AVG(sli_value) as avg_sli,
+                                AVG(slo_target) as avg_target,
+                                COUNT(*) FILTER (WHERE status = 'EXHAUSTED') as violations
+                            FROM error_budgets
+                            WHERE slo_id = $1
+                              AND calculated_at >= NOW() - ($2::INTEGER || ' days')::INTERVAL
+                            GROUP BY slo_id, service_name, date_trunc('hour', calculated_at)
+                        )
+                        SELECT
+                            CONCAT(slo_id, '-', hour_start::TEXT) as budget_id,
+                            slo_id,
+                            service_name,
+                            hour_start as calculated_at,
+                            hour_start as window_start,
+                            (hour_start + INTERVAL '1 hour') as window_end,
+                            avg_sli as sli_value,
+                            avg_target as slo_target,
+                            100.0 as error_budget_total,
+                            avg_consumed as error_budget_consumed,
+                            avg_remaining as error_budget_remaining,
+                            CASE
+                                WHEN avg_remaining > 50 THEN 'HEALTHY'
+                                WHEN avg_remaining > 20 THEN 'WARNING'
+                                WHEN avg_remaining > 10 THEN 'CRITICAL'
+                                ELSE 'EXHAUSTED'
+                            END as status,
+                            '[]'::JSONB as burn_rates,
+                            violations::INTEGER as violations_count,
+                            NULL::TIMESTAMP as last_violation_at,
+                            '{}'::JSONB as metadata
+                        FROM hourly_agg
+                        ORDER BY hour_start DESC
+                    ''', slo_id, days)
+
+                else:
+                    # Sem agregação - retornar todos os registros (limite 1000)
+                    rows = await conn.fetch('''
+                        SELECT * FROM error_budgets
+                        WHERE slo_id = $1
+                          AND calculated_at >= NOW() - ($2::INTEGER || ' days')::INTERVAL
+                        ORDER BY calculated_at DESC
+                        LIMIT 1000
+                    ''', slo_id, days)
+
+                duration = time.time() - start_time
+                if duration > 0.5:
+                    self.logger.warning(
+                        "budget_history_query_slow",
+                        slo_id=slo_id,
+                        days=days,
+                        aggregation=aggregation,
+                        duration_seconds=duration
+                    )
+
+                self.logger.debug(
+                    "budget_history_retrieved",
+                    slo_id=slo_id,
+                    days=days,
+                    aggregation=aggregation,
+                    count=len(rows)
+                )
+
+                return [ErrorBudget(**dict(row)) for row in rows]
+
+        except Exception as e:
+            self.logger.error(
+                "budget_history_query_failed",
+                slo_id=slo_id,
+                days=days,
+                aggregation=aggregation,
+                error=str(e)
+            )
+            raise
+
+    async def get_budget_trends(
+        self,
+        slo_id: str,
+        days: int = 30
+    ) -> Dict[str, Any]:
+        """
+        Calcula tendências e estatísticas de budget para um SLO.
+
+        Args:
+            slo_id: ID do SLO
+            days: Número de dias para análise (default: 30)
+
+        Returns:
+            Dicionário com métricas de tendência:
+            - trend_direction: 'improving', 'degrading', 'stable'
+            - average_remaining: média de budget restante
+            - min_remaining: menor valor atingido
+            - max_consumed: maior consumo
+            - volatility: desvio padrão
+            - violations_frequency: violações por dia
+            - burn_rate_avg: média das burn rates
+        """
+        try:
+            async with self.pool.acquire() as conn:
+                # Query com estatísticas agregadas e cálculo de tendência
+                row = await conn.fetchrow('''
+                    WITH daily_stats AS (
+                        SELECT
+                            date_trunc('day', calculated_at) as day,
+                            AVG(error_budget_remaining) as avg_remaining,
+                            STDDEV(error_budget_remaining) as stddev_remaining,
+                            MAX(error_budget_consumed) as max_consumed,
+                            COUNT(*) FILTER (WHERE status = 'EXHAUSTED') as violations,
+                            AVG(COALESCE((burn_rates->0->>'rate')::FLOAT, 0)) as avg_burn_rate,
+                            ROW_NUMBER() OVER (ORDER BY date_trunc('day', calculated_at)) as day_num
+                        FROM error_budgets
+                        WHERE slo_id = $1
+                          AND calculated_at >= NOW() - ($2::INTEGER || ' days')::INTERVAL
+                        GROUP BY date_trunc('day', calculated_at)
+                    ),
+                    trend_calc AS (
+                        SELECT
+                            REGR_SLOPE(avg_remaining, day_num) as trend_slope,
+                            AVG(avg_remaining) as overall_avg,
+                            MIN(avg_remaining) as overall_min,
+                            MAX(max_consumed) as overall_max_consumed,
+                            AVG(COALESCE(stddev_remaining, 0)) as overall_volatility,
+                            SUM(violations) as total_violations,
+                            COUNT(DISTINCT day) as total_days,
+                            AVG(avg_burn_rate) as overall_burn_rate
+                        FROM daily_stats
+                    )
+                    SELECT
+                        trend_slope,
+                        overall_avg as average_remaining,
+                        overall_min as min_remaining,
+                        overall_max_consumed as max_consumed,
+                        overall_volatility as volatility,
+                        CASE
+                            WHEN total_days > 0 THEN total_violations::FLOAT / total_days
+                            ELSE 0
+                        END as violations_frequency,
+                        COALESCE(overall_burn_rate, 0) as burn_rate_avg,
+                        total_days
+                    FROM trend_calc
+                ''', slo_id, days)
+
+                if not row or row['total_days'] is None or row['total_days'] == 0:
+                    return {
+                        'trend_direction': 'stable',
+                        'average_remaining': 100.0,
+                        'min_remaining': 100.0,
+                        'max_consumed': 0.0,
+                        'volatility': 0.0,
+                        'violations_frequency': 0.0,
+                        'burn_rate_avg': 0.0
+                    }
+
+                # Determinar direção da tendência baseado no slope
+                trend_slope = row['trend_slope'] or 0
+                if trend_slope > 0.5:
+                    trend_direction = 'improving'
+                elif trend_slope < -0.5:
+                    trend_direction = 'degrading'
+                else:
+                    trend_direction = 'stable'
+
+                self.logger.debug(
+                    "budget_trends_calculated",
+                    slo_id=slo_id,
+                    days=days,
+                    trend_direction=trend_direction,
+                    avg_remaining=row['average_remaining']
+                )
+
+                return {
+                    'trend_direction': trend_direction,
+                    'average_remaining': float(row['average_remaining'] or 100.0),
+                    'min_remaining': float(row['min_remaining'] or 100.0),
+                    'max_consumed': float(row['max_consumed'] or 0.0),
+                    'volatility': float(row['volatility'] or 0.0),
+                    'violations_frequency': float(row['violations_frequency'] or 0.0),
+                    'burn_rate_avg': float(row['burn_rate_avg'] or 0.0)
+                }
+
+        except Exception as e:
+            self.logger.error(
+                "budget_trends_query_failed",
+                slo_id=slo_id,
+                days=days,
+                error=str(e)
+            )
+            raise
 
     # Métodos de Freeze Policies
     async def create_policy(self, policy: FreezePolicy) -> str:

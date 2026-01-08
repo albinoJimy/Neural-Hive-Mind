@@ -332,6 +332,41 @@ async with MCPServerClient("http://mcp-server:3000") as client:
     result = await client.call_tool("tool_name", {"arg": "value"})
 ```
 
+### Transporte Stdio
+
+O transporte stdio permite comunicação com servidores MCP locais via subprocess:
+
+```python
+from src.clients.mcp_server_client import MCPServerClient
+
+# Servidor MCP local
+client = MCPServerClient(
+    server_url="stdio:///usr/local/bin/trivy-mcp-server",
+    transport="stdio",
+    timeout_seconds=30,
+)
+
+async with client:
+    tools = await client.list_tools()
+    result = await client.call_tool("scan_image", {"image": "nginx:latest"})
+```
+
+**Características do Transporte Stdio:**
+- Servidor MCP executado como subprocess
+- Mensagens JSON-RPC delimitadas por newline via stdin/stdout
+- Stderr capturado para logging (não indica erro)
+- Retry e circuit breaker aplicados
+- Subprocess reiniciado automaticamente em caso de falha
+
+**Formato do `server_url`:**
+- `stdio:///path/to/server` - Caminho absoluto
+- `stdio://server-command --arg` - Comando com argumentos
+
+**Métricas Prometheus:**
+- `mcp_stdio_requests_total{method, status}` - Total de requisições
+- `mcp_stdio_request_duration_seconds{method}` - Duração de requisições
+- `mcp_stdio_subprocess_restarts_total` - Total de restarts de subprocess
+
 ### Características
 
 - **Retry com exponential backoff**: Delays de `2^attempt` segundos entre tentativas

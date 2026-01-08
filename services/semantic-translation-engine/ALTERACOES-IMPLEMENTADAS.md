@@ -348,6 +348,71 @@ Todas as métricas seguem o padrão `neural_hive_*` e incluem labels para filtra
 
 ---
 
+## 12. Processamento NLP com spaCy
+
+**Data:** 2025-01-07
+
+**Problema:** A extração de keywords e objectives utilizava heurísticas simples (split de strings + matching de palavras-chave), resultando em baixa precisão e recall.
+
+**Solução Implementada:**
+- Novo módulo `NLPProcessor` em `src/services/nlp_processor.py`
+- Extração de keywords via POS tagging + lematização + TF ranking
+- Extração de objectives via análise sintática de verbos
+- Extração avançada de entidades via NER + noun chunks
+- Suporte bilíngue (português/inglês)
+- Cache Redis para resultados de extração
+- Métricas Prometheus instrumentadas
+- Dashboard Grafana dedicado
+
+**Arquivos Criados:**
+- `services/semantic-translation-engine/src/services/nlp_processor.py`
+- `services/semantic-translation-engine/tests/unit/test_nlp_processor.py`
+- `services/semantic-translation-engine/tests/integration/test_semantic_parser_nlp.py`
+- `services/semantic-translation-engine/tests/performance/test_nlp_performance.py`
+- `monitoring/dashboards/semantic-translation-nlp.json`
+
+**Arquivos Modificados:**
+- `services/semantic-translation-engine/requirements.txt` (spacy==3.7.2)
+- `services/semantic-translation-engine/Dockerfile` (download de modelos spaCy)
+- `services/semantic-translation-engine/src/config/settings.py` (configurações NLP)
+- `services/semantic-translation-engine/src/main.py` (inicialização NLPProcessor)
+- `services/semantic-translation-engine/src/clients/neo4j_client.py` (integração NLP)
+- `services/semantic-translation-engine/src/services/semantic_parser.py` (integração NLP)
+- `services/semantic-translation-engine/src/observability/metrics.py` (métricas NLP)
+- `services/semantic-translation-engine/README.md` (documentação NLP)
+
+**Métricas Adicionadas:**
+- `neural_hive_nlp_extraction_duration_seconds{operation}`: Latência de extração
+- `neural_hive_nlp_cache_hits_total`: Cache hits
+- `neural_hive_nlp_cache_misses_total`: Cache misses
+- `neural_hive_nlp_extraction_errors_total{operation, error_type}`: Erros
+- `neural_hive_nlp_keywords_extracted`: Keywords por request
+- `neural_hive_nlp_objectives_extracted`: Objectives por request
+- `neural_hive_nlp_entities_extracted`: Entidades por request
+
+**SLOs:**
+- Extração de keywords: P95 < 50ms
+- Extração de objectives: P95 < 50ms
+- Extração de entidades: P95 < 100ms
+- Cache hit rate: > 70%
+
+**Configuração:**
+```bash
+NLP_ENABLED=true
+NLP_CACHE_ENABLED=true
+NLP_CACHE_TTL_SECONDS=600
+NLP_MODEL_PT=pt_core_news_sm
+NLP_MODEL_EN=en_core_web_sm
+NLP_MAX_KEYWORDS=10
+```
+
+**Compatibilidade:**
+- Fallback heurístico quando NLP não disponível
+- Integração transparente com fluxo existente
+
+---
+
 **Data de Implementação:** 2025-10-06
-**Versão do Serviço:** 1.0.0
+**Última Atualização:** 2025-01-07
+**Versão do Serviço:** 1.1.0
 **Autor:** Claude Code Agent

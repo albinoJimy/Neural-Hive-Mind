@@ -5,11 +5,14 @@ Provides async interface to Neo4j for semantic enrichment and historical context
 """
 
 import structlog
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, TYPE_CHECKING
 from neo4j import AsyncGraphDatabase
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.config.settings import Settings
+
+if TYPE_CHECKING:
+    from src.services.nlp_processor import NLPProcessor
 
 logger = structlog.get_logger()
 
@@ -17,9 +20,14 @@ logger = structlog.get_logger()
 class Neo4jClient:
     """Async Neo4j client for Knowledge Graph operations"""
 
-    def __init__(self, settings: Settings):
+    def __init__(
+        self,
+        settings: Settings,
+        nlp_processor: Optional['NLPProcessor'] = None
+    ):
         self.settings = settings
         self.driver = None
+        self.nlp_processor = nlp_processor
 
     async def initialize(self):
         """Initialize Neo4j driver with connection pool"""
@@ -81,7 +89,7 @@ class Neo4jClient:
             List of similar intent records
         """
         import time
-        keywords = self._extract_keywords(intent_text)
+        keywords = await self._extract_keywords_async(intent_text)
 
         logger.debug(
             'Buscando similar intents no Neo4j',
@@ -289,7 +297,7 @@ class Neo4jClient:
         confidence = intent_envelope.get('confidence', 0.0)
         timestamp = intent_envelope.get('timestamp')
         entities = intent.get('entities', [])
-        keywords = self._extract_keywords(intent.get('text', ''))
+        keywords = await self._extract_keywords_async(intent.get('text', ''))
 
         logger.debug(
             'Persistindo intent no grafo Neo4j',
@@ -415,25 +423,56 @@ class Neo4jClient:
 
         return text
 
-    def _extract_keywords(self, text: str) -> str:
+    async def _extract_keywords_async(self, text: str) -> str:
         """
-        Extract keywords from text for search
+        Extrai keywords do texto usando NLP ou fallback heurístico (com cache)
 
         Args:
-            text: Input text
+            text: Texto de entrada
 
         Returns:
-            Space-separated keywords
+            Keywords separadas por espaço
         """
-        # Simple keyword extraction (MVP)
-        # TODO: Use NLP for better extraction
-        words = text.lower().split()
+        if self.nlp_processor and self.nlp_processor.is_ready():
+            # Usar NLP processor para extração avançada (com cache)
+            keywords = await self.nlp_processor.extract_keywords_async(text, max_keywords=5)
+            return ' '.join(keywords)
+        else:
+            # Fallback para extração simples (backward compatibility)
+            return self._extract_keywords_sync(text)
 
-        # Filter out common stop words
+    def _extract_keywords_sync(self, text: str) -> str:
+        """
+        Extrai keywords do texto usando fallback heurístico (síncrono)
+
+        Args:
+            text: Texto de entrada
+
+        Returns:
+            Keywords separadas por espaço
+        """
+        words = text.lower().split()
         stop_words = {'o', 'a', 'de', 'para', 'com', 'em', 'um', 'uma'}
         keywords = [w for w in words if w not in stop_words and len(w) > 2]
+        return ' '.join(keywords[:5])
 
-        return ' '.join(keywords[:5])  # Top 5 keywords
+    def _extract_keywords(self, text: str) -> str:
+        """
+        Extrai keywords do texto usando NLP ou fallback heurístico (versão síncrona)
+
+        Args:
+            text: Texto de entrada
+
+        Returns:
+            Keywords separadas por espaço
+        """
+        if self.nlp_processor and self.nlp_processor.is_ready():
+            # Usar NLP processor para extração avançada (sem cache em modo síncrono)
+            keywords = self.nlp_processor.extract_keywords(text, max_keywords=5)
+            return ' '.join(keywords)
+        else:
+            # Fallback para extração simples (backward compatibility)
+            return self._extract_keywords_sync(text)
 
     async def close(self):
         """Close Neo4j driver"""

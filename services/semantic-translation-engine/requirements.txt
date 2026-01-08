@@ -45,3 +45,6 @@ tenacity==9.0.0
 
 # HTTP client
 httpx==0.28.1
+
+# NLP processing
+spacy==3.7.2

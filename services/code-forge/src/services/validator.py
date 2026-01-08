@@ -119,6 +119,29 @@ class Validator:
 
             context.add_validation(result)
             validation_success_count += 1
+
+            if self.metrics:
+                self.metrics.validations_run_total.labels(
+                    validation_type=result.validation_type,
+                    tool=result.tool_name
+                ).inc()
+
+                self.metrics.validation_issues_found.labels(
+                    severity='critical'
+                ).observe(result.critical_issues)
+                self.metrics.validation_issues_found.labels(
+                    severity='high'
+                ).observe(result.high_issues)
+                self.metrics.validation_issues_found.labels(
+                    severity='medium'
+                ).observe(result.medium_issues)
+                self.metrics.validation_issues_found.labels(
+                    severity='low'
+                ).observe(result.low_issues)
+
+                if result.score is not None:
+                    self.metrics.quality_score.observe(result.score)
+
             logger.info(
                 'validation_completed',
                 type=result.validation_type,

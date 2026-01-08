@@ -15,6 +15,7 @@ from ..clients import (
 
 if TYPE_CHECKING:
     from .replanning_coordinator import ReplanningCoordinator
+    from ..clients import OPAClient, OrchestratorClient
 
 
 logger = structlog.get_logger()
@@ -38,6 +39,8 @@ class StrategicDecisionEngine:
         prometheus_client: PrometheusClient,
         pheromone_client: PheromoneClient,
         replanning_coordinator: 'ReplanningCoordinator',
+        opa_client: Optional['OPAClient'],
+        orchestrator_client: Optional['OrchestratorClient'],
         settings: Settings
     ):
         self.mongodb_client = mongodb_client
@@ -46,6 +49,8 @@ class StrategicDecisionEngine:
         self.prometheus_client = prometheus_client
         self.pheromone_client = pheromone_client
         self.replanning_coordinator = replanning_coordinator
+        self.opa_client = opa_client
+        self.orchestrator_client = orchestrator_client
         self.settings = settings
 
     async def process_consolidated_decision(self, decision_data: Dict[str, Any]) -> Optional[StrategicDecision]:
@@ -176,13 +181,26 @@ class StrategicDecisionEngine:
             confidence_score = await self._calculate_confidence(context, analysis)
             risk_assessment = await self._assess_risk(trigger, context, analysis)
 
-            # 5. Validar guardrails
-            guardrails_validated = await self._validate_guardrails(decision_type, action, risk_assessment)
-
-            # 6. Gerar reasoning summary
+            # 5. Gerar reasoning summary (antes da validação para incluir no input OPA)
             reasoning_summary = self._generate_reasoning_summary(
                 event_type, decision_type, confidence_score, risk_assessment, analysis
             )
+
+            # 6. Validar guardrails via OPA
+            guardrails_validated = await self._validate_guardrails(
+                decision_type, action, risk_assessment, confidence_score, context, analysis, reasoning_summary
+            )
+
+            # 6.1 Guard: Se guardrails não validados (lista vazia), rejeitar decisão
+            if not guardrails_validated:
+                logger.warning(
+                    "decision_rejected_guardrails_not_validated",
+                    event_type=event_type,
+                    source_id=source_id,
+                    decision_type=decision_type.value,
+                    reason="OPA denied or fail-closed policy"
+                )
+                return None
 
             # 7. Criar decisão estratégica
             decision = StrategicDecision(
@@ -658,16 +676,176 @@ class StrategicDecisionEngine:
         self,
         decision_type: DecisionType,
         action: DecisionAction,
+        risk_assessment: RiskAssessment,
+        confidence_score: float,
+        context: DecisionContext,
+        analysis: DecisionAnalysis,
+        reasoning_summary: str
+    ) -> List[str]:
+        """
+        Validar decisão contra guardrails éticos via OPA policies
+
+        Args:
+            decision_type: Tipo de decisão
+            action: Ação a ser tomada
+            risk_assessment: Avaliação de risco
+            confidence_score: Score de confiança
+            context: Contexto da decisão
+            analysis: Análise realizada
+            reasoning_summary: Resumo do raciocínio
+
+        Returns:
+            Lista de guardrails validados
+        """
+        from ..observability.metrics import QueenAgentMetrics
+
+        # Se OPA não estiver disponível, verificar configuração fail-closed
+        if not self.opa_client or not self.opa_client.is_connected():
+            if self.settings.OPA_FAIL_OPEN:
+                # Fail-open: usar validação básica como fallback
+                logger.warning("opa_client_not_available_fail_open_using_basic_validation")
+                return self._basic_guardrail_validation(decision_type, risk_assessment)
+            else:
+                # Fail-closed: rejeitar decisão retornando lista vazia
+                logger.error("opa_client_not_available_fail_closed_rejecting_decision")
+                return []
+
+        try:
+            # Preparar input para OPA
+            opa_input = {
+                "decision": {
+                    "decision_type": decision_type.value,
+                    "confidence_score": confidence_score,
+                    "risk_assessment": {
+                        "risk_score": risk_assessment.risk_score,
+                        "risk_factors": risk_assessment.risk_factors,
+                        "mitigations": risk_assessment.mitigations
+                    },
+                    "decision": {
+                        "action": action.action,
+                        "target_entities": action.target_entities,
+                        "parameters": action.parameters,
+                        "rationale": action.rationale
+                    },
+                    "context": {
+                        "active_plans": context.active_plans,
+                        "critical_incidents": context.critical_incidents,
+                        "sla_violations": context.sla_violations,
+                        "resource_saturation": context.resource_saturation
+                    },
+                    "analysis": {
+                        "metrics_snapshot": analysis.metrics_snapshot,
+                        "conflict_domains": analysis.conflict_domains
+                    },
+                    "reasoning_summary": reasoning_summary
+                }
+            }
+
+            logger.debug(
+                "validating_guardrails_with_opa",
+                policy_path="neuralhive/queen/ethical_guardrails"
+            )
+
+            # Chamar OPA policy
+            opa_result = await self.opa_client.evaluate_policy(
+                policy_path="neuralhive/queen/ethical_guardrails",
+                input_data=opa_input
+            )
+
+            # Processar resultado OPA
+            allowed = opa_result.get("allow", False)
+            violations = opa_result.get("violations", [])
+            warnings = opa_result.get("warnings", [])
+            guardrails_validated = opa_result.get("guardrails_validated", [])
+
+            # Log violations e warnings
+            if violations:
+                logger.warning(
+                    "opa_guardrail_violations_detected",
+                    violations_count=len(violations),
+                    violations=[v.get("rule") for v in violations]
+                )
+
+                # Incrementar métrica de denials
+                for violation in violations:
+                    QueenAgentMetrics.opa_denials_total.labels(
+                        policy=violation.get("policy", "unknown"),
+                        rule=violation.get("rule", "unknown"),
+                        severity=violation.get("severity", "unknown")
+                    ).inc()
+
+            if warnings:
+                logger.info(
+                    "opa_guardrail_warnings",
+                    warnings_count=len(warnings),
+                    warnings=[w.get("rule") for w in warnings]
+                )
+
+                # Incrementar métrica de warnings
+                for warning in warnings:
+                    QueenAgentMetrics.opa_warnings_total.labels(
+                        policy=warning.get("policy", "unknown"),
+                        rule=warning.get("rule", "unknown")
+                    ).inc()
+
+            # Se não permitido, retornar lista vazia (falha na validação)
+            if not allowed:
+                logger.error(
+                    "decision_rejected_by_opa_guardrails",
+                    violations=violations
+                )
+                QueenAgentMetrics.opa_evaluations_total.labels(
+                    policy="ethical_guardrails",
+                    result="denied"
+                ).inc()
+                return []
+
+            # Incrementar métrica de policy hits
+            QueenAgentMetrics.opa_evaluations_total.labels(
+                policy="ethical_guardrails",
+                result="allowed"
+            ).inc()
+
+            logger.info(
+                "guardrails_validated_successfully",
+                guardrails_count=len(guardrails_validated)
+            )
+
+            return guardrails_validated
+
+        except Exception as e:
+            logger.error("opa_guardrail_validation_failed", error=str(e))
+
+            # Fail open ou fail closed baseado em configuração
+            if self.settings.OPA_FAIL_OPEN:
+                logger.warning("opa_validation_failed_fail_open")
+                return self._basic_guardrail_validation(decision_type, risk_assessment)
+            else:
+                logger.error("opa_validation_failed_fail_closed")
+                return []
+
+    def _basic_guardrail_validation(
+        self,
+        decision_type: DecisionType,
         risk_assessment: RiskAssessment
     ) -> List[str]:
-        """Validar decisão contra guardrails éticos"""
-        # TODO: Integrar com OPA policies
+        """
+        Validação básica de guardrails (fallback quando OPA não disponível)
+
+        Args:
+            decision_type: Tipo de decisão
+            risk_assessment: Avaliação de risco
+
+        Returns:
+            Lista de guardrails validados
+        """
         guardrails = []
 
-        # Guardrails básicos
+        # Guardrail básico: risk score aceitável
         if risk_assessment.risk_score < 0.9:
             guardrails.append('risk_threshold_acceptable')
 
+        # Guardrail básico: não é exception approval
         if decision_type != DecisionType.EXCEPTION_APPROVAL:
             guardrails.append('no_guardrail_violations')
 
@@ -716,14 +894,19 @@ class StrategicDecisionEngine:
                     }
                 )
 
+            # Invalidar cache de trilhas de sucesso quando publicar SUCCESS
+            if success:
+                self.pheromone_client.invalidate_success_trails_cache()
+
         except Exception as e:
             logger.error("update_pheromones_failed", error=str(e))
 
     async def execute_decision_action(self, decision: StrategicDecision) -> bool:
         """
-        Executar a ação da decisão estratégica no ReplanningCoordinator
+        Executar a ação da decisão estratégica via Orchestrator gRPC ou ReplanningCoordinator.
 
-        Mapeia DecisionAction.action para métodos do coordinator e emite métricas
+        Mapeia DecisionAction.action para métodos do OrchestratorClient (gRPC)
+        ou ReplanningCoordinator (fallback) e emite métricas.
         """
         try:
             action = decision.decision.action
@@ -734,75 +917,181 @@ class StrategicDecisionEngine:
                 "executing_decision_action",
                 decision_id=decision.decision_id,
                 action=action,
-                target_entities=target_entities
+                target_entities=target_entities,
+                orchestrator_client_available=self.orchestrator_client is not None
             )
 
             success = False
 
             if action == 'trigger_replanning':
-                # Disparar replanning para cada entidade alvo
+                # Disparar replanning via Orchestrator gRPC
                 reason = parameters.get('reason', 'strategic_decision')
-                for entity_id in target_entities:
-                    entity_success = await self.replanning_coordinator.trigger_replanning(
-                        plan_id=entity_id,
-                        reason=reason,
-                        decision_id=decision.decision_id
-                    )
-                    success = success or entity_success
+                trigger_type = parameters.get('trigger_type', 'STRATEGIC')
 
-            elif action == 'adjust_qos':
-                # Ajustar QoS para cada workflow alvo
-                from ..models import QoSAdjustment, AdjustmentType
-                for entity_id in target_entities:
-                    adjustment = QoSAdjustment(
-                        adjustment_type=AdjustmentType.INCREASE_PRIORITY,
-                        target_workflow_id=entity_id,
-                        parameters=parameters,
-                        decision_id=decision.decision_id
-                    )
-                    entity_success = await self.replanning_coordinator.adjust_qos(adjustment)
-                    success = success or entity_success
+                if self.orchestrator_client:
+                    for entity_id in target_entities:
+                        replanning_id = await self.orchestrator_client.trigger_replanning(
+                            plan_id=entity_id,
+                            reason=f"{reason} - Decision: {decision.decision_id}",
+                            trigger_type=trigger_type,
+                            context={'decision_id': decision.decision_id},
+                            preserve_progress=parameters.get('preserve_progress', True),
+                            priority=parameters.get('priority', 5)
+                        )
+                        entity_success = replanning_id is not None
+                        success = success or entity_success
+
+                        logger.info(
+                            "replanning_triggered_via_grpc",
+                            plan_id=entity_id,
+                            replanning_id=replanning_id
+                        )
+                else:
+                    # Fallback para ReplanningCoordinator
+                    for entity_id in target_entities:
+                        entity_success = await self.replanning_coordinator.trigger_replanning(
+                            plan_id=entity_id,
+                            reason=reason,
+                            decision_id=decision.decision_id
+                        )
+                        success = success or entity_success
+
+            elif action == 'adjust_qos' or action == 'adjust_priorities':
+                # Ajustar prioridades via Orchestrator gRPC
+                new_priority = parameters.get('priority', parameters.get('new_priority', 7))
+
+                if self.orchestrator_client:
+                    for entity_id in target_entities:
+                        entity_success = await self.orchestrator_client.adjust_priorities(
+                            workflow_id=entity_id,
+                            plan_id=parameters.get('plan_id', ''),
+                            new_priority=new_priority,
+                            reason=f"Strategic decision: {decision.decision_id}"
+                        )
+                        success = success or entity_success
+
+                        logger.info(
+                            "priority_adjusted_via_grpc",
+                            workflow_id=entity_id,
+                            new_priority=new_priority
+                        )
+                else:
+                    # Fallback para ReplanningCoordinator
+                    from ..models import QoSAdjustment, AdjustmentType
+                    for entity_id in target_entities:
+                        adjustment = QoSAdjustment(
+                            adjustment_type=AdjustmentType.INCREASE_PRIORITY,
+                            target_workflow_id=entity_id,
+                            parameters=parameters,
+                            reason=f"Strategic decision: {decision.decision_id}"
+                        )
+                        entity_success = await self.replanning_coordinator.adjust_qos(adjustment)
+                        success = success or entity_success
 
             elif action == 'pause_execution':
-                # Pausar execução de workflows
+                # Pausar execução via Orchestrator gRPC
                 reason = parameters.get('reason', 'strategic_decision')
-                for entity_id in target_entities:
-                    entity_success = await self.replanning_coordinator.pause_execution(
-                        workflow_id=entity_id,
-                        reason=reason
-                    )
-                    success = success or entity_success
+                duration_seconds = parameters.get('duration_seconds')
+
+                if self.orchestrator_client:
+                    for entity_id in target_entities:
+                        entity_success = await self.orchestrator_client.pause_workflow(
+                            workflow_id=entity_id,
+                            reason=f"{reason} - Decision: {decision.decision_id}",
+                            duration_seconds=duration_seconds
+                        )
+                        success = success or entity_success
+
+                        logger.info(
+                            "workflow_paused_via_grpc",
+                            workflow_id=entity_id
+                        )
+                else:
+                    for entity_id in target_entities:
+                        entity_success = await self.replanning_coordinator.pause_execution(
+                            workflow_id=entity_id,
+                            reason=reason
+                        )
+                        success = success or entity_success
 
             elif action == 'resume_execution':
-                # Retomar execução pausada
-                for entity_id in target_entities:
-                    entity_success = await self.replanning_coordinator.resume_execution(
-                        workflow_id=entity_id
-                    )
-                    success = success or entity_success
+                # Retomar execução via Orchestrator gRPC
+                if self.orchestrator_client:
+                    for entity_id in target_entities:
+                        entity_success = await self.orchestrator_client.resume_workflow(
+                            workflow_id=entity_id,
+                            reason=f"Strategic decision: {decision.decision_id}"
+                        )
+                        success = success or entity_success
+
+                        logger.info(
+                            "workflow_resumed_via_grpc",
+                            workflow_id=entity_id
+                        )
+                else:
+                    for entity_id in target_entities:
+                        entity_success = await self.replanning_coordinator.resume_execution(
+                            workflow_id=entity_id
+                        )
+                        success = success or entity_success
 
             elif action == 'reallocate_resources':
-                # Realocação de recursos - delega para Orchestrator via QoS adjustment
-                from ..models import QoSAdjustment, AdjustmentType
-                for entity_id in target_entities:
-                    adjustment = QoSAdjustment(
-                        adjustment_type=AdjustmentType.RESOURCE_REALLOCATION,
-                        target_workflow_id=entity_id,
-                        parameters=parameters,
+                # Realocação de recursos via Orchestrator gRPC
+                if self.orchestrator_client:
+                    target_allocation = {}
+                    for entity_id in target_entities:
+                        target_allocation[entity_id] = {
+                            'cpu_millicores': parameters.get('cpu_millicores', 2000),
+                            'memory_mb': parameters.get('memory_mb', 4096),
+                            'max_parallel_tickets': parameters.get('max_parallel_tickets', 20),
+                            'scheduling_priority': parameters.get('scheduling_priority', 8)
+                        }
+
+                    result = await self.orchestrator_client.rebalance_resources(
+                        workflow_ids=target_entities,
+                        target_allocation=target_allocation,
+                        reason=f"Strategic decision: {decision.decision_id}",
+                        force=parameters.get('force', False)
+                    )
+                    success = result.get('success', False)
+
+                    logger.info(
+                        "resources_rebalanced_via_grpc",
+                        workflow_count=len(target_entities),
+                        success=success
+                    )
+                else:
+                    # Fallback para ReplanningCoordinator
+                    from ..models import QoSAdjustment, AdjustmentType
+                    for entity_id in target_entities:
+                        adjustment = QoSAdjustment(
+                            adjustment_type=AdjustmentType.ALLOCATE_MORE_RESOURCES,
+                            target_workflow_id=entity_id,
+                            parameters=parameters,
+                            reason=f"Strategic decision: {decision.decision_id}"
+                        )
+                        entity_success = await self.replanning_coordinator.adjust_qos(adjustment)
+                        success = success or entity_success
+
+            elif action == 'resolve_conflict':
+                # Resolução de conflito - delega para Orchestrator se disponível
+                if self.orchestrator_client:
+                    # Aumentar prioridade dos workflows afetados para resolver conflito
+                    for entity_id in target_entities:
+                        entity_success = await self.orchestrator_client.adjust_priorities(
+                            workflow_id=entity_id,
+                            plan_id='',
+                            new_priority=parameters.get('conflict_resolution_priority', 9),
+                            reason=f"Conflict resolution - Decision: {decision.decision_id}"
+                        )
+                        success = success or entity_success
+                else:
+                    logger.info(
+                        "action_delegated_to_downstream",
+                        action=action,
                         decision_id=decision.decision_id
                     )
-                    entity_success = await self.replanning_coordinator.adjust_qos(adjustment)
-                    success = success or entity_success
-
-            elif action in ['adjust_priorities', 'resolve_conflict']:
-                # Ações que não requerem execução imediata via coordinator
-                # Estas decisões são consumidas downstream por outros serviços
-                logger.info(
-                    "action_delegated_to_downstream",
-                    action=action,
-                    decision_id=decision.decision_id
-                )
-                success = True
+                    success = True
 
             else:
                 logger.warning(
@@ -813,13 +1102,11 @@ class StrategicDecisionEngine:
                 success = False
 
             # Emitir métricas
-            from prometheus_client import Counter
-            action_metric = Counter(
-                'queen_decision_actions_total',
-                'Total de ações de decisões estratégicas executadas',
-                ['action', 'success']
-            )
-            action_metric.labels(action=action, success=str(success)).inc()
+            from ..observability.metrics import QueenAgentMetrics
+            QueenAgentMetrics.decision_actions_total.labels(
+                action=action,
+                success=str(success)
+            ).inc()
 
             if success:
                 logger.info(

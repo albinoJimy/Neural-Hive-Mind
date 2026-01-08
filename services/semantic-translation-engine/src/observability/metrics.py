@@ -73,6 +73,48 @@ plans_generated_total = Counter(
     ['channel', 'status']
 )
 
+# Métricas NLP
+nlp_extraction_duration = Histogram(
+    'neural_hive_nlp_extraction_duration_seconds',
+    'Duração das operações de extração NLP',
+    ['operation'],  # keywords, objectives, entities
+    buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5]
+)
+
+nlp_cache_hits_total = Counter(
+    'neural_hive_nlp_cache_hits_total',
+    'Total de cache hits NLP'
+)
+
+nlp_cache_misses_total = Counter(
+    'neural_hive_nlp_cache_misses_total',
+    'Total de cache misses NLP'
+)
+
+nlp_extraction_errors_total = Counter(
+    'neural_hive_nlp_extraction_errors_total',
+    'Total de erros de extração NLP',
+    ['operation', 'error_type']
+)
+
+nlp_keywords_extracted = Histogram(
+    'neural_hive_nlp_keywords_extracted',
+    'Quantidade de keywords extraídas por request',
+    buckets=[1, 2, 3, 5, 7, 10, 15]
+)
+
+nlp_objectives_extracted = Histogram(
+    'neural_hive_nlp_objectives_extracted',
+    'Quantidade de objectives extraídos por request',
+    buckets=[1, 2, 3, 4, 5]
+)
+
+nlp_entities_extracted = Histogram(
+    'neural_hive_nlp_entities_extracted',
+    'Quantidade de entidades extraídas por request',
+    buckets=[1, 2, 3, 5, 7, 10, 15, 20]
+)
+
 
 class NeuralHiveMetrics:
     """Wrapper for Neural Hive metrics"""

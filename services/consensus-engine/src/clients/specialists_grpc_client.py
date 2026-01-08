@@ -2,11 +2,25 @@ import grpc
 import asyncio
 import json
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from tenacity import AsyncRetrying, stop_after_attempt, wait_exponential, RetryError
 import structlog
 from google.protobuf.timestamp_pb2 import Timestamp
 from neural_hive_observability import instrument_grpc_channel
+
+# Importar SPIFFE/mTLS se disponível
+try:
+    from neural_hive_security import (
+        SPIFFEManager,
+        SPIFFEConfig,
+        create_secure_grpc_channel,
+        get_grpc_metadata_with_jwt,
+    )
+    SECURITY_LIB_AVAILABLE = True
+except ImportError:
+    SECURITY_LIB_AVAILABLE = False
+    SPIFFEManager = None
+    SPIFFEConfig = None
 
 
 def _json_datetime_serializer(obj):
@@ -26,15 +40,16 @@ logger = structlog.get_logger()
 
 
 class SpecialistsGrpcClient:
-    '''Cliente gRPC para invocar especialistas neurais em paralelo'''
+    '''Cliente gRPC para invocar especialistas neurais em paralelo com suporte a mTLS via SPIFFE'''
 
     def __init__(self, config):
         self.config = config
         self.channels = {}
         self.stubs = {}
+        self.spiffe_managers = {}  # Um manager por especialista
 
     async def initialize(self):
-        '''Inicializar canais gRPC para todos os especialistas'''
+        '''Inicializar canais gRPC para todos os especialistas com suporte a mTLS'''
         specialist_endpoints = {
             'business': self.config.specialist_business_endpoint,
             'technical': self.config.specialist_technical_endpoint,
@@ -43,17 +58,63 @@ class SpecialistsGrpcClient:
             'architecture': self.config.specialist_architecture_endpoint
         }
 
+        # Verificar se mTLS via SPIFFE está habilitado
+        spiffe_enabled = getattr(self.config, 'spiffe_enabled', False)
+        spiffe_enable_x509 = getattr(self.config, 'spiffe_enable_x509', False)
+        environment = getattr(self.config, 'environment', 'development')
+
+        spiffe_x509_enabled = (
+            spiffe_enabled
+            and spiffe_enable_x509
+            and SECURITY_LIB_AVAILABLE
+        )
+
         for specialist_type, endpoint in specialist_endpoints.items():
-            # Criar canal gRPC assíncrono
-            channel = grpc.aio.insecure_channel(
-                endpoint,
-                options=[
-                    ('grpc.max_send_message_length', 4 * 1024 * 1024),
-                    ('grpc.max_receive_message_length', 4 * 1024 * 1024),
-                    ('grpc.keepalive_time_ms', 30000),
-                    ('grpc.keepalive_timeout_ms', 10000),
-                ]
-            )
+            if spiffe_x509_enabled:
+                # Criar configuração SPIFFE
+                spiffe_config = SPIFFEConfig(
+                    workload_api_socket=getattr(self.config, 'spiffe_socket_path', 'unix:///run/spire/sockets/agent.sock'),
+                    trust_domain=getattr(self.config, 'spiffe_trust_domain', 'neural-hive.local'),
+                    jwt_audience=getattr(self.config, 'spiffe_jwt_audience', 'neural-hive.local'),
+                    jwt_ttl_seconds=getattr(self.config, 'spiffe_jwt_ttl_seconds', 3600),
+                    enable_x509=True,
+                    environment=environment
+                )
+
+                # Criar SPIFFE manager para este especialista
+                spiffe_manager = SPIFFEManager(spiffe_config)
+                await spiffe_manager.initialize()
+                self.spiffe_managers[specialist_type] = spiffe_manager
+
+                # Criar canal seguro com mTLS
+                # Permitir fallback inseguro apenas em ambientes de desenvolvimento
+                is_dev_env = environment.lower() in ('dev', 'development')
+                channel = await create_secure_grpc_channel(
+                    target=endpoint,
+                    spiffe_config=spiffe_config,
+                    spiffe_manager=spiffe_manager,
+                    fallback_insecure=is_dev_env
+                )
+
+                logger.info('mtls_channel_configured', specialist_type=specialist_type, endpoint=endpoint, environment=environment)
+            else:
+                # Fallback para canal inseguro (apenas desenvolvimento)
+                if environment in ['production', 'staging', 'prod']:
+                    raise RuntimeError(
+                        f"mTLS is required in {environment} but SPIFFE X.509 is disabled."
+                    )
+
+                logger.warning('using_insecure_channel', specialist_type=specialist_type, endpoint=endpoint, environment=environment)
+                channel = grpc.aio.insecure_channel(
+                    endpoint,
+                    options=[
+                        ('grpc.max_send_message_length', 4 * 1024 * 1024),
+                        ('grpc.max_receive_message_length', 4 * 1024 * 1024),
+                        ('grpc.keepalive_time_ms', 30000),
+                        ('grpc.keepalive_timeout_ms', 10000),
+                    ]
+                )
+
             channel = instrument_grpc_channel(
                 channel,
                 service_name=f'specialist-{specialist_type}'
@@ -70,6 +131,29 @@ class SpecialistsGrpcClient:
                 specialist_type=specialist_type,
                 endpoint=endpoint
             )
+
+    async def _get_grpc_metadata(self, specialist_type: str) -> List[Tuple[str, str]]:
+        """Obter metadata gRPC com JWT-SVID para autenticação."""
+        spiffe_enabled = getattr(self.config, 'spiffe_enabled', False)
+        spiffe_manager = self.spiffe_managers.get(specialist_type)
+        if not spiffe_enabled or not spiffe_manager:
+            return []
+
+        try:
+            trust_domain = getattr(self.config, 'spiffe_trust_domain', 'neural-hive.local')
+            environment = getattr(self.config, 'environment', 'development')
+            audience = f"specialist-{specialist_type}.{trust_domain}"
+            return await get_grpc_metadata_with_jwt(
+                spiffe_manager=spiffe_manager,
+                audience=audience,
+                environment=environment
+            )
+        except Exception as e:
+            logger.warning('jwt_svid_fetch_failed', specialist_type=specialist_type, error=str(e))
+            environment = getattr(self.config, 'environment', 'development')
+            if environment in ['production', 'staging', 'prod']:
+                raise
+            return []
 
     async def evaluate_plan(
         self,
@@ -109,10 +193,13 @@ class SpecialistsGrpcClient:
                     timeout_ms=self.config.grpc_timeout_ms
                 )
 
+                # Obter metadata com JWT-SVID
+                grpc_metadata = await self._get_grpc_metadata(specialist_type)
+
                 # Invocar com timeout
                 try:
                     response = await asyncio.wait_for(
-                        stub.EvaluatePlan(request),
+                        stub.EvaluatePlan(request, metadata=grpc_metadata),
                         timeout=self.config.grpc_timeout_ms / 1000.0
                     )
 
@@ -362,8 +449,12 @@ class SpecialistsGrpcClient:
                 request = specialist_pb2.HealthCheckRequest(
                     service_name=f'specialist-{specialist_type}'
                 )
+
+                # Obter metadata com JWT-SVID
+                grpc_metadata = await self._get_grpc_metadata(specialist_type)
+
                 response = await asyncio.wait_for(
-                    stub.HealthCheck(request),
+                    stub.HealthCheck(request, metadata=grpc_metadata),
                     timeout=5.0
                 )
 
@@ -380,7 +471,17 @@ class SpecialistsGrpcClient:
         return health_results
 
     async def close(self):
-        '''Fechar todos os canais gRPC'''
+        '''Fechar todos os canais gRPC e SPIFFE managers'''
         for specialist_type, channel in self.channels.items():
             await channel.close()
             logger.info('gRPC channel fechado', specialist_type=specialist_type)
+
+        # Fechar SPIFFE managers
+        for specialist_type, spiffe_manager in self.spiffe_managers.items():
+            try:
+                await spiffe_manager.close()
+                logger.info('SPIFFE manager fechado', specialist_type=specialist_type)
+            except Exception as e:
+                logger.warning('SPIFFE manager close error', specialist_type=specialist_type, error=str(e))
+
+        self.spiffe_managers.clear()

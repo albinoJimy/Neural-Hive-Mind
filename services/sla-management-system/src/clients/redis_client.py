@@ -160,3 +160,137 @@ class RedisClient:
             self.logger.error("redis_health_check_failed", error=str(e))
             sla_metrics.record_redis_error()
             return False
+
+    # Métodos para cache de histórico de budgets
+    async def cache_budget_history(
+        self,
+        slo_id: str,
+        days: int,
+        aggregation: str,
+        budgets_json: str,
+        ttl: int = 300
+    ) -> bool:
+        """
+        Armazena histórico de budgets em cache.
+
+        Args:
+            slo_id: ID do SLO
+            days: Número de dias do histórico
+            aggregation: Tipo de agregação (none, hourly, daily)
+            budgets_json: JSON serializado dos budgets
+            ttl: TTL em segundos (default: 300s = 5min)
+        """
+        if not self.cluster:
+            return False
+        try:
+            agg_key = aggregation or "none"
+            key = f"budget:history:{slo_id}:{days}:{agg_key}"
+            await self.cluster.setex(key, ttl, budgets_json)
+            self.logger.debug(
+                "budget_history_cached",
+                slo_id=slo_id,
+                days=days,
+                aggregation=agg_key
+            )
+            return True
+        except Exception as e:
+            self.logger.warning(
+                "budget_history_cache_failed",
+                slo_id=slo_id,
+                error=str(e)
+            )
+            return False
+
+    async def get_cached_budget_history(
+        self,
+        slo_id: str,
+        days: int,
+        aggregation: str
+    ) -> Optional[str]:
+        """
+        Busca histórico de budgets no cache.
+
+        Returns:
+            JSON string dos budgets ou None se não encontrado
+        """
+        if not self.cluster:
+            return None
+        try:
+            agg_key = aggregation or "none"
+            key = f"budget:history:{slo_id}:{days}:{agg_key}"
+            value = await self.cluster.get(key)
+            if value:
+                self.logger.debug(
+                    "budget_history_cache_hit",
+                    slo_id=slo_id,
+                    days=days,
+                    aggregation=agg_key
+                )
+                return value
+            self.logger.debug(
+                "budget_history_cache_miss",
+                slo_id=slo_id,
+                days=days,
+                aggregation=agg_key
+            )
+            return None
+        except Exception as e:
+            self.logger.warning(
+                "budget_history_cache_read_failed",
+                slo_id=slo_id,
+                error=str(e)
+            )
+            return None
+
+    async def check_rate_limit(
+        self,
+        slo_id: str,
+        limit: int = 10,
+        window_seconds: int = 60
+    ) -> tuple[bool, int]:
+        """
+        Verifica rate limit para queries de histórico por SLO.
+
+        Args:
+            slo_id: ID do SLO
+            limit: Número máximo de requests na janela
+            window_seconds: Tamanho da janela em segundos
+
+        Returns:
+            Tupla (permitido, requests_restantes)
+        """
+        if not self.cluster:
+            # Se Redis não disponível, permitir (fail-open)
+            return (True, limit)
+        try:
+            key = f"ratelimit:history:{slo_id}"
+            current = await self.cluster.get(key)
+
+            if current is None:
+                # Primeiro request na janela
+                await self.cluster.setex(key, window_seconds, "1")
+                return (True, limit - 1)
+
+            count = int(current)
+            if count >= limit:
+                self.logger.warning(
+                    "rate_limit_exceeded",
+                    slo_id=slo_id,
+                    count=count,
+                    limit=limit
+                )
+                return (False, 0)
+
+            # Incrementar contador
+            await self.cluster.incr(key)
+            remaining = limit - count - 1
+            return (True, remaining)
+
+        except Exception as e:
+            self.logger.warning(
+                "rate_limit_check_failed",
+                slo_id=slo_id,
+                error=str(e)
+            )
+            # Fail-open: permitir se houver erro
+            return (True, limit)

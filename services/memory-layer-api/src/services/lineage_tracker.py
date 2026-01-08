@@ -2,11 +2,26 @@
 Lineage Tracker
 """
 import structlog
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import uuid
 
+from prometheus_client import Counter, Histogram
+
 logger = structlog.get_logger(__name__)
+
+# Métricas Prometheus
+LINEAGE_INTEGRITY_CHECKS = Counter(
+    'memory_lineage_integrity_checks_total',
+    'Total de verificações de integridade de lineage',
+    ['result']
+)
+
+LINEAGE_VALIDATION_DURATION = Histogram(
+    'memory_lineage_validation_duration_seconds',
+    'Duração da validação de integridade de lineage',
+    buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
+)
 
 
 class LineageTracker:
@@ -177,14 +192,17 @@ class LineageTracker:
 
     async def validate_lineage_integrity(self, entity_id: str) -> bool:
         """
-        Validate lineage integrity
+        Valida integridade do lineage
 
-        Checks:
-        - All source_ids exist
-        - No cycles in graph
-        - Timestamps are consistent
-        - Metadata is complete
+        Verificações:
+        - Todos os source_ids existem
+        - Sem ciclos no grafo
+        - Timestamps são consistentes (sources criados antes da entidade)
+        - Metadados estão completos
         """
+        import time
+        start_time = time.time()
+
         try:
             # Get lineage metadata
             lineage = await self.mongodb.find_one(
@@ -194,6 +212,7 @@ class LineageTracker:
 
             if not lineage:
                 logger.warning("No lineage found", entity_id=entity_id)
+                LINEAGE_INTEGRITY_CHECKS.labels(result='failed_missing').inc()
                 return False
 
             # Check source_ids exist
@@ -205,6 +224,7 @@ class LineageTracker:
                 )
                 if not source_exists:
                     logger.warning("Source ID not found", source_id=source_id)
+                    LINEAGE_INTEGRITY_CHECKS.labels(result='failed_missing').inc()
                     return False
 
             # Check for cycles in Neo4j
@@ -216,17 +236,92 @@ class LineageTracker:
             result = await self.neo4j.run_query(query, {'entity_id': entity_id})
             if result and result[0]['cycle_count'] > 0:
                 logger.error("Cycle detected in lineage", entity_id=entity_id)
+                LINEAGE_INTEGRITY_CHECKS.labels(result='failed_cycle').inc()
                 return False
 
-            # Check timestamps
-            # TODO: Implement timestamp consistency check
+            # Verificação de consistência de timestamps
+            entity_timestamp = lineage.get('timestamp')
+            if not entity_timestamp:
+                logger.warning(
+                    "Entidade sem timestamp",
+                    entity_id=entity_id
+                )
+                LINEAGE_INTEGRITY_CHECKS.labels(result='failed_timestamp').inc()
+                return False
 
+            # Normaliza timestamp para datetime se for string
+            if isinstance(entity_timestamp, str):
+                try:
+                    entity_timestamp = datetime.fromisoformat(entity_timestamp.replace('Z', '+00:00'))
+                except ValueError:
+                    logger.warning(
+                        "Formato de timestamp inválido na entidade",
+                        entity_id=entity_id,
+                        timestamp=entity_timestamp
+                    )
+                    LINEAGE_INTEGRITY_CHECKS.labels(result='failed_timestamp').inc()
+                    return False
+
+            # Tolerância de 1 segundo para clock skew
+            tolerance = timedelta(seconds=1)
+
+            for source_id in source_ids:
+                source_lineage = await self.mongodb.find_one(
+                    collection=self.settings.mongodb_lineage_collection,
+                    filter={'entity_id': source_id}
+                )
+
+                if not source_lineage:
+                    continue
+
+                source_timestamp = source_lineage.get('timestamp')
+                if not source_timestamp:
+                    logger.warning(
+                        "Source sem timestamp",
+                        source_id=source_id,
+                        entity_id=entity_id
+                    )
+                    LINEAGE_INTEGRITY_CHECKS.labels(result='failed_timestamp').inc()
+                    return False
+
+                # Normaliza timestamp da source
+                if isinstance(source_timestamp, str):
+                    try:
+                        source_timestamp = datetime.fromisoformat(source_timestamp.replace('Z', '+00:00'))
+                    except ValueError:
+                        logger.warning(
+                            "Formato de timestamp inválido na source",
+                            source_id=source_id,
+                            timestamp=source_timestamp
+                        )
+                        LINEAGE_INTEGRITY_CHECKS.labels(result='failed_timestamp').inc()
+                        return False
+
+                # Valida: source deve ter sido criada antes da entidade (com tolerância)
+                if source_timestamp > (entity_timestamp + tolerance):
+                    logger.warning(
+                        "Violação de consistência temporal: source criada após entidade",
+                        entity_id=entity_id,
+                        entity_timestamp=entity_timestamp.isoformat() if hasattr(entity_timestamp, 'isoformat') else str(entity_timestamp),
+                        source_id=source_id,
+                        source_timestamp=source_timestamp.isoformat() if hasattr(source_timestamp, 'isoformat') else str(source_timestamp)
+                    )
+                    LINEAGE_INTEGRITY_CHECKS.labels(result='failed_timestamp').inc()
+                    return False
+
+            # Todas as validações passaram
+            LINEAGE_INTEGRITY_CHECKS.labels(result='passed').inc()
             logger.info("Lineage integrity validated", entity_id=entity_id)
             return True
 
         except Exception as e:
             logger.error("Lineage integrity validation failed", error=str(e), entity_id=entity_id)
+            LINEAGE_INTEGRITY_CHECKS.labels(result='failed_error').inc()
             return False
+
+        finally:
+            duration = time.time() - start_time
+            LINEAGE_VALIDATION_DURATION.observe(duration)
 
     async def get_impact_analysis(self, entity_id: str) -> Dict[str, Any]:
         """

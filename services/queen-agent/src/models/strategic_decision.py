@@ -157,6 +157,13 @@ class StrategicDecision(BaseModel):
         return current_ts > self.expires_at
 
     def validate_guardrails(self) -> bool:
-        """Validar contra lista de guardrails"""
-        # TODO: Implementar validação via OPA policies
+        """
+        Validar contra lista de guardrails
+
+        Nota: Validação real é feita via OPA no StrategicDecisionEngine.
+        Este método apenas verifica se guardrails foram validados.
+
+        Returns:
+            True se guardrails foram validados, False caso contrário
+        """
         return len(self.guardrails_validated) > 0

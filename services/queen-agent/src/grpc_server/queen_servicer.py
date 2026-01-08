@@ -1,6 +1,7 @@
 """Implementação do gRPC Servicer para Queen Agent"""
 import grpc
 import structlog
+import time
 from typing import TYPE_CHECKING
 from datetime import datetime
 
@@ -9,12 +10,14 @@ from neural_hive_observability.grpc_instrumentation import extract_grpc_context
 
 from ..proto import queen_agent_pb2, queen_agent_pb2_grpc
 from ..models import ExceptionApproval, ExceptionType, RiskAssessment
+from ..observability.metrics import QueenAgentMetrics
 
 if TYPE_CHECKING:
     from ..clients import MongoDBClient, Neo4jClient
-    from ..services import ExceptionApprovalService, TelemetryAggregator
+    from ..services import ExceptionApprovalService, TelemetryAggregator, StrategicDecisionEngine
 
 logger = structlog.get_logger()
+metrics = QueenAgentMetrics()
 
 
 class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
@@ -25,15 +28,20 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
         mongodb_client: 'MongoDBClient',
         neo4j_client: 'Neo4jClient',
         exception_service: 'ExceptionApprovalService',
-        telemetry_aggregator: 'TelemetryAggregator'
+        telemetry_aggregator: 'TelemetryAggregator',
+        decision_engine: 'StrategicDecisionEngine' = None
     ):
         self.mongodb_client = mongodb_client
         self.neo4j_client = neo4j_client
         self.exception_service = exception_service
         self.telemetry_aggregator = telemetry_aggregator
+        self.decision_engine = decision_engine
 
     async def GetStrategicDecision(self, request, context):
         """Buscar decisão estratégica por ID"""
+        start_time = time.time()
+        method_name = 'GetStrategicDecision'
+
         try:
             metadata_dict = dict(context.invocation_metadata())
             extract_grpc_context(metadata_dict)
@@ -45,10 +53,11 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
             if not decision:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
                 context.set_details(f"Decision {request.decision_id} not found")
+                metrics.grpc_requests_total.labels(method=method_name, status='not_found').inc()
                 return queen_agent_pb2.StrategicDecisionResponse()
 
             # Converter para resposta gRPC
-            return queen_agent_pb2.StrategicDecisionResponse(
+            response = queen_agent_pb2.StrategicDecisionResponse(
                 decision_id=decision.get('decision_id', ''),
                 decision_type=decision.get('decision_type', ''),
                 confidence_score=decision.get('confidence_score', 0.0),
@@ -59,14 +68,25 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
                 action=decision.get('decision', {}).get('action', '')
             )
 
+            metrics.grpc_requests_total.labels(method=method_name, status='success').inc()
+            return response
+
         except Exception as e:
             logger.error("grpc_get_strategic_decision_failed", error=str(e))
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
+            metrics.grpc_requests_total.labels(method=method_name, status='error').inc()
             return queen_agent_pb2.StrategicDecisionResponse()
+
+        finally:
+            duration = time.time() - start_time
+            metrics.grpc_request_duration_seconds.labels(method=method_name).observe(duration)
 
     async def ListStrategicDecisions(self, request, context):
         """Listar decisões estratégicas recentes"""
+        start_time = time.time()
+        method_name = 'ListStrategicDecisions'
+
         try:
             metadata_dict = dict(context.invocation_metadata())
             extract_grpc_context(metadata_dict)
@@ -87,11 +107,13 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
             limit = request.limit if request.limit > 0 else 50
             offset = request.offset if request.offset >= 0 else 0
 
+            # Buscar página de decisões e total para paginação
             decisions = await self.mongodb_client.list_strategic_decisions(
                 filters,
                 limit=limit,
                 skip=offset
             )
+            total_count = await self.mongodb_client.count_strategic_decisions(filters)
 
             # Converter para resposta gRPC
             decision_responses = []
@@ -109,19 +131,95 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
                     )
                 )
 
+            # Atualizar gauge de decisões ativas
+            metrics.active_decisions.set(len(decisions))
+            metrics.grpc_requests_total.labels(method=method_name, status='success').inc()
+
             return queen_agent_pb2.ListStrategicDecisionsResponse(
                 decisions=decision_responses,
-                total=len(decisions)
+                total=total_count
             )
 
         except Exception as e:
             logger.error("grpc_list_strategic_decisions_failed", error=str(e))
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
+            metrics.grpc_requests_total.labels(method=method_name, status='error').inc()
             return queen_agent_pb2.ListStrategicDecisionsResponse()
+
+        finally:
+            duration = time.time() - start_time
+            metrics.grpc_request_duration_seconds.labels(method=method_name).observe(duration)
+
+    async def MakeStrategicDecision(self, request, context):
+        """Criar nova decisão estratégica delegando ao StrategicDecisionEngine"""
+        start_time = time.time()
+        method_name = 'MakeStrategicDecision'
+
+        try:
+            metadata_dict = dict(context.invocation_metadata())
+            extract_grpc_context(metadata_dict)
+            if hasattr(request, "plan_id") and request.plan_id:
+                set_baggage("plan_id", request.plan_id)
+
+            if not self.decision_engine:
+                context.set_code(grpc.StatusCode.UNAVAILABLE)
+                context.set_details("StrategicDecisionEngine não disponível")
+                metrics.grpc_requests_total.labels(method=method_name, status='unavailable').inc()
+                return queen_agent_pb2.MakeStrategicDecisionResponse(
+                    success=False,
+                    message="StrategicDecisionEngine não disponível"
+                )
+
+            # Construir trigger a partir do request
+            trigger = {
+                'event_type': request.event_type,
+                'source_id': request.source_id
+            }
+            # Adicionar dados extras do trigger_data
+            if request.trigger_data:
+                trigger.update(dict(request.trigger_data))
+
+            # Delegar ao StrategicDecisionEngine
+            decision = await self.decision_engine.make_strategic_decision(trigger)
+
+            if not decision:
+                metrics.grpc_requests_total.labels(method=method_name, status='no_decision').inc()
+                return queen_agent_pb2.MakeStrategicDecisionResponse(
+                    success=False,
+                    message="Não foi possível gerar decisão estratégica"
+                )
+
+            metrics.grpc_requests_total.labels(method=method_name, status='success').inc()
+            return queen_agent_pb2.MakeStrategicDecisionResponse(
+                success=True,
+                decision_id=decision.decision_id,
+                decision_type=decision.decision_type.value,
+                confidence_score=decision.confidence_score,
+                risk_score=decision.risk_assessment.risk_score,
+                reasoning_summary=decision.reasoning_summary,
+                message=f"Decisão estratégica {decision.decision_id} criada com sucesso"
+            )
+
+        except Exception as e:
+            logger.error("grpc_make_strategic_decision_failed", error=str(e))
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(str(e))
+            metrics.grpc_requests_total.labels(method=method_name, status='error').inc()
+            return queen_agent_pb2.MakeStrategicDecisionResponse(
+                success=False,
+                message=f"Erro ao criar decisão: {str(e)}"
+            )
+
+        finally:
+            duration = time.time() - start_time
+            metrics.grpc_request_duration_seconds.labels(method=method_name).observe(duration)
 
     async def GetSystemStatus(self, request, context):
         """Obter status geral do sistema"""
+        start_time = time.time()
+        method_name = 'GetSystemStatus'
+
         try:
             metadata_dict = dict(context.invocation_metadata())
             extract_grpc_context(metadata_dict)
@@ -129,6 +227,14 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
                 set_baggage("plan_id", request.plan_id)
 
             health = await self.telemetry_aggregator.aggregate_system_health()
+
+            # Atualizar métricas de status do sistema
+            metrics.system_status_queries_total.inc()
+            metrics.system_health_score.set(health.get('system_score', 0.0))
+            metrics.sla_compliance_ratio.set(health.get('sla_compliance', 0.0))
+            metrics.active_incidents.set(health.get('active_incidents', 0))
+
+            metrics.grpc_requests_total.labels(method=method_name, status='success').inc()
 
             return queen_agent_pb2.SystemStatusResponse(
                 system_score=health.get('system_score', 0.0),
@@ -143,7 +249,12 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
             logger.error("grpc_get_system_status_failed", error=str(e))
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
+            metrics.grpc_requests_total.labels(method=method_name, status='error').inc()
             return queen_agent_pb2.SystemStatusResponse()
+
+        finally:
+            duration = time.time() - start_time
+            metrics.grpc_request_duration_seconds.labels(method=method_name).observe(duration)
 
     async def RequestExceptionApproval(self, request, context):
         """Solicitar aprovação de exceção"""
@@ -266,6 +377,9 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
 
     async def SubmitInsight(self, request, context):
         """Receber insight de Analyst Agent"""
+        start_time = time.time()
+        method_name = 'SubmitInsight'
+
         try:
             metadata_dict = dict(context.invocation_metadata())
             extract_grpc_context(metadata_dict)
@@ -323,6 +437,13 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
                        priority=request.priority,
                        confidence_score=request.confidence_score)
 
+            metrics.insights_received_total.labels(
+                insight_type=request.insight_type,
+                priority=request.priority,
+                accepted='true'
+            ).inc()
+            metrics.grpc_requests_total.labels(method=method_name, status='success').inc()
+
             return queen_agent_pb2.SubmitInsightResponse(
                 accepted=True,
                 insight_id=request.insight_id,
@@ -333,8 +454,20 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
             logger.error("grpc_submit_insight_failed", error=str(e), insight_id=request.insight_id)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
+
+            metrics.insights_received_total.labels(
+                insight_type=request.insight_type if hasattr(request, 'insight_type') else 'unknown',
+                priority=request.priority if hasattr(request, 'priority') else 'unknown',
+                accepted='false'
+            ).inc()
+            metrics.grpc_requests_total.labels(method=method_name, status='error').inc()
+
             return queen_agent_pb2.SubmitInsightResponse(
                 accepted=False,
                 insight_id=request.insight_id,
                 message=f"Erro ao processar insight: {str(e)}"
             )
+
+        finally:
+            duration = time.time() - start_time
+            metrics.grpc_request_duration_seconds.labels(method=method_name).observe(duration)

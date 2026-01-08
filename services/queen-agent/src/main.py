@@ -13,7 +13,7 @@ from neural_hive_observability import (
 from .config import get_settings
 from .clients import (
     MongoDBClient, RedisClient, Neo4jClient, PrometheusClient,
-    OrchestratorClient, ServiceRegistryClient, PheromoneClient
+    OrchestratorClient, ServiceRegistryClient, PheromoneClient, OPAClient
 )
 from .services import (
     StrategicDecisionEngine, ConflictArbitrator, ReplanningCoordinator,
@@ -51,6 +51,7 @@ class AppState:
         self.orchestrator_client: OrchestratorClient | None = None
         self.service_registry_client: ServiceRegistryClient | None = None
         self.pheromone_client: PheromoneClient | None = None
+        self.opa_client: OPAClient | None = None
 
         # Serviços
         self.decision_engine: StrategicDecisionEngine | None = None
@@ -126,6 +127,23 @@ async def lifespan(app: FastAPI):
 
         app_state.pheromone_client = PheromoneClient(app_state.redis_client, settings)
 
+        # 2.5. Inicializar OPA Client (se habilitado)
+        if settings.OPA_ENABLED:
+            logger.info("initializing_opa_client")
+            app_state.opa_client = OPAClient(
+                base_url=settings.OPA_URL,
+                timeout=settings.OPA_TIMEOUT_SECONDS
+            )
+            try:
+                await app_state.opa_client.connect()
+                logger.info("opa_client_connected")
+            except Exception as e:
+                if not settings.OPA_FAIL_OPEN:
+                    logger.error("opa_client_connection_failed_fail_closed", error=str(e))
+                    raise
+                else:
+                    logger.warning("opa_client_connection_failed_fail_open", error=str(e))
+
         # 3. Inicializar serviços
         logger.info("initializing_services")
 
@@ -142,6 +160,7 @@ async def lifespan(app: FastAPI):
             app_state.prometheus_client,
             app_state.pheromone_client,
             app_state.replanning_coordinator,
+            app_state.opa_client,
             settings
         )
 
@@ -199,7 +218,8 @@ async def lifespan(app: FastAPI):
             app_state.mongodb_client,
             app_state.neo4j_client,
             app_state.exception_service,
-            app_state.telemetry_aggregator
+            app_state.telemetry_aggregator,
+            app_state.decision_engine
         )
 
         obs_config = ObservabilityConfig(
@@ -287,6 +307,8 @@ async def lifespan(app: FastAPI):
             await app_state.orchestrator_client.close()
         if app_state.service_registry_client:
             await app_state.service_registry_client.close()
+        if app_state.opa_client:
+            await app_state.opa_client.close()
 
         logger.info("queen_agent_shutdown_complete")
 
