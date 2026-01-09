@@ -11,7 +11,7 @@ from neural_hive_observability import (
     instrument_kafka_producer,
 )
 from src.config import get_settings
-from src.clients import SpecialistsGrpcClient, PheromoneClient, MongoDBClient
+from src.clients import SpecialistsGrpcClient, PheromoneClient, MongoDBClient, QueenAgentGRPCClient, AnalystAgentGRPCClient
 from src.observability import ConsensusMetrics
 from src.consumers import PlanConsumer
 from src.producers import DecisionProducer
@@ -33,6 +33,8 @@ class AppState:
     specialists_client: SpecialistsGrpcClient = None
     mongodb_client: MongoDBClient = None
     pheromone_client: PheromoneClient = None
+    queen_agent_client: QueenAgentGRPCClient = None
+    analyst_agent_client: AnalystAgentGRPCClient = None
     redis_client = None
     plan_consumer: PlanConsumer = None
     decision_producer: DecisionProducer = None
@@ -81,6 +83,16 @@ async def startup_event():
         state.specialists_client = SpecialistsGrpcClient(settings)
         await state.specialists_client.initialize()
         logger.info('Specialists gRPC client inicializado')
+
+        # gRPC Queen Agent
+        state.queen_agent_client = QueenAgentGRPCClient(settings)
+        await state.queen_agent_client.initialize()
+        logger.info('Queen Agent gRPC client inicializado')
+
+        # gRPC Analyst Agent
+        state.analyst_agent_client = AnalystAgentGRPCClient(settings)
+        await state.analyst_agent_client.initialize()
+        logger.info('Analyst Agent gRPC client inicializado')
 
         # Inicializar fila de decisões
         state.decision_queue = asyncio.Queue()
@@ -159,6 +171,12 @@ async def shutdown_event():
             pass
 
     # Fechar clientes
+    if state.analyst_agent_client:
+        await state.analyst_agent_client.close()
+
+    if state.queen_agent_client:
+        await state.queen_agent_client.close()
+
     if state.specialists_client:
         await state.specialists_client.close()
 
@@ -183,7 +201,9 @@ async def readiness():
     checks = {
         'mongodb': False,
         'specialists': False,
-        'redis': False
+        'redis': False,
+        'queen_agent': False,
+        'analyst_agent': False
     }
 
     try:
@@ -205,6 +225,16 @@ async def readiness():
         if state.redis_client:
             await state.redis_client.ping()
             checks['redis'] = True
+
+        # Verificar Queen Agent
+        if state.queen_agent_client:
+            queen_health = await state.queen_agent_client.health_check()
+            checks['queen_agent'] = queen_health.get('status') == 'SERVING'
+
+        # Verificar Analyst Agent
+        if state.analyst_agent_client:
+            analyst_health = await state.analyst_agent_client.health_check()
+            checks['analyst_agent'] = analyst_health.get('status') == 'SERVING'
 
         all_ready = all(checks.values())
 

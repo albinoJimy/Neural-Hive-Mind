@@ -63,7 +63,7 @@ class TestSLOsAPIDependencies:
         assert response.json()['slo_id'] == 'slo-123'
 
     def test_slos_api_without_dependencies_raises_error(self):
-        """Validar que sem dependency overrides retorna erro."""
+        """Validar que sem dependency overrides retorna erro 503 (serviço não inicializado)."""
         from src.api import slos
 
         app = FastAPI()
@@ -71,7 +71,8 @@ class TestSLOsAPIDependencies:
 
         client = TestClient(app, raise_server_exceptions=False)
         response = client.get('/api/v1/slos')
-        assert response.status_code == 500
+        assert response.status_code == 503
+        assert "não inicializado" in response.json()["detail"]
 
 
 @pytest.mark.integration
@@ -128,7 +129,7 @@ class TestBudgetsAPIDependencies:
         assert response.json()['total'] == 0
 
     def test_budgets_api_without_dependencies_raises_error(self):
-        """Validar que sem dependency overrides retorna erro."""
+        """Validar que sem dependency overrides retorna erro 503 (serviço não inicializado)."""
         from src.api import budgets
 
         app = FastAPI()
@@ -136,7 +137,8 @@ class TestBudgetsAPIDependencies:
 
         client = TestClient(app, raise_server_exceptions=False)
         response = client.get('/api/v1/budgets/slo-123')
-        assert response.status_code == 500
+        assert response.status_code == 503
+        assert "não inicializado" in response.json()["detail"]
 
 
 @pytest.mark.integration
@@ -178,7 +180,7 @@ class TestWebhooksAPIDependencies:
         assert response.json()['alerts_processed'] == 0
 
     def test_webhooks_api_without_dependencies_raises_error(self):
-        """Validar que sem dependency overrides retorna erro."""
+        """Validar que sem dependency overrides retorna erro 503 (serviço não inicializado)."""
         from src.api import webhooks
 
         app = FastAPI()
@@ -196,7 +198,8 @@ class TestWebhooksAPIDependencies:
             'externalURL': 'http://test',
             'alerts': []
         })
-        assert response.status_code == 500
+        assert response.status_code == 503
+        assert "não inicializado" in response.json()["detail"]
 
 
 @pytest.mark.integration
@@ -255,7 +258,7 @@ class TestPoliciesAPIDependencies:
         response = client.get('/api/v1/policies')
         # Sem overrides, a função get_postgresql_client() lançará HTTPException 503
         assert response.status_code == 503
-        assert "not initialized" in response.json()["detail"]
+        assert "não inicializado" in response.json()["detail"]
 
 
 @pytest.mark.integration
@@ -277,9 +280,9 @@ class TestDependencyOverridesConfiguration:
         with pytest.raises(HTTPException) as exc_info:
             policies.get_policy_enforcer()
         assert exc_info.value.status_code == 503
-        assert "not initialized" in exc_info.value.detail
+        assert "não inicializado" in exc_info.value.detail
 
         with pytest.raises(HTTPException) as exc_info:
             policies.get_postgresql_client()
         assert exc_info.value.status_code == 503
-        assert "not initialized" in exc_info.value.detail
+        assert "não inicializado" in exc_info.value.detail

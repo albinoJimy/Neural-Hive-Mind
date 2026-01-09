@@ -70,9 +70,23 @@ class WorkerAgentSettings(BaseSettings):
     argocd_enabled: bool = False
     argocd_notifications_webhook: Optional[str] = None
 
+    # GitOps / Flux CD
+    flux_enabled: bool = False
+    flux_namespace: str = 'flux-system'
+    flux_kubeconfig_path: Optional[str] = None
+    flux_timeout_seconds: int = 600
+
     # OPA Validation
     opa_url: str = 'http://opa.neural-hive-governance:8181'
     opa_enabled: bool = True
+    opa_token: Optional[str] = None
+    opa_timeout_seconds: int = 30
+    opa_verify_ssl: bool = True
+    opa_retry_attempts: int = 3
+    opa_retry_backoff_base_seconds: int = 2
+    opa_retry_backoff_max_seconds: int = 60
+    opa_poll_interval_seconds: int = 5
+    opa_poll_timeout_seconds: int = 300
 
     # SAST / Security
     trivy_enabled: bool = True
@@ -80,17 +94,35 @@ class WorkerAgentSettings(BaseSettings):
 
     # Test Execution
     test_execution_timeout_seconds: int = 600
+    test_retry_attempts: int = 3
     allowed_test_commands: List[str] = Field(
         default_factory=lambda: ['pytest', 'npm test', 'go test', 'mvn test']
     )
+
+    # GitHub Actions
     github_actions_enabled: bool = False
     github_api_url: str = 'https://api.github.com'
     github_token: Optional[str] = None
     github_actions_timeout_seconds: int = 900
+
+    # GitLab CI
+    gitlab_ci_enabled: bool = False
+    gitlab_url: str = 'https://gitlab.com'
+    gitlab_token: Optional[str] = None
+    gitlab_timeout_seconds: int = 900
+    gitlab_tls_verify: bool = True
+
+    # Jenkins
+    jenkins_enabled: bool = False
     jenkins_url: Optional[str] = None
     jenkins_user: Optional[str] = None
     jenkins_token: Optional[str] = None
     jenkins_timeout_seconds: int = 600
+    jenkins_tls_verify: bool = True
+
+    # Test report parsing
+    junit_xml_enabled: bool = True
+    coverage_report_enabled: bool = True
 
     # Validation providers
     sonarqube_enabled: bool = False
@@ -177,6 +209,54 @@ class WorkerAgentSettings(BaseSettings):
         description='Habilitar X.509-SVID para mTLS'
     )
 
+    # Docker Runtime
+    docker_enabled: bool = Field(default=False, description='Habilitar Docker Runtime')
+    docker_base_url: str = Field(default='unix:///var/run/docker.sock', description='URL do Docker daemon')
+    docker_timeout_seconds: int = Field(default=600, description='Timeout padrão para execuções Docker')
+    docker_verify_ssl: bool = Field(default=True, description='Verificar SSL para conexões TCP')
+    docker_default_cpu_limit: float = Field(default=1.0, description='Limite de CPU padrão em cores')
+    docker_default_memory_limit: str = Field(default='512m', description='Limite de memória padrão')
+    docker_network_mode: str = Field(default='bridge', description='Modo de rede padrão')
+    docker_cleanup_containers: bool = Field(default=True, description='Remover containers após execução')
+
+    # Kubernetes Jobs Runtime
+    k8s_jobs_enabled: bool = Field(default=False, description='Habilitar K8s Jobs Runtime')
+    k8s_jobs_namespace: str = Field(default='neural-hive-execution', description='Namespace para Jobs')
+    k8s_jobs_kubeconfig_path: Optional[str] = Field(default=None, description='Caminho para kubeconfig')
+    k8s_jobs_timeout_seconds: int = Field(default=600, description='Timeout padrão para Jobs')
+    k8s_jobs_default_cpu_request: str = Field(default='100m', description='CPU request padrão')
+    k8s_jobs_default_cpu_limit: str = Field(default='1000m', description='CPU limit padrão')
+    k8s_jobs_default_memory_request: str = Field(default='128Mi', description='Memory request padrão')
+    k8s_jobs_default_memory_limit: str = Field(default='512Mi', description='Memory limit padrão')
+    k8s_jobs_service_account: str = Field(default='worker-agent-executor', description='ServiceAccount padrão')
+    k8s_jobs_backoff_limit: int = Field(default=0, description='Número de retries do Job')
+    k8s_jobs_cleanup: bool = Field(default=True, description='Deletar Jobs após execução')
+    k8s_jobs_poll_interval_seconds: int = Field(default=5, description='Intervalo de polling do Job')
+
+    # AWS Lambda Runtime
+    lambda_enabled: bool = Field(default=False, description='Habilitar Lambda Runtime')
+    lambda_region: str = Field(default='us-east-1', description='Região AWS')
+    lambda_access_key: Optional[str] = Field(default=None, description='AWS Access Key')
+    lambda_secret_key: Optional[str] = Field(default=None, description='AWS Secret Key')
+    lambda_function_name: str = Field(default='neural-hive-executor', description='Nome da função Lambda')
+    lambda_timeout_seconds: int = Field(default=900, description='Timeout máximo (max 900s)')
+
+    # Local Runtime
+    local_runtime_enabled: bool = Field(default=True, description='Habilitar Local Runtime (fallback)')
+    local_runtime_timeout_seconds: int = Field(default=300, description='Timeout padrão')
+    local_runtime_enable_sandbox: bool = Field(default=True, description='Habilitar validação de comandos')
+    local_runtime_allowed_commands: List[str] = Field(
+        default_factory=lambda: ['python', 'python3', 'node', 'bash', 'sh', 'terraform', 'kubectl', 'helm']
+    )
+    local_runtime_working_dir: str = Field(default='/tmp/neural-hive-execution', description='Diretório de trabalho')
+
+    # Runtime Selection Strategy
+    default_runtime: str = Field(default='local', description='Runtime padrão (k8s, docker, lambda, local)')
+    runtime_fallback_chain: List[str] = Field(
+        default_factory=lambda: ['k8s', 'docker', 'local', 'simulation'],
+        description='Cadeia de fallback entre runtimes'
+    )
+
     def get_metadata(self) -> Dict[str, str]:
         '''Retorna metadata para registro no Service Registry'''
         metadata = {
@@ -220,6 +300,47 @@ class WorkerAgentSettings(BaseSettings):
             raise ValueError(
                 f"Endpoints HTTP inseguros detectados em ambiente {self.environment}: {endpoint_list}. "
                 "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+            )
+
+        return self
+
+    @model_validator(mode='after')
+    def validate_gitops_config(self) -> 'WorkerAgentSettings':
+        """
+        Valida configuração GitOps (ArgoCD e Flux).
+        Garante que campos obrigatórios estão presentes quando habilitados.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # Validar ArgoCD
+        if self.argocd_enabled:
+            if not self.argocd_url:
+                raise ValueError(
+                    "argocd_url obrigatório quando argocd_enabled=True"
+                )
+            if not self.argocd_token:
+                raise ValueError(
+                    "argocd_token obrigatório quando argocd_enabled=True"
+                )
+            # Validar formato de URL
+            if not (self.argocd_url.startswith('http://') or self.argocd_url.startswith('https://')):
+                raise ValueError(
+                    f"argocd_url deve começar com http:// ou https://. Valor atual: '{self.argocd_url}'"
+                )
+
+        # Validar Flux
+        if self.flux_enabled:
+            if not self.flux_kubeconfig_path:
+                raise ValueError(
+                    "flux_kubeconfig_path obrigatório quando flux_enabled=True"
+                )
+
+        # Warning se ambos estão desabilitados (deploy executor usará fallback)
+        if not self.argocd_enabled and not self.flux_enabled:
+            logger.warning(
+                "GitOps desabilitado: argocd_enabled=False e flux_enabled=False. "
+                "Deploy executor usará fallback local."
             )
 
         return self

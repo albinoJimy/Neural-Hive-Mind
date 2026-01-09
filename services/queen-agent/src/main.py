@@ -238,13 +238,50 @@ async def lifespan(app: FastAPI):
             app_state.grpc_server
         )
 
-        # Configurar porta gRPC
+        # Configurar porta gRPC com suporte a mTLS
         grpc_port = settings.GRPC_PORT if hasattr(settings, 'GRPC_PORT') else 50051
-        app_state.grpc_server.add_insecure_port(f'[::]:{grpc_port}')
+
+        if settings.SPIFFE_ENABLED and settings.SPIFFE_ENABLE_X509:
+            try:
+                from neural_hive_security import SPIFFEManager, SPIFFEConfig
+
+                spiffe_config = SPIFFEConfig(
+                    workload_api_socket=settings.SPIFFE_SOCKET_PATH,
+                    trust_domain=settings.SPIFFE_TRUST_DOMAIN,
+                    enable_x509=True,
+                    environment=settings.ENVIRONMENT
+                )
+                spiffe_manager = SPIFFEManager(spiffe_config)
+                await spiffe_manager.initialize()
+
+                server_credentials = await spiffe_manager.get_grpc_server_credentials()
+                app_state.grpc_server.add_secure_port(
+                    f'[::]:{grpc_port}',
+                    server_credentials
+                )
+                logger.info("grpc_server_mtls_enabled", port=grpc_port)
+            except ImportError:
+                logger.warning(
+                    "neural_hive_security_not_available",
+                    fallback="insecure_port"
+                )
+                app_state.grpc_server.add_insecure_port(f'[::]:{grpc_port}')
+            except Exception as e:
+                logger.error("grpc_mtls_setup_failed", error=str(e))
+                if settings.ENVIRONMENT in ['production', 'staging', 'prod']:
+                    raise
+                app_state.grpc_server.add_insecure_port(f'[::]:{grpc_port}')
+        else:
+            app_state.grpc_server.add_insecure_port(f'[::]:{grpc_port}')
+            if settings.ENVIRONMENT in ['production', 'staging', 'prod']:
+                logger.warning(
+                    "grpc_server_insecure_mode_in_production",
+                    port=grpc_port
+                )
 
         # Iniciar servidor gRPC
         await app_state.grpc_server.start()
-        logger.info("grpc_server_started", port=grpc_port)
+        logger.info("grpc_server_started", port=grpc_port, mtls=settings.SPIFFE_ENABLE_X509)
 
         # 7. Iniciar consumers em background
         logger.info("starting_kafka_consumers_background_tasks")

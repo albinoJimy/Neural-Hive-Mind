@@ -71,6 +71,18 @@ config:
     grpcTimeoutMs: 120000
     grpcMaxRetries: 3
 
+  queenAgent:
+    grpcHost: "queen-agent.queen-agent.svc.cluster.local"
+    grpcPort: 50051
+
+  spiffe:
+    enabled: false
+    enableX509: false
+    socketPath: "unix:///run/spire/sockets/agent.sock"
+    trustDomain: "neural-hive.local"
+    jwtAudience: "neural-hive.local"
+    jwtTtlSeconds: 3600
+
   mongodb:
     uri: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017"
     database: "neural_hive"

@@ -9,6 +9,17 @@
         "iconColor": "rgba(0, 211, 255, 1)",
         "name": "Annotations & Alerts",
         "type": "dashboard"
+      },
+      {
+        "datasource": "Prometheus",
+        "enable": true,
+        "expr": "ALERTS{component=\"worker-agents\", severity=~\"warning|critical\"}",
+        "iconColor": "rgba(255, 96, 96, 1)",
+        "name": "Alertas Ativos",
+        "step": "60s",
+        "tagKeys": "alertname,severity",
+        "textFormat": "{{alertname}}: {{summary}}",
+        "titleFormat": "Alert"
       }
     ]
   },
@@ -311,11 +322,118 @@
       "title": "Validation Duration",
       "type": "timeseries"
     },
-    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 50}, "id": 106, "panels": [], "title": "\ud83d\udee0 Dependencies & Retries", "type": "row"},
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 50}, "id": 110, "panels": [], "title": "\u26a1 EXECUTE Executor", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 51},
+      "id": 40,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_execute_tasks_executed_total[5m]) by (status)", "refId": "A"}],
+      "title": "Execute Tasks by Status",
+      "type": "timeseries"
+    },
     {
       "datasource": "Prometheus",
       "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "s"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 51},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 51},
+      "id": 41,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(worker_agent_execute_duration_seconds_bucket[5m])) by (le, runtime))", "refId": "A", "legendFormat": "P95 {{runtime}}"}],
+      "title": "Execute Duration by Runtime (P95)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 51},
+      "id": 42,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_execute_runtime_fallbacks_total[5m]) by (from_runtime, to_runtime)", "refId": "A", "legendFormat": "{{from_runtime}} -> {{to_runtime}}"}],
+      "title": "Runtime Fallbacks",
+      "type": "timeseries"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 59}, "id": 111, "panels": [], "title": "\ud83d\udc33 EXECUTE - Runtime Details", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 60},
+      "id": 43,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_k8s_jobs_executed_total[5m]) by (status)", "refId": "A"}],
+      "title": "K8s Jobs",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 6, "x": 6, "y": 60},
+      "id": 44,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_docker_executions_total[5m]) by (status)", "refId": "A"}],
+      "title": "Docker Executions",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 60},
+      "id": 45,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_lambda_invocations_total[5m]) by (status)", "refId": "A"}],
+      "title": "Lambda Invocations",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 60},
+      "id": 46,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_local_executions_total[5m]) by (status)", "refId": "A"}],
+      "title": "Local Executions",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 68},
+      "id": 47,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum(rate(worker_agent_k8s_job_duration_seconds_bucket[5m])) by (le, stage))", "refId": "A", "legendFormat": "K8s {{stage}}"},
+        {"expr": "histogram_quantile(0.95, sum(rate(worker_agent_docker_execution_duration_seconds_bucket[5m])) by (le, stage))", "refId": "B", "legendFormat": "Docker {{stage}}"}
+      ],
+      "title": "K8s/Docker Duration by Stage (P95)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 68},
+      "id": 48,
+      "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum(rate(worker_agent_lambda_duration_seconds_bucket[5m])) by (le))", "refId": "A", "legendFormat": "Lambda Actual"},
+        {"expr": "histogram_quantile(0.95, sum(rate(worker_agent_lambda_billed_duration_seconds_bucket[5m])) by (le))", "refId": "B", "legendFormat": "Lambda Billed"}
+      ],
+      "title": "Lambda Duration (Actual vs Billed)",
+      "type": "timeseries"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 76}, "id": 106, "panels": [], "title": "\ud83d\udee0 Dependencies & Retries", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 77},
       "id": 21,
       "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
       "pluginVersion": "8.0.0",
@@ -326,7 +444,7 @@
     {
       "datasource": "Prometheus",
       "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 51},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 77},
       "id": 22,
       "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
       "pluginVersion": "8.0.0",
@@ -337,7 +455,7 @@
     {
       "datasource": "Prometheus",
       "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 51},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 77},
       "id": 23,
       "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
       "pluginVersion": "8.0.0",
@@ -345,11 +463,87 @@
       "title": "Task Retries",
       "type": "timeseries"
     },
-    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 59}, "id": 107, "panels": [], "title": "\ud83d\udcf1 External Integrations", "type": "row"},
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 85}, "id": 107, "panels": [], "title": "⏱️ Timeout & Fallback Monitoring", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "line+area"}},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.1},
+              {"color": "red", "value": 0.5}
+            ]
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 86},
+      "id": 27,
+      "options": {"legend": {"calcs": ["last", "max"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {"expr": "rate(worker_agent_task_timeouts_total[5m])", "legendFormat": "{{task_type}} - {{executor}}", "refId": "A"}
+      ],
+      "title": "⏱️ Task Timeout Rates",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 30, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "normal"}, "thresholdsStyle": {"mode": "off"}},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 86},
+      "id": 28,
+      "options": {"legend": {"calcs": ["last", "max"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {"expr": "rate(worker_agent_build_fallback_total[5m])", "legendFormat": "BUILD - {{reason}}", "refId": "A"},
+        {"expr": "rate(worker_agent_deploy_fallback_total[5m])", "legendFormat": "DEPLOY - {{reason}}", "refId": "B"},
+        {"expr": "rate(worker_agent_test_fallback_total[5m])", "legendFormat": "TEST - {{reason}}", "refId": "C"},
+        {"expr": "rate(worker_agent_validate_fallback_total[5m])", "legendFormat": "VALIDATE - {{reason}}", "refId": "D"}
+      ],
+      "title": "🔄 Fallback Usage by Executor",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "spectrum", "schemeBy": "value"},
+          "custom": {"hideFrom": {"legend": false, "tooltip": false, "viz": false}},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 94},
+      "id": 29,
+      "options": {"calculate": true, "calculation": {"xBuckets": {"mode": "size", "value": "1min"}}, "cellGap": 1, "color": {"exponent": 0.5, "fill": "dark-orange", "mode": "scheme", "reverse": false, "scale": "exponential", "scheme": "Spectral", "steps": 64}, "exemplars": {"color": "rgba(255,0,255,0.7)"}, "filterValues": {"le": 1e-9}, "legend": {"show": true}, "rowsFrame": {"layout": "auto"}, "showValue": "never", "tooltip": {"show": true, "yHistogram": true}, "yAxis": {"axisPlacement": "left", "reverse": false, "unit": "s"}},
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {"expr": "sum(rate(worker_agent_task_duration_seconds_bucket[5m])) by (le, task_type)", "format": "heatmap", "legendFormat": "{{le}}", "refId": "A"}
+      ],
+      "title": "🌡️ Task Duration Distribution (Timeout Analysis)",
+      "type": "heatmap"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 102}, "id": 108, "panels": [], "title": "📱 External Integrations", "type": "row"},
     {
       "datasource": "Prometheus",
       "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 60},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 103},
       "id": 24,
       "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
       "pluginVersion": "8.0.0",
@@ -360,7 +554,7 @@
     {
       "datasource": "Prometheus",
       "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 60},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 103},
       "id": 25,
       "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
       "pluginVersion": "8.0.0",
@@ -371,24 +565,123 @@
     {
       "datasource": "Prometheus",
       "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 60},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 103},
       "id": 26,
       "options": {"legend": {"calcs": [], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
       "pluginVersion": "8.0.0",
       "targets": [{"expr": "rate(worker_agent_github_actions_api_calls_total[5m]) by (method, status)", "refId": "A"}],
       "title": "GitHub Actions API Calls",
       "type": "timeseries"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 111}, "id": 109, "panels": [], "title": "🚨 Alertas & SLA", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 112},
+      "id": 30,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "count(ALERTS{component=\"worker-agents\", severity=\"critical\", alertstate=\"firing\"}) or vector(0)", "refId": "A"}],
+      "title": "Critical Alerts",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 3}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 112},
+      "id": 31,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "count(ALERTS{component=\"worker-agents\", severity=\"warning\", alertstate=\"firing\"}) or vector(0)", "refId": "A"}],
+      "title": "Warning Alerts",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 112},
+      "id": 32,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "sum(increase(worker_agent_sla_violations_total[24h])) or vector(0)", "refId": "A"}],
+      "title": "SLA Violations (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 0.1}, {"color": "green", "value": 0.05}]},
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 112},
+      "id": 33,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_tickets_failed_total[5m]) / (rate(worker_agent_tickets_completed_total[5m]) + rate(worker_agent_tickets_failed_total[5m]))", "refId": "A"}],
+      "title": "Error Rate",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 116},
+      "id": 34,
+      "options": {"legend": {"calcs": ["last", "sum"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_sla_violations_total[5m])", "legendFormat": "{{task_type}} - {{reason}}", "refId": "A"}],
+      "title": "SLA Violations by Type",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 116},
+      "id": 35,
+      "options": {"legend": {"calcs": ["last", "sum"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(worker_agent_tickets_failed_total[5m])", "legendFormat": "{{task_type}} - {{error_type}}", "refId": "A"}],
+      "title": "Error Rate by Task Type",
+      "type": "timeseries"
     }
   ],
   "refresh": "10s",
   "schemaVersion": 27,
   "style": "dark",
-  "tags": ["neural-hive-mind", "worker-agents", "phase2", "execution"],
+  "tags": ["neural-hive-mind", "worker-agents", "phase2", "execution", "timeout-monitoring", "fallback-tracking", "execute-executor"],
   "templating": {"list": []},
   "time": {"from": "now-1h", "to": "now"},
   "timepicker": {},
   "timezone": "browser",
   "title": "Worker Agents - Task Execution",
   "uid": "worker-agents-execution",
-  "version": 1
+  "version": 2
 }

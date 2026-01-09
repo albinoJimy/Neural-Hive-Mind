@@ -529,8 +529,18 @@ class PolicyEnforcer:
     async def _quarantine_resource(
         self, incident: Dict[str, Any], plan: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Quarentena recurso suspeito"""
+        """
+        Quarentena recurso suspeito aplicando labels e NetworkPolicy de isolamento.
+
+        Args:
+            incident: Incidente com affected_resources
+            plan: Plano de enforcement
+
+        Returns:
+            Dict com resultado da quarentena incluindo pods isolados e policy aplicada
+        """
         resources = incident.get("affected_resources", [])
+        incident_id = incident.get("incident_id", "unknown")
 
         if not resources:
             return {
@@ -539,20 +549,147 @@ class PolicyEnforcer:
                 "reason": "No resources to quarantine"
             }
 
-        # TODO: Aplicar label de quarentena e NetworkPolicy
-        logger.info("policy_enforcer.quarantining_resources", resources=resources)
+        logger.info(
+            "policy_enforcer.quarantining_resources",
+            resources=resources,
+            incident_id=incident_id
+        )
+
+        quarantined_pods = []
+        policy_applied = None
+        errors = []
 
         if self.k8s:
-            # Marcar pods com label de quarentena
+            # Aplicar label de quarentena em cada pod afetado
             for resource in resources:
-                # Implementação real faria patch do pod/deployment
-                pass
+                namespace, pod_name = self._parse_resource(resource)
+
+                if pod_name:
+                    try:
+                        # Adicionar label de quarentena
+                        labels_applied = await self.k8s.patch_pod_labels(
+                            pod_name,
+                            {
+                                "guard-agents/quarantine": "true",
+                                "guard-agents/incident-id": incident_id[:63]  # Max label length
+                            },
+                            namespace
+                        )
+
+                        if labels_applied:
+                            quarantined_pods.append({
+                                "pod": pod_name,
+                                "namespace": namespace or self.k8s.namespace,
+                                "labels_applied": True
+                            })
+                            logger.info(
+                                "policy_enforcer.pod_quarantine_labeled",
+                                pod=pod_name,
+                                namespace=namespace
+                            )
+                        else:
+                            errors.append(f"Failed to apply quarantine labels to {pod_name}")
+
+                    except Exception as e:
+                        logger.error(
+                            "policy_enforcer.quarantine_label_failed",
+                            pod=pod_name,
+                            error=str(e)
+                        )
+                        errors.append(f"Error labeling {pod_name}: {str(e)}")
+
+            # Aplicar NetworkPolicy de isolamento se tiver pods quarentined
+            if quarantined_pods:
+                try:
+                    policy_name = f"quarantine-{incident_id[:8]}"
+                    policy_spec = {
+                        "target": "isolate",
+                        "pod_selector": {"guard-agents/quarantine": "true"},
+                        "type": "quarantine"
+                    }
+
+                    # Usar o primeiro namespace encontrado ou default
+                    policy_namespace = quarantined_pods[0].get("namespace")
+
+                    policy_result = await self.k8s.apply_network_policy(
+                        policy_name,
+                        policy_spec,
+                        policy_namespace
+                    )
+
+                    if policy_result.get("success"):
+                        policy_applied = {
+                            "name": policy_name,
+                            "namespace": policy_namespace,
+                            "action": policy_result.get("action")
+                        }
+                        logger.info(
+                            "policy_enforcer.quarantine_policy_applied",
+                            policy=policy_name,
+                            namespace=policy_namespace
+                        )
+                    else:
+                        errors.append(f"Failed to apply NetworkPolicy: {policy_result.get('error')}")
+
+                except Exception as e:
+                    logger.error(
+                        "policy_enforcer.quarantine_policy_failed",
+                        error=str(e)
+                    )
+                    errors.append(f"NetworkPolicy error: {str(e)}")
+        else:
+            logger.warning(
+                "policy_enforcer.k8s_not_available",
+                action="quarantine"
+            )
+            # Graceful degradation - nao bloquear fluxo
+            return {
+                "success": True,
+                "action": "quarantine",
+                "details": {
+                    "resources": resources,
+                    "warning": "Kubernetes client not available - quarantine simulated"
+                }
+            }
+
+        success = len(quarantined_pods) > 0 and len(errors) == 0
 
         return {
-            "success": True,
+            "success": success,
             "action": "quarantine",
-            "details": {"resources": resources},
+            "details": {
+                "quarantined_pods": quarantined_pods,
+                "network_policy": policy_applied,
+                "resources": resources,
+                "errors": errors if errors else None
+            }
         }
+
+    def _parse_resource(self, resource: str) -> tuple:
+        """
+        Parse namespace and resource name from affected_resources entry.
+
+        Supports formats:
+        - "namespace/kind/name" -> (namespace, name)
+        - "kind/name" -> (None, name)
+        - "name" -> (None, name)
+
+        Args:
+            resource: Resource string
+
+        Returns:
+            Tuple of (namespace, name)
+        """
+        parts = resource.split("/")
+
+        if len(parts) >= 3:
+            return (parts[0], parts[2])
+        elif len(parts) == 2:
+            return (None, parts[1])
+        elif len(parts) == 1 and resource:
+            return (None, resource)
+
+        return (None, None)
 
     async def _isolate_pod(
         self, incident: Dict[str, Any], plan: Dict[str, Any]

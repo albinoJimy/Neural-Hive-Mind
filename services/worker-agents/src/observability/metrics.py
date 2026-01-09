@@ -192,6 +192,11 @@ class WorkerAgentMetrics:
             'Total de rollbacks executados',
             ['reason']
         )
+        self.flux_api_calls_total = Counter(
+            'worker_agent_flux_api_calls_total',
+            'Total de chamadas a API do Flux',
+            ['method', 'status']
+        )
 
         # Test
         self.test_tasks_executed_total = Counter(
@@ -226,6 +231,33 @@ class WorkerAgentMetrics:
             ['method', 'status']
         )
 
+        # GitLab CI metrics
+        self.gitlab_ci_api_calls_total = Counter(
+            'worker_agent_gitlab_ci_api_calls_total',
+            'Total de chamadas à API do GitLab CI',
+            ['method', 'status']
+        )
+
+        # Jenkins metrics
+        self.jenkins_api_calls_total = Counter(
+            'worker_agent_jenkins_api_calls_total',
+            'Total de chamadas à API do Jenkins',
+            ['method', 'status']
+        )
+
+        # Test report parsing metrics
+        self.test_report_parsing_total = Counter(
+            'worker_agent_test_report_parsing_total',
+            'Total de parsing de relatorios de teste',
+            ['format', 'status']
+        )
+
+        self.coverage_report_parsing_total = Counter(
+            'worker_agent_coverage_report_parsing_total',
+            'Total de parsing de relatorios de coverage',
+            ['format', 'status']
+        )
+
         # Validate
         self.validate_tasks_executed_total = Counter(
             'worker_agent_validate_tasks_executed_total',
@@ -249,11 +281,120 @@ class WorkerAgentMetrics:
             ['tool', 'status']
         )
 
+        # OPA
+        self.opa_api_calls_total = Counter(
+            'worker_agent_opa_api_calls_total',
+            'Total de chamadas à API OPA',
+            ['method', 'status']
+        )
+        self.policy_violations_total = Counter(
+            'policy_violations_total',
+            'Total de violacoes de politica detectadas',
+            ['severity', 'tool']
+        )
+        self.opa_policy_evaluation_duration_seconds = Histogram(
+            'worker_agent_opa_policy_evaluation_duration_seconds',
+            'Duração de avaliações de política OPA',
+            ['policy_path'],
+            buckets=[0.1, 0.5, 1, 2, 5, 10, 30]
+        )
+        self.opa_bundle_activation_duration_seconds = Histogram(
+            'worker_agent_opa_bundle_activation_duration_seconds',
+            'Duração de ativação de bundles OPA',
+            ['bundle_name'],
+            buckets=[1, 5, 10, 30, 60, 120]
+        )
+
         # Execute
         self.execute_tasks_executed_total = Counter(
             'worker_agent_execute_tasks_executed_total',
             'Total de tarefas EXECUTE executadas',
             ['status']
+        )
+
+        self.execute_duration_seconds = Histogram(
+            'worker_agent_execute_duration_seconds',
+            'Duração de execução de tarefas EXECUTE por runtime',
+            ['runtime'],
+            buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600]
+        )
+
+        self.execute_runtime_fallbacks_total = Counter(
+            'worker_agent_execute_runtime_fallbacks_total',
+            'Total de fallbacks entre runtimes de execução',
+            ['from_runtime', 'to_runtime']
+        )
+
+        # Docker Runtime
+        self.docker_executions_total = Counter(
+            'worker_agent_docker_executions_total',
+            'Total de execuções Docker',
+            ['status']
+        )
+
+        self.docker_execution_duration_seconds = Histogram(
+            'worker_agent_docker_execution_duration_seconds',
+            'Duração de execuções Docker',
+            ['stage'],
+            buckets=[1, 5, 10, 30, 60, 120, 300, 600]
+        )
+
+        self.docker_api_calls_total = Counter(
+            'worker_agent_docker_api_calls_total',
+            'Total de chamadas à API Docker',
+            ['method', 'status']
+        )
+
+        # Kubernetes Jobs Runtime
+        self.k8s_jobs_executed_total = Counter(
+            'worker_agent_k8s_jobs_executed_total',
+            'Total de Jobs K8s executados',
+            ['status']
+        )
+
+        self.k8s_job_duration_seconds = Histogram(
+            'worker_agent_k8s_job_duration_seconds',
+            'Duração de execução de Jobs K8s',
+            ['stage'],
+            buckets=[1, 5, 10, 30, 60, 120, 300, 600]
+        )
+
+        self.k8s_api_calls_total = Counter(
+            'worker_agent_k8s_api_calls_total',
+            'Total de chamadas à API Kubernetes',
+            ['method', 'status']
+        )
+
+        # Lambda Runtime
+        self.lambda_invocations_total = Counter(
+            'worker_agent_lambda_invocations_total',
+            'Total de invocações Lambda',
+            ['status']
+        )
+
+        self.lambda_duration_seconds = Histogram(
+            'worker_agent_lambda_duration_seconds',
+            'Duração de invocações Lambda',
+            buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600, 900]
+        )
+
+        self.lambda_billed_duration_seconds = Histogram(
+            'worker_agent_lambda_billed_duration_seconds',
+            'Duração faturada de invocações Lambda',
+            buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600, 900]
+        )
+
+        # Local Runtime
+        self.local_executions_total = Counter(
+            'worker_agent_local_executions_total',
+            'Total de execuções locais',
+            ['status']
+        )
+
+        self.local_execution_duration_seconds = Histogram(
+            'worker_agent_local_execution_duration_seconds',
+            'Duração de execuções locais',
+            buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300]
         )
 
         # Discovery

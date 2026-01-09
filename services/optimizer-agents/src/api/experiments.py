@@ -55,15 +55,32 @@ class ExperimentStatisticsResponse(BaseModel):
     success_rate: float
 
 
-# Dependency injection functions (será configurado via app.dependency_overrides no main.py)
+# Dependency injection functions
+# These are default providers that return HTTP 503 when not overridden.
+# In main.py, app.dependency_overrides replaces these with actual implementations.
+
 def get_mongodb_client() -> MongoDBClient:
-    """Dependency para injetar MongoDBClient."""
-    raise NotImplementedError("MongoDBClient dependency not configured")
+    """
+    Dependency para injetar MongoDBClient.
+
+    Returns HTTP 503 if not overridden via app.dependency_overrides in main.py.
+    """
+    raise HTTPException(
+        status_code=503,
+        detail="MongoDBClient not available. Service is starting or misconfigured."
+    )
 
 
 def get_experiment_manager() -> ExperimentManager:
-    """Dependency para injetar ExperimentManager."""
-    raise NotImplementedError("ExperimentManager dependency not configured")
+    """
+    Dependency para injetar ExperimentManager.
+
+    Returns HTTP 503 if not overridden via app.dependency_overrides in main.py.
+    """
+    raise HTTPException(
+        status_code=503,
+        detail="ExperimentManager not available. Service is starting or misconfigured."
+    )
 
 
 @router.post("/submit", response_model=SubmitExperimentResponse)

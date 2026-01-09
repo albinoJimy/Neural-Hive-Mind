@@ -30,7 +30,10 @@ class MessageHandler:
         opa_client=None,
         istio_client=None,
         prometheus_client=None,
-        threat_detector=None
+        threat_detector=None,
+        chaosmesh_client=None,
+        script_executor=None,
+        itsm_client=None
     ):
         self.mongodb = mongodb_client
         self.redis = redis_client
@@ -40,6 +43,9 @@ class MessageHandler:
         self.opa_client = opa_client
         self.istio_client = istio_client
         self.prometheus_client = prometheus_client
+        self.chaosmesh_client = chaosmesh_client
+        self.script_executor = script_executor
+        self.itsm_client = itsm_client
 
         # Inicializar componentes do fluxo E1-E6
         from src.services.threat_detector import ThreatDetector
@@ -61,7 +67,10 @@ class MessageHandler:
             k8s_client=k8s_client,
             mongodb_client=mongodb_client,
             kafka_producer=kafka_producer,
-            self_healing_client=self_healing_client
+            self_healing_client=self_healing_client,
+            redis_client=redis_client,
+            chaosmesh_client=chaosmesh_client,
+            script_executor=script_executor
         )
 
         # Orquestrador que coordena E1-E6
@@ -72,7 +81,8 @@ class MessageHandler:
             remediation_coordinator=self.remediation_coordinator,
             mongodb_client=mongodb_client,
             kafka_producer=kafka_producer,
-            prometheus_client=prometheus_client
+            prometheus_client=prometheus_client,
+            itsm_client=itsm_client
         )
 
     async def handle_security_incident(self, message: "ConsumerRecord"):

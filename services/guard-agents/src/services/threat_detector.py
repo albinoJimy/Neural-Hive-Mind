@@ -1,11 +1,14 @@
 """Threat detection service for identifying security anomalies (Fluxo E1)"""
 from typing import Dict, Any, Optional, List, TYPE_CHECKING
 import structlog
+import time
 from datetime import datetime, timezone
 from enum import Enum
 
 if TYPE_CHECKING:
     from neural_hive_ml.predictive_models import AnomalyDetector
+
+from ..observability.metrics import MetricsCollector
 
 logger = structlog.get_logger()
 
@@ -232,12 +235,26 @@ class ThreatDetector:
 
         # Se temos modelo ML, usar detecção avançada
         if self.anomaly_detector and self.anomaly_detector.model:
+            start_time = time.perf_counter()
             try:
                 # Converter evento para formato de ticket
                 ticket_data = self._event_to_ticket(event)
 
                 # Detectar anomalia com ML
                 result = await self.anomaly_detector.detect_anomaly(ticket_data)
+
+                # Registrar metricas de ML
+                latency_seconds = time.perf_counter() - start_time
+                model_type = result.get('model_type', 'isolation_forest')
+                is_anomaly = result.get('is_anomaly', False)
+                anomaly_score = result.get('anomaly_score', 0.0)
+
+                MetricsCollector.record_anomaly_detection(
+                    model_type=model_type,
+                    is_anomaly=is_anomaly,
+                    anomaly_score=anomaly_score,
+                    latency_seconds=latency_seconds
+                )
 
                 if result.get('is_anomaly'):
                     return {
@@ -248,7 +265,8 @@ class ThreatDetector:
                             "anomaly_type": result.get('anomaly_type'),
                             "explanation": result.get('explanation'),
                             "model_type": result.get('model_type'),
-                            "features": event.get("features", {})
+                            "features": event.get("features", {}),
+                            "inference_latency_ms": latency_seconds * 1000
                         },
                         "detected_at": datetime.now(timezone.utc).isoformat(),
                         "raw_event": event,

@@ -35,11 +35,21 @@ class SLOImportResponse(BaseModel):
     total: int
 
 
-# Dependency injection (será configurado no main.py)
+# Dependency injection
 def get_slo_manager() -> SLOManager:
-    """Dependency para injetar SLOManager."""
-    # Será sobrescrito no main.py
-    raise NotImplementedError
+    """
+    Retorna a instância de SLOManager do estado da aplicação.
+
+    Em produção, é sobrescrito via dependency_overrides do FastAPI em main.py.
+    Este fallback acessa o singleton do módulo diretamente.
+    """
+    from .. import main
+    if main.slo_manager is None:
+        raise HTTPException(
+            status_code=503,
+            detail="SLOManager não inicializado. Serviço iniciando."
+        )
+    return main.slo_manager
 
 
 @router.post("", response_model=SLOCreateResponse, status_code=201)

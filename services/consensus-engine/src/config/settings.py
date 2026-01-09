@@ -67,6 +67,55 @@ class Settings(BaseSettings):
     )
     grpc_max_retries: int = Field(default=3, description='Máximo de retries gRPC', ge=0)
 
+    # gRPC Client (Queen Agent)
+    queen_agent_grpc_host: str = Field(
+        default='queen-agent.queen-agent.svc.cluster.local',
+        description='Host do Queen Agent gRPC'
+    )
+    queen_agent_grpc_port: int = Field(
+        default=50051,
+        description='Porta do Queen Agent gRPC',
+        gt=0
+    )
+
+    # gRPC Client (Analyst Agent)
+    analyst_agent_grpc_host: str = Field(
+        default='analyst-agents.analyst-agents.svc.cluster.local',
+        description='Host do Analyst Agent gRPC'
+    )
+    analyst_agent_grpc_port: int = Field(
+        default=50051,
+        description='Porta do Analyst Agent gRPC',
+        gt=0
+    )
+
+    # SPIFFE/mTLS Configuration
+    spiffe_enabled: bool = Field(
+        default=False,
+        description='Habilitar autenticação via SPIFFE/SPIRE'
+    )
+    spiffe_enable_x509: bool = Field(
+        default=False,
+        description='Habilitar mTLS via SPIFFE X.509'
+    )
+    spiffe_socket_path: str = Field(
+        default='unix:///run/spire/sockets/agent.sock',
+        description='Caminho do socket do SPIRE Agent'
+    )
+    spiffe_trust_domain: str = Field(
+        default='neural-hive.local',
+        description='Trust domain SPIFFE'
+    )
+    spiffe_jwt_audience: str = Field(
+        default='neural-hive.local',
+        description='Audience para JWT-SVID'
+    )
+    spiffe_jwt_ttl_seconds: int = Field(
+        default=3600,
+        description='TTL do JWT-SVID em segundos',
+        gt=0
+    )
+
     # MongoDB (Ledger)
     mongodb_uri: str = Field(..., description='URI do MongoDB')
     mongodb_database: str = Field(default='neural_hive', description='Database MongoDB')

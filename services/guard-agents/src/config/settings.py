@@ -100,6 +100,38 @@ class Settings(BaseSettings):
     opa_url: str = "http://opa:8181"
     opa_timeout_seconds: int = 5
 
+    # OPA Policy Paths (without data. prefix - OPA endpoint /v1/data/{path} adds it automatically)
+    opa_security_policy_path: str = "neuralhive/guard/security_policies/result"
+    opa_compliance_policy_path: str = "neuralhive/guard/compliance_policies/result"
+    opa_resource_policy_path: str = "neuralhive/guard/resource_policies/result"
+
+    # Security Policy Thresholds
+    max_vulnerability_severity: str = "HIGH"
+    require_signed_images: bool = True
+    require_network_policies_production: bool = True
+    allowed_capabilities: list[str] = Field(
+        default_factory=lambda: ["NET_BIND_SERVICE"]
+    )
+
+    # Compliance Policy Thresholds
+    required_regulations: list[str] = Field(
+        default_factory=lambda: ["GDPR"]
+    )
+    max_retention_days: int = 365
+    max_pii_retention_days: int = 180
+    require_encryption_at_rest: bool = True
+    require_audit_logging: bool = True
+    min_audit_retention_days: int = 365
+
+    # Resource Policy Thresholds
+    max_cpu_per_container: str = "4000m"
+    max_memory_per_container: str = "8Gi"
+    min_replicas_production: int = 2
+    max_replicas: int = 100
+    require_hpa_production: bool = True
+    min_cpu_utilization_percent: int = 20
+    min_memory_utilization_percent: int = 20
+
     # Vault Integration
     vault_enabled: bool = False
     vault_addr: str = "http://vault:8200"
@@ -152,6 +184,26 @@ class Settings(BaseSettings):
     anomaly_detector_enabled: bool = True
     anomaly_detector_model_type: str = "isolation_forest"
     anomaly_detector_contamination: float = 0.05
+
+    # ITSM Integration Config
+    itsm_enabled: bool = False
+    itsm_type: str = Field(default="webhook", description="ITSM type: servicenow, jira, pagerduty, opsgenie, webhook")
+    itsm_url: Optional[str] = Field(default=None, description="ITSM API base URL")
+    itsm_api_key: Optional[str] = Field(default=None, description="ITSM API key or token")
+    itsm_username: Optional[str] = Field(default=None, description="ITSM username for basic auth")
+    itsm_password: Optional[str] = Field(default=None, description="ITSM password for basic auth")
+    itsm_timeout_seconds: int = 30
+
+    # ChaosMesh Config
+    chaosmesh_enabled: bool = False
+    chaosmesh_namespace: str = "chaos-testing"
+
+    # Script Execution Config
+    script_execution_enabled: bool = False
+    script_executor_namespace: str = "neural-hive"
+    script_executor_service_account: str = "guard-agents-executor"
+    script_executor_default_image: str = "alpine:3.18"
+    script_execution_timeout_seconds: int = 300
 
     @model_validator(mode='after')
     def validate_https_in_production(self) -> 'Settings':

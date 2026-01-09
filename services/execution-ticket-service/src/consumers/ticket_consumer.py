@@ -4,8 +4,10 @@ Kafka Consumer para consumir tickets do tópico execution.tickets.
 import asyncio
 import logging
 import json
+import time
+import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Callable, Awaitable, TYPE_CHECKING
 from confluent_kafka import Consumer, KafkaError
 from confluent_kafka.serialization import SerializationContext, MessageField
 from confluent_kafka.schema_registry import SchemaRegistryClient
@@ -18,10 +20,13 @@ from neural_hive_observability.context import (
 )
 
 from ..config import get_settings
-from ..models import ExecutionTicket
+from ..models import ExecutionTicket, WebhookEvent
 from ..database import get_postgres_client, get_mongodb_client
 from ..models.jwt_token import generate_token
 from ..observability.metrics import TicketServiceMetrics
+
+if TYPE_CHECKING:
+    from ..webhooks.webhook_manager import WebhookManager
 
 logger = logging.getLogger(__name__)
 
@@ -29,14 +34,34 @@ logger = logging.getLogger(__name__)
 class TicketConsumer:
     """Consumer Kafka para processar Execution Tickets."""
 
-    def __init__(self, settings, metrics: TicketServiceMetrics):
-        """Inicializa consumer."""
+    def __init__(
+        self,
+        settings,
+        metrics: TicketServiceMetrics,
+        webhook_manager_getter: Optional[Callable[[], Optional['WebhookManager']]] = None
+    ):
+        """
+        Inicializa consumer.
+
+        Args:
+            settings: Configurações do serviço
+            metrics: Instância de métricas
+            webhook_manager_getter: Função para obter WebhookManager (permite lazy loading)
+        """
         self.settings = settings
         self.metrics = metrics
+        self._webhook_manager_getter = webhook_manager_getter
         self.consumer: Optional[Consumer] = None
         self.schema_registry_client: Optional[SchemaRegistryClient] = None
         self.avro_deserializer: Optional[AvroDeserializer] = None
         self.running = False
+
+    @property
+    def webhook_manager(self) -> Optional['WebhookManager']:
+        """Obtém webhook manager via getter (permite lazy loading)."""
+        if self._webhook_manager_getter:
+            return self._webhook_manager_getter()
+        return None
 
     async def start(self):
         """Inicia consumer Kafka."""
@@ -166,6 +191,8 @@ class TicketConsumer:
         Args:
             ticket: ExecutionTicket consumido
         """
+        start_time = time.time()
+
         logger.info(
             f"Processing ticket {ticket.ticket_id}",
             plan_id=ticket.plan_id,
@@ -203,34 +230,37 @@ class TicketConsumer:
                 self.metrics.jwt_tokens_generated_total.inc()
 
             # 4. Disparar webhook (se configurado)
-            if self.settings.enable_webhooks and 'webhook_url' in ticket.metadata:
+            if self.settings.enable_webhooks and ticket.metadata and 'webhook_url' in ticket.metadata:
                 webhook_url = ticket.metadata['webhook_url']
 
-                # TODO: Enfileirar webhook no WebhookManager
-                # webhook_event = WebhookEvent(
-                #     event_id=str(uuid.uuid4()),
-                #     event_type='ticket.created',
-                #     ticket_id=ticket.ticket_id,
-                #     ticket=ticket,
-                #     timestamp=int(time.time() * 1000),
-                #     webhook_url=webhook_url
-                # )
-                # await webhook_manager.enqueue_webhook(webhook_event)
+                if self.webhook_manager:
+                    webhook_event = WebhookEvent(
+                        event_id=str(uuid.uuid4()),
+                        event_type='ticket.created',
+                        ticket_id=ticket.ticket_id,
+                        ticket=ticket,
+                        timestamp=int(time.time() * 1000),
+                        webhook_url=webhook_url
+                    )
+                    await self.webhook_manager.enqueue_webhook(webhook_event)
 
-                logger.debug(
-                    f"Webhook enqueued",
-                    ticket_id=ticket.ticket_id,
-                    webhook_url=webhook_url
-                )
+                    logger.debug(
+                        f"Webhook enqueued",
+                        ticket_id=ticket.ticket_id,
+                        webhook_url=webhook_url
+                    )
 
             # Métricas
             self.metrics.tickets_persisted_total.inc()
             self.metrics.tickets_by_status.labels(status=ticket.status.value).set(1)
 
+            duration_ms = int((time.time() - start_time) * 1000)
+            self.metrics.ticket_processing_duration_seconds.observe(duration_ms / 1000.0)
+
             logger.info(
                 f"Ticket processed successfully",
                 ticket_id=ticket.ticket_id,
-                duration_ms=10  # TODO: medir tempo real
+                duration_ms=duration_ms
             )
 
         except Exception as e:
@@ -265,17 +295,21 @@ class TicketConsumer:
         return security_config
 
 
-async def start_ticket_consumer(metrics: TicketServiceMetrics) -> TicketConsumer:
+async def start_ticket_consumer(
+    metrics: TicketServiceMetrics,
+    webhook_manager_getter: Optional[Callable[[], Optional['WebhookManager']]] = None
+) -> TicketConsumer:
     """
     Factory function para criar e iniciar consumer.
 
     Args:
         metrics: Instância de TicketServiceMetrics
+        webhook_manager_getter: Função para obter WebhookManager (permite lazy loading)
 
     Returns:
         TicketConsumer iniciado
     """
     settings = get_settings()
-    consumer = TicketConsumer(settings, metrics)
+    consumer = TicketConsumer(settings, metrics, webhook_manager_getter)
     await consumer.start()
     return consumer

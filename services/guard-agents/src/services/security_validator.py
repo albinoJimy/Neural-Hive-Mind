@@ -193,7 +193,7 @@ class SecurityValidator:
 
     async def _validate_opa_policies(self, ticket: dict) -> List[GuardrailViolation]:
         """
-        Valida ticket contra políticas OPA.
+        Valida ticket contra políticas OPA (security, compliance, resource).
 
         Args:
             ticket: ExecutionTicket
@@ -204,7 +204,179 @@ class SecurityValidator:
         violations = []
 
         try:
-            # Consultar OPA com policy path para execution tickets
+            # 1. Evaluate security policies
+            security_violations = await self._evaluate_security_policies(ticket)
+            violations.extend(security_violations)
+
+            # 2. Evaluate compliance policies
+            compliance_violations = await self._evaluate_compliance_policies(ticket)
+            violations.extend(compliance_violations)
+
+            # 3. Evaluate resource policies
+            resource_violations = await self._evaluate_resource_policies(ticket)
+            violations.extend(resource_violations)
+
+            # 4. Legacy policy evaluation (backward compatibility)
+            legacy_violations = await self._evaluate_legacy_policies(ticket)
+            violations.extend(legacy_violations)
+
+        except Exception as e:
+            logger.warning(
+                "security_validator.opa_validation_failed",
+                error=str(e),
+                ticket_id=ticket.get("ticket_id")
+            )
+
+        return violations
+
+    async def _evaluate_security_policies(self, ticket: dict) -> List[GuardrailViolation]:
+        """
+        Evaluate security policies against ticket.
+
+        Args:
+            ticket: ExecutionTicket
+
+        Returns:
+            Lista de violações de segurança
+        """
+        violations = []
+
+        try:
+            policy_input = {
+                "ticket": ticket,
+                "security": {
+                    "allowed_capabilities": self.settings.allowed_capabilities,
+                    "require_signed_images": self.settings.require_signed_images,
+                    "require_network_policies": self.settings.require_network_policies_production,
+                    "max_vulnerability_severity": self.settings.max_vulnerability_severity
+                }
+            }
+
+            result = await self.opa_client.evaluate_policy(
+                self.settings.opa_security_policy_path,
+                policy_input
+            )
+
+            violations.extend(self._map_opa_violations(
+                result,
+                "SecurityPolicies",
+                ViolationType.POLICY_VIOLATION
+            ))
+
+        except Exception as e:
+            logger.warning(
+                "security_validator.security_policies_failed",
+                error=str(e),
+                ticket_id=ticket.get("ticket_id")
+            )
+
+        return violations
+
+    async def _evaluate_compliance_policies(self, ticket: dict) -> List[GuardrailViolation]:
+        """
+        Evaluate compliance policies against ticket.
+
+        Args:
+            ticket: ExecutionTicket
+
+        Returns:
+            Lista de violações de compliance
+        """
+        violations = []
+
+        try:
+            policy_input = {
+                "ticket": ticket,
+                "compliance": {
+                    "required_regulations": self.settings.required_regulations,
+                    "max_retention_days": self.settings.max_retention_days,
+                    "require_encryption_at_rest": self.settings.require_encryption_at_rest,
+                    "require_audit_logging": self.settings.require_audit_logging,
+                    "min_audit_retention_days": self.settings.min_audit_retention_days,
+                    "max_pii_retention_days": self.settings.max_pii_retention_days
+                }
+            }
+
+            result = await self.opa_client.evaluate_policy(
+                self.settings.opa_compliance_policy_path,
+                policy_input
+            )
+
+            violations.extend(self._map_opa_violations(
+                result,
+                "CompliancePolicies",
+                ViolationType.COMPLIANCE_BREACH
+            ))
+
+        except Exception as e:
+            logger.warning(
+                "security_validator.compliance_policies_failed",
+                error=str(e),
+                ticket_id=ticket.get("ticket_id")
+            )
+
+        return violations
+
+    async def _evaluate_resource_policies(self, ticket: dict) -> List[GuardrailViolation]:
+        """
+        Evaluate resource policies against ticket.
+
+        Args:
+            ticket: ExecutionTicket
+
+        Returns:
+            Lista de violações de recursos
+        """
+        violations = []
+
+        try:
+            policy_input = {
+                "ticket": ticket,
+                "quotas": ticket.get("quotas", {}),
+                "thresholds": {
+                    "max_cpu_per_container": self.settings.max_cpu_per_container,
+                    "max_memory_per_container": self.settings.max_memory_per_container,
+                    "min_replicas_production": self.settings.min_replicas_production,
+                    "require_hpa_production": self.settings.require_hpa_production,
+                    "max_replicas": self.settings.max_replicas,
+                    "min_cpu_utilization_percent": self.settings.min_cpu_utilization_percent,
+                    "min_memory_utilization_percent": self.settings.min_memory_utilization_percent
+                }
+            }
+
+            result = await self.opa_client.evaluate_policy(
+                self.settings.opa_resource_policy_path,
+                policy_input
+            )
+
+            violations.extend(self._map_opa_violations(
+                result,
+                "ResourcePolicies",
+                ViolationType.RESOURCE_LIMIT_EXCEEDED
+            ))
+
+        except Exception as e:
+            logger.warning(
+                "security_validator.resource_policies_failed",
+                error=str(e),
+                ticket_id=ticket.get("ticket_id")
+            )
+
+        return violations
+
+    async def _evaluate_legacy_policies(self, ticket: dict) -> List[GuardrailViolation]:
+        """
+        Evaluate legacy OPA policies for backward compatibility.
+
+        Args:
+            ticket: ExecutionTicket
+
+        Returns:
+            Lista de violações
+        """
+        violations = []
+
+        try:
             policy_input = {
                 "ticket": ticket,
                 "metadata": {
@@ -238,13 +410,113 @@ class SecurityValidator:
                 )
 
         except Exception as e:
-            logger.warning(
-                "security_validator.opa_validation_failed",
+            logger.debug(
+                "security_validator.legacy_policies_skipped",
                 error=str(e),
                 ticket_id=ticket.get("ticket_id")
             )
 
         return violations
+
+    def _map_opa_violations(
+        self,
+        opa_result: dict,
+        detected_by: str,
+        default_violation_type: ViolationType
+    ) -> List[GuardrailViolation]:
+        """
+        Map OPA policy result to GuardrailViolation list.
+
+        Args:
+            opa_result: OPA evaluation result
+            detected_by: Name of the policy that detected violations
+            default_violation_type: Default violation type
+
+        Returns:
+            Lista de GuardrailViolation
+        """
+        violations = []
+
+        # Check if result has violations
+        result_violations = opa_result.get("violations", [])
+        if not result_violations:
+            result_violations = opa_result.get("result", {}).get("violations", [])
+
+        for violation in result_violations:
+            severity = self._map_severity(violation.get("severity", "MEDIUM"))
+            violation_type = self._map_violation_type(
+                violation.get("rule", ""),
+                default_violation_type
+            )
+
+            violations.append(
+                GuardrailViolation(
+                    violation_type=violation_type,
+                    severity=severity,
+                    description=violation.get("message", "Policy violation detected"),
+                    remediation_suggestion=violation.get(
+                        "remediation",
+                        "Review and fix the policy violation"
+                    ),
+                    detected_by=detected_by,
+                    evidence={
+                        "rule": violation.get("rule", "unknown"),
+                        "resource": violation.get("resource", ""),
+                        "details": violation.get("details", {}),
+                        "regulation": violation.get("regulation", "")
+                    }
+                )
+            )
+
+        return violations
+
+    def _map_severity(self, severity_str: str) -> Severity:
+        """
+        Map OPA severity string to Severity enum.
+
+        Args:
+            severity_str: Severity string from OPA
+
+        Returns:
+            Severity enum value
+        """
+        severity_mapping = {
+            "CRITICAL": Severity.CRITICAL,
+            "HIGH": Severity.HIGH,
+            "MEDIUM": Severity.MEDIUM,
+            "LOW": Severity.LOW
+        }
+        return severity_mapping.get(severity_str.upper(), Severity.MEDIUM)
+
+    def _map_violation_type(
+        self,
+        rule: str,
+        default_type: ViolationType
+    ) -> ViolationType:
+        """
+        Map OPA rule name to ViolationType.
+
+        Args:
+            rule: Rule name from OPA
+            default_type: Default violation type
+
+        Returns:
+            ViolationType enum value
+        """
+        rule_lower = rule.lower()
+
+        if any(x in rule_lower for x in ["secret", "credential", "password", "token"]):
+            return ViolationType.SECRET_EXPOSED
+        if any(x in rule_lower for x in ["rbac", "permission", "capability", "privilege"]):
+            return ViolationType.RBAC_VIOLATION
+        if any(x in rule_lower for x in ["compliance", "gdpr", "hipaa", "pci", "sox", "audit"]):
+            return ViolationType.COMPLIANCE_BREACH
+        if any(x in rule_lower for x in ["resource", "quota", "limit", "cpu", "memory"]):
+            return ViolationType.RESOURCE_LIMIT_EXCEEDED
+        if any(x in rule_lower for x in ["network", "ingress", "egress", "protocol"]):
+            return ViolationType.POLICY_VIOLATION
+
+        return default_type
 
     async def _validate_rbac(self, ticket: dict) -> List[GuardrailViolation]:
         """

@@ -36,6 +36,7 @@ Tests are organized using pytest markers:
 | Marker | Description |
 |--------|-------------|
 | `integration` | All integration tests |
+| `executor_integration` | Integration tests for worker agent executors |
 | `real_integration` | Tests requiring real external services |
 | `argocd` | ArgoCD-specific tests |
 | `code_forge` | Code Forge-specific tests |
@@ -46,6 +47,83 @@ Tests are organized using pytest markers:
 | `snyk` | Snyk vulnerability scanning tests |
 | `checkov` | Checkov IaC scanning tests |
 | `slow` | Tests that take more than 1 minute |
+
+## Testes de Integracao de Executors
+
+### Estrutura
+
+Os testes de integracao de executors estao organizados da seguinte forma:
+
+```
+tests/integration/
+├── test_deploy_executor_integration.py    # Testes para DeployExecutor (ArgoCD/Flux)
+├── test_test_executor_integration.py      # Testes para TestExecutor (GitHub Actions/GitLab CI/Jenkins)
+├── test_validate_executor_integration.py  # Testes para ValidateExecutor (OPA/Trivy)
+├── test_execute_executor_integration.py   # Testes para ExecuteExecutor (K8s/Docker/Lambda/Local)
+├── run_executor_integration_tests.sh      # Script para executar testes
+└── fixtures/
+    ├── __init__.py
+    └── testcontainers_helpers.py          # Helpers para testcontainers
+```
+
+### Executar Testes de Executors
+
+```bash
+# Todos os testes de integracao de executors
+bash tests/integration/run_executor_integration_tests.sh
+
+# Testes especificos por executor
+bash tests/integration/run_executor_integration_tests.sh deploy
+bash tests/integration/run_executor_integration_tests.sh test
+bash tests/integration/run_executor_integration_tests.sh validate
+bash tests/integration/run_executor_integration_tests.sh execute
+
+# Com coverage
+bash tests/integration/run_executor_integration_tests.sh --cov
+
+# Verbose mode
+bash tests/integration/run_executor_integration_tests.sh -v
+```
+
+### Cobertura de Cenarios por Executor
+
+| Executor | Cenarios Cobertos | Testes |
+|----------|-------------------|--------|
+| **DeployExecutor** | ArgoCD success, Flux success, timeout, API error, fallback, retry | 12+ testes |
+| **TestExecutor** | GitHub Actions, GitLab CI, Jenkins, local fallback, parsing, retry | 12+ testes |
+| **ValidateExecutor** | OPA allow/deny, timeout, API error, Trivy, metricas | 12+ testes |
+| **ExecuteExecutor** | K8s, Docker, Lambda, Local, fallback chain, timeout, simulation | 15+ testes |
+
+### Fixtures Disponiveis
+
+Os testes utilizam fixtures mockadas em `conftest.py`:
+
+- `mock_argocd_client`: Cliente ArgoCD mockado
+- `mock_flux_client`: Cliente Flux mockado
+- `mock_github_actions_client`: Cliente GitHub Actions mockado
+- `mock_gitlab_ci_client`: Cliente GitLab CI mockado
+- `mock_jenkins_client`: Cliente Jenkins mockado
+- `mock_opa_client`: Cliente OPA mockado
+- `mock_k8s_jobs_client`: Cliente Kubernetes Jobs mockado
+- `mock_docker_runtime_client`: Cliente Docker mockado
+- `mock_lambda_runtime_client`: Cliente Lambda mockado
+- `mock_local_runtime_client`: Cliente Local mockado
+
+### Testcontainers (Opcional)
+
+Para testes mais realistas, helpers de testcontainers estao disponiveis em `fixtures/testcontainers_helpers.py`:
+
+```python
+from fixtures.testcontainers_helpers import start_opa_container
+
+# Iniciar container OPA real
+container = start_opa_container()
+opa_url = get_container_url(container, 8181)
+
+# Executar testes...
+
+container.stop()
+```
 
 ## Running Tests
 

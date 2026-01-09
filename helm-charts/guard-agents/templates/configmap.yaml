@@ -55,3 +55,49 @@ data:
   ANOMALY_DETECTOR_ENABLED: {{ .Values.config.anomalyDetector.enabled | default true | quote }}
   ANOMALY_DETECTOR_MODEL_TYPE: {{ .Values.config.anomalyDetector.modelType | default "isolation_forest" | quote }}
   ANOMALY_DETECTOR_CONTAMINATION: {{ .Values.config.anomalyDetector.contamination | default 0.05 | quote }}
+
+  # OPA Config
+  OPA_URL: {{ .Values.config.opa.url | default "http://opa:8181" | quote }}
+  OPA_TIMEOUT_SECONDS: {{ .Values.config.opa.timeoutSeconds | default 5 | quote }}
+  OPA_ENFORCEMENT_ENABLED: {{ .Values.config.opa.enforcementEnabled | default true | quote }}
+
+  # OPA Policy Paths (without data. prefix - OPA endpoint /v1/data/{path} adds it automatically)
+  OPA_SECURITY_POLICY_PATH: {{ .Values.config.opa.securityPolicyPath | default "neuralhive/guard/security_policies/result" | quote }}
+  OPA_COMPLIANCE_POLICY_PATH: {{ .Values.config.opa.compliancePolicyPath | default "neuralhive/guard/compliance_policies/result" | quote }}
+  OPA_RESOURCE_POLICY_PATH: {{ .Values.config.opa.resourcePolicyPath | default "neuralhive/guard/resource_policies/result" | quote }}
+
+  # Security Policy Thresholds
+  MAX_VULNERABILITY_SEVERITY: {{ .Values.config.securityPolicies.maxVulnerabilitySeverity | default "HIGH" | quote }}
+  REQUIRE_SIGNED_IMAGES: {{ .Values.config.securityPolicies.requireSignedImages | default true | quote }}
+  REQUIRE_NETWORK_POLICIES_PRODUCTION: {{ .Values.config.securityPolicies.requireNetworkPoliciesProduction | default true | quote }}
+
+  # Compliance Policy Thresholds
+  MAX_RETENTION_DAYS: {{ .Values.config.compliancePolicies.maxRetentionDays | default 365 | quote }}
+  MAX_PII_RETENTION_DAYS: {{ .Values.config.compliancePolicies.maxPiiRetentionDays | default 180 | quote }}
+  REQUIRE_ENCRYPTION_AT_REST: {{ .Values.config.compliancePolicies.requireEncryptionAtRest | default true | quote }}
+  REQUIRE_AUDIT_LOGGING: {{ .Values.config.compliancePolicies.requireAuditLogging | default true | quote }}
+  MIN_AUDIT_RETENTION_DAYS: {{ .Values.config.compliancePolicies.minAuditRetentionDays | default 365 | quote }}
+
+  # Resource Policy Thresholds
+  MAX_CPU_PER_CONTAINER: {{ .Values.config.resourcePolicies.maxCpuPerContainer | default "4000m" | quote }}
+  MAX_MEMORY_PER_CONTAINER: {{ .Values.config.resourcePolicies.maxMemoryPerContainer | default "8Gi" | quote }}
+  MIN_REPLICAS_PRODUCTION: {{ .Values.config.resourcePolicies.minReplicasProduction | default 2 | quote }}
+  MAX_REPLICAS: {{ .Values.config.resourcePolicies.maxReplicas | default 100 | quote }}
+  REQUIRE_HPA_PRODUCTION: {{ .Values.config.resourcePolicies.requireHpaProduction | default true | quote }}
+  MIN_CPU_UTILIZATION_PERCENT: {{ .Values.config.resourcePolicies.minCpuUtilizationPercent | default 20 | quote }}
+  MIN_MEMORY_UTILIZATION_PERCENT: {{ .Values.config.resourcePolicies.minMemoryUtilizationPercent | default 20 | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "guard-agents.fullname" . }}-opa-policies
+  labels:
+    {{- include "guard-agents.labels" . | nindent 4 }}
+    app.kubernetes.io/component: opa-policies
+data:
+  security_policies.rego: |
+{{ .Files.Get "policies/security_policies.rego" | indent 4 }}
+  compliance_policies.rego: |
+{{ .Files.Get "policies/compliance_policies.rego" | indent 4 }}
+  resource_policies.rego: |
+{{ .Files.Get "policies/resource_policies.rego" | indent 4 }}

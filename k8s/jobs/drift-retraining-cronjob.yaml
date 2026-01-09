@@ -1,0 +1,92 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: drift-triggered-retraining
+  namespace: neural-hive-ml
+  labels:
+    app: drift-retraining
+    component: ml-pipeline
+    training-type: drift-triggered
+spec:
+  schedule: "0 */6 * * *"  # A cada 6 horas
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 7200  # 2 horas
+      template:
+        metadata:
+          labels:
+            app: drift-retraining
+            component: ml-pipeline
+          annotations:
+            prometheus.io/scrape: "true"
+            prometheus.io/port: "8000"
+        spec:
+          serviceAccountName: ml-training-sa
+          restartPolicy: OnFailure
+          containers:
+          - name: drift-retrainer
+            image: neural-hive-ml-training:1.0.7
+            imagePullPolicy: IfNotPresent
+            command:
+              - python
+              - /app/ml_pipelines/training/drift_triggered_retraining.py
+            args:
+              - --check-once
+            env:
+              - name: MLFLOW_TRACKING_URI
+                valueFrom:
+                  secretKeyRef:
+                    name: ml-training-secrets
+                    key: mlflow_tracking_uri
+              - name: MONGODB_URI
+                valueFrom:
+                  secretKeyRef:
+                    name: ml-training-secrets
+                    key: mongodb_uri
+              - name: DRIFT_THRESHOLD
+                valueFrom:
+                  configMapKeyRef:
+                    name: ml-training-config
+                    key: drift_threshold
+                    optional: true
+              - name: DRIFT_CHECK_INTERVAL_MINUTES
+                value: "360"  # 6 horas
+              - name: LOG_LEVEL
+                value: "INFO"
+            resources:
+              requests:
+                cpu: "1"
+                memory: 2Gi
+              limits:
+                cpu: "2"
+                memory: 4Gi
+            volumeMounts:
+              - name: model-artifacts
+                mountPath: /artifacts
+          volumes:
+            - name: model-artifacts
+              emptyDir: {}
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  preference:
+                    matchExpressions:
+                      - key: node-type
+                        operator: In
+                        values:
+                          - ml-training
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ml-training-config
+  namespace: neural-hive-ml
+data:
+  clickhouse_host: "clickhouse.neural-hive-data.svc.cluster.local"
+  drift_threshold: "0.2"
+  training_window_days: "540"

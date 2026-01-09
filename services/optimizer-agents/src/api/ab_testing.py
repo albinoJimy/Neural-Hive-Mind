@@ -142,20 +142,43 @@ class SampleSizeResponse(BaseModel):
 
 
 # Dependency injection functions
+# These are default providers that return HTTP 503 when not overridden.
+# In main.py, app.dependency_overrides replaces these with actual implementations.
 
 def get_mongodb_client() -> MongoDBClient:
-    """Dependency para injetar MongoDBClient."""
-    raise NotImplementedError("MongoDBClient dependency not configured")
+    """
+    Dependency para injetar MongoDBClient.
+
+    Returns HTTP 503 if not overridden via app.dependency_overrides in main.py.
+    """
+    raise HTTPException(
+        status_code=503,
+        detail="MongoDBClient not available. Service is starting or misconfigured."
+    )
 
 
 def get_redis_client() -> RedisClient:
-    """Dependency para injetar RedisClient."""
-    raise NotImplementedError("RedisClient dependency not configured")
+    """
+    Dependency para injetar RedisClient.
+
+    Returns HTTP 503 if not overridden via app.dependency_overrides in main.py.
+    """
+    raise HTTPException(
+        status_code=503,
+        detail="RedisClient not available. Service is starting or misconfigured."
+    )
 
 
 def get_ab_testing_engine() -> ABTestingEngine:
-    """Dependency para injetar ABTestingEngine."""
-    raise NotImplementedError("ABTestingEngine dependency not configured")
+    """
+    Dependency para injetar ABTestingEngine.
+
+    Returns HTTP 503 if not overridden via app.dependency_overrides in main.py.
+    """
+    raise HTTPException(
+        status_code=503,
+        detail="ABTestingEngine not available. Service is starting or misconfigured."
+    )
 
 
 # Endpoints

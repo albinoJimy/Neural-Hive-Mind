@@ -30,6 +30,16 @@ opentelemetry-exporter-otlp==1.39.1
 # Utilities
 python-json-logger>=2.0.0
 tenacity==9.0.0
+psutil>=5.9.0
+
+# Docker Runtime (opcional)
+aiodocker>=0.21.0
+
+# Kubernetes Runtime (opcional)
+kubernetes-asyncio>=24.2.3
+
+# AWS Lambda Runtime (opcional)
+aioboto3>=11.3.0
 
 # Integration library
 # Instalada via Dockerfile COPY + pip install

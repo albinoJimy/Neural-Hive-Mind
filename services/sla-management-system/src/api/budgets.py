@@ -62,19 +62,67 @@ class BurnRateResponse(BaseModel):
 
 # Dependency injection
 def get_budget_calculator() -> BudgetCalculator:
-    raise NotImplementedError
+    """
+    Retorna a instância de BudgetCalculator do estado da aplicação.
+
+    Em produção, é sobrescrito via dependency_overrides do FastAPI em main.py.
+    Este fallback acessa o singleton do módulo diretamente.
+    """
+    from .. import main
+    if main.budget_calculator is None:
+        raise HTTPException(
+            status_code=503,
+            detail="BudgetCalculator não inicializado. Serviço iniciando."
+        )
+    return main.budget_calculator
 
 
 def get_postgresql_client() -> PostgreSQLClient:
-    raise NotImplementedError
+    """
+    Retorna a instância de PostgreSQLClient do estado da aplicação.
+
+    Em produção, é sobrescrito via dependency_overrides do FastAPI em main.py.
+    Este fallback acessa o singleton do módulo diretamente.
+    """
+    from .. import main
+    if main.postgresql_client is None:
+        raise HTTPException(
+            status_code=503,
+            detail="PostgreSQLClient não inicializado. Serviço iniciando."
+        )
+    return main.postgresql_client
 
 
 def get_prometheus_client() -> PrometheusClient:
-    raise NotImplementedError
+    """
+    Retorna a instância de PrometheusClient do estado da aplicação.
+
+    Em produção, é sobrescrito via dependency_overrides do FastAPI em main.py.
+    Este fallback acessa o singleton do módulo diretamente.
+    """
+    from .. import main
+    if main.prometheus_client is None:
+        raise HTTPException(
+            status_code=503,
+            detail="PrometheusClient não inicializado. Serviço iniciando."
+        )
+    return main.prometheus_client
 
 
 def get_redis_client() -> RedisClient:
-    raise NotImplementedError
+    """
+    Retorna a instância de RedisClient do estado da aplicação.
+
+    Em produção, é sobrescrito via dependency_overrides do FastAPI em main.py.
+    Este fallback acessa o singleton do módulo diretamente.
+    """
+    from .. import main
+    if main.redis_client is None:
+        raise HTTPException(
+            status_code=503,
+            detail="RedisClient não inicializado. Serviço iniciando."
+        )
+    return main.redis_client
 
 
 @router.get("/{slo_id}", response_model=ErrorBudget)

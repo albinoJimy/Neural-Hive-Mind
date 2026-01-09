@@ -91,6 +91,15 @@ class MongoDBClient:
             logger.error('query_insights_failed', error=str(e))
             return []
 
+    async def count_insights(self, filters: dict) -> int:
+        """Contar total de insights que correspondem aos filtros"""
+        try:
+            count = await self.collection.count_documents(filters)
+            return count
+        except Exception as e:
+            logger.error('count_insights_failed', error=str(e))
+            return 0
+
     async def get_insights_by_type(self, insight_type: str, limit: int = 100) -> List[dict]:
         """Buscar insights por tipo"""
         return await self.query_insights({'insight_type': insight_type}, limit=limit)

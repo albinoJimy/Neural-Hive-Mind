@@ -47,19 +47,67 @@ class WebhookResponse(BaseModel):
 
 # Dependency injection
 def get_slo_manager() -> SLOManager:
-    raise NotImplementedError
+    """
+    Retorna a instância de SLOManager do estado da aplicação.
+
+    Em produção, é sobrescrito via dependency_overrides do FastAPI em main.py.
+    Este fallback acessa o singleton do módulo diretamente.
+    """
+    from .. import main
+    if main.slo_manager is None:
+        raise HTTPException(
+            status_code=503,
+            detail="SLOManager não inicializado. Serviço iniciando."
+        )
+    return main.slo_manager
 
 
 def get_budget_calculator() -> BudgetCalculator:
-    raise NotImplementedError
+    """
+    Retorna a instância de BudgetCalculator do estado da aplicação.
+
+    Em produção, é sobrescrito via dependency_overrides do FastAPI em main.py.
+    Este fallback acessa o singleton do módulo diretamente.
+    """
+    from .. import main
+    if main.budget_calculator is None:
+        raise HTTPException(
+            status_code=503,
+            detail="BudgetCalculator não inicializado. Serviço iniciando."
+        )
+    return main.budget_calculator
 
 
 def get_policy_enforcer() -> PolicyEnforcer:
-    raise NotImplementedError
+    """
+    Retorna a instância de PolicyEnforcer do estado da aplicação.
+
+    Em produção, é sobrescrito via dependency_overrides do FastAPI em main.py.
+    Este fallback acessa o singleton do módulo diretamente.
+    """
+    from .. import main
+    if main.policy_enforcer is None:
+        raise HTTPException(
+            status_code=503,
+            detail="PolicyEnforcer não inicializado. Serviço iniciando."
+        )
+    return main.policy_enforcer
 
 
 def get_postgresql_client() -> PostgreSQLClient:
-    raise NotImplementedError
+    """
+    Retorna a instância de PostgreSQLClient do estado da aplicação.
+
+    Em produção, é sobrescrito via dependency_overrides do FastAPI em main.py.
+    Este fallback acessa o singleton do módulo diretamente.
+    """
+    from .. import main
+    if main.postgresql_client is None:
+        raise HTTPException(
+            status_code=503,
+            detail="PostgreSQLClient não inicializado. Serviço iniciando."
+        )
+    return main.postgresql_client
 
 
 @router.post("/alertmanager", response_model=WebhookResponse)

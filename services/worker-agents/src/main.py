@@ -147,6 +147,39 @@ async def startup():
             except Exception as e:
                 logger.warning('code_forge_client_init_failed', error=str(e))
 
+        # Inicializar ArgoCD client se habilitado
+        argocd_client = None
+        if getattr(config, 'argocd_enabled', False) and config.argocd_url:
+            try:
+                from .clients.argocd_client import ArgoCDClient
+                argocd_client = ArgoCDClient(
+                    base_url=config.argocd_url,
+                    token=config.argocd_token,
+                    timeout=600
+                )
+                app_state['argocd_client'] = argocd_client
+                logger.info('argocd_client_initialized', url=config.argocd_url)
+            except Exception as e:
+                logger.warning('argocd_client_init_failed', error=str(e))
+
+        # Inicializar Flux client se habilitado
+        flux_client = None
+        if getattr(config, 'flux_enabled', False):
+            try:
+                from .clients.flux_client import FluxClient
+                flux_client = FluxClient(
+                    kubeconfig_path=getattr(config, 'flux_kubeconfig_path', None),
+                    namespace=getattr(config, 'flux_namespace', 'flux-system'),
+                    timeout=getattr(config, 'flux_timeout_seconds', 600)
+                )
+                await flux_client.initialize()
+                app_state['flux_client'] = flux_client
+                logger.info('flux_client_initialized', namespace=config.flux_namespace)
+            except ImportError:
+                logger.warning('flux_client_init_failed', error='kubernetes-asyncio not installed')
+            except Exception as e:
+                logger.warning('flux_client_init_failed', error=str(e))
+
         # Get Kafka credentials from Vault se habilitado
         kafka_username = None
         kafka_password = None
@@ -166,17 +199,167 @@ async def startup():
         result_producer = instrument_kafka_producer(result_producer)
         app_state['result_producer'] = result_producer
 
+        # Inicializar GitHub Actions client se habilitado
+        github_actions_client = None
+        if getattr(config, 'github_actions_enabled', False) and config.github_token:
+            try:
+                from .clients.github_actions_client import GitHubActionsClient
+                github_actions_client = GitHubActionsClient.from_env(config)
+                await github_actions_client.start()
+                app_state['github_actions_client'] = github_actions_client
+                logger.info('github_actions_client_initialized')
+            except Exception as e:
+                logger.warning('github_actions_client_init_failed', error=str(e))
+
+        # Inicializar GitLab CI client se habilitado
+        gitlab_ci_client = None
+        if getattr(config, 'gitlab_ci_enabled', False) and config.gitlab_token:
+            try:
+                from .clients.gitlab_ci_client import GitLabCIClient
+                gitlab_ci_client = GitLabCIClient.from_env(config)
+                await gitlab_ci_client.start()
+                app_state['gitlab_ci_client'] = gitlab_ci_client
+                logger.info('gitlab_ci_client_initialized')
+            except Exception as e:
+                logger.warning('gitlab_ci_client_init_failed', error=str(e))
+
+        # Inicializar Jenkins client se habilitado
+        jenkins_client = None
+        if getattr(config, 'jenkins_enabled', False) and config.jenkins_url and config.jenkins_token:
+            try:
+                from .clients.jenkins_client import JenkinsClient
+                jenkins_client = JenkinsClient.from_env(config)
+                await jenkins_client.start()
+                app_state['jenkins_client'] = jenkins_client
+                logger.info('jenkins_client_initialized', url=config.jenkins_url)
+            except Exception as e:
+                logger.warning('jenkins_client_init_failed', error=str(e))
+
         # Criar componentes de execução
         dependency_coordinator = DependencyCoordinator(config, ticket_client, metrics=metrics)
         app_state['dependency_coordinator'] = dependency_coordinator
 
+        # Inicializar OPA client se habilitado
+        opa_client = None
+        if getattr(config, 'opa_enabled', False) and config.opa_url:
+            try:
+                from .clients.opa_client import OPAClient
+                opa_client = OPAClient(
+                    base_url=config.opa_url,
+                    token=getattr(config, 'opa_token', None),
+                    timeout=getattr(config, 'opa_timeout_seconds', 30),
+                    verify_ssl=getattr(config, 'opa_verify_ssl', True),
+                    retry_attempts=getattr(config, 'opa_retry_attempts', 3),
+                    retry_backoff_base=getattr(config, 'opa_retry_backoff_base_seconds', 2),
+                    retry_backoff_max=getattr(config, 'opa_retry_backoff_max_seconds', 60),
+                )
+                app_state['opa_client'] = opa_client
+                logger.info('opa_client_initialized', url=config.opa_url)
+            except Exception as e:
+                logger.warning('opa_client_init_failed', error=str(e))
+
+        # Inicializar Docker Runtime client se habilitado
+        docker_client = None
+        if getattr(config, 'docker_enabled', False):
+            try:
+                from .clients.docker_runtime_client import DockerRuntimeClient
+                docker_client = DockerRuntimeClient(
+                    base_url=config.docker_base_url,
+                    timeout=config.docker_timeout_seconds,
+                    verify_ssl=config.docker_verify_ssl,
+                    default_cpu_limit=config.docker_default_cpu_limit,
+                    default_memory_limit=config.docker_default_memory_limit,
+                    cleanup_containers=config.docker_cleanup_containers,
+                )
+                await docker_client.initialize()
+                app_state['docker_client'] = docker_client
+                logger.info('docker_client_initialized', base_url=config.docker_base_url)
+            except ImportError:
+                logger.warning('docker_client_init_failed', error='aiodocker não instalado')
+            except Exception as e:
+                logger.warning('docker_client_init_failed', error=str(e))
+
+        # Inicializar K8s Jobs client se habilitado
+        k8s_jobs_client = None
+        if getattr(config, 'k8s_jobs_enabled', False):
+            try:
+                from .clients.k8s_jobs_client import KubernetesJobsClient
+                k8s_jobs_client = KubernetesJobsClient(
+                    kubeconfig_path=config.k8s_jobs_kubeconfig_path,
+                    namespace=config.k8s_jobs_namespace,
+                    timeout=config.k8s_jobs_timeout_seconds,
+                    poll_interval=config.k8s_jobs_poll_interval_seconds,
+                    cleanup_jobs=config.k8s_jobs_cleanup,
+                    service_account=config.k8s_jobs_service_account,
+                )
+                await k8s_jobs_client.initialize()
+                app_state['k8s_jobs_client'] = k8s_jobs_client
+                logger.info('k8s_jobs_client_initialized', namespace=config.k8s_jobs_namespace)
+            except ImportError:
+                logger.warning('k8s_jobs_client_init_failed', error='kubernetes-asyncio não instalado')
+            except Exception as e:
+                logger.warning('k8s_jobs_client_init_failed', error=str(e))
+
+        # Inicializar Lambda Runtime client se habilitado
+        lambda_client = None
+        if getattr(config, 'lambda_enabled', False):
+            try:
+                from .clients.lambda_runtime_client import LambdaRuntimeClient
+                lambda_client = LambdaRuntimeClient(
+                    region=config.lambda_region,
+                    access_key=config.lambda_access_key,
+                    secret_key=config.lambda_secret_key,
+                    timeout=config.lambda_timeout_seconds,
+                    function_name=config.lambda_function_name,
+                )
+                await lambda_client.initialize()
+                app_state['lambda_client'] = lambda_client
+                logger.info('lambda_client_initialized', region=config.lambda_region)
+            except ImportError:
+                logger.warning('lambda_client_init_failed', error='aioboto3 não instalado')
+            except Exception as e:
+                logger.warning('lambda_client_init_failed', error=str(e))
+
+        # Inicializar Local Runtime client (sempre habilitado como fallback)
+        local_client = None
+        if getattr(config, 'local_runtime_enabled', True):
+            try:
+                from .clients.local_runtime_client import LocalRuntimeClient
+                local_client = LocalRuntimeClient(
+                    allowed_commands=config.local_runtime_allowed_commands,
+                    timeout=config.local_runtime_timeout_seconds,
+                    enable_sandbox=config.local_runtime_enable_sandbox,
+                    working_dir=config.local_runtime_working_dir,
+                )
+                app_state['local_client'] = local_client
+                logger.info('local_client_initialized', working_dir=config.local_runtime_working_dir)
+            except Exception as e:
+                logger.warning('local_client_init_failed', error=str(e))
+
         # Criar e configurar registry de executores com Vault client
         executor_registry = TaskExecutorRegistry(config, metrics=metrics)
         executor_registry.register_executor(BuildExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client, metrics=metrics))
-        executor_registry.register_executor(DeployExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client, metrics=metrics))
-        executor_registry.register_executor(TestExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client, metrics=metrics))
-        executor_registry.register_executor(ValidateExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client, metrics=metrics))
-        executor_registry.register_executor(ExecuteExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client, metrics=metrics))
+        executor_registry.register_executor(DeployExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client, metrics=metrics, argocd_client=argocd_client, flux_client=flux_client))
+        executor_registry.register_executor(TestExecutor(
+            config,
+            vault_client=vault_client,
+            code_forge_client=code_forge_client,
+            metrics=metrics,
+            github_actions_client=github_actions_client,
+            gitlab_ci_client=gitlab_ci_client,
+            jenkins_client=jenkins_client
+        ))
+        executor_registry.register_executor(ValidateExecutor(config, vault_client=vault_client, code_forge_client=code_forge_client, metrics=metrics, opa_client=opa_client))
+        executor_registry.register_executor(ExecuteExecutor(
+            config,
+            vault_client=vault_client,
+            code_forge_client=code_forge_client,
+            metrics=metrics,
+            docker_client=docker_client,
+            k8s_jobs_client=k8s_jobs_client,
+            lambda_client=lambda_client,
+            local_client=local_client
+        ))
         executor_registry.validate_configuration()
         app_state['executor_registry'] = executor_registry
 
@@ -273,6 +456,37 @@ async def shutdown():
 
         if 'code_forge_client' in app_state and app_state['code_forge_client']:
             await app_state['code_forge_client'].close()
+
+        if 'argocd_client' in app_state and app_state['argocd_client']:
+            await app_state['argocd_client'].close()
+
+        if 'flux_client' in app_state and app_state['flux_client']:
+            await app_state['flux_client'].close()
+
+        if 'github_actions_client' in app_state and app_state['github_actions_client']:
+            await app_state['github_actions_client'].close()
+
+        if 'gitlab_ci_client' in app_state and app_state['gitlab_ci_client']:
+            await app_state['gitlab_ci_client'].close()
+
+        if 'jenkins_client' in app_state and app_state['jenkins_client']:
+            await app_state['jenkins_client'].close()
+
+        if 'opa_client' in app_state and app_state['opa_client']:
+            await app_state['opa_client'].close()
+
+        # Fechar runtime clients
+        if 'docker_client' in app_state and app_state['docker_client']:
+            await app_state['docker_client'].close()
+
+        if 'k8s_jobs_client' in app_state and app_state['k8s_jobs_client']:
+            await app_state['k8s_jobs_client'].close()
+
+        if 'lambda_client' in app_state and app_state['lambda_client']:
+            await app_state['lambda_client'].close()
+
+        if 'local_client' in app_state and app_state['local_client']:
+            await app_state['local_client'].close()
 
         logger.info('worker_agent_shutdown_complete')
 

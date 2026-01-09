@@ -54,10 +54,28 @@ data:
   ARGOCD_URL: {{ .Values.config.argocd.url | quote }}
   {{- end }}
   ARGOCD_ENABLED: {{ .Values.config.argocd.enabled | quote }}
+  {{- if .Values.config.argocd.timeoutSeconds }}
+  ARGOCD_TIMEOUT_SECONDS: {{ .Values.config.argocd.timeoutSeconds | quote }}
+  {{- end }}
+
+  # Flux CD Configuration
+  FLUX_ENABLED: {{ .Values.config.flux.enabled | quote }}
+  FLUX_NAMESPACE: {{ .Values.config.flux.namespace | quote }}
+  {{- if .Values.config.flux.kubeconfigPath }}
+  FLUX_KUBECONFIG_PATH: {{ .Values.config.flux.kubeconfigPath | quote }}
+  {{- end }}
+  FLUX_TIMEOUT_SECONDS: {{ .Values.config.flux.timeoutSeconds | quote }}
 
   # OPA Configuration
   OPA_URL: {{ .Values.config.opa.url | quote }}
   OPA_ENABLED: {{ .Values.config.opa.enabled | quote }}
+  OPA_TIMEOUT_SECONDS: {{ .Values.config.opa.timeoutSeconds | quote }}
+  OPA_VERIFY_SSL: {{ .Values.config.opa.verifySsl | quote }}
+  OPA_RETRY_ATTEMPTS: {{ .Values.config.opa.retryAttempts | quote }}
+  OPA_RETRY_BACKOFF_BASE_SECONDS: {{ .Values.config.opa.retryBackoffBaseSeconds | quote }}
+  OPA_RETRY_BACKOFF_MAX_SECONDS: {{ .Values.config.opa.retryBackoffMaxSeconds | quote }}
+  OPA_POLL_INTERVAL_SECONDS: {{ .Values.config.opa.pollIntervalSeconds | quote }}
+  OPA_POLL_TIMEOUT_SECONDS: {{ .Values.config.opa.pollTimeoutSeconds | quote }}
 
   # Trivy Configuration
   TRIVY_ENABLED: {{ .Values.config.trivy.enabled | quote }}
@@ -76,3 +94,48 @@ data:
   SONARQUBE_URL: {{ .Values.config.validation.sonarqube.url | quote }}
   SNYK_ENABLED: {{ .Values.config.validation.snyk.enabled | quote }}
   CHECKOV_ENABLED: {{ .Values.config.validation.checkov.enabled | quote }}
+
+  # Docker Runtime
+  {{- if .Values.config.runtimes }}
+  DOCKER_ENABLED: {{ .Values.config.runtimes.docker.enabled | quote }}
+  DOCKER_BASE_URL: {{ .Values.config.runtimes.docker.baseUrl | quote }}
+  DOCKER_TIMEOUT_SECONDS: {{ .Values.config.runtimes.docker.timeoutSeconds | quote }}
+  DOCKER_VERIFY_SSL: {{ .Values.config.runtimes.docker.verifySsl | quote }}
+  DOCKER_DEFAULT_CPU_LIMIT: {{ .Values.config.runtimes.docker.defaultCpuLimit | quote }}
+  DOCKER_DEFAULT_MEMORY_LIMIT: {{ .Values.config.runtimes.docker.defaultMemoryLimit | quote }}
+  DOCKER_NETWORK_MODE: {{ .Values.config.runtimes.docker.networkMode | quote }}
+  DOCKER_CLEANUP_CONTAINERS: {{ .Values.config.runtimes.docker.cleanupContainers | quote }}
+
+  # Kubernetes Jobs Runtime
+  K8S_JOBS_ENABLED: {{ .Values.config.runtimes.k8s.enabled | quote }}
+  K8S_JOBS_NAMESPACE: {{ .Values.config.runtimes.k8s.namespace | quote }}
+  {{- if .Values.config.runtimes.k8s.kubeconfigPath }}
+  K8S_JOBS_KUBECONFIG_PATH: {{ .Values.config.runtimes.k8s.kubeconfigPath | quote }}
+  {{- end }}
+  K8S_JOBS_TIMEOUT_SECONDS: {{ .Values.config.runtimes.k8s.timeoutSeconds | quote }}
+  K8S_JOBS_POLL_INTERVAL_SECONDS: {{ .Values.config.runtimes.k8s.pollIntervalSeconds | quote }}
+  K8S_JOBS_CLEANUP: {{ .Values.config.runtimes.k8s.cleanup | quote }}
+  K8S_JOBS_SERVICE_ACCOUNT: {{ .Values.config.runtimes.k8s.serviceAccount | quote }}
+  K8S_JOBS_DEFAULT_CPU_REQUEST: {{ .Values.config.runtimes.k8s.defaultCpuRequest | quote }}
+  K8S_JOBS_DEFAULT_CPU_LIMIT: {{ .Values.config.runtimes.k8s.defaultCpuLimit | quote }}
+  K8S_JOBS_DEFAULT_MEMORY_REQUEST: {{ .Values.config.runtimes.k8s.defaultMemoryRequest | quote }}
+  K8S_JOBS_DEFAULT_MEMORY_LIMIT: {{ .Values.config.runtimes.k8s.defaultMemoryLimit | quote }}
+  K8S_JOBS_BACKOFF_LIMIT: {{ .Values.config.runtimes.k8s.backoffLimit | quote }}
+
+  # AWS Lambda Runtime
+  LAMBDA_ENABLED: {{ .Values.config.runtimes.lambda.enabled | quote }}
+  LAMBDA_REGION: {{ .Values.config.runtimes.lambda.region | quote }}
+  LAMBDA_FUNCTION_NAME: {{ .Values.config.runtimes.lambda.functionName | quote }}
+  LAMBDA_TIMEOUT_SECONDS: {{ .Values.config.runtimes.lambda.timeoutSeconds | quote }}
+
+  # Local Runtime
+  LOCAL_RUNTIME_ENABLED: {{ .Values.config.runtimes.local.enabled | quote }}
+  LOCAL_RUNTIME_TIMEOUT_SECONDS: {{ .Values.config.runtimes.local.timeoutSeconds | quote }}
+  LOCAL_RUNTIME_ENABLE_SANDBOX: {{ .Values.config.runtimes.local.enableSandbox | quote }}
+  LOCAL_RUNTIME_ALLOWED_COMMANDS: '{{ .Values.config.runtimes.local.allowedCommands | toJson }}'
+  LOCAL_RUNTIME_WORKING_DIR: {{ .Values.config.runtimes.local.workingDir | quote }}
+
+  # Runtime Selection
+  DEFAULT_RUNTIME: {{ .Values.config.runtimes.defaultRuntime | quote }}
+  RUNTIME_FALLBACK_CHAIN: '{{ .Values.config.runtimes.fallbackChain | toJson }}'
+  {{- end }}

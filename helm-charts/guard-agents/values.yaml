@@ -104,11 +104,70 @@ config:
     modelType: isolation_forest
     contamination: 0.05
 
+  # ITSM Integration for critical incident escalation
+  itsm:
+    enabled: false
+    type: webhook  # servicenow, jira, pagerduty, opsgenie, webhook
+    url: ""
+    # API key injected via Secret (ITSM_API_KEY env var)
+    timeoutSeconds: 30
+
+  # ChaosMesh for chaos engineering experiments
+  chaosMesh:
+    enabled: false
+    namespace: chaos-testing
+
+  # Script execution for custom remediation
+  scriptExecution:
+    enabled: false
+    namespace: neural-hive
+    serviceAccount: guard-agents-executor
+    defaultImage: alpine:3.18
+    timeoutSeconds: 300
+
   enforcement:
     opaEnabled: true
     istioEnabled: true
     autoRemediationEnabled: true
     manualApprovalRequiredForCritical: true
+
+  # OPA Configuration
+  opa:
+    url: http://opa:8181
+    timeoutSeconds: 5
+    enforcementEnabled: true
+    # Policy paths for evaluation
+    securityPolicyPath: data.neuralhive.guard.security_policies.result
+    compliancePolicyPath: data.neuralhive.guard.compliance_policies.result
+    resourcePolicyPath: data.neuralhive.guard.resource_policies.result
+
+  # Security Policy Thresholds
+  securityPolicies:
+    maxVulnerabilitySeverity: HIGH
+    requireSignedImages: true
+    requireNetworkPoliciesProduction: true
+    allowedCapabilities:
+      - NET_BIND_SERVICE
+
+  # Compliance Policy Thresholds
+  compliancePolicies:
+    requiredRegulations:
+      - GDPR
+    maxRetentionDays: 365
+    maxPiiRetentionDays: 180
+    requireEncryptionAtRest: true
+    requireAuditLogging: true
+    minAuditRetentionDays: 365
+
+  # Resource Policy Thresholds
+  resourcePolicies:
+    maxCpuPerContainer: "4000m"
+    maxMemoryPerContainer: "8Gi"
+    minReplicasProduction: 2
+    maxReplicas: 100
+    requireHpaProduction: true
+    minCpuUtilizationPercent: 20
+    minMemoryUtilizationPercent: 20
 
   validation:
     enabled: true
@@ -252,6 +311,7 @@ secrets:
   kafkaSaslUsernameKey: KAFKA_SASL_USERNAME
   kafkaSaslPasswordKey: KAFKA_SASL_PASSWORD
   keycloakAdminClientSecretKey: KEYCLOAK_ADMIN_CLIENT_SECRET
+  itsmApiKeyKey: ITSM_API_KEY
 
 topologySpreadConstraints:
   - maxSkew: 1

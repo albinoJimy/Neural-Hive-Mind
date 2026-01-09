@@ -145,14 +145,18 @@ class AnalystServicer(analyst_agent_pb2_grpc.AnalystAgentServiceServicer):
                     skip=skip
                 )
 
+                # Obter total de documentos que correspondem aos filtros (para paginação)
+                total_count = await self.mongodb_client.count_insights(filters)
+
                 # Converter para proto
                 proto_insights = [self._insight_dict_to_proto(i) for i in insights]
-                total_count = len(proto_insights)
+                page_count = len(proto_insights)
 
-                span.set_attribute('results_count', total_count)
+                span.set_attribute('results_count', page_count)
+                span.set_attribute('total_count', total_count)
                 span.set_status(Status(StatusCode.OK))
 
-                logger.info('grpc_query_insights_success', count=total_count)
+                logger.info('grpc_query_insights_success', page_count=page_count, total_count=total_count)
 
                 return analyst_agent_pb2.QueryInsightsResponse(
                     insights=proto_insights,

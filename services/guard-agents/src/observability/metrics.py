@@ -170,6 +170,53 @@ guard_agent_risk_score_avg = Gauge(
     'Risk score médio dos tickets validados'
 )
 
+# Metricas de ML - Deteccao de Anomalias
+anomaly_detection_total = Counter(
+    'guard_agent_anomaly_detection_total',
+    'Total de deteccoes de anomalias via ML',
+    ['model_type', 'is_anomaly']
+)
+
+anomaly_detection_latency_seconds = Histogram(
+    'guard_agent_anomaly_detection_latency_seconds',
+    'Latencia de inferencia do modelo de anomalias',
+    ['model_type'],
+    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5]
+)
+
+anomaly_score_distribution = Histogram(
+    'guard_agent_anomaly_score',
+    'Distribuicao de scores de anomalia',
+    ['model_type'],
+    buckets=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+)
+
+# Metricas de Drift
+model_drift_score = Gauge(
+    'guard_agent_model_drift_score',
+    'Score de drift atual do modelo',
+    ['model_name']
+)
+
+drift_detection_total = Counter(
+    'guard_agent_drift_detection_total',
+    'Total de verificacoes de drift',
+    ['drift_detected']
+)
+
+# Metricas de Retreinamento
+ml_retraining_total = Counter(
+    'guard_agent_ml_retraining_total',
+    'Total de eventos de retreinamento',
+    ['model_type', 'trigger', 'success']
+)
+
+ml_model_version_info = Gauge(
+    'guard_agent_ml_model_version',
+    'Versao atual do modelo carregado',
+    ['model_name', 'stage']
+)
+
 validations_published_total = Counter(
     'guard_agent_validations_published_total',
     'Total de validações publicadas no Kafka',
@@ -284,3 +331,38 @@ class MetricsCollector:
         """Registra conclusão do fluxo E1-E6"""
         incident_flow_total.labels(completed=str(completed).lower()).inc()
         incident_flow_duration.observe(duration)
+
+    @staticmethod
+    def record_anomaly_detection(
+        model_type: str,
+        is_anomaly: bool,
+        anomaly_score: float,
+        latency_seconds: float
+    ):
+        """Registra deteccao de anomalia via ML."""
+        anomaly_detection_total.labels(
+            model_type=model_type,
+            is_anomaly=str(is_anomaly).lower()
+        ).inc()
+        anomaly_detection_latency_seconds.labels(model_type=model_type).observe(latency_seconds)
+        anomaly_score_distribution.labels(model_type=model_type).observe(anomaly_score)
+
+    @staticmethod
+    def record_drift_check(drift_detected: bool, drift_score: float, model_name: str):
+        """Registra verificacao de drift."""
+        drift_detection_total.labels(drift_detected=str(drift_detected).lower()).inc()
+        model_drift_score.labels(model_name=model_name).set(drift_score)
+
+    @staticmethod
+    def record_ml_retraining(model_type: str, trigger: str, success: bool):
+        """Registra evento de retreinamento ML."""
+        ml_retraining_total.labels(
+            model_type=model_type,
+            trigger=trigger,
+            success=str(success).lower()
+        ).inc()
+
+    @staticmethod
+    def update_model_version(model_name: str, version: int, stage: str = "Production"):
+        """Atualiza versao do modelo carregado."""
+        ml_model_version_info.labels(model_name=model_name, stage=stage).set(version)

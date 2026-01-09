@@ -17,7 +17,8 @@ class IncidentOrchestrator:
         remediation_coordinator,
         mongodb_client=None,
         kafka_producer=None,
-        prometheus_client=None
+        prometheus_client=None,
+        itsm_client=None
     ):
         self.threat_detector = threat_detector
         self.incident_classifier = incident_classifier
@@ -26,6 +27,7 @@ class IncidentOrchestrator:
         self.mongodb = mongodb_client
         self.kafka_producer = kafka_producer
         self.prometheus_client = prometheus_client
+        self.itsm_client = itsm_client
         self.sla_targets = self._initialize_sla_targets()
 
     def _initialize_sla_targets(self) -> Dict[str, float]:
@@ -491,20 +493,126 @@ class IncidentOrchestrator:
     async def _open_critical_incident(
         self, incident: Dict[str, Any], issues: List[str]
     ):
-        """E5: Abre incidente crítico quando SLA não é restaurado"""
+        """
+        E5: Abre incidente crítico quando SLA não é restaurado.
+
+        Integra com sistema ITSM (ServiceNow, Jira, PagerDuty, etc.)
+        para criar ticket de alta prioridade.
+
+        Args:
+            incident: Incidente original
+            issues: Lista de problemas detectados
+        """
+        original_incident_id = incident.get("incident_id")
+        severity = incident.get("severity", "high")
+        threat_type = incident.get("threat_type", "unknown")
+
         logger.error(
             "incident_orchestrator.opening_critical_incident",
-            original_incident_id=incident.get("incident_id"),
-            issues=issues
+            original_incident_id=original_incident_id,
+            issues=issues,
+            severity=severity
         )
 
-        # TODO: Integrar com sistema de ticketing (ITSM)
+        # Construir detalhes do incidente crítico
         critical_incident = {
             "type": "CRITICAL_SLA_BREACH",
-            "original_incident_id": incident.get("incident_id"),
+            "original_incident_id": original_incident_id,
             "issues": issues,
+            "severity": severity,
+            "threat_type": threat_type,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
+
+        # Usar itsm_client injetado via construtor
+        if self.itsm_client and self.itsm_client.is_healthy():
+            try:
+                # Construir título e descrição
+                title = f"Critical SLA Breach - {original_incident_id}"
+                description = (
+                    f"Automatic remediation failed to restore SLA for incident {original_incident_id}.\n\n"
+                    f"Threat Type: {threat_type}\n"
+                    f"Severity: {severity}\n"
+                    f"Time: {critical_incident['created_at']}\n\n"
+                    f"Issues:\n" + "\n".join(f"- {issue}" for issue in issues)
+                )
+
+                # Criar incidente no ITSM
+                result = await self.itsm_client.create_incident(
+                    title=title,
+                    description=description,
+                    priority="critical",
+                    category="sla_breach",
+                    original_incident_id=original_incident_id,
+                    issues=issues,
+                    metadata={
+                        "threat_type": threat_type,
+                        "severity": severity,
+                        "source": "guard-agents"
+                    }
+                )
+
+                if result.get("success"):
+                    ticket_id = result.get("ticket_id")
+                    critical_incident["itsm_ticket_id"] = ticket_id
+                    critical_incident["itsm_type"] = result.get("itsm_type")
+
+                    logger.info(
+                        "incident_orchestrator.itsm_ticket_created",
+                        ticket_id=ticket_id,
+                        original_incident_id=original_incident_id
+                    )
+                else:
+                    logger.error(
+                        "incident_orchestrator.itsm_creation_failed",
+                        original_incident_id=original_incident_id,
+                        error=result.get("error")
+                    )
+                    critical_incident["itsm_error"] = result.get("error")
+
+            except Exception as e:
+                logger.error(
+                    "incident_orchestrator.itsm_error",
+                    original_incident_id=original_incident_id,
+                    error=str(e)
+                )
+                critical_incident["itsm_error"] = str(e)
+        else:
+            logger.warning(
+                "incident_orchestrator.itsm_not_available",
+                action="open_critical_incident"
+            )
+            critical_incident["itsm_status"] = "not_available"
+
+        # Persistir incidente crítico no MongoDB
+        if self.mongodb and hasattr(self.mongodb, 'critical_incidents_collection'):
+            try:
+                if self.mongodb.critical_incidents_collection:
+                    await self.mongodb.critical_incidents_collection.insert_one(critical_incident)
+                    logger.info(
+                        "incident_orchestrator.critical_incident_persisted",
+                        original_incident_id=original_incident_id
+                    )
+            except Exception as e:
+                logger.error(
+                    "incident_orchestrator.persist_critical_incident_failed",
+                    error=str(e)
+                )
+
+        # Publicar evento de incidente crítico no Kafka
+        if self.kafka_producer:
+            try:
+                if hasattr(self.kafka_producer, 'publish_critical_incident'):
+                    await self.kafka_producer.publish_critical_incident(critical_incident)
+                    logger.info(
+                        "incident_orchestrator.critical_incident_published",
+                        original_incident_id=original_incident_id
+                    )
+            except Exception as e:
+                logger.error(
+                    "incident_orchestrator.publish_critical_incident_failed",
+                    error=str(e)
+                )
 
     def _create_no_incident_result(
         self, event: Dict[str, Any], flow_start_time: datetime
@@ -578,14 +686,62 @@ class IncidentOrchestrator:
                 )
 
     async def _publish_incident_outcome(self, result: Dict[str, Any]):
-        """Publica evento de conclusão"""
-        if self.kafka_producer:
-            try:
-                # TODO: Publish to Kafka
-                pass
-            except Exception as e:
-                logger.error(
-                    "incident_orchestrator.publish_failed",
-                    incident_id=result.get("incident_id"),
-                    error=str(e)
+        """
+        Publica evento de conclusão do fluxo E1-E6 no Kafka.
+
+        Args:
+            result: Resultado completo do fluxo de incidentes
+        """
+        incident_id = result.get("incident_id")
+
+        if not self.kafka_producer:
+            logger.warning(
+                "incident_orchestrator.no_kafka_producer",
+                incident_id=incident_id
+            )
+            return
+
+        try:
+            # Usar publish_remediation_result do RemediationProducer se disponível
+            if hasattr(self.kafka_producer, 'publish_remediation_result'):
+                published = await self.kafka_producer.publish_remediation_result(
+                    remediation_id=incident_id,
+                    result=result
                 )
+
+                if published:
+                    logger.info(
+                        "incident_orchestrator.outcome_published",
+                        incident_id=incident_id,
+                        flow=result.get("flow"),
+                        sla_met=result.get("e5_sla_validation", {}).get("sla_met")
+                    )
+                else:
+                    logger.error(
+                        "incident_orchestrator.publish_failed",
+                        incident_id=incident_id,
+                        reason="Producer returned False"
+                    )
+            else:
+                # Fallback: tentar método genérico send
+                if hasattr(self.kafka_producer, 'send'):
+                    await self.kafka_producer.send(
+                        topic="incident-outcomes",
+                        value=result
+                    )
+                    logger.info(
+                        "incident_orchestrator.outcome_published_fallback",
+                        incident_id=incident_id
+                    )
+                else:
+                    logger.warning(
+                        "incident_orchestrator.no_publish_method",
+                        incident_id=incident_id
+                    )
+
+        except Exception as e:
+            logger.error(
+                "incident_orchestrator.publish_error",
+                incident_id=incident_id,
+                error=str(e)
+            )

@@ -93,13 +93,30 @@ config:
   argocd:
     url: ""  # e.g., https://argocd.example.com
     enabled: false
-    token: ""  # Será movido para Secret
+    token: ""  # Sera movido para Secret
     tokenSecretName: argocd-token
     tokenSecretKey: token
+    timeoutSeconds: 600
+
+  flux:
+    enabled: false
+    namespace: flux-system
+    kubeconfigPath: ""  # Vazio para in-cluster config
+    timeoutSeconds: 600
 
   opa:
     url: http://opa.neural-hive-governance.svc.cluster.local:8181
     enabled: true
+    token: ""
+    tokenSecretName: opa-token
+    tokenSecretKey: token
+    timeoutSeconds: 30
+    verifySsl: true
+    retryAttempts: 3
+    retryBackoffBaseSeconds: 2
+    retryBackoffMaxSeconds: 60
+    pollIntervalSeconds: 5
+    pollTimeoutSeconds: 300
 
   trivy:
     enabled: true
@@ -158,6 +175,68 @@ config:
       tokenSecretName: snyk-token
     checkov:
       enabled: false
+
+  # Runtime Configuration para ExecuteExecutor
+  runtimes:
+    # Docker Runtime
+    docker:
+      enabled: false
+      baseUrl: "unix:///var/run/docker.sock"
+      timeoutSeconds: 600
+      verifySsl: true
+      defaultCpuLimit: 1.0
+      defaultMemoryLimit: "512m"
+      networkMode: "bridge"
+      cleanupContainers: true
+
+    # Kubernetes Jobs
+    k8s:
+      enabled: false
+      namespace: "neural-hive-execution"
+      kubeconfigPath: ""  # Vazio para in-cluster config
+      timeoutSeconds: 600
+      pollIntervalSeconds: 5
+      cleanup: true
+      serviceAccount: "worker-agent-executor"
+      defaultCpuRequest: "100m"
+      defaultCpuLimit: "1000m"
+      defaultMemoryRequest: "128Mi"
+      defaultMemoryLimit: "512Mi"
+      backoffLimit: 0
+
+    # AWS Lambda
+    lambda:
+      enabled: false
+      region: "us-east-1"
+      functionName: "neural-hive-executor"
+      timeoutSeconds: 900
+      accessKeySecretName: lambda-credentials
+      accessKeySecretKey: accessKey
+      secretKeySecretKey: secretKey
+
+    # Local Runtime
+    local:
+      enabled: true
+      timeoutSeconds: 300
+      enableSandbox: true
+      allowedCommands:
+        - python
+        - python3
+        - node
+        - bash
+        - sh
+        - terraform
+        - kubectl
+        - helm
+      workingDir: "/tmp/neural-hive-execution"
+
+    # Runtime selection
+    defaultRuntime: "local"
+    fallbackChain:
+      - k8s
+      - docker
+      - local
+      - simulation
 
 securityContext:
   runAsNonRoot: true

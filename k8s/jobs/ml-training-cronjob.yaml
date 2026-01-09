@@ -1,0 +1,111 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ml-model-training
+  namespace: neural-hive-ml
+  labels:
+    app: ml-model-training
+    component: ml-pipeline
+    training-type: periodic
+spec:
+  schedule: "0 2 * * 0"  # Domingo 2AM UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 14400  # 4 horas
+      template:
+        metadata:
+          labels:
+            app: ml-model-training
+            component: ml-pipeline
+          annotations:
+            prometheus.io/scrape: "true"
+            prometheus.io/port: "8000"
+        spec:
+          serviceAccountName: ml-training-sa
+          restartPolicy: OnFailure
+          containers:
+          - name: training
+            image: neural-hive-ml-training:1.0.7
+            imagePullPolicy: IfNotPresent
+            command:
+              - python
+              - /app/ml_pipelines/training/train_predictive_models.py
+            args:
+              - --model-type=all
+              - --training-window-days=540
+              - --promote-if-better
+              - --min-samples=1000
+            env:
+              - name: MLFLOW_TRACKING_URI
+                valueFrom:
+                  secretKeyRef:
+                    name: ml-training-secrets
+                    key: mlflow_tracking_uri
+              - name: MONGODB_URI
+                valueFrom:
+                  secretKeyRef:
+                    name: ml-training-secrets
+                    key: mongodb_uri
+              - name: CLICKHOUSE_HOST
+                valueFrom:
+                  configMapKeyRef:
+                    name: ml-training-config
+                    key: clickhouse_host
+                    optional: true
+              - name: CLICKHOUSE_PORT
+                value: "9000"
+              - name: CLICKHOUSE_USER
+                valueFrom:
+                  secretKeyRef:
+                    name: ml-training-secrets
+                    key: clickhouse_user
+                    optional: true
+              - name: CLICKHOUSE_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: ml-training-secrets
+                    key: clickhouse_password
+                    optional: true
+              - name: CLICKHOUSE_DATABASE
+                value: "neural_hive"
+              - name: LOG_LEVEL
+                value: "INFO"
+              - name: ALLOW_SYNTHETIC_FALLBACK
+                value: "true"
+            resources:
+              requests:
+                cpu: "2"
+                memory: 4Gi
+              limits:
+                cpu: "4"
+                memory: 8Gi
+            volumeMounts:
+              - name: training-data
+                mountPath: /data
+              - name: model-artifacts
+                mountPath: /artifacts
+          volumes:
+            - name: training-data
+              persistentVolumeClaim:
+                claimName: ml-training-data
+            - name: model-artifacts
+              emptyDir: {}
+          affinity:
+            nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  preference:
+                    matchExpressions:
+                      - key: node-type
+                        operator: In
+                        values:
+                          - ml-training
+          tolerations:
+            - key: "ml-workload"
+              operator: "Equal"
+              value: "true"
+              effect: "NoSchedule"

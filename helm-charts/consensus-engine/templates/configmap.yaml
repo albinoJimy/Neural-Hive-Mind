@@ -31,6 +31,22 @@ data:
   GRPC_TIMEOUT_MS: {{ .Values.config.specialists.grpcTimeoutMs | quote }}
   GRPC_MAX_RETRIES: {{ .Values.config.specialists.grpcMaxRetries | quote }}
 
+  # Queen Agent gRPC Configuration
+  {{- if .Values.config.queenAgent }}
+  QUEEN_AGENT_GRPC_HOST: {{ .Values.config.queenAgent.grpcHost | quote }}
+  QUEEN_AGENT_GRPC_PORT: {{ .Values.config.queenAgent.grpcPort | quote }}
+  {{- end }}
+
+  # SPIFFE/mTLS Configuration
+  {{- if .Values.config.spiffe }}
+  SPIFFE_ENABLED: {{ .Values.config.spiffe.enabled | quote }}
+  SPIFFE_ENABLE_X509: {{ .Values.config.spiffe.enableX509 | quote }}
+  SPIFFE_SOCKET_PATH: {{ .Values.config.spiffe.socketPath | quote }}
+  SPIFFE_TRUST_DOMAIN: {{ .Values.config.spiffe.trustDomain | quote }}
+  SPIFFE_JWT_AUDIENCE: {{ .Values.config.spiffe.jwtAudience | quote }}
+  SPIFFE_JWT_TTL_SECONDS: {{ .Values.config.spiffe.jwtTtlSeconds | quote }}
+  {{- end }}
+
   # MongoDB Configuration
   MONGODB_URI: {{ .Values.config.mongodb.uri | quote }}
   MONGODB_DATABASE: {{ .Values.config.mongodb.database | quote }}

@@ -19,6 +19,15 @@ except ImportError:
     PROTO_AVAILABLE = False
     logger.warning("proto_not_compiled", message="Run 'make proto' to compile protocol buffers")
 
+# gRPC Health Check imports
+try:
+    from grpc_health.v1 import health_pb2, health_pb2_grpc
+    from grpc_health.v1.health import HealthServicer
+    HEALTH_CHECK_AVAILABLE = True
+except ImportError:
+    HEALTH_CHECK_AVAILABLE = False
+    logger.warning("grpc_health_not_available", message="grpc-health-checking package not installed")
+
 # Extension proto imports
 try:
     from proto import consensus_engine_extensions_pb2_grpc, orchestrator_extensions_pb2_grpc
@@ -51,6 +60,7 @@ class GrpcServer:
         self.orchestrator_servicer = orchestrator_servicer
         self.settings = settings or get_settings()
         self.server: Optional[grpc.aio.Server] = None
+        self.health_servicer: Optional[HealthServicer] = None
 
     async def start(self):
         """Iniciar servidor gRPC."""
@@ -109,6 +119,30 @@ class GrpcServer:
             else:
                 logger.warning("grpc_servicer_not_registered", reason="proto_not_compiled")
 
+            # Registrar Health Check gRPC padrao
+            if HEALTH_CHECK_AVAILABLE:
+                self.health_servicer = HealthServicer()
+                health_pb2_grpc.add_HealthServicer_to_server(self.health_servicer, self.server)
+
+                # Definir status inicial como SERVING para todos os servicos
+                self.health_servicer.set('', health_pb2.HealthCheckResponse.SERVING)
+                if PROTO_AVAILABLE:
+                    self.health_servicer.set(
+                        'optimizer_agent.OptimizerAgent',
+                        health_pb2.HealthCheckResponse.SERVING
+                    )
+                if EXTENSION_PROTO_AVAILABLE and self.consensus_servicer:
+                    self.health_servicer.set(
+                        'consensus_engine_extensions.ConsensusOptimization',
+                        health_pb2.HealthCheckResponse.SERVING
+                    )
+                if EXTENSION_PROTO_AVAILABLE and self.orchestrator_servicer:
+                    self.health_servicer.set(
+                        'orchestrator_extensions.OrchestratorOptimization',
+                        health_pb2.HealthCheckResponse.SERVING
+                    )
+                logger.info("grpc_health_check_registered")
+
             # Adicionar porta
             listen_addr = f"[::]:{self.settings.grpc_port}"
             self.server.add_insecure_port(listen_addr)
@@ -133,9 +167,31 @@ class GrpcServer:
             grace_period: Período de graça em segundos
         """
         if self.server:
+            # Atualizar health check para NOT_SERVING antes de parar
+            if HEALTH_CHECK_AVAILABLE and self.health_servicer:
+                self.health_servicer.set('', health_pb2.HealthCheckResponse.NOT_SERVING)
+                logger.info("grpc_health_check_set_not_serving")
+
             logger.info("grpc_server_stopping", grace_period=grace_period)
             await self.server.stop(grace_period)
             logger.info("grpc_server_stopped")
+
+    def set_health_status(self, service_name: str, serving: bool):
+        """
+        Atualiza o status de health de um servico.
+
+        Args:
+            service_name: Nome do servico (ex: 'optimizer_agent.OptimizerAgent')
+            serving: True para SERVING, False para NOT_SERVING
+        """
+        if HEALTH_CHECK_AVAILABLE and self.health_servicer:
+            status = (
+                health_pb2.HealthCheckResponse.SERVING
+                if serving
+                else health_pb2.HealthCheckResponse.NOT_SERVING
+            )
+            self.health_servicer.set(service_name, status)
+            logger.info("grpc_health_status_updated", service=service_name, serving=serving)
 
 
 async def serve(servicer: OptimizerServicer, settings=None):

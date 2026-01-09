@@ -75,6 +75,12 @@ class Settings(BaseSettings):
     QUEEN_AGENT_GRPC_HOST: str = 'queen-agent'
     QUEEN_AGENT_GRPC_PORT: int = 50051
 
+    # SPIFFE/SPIRE mTLS
+    SPIFFE_ENABLED: bool = False
+    SPIFFE_SOCKET_PATH: str = 'unix:///run/spire/sockets/agent.sock'
+    SPIFFE_TRUST_DOMAIN: str = 'neural-hive.local'
+    SPIFFE_ENABLE_X509: bool = False
+
     # Service Registry
     SERVICE_REGISTRY_GRPC_HOST: str = 'service-registry'
     SERVICE_REGISTRY_GRPC_PORT: int = 50051

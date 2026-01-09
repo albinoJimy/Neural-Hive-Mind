@@ -15,10 +15,16 @@ Construir volumes e volumeMounts
 {{- $volumes := list }}
 {{- $volumes = append $volumes (dict "name" "tmp" "emptyDir" (dict)) }}
 {{- $volumes = append $volumes (dict "name" "logs" "emptyDir" (dict)) }}
+{{- if and .Values.config.spiffe .Values.config.spiffe.enabled }}
+{{- $volumes = append $volumes (dict "name" "spire-agent-socket" "hostPath" (dict "path" "/run/spire/sockets" "type" "DirectoryOrCreate")) }}
+{{- end }}
 
 {{- $volumeMounts := list }}
 {{- $volumeMounts = append $volumeMounts (dict "name" "tmp" "mountPath" "/tmp") }}
 {{- $volumeMounts = append $volumeMounts (dict "name" "logs" "mountPath" "/app/logs") }}
+{{- if and .Values.config.spiffe .Values.config.spiffe.enabled }}
+{{- $volumeMounts = append $volumeMounts (dict "name" "spire-agent-socket" "mountPath" "/run/spire/sockets" "readOnly" true) }}
+{{- end }}
 
 {{/*
 Construir valores modificados para o template comum

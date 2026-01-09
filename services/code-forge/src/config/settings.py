@@ -136,8 +136,10 @@ class Settings(BaseSettings):
         return f'http://{self.MCP_TOOL_CATALOG_HOST}:{self.MCP_TOOL_CATALOG_PORT}'
 
     # LLM Integration (Optional)
+    # Supported providers: 'openai', 'anthropic', 'local'
     LLM_PROVIDER: str = Field(default='', description='LLM provider (openai, anthropic, local)')
-    LLM_API_KEY: str = Field(default='', description='LLM API key (for OpenAI/Anthropic)')
+    LLM_API_KEY: str = Field(default='', description='LLM API key (for OpenAI)')
+    LLM_ANTHROPIC_API_KEY: str = Field(default='', description='LLM API key (for Anthropic)')
     LLM_MODEL: str = Field(default='gpt-4', description='LLM model name')
     LLM_BASE_URL: str = Field(default='', description='LLM base URL (for local/custom endpoints)')
     LLM_ENABLED: bool = Field(default=False, description='Enable LLM-based code generation')
@@ -173,6 +175,45 @@ class Settings(BaseSettings):
             raise ValueError(
                 f"Endpoints HTTP inseguros detectados em ambiente {self.ENVIRONMENT}: {endpoint_list}. "
                 "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+            )
+
+        return self
+
+    @model_validator(mode='after')
+    def validate_llm_config(self) -> 'Settings':
+        """
+        Valida configuração LLM quando habilitado.
+        Garante que API key apropriada está presente para o provider selecionado.
+        """
+        if not self.LLM_ENABLED:
+            return self
+
+        if not self.LLM_PROVIDER:
+            raise ValueError(
+                "LLM_PROVIDER obrigatório quando LLM_ENABLED=True. "
+                "Valores válidos: 'openai', 'anthropic', 'local'"
+            )
+
+        valid_providers = ['openai', 'anthropic', 'local']
+        if self.LLM_PROVIDER not in valid_providers:
+            raise ValueError(
+                f"LLM_PROVIDER inválido: '{self.LLM_PROVIDER}'. "
+                f"Valores válidos: {valid_providers}"
+            )
+
+        if self.LLM_PROVIDER == 'openai' and not self.LLM_API_KEY:
+            raise ValueError(
+                "LLM_API_KEY obrigatório quando LLM_PROVIDER='openai'"
+            )
+
+        if self.LLM_PROVIDER == 'anthropic' and not self.LLM_ANTHROPIC_API_KEY:
+            raise ValueError(
+                "LLM_ANTHROPIC_API_KEY obrigatório quando LLM_PROVIDER='anthropic'"
+            )
+
+        if self.LLM_PROVIDER == 'local' and not self.LLM_BASE_URL:
+            raise ValueError(
+                "LLM_BASE_URL obrigatório quando LLM_PROVIDER='local'"
             )
 
         return self

@@ -29,7 +29,29 @@ SONARQUBE_TOKEN = os.getenv('SONARQUBE_TOKEN', '')
 SNYK_TOKEN = os.getenv('SNYK_TOKEN', '')
 
 # Test mode from environment
+# Para habilitar testes de integração real, configure:
+#   export INTEGRATION_TEST_MODE=real
+#   pytest tests/integration/ -m real_integration
 INTEGRATION_TEST_MODE = os.getenv('INTEGRATION_TEST_MODE', 'mock')  # mock | real | hybrid
+
+
+def check_service_availability(url: str, timeout: int = 5) -> bool:
+    """
+    Verifica se um serviço está disponível.
+
+    Args:
+        url: URL do serviço
+        timeout: Timeout em segundos
+
+    Returns:
+        True se o serviço está disponível
+    """
+    try:
+        import httpx
+        response = httpx.get(url, timeout=timeout)
+        return response.status_code < 500
+    except Exception:
+        return False
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -487,3 +509,380 @@ def validate_ticket_iac():
             'working_dir': '/tmp/terraform',
         },
     }
+
+
+# ============================================
+# Execute Executor Fixtures
+# ============================================
+
+
+@pytest.fixture
+def execute_ticket():
+    """Sample EXECUTE ticket for testing."""
+    import uuid
+    ticket_id = str(uuid.uuid4())
+    return {
+        'ticket_id': ticket_id,
+        'task_id': f'task-{ticket_id[:8]}',
+        'task_type': 'EXECUTE',
+        'parameters': {
+            'command': 'echo',
+            'args': ['hello', 'world'],
+            'runtime': 'local',
+            'timeout_seconds': 60,
+        },
+    }
+
+
+@pytest.fixture
+def execute_ticket_k8s():
+    """Sample EXECUTE ticket for Kubernetes runtime."""
+    import uuid
+    ticket_id = str(uuid.uuid4())
+    return {
+        'ticket_id': ticket_id,
+        'task_id': f'task-{ticket_id[:8]}',
+        'task_type': 'EXECUTE',
+        'parameters': {
+            'command': ['python', '-c', 'print("test")'],
+            'runtime': 'k8s',
+            'image': 'python:3.11-slim',
+            'cpu_limit': '1000m',
+            'memory_limit': '512Mi',
+            'timeout_seconds': 300,
+        },
+    }
+
+
+@pytest.fixture
+def execute_ticket_docker():
+    """Sample EXECUTE ticket for Docker runtime."""
+    import uuid
+    ticket_id = str(uuid.uuid4())
+    return {
+        'ticket_id': ticket_id,
+        'task_id': f'task-{ticket_id[:8]}',
+        'task_type': 'EXECUTE',
+        'parameters': {
+            'command': ['echo', 'docker-test'],
+            'runtime': 'docker',
+            'image': 'alpine:latest',
+            'cpu_limit': 1.0,
+            'memory_limit': '256m',
+            'timeout_seconds': 120,
+        },
+    }
+
+
+@pytest.fixture
+def execute_ticket_lambda():
+    """Sample EXECUTE ticket for Lambda runtime."""
+    import uuid
+    ticket_id = str(uuid.uuid4())
+    return {
+        'ticket_id': ticket_id,
+        'task_id': f'task-{ticket_id[:8]}',
+        'task_type': 'EXECUTE',
+        'parameters': {
+            'command': 'handler',
+            'runtime': 'lambda',
+            'function_name': 'neural-hive-executor',
+            'timeout_seconds': 60,
+        },
+    }
+
+
+@pytest.fixture
+def mock_argocd_client():
+    """Mock ArgoCD client for integration tests."""
+    from dataclasses import dataclass
+
+    @dataclass
+    class MockHealthStatus:
+        status: str = 'Healthy'
+        message: str = ''
+
+    @dataclass
+    class MockSyncStatus:
+        status: str = 'Synced'
+        revision: str = 'abc123'
+
+    @dataclass
+    class MockApplicationStatus:
+        name: str = 'test-app'
+        health: MockHealthStatus = None
+        sync: MockSyncStatus = None
+
+        def __post_init__(self):
+            if self.health is None:
+                self.health = MockHealthStatus()
+            if self.sync is None:
+                self.sync = MockSyncStatus()
+
+    client = AsyncMock()
+    client.create_application = AsyncMock(return_value='test-app')
+    client.wait_for_health = AsyncMock(return_value=MockApplicationStatus())
+    client.get_application_status = AsyncMock(return_value=MockApplicationStatus())
+    client.delete_application = AsyncMock(return_value=True)
+    client.sync_application = AsyncMock(return_value=MockApplicationStatus())
+    return client
+
+
+@pytest.fixture
+def mock_flux_client():
+    """Mock Flux client for integration tests."""
+    from dataclasses import dataclass
+
+    @dataclass
+    class MockKustomizationStatus:
+        ready: bool = True
+        lastAppliedRevision: str = 'main/abc123'
+
+    client = AsyncMock()
+    client.create_kustomization = AsyncMock(return_value='test-kust')
+    client.wait_for_ready = AsyncMock(return_value=MockKustomizationStatus())
+    client.delete_kustomization = AsyncMock(return_value=True)
+    return client
+
+
+@pytest.fixture
+def mock_github_actions_client():
+    """Mock GitHub Actions client for integration tests."""
+    from dataclasses import dataclass
+
+    @dataclass
+    class MockWorkflowRunStatus:
+        run_id: int = 12345
+        status: str = 'completed'
+        conclusion: str = 'success'
+        success: bool = True
+        passed: int = 50
+        failed: int = 0
+        skipped: int = 2
+        coverage: float = 87.5
+        duration_seconds: float = 120.0
+        html_url: str = 'https://github.com/owner/repo/actions/runs/12345'
+        logs: list = None
+
+        def __post_init__(self):
+            if self.logs is None:
+                self.logs = ['Test run started', 'All tests passed']
+
+    client = AsyncMock()
+    client.trigger_workflow = AsyncMock(return_value=12345)
+    client.wait_for_run = AsyncMock(return_value=MockWorkflowRunStatus())
+    client.get_test_results = AsyncMock(return_value={'passed': 50, 'failed': 0})
+    client.default_repo = 'owner/repo'
+    return client
+
+
+@pytest.fixture
+def mock_gitlab_ci_client():
+    """Mock GitLab CI client for integration tests."""
+    from dataclasses import dataclass
+
+    @dataclass
+    class MockPipelineStatus:
+        pipeline_id: int = 54321
+        status: str = 'success'
+        success: bool = True
+        tests_passed: int = 75
+        tests_failed: int = 0
+        tests_skipped: int = 3
+        tests_errors: int = 0
+        coverage: float = 82.0
+        duration_seconds: float = 180.0
+        web_url: str = 'https://gitlab.com/project/-/pipelines/54321'
+        logs: list = None
+
+        def __post_init__(self):
+            if self.logs is None:
+                self.logs = ['Pipeline started', 'All jobs passed']
+
+    client = AsyncMock()
+    client.trigger_pipeline = AsyncMock(return_value=54321)
+    client.wait_for_pipeline = AsyncMock(return_value=MockPipelineStatus())
+    client.get_test_report = AsyncMock(return_value={'passed': 75, 'failed': 0})
+    client.download_and_parse_artifacts = AsyncMock(return_value={
+        'tests_passed': 75, 'tests_failed': 0, 'tests_skipped': 3, 'tests_errors': 0
+    })
+    return client
+
+
+@pytest.fixture
+def mock_jenkins_client():
+    """Mock Jenkins client for integration tests."""
+    from dataclasses import dataclass
+
+    @dataclass
+    class MockJenkinsBuildStatus:
+        build_number: int = 100
+        status: str = 'SUCCESS'
+        success: bool = True
+        tests_passed: int = 60
+        tests_failed: int = 0
+        tests_skipped: int = 5
+        coverage: float = 78.5
+        duration_seconds: float = 90.0
+        url: str = 'https://jenkins.example.com/job/test-job/100/'
+        logs: list = None
+
+        def __post_init__(self):
+            if self.logs is None:
+                self.logs = ['Build started', 'Tests executed']
+
+    client = AsyncMock()
+    client.trigger_job = AsyncMock(return_value=500)
+    client.wait_for_build_number = AsyncMock(return_value=100)
+    client.wait_for_build = AsyncMock(return_value=MockJenkinsBuildStatus())
+    client.get_test_report = AsyncMock(return_value={'passed': 60, 'failed': 0})
+    return client
+
+
+@pytest.fixture
+def mock_opa_client():
+    """Mock OPA client for integration tests."""
+    from dataclasses import dataclass
+    from enum import Enum
+
+    class MockViolationSeverity(Enum):
+        CRITICAL = 'CRITICAL'
+        HIGH = 'HIGH'
+        MEDIUM = 'MEDIUM'
+        LOW = 'LOW'
+
+    @dataclass
+    class MockViolation:
+        rule_id: str = 'rule-001'
+        message: str = 'Test violation'
+        severity: MockViolationSeverity = MockViolationSeverity.MEDIUM
+        resource: str = None
+        location: str = None
+
+    @dataclass
+    class MockPolicyEvaluationResponse:
+        allow: bool = True
+        violations: list = None
+        metadata: dict = None
+
+        def __post_init__(self):
+            if self.violations is None:
+                self.violations = []
+            if self.metadata is None:
+                self.metadata = {}
+
+    client = AsyncMock()
+    client.evaluate_policy = AsyncMock(return_value=MockPolicyEvaluationResponse())
+    client.count_violations_by_severity = MagicMock(return_value={
+        MockViolationSeverity.CRITICAL: 0,
+        MockViolationSeverity.HIGH: 0,
+        MockViolationSeverity.MEDIUM: 0,
+        MockViolationSeverity.LOW: 0,
+    })
+    return client
+
+
+@pytest.fixture
+def mock_k8s_jobs_client():
+    """Mock Kubernetes Jobs client for integration tests."""
+    from dataclasses import dataclass
+    from enum import Enum
+
+    class MockK8sJobStatus(Enum):
+        PENDING = 'pending'
+        RUNNING = 'running'
+        SUCCEEDED = 'succeeded'
+        FAILED = 'failed'
+
+    @dataclass
+    class MockK8sJobResult:
+        job_name: str = 'test-job-abc123'
+        pod_name: str = 'test-job-abc123-pod'
+        status: MockK8sJobStatus = MockK8sJobStatus.SUCCEEDED
+        exit_code: int = 0
+        logs: str = 'hello world'
+        duration_ms: int = 5000
+
+    client = AsyncMock()
+    client.execute_job = AsyncMock(return_value=MockK8sJobResult())
+    return client
+
+
+@pytest.fixture
+def mock_docker_runtime_client():
+    """Mock Docker runtime client for integration tests."""
+    from dataclasses import dataclass
+
+    @dataclass
+    class MockDockerExecutionResult:
+        container_id: str = 'abc123def456'
+        exit_code: int = 0
+        stdout: str = 'docker-test'
+        stderr: str = ''
+        duration_ms: int = 3000
+        image_pulled: bool = False
+
+    client = AsyncMock()
+    client.execute_command = AsyncMock(return_value=MockDockerExecutionResult())
+    return client
+
+
+@pytest.fixture
+def mock_lambda_runtime_client():
+    """Mock Lambda runtime client for integration tests."""
+    from dataclasses import dataclass
+
+    @dataclass
+    class MockLambdaResponse:
+        exit_code: int = 0
+        stdout: str = 'lambda result'
+        stderr: str = ''
+
+    @dataclass
+    class MockLambdaInvocationResult:
+        request_id: str = 'req-abc123'
+        status_code: int = 200
+        function_error: str = None
+        response: MockLambdaResponse = None
+        duration_ms: int = 1500
+        billed_duration_ms: int = 2000
+        memory_used_mb: int = 128
+
+        def __post_init__(self):
+            if self.response is None:
+                self.response = MockLambdaResponse()
+
+    client = AsyncMock()
+    client.invoke_lambda = AsyncMock(return_value=MockLambdaInvocationResult())
+    return client
+
+
+@pytest.fixture
+def mock_local_runtime_client():
+    """Mock Local runtime client for integration tests."""
+    from dataclasses import dataclass
+
+    @dataclass
+    class MockLocalExecutionResult:
+        exit_code: int = 0
+        stdout: str = 'local output'
+        stderr: str = ''
+        command_executed: str = 'echo hello world'
+        pid: int = 12345
+        duration_ms: int = 100
+
+    client = AsyncMock()
+    client.execute_local = AsyncMock(return_value=MockLocalExecutionResult())
+    return client
+
+
+@pytest.fixture
+def execute_executor(worker_config, mock_vault_client, mock_metrics):
+    """ExecuteExecutor with mocked dependencies."""
+    from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+
+    return ExecuteExecutor(
+        config=worker_config,
+        vault_client=mock_vault_client,
+        metrics=mock_metrics,
+    )

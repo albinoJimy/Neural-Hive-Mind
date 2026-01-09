@@ -269,6 +269,78 @@ async def lifespan(app: FastAPI):
     )
     app.state.threat_detector = threat_detector
 
+    # Inicializar ChaosMesh Client (opcional - graceful degradation)
+    chaosmesh_client = None
+    if settings.chaosmesh_enabled:
+        logger.info("guard_agent.initializing_chaosmesh_client")
+        from src.clients.chaosmesh_client import ChaosMeshClient
+        chaosmesh_client = ChaosMeshClient(
+            in_cluster=settings.kubernetes_in_cluster,
+            namespace=settings.chaosmesh_namespace,
+            enabled=settings.chaosmesh_enabled
+        )
+        try:
+            await chaosmesh_client.connect()
+            if chaosmesh_client.is_healthy():
+                logger.info("guard_agent.chaosmesh_client_ready")
+            else:
+                logger.warning("guard_agent.chaosmesh_client_not_healthy")
+                chaosmesh_client = None
+        except Exception as e:
+            logger.warning("guard_agent.chaosmesh_client_failed", error=str(e))
+            chaosmesh_client = None
+    app.state.chaosmesh_client = chaosmesh_client
+
+    # Inicializar Script Executor (opcional - graceful degradation)
+    script_executor = None
+    if settings.script_execution_enabled:
+        logger.info("guard_agent.initializing_script_executor")
+        from src.clients.script_executor import ScriptExecutor
+        script_executor = ScriptExecutor(
+            in_cluster=settings.kubernetes_in_cluster,
+            namespace=settings.script_executor_namespace,
+            enabled=settings.script_execution_enabled,
+            default_image=settings.script_executor_default_image,
+            service_account=settings.script_executor_service_account
+        )
+        try:
+            await script_executor.connect()
+            if script_executor.is_healthy():
+                logger.info("guard_agent.script_executor_ready")
+            else:
+                logger.warning("guard_agent.script_executor_not_healthy")
+                script_executor = None
+        except Exception as e:
+            logger.warning("guard_agent.script_executor_failed", error=str(e))
+            script_executor = None
+    app.state.script_executor = script_executor
+
+    # Inicializar ITSM Client (opcional - graceful degradation)
+    itsm_client = None
+    if settings.itsm_enabled:
+        logger.info("guard_agent.initializing_itsm_client")
+        from src.clients.itsm_client import ITSMClient
+        itsm_client = ITSMClient(
+            itsm_type=settings.itsm_type,
+            base_url=settings.itsm_url,
+            api_key=settings.itsm_api_key,
+            username=settings.itsm_username,
+            password=settings.itsm_password,
+            enabled=settings.itsm_enabled,
+            timeout_seconds=settings.itsm_timeout_seconds
+        )
+        try:
+            await itsm_client.connect()
+            if itsm_client.is_healthy():
+                logger.info("guard_agent.itsm_client_ready", itsm_type=settings.itsm_type)
+            else:
+                logger.warning("guard_agent.itsm_client_not_healthy")
+                itsm_client = None
+        except Exception as e:
+            logger.warning("guard_agent.itsm_client_failed", error=str(e))
+            itsm_client = None
+    app.state.itsm_client = itsm_client
+
     # Inicializar Security Validator
     logger.info("guard_agent.initializing_security_validator")
     from src.services.security_validator import SecurityValidator
@@ -315,7 +387,10 @@ async def lifespan(app: FastAPI):
         opa_client=app.state.opa_client,
         istio_client=app.state.istio_client,
         prometheus_client=app.state.prometheus_client,
-        threat_detector=app.state.threat_detector
+        threat_detector=app.state.threat_detector,
+        chaosmesh_client=chaosmesh_client,
+        script_executor=script_executor,
+        itsm_client=itsm_client
     )
     app.state.message_handler = message_handler
 
@@ -409,6 +484,9 @@ async def lifespan(app: FastAPI):
 
     if hasattr(app.state, 'trivy_client') and app.state.trivy_client:
         await app.state.trivy_client.close()
+
+    if hasattr(app.state, 'itsm_client') and app.state.itsm_client:
+        await app.state.itsm_client.close()
 
     # Desregistrar do Service Registry
     logger.info("guard_agent.closing_service_registry")

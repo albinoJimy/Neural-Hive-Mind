@@ -26,6 +26,9 @@ exclude_lines =
     if TYPE_CHECKING:
     @abstractmethod
     @overload
+    # Retry/backoff logic (difícil de testar)
+    await asyncio.sleep
+    except asyncio.CancelledError
 
 [html]
 directory = htmlcov

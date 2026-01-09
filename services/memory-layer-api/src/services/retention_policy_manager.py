@@ -176,10 +176,14 @@ class RetentionPolicyManager:
             return 0
 
         total_deleted = 0
+        # Inclui todas as coleções configuradas em data_types para MongoDB
         collections = [
             ('operational_context', 'operational_context'),
             ('data_lineage', 'data_lineage'),
-            ('data_quality_metrics', 'data_quality_metrics')
+            ('data_quality_metrics', 'data_quality_metrics'),
+            ('cognitive_ledger', 'cognitive_ledger'),
+            ('specialist_opinions', 'specialist_opinions'),
+            ('consensus_decisions', 'consensus_decisions')
         ]
 
         for collection_name, data_type in collections:

@@ -201,6 +201,7 @@ app.dependency_overrides[slos.get_slo_manager] = override_slo_manager
 app.dependency_overrides[budgets.get_budget_calculator] = override_budget_calculator
 app.dependency_overrides[budgets.get_postgresql_client] = override_postgresql_client
 app.dependency_overrides[budgets.get_prometheus_client] = override_prometheus_client
+app.dependency_overrides[budgets.get_redis_client] = lambda: redis_client
 app.dependency_overrides[policies.get_policy_enforcer] = override_policy_enforcer
 app.dependency_overrides[policies.get_postgresql_client] = override_postgresql_client
 app.dependency_overrides[webhooks.get_slo_manager] = override_slo_manager

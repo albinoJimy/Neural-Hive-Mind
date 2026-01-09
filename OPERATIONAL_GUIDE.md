@@ -396,6 +396,172 @@ Isso garante que decisões de consenso priorizem opiniões baseadas em ML quando
 ./scripts/validation/test-semantic-fallback.sh technical
 ```
 
+## Worker Agents - Validação de Executors
+
+### Visão Geral
+
+Os Worker Agents implementam 5 executors com integrações reais a sistemas externos. Esta seção documenta comandos de validação para cada executor.
+
+### Validação Completa
+
+```bash
+# Validar todas as integrações Worker Agents
+bash scripts/validation/validate-worker-agents-integrations.sh
+
+# Saída esperada:
+# ✅ BUILD Executor: Code Forge integration OK
+# ✅ DEPLOY Executor: ArgoCD integration OK
+# ✅ DEPLOY Executor: Flux integration OK
+# ✅ TEST Executor: GitHub Actions integration OK
+# ✅ VALIDATE Executor: OPA integration OK
+# ✅ EXECUTE Executor: K8s Jobs integration OK
+```
+
+### Validação por Executor
+
+**BUILD Executor - Code Forge**:
+```bash
+# Validar conectividade Code Forge
+kubectl exec -n neural-hive-execution deployment/worker-agents -- \
+  curl -f http://code-forge.neural-hive-code-forge:8000/health
+
+# Validar executor
+bash scripts/validation/validate-build-executor.sh
+
+# Verificar métricas
+kubectl port-forward -n neural-hive-execution svc/worker-agents 8000:8000
+curl -s http://localhost:8000/metrics | grep build_tasks_executed_total
+```
+
+**DEPLOY Executor - ArgoCD/Flux**:
+```bash
+# Verificar integração ArgoCD
+kubectl exec -n neural-hive-execution deployment/worker-agents -- \
+  curl -k https://argocd.neural-hive-argocd/api/version
+
+# Verificar integração Flux
+kubectl get kustomizations -n flux-system
+
+# Validar executor
+bash scripts/validation/validate-deploy-executor.sh
+```
+
+**TEST Executor - CI/CD**:
+```bash
+# Verificar token GitHub
+kubectl get secret github-token -n neural-hive-execution
+
+# Validar executor
+bash scripts/validation/validate-test-executor.sh
+
+# Verificar métricas
+curl -s http://localhost:8000/metrics | grep test_tasks_executed_total
+```
+
+**VALIDATE Executor - OPA/Security**:
+```bash
+# Verificar integração OPA
+kubectl exec -n neural-hive-execution deployment/worker-agents -- \
+  curl http://opa.neural-hive-governance:8181/health
+
+# Verificar Trivy instalado
+kubectl exec -n neural-hive-execution deployment/worker-agents -- trivy --version
+
+# Validar executor
+bash scripts/validation/validate-validate-executor.sh
+```
+
+**EXECUTE Executor - Multi-Runtime**:
+```bash
+# Verificar K8s Jobs RBAC
+kubectl auth can-i create jobs --as=system:serviceaccount:neural-hive-execution:worker-agent-executor
+
+# Verificar Docker disponível
+kubectl exec -n neural-hive-execution deployment/worker-agents -- docker ps 2>/dev/null || echo "Docker não disponível"
+
+# Validar executor
+bash scripts/validation/validate-execute-executor.sh
+```
+
+### Monitoramento Contínuo
+
+```bash
+# Dashboard Grafana Worker Agents
+kubectl port-forward -n observability svc/grafana 3000:3000
+# Acessar http://localhost:3000/d/worker-agents
+
+# Alertas Prometheus
+kubectl port-forward -n observability svc/prometheus 9090:9090
+# Acessar http://localhost:9090/alerts - buscar "WorkerAgent"
+
+# Distributed Tracing (Jaeger)
+kubectl port-forward -n observability svc/jaeger-query 16686:16686
+# Buscar por service="worker-agents" operation="task_execution"
+```
+
+### Manutenção Preventiva Worker Agents
+
+**Semanal**:
+```bash
+# Validar integrações
+bash scripts/validation/validate-worker-agents-integrations.sh
+
+# Verificar métricas de erro
+kubectl exec -n observability deployment/prometheus -- \
+  promtool query instant 'rate(build_tasks_executed_total{status="failed"}[1h]) > 0.1'
+```
+
+**Mensal**:
+```bash
+# Rotacionar tokens de integração
+kubectl delete secret github-token gitlab-token jenkins-token -n neural-hive-execution
+# Recriar secrets com novos tokens
+
+# Atualizar políticas OPA
+kubectl apply -f policies/rego/guard-agents/
+
+# Testar disaster recovery
+bash tests/e2e/phase2/worker-agents-disaster-recovery-test.sh
+```
+
+### Troubleshooting Worker Agents
+
+**Executor não encontra cliente de integração**:
+- **Sintoma**: Logs mostram fallback para simulação imediatamente
+- **Causa**: Cliente não inicializado (URL/token não configurado)
+- **Solução**: Verificar Helm values e secrets Kubernetes
+
+**Timeout em operações longas**:
+- **Sintoma**: Logs mostram timeout após X segundos
+- **Causa**: Timeout padrão insuficiente para operação
+- **Solução**: Aumentar `timeout_seconds` no ticket ou configuração global
+
+**Retry esgotado**:
+- **Sintoma**: Logs mostram 3 tentativas falhadas
+- **Causa**: Serviço externo indisponível ou erro persistente
+- **Solução**: Verificar conectividade e logs do serviço externo
+
+**Comandos de diagnóstico**:
+```bash
+# Verificar conectividade com serviços externos
+kubectl exec -n neural-hive-execution deployment/worker-agents -- \
+  curl -v http://code-forge:8000/health
+
+# Verificar secrets montados
+kubectl exec -n neural-hive-execution deployment/worker-agents -- \
+  ls -la /etc/secrets/
+
+# Verificar logs estruturados
+kubectl logs -n neural-hive-execution deployment/worker-agents --tail=100 | jq .
+
+# Verificar traces OpenTelemetry
+kubectl port-forward -n observability svc/jaeger-query 16686:16686
+```
+
+**Guia de Integração Completo**: `docs/WORKER_AGENTS_INTEGRATION_GUIDE.md`
+
+---
+
 ## Troubleshooting Rápido
 
 ### Problemas Comuns

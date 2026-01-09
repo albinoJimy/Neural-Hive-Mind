@@ -102,7 +102,12 @@ async def lifespan(app: FastAPI):
             return
         try:
             from .consumers import start_ticket_consumer
-            app.state.ticket_consumer = await start_ticket_consumer(app.state.metrics)
+            # Passa getter para webhook_manager (permite lazy loading)
+            webhook_manager_getter = lambda: app.state.webhook_manager
+            app.state.ticket_consumer = await start_ticket_consumer(
+                app.state.metrics,
+                webhook_manager_getter=webhook_manager_getter
+            )
             app.state.consumer_task = asyncio.create_task(app.state.ticket_consumer.consume())
             logger.info('kafka_consumer_started')
         except Exception as e:

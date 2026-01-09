@@ -44,6 +44,14 @@ class _Gauge:
         self.value = value
 
 
+class _Histogram:
+    def __init__(self):
+        self.observed_values = []
+
+    def observe(self, value):
+        self.observed_values.append(value)
+
+
 def _build_metrics():
     return SimpleNamespace(
         tickets_consumed_total=_Counter(),
@@ -52,6 +60,7 @@ def _build_metrics():
         tickets_persisted_total=_Counter(),
         tickets_by_status=_Gauge(),
         jwt_tokens_generated_total=_Counter(),
+        ticket_processing_duration_seconds=_Histogram(),
     )
 
 

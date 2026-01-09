@@ -1,5 +1,7 @@
 import httpx
+import jwt
 import structlog
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -117,14 +119,34 @@ class ExecutionTicketClient:
             if self.metrics:
                 self.metrics.ticket_api_calls_total.labels(method='update_ticket_status', status=api_status).inc()
 
+    def _is_token_expired(self, token: str) -> bool:
+        '''Verificar se token JWT está expirado'''
+        try:
+            # Decodificar sem verificar assinatura para extrair claims
+            claims = jwt.decode(token, options={'verify_signature': False})
+            exp = claims.get('exp')
+            if exp is None:
+                return True
+            # Comparar com timestamp atual (com margem de 30 segundos)
+            current_time = datetime.now(timezone.utc).timestamp()
+            return current_time >= (exp - 30)
+        except jwt.exceptions.DecodeError:
+            return True
+        except Exception:
+            return True
+
     async def get_ticket_token(self, ticket_id: str) -> str:
         '''Obter token JWT para ticket'''
         try:
             # Verificar cache
             if ticket_id in self._token_cache:
                 cached = self._token_cache[ticket_id]
-                # TODO: Verificar expiração do token
-                return cached['access_token']
+                token = cached.get('access_token')
+                if token and not self._is_token_expired(token):
+                    return token
+                # Token expirado ou inválido - remover do cache
+                self.logger.debug('token_expired_fetching_new', ticket_id=ticket_id)
+                del self._token_cache[ticket_id]
 
             response = await self.client.get(f'/api/v1/tickets/{ticket_id}/token')
             response.raise_for_status()

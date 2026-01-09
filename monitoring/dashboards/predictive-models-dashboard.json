@@ -256,6 +256,173 @@
           }
         },
         "gridPos": {"h": 4, "w": 6, "x": 6, "y": 20}
+      },
+      {
+        "id": 11,
+        "title": "Drift Score por Modelo",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "guard_agent_model_drift_score",
+            "legendFormat": "{{model_name}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none",
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 0.15, "color": "yellow"},
+                {"value": 0.2, "color": "red"}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+      },
+      {
+        "id": 12,
+        "title": "Deteccoes de Anomalias ML",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate(guard_agent_anomaly_detection_total{is_anomaly=\"true\"}[5m])) by (model_type)",
+            "legendFormat": "{{model_type}} - Anomalias",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(guard_agent_anomaly_detection_total{is_anomaly=\"false\"}[5m])) by (model_type)",
+            "legendFormat": "{{model_type}} - Normal",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+      },
+      {
+        "id": 13,
+        "title": "Latencia Inferencia ML (P95)",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(guard_agent_anomaly_detection_latency_seconds_bucket[5m])) by (le, model_type))",
+            "legendFormat": "{{model_type}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "min": 0,
+            "max": 0.2,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 0.05, "color": "yellow"},
+                {"value": 0.1, "color": "red"}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 6, "w": 6, "x": 0, "y": 32}
+      },
+      {
+        "id": 14,
+        "title": "Eventos de Retreinamento",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(guard_agent_ml_retraining_total{success=\"true\"}[24h])) by (model_type)",
+            "legendFormat": "{{model_type}} - OK",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(increase(guard_agent_ml_retraining_total{success=\"false\"}[24h])) by (model_type)",
+            "legendFormat": "{{model_type}} - Falha",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "yellow"}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 6, "w": 6, "x": 6, "y": 32}
+      },
+      {
+        "id": 15,
+        "title": "Distribuicao Anomaly Score",
+        "type": "histogram",
+        "targets": [
+          {
+            "expr": "sum(rate(guard_agent_anomaly_score_bucket[5m])) by (le, model_type)",
+            "legendFormat": "{{model_type}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none"
+          }
+        },
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 32}
+      },
+      {
+        "id": 16,
+        "title": "Drift Detectado (24h)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(guard_agent_drift_detection_total{drift_detected=\"true\"}[24h]))",
+            "legendFormat": "Drift Detectado",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(increase(guard_agent_drift_detection_total{drift_detected=\"false\"}[24h]))",
+            "legendFormat": "Sem Drift",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none"
+          }
+        },
+        "gridPos": {"h": 6, "w": 6, "x": 0, "y": 38}
+      },
+      {
+        "id": 17,
+        "title": "Versoes de Modelos em Production",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "guard_agent_ml_model_version{stage=\"Production\"}",
+            "format": "table",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {},
+          "overrides": []
+        },
+        "gridPos": {"h": 6, "w": 6, "x": 6, "y": 38}
       }
     ],
     "templating": {

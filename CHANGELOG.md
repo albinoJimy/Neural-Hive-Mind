@@ -5,7 +5,34 @@ All notable changes to the Neural Hive-Mind project will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2026-01-05
+## [Unreleased] - 2026-01-08
+
+### Added
+- **Worker Agents**: Validação de expiração de token JWT no cache (`services/worker-agents/src/clients/execution_ticket_client.py`)
+  - Método `_is_token_expired()` decodifica JWT e verifica claim `exp`
+  - Margem de 30 segundos para renovação antecipada
+  - Tokens malformados ou sem `exp` são automaticamente invalidados
+- **Execution Ticket Service**: Integração de webhook enqueueing com WebhookManager (`services/execution-ticket-service/src/consumers/ticket_consumer.py`)
+  - `TicketConsumer` agora aceita `webhook_manager_getter` para lazy loading
+  - Criação de `WebhookEvent` com dados completos do ticket
+  - Enfileiramento assíncrono via `webhook_manager.enqueue_webhook()`
+- **Execution Ticket Service**: Medição de tempo real de processamento de tickets
+  - Substituído valor hardcoded `duration_ms=10` por medição real
+  - Métrica Prometheus `ticket_processing_duration_seconds` atualizada com valores reais
+- **Worker Agents**: Configuração de testes de integração documentada
+  - Helper `check_service_availability()` em `conftest.py`
+  - Arquivo `.env.test.example` com variáveis de ambiente necessárias
+- **Testes**: Testes unitários para validação de expiração de token JWT (`services/worker-agents/tests/unit/test_execution_ticket_client.py`)
+
+### Fixed
+- **[SECURITY]** Tokens JWT expirados podiam ser reutilizados do cache no `ExecutionTicketClient`
+- **[OBSERVABILITY]** Métricas de duração de processamento de tickets estavam hardcoded
+- **[FEATURE]** Notificações webhook não eram enviadas para eventos de ciclo de vida de tickets
+
+### Changed
+- **Coverage**: Adicionadas exclusões para código de retry/backoff em `.coveragerc`
+
+## [Unreleased-previous] - 2026-01-05
 
 ### Removed
 - **[CLEANUP]** Módulos de tracing deprecated removidos de 4 serviços

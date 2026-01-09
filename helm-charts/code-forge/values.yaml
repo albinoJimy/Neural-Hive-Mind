@@ -150,6 +150,16 @@ secrets:
   gitTokenKey: GIT_TOKEN
   openaiApiKeyKey: OPENAI_API_KEY
   anthropicApiKeyKey: ANTHROPIC_API_KEY
+  # LLM API Keys (valores diretos, se não usando existingSecret)
+  openaiApiKey: ""
+  anthropicApiKey: ""
+
+# LLM Configuration
+llm:
+  enabled: false
+  provider: "openai"  # openai, anthropic, local
+  model: "gpt-4"
+  baseUrl: ""  # Para provider=local (ex: http://ollama:11434)
 
 networkPolicy:
   enabled: true

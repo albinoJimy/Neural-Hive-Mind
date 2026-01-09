@@ -345,13 +345,45 @@ class LineageTracker:
             total_impacted = result[0]['total_impacted']
             impacted_ids = result[0]['impacted_ids']
 
-            # TODO: Identify critical entities (high classification)
-            critical_impacted = 0
+            # Identificar entidades críticas baseado em:
+            # 1. Classificação de dados (critical, high)
+            # 2. Tipo de entidade (cognitive_plan, consensus_decision)
+            critical_query = """
+                MATCH (e {id: $entity_id})-[:DERIVED_FROM*1..5]->(derived)
+                WHERE derived.classification IN ['critical', 'high']
+                   OR derived.type IN ['cognitive_plan', 'consensus_decision', 'cognitive_ledger']
+                RETURN collect(DISTINCT derived.id) as critical_ids
+            """
+            critical_result = await self.neo4j.run_query(critical_query, {'entity_id': entity_id})
+
+            # Usar set para unificar IDs críticos e evitar duplicidade
+            critical_ids_set = set()
+
+            if critical_result and len(critical_result) > 0:
+                critical_ids_set.update(critical_result[0].get('critical_ids', []))
+
+            # Buscar entidades com alta contagem de dependências (>10 derivações = crítico)
+            high_dependency_query = """
+                MATCH (e {id: $entity_id})-[:DERIVED_FROM*1..5]->(derived)
+                WITH derived, size((derived)-[:DERIVED_FROM]->()) as dep_count
+                WHERE dep_count > 10
+                RETURN collect(DISTINCT derived.id) as high_dep_ids
+            """
+            high_dep_result = await self.neo4j.run_query(high_dependency_query, {'entity_id': entity_id})
+
+            if high_dep_result and len(high_dep_result) > 0:
+                # Adiciona IDs de alta dependência ao conjunto unificado
+                critical_ids_set.update(high_dep_result[0].get('high_dep_ids', []))
+
+            # critical_impacted é o tamanho do conjunto unificado (sem duplicatas)
+            critical_entities = list(critical_ids_set)
+            critical_impacted = len(critical_entities)
 
             return {
                 'entity_id': entity_id,
                 'total_impacted': total_impacted,
                 'critical_impacted': critical_impacted,
+                'critical_entities': critical_entities,
                 'impacted_entities': impacted_ids
             }
 

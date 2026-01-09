@@ -1,0 +1,633 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      },
+      {
+        "datasource": "Prometheus",
+        "enable": true,
+        "expr": "ALERTS{component=\"guard-agents\", severity=~\"warning|critical\"}",
+        "iconColor": "rgba(255, 96, 96, 1)",
+        "name": "Alertas Ativos",
+        "step": "60s",
+        "tagKeys": "alertname,severity",
+        "textFormat": "{{alertname}}: {{summary}}",
+        "titleFormat": "Alert"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {"asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": [], "targetBlank": true, "title": "Scout Agents", "tooltip": "", "type": "link", "url": "/d/scout-agents-detection"},
+    {"asDropdown": false, "icon": "external link", "includeVars": false, "keepTime": true, "tags": [], "targetBlank": true, "title": "Worker Agents", "tooltip": "", "type": "link", "url": "/d/worker-agents-execution"}
+  ],
+  "panels": [
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}, "id": 100, "panels": [], "title": "📊 Overview - Guard Agents", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 5, "x": 0, "y": 1},
+      "id": 1,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "sum(rate(guard_agent_threat_detection_total[5m]))", "refId": "A"}],
+      "title": "Threats Detected Rate",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 10}, {"color": "red", "value": 15}]},
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 5, "x": 5, "y": 1},
+      "id": 2,
+      "options": {"reduceOptions": {"calcs": ["mean"], "fields": "", "values": false}, "showThresholdLabels": false, "showThresholdMarkers": true},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "histogram_quantile(0.50, sum(rate(guard_agent_threat_detection_duration_seconds_bucket[5m])) by (le))", "refId": "A"}],
+      "title": "MTTD (Mean Time To Detect)",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 60}, {"color": "red", "value": 90}]},
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 5, "x": 10, "y": 1},
+      "id": 3,
+      "options": {"reduceOptions": {"calcs": ["mean"], "fields": "", "values": false}, "showThresholdLabels": false, "showThresholdMarkers": true},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "histogram_quantile(0.50, sum(rate(guard_agent_remediation_duration_seconds_bucket[5m])) by (le))", "refId": "A"}],
+      "title": "MTTR (Mean Time To Recover)",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 0.70}, {"color": "green", "value": 0.85}]},
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 5, "x": 15, "y": 1},
+      "id": 4,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showThresholdLabels": false, "showThresholdMarkers": true},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_remediation_total{status=\"success\"}[5m]) / rate(guard_agent_remediation_total[5m])", "refId": "A"}],
+      "title": "Auto-correction Rate",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 5}, {"color": "red", "value": 10}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 1},
+      "id": 5,
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "guard_agent_approvals_pending", "refId": "A"}],
+      "title": "Approvals Pending",
+      "type": "stat"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5}, "id": 101, "panels": [], "title": "🔍 Threat Detection (E1)", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 6},
+      "id": 6,
+      "options": {"legend": {"calcs": ["last", "mean"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_threat_detection_total[5m])", "legendFormat": "{{threat_type}} - {{severity}}", "refId": "A"}],
+      "title": "Threats by Type & Severity",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "spectrum", "schemeBy": "value"},
+          "custom": {"hideFrom": {"legend": false, "tooltip": false, "viz": false}},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 6},
+      "id": 7,
+      "options": {"calculate": true, "calculation": {"xBuckets": {"mode": "size", "value": "1min"}}, "cellGap": 1, "color": {"exponent": 0.5, "fill": "dark-orange", "mode": "scheme", "reverse": false, "scale": "exponential", "scheme": "Spectral", "steps": 64}, "exemplars": {"color": "rgba(255,0,255,0.7)"}, "filterValues": {"le": 1e-9}, "legend": {"show": true}, "rowsFrame": {"layout": "auto"}, "showValue": "never", "tooltip": {"show": true, "yHistogram": true}, "yAxis": {"axisPlacement": "left", "reverse": false, "unit": "s"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "sum(rate(guard_agent_threat_detection_duration_seconds_bucket[5m])) by (le)", "format": "heatmap", "legendFormat": "{{le}}", "refId": "A"}],
+      "title": "Detection Duration Distribution",
+      "type": "heatmap"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "line+area"}},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.02}, {"color": "red", "value": 0.05}]},
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 6},
+      "id": 8,
+      "options": {"legend": {"calcs": ["last", "mean"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_false_positive_total[5m]) / rate(guard_agent_threat_detection_total[5m])", "legendFormat": "False Positive Rate", "refId": "A"}],
+      "title": "False Positive Rate",
+      "type": "timeseries"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 14}, "id": 102, "panels": [], "title": "📋 Incident Classification (E2)", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 15},
+      "id": 9,
+      "options": {"legend": {"calcs": ["last", "mean"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_incident_classification_total[5m])", "legendFormat": "{{severity}} - {{runbook_id}}", "refId": "A"}],
+      "title": "Incidents Classified",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 15},
+      "id": 10,
+      "options": {"legend": {"calcs": ["last"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {"expr": "histogram_quantile(0.50, sum(rate(guard_agent_classification_duration_seconds_bucket[5m])) by (le))", "legendFormat": "P50", "refId": "A"},
+        {"expr": "histogram_quantile(0.95, sum(rate(guard_agent_classification_duration_seconds_bucket[5m])) by (le))", "legendFormat": "P95", "refId": "B"}
+      ],
+      "title": "Classification Duration P50/P95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.1}, {"color": "red", "value": 0.2}]},
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 15},
+      "id": 11,
+      "options": {"legend": {"calcs": ["last"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_human_review_required_total[5m]) / rate(guard_agent_incident_classification_total[5m])", "legendFormat": "Human Review Rate", "refId": "A"}],
+      "title": "Human Review Required Rate",
+      "type": "timeseries"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 23}, "id": 103, "panels": [], "title": "🛡️ Policy Enforcement (E3)", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 24},
+      "id": 12,
+      "options": {"legend": {"calcs": ["last", "mean"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_policy_enforcement_total[5m])", "legendFormat": "{{action}} - {{success}}", "refId": "A"}],
+      "title": "Policies Enforced",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "line+area"}},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.5}, {"color": "red", "value": 1}]},
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 6, "y": 24},
+      "id": 13,
+      "options": {"legend": {"calcs": ["last", "max"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_opa_denials_total[5m])", "legendFormat": "OPA Denials", "refId": "A"}],
+      "title": "OPA Denials",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 24},
+      "id": 14,
+      "options": {"legend": {"calcs": ["last"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(guard_agent_enforcement_duration_seconds_bucket[5m])) by (le))", "legendFormat": "P95", "refId": "A"}],
+      "title": "Enforcement Duration P95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 24},
+      "id": 15,
+      "options": {"legend": {"calcs": ["last", "sum"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_violations_detected_total[5m])", "legendFormat": "{{violation_type}} - {{severity}}", "refId": "A"}],
+      "title": "Policy Violations by Type",
+      "type": "timeseries"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 32}, "id": 104, "panels": [], "title": "🔧 Remediation (E4)", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 33},
+      "id": 16,
+      "options": {"legend": {"calcs": ["last", "mean"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_remediation_total[5m])", "legendFormat": "{{status}} - {{playbook}}", "refId": "A"}],
+      "title": "Remediations Executed",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 6, "x": 6, "y": 33},
+      "id": 17,
+      "options": {"legend": {"calcs": ["last", "mean"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_remediation_actions_total[5m])", "legendFormat": "{{action_type}} - {{success}}", "refId": "A"}],
+      "title": "Remediation Actions",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "line+area"}},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.1}, {"color": "red", "value": 0.5}]},
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 33},
+      "id": 18,
+      "options": {"legend": {"calcs": ["last", "max"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_rollback_total[5m])", "legendFormat": "Rollbacks", "refId": "A"}],
+      "title": "Rollbacks",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "spectrum", "schemeBy": "value"},
+          "custom": {"hideFrom": {"legend": false, "tooltip": false, "viz": false}},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 33},
+      "id": 19,
+      "options": {"calculate": true, "calculation": {"xBuckets": {"mode": "size", "value": "1min"}}, "cellGap": 1, "color": {"exponent": 0.5, "fill": "dark-orange", "mode": "scheme", "reverse": false, "scale": "exponential", "scheme": "Spectral", "steps": 64}, "exemplars": {"color": "rgba(255,0,255,0.7)"}, "filterValues": {"le": 1e-9}, "legend": {"show": true}, "rowsFrame": {"layout": "auto"}, "showValue": "never", "tooltip": {"show": true, "yHistogram": true}, "yAxis": {"axisPlacement": "left", "reverse": false, "unit": "s"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "sum(rate(guard_agent_remediation_duration_seconds_bucket[5m])) by (le)", "format": "heatmap", "legendFormat": "{{le}}", "refId": "A"}],
+      "title": "Remediation Duration Heatmap",
+      "type": "heatmap"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 41}, "id": 105, "panels": [], "title": "📊 SLA Tracking (E5)", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 0.90}, {"color": "green", "value": 0.95}]},
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 42},
+      "id": 20,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showThresholdLabels": false, "showThresholdMarkers": true},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_sla_restoration_success_total[5m]) / rate(guard_agent_sla_restoration_total[5m])", "refId": "A"}],
+      "title": "SLA Restoration Rate",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 42},
+      "id": 21,
+      "options": {"legend": {"calcs": ["last", "sum"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_sla_breach_total[5m])", "legendFormat": "{{reason}}", "refId": "A"}],
+      "title": "SLA Breaches",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "s"},
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "MTTD"}, "properties": [{"id": "color", "value": {"fixedColor": "blue", "mode": "fixed"}}]},
+          {"matcher": {"id": "byName", "options": "MTTR"}, "properties": [{"id": "color", "value": {"fixedColor": "orange", "mode": "fixed"}}]}
+        ]
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 42},
+      "id": 22,
+      "options": {"legend": {"calcs": ["last", "mean"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {"expr": "histogram_quantile(0.50, sum(rate(guard_agent_threat_detection_duration_seconds_bucket[5m])) by (le))", "legendFormat": "MTTD", "refId": "A"},
+        {"expr": "histogram_quantile(0.50, sum(rate(guard_agent_remediation_duration_seconds_bucket[5m])) by (le))", "legendFormat": "MTTR", "refId": "B"}
+      ],
+      "title": "MTTR vs MTTD Comparison",
+      "type": "timeseries"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 50}, "id": 106, "panels": [], "title": "🎫 Ticket Validation", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 51},
+      "id": 23,
+      "options": {"legend": {"calcs": ["last", "mean"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_tickets_validated_total[5m])", "legendFormat": "{{status}} - {{validator_type}}", "refId": "A"}],
+      "title": "Tickets Validated",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 51},
+      "id": 24,
+      "options": {"legend": {"calcs": ["last"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(guard_agent_validation_duration_seconds_bucket[5m])) by (le, validator_type))", "legendFormat": "{{validator_type}}", "refId": "A"}],
+      "title": "Validation Duration by Type",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "line+area"}},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 0.001}]},
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 51},
+      "id": 25,
+      "options": {"legend": {"calcs": ["last", "sum"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_secrets_detected_total[5m])", "legendFormat": "{{secret_type}}", "refId": "A"}],
+      "title": "Secrets Detected",
+      "type": "timeseries"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 59}, "id": 107, "panels": [], "title": "🤖 ML Anomaly Detection", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 60},
+      "id": 26,
+      "options": {"legend": {"calcs": ["last", "mean"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_anomaly_detection_total[5m])", "legendFormat": "{{model_type}} - {{is_anomaly}}", "refId": "A"}],
+      "title": "Anomaly Detection Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "spectrum", "schemeBy": "value"},
+          "custom": {"hideFrom": {"legend": false, "tooltip": false, "viz": false}},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 60},
+      "id": 27,
+      "options": {"calculate": true, "calculation": {"xBuckets": {"mode": "size", "value": "1min"}}, "cellGap": 1, "color": {"exponent": 0.5, "fill": "dark-orange", "mode": "scheme", "reverse": false, "scale": "exponential", "scheme": "RdYlGn", "steps": 64}, "exemplars": {"color": "rgba(255,0,255,0.7)"}, "filterValues": {"le": 1e-9}, "legend": {"show": true}, "rowsFrame": {"layout": "auto"}, "showValue": "never", "tooltip": {"show": true, "yHistogram": true}, "yAxis": {"axisPlacement": "left", "reverse": false}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "guard_agent_anomaly_score", "legendFormat": "{{model_type}}", "refId": "A"}],
+      "title": "Anomaly Score Distribution",
+      "type": "heatmap"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.3}, {"color": "red", "value": 0.5}]},
+          "unit": "percentunit", "min": 0, "max": 1
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 60},
+      "id": 28,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showThresholdLabels": false, "showThresholdMarkers": true},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "guard_agent_model_drift_score", "legendFormat": "{{model_type}}", "refId": "A"}],
+      "title": "Model Drift Score",
+      "type": "gauge"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 68}, "id": 108, "panels": [], "title": "🔌 External Integrations", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 69},
+      "id": 29,
+      "options": {"legend": {"calcs": ["last", "mean"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_trivy_scans_total[5m])", "legendFormat": "{{scan_type}} - {{status}}", "refId": "A"}],
+      "title": "Trivy Scans",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 69},
+      "id": 30,
+      "options": {"legend": {"calcs": ["last", "mean"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_vault_requests_total[5m])", "legendFormat": "{{operation}} - {{status}}", "refId": "A"}],
+      "title": "Vault Requests",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 69},
+      "id": 31,
+      "options": {"legend": {"calcs": ["last", "mean"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_validations_published_total[5m])", "legendFormat": "{{topic}} - {{status}}", "refId": "A"}],
+      "title": "Kafka Validations Published",
+      "type": "timeseries"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 77}, "id": 109, "panels": [], "title": "🔄 Incident Flow (E1-E6)", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 78},
+      "id": 32,
+      "options": {"legend": {"calcs": ["last", "mean", "max"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(guard_agent_incident_flow_duration_seconds_bucket[5m])) by (le))", "legendFormat": "P95 Flow Duration", "refId": "A"}],
+      "title": "Complete Flow Duration",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 0.85}, {"color": "green", "value": 0.95}]},
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 78},
+      "id": 33,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showThresholdLabels": false, "showThresholdMarkers": true},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_incident_flow_completed_total[5m]) / rate(guard_agent_incident_flow_total[5m])", "refId": "A"}],
+      "title": "Flow Completion Rate",
+      "type": "gauge"
+    },
+    {"collapsed": false, "datasource": null, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 86}, "id": 110, "panels": [], "title": "🚨 Alertas Visuais", "type": "row"},
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 87},
+      "id": 34,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "count(ALERTS{component=\"guard-agents\", severity=\"critical\", alertstate=\"firing\"}) or vector(0)", "refId": "A"}],
+      "title": "Critical Alerts",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 3}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 87},
+      "id": 35,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "count(ALERTS{component=\"guard-agents\", severity=\"warning\", alertstate=\"firing\"}) or vector(0)", "refId": "A"}],
+      "title": "Warning Alerts",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 87},
+      "id": 36,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "sum(increase(guard_agent_sla_breach_total[24h])) or vector(0)", "refId": "A"}],
+      "title": "SLA Breaches (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 0.1}, {"color": "green", "value": 0.05}]},
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 87},
+      "id": 37,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "rate(guard_agent_remediation_total{status=\"failed\"}[5m]) / rate(guard_agent_remediation_total[5m])", "refId": "A"}],
+      "title": "Remediation Error Rate",
+      "type": "stat"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 27,
+  "style": "dark",
+  "tags": ["neural-hive-mind", "guard-agents", "phase2", "security", "resilience"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Guard Agents - Security & Resilience",
+  "uid": "guard-agents-security",
+  "version": 1
+}
