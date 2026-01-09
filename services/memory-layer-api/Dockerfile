@@ -1,5 +1,5 @@
 # Single stage build for Memory Layer API using observability base
-FROM 37.60.241.150:30500/python-observability-base:1.2.1
+FROM 37.60.241.150:30500/python-observability-base:1.2.2
 
 WORKDIR /app
 

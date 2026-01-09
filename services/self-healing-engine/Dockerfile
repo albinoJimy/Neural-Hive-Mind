@@ -1,5 +1,5 @@
 # Stage 1 - Builder
-FROM neural-hive-mind/python-observability-base:1.0.7 AS builder
+FROM neural-hive-mind/python-observability-base:1.2.3 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir --prefix=/opt/venv -r requirements.txt
 COPY services/self-healing-engine/src/ ./src/
 
 # Stage 2 - Runtime
-FROM python:3.11-slim
+FROM neural-hive-mind/python-observability-base:1.2.3
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \

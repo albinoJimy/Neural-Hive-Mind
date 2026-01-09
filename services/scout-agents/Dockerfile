@@ -1,5 +1,5 @@
 # Multi-stage build for Scout Agents
-FROM neural-hive-mind/python-observability-base:1.0.7 AS builder
+FROM neural-hive-mind/python-observability-base:1.2.3 AS builder
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ RUN pip install --no-cache-dir /tmp/neural_hive_integration/ && \
     rm -rf /tmp/neural_hive_integration
 
 # Runtime stage
-FROM neural-hive-mind/python-observability-base:1.0.7
+FROM neural-hive-mind/python-observability-base:1.2.3
 
 WORKDIR /app
 

@@ -1,5 +1,5 @@
 # Stage 1 - Builder
-FROM neural-hive-mind/python-observability-base:1.0.7 AS builder
+FROM neural-hive-mind/python-observability-base:1.2.3 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir --user /tmp/neural_hive_integration && \
     pip install --no-cache-dir --user -r requirements.txt
 
 # Stage 2 - Runtime
-FROM python:3.11-slim
+FROM neural-hive-mind/python-observability-base:1.2.3
 
 # Create non-root user
 RUN groupadd -r worker-agent && useradd -r -g worker-agent worker-agent

@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM neural-hive-mind/python-observability-base:1.0.7 AS builder
+FROM neural-hive-mind/python-observability-base:1.2.3 AS builder
 
 # Instalar dependências de build
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r /tmp/requirements.txt
 
 # Stage 2: Runtime - usar mesma base image para ter neural_hive_observability
-FROM neural-hive-mind/python-observability-base:1.0.7
+FROM neural-hive-mind/python-observability-base:1.2.3
 
 # Instalar apenas runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \

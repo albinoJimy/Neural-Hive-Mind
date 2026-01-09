@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM neural-hive-mind/python-observability-base:1.0.7 AS builder
+FROM neural-hive-mind/python-observability-base:1.2.3 AS builder
 
 WORKDIR /app
 
@@ -9,7 +9,7 @@ RUN pip install --no-cache-dir --user -r requirements.txt && \
     find /root/.local -type f -name '*.pyc' -delete 2>/dev/null || true
 
 # Stage 2: Runtime - use same base to get neural_hive_observability
-FROM neural-hive-mind/python-observability-base:1.0.7
+FROM neural-hive-mind/python-observability-base:1.2.3
 
 WORKDIR /app
 

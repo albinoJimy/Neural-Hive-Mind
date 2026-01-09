@@ -1,6 +1,6 @@
 # Multi-stage build for Semantic Translation Engine
 # Stage 1: Builder
-FROM neural-hive-mind/python-observability-base:1.0.7 AS builder
+FROM neural-hive-mind/python-observability-base:1.2.3 AS builder
 
 WORKDIR /build
 
