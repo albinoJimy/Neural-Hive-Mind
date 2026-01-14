@@ -57,9 +57,15 @@ class KafkaPlanProducer:
 
         # Initialize Schema Registry client (optional for dev)
         if self.settings.schema_registry_url and self.settings.schema_registry_url.strip():
-            schema_path = '/app/schemas/cognitive-plan.avsc'
+            schema_path = '/app/schemas/cognitive-plan/cognitive-plan.avsc'
+            logger.info(
+                'Inicializando Schema Registry para producer',
+                url=self.settings.schema_registry_url,
+                schema_path=schema_path
+            )
 
             if os.path.exists(schema_path):
+                logger.info('Schema Avro encontrado', path=schema_path, size_bytes=os.path.getsize(schema_path))
                 self.schema_registry_client = SchemaRegistryClient({'url': self.settings.schema_registry_url})
 
                 # Load Avro schema
@@ -70,14 +76,29 @@ class KafkaPlanProducer:
                     self.schema_registry_client,
                     schema_str
                 )
-                logger.info('Schema Registry enabled for producer', url=self.settings.schema_registry_url)
+                logger.info(
+                    'Schema Registry habilitado para producer',
+                    url=self.settings.schema_registry_url,
+                    schema_path=schema_path,
+                    serializer_type='AvroSerializer'
+                )
             else:
-                logger.error('Avro schema not found', path=schema_path)
-                logger.warning('Falling back to JSON serialization')
+                logger.error(
+                    'Schema Avro não encontrado - fallback para JSON',
+                    path=schema_path,
+                    expected_location='/app/schemas/cognitive-plan/cognitive-plan.avsc',
+                    current_directory=os.getcwd(),
+                    schemas_directory_exists=os.path.exists('/app/schemas'),
+                    schemas_directory_contents=os.listdir('/app/schemas') if os.path.exists('/app/schemas') else []
+                )
                 self.schema_registry_client = None
                 self.avro_serializer = None
         else:
-            logger.warning('Schema Registry disabled - using JSON serialization for dev')
+            logger.warning(
+                'Schema Registry desabilitado - usando serialização JSON para dev',
+                schema_registry_url=self.settings.schema_registry_url,
+                environment=self.settings.environment if hasattr(self.settings, 'environment') else 'unknown'
+            )
             self.schema_registry_client = None
             self.avro_serializer = None
 

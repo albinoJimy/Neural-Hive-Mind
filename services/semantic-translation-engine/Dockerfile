@@ -48,9 +48,9 @@ COPY --chown=app:app libraries/python/neural_hive_observability /app/libraries/n
 COPY --chown=app:app services/semantic-translation-engine/src/ ./src/
 
 # Copy Avro schemas
-RUN mkdir -p /app/schemas
-COPY --chown=app:app schemas/intent-envelope/intent-envelope.avsc /app/schemas/intent-envelope.avsc
-COPY --chown=app:app schemas/cognitive-plan/cognitive-plan.avsc /app/schemas/cognitive-plan.avsc
+RUN mkdir -p /app/schemas/intent-envelope /app/schemas/cognitive-plan
+COPY --chown=app:app schemas/intent-envelope/intent-envelope.avsc /app/schemas/intent-envelope/intent-envelope.avsc
+COPY --chown=app:app schemas/cognitive-plan/cognitive-plan.avsc /app/schemas/cognitive-plan/cognitive-plan.avsc
 
 # Set environment variables
 ENV PATH=/home/app/.local/bin:$PATH \

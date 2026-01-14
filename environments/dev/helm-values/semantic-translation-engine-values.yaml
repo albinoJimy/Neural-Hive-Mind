@@ -23,6 +23,9 @@ config:
     consumerGroupId: "semantic-translation-engine-dev"
     securityProtocol: "PLAINTEXT"
 
+  schemaRegistry:
+    url: "http://schema-registry.kafka.svc.cluster.local:8081/apis/ccompat/v6"
+
   neo4j:
     uri: "bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687"
     queryTimeoutMs: 100
