@@ -11,10 +11,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import grpc
 from opentelemetry import baggage, context, trace
-from opentelemetry.baggage import set_baggage
+from opentelemetry.baggage import set_baggage, get_all as get_all_baggage
 from opentelemetry.context import attach, detach
 from opentelemetry.instrumentation.grpc import GrpcInstrumentorClient, GrpcInstrumentorServer
-from opentelemetry.propagate import extract
+from opentelemetry.propagate import extract, inject
 from opentelemetry.trace import Status, StatusCode
 
 from .config import ObservabilityConfig
@@ -357,3 +357,37 @@ def extract_grpc_context(servicer_context: grpc.ServicerContext) -> Tuple[Dict[s
             set_baggage(f"neural.hive.{baggage_key.replace('_', '.')}", metadata[header_name])
 
     return extracted, token
+
+
+def inject_grpc_context() -> List[Tuple[str, str]]:
+    """
+    Injeta contexto OpenTelemetry atual em metadata gRPC.
+
+    Extrai trace context e baggage do contexto atual e retorna como
+    lista de tuplas adequada para metadata gRPC.
+
+    Returns:
+        Lista de tuplas (key, value) para uso como metadata gRPC
+    """
+    metadata: Dict[str, str] = {}
+
+    # Injetar trace context (traceparent, tracestate)
+    inject(metadata)
+
+    # Adicionar baggage Neural Hive como headers
+    header_mapping = {
+        "neural.hive.intent.id": "x-neural-hive-intent-id",
+        "neural.hive.plan.id": "x-neural-hive-plan-id",
+        "neural.hive.user.id": "x-neural-hive-user-id",
+        "neural.hive.correlation.id": "x-neural-hive-correlation-id",
+    }
+
+    try:
+        all_baggage = get_all_baggage()
+        for baggage_key, header_name in header_mapping.items():
+            if baggage_key in all_baggage:
+                metadata[header_name] = str(all_baggage[baggage_key])
+    except Exception as e:
+        logger.debug(f"Failed to extract baggage: {e}")
+
+    return list(metadata.items())

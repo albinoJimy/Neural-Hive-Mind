@@ -2,7 +2,7 @@
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
-pydantic-settings==2.7.1
+pydantic-settings==2.6.1  # 2.7.x has _lenient_issubclass bug
 
 # gRPC - versão consolidada 1.75.1+ para compatibilidade com protobuf 5.x
 grpcio==1.68.1
@@ -35,13 +35,15 @@ faiss-cpu==1.7.4
 # Observability
 structlog==24.4.0
 prometheus-client==0.21.1
-opentelemetry-api==1.39.1
-opentelemetry-sdk==1.39.1
-opentelemetry-instrumentation-fastapi==0.60b1
-opentelemetry-instrumentation-grpc==0.60b1
+opentelemetry-api>=1.39.0
+opentelemetry-sdk>=1.39.0
+opentelemetry-exporter-otlp-proto-grpc>=1.39.0
+opentelemetry-instrumentation-fastapi>=0.60b0
+opentelemetry-instrumentation-grpc>=0.60b0
 
 # Utilities
 python-dotenv==1.0.1
 python-json-logger==2.0.7
 pyyaml==6.0.1
 httpx==0.28.1
+tenacity>=8.2.0  # Required by neural_hive_integration

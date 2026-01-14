@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM neural-hive-mind/python-observability-base:1.2.3 AS builder
+FROM neural-hive-mind/python-observability-base:1.0.7 AS builder
 
 # Instalar dependências de build
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -62,8 +62,8 @@ COPY --chown=orchestrator:orchestrator services/orchestrator-dynamic/scripts/ ./
 # Mudar para usuário não-root
 USER orchestrator
 
-# Expor portas
-EXPOSE 8000 9090
+# Expor portas (HTTP, Prometheus, gRPC)
+EXPOSE 8000 9090 50053
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \

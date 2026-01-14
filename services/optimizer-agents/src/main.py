@@ -153,36 +153,66 @@ async def startup():
         logger.warning("clickhouse_client_initialization_failed_continuing_without", error=str(e))
         clickhouse_client = None
 
-    # Inicializar clientes gRPC
+    # Inicializar clientes gRPC (não-fatal - continuam se falhar)
+    # Consensus Engine
     try:
-        # Consensus Engine
         consensus_engine_client = ConsensusEngineGrpcClient(settings=settings)
-        await consensus_engine_client.connect()
+        await asyncio.wait_for(consensus_engine_client.connect(), timeout=10.0)
         logger.info("consensus_engine_client_initialized")
-
-        # Orchestrator
-        orchestrator_client = OrchestratorGrpcClient(settings=settings)
-        await orchestrator_client.connect()
-        logger.info("orchestrator_client_initialized")
-
-        # Analyst Agents
-        analyst_agents_client = AnalystAgentsGrpcClient(settings=settings)
-        await analyst_agents_client.connect()
-        logger.info("analyst_agents_client_initialized")
-
-        # Queen Agent
-        queen_agent_client = QueenAgentGrpcClient(settings=settings)
-        await queen_agent_client.connect()
-        logger.info("queen_agent_client_initialized")
-
-        # Service Registry
-        service_registry_client = ServiceRegistryClient(settings=settings)
-        await service_registry_client.connect()
-        logger.info("service_registry_client_initialized")
-
+    except asyncio.TimeoutError:
+        logger.warning("consensus_engine_client_initialization_timeout")
+        consensus_engine_client = None
     except Exception as e:
-        logger.error("grpc_clients_initialization_failed", error=str(e))
-        raise
+        logger.warning("consensus_engine_client_initialization_failed", error=str(e))
+        consensus_engine_client = None
+
+    # Orchestrator
+    try:
+        orchestrator_client = OrchestratorGrpcClient(settings=settings)
+        await asyncio.wait_for(orchestrator_client.connect(), timeout=10.0)
+        logger.info("orchestrator_client_initialized")
+    except asyncio.TimeoutError:
+        logger.warning("orchestrator_client_initialization_timeout")
+        orchestrator_client = None
+    except Exception as e:
+        logger.warning("orchestrator_client_initialization_failed", error=str(e))
+        orchestrator_client = None
+
+    # Analyst Agents
+    try:
+        analyst_agents_client = AnalystAgentsGrpcClient(settings=settings)
+        await asyncio.wait_for(analyst_agents_client.connect(), timeout=10.0)
+        logger.info("analyst_agents_client_initialized")
+    except asyncio.TimeoutError:
+        logger.warning("analyst_agents_client_initialization_timeout")
+        analyst_agents_client = None
+    except Exception as e:
+        logger.warning("analyst_agents_client_initialization_failed", error=str(e))
+        analyst_agents_client = None
+
+    # Queen Agent
+    try:
+        queen_agent_client = QueenAgentGrpcClient(settings=settings)
+        await asyncio.wait_for(queen_agent_client.connect(), timeout=10.0)
+        logger.info("queen_agent_client_initialized")
+    except asyncio.TimeoutError:
+        logger.warning("queen_agent_client_initialization_timeout")
+        queen_agent_client = None
+    except Exception as e:
+        logger.warning("queen_agent_client_initialization_failed", error=str(e))
+        queen_agent_client = None
+
+    # Service Registry
+    try:
+        service_registry_client = ServiceRegistryClient(settings=settings)
+        await asyncio.wait_for(service_registry_client.connect(), timeout=10.0)
+        logger.info("service_registry_client_initialized")
+    except asyncio.TimeoutError:
+        logger.warning("service_registry_client_initialization_timeout")
+        service_registry_client = None
+    except Exception as e:
+        logger.warning("service_registry_client_initialization_failed", error=str(e))
+        service_registry_client = None
 
     # Inicializar clientes de integração
     try:

@@ -36,13 +36,13 @@ openai>=1.12.0
 anthropic>=0.18.0
 
 # OpenTelemetry
-opentelemetry-api==1.39.1
-opentelemetry-sdk==1.39.1
-opentelemetry-instrumentation-fastapi==0.60b1
-opentelemetry-instrumentation-grpc==0.60b1
-opentelemetry-instrumentation-httpx==0.60b1
-opentelemetry-instrumentation-sqlalchemy==0.60b1
-opentelemetry-exporter-otlp==1.39.1
+opentelemetry-api==1.29.0
+opentelemetry-sdk==1.29.0
+opentelemetry-instrumentation-fastapi==0.50b0
+opentelemetry-instrumentation-grpc==0.50b0
+opentelemetry-instrumentation-httpx==0.50b0
+opentelemetry-instrumentation-sqlalchemy==0.50b0
+opentelemetry-exporter-otlp==1.29.0
 
 # Prometheus
 prometheus-client==0.21.1

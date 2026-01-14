@@ -1,5 +1,5 @@
 # Multi-stage build for MCP Tool Catalog Service
-FROM neural-hive-mind/python-observability-base:1.2.3 AS builder
+FROM neural-hive-mind/python-observability-base:1.0.7 AS builder
 
 WORKDIR /build
 
@@ -29,7 +29,7 @@ RUN pip install --no-cache-dir /tmp/neural_hive_observability/ && \
     rm -rf /tmp/neural_hive_observability
 
 # Runtime stage
-FROM neural-hive-mind/python-observability-base:1.2.3
+FROM neural-hive-mind/python-observability-base:1.0.7
 
 WORKDIR /app
 

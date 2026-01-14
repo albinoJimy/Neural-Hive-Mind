@@ -1,5 +1,5 @@
 # Stage 1 - Builder
-FROM neural-hive-mind/python-observability-base:1.2.3 AS builder
+FROM 37.60.241.150:30500/python-observability-base:1.2.2 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -14,15 +14,19 @@ WORKDIR /app
 
 # Copy requirements and install dependencies
 COPY services/self-healing-engine/requirements.txt .
+COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
+COPY libraries/neural_hive_integration /tmp/neural_hive_integration
 
-# Install dependencies
-RUN pip install --no-cache-dir --prefix=/opt/venv -r requirements.txt
+# Install dependencies to user directory
+RUN pip install --no-cache-dir --user -r requirements.txt && \
+    pip install --no-cache-dir --user /tmp/neural_hive_resilience && \
+    pip install --no-cache-dir --user /tmp/neural_hive_integration
 
 # Copy source code
 COPY services/self-healing-engine/src/ ./src/
 
 # Stage 2 - Runtime
-FROM neural-hive-mind/python-observability-base:1.2.3
+FROM 37.60.241.150:30500/python-observability-base:1.2.2
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -36,19 +40,18 @@ RUN groupadd -r healing-engine && useradd -r -u 1001 -g healing-engine healing-e
 WORKDIR /app
 
 # Copy installed dependencies from builder
-COPY --from=builder /opt/venv /opt/venv
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-
-# Copy packages globally from builder
-RUN cp -r /opt/venv/lib/python3.11/site-packages/* /usr/local/lib/python3.11/site-packages/ 2>/dev/null || true
+COPY --from=builder /root/.local /home/healing-engine/.local
 
 # Copy source code and playbooks
 COPY --from=builder /app/src ./src
 COPY services/self-healing-engine/playbooks/ ./playbooks/
 
-# Set PATH and PYTHONPATH
-ENV PATH=/usr/local/bin:$PATH \
-    PYTHONPATH=/usr/local/lib/python3.11/site-packages:/app
+# Fix ownership
+RUN chown -R healing-engine:healing-engine /app /home/healing-engine
+
+# Set PATH and PYTHONPATH - system packages first (observability), then user packages
+ENV PATH=/home/healing-engine/.local/bin:$PATH \
+    PYTHONPATH=/usr/local/lib/python3.11/site-packages:/home/healing-engine/.local/lib/python3.11/site-packages:/app
 
 # Labels for traceability
 LABEL neural-hive.io/component="self-healing-engine" \

@@ -10,7 +10,10 @@ spec:
   roles:
     - controller
   storage:
-    type: ephemeral
+    type: persistent-claim
+    size: 10Gi
+    class: longhorn
+    deleteClaim: false
   resources:
     requests:
       memory: 512Mi
@@ -31,7 +34,10 @@ spec:
   roles:
     - broker
   storage:
-    type: ephemeral
+    type: persistent-claim
+    size: 50Gi
+    class: longhorn
+    deleteClaim: false
   resources:
     requests:
       memory: 1Gi

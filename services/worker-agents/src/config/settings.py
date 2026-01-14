@@ -281,18 +281,24 @@ class WorkerAgentSettings(BaseSettings):
         """
         Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
         Endpoints verificados: Schema Registry, OTEL, Vault.
+        Excecao: URLs internas do cluster (.svc.cluster.local) sao permitidas com HTTP
+        pois o trafego permanece dentro do cluster Kubernetes.
         """
         is_prod_staging = self.environment.lower() in ('production', 'staging', 'prod')
         if not is_prod_staging:
             return self
 
-        # Endpoints criticos que devem usar HTTPS em producao
+        def is_internal_cluster_url(url: str) -> bool:
+            """Verifica se e URL interna do cluster Kubernetes."""
+            return '.svc.cluster.local' in url or url.startswith('http://localhost')
+
+        # Endpoints criticos que devem usar HTTPS em producao (exceto URLs internas)
         http_endpoints = []
-        if self.kafka_schema_registry_url.startswith('http://'):
+        if self.kafka_schema_registry_url.startswith('http://') and not is_internal_cluster_url(self.kafka_schema_registry_url):
             http_endpoints.append(('kafka_schema_registry_url', self.kafka_schema_registry_url))
-        if self.otel_exporter_endpoint.startswith('http://'):
+        if self.otel_exporter_endpoint.startswith('http://') and not is_internal_cluster_url(self.otel_exporter_endpoint):
             http_endpoints.append(('otel_exporter_endpoint', self.otel_exporter_endpoint))
-        if self.vault_enabled and self.vault_address.startswith('http://'):
+        if self.vault_enabled and self.vault_address.startswith('http://') and not is_internal_cluster_url(self.vault_address):
             http_endpoints.append(('vault_address', self.vault_address))
 
         if http_endpoints:

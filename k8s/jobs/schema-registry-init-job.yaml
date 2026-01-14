@@ -1,0 +1,362 @@
+# Schema Registry Initialization Job
+# Registra schemas Avro no Apicurio Registry antes do deployment dos serviços
+# Utiliza API Confluent Compatibility para compatibilidade com clientes Kafka
+#
+# IMPORTANTE: Este arquivo é gerado automaticamente via 'make sync-schemas'.
+# NÃO edite o schema manualmente aqui.
+# Fonte única de verdade: schemas/cognitive-plan/cognitive-plan.avsc
+# Para produção, prefira usar o Helm chart: helm-charts/kafka-topics/
+#
+# Para regenerar este arquivo:
+#   make sync-schemas
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cognitive-plan-schema
+  namespace: kafka
+  labels:
+    app: schema-registry-init
+    component: kafka
+  annotations:
+    neural-hive-mind.org/schema-source: "schemas/cognitive-plan/cognitive-plan.avsc"
+    neural-hive-mind.org/generated: "true"
+data:
+  # Schema carregado de: schemas/cognitive-plan/cognitive-plan.avsc
+  # Última sincronização: execute 'make sync-schemas' para atualizar
+  cognitive-plan.avsc: |
+    {
+      "type": "record",
+      "name": "CognitivePlan",
+      "namespace": "com.neuralhivemind.cognitiva",
+      "doc": "Plano Cognitivo gerado pelo Motor de Tradução Semântica (Fluxo B)",
+      "fields": [
+        {
+          "name": "plan_id",
+          "type": "string",
+          "doc": "ID único do plano"
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "default": "1.0.0",
+          "doc": "Versão do plano"
+        },
+        {
+          "name": "intent_id",
+          "type": "string",
+          "doc": "ID da intenção que originou o plano"
+        },
+        {
+          "name": "correlation_id",
+          "type": ["null", "string"],
+          "default": null,
+          "doc": "ID de correlação"
+        },
+        {
+          "name": "trace_id",
+          "type": ["null", "string"],
+          "default": null,
+          "doc": "Trace ID OpenTelemetry"
+        },
+        {
+          "name": "span_id",
+          "type": ["null", "string"],
+          "default": null,
+          "doc": "Span ID OpenTelemetry"
+        },
+        {
+          "name": "tasks",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "record",
+              "name": "TaskNode",
+              "doc": "Nó individual do DAG de tarefas",
+              "fields": [
+                {"name": "task_id", "type": "string"},
+                {"name": "task_type", "type": "string"},
+                {"name": "description", "type": "string"},
+                {"name": "dependencies", "type": {"type": "array", "items": "string"}, "default": []},
+                {"name": "estimated_duration_ms", "type": ["null", "long"], "default": null},
+                {"name": "required_capabilities", "type": {"type": "array", "items": "string"}, "default": []},
+                {"name": "parameters", "type": {"type": "map", "values": "string"}, "default": {}},
+                {"name": "metadata", "type": {"type": "map", "values": "string"}, "default": {}}
+              ]
+            }
+          },
+          "doc": "Lista de tarefas do plano"
+        },
+        {
+          "name": "execution_order",
+          "type": {"type": "array", "items": "string"},
+          "doc": "Ordem topológica de execução"
+        },
+        {
+          "name": "risk_score",
+          "type": "double",
+          "doc": "Score de risco (0-1)"
+        },
+        {
+          "name": "risk_band",
+          "type": {
+            "type": "enum",
+            "name": "RiskBand",
+            "symbols": ["low", "medium", "high", "critical"]
+          },
+          "doc": "Classificação de risco"
+        },
+        {
+          "name": "risk_factors",
+          "type": {"type": "map", "values": "double"},
+          "doc": "Fatores de risco individuais"
+        },
+        {
+          "name": "explainability_token",
+          "type": "string",
+          "doc": "Token para recuperar explicação detalhada"
+        },
+        {
+          "name": "reasoning_summary",
+          "type": "string",
+          "doc": "Resumo da justificativa"
+        },
+        {
+          "name": "status",
+          "type": {
+            "type": "enum",
+            "name": "PlanStatus",
+            "symbols": ["draft", "validated", "approved", "rejected"]
+          },
+          "default": "draft",
+          "doc": "Status do plano"
+        },
+        {
+          "name": "created_at",
+          "type": {"type": "long", "logicalType": "timestamp-millis"},
+          "doc": "Timestamp de criação"
+        },
+        {
+          "name": "valid_until",
+          "type": ["null", {"type": "long", "logicalType": "timestamp-millis"}],
+          "default": null,
+          "doc": "Validade do plano"
+        },
+        {
+          "name": "estimated_total_duration_ms",
+          "type": ["null", "long"],
+          "default": null,
+          "doc": "Duração total estimada"
+        },
+        {
+          "name": "complexity_score",
+          "type": "double",
+          "doc": "Score de complexidade"
+        },
+        {
+          "name": "original_domain",
+          "type": "string",
+          "doc": "Domínio da intenção original"
+        },
+        {
+          "name": "original_priority",
+          "type": "string",
+          "doc": "Prioridade original"
+        },
+        {
+          "name": "original_security_level",
+          "type": "string",
+          "doc": "Nível de segurança original"
+        },
+        {
+          "name": "metadata",
+          "type": {"type": "map", "values": "string"},
+          "default": {},
+          "doc": "Metadados adicionais"
+        },
+        {
+          "name": "schema_version",
+          "type": "int",
+          "default": 1,
+          "doc": "Versão do schema"
+        }
+      ]
+    }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: schema-registry-init
+  namespace: kafka
+  labels:
+    app: schema-registry-init
+    component: kafka
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: schema-registry-init
+        component: kafka
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-registry
+          image: curlimages/curl:8.5.0
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Aguardando Schema Registry ficar disponível..."
+              REGISTRY_URL="http://schema-registry.kafka.svc.cluster.local:8081"
+              TIMEOUT=300
+              INTERVAL=5
+              ELAPSED=0
+
+              while [ $ELAPSED -lt $TIMEOUT ]; do
+                if curl -sf "${REGISTRY_URL}/health/ready" > /dev/null 2>&1; then
+                  echo "✅ Schema Registry está pronto"
+                  exit 0
+                fi
+                echo "Aguardando Schema Registry... (${ELAPSED}s/${TIMEOUT}s)"
+                sleep $INTERVAL
+                ELAPSED=$((ELAPSED + INTERVAL))
+              done
+
+              echo "❌ Timeout aguardando Schema Registry"
+              exit 1
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+      containers:
+        - name: register-schemas
+          image: alpine:3.19
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              # Instalar dependências
+              apk add --no-cache curl jq > /dev/null 2>&1
+
+              REGISTRY_URL="http://schema-registry.kafka.svc.cluster.local:8081"
+              COMPAT_API="${REGISTRY_URL}/apis/ccompat/v6"
+              SUBJECT="plans.ready-value"
+
+              echo "=========================================="
+              echo "Schema Registry Initialization"
+              echo "=========================================="
+              echo "Registry URL: ${REGISTRY_URL}"
+              echo "Subject: ${SUBJECT}"
+              echo ""
+
+              # 1. Verificar conectividade
+              echo "[1/5] Verificando conectividade com Schema Registry..."
+              if ! curl -sf "${REGISTRY_URL}/health/ready" > /dev/null; then
+                echo "❌ Schema Registry não está pronto"
+                exit 1
+              fi
+              echo "✅ Schema Registry acessível"
+
+              # 2. Verificar se schema já existe (idempotência)
+              echo ""
+              echo "[2/5] Verificando se schema já está registrado..."
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${COMPAT_API}/subjects/${SUBJECT}/versions/latest")
+
+              if [ "$HTTP_CODE" = "200" ]; then
+                echo "✅ Schema já registrado para subject '${SUBJECT}'"
+                SCHEMA_ID=$(curl -s "${COMPAT_API}/subjects/${SUBJECT}/versions/latest" | jq -r '.id')
+                echo "   Schema ID: ${SCHEMA_ID}"
+                echo ""
+                echo "=========================================="
+                echo "✅ Inicialização concluída (schema existente)"
+                echo "=========================================="
+                exit 0
+              fi
+
+              if [ "$HTTP_CODE" != "404" ]; then
+                echo "⚠️  Resposta inesperada: HTTP ${HTTP_CODE}"
+              fi
+
+              # 3. Ler schema Avro do ConfigMap
+              echo ""
+              echo "[3/5] Carregando schema Avro..."
+              SCHEMA_FILE="/schemas/cognitive-plan.avsc"
+
+              if [ ! -f "$SCHEMA_FILE" ]; then
+                echo "❌ Schema file não encontrado: ${SCHEMA_FILE}"
+                exit 1
+              fi
+
+              # Escapar JSON para payload
+              SCHEMA_JSON=$(cat "$SCHEMA_FILE" | jq -c . | jq -Rs .)
+
+              # 4. Registrar schema via API Confluent
+              echo ""
+              echo "[4/5] Registrando schema no Apicurio Registry..."
+
+              PAYLOAD=$(cat <<EOF
+              {
+                "schema": ${SCHEMA_JSON},
+                "schemaType": "AVRO"
+              }
+              EOF
+              )
+
+              RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+                -H "Content-Type: application/json" \
+                -d "$PAYLOAD" \
+                "${COMPAT_API}/subjects/${SUBJECT}/versions")
+
+              HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+              BODY=$(echo "$RESPONSE" | sed '$d')
+
+              if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+                SCHEMA_ID=$(echo "$BODY" | jq -r '.id')
+                echo "✅ Schema registrado com sucesso"
+                echo "   Subject: ${SUBJECT}"
+                echo "   Schema ID: ${SCHEMA_ID}"
+                echo "   HTTP Code: ${HTTP_CODE}"
+              else
+                echo "❌ Falha ao registrar schema"
+                echo "   HTTP Code: ${HTTP_CODE}"
+                echo "   Response: ${BODY}"
+                exit 1
+              fi
+
+              # 5. Validar registro
+              echo ""
+              echo "[5/5] Validando registro..."
+              VALIDATION=$(curl -s "${COMPAT_API}/subjects/${SUBJECT}/versions/latest")
+              VALIDATED_ID=$(echo "$VALIDATION" | jq -r '.id')
+
+              if [ "$VALIDATED_ID" = "$SCHEMA_ID" ]; then
+                echo "✅ Validação bem-sucedida"
+              else
+                echo "⚠️  Schema ID não corresponde (esperado: ${SCHEMA_ID}, obtido: ${VALIDATED_ID})"
+              fi
+
+              echo ""
+              echo "=========================================="
+              echo "✅ Inicialização concluída com sucesso"
+              echo "=========================================="
+          volumeMounts:
+            - name: schema-volume
+              mountPath: /schemas
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+      volumes:
+        - name: schema-volume
+          configMap:
+            name: cognitive-plan-schema

@@ -1,0 +1,176 @@
+{
+  "project_name": "Neural-Hive-Mind",
+  "description": "A distributed multi-agent AI orchestration platform with microservices architecture for intelligent task execution, consensus building, and autonomous decision making.",
+  "tech_stack": {
+    "language": "Python 3.10+",
+    "frameworks": ["FastAPI", "gRPC", "asyncio"],
+    "databases": ["MongoDB", "PostgreSQL", "Redis", "etcd", "Neo4j"],
+    "messaging": ["Apache Kafka", "Avro serialization"],
+    "observability": ["OpenTelemetry", "Jaeger", "Prometheus", "Grafana"],
+    "security": ["SPIFFE/SPIRE", "Keycloak OAuth2", "mTLS"],
+    "infrastructure": ["Kubernetes", "Helm", "Docker"],
+    "ml_frameworks": ["scikit-learn", "MLflow", "LIME", "SHAP", "Evidently"]
+  },
+  "services": [
+    {
+      "name": "service-registry",
+      "type": "gRPC",
+      "port": 50051,
+      "description": "Service discovery and registration with health checking"
+    },
+    {
+      "name": "gateway-intencoes",
+      "type": "FastAPI",
+      "port": 8000,
+      "description": "Intent gateway for capturing and processing user intentions via REST API"
+    },
+    {
+      "name": "queen-agent",
+      "type": "gRPC",
+      "port": 50052,
+      "description": "Central coordination agent for task distribution"
+    },
+    {
+      "name": "orchestrator-dynamic",
+      "type": "gRPC/Temporal",
+      "port": 50053,
+      "description": "Dynamic workflow orchestration with ML-based scheduling"
+    },
+    {
+      "name": "consensus-engine",
+      "type": "Kafka Consumer",
+      "description": "Consensus building engine for multi-agent decisions"
+    },
+    {
+      "name": "analyst-agents",
+      "type": "gRPC",
+      "port": 50054,
+      "description": "Data analysis and insight generation agents"
+    },
+    {
+      "name": "guard-agents",
+      "type": "gRPC",
+      "port": 50055,
+      "description": "Security guardrails and validation agents"
+    },
+    {
+      "name": "scout-agents",
+      "type": "gRPC",
+      "port": 50056,
+      "description": "Information gathering and reconnaissance agents"
+    },
+    {
+      "name": "worker-agents",
+      "type": "gRPC",
+      "port": 50057,
+      "description": "Task execution worker agents"
+    },
+    {
+      "name": "optimizer-agents",
+      "type": "gRPC",
+      "port": 50058,
+      "description": "Performance and resource optimization agents"
+    },
+    {
+      "name": "memory-layer-api",
+      "type": "FastAPI",
+      "port": 8001,
+      "description": "Persistent memory and context management API"
+    },
+    {
+      "name": "semantic-translation-engine",
+      "type": "gRPC",
+      "port": 50059,
+      "description": "NLU and semantic translation service"
+    },
+    {
+      "name": "mcp-tool-catalog",
+      "type": "FastAPI",
+      "port": 8002,
+      "description": "Model Context Protocol tool catalog and execution"
+    },
+    {
+      "name": "code-forge",
+      "type": "gRPC",
+      "port": 50060,
+      "description": "AI-powered code generation service with RAG"
+    },
+    {
+      "name": "self-healing-engine",
+      "type": "gRPC",
+      "port": 50061,
+      "description": "Chaos engineering and self-healing capabilities"
+    },
+    {
+      "name": "sla-management-system",
+      "type": "FastAPI",
+      "port": 8003,
+      "description": "SLA monitoring and management service"
+    },
+    {
+      "name": "explainability-api",
+      "type": "FastAPI",
+      "port": 8004,
+      "description": "AI decision explainability API"
+    },
+    {
+      "name": "execution-ticket-service",
+      "type": "gRPC",
+      "port": 50062,
+      "description": "Execution ticket management and tracking"
+    },
+    {
+      "name": "specialist-architecture",
+      "type": "gRPC",
+      "port": 50070,
+      "description": "Architecture specialist agent"
+    },
+    {
+      "name": "specialist-behavior",
+      "type": "gRPC",
+      "port": 50071,
+      "description": "Behavior analysis specialist agent"
+    },
+    {
+      "name": "specialist-business",
+      "type": "gRPC",
+      "port": 50072,
+      "description": "Business logic specialist agent"
+    },
+    {
+      "name": "specialist-evolution",
+      "type": "gRPC",
+      "port": 50073,
+      "description": "System evolution specialist agent"
+    },
+    {
+      "name": "specialist-technical",
+      "type": "gRPC",
+      "port": 50074,
+      "description": "Technical implementation specialist agent"
+    }
+  ],
+  "features": [
+    "Multi-agent orchestration with Queen-Worker hierarchy",
+    "Intent processing with ASR and NLU pipelines",
+    "Consensus-based decision making",
+    "Dynamic workflow scheduling with ML predictions",
+    "Service mesh with SPIFFE/SPIRE authentication",
+    "Distributed tracing with OpenTelemetry",
+    "Event-driven architecture with Kafka",
+    "Self-healing capabilities with chaos engineering",
+    "SLA monitoring and enforcement",
+    "AI decision explainability with LIME/SHAP",
+    "Multi-tenant support with tenant isolation",
+    "MCP tool integration and execution"
+  ],
+  "testing": {
+    "framework": "pytest",
+    "test_types": ["unit", "integration", "e2e"],
+    "test_directories": [
+      "services/*/tests/",
+      "libraries/python/*/tests/",
+      "tests/"
+    ]
+  }
+}

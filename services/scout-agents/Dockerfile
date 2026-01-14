@@ -1,5 +1,5 @@
 # Multi-stage build for Scout Agents
-FROM neural-hive-mind/python-observability-base:1.2.3 AS builder
+FROM neural-hive-mind/python-observability-base:1.0.7 AS builder
 
 WORKDIR /app
 
@@ -9,11 +9,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install dependencies in virtualenv
+# Copy requirements and install dependencies in virtualenv with system site-packages
 COPY services/scout-agents/requirements.txt .
-RUN python -m venv /opt/venv
+RUN python -m venv --system-site-packages /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-ENV PYTHONPATH="/usr/local/lib/python3.11/site-packages:$PYTHONPATH"
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
@@ -23,7 +22,7 @@ RUN pip install --no-cache-dir /tmp/neural_hive_integration/ && \
     rm -rf /tmp/neural_hive_integration
 
 # Runtime stage
-FROM neural-hive-mind/python-observability-base:1.2.3
+FROM neural-hive-mind/python-observability-base:1.0.7
 
 WORKDIR /app
 
@@ -42,9 +41,9 @@ COPY services/scout-agents/src/ ./src/
 RUN useradd -m -u 1000 scout && chown -R scout:scout /app
 USER scout
 
-# Set environment variables
+# Set environment variables - virtualenv inherits system site-packages
 ENV PATH="/opt/venv/bin:$PATH"
-ENV PYTHONPATH="/usr/local/lib/python3.11/site-packages:$PYTHONPATH"
+ENV PYTHONPATH="/app:$PYTHONPATH"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 

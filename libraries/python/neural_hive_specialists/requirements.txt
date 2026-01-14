@@ -27,10 +27,10 @@ redis[hiredis]==5.2.1
 neo4j>=5.15.0
 
 # Observabilidade
-opentelemetry-api==1.39.1
-opentelemetry-sdk==1.39.1
-opentelemetry-instrumentation-grpc==0.60b1
-opentelemetry-exporter-otlp-proto-grpc==1.39.1
+opentelemetry-api==1.29.0
+opentelemetry-sdk==1.29.0
+opentelemetry-instrumentation-grpc==0.50b0
+opentelemetry-exporter-otlp-proto-grpc==1.29.0
 prometheus-client==0.21.1
 
 # Utilities

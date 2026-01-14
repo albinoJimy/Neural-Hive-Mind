@@ -24,8 +24,8 @@ COPY services/memory-layer-api/src/ ./src/
 # Copy Avro schemas
 COPY schemas/memory-sync-event/ ./schemas/memory-sync-event/
 
-# Fix ownership for non-root user
-RUN chown -R app:app /app
+# Fix ownership and permissions for non-root user
+RUN chown -R app:app /app && chmod -R a+r /app
 
 # Update PYTHONPATH
 ENV PYTHONPATH=/app \

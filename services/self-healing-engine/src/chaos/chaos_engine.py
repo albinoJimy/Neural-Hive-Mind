@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from time import perf_counter
 import structlog
-from prometheus_client import Counter, Gauge, Histogram
+from prometheus_client import Counter, Gauge, Histogram, REGISTRY
 
 from neural_hive_observability import get_tracer
 from neural_hive_resilience import MonitoredCircuitBreaker
@@ -49,95 +49,123 @@ from .scenarios import ScenarioLibrary
 
 logger = structlog.get_logger(__name__)
 
-# Métricas Prometheus
-EXPERIMENTS_TOTAL = Counter(
-    'chaos_experiments_total',
+
+def _get_or_create_metric(metric_class, name, description, labels=None, **kwargs):
+    """
+    Retorna metrica existente ou cria nova se nao existir.
+
+    Verifica primeiro no REGISTRY para evitar duplicacao.
+    """
+    # Verificar se metrica ja existe no registry usando as chaves do dicionario
+    # O registry usa os nomes das metricas como chaves
+    if name in REGISTRY._names_to_collectors:
+        return REGISTRY._names_to_collectors[name]
+
+    # Para Counter, verificar tambem a versao base (sem _total)
+    base_name = name.replace('_total', '') if name.endswith('_total') else name
+    if base_name in REGISTRY._names_to_collectors:
+        return REGISTRY._names_to_collectors[base_name]
+
+    # Metrica nao existe, criar nova
+    try:
+        if labels:
+            return metric_class(name, description, labels, **kwargs)
+        return metric_class(name, description, **kwargs)
+    except ValueError:
+        # Fallback: buscar por _name do collector
+        for collector in list(REGISTRY._names_to_collectors.values()):
+            if hasattr(collector, '_name') and collector._name == name:
+                return collector
+        raise
+
+
+# Métricas Prometheus (singleton pattern)
+EXPERIMENTS_TOTAL = _get_or_create_metric(
+    Counter, 'chaos_experiments_total',
     'Total de experimentos de chaos executados',
     ['experiment_type', 'status', 'environment']
 )
 
-ACTIVE_EXPERIMENTS = Gauge(
-    'chaos_active_experiments',
+ACTIVE_EXPERIMENTS = _get_or_create_metric(
+    Gauge, 'chaos_active_experiments',
     'Número de experimentos ativos'
 )
 
-EXPERIMENT_DURATION = Histogram(
-    'chaos_experiment_duration_seconds',
+EXPERIMENT_DURATION = _get_or_create_metric(
+    Histogram, 'chaos_experiment_duration_seconds',
     'Duração total do experimento',
     ['experiment_type', 'status'],
     buckets=[30, 60, 120, 300, 600, 1200, 1800, 3600]
 )
 
-BLAST_RADIUS = Gauge(
-    'chaos_experiment_blast_radius',
+BLAST_RADIUS = _get_or_create_metric(
+    Gauge, 'chaos_experiment_blast_radius',
     'Número de pods afetados pelo experimento',
     ['experiment_id']
 )
 
-# Métricas adicionais para alertas e dashboards
-EXPERIMENT_START_TIMESTAMP = Gauge(
-    'chaos_experiment_start_timestamp',
-    'Timestamp de início do experimento (para detecção de experimentos travados)',
+EXPERIMENT_START_TIMESTAMP = _get_or_create_metric(
+    Gauge, 'chaos_experiment_start_timestamp',
+    'Timestamp de início do experimento',
     ['experiment_id', 'experiment_name']
 )
 
-EXPERIMENT_COMPLETED_TOTAL = Counter(
-    'chaos_experiment_completed_total',
+EXPERIMENT_COMPLETED_TOTAL = _get_or_create_metric(
+    Counter, 'chaos_experiment_completed_total',
     'Total de experimentos completados',
     ['success', 'experiment_type', 'environment']
 )
 
-BLAST_RADIUS_CURRENT = Gauge(
-    'chaos_blast_radius_current',
+BLAST_RADIUS_CURRENT = _get_or_create_metric(
+    Gauge, 'chaos_blast_radius_current',
     'Blast radius atual do experimento em execução',
     ['experiment_id']
 )
 
-POLICY_VIOLATIONS_TOTAL = Counter(
-    'chaos_policy_violations_total',
+POLICY_VIOLATIONS_TOTAL = _get_or_create_metric(
+    Counter, 'chaos_policy_violations_total',
     'Total de violações de políticas OPA',
     ['violation', 'environment']
 )
 
-PLAYBOOK_VALIDATION_TOTAL = Counter(
-    'chaos_playbook_validation_total',
+PLAYBOOK_VALIDATION_TOTAL = _get_or_create_metric(
+    Counter, 'chaos_playbook_validation_total',
     'Total de validações de playbooks',
     ['playbook', 'result']
 )
 
-PLAYBOOK_RECOVERY_DURATION = Gauge(
-    'chaos_playbook_recovery_duration_seconds',
+PLAYBOOK_RECOVERY_DURATION = _get_or_create_metric(
+    Gauge, 'chaos_playbook_recovery_duration_seconds',
     'Tempo de recuperação do playbook em segundos',
     ['playbook']
 )
 
-# Métricas de Game Day
-GAME_DAY_SCENARIOS_TOTAL = Gauge(
-    'chaos_game_day_scenarios_total',
+GAME_DAY_SCENARIOS_TOTAL = _get_or_create_metric(
+    Gauge, 'chaos_game_day_scenarios_total',
     'Total de cenários no Game Day',
     ['game_day_id']
 )
 
-GAME_DAY_SCENARIOS_FAILED = Gauge(
-    'chaos_game_day_scenarios_failed',
+GAME_DAY_SCENARIOS_FAILED = _get_or_create_metric(
+    Gauge, 'chaos_game_day_scenarios_failed',
     'Número de cenários falhados no Game Day',
     ['game_day_id']
 )
 
-GAME_DAY_DURATION = Gauge(
-    'chaos_game_day_duration_seconds',
+GAME_DAY_DURATION = _get_or_create_metric(
+    Gauge, 'chaos_game_day_duration_seconds',
     'Duração do Game Day em segundos',
     ['game_day_id']
 )
 
-GAME_DAY_INFO = Gauge(
-    'chaos_game_day_info',
+GAME_DAY_INFO = _get_or_create_metric(
+    Gauge, 'chaos_game_day_info',
     'Informações do Game Day',
     ['game_day_id', 'scenarios_total', 'scenarios_passed', 'scenarios_failed', 'success_rate']
 )
 
-EXPERIMENT_OUTSIDE_MAINTENANCE_WINDOW = Gauge(
-    'chaos_experiment_outside_maintenance_window',
+EXPERIMENT_OUTSIDE_MAINTENANCE_WINDOW = _get_or_create_metric(
+    Gauge, 'chaos_experiment_outside_maintenance_window',
     'Experimentos executando fora da janela de manutenção',
     ['experiment_id']
 )

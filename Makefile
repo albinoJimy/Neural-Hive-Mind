@@ -215,3 +215,21 @@ deploy-online-learning-dashboard: ## Deploy dashboard Grafana de online learning
 		-n monitoring --dry-run=client -o yaml | kubectl apply -f -
 	@kubectl apply -f monitoring/alerts/online-learning-alerts.yaml
 	@echo "Dashboard and alerts deployed."
+
+# Sincronizacao de Schemas Avro
+.PHONY: sync-schemas sync-schemas-helm sync-schemas-k8s
+sync-schemas: sync-schemas-helm sync-schemas-k8s ## Sincronizar schemas Avro da fonte unica para manifestos
+
+sync-schemas-helm: ## Sincronizar schemas para Helm charts
+	@echo "Sincronizando schemas para Helm charts..."
+	@mkdir -p helm-charts/kafka-topics/files/schemas
+	@cp schemas/cognitive-plan/cognitive-plan.avsc helm-charts/kafka-topics/files/schemas/
+	@echo "✅ Schemas sincronizados para helm-charts/kafka-topics/files/schemas/"
+
+sync-schemas-k8s: ## Atualizar ConfigMap no manifesto k8s estatico
+	@echo "Atualizando schema no manifesto k8s estatico..."
+	@SCHEMA_CONTENT=$$(cat schemas/cognitive-plan/cognitive-plan.avsc | sed 's/^/    /') && \
+	sed -i '/cognitive-plan.avsc: |/,/^---$$/{/cognitive-plan.avsc: |/!{/^---$$/!d}}' k8s/jobs/schema-registry-init-job.yaml && \
+	awk -v schema="$$SCHEMA_CONTENT" '/cognitive-plan.avsc: \|/{print; print schema; next}1' k8s/jobs/schema-registry-init-job.yaml > k8s/jobs/schema-registry-init-job.yaml.tmp && \
+	mv k8s/jobs/schema-registry-init-job.yaml.tmp k8s/jobs/schema-registry-init-job.yaml
+	@echo "✅ Schema atualizado em k8s/jobs/schema-registry-init-job.yaml"

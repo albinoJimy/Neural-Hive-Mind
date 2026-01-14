@@ -1,0 +1,197 @@
+{{- if .Values.schemaRegistry.initJob.enabled }}
+# Schema source: schemas/cognitive-plan/cognitive-plan.avsc (single source of truth)
+# Synced via: make sync-schemas
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-cognitive-plan-schema
+  namespace: {{ .Values.kafka.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/component: schema-registry-init
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+data:
+  cognitive-plan.avsc: |
+{{ .Files.Get "files/schemas/cognitive-plan.avsc" | indent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-schema-registry-init
+  namespace: {{ .Values.kafka.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/component: schema-registry-init
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  ttlSecondsAfterFinished: {{ .Values.schemaRegistry.initJob.ttlSecondsAfterFinished }}
+  backoffLimit: {{ .Values.schemaRegistry.initJob.backoffLimit }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Chart.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: schema-registry-init
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-registry
+          image: {{ .Values.schemaRegistry.initJob.image.repository }}:{{ .Values.schemaRegistry.initJob.image.tag }}
+          imagePullPolicy: {{ .Values.schemaRegistry.initJob.image.pullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Aguardando Schema Registry ficar disponível..."
+              REGISTRY_URL="{{ .Values.schemaRegistry.url }}"
+              TIMEOUT={{ .Values.schemaRegistry.initJob.waitTimeout }}
+              INTERVAL=5
+              ELAPSED=0
+
+              while [ $ELAPSED -lt $TIMEOUT ]; do
+                if curl -sf "${REGISTRY_URL}/health/ready" > /dev/null 2>&1; then
+                  echo "✅ Schema Registry está pronto"
+                  exit 0
+                fi
+                echo "Aguardando Schema Registry... (${ELAPSED}s/${TIMEOUT}s)"
+                sleep $INTERVAL
+                ELAPSED=$((ELAPSED + INTERVAL))
+              done
+
+              echo "❌ Timeout aguardando Schema Registry"
+              exit 1
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+      containers:
+        - name: register-schemas
+          image: {{ .Values.schemaRegistry.initJob.image.repository }}:{{ .Values.schemaRegistry.initJob.image.tag }}
+          imagePullPolicy: {{ .Values.schemaRegistry.initJob.image.pullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              # Instalar dependências
+              apk add --no-cache curl jq > /dev/null 2>&1
+
+              REGISTRY_URL="{{ .Values.schemaRegistry.url }}"
+              COMPAT_API="${REGISTRY_URL}/apis/ccompat/v6"
+
+              echo "=========================================="
+              echo "Schema Registry Initialization"
+              echo "=========================================="
+              echo "Registry URL: ${REGISTRY_URL}"
+              echo ""
+
+              # Verificar conectividade
+              echo "[1/2] Verificando conectividade com Schema Registry..."
+              if ! curl -sf "${REGISTRY_URL}/health/ready" > /dev/null; then
+                echo "❌ Schema Registry não está pronto"
+                exit 1
+              fi
+              echo "✅ Schema Registry acessível"
+
+              {{- range .Values.schemaRegistry.schemas }}
+              echo ""
+              echo "=========================================="
+              echo "Processando schema: {{ .subject }}"
+              echo "=========================================="
+
+              SUBJECT="{{ .subject }}"
+              SCHEMA_FILE="/schemas/{{ .file }}"
+
+              # Verificar se schema já existe (idempotência)
+              echo "[2/5] Verificando se schema já está registrado..."
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${COMPAT_API}/subjects/${SUBJECT}/versions/latest")
+
+              if [ "$HTTP_CODE" = "200" ]; then
+                echo "✅ Schema já registrado para subject '${SUBJECT}'"
+                SCHEMA_ID=$(curl -s "${COMPAT_API}/subjects/${SUBJECT}/versions/latest" | jq -r '.id')
+                echo "   Schema ID: ${SCHEMA_ID}"
+                continue
+              fi
+
+              if [ "$HTTP_CODE" != "404" ]; then
+                echo "⚠️  Resposta inesperada: HTTP ${HTTP_CODE}"
+              fi
+
+              # Ler schema Avro do ConfigMap
+              echo "[3/5] Carregando schema Avro..."
+              if [ ! -f "$SCHEMA_FILE" ]; then
+                echo "❌ Schema file não encontrado: ${SCHEMA_FILE}"
+                exit 1
+              fi
+
+              # Escapar JSON para payload
+              SCHEMA_JSON=$(cat "$SCHEMA_FILE" | jq -c . | jq -Rs .)
+
+              # Registrar schema via API Confluent
+              echo "[4/5] Registrando schema no Apicurio Registry..."
+
+              PAYLOAD=$(cat <<EOF
+              {
+                "schema": ${SCHEMA_JSON},
+                "schemaType": "AVRO"
+              }
+              EOF
+              )
+
+              RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+                -H "Content-Type: application/json" \
+                -d "$PAYLOAD" \
+                "${COMPAT_API}/subjects/${SUBJECT}/versions")
+
+              HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+              BODY=$(echo "$RESPONSE" | sed '$d')
+
+              if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+                SCHEMA_ID=$(echo "$BODY" | jq -r '.id')
+                echo "✅ Schema registrado com sucesso"
+                echo "   Subject: ${SUBJECT}"
+                echo "   Schema ID: ${SCHEMA_ID}"
+              else
+                echo "❌ Falha ao registrar schema"
+                echo "   HTTP Code: ${HTTP_CODE}"
+                echo "   Response: ${BODY}"
+                exit 1
+              fi
+
+              # Validar registro
+              echo "[5/5] Validando registro..."
+              VALIDATION=$(curl -s "${COMPAT_API}/subjects/${SUBJECT}/versions/latest")
+              VALIDATED_ID=$(echo "$VALIDATION" | jq -r '.id')
+
+              if [ "$VALIDATED_ID" = "$SCHEMA_ID" ]; then
+                echo "✅ Validação bem-sucedida"
+              else
+                echo "⚠️  Schema ID não corresponde (esperado: ${SCHEMA_ID}, obtido: ${VALIDATED_ID})"
+              fi
+              {{- end }}
+
+              echo ""
+              echo "=========================================="
+              echo "✅ Inicialização concluída com sucesso"
+              echo "=========================================="
+          volumeMounts:
+            - name: schema-volume
+              mountPath: /schemas
+          resources:
+            {{- toYaml .Values.schemaRegistry.initJob.resources | nindent 12 }}
+      volumes:
+        - name: schema-volume
+          configMap:
+            name: {{ .Release.Name }}-cognitive-plan-schema
+{{- end }}

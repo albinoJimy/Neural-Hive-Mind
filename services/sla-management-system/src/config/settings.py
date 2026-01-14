@@ -34,13 +34,21 @@ class PostgreSQLSettings(BaseSettings):
 
 class RedisSettings(BaseSettings):
     """Configurações do Redis."""
-    cluster_nodes: List[str] = Field(
-        default=["redis-cluster.redis-cluster.svc.cluster.local:6379"]
+    cluster_nodes: str = Field(
+        default="redis-cluster.redis-cluster.svc.cluster.local:6379",
+        description="Nodes do Redis separados por vírgula"
     )
     password: str = Field(default="")
     ssl: bool = Field(default=False)
     decode_responses: bool = Field(default=True)
     cache_ttl_seconds: int = Field(default=60, description="TTL para budgets")
+
+    @property
+    def cluster_nodes_list(self) -> List[str]:
+        """Retorna lista de nodes a partir da string."""
+        if not self.cluster_nodes:
+            return []
+        return [n.strip() for n in self.cluster_nodes.split(",") if n.strip()]
 
 
 class KafkaSettings(BaseSettings):

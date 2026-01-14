@@ -4,7 +4,7 @@ uvicorn[standard]==0.34.0
 
 # Data Validation
 pydantic==2.10.4
-pydantic-settings==2.7.1
+pydantic-settings==2.6.1  # 2.7.x has _lenient_issubclass bug
 
 # Kafka
 confluent-kafka==2.6.1
@@ -35,11 +35,11 @@ structlog==24.4.0
 python-json-logger==2.0.7
 
 # OpenTelemetry
-opentelemetry-api==1.39.1
-opentelemetry-sdk==1.39.1
-opentelemetry-exporter-otlp==1.39.1
-opentelemetry-instrumentation-fastapi==0.60b1
-opentelemetry-instrumentation-grpc==0.60b1
+opentelemetry-api==1.29.0
+opentelemetry-sdk==1.29.0
+opentelemetry-exporter-otlp==1.29.0
+opentelemetry-instrumentation-fastapi==0.50b0
+opentelemetry-instrumentation-grpc==0.50b0
 
 # Prometheus
 prometheus-client==0.21.1

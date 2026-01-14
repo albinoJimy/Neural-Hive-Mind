@@ -8,7 +8,7 @@ requests>=2.31.0
 
 # Data validation
 pydantic==2.10.4
-pydantic-settings==2.7.1
+pydantic-settings==2.6.1  # 2.7.x has _lenient_issubclass bug
 
 # Circuit breaker and resilience
 tenacity==9.0.0

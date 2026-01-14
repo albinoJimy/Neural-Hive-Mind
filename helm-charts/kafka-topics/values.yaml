@@ -262,3 +262,26 @@ cleanup:
 validation:
   enabled: true
   strictMode: true  # Validação rigorosa de configurações
+
+# Configurações do Schema Registry (Apicurio)
+schemaRegistry:
+  url: "http://schema-registry.kafka.svc.cluster.local:8081"
+  initJob:
+    enabled: true
+    ttlSecondsAfterFinished: 300
+    backoffLimit: 3
+    waitTimeout: 300
+    image:
+      repository: alpine
+      tag: "3.19"
+      pullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+  schemas:
+    - subject: "plans.ready-value"
+      file: "cognitive-plan.avsc"

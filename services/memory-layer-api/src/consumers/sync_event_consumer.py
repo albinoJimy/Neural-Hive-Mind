@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Dict, Optional, Any
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaError
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter, Histogram, Gauge, REGISTRY
 import fastavro
 
 logger = structlog.get_logger(__name__)
@@ -23,6 +23,84 @@ AVRO_SCHEMA_PATH = Path(__file__).parent.parent.parent.parent / 'schemas' / 'mem
 
 # Cache do schema Avro carregado
 _avro_schema = None
+
+# Cache das metricas Prometheus (singleton pattern)
+_metrics_initialized = False
+SYNC_EVENTS_CONSUMED = None
+SYNC_CONSUME_LATENCY = None
+SYNC_CONSUMER_LAG = None
+DLQ_EVENTS_SENT = None
+
+
+def _get_or_create_metric(metric_class, name, description, labels=None, **kwargs):
+    """
+    Retorna metrica existente ou cria nova se nao existir.
+    Verifica primeiro no REGISTRY para evitar duplicacao.
+    """
+    # Verificar se metrica ja existe no registry usando as chaves do dicionario
+    if name in REGISTRY._names_to_collectors:
+        return REGISTRY._names_to_collectors[name]
+
+    # Para Counter, verificar tambem a versao base (sem _total)
+    base_name = name.replace('_total', '') if name.endswith('_total') else name
+    if base_name in REGISTRY._names_to_collectors:
+        return REGISTRY._names_to_collectors[base_name]
+
+    # Metrica nao existe, criar nova
+    try:
+        if labels:
+            return metric_class(name, description, labels, **kwargs)
+        return metric_class(name, description, **kwargs)
+    except ValueError:
+        # Fallback: buscar por _name do collector
+        for collector in list(REGISTRY._names_to_collectors.values()):
+            if hasattr(collector, '_name') and collector._name == name:
+                return collector
+        raise
+
+
+def _initialize_metrics():
+    """Inicializa metricas Prometheus apenas uma vez."""
+    global _metrics_initialized, SYNC_EVENTS_CONSUMED, SYNC_CONSUME_LATENCY
+    global SYNC_CONSUMER_LAG, DLQ_EVENTS_SENT
+
+    if _metrics_initialized:
+        return
+
+    SYNC_EVENTS_CONSUMED = _get_or_create_metric(
+        Counter,
+        'memory_sync_events_consumed_total',
+        'Total de eventos de sincronização consumidos',
+        ['status', 'data_type']
+    )
+
+    SYNC_CONSUME_LATENCY = _get_or_create_metric(
+        Histogram,
+        'memory_sync_consume_latency_seconds',
+        'Latência de processamento de eventos de sincronização',
+        ['data_type'],
+        buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+    )
+
+    SYNC_CONSUMER_LAG = _get_or_create_metric(
+        Gauge,
+        'memory_sync_consumer_lag',
+        'Lag do consumer de sincronização',
+        ['partition']
+    )
+
+    DLQ_EVENTS_SENT = _get_or_create_metric(
+        Counter,
+        'memory_sync_dlq_events_total',
+        'Total de eventos enviados para DLQ',
+        ['reason']
+    )
+
+    _metrics_initialized = True
+
+
+# Inicializa metricas na importacao do modulo
+_initialize_metrics()
 
 
 def get_avro_schema():
@@ -56,32 +134,6 @@ def deserialize_avro(data: bytes, schema) -> Dict[str, Any]:
     """
     buffer = io.BytesIO(data)
     return fastavro.schemaless_reader(buffer, schema)
-
-# Métricas Prometheus
-SYNC_EVENTS_CONSUMED = Counter(
-    'memory_sync_events_consumed_total',
-    'Total de eventos de sincronização consumidos',
-    ['status', 'data_type']
-)
-
-SYNC_CONSUME_LATENCY = Histogram(
-    'memory_sync_consume_latency_seconds',
-    'Latência de processamento de eventos de sincronização',
-    ['data_type'],
-    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
-)
-
-SYNC_CONSUMER_LAG = Gauge(
-    'memory_sync_consumer_lag',
-    'Lag do consumer de sincronização',
-    ['partition']
-)
-
-DLQ_EVENTS_SENT = Counter(
-    'memory_sync_dlq_events_total',
-    'Total de eventos enviados para DLQ',
-    ['reason']
-)
 
 
 class SyncEventConsumer:

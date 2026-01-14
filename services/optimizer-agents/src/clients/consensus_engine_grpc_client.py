@@ -110,13 +110,23 @@ class ConsensusEngineGrpcClient:
             else:
                 logger.warning("consensus_engine_stub_not_created", reason="proto_not_compiled")
 
-            # Testar conexão com timeout
+            # Testar conexão com timeout - não bloquear se falhar
             import asyncio
             try:
-                await asyncio.wait_for(self.channel.channel_ready(), timeout=5.0)
-                logger.info("consensus_engine_grpc_connected", endpoint=target)
-            except asyncio.TimeoutError:
-                logger.warning("consensus_engine_grpc_connection_timeout", endpoint=target)
+                # Usar shield para permitir cancelamento limpo
+                ready_task = asyncio.create_task(self.channel.channel_ready())
+                done, pending = await asyncio.wait({ready_task}, timeout=5.0)
+                if ready_task in done:
+                    logger.info("consensus_engine_grpc_connected", endpoint=target)
+                else:
+                    ready_task.cancel()
+                    try:
+                        await ready_task
+                    except asyncio.CancelledError:
+                        pass
+                    logger.warning("consensus_engine_grpc_connection_timeout", endpoint=target)
+            except Exception as conn_error:
+                logger.warning("consensus_engine_grpc_connection_check_failed", endpoint=target, error=str(conn_error))
         except Exception as e:
             logger.error("consensus_engine_grpc_connection_failed", error=str(e))
             raise

@@ -24,8 +24,9 @@ class RedisClient:
     async def connect(self) -> None:
         """Inicializa conexão com Redis (Standalone primeiro, Cluster como fallback)."""
         try:
-            # Parse first node for connection
-            first_node = self.settings.cluster_nodes[0] if self.settings.cluster_nodes else "localhost:6379"
+            # Parse first node for connection (usando cluster_nodes_list property)
+            nodes_list = self.settings.cluster_nodes_list
+            first_node = nodes_list[0] if nodes_list else "localhost:6379"
             host, port_str = first_node.split(":")
             port = int(port_str)
 
@@ -55,7 +56,7 @@ class RedisClient:
                         decode_responses=self.settings.decode_responses
                     )
                     await self.cluster.ping()
-                    self.logger.info("redis_cluster_connected", nodes=self.settings.cluster_nodes)
+                    self.logger.info("redis_cluster_connected", nodes=nodes_list)
                 except Exception as cluster_error:
                     self.logger.error("redis_cluster_also_failed", error=str(cluster_error))
                     raise

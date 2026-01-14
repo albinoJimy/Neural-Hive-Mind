@@ -52,7 +52,7 @@ class Settings(BaseSettings):
         description="Neo4j connection URI"
     )
     neo4j_user: str = Field(default='neo4j', description="Neo4j username")
-    neo4j_password: str = Field(..., description="Neo4j password")
+    neo4j_password: str = Field(default="", description="Neo4j password")
     neo4j_database: str = Field(default='neo4j', description="Neo4j database name")
     neo4j_query_timeout: int = Field(default=50, description="Neo4j query timeout in ms")
 
@@ -63,7 +63,7 @@ class Settings(BaseSettings):
     )
     clickhouse_port: int = Field(default=8123, description="ClickHouse HTTP port")
     clickhouse_user: str = Field(default='default', description="ClickHouse username")
-    clickhouse_password: str = Field(..., description="ClickHouse password")
+    clickhouse_password: str = Field(default="", description="ClickHouse password")
     clickhouse_database: str = Field(default='neural_hive', description="ClickHouse database")
     clickhouse_retention_months: int = Field(
         default=18,

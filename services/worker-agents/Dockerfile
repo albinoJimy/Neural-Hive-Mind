@@ -39,11 +39,14 @@ COPY --chown=worker-agent:worker-agent libraries/python/neural_hive_observabilit
 COPY --chown=worker-agent:worker-agent services/service-registry/src/proto /app/proto
 
 # Copy source code from host context
-COPY services/worker-agents/src/ ./src
+COPY --chown=worker-agent:worker-agent services/worker-agents/src/ ./src/
 
 # Copy Avro schemas for Kafka serialization
 COPY --chown=worker-agent:worker-agent schemas/execution-result/ /app/schemas/execution-result/
 COPY --chown=worker-agent:worker-agent schemas/execution-ticket/ /app/schemas/execution-ticket/
+
+# Ensure all files are readable
+RUN chmod -R a+r /app
 
 # Set PATH and PYTHONPATH to include user binaries and local packages
 ENV PATH=/home/worker-agent/.local/bin:$PATH \

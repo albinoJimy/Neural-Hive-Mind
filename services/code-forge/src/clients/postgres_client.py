@@ -45,7 +45,7 @@ class PipelineResultORM(Base):
     approval_reason = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
     git_mr_url = Column(String(512), nullable=True)
-    metadata = Column(JSON, nullable=False, default=dict)
+    extra_metadata = Column('metadata', JSON, nullable=False, default=dict)  # 'metadata' is reserved in SQLAlchemy
     created_at = Column(TIMESTAMP, nullable=False, default=datetime.utcnow)
     completed_at = Column(TIMESTAMP, nullable=True)
     schema_version = Column(Integer, nullable=False, default=1)
@@ -70,7 +70,7 @@ class PipelineResultORM(Base):
             approval_reason=result.approval_reason,
             error_message=result.error_message,
             git_mr_url=result.git_mr_url,
-            metadata=result.metadata,
+            extra_metadata=result.metadata,
             created_at=result.created_at,
             completed_at=result.completed_at,
             schema_version=result.schema_version,
@@ -97,7 +97,7 @@ class PipelineResultORM(Base):
             approval_reason=self.approval_reason,
             error_message=self.error_message,
             git_mr_url=self.git_mr_url,
-            metadata=self.metadata or {},
+            metadata=self.extra_metadata or {},
             created_at=self.created_at,
             completed_at=self.completed_at,
             schema_version=self.schema_version,
@@ -124,7 +124,7 @@ class ArtifactMetadataORM(Base):
     sbom_uri = Column(String(512), nullable=True)
     signature = Column(Text, nullable=True)
     validation_results = Column(JSON, nullable=False, default=list)
-    metadata = Column(JSON, nullable=False, default=dict)
+    extra_metadata = Column('metadata', JSON, nullable=False, default=dict)  # 'metadata' is reserved in SQLAlchemy
     created_at = Column(TIMESTAMP, nullable=False, default=datetime.utcnow)
 
     @classmethod
@@ -146,7 +146,7 @@ class ArtifactMetadataORM(Base):
             sbom_uri=artifact.sbom_uri,
             signature=artifact.signature,
             validation_results=[vr.dict() for vr in artifact.validation_results],
-            metadata=artifact.metadata,
+            extra_metadata=artifact.metadata,
             created_at=artifact.created_at,
         )
 

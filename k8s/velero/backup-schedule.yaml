@@ -1,0 +1,105 @@
+# Velero Backup Schedule for Neural-Hive-Mind
+# Creates daily backups of critical namespaces
+
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: neural-hive-daily-backup
+  namespace: velero
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  template:
+    includedNamespaces:
+      - neural-hive
+      - neural-hive-execution
+      - neural-hive-data
+      - kafka
+      - mongodb-cluster
+      - redis-cluster
+      - neo4j-cluster
+      - temporal
+      - observability
+    excludedResources:
+      - events
+      - events.events.k8s.io
+    storageLocation: default
+    volumeSnapshotLocations:
+      - default
+    ttl: 720h  # 30 days retention
+    includeClusterResources: true
+    labelSelector:
+      matchExpressions:
+        - key: velero.io/exclude-from-backup
+          operator: NotIn
+          values:
+            - "true"
+  useOwnerReferencesInBackup: false
+
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: databases-hourly-backup
+  namespace: velero
+spec:
+  schedule: "0 * * * *"  # Every hour
+  template:
+    includedNamespaces:
+      - mongodb-cluster
+      - neo4j-cluster
+      - temporal
+    includedResources:
+      - persistentvolumeclaims
+      - persistentvolumes
+      - secrets
+      - configmaps
+    storageLocation: default
+    ttl: 168h  # 7 days retention
+    includeClusterResources: false
+
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: kafka-backup
+  namespace: velero
+spec:
+  schedule: "0 */6 * * *"  # Every 6 hours
+  template:
+    includedNamespaces:
+      - kafka
+    includedResources:
+      - persistentvolumeclaims
+      - persistentvolumes
+      - kafkas
+      - kafkatopics
+      - kafkausers
+      - kafkanodepools
+      - secrets
+      - configmaps
+    storageLocation: default
+    ttl: 336h  # 14 days retention
+    includeClusterResources: false
+
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: secrets-backup
+  namespace: velero
+spec:
+  schedule: "0 0 * * *"  # Daily at midnight
+  template:
+    includedNamespaces:
+      - neural-hive
+      - neural-hive-execution
+      - auth
+      - kafka
+    includedResources:
+      - secrets
+    excludedResources:
+      - secrets/sh.helm.release.*
+    storageLocation: default
+    ttl: 2160h  # 90 days retention
+    includeClusterResources: false

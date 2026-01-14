@@ -41,10 +41,14 @@ SERVICES=(
     "scout-agents"
     "analyst-agents"
     "guard-agents"
+    "optimizer-agents"
     "sla-management-system"
     "mcp-tool-catalog"
     "self-healing-engine"
     "explainability-api"
+    "mcp-servers/ai-codegen-mcp-server"
+    "mcp-servers/sonarqube-mcp-server"
+    "mcp-servers/trivy-mcp-server"
 )
 
 print_help() {

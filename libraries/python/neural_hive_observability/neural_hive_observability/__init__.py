@@ -47,6 +47,7 @@ from .grpc_instrumentation import (
     create_instrumented_grpc_server,
     create_instrumented_async_grpc_server,
     extract_grpc_context,
+    inject_grpc_context,
     instrument_grpc_channel,
     NeuralHiveGrpcServerInterceptor
 )

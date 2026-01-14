@@ -34,7 +34,7 @@ data:
   ARGO_SERVER_URL: {{ .Values.config.argo.serverUrl | quote }}
   ARGO_NAMESPACE: {{ .Values.config.argo.namespace | quote }}
 
-  # gRPC Clients
+  # gRPC Clients - Host/Port separados (legacy)
   CONSENSUS_ENGINE_HOST: {{ .Values.config.grpcClients.consensusEngine.host | quote }}
   CONSENSUS_ENGINE_PORT: {{ .Values.config.grpcClients.consensusEngine.port | quote }}
   ORCHESTRATOR_HOST: {{ .Values.config.grpcClients.orchestrator.host | quote }}
@@ -45,6 +45,13 @@ data:
   QUEEN_AGENT_PORT: {{ .Values.config.grpcClients.queenAgent.port | quote }}
   SERVICE_REGISTRY_HOST: {{ .Values.config.grpcClients.serviceRegistry.host | quote }}
   SERVICE_REGISTRY_PORT: {{ .Values.config.grpcClients.serviceRegistry.port | quote }}
+
+  # gRPC Clients - Endpoints completos (formato host:port)
+  CONSENSUS_ENGINE_ENDPOINT: "{{ .Values.config.grpcClients.consensusEngine.host }}:{{ .Values.config.grpcClients.consensusEngine.port }}"
+  ORCHESTRATOR_ENDPOINT: "{{ .Values.config.grpcClients.orchestrator.host }}:{{ .Values.config.grpcClients.orchestrator.port }}"
+  ANALYST_AGENTS_ENDPOINT: "{{ .Values.config.grpcClients.analystAgents.host }}:{{ .Values.config.grpcClients.analystAgents.port }}"
+  QUEEN_AGENT_ENDPOINT: "{{ .Values.config.grpcClients.queenAgent.host }}:{{ .Values.config.grpcClients.queenAgent.port }}"
+  SERVICE_REGISTRY_ENDPOINT: "{{ .Values.config.grpcClients.serviceRegistry.host }}:{{ .Values.config.grpcClients.serviceRegistry.port }}"
 
   # Kafka
   KAFKA_BOOTSTRAP_SERVERS: {{ .Values.config.kafka.bootstrapServers | quote }}

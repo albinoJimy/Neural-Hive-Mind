@@ -6,11 +6,15 @@ WORKDIR /app
 # Copiar e instalar bibliotecas internas
 COPY libraries/python/neural_hive_ml /tmp/neural_hive_ml
 COPY libraries/python/neural_hive_observability /tmp/neural_hive_observability
+COPY libraries/neural_hive_integration /tmp/neural_hive_integration
 
 # Instalar dependências específicas do serviço
 COPY services/optimizer-agents/requirements-optimizer.txt .
-RUN pip install --no-cache-dir --user /tmp/neural_hive_ml && \
+RUN pip config set global.timeout 600 && \
+    pip config set global.retries 5 && \
+    pip install --no-cache-dir --user /tmp/neural_hive_ml && \
     pip install --no-cache-dir --user /tmp/neural_hive_observability && \
+    pip install --no-cache-dir --user /tmp/neural_hive_integration && \
     pip install --no-cache-dir --user -r requirements-optimizer.txt
 
 # Proto files já compilados no source com imports relativos corretos
@@ -52,7 +56,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # Labels
 LABEL maintainer="Neural Hive-Mind Team <team@neuralhivemind.io>"
 LABEL description="Optimizer Agents - Continuous Improvement and Policy Recalibration"
-LABEL version="1.0.12"
+LABEL version="1.0.14"
 LABEL component="optimizer-agents"
 LABEL layer="estrategica"
 

@@ -110,12 +110,22 @@ class OrchestratorGrpcClient:
             else:
                 logger.warning("orchestrator_stub_not_created", reason="proto_not_compiled")
 
+            # Testar conexão com timeout - não bloquear se falhar
             import asyncio
             try:
-                await asyncio.wait_for(self.channel.channel_ready(), timeout=5.0)
-                logger.info("orchestrator_grpc_connected", endpoint=target)
-            except asyncio.TimeoutError:
-                logger.warning("orchestrator_grpc_connection_timeout", endpoint=target)
+                ready_task = asyncio.create_task(self.channel.channel_ready())
+                done, pending = await asyncio.wait({ready_task}, timeout=5.0)
+                if ready_task in done:
+                    logger.info("orchestrator_grpc_connected", endpoint=target)
+                else:
+                    ready_task.cancel()
+                    try:
+                        await ready_task
+                    except asyncio.CancelledError:
+                        pass
+                    logger.warning("orchestrator_grpc_connection_timeout", endpoint=target)
+            except Exception as conn_error:
+                logger.warning("orchestrator_grpc_connection_check_failed", endpoint=target, error=str(conn_error))
         except Exception as e:
             logger.error("orchestrator_grpc_connection_failed", error=str(e))
             raise

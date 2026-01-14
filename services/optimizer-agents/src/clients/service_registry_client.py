@@ -109,11 +109,21 @@ class ServiceRegistryClient:
             self.channel = instrument_grpc_channel(self.channel, service_name='service-registry')
             self.stub = service_registry_pb2_grpc.ServiceRegistryStub(self.channel)
 
+            # Testar conexão com timeout - não bloquear se falhar
             try:
-                await asyncio.wait_for(self.channel.channel_ready(), timeout=5.0)
-                logger.info("service_registry_grpc_connected", endpoint=target)
-            except asyncio.TimeoutError:
-                logger.warning("service_registry_grpc_connection_timeout", endpoint=target)
+                ready_task = asyncio.create_task(self.channel.channel_ready())
+                done, pending = await asyncio.wait({ready_task}, timeout=5.0)
+                if ready_task in done:
+                    logger.info("service_registry_grpc_connected", endpoint=target)
+                else:
+                    ready_task.cancel()
+                    try:
+                        await ready_task
+                    except asyncio.CancelledError:
+                        pass
+                    logger.warning("service_registry_grpc_connection_timeout", endpoint=target)
+            except Exception as conn_error:
+                logger.warning("service_registry_grpc_connection_check_failed", endpoint=target, error=str(conn_error))
         except Exception as e:
             logger.error("service_registry_grpc_connection_failed", error=str(e))
             raise

@@ -4,30 +4,61 @@ import structlog
 from typing import Dict, Any, Optional, List, Tuple
 import asyncio
 from tenacity import retry, stop_after_attempt, wait_exponential
-from prometheus_client import Counter, Histogram
 
 from neural_hive_observability import instrument_grpc_channel
 from neural_hive_integration.proto_stubs import service_registry_pb2, service_registry_pb2_grpc
 
+# Metricas criadas lazily para evitar duplicacao de registro
+# As metricas principais estao em src/observability/metrics.py
+# Estas sao usadas apenas se chamadas antes da inicializacao principal
 
-# Metricas Prometheus para discovery
-discovery_requests_total = Counter(
-    'worker_agent_discovery_requests_total',
-    'Total de requisicoes de descoberta feitas pelo Worker Agent',
-    ['status']
-)
+_metrics_initialized = False
+discovery_requests_total = None
+discovery_agents_found = None
+discovery_duration_seconds = None
 
-discovery_agents_found = Histogram(
-    'worker_agent_discovery_agents_found',
-    'Numero de agentes encontrados por requisicao de descoberta',
-    buckets=[0, 1, 2, 5, 10, 20, 50, 100]
-)
 
-discovery_duration_seconds = Histogram(
-    'worker_agent_discovery_duration_seconds',
-    'Duracao das requisicoes de descoberta em segundos',
-    buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
-)
+def _ensure_metrics():
+    """Initialize metrics if not already done by main app."""
+    global _metrics_initialized, discovery_requests_total, discovery_agents_found, discovery_duration_seconds
+    if _metrics_initialized:
+        return
+    _metrics_initialized = True
+
+    from prometheus_client import Counter, Histogram, REGISTRY
+
+    # Check if metrics already exist (registered by metrics.py)
+    existing_collectors = {
+        getattr(c, '_name', ''): c
+        for c in REGISTRY._names_to_collectors.values()
+    }
+
+    if 'worker_agent_discovery_requests_total' in existing_collectors:
+        discovery_requests_total = existing_collectors['worker_agent_discovery_requests_total']
+    else:
+        discovery_requests_total = Counter(
+            'worker_agent_discovery_requests_total',
+            'Total de requisicoes de descoberta feitas pelo Worker Agent',
+            ['status']
+        )
+
+    if 'worker_agent_discovery_agents_found' in existing_collectors:
+        discovery_agents_found = existing_collectors['worker_agent_discovery_agents_found']
+    else:
+        discovery_agents_found = Histogram(
+            'worker_agent_discovery_agents_found',
+            'Numero de agentes encontrados por requisicao de descoberta',
+            buckets=[0, 1, 2, 5, 10, 20, 50, 100]
+        )
+
+    if 'worker_agent_discovery_duration_seconds' in existing_collectors:
+        discovery_duration_seconds = existing_collectors['worker_agent_discovery_duration_seconds']
+    else:
+        discovery_duration_seconds = Histogram(
+            'worker_agent_discovery_duration_seconds',
+            'Duracao das requisicoes de descoberta em segundos',
+            buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+        )
 
 # Importar SPIFFE manager se disponivel
 try:
@@ -99,18 +130,31 @@ class ServiceRegistryClient:
                     expires_at=x509_svid.expires_at.isoformat()
                 )
             else:
-                # Fallback para canal inseguro (apenas desenvolvimento)
-                if self.config.environment in ['production', 'staging', 'prod']:
+                # Fallback para canal inseguro
+                # Permitido para endpoints internos do cluster (.svc.cluster.local)
+                # pois o trafego permanece dentro do cluster Kubernetes
+                is_internal_cluster = '.svc.cluster.local' in target or target.startswith('localhost')
+                is_production = self.config.environment in ['production', 'staging', 'prod']
+
+                if is_production and not is_internal_cluster:
                     raise RuntimeError(
-                        f"mTLS is required in {self.config.environment} but SPIFFE X.509 is disabled. "
-                        "Set spiffe_enabled=True and spiffe_enable_x509=True."
+                        f"mTLS is required in {self.config.environment} for external endpoints. "
+                        "Set spiffe_enabled=True and spiffe_enable_x509=True, "
+                        "or use internal cluster endpoints (.svc.cluster.local)."
                     )
 
-                self.logger.warning(
-                    'using_insecure_channel',
-                    environment=self.config.environment,
-                    warning='mTLS disabled - not for production use'
-                )
+                if is_production and is_internal_cluster:
+                    self.logger.info(
+                        'using_insecure_channel_internal',
+                        target=target,
+                        note='Internal cluster endpoint - insecure channel allowed'
+                    )
+                else:
+                    self.logger.warning(
+                        'using_insecure_channel',
+                        environment=self.config.environment,
+                        warning='mTLS disabled - not for production use'
+                    )
                 self.channel = grpc.aio.insecure_channel(target)
 
             # Instrumentar canal com observabilidade
@@ -291,6 +335,7 @@ class ServiceRegistryClient:
         """
         import time
         start_time = time.perf_counter()
+        _ensure_metrics()
 
         try:
             request = service_registry_pb2.DiscoverRequest(

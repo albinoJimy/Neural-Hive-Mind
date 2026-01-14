@@ -19,18 +19,21 @@ RUN useradd -m -u 1000 analyst
 # Copy dependencies from builder to user home
 COPY --from=builder --chown=analyst:analyst /root/.local /home/analyst/.local
 
-# Fix pydantic-settings conflict - remove old versions and install correct ones
-RUN rm -rf /home/analyst/.local/lib/python3.11/site-packages/pydantic* && \
-    rm -rf /usr/local/lib/python3.11/site-packages/pydantic* 2>/dev/null || true && \
-    pip install --no-cache-dir --target=/home/analyst/.local/lib/python3.11/site-packages \
-        pydantic==2.10.4 pydantic-settings==2.6.1
+# Copy neural_hive_observability library (latest version with inject_grpc_context)
+COPY --chown=analyst:analyst libraries/python/neural_hive_observability/neural_hive_observability /app/neural_hive_observability
+
+# Copy neural_hive_integration library (for ServiceRegistryClient and other integrations)
+COPY --chown=analyst:analyst libraries/neural_hive_integration/neural_hive_integration /app/neural_hive_integration
 
 # Copy application code
 COPY --chown=analyst:analyst services/analyst-agents/src/ ./src/
 
-# Set environment
+# Ensure all files are readable
+RUN chmod -R a+r /app
+
+# Set environment - user packages first, then system packages for neural_hive_observability
 ENV PATH=/home/analyst/.local/bin:$PATH
-ENV PYTHONPATH=/home/analyst/.local/lib/python3.11/site-packages:/app
+ENV PYTHONPATH=/home/analyst/.local/lib/python3.11/site-packages:/usr/local/lib/python3.11/site-packages:/app
 
 USER analyst
 

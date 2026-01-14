@@ -317,7 +317,7 @@ class LocalRuntimeClient:
 
                     # Tentar ler output parcial
                     stdout_bytes = b''
-                    stderr_bytes = b'Execução cancelada por timeout'
+                    stderr_bytes = 'Execução cancelada por timeout'.encode('utf-8')
 
                 # Processar output
                 stdout = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ''

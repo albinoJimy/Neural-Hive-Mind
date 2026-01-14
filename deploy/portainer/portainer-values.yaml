@@ -13,12 +13,9 @@ service:
 
 # Persistence: Portainer stores data in a PVC. Ensure your cluster has a StorageClass named 'standard' or change below.
 persistence:
-  # Persistence disabled to allow quick startup in environments without a dynamic
-  # provisioner for the 'standard' StorageClass. Enable in production by setting
-  # this to true and ensuring a StorageClass is available.
-  enabled: false
-  size: 10Gi
-  storageClass: "standard"  # change if your cluster uses a different storage class
+  enabled: true
+  size: 5Gi
+  storageClass: "local-path"
 
 # Agent configuration (the Helm chart can deploy an agent to the cluster)
 agent:
