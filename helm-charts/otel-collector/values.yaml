@@ -316,11 +316,11 @@ collector:
         metric_expiration: 180m
         enable_open_metrics: true
       jaeger:
-        endpoint: jaeger-collector:14250
+        endpoint: jaeger-collector.observability.svc.cluster.local:14250
         tls:
           insecure: true
       otlp/traces:
-        endpoint: jaeger-collector:4317
+        endpoint: jaeger-collector.observability.svc.cluster.local:4317
         tls:
           insecure: true
         headers:

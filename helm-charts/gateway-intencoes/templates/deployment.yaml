@@ -94,6 +94,8 @@ Construir lista de env vars para o deployment
 {{- $envVars = append $envVars (dict "name" "NLU_ROUTING_USE_ADAPTIVE_FOR_DECISIONS" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "nlu_routing_use_adaptive_for_decisions"))) }}
 {{- $envVars = append $envVars (dict "name" "JAEGER_ENDPOINT" "value" .Values.observability.jaeger.endpoint) }}
 {{- $envVars = append $envVars (dict "name" "ENABLE_TRACING" "value" (default "true" (.Values.observability.tracing.enabled | toString))) }}
+{{- $envVars = append $envVars (dict "name" "OTEL_ENABLED" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "otel_enabled"))) }}
+{{- $envVars = append $envVars (dict "name" "OTEL_ENDPOINT" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "otel_endpoint"))) }}
 
 {{/* Rate Limiting ConfigMap */}}
 {{- $envVars = append $envVars (dict "name" "RATE_LIMIT_ENABLED" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "rate_limit_enabled"))) }}

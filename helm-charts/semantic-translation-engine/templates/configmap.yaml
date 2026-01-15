@@ -45,6 +45,7 @@ data:
   OTEL_ENDPOINT: {{ .Values.config.openTelemetry.endpoint | quote }}
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.openTelemetry.endpoint | quote }}
   OTEL_SAMPLING_RATE: {{ .Values.config.openTelemetry.samplingRate | quote }}
+  OTEL_ENABLED: {{ .Values.config.features.enableTracing | default "true" | quote }}
 
   # Risk Scoring Configuration
   RISK_WEIGHT_PRIORITY: {{ .Values.config.riskScoring.weightPriority | quote }}
