@@ -14,104 +14,231 @@ metadata:
     component: ml-data-pipeline
 data:
   init-ml-schema.sql: |
-    -- Database para dados históricos ML
+    -- ClickHouse Schema para ML Predictive Scheduling
+    --
+    -- Tabelas para armazenamento de dados históricos de execução, telemetria
+    -- e métricas para treinamento de modelos Prophet/ARIMA e Q-learning.
+    --
+    -- TTL:
+    -- - execution_logs: 540 dias (18 meses - janela de treinamento Prophet)
+    -- - telemetry_metrics: 365 dias (1 ano - análise de tendências)
+
     CREATE DATABASE IF NOT EXISTS neural_hive;
 
+    -- ========================================
     -- Tabela: execution_logs
-    -- Armazena logs de execução de tickets para análise de padrões temporais
-    CREATE TABLE IF NOT EXISTS neural_hive.execution_logs (
-        timestamp DateTime64(3) CODEC(DoubleDelta, LZ4),
-        ticket_id String CODEC(ZSTD(1)),
-        task_type LowCardinality(String),
-        risk_band LowCardinality(String),
-        actual_duration_ms UInt32 CODEC(T64, LZ4),
-        estimated_duration_ms UInt32 CODEC(T64, LZ4),
-        status LowCardinality(String),
-        worker_id String CODEC(ZSTD(1)),
-        resource_cpu UInt16 CODEC(T64, LZ4),
-        resource_memory UInt32 CODEC(T64, LZ4),
-        sla_threshold_ms UInt32 CODEC(T64, LZ4),
-        retry_count UInt8,
-        error_type LowCardinality(String),
-        namespace LowCardinality(String) DEFAULT 'default',
-        service LowCardinality(String) DEFAULT 'worker-agents'
+    -- ========================================
+    -- Logs de execução de tickets para forecasting de carga
+
+    CREATE TABLE IF NOT EXISTS neural_hive.execution_logs
+    (
+        timestamp DateTime COMMENT 'Timestamp de conclusão do ticket',
+        ticket_id String COMMENT 'ID único do ticket executado',
+        task_type String COMMENT 'Tipo de tarefa (processing, analysis, etc.)',
+        risk_band String COMMENT 'Banda de risco (low, medium, high, critical)',
+        actual_duration_ms UInt32 COMMENT 'Duração real de execução em milissegundos',
+        latency_ms UInt32 COMMENT 'Latência total em milissegundos (alias para queries)',
+        status String COMMENT 'Status final (success, error, timeout)',
+        worker_id String COMMENT 'ID do worker que executou',
+        service String COMMENT 'Nome do serviço que processou o ticket',
+        sla_threshold_ms UInt32 COMMENT 'Threshold de SLA em milissegundos para o ticket',
+        resource_cpu Float32 COMMENT 'Uso de CPU durante execução (0-1)',
+        resource_memory Float32 COMMENT 'Uso de memória em MB',
+        sla_met UInt8 COMMENT 'Se SLA foi cumprido (1=sim, 0=não)',
+        queue_depth_at_start UInt32 COMMENT 'Profundidade da fila ao iniciar ticket',
+        specialist_type String COMMENT 'Tipo de specialist (business, technical, etc.)',
+        priority UInt8 COMMENT 'Prioridade do ticket (1-10)',
+        retry_count UInt8 COMMENT 'Número de retries'
     )
     ENGINE = MergeTree()
     PARTITION BY toYYYYMM(timestamp)
     ORDER BY (timestamp, task_type, risk_band)
-    TTL timestamp + INTERVAL 540 DAY  -- 18 meses
-    SETTINGS
-        index_granularity = 8192,
-        ttl_only_drop_parts = 1;
+    TTL timestamp + INTERVAL 540 DAY
+    SETTINGS index_granularity = 8192
+    COMMENT 'Logs históricos de execução de tickets para forecasting de carga';
 
-    -- Índices para queries otimizadas
-    CREATE INDEX IF NOT EXISTS idx_status ON neural_hive.execution_logs (status) TYPE minmax GRANULARITY 4;
-    CREATE INDEX IF NOT EXISTS idx_task_type_risk ON neural_hive.execution_logs (task_type, risk_band) TYPE set(100) GRANULARITY 4;
+    -- Índices secundários para queries de treinamento
+    ALTER TABLE neural_hive.execution_logs
+    ADD INDEX IF NOT EXISTS idx_task_type task_type TYPE set(100) GRANULARITY 4;
 
+    ALTER TABLE neural_hive.execution_logs
+    ADD INDEX IF NOT EXISTS idx_risk_band risk_band TYPE set(10) GRANULARITY 4;
+
+    ALTER TABLE neural_hive.execution_logs
+    ADD INDEX IF NOT EXISTS idx_status status TYPE set(10) GRANULARITY 4;
+
+
+    -- ========================================
     -- Tabela: telemetry_metrics
-    -- Armazena métricas de telemetria (CPU, memória, workers ativos, filas)
-    CREATE TABLE IF NOT EXISTS neural_hive.telemetry_metrics (
-        timestamp DateTime64(3) CODEC(DoubleDelta, LZ4),
-        service LowCardinality(String),
-        metric_name LowCardinality(String),
-        metric_value Float64 CODEC(Gorilla, LZ4),
-        labels Map(String, String) CODEC(ZSTD(1))
+    -- ========================================
+    -- Métricas de telemetria agregadas para análise de tendências
+
+    CREATE TABLE IF NOT EXISTS neural_hive.telemetry_metrics
+    (
+        timestamp DateTime COMMENT 'Timestamp da métrica',
+        service String COMMENT 'Nome do serviço (optimizer-agents, orchestrator, etc.)',
+        metric_name String COMMENT 'Nome da métrica',
+        metric_value Float64 COMMENT 'Valor da métrica',
+        labels Map(String, String) COMMENT 'Labels da métrica (task_type, risk_band, etc.)',
+        aggregation_window_seconds UInt32 COMMENT 'Janela de agregação em segundos'
     )
     ENGINE = MergeTree()
     PARTITION BY toYYYYMM(timestamp)
     ORDER BY (timestamp, service, metric_name)
-    TTL timestamp + INTERVAL 365 DAY  -- 12 meses
-    SETTINGS
-        index_granularity = 8192,
-        ttl_only_drop_parts = 1;
+    TTL timestamp + INTERVAL 365 DAY
+    SETTINGS index_granularity = 8192
+    COMMENT 'Métricas de telemetria para análise de tendências e ML';
 
-    -- Índice para queries de métricas específicas
-    CREATE INDEX IF NOT EXISTS idx_metric_name ON neural_hive.telemetry_metrics (metric_name) TYPE set(50) GRANULARITY 4;
+    -- Índice para queries por serviço
+    ALTER TABLE neural_hive.telemetry_metrics
+    ADD INDEX IF NOT EXISTS idx_service service TYPE set(50) GRANULARITY 4;
 
-    -- View materializada: execution_stats_hourly
-    -- Pré-agregação por hora para queries rápidas
-    CREATE MATERIALIZED VIEW IF NOT EXISTS neural_hive.execution_stats_hourly
+
+    -- ========================================
+    -- Tabela: worker_utilization
+    -- ========================================
+    -- Utilização de workers para análise de capacidade
+
+    CREATE TABLE IF NOT EXISTS neural_hive.worker_utilization
+    (
+        timestamp DateTime COMMENT 'Timestamp da amostra',
+        worker_id String COMMENT 'ID do worker',
+        active_tasks UInt16 COMMENT 'Número de tarefas ativas',
+        cpu_usage Float32 COMMENT 'Uso de CPU (0-1)',
+        memory_usage_mb Float32 COMMENT 'Uso de memória em MB',
+        network_rx_mbps Float32 COMMENT 'Tráfego de rede recebido (Mbps)',
+        network_tx_mbps Float32 COMMENT 'Tráfego de rede enviado (Mbps)',
+        is_available UInt8 COMMENT 'Se worker está disponível (1=sim, 0=não)',
+        specialist_type String COMMENT 'Tipo de specialist do worker'
+    )
+    ENGINE = MergeTree()
+    PARTITION BY toYYYYMM(timestamp)
+    ORDER BY (timestamp, worker_id)
+    TTL timestamp + INTERVAL 180 DAY
+    SETTINGS index_granularity = 8192
+    COMMENT 'Utilização de workers para planejamento de capacidade';
+
+
+    -- ========================================
+    -- Tabela: queue_snapshots
+    -- ========================================
+    -- Snapshots da fila de tickets para análise de padrões
+
+    CREATE TABLE IF NOT EXISTS neural_hive.queue_snapshots
+    (
+        timestamp DateTime COMMENT 'Timestamp do snapshot',
+        queue_depth UInt32 COMMENT 'Profundidade total da fila',
+        avg_wait_time_ms UInt32 COMMENT 'Tempo médio de espera em milissegundos',
+        tickets_by_priority Map(UInt8, UInt32) COMMENT 'Distribuição de tickets por prioridade',
+        tickets_by_task_type Map(String, UInt32) COMMENT 'Distribuição de tickets por tipo de tarefa',
+        tickets_by_risk_band Map(String, UInt32) COMMENT 'Distribuição de tickets por banda de risco',
+        active_workers UInt16 COMMENT 'Número de workers ativos',
+        available_capacity Float32 COMMENT 'Capacidade disponível estimada (0-1)'
+    )
+    ENGINE = MergeTree()
+    PARTITION BY toYYYYMM(timestamp)
+    ORDER BY timestamp
+    TTL timestamp + INTERVAL 180 DAY
+    SETTINGS index_granularity = 8192
+    COMMENT 'Snapshots periódicos da fila para análise de padrões';
+
+
+    -- ========================================
+    -- Tabela: ml_model_performance
+    -- ========================================
+    -- Performance de modelos ML em produção
+
+    CREATE TABLE IF NOT EXISTS neural_hive.ml_model_performance
+    (
+        timestamp DateTime COMMENT 'Timestamp da avaliação',
+        model_name String COMMENT 'Nome do modelo (load_predictor_60m, scheduling_optimizer, etc.)',
+        model_version String COMMENT 'Versão do modelo (hash ou timestamp)',
+        metric_name String COMMENT 'Nome da métrica (mape, reward, accuracy, etc.)',
+        metric_value Float64 COMMENT 'Valor da métrica',
+        evaluation_samples UInt32 COMMENT 'Número de amostras avaliadas',
+        horizon_minutes UInt32 COMMENT 'Horizonte de previsão (para modelos de forecast)',
+        task_type String COMMENT 'Tipo de tarefa (para segmentação)',
+        risk_band String COMMENT 'Banda de risco (para segmentação)'
+    )
+    ENGINE = MergeTree()
+    PARTITION BY toYYYYMM(timestamp)
+    ORDER BY (timestamp, model_name)
+    TTL timestamp + INTERVAL 365 DAY
+    SETTINGS index_granularity = 8192
+    COMMENT 'Performance de modelos ML para monitoramento e retreinamento';
+
+
+    -- ========================================
+    -- Tabela: scheduling_decisions
+    -- ========================================
+    -- Decisões de agendamento tomadas (para Q-learning)
+
+    CREATE TABLE IF NOT EXISTS neural_hive.scheduling_decisions
+    (
+        timestamp DateTime COMMENT 'Timestamp da decisão',
+        decision_id String COMMENT 'ID único da decisão',
+        state_hash String COMMENT 'Hash do estado (queue_depth, workers, load_forecast)',
+        action String COMMENT 'Ação tomada (INCREASE_WORKER_POOL, etc.)',
+        confidence Float32 COMMENT 'Confiança da recomendação (0-1)',
+        reward Float32 COMMENT 'Reward observado após ação',
+        sla_compliance_before Float32 COMMENT 'SLA compliance antes da ação',
+        sla_compliance_after Float32 COMMENT 'SLA compliance depois da ação',
+        throughput_before Float32 COMMENT 'Throughput antes da ação',
+        throughput_after Float32 COMMENT 'Throughput depois da ação',
+        was_applied UInt8 COMMENT 'Se decisão foi aplicada (1=sim, 0=rejeitada)',
+        rejection_reason String COMMENT 'Motivo de rejeição (se aplicável)',
+        source String COMMENT 'Fonte da decisão (ml_model, heuristic, manual)'
+    )
+    ENGINE = MergeTree()
+    PARTITION BY toYYYYMM(timestamp)
+    ORDER BY (timestamp, action)
+    TTL timestamp + INTERVAL 365 DAY
+    SETTINGS index_granularity = 8192
+    COMMENT 'Decisões de agendamento para análise de política RL';
+
+
+    -- ========================================
+    -- Views Materializadas
+    -- ========================================
+
+    -- View: hourly_ticket_volume
+    -- Agregação horária de volume de tickets por tipo/risco
+    CREATE MATERIALIZED VIEW IF NOT EXISTS neural_hive.hourly_ticket_volume
     ENGINE = SummingMergeTree()
-    PARTITION BY toYYYYMM(hour)
-    ORDER BY (hour, task_type, risk_band)
-    POPULATE AS
-    SELECT
-        toStartOfHour(timestamp) AS hour,
+    PARTITION BY toYYYYMM(timestamp_hour)
+    ORDER BY (timestamp_hour, task_type, risk_band)
+    POPULATE
+    AS SELECT
+        toStartOfHour(timestamp) AS timestamp_hour,
         task_type,
         risk_band,
         count() AS ticket_count,
         avg(actual_duration_ms) AS avg_duration_ms,
-        quantile(0.5)(actual_duration_ms) AS p50_duration_ms,
-        quantile(0.95)(actual_duration_ms) AS p95_duration_ms,
-        quantile(0.99)(actual_duration_ms) AS p99_duration_ms,
-        avg(resource_cpu) AS avg_cpu,
-        avg(resource_memory) AS avg_memory,
-        countIf(status = 'SUCCESS') AS success_count,
-        countIf(status = 'FAILURE') AS failure_count
+        avg(resource_cpu) AS avg_cpu_usage,
+        avg(resource_memory) AS avg_memory_mb,
+        sum(sla_met) AS sla_met_count,
+        count() - sum(sla_met) AS sla_missed_count
     FROM neural_hive.execution_logs
-    GROUP BY hour, task_type, risk_band;
+    GROUP BY timestamp_hour, task_type, risk_band;
 
-    -- View materializada: resource_utilization_hourly
-    -- Pré-agregação de métricas de utilização
-    CREATE MATERIALIZED VIEW IF NOT EXISTS neural_hive.resource_utilization_hourly
+
+    -- View: daily_worker_stats
+    -- Estatísticas diárias de workers
+    CREATE MATERIALIZED VIEW IF NOT EXISTS neural_hive.daily_worker_stats
     ENGINE = AggregatingMergeTree()
-    PARTITION BY toYYYYMM(hour)
-    ORDER BY (hour, service, metric_name)
-    POPULATE AS
-    SELECT
-        toStartOfHour(timestamp) AS hour,
-        service,
-        metric_name,
-        avgState(metric_value) AS avg_value_state,
-        maxState(metric_value) AS max_value_state,
-        minState(metric_value) AS min_value_state
-    FROM neural_hive.telemetry_metrics
-    GROUP BY hour, service, metric_name;
-
-    -- Grants para usuário ml_user
-    GRANT SELECT ON neural_hive.* TO ml_user;
-    GRANT INSERT ON neural_hive.execution_logs TO ml_user;
-    GRANT INSERT ON neural_hive.telemetry_metrics TO ml_user;
+    PARTITION BY toYYYYMM(timestamp_day)
+    ORDER BY (timestamp_day, worker_id)
+    POPULATE
+    AS SELECT
+        toStartOfDay(timestamp) AS timestamp_day,
+        worker_id,
+        specialist_type,
+        avgState(active_tasks) AS avg_active_tasks_state,
+        avgState(cpu_usage) AS avg_cpu_usage_state,
+        avgState(memory_usage_mb) AS avg_memory_mb_state,
+        sumState(toUInt64(is_available)) AS available_samples_state
+    FROM neural_hive.worker_utilization
+    GROUP BY timestamp_day, worker_id, specialist_type;
 ---
 apiVersion: batch/v1
 kind: Job
@@ -149,10 +276,37 @@ spec:
 
           echo "Schema ML criado com sucesso!"
 
-          # Validar tabelas criadas
+          # Validar todas as tabelas criadas
+          echo "Validando tabelas criadas..."
           clickhouse-client --host clickhouse.clickhouse.svc.cluster.local --query "SHOW TABLES FROM neural_hive"
+
+          # Validar 6 tabelas principais
+          echo "Validando execution_logs..."
           clickhouse-client --host clickhouse.clickhouse.svc.cluster.local --query "SELECT count() FROM neural_hive.execution_logs"
+
+          echo "Validando telemetry_metrics..."
           clickhouse-client --host clickhouse.clickhouse.svc.cluster.local --query "SELECT count() FROM neural_hive.telemetry_metrics"
+
+          echo "Validando worker_utilization..."
+          clickhouse-client --host clickhouse.clickhouse.svc.cluster.local --query "SELECT count() FROM neural_hive.worker_utilization"
+
+          echo "Validando queue_snapshots..."
+          clickhouse-client --host clickhouse.clickhouse.svc.cluster.local --query "SELECT count() FROM neural_hive.queue_snapshots"
+
+          echo "Validando ml_model_performance..."
+          clickhouse-client --host clickhouse.clickhouse.svc.cluster.local --query "SELECT count() FROM neural_hive.ml_model_performance"
+
+          echo "Validando scheduling_decisions..."
+          clickhouse-client --host clickhouse.clickhouse.svc.cluster.local --query "SELECT count() FROM neural_hive.scheduling_decisions"
+
+          # Validar views materializadas
+          echo "Validando hourly_ticket_volume..."
+          clickhouse-client --host clickhouse.clickhouse.svc.cluster.local --query "SELECT count() FROM neural_hive.hourly_ticket_volume"
+
+          echo "Validando daily_worker_stats..."
+          clickhouse-client --host clickhouse.clickhouse.svc.cluster.local --query "SELECT count() FROM neural_hive.daily_worker_stats"
+
+          echo "Todas as 6 tabelas e 2 views materializadas validadas com sucesso!"
         volumeMounts:
         - name: schema
           mountPath: /schema
