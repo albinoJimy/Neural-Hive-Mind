@@ -1,0 +1,9 @@
+{
+  "text": "Criar um sistema de autenticação com OAuth2 e JWT para uma aplicação web moderna",
+  "language": "pt-BR",
+  "correlation_id": "e2e-test-20260115-153350-5067efcc",
+  "qos": {
+    "priority": "high",
+    "timeout_seconds": 120
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-01-15T14:48:00Z",
+  "database": "neural_hive",
+  "tables_created": {
+    "core_tables": ["execution_logs", "telemetry_metrics", "worker_utilization", "queue_snapshots", "ml_model_performance", "scheduling_decisions"],
+    "history_tables": ["cognitive_plans_history", "consensus_decisions_history", "specialist_opinions_history", "telemetry_events"],
+    "materialized_views": ["daily_worker_stats", "hourly_ticket_volume"],
+    "total_count": 14
+  },
+  "data_status": {
+    "all_tables_empty": true,
+    "reason": "Schema criado mas sync job de dados MongoDB → ClickHouse ainda não populou as tabelas"
+  },
+  "validation_result": "PARTIAL - Schema criado corretamente, mas dados ainda não sincronizados"
+}

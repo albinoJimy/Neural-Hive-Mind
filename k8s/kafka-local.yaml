@@ -94,11 +94,12 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-  name: intentions-business
+  name: intentions.business
   namespace: kafka
   labels:
     strimzi.io/cluster: neural-hive-kafka
 spec:
+  topicName: intentions.business
   partitions: 3
   replicas: 1
   config:
@@ -109,11 +110,12 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-  name: intentions-technical
+  name: intentions.technical
   namespace: kafka
   labels:
     strimzi.io/cluster: neural-hive-kafka
 spec:
+  topicName: intentions.technical
   partitions: 3
   replicas: 1
   config:
@@ -124,11 +126,12 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-  name: intentions-infrastructure
+  name: intentions.infrastructure
   namespace: kafka
   labels:
     strimzi.io/cluster: neural-hive-kafka
 spec:
+  topicName: intentions.infrastructure
   partitions: 3
   replicas: 1
   config:
@@ -139,11 +142,12 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-  name: intentions-security
+  name: intentions.security
   namespace: kafka
   labels:
     strimzi.io/cluster: neural-hive-kafka
 spec:
+  topicName: intentions.security
   partitions: 3
   replicas: 1
   config:
@@ -154,11 +158,12 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-  name: intentions-validation
+  name: intentions.validation
   namespace: kafka
   labels:
     strimzi.io/cluster: neural-hive-kafka
 spec:
+  topicName: intentions.validation
   partitions: 3
   replicas: 1
   config:

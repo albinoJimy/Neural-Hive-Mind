@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-01-15T14:35:00Z",
+  "gateway": {
+    "status": "healthy",
+    "components": {
+      "redis": "healthy",
+      "asr_pipeline": "healthy",
+      "nlu_pipeline": "healthy",
+      "kafka_producer": "healthy",
+      "oauth2_validator": "healthy"
+    }
+  },
+  "semantic_translation_engine": {
+    "status": "serving",
+    "mongodb_connected": true
+  },
+  "consensus_engine": {
+    "status": "serving",
+    "readiness_checks": "200 OK"
+  },
+  "specialists": {
+    "business": {"status": "SERVING", "model_loaded": true, "mlflow_connected": true, "ledger_connected": true},
+    "technical": {"status": "SERVING", "model_loaded": true, "mlflow_connected": true, "ledger_connected": true},
+    "behavior": {"status": "SERVING", "model_loaded": true, "mlflow_connected": true, "ledger_connected": true},
+    "evolution": {"status": "SERVING", "model_loaded": true, "mlflow_connected": true, "ledger_connected": true},
+    "architecture": {"status": "SERVING", "model_loaded": true, "mlflow_connected": true, "ledger_connected": true}
+  },
+  "all_services_healthy": true
+}

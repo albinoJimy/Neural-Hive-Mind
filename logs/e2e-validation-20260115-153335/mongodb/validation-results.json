@@ -1,0 +1,27 @@
+{
+  "intent_id": "348470f3-0d61-4d2a-b277-a194379e6827",
+  "plan_id": "77df080a-dce0-468f-aa3d-38cf251c2af0",
+  "decision_id": "ffdd3a35-64b0-491a-ab41-c7ff64aefafb",
+  "validation_results": {
+    "cognitive_ledger": {
+      "found": true,
+      "fields_validated": ["plan_id", "intent_id", "version"]
+    },
+    "specialist_opinions": {
+      "found": true,
+      "count": 5,
+      "specialists": ["business", "technical", "behavior", "evolution", "architecture"]
+    },
+    "consensus_decisions": {
+      "found": true,
+      "final_decision": "review_required"
+    }
+  },
+  "total_counts": {
+    "cognitive_ledger": 9670,
+    "specialist_opinions": 365,
+    "consensus_decisions": 68,
+    "explainability_ledger": 10119
+  },
+  "collections_count": 16
+}

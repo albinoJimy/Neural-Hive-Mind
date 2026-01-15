@@ -21,10 +21,10 @@ config:
     bootstrapServers: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092" # PLAINTEXT listener
     consumerGroupId: "semantic-translation-engine-local"
     topics:
-      - "intentions-business"
-      - "intentions-technical"
-      - "intentions-infrastructure"
-      - "intentions-security"
+      - "intentions.business"
+      - "intentions.technical"
+      - "intentions.infrastructure"
+      - "intentions.security"
     plansTopic: "plans.ready"
     securityProtocol: "PLAINTEXT"
     saslMechanism: ""

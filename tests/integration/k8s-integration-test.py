@@ -82,7 +82,7 @@ def main():
         "domain": "TECHNICAL",
         "text": "Teste de integração end-to-end K8s",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "kafka_topic": "intentions-technical",
+        "kafka_topic": "intentions.technical",
         "metadata": {"test": "integration"}
     }
 

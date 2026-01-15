@@ -15,7 +15,7 @@ metadata:
 data:
   KAFKA_BOOTSTRAP_SERVERS: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
   KAFKA_BROKERS: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
-  KAFKA_TOPIC_INTENTIONS: "intentions-validation"
+  KAFKA_TOPIC_INTENTIONS: "intentions.validation"
   REDIS_HOST: "redis.redis-cluster.svc.cluster.local"
   REDIS_PORT: "6379"
   MONGODB_HOST: "mongodb.mongodb-cluster.svc.cluster.local"

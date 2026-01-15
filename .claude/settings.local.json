@@ -667,7 +667,8 @@
       "Bash(__NEW_LINE_f22334ad4d7a3cd5__ echo \"\")",
       "Bash(__NEW_LINE_799c56af244db32e__ echo \"\")",
       "Bash(# Enviar nova intenção e capturar logs em tempo real timeout 10s kubectl logs -n neural-hive deploy/gateway-intencoes -f & LOG_PID=$! sleep 2 # Enviar intenção curl -s -X POST \"\"http://10.96.144.83:8000/intentions\"\" \\\\ -H \"\"Content-Type: application/json\"\" \\\\ -d ''{ \"\"text\"\": \"\"atualizar servidor de banco de dados\"\", \"\"source\"\": \"\"terminal-debug\"\", \"\"correlation_id\"\": \"\"debug-flow-1234\"\" }'')",
-      "Bash(# Reiniciar o pod e monitorar logs kubectl delete pod -n neural-hive -l app.kubernetes.io/name=gateway-intencoes --force --grace-period=0 & DELETE_PID=$! # Esperar o novo pod iniciar e capturar logs sleep 5 echo \"\"=== Aguardando novo pod ===\"\" kubectl wait --for=condition=ready pod -n neural-hive -l app.kubernetes.io/name=gateway-intencoes --timeout=120s 2>&1 echo \"\"=== Logs de inicialização ===\"\" kubectl logs -n neural-hive deploy/gateway-intencoes --tail=100 2>&1)"
+      "Bash(# Reiniciar o pod e monitorar logs kubectl delete pod -n neural-hive -l app.kubernetes.io/name=gateway-intencoes --force --grace-period=0 & DELETE_PID=$! # Esperar o novo pod iniciar e capturar logs sleep 5 echo \"\"=== Aguardando novo pod ===\"\" kubectl wait --for=condition=ready pod -n neural-hive -l app.kubernetes.io/name=gateway-intencoes --timeout=120s 2>&1 echo \"\"=== Logs de inicialização ===\"\" kubectl logs -n neural-hive deploy/gateway-intencoes --tail=100 2>&1)",
+      "Bash(VALIDATION_DIR=\"/home/jimy/NHM/Neural-Hive-Mind/logs/e2e-validation-20260115-153335\")"
     ],
     "deny": [],
     "ask": []

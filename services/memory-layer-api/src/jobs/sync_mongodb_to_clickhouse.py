@@ -159,6 +159,28 @@ class MongoToClickHouseSync:
             'quality_metrics_history': [
                 'collection', 'created_at', 'completeness_score',
                 'freshness_score', 'consistency_score', 'metadata'
+            ],
+            # Tabelas ML Predictive Scheduling
+            'execution_logs': [
+                'timestamp', 'ticket_id', 'task_type', 'risk_band',
+                'actual_duration_ms', 'latency_ms', 'status', 'worker_id',
+                'service', 'sla_threshold_ms', 'resource_cpu', 'resource_memory',
+                'sla_met', 'queue_depth_at_start', 'specialist_type', 'priority', 'retry_count'
+            ],
+            'telemetry_metrics': [
+                'timestamp', 'service', 'metric_name', 'metric_value',
+                'labels', 'aggregation_window_seconds'
+            ],
+            'worker_utilization': [
+                'timestamp', 'worker_id', 'active_tasks', 'cpu_usage',
+                'memory_usage_mb', 'network_rx_mbps', 'network_tx_mbps',
+                'is_available', 'specialist_type'
+            ],
+            'scheduling_decisions': [
+                'timestamp', 'decision_id', 'state_hash', 'action',
+                'confidence', 'reward', 'sla_compliance_before', 'sla_compliance_after',
+                'throughput_before', 'throughput_after', 'was_applied',
+                'rejection_reason', 'source'
             ]
         }
         return table_columns.get(table_name, ['entity_id', 'created_at', 'data', 'metadata'])
@@ -212,6 +234,67 @@ class MongoToClickHouseSync:
                 float(doc.get('consistency_score', 0.0)),
                 json.dumps(doc.get('metadata', {}), default=str)
             ]
+        # Tabelas ML Predictive Scheduling
+        elif table_name == 'execution_logs':
+            return [
+                created_at,
+                doc.get('ticket_id', ''),
+                doc.get('task_type', ''),
+                doc.get('risk_band', 'medium'),
+                int(doc.get('actual_duration_ms', 0)),
+                int(doc.get('latency_ms', 0)),
+                doc.get('status', 'success'),
+                doc.get('worker_id', ''),
+                doc.get('service', ''),
+                int(doc.get('sla_threshold_ms', 0)),
+                float(doc.get('resource_cpu', 0.0)),
+                float(doc.get('resource_memory', 0.0)),
+                1 if doc.get('sla_met', True) else 0,
+                int(doc.get('queue_depth_at_start', 0)),
+                doc.get('specialist_type', ''),
+                int(doc.get('priority', 5)),
+                int(doc.get('retry_count', 0))
+            ]
+        elif table_name == 'telemetry_metrics':
+            labels = doc.get('labels', {})
+            if isinstance(labels, str):
+                labels = json.loads(labels)
+            return [
+                created_at,
+                doc.get('service', ''),
+                doc.get('metric_name', ''),
+                float(doc.get('metric_value', 0.0)),
+                labels,
+                int(doc.get('aggregation_window_seconds', 60))
+            ]
+        elif table_name == 'worker_utilization':
+            return [
+                created_at,
+                doc.get('worker_id', ''),
+                int(doc.get('active_tasks', 0)),
+                float(doc.get('cpu_usage', 0.0)),
+                float(doc.get('memory_usage_mb', 0.0)),
+                float(doc.get('network_rx_mbps', 0.0)),
+                float(doc.get('network_tx_mbps', 0.0)),
+                1 if doc.get('is_available', True) else 0,
+                doc.get('specialist_type', '')
+            ]
+        elif table_name == 'scheduling_decisions':
+            return [
+                created_at,
+                doc.get('decision_id', ''),
+                doc.get('state_hash', ''),
+                doc.get('action', ''),
+                float(doc.get('confidence', 0.0)),
+                float(doc.get('reward', 0.0)),
+                float(doc.get('sla_compliance_before', 0.0)),
+                float(doc.get('sla_compliance_after', 0.0)),
+                float(doc.get('throughput_before', 0.0)),
+                float(doc.get('throughput_after', 0.0)),
+                1 if doc.get('was_applied', False) else 0,
+                doc.get('rejection_reason', ''),
+                doc.get('source', 'ml_model')
+            ]
         else:
             # Fallback genérico
             return [
@@ -226,22 +309,46 @@ class MongoToClickHouseSync:
         try:
             await self.initialize()
 
-            # Sincroniza coleções principais
+            # Sincroniza coleções principais (dados operacionais)
             collections_to_sync = [
                 ('operational_context', 'operational_context_history'),
                 ('data_lineage', 'data_lineage_history'),
                 ('data_quality_metrics', 'quality_metrics_history')
             ]
 
+            # Sincroniza coleções ML Predictive Scheduling
+            # Mapeia coleções MongoDB para tabelas ClickHouse ML
+            ml_collections_to_sync = [
+                ('execution_logs', 'execution_logs'),
+                ('telemetry_metrics', 'telemetry_metrics'),
+                ('worker_utilization', 'worker_utilization'),
+                ('scheduling_decisions', 'scheduling_decisions')
+            ]
+
             total_synced = 0
+
+            # Sincroniza coleções operacionais
             for mongo_collection, clickhouse_table in collections_to_sync:
                 synced = await self.sync_collection(mongo_collection, clickhouse_table)
                 total_synced += synced
 
+            # Sincroniza coleções ML (se existirem no MongoDB)
+            for mongo_collection, clickhouse_table in ml_collections_to_sync:
+                try:
+                    synced = await self.sync_collection(mongo_collection, clickhouse_table)
+                    total_synced += synced
+                except Exception as e:
+                    # Coleções ML podem não existir ainda - log e continua
+                    logger.warning(
+                        f"Coleção ML {mongo_collection} não encontrada ou erro na sincronização",
+                        collection=mongo_collection,
+                        error=str(e)
+                    )
+
             logger.info(
                 "Sincronização completa",
                 total_documents=total_synced,
-                collections=len(collections_to_sync)
+                collections=len(collections_to_sync) + len(ml_collections_to_sync)
             )
 
         except Exception as e:
