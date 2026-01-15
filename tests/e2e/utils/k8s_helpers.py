@@ -19,11 +19,40 @@ async def wait_for_pod_ready(k8s_client: CoreV1Api, namespace: str, label_select
     raise TimeoutError(f"Pods with selector {label_selector} not ready in namespace {namespace}")
 
 
-def get_pod_logs(k8s_client: CoreV1Api, namespace: str, label_selector: str, tail_lines: int = 100) -> str:
+def get_pod_logs(
+    k8s_client: CoreV1Api,
+    namespace: str,
+    label_selector: str,
+    tail_lines: int = 100,
+    since_seconds: int = None,
+) -> str:
+    """
+    Busca logs de pods por label selector.
+
+    Args:
+        k8s_client: Cliente Kubernetes CoreV1Api
+        namespace: Namespace do pod
+        label_selector: Seletor de labels (ex: app=consensus-engine)
+        tail_lines: Número de linhas do final (default: 100)
+        since_seconds: Buscar logs dos últimos N segundos (opcional)
+
+    Returns:
+        String com logs concatenados
+    """
     pods = k8s_client.list_namespaced_pod(namespace=namespace, label_selector=label_selector).items
     if not pods:
         return ""
-    return k8s_client.read_namespaced_pod_log(name=pods[0].metadata.name, namespace=namespace, tail_lines=tail_lines)
+
+    kwargs = {
+        "name": pods[0].metadata.name,
+        "namespace": namespace,
+        "tail_lines": tail_lines,
+    }
+
+    if since_seconds is not None:
+        kwargs["since_seconds"] = since_seconds
+
+    return k8s_client.read_namespaced_pod_log(**kwargs)
 
 
 def scale_deployment(k8s_client: CoreV1Api, namespace: str, deployment_name: str, replicas: int) -> None:

@@ -108,6 +108,25 @@ jobs:
       - name: Run Phase 1 E2E Tests
         run: ./tests/run-tests.sh --type e2e --phase 1 --report --coverage
 
+      - name: Run Avro Flow E2E Tests
+        run: |
+          pytest tests/e2e/test_avro_flow_complete.py \
+            -v \
+            --tb=short \
+            --junit-xml=tests/results/avro-flow-junit.xml \
+            --cov=services/semantic-translation-engine \
+            --cov=services/consensus-engine \
+            --cov-report=xml:tests/results/avro-flow-coverage.xml \
+            --log-cli-level=INFO
+        timeout-minutes: 15
+
+      - name: Upload Avro Flow Test Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: avro-flow-test-results
+          path: tests/results/avro-flow-*.xml
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v3
@@ -115,12 +134,24 @@ jobs:
           name: e2e-test-results
           path: tests/results/
 
+      - name: Verify coverage files exist
+        if: always()
+        run: |
+          echo "📊 Verificando arquivos de cobertura..."
+          ls -la tests/results/ || echo "Diretório tests/results/ não existe"
+          if [ -f "tests/results/avro-flow-coverage.xml" ]; then
+            echo "✅ Arquivo avro-flow-coverage.xml encontrado"
+          else
+            echo "⚠️ Arquivo avro-flow-coverage.xml não encontrado"
+          fi
+
       - name: Upload coverage
         if: always()
         uses: codecov/codecov-action@v3
         with:
-          files: tests/results/coverage/coverage.xml
-          flags: e2e
+          files: tests/results/avro-flow-coverage.xml
+          flags: e2e,avro-flow
+          fail_ci_if_error: false
 
       - name: Cleanup
         if: always()

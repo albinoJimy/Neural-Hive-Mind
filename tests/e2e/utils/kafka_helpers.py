@@ -218,6 +218,164 @@ async def collect_kafka_messages(
     return results
 
 
+# ============================================
+# Helpers para Avro
+# ============================================
+
+
+async def wait_for_avro_message(
+    consumer,
+    topic: str,
+    filter_fn: Callable[[dict], bool],
+    timeout: int = 30,
+) -> Optional[Dict[str, Any]]:
+    """
+    Aguarda mensagem Avro específica em tópico.
+
+    AvroConsumer deserializa automaticamente as mensagens.
+
+    Args:
+        consumer: AvroConsumer configurado
+        topic: Nome do tópico
+        filter_fn: Função para filtrar mensagem desejada
+        timeout: Timeout em segundos
+
+    Returns:
+        Mensagem deserializada ou None se timeout
+    """
+    consumer.subscribe([topic])
+    start = time.time()
+
+    while time.time() - start < timeout:
+        msg = await asyncio.to_thread(consumer.poll, 1.0)
+
+        if msg is None:
+            continue
+
+        if msg.error():
+            logger.warning(f"Erro ao consumir mensagem Avro: {msg.error()}")
+            continue
+
+        # AvroConsumer já deserializa automaticamente
+        value = msg.value()
+        if isinstance(value, dict) and filter_fn(value):
+            return value
+
+    return None
+
+
+async def collect_avro_messages(
+    consumer,
+    topic: str,
+    filter_fn: Callable[[dict], bool],
+    timeout: int = 60,
+    expected_count: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Coleta múltiplas mensagens Avro de tópico.
+
+    Args:
+        consumer: AvroConsumer configurado
+        topic: Nome do tópico
+        filter_fn: Função para filtrar mensagens
+        timeout: Timeout em segundos
+        expected_count: Número esperado de mensagens (para encerrar antes do timeout)
+
+    Returns:
+        Lista de mensagens deserializadas
+    """
+    consumer.subscribe([topic])
+    results: List[Dict[str, Any]] = []
+    start = time.time()
+
+    while time.time() - start < timeout:
+        msg = await asyncio.to_thread(consumer.poll, 1.0)
+
+        if msg is None:
+            continue
+
+        if msg.error():
+            logger.warning(f"Erro ao consumir mensagem Avro: {msg.error()}")
+            continue
+
+        value = msg.value()
+        if isinstance(value, dict) and filter_fn(value):
+            results.append(value)
+            if expected_count and len(results) >= expected_count:
+                break
+
+    return results
+
+
+async def get_schema_from_registry(
+    schema_registry_url: str,
+    subject: str,
+    version: str = "latest",
+) -> Dict[str, Any]:
+    """
+    Busca schema do Schema Registry (Apicurio).
+
+    Args:
+        schema_registry_url: URL base do Schema Registry
+        subject: Nome do subject (ex: plans.ready-value)
+        version: Versão do schema (default: latest)
+
+    Returns:
+        Dict com informações do schema
+    """
+    import httpx
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        url = f"{schema_registry_url}/apis/ccompat/v6/subjects/{subject}/versions/{version}"
+        resp = await client.get(url)
+        resp.raise_for_status()
+        return resp.json()
+
+
+async def get_schema_by_id(
+    schema_registry_url: str,
+    schema_id: int,
+) -> Dict[str, Any]:
+    """
+    Busca schema por ID do Schema Registry.
+
+    Args:
+        schema_registry_url: URL base do Schema Registry
+        schema_id: ID do schema
+
+    Returns:
+        Dict com definição do schema
+    """
+    import httpx
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        url = f"{schema_registry_url}/apis/ccompat/v6/schemas/ids/{schema_id}"
+        resp = await client.get(url)
+        resp.raise_for_status()
+        return resp.json()
+
+
+def extract_schema_id_from_avro_message(message: bytes) -> int:
+    """
+    Extrai schema ID de mensagem Avro.
+
+    Formato: magic byte (0x00) + 4 bytes de schema ID (big-endian)
+
+    Args:
+        message: Bytes da mensagem Avro
+
+    Returns:
+        Schema ID como inteiro
+    """
+    if len(message) < 5:
+        raise ValueError(f"Mensagem muito curta: {len(message)} bytes")
+
+    if message[0] != 0x00:
+        raise ValueError(f"Magic byte inválido: {hex(message[0])}")
+
+    return int.from_bytes(message[1:5], byteorder="big")
+
+
 def create_test_topic(
     admin_client: AdminClient,
     topic_name: str,

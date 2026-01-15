@@ -27,6 +27,9 @@ _fixture_modules = [
     "tests.e2e.fixtures.databases",
     "tests.e2e.fixtures.services",
     "tests.e2e.fixtures.test_data",
+    "tests.e2e.fixtures.schema_registry",
+    "tests.e2e.fixtures.avro_helpers",
+    "tests.e2e.fixtures.specialists",
 ]
 
 for module in _fixture_modules:
