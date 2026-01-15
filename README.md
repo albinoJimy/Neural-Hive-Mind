@@ -594,6 +594,38 @@ Neural-Hive-Mind/
 - **Execution**: Agentes e workers
 - **Observability**: Métricas, logs e tracing
 
+### 📋 Schema Registry (Apicurio)
+
+O Neural Hive-Mind utiliza **Apicurio Registry 2.5.11** para gerenciamento centralizado de schemas Avro, garantindo validação, compatibilidade e evolução controlada de mensagens Kafka.
+
+**Componentes**:
+- **Apicurio Registry**: Servidor de schemas com API Confluent-compatible
+- **Health Checker Sidecar**: Monitora schemas críticos (`plans.ready-value`, `execution.tickets-value`)
+- **Init Job**: Registra schemas automaticamente no startup (pre-install hook)
+
+**Schemas Críticos**:
+- `cognitive-plan.avsc`: Planos cognitivos (Fluxo B)
+- `execution-ticket.avsc`: Tickets de execução (Fluxo C)
+- `intent-envelope.avsc`: Envelopes de intenção (Fluxo A)
+
+**Comandos Úteis**:
+```bash
+# Listar schemas registrados
+kubectl exec -n kafka <pod> -- curl -s http://localhost:8080/apis/ccompat/v6/subjects | jq .
+
+# Verificar health de schemas críticos
+kubectl exec -n kafka <pod> -c schema-health-checker -- curl -s http://localhost:8090/health/schemas | jq .
+
+# Re-executar init job
+kubectl apply -f k8s/jobs/schema-registry-init-job.yaml
+```
+
+**Documentação**:
+- [Schema Registry Guide](docs/schema-registry-guide.md) - Arquitetura e fluxos
+- [Operations Runbook](docs/operations/schema-registry-operations.md) - Procedimentos operacionais
+- [Troubleshooting Guide](docs/operations/schema-registry-troubleshooting.md) - Resolução de problemas
+- [Avro Migration Guide](docs/AVRO_MIGRATION_GUIDE.md) - Migração para Avro
+
 ### 🤖 Estratégia de Modelos ML
 
 **Modelos Fora da Imagem Docker:**
@@ -2558,6 +2590,9 @@ Este projeto é licenciado sob a MIT License - veja o arquivo [LICENSE](LICENSE)
 - **Istio Documentation**: https://istio.io/latest/docs/
 - **OPA Gatekeeper**: https://open-policy-agent.github.io/gatekeeper/
 - **Terraform AWS Provider**: https://registry.terraform.io/providers/hashicorp/aws/
+- **Schema Registry Guide**: [docs/schema-registry-guide.md](docs/schema-registry-guide.md)
+- **Schema Registry Operations**: [docs/operations/schema-registry-operations.md](docs/operations/schema-registry-operations.md)
+- **Schema Registry Troubleshooting**: [docs/operations/schema-registry-troubleshooting.md](docs/operations/schema-registry-troubleshooting.md)
 
 ---
 
