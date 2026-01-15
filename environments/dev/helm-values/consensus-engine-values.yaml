@@ -22,6 +22,7 @@ config:
     plansTopicConsume: "plans.ready"
     consensusTopicProduce: "plans.consensus"
     securityProtocol: "PLAINTEXT"
+    schemaRegistryUrl: "http://schema-registry.kafka.svc.cluster.local:8081/apis/ccompat/v6"
 
   specialists:
     business: "specialist-business.specialist-business.svc.cluster.local:50051"

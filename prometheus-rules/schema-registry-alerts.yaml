@@ -1,0 +1,158 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: schema-registry-alerts
+  namespace: kafka
+  labels:
+    prometheus: kube-prometheus
+    app.kubernetes.io/part-of: neural-hive-mind
+    neural-hive.io/component: schema-registry
+spec:
+  groups:
+    - name: schema-registry-availability
+      interval: 30s
+      rules:
+        - alert: SchemaRegistryDown
+          expr: up{job="apicurio-registry-metrics"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            neural_hive_component: schema-registry
+            neural_hive_layer: infraestrutura
+          annotations:
+            summary: "Apicurio Schema Registry está indisponível"
+            description: "Schema Registry no namespace kafka está down por mais de 2 minutos. Serviços dependentes (Semantic Translation Engine, Consensus Engine) não conseguirão serializar/deserializar mensagens Avro."
+            runbook_url: "https://docs.neural-hive.local/runbooks/schema-registry-down"
+            dashboard_url: "https://grafana.neural-hive.local/d/schema-registry-overview"
+
+        - alert: SchemaRegistryHighLatency
+          expr: histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{job="apicurio-registry-metrics"}[5m])) > 1
+          for: 5m
+          labels:
+            severity: warning
+            neural_hive_component: schema-registry
+            neural_hive_layer: infraestrutura
+          annotations:
+            summary: "Schema Registry com latência alta"
+            description: "P95 de latência do Schema Registry > 1s. Pode impactar performance de serialização/deserialização Avro."
+            runbook_url: "https://docs.neural-hive.local/runbooks/schema-registry-latency"
+            dashboard_url: "https://grafana.neural-hive.local/d/schema-registry-overview"
+
+    # Métricas reais do Apicurio 2.5 (Quarkus/Micrometer):
+    # - registry_artifacts_total: contagem total de artifacts/schemas
+    # - registry_artifact_versions_total: total de versões
+    # - http_server_requests_seconds_*: métricas HTTP do Micrometer
+    # Verificar métricas disponíveis: kubectl exec -n kafka <pod> -- curl -s http://localhost:8080/q/metrics
+    - name: schema-registry-schemas
+      interval: 60s
+      rules:
+        - alert: SchemaRegistryNoSchemas
+          expr: |
+            (
+              registry_artifacts_total{job="apicurio-registry-metrics"} == 0
+            )
+            or
+            (
+              absent(registry_artifacts_total{job="apicurio-registry-metrics"})
+              and
+              up{job="apicurio-registry-metrics"} == 1
+            )
+          for: 5m
+          labels:
+            severity: critical
+            neural_hive_component: schema-registry
+            neural_hive_layer: infraestrutura
+          annotations:
+            summary: "Schema Registry sem schemas registrados"
+            description: "Nenhum schema encontrado no Apicurio Registry (registry_artifacts_total == 0 ou ausente). Executar job de inicialização: kubectl apply -f k8s/jobs/schema-registry-init-job.yaml"
+            runbook_url: "https://docs.neural-hive.local/runbooks/schema-registry-no-schemas"
+            dashboard_url: "https://grafana.neural-hive.local/d/schema-registry-overview"
+
+        # Alerta baseado no sidecar de health check que verifica schemas críticos via API
+        # O sidecar expõe /health/schemas na porta 8090 retornando 200 ou 503
+        - alert: SchemaCriticalMissing
+          expr: |
+            (
+              probe_success{job="schema-health-probe"} == 0
+            )
+            or
+            (
+              absent(probe_success{job="schema-health-probe"})
+              and
+              up{job="apicurio-registry-metrics"} == 1
+            )
+          for: 2m
+          labels:
+            severity: critical
+            neural_hive_component: schema-registry
+            neural_hive_layer: infraestrutura
+          annotations:
+            summary: "Schemas críticos não registrados"
+            description: "Schemas críticos (plans.ready-value, execution.tickets-value) não encontrados no Schema Registry. Verificar status: kubectl exec -n kafka <pod> -- curl http://localhost:8090/health/schemas"
+            runbook_url: "https://docs.neural-hive.local/runbooks/schema-cognitive-plan-missing"
+            dashboard_url: "https://grafana.neural-hive.local/d/schema-registry-overview"
+
+    - name: schema-registry-serialization
+      interval: 30s
+      rules:
+        - alert: AvroSerializationFailureHigh
+          expr: |
+            rate(kafka_producer_serialization_errors_total{component=~"semantic-translation-engine|consensus-engine"}[5m]) > 0.01
+          for: 5m
+          labels:
+            severity: warning
+            neural_hive_component: schema-registry
+            neural_hive_layer: infraestrutura
+          annotations:
+            summary: "Taxa alta de falhas de serialização Avro"
+            description: "Serviço {{ $labels.component }} com {{ $value | humanize }} erros/s de serialização Avro. Verificar se schema está registrado e se SCHEMA_REGISTRY_URL está configurado corretamente."
+            runbook_url: "https://docs.neural-hive.local/runbooks/avro-serialization-failure"
+            dashboard_url: "https://grafana.neural-hive.local/d/schema-registry-overview"
+
+        - alert: AvroDeserializationFailureHigh
+          expr: |
+            rate(kafka_consumer_deserialization_errors_total{component=~"consensus-engine|execution-ticket-service"}[5m]) > 0.01
+          for: 5m
+          labels:
+            severity: warning
+            neural_hive_component: schema-registry
+            neural_hive_layer: infraestrutura
+          annotations:
+            summary: "Taxa alta de falhas de deserialização Avro"
+            description: "Serviço {{ $labels.component }} com {{ $value | humanize }} erros/s de deserialização Avro. Erro comum: 'Invalid magic byte' indica que mensagem não foi serializada com Schema Registry."
+            runbook_url: "https://docs.neural-hive.local/runbooks/avro-deserialization-failure"
+            dashboard_url: "https://grafana.neural-hive.local/d/schema-registry-overview"
+
+    - name: schema-registry-resources
+      interval: 30s
+      rules:
+        - alert: SchemaRegistryHighMemoryUsage
+          expr: |
+            container_memory_working_set_bytes{pod=~"apicurio-registry.*"}
+            /
+            container_spec_memory_limit_bytes{pod=~"apicurio-registry.*"}
+            > 0.85
+          for: 5m
+          labels:
+            severity: warning
+            neural_hive_component: schema-registry
+            neural_hive_layer: infraestrutura
+          annotations:
+            summary: "Schema Registry com uso de memória >85%"
+            description: "Pod {{ $labels.pod }} usando {{ $value | humanizePercentage }} da memória limit. Considerar aumentar resources.limits.memory de 512Mi para 768Mi."
+            runbook_url: "https://docs.neural-hive.local/runbooks/schema-registry-high-memory"
+
+        - alert: SchemaRegistryPodNotReady
+          expr: |
+            kube_pod_status_ready{pod=~"apicurio-registry.*", condition="true"} == 0
+            and
+            kube_pod_status_phase{pod=~"apicurio-registry.*", phase="Running"} == 1
+          for: 3m
+          labels:
+            severity: critical
+            neural_hive_component: schema-registry
+            neural_hive_layer: infraestrutura
+          annotations:
+            summary: "Schema Registry Running mas não Ready"
+            description: "Pod {{ $labels.pod }} está Running mas readiness check está falhando. Verificar conectividade com Kafka e logs do pod."
+            runbook_url: "https://docs.neural-hive.local/runbooks/schema-registry-not-ready"

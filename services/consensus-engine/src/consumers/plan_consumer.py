@@ -47,21 +47,27 @@ class PlanConsumer:
         if schema_registry_url and schema_registry_url.strip():
             schema_path = '/app/schemas/cognitive-plan/cognitive-plan.avsc'
 
-            if os.path.exists(schema_path):
-                self.schema_registry_client = SchemaRegistryClient({'url': schema_registry_url})
+            # Carregar schema com retry
+            schema_str = self._load_schema_with_retry(schema_path, max_retries=3)
 
-                with open(schema_path, 'r') as f:
-                    schema_str = f.read()
-
-                self.avro_deserializer = AvroDeserializer(
-                    self.schema_registry_client,
-                    schema_str
+            if schema_str:
+                # Inicializar Schema Registry com retry
+                self.avro_deserializer = self._initialize_schema_registry_with_retry(
+                    schema_registry_url,
+                    schema_str,
+                    max_retries=3
                 )
-                logger.info('Schema Registry configurado para consumer',
-                           url=schema_registry_url,
-                           schema_path=schema_path)
+
+                if self.avro_deserializer:
+                    logger.info('Schema Registry configurado para consumer',
+                               url=schema_registry_url,
+                               schema_path=schema_path)
+                else:
+                    logger.warning('Falha inicializando Schema Registry - usando JSON fallback',
+                                 url=schema_registry_url)
             else:
-                logger.warning('Schema Avro não encontrado', path=schema_path)
+                logger.warning('Schema Avro não encontrado - usando JSON fallback',
+                             path=schema_path)
                 self.avro_deserializer = None
         else:
             logger.warning('Schema Registry não configurado - usando JSON fallback')
@@ -70,7 +76,10 @@ class PlanConsumer:
         logger.info(
             'Plan consumer inicializado',
             topic=self.config.kafka_plans_topic,
-            group_id=self.config.kafka_consumer_group_id
+            group_id=self.config.kafka_consumer_group_id,
+            avro_enabled=self.avro_deserializer is not None,
+            schema_registry_url=os.getenv('SCHEMA_REGISTRY_URL', 'não configurado'),
+            fallback_mode='JSON' if not self.avro_deserializer else 'Avro'
         )
 
     async def start(self):
@@ -309,22 +318,299 @@ class PlanConsumer:
         error_msg = str(error).lower()
         return any(keyword in error_msg for keyword in systemic_error_keywords)
 
+    def _load_schema_with_retry(self, schema_path: str, max_retries: int = 3) -> Optional[str]:
+        '''
+        Carrega schema Avro com retry para falhas transientes.
+
+        Retries são aplicados para:
+        - FileNotFoundError (schema não copiado ainda)
+        - IOError (filesystem temporariamente indisponível)
+
+        Não faz retry para:
+        - Schema inválido (JSON parse error)
+        - Permissões negadas
+        '''
+        backoff_seconds = 1.0
+
+        for attempt in range(max_retries):
+            try:
+                with open(schema_path, 'r') as f:
+                    schema_str = f.read()
+                logger.info('Schema Avro carregado com sucesso',
+                           path=schema_path,
+                           attempt=attempt + 1)
+                return schema_str
+            except FileNotFoundError:
+                if attempt < max_retries - 1:
+                    logger.warning('Schema não encontrado - retry',
+                                 path=schema_path,
+                                 attempt=attempt + 1,
+                                 backoff_seconds=backoff_seconds)
+                    time.sleep(backoff_seconds)
+                    backoff_seconds *= 2
+                else:
+                    logger.error('Schema não encontrado após retries',
+                               path=schema_path,
+                               max_retries=max_retries)
+                    return None
+            except Exception as e:
+                logger.error('Erro carregando schema',
+                            path=schema_path,
+                            error=str(e),
+                            error_type=type(e).__name__)
+                return None
+
+        return None
+
+    def _initialize_schema_registry_with_retry(self, schema_registry_url: str, schema_str: str, max_retries: int = 3) -> Optional[AvroDeserializer]:
+        '''
+        Inicializa Schema Registry client com retry para falhas transientes.
+
+        Retries são aplicados para:
+        - ConnectionError (registry indisponível)
+        - TimeoutError (registry lento)
+        - HTTP 503 (registry em manutenção)
+
+        Não faz retry para:
+        - HTTP 401/403 (autenticação/autorização)
+        - Schema inválido
+        '''
+        backoff_seconds = 1.0
+
+        for attempt in range(max_retries):
+            start_time = time.time()
+            try:
+                schema_registry_client = SchemaRegistryClient({'url': schema_registry_url})
+                avro_deserializer = AvroDeserializer(schema_registry_client, schema_str)
+
+                # Métricas de sucesso na inicialização
+                duration = time.time() - start_time
+                ConsensusMetrics.increment_schema_registry_request('initialize', 'success')
+                ConsensusMetrics.observe_schema_registry_latency(duration, 'initialize')
+
+                logger.info('Schema Registry inicializado com sucesso',
+                           url=schema_registry_url,
+                           attempt=attempt + 1)
+                return avro_deserializer
+            except (ConnectionError, TimeoutError) as e:
+                # Métricas de falha transiente
+                duration = time.time() - start_time
+                ConsensusMetrics.increment_schema_registry_request('initialize', 'transient_failure')
+                ConsensusMetrics.observe_schema_registry_latency(duration, 'initialize')
+
+                if attempt < max_retries - 1:
+                    logger.warning('Falha conectando Schema Registry - retry',
+                                 url=schema_registry_url,
+                                 attempt=attempt + 1,
+                                 backoff_seconds=backoff_seconds,
+                                 error=str(e))
+                    time.sleep(backoff_seconds)
+                    backoff_seconds *= 2
+                else:
+                    # Métricas de falha final após todos os retries
+                    ConsensusMetrics.increment_schema_registry_request('initialize', 'failed')
+                    logger.error('Schema Registry indisponível após retries',
+                               url=schema_registry_url,
+                               max_retries=max_retries,
+                               error=str(e))
+                    return None
+            except Exception as e:
+                # Métricas de erro não-transiente (sem retry)
+                duration = time.time() - start_time
+                ConsensusMetrics.increment_schema_registry_request('initialize', 'error')
+                ConsensusMetrics.observe_schema_registry_latency(duration, 'initialize')
+
+                logger.error('Erro inicializando Schema Registry',
+                            url=schema_registry_url,
+                            error=str(e),
+                            error_type=type(e).__name__)
+                return None
+
+        return None
+
+    def _is_transient_deserialization_error(self, error: Exception) -> bool:
+        '''
+        Verifica se um erro de deserialização é transiente (timeout/conexão).
+
+        Erros transientes são candidatos a retry:
+        - TimeoutError
+        - ConnectionError
+        - Erros com keywords: timeout, connection, unavailable
+
+        Erros não-transientes (sem retry):
+        - Invalid magic byte (mensagem não é Avro)
+        - Schema not found (schema não registrado)
+        - Erros de parsing/validação
+        '''
+        error_msg = str(error).lower()
+
+        # Erros de formato/schema não são transientes
+        if 'magic byte' in error_msg or 'invalid magic' in error_msg:
+            return False
+        if 'schema' in error_msg and ('not found' in error_msg or 'unknown' in error_msg):
+            return False
+
+        # Verificar por tipo de exceção
+        if isinstance(error, (TimeoutError, ConnectionError, OSError)):
+            return True
+
+        # Verificar por keywords no erro
+        transient_keywords = ['timeout', 'connection', 'unavailable', 'refused', 'reset', 'network']
+        return any(keyword in error_msg for keyword in transient_keywords)
+
     def _deserialize_value(self, msg):
-        '''Deserializa o valor da mensagem (Avro ou JSON)'''
-        try:
-            if self.avro_deserializer:
-                # Deserializar com Avro
+        '''
+        Deserializa o valor da mensagem (Avro ou JSON).
+
+        Implementa retry com exponential backoff para falhas transientes
+        do Schema Registry (timeout/conexão). Erros não-transientes
+        (invalid magic byte, schema not found) não são retentados.
+        '''
+        max_retries = 3
+        backoff_seconds = 1.0
+
+        if not self.avro_deserializer:
+            # Fallback JSON - sem retry necessário (não usa Schema Registry)
+            return self._deserialize_json(msg)
+
+        # Deserialização Avro com retry para erros transientes
+        for attempt in range(max_retries):
+            start_time = time.time()
+            try:
                 ctx = SerializationContext(msg.topic(), MessageField.VALUE)
-                return self.avro_deserializer(msg.value(), ctx)
-            else:
-                # Fallback JSON
-                return json.loads(msg.value().decode('utf-8'))
-        except Exception as e:
-            logger.error('Erro deserializando mensagem',
-                        error=str(e),
+                value = self.avro_deserializer(msg.value(), ctx)
+
+                # Métricas de sucesso
+                duration = time.time() - start_time
+                ConsensusMetrics.increment_deserialization('avro', 'success')
+                ConsensusMetrics.observe_deserialization_duration(duration, 'avro')
+                ConsensusMetrics.increment_schema_registry_request('deserialize', 'success')
+                ConsensusMetrics.observe_schema_registry_latency(duration, 'deserialize')
+
+                return value
+
+            except Exception as e:
+                duration = time.time() - start_time
+                error_msg = str(e).lower()
+
+                # Verificar se é erro transiente (candidato a retry)
+                is_transient = self._is_transient_deserialization_error(e)
+
+                if is_transient and attempt < max_retries - 1:
+                    # Erro transiente - fazer retry com backoff
+                    ConsensusMetrics.increment_schema_registry_request('deserialize', 'transient_failure')
+                    ConsensusMetrics.observe_schema_registry_latency(duration, 'deserialize')
+
+                    logger.warning(
+                        'Erro transiente na deserialização - retry',
                         topic=msg.topic(),
                         partition=msg.partition(),
+                        offset=msg.offset(),
+                        attempt=attempt + 1,
+                        max_retries=max_retries,
+                        backoff_seconds=backoff_seconds,
+                        error=str(e)
+                    )
+                    time.sleep(backoff_seconds)
+                    backoff_seconds *= 2
+                    continue
+
+                # Erro final (não-transiente ou esgotou retries)
+                ConsensusMetrics.observe_deserialization_duration(duration, 'avro')
+
+                # Classificar e registrar métricas específicas
+                if 'magic byte' in error_msg or 'invalid magic' in error_msg:
+                    ConsensusMetrics.increment_deserialization('avro', 'invalid_magic_byte')
+                    ConsensusMetrics.increment_schema_registry_request('deserialize', 'invalid_format')
+                    logger.error(
+                        'Erro de deserialização: mensagem não está em formato Avro',
+                        topic=msg.topic(),
+                        partition=msg.partition(),
+                        offset=msg.offset(),
+                        error='Invalid magic byte',
+                        causa_provavel='Mensagem foi publicada sem Schema Registry serializer',
+                        solucao='Verificar se producer está usando AvroSerializer com Schema Registry',
+                        schema_registry_url=os.getenv('SCHEMA_REGISTRY_URL', 'não configurado')
+                    )
+
+                elif 'schema' in error_msg and ('not found' in error_msg or 'unknown' in error_msg):
+                    ConsensusMetrics.increment_deserialization('avro', 'schema_not_found')
+                    ConsensusMetrics.increment_schema_registry_request('deserialize', 'schema_not_found')
+                    ConsensusMetrics.observe_schema_registry_latency(duration, 'deserialize')
+                    logger.error(
+                        'Erro de deserialização: schema não registrado no Schema Registry',
+                        topic=msg.topic(),
+                        partition=msg.partition(),
+                        offset=msg.offset(),
+                        error=str(e),
+                        causa_provavel='Schema cognitive-plan.avsc não foi registrado no Apicurio Registry',
+                        solucao='Executar schema-registry-init-job para registrar schemas',
+                        schema_registry_url=os.getenv('SCHEMA_REGISTRY_URL', 'não configurado')
+                    )
+
+                elif is_transient:
+                    # Erro transiente mas esgotou retries
+                    ConsensusMetrics.increment_deserialization('avro', 'registry_timeout')
+                    ConsensusMetrics.increment_schema_registry_request('deserialize', 'failed')
+                    ConsensusMetrics.observe_schema_registry_latency(duration, 'deserialize')
+                    logger.error(
+                        'Erro de deserialização: falha conectando Schema Registry após retries',
+                        topic=msg.topic(),
+                        partition=msg.partition(),
+                        offset=msg.offset(),
+                        error=str(e),
+                        attempts=attempt + 1,
+                        causa_provavel='Schema Registry indisponível ou timeout de rede',
+                        solucao='Verificar conectividade com Schema Registry e aumentar timeout',
+                        schema_registry_url=os.getenv('SCHEMA_REGISTRY_URL', 'não configurado')
+                    )
+
+                else:
+                    # Erro genérico não-transiente
+                    ConsensusMetrics.increment_deserialization('avro', 'other_error')
+                    ConsensusMetrics.increment_schema_registry_request('deserialize', 'error')
+                    ConsensusMetrics.observe_schema_registry_latency(duration, 'deserialize')
+                    logger.error(
+                        'Erro deserializando mensagem',
+                        topic=msg.topic(),
+                        partition=msg.partition(),
+                        offset=msg.offset(),
+                        error=str(e),
+                        error_type=type(e).__name__
+                    )
+
+                return None
+
+        return None
+
+    def _deserialize_json(self, msg):
+        '''Deserializa mensagem usando JSON fallback'''
+        start_time = time.time()
+        try:
+            value = json.loads(msg.value().decode('utf-8'))
+
+            duration = time.time() - start_time
+            ConsensusMetrics.increment_deserialization('json', 'success')
+            ConsensusMetrics.observe_deserialization_duration(duration, 'json')
+
+            logger.debug('Mensagem deserializada via JSON fallback',
+                        topic=msg.topic(),
                         offset=msg.offset())
+
+            return value
+        except Exception as e:
+            duration = time.time() - start_time
+            ConsensusMetrics.increment_deserialization('json', 'error')
+            ConsensusMetrics.observe_deserialization_duration(duration, 'json')
+
+            logger.error(
+                'Erro deserializando mensagem JSON',
+                topic=msg.topic(),
+                partition=msg.partition(),
+                offset=msg.offset(),
+                error=str(e),
+                error_type=type(e).__name__
+            )
             return None
 
     async def stop(self):

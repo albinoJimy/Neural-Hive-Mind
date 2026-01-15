@@ -40,6 +40,16 @@ spec:
           value: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
         - name: ENABLE_CCOMPAT_LEGACY_ID_MODE
           value: "true"
+        - name: QUARKUS_OTEL_ENABLED
+          value: "true"
+        - name: QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://otel-collector.observability.svc.cluster.local:4317"
+        - name: QUARKUS_MICROMETER_EXPORT_PROMETHEUS_ENABLED
+          value: "true"
+        - name: QUARKUS_MICROMETER_BINDER_JVM_ENABLED
+          value: "true"
+        - name: QUARKUS_MICROMETER_BINDER_HTTP_SERVER_ENABLED
+          value: "true"
         resources:
           requests:
             memory: "256Mi"
@@ -61,6 +71,150 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 5
+      - name: schema-health-checker
+        image: python:3.11-alpine
+        ports:
+        - containerPort: 8090
+          name: health
+          protocol: TCP
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # Instalar dependências mínimas
+          pip install --quiet --no-cache-dir requests
+
+          # Criar servidor HTTP de health check
+          cat > /tmp/health_server.py << 'PYTHON_EOF'
+          import http.server
+          import socketserver
+          import json
+          import requests
+          import threading
+          import time
+
+          # Estado global do health check
+          health_state = {
+              "schemas_ok": False,
+              "registry_ready": False,
+              "missing_schemas": [],
+              "last_check": None
+          }
+
+          CRITICAL_SCHEMAS = ["plans.ready-value", "execution.tickets-value"]
+          REGISTRY_URL = "http://localhost:8080"
+
+          def check_schemas():
+              """Verifica schemas críticos periodicamente"""
+              global health_state
+              while True:
+                  try:
+                      # Verificar se registry está pronto
+                      try:
+                          resp = requests.get(f"{REGISTRY_URL}/health/ready", timeout=5)
+                          health_state["registry_ready"] = resp.status_code == 200
+                      except:
+                          health_state["registry_ready"] = False
+                          health_state["schemas_ok"] = False
+                          time.sleep(30)
+                          continue
+
+                      # Verificar schemas críticos
+                      missing = []
+                      for subject in CRITICAL_SCHEMAS:
+                          try:
+                              resp = requests.get(
+                                  f"{REGISTRY_URL}/apis/ccompat/v6/subjects/{subject}/versions/latest",
+                                  timeout=5
+                              )
+                              if resp.status_code != 200:
+                                  missing.append(subject)
+                          except:
+                              missing.append(subject)
+
+                      health_state["missing_schemas"] = missing
+                      health_state["schemas_ok"] = len(missing) == 0
+                      health_state["last_check"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+                      status = "OK" if health_state["schemas_ok"] else "DEGRADED"
+                      print(f"[{health_state['last_check']}] Schema check: {status}, missing: {missing}")
+
+                  except Exception as e:
+                      print(f"Error checking schemas: {e}")
+
+                  time.sleep(60)
+
+          class HealthHandler(http.server.BaseHTTPRequestHandler):
+              def log_message(self, format, *args):
+                  pass  # Silenciar logs de requisição
+
+              def do_GET(self):
+                  if self.path == "/health/schemas":
+                      if health_state["schemas_ok"]:
+                          self.send_response(200)
+                          status = "healthy"
+                      else:
+                          self.send_response(503)
+                          status = "unhealthy"
+
+                      self.send_header("Content-Type", "application/json")
+                      self.end_headers()
+                      response = {
+                          "status": status,
+                          "registry_ready": health_state["registry_ready"],
+                          "schemas_ok": health_state["schemas_ok"],
+                          "missing_schemas": health_state["missing_schemas"],
+                          "critical_schemas": CRITICAL_SCHEMAS,
+                          "last_check": health_state["last_check"]
+                      }
+                      self.wfile.write(json.dumps(response).encode())
+
+                  elif self.path == "/health/live":
+                      self.send_response(200)
+                      self.send_header("Content-Type", "text/plain")
+                      self.end_headers()
+                      self.wfile.write(b"OK")
+
+                  else:
+                      self.send_response(404)
+                      self.end_headers()
+
+          if __name__ == "__main__":
+              # Iniciar thread de verificação de schemas
+              checker_thread = threading.Thread(target=check_schemas, daemon=True)
+              checker_thread.start()
+
+              # Iniciar servidor HTTP
+              PORT = 8090
+              with socketserver.TCPServer(("", PORT), HealthHandler) as httpd:
+                  print(f"Schema health server running on port {PORT}")
+                  httpd.serve_forever()
+          PYTHON_EOF
+
+          python /tmp/health_server.py
+        readinessProbe:
+          httpGet:
+            path: /health/schemas
+            port: 8090
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          successThreshold: 1
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8090
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "20m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
 ---
 apiVersion: v1
 kind: Service
@@ -78,4 +232,81 @@ spec:
     port: 8081
     targetPort: 8080
     protocol: TCP
+  - name: health
+    port: 8090
+    targetPort: 8090
+    protocol: TCP
   type: ClusterIP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: apicurio-registry-metrics
+  namespace: kafka
+  labels:
+    app: apicurio-registry
+    component: kafka
+    neural.hive/metrics: "enabled"
+    neural.hive/component: "schema-registry"
+    neural.hive/layer: "infraestrutura"
+    prometheus: neural-hive
+spec:
+  selector:
+    matchLabels:
+      app: apicurio-registry
+  namespaceSelector:
+    matchNames:
+    - kafka
+  endpoints:
+  - port: http
+    path: /q/metrics
+    interval: 30s
+    scrapeTimeout: 10s
+    scheme: http
+    relabelings:
+    - sourceLabels: [__meta_kubernetes_pod_name]
+      targetLabel: pod
+    - sourceLabels: [__meta_kubernetes_namespace]
+      targetLabel: namespace
+    - targetLabel: neural_hive_component
+      replacement: schema-registry
+    - targetLabel: neural_hive_layer
+      replacement: infraestrutura
+    metricRelabelings:
+    - sourceLabels: [__name__]
+      regex: "(apicurio|registry|http_server|jvm).*"
+      action: keep
+---
+# Probe para monitorar o endpoint de health check de schemas críticos
+# Usado pelo alerta SchemaCriticalMissing
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: schema-health-probe
+  namespace: kafka
+  labels:
+    app: apicurio-registry
+    component: kafka
+    neural.hive/component: "schema-registry"
+    prometheus: neural-hive
+spec:
+  jobName: schema-health-probe
+  interval: 30s
+  scrapeTimeout: 10s
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+    path: /probe
+  targets:
+    staticConfig:
+      static:
+      - schema-registry.kafka.svc.cluster.local:8090
+      labels:
+        neural_hive_component: schema-registry
+        neural_hive_layer: infraestrutura
+  module: http_2xx
+  metricRelabelings:
+  - sourceLabels: [__address__]
+    targetLabel: instance
+    replacement: schema-registry
+  - targetLabel: endpoint
+    replacement: /health/schemas

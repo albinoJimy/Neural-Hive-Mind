@@ -94,6 +94,25 @@ data:
             alertname: OrchestratorHighBurnRate
           receiver: slack-sla-warnings
 
+        # Schema Registry Alerts → Slack
+        - match:
+            neural_hive_component: schema-registry
+            severity: warning
+          receiver: slack-schema-registry-warnings
+          group_wait: 30s
+          repeat_interval: 4h
+
+        # Schema Registry Critical → Slack + PagerDuty
+        - match:
+            neural_hive_component: schema-registry
+            severity: critical
+          receiver: slack-schema-registry-warnings
+          continue: true
+        - match:
+            neural_hive_component: schema-registry
+            severity: critical
+          receiver: pagerduty-critical
+
         # SLA Management System Webhook (regex match para todas SLOs)
         - match_re:
             slo: '.*'
@@ -196,6 +215,36 @@ data:
                 text: 'Runbook'
               - href: '{{ .GeneratorURL }}'
                 text: 'Prometheus Alert'
+
+      # Slack para alertas de Schema Registry
+      - name: 'slack-schema-registry-warnings'
+        slack_configs:
+          - channel: '#schema-registry-alerts'
+            send_resolved: true
+            title_link: '{{ .ExternalURL }}'
+            title: '[{{ .Status | toUpper }}] Schema Registry: {{ .GroupLabels.alertname }}'
+            color: '{{ if eq .Status "firing" }}{{ if eq .CommonLabels.severity "critical" }}danger{{ else }}warning{{ end }}{{ else }}good{{ end }}'
+            text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+            fields:
+              - title: "Severidade"
+                value: "{{ .CommonLabels.severity | toUpper }}"
+                short: true
+              - title: "Componente"
+                value: "{{ .CommonLabels.neural_hive_component }}"
+                short: true
+              - title: "Namespace"
+                value: "kafka"
+                short: true
+            actions:
+              - type: button
+                text: '📊 View Dashboard'
+                url: 'https://grafana.neural-hive.local/d/schema-registry-overview'
+              - type: button
+                text: '📖 Runbook'
+                url: '{{ .CommonAnnotations.runbook_url | default "https://docs.neural-hive.local/runbooks/schema-registry" }}'
+              - type: button
+                text: '🔧 Run Init Job'
+                url: 'https://docs.neural-hive.local/runbooks/schema-registry-init-job'
 
       # SLA Management System Webhook (referência da configuração existente)
       - name: 'sla-management-system-webhook'

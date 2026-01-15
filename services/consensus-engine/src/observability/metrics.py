@@ -169,6 +169,40 @@ consumer_dlq_messages_total = Counter(
     ['reason']
 )
 
+# ===========================
+# Métricas de Deserialização
+# ===========================
+
+# Deserialização de mensagens
+consumer_deserialization_total = Counter(
+    'neural_hive_consumer_deserialization_total',
+    'Total de tentativas de deserialização',
+    ['format', 'status']
+)
+
+# Duração da deserialização de mensagens
+consumer_deserialization_duration_seconds = Histogram(
+    'neural_hive_consumer_deserialization_duration_seconds',
+    'Duração da deserialização de mensagens',
+    ['format'],
+    buckets=[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0]
+)
+
+# Requisições ao Schema Registry
+schema_registry_requests_total = Counter(
+    'neural_hive_schema_registry_requests_total',
+    'Total de requisições ao Schema Registry',
+    ['operation', 'status']
+)
+
+# Latência de requisições ao Schema Registry
+schema_registry_latency_seconds = Histogram(
+    'neural_hive_schema_registry_latency_seconds',
+    'Latência de requisições ao Schema Registry',
+    ['operation'],
+    buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
+)
+
 
 class ConsensusMetrics:
     '''Wrapper para métricas de consenso com métodos de conveniência'''
@@ -315,3 +349,27 @@ class ConsensusMetrics:
     def increment_dlq_message(reason: str):
         '''Incrementa contador de mensagens DLQ'''
         consumer_dlq_messages_total.labels(reason=reason).inc()
+
+    # ===========================
+    # Métricas de Deserialização
+    # ===========================
+
+    @staticmethod
+    def increment_deserialization(format: str, status: str):
+        '''Incrementa contador de deserialização'''
+        consumer_deserialization_total.labels(format=format, status=status).inc()
+
+    @staticmethod
+    def observe_deserialization_duration(duration: float, format: str):
+        '''Observa duração de deserialização'''
+        consumer_deserialization_duration_seconds.labels(format=format).observe(duration)
+
+    @staticmethod
+    def increment_schema_registry_request(operation: str, status: str):
+        '''Incrementa contador de requisições ao Schema Registry'''
+        schema_registry_requests_total.labels(operation=operation, status=status).inc()
+
+    @staticmethod
+    def observe_schema_registry_latency(duration: float, operation: str):
+        '''Observa latência do Schema Registry'''
+        schema_registry_latency_seconds.labels(operation=operation).observe(duration)

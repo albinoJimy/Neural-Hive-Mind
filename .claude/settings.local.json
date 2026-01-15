@@ -640,7 +640,9 @@
       "mcp__testsprite__testsprite_generate_code_summary",
       "Bash(INTENT_ID=\"6fa84051-d8a8-4625-9655-d8524cb70ca6\")",
       "Bash(__NEW_LINE_e736cfaa61b77c8a__ echo \"\")",
-      "Bash(__NEW_LINE_ab56c4f9c7e521f9__ echo \"\")"
+      "Bash(__NEW_LINE_ab56c4f9c7e521f9__ echo \"\")",
+      "Bash(git -C /home/jimy/NHM/Neural-Hive-Mind branch:*)",
+      "Bash(docker-compose:*)"
     ],
     "deny": [],
     "ask": []
