@@ -157,10 +157,26 @@ async def lifespan(app: FastAPI):
         intent_consumer = instrument_kafka_consumer(intent_consumer)
         state['consumer'] = intent_consumer
 
-        # Start consuming in background
-        asyncio.create_task(
-            intent_consumer.start_consuming(orchestrator.process_intent)
-        )
+        # Start consuming in background with exception handling
+        async def consume_with_error_handling():
+            """Wrapper to catch and log exceptions from consumer task"""
+            try:
+                await intent_consumer.start_consuming(orchestrator.process_intent)
+            except Exception as e:
+                logger.error(
+                    'Consumer task failed with exception',
+                    error=str(e),
+                    error_type=type(e).__name__
+                )
+                import traceback
+                logger.error(f'Consumer traceback: {traceback.format_exc()}')
+                # Atualiza estado para indicar falha do consumer
+                if 'consumer' in state and state['consumer']:
+                    state['consumer'].running = False
+                state['consumer_error'] = str(e)
+
+        consumer_task = asyncio.create_task(consume_with_error_handling())
+        state['consumer_task'] = consumer_task  # Store task for monitoring
 
         logger.info("Semantic Translation Engine started successfully")
 
@@ -266,17 +282,61 @@ async def readiness_check():
                 logger.warning("Kafka producer check failed", error=str(e))
 
         # Check Kafka consumer
-        if 'consumer' in state and state['consumer'].consumer:
+        # Verificar se consumer_task finalizou ou foi cancelada
+        if 'consumer_task' in state:
+            consumer_task = state['consumer_task']
+            if consumer_task.done() or consumer_task.cancelled():
+                error_msg = state.get('consumer_error', 'Task finalizada inesperadamente')
+                logger.error(
+                    "Consumer task não está mais executando",
+                    task_done=consumer_task.done(),
+                    task_cancelled=consumer_task.cancelled(),
+                    error=error_msg
+                )
+                checks['kafka_consumer'] = False
+
+        if 'consumer' in state and state['consumer'].consumer and checks.get('kafka_consumer') is not False:
             try:
-                # Verify consumer is properly connected and has assignments
-                state['consumer'].consumer.list_topics(timeout=2)
-                assignments = state['consumer'].consumer.assignment()
-                if assignments:
-                    checks['kafka_consumer'] = True
+                # Verificar se consumer está em estado running
+                if not state['consumer'].running:
+                    logger.warning(
+                        "Kafka consumer não está em estado running",
+                        consumer_group=state['consumer'].settings.kafka_consumer_group_id
+                    )
+                    checks['kafka_consumer'] = False
                 else:
-                    logger.warning("Kafka consumer has no topic assignments yet")
+                    # Verify consumer is properly connected and has assignments
+                    state['consumer'].consumer.list_topics(timeout=2)
+                    assignments = state['consumer'].consumer.assignment()
+                    if assignments:
+                        # Log detalhado dos assignments
+                        assignment_info = [
+                            f"{tp.topic}:{tp.partition}"
+                            for tp in assignments
+                        ]
+                        logger.info(
+                            "Kafka consumer ativo com assignments",
+                            assignments=assignment_info,
+                            total_partitions=len(assignments)
+                        )
+                        checks['kafka_consumer'] = True
+                    else:
+                        logger.warning(
+                            "Kafka consumer sem assignments",
+                            consumer_group=state['consumer'].settings.kafka_consumer_group_id,
+                            configured_topics=state['consumer'].settings.kafka_topics
+                        )
+                        checks['kafka_consumer'] = False
             except Exception as e:
-                logger.warning("Kafka consumer check failed", error=str(e))
+                logger.error(
+                    "Falha ao verificar Kafka consumer",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    consumer_group=state['consumer'].settings.kafka_consumer_group_id if 'consumer' in state else None
+                )
+                checks['kafka_consumer'] = False
+        else:
+            checks['kafka_consumer'] = False
 
         # Check NLP Processor
         if 'nlp_processor' in state:
