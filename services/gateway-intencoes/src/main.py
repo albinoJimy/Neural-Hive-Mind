@@ -30,6 +30,7 @@ from middleware.rate_limiter import RateLimiter, set_rate_limiter, close_rate_li
 # Tentar importar observabilidade - usar stubs se não disponível
 try:
     from neural_hive_observability import trace_intent, get_metrics, get_context_manager
+    from neural_hive_observability.tracing import get_current_trace_id, get_current_span_id
     from neural_hive_observability.health import HealthManager, RedisHealthCheck, CustomHealthCheck, HealthStatus
     from observability.metrics import (
         intent_counter, latency_histogram, confidence_histogram,
@@ -112,6 +113,8 @@ except ImportError:
 
     def get_metrics(): return {}
     def get_context_manager(): return None
+    def get_current_trace_id(): return None
+    def get_current_span_id(): return None
 
     # Stubs de métricas
     class MetricStub:
@@ -616,12 +619,18 @@ async def process_text_intention(
                         new_intent_id=intent_id
                     )
 
+                    # Extrair trace_id e span_id do contexto OpenTelemetry
+                    trace_id = get_current_trace_id()
+                    span_id = get_current_span_id()
+
                     return {
                         "intent_id": existing.get("intent_id"),
                         "correlation_id": request.correlation_id,
                         "status": "duplicate_detected",
                         "original_timestamp": existing.get("timestamp"),
-                        "message": "Intenção já foi processada anteriormente"
+                        "message": "Intenção já foi processada anteriormente",
+                        "traceId": trace_id,
+                        "spanId": span_id
                     }
 
                 # Registrar processamento para evitar futuras duplicatas (TTL curto para dedup)
@@ -931,6 +940,14 @@ async def _process_text_intention_with_context(
         if status_message == "routed_to_validation":
             response_data["validation_reason"] = "confidence_below_threshold"
             response_data["confidence_threshold"] = nlu_pipeline.confidence_threshold
+
+        # Extrair trace_id e span_id do contexto OpenTelemetry
+        trace_id = get_current_trace_id()
+        span_id = get_current_span_id()
+
+        # Adicionar IDs de rastreamento à resposta
+        response_data["traceId"] = trace_id
+        response_data["spanId"] = span_id
 
         return response_data
 
@@ -1259,6 +1276,14 @@ async def process_voice_intention(
         if status_message == "routed_to_validation":
             response_data["validation_reason"] = "confidence_below_threshold"
             response_data["confidence_threshold"] = nlu_pipeline.confidence_threshold
+
+        # Extrair trace_id e span_id do contexto OpenTelemetry
+        trace_id = get_current_trace_id()
+        span_id = get_current_span_id()
+
+        # Adicionar IDs de rastreamento à resposta
+        response_data["traceId"] = trace_id
+        response_data["spanId"] = span_id
 
         return response_data
 

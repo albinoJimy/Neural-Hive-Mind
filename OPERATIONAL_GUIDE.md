@@ -281,6 +281,11 @@ helm rollback neural-hive-mind
 
 ## Documentação de Referência
 
+### Documentação de Referência Técnica
+
+Para entender o funcionamento interno detalhado do sistema:
+- **[Fluxo Completo do Neural Hive-Mind](docs/FLUXO_COMPLETO_NEURAL_HIVE_MIND.md)** - Detalhamento técnico passo a passo de todos os fluxos (A-F)
+
 ### Operacional
 - **Procedimentos**: `docs/operations/operational-procedures.md`
 - **Troubleshooting**: `docs/operations/troubleshooting-guide.md`

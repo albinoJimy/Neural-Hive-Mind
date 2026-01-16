@@ -10,6 +10,7 @@ import structlog
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
+from confluent_kafka.admin import AdminClient
 from neural_hive_observability import (
     get_tracer,
     init_observability,
@@ -36,6 +37,90 @@ logger = structlog.get_logger()
 
 # Global state for clients
 state = {}
+
+
+async def validate_kafka_topics_exist(settings) -> None:
+    """
+    Valida que todos os tópicos Kafka configurados existem no cluster.
+
+    Fail-fast validation executada durante startup antes de inicializar consumer.
+    Esta validação complementa a validação no IntentConsumer, fornecendo
+    feedback mais rápido durante o startup e logs mais claros para diagnóstico.
+
+    Args:
+        settings: Settings object com configurações Kafka
+
+    Raises:
+        RuntimeError: Se tópicos não existirem ou conexão falhar
+
+    Exemplo de uso no lifespan:
+        await validate_kafka_topics_exist(settings)
+    """
+    logger.info(
+        'Iniciando validação de tópicos Kafka',
+        topics=settings.kafka_topics,
+        bootstrap_servers=settings.kafka_bootstrap_servers
+    )
+
+    # Construir configuração do AdminClient
+    admin_config = {
+        'bootstrap.servers': settings.kafka_bootstrap_servers,
+        'socket.timeout.ms': 10000,
+        'api.timeout.ms': 10000,
+    }
+
+    # Adicionar configurações de segurança se necessário
+    if settings.kafka_security_protocol != 'PLAINTEXT':
+        admin_config['security.protocol'] = settings.kafka_security_protocol
+        if settings.kafka_sasl_mechanism:
+            admin_config['sasl.mechanism'] = settings.kafka_sasl_mechanism
+        if settings.kafka_sasl_username:
+            admin_config['sasl.username'] = settings.kafka_sasl_username
+        if settings.kafka_sasl_password:
+            admin_config['sasl.password'] = settings.kafka_sasl_password
+
+    try:
+        admin_client = AdminClient(admin_config)
+        cluster_metadata = admin_client.list_topics(timeout=10)
+        available_topics = set(cluster_metadata.topics.keys())
+
+        # Verificar tópicos configurados
+        configured_topics = set(settings.kafka_topics)
+        missing_topics = configured_topics - available_topics
+
+        if missing_topics:
+            sorted_available = sorted(list(available_topics))[:20]
+            logger.error(
+                'STARTUP FAILED: Tópicos Kafka obrigatórios não encontrados',
+                missing_topics=sorted(list(missing_topics)),
+                configured_topics=sorted(list(configured_topics)),
+                available_topics=sorted_available
+            )
+            raise RuntimeError(
+                f"Tópicos Kafka obrigatórios não encontrados: {sorted(list(missing_topics))}. "
+                f"Verifique se os tópicos foram criados no cluster Kafka. "
+                f"Tópicos disponíveis: {sorted_available[:10]}"
+            )
+
+        logger.info(
+            'Todos os tópicos Kafka configurados existem no cluster',
+            topics=sorted(list(configured_topics)),
+            total_available_topics=len(available_topics)
+        )
+
+    except RuntimeError:
+        # Re-raise RuntimeError (já tratado acima)
+        raise
+    except Exception as e:
+        logger.error(
+            'STARTUP FAILED: Não foi possível conectar ao Kafka para validar tópicos',
+            error=str(e),
+            error_type=type(e).__name__,
+            bootstrap_servers=settings.kafka_bootstrap_servers
+        )
+        raise RuntimeError(
+            f"Não foi possível conectar ao Kafka para validar tópicos: {e}"
+        ) from e
 
 
 @asynccontextmanager
@@ -104,6 +189,10 @@ async def lifespan(app: FastAPI):
                     error=str(e)
                 )
 
+        # Fail-fast validation: verificar tópicos antes de criar consumer
+        logger.info('Validando existência de tópicos Kafka no cluster...')
+        await validate_kafka_topics_exist(settings)
+
         # Initialize Kafka producer
         plan_producer = KafkaPlanProducer(settings)
         await plan_producer.initialize()
@@ -152,10 +241,34 @@ async def lifespan(app: FastAPI):
         )
 
         # Initialize Kafka consumer
-        intent_consumer = IntentConsumer(settings)
-        await intent_consumer.initialize()
-        intent_consumer = instrument_kafka_consumer(intent_consumer)
-        state['consumer'] = intent_consumer
+        try:
+            logger.info('Inicializando Kafka consumer...')
+            intent_consumer = IntentConsumer(settings)
+            await intent_consumer.initialize()
+            intent_consumer = instrument_kafka_consumer(intent_consumer)
+            state['consumer'] = intent_consumer
+            logger.info(
+                'Kafka consumer inicializado com sucesso',
+                group_id=settings.kafka_consumer_group_id,
+                topics=settings.kafka_topics
+            )
+        except RuntimeError as e:
+            logger.error(
+                'STARTUP FAILED: Erro crítico ao inicializar Kafka consumer',
+                error=str(e),
+                error_type=type(e).__name__,
+                group_id=settings.kafka_consumer_group_id,
+                topics=settings.kafka_topics
+            )
+            # Re-raise para impedir startup do serviço
+            raise
+        except Exception as e:
+            logger.error(
+                'STARTUP FAILED: Erro inesperado ao inicializar Kafka consumer',
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            raise RuntimeError(f"Falha ao inicializar Kafka consumer: {e}") from e
 
         # Start consuming in background with exception handling
         async def consume_with_error_handling():

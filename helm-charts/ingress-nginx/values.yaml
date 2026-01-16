@@ -1,0 +1,43 @@
+# Ingress NGINX Controller - Neural Hive Mind
+# Helm chart: ingress-nginx/ingress-nginx
+
+controller:
+  # DaemonSet para correr em todos os nodes
+  kind: DaemonSet
+
+  # Host networking para acesso direto nas portas 80/443
+  hostNetwork: true
+  hostPort:
+    enabled: true
+    ports:
+      http: 80
+      https: 443
+
+  # Tolerations para correr também no control-plane
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+
+  # Admission webhooks
+  admissionWebhooks:
+    enabled: true
+
+  # Metrics para Prometheus
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+  # Resources
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  # Service type ClusterIP (acesso via hostNetwork)
+  service:
+    type: ClusterIP

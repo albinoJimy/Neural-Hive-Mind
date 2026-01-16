@@ -8,8 +8,9 @@ import asyncio
 import os
 import structlog
 import json
+import time
 from typing import Optional, Callable, Dict
-from confluent_kafka import Consumer, KafkaError
+from confluent_kafka import Consumer, KafkaError, TopicPartition
 from confluent_kafka.serialization import SerializationContext, MessageField
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroDeserializer
@@ -30,7 +31,16 @@ class IntentConsumer:
         self.running = False
 
     async def initialize(self):
-        """Initialize Kafka consumer"""
+        """Initialize Kafka consumer com validação robusta de tópicos e assignments"""
+        logger.info(
+            'Iniciando inicialização do Intent Consumer',
+            bootstrap_servers=self.settings.kafka_bootstrap_servers,
+            consumer_group=self.settings.kafka_consumer_group_id,
+            topics=self.settings.kafka_topics,
+            auto_offset_reset=self.settings.kafka_auto_offset_reset,
+            security_protocol=self.settings.kafka_security_protocol
+        )
+
         consumer_config = {
             'bootstrap.servers': self.settings.kafka_bootstrap_servers,
             'group.id': self.settings.kafka_consumer_group_id,
@@ -56,35 +66,110 @@ class IntentConsumer:
             })
 
         self.consumer = Consumer(consumer_config)
+        logger.info(
+            'Consumer Kafka criado',
+            bootstrap_servers=self.settings.kafka_bootstrap_servers,
+            consumer_group=self.settings.kafka_consumer_group_id
+        )
 
-        # Workaround for UNKNOWN_TOPIC_OR_PART error with subscribe()
-        # Use manual assignment instead of subscribe()
+        # Validar existência de tópicos antes de fazer subscribe
+        logger.info('Validating Kafka topics existence', topics=self.settings.kafka_topics)
+
         try:
-            from confluent_kafka import TopicPartition
-
-            # Get metadata for all topics
             cluster_metadata = self.consumer.list_topics(timeout=10)
+            available_topics = set(cluster_metadata.topics.keys())
 
-            # Create manual assignment for all partitions
-            topic_partitions = []
-            for topic in self.settings.kafka_topics:
-                if topic in cluster_metadata.topics:
-                    topic_metadata = cluster_metadata.topics[topic]
-                    for partition_id in topic_metadata.partitions.keys():
-                        topic_partitions.append(TopicPartition(topic, partition_id))
-                    logger.info(f'Assigned to topic {topic} with {len(topic_metadata.partitions)} partitions')
-                else:
-                    logger.warning(f'Topic {topic} not found in cluster metadata')
+            missing_topics = [
+                topic for topic in self.settings.kafka_topics
+                if topic not in available_topics
+            ]
 
-            if topic_partitions:
-                self.consumer.assign(topic_partitions)
-                logger.info(f'Manual assignment completed: {len(topic_partitions)} partitions total')
-            else:
-                logger.error('No partitions found for assignment - falling back to subscribe()')
-                self.consumer.subscribe(self.settings.kafka_topics)
+            if missing_topics:
+                logger.error(
+                    'Tópicos Kafka obrigatórios não encontrados',
+                    missing_topics=missing_topics,
+                    configured_topics=self.settings.kafka_topics,
+                    available_topics=sorted(list(available_topics))[:20]  # Limitar output
+                )
+                raise RuntimeError(
+                    f"Tópicos Kafka não encontrados: {missing_topics}. "
+                    f"Verifique se os tópicos foram criados no cluster. "
+                    f"Tópicos disponíveis: {sorted(list(available_topics))[:10]}"
+                )
+
+            logger.info(
+                'Todos os tópicos configurados existem no cluster',
+                topics=self.settings.kafka_topics,
+                total_available_topics=len(available_topics)
+            )
+
+        except RuntimeError:
+            # Re-raise RuntimeError para não mascarar erros de tópicos
+            raise
         except Exception as e:
-            logger.error(f'Manual assignment failed: {e} - falling back to subscribe()')
-            self.consumer.subscribe(self.settings.kafka_topics)
+            logger.error(
+                'Falha ao validar tópicos Kafka',
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            raise RuntimeError(f"Não foi possível validar tópicos Kafka: {e}") from e
+
+        # Subscribe aos tópicos
+        logger.info('Subscribing to Kafka topics', topics=self.settings.kafka_topics)
+        self.consumer.subscribe(self.settings.kafka_topics)
+
+        # Aguardar assignments com polling ativo
+        logger.info('Aguardando consumer assignments (timeout: 30s)')
+        max_wait_seconds = 30
+        poll_interval_seconds = 0.5
+        start_time = time.time()
+        assignments_received = False
+
+        while time.time() - start_time < max_wait_seconds:
+            # Poll para disparar rebalance - armazenar resultado para não perder mensagens
+            msg = self.consumer.poll(timeout=0.1)
+
+            # Se recebeu mensagem válida durante espera de assignments, fazer seek para reprocessar
+            if msg is not None and not msg.error():
+                tp = TopicPartition(msg.topic(), msg.partition(), msg.offset())
+                self.consumer.seek(tp)
+                logger.debug(
+                    'Mensagem recebida durante espera de assignments - seek realizado',
+                    topic=msg.topic(),
+                    partition=msg.partition(),
+                    offset=msg.offset()
+                )
+
+            # Verificar assignments
+            assignments = self.consumer.assignment()
+            if assignments:
+                assignment_info = [
+                    f"{tp.topic}:{tp.partition}"
+                    for tp in assignments
+                ]
+                logger.info(
+                    'Consumer assignments recebidos',
+                    assignments=assignment_info,
+                    total_partitions=len(assignments),
+                    elapsed_seconds=round(time.time() - start_time, 2)
+                )
+                assignments_received = True
+                break
+
+            await asyncio.sleep(poll_interval_seconds)
+
+        if not assignments_received:
+            logger.error(
+                'Timeout aguardando consumer assignments',
+                timeout_seconds=max_wait_seconds,
+                consumer_group=self.settings.kafka_consumer_group_id,
+                topics=self.settings.kafka_topics
+            )
+            raise RuntimeError(
+                f"Consumer não recebeu assignments após {max_wait_seconds}s. "
+                f"Verifique se o consumer group '{self.settings.kafka_consumer_group_id}' "
+                f"está configurado corretamente e se há partições disponíveis nos tópicos."
+            )
 
         # Initialize Schema Registry client (optional for dev)
         if self.settings.schema_registry_url and self.settings.schema_registry_url.strip():
@@ -113,9 +198,11 @@ class IntentConsumer:
             self.avro_deserializer = None
 
         logger.info(
-            'Intent consumer inicializado',
+            'Intent consumer inicializado com sucesso',
             topics=self.settings.kafka_topics,
-            group_id=self.settings.kafka_consumer_group_id
+            group_id=self.settings.kafka_consumer_group_id,
+            assignments=len(self.consumer.assignment()) if self.consumer else 0,
+            schema_registry_enabled=self.avro_deserializer is not None
         )
 
     async def start_consuming(self, processor_callback: Callable):
@@ -144,6 +231,9 @@ class IntentConsumer:
         import concurrent.futures
         executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="kafka-poller")
 
+        poll_count = 0
+        logger.info('Consumer loop initialized, starting to poll...')
+
         while self.running:
             try:
                 # Poll with short timeout (non-blocking)
@@ -155,6 +245,11 @@ class IntentConsumer:
                     1.0
                 )
 
+                poll_count += 1
+                # Log every 60 polls (~60 seconds) to confirm loop is running
+                if poll_count % 60 == 0:
+                    logger.debug(f'Consumer loop active, poll count: {poll_count}')
+
                 if msg is None:
                     await asyncio.sleep(0.1)  # Small delay to avoid busy loop
                     continue
@@ -165,6 +260,14 @@ class IntentConsumer:
                     else:
                         logger.error('Kafka consumer error', error=msg.error())
                         continue
+
+                # Log message reception
+                logger.info(
+                    'Message received from Kafka',
+                    topic=msg.topic(),
+                    partition=msg.partition(),
+                    offset=msg.offset()
+                )
 
                 # Deserialize message
                 intent_envelope = self._deserialize_message(msg)

@@ -1,5 +1,7 @@
 # Documento 06 — Fluxos Operacionais do Aurora OS Neural Hive-Mind
 
+> 📖 **Nota**: Para uma visão técnica detalhada passo a passo de cada fluxo com exemplos de código, schemas e métricas, consulte [docs/FLUXO_COMPLETO_NEURAL_HIVE_MIND.md](docs/FLUXO_COMPLETO_NEURAL_HIVE_MIND.md)
+
 ## Sumário Executivo
 Este volume consolida os fluxos ponta a ponta que sustentam o Aurora OS Neural Hive-Mind, garantindo rastreabilidade, governança e consistência operacional. Cada fluxo apresenta etapas sequenciais, atores envolvidos, entradas e saídas, regras de negócio, exceções, integrações, métricas de desempenho e diagramas em Mermaid. O documento é autoexplicativo e referenciado cruzadamente, servindo como base para treinamentos técnicos, auditorias regulatórias e alinhamento entre arquitetura, engenharia, SRE, governança e compliance.
 - Fluxo A: Captura e normalização de intenções humanas em envelopes canônicos.

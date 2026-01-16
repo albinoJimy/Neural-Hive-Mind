@@ -232,6 +232,15 @@ O campo `status` na resposta indica o resultado do processamento e roteamento:
 
 **Compatibilidade**: Consumidores devem estar preparados para aceitar todos os valores acima, especialmente `processed_low_confidence` que foi introduzido para suportar roteamento granular.
 
+### Campos de Rastreamento (traceId e spanId)
+
+Todas as respostas da API incluem campos de rastreamento OpenTelemetry:
+
+- **`traceId`**: String hexadecimal de 32 caracteres que identifica a trace completa da requisição
+- **`spanId`**: String hexadecimal de 16 caracteres que identifica o span específico da operação
+
+Ambos os campos são `null` quando o tracing está desabilitado (`OTEL_ENABLED=false`).
+
 ### Processamento de Texto
 
 ```json
@@ -245,7 +254,9 @@ O campo `status` na resposta indica o resultado do processamento e roteamento:
   "classification": "reporting",
   "processing_time_ms": 45.2,
   "requires_manual_validation": false,
-  "adaptive_threshold_used": true
+  "adaptive_threshold_used": true,
+  "traceId": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+  "spanId": "1a2b3c4d5e6f7a8b"
 }
 ```
 
@@ -265,7 +276,9 @@ O campo `status` na resposta indica o resultado do processamento e roteamento:
   "adaptive_threshold_used": true,
   "processing_notes": [
     "Processado com confiança baixa - recomenda-se validação"
-  ]
+  ],
+  "traceId": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+  "spanId": "1a2b3c4d5e6f7a8b"
 }
 ```
 
@@ -287,7 +300,9 @@ O campo `status` na resposta indica o resultado do processamento e roteamento:
     "Confiança muito baixa - requer validação manual"
   ],
   "validation_reason": "confidence_below_threshold",
-  "confidence_threshold": 0.5
+  "confidence_threshold": 0.5,
+  "traceId": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+  "spanId": "1a2b3c4d5e6f7a8b"
 }
 ```
 

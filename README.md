@@ -87,11 +87,29 @@ make security-init    # Inicializar segurança
 make ml-train         # Treinar modelos
 ```
 
-📚 **Documentação Completa**: [docs/scripts/](docs/scripts/)
+📚 **Documentação Completa**:
+
+### Documentação de Scripts e CLIs
 - [Visão Geral da Estrutura](docs/scripts/README.md)
 - [Guia de Migração](docs/scripts/MIGRATION_GUIDE.md)
 - [Referência de CLIs](docs/scripts/CLI_REFERENCE.md)
 - [Exemplos](docs/scripts/EXAMPLES.md)
+
+### Documentação de Arquitetura e Fluxos
+- **[Fluxo Completo do Sistema](docs/FLUXO_COMPLETO_NEURAL_HIVE_MIND.md)** ⭐ - Referência técnica principal
+- [Visão Geral](documento-01-visao-geral-neural-hive-mind.md)
+- [Arquitetura e Topologias](documento-02-arquitetura-e-topologias-neural-hive-mind.md)
+- [Componentes e Processos](documento-03-componentes-e-processos-neural-hive-mind.md)
+- [Segurança e Governança](documento-04-seguranca-governanca-neural-hive-mind.md)
+- [Implementação e Operação](documento-05-implementacao-e-operacao-neural-hive-mind.md)
+- [Fluxos e Processos](documento-06-fluxos-processos-neural-hive-mind.md)
+- [Arquitetura de Referência](documento-07-arquitetura-referencia-especifica-neural-hive-mind.md)
+- [Detalhamento Técnico](documento-08-detalhamento-tecnico-camadas-neural-hive-mind.md)
+
+### Índices e Guias Rápidos
+- [Índice Completo da Documentação](INDEX_DOCUMENTACAO.md)
+- [Guia Operacional](OPERATIONAL_GUIDE.md)
+- [Guia de Deployment](DEPLOYMENT_GUIDE.md)
 
 ## 🏗️ Arquitetura
 

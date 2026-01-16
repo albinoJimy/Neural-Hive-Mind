@@ -70,6 +70,25 @@
 - Estatísticas principais
 - Comandos rápidos
 
+### 7. Fluxo Completo do Neural Hive-Mind (Português)
+**Arquivo:** [docs/FLUXO_COMPLETO_NEURAL_HIVE_MIND.md](docs/FLUXO_COMPLETO_NEURAL_HIVE_MIND.md)
+**Tamanho:** ~150KB
+**Audiência:** Desenvolvedores, Arquitetos, Time Técnico
+**Conteúdo:**
+- Visão geral da arquitetura com diagramas Mermaid
+- Detalhamento passo a passo dos 6 fluxos principais (A-F)
+- Fluxo A: Captura e Normalização de Intenções (Gateway)
+- Fluxo B: Geração de Planos Cognitivos (Semantic Engine)
+- Fluxo de Consenso: Avaliação Multi-Especialista (5 especialistas)
+- Fluxo C: Orquestração Dinâmica de Execução (Orchestrator)
+- Fluxo D: Observabilidade Holística (Memory Layer)
+- Fluxo E: Autocura e Resolução Proativa
+- Fluxo F: Gestão de Experimentos
+- Schemas Avro/Protobuf com exemplos
+- Métricas SLI/SLO e capacidade do sistema
+- Conceitos-chave e diferenciais da arquitetura
+- Roadmap de evolução (Fases 2-4)
+
 ---
 
 ## 🧪 SCRIPTS DE TESTE
@@ -300,6 +319,91 @@ docker run --rm --user root <image> ls -la /app/.cache/whisper/
 - [x] 1 script de teste
 - [x] Troubleshooting guide
 - [x] Este índice
+
+---
+
+## 📐 ARQUITETURA E DOCUMENTAÇÃO CONCEITUAL
+
+### Documentos Conceituais Principais
+
+**Localização:** Raiz do repositório
+
+1. **[documento-01-visao-geral-neural-hive-mind.md](documento-01-visao-geral-neural-hive-mind.md)**
+   - Visão geral do sistema
+   - Conceitos fundamentais
+   - Objetivos e motivação
+
+2. **[documento-02-arquitetura-e-topologias-neural-hive-mind.md](documento-02-arquitetura-e-topologias-neural-hive-mind.md)**
+   - Arquitetura de alto nível
+   - Topologias de deployment
+   - Padrões arquiteturais
+
+3. **[documento-03-componentes-e-processos-neural-hive-mind.md](documento-03-componentes-e-processos-neural-hive-mind.md)**
+   - Componentes do sistema
+   - Processos e workflows
+   - Integrações
+
+4. **[documento-04-seguranca-governanca-neural-hive-mind.md](documento-04-seguranca-governanca-neural-hive-mind.md)**
+   - Segurança e governança
+   - Políticas e compliance
+   - Zero Trust Architecture
+
+5. **[documento-05-implementacao-e-operacao-neural-hive-mind.md](documento-05-implementacao-e-operacao-neural-hive-mind.md)**
+   - Implementação prática
+   - Operação e manutenção
+   - Best practices
+
+6. **[documento-06-fluxos-processos-neural-hive-mind.md](documento-06-fluxos-processos-neural-hive-mind.md)**
+   - Fluxos operacionais
+   - Processos de negócio
+   - Diagramas de sequência
+
+7. **[documento-07-arquitetura-referencia-especifica-neural-hive-mind.md](documento-07-arquitetura-referencia-especifica-neural-hive-mind.md)**
+   - Arquitetura de referência
+   - Especificações técnicas
+   - Decisões arquiteturais
+
+8. **[documento-08-detalhamento-tecnico-camadas-neural-hive-mind.md](documento-08-detalhamento-tecnico-camadas-neural-hive-mind.md)**
+   - Detalhamento técnico das camadas
+   - Implementação de componentes
+   - Padrões de código
+
+### Documentação Técnica Detalhada
+
+**Localização:** `docs/`
+
+- **[docs/FLUXO_COMPLETO_NEURAL_HIVE_MIND.md](docs/FLUXO_COMPLETO_NEURAL_HIVE_MIND.md)** ⭐
+  - **Documento principal de referência técnica**
+  - Fluxo completo passo a passo (A-F)
+  - Diagramas Mermaid de sequência
+  - Exemplos de payloads e schemas
+  - Métricas e SLIs/SLOs
+  - Guia de onboarding técnico
+
+- **[docs/architecture/](docs/architecture/)** - Documentos de arquitetura
+- **[docs/deployment/](docs/deployment/)** - Guias de deployment
+- **[docs/operations/](docs/operations/)** - Runbooks operacionais
+- **[docs/observability/](docs/observability/)** - Observabilidade e monitoring
+- **[docs/security/](docs/security/)** - Segurança e compliance
+- **[docs/ml/](docs/ml/)** - Machine Learning e modelos
+
+### Como Usar Esta Documentação
+
+**Para Onboarding de Desenvolvedores:**
+1. Comece com `documento-01-visao-geral-neural-hive-mind.md`
+2. Leia `docs/FLUXO_COMPLETO_NEURAL_HIVE_MIND.md` para entender o fluxo técnico
+3. Consulte `documento-02-arquitetura-e-topologias-neural-hive-mind.md` para arquitetura
+4. Explore documentos específicos em `docs/` conforme necessário
+
+**Para Troubleshooting:**
+1. Consulte [DEPLOYMENT_COMPLETO_FASE3.md](DEPLOYMENT_COMPLETO_FASE3.md) - Seção "Troubleshooting"
+2. Verifique `docs/operations/` para runbooks específicos
+3. Use `docs/FLUXO_COMPLETO_NEURAL_HIVE_MIND.md` para entender o fluxo afetado
+
+**Para Arquitetos:**
+1. Revise todos os documentos conceituais (01-08)
+2. Estude `docs/FLUXO_COMPLETO_NEURAL_HIVE_MIND.md` para detalhes técnicos
+3. Consulte `docs/architecture/` para ADRs e decisões arquiteturais
 
 ---
 
