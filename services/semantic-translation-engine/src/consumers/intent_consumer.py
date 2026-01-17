@@ -29,6 +29,8 @@ class IntentConsumer:
         self.schema_registry_client: Optional[SchemaRegistryClient] = None
         self.avro_deserializer: Optional[AvroDeserializer] = None
         self.running = False
+        self.last_poll_time: Optional[float] = None
+        self.messages_processed: int = 0
 
     async def initialize(self):
         """Initialize Kafka consumer com validação robusta de tópicos e assignments"""
@@ -173,7 +175,7 @@ class IntentConsumer:
 
         # Initialize Schema Registry client (optional for dev)
         if self.settings.schema_registry_url and self.settings.schema_registry_url.strip():
-            schema_path = '/app/schemas/intent-envelope.avsc'
+            schema_path = '/app/schemas/intent-envelope/intent-envelope.avsc'
 
             if os.path.exists(schema_path):
                 self.schema_registry_client = SchemaRegistryClient({'url': self.settings.schema_registry_url})
@@ -246,6 +248,8 @@ class IntentConsumer:
                 )
 
                 poll_count += 1
+                self.last_poll_time = time.time()
+
                 # Log every 60 polls (~60 seconds) to confirm loop is running
                 if poll_count % 60 == 0:
                     logger.debug(f'Consumer loop active, poll count: {poll_count}')
@@ -287,12 +291,14 @@ class IntentConsumer:
                         lambda: self.consumer.commit(asynchronous=False)
                     )
 
+                    self.messages_processed += 1
                     logger.debug(
                         'Message processed',
                         intent_id=intent_envelope.get('id'),
                         topic=msg.topic(),
                         partition=msg.partition(),
-                        offset=msg.offset()
+                        offset=msg.offset(),
+                        total_processed=self.messages_processed
                     )
 
                 except Exception as e:
@@ -404,3 +410,28 @@ class IntentConsumer:
         if self.consumer:
             self.consumer.close()
             logger.info('Intent consumer fechado')
+
+    def is_healthy(self, max_poll_age_seconds: float = 60.0) -> tuple[bool, str]:
+        """
+        Verifica se o consumer está saudável baseado em atividade recente.
+
+        Args:
+            max_poll_age_seconds: Tempo máximo em segundos desde o último poll
+
+        Returns:
+            Tuple de (is_healthy, reason)
+        """
+        if not self.running:
+            return False, "Consumer não está em estado running"
+
+        if not self.consumer:
+            return False, "Consumer Kafka não inicializado"
+
+        if self.last_poll_time is None:
+            return False, "Consumer ainda não iniciou polling"
+
+        poll_age = time.time() - self.last_poll_time
+        if poll_age > max_poll_age_seconds:
+            return False, f"Último poll há {poll_age:.1f}s (máx: {max_poll_age_seconds}s)"
+
+        return True, f"Consumer ativo (último poll há {poll_age:.1f}s, {self.messages_processed} msgs processadas)"

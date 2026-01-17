@@ -6,6 +6,7 @@ do Neural Hive-Mind. Converte Intent Envelopes em Cognitive Plans executáveis.
 """
 
 import asyncio
+import json
 import structlog
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Response
@@ -393,62 +394,26 @@ async def readiness_check():
             except Exception as e:
                 logger.warning("Kafka producer check failed", error=str(e))
 
-        # Check Kafka consumer
-        # Verificar se consumer_task finalizou ou foi cancelada
-        if 'consumer_task' in state:
-            consumer_task = state['consumer_task']
-            if consumer_task.done() or consumer_task.cancelled():
-                error_msg = state.get('consumer_error', 'Task finalizada inesperadamente')
-                logger.error(
-                    "Consumer task não está mais executando",
-                    task_done=consumer_task.done(),
-                    task_cancelled=consumer_task.cancelled(),
-                    error=error_msg
-                )
-                checks['kafka_consumer'] = False
-
-        if 'consumer' in state and state['consumer'].consumer and checks.get('kafka_consumer') is not False:
+        # Check Kafka consumer usando método is_healthy()
+        if 'consumer' in state and state['consumer']:
             try:
-                # Verificar se consumer está em estado running
-                if not state['consumer'].running:
-                    logger.warning(
-                        "Kafka consumer não está em estado running",
-                        consumer_group=state['consumer'].settings.kafka_consumer_group_id
-                    )
-                    checks['kafka_consumer'] = False
+                is_healthy, reason = state['consumer'].is_healthy(max_poll_age_seconds=60.0)
+                checks['kafka_consumer'] = is_healthy
+
+                if is_healthy:
+                    logger.debug("Kafka consumer saudável", reason=reason)
                 else:
-                    # Verify consumer is properly connected and has assignments
-                    state['consumer'].consumer.list_topics(timeout=2)
-                    assignments = state['consumer'].consumer.assignment()
-                    if assignments:
-                        # Log detalhado dos assignments
-                        assignment_info = [
-                            f"{tp.topic}:{tp.partition}"
-                            for tp in assignments
-                        ]
-                        logger.info(
-                            "Kafka consumer ativo com assignments",
-                            assignments=assignment_info,
-                            total_partitions=len(assignments)
-                        )
-                        checks['kafka_consumer'] = True
-                    else:
-                        logger.warning(
-                            "Kafka consumer sem assignments",
-                            consumer_group=state['consumer'].settings.kafka_consumer_group_id,
-                            configured_topics=state['consumer'].settings.kafka_topics
-                        )
-                        checks['kafka_consumer'] = False
+                    logger.warning("Kafka consumer não saudável", reason=reason)
             except Exception as e:
                 logger.error(
                     "Falha ao verificar Kafka consumer",
                     error=str(e),
-                    error_type=type(e).__name__,
-                    consumer_group=state['consumer'].settings.kafka_consumer_group_id if 'consumer' in state else None
+                    error_type=type(e).__name__
                 )
                 checks['kafka_consumer'] = False
         else:
             checks['kafka_consumer'] = False
+            logger.warning("Kafka consumer não encontrado no state")
 
         # Check NLP Processor
         if 'nlp_processor' in state:
@@ -460,18 +425,31 @@ async def readiness_check():
 
         all_ready = all(checks.values())
 
-        return {
+        response_data = {
             "ready": all_ready,
             "checks": checks
         }
 
+        if all_ready:
+            return response_data
+        else:
+            return Response(
+                content=json.dumps(response_data),
+                status_code=503,
+                media_type="application/json"
+            )
+
     except Exception as e:
         logger.error("Readiness check failed", error=str(e))
-        return {
-            "ready": False,
-            "checks": checks,
-            "error": str(e)
-        }
+        return Response(
+            content=json.dumps({
+                "ready": False,
+                "checks": checks,
+                "error": str(e)
+            }),
+            status_code=503,
+            media_type="application/json"
+        )
 
 
 @app.get("/metrics")
