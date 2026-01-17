@@ -66,7 +66,6 @@ async def validate_kafka_topics_exist(settings) -> None:
     admin_config = {
         'bootstrap.servers': settings.kafka_bootstrap_servers,
         'socket.timeout.ms': 10000,
-        'api.timeout.ms': 10000,
     }
 
     # Adicionar configurações de segurança se necessário

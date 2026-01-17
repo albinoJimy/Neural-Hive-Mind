@@ -17,8 +17,9 @@ COPY services/semantic-translation-engine/requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt && \
     python -m uvicorn --version && \
     echo "✓ uvicorn runtime verification passed" && \
-    python -m spacy download pt_core_news_sm && \
-    python -m spacy download en_core_web_sm && \
+    pip install --no-cache-dir --user \
+        https://github.com/explosion/spacy-models/releases/download/pt_core_news_sm-3.7.0/pt_core_news_sm-3.7.0.tar.gz \
+        https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz && \
     echo "✓ spaCy models downloaded"
 
 # Stage 2: Runtime
