@@ -117,7 +117,20 @@ data:
             "backchannel.logout.session.required": "true",
             "backchannel.logout.revoke.offline.tokens": "false"
           },
-          "defaultClientScopes": {{ $client.scopes | toJson }}
+          "defaultClientScopes": {{ $client.scopes | toJson }},
+          "protocolMappers": [
+            {
+              "name": "audience-mapper",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-audience-mapper",
+              "consentRequired": false,
+              "config": {
+                "included.client.audience": "{{ $client.clientId }}",
+                "id.token.claim": "true",
+                "access.token.claim": "true"
+              }
+            }
+          ]
         }
         {{- end }}
       ],
@@ -152,6 +165,26 @@ data:
           "protocol": "openid-connect",
           "attributes": {
             "include.in.token.scope": "true"
+          }
+        },
+        {
+          "name": "write:intentions",
+          "description": "Permission to create and process intentions",
+          "protocol": "openid-connect",
+          "attributes": {
+            "include.in.token.scope": "true",
+            "display.on.consent.screen": "true",
+            "consent.screen.text": "Create and process intentions"
+          }
+        },
+        {
+          "name": "read:intentions",
+          "description": "Permission to read intentions",
+          "protocol": "openid-connect",
+          "attributes": {
+            "include.in.token.scope": "true",
+            "display.on.consent.screen": "true",
+            "consent.screen.text": "Read intentions"
           }
         }
       ]

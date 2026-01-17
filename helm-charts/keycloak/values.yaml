@@ -69,6 +69,8 @@ realm:
         - profile
         - email
         - roles
+        - write:intentions
+        - read:intentions
 
 # Configuração do Database
 postgresql:
