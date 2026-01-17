@@ -4,8 +4,8 @@
 replicaCount: 1
 
 image:
-  repository: neural-hive-mind/specialist-architecture
-  tag: 1.0.10  # Fixed protobuf version incompatibility
+  repository: 37.60.241.150:30500/specialist-architecture
+  tag: latest
   pullPolicy: IfNotPresent
 
 resources:
@@ -36,7 +36,7 @@ config:
   mlflow:
     trackingUri: http://mlflow.mlflow.svc.cluster.local:5000
     experimentName: specialist-architecture
-    modelName: architecture
+    modelName: architecture-evaluator
     modelStage: Production
 
   mongodb:
@@ -100,6 +100,21 @@ podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
   fsGroup: 1000
+
+# Labels para pods (usados em anti-affinity)
+podLabels:
+  neural-hive.io/component: specialist
+
+# Pod anti-affinity para distribuir specialists entre nodes
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              neural-hive.io/component: specialist
+          topologyKey: kubernetes.io/hostname
 
 livenessProbe:
   httpGet:
