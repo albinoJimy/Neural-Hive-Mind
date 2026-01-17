@@ -186,6 +186,16 @@ data:
             "display.on.consent.screen": "true",
             "consent.screen.text": "Read intentions"
           }
+        },
+        {
+          "name": "neural-hive:access",
+          "description": "Neural Hive platform access",
+          "protocol": "openid-connect",
+          "attributes": {
+            "include.in.token.scope": "true",
+            "display.on.consent.screen": "true",
+            "consent.screen.text": "Access Neural Hive platform"
+          }
         }
       ]
     }

@@ -69,6 +69,7 @@ realm:
         - profile
         - email
         - roles
+        - neural-hive:access
         - write:intentions
         - read:intentions
 
