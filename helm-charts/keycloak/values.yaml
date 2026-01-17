@@ -160,8 +160,10 @@ ingress:
         - keycloak.neural-hive.local
 
 # Configuração de TLS
+# Desabilitado - usando HTTP interno no cluster
+# Para produção com HTTPS, configure cert/key ou existingSecret
 tls:
-  enabled: true
+  enabled: false
   cert: ""
   key: ""
   existingSecret: ""
