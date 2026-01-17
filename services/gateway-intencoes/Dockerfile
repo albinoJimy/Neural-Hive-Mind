@@ -46,9 +46,12 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir --no-deps openai-whisper
 
-# Baixar modelo spaCy pt_core_news_sm
+# Baixar modelos spaCy para todos os idiomas suportados (pt, en, es)
 RUN --mount=type=cache,target=/root/.cache/pip \
-    python -m spacy download pt_core_news_sm
+    pip install --no-cache-dir \
+        https://github.com/explosion/spacy-models/releases/download/pt_core_news_sm-3.7.0/pt_core_news_sm-3.7.0.tar.gz \
+        https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz \
+        https://github.com/explosion/spacy-models/releases/download/es_core_news_sm-3.7.0/es_core_news_sm-3.7.0.tar.gz
 
 # Copiar código da aplicação
 COPY services/gateway-intencoes/src/ ./src/

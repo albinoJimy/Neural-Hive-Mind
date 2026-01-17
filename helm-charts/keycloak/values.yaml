@@ -118,7 +118,7 @@ service:
       targetPort: 9000
       protocol: TCP
     metrics:
-      port: 9000
+      port: 9001
       targetPort: 9000
       protocol: TCP
   annotations:
