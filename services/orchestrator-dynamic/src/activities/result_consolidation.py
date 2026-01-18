@@ -389,9 +389,7 @@ async def consolidate_results(tickets: List[Dict[str, Any]], workflow_id: str) -
             metrics = get_metrics()
         except Exception as metrics_error:
             activity.logger.warning(
-                'metrics_unavailable',
-                workflow_id=workflow_id,
-                error=str(metrics_error)
+                f'metrics_unavailable workflow_id={workflow_id} error={metrics_error}'
             )
 
         try:
@@ -406,24 +404,18 @@ async def consolidate_results(tickets: List[Dict[str, Any]], workflow_id: str) -
                         compute_and_record_ml_error(ticket, metrics)
                     else:
                         activity.logger.debug(
-                            'ml_error_tracking_skipped_no_metrics',
-                            ticket_id=ticket.get('ticket_id', 'unknown')
+                            f"ml_error_tracking_skipped_no_metrics ticket_id={ticket.get('ticket_id', 'unknown')}"
                         )
 
                     if _scheduling_optimizer and _config and _config.ml_allocation_outcomes_enabled:
                         try:
                             await record_allocation_outcome_for_ticket(ticket, _scheduling_optimizer)
                             activity.logger.info(
-                                'allocation_outcome_feedback_sent',
-                                workflow_id=workflow_id,
-                                ticket_id=ticket.get('ticket_id')
+                                f"allocation_outcome_feedback_sent workflow_id={workflow_id} ticket_id={ticket.get('ticket_id')}"
                             )
                         except Exception as feedback_error:
                             activity.logger.warning(
-                                'allocation_outcome_feedback_failed',
-                                workflow_id=workflow_id,
-                                ticket_id=ticket.get('ticket_id'),
-                                error=str(feedback_error)
+                                f"allocation_outcome_feedback_failed workflow_id={workflow_id} ticket_id={ticket.get('ticket_id')} error={feedback_error}"
                             )
 
             # Monitoramento de SLA (integração com SLA Management System)
@@ -439,15 +431,12 @@ async def consolidate_results(tickets: List[Dict[str, Any]], workflow_id: str) -
                         metrics = get_metrics()
                     except Exception as metrics_error:
                         activity.logger.warning(
-                            'metrics_unavailable_for_sla',
-                            workflow_id=workflow_id,
-                            error=str(metrics_error)
+                            f'metrics_unavailable_for_sla workflow_id={workflow_id} error={metrics_error}'
                         )
 
                 if metrics is None:
                     activity.logger.warning(
-                        'sla_monitoring_skipped_no_metrics',
-                        workflow_id=workflow_id
+                        f'sla_monitoring_skipped_no_metrics workflow_id={workflow_id}'
                     )
                 else:
                     # Inicializar Redis client (fail-open se não disponível)
@@ -460,9 +449,7 @@ async def consolidate_results(tickets: List[Dict[str, Any]], workflow_id: str) -
                         await kafka_producer.initialize()
                     except Exception as e:
                         activity.logger.warning(
-                            'kafka_producer_initialization_failed',
-                            workflow_id=workflow_id,
-                            error=str(e)
+                            f'kafka_producer_initialization_failed workflow_id={workflow_id} error={e}'
                         )
                         # Fail-open: continuar sem Kafka producer
 
@@ -496,17 +483,10 @@ async def consolidate_results(tickets: List[Dict[str, Any]], workflow_id: str) -
                                     await alert_manager.send_deadline_alert(workflow_id, ticket_id, deadline_data)
                                 except Exception as e:
                                     activity.logger.warning(
-                                        'deadline_alert_send_failed',
-                                        workflow_id=workflow_id,
-                                        ticket_id=ticket_id,
-                                        error=str(e)
+                                        f'deadline_alert_send_failed workflow_id={workflow_id} ticket_id={ticket_id} error={e}'
                                     )
                                 activity.logger.warning(
-                                    'sla_deadline_approaching',
-                                    workflow_id=workflow_id,
-                                    ticket_id=ticket_id,
-                                    remaining_seconds=deadline_data['remaining_seconds'],
-                                    percent_consumed=deadline_data['percent_consumed']
+                                    f"sla_deadline_approaching workflow_id={workflow_id} ticket_id={ticket_id} remaining_seconds={deadline_data['remaining_seconds']} percent_consumed={deadline_data['percent_consumed']}"
                                 )
 
                     # Verificar error budget do serviço
@@ -522,16 +502,10 @@ async def consolidate_results(tickets: List[Dict[str, Any]], workflow_id: str) -
                             await alert_manager.send_budget_alert(workflow_id, service_name, budget_data)
                         except Exception as e:
                             activity.logger.warning(
-                                'budget_alert_send_failed',
-                                workflow_id=workflow_id,
-                                service_name=service_name,
-                                error=str(e)
+                                f'budget_alert_send_failed workflow_id={workflow_id} service_name={service_name} error={e}'
                             )
                         activity.logger.warning(
-                            'sla_budget_critical',
-                            workflow_id=workflow_id,
-                            service_name=service_name,
-                            budget_remaining=budget_data.get('error_budget_remaining')
+                            f"sla_budget_critical workflow_id={workflow_id} service_name={service_name} budget_remaining={budget_data.get('error_budget_remaining')}"
                         )
                     elif budget_data:
                         budget_status = budget_data.get('status', 'HEALTHY')
@@ -596,16 +570,10 @@ async def consolidate_results(tickets: List[Dict[str, Any]], workflow_id: str) -
                                     await alert_manager.publish_sla_violation(violation)
                                 except Exception as e:
                                     activity.logger.warning(
-                                        'violation_publish_failed',
-                                        workflow_id=workflow_id,
-                                        ticket_id=ticket.get('ticket_id'),
-                                        error=str(e)
+                                        f"violation_publish_failed workflow_id={workflow_id} ticket_id={ticket.get('ticket_id')} error={e}"
                                     )
                                 activity.logger.warning(
-                                    'sla_violation_detected',
-                                    workflow_id=workflow_id,
-                                    ticket_id=ticket.get('ticket_id'),
-                                    delay_ms=violation['delay_ms']
+                                    f"sla_violation_detected workflow_id={workflow_id} ticket_id={ticket.get('ticket_id')} delay_ms={violation['delay_ms']}"
                                 )
 
                     sla_status['violations_count'] = violations_count
@@ -640,16 +608,12 @@ async def consolidate_results(tickets: List[Dict[str, Any]], workflow_id: str) -
                             await kafka_producer.close()
                         except Exception as e:
                             activity.logger.warning(
-                                'kafka_producer_close_failed',
-                                workflow_id=workflow_id,
-                                error=str(e)
+                                f'kafka_producer_close_failed workflow_id={workflow_id} error={e}'
                             )
 
         except Exception as e:
             activity.logger.error(
-                'sla_monitoring_failed',
-                workflow_id=workflow_id,
-                error=str(e)
+                f'sla_monitoring_failed workflow_id={workflow_id} error={e}'
             )
             # Fail-open: continuar sem SLA monitoring
 
@@ -688,26 +652,20 @@ async def consolidate_results(tickets: List[Dict[str, Any]], workflow_id: str) -
         try:
             if _mongodb_client:
                 await _mongodb_client.save_workflow_result(result)
-                activity.logger.info('workflow_result_persisted', workflow_id=workflow_id)
+                activity.logger.info(f'workflow_result_persisted workflow_id={workflow_id}')
             else:
-                activity.logger.warning('mongodb_client_not_initialized', workflow_id=workflow_id)
+                activity.logger.warning(f'mongodb_client_not_initialized workflow_id={workflow_id}')
         except CircuitBreakerError:
             activity.logger.warning(
-                'workflow_result_persist_circuit_open',
-                workflow_id=workflow_id
+                f'workflow_result_persist_circuit_open workflow_id={workflow_id}'
             )
         except Exception as mongo_error:
             activity.logger.error(
-                'workflow_result_persist_failed',
-                workflow_id=workflow_id,
-                error=str(mongo_error)
+                f'workflow_result_persist_failed workflow_id={workflow_id} error={mongo_error}'
             )
 
         activity.logger.info(
-            f'Resultados consolidados para workflow {workflow_id}',
-            status=overall_status,
-            total_tickets=total_tickets,
-            consistent=consistent
+            f'Resultados consolidados para workflow {workflow_id} status={overall_status} total_tickets={total_tickets} consistent={consistent}'
         )
 
         return result
@@ -732,9 +690,7 @@ async def trigger_self_healing(
         inconsistencies: Lista de inconsistências detectadas
     """
     activity.logger.warning(
-        'self_healing.trigger_called',
-        workflow_id=workflow_id,
-        inconsistencies_count=len(inconsistencies)
+        f'self_healing.trigger_called workflow_id={workflow_id} inconsistencies_count={len(inconsistencies)}'
     )
 
     try:
@@ -742,7 +698,7 @@ async def trigger_self_healing(
         config = _config or get_settings()
         _config = config
     except Exception as cfg_error:
-        activity.logger.error('self_healing.config_load_failed', error=str(cfg_error))
+        activity.logger.error(f'self_healing.config_load_failed error={cfg_error}')
         raise
 
     incident_type = _infer_incident_type(inconsistencies)
@@ -778,9 +734,7 @@ async def trigger_self_healing(
         metrics = get_metrics()
     except Exception as metrics_error:
         activity.logger.warning(
-            'metrics_unavailable_self_healing',
-            workflow_id=workflow_id,
-            error=str(metrics_error)
+            f'metrics_unavailable_self_healing workflow_id={workflow_id} error={metrics_error}'
         )
 
     kafka_publish_ok = False
@@ -794,9 +748,7 @@ async def trigger_self_healing(
             _set_global_kafka_producer(producer)
         except Exception as init_error:
             activity.logger.warning(
-                'self_healing.kafka_producer_init_failed',
-                workflow_id=workflow_id,
-                error=str(init_error)
+                f'self_healing.kafka_producer_init_failed workflow_id={workflow_id} error={init_error}'
             )
 
     # Publicar no Kafka (fail-open)
@@ -805,11 +757,7 @@ async def trigger_self_healing(
             kafka_publish_ok = await producer.publish_incident_avro(incident_event)
         except Exception as kafka_error:
             activity.logger.warning(
-                'self_healing.kafka_publish_failed',
-                workflow_id=workflow_id,
-                incident_id=incident_event['incident_id'],
-                incident_type=incident_type,
-                error=str(kafka_error)
+                f"self_healing.kafka_publish_failed workflow_id={workflow_id} incident_id={incident_event['incident_id']} incident_type={incident_type} error={kafka_error}"
             )
 
     remediation_id = None
@@ -863,31 +811,19 @@ async def trigger_self_healing(
                 remediation_id = await client.trigger_remediation(remediation_payload)
                 if remediation_id:
                     activity.logger.info(
-                        'self_healing.http_trigger_sent',
-                        workflow_id=workflow_id,
-                        remediation_id=remediation_id,
-                        playbook=recommended_playbook
+                        f'self_healing.http_trigger_sent workflow_id={workflow_id} remediation_id={remediation_id} playbook={recommended_playbook}'
                     )
                 else:
                     activity.logger.warning(
-                        'self_healing.http_trigger_failed',
-                        workflow_id=workflow_id,
-                        incident_id=incident_event['incident_id'],
-                        playbook=recommended_playbook
+                        f"self_healing.http_trigger_failed workflow_id={workflow_id} incident_id={incident_event['incident_id']} playbook={recommended_playbook}"
                     )
             except Exception as http_error:  # noqa: BLE001
                 activity.logger.warning(
-                    'self_healing.http_trigger_exception',
-                    workflow_id=workflow_id,
-                    incident_id=incident_event['incident_id'],
-                    error=str(http_error)
+                    f"self_healing.http_trigger_exception workflow_id={workflow_id} incident_id={incident_event['incident_id']} error={http_error}"
                 )
     elif config.self_healing_enabled and not recommended_playbook:
         activity.logger.warning(
-            'self_healing.no_playbook_mapped',
-            workflow_id=workflow_id,
-            incident_type=incident_type,
-            inconsistencies=inconsistencies
+            f'self_healing.no_playbook_mapped workflow_id={workflow_id} incident_type={incident_type} inconsistencies={inconsistencies}'
         )
 
     if not kafka_publish_ok:
@@ -896,37 +832,25 @@ async def trigger_self_healing(
             try:
                 await _mongodb_client.save_incident(incident_event)
                 activity.logger.warning(
-                    'self_healing.incident_buffered',
-                    incident_id=incident_event['incident_id'],
-                    workflow_id=workflow_id
+                    f"self_healing.incident_buffered incident_id={incident_event['incident_id']} workflow_id={workflow_id}"
                 )
             except Exception as mongo_error:
                 activity.logger.error(
-                    'incident_persist_failed',
-                    workflow_id=workflow_id,
-                    error=str(mongo_error)
+                    f'incident_persist_failed workflow_id={workflow_id} error={mongo_error}'
                 )
         else:
-            activity.logger.warning('mongodb_client_not_initialized', workflow_id=workflow_id)
+            activity.logger.warning(f'mongodb_client_not_initialized workflow_id={workflow_id}')
 
     if metrics:
         try:
             metrics.record_self_healing_triggered(incident_type=incident_type)
         except Exception as metrics_error:
             activity.logger.warning(
-                'metrics_self_healing_trigger_record_failed',
-                workflow_id=workflow_id,
-                error=str(metrics_error)
+                f'metrics_self_healing_trigger_record_failed workflow_id={workflow_id} error={metrics_error}'
             )
 
     activity.logger.info(
-        'self_healing.incident_processed',
-        workflow_id=workflow_id,
-        incident_id=incident_event['incident_id'],
-        incident_type=incident_type,
-        recommended_playbook=recommended_playbook,
-        kafka_published=kafka_publish_ok,
-        remediation_id=remediation_id
+        f"self_healing.incident_processed workflow_id={workflow_id} incident_id={incident_event['incident_id']} incident_type={incident_type} recommended_playbook={recommended_playbook} kafka_published={kafka_publish_ok} remediation_id={remediation_id}"
     )
 
 
@@ -990,17 +914,13 @@ async def publish_telemetry(workflow_result: Dict[str, Any]) -> None:
 
         except Exception as e:
             activity.logger.warning(
-                'metrics_export_failed',
-                error=str(e)
+                f'metrics_export_failed error={e}'
             )
 
         # Log específico para SLA
         if workflow_result.get('sla_status', {}).get('violations_count', 0) > 0:
             activity.logger.warning(
-                'sla_violations_detected_in_telemetry',
-                workflow_id=workflow_result.get('workflow_id'),
-                violations_count=workflow_result['sla_status']['violations_count'],
-                budget_status=workflow_result.get('budget_status')
+                f"sla_violations_detected_in_telemetry workflow_id={workflow_result.get('workflow_id')} violations_count={workflow_result['sla_status']['violations_count']} budget_status={workflow_result.get('budget_status')}"
             )
 
         activity.logger.info('Telemetria publicada com sucesso')
@@ -1034,8 +954,7 @@ async def buffer_telemetry(telemetry_frame: Dict[str, Any]) -> None:
                 await _mongodb_client.save_telemetry_buffer(buffered_frame)
             except Exception as mongo_error:
                 activity.logger.error(
-                    'telemetry_buffer_persist_failed',
-                    error=str(mongo_error)
+                    f'telemetry_buffer_persist_failed error={mongo_error}'
                 )
         else:
             activity.logger.warning('mongodb_client_not_initialized')

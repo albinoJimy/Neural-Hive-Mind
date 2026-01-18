@@ -6,6 +6,7 @@ from datetime import timedelta
 from typing import Any, Dict
 
 from temporalio import workflow
+from temporalio.common import RetryPolicy
 
 # Import activities (serão definidos posteriormente)
 with workflow.unsafe.imports_passed_through():
@@ -99,7 +100,7 @@ class OrchestrationWorkflow:
                     validate_cognitive_plan,
                     args=[plan_id, cognitive_plan],
                     start_to_close_timeout=timedelta(seconds=5),
-                    retry_policy=workflow.RetryPolicy(
+                    retry_policy=RetryPolicy(
                         maximum_attempts=2,
                         initial_interval=timedelta(milliseconds=500),
                         non_retryable_error_types=['InvalidSchemaError']
@@ -121,7 +122,7 @@ class OrchestrationWorkflow:
                     audit_validation,
                     args=[plan_id, validation_result],
                     start_to_close_timeout=timedelta(seconds=3),
-                    retry_policy=workflow.RetryPolicy(maximum_attempts=3)
+                    retry_policy=RetryPolicy(maximum_attempts=3)
                 )
 
                 workflow.logger.info('Plano cognitivo validado com sucesso')
@@ -135,7 +136,7 @@ class OrchestrationWorkflow:
                     generate_execution_tickets,
                     args=[cognitive_plan, consolidated_decision],
                     start_to_close_timeout=timedelta(seconds=30),
-                    retry_policy=workflow.RetryPolicy(
+                    retry_policy=RetryPolicy(
                         maximum_attempts=2,
                         initial_interval=timedelta(seconds=1)
                     )
@@ -153,7 +154,7 @@ class OrchestrationWorkflow:
                         check_workflow_sla_proactive,
                         args=[workflow_id, tickets, 'post_ticket_generation'],
                         start_to_close_timeout=timedelta(seconds=5),
-                        retry_policy=workflow.RetryPolicy(
+                        retry_policy=RetryPolicy(
                             maximum_attempts=2,
                             non_retryable_error_types=['SLAMonitorUnavailable']
                         )
@@ -184,7 +185,7 @@ class OrchestrationWorkflow:
                         allocate_resources,
                         args=[ticket],
                         start_to_close_timeout=timedelta(seconds=10),
-                        retry_policy=workflow.RetryPolicy(
+                        retry_policy=RetryPolicy(
                             maximum_attempts=3,
                             initial_interval=timedelta(seconds=2)
                         )
@@ -205,7 +206,7 @@ class OrchestrationWorkflow:
                         publish_ticket_to_kafka,
                         args=[ticket],
                         start_to_close_timeout=timedelta(seconds=15),
-                        retry_policy=workflow.RetryPolicy(
+                        retry_policy=RetryPolicy(
                             maximum_attempts=5,
                             initial_interval=timedelta(seconds=1),
                             backoff_coefficient=2.0
@@ -240,7 +241,7 @@ class OrchestrationWorkflow:
                         check_workflow_sla_proactive,
                         args=[workflow_id, published_tickets, 'post_ticket_publishing'],
                         start_to_close_timeout=timedelta(seconds=5),
-                        retry_policy=workflow.RetryPolicy(
+                        retry_policy=RetryPolicy(
                             maximum_attempts=2,
                             non_retryable_error_types=['SLAMonitorUnavailable']
                         )
@@ -278,7 +279,7 @@ class OrchestrationWorkflow:
                     consolidate_results,
                     args=[published_tickets, workflow_id],
                     start_to_close_timeout=timedelta(seconds=20),
-                    retry_policy=workflow.RetryPolicy(maximum_attempts=2)
+                    retry_policy=RetryPolicy(maximum_attempts=2)
                 )
 
                 self._workflow_result = workflow_result
@@ -290,7 +291,7 @@ class OrchestrationWorkflow:
                         trigger_self_healing,
                         args=[workflow_id, workflow_result.get('errors', []), published_tickets, workflow_result],
                         start_to_close_timeout=timedelta(seconds=10),
-                        retry_policy=workflow.RetryPolicy(maximum_attempts=3)
+                        retry_policy=RetryPolicy(maximum_attempts=3)
                     )
 
                 span.add_event("results_consolidated")
@@ -304,7 +305,7 @@ class OrchestrationWorkflow:
                         publish_telemetry,
                         args=[workflow_result],
                         start_to_close_timeout=timedelta(seconds=15),
-                        retry_policy=workflow.RetryPolicy(
+                        retry_policy=RetryPolicy(
                             maximum_attempts=5,
                             initial_interval=timedelta(seconds=1),
                             backoff_coefficient=2.0
@@ -316,7 +317,7 @@ class OrchestrationWorkflow:
                         buffer_telemetry,
                         args=[workflow_result],
                         start_to_close_timeout=timedelta(seconds=5),
-                        retry_policy=workflow.RetryPolicy(maximum_attempts=3)
+                        retry_policy=RetryPolicy(maximum_attempts=3)
                     )
 
                 span.add_event("telemetry_published")
