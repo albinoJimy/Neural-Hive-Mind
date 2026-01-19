@@ -279,15 +279,32 @@ async def record_allocation_outcome_for_ticket(
     try:
         allocation_metadata = ticket.get('allocation_metadata') or {}
         ticket_id = ticket.get('ticket_id', 'unknown')
+        plan_id = ticket.get('plan_id', 'unknown')
 
         actual_duration_ms = ticket.get('actual_duration_ms')
         agent_id = allocation_metadata.get('agent_id')
 
-        if not allocation_metadata or not agent_id or not actual_duration_ms:
-            logger.debug(
-                'allocation_outcome_skipped',
+        # VULNERABILIDADE CORRIGIDA: Logar detalhes específicos de cada campo ausente
+        missing_fields = []
+        if not allocation_metadata:
+            missing_fields.append('allocation_metadata')
+        if not agent_id:
+            missing_fields.append('agent_id')
+        if not actual_duration_ms:
+            missing_fields.append('actual_duration_ms')
+
+        if missing_fields:
+            # WARNING: ML feedback loop não receberá dados - scheduler não aprende
+            logger.warning(
+                'VULN-002: allocation_outcome_skipped - ML feedback loop comprometido',
                 ticket_id=ticket_id,
-                reason='allocation_metadata/agent_id/actual_duration_ms ausente'
+                plan_id=plan_id,
+                missing_fields=missing_fields,
+                allocation_method=allocation_metadata.get('allocation_method', 'unknown'),
+                has_allocation_metadata=bool(allocation_metadata),
+                has_agent_id=bool(agent_id),
+                has_actual_duration_ms=bool(actual_duration_ms),
+                action_required='Verificar se IntelligentScheduler está preenchendo allocation_metadata corretamente'
             )
             return
 
@@ -617,11 +634,35 @@ async def consolidate_results(tickets: List[Dict[str, Any]], workflow_id: str) -
             )
             # Fail-open: continuar sem SLA monitoring
 
+        # VULNERABILIDADE CORRIGIDA: Extrair plan_id/intent_id de qualquer ticket disponível
+        # Busca em todos os tickets até encontrar valores válidos
+        extracted_plan_id = None
+        extracted_intent_id = None
+        for ticket_data in tickets:
+            ticket = ticket_data.get('ticket', {})
+            if not extracted_plan_id and ticket.get('plan_id'):
+                extracted_plan_id = ticket.get('plan_id')
+            if not extracted_intent_id and ticket.get('intent_id'):
+                extracted_intent_id = ticket.get('intent_id')
+            if extracted_plan_id and extracted_intent_id:
+                break
+
+        # Logar se não conseguiu extrair (quebra auditoria/rastreamento)
+        if not extracted_plan_id or not extracted_intent_id:
+            logger.warning(
+                'VULN-003: plan_id ou intent_id não encontrado em nenhum ticket - rastreamento comprometido',
+                workflow_id=workflow_id,
+                has_plan_id=bool(extracted_plan_id),
+                has_intent_id=bool(extracted_intent_id),
+                total_tickets=len(tickets),
+                action_required='Verificar se tickets estão sendo gerados com plan_id/intent_id'
+            )
+
         # Gerar resumo
         result = {
             'workflow_id': workflow_id,
-            'plan_id': tickets[0].get('ticket', {}).get('plan_id') if tickets else None,
-            'intent_id': tickets[0].get('ticket', {}).get('intent_id') if tickets else None,
+            'plan_id': extracted_plan_id,
+            'intent_id': extracted_intent_id,
             'status': overall_status,
             'consistent': consistent,
             'errors': integrity_errors,
