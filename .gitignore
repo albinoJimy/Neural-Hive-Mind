@@ -1,3 +1,9 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
 # Test results and reports
 tests/results/*.json
 tests/results/*.md
