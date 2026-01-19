@@ -656,8 +656,19 @@ class PlanConsumer:
             # 4. Publicar decisão no Kafka (será feito pelo producer)
             # Armazenar na fila de produção
             from src.main import state
-            if hasattr(state, 'decision_queue'):
+            if state.decision_queue is not None:
                 await state.decision_queue.put(decision)
+                logger.info(
+                    'Decisao adicionada a fila de publicacao',
+                    decision_id=decision.decision_id,
+                    plan_id=cognitive_plan['plan_id']
+                )
+            else:
+                logger.error(
+                    'decision_queue nao inicializada - decisao nao sera publicada',
+                    decision_id=decision.decision_id,
+                    plan_id=cognitive_plan['plan_id']
+                )
 
             # 5. Commit manual do offset
             if not self.config.kafka_enable_auto_commit:

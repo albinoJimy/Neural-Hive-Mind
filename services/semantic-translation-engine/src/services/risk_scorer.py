@@ -206,6 +206,7 @@ class RiskScorer:
 
         # 2. Preparar entidade base para avaliação
         metadata = intermediate_repr.get('metadata', {})
+        intent_id = intermediate_repr.get('intent_id', 'unknown')
         priority = metadata.get('priority', 'normal')
         security_level = metadata.get('security_level', 'internal')
 
@@ -271,7 +272,7 @@ class RiskScorer:
             destructive_severity=severity,
             domains_evaluated=['business', 'security', 'operational'],
             highest_risk_domain=highest_risk_domain.value,
-            entity_id=entity_id
+            intent_id=intent_id
         )
 
         # 12. Construir risk_matrix compatível com Avro map<string, double>

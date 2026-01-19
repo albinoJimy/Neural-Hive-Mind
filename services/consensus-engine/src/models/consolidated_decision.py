@@ -208,7 +208,7 @@ class ConsolidatedDecision(BaseModel):
             'reasoning_summary': self.reasoning_summary,
             'compliance_checks': self.compliance_checks,
             'guardrails_triggered': self.guardrails_triggered,
-            'cognitive_plan': json.dumps(self.cognitive_plan) if self.cognitive_plan is not None else None,
+            'cognitive_plan': json.dumps(self.cognitive_plan, default=str) if self.cognitive_plan is not None else None,
             'requires_human_review': self.requires_human_review,
             'created_at': int(self.created_at.timestamp() * 1000),
             'valid_until': int(self.valid_until.timestamp() * 1000) if self.valid_until else None,
