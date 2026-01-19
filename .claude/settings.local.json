@@ -688,7 +688,15 @@
       "Bash(# Verificar status do Orchestrator Dynamic kubectl port-forward -n neural-hive svc/orchestrator-dynamic 8004:8000 2>&1 & sleep 3 curl -s http://localhost:8004/health)",
       "Bash(__NEW_LINE_9df19817c883ea73__ echo \"\")",
       "Bash(# Verificar configuração Kafka do STE deployment kubectl get deployment -n neural-hive semantic-translation-engine -o yaml)",
-      "Bash(\"/mnt/c/Program Files/Docker/Docker/resources/bin/docker\" build -t 37.60.241.150:30500/semantic-translation-engine:1.2.5-fix-consumer -f Dockerfile .)"
+      "Bash(\"/mnt/c/Program Files/Docker/Docker/resources/bin/docker\" build -t 37.60.241.150:30500/semantic-translation-engine:1.2.5-fix-consumer -f Dockerfile .)",
+      "Bash(./tests/run-tests.sh:*)",
+      "Bash(bash tests/run-tests.sh:*)",
+      "Bash(/mnt/c/Program Files/Docker/Docker/resources/bin/docker.exe version)",
+      "Bash(docker.exe version:*)",
+      "Bash(/mnt/c/Program\\\\ Files/Docker/Docker/resources/bin/docker.exe build:*)",
+      "Bash(helm status:*)",
+      "Bash(PYTHONPATH=/home/jimy/NHM/Neural-Hive-Mind/libraries/python:$PYTHONPATH python3 -m pytest:*)",
+      "Bash(# Matar port-forwards existentes pkill -f \"\"kubectl port-forward\"\" || true sleep 1 # Verificar serviços disponíveis kubectl get svc -n observability)"
     ],
     "deny": [],
     "ask": []
