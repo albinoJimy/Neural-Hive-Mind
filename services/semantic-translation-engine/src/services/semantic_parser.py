@@ -118,6 +118,7 @@ class SemanticParser:
             'known_patterns': known_patterns,
             'original_confidence': intent_envelope.get('confidence'),
             'text': intent.get('text', ''),
+            'original_text': intent.get('text', ''),  # Required for intent-based decomposition
             'metadata': {
                 'priority': extracted_constraints.get('priority', 'normal'),
                 'security_level': extracted_constraints.get('security_level', 'internal'),

@@ -262,10 +262,12 @@ async def lifespan(app: FastAPI):
                 pattern_matcher_enabled=pattern_matcher is not None
             )
 
-        # Inicializar DAGGenerator com decomposição avançada
+        # Inicializar DAGGenerator com decomposição avançada e por intent
         dag_generator = DAGGenerator(
             pattern_matcher=pattern_matcher,
-            task_splitter=task_splitter
+            task_splitter=task_splitter,
+            intent_decomposition_enabled=True,
+            config={'intent_classification_min_confidence': 0.3}
         )
         risk_scorer = RiskScorer(settings)
         explainability_generator = ExplainabilityGenerator(mongodb_client)
