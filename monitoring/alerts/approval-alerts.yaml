@@ -1,0 +1,182 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: approval-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/component: alerting-rules
+data:
+  approval-alerts.yaml: |
+    groups:
+      - name: approval-queue-health
+        rules:
+          - alert: ApprovalQueueBacklog
+            expr: approval_requests_pending > 50
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Fila de aprovacoes com backlog alto"
+              description: "Fila de aprovacoes com backlog alto ({{ $value }} planos pendentes)"
+              runbook_url: "https://docs.neural-hive.io/runbooks/approval-queue-backlog"
+
+          - alert: ApprovalQueueCritical
+            expr: approval_requests_pending{risk_band=~"high|critical"} > 20
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Fila critica com planos de alto risco"
+              description: "Fila critica com {{ $value }} planos de alto risco pendentes"
+              runbook_url: "https://docs.neural-hive.io/runbooks/approval-queue-critical"
+
+          - alert: ApprovalQueueStale
+            expr: |
+              sum by (risk_band) (increase(approval_requests_received_total[30m])) == 0
+              and
+              sum by (risk_band) (approval_requests_pending) > 0
+            for: 30m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Fila de aprovacoes estagnada"
+              description: "Nenhum novo request em 30min mas planos ainda pendentes na banda {{ $labels.risk_band }}"
+              runbook_url: "https://docs.neural-hive.io/runbooks/approval-queue-stale"
+
+          - alert: ApprovalPendingTooLong
+            expr: approval_requests_max_pending_age_seconds > 3600
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Planos pendentes ha mais de 1 hora"
+              description: "Existem planos pendentes ha {{ $value | humanizeDuration }} na banda {{ $labels.risk_band }}"
+              runbook_url: "https://docs.neural-hive.io/runbooks/approval-queue-backlog"
+
+      - name: approval-sla-violations
+        rules:
+          - alert: ApprovalSLABreach
+            expr: histogram_quantile(0.95, sum(rate(approval_time_to_decision_seconds_bucket[1h])) by (le)) > 3600
+            for: 15m
+            labels:
+              severity: warning
+            annotations:
+              summary: "SLA de tempo de decisao violado"
+              description: "P95 de tempo de decisao e {{ $value | humanizeDuration }} (SLO: <1h)"
+              runbook_url: "https://docs.neural-hive.io/runbooks/approval-sla-breach"
+
+          - alert: ApprovalSLACritical
+            expr: histogram_quantile(0.95, sum(rate(approval_time_to_decision_seconds_bucket[1h])) by (le)) > 7200
+            for: 10m
+            labels:
+              severity: critical
+            annotations:
+              summary: "SLA de tempo de decisao critico"
+              description: "P95 de tempo de decisao e {{ $value | humanizeDuration }} (>2h)"
+              runbook_url: "https://docs.neural-hive.io/runbooks/approval-sla-breach"
+
+          - alert: ApprovalComplianceLow
+            expr: |
+              sum(rate(approval_time_to_decision_seconds_bucket{le="3600"}[24h])) /
+              sum(rate(approval_time_to_decision_seconds_count[24h])) < 0.90
+            for: 1h
+            labels:
+              severity: warning
+            annotations:
+              summary: "Compliance SLA abaixo do target"
+              description: "Compliance SLA e {{ $value | humanizePercentage }} (target: 95%)"
+              runbook_url: "https://docs.neural-hive.io/runbooks/approval-sla-breach"
+
+      - name: destructive-operations
+        rules:
+          - alert: DestructiveOperationsSpike
+            expr: rate(neural_hive_destructive_operations_detected_total[5m]) > 0.5
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Spike de operacoes destrutivas detectadas"
+              description: "Spike de operacoes destrutivas detectadas ({{ $value }}/s)"
+              runbook_url: "https://docs.neural-hive.io/runbooks/destructive-spike"
+
+          - alert: CriticalDestructiveOperations
+            expr: increase(neural_hive_destructive_operations_detected_total{severity="critical"}[10m]) > 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Operacoes destrutivas criticas detectadas"
+              description: "{{ $value }} operacoes destrutivas criticas detectadas"
+              runbook_url: "https://docs.neural-hive.io/runbooks/critical-destructive"
+
+          - alert: DestructivePlansStuck
+            expr: |
+              sum(approval_requests_pending{risk_band="critical"}) > 0
+              and
+              sum(increase(approvals_total{risk_band="critical"}[1h])) == 0
+            for: 1h
+            labels:
+              severity: warning
+            annotations:
+              summary: "Planos destrutivos criticos sem decisao"
+              description: "Planos destrutivos criticos sem decisao ha 1h"
+              runbook_url: "https://docs.neural-hive.io/runbooks/critical-destructive"
+
+      - name: approval-service-health
+        rules:
+          - alert: ApprovalServiceDown
+            expr: up{job="approval-service"} == 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Approval Service esta down"
+              description: "Approval Service esta down"
+              runbook_url: "https://docs.neural-hive.io/runbooks/approval-service-down"
+
+          - alert: ApprovalProcessingErrors
+            expr: rate(approval_api_requests_total{status=~"5.."}[5m]) > 0.05
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Taxa de erro no processamento de aprovacoes"
+              description: "Taxa de erro de processamento e {{ $value | humanizePercentage }}"
+              runbook_url: "https://docs.neural-hive.io/runbooks/approval-service-down"
+
+          - alert: ApprovalKafkaLag
+            expr: kafka_consumer_lag{topic="cognitive-plans-approval-requests"} > 100
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Lag no consumer Kafka de aprovacoes"
+              description: "Lag de {{ $value }} mensagens no consumer de aprovacoes"
+              runbook_url: "https://docs.neural-hive.io/runbooks/approval-service-down"
+
+      - name: risk-analysis
+        rules:
+          - alert: HighRiskApprovalRate
+            expr: |
+              sum(rate(approval_requests_received_total{risk_band=~"high|critical"}[1h])) /
+              sum(rate(approval_requests_received_total[1h])) > 0.3
+            for: 30m
+            labels:
+              severity: info
+            annotations:
+              summary: "Alta proporcao de planos de alto risco"
+              description: "{{ $value | humanizePercentage }} dos planos sao de alto risco"
+              runbook_url: "https://docs.neural-hive.io/runbooks/high-risk-rate"
+
+          - alert: LowApprovalRate
+            expr: |
+              sum(rate(approvals_total{decision="approved"}[24h])) /
+              sum(rate(approvals_total[24h])) < 0.5
+            for: 2h
+            labels:
+              severity: warning
+            annotations:
+              summary: "Taxa de aprovacao baixa"
+              description: "Taxa de aprovacao baixa: {{ $value | humanizePercentage }}"
+              runbook_url: "https://docs.neural-hive.io/runbooks/low-approval-rate"

@@ -173,7 +173,14 @@ def sample_cognitive_plan() -> Dict[str, Any]:
         "risk_score": 0.3,
         "risk_band": "low",
         "complexity_score": 0.5,
-        "metadata": {}
+        "metadata": {},
+        "requires_approval": False,
+        "approval_status": None,
+        "approved_by": None,
+        "approved_at": None,
+        "is_destructive": False,
+        "destructive_tasks": [],
+        "risk_matrix": None
     }
 
 

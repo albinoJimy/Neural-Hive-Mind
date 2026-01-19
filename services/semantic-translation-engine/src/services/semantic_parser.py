@@ -13,6 +13,8 @@ from src.clients.neo4j_client import Neo4jClient
 from src.clients.mongodb_client import MongoDBClient
 from src.clients.redis_client import RedisClient
 
+from src.services.pattern_matcher import PatternMatcher
+
 if TYPE_CHECKING:
     from src.services.nlp_processor import NLPProcessor
 
@@ -27,12 +29,21 @@ class SemanticParser:
         neo4j_client: Neo4jClient,
         mongodb_client: MongoDBClient,
         redis_client: RedisClient,
-        nlp_processor: Optional['NLPProcessor'] = None
+        nlp_processor: Optional['NLPProcessor'] = None,
+        pattern_matcher: Optional[PatternMatcher] = None,
+        pattern_matching_enabled: bool = True
     ):
         self.neo4j = neo4j_client
         self.mongodb = mongodb_client
         self.redis = redis_client
         self.nlp_processor = nlp_processor
+        self.pattern_matching_enabled = pattern_matching_enabled
+
+        # Só inicializa PatternMatcher se pattern matching estiver habilitado
+        if pattern_matching_enabled:
+            self.pattern_matcher = pattern_matcher or PatternMatcher()
+        else:
+            self.pattern_matcher = None
 
     async def parse(self, intent_envelope: Dict) -> Dict[str, Any]:
         """
@@ -80,10 +91,21 @@ class SemanticParser:
             intent.get('text', '')
         )
 
-        # Identify known patterns
+        # Criar intermediate_representation parcial para pattern matching
+        partial_ir = {
+            'intent_id': intent_envelope.get('id'),
+            'domain': domain,
+            'objectives': objectives,
+            'entities': mapped_entities,
+            'text': intent.get('text', ''),
+            'original_text': intent.get('text', '')
+        }
+
+        # Identify known patterns usando PatternMatcher
         known_patterns = await self._identify_patterns(
             domain,
-            objectives
+            objectives,
+            partial_ir
         )
 
         intermediate_representation = {
@@ -95,6 +117,7 @@ class SemanticParser:
             'historical_context': historical_context,
             'known_patterns': known_patterns,
             'original_confidence': intent_envelope.get('confidence'),
+            'text': intent.get('text', ''),
             'metadata': {
                 'priority': extracted_constraints.get('priority', 'normal'),
                 'security_level': extracted_constraints.get('security_level', 'internal'),
@@ -279,8 +302,64 @@ class SemanticParser:
             'enrichment_timestamp': datetime.utcnow().isoformat()
         }
 
-    async def _identify_patterns(self, domain: str, objectives: List[str]) -> List[Dict]:
-        """Identify known patterns for reuse"""
-        # MVP: Return empty (no predefined patterns)
-        # Future: Query Knowledge Graph for templates
-        return []
+    async def _identify_patterns(
+        self,
+        domain: str,
+        objectives: List[str],
+        intermediate_repr: Dict[str, Any]
+    ) -> List[Dict]:
+        """
+        Identifica padrões conhecidos usando PatternMatcher.
+
+        Args:
+            domain: Domínio do intent
+            objectives: Lista de objectives extraídos
+            intermediate_repr: Representação intermediária completa
+
+        Returns:
+            Lista de padrões matched com templates
+        """
+        # Respeitar flag pattern_matching_enabled
+        if not self.pattern_matching_enabled:
+            logger.debug(
+                'Pattern matching desabilitado via settings',
+                intent_id=intermediate_repr.get('intent_id')
+            )
+            return []
+
+        if not self.pattern_matcher:
+            return []
+
+        # Detectar padrões usando PatternMatcher
+        pattern_matches = self.pattern_matcher.match(intermediate_repr)
+
+        # Converter PatternMatch para dict para serialização
+        patterns = [
+            {
+                'pattern_id': match.pattern_id,
+                'pattern_name': match.pattern_name,
+                'confidence': match.confidence,
+                'template': match.template,
+                'matched_criteria': match.matched_criteria
+            }
+            for match in pattern_matches
+        ]
+
+        # Log de padrões detectados
+        if patterns:
+            pattern_names = [p['pattern_name'] for p in patterns]
+            logger.info(
+                'Padrões complexos detectados',
+                intent_id=intermediate_repr.get('intent_id'),
+                patterns=pattern_names,
+                count=len(patterns)
+            )
+        else:
+            logger.debug(
+                'Nenhum padrão complexo detectado',
+                intent_id=intermediate_repr.get('intent_id'),
+                domain=domain,
+                objectives=objectives
+            )
+
+        return patterns

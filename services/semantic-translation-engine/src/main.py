@@ -21,7 +21,10 @@ from neural_hive_observability import (
 
 from src.config.settings import get_settings
 from src.consumers.intent_consumer import IntentConsumer
+from src.consumers.approval_response_consumer import ApprovalResponseConsumer
 from src.producers.plan_producer import KafkaPlanProducer
+from src.producers.approval_producer import KafkaApprovalProducer
+from src.producers.rejection_notifier import RejectionNotifier
 from src.clients.neo4j_client import Neo4jClient
 from src.clients.mongodb_client import MongoDBClient
 from src.clients.redis_client import RedisClient
@@ -30,7 +33,10 @@ from src.services.dag_generator import DAGGenerator
 from src.services.risk_scorer import RiskScorer
 from src.services.explainability_generator import ExplainabilityGenerator
 from src.services.orchestrator import SemanticTranslationOrchestrator
+from src.services.approval_processor import ApprovalProcessor
 from src.services.nlp_processor import NLPProcessor
+from src.services.pattern_matcher import PatternMatcher
+from src.services.task_splitter import TaskSplitter
 from src.observability.metrics import register_metrics
 
 # Configure structured logging
@@ -193,11 +199,26 @@ async def lifespan(app: FastAPI):
         logger.info('Validando existência de tópicos Kafka no cluster...')
         await validate_kafka_topics_exist(settings)
 
-        # Initialize Kafka producer
+        # Initialize Kafka producers
         plan_producer = KafkaPlanProducer(settings)
         await plan_producer.initialize()
         plan_producer = instrument_kafka_producer(plan_producer)
         state['producer'] = plan_producer
+
+        # Initialize Kafka approval producer
+        approval_producer = KafkaApprovalProducer(settings)
+        await approval_producer.initialize()
+        approval_producer = instrument_kafka_producer(approval_producer)
+        state['approval_producer'] = approval_producer
+
+        # Initialize Rejection Notifier
+        rejection_notifier = RejectionNotifier(settings)
+        await rejection_notifier.initialize()
+        state['rejection_notifier'] = rejection_notifier
+        logger.info(
+            'Rejection Notifier inicializado',
+            topic=settings.kafka_rejection_notifications_topic
+        )
 
         # Initialize services
         logger.info("Initializing processing services...")
@@ -205,13 +226,47 @@ async def lifespan(app: FastAPI):
         # Passar nlp_processor para Neo4jClient
         neo4j_client.nlp_processor = nlp_processor
 
+        # Inicializar PatternMatcher com configurações do settings
+        pattern_matcher = None
+        if settings.pattern_matching_enabled:
+            pattern_matcher = PatternMatcher(
+                config_path=settings.pattern_config_path,
+                min_confidence_override=settings.pattern_min_confidence
+            )
+            logger.info(
+                'PatternMatcher inicializado com configurações',
+                config_path=settings.pattern_config_path,
+                min_confidence=settings.pattern_min_confidence
+            )
+
         semantic_parser = SemanticParser(
             neo4j_client,
             mongodb_client,
             redis_client,
-            nlp_processor=nlp_processor
+            nlp_processor=nlp_processor,
+            pattern_matcher=pattern_matcher,
+            pattern_matching_enabled=settings.pattern_matching_enabled
         )
-        dag_generator = DAGGenerator()
+
+        # Inicializar TaskSplitter apenas se habilitado
+        task_splitter = None
+        if settings.task_splitting_enabled:
+            task_splitter = TaskSplitter(
+                settings=settings,
+                pattern_matcher=pattern_matcher
+            )
+            logger.info(
+                'TaskSplitter inicializado',
+                max_depth=settings.task_splitting_max_depth,
+                complexity_threshold=settings.task_splitting_complexity_threshold,
+                pattern_matcher_enabled=pattern_matcher is not None
+            )
+
+        # Inicializar DAGGenerator com decomposição avançada
+        dag_generator = DAGGenerator(
+            pattern_matcher=pattern_matcher,
+            task_splitter=task_splitter
+        )
         risk_scorer = RiskScorer(settings)
         explainability_generator = ExplainabilityGenerator(mongodb_client)
 
@@ -231,6 +286,7 @@ async def lifespan(app: FastAPI):
             mongodb_client=mongodb_client,
             neo4j_client=neo4j_client,
             plan_producer=plan_producer,
+            approval_producer=approval_producer,
             metrics=metrics
         )
         state['orchestrator'] = orchestrator
@@ -239,6 +295,36 @@ async def lifespan(app: FastAPI):
             'Orchestrator inicializado com persistencia Neo4j habilitada',
             neo4j_uri=settings.neo4j_uri
         )
+
+        # Initialize Approval Processor
+        approval_processor = ApprovalProcessor(
+            mongodb_client=mongodb_client,
+            plan_producer=plan_producer,
+            metrics=metrics,
+            rejection_notifier=rejection_notifier
+        )
+        state['approval_processor'] = approval_processor
+        logger.info('Approval Processor inicializado com rejection notifier')
+
+        # Initialize Approval Response Consumer
+        try:
+            logger.info('Inicializando Approval Response Consumer...')
+            approval_response_consumer = ApprovalResponseConsumer(settings)
+            await approval_response_consumer.initialize()
+            approval_response_consumer = instrument_kafka_consumer(approval_response_consumer)
+            state['approval_response_consumer'] = approval_response_consumer
+            logger.info(
+                'Approval Response Consumer inicializado com sucesso',
+                topic=settings.kafka_approval_responses_topic
+            )
+        except RuntimeError as e:
+            logger.error(
+                'Erro ao inicializar Approval Response Consumer',
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            # Não propaga erro - approval consumer é opcional para startup
+            state['approval_response_consumer'] = None
 
         # Initialize Kafka consumer
         try:
@@ -291,6 +377,30 @@ async def lifespan(app: FastAPI):
         consumer_task = asyncio.create_task(consume_with_error_handling())
         state['consumer_task'] = consumer_task  # Store task for monitoring
 
+        # Start consuming approval responses in background
+        if state.get('approval_response_consumer'):
+            async def consume_approvals_with_error_handling():
+                """Wrapper para capturar exceções do consumer de aprovações"""
+                try:
+                    await state['approval_response_consumer'].start_consuming(
+                        approval_processor.process_approval_response
+                    )
+                except Exception as e:
+                    logger.error(
+                        'Approval response consumer task failed',
+                        error=str(e),
+                        error_type=type(e).__name__
+                    )
+                    import traceback
+                    logger.error(f'Approval consumer traceback: {traceback.format_exc()}')
+                    if 'approval_response_consumer' in state:
+                        state['approval_response_consumer'].running = False
+                    state['approval_consumer_error'] = str(e)
+
+            approval_consumer_task = asyncio.create_task(consume_approvals_with_error_handling())
+            state['approval_consumer_task'] = approval_consumer_task
+            logger.info('Approval Response Consumer iniciado em background')
+
         logger.info("Semantic Translation Engine started successfully")
 
         yield  # Application is running
@@ -302,8 +412,17 @@ async def lifespan(app: FastAPI):
         if 'consumer' in state:
             await state['consumer'].close()
 
+        if 'approval_response_consumer' in state and state['approval_response_consumer']:
+            await state['approval_response_consumer'].close()
+
         if 'producer' in state:
             await state['producer'].close()
+
+        if 'approval_producer' in state:
+            await state['approval_producer'].close()
+
+        if 'rejection_notifier' in state:
+            await state['rejection_notifier'].close()
 
         if 'neo4j' in state:
             await state['neo4j'].close()
@@ -354,6 +473,7 @@ async def readiness_check():
     checks = {
         "kafka_consumer": False,
         "kafka_producer": False,
+        "approval_response_consumer": False,
         "neo4j": False,
         "mongodb": False,
         "redis": False,
@@ -414,6 +534,26 @@ async def readiness_check():
         else:
             checks['kafka_consumer'] = False
             logger.warning("Kafka consumer não encontrado no state")
+
+        # Check Approval Response Consumer
+        if 'approval_response_consumer' in state and state['approval_response_consumer']:
+            try:
+                is_healthy, reason = state['approval_response_consumer'].is_healthy(
+                    max_poll_age_seconds=60.0
+                )
+                checks['approval_response_consumer'] = is_healthy
+                if not is_healthy:
+                    logger.warning("Approval response consumer não saudável", reason=reason)
+            except Exception as e:
+                logger.error(
+                    "Falha ao verificar approval response consumer",
+                    error=str(e),
+                    error_type=type(e).__name__
+                )
+                checks['approval_response_consumer'] = False
+        else:
+            # Approval consumer é opcional - marcar como ready se não configurado
+            checks['approval_response_consumer'] = True
 
         # Check NLP Processor
         if 'nlp_processor' in state:

@@ -40,7 +40,19 @@ class Settings(BaseSettings):
     kafka_session_timeout_ms: int = Field(default=30000, description='Session timeout (ms)')
 
     # Kafka Producer configuration
-    kafka_plans_topic: str = Field(default='plans.ready', description='Plans output topic')
+    kafka_plans_topic: str = Field(default='cognitive-plans', description='Plans output topic')
+    kafka_approval_topic: str = Field(
+        default='cognitive-plans-approval-requests',
+        description='Topic for plans requiring approval'
+    )
+    kafka_approval_responses_topic: str = Field(
+        default='cognitive-plans-approval-responses',
+        description='Topic for approval responses from Approval Service'
+    )
+    kafka_rejection_notifications_topic: str = Field(
+        default='cognitive-plans-rejection-notifications',
+        description='Topic for rejection notifications to downstream consumers'
+    )
     kafka_enable_idempotence: bool = Field(default=True, description='Enable idempotence')
     kafka_transactional_id: Optional[str] = Field(None, description='Transactional ID')
 
@@ -120,6 +132,73 @@ class Settings(BaseSettings):
     nlp_model_pt: str = Field(default='pt_core_news_sm', description='Modelo spaCy português')
     nlp_model_en: str = Field(default='en_core_web_sm', description='Modelo spaCy inglês')
     nlp_max_keywords: int = Field(default=10, description='Máximo de keywords a extrair')
+
+    # Destructive Detection Configuration
+    destructive_detection_enabled: bool = Field(
+        default=True,
+        description='Enable destructive operation detection'
+    )
+    destructive_detection_strict_mode: bool = Field(
+        default=False,
+        description='Strict mode: detect more aggressively'
+    )
+
+    # Pattern Matching Configuration
+    pattern_matching_enabled: bool = Field(
+        default=True,
+        description='Enable pattern matching for complex intent decomposition'
+    )
+    pattern_config_path: Optional[str] = Field(
+        None,
+        description='Custom path to patterns.yaml (optional, uses default if None)'
+    )
+    pattern_min_confidence: float = Field(
+        default=0.7,
+        description='Minimum confidence threshold for pattern matching'
+    )
+
+    # Task Splitting Configuration
+    task_splitting_enabled: bool = Field(
+        default=True,
+        description='Enable task splitting for complex tasks'
+    )
+    task_splitting_max_depth: int = Field(
+        default=3,
+        description='Maximum recursion depth for task splitting'
+    )
+    task_splitting_complexity_threshold: float = Field(
+        default=0.6,
+        description='Complexity threshold above which tasks should be split (0-1)'
+    )
+    task_splitting_min_entities_for_split: int = Field(
+        default=2,
+        description='Minimum number of entities to consider splitting'
+    )
+    task_splitting_description_length_threshold: int = Field(
+        default=150,
+        description='Description length (chars) above which task is considered complex'
+    )
+
+    @validator('pattern_min_confidence')
+    def validate_pattern_confidence(cls, v):
+        """Validate pattern confidence is between 0 and 1"""
+        if not 0 <= v <= 1:
+            raise ValueError('Pattern confidence must be between 0 and 1')
+        return v
+
+    @validator('task_splitting_complexity_threshold')
+    def validate_splitting_threshold(cls, v):
+        """Validate splitting threshold is between 0 and 1"""
+        if not 0 <= v <= 1:
+            raise ValueError('Task splitting complexity threshold must be between 0 and 1')
+        return v
+
+    @validator('task_splitting_max_depth')
+    def validate_max_depth(cls, v):
+        """Validate max depth is reasonable"""
+        if not 1 <= v <= 5:
+            raise ValueError('Task splitting max depth must be between 1 and 5')
+        return v
 
     @validator('kafka_topics', pre=True)
     def parse_topics(cls, v):

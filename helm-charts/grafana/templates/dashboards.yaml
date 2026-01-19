@@ -65,6 +65,17 @@ data:
       options:
         path: /var/lib/grafana/dashboards/observability
 
+    # Governance & Approval
+    - name: 'governance'
+      orgId: 1
+      folder: 'Governance'
+      type: file
+      disableDeletion: false
+      allowUiUpdates: true
+      updateIntervalSeconds: 10
+      options:
+        path: /var/lib/grafana/dashboards/governance
+
 ---
 # ConfigMap para folders customizadas
 apiVersion: v1
@@ -165,6 +176,25 @@ data:
           {
             "role": "Admin",
             "permission": 4
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "uid": "governance",
+        "title": "Governance",
+        "tags": ["governance", "approval", "risk", "compliance"],
+        "timezone": "browser",
+        "refresh": "30s",
+        "schemaVersion": 39,
+        "permissions": [
+          {
+            "role": "Viewer",
+            "permission": 1
+          },
+          {
+            "role": "Editor",
+            "permission": 2
           }
         ]
       }

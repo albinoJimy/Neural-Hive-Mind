@@ -7,7 +7,7 @@ Main orchestrator that coordinates all steps of plan generation.
 import time
 import structlog
 from datetime import datetime, timedelta
-from typing import Dict
+from typing import Dict, List
 
 from neural_hive_observability import get_tracer
 from src.services.semantic_parser import SemanticParser
@@ -17,7 +17,8 @@ from src.services.explainability_generator import ExplainabilityGenerator
 from src.clients.mongodb_client import MongoDBClient
 from src.clients.neo4j_client import Neo4jClient
 from src.producers.plan_producer import KafkaPlanProducer
-from src.models.cognitive_plan import CognitivePlan, PlanStatus
+from src.producers.approval_producer import KafkaApprovalProducer
+from src.models.cognitive_plan import CognitivePlan, PlanStatus, ApprovalStatus, RiskBand
 
 logger = structlog.get_logger()
 
@@ -34,6 +35,7 @@ class SemanticTranslationOrchestrator:
         mongodb_client: MongoDBClient,
         neo4j_client: Neo4jClient,
         plan_producer: KafkaPlanProducer,
+        approval_producer: KafkaApprovalProducer,
         metrics
     ):
         self.parser = semantic_parser
@@ -43,6 +45,7 @@ class SemanticTranslationOrchestrator:
         self.mongodb = mongodb_client
         self.neo4j = neo4j_client
         self.producer = plan_producer
+        self.approval_producer = approval_producer
         self.metrics = metrics
 
     async def process_intent(
@@ -98,21 +101,48 @@ class SemanticTranslationOrchestrator:
                 tasks, execution_order = self.dag_gen.generate(intermediate_repr)
                 span.set_attribute("neural.hive.dag_node_count", len(tasks))
 
-            # B4: Evaluate risk
-            logger.info('B4: Avaliando risco', intent_id=intent_id)
-            with tracer.start_as_current_span("risk_scoring") as span:
-                risk_score, risk_band, risk_factors = self.risk_scorer.score(
+            # B4: Evaluate risk (multi-domain com deteccao destrutiva)
+            logger.info('B4: Avaliando risco multi-dominio', intent_id=intent_id)
+            with tracer.start_as_current_span("risk_scoring_multi_domain") as span:
+                # Call multi-domain risk scorer (returns 5-tuple)
+                # risk_matrix contains only numeric scores (map<string, double> compatible)
+                # destructive_analysis contains destructive operation details
+                risk_score, risk_band, risk_factors, risk_matrix, destructive_analysis = self.risk_scorer.score_multi_domain(
                     intermediate_repr,
                     tasks
                 )
-                span.set_attribute("neural.hive.risk_score", risk_score)
 
-            # Check if requires human review
-            if risk_score >= 0.95:
+                # Extract destructive analysis from separate return value
+                is_destructive = destructive_analysis.get('is_destructive', False)
+                destructive_tasks = destructive_analysis.get('destructive_tasks', [])
+                destructive_severity = destructive_analysis.get('destructive_severity', 'low')
+
+                span.set_attribute("neural.hive.risk_score", risk_score)
+                span.set_attribute("neural.hive.risk_band", risk_band.value)
+                span.set_attribute("neural.hive.is_destructive", is_destructive)
+                span.set_attribute("neural.hive.destructive_severity", destructive_severity)
+
+            # Determinar se plano requer aprovacao
+            requires_approval = (
+                risk_score >= 0.7 or
+                is_destructive or
+                risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
+            )
+
+            if requires_approval:
                 logger.warning(
-                    'Plano requer revisão humana',
+                    'Plano requer aprovacao - criterios atingidos',
                     intent_id=intent_id,
-                    risk_score=risk_score
+                    approval_criteria={
+                        'risk_score_threshold': risk_score >= 0.7,
+                        'is_destructive': is_destructive,
+                        'risk_band_critical': risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
+                    },
+                    risk_score=risk_score,
+                    risk_band=risk_band.value,
+                    is_destructive=is_destructive,
+                    destructive_severity=destructive_severity,
+                    destructive_tasks=destructive_tasks
                 )
 
             # Generate explainability
@@ -134,20 +164,55 @@ class SemanticTranslationOrchestrator:
                 explainability_token,
                 reasoning_summary,
                 intermediate_repr,
-                trace_context
+                trace_context,
+                requires_approval=requires_approval,
+                is_destructive=is_destructive,
+                destructive_tasks=destructive_tasks,
+                risk_matrix=risk_matrix
             )
 
             # Register in immutable ledger
             ledger_hash = await self.mongodb.append_to_ledger(cognitive_plan)
             logger.info(
-                'Plano registrado no ledger',
+                'Plano registrado no ledger com status de aprovacao',
                 plan_id=cognitive_plan.plan_id,
-                hash=ledger_hash
+                ledger_hash=ledger_hash,
+                requires_approval=cognitive_plan.requires_approval,
+                approval_status=cognitive_plan.approval_status.value if cognitive_plan.approval_status else None
             )
 
-            # B6: Publish plan to Kafka
-            logger.info('B6: Publicando plano', plan_id=cognitive_plan.plan_id)
-            await self.producer.send_plan(cognitive_plan)
+            # B6: Publish plan (conditional routing based on approval requirement)
+            if cognitive_plan.requires_approval:
+                logger.warning(
+                    'Plano bloqueado aguardando aprovacao humana',
+                    plan_id=cognitive_plan.plan_id,
+                    intent_id=intent_id,
+                    risk_score=risk_score,
+                    risk_band=risk_band.value,
+                    is_destructive=is_destructive,
+                    destructive_severity=destructive_severity,
+                    destructive_task_count=len(destructive_tasks)
+                )
+
+                # Record approval blocking metric
+                self.metrics.record_plan_blocked_for_approval(
+                    risk_band=risk_band.value,
+                    is_destructive=is_destructive,
+                    channel=domain or 'unknown'
+                )
+
+                # Publish to approval topic
+                await self.approval_producer.send_approval_request(cognitive_plan)
+
+                logger.info(
+                    'Plano publicado no topico de aprovacao',
+                    plan_id=cognitive_plan.plan_id,
+                    topic=self.approval_producer.settings.kafka_approval_topic
+                )
+            else:
+                # Normal flow: publish to execution topic
+                logger.info('B6: Publicando plano para execucao', plan_id=cognitive_plan.plan_id)
+                await self.producer.send_plan(cognitive_plan)
 
             # Persistir intent no grafo de conhecimento Neo4j (não bloqueia fluxo principal)
             try:
@@ -170,7 +235,7 @@ class SemanticTranslationOrchestrator:
                     error=str(neo4j_error)
                 )
 
-            # Record success metrics
+            # Record metrics with approval status
             duration = time.time() - start_time
             self.metrics.observe_geracao_duration(
                 duration,
@@ -178,7 +243,8 @@ class SemanticTranslationOrchestrator:
                 trace_id=trace_context.get('trace_id'),
                 span_id=trace_context.get('span_id')
             )
-            self.metrics.increment_plans(channel=domain or 'unknown', status='success')
+            plan_status = 'blocked_for_approval' if cognitive_plan.requires_approval else 'success'
+            self.metrics.increment_plans(channel=domain or 'unknown', status=plan_status)
 
             logger.info(
                 'Plano gerado com sucesso',
@@ -243,9 +309,15 @@ class SemanticTranslationOrchestrator:
         explainability_token,
         reasoning_summary,
         intermediate_repr,
-        trace_context: Dict
+        trace_context: Dict,
+        requires_approval: bool = False,
+        is_destructive: bool = False,
+        destructive_tasks: List[str] = None,
+        risk_matrix: Dict = None
     ) -> CognitivePlan:
-        """Create CognitivePlan from components"""
+        """Create CognitivePlan from components with approval and destructive analysis fields"""
+        if destructive_tasks is None:
+            destructive_tasks = []
         # Calculate total duration
         total_duration = sum(task.estimated_duration_ms or 0 for task in tasks)
 
@@ -312,5 +384,12 @@ class SemanticTranslationOrchestrator:
                     ((intermediate_repr or {}).get('historical_context') or {}).get('similar_intents', [])
                 ),
                 'generator_version': '1.0.0'
-            }
+            },
+            # Approval workflow fields
+            requires_approval=requires_approval,
+            approval_status=ApprovalStatus.PENDING if requires_approval else None,
+            # Destructive operation analysis fields
+            is_destructive=is_destructive,
+            destructive_tasks=destructive_tasks,
+            risk_matrix=risk_matrix
         )

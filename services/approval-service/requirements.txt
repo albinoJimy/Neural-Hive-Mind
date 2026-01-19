@@ -1,0 +1,33 @@
+# FastAPI and ASGI server
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# Data validation and settings
+pydantic==2.10.4
+pydantic-settings==2.6.1
+typing_extensions>=4.8.0
+
+# Kafka client
+confluent-kafka==2.6.1
+fastavro==1.9.7
+
+# MongoDB driver
+pymongo==4.10.1
+motor==3.7.1
+
+# JWT authentication
+PyJWT[crypto]==2.10.1
+cryptography>=41.0.0
+
+# HTTP client (para Keycloak)
+httpx==0.28.1
+
+# Logging
+structlog==24.4.0
+python-json-logger>=2.0.7
+
+# Prometheus metrics
+prometheus-client==0.21.1
+
+# Retry logic
+tenacity==9.0.0

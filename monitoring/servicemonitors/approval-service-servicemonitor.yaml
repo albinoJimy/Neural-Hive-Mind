@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: approval-service
+  namespace: monitoring
+  labels:
+    app: approval-service
+    app.kubernetes.io/name: approval-service
+    app.kubernetes.io/component: monitoring
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: approval-service
+  namespaceSelector:
+    matchNames:
+      - approval
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
+      scrapeTimeout: 10s

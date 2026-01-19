@@ -179,6 +179,25 @@ deploy-sla-dashboard: ## Deploy dashboard Grafana de SLA compliance
 	@kubectl apply -f k8s/configmaps/orchestrator-sla-compliance-dashboard.yaml
 	@echo "Dashboard deployed. Access at: /d/orchestrator-sla-compliance"
 
+# Approval Monitoring
+.PHONY: deploy-approval-dashboard deploy-approval-alerts deploy-approval-monitoring
+deploy-approval-dashboard: ## Deploy dashboard Grafana de monitoramento de aprovacoes
+	@echo "Deploying Approval Monitoring dashboard..."
+	@kubectl create configmap approval-monitoring-dashboard \
+		--from-file=monitoring/dashboards/approval-monitoring.json \
+		-n monitoring --dry-run=client -o yaml | kubectl apply -f -
+	@echo "Dashboard deployed. Access at: /d/approval-monitoring"
+
+deploy-approval-alerts: ## Deploy alertas Prometheus de aprovacoes
+	@echo "Deploying Approval alerts..."
+	@kubectl apply -f monitoring/alerts/approval-alerts.yaml
+	@echo "Alerts deployed."
+
+deploy-approval-monitoring: deploy-approval-dashboard deploy-approval-alerts ## Deploy completo de monitoramento de aprovacoes
+	@kubectl apply -f monitoring/servicemonitors/approval-service-servicemonitor.yaml
+	@echo "Approval monitoring fully deployed."
+	@echo "Dashboard: https://grafana.neural-hive.io/d/approval-monitoring"
+
 # Online Learning
 .PHONY: online-learning-update online-learning-validate online-learning-rollback online-learning-status online-learning-deploy online-learning-test
 online-learning-update: ## Disparar atualizacao de online learning

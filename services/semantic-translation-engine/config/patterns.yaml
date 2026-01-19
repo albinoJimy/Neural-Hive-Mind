@@ -1,0 +1,173 @@
+# Biblioteca de Padrões Conhecidos para Decomposição de Tasks
+# Define padrões complexos que requerem múltiplas subtasks coordenadas
+
+patterns:
+  # Padrão: CRUD Completo de Entidade
+  crud_complete:
+    name: "CRUD Completo"
+    description: "Operações completas de criação, leitura, atualização e deleção"
+    match_criteria:
+      objectives:
+        all_of: ["create", "query", "update", "delete"]
+      entities:
+        min_count: 1
+        types: ["table", "model", "resource"]
+    template:
+      subtasks:
+        - id: "validate_schema"
+          type: "validate"
+          description: "Validar schema e constraints da entidade"
+          dependencies: []
+        - id: "create_entity"
+          type: "create"
+          description: "Criar nova entidade com dados iniciais"
+          dependencies: ["validate_schema"]
+        - id: "query_entity"
+          type: "query"
+          description: "Consultar entidade criada para verificação"
+          dependencies: ["create_entity"]
+        - id: "update_entity"
+          type: "update"
+          description: "Atualizar campos da entidade"
+          dependencies: ["query_entity"]
+        - id: "delete_entity"
+          type: "delete"
+          description: "Remover entidade do sistema"
+          dependencies: ["update_entity"]
+        - id: "audit_operations"
+          type: "validate"
+          description: "Auditar todas operações CRUD realizadas"
+          dependencies: ["delete_entity"]
+      estimated_total_duration_ms: 5000
+      complexity_multiplier: 1.5
+
+  # Padrão: User Onboarding Completo
+  user_onboarding:
+    name: "User Onboarding"
+    description: "Processo completo de cadastro e ativação de usuário"
+    match_criteria:
+      objectives:
+        any_of: ["create"]
+      entities:
+        min_count: 1
+        types: ["user", "account", "profile"]
+      keywords:
+        - "cadastro"
+        - "registro"
+        - "onboarding"
+        - "signup"
+        - "register"
+    template:
+      subtasks:
+        - id: "validate_email"
+          type: "validate"
+          description: "Validar formato e disponibilidade de email"
+          dependencies: []
+        - id: "create_user_record"
+          type: "create"
+          description: "Criar registro de usuário no banco de dados"
+          dependencies: ["validate_email"]
+        - id: "send_welcome_email"
+          type: "transform"
+          description: "Enviar email de boas-vindas com link de ativação"
+          dependencies: ["create_user_record"]
+        - id: "create_default_preferences"
+          type: "create"
+          description: "Criar preferências padrão do usuário"
+          dependencies: ["create_user_record"]
+        - id: "log_audit_trail"
+          type: "validate"
+          description: "Registrar trilha de auditoria de criação"
+          dependencies: ["send_welcome_email", "create_default_preferences"]
+      estimated_total_duration_ms: 3000
+      complexity_multiplier: 1.3
+
+  # Padrão: Data Migration
+  data_migration:
+    name: "Data Migration"
+    description: "Migração de dados entre sistemas ou schemas"
+    match_criteria:
+      objectives:
+        any_of: ["transform", "create"]
+      keywords:
+        - "migrar"
+        - "migrate"
+        - "migration"
+        - "importar"
+        - "import"
+        - "transferir"
+        - "transfer"
+    template:
+      subtasks:
+        - id: "backup_source_data"
+          type: "create"
+          description: "Criar backup dos dados de origem"
+          dependencies: []
+        - id: "validate_source_schema"
+          type: "validate"
+          description: "Validar schema de origem"
+          dependencies: []
+        - id: "transform_data_format"
+          type: "transform"
+          description: "Transformar dados para formato de destino"
+          dependencies: ["validate_source_schema"]
+        - id: "validate_transformed_data"
+          type: "validate"
+          description: "Validar integridade dos dados transformados"
+          dependencies: ["transform_data_format"]
+        - id: "load_to_destination"
+          type: "create"
+          description: "Carregar dados no destino"
+          dependencies: ["validate_transformed_data", "backup_source_data"]
+        - id: "verify_migration"
+          type: "query"
+          description: "Verificar sucesso da migração"
+          dependencies: ["load_to_destination"]
+      estimated_total_duration_ms: 8000
+      complexity_multiplier: 2.0
+
+  # Padrão: API Integration
+  api_integration:
+    name: "API Integration"
+    description: "Integração completa com API externa"
+    match_criteria:
+      objectives:
+        any_of: ["create", "query"]
+      keywords:
+        - "api"
+        - "integração"
+        - "integration"
+        - "webhook"
+        - "endpoint"
+    template:
+      subtasks:
+        - id: "validate_api_credentials"
+          type: "validate"
+          description: "Validar credenciais de acesso à API"
+          dependencies: []
+        - id: "test_api_connectivity"
+          type: "query"
+          description: "Testar conectividade com endpoint"
+          dependencies: ["validate_api_credentials"]
+        - id: "configure_api_client"
+          type: "create"
+          description: "Configurar cliente de API com retry e timeout"
+          dependencies: ["test_api_connectivity"]
+        - id: "implement_error_handling"
+          type: "create"
+          description: "Implementar tratamento de erros e fallback"
+          dependencies: ["configure_api_client"]
+        - id: "setup_monitoring"
+          type: "create"
+          description: "Configurar monitoramento de chamadas API"
+          dependencies: ["implement_error_handling"]
+      estimated_total_duration_ms: 4000
+      complexity_multiplier: 1.4
+
+# Configurações de matching
+matching_config:
+  min_confidence_threshold: 0.7  # Confiança mínima para considerar match
+  keyword_weight: 0.3  # Peso de keywords no score
+  objective_weight: 0.5  # Peso de objectives no score
+  entity_weight: 0.2  # Peso de entities no score
+  max_patterns_returned: 3  # Máximo de padrões retornados por intent

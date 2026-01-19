@@ -148,6 +148,52 @@
       "doc": "Metadados adicionais"
     },
     {
+      "name": "requires_approval",
+      "type": "boolean",
+      "default": false,
+      "doc": "Se o plano requer aprovação humana antes da execução"
+    },
+    {
+      "name": "approval_status",
+      "type": ["null", {
+        "type": "enum",
+        "name": "ApprovalStatus",
+        "symbols": ["pending", "approved", "rejected"]
+      }],
+      "default": null,
+      "doc": "Status atual de aprovação"
+    },
+    {
+      "name": "approved_by",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ID do usuário ou sistema que aprovou o plano"
+    },
+    {
+      "name": "approved_at",
+      "type": ["null", {"type": "long", "logicalType": "timestamp-millis"}],
+      "default": null,
+      "doc": "Timestamp de aprovação"
+    },
+    {
+      "name": "is_destructive",
+      "type": "boolean",
+      "default": false,
+      "doc": "Se o plano contém operações destrutivas"
+    },
+    {
+      "name": "destructive_tasks",
+      "type": {"type": "array", "items": "string"},
+      "default": [],
+      "doc": "Lista de IDs de tasks identificadas como destrutivas"
+    },
+    {
+      "name": "risk_matrix",
+      "type": ["null", {"type": "map", "values": "double"}],
+      "default": null,
+      "doc": "Scores de risco multi-domínio (BUSINESS, SECURITY, OPERATIONAL)"
+    },
+    {
       "name": "schema_version",
       "type": "int",
       "default": 1,

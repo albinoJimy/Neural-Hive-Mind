@@ -439,6 +439,84 @@ export NLP_MAX_KEYWORDS=10
 - Extração de entidades: P95 < 100ms
 - Cache hit rate: > 70%
 
+## Task Splitting
+
+O **TaskSplitter** decompoe tasks complexas em subtasks atomicas usando duas estrategias:
+
+### Estrategias de Splitting
+
+1. **Pattern-Based**: Usa templates do `PatternMatcher` quando um padrao conhecido e detectado
+2. **Heuristic-Based**: Usa heuristicas de complexidade quando nenhum padrao e detectado
+
+### Heuristicas de Complexidade
+
+O TaskSplitter avalia complexidade baseado em:
+
+- **Comprimento da descricao**: Descricoes > 150 caracteres sao consideradas complexas
+- **Numero de entidades**: Tasks com >= 2 entidades sao candidatas a splitting
+- **Numero de dependencias**: Tasks com >= 3 dependencias sao complexas
+- **Multiplos verbos de acao**: Presenca de multiplos verbos indica multiplas operacoes
+
+### Configuracao Task Splitting
+
+```bash
+# Habilitar/desabilitar task splitting
+export TASK_SPLITTING_ENABLED=true
+
+# Profundidade maxima de recursao
+export TASK_SPLITTING_MAX_DEPTH=3
+
+# Threshold de complexidade (0-1)
+export TASK_SPLITTING_COMPLEXITY_THRESHOLD=0.6
+
+# Minimo de entidades para considerar splitting
+export TASK_SPLITTING_MIN_ENTITIES_FOR_SPLIT=2
+
+# Comprimento de descricao para considerar complexo
+export TASK_SPLITTING_DESCRIPTION_LENGTH_THRESHOLD=150
+```
+
+### Exemplo de Uso
+
+```python
+from src.services.task_splitter import TaskSplitter
+from src.services.pattern_matcher import PatternMatcher
+from src.config.settings import get_settings
+
+settings = get_settings()
+pattern_matcher = PatternMatcher()
+splitter = TaskSplitter(settings, pattern_matcher)
+
+# Task complexa
+complex_task = TaskNode(
+    task_id='task-1',
+    task_type='create',
+    description='Create user profile with email validation and welcome email',
+    dependencies=[],
+    parameters={
+        'entities': [
+            {'type': 'user', 'value': 'john'},
+            {'type': 'email', 'value': 'john@example.com'}
+        ]
+    }
+)
+
+# Dividir task
+subtasks = splitter.split(complex_task, intermediate_repr)
+
+print(f"Geradas {len(subtasks)} subtasks")
+for subtask in subtasks:
+    print(f"- {subtask.task_id}: {subtask.description}")
+```
+
+### Metricas Prometheus Task Splitting
+
+- `neural_hive_tasks_split_total`: Total de tasks divididas
+- `neural_hive_subtasks_generated_total`: Total de subtasks geradas
+- `neural_hive_task_splitting_depth`: Profundidade de splitting alcancada
+- `neural_hive_task_complexity_score`: Score de complexidade calculado
+- `neural_hive_task_splitting_duration_seconds`: Tempo de operacoes de splitting
+
 ## Licença
 
 Proprietary - Neural Hive-Mind Team

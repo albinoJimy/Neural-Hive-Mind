@@ -1,0 +1,238 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: approval
+  labels:
+    name: approval
+    neuralhive/layer: governance
+    neuralhive/phase: phase3
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: approval-service-config
+  namespace: approval
+data:
+  ENVIRONMENT: "kubernetes"
+  LOG_LEVEL: "INFO"
+  SERVICE_NAME: "approval-service"
+  SERVICE_VERSION: "1.0.0"
+  # Kafka
+  KAFKA_BOOTSTRAP_SERVERS: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
+  KAFKA_CONSUMER_GROUP_ID: "approval-service"
+  KAFKA_APPROVAL_REQUESTS_TOPIC: "cognitive-plans-approval-requests"
+  KAFKA_APPROVAL_RESPONSES_TOPIC: "cognitive-plans-approval-responses"
+  KAFKA_AUTO_OFFSET_RESET: "earliest"
+  KAFKA_ENABLE_AUTO_COMMIT: "false"
+  KAFKA_SESSION_TIMEOUT_MS: "30000"
+  KAFKA_MAX_POLL_INTERVAL_MS: "300000"
+  KAFKA_ENABLE_IDEMPOTENCE: "true"
+  KAFKA_SECURITY_PROTOCOL: "PLAINTEXT"
+  # MongoDB
+  MONGODB_URI: "mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017"
+  MONGODB_DATABASE: "neural_hive"
+  MONGODB_COLLECTION: "plan_approvals"
+  MONGODB_MAX_POOL_SIZE: "100"
+  MONGODB_TIMEOUT_MS: "5000"
+  # Keycloak
+  KEYCLOAK_URL: "http://keycloak.keycloak.svc.cluster.local:8080"
+  KEYCLOAK_REALM: "neural-hive"
+  KEYCLOAK_CLIENT_ID: "approval-service"
+  ADMIN_ROLE_NAME: "neural-hive-admin"
+  # Observability
+  OTEL_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+  OTEL_TLS_VERIFY: "false"
+  PROMETHEUS_PORT: "8000"
+  JAEGER_SAMPLING_RATE: "1.0"
+  # Rate Limiting
+  RATE_LIMIT_REQUESTS_PER_MINUTE: "100"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: approval-service-secrets
+  namespace: approval
+type: Opaque
+stringData:
+  MONGODB_USERNAME: "root"
+  MONGODB_PASSWORD: "local_dev_password"
+  KAFKA_SASL_USERNAME: ""
+  KAFKA_SASL_PASSWORD: ""
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: approval-service
+  namespace: approval
+  labels:
+    app: approval-service
+    component: governance
+    neuralhive/layer: governance
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: approval-service
+  template:
+    metadata:
+      labels:
+        app: approval-service
+        component: governance
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: approval-service
+        image: docker.io/neural-hive/approval-service:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 8000
+          name: metrics
+          protocol: TCP
+        envFrom:
+        - configMapRef:
+            name: approval-service-config
+        - secretRef:
+            name: approval-service-secrets
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          timeoutSeconds: 5
+        volumeMounts:
+        - name: schemas
+          mountPath: /app/schemas
+          readOnly: true
+      volumes:
+      - name: schemas
+        configMap:
+          name: cognitive-plan-schema
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: approval-service
+  namespace: approval
+  labels:
+    app: approval-service
+    component: governance
+spec:
+  selector:
+    app: approval-service
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  - name: metrics
+    port: 8000
+    targetPort: 8000
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: approval-service
+  namespace: approval
+  labels:
+    app: approval-service
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: approval-service
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: approval-service-network-policy
+  namespace: approval
+spec:
+  podSelector:
+    matchLabels:
+      app: approval-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Permitir acesso do gateway
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: gateway
+    ports:
+    - protocol: TCP
+      port: 8080
+  # Permitir scrape do Prometheus
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: observability
+    ports:
+    - protocol: TCP
+      port: 8000
+  egress:
+  # Kafka
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kafka
+    ports:
+    - protocol: TCP
+      port: 9092
+  # MongoDB
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: mongodb-cluster
+    ports:
+    - protocol: TCP
+      port: 27017
+  # Keycloak
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: keycloak
+    ports:
+    - protocol: TCP
+      port: 8080
+  # OTEL Collector
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: observability
+    ports:
+    - protocol: TCP
+      port: 4317
+  # DNS
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: UDP
+      port: 53

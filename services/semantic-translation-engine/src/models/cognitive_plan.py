@@ -28,6 +28,13 @@ class PlanStatus(str, Enum):
     REJECTED = 'rejected'
 
 
+class ApprovalStatus(str, Enum):
+    """Approval status for cognitive plans"""
+    PENDING = 'pending'
+    APPROVED = 'approved'
+    REJECTED = 'rejected'
+
+
 class TaskNode(BaseModel):
     """Individual task node in the DAG"""
 
@@ -125,6 +132,38 @@ class CognitivePlan(BaseModel):
         description='Additional metadata'
     )
 
+    # Approval workflow fields
+    requires_approval: bool = Field(
+        default=False,
+        description='Whether this plan requires human approval before execution'
+    )
+    approval_status: Optional[ApprovalStatus] = Field(
+        None,
+        description='Current approval status (pending/approved/rejected)'
+    )
+    approved_by: Optional[str] = Field(
+        None,
+        description='User ID or system identifier who approved the plan'
+    )
+    approved_at: Optional[datetime] = Field(
+        None,
+        description='Timestamp when the plan was approved'
+    )
+
+    # Destructive operation analysis fields
+    is_destructive: bool = Field(
+        default=False,
+        description='Whether this plan contains destructive operations'
+    )
+    destructive_tasks: List[str] = Field(
+        default_factory=list,
+        description='List of task IDs identified as destructive operations'
+    )
+    risk_matrix: Optional[Dict[str, float]] = Field(
+        None,
+        description='Multi-domain risk scores (BUSINESS, SECURITY, OPERATIONAL, etc.)'
+    )
+
     @validator('tasks')
     def validate_dag_acyclic(cls, v):
         """Validate that the DAG is acyclic"""
@@ -202,6 +241,13 @@ class CognitivePlan(BaseModel):
             'original_priority': self.original_priority,
             'original_security_level': self.original_security_level,
             'metadata': {k: str(v) for k, v in self.metadata.items()} if isinstance(self.metadata, dict) else {},
+            'requires_approval': self.requires_approval,
+            'approval_status': self.approval_status.value if self.approval_status and hasattr(self.approval_status, 'value') else self.approval_status,
+            'approved_by': self.approved_by,
+            'approved_at': int(self.approved_at.timestamp() * 1000) if self.approved_at else None,
+            'is_destructive': self.is_destructive,
+            'destructive_tasks': self.destructive_tasks,
+            'risk_matrix': self.risk_matrix if self.risk_matrix is not None else None,
             'schema_version': 1
         }
 

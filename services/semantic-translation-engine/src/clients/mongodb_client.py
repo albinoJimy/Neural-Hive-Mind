@@ -205,6 +205,68 @@ class MongoDBClient:
 
         return True
 
+    async def update_plan_approval_status(
+        self,
+        plan_id: str,
+        approval_status: str,
+        approved_by: str,
+        approved_at: datetime,
+        rejection_reason: Optional[str] = None
+    ) -> bool:
+        """
+        Atualiza status de aprovação de um plano no ledger.
+
+        Args:
+            plan_id: ID do plano
+            approval_status: 'approved' ou 'rejected'
+            approved_by: ID do aprovador
+            approved_at: Timestamp da decisão
+            rejection_reason: Motivo da rejeição (opcional)
+
+        Returns:
+            True se atualizado com sucesso
+        """
+        update_fields = {
+            'plan_data.approval_status': approval_status,
+            'plan_data.approved_by': approved_by,
+            'plan_data.approved_at': approved_at,
+            'plan_data.status': approval_status,
+            'updated_at': datetime.utcnow()
+        }
+
+        if rejection_reason:
+            update_fields['plan_data.rejection_reason'] = rejection_reason
+
+        try:
+            result = await self.ledger_collection.update_one(
+                {'plan_id': plan_id},
+                {'$set': update_fields}
+            )
+
+            if result.modified_count > 0:
+                logger.info(
+                    'Status de aprovação atualizado no ledger',
+                    plan_id=plan_id,
+                    approval_status=approval_status,
+                    approved_by=approved_by
+                )
+                return True
+            else:
+                logger.warning(
+                    'Nenhum documento atualizado no ledger',
+                    plan_id=plan_id,
+                    matched_count=result.matched_count
+                )
+                return False
+
+        except Exception as e:
+            logger.error(
+                'Erro ao atualizar status de aprovação no ledger',
+                plan_id=plan_id,
+                error=str(e)
+            )
+            raise
+
     async def close(self):
         """Close MongoDB client"""
         if self.client:
