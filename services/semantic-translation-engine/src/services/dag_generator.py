@@ -18,7 +18,7 @@ import difflib
 import structlog
 import networkx as nx
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Tuple, Optional, Set, TYPE_CHECKING
+from typing import List, Dict, Any, Tuple, Optional, Set, Union, TYPE_CHECKING
 
 from src.models.cognitive_plan import TaskNode
 from src.services.description_validator import DescriptionQualityValidator, get_validator
@@ -26,6 +26,10 @@ from src.services.description_validator import DescriptionQualityValidator, get_
 if TYPE_CHECKING:
     from src.services.pattern_matcher import PatternMatcher, PatternMatch
     from src.services.task_splitter import TaskSplitter
+
+# Importar componentes de decomposição baseada em intent
+from src.services.intent_classifier import IntentClassifier, IntentClassification, IntentType
+from src.services.decomposition_templates import DecompositionTemplates
 
 from src.observability.metrics import (
     dag_generation_pattern_matches_total,
@@ -181,7 +185,9 @@ class DAGGenerator:
         entity_matching_fuzzy_threshold: float = 0.85,
         entity_matching_use_canonical_types: bool = True,
         entity_aliases: Optional[Dict[str, Set[str]]] = None,
-        conflict_resolution_strategy: str = 'sequential'
+        conflict_resolution_strategy: str = 'sequential',
+        intent_decomposition_enabled: bool = True,
+        config: Optional[Dict[str, Any]] = None
     ):
         self.task_templates = self._load_task_templates()
         self.description_validator = get_validator()
@@ -190,6 +196,23 @@ class DAGGenerator:
         # Componentes de decomposição avançada (opcionais)
         self.pattern_matcher = pattern_matcher
         self.task_splitter = task_splitter
+
+        # Componentes de decomposição baseada em intent (novo)
+        self.intent_decomposition_enabled = intent_decomposition_enabled
+        self.intent_classifier = None
+        self.decomposition_templates = None
+
+        if intent_decomposition_enabled:
+            try:
+                self.intent_classifier = IntentClassifier(config or {})
+                self.decomposition_templates = DecompositionTemplates()
+                logger.info('IntentClassifier e DecompositionTemplates inicializados')
+            except Exception as e:
+                logger.warning(
+                    'Falha ao inicializar decomposição por intent, usando fallback',
+                    error=str(e)
+                )
+                self.intent_decomposition_enabled = False
 
         # Configurações de entity matching
         self.entity_matching_fuzzy_enabled = entity_matching_fuzzy_enabled
@@ -241,22 +264,34 @@ class DAGGenerator:
             }
         }
 
-    def _extract_entity_identifiers(self, entity: Dict) -> Set[str]:
+    def _extract_entity_identifiers(self, entity: Union[Dict, str]) -> Set[str]:
         """
         Extrai todos os identificadores possíveis para uma entidade.
 
         Normaliza e extrai múltiplos campos que podem identificar a entidade,
         incluindo aliases configurados para matching semântico.
+        Suporta tanto dicts (fluxo legado) quanto strings (templates).
 
         Args:
-            entity: Dicionário com dados da entidade
+            entity: Dicionário ou string com dados da entidade
 
         Returns:
             Set de identificadores normalizados
         """
         identifiers: Set[str] = set()
 
-        # Extrair de campos comuns
+        # Suporte para entidades como string (de templates)
+        if isinstance(entity, str):
+            normalized = entity.lower().strip()
+            normalized = ''.join(
+                c for c in normalized
+                if c.isalnum() or c == '_'
+            )
+            if normalized:
+                identifiers.add(normalized)
+            return identifiers
+
+        # Extrair de campos comuns (entidade como dict)
         for field in ['name', 'value', 'type', 'canonical_type', 'entity_type']:
             if field in entity and entity[field]:
                 normalized = str(entity[field]).lower().strip()
@@ -281,18 +316,19 @@ class DAGGenerator:
 
     def _entities_match(
         self,
-        entity_a: Dict,
-        entity_b: Dict
+        entity_a: Union[Dict, str],
+        entity_b: Union[Dict, str]
     ) -> Tuple[bool, float, str]:
         """
         Verifica se duas entidades fazem match.
 
         Usa matching exato primeiro, depois fuzzy se habilitado.
         Suporta tipos canônicos para matching semântico.
+        Suporta tanto dicts (fluxo legado) quanto strings (templates).
 
         Args:
-            entity_a: Primeira entidade
-            entity_b: Segunda entidade
+            entity_a: Primeira entidade (dict ou string)
+            entity_b: Segunda entidade (dict ou string)
 
         Returns:
             Tupla (match_found, confidence, match_type)
@@ -314,10 +350,11 @@ class DAGGenerator:
                         dag_generation_entity_matching_fuzzy_total.inc()
                         return True, ratio, 'fuzzy'
 
-        # Matching por tipo canônico se habilitado
+        # Matching por tipo canônico se habilitado (somente para dicts)
         if self.entity_matching_use_canonical_types:
-            type_a = entity_a.get('type', entity_a.get('entity_type', ''))
-            type_b = entity_b.get('type', entity_b.get('entity_type', ''))
+            # Extrair tipo apenas de dicts
+            type_a = entity_a.get('type', entity_a.get('entity_type', '')) if isinstance(entity_a, dict) else ''
+            type_b = entity_b.get('type', entity_b.get('entity_type', '')) if isinstance(entity_b, dict) else ''
 
             if type_a and type_b:
                 # Verificar se são do mesmo tipo canônico
@@ -393,6 +430,7 @@ class DAGGenerator:
         objectives = intermediate_repr.get('objectives', [])
         entities = intermediate_repr.get('entities', [])
         constraints = intermediate_repr.get('constraints', {})
+        intent_text = intermediate_repr.get('original_text', '')
 
         # Criar grafo NetworkX
         G = nx.DiGraph()
@@ -401,9 +439,72 @@ class DAGGenerator:
         tasks = []
         task_id_counter = 0
 
-        # Passo 1: Tentar pattern matching (se disponível)
+        # Passo 0 (NOVO): Tentar decomposição baseada em classificação de intent
+        intent_tasks = None
+        if self.intent_decomposition_enabled and self.intent_classifier and intent_text:
+            try:
+                # Classificar intent
+                classification = self.intent_classifier.classify(
+                    intent_text,
+                    context={'domain': constraints.get('domain', 'unknown')}
+                )
+
+                # Se classificação tem confiança suficiente, usar template
+                if classification.confidence >= 0.3 and classification.intent_type != IntentType.GENERIC:
+                    logger.info(
+                        'Intent classificado para decomposição por template',
+                        intent_type=classification.intent_type.value,
+                        confidence=classification.confidence,
+                        recommended_tasks=classification.recommended_task_count
+                    )
+
+                    # Extrair entidades como lista de nomes
+                    entity_names = [
+                        e.get('name', e.get('value', ''))
+                        for e in entities
+                        if isinstance(e, dict)
+                    ]
+
+                    # Gerar tasks do template
+                    intent_tasks = self.decomposition_templates.generate_tasks(
+                        classification=classification,
+                        intent_text=intent_text,
+                        entities=entity_names,
+                        base_task_id=task_id_counter
+                    )
+
+                    if intent_tasks:
+                        decomposition_type = 'intent_template'
+                        tasks.extend(intent_tasks)
+                        task_id_counter += len(intent_tasks)
+
+                        for task in intent_tasks:
+                            G.add_node(task.task_id, task=task)
+
+                        # Adicionar arestas para dependências
+                        for task in intent_tasks:
+                            for dep_id in task.dependencies:
+                                if dep_id in G:
+                                    G.add_edge(dep_id, task.task_id)
+
+                        logger.info(
+                            'Tasks geradas por template de intent',
+                            intent_type=classification.intent_type.value,
+                            num_tasks=len(intent_tasks),
+                            semantic_domains=classification.semantic_domains
+                        )
+
+            except Exception as e:
+                logger.warning(
+                    'Falha na decomposição por intent, usando fallback',
+                    error=str(e),
+                    intent_text_preview=intent_text[:50] if intent_text else ''
+                )
+                intent_tasks = None
+
+        # Passo 1: Tentar pattern matching (se não houve decomposição por intent)
         pattern_tasks = None
-        if self.pattern_matcher:
+        if not intent_tasks and self.pattern_matcher:
             pattern_matches = self.pattern_matcher.match(intermediate_repr)
 
             if pattern_matches:
@@ -441,8 +542,8 @@ class DAGGenerator:
                         pattern_id=best_match.pattern_id
                     ).inc()
 
-        # Passo 2: Se não houve pattern match, usar fluxo baseado em objectives
-        if not pattern_tasks:
+        # Passo 2: Se não houve decomposição por intent nem pattern match, usar fluxo baseado em objectives
+        if not intent_tasks and not pattern_tasks:
             for objective in objectives:
                 # Criar main task com descrição enriquecida
                 main_task = self._create_task_from_objective(
@@ -760,8 +861,11 @@ class DAGGenerator:
                             for ent_b in entities_b:
                                 match, _, _ = self._entities_match(ent_a, ent_b)
                                 if match:
-                                    # Adicionar nome para tracking
-                                    name_a = ent_a.get('name', ent_a.get('value', 'entity'))
+                                    # Adicionar nome para tracking (suporte a string e dict)
+                                    if isinstance(ent_a, str):
+                                        name_a = ent_a
+                                    else:
+                                        name_a = ent_a.get('name', ent_a.get('value', 'entity'))
                                     shared_names.add(str(name_a).lower())
                                     break
                             if shared_names:
