@@ -66,6 +66,14 @@ def mock_settings():
     # Rate limiting
     settings.rate_limit_requests_per_minute = 100
 
+    # Feedback Collection
+    settings.enable_feedback_collection = True
+    settings.feedback_mongodb_collection = 'specialist_feedback_test'
+    settings.mongodb_opinions_collection = 'specialist_opinions_test'
+    settings.feedback_rating_min = 0.0
+    settings.feedback_rating_max = 1.0
+    settings.feedback_on_approval_failure_mode = 'log_and_continue'
+
     return settings
 
 
@@ -203,3 +211,58 @@ def non_admin_user():
         'preferred_username': 'regular',
         'roles': ['user']
     }
+
+
+@pytest.fixture
+def mock_feedback_collector():
+    """Mock FeedbackCollector"""
+    collector = MagicMock()
+    collector.submit_feedback = MagicMock(return_value='feedback-001')
+    collector.close = MagicMock()
+    return collector
+
+
+@pytest.fixture
+def mock_ledger_client():
+    """Mock CognitiveLedgerClient"""
+    client = MagicMock()
+    client.initialize = AsyncMock()
+    client.close = AsyncMock()
+    client.get_opinions_by_plan_id = AsyncMock(return_value=[
+        {
+            'opinion_id': 'opinion-001',
+            'specialist_type': 'technical',
+            'plan_id': 'plan-001',
+            'recommendation': 'approve',
+            'confidence_score': 0.85
+        },
+        {
+            'opinion_id': 'opinion-002',
+            'specialist_type': 'security',
+            'plan_id': 'plan-001',
+            'recommendation': 'review_required',
+            'confidence_score': 0.72
+        }
+    ])
+    return client
+
+
+@pytest.fixture
+def sample_opinions():
+    """Lista de opinioes de exemplo do ledger cognitivo"""
+    return [
+        {
+            'opinion_id': 'opinion-001',
+            'specialist_type': 'technical',
+            'plan_id': 'plan-001',
+            'recommendation': 'approve',
+            'confidence_score': 0.85
+        },
+        {
+            'opinion_id': 'opinion-002',
+            'specialist_type': 'security',
+            'plan_id': 'plan-001',
+            'recommendation': 'review_required',
+            'confidence_score': 0.72
+        }
+    ]

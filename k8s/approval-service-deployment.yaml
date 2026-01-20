@@ -46,6 +46,13 @@ data:
   JAEGER_SAMPLING_RATE: "1.0"
   # Rate Limiting
   RATE_LIMIT_REQUESTS_PER_MINUTE: "100"
+  # Feedback Collection (ML Continuous Learning)
+  ENABLE_FEEDBACK_COLLECTION: "true"
+  FEEDBACK_MONGODB_COLLECTION: "specialist_feedback"
+  MONGODB_OPINIONS_COLLECTION: "specialist_opinions"
+  FEEDBACK_RATING_MIN: "0.0"
+  FEEDBACK_RATING_MAX: "1.0"
+  FEEDBACK_ON_APPROVAL_FAILURE_MODE: "log_and_continue"
 ---
 apiVersion: v1
 kind: Secret

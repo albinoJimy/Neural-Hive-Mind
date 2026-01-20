@@ -18,8 +18,15 @@ from src.models.approval import (
     ApprovalStatus
 )
 from src.clients.mongodb_client import MongoDBClient
+from src.clients.cognitive_ledger_client import CognitiveLedgerClient
 from src.producers.approval_response_producer import ApprovalResponseProducer
 from src.observability.metrics import NeuralHiveMetrics
+
+# Import opcional - pode nao estar disponivel em todos os ambientes
+try:
+    from neural_hive_specialists.feedback import FeedbackCollector
+except ImportError:
+    FeedbackCollector = None
 
 logger = structlog.get_logger()
 
@@ -32,12 +39,16 @@ class ApprovalService:
         settings: Settings,
         mongodb_client: MongoDBClient,
         response_producer: ApprovalResponseProducer,
-        metrics: NeuralHiveMetrics
+        metrics: NeuralHiveMetrics,
+        feedback_collector: Optional[Any] = None,
+        ledger_client: Optional[CognitiveLedgerClient] = None
     ):
         self.settings = settings
         self.mongodb_client = mongodb_client
         self.response_producer = response_producer
         self.metrics = metrics
+        self.feedback_collector = feedback_collector
+        self.ledger_client = ledger_client
 
     async def process_approval_request(self, approval_request: ApprovalRequest) -> ApprovalRequest:
         """
@@ -91,6 +102,112 @@ class ApprovalService:
                 plan_id=approval_request.plan_id
             )
             raise
+
+    async def _submit_feedback_for_plan(
+        self,
+        plan_id: str,
+        human_decision: str,
+        human_rating: float,
+        user_id: str,
+        comments: Optional[str] = None
+    ) -> None:
+        """
+        Submete feedback ML para todas as opinioes de specialists do plano.
+
+        Esta operacao nao bloqueia o fluxo de aprovacao/rejeicao.
+        Erros sao logados mas nao propagados.
+
+        Args:
+            plan_id: ID do plano
+            human_decision: Decisao humana ('approve' ou 'reject')
+            human_rating: Rating numerico (0.0-1.0)
+            user_id: ID do usuario que decidiu
+            comments: Comentarios opcionais
+        """
+        # Skip se feedback collection desabilitado
+        if not self.settings.enable_feedback_collection:
+            logger.debug('Feedback collection desabilitado', plan_id=plan_id)
+            return
+
+        # Skip se dependencias nao disponiveis
+        if not self.feedback_collector or not self.ledger_client:
+            logger.warning(
+                'FeedbackCollector ou LedgerClient nao disponivel',
+                plan_id=plan_id,
+                has_collector=self.feedback_collector is not None,
+                has_ledger=self.ledger_client is not None
+            )
+            return
+
+        try:
+            # 1. Buscar opinioes do ledger cognitivo
+            opinions = await self.ledger_client.get_opinions_by_plan_id(plan_id)
+
+            if not opinions:
+                logger.warning(
+                    'Nenhuma opiniao encontrada no ledger para plan_id',
+                    plan_id=plan_id
+                )
+                return
+
+            # 2. Submeter feedback para cada specialist que avaliou o plano
+            feedback_ids = []
+            for opinion in opinions:
+                try:
+                    feedback_data = {
+                        'opinion_id': opinion['opinion_id'],
+                        'plan_id': plan_id,
+                        'specialist_type': opinion['specialist_type'],
+                        'human_rating': human_rating,
+                        'human_recommendation': human_decision,
+                        'feedback_notes': comments or '',
+                        'submitted_by': user_id,
+                        'metadata': {
+                            'source': 'approval_service',
+                            'specialist_recommendation': opinion.get('recommendation'),
+                            'specialist_confidence': opinion.get('confidence_score')
+                        }
+                    }
+
+                    feedback_id = self.feedback_collector.submit_feedback(feedback_data)
+                    feedback_ids.append(feedback_id)
+
+                    logger.info(
+                        'Feedback ML submetido',
+                        feedback_id=feedback_id,
+                        opinion_id=opinion['opinion_id'],
+                        specialist_type=opinion['specialist_type'],
+                        plan_id=plan_id
+                    )
+
+                except Exception as e:
+                    logger.error(
+                        'Erro ao submeter feedback para opiniao',
+                        opinion_id=opinion.get('opinion_id'),
+                        specialist_type=opinion.get('specialist_type'),
+                        error=str(e)
+                    )
+                    # Continuar para proxima opiniao
+                    continue
+
+            logger.info(
+                'Feedback ML processado para plano',
+                plan_id=plan_id,
+                total_opinions=len(opinions),
+                successful_feedbacks=len(feedback_ids)
+            )
+
+        except Exception as e:
+            logger.error(
+                'Erro ao processar feedback ML',
+                plan_id=plan_id,
+                error=str(e)
+            )
+
+            # Decidir comportamento baseado em configuracao
+            if self.settings.feedback_on_approval_failure_mode == 'raise_error':
+                raise
+            # Caso contrario, apenas logar e continuar
 
     async def approve_plan(
         self,
@@ -163,6 +280,15 @@ class ApprovalService:
             plan_id=plan_id,
             approved_by=user_id,
             time_to_decision_seconds=time_to_decision
+        )
+
+        # Submete feedback ML (nao bloqueia aprovacao)
+        await self._submit_feedback_for_plan(
+            plan_id=plan_id,
+            human_decision='approve',
+            human_rating=1.0,  # Aprovado = rating maximo
+            user_id=user_id,
+            comments=comments
         )
 
         return decision
@@ -246,6 +372,15 @@ class ApprovalService:
             rejected_by=user_id,
             reason=reason,
             time_to_decision_seconds=time_to_decision
+        )
+
+        # Submete feedback ML (nao bloqueia rejeicao)
+        await self._submit_feedback_for_plan(
+            plan_id=plan_id,
+            human_decision='reject',
+            human_rating=0.0,  # Rejeitado = rating minimo
+            user_id=user_id,
+            comments=f"{reason}. {comments or ''}".strip()
         )
 
         return decision

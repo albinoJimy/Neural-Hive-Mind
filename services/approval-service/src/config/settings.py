@@ -64,6 +64,26 @@ class Settings(BaseSettings):
     mongodb_max_pool_size: int = Field(default=100, description='Tamanho maximo do pool')
     mongodb_timeout_ms: int = Field(default=5000, description='Timeout (ms)')
 
+    # Feedback Collection Configuration (para ML continuous learning)
+    enable_feedback_collection: bool = Field(
+        default=True,
+        description='Habilitar coleta de feedback para ML'
+    )
+    feedback_mongodb_collection: str = Field(
+        default='specialist_feedback',
+        description='Collection MongoDB para feedback'
+    )
+    mongodb_opinions_collection: str = Field(
+        default='specialist_opinions',
+        description='Collection do ledger cognitivo'
+    )
+    feedback_rating_min: float = Field(default=0.0, description='Rating minimo')
+    feedback_rating_max: float = Field(default=1.0, description='Rating maximo')
+    feedback_on_approval_failure_mode: str = Field(
+        default='log_and_continue',
+        description='Comportamento em falha de feedback: log_and_continue ou raise_error'
+    )
+
     # Keycloak configuration
     keycloak_url: str = Field(
         default='http://keycloak.keycloak.svc.cluster.local:8080',

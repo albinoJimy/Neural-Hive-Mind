@@ -16,9 +16,19 @@ from src.config.settings import get_settings
 from src.consumers.approval_request_consumer import ApprovalRequestConsumer
 from src.producers.approval_response_producer import ApprovalResponseProducer
 from src.clients.mongodb_client import MongoDBClient
+from src.clients.cognitive_ledger_client import CognitiveLedgerClient
 from src.services.approval_service import ApprovalService
 from src.observability.metrics import NeuralHiveMetrics, register_metrics
 from src.api.routers import approvals, health
+from src.adapters.feedback_config_adapter import create_feedback_collector_config
+
+# Import opcional - pode nao estar disponivel em todos os ambientes
+try:
+    from neural_hive_specialists.feedback import FeedbackCollector
+    HAS_FEEDBACK_COLLECTOR = True
+except ImportError:
+    FeedbackCollector = None
+    HAS_FEEDBACK_COLLECTOR = False
 
 # Configure structured logging
 structlog.configure(
@@ -127,6 +137,49 @@ async def lifespan(app: FastAPI):
         await mongodb_client.initialize()
         state['mongodb'] = mongodb_client
 
+        # Inicializa cliente do ledger cognitivo
+        ledger_client = None
+        if settings.enable_feedback_collection:
+            logger.info("Inicializando CognitiveLedgerClient...")
+            try:
+                ledger_client = CognitiveLedgerClient(settings)
+                await ledger_client.initialize()
+                state['ledger_client'] = ledger_client
+                logger.info("CognitiveLedgerClient inicializado com sucesso")
+            except Exception as e:
+                logger.error(
+                    "Falha ao inicializar CognitiveLedgerClient",
+                    error=str(e)
+                )
+                if settings.feedback_on_approval_failure_mode == 'raise_error':
+                    raise
+                logger.warning("Continuando sem feedback collection")
+
+        # Inicializa FeedbackCollector
+        feedback_collector = None
+        if settings.enable_feedback_collection and ledger_client and HAS_FEEDBACK_COLLECTOR:
+            logger.info("Inicializando FeedbackCollector...")
+            try:
+                feedback_config = create_feedback_collector_config(settings)
+                feedback_collector = FeedbackCollector(
+                    config=feedback_config,
+                    audit_logger=None
+                )
+                state['feedback_collector'] = feedback_collector
+                logger.info("FeedbackCollector inicializado com sucesso")
+            except Exception as e:
+                logger.error(
+                    "Falha ao inicializar FeedbackCollector",
+                    error=str(e)
+                )
+                if settings.feedback_on_approval_failure_mode == 'raise_error':
+                    raise
+                logger.warning("Continuando sem feedback collection")
+        elif settings.enable_feedback_collection and not HAS_FEEDBACK_COLLECTOR:
+            logger.warning(
+                "FeedbackCollector nao disponivel - neural_hive_specialists nao instalado"
+            )
+
         # Inicializa metricas
         metrics = NeuralHiveMetrics(mongodb_client=mongodb_client)
         state['metrics'] = metrics
@@ -152,7 +205,9 @@ async def lifespan(app: FastAPI):
             settings=settings,
             mongodb_client=mongodb_client,
             response_producer=response_producer,
-            metrics=metrics
+            metrics=metrics,
+            feedback_collector=feedback_collector,
+            ledger_client=ledger_client
         )
         state['approval_service'] = approval_service
 
@@ -197,6 +252,12 @@ async def lifespan(app: FastAPI):
 
         if 'mongodb' in state:
             await state['mongodb'].close()
+
+        if 'ledger_client' in state:
+            await state['ledger_client'].close()
+
+        if 'feedback_collector' in state:
+            state['feedback_collector'].close()
 
         logger.info("Shutdown complete")
 
