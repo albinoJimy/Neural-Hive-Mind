@@ -2,6 +2,7 @@
 Orchestrator Dynamic client for starting and managing Temporal workflows.
 """
 
+import os
 import httpx
 import structlog
 from typing import Any, Dict, Optional
@@ -34,12 +35,17 @@ class WorkflowStatus(BaseModel):
 class OrchestratorClient:
     """Client for Orchestrator Dynamic service."""
 
+    DEFAULT_BASE_URL = 'http://orchestrator-dynamic.neural-hive.svc.cluster.local:8000'
+
     def __init__(
         self,
-        base_url: str = "http://orchestrator-dynamic.neural-hive-orchestration:8000",
+        base_url: str = None,
         timeout: int = 30,
     ):
-        self.base_url = base_url
+        self.base_url = base_url or os.getenv(
+            'ORCHESTRATOR_BASE_URL',
+            self.DEFAULT_BASE_URL
+        )
         self.client = httpx.AsyncClient(timeout=timeout)
         self.logger = logger.bind(service="orchestrator_client")
 
