@@ -32,6 +32,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'libraries' / 'pyth
 # Importar schema de features centralizado
 from feature_store.feature_definitions import get_feature_names
 
+# Importar validador de qualidade de dados
+try:
+    from data_quality_validator import DataQualityValidator, DataQualityError as ValidatorDataQualityError
+    _DATA_QUALITY_VALIDATOR_AVAILABLE = True
+except ImportError:
+    _DATA_QUALITY_VALIDATOR_AVAILABLE = False
+    ValidatorDataQualityError = Exception
+
 # Importar FeatureExtractor
 try:
     from neural_hive_specialists.feature_extraction.feature_extractor import FeatureExtractor
@@ -96,7 +104,9 @@ class RealDataCollector:
         mongodb_uri: str = None,
         mongodb_database: str = "neural_hive",
         opinions_collection_name: str = None,
-        feedback_collection_name: str = None
+        feedback_collection_name: str = None,
+        data_quality_validator: Optional['DataQualityValidator'] = None,
+        enable_quality_validation: bool = True
     ):
         """
         Inicializa o coletor de dados reais.
@@ -108,6 +118,10 @@ class RealDataCollector:
                 Default: env OPINIONS_COLLECTION ou 'specialist_opinions'
             feedback_collection_name: Nome da collection de feedback.
                 Default: env FEEDBACK_COLLECTION ou 'feedback'
+            data_quality_validator: Instância de DataQualityValidator opcional.
+                Se None e enable_quality_validation=True, cria instância com defaults.
+            enable_quality_validation: Habilita validação de qualidade integrada.
+                Default: True
         """
         self.mongodb_uri = mongodb_uri or os.getenv('MONGODB_URI', 'mongodb://localhost:27017')
         self.mongodb_database = mongodb_database
@@ -128,6 +142,17 @@ class RealDataCollector:
         self.feature_extractor: Optional[FeatureExtractor] = None
         self.expected_feature_names: List[str] = get_feature_names()
 
+        # DataQualityValidator
+        self.enable_quality_validation = enable_quality_validation
+        if enable_quality_validation and _DATA_QUALITY_VALIDATOR_AVAILABLE:
+            self.data_quality_validator = data_quality_validator or DataQualityValidator()
+        else:
+            self.data_quality_validator = None
+            if enable_quality_validation and not _DATA_QUALITY_VALIDATOR_AVAILABLE:
+                logger.warning(
+                    "DataQualityValidator não disponível, validação de qualidade desabilitada"
+                )
+
         # Circuit breaker para MongoDB
         self._setup_circuit_breaker()
 
@@ -141,7 +166,8 @@ class RealDataCollector:
             opinions_collection=self.opinions_collection_name,
             feedback_collection=self.feedback_collection_name,
             feature_extractor_available=_FEATURE_EXTRACTOR_AVAILABLE,
-            num_expected_features=len(self.expected_feature_names)
+            num_expected_features=len(self.expected_feature_names),
+            quality_validation_enabled=self.data_quality_validator is not None
         )
 
     def _mask_uri(self, uri: str) -> str:
@@ -427,6 +453,51 @@ class RealDataCollector:
             date_range_end=df['created_at'].max() if 'created_at' in df.columns else None,
             label_distribution=df['label'].value_counts().to_dict()
         )
+
+        # 7. Validar qualidade dos dados coletados (se habilitado)
+        if self.data_quality_validator is not None:
+            logger.info("Validando qualidade dos dados coletados")
+            try:
+                validation_report = self.data_quality_validator.validate(
+                    df=df,
+                    feature_names=self.expected_feature_names
+                )
+
+                # Log estatísticas de qualidade
+                logger.info(
+                    "Validação de qualidade concluída",
+                    quality_score=validation_report['quality_score'],
+                    passed=validation_report['passed'],
+                    num_warnings=len(validation_report['warnings'])
+                )
+
+                # Verificar se passou nos critérios mínimos
+                if not validation_report['passed']:
+                    raise DataQualityError(
+                        f"Qualidade dos dados abaixo do aceitável "
+                        f"(score: {validation_report['quality_score']:.2f}). "
+                        f"Warnings: {validation_report['warnings']}"
+                    )
+
+                # Adicionar relatório ao DataFrame como metadata
+                df.attrs['quality_report'] = validation_report
+
+            except DataQualityError:
+                # Re-lançar DataQualityError local (não engolir)
+                raise
+
+            except ValidatorDataQualityError as e:
+                logger.error(
+                    "Falha na validação de qualidade",
+                    error=str(e)
+                )
+                raise DataQualityError(str(e))
+
+            except Exception as e:
+                logger.warning(
+                    "Erro inesperado na validação de qualidade - continuando sem validação",
+                    error=str(e)
+                )
 
         return df
 
@@ -728,6 +799,11 @@ class RealDataCollector:
         """
         Valida qualidade dos dados coletados.
 
+        .. deprecated::
+            Este método está deprecado. Use DataQualityValidator.validate()
+            para validação completa com detecção de correlação de features,
+            desbalanceamento de labels, e geração de relatórios MLflow.
+
         Verifica:
         - Missing values
         - Sparsity de features
@@ -740,6 +816,17 @@ class RealDataCollector:
         Returns:
             Relatório de qualidade com score e warnings
         """
+        import warnings
+        warnings.warn(
+            "validate_data_quality() está deprecado. "
+            "Use DataQualityValidator.validate() para validação completa.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        logger.warning(
+            "Método validate_data_quality() está deprecado. "
+            "Use DataQualityValidator para validação avançada."
+        )
         warnings = []
         quality_issues = {}
 
