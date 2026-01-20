@@ -238,63 +238,95 @@ Exception: Connection refused
 2. Validar MONGODB_URI
 3. Verificar firewall/rede
 
-## Integração com Pipeline MLflow
+## Integração com Pipeline MLflow (train_specialist_model.py)
 
-### No train_specialist_model.py
+O pipeline de treinamento agora **prioriza dados reais** do ledger cognitivo:
+
+1. **Tentativa de coleta real**: Busca opiniões + feedback do MongoDB
+2. **Validação**: Verifica quantidade mínima, distribuição e qualidade
+3. **Fallback controlado**: Usa dados sintéticos apenas se permitido
+
+### Parâmetros CLI
+
+| Parâmetro | Default | Descrição |
+|-----------|---------|-----------|
+| `--allow-synthetic-fallback` | auto | Controla fallback para sintético. `auto` = true em dev, false em prod |
+| `--real-data-days` | 90 | Janela de tempo em dias para coleta de dados reais |
+| `--min-real-samples` | 1000 | Mínimo de amostras reais necessárias |
+
+### Exemplos de Uso
+
+**Produção (apenas dados reais):**
+```bash
+ENVIRONMENT=production python train_specialist_model.py \
+  --specialist-type technical \
+  --allow-synthetic-fallback false \
+  --real-data-days 90 \
+  --min-real-samples 1000
+```
+
+**Desenvolvimento (com fallback para sintético):**
+```bash
+ENVIRONMENT=development python train_specialist_model.py \
+  --specialist-type technical \
+  --allow-synthetic-fallback true
+```
+
+**Modo auto (recomendado):**
+```bash
+python train_specialist_model.py \
+  --specialist-type technical \
+  --allow-synthetic-fallback auto
+# Em dev: permite sintético
+# Em prod: exige dados reais
+```
+
+### Métricas MLflow Registradas
+
+Quando usa dados reais:
+- `data_source`: 'real'
+- `real_samples_count`: Número de amostras reais
+- `quality_score`: Score de qualidade (0.0-1.0)
+- `is_balanced`: 1.0 se distribuição balanceada
+- `label_{X}_percentage`: Percentual de cada label
+- `max_distribution_divergence`: Divergência vs baseline sintético
+- `data_date_range_start/end`: Range temporal dos dados
+
+Quando usa dados sintéticos:
+- `data_source`: 'synthetic'
+- `synthetic_samples_count`: Número de amostras
+- `data_warning`: Aviso sobre uso de dados sintéticos
+
+### Validação Crítica para Produção
+
+Se `ENVIRONMENT=production` e dados reais insuficientes com `allow-synthetic-fallback=false`:
+```
+RuntimeError: CRITICAL: Cannot train production model with synthetic data.
+Collect more real feedback data or set ENVIRONMENT=development.
+```
+
+### Código de Integração
 
 ```python
 from real_data_collector import (
     RealDataCollector,
     InsufficientDataError,
-    DataQualityError,
     FeatureExtractionError
 )
 
-async def load_training_data(specialist_type: str) -> pd.DataFrame:
-    """Tenta carregar dados reais, fallback para sintéticos."""
-    try:
-        collector = RealDataCollector(
-            feedback_collection_name="feedback"  # Collection correta
-        )
-        df = await collector.collect_training_data(
-            specialist_type=specialist_type,
-            days=90,
-            min_samples=1000
-        )
+# Usado internamente por load_dataset_with_real_data_priority()
+df, data_source, metadata = load_dataset_with_real_data_priority(
+    specialist_type="technical",
+    allow_synthetic_fallback="auto",
+    real_data_days=90,
+    min_real_samples=1000,
+    min_feedback_rating=0.5
+)
 
-        # Validar qualidade
-        quality = collector.validate_data_quality(df)
-        if not quality['passed']:
-            logger.warning("Qualidade de dados reais abaixo do threshold")
-            raise DataQualityError("Qualidade insuficiente")
-
-        # Log no MLflow
-        mlflow.log_param("data_source", "real")
-        mlflow.log_metric("data_quality_score", quality['quality_score'])
-
-        return df
-
-    except (InsufficientDataError, DataQualityError, FeatureExtractionError) as e:
-        logger.warning(f"Fallback para dados sintéticos: {e}")
-        mlflow.log_param("data_source", "synthetic")
-        return load_synthetic_data(specialist_type)
-```
-
-### Métricas MLflow a Registrar
-
-```python
-mlflow.log_params({
-    "data_source": "real",
-    "data_days": 90,
-    "data_total_samples": len(df),
-    "data_coverage_rate": stats['coverage_rate']
-})
-
-mlflow.log_metrics({
-    "data_quality_score": quality_report['quality_score'],
-    "data_sparsity_rate": quality_report['sparsity_rate'],
-    "label_max_divergence": dist_report['max_divergence']
-})
+# Retorna:
+# - df: DataFrame pronto para treinamento
+# - data_source: 'real' ou 'synthetic'
+# - metadata: Dict com estatísticas e validações
 ```
 
 ## Estrutura de Arquivos

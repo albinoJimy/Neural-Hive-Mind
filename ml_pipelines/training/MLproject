@@ -31,6 +31,9 @@ entry_points:
       model_type: {type: string, default: "random_forest"}
       hyperparameter_tuning: {type: string, default: "false"}
       promote_if_better: {type: string, default: "true"}
+      allow_synthetic_fallback: {type: string, default: "auto"}
+      real_data_days: {type: int, default: 90}
+      min_real_samples: {type: int, default: 1000}
     command: |
       python train_specialist_model.py \
         --specialist-type {specialist_type} \
@@ -39,15 +42,24 @@ entry_points:
         --min-feedback-quality {min_feedback_quality} \
         --model-type {model_type} \
         --hyperparameter-tuning {hyperparameter_tuning} \
-        --promote-if-better {promote_if_better}
+        --promote-if-better {promote_if_better} \
+        --allow-synthetic-fallback {allow_synthetic_fallback} \
+        --real-data-days {real_data_days} \
+        --min-real-samples {min_real_samples}
 
   train_all:
     parameters:
       model_type: {type: string, default: "random_forest"}
       hyperparameter_tuning: {type: string, default: "false"}
       promote_if_better: {type: string, default: "true"}
+      allow_synthetic_fallback: {type: string, default: "auto"}
+      real_data_days: {type: int, default: 90}
+      min_real_samples: {type: int, default: 1000}
     command: |
       export MODEL_TYPE={model_type} && \
       export HYPERPARAMETER_TUNING={hyperparameter_tuning} && \
       export PROMOTE_IF_BETTER={promote_if_better} && \
+      export ALLOW_SYNTHETIC_FALLBACK={allow_synthetic_fallback} && \
+      export REAL_DATA_DAYS={real_data_days} && \
+      export MIN_REAL_SAMPLES={min_real_samples} && \
       bash train_all_specialists.sh
