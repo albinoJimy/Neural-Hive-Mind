@@ -52,12 +52,12 @@ class MongoDBClient:
 
         mongodb_uri = self.uri_override if self.uri_override else self.config.mongodb_uri
 
-        # Motor 3.7+ requer snake_case para parameter names
+        # Motor/PyMongo usam camelCase para parameter names
         self.client = AsyncIOMotorClient(
             mongodb_uri,
-            max_pool_size=self.config.MONGODB_MAX_POOL_SIZE,
-            min_pool_size=self.config.MONGODB_MIN_POOL_SIZE,
-            server_selection_timeout_ms=5000,
+            maxPoolSize=self.config.MONGODB_MAX_POOL_SIZE,
+            minPoolSize=self.config.MONGODB_MIN_POOL_SIZE,
+            serverSelectionTimeoutMS=5000,
             retryWrites=True,
             w='majority'
         )
@@ -165,15 +165,26 @@ class MongoDBClient:
 
     async def get_cognitive_plan(self, plan_id: str) -> Optional[Dict[str, Any]]:
         """
-        Busca um Cognitive Plan no ledger.
+        Busca um Cognitive Plan no ledger e retorna os dados do plano.
 
         Args:
             plan_id: ID do plano cognitivo
 
         Returns:
-            Documento do plano ou None se não encontrado
+            Dados do plano (plan_data) com plan_id e intent_id incluídos,
+            ou None se não encontrado
         """
-        return await self.cognitive_ledger.find_one({'plan_id': plan_id})
+        document = await self.cognitive_ledger.find_one({'plan_id': plan_id})
+
+        if not document:
+            return None
+
+        # Extrair plan_data e adicionar campos de identificação
+        plan_data = document.get('plan_data', {})
+        plan_data['plan_id'] = document.get('plan_id')
+        plan_data['intent_id'] = document.get('intent_id')
+
+        return plan_data
 
     async def save_execution_ticket(self, ticket: Dict[str, Any]):
         """

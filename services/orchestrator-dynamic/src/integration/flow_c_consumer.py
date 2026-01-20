@@ -179,8 +179,7 @@ class FlowCConsumer:
 
         # Initialize consumer
         self.consumer = instrument_kafka_consumer(
-            AIOKafkaConsumer(self.input_topic, **consumer_config),
-            service_name="orchestrator-dynamic-flowc"
+            AIOKafkaConsumer(self.input_topic, **consumer_config)
         )
         await self.consumer.start()
 

@@ -135,8 +135,7 @@ class DecisionConsumer:
             )
 
         self.consumer = instrument_kafka_consumer(
-            AIOKafkaConsumer(self.config.kafka_consensus_topic, **consumer_config),
-            service_name="orchestrator-dynamic"
+            AIOKafkaConsumer(self.config.kafka_consensus_topic, **consumer_config)
         )
         logger.info("Kafka consumer instrumented with OpenTelemetry")
 

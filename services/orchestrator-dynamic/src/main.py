@@ -159,11 +159,10 @@ async def lifespan(app: FastAPI):
             )
 
         try:
-            logger = get_logger(__name__)
-            logger.info(
-                "Orchestrator Dynamic initialized with OpenTelemetry tracing",
-                service_version=config.service_version,
-                otel_endpoint=config.otel_exporter_endpoint
+            trace_logger = get_logger(__name__)
+            trace_logger.info(
+                f"Orchestrator Dynamic initialized with OpenTelemetry tracing - "
+                f"version={config.service_version}, endpoint={config.otel_exporter_endpoint}"
             )
         except Exception as log_error:
             logger.warning(
