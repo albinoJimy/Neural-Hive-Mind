@@ -7,12 +7,13 @@ avalia performance e promove para produção se melhor que baseline.
 """
 
 import argparse
+import asyncio
 import os
 import sys
 from datetime import datetime, timedelta
 from importlib import util
 from pathlib import Path
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional
 import structlog
 import pandas as pd
 import numpy as np
@@ -34,6 +35,15 @@ import tempfile
 
 # Importar wrapper probabilístico
 from probabilistic_wrapper import ProbabilisticModelWrapper
+
+# Importar RealDataCollector para dados reais
+try:
+    from real_data_collector import RealDataCollector, InsufficientDataError, FeatureExtractionError
+    _REAL_DATA_COLLECTOR_AVAILABLE = True
+except ImportError:
+    _REAL_DATA_COLLECTOR_AVAILABLE = False
+    InsufficientDataError = Exception
+    FeatureExtractionError = Exception
 
 # Importar schema de features centralizado
 sys.path.insert(0, str(os.path.join(os.path.dirname(__file__), '..')))
@@ -166,6 +176,25 @@ def parse_args():
         default='true',
         choices=['true', 'false'],
         help="Promover automaticamente se melhor que baseline"
+    )
+    parser.add_argument(
+        '--allow-synthetic-fallback',
+        type=str,
+        default='auto',
+        choices=['true', 'false', 'auto'],
+        help="Permitir fallback para dados sintéticos. 'auto' = true em dev, false em prod"
+    )
+    parser.add_argument(
+        '--real-data-days',
+        type=int,
+        default=90,
+        help="Janela de tempo em dias para coletar dados reais do MongoDB"
+    )
+    parser.add_argument(
+        '--min-real-samples',
+        type=int,
+        default=1000,
+        help="Mínimo de amostras reais necessárias para treinamento"
     )
 
     return parser.parse_args()
@@ -360,6 +389,254 @@ def create_synthetic_dataset(n_samples: int = 1000) -> pd.DataFrame:
     )
 
     return df
+
+
+def compare_distributions(
+    real_dist: Dict[int, float],
+    synthetic_baseline: Dict[int, float]
+) -> Dict[str, Any]:
+    """
+    Compara distribuição de labels reais com baseline sintético.
+
+    Args:
+        real_dist: Distribuição real (label -> percentual)
+        synthetic_baseline: Baseline sintético (label -> percentual)
+
+    Returns:
+        Relatório de comparação com divergências
+    """
+    divergences = {}
+    for label, baseline_pct in synthetic_baseline.items():
+        real_pct = real_dist.get(label, 0.0)
+        divergences[f"label_{label}_divergence"] = abs(real_pct - baseline_pct)
+
+    max_divergence = max(divergences.values()) if divergences else 0.0
+
+    comparison = {
+        'real_distribution': real_dist,
+        'synthetic_baseline': synthetic_baseline,
+        'divergences': divergences,
+        'max_divergence': max_divergence,
+        'significant_drift': max_divergence > 30.0
+    }
+
+    logger.info(
+        "distribution_comparison",
+        **comparison
+    )
+
+    return comparison
+
+
+def load_dataset_with_real_data_priority(
+    specialist_type: str,
+    allow_synthetic_fallback: str,
+    real_data_days: int,
+    min_real_samples: int,
+    min_feedback_rating: float
+) -> Tuple[pd.DataFrame, str, Dict[str, Any]]:
+    """
+    Carrega dataset priorizando dados reais do MongoDB.
+
+    Fluxo:
+    1. Tentar RealDataCollector para buscar dados do ledger cognitivo
+    2. Se insuficiente e fallback permitido, usar dados sintéticos
+    3. Validar distribuição de labels
+    4. Retornar DataFrame, data_source e metadata
+
+    Args:
+        specialist_type: Tipo do especialista
+        allow_synthetic_fallback: 'true', 'false' ou 'auto'
+        real_data_days: Janela de tempo para coleta
+        min_real_samples: Mínimo de amostras reais
+        min_feedback_rating: Rating mínimo de feedback
+
+    Returns:
+        Tupla (DataFrame, data_source, metadata)
+        - data_source: 'real', 'synthetic' ou 'hybrid'
+        - metadata: Dict com estatísticas e validações
+    """
+    # Resolver flag allow_synthetic_fallback
+    environment = os.getenv('ENVIRONMENT', 'development')
+
+    if allow_synthetic_fallback == 'auto':
+        allow_fallback = (environment != 'production')
+    else:
+        allow_fallback = (allow_synthetic_fallback == 'true')
+
+    logger.info(
+        "dataset_loading_config",
+        specialist_type=specialist_type,
+        environment=environment,
+        allow_synthetic_fallback=allow_fallback,
+        real_data_days=real_data_days,
+        min_real_samples=min_real_samples,
+        real_data_collector_available=_REAL_DATA_COLLECTOR_AVAILABLE
+    )
+
+    real_data_metadata: Dict[str, Any] = {}
+
+    # Verificar se RealDataCollector está disponível
+    if not _REAL_DATA_COLLECTOR_AVAILABLE:
+        logger.warning(
+            "real_data_collector_not_available",
+            reason="RealDataCollector import failed"
+        )
+        if not allow_fallback:
+            raise ImportError(
+                "RealDataCollector não está disponível e fallback sintético está desabilitado. "
+                "Verifique se real_data_collector.py está no path correto."
+            )
+    else:
+        # Tentar coletar dados reais usando RealDataCollector
+        collector = None
+        try:
+            logger.info("attempting_real_data_collection")
+
+            collector = RealDataCollector(
+                mongodb_uri=os.getenv('MONGODB_URI'),
+                mongodb_database=os.getenv('MONGODB_DATABASE', 'neural_hive')
+            )
+
+            # Executar coleta async
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            df_real = loop.run_until_complete(
+                collector.collect_training_data(
+                    specialist_type=specialist_type,
+                    days=real_data_days,
+                    min_samples=min_real_samples,
+                    min_feedback_rating=min_feedback_rating
+                )
+            )
+
+            # Validar distribuição
+            distribution_report = collector.validate_label_distribution(
+                df=df_real,
+                specialist_type=specialist_type
+            )
+
+            # Validar qualidade
+            quality_report = collector.validate_data_quality(df=df_real)
+
+            real_data_metadata = {
+                'real_samples_count': len(df_real),
+                'label_distribution': distribution_report['distribution'],
+                'label_percentages': distribution_report['percentages'],
+                'is_balanced': distribution_report['is_balanced'],
+                'quality_score': quality_report['quality_score'],
+                'quality_passed': quality_report['passed'],
+                'date_range_start': df_real['created_at'].min().isoformat() if 'created_at' in df_real.columns and len(df_real) > 0 else None,
+                'date_range_end': df_real['created_at'].max().isoformat() if 'created_at' in df_real.columns and len(df_real) > 0 else None
+            }
+
+            # Comparar com baseline sintético
+            synthetic_baseline = {
+                1: 50.0,  # approve
+                0: 25.0,  # reject
+                2: 25.0   # review_required
+            }
+
+            comparison_report = compare_distributions(
+                real_dist=distribution_report['percentages'],
+                synthetic_baseline=synthetic_baseline
+            )
+            real_data_metadata['distribution_comparison'] = comparison_report
+
+            logger.info(
+                "real_data_collection_success",
+                **{k: v for k, v in real_data_metadata.items() if k != 'distribution_comparison'}
+            )
+
+            # Preparar DataFrame para treinamento (remover colunas de metadados)
+            feature_cols = get_feature_names() + ['label']
+            df_training = df_real[[col for col in feature_cols if col in df_real.columns]].copy()
+
+            return df_training, 'real', real_data_metadata
+
+        except (InsufficientDataError, FeatureExtractionError) as e:
+            logger.warning(
+                "real_data_collection_failed",
+                error=str(e),
+                error_type=type(e).__name__,
+                allow_fallback=allow_fallback
+            )
+
+            if not allow_fallback:
+                logger.error(
+                    "CRITICAL: Real data insufficient and synthetic fallback disabled",
+                    environment=environment,
+                    specialist_type=specialist_type
+                )
+                raise
+
+            # Continuar para fallback sintético
+
+        except Exception as e:
+            logger.error(
+                "unexpected_error_real_data_collection",
+                error=str(e),
+                error_type=type(e).__name__
+            )
+
+            if not allow_fallback:
+                raise
+
+        finally:
+            # Sempre fechar o collector para evitar vazamento de conexões MongoDB
+            if collector is not None:
+                try:
+                    collector.close()
+                    logger.debug("real_data_collector_closed")
+                except Exception as close_error:
+                    logger.warning(
+                        "real_data_collector_close_failed",
+                        error=str(close_error)
+                    )
+
+    # Fallback para dados sintéticos com warning crítico
+    logger.warning(
+        "⚠️ USING SYNTHETIC DATA - NOT RECOMMENDED FOR PRODUCTION",
+        specialist_type=specialist_type,
+        environment=environment,
+        reason="Real data collection failed or insufficient"
+    )
+
+    df_synthetic = create_synthetic_dataset(n_samples=1000)
+
+    # Calcular distribuição de labels e percentuais
+    label_counts = df_synthetic['label'].value_counts().to_dict()
+    total_samples = len(df_synthetic)
+    label_percentages = {
+        label: (count / total_samples) * 100
+        for label, count in label_counts.items()
+    }
+
+    # Comparar com baseline sintético esperado
+    synthetic_baseline = {
+        1: 50.0,  # approve
+        0: 25.0,  # reject
+        2: 25.0   # review_required
+    }
+    comparison_report = compare_distributions(
+        real_dist=label_percentages,
+        synthetic_baseline=synthetic_baseline
+    )
+
+    synthetic_metadata: Dict[str, Any] = {
+        'synthetic_samples_count': len(df_synthetic),
+        'label_distribution': label_counts,
+        'label_percentages': label_percentages,
+        'distribution_comparison': comparison_report,
+        'data_source': 'synthetic',
+        'warning': 'Model trained on synthetic data - performance may degrade in production'
+    }
+
+    return df_synthetic, 'synthetic', synthetic_metadata
 
 
 def load_feedback_data(
@@ -963,26 +1240,93 @@ def main():
         mlflow.log_param('mlflow_model_name_expected', model_name)
         mlflow.log_param('mlflow_model_stage_expected', model_stage)
         mlflow.log_param('mlflow_experiment_expected', experiment_name)
+        mlflow.log_param('allow_synthetic_fallback', args.allow_synthetic_fallback)
+        mlflow.log_param('real_data_days', args.real_data_days)
+        mlflow.log_param('min_real_samples', args.min_real_samples)
 
-        # 1. Carregar dataset base
-        dataset_path_template = os.getenv(
-            'TRAINING_DATASET_PATH',
-            '/data/training/specialist_{specialist_type}_base.parquet'
+        environment = os.getenv('ENVIRONMENT', 'development')
+        mlflow.log_param('environment', environment)
+
+        # 1. Carregar dataset com prioridade para dados reais
+        df_base, data_source, data_metadata = load_dataset_with_real_data_priority(
+            specialist_type=args.specialist_type,
+            allow_synthetic_fallback=args.allow_synthetic_fallback,
+            real_data_days=args.real_data_days,
+            min_real_samples=args.min_real_samples,
+            min_feedback_rating=args.min_feedback_quality
         )
-        df_base, data_source = load_base_dataset(args.specialist_type, dataset_path_template)
+
         mlflow.log_metric('base_dataset_size', len(df_base))
-
-        # Logar data_source para rastreabilidade
         mlflow.log_param('data_source', data_source)
-        mlflow.set_tag('data_source_type', 'synthetic' if data_source == 'synthetic' else 'real')
+        mlflow.set_tag('data_source_type', data_source)
 
-        if data_source == 'synthetic':
+        # Registrar métricas específicas de dados
+        if data_source == 'real':
+            mlflow.log_metric('real_samples_count', data_metadata.get('real_samples_count', len(df_base)))
+            mlflow.log_metric('quality_score', data_metadata.get('quality_score', 0.0))
+            mlflow.log_metric('is_balanced', 1.0 if data_metadata.get('is_balanced', False) else 0.0)
+
+            # Log distribuição de labels
+            for label, pct in data_metadata.get('label_percentages', {}).items():
+                mlflow.log_metric(f'label_{label}_percentage', pct)
+
+            # Log comparação com sintético
+            if 'distribution_comparison' in data_metadata:
+                mlflow.log_metric(
+                    'max_distribution_divergence',
+                    data_metadata['distribution_comparison'].get('max_divergence', 0.0)
+                )
+
+            # Log range de datas
+            if data_metadata.get('date_range_start'):
+                mlflow.log_param('data_date_range_start', data_metadata['date_range_start'])
+            if data_metadata.get('date_range_end'):
+                mlflow.log_param('data_date_range_end', data_metadata['date_range_end'])
+
+            print(f"📁 Using REAL dataset from MongoDB")
+            print(f"   Samples: {data_metadata.get('real_samples_count', len(df_base))}")
+            print(f"   Quality score: {data_metadata.get('quality_score', 'N/A')}")
+            if data_metadata.get('date_range_start') and data_metadata.get('date_range_end'):
+                print(f"   Date range: {data_metadata['date_range_start'][:10]} to {data_metadata['date_range_end'][:10]}")
+
+        elif data_source == 'synthetic':
+            mlflow.log_metric('synthetic_samples_count', data_metadata.get('synthetic_samples_count', len(df_base)))
+            if data_metadata.get('warning'):
+                mlflow.set_tag('data_warning', data_metadata['warning'])
+
+            # Log distribuição de labels para dados sintéticos (similar a dados reais)
+            for label, pct in data_metadata.get('label_percentages', {}).items():
+                mlflow.log_metric(f'label_{label}_percentage', pct)
+
+            # Log divergência da distribuição (comparação com baseline esperado)
+            if 'distribution_comparison' in data_metadata:
+                mlflow.log_metric(
+                    'max_distribution_divergence',
+                    data_metadata['distribution_comparison'].get('max_divergence', 0.0)
+                )
+                # Log divergência por label
+                for label_key, divergence in data_metadata['distribution_comparison'].get('divergences', {}).items():
+                    mlflow.log_metric(label_key, divergence)
+
             print(f"⚠️  Using SYNTHETIC dataset for training")
-            print(f"   Set TRAINING_DATASET_PATH to use real data")
-        else:
-            print(f"📁 Using REAL dataset: {data_source}")
+            print(f"   Samples: {data_metadata.get('synthetic_samples_count', len(df_base))}")
+            print(f"   Label distribution: {data_metadata.get('label_distribution', {})}")
+            print(f"   Warning: {data_metadata.get('warning', 'Model trained on synthetic data')}")
 
-        # 2. Carregar feedbacks
+            # Validação crítica para produção
+            if environment == 'production':
+                logger.error(
+                    "CRITICAL: Cannot train production model with synthetic data",
+                    specialist_type=args.specialist_type,
+                    environment=environment
+                )
+                raise RuntimeError(
+                    "CRITICAL: Cannot train production model with synthetic data. "
+                    f"Specialist: {args.specialist_type}. "
+                    "Collect more real feedback data or set ENVIRONMENT=development."
+                )
+
+        # 2. Carregar feedbacks adicionais (opcional, para enriquecimento)
         df_feedback = load_feedback_data(
             args.specialist_type,
             args.window_days,
@@ -990,8 +1334,8 @@ def main():
         )
         mlflow.log_metric('feedback_dataset_size', len(df_feedback))
 
-        # 3. Enriquecer dataset
-        if len(df_feedback) > 0:
+        # 3. Enriquecer dataset (apenas se temos feedback adicional além do real)
+        if len(df_feedback) > 0 and data_source != 'real':
             df_enriched = pd.concat([df_base, df_feedback], ignore_index=True)
         else:
             df_enriched = df_base
@@ -999,8 +1343,8 @@ def main():
         mlflow.log_metric('total_dataset_size', len(df_enriched))
 
         print(f"📊 Dataset sizes:")
-        print(f"   Base: {len(df_base)}")
-        print(f"   Feedback: {len(df_feedback)}")
+        print(f"   Base ({data_source}): {len(df_base)}")
+        print(f"   Additional Feedback: {len(df_feedback)}")
         print(f"   Total: {len(df_enriched)}")
         print()
 

@@ -24,12 +24,16 @@ MODEL_TYPE=${MODEL_TYPE:-"random_forest"}
 HYPERPARAMETER_TUNING=${HYPERPARAMETER_TUNING:-"false"}
 PROMOTE_IF_BETTER=${PROMOTE_IF_BETTER:-"true"}
 DATASET_DIR=${DATASET_DIR:-"/data/training"}
-ALLOW_SYNTHETIC_FALLBACK=${ALLOW_SYNTHETIC_FALLBACK:-"true"}
+ALLOW_SYNTHETIC_FALLBACK=${ALLOW_SYNTHETIC_FALLBACK:-"auto"}
+REAL_DATA_DAYS=${REAL_DATA_DAYS:-90}
+MIN_REAL_SAMPLES=${MIN_REAL_SAMPLES:-1000}
 
 # Exportar variáveis de ambiente para que sejam visíveis aos processos Python
 export MLFLOW_TRACKING_URI
 export MONGODB_URI
 export ALLOW_SYNTHETIC_FALLBACK
+export REAL_DATA_DAYS
+export MIN_REAL_SAMPLES
 export DATASET_DIR
 export TRAINING_DATASET_PATH="${DATASET_DIR}/specialist_{specialist_type}_base.parquet"
 
@@ -41,6 +45,8 @@ echo "   Hyperparameter Tuning: $HYPERPARAMETER_TUNING"
 echo "   Promote If Better: $PROMOTE_IF_BETTER"
 echo "   Dataset Directory: $DATASET_DIR"
 echo "   Allow Synthetic Fallback: $ALLOW_SYNTHETIC_FALLBACK"
+echo "   Real Data Days: $REAL_DATA_DAYS"
+echo "   Min Real Samples: $MIN_REAL_SAMPLES"
 echo ""
 
 # Pre-flight checks
@@ -178,7 +184,10 @@ for specialist in "${SPECIALISTS[@]}"; do
         --specialist-type "$specialist" \
         --model-type "$MODEL_TYPE" \
         --hyperparameter-tuning "$HYPERPARAMETER_TUNING" \
-        --promote-if-better "$PROMOTE_IF_BETTER"; then
+        --promote-if-better "$PROMOTE_IF_BETTER" \
+        --allow-synthetic-fallback "$ALLOW_SYNTHETIC_FALLBACK" \
+        --real-data-days "$REAL_DATA_DAYS" \
+        --min-real-samples "$MIN_REAL_SAMPLES"; then
         echo ""
         echo "   ✅ Modelo treinado e registrado para $specialist"
         echo ""
