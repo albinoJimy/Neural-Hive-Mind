@@ -1,0 +1,122 @@
+name: ML Integration Tests
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'services/orchestrator-dynamic/src/ml/**'
+      - 'ml_pipelines/**'
+      - 'tests/integration/ml/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'services/orchestrator-dynamic/src/ml/**'
+      - 'ml_pipelines/**'
+      - 'tests/integration/ml/**'
+  schedule:
+    - cron: "0 3 * * *"
+
+jobs:
+  ml-integration-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd="mongosh --eval 'db.adminCommand({ping: 1})'"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-ml-${{ hashFiles('tests/requirements-test.txt', 'services/orchestrator-dynamic/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-ml-
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r tests/requirements-test.txt
+          pip install -r services/orchestrator-dynamic/requirements.txt
+          pip install scikit-learn pandas numpy mlflow pytest-asyncio motor
+
+      - name: Verify MongoDB connection
+        run: |
+          pip install pymongo
+          python -c "from pymongo import MongoClient; c = MongoClient('mongodb://localhost:27017'); c.admin.command('ping'); print('MongoDB conectado')"
+
+      - name: Run ML Integration Tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+          MLFLOW_TRACKING_URI: file:///tmp/mlflow_test
+          PYTHONPATH: services/orchestrator-dynamic/src
+        run: |
+          pytest tests/integration/ml/ \
+            -v \
+            --tb=short \
+            -m "ml_integration" \
+            --junit-xml=tests/results/ml-integration-junit.xml \
+            --cov=services/orchestrator-dynamic/src/ml \
+            --cov-report=xml:tests/results/ml-integration-coverage.xml \
+            --cov-report=html:tests/results/ml-integration-coverage-html \
+            --log-cli-level=INFO
+        timeout-minutes: 20
+
+      - name: Run ML Unit Tests
+        env:
+          PYTHONPATH: services/orchestrator-dynamic/src
+        run: |
+          pytest services/orchestrator-dynamic/tests/ml/ \
+            -v \
+            --tb=short \
+            -m "not real_integration" \
+            --junit-xml=tests/results/ml-unit-junit.xml \
+            --log-cli-level=INFO
+        timeout-minutes: 10
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: ml-integration-test-results
+          path: tests/results/
+
+      - name: Upload coverage
+        if: always()
+        uses: codecov/codecov-action@v3
+        with:
+          files: tests/results/ml-integration-coverage.xml
+          flags: ml-integration
+          fail_ci_if_error: false
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Resumo dos Testes ML" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f "tests/results/ml-integration-junit.xml" ]; then
+            echo "✅ Testes de integração ML executados" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Testes de integração ML falharam" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f "tests/results/ml-unit-junit.xml" ]; then
+            echo "✅ Testes unitários ML executados" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Testes unitários ML falharam" >> $GITHUB_STEP_SUMMARY
+          fi

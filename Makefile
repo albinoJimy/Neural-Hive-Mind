@@ -81,6 +81,19 @@ test-coverage: ; @$(TEST) --type all --coverage
 test-parallel: ; @$(TEST) --type all --parallel --jobs 8
 test-clean: ; @rm -rf tests/results tests/coverage tests/logs
 
+.PHONY: test-ml-unit test-ml-integration test-ml-all
+test-ml-unit: ## Executar testes unitarios ML
+	@echo "Executando testes unitarios ML..."
+	@cd services/orchestrator-dynamic && \
+	pytest tests/ml/ -v -m "not real_integration"
+
+test-ml-integration: ## Executar testes de integracao ML
+	@echo "Executando testes de integracao ML..."
+	@pytest tests/integration/ml/ -v -m ml_integration
+
+test-ml-all: test-ml-unit test-ml-integration ## Executar todos os testes ML
+	@echo "Todos os testes ML completados."
+
 .PHONY: validate validate-all validate-specialists validate-infrastructure validate-services validate-security validate-observability validate-performance validate-phase validate-e2e
 validate: validate-all
 validate-all: ; @$(VALIDATE) --target all
@@ -234,6 +247,26 @@ deploy-online-learning-dashboard: ## Deploy dashboard Grafana de online learning
 		-n monitoring --dry-run=client -o yaml | kubectl apply -f -
 	@kubectl apply -f monitoring/alerts/online-learning-alerts.yaml
 	@echo "Dashboard and alerts deployed."
+
+# ML Feedback & Retraining Dashboard
+.PHONY: import-dashboards deploy-ml-feedback-dashboard deploy-monitoring
+import-dashboards: ## Import Grafana dashboards via API
+	@echo "Importing Grafana dashboards..."
+	@./monitoring/dashboards/import-dashboards.sh --all
+
+deploy-ml-feedback-dashboard: ## Deploy ML Feedback & Retraining dashboard
+	@echo "Deploying ML Feedback & Retraining dashboard..."
+	@kubectl apply -f k8s/monitoring/ml-feedback-dashboard-configmap.yaml
+	@echo "Dashboard deployed. Access at: /d/ml-feedback-retraining"
+
+deploy-monitoring: ## Deploy complete monitoring stack with dashboards
+	@echo "Deploying monitoring stack..."
+	@kubectl apply -f k8s/monitoring/
+	@echo "Waiting for Grafana to be ready..."
+	@kubectl wait --for=condition=ready pod -l app=grafana -n monitoring --timeout=300s || true
+	@echo "Importing dashboards..."
+	@$(MAKE) import-dashboards || echo "Dashboard import via API skipped (Grafana may not be accessible)"
+	@echo "Monitoring stack deployed."
 
 # Sincronizacao de Schemas Avro
 .PHONY: sync-schemas sync-schemas-helm sync-schemas-k8s
