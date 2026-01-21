@@ -1,0 +1,138 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: continuous-validation-collector
+  namespace: neural-hive-orchestration
+  labels:
+    app: neural-hive
+    component: continuous-validation
+    layer: ml-ops
+spec:
+  # Executa a cada hora
+  schedule: "0 * * * *"
+
+  # Limite de histórico de jobs
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+
+  # Deadline para conclusão do job (10 minutos)
+  startingDeadlineSeconds: 600
+
+  # Não executar em paralelo
+  concurrencyPolicy: Forbid
+
+  jobTemplate:
+    metadata:
+      labels:
+        app: neural-hive
+        component: continuous-validation
+        layer: ml-ops
+    spec:
+      # Número máximo de tentativas
+      backoffLimit: 3
+
+      # Timeout do job (15 minutos)
+      activeDeadlineSeconds: 900
+
+      template:
+        metadata:
+          labels:
+            app: neural-hive
+            component: continuous-validation
+            layer: ml-ops
+          annotations:
+            prometheus.io/scrape: "false"  # Job batch não expõe /metrics
+        spec:
+          restartPolicy: OnFailure
+
+          containers:
+          - name: continuous-validation-collector
+            # Usar imagem do orchestrator-dynamic
+            image: neural-hive/orchestrator-dynamic:1.0.8
+            imagePullPolicy: IfNotPresent
+
+            command:
+            - python
+            - -m
+            - src.ml.scripts.run_continuous_validation
+
+            args:
+            - --populate-from-mongodb
+            - --compute-metrics
+            - --check-thresholds
+            - --verbose
+
+            env:
+            # MongoDB
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-credentials
+                  key: uri
+            - name: MONGODB_DATABASE
+              value: "neural_hive_orchestration"
+
+            # Continuous Validation Config
+            - name: ML_CONTINUOUS_VALIDATION_ENABLED
+              value: "true"
+            - name: ML_VALIDATION_USE_MONGODB
+              value: "true"
+            - name: ML_VALIDATION_MONGODB_COLLECTION
+              value: "model_predictions"
+            - name: ML_VALIDATION_WINDOWS
+              value: "1h,24h,7d"
+            - name: ML_VALIDATION_LATENCY_ENABLED
+              value: "true"
+            - name: ML_VALIDATION_R2_ENABLED
+              value: "true"
+            - name: ML_VALIDATION_MAE_THRESHOLD
+              value: "0.15"
+            - name: ML_VALIDATION_ALERT_COOLDOWN_MINUTES
+              value: "30"
+
+            # ClickHouse (opcional)
+            - name: CLICKHOUSE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: continuous-validation-config
+                  key: clickhouse-host
+                  optional: true
+            - name: CLICKHOUSE_PORT
+              value: "9000"
+            - name: CLICKHOUSE_DATABASE
+              value: "neural_hive_analytics"
+
+            # Prometheus Pushgateway
+            - name: PROMETHEUS_PUSHGATEWAY_URL
+              value: "http://prometheus-pushgateway.monitoring.svc.cluster.local:9091"
+
+            # Redis (cache)
+            - name: REDIS_CLUSTER_NODES
+              valueFrom:
+                secretKeyRef:
+                  name: redis-credentials
+                  key: cluster-nodes
+                  optional: true
+
+            resources:
+              requests:
+                cpu: "200m"
+                memory: "512Mi"
+              limits:
+                cpu: "1000m"
+                memory: "1Gi"
+
+---
+# ConfigMap para configuração
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: continuous-validation-config
+  namespace: neural-hive-orchestration
+  labels:
+    app: neural-hive
+    component: continuous-validation
+data:
+  check-interval-seconds: "300"
+  windows: "1h,24h,7d"
+  # clickhouse-host: "clickhouse.clickhouse.svc.cluster.local"

@@ -689,6 +689,40 @@ class OrchestratorSettings(BaseSettings):
         description='Habilitar rollback automático quando modelo novo performa pior'
     )
 
+    # Continuous Validation Configuration
+    ml_continuous_validation_enabled: bool = Field(
+        default=True,
+        description='Habilitar validação contínua de modelos em produção'
+    )
+    ml_validation_check_interval_seconds: int = Field(
+        default=300,
+        description='Intervalo entre checks de validação contínua (5 minutos)'
+    )
+    ml_validation_use_mongodb: bool = Field(
+        default=True,
+        description='Usar MongoDB como fonte primária de predições (fallback para in-memory)'
+    )
+    ml_validation_mongodb_collection: str = Field(
+        default='model_predictions',
+        description='Collection MongoDB para predições e actuals'
+    )
+    ml_validation_windows: List[str] = Field(
+        default=['1h', '24h', '7d'],
+        description='Janelas temporais para métricas agregadas'
+    )
+    ml_validation_alert_cooldown_minutes: int = Field(
+        default=30,
+        description='Cooldown entre alertas do mesmo tipo (evitar spam)'
+    )
+    ml_validation_latency_enabled: bool = Field(
+        default=True,
+        description='Habilitar coleta de métricas de latência (p50, p95, p99)'
+    )
+    ml_validation_r2_enabled: bool = Field(
+        default=True,
+        description='Habilitar cálculo de R² (coeficiente de determinação)'
+    )
+
     # Canary Deployment
     ml_canary_enabled: bool = Field(
         default=False,
@@ -701,6 +735,62 @@ class OrchestratorSettings(BaseSettings):
     ml_canary_duration_minutes: int = Field(
         default=60,
         description='Duração do período de canary em minutos'
+    )
+
+    # Shadow Mode Configuration
+    ml_shadow_mode_enabled: bool = Field(
+        default=False,
+        description='Habilitar shadow mode para validação de modelos antes de canary'
+    )
+    ml_shadow_mode_duration_minutes: int = Field(
+        default=10080,  # 7 dias
+        description='Duração do período de shadow mode em minutos (default: 7 dias)'
+    )
+    ml_shadow_mode_min_predictions: int = Field(
+        default=1000,
+        description='Mínimo de predições shadow antes de considerar válido'
+    )
+    ml_shadow_mode_agreement_threshold: float = Field(
+        default=0.90,
+        description='Threshold de agreement rate para passar shadow mode (90%)'
+    )
+    ml_shadow_mode_sample_rate: float = Field(
+        default=1.0,
+        description='Taxa de amostragem para shadow predictions (1.0 = 100%)'
+    )
+    ml_shadow_mode_persist_comparisons: bool = Field(
+        default=True,
+        description='Persistir comparações no MongoDB para análise'
+    )
+    ml_shadow_mode_circuit_breaker_enabled: bool = Field(
+        default=True,
+        description='Habilitar circuit breaker para falhas do modelo shadow'
+    )
+    ml_shadow_model_version: Optional[str] = Field(
+        default=None,
+        description='Versão específica do modelo shadow a ser usada (se None, usa versão mais recente em staging)'
+    )
+
+    # Gradual Rollout Configuration
+    ml_gradual_rollout_enabled: bool = Field(
+        default=True,
+        description='Habilitar gradual rollout com checkpoints para modelos ML'
+    )
+    ml_rollout_stages: List[float] = Field(
+        default=[0.25, 0.50, 0.75, 1.0],
+        description='Estágios de rollout progressivo (fração de tráfego em cada estágio)'
+    )
+    ml_checkpoint_duration_minutes: int = Field(
+        default=30,
+        description='Duração de cada checkpoint de rollout em minutos'
+    )
+    ml_checkpoint_mae_threshold_pct: float = Field(
+        default=20.0,
+        description='Threshold de aumento de MAE (%) para rollback em checkpoint'
+    )
+    ml_checkpoint_error_rate_threshold: float = Field(
+        default=0.001,
+        description='Threshold de error rate (0.1%) para rollback em checkpoint'
     )
 
     # Pydantic v2: model_config substitui class Config
@@ -741,6 +831,15 @@ class OrchestratorSettings(BaseSettings):
             raise ValueError(
                 f"Endpoints HTTP inseguros detectados em ambiente {self.environment}: {endpoint_list}. "
                 "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+            )
+
+        # Validar que shadow mode está habilitado se canary está habilitado
+        if self.ml_canary_enabled and not self.ml_shadow_mode_enabled:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "canary_enabled_without_shadow_mode: "
+                "Recomenda-se habilitar shadow mode antes de canary para validação mais segura"
             )
 
         return self

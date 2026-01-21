@@ -13,6 +13,8 @@ from collections import deque
 from dataclasses import dataclass, field
 import numpy as np
 import structlog
+from sklearn.metrics import r2_score
+from motor.motor_asyncio import AsyncIOMotorClient
 
 logger = structlog.get_logger(__name__)
 
@@ -61,6 +63,7 @@ class ValidationWindow:
                 'mae': None,
                 'mape': None,
                 'rmse': None,
+                'r2': None,
                 'sample_count': len(preds),
                 'sufficient_data': False
             }
@@ -77,6 +80,12 @@ class ValidationWindow:
 
         rmse = np.sqrt(np.mean(errors ** 2))
 
+        # R² (coeficiente de determinação)
+        try:
+            r2 = r2_score(actuals, preds)
+        except Exception:
+            r2 = None
+
         # MAE percentual relativo à média
         mean_actual = np.mean(actuals)
         mae_pct = (mae / mean_actual * 100) if mean_actual > 0 else None
@@ -86,6 +95,7 @@ class ValidationWindow:
             'mae_pct': mae_pct,
             'mape': float(mape) if mape is not None else None,
             'rmse': float(rmse),
+            'r2': float(r2) if r2 is not None else None,
             'mean_actual': float(mean_actual),
             'mean_prediction': float(np.mean(preds)),
             'sample_count': len(preds),
@@ -114,6 +124,73 @@ class ValidationAlert:
         }
 
 
+@dataclass
+class LatencyWindow:
+    """Janela de latência com percentiles."""
+    window_name: str
+    window_hours: int
+    latencies: deque = field(default_factory=lambda: deque(maxlen=10000))
+    timestamps: deque = field(default_factory=lambda: deque(maxlen=10000))
+    errors: deque = field(default_factory=lambda: deque(maxlen=10000))
+
+    def add_latency(
+        self,
+        latency_ms: float,
+        had_error: bool = False,
+        timestamp: Optional[datetime] = None
+    ) -> None:
+        """Adiciona latência à janela."""
+        ts = timestamp or datetime.utcnow()
+        self.latencies.append(latency_ms)
+        self.errors.append(int(had_error))
+        self.timestamps.append(ts)
+
+    def get_valid_latencies(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Retorna latências válidas dentro da janela de tempo."""
+        cutoff = datetime.utcnow() - timedelta(hours=self.window_hours)
+
+        valid_latencies = []
+        valid_errors = []
+
+        for latency, error, ts in zip(self.latencies, self.errors, self.timestamps):
+            if ts >= cutoff:
+                valid_latencies.append(latency)
+                valid_errors.append(error)
+
+        return np.array(valid_latencies), np.array(valid_errors)
+
+    def compute_metrics(self) -> Dict[str, float]:
+        """Calcula métricas de latência."""
+        latencies, errors = self.get_valid_latencies()
+
+        if len(latencies) < 10:
+            return {
+                'p50': None,
+                'p95': None,
+                'p99': None,
+                'mean': None,
+                'error_rate': None,
+                'sample_count': len(latencies),
+                'sufficient_data': False
+            }
+
+        p50 = float(np.percentile(latencies, 50))
+        p95 = float(np.percentile(latencies, 95))
+        p99 = float(np.percentile(latencies, 99))
+        mean = float(np.mean(latencies))
+        error_rate = float(np.mean(errors))
+
+        return {
+            'p50': p50,
+            'p95': p95,
+            'p99': p99,
+            'mean': mean,
+            'error_rate': error_rate,
+            'sample_count': len(latencies),
+            'sufficient_data': True
+        }
+
+
 class ContinuousValidator:
     """
     Validador contínuo para modelos ML.
@@ -128,7 +205,7 @@ class ContinuousValidator:
     def __init__(
         self,
         config,
-        mongodb_client=None,
+        mongodb_client: Optional[AsyncIOMotorClient] = None,
         clickhouse_client=None,
         metrics=None,
         alert_handlers: Optional[List] = None
@@ -150,13 +227,27 @@ class ContinuousValidator:
 
         # Thresholds de configuração
         self.mae_threshold_pct = getattr(config, 'ml_validation_mae_threshold', 0.15) * 100
-        self.alert_cooldown_minutes = getattr(config, 'ml_alert_cooldown_minutes', 30)
+        self.alert_cooldown_minutes = getattr(config, 'ml_validation_alert_cooldown_minutes', 30)
+        self.use_mongodb = getattr(config, 'ml_validation_use_mongodb', True)
+        self.mongodb_collection = getattr(config, 'ml_validation_mongodb_collection', 'model_predictions')
 
-        # Janelas de validação
+        # Janelas de validação configuráveis
+        window_configs = getattr(config, 'ml_validation_windows', ['1h', '24h', '7d'])
+        window_hours_map = {'1h': 1, '24h': 24, '7d': 168}
+
         self.windows: Dict[str, ValidationWindow] = {
-            '24h': ValidationWindow(window_name='24h', window_hours=24),
-            '7d': ValidationWindow(window_name='7d', window_hours=168)
+            name: ValidationWindow(window_name=name, window_hours=window_hours_map.get(name, 24))
+            for name in window_configs
         }
+
+        # Janelas de latência (se habilitado)
+        self.latency_enabled = getattr(config, 'ml_validation_latency_enabled', True)
+        self.latency_windows: Dict[str, LatencyWindow] = {}
+        if self.latency_enabled:
+            self.latency_windows = {
+                name: LatencyWindow(window_name=name, window_hours=window_hours_map.get(name, 24))
+                for name in window_configs
+            }
 
         # Buffer de predições pendentes (aguardando outcome)
         self._pending_predictions: Dict[str, Dict[str, Any]] = {}
@@ -177,7 +268,8 @@ class ContinuousValidator:
         ticket_id: str,
         predicted_duration_ms: float,
         model_version: str = 'unknown',
-        features: Optional[Dict[str, float]] = None
+        features: Optional[Dict[str, float]] = None,
+        prediction_latency_ms: Optional[float] = None
     ) -> None:
         """
         Registra uma predição para validação posterior.
@@ -187,21 +279,24 @@ class ContinuousValidator:
             predicted_duration_ms: Duração predita em ms
             model_version: Versão do modelo
             features: Features usadas (opcional)
+            prediction_latency_ms: Latência da predição em ms (opcional)
         """
         self._pending_predictions[ticket_id] = {
             'predicted_duration_ms': predicted_duration_ms,
             'model_version': model_version,
             'features': features,
+            'prediction_latency_ms': prediction_latency_ms,
             'timestamp': datetime.utcnow()
         }
 
         # Limpar predições antigas
         self._cleanup_pending_predictions()
 
-    def record_actual(
+    async def record_actual(
         self,
         ticket_id: str,
-        actual_duration_ms: float
+        actual_duration_ms: float,
+        had_error: bool = False
     ) -> Optional[Dict[str, Any]]:
         """
         Registra outcome real e calcula erro.
@@ -209,6 +304,7 @@ class ContinuousValidator:
         Args:
             ticket_id: ID do ticket
             actual_duration_ms: Duração real em ms
+            had_error: Se houve erro na execução
 
         Returns:
             Resultado da validação ou None se não houver predição
@@ -218,10 +314,17 @@ class ContinuousValidator:
 
         prediction_data = self._pending_predictions.pop(ticket_id)
         predicted = prediction_data['predicted_duration_ms']
+        latency_ms = prediction_data.get('prediction_latency_ms')
 
         # Adicionar às janelas
+        timestamp = datetime.utcnow()
         for window in self.windows.values():
-            window.add_pair(predicted, actual_duration_ms)
+            window.add_pair(predicted, actual_duration_ms, timestamp)
+
+        # Adicionar latência se disponível
+        if self.latency_enabled and latency_ms is not None:
+            for latency_window in self.latency_windows.values():
+                latency_window.add_latency(latency_ms, had_error, timestamp)
 
         # Calcular erro
         error = abs(predicted - actual_duration_ms)
@@ -229,14 +332,25 @@ class ContinuousValidator:
 
         result = {
             'ticket_id': ticket_id,
-            'predicted_duration_ms': predicted,
-            'actual_duration_ms': actual_duration_ms,
+            'model_name': 'duration-predictor',
+            'predicted': predicted,
+            'actual': actual_duration_ms,
             'error_ms': error,
             'error_pct': error_pct,
+            'latency_ms': latency_ms,
+            'had_error': had_error,
             'model_version': prediction_data['model_version'],
-            'prediction_timestamp': prediction_data['timestamp'].isoformat(),
-            'validation_timestamp': datetime.utcnow().isoformat()
+            'prediction_timestamp': prediction_data['timestamp'],
+            'validation_timestamp': timestamp,
+            'timestamp': timestamp
         }
+
+        # Persistir no MongoDB
+        if self.mongodb_client and self.use_mongodb:
+            try:
+                await self.mongodb_client.db[self.mongodb_collection].insert_one(result.copy())
+            except Exception as e:
+                self.logger.warning("mongodb_insert_failed", error=str(e))
 
         # Registrar métricas
         if self.metrics:
@@ -262,6 +376,10 @@ class ContinuousValidator:
             self.logger.warning("validation_already_running")
             return
 
+        # Popular janelas do MongoDB antes de iniciar
+        if self.use_mongodb and self.mongodb_client:
+            await self.populate_windows_from_mongodb()
+
         self._stop_validation = False
         self._validation_task = asyncio.create_task(
             self._validation_loop(check_interval_seconds)
@@ -269,8 +387,107 @@ class ContinuousValidator:
 
         self.logger.info(
             "continuous_validation_started",
-            interval_seconds=check_interval_seconds
+            interval_seconds=check_interval_seconds,
+            use_mongodb=self.use_mongodb
         )
+
+    async def _fetch_predictions_from_mongodb(
+        self,
+        model_name: str,
+        window_hours: int
+    ) -> List[Dict[str, Any]]:
+        """
+        Busca predições e actuals do MongoDB.
+
+        Args:
+            model_name: Nome do modelo
+            window_hours: Janela de tempo em horas
+
+        Returns:
+            Lista de documentos com predicted, actual, latency_ms, had_error
+        """
+        if not self.mongodb_client or not self.use_mongodb:
+            return []
+
+        try:
+            cutoff = datetime.utcnow() - timedelta(hours=window_hours)
+
+            cursor = self.mongodb_client.db[self.mongodb_collection].find({
+                'model_name': model_name,
+                'timestamp': {'$gte': cutoff},
+                'actual': {'$exists': True}  # Apenas predições com outcome conhecido
+            }).sort('timestamp', -1).limit(10000)
+
+            results = await cursor.to_list(length=10000)
+
+            self.logger.debug(
+                "mongodb_predictions_fetched",
+                model_name=model_name,
+                window_hours=window_hours,
+                count=len(results)
+            )
+
+            return results
+
+        except Exception as e:
+            self.logger.warning(
+                "mongodb_fetch_failed",
+                model_name=model_name,
+                error=str(e)
+            )
+            return []
+
+    async def populate_windows_from_mongodb(
+        self,
+        model_name: str = 'duration-predictor'
+    ) -> None:
+        """
+        Popula janelas de validação com dados do MongoDB.
+
+        Args:
+            model_name: Nome do modelo
+        """
+        if not self.use_mongodb or not self.mongodb_client:
+            self.logger.info("mongodb_disabled_using_in_memory")
+            return
+
+        for window_name, window in self.windows.items():
+            predictions = await self._fetch_predictions_from_mongodb(
+                model_name=model_name,
+                window_hours=window.window_hours
+            )
+
+            for pred_doc in predictions:
+                try:
+                    predicted = pred_doc.get('predicted')
+                    actual = pred_doc.get('actual')
+                    timestamp = pred_doc.get('timestamp')
+
+                    if predicted is not None and actual is not None:
+                        window.add_pair(predicted, actual, timestamp)
+
+                    # Adicionar latência se disponível
+                    if self.latency_enabled and window_name in self.latency_windows:
+                        latency_ms = pred_doc.get('latency_ms')
+                        had_error = pred_doc.get('had_error', False)
+
+                        if latency_ms is not None:
+                            self.latency_windows[window_name].add_latency(
+                                latency_ms, had_error, timestamp
+                            )
+
+                except Exception as e:
+                    self.logger.warning(
+                        "populate_window_error",
+                        window=window_name,
+                        error=str(e)
+                    )
+
+            self.logger.info(
+                "window_populated",
+                window=window_name,
+                samples=len(window.predictions)
+            )
 
     async def stop_continuous_validation(self) -> None:
         """Para a validação contínua."""
@@ -316,12 +533,20 @@ class ContinuousValidator:
         results = {
             'timestamp': datetime.utcnow().isoformat(),
             'model_name': 'duration-predictor',
-            'windows': {}
+            'windows': {},
+            'latency_windows': {}
         }
 
+        # Métricas de predição
         for window_name, window in self.windows.items():
             metrics = window.compute_metrics()
             results['windows'][window_name] = metrics
+
+        # Métricas de latência
+        if self.latency_enabled:
+            for window_name, latency_window in self.latency_windows.items():
+                latency_metrics = latency_window.compute_metrics()
+                results['latency_windows'][window_name] = latency_metrics
 
         # Adicionar ao histórico
         self._metrics_history.append(results)
@@ -463,6 +688,7 @@ class ContinuousValidator:
             return
 
         try:
+            # Métricas de predição
             for window_name, window_metrics in results.get('windows', {}).items():
                 if not window_metrics.get('sufficient_data'):
                     continue
@@ -485,6 +711,31 @@ class ContinuousValidator:
                         model_name='duration-predictor'
                     )
 
+                r2 = window_metrics.get('r2')
+                if r2 is not None:
+                    self.metrics.record_validation_metric(
+                        metric_name='r2',
+                        value=r2,
+                        window=window_name,
+                        model_name='duration-predictor'
+                    )
+
+            # Métricas de latência
+            if self.latency_enabled:
+                for window_name, latency_metrics in results.get('latency_windows', {}).items():
+                    if not latency_metrics.get('sufficient_data'):
+                        continue
+
+                    for metric_name in ['p50', 'p95', 'p99', 'error_rate']:
+                        value = latency_metrics.get(metric_name)
+                        if value is not None:
+                            self.metrics.record_validation_metric(
+                                metric_name=f'latency_{metric_name}',
+                                value=value,
+                                window=window_name,
+                                model_name='duration-predictor'
+                            )
+
         except Exception as e:
             self.logger.warning("prometheus_update_failed", error=str(e))
 
@@ -503,10 +754,20 @@ class ContinuousValidator:
 
     def get_current_metrics(self) -> Dict[str, Any]:
         """Retorna métricas atuais de todas as janelas."""
-        return {
-            window_name: window.compute_metrics()
-            for window_name, window in self.windows.items()
+        metrics = {
+            'prediction_metrics': {
+                window_name: window.compute_metrics()
+                for window_name, window in self.windows.items()
+            }
         }
+
+        if self.latency_enabled:
+            metrics['latency_metrics'] = {
+                window_name: latency_window.compute_metrics()
+                for window_name, latency_window in self.latency_windows.items()
+            }
+
+        return metrics
 
     def get_validation_status(self) -> Dict[str, Any]:
         """Retorna status do validador."""

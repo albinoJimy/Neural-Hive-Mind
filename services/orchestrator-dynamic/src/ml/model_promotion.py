@@ -910,12 +910,24 @@ class ModelPromotionManager:
 
         try:
             current_metrics = self.continuous_validator.get_current_metrics()
-            window_24h = current_metrics.get('24h', {})
+
+            # Métricas de predição (janela 24h)
+            prediction_metrics = current_metrics.get('prediction_metrics', {})
+            window_24h = prediction_metrics.get('24h', {})
+
+            # Métricas de latência (janela 24h)
+            latency_metrics = current_metrics.get('latency_metrics', {})
+            latency_24h = latency_metrics.get('24h', {})
 
             return {
                 'mae': window_24h.get('mae'),
                 'mae_pct': window_24h.get('mae_pct'),
-                'sample_count': window_24h.get('sample_count', 0)
+                'r2': window_24h.get('r2'),
+                'sample_count': window_24h.get('sample_count', 0),
+                'latency_p50': latency_24h.get('p50'),
+                'latency_p95': latency_24h.get('p95'),
+                'latency_p99': latency_24h.get('p99'),
+                'error_rate': latency_24h.get('error_rate')
             }
 
         except Exception as e:
