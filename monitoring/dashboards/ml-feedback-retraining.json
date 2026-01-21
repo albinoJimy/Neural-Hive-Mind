@@ -1,0 +1,774 @@
+{
+  "dashboard": {
+    "title": "ML Feedback & Retraining Pipeline",
+    "tags": ["ml-ops", "feedback", "retraining", "specialists", "continuous-learning"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "specialist",
+          "type": "query",
+          "query": "label_values(neural_hive_feedback_count_current, specialist_type)",
+          "multi": true,
+          "includeAll": true,
+          "current": {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          }
+        },
+        {
+          "name": "time_range",
+          "type": "custom",
+          "query": "1h,24h,7d,30d",
+          "options": [
+            {"text": "1h", "value": "1h", "selected": false},
+            {"text": "24h", "value": "24h", "selected": true},
+            {"text": "7d", "value": "7d", "selected": false},
+            {"text": "30d", "value": "30d", "selected": false}
+          ],
+          "current": {
+            "selected": true,
+            "text": "24h",
+            "value": "24h"
+          }
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 100,
+        "title": "Overview",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+        "collapsed": false
+      },
+      {
+        "id": 1,
+        "title": "Feedback Count vs Threshold",
+        "description": "Progress toward retraining threshold (count/threshold ratio). Runbook: docs/runbooks/feedback-collection-low.md",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "neural_hive_feedback_count_current{specialist_type=~\"$specialist\"} / neural_hive_retraining_feedback_threshold{specialist_type=~\"$specialist\"}",
+            "legendFormat": "{{ specialist_type }}"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 6, "x": 0, "y": 1},
+        "options": {
+          "minVizWidth": 75,
+          "minVizHeight": 75,
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 1,
+            "unit": "percentunit",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 0.7, "color": "yellow"},
+                {"value": 0.9, "color": "orange"},
+                {"value": 1, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Retraining Triggers ($time_range)",
+        "description": "Number of retraining triggers in the selected time range. Runbook: docs/runbooks/auto-retrain-failed.md",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(neural_hive_retraining_triggers_total{specialist_type=~\"$specialist\"}[$time_range]))",
+            "legendFormat": "Triggers"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 3, "x": 6, "y": 1},
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "textMode": "value_and_name",
+          "orientation": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 3, "color": "yellow"},
+                {"value": 5, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Last Retraining Duration",
+        "description": "Duration of the last retraining run",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "neural_hive_auto_retrain_duration_seconds{specialist_type=~\"$specialist\"}",
+            "legendFormat": "{{ specialist_type }}"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 3, "x": 9, "y": 1},
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "textMode": "value_and_name",
+          "orientation": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 3600, "color": "yellow"},
+                {"value": 7200, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Avg Feedback Rating",
+        "description": "Average feedback rating across specialists",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "neural_hive_feedback_avg_rating{specialist_type=~\"$specialist\"}",
+            "legendFormat": "{{ specialist_type }}"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 3, "x": 12, "y": 1},
+        "options": {
+          "minVizWidth": 75,
+          "minVizHeight": 75,
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 1,
+            "unit": "percentunit",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 0.5, "color": "yellow"},
+                {"value": 0.8, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Retraining Success Rate",
+        "description": "Success rate of retraining triggers in the selected time range",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "sum(rate(neural_hive_retraining_triggers_total{status=\"success\", specialist_type=~\"$specialist\"}[$time_range])) / sum(rate(neural_hive_retraining_triggers_total{specialist_type=~\"$specialist\"}[$time_range]))",
+            "legendFormat": "Success Rate"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 3, "x": 15, "y": 1},
+        "options": {
+          "minVizWidth": 75,
+          "minVizHeight": 75,
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 1,
+            "unit": "percentunit",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 0.7, "color": "yellow"},
+                {"value": 0.9, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Model Performance (F1)",
+        "description": "Current F1 score of retrained models. Runbook: docs/runbooks/model-degraded.md",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "neural_hive_retraining_model_performance{specialist_type=~\"$specialist\", metric_name=\"f1\"}",
+            "legendFormat": "{{ specialist_type }}"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 6, "x": 18, "y": 1},
+        "options": {
+          "minVizWidth": 75,
+          "minVizHeight": 75,
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 1,
+            "unit": "percentunit",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 0.72, "color": "yellow"},
+                {"value": 0.75, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 101,
+        "title": "Feedback Collection",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 7},
+        "collapsed": false
+      },
+      {
+        "id": 7,
+        "title": "Feedback Submission Rate",
+        "description": "Rate of feedback submissions per specialist type",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum by (specialist_type) (rate(neural_hive_feedback_submissions_total{specialist_type=~\"$specialist\"}[$time_range]))",
+            "legendFormat": "{{ specialist_type }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "yaxes": [
+          {
+            "format": "ops",
+            "label": "Submissions/sec",
+            "min": 0
+          },
+          {
+            "format": "short",
+            "show": false
+          }
+        ],
+        "lines": true,
+        "linewidth": 2,
+        "fill": 1,
+        "fillGradient": 3
+      },
+      {
+        "id": 8,
+        "title": "Feedback Rating Distribution",
+        "description": "Distribution of human recommendations in feedback",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (human_recommendation) (neural_hive_feedback_recommendation_distribution{specialist_type=~\"$specialist\"})",
+            "legendFormat": "{{ human_recommendation }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 8},
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "showLegend": true
+          },
+          "pieType": "pie",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "Feedback by Role",
+        "description": "Feedback submissions grouped by submitter role",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum by (submitted_by_role) (rate(neural_hive_feedback_submissions_total{specialist_type=~\"$specialist\"}[$time_range]))",
+            "legendFormat": "{{ submitted_by_role }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 8},
+        "yaxes": [
+          {
+            "format": "ops",
+            "label": "Submissions/sec",
+            "min": 0
+          },
+          {
+            "format": "short",
+            "show": false
+          }
+        ],
+        "stack": true,
+        "fill": 1,
+        "linewidth": 1
+      },
+      {
+        "id": 102,
+        "title": "Retraining Triggers",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 16},
+        "collapsed": false
+      },
+      {
+        "id": 17,
+        "title": "Retraining Triggers Timeline",
+        "description": "Timeline of retraining triggers over the selected time range",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum by (specialist_type, status) (increase(neural_hive_retraining_triggers_total{specialist_type=~\"$specialist\"}[$time_range]))",
+            "legendFormat": "{{ specialist_type }} - {{ status }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 17},
+        "yaxes": [
+          {
+            "format": "short",
+            "label": "Triggers",
+            "min": 0
+          },
+          {
+            "format": "short",
+            "show": false
+          }
+        ],
+        "lines": true,
+        "linewidth": 2,
+        "fill": 1,
+        "stack": false,
+        "seriesOverrides": [
+          {
+            "alias": "/success/",
+            "color": "#73BF69"
+          },
+          {
+            "alias": "/failed/",
+            "color": "#F2495C"
+          },
+          {
+            "alias": "/pending/",
+            "color": "#FADE2A"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Threshold Progress Timeline",
+        "description": "Current feedback count vs retraining threshold over time. Runbook: docs/runbooks/feedback-collection-low.md",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "neural_hive_feedback_count_current{specialist_type=~\"$specialist\"}",
+            "legendFormat": "Current: {{ specialist_type }}"
+          },
+          {
+            "expr": "neural_hive_retraining_feedback_threshold{specialist_type=~\"$specialist\"}",
+            "legendFormat": "Threshold: {{ specialist_type }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 17},
+        "yaxes": [
+          {
+            "format": "short",
+            "label": "Feedback Count",
+            "min": 0
+          },
+          {
+            "format": "short",
+            "show": false
+          }
+        ],
+        "lines": true,
+        "linewidth": 2,
+        "fill": 0,
+        "seriesOverrides": [
+          {
+            "alias": "/Threshold:/",
+            "dashes": true,
+            "dashLength": 10,
+            "spaceLength": 10,
+            "color": "#FF6B6B"
+          },
+          {
+            "alias": "/Current:/",
+            "color": "#4ECDC4"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Triggers by Status",
+        "description": "Distribution of retraining triggers by status",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (status) (neural_hive_retraining_triggers_total{specialist_type=~\"$specialist\"})",
+            "legendFormat": "{{ status }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 25},
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "showLegend": true
+          },
+          "pieType": "pie",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          }
+        },
+        "fieldConfig": {
+          "defaults": {},
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "success"},
+              "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "green"}}]
+            },
+            {
+              "matcher": {"id": "byName", "options": "failed"},
+              "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}]
+            },
+            {
+              "matcher": {"id": "byName", "options": "pending"},
+              "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "yellow"}}]
+            }
+          ]
+        }
+      },
+      {
+        "id": 103,
+        "title": "Retraining Execution",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 33},
+        "collapsed": false
+      },
+      {
+        "id": 12,
+        "title": "Retraining Duration (P50, P95, P99)",
+        "description": "Distribution of retraining duration across percentiles",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum by (specialist_type, le) (rate(neural_hive_retraining_mlflow_run_duration_seconds_bucket{specialist_type=~\"$specialist\"}[$time_range])))",
+            "legendFormat": "{{ specialist_type }} P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum by (specialist_type, le) (rate(neural_hive_retraining_mlflow_run_duration_seconds_bucket{specialist_type=~\"$specialist\"}[$time_range])))",
+            "legendFormat": "{{ specialist_type }} P95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum by (specialist_type, le) (rate(neural_hive_retraining_mlflow_run_duration_seconds_bucket{specialist_type=~\"$specialist\"}[$time_range])))",
+            "legendFormat": "{{ specialist_type }} P99"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 34},
+        "yaxes": [
+          {
+            "format": "s",
+            "label": "Duration (seconds)",
+            "min": 0
+          },
+          {
+            "format": "short",
+            "show": false
+          }
+        ],
+        "lines": true,
+        "linewidth": 2
+      },
+      {
+        "id": 13,
+        "title": "Auto-Retrain Triggers Timeline",
+        "description": "Timeline of automatic retraining triggers by status",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum by (specialist_type, status) (increase(neural_hive_auto_retrain_triggered_total{specialist_type=~\"$specialist\"}[$time_range]))",
+            "legendFormat": "{{ specialist_type }} - {{ status }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 34},
+        "yaxes": [
+          {
+            "format": "short",
+            "label": "Triggers",
+            "min": 0
+          },
+          {
+            "format": "short",
+            "show": false
+          }
+        ],
+        "bars": true,
+        "lines": false,
+        "stack": true
+      },
+      {
+        "id": 104,
+        "title": "Model Performance Trends",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 42},
+        "collapsed": false
+      },
+      {
+        "id": 14,
+        "title": "Model Metrics Evolution",
+        "description": "Evolution of precision, recall, and F1 over time. Runbook: docs/runbooks/model-degraded.md",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "neural_hive_retraining_model_performance{specialist_type=~\"$specialist\", metric_name=\"precision\"}",
+            "legendFormat": "{{ specialist_type }} - Precision"
+          },
+          {
+            "expr": "neural_hive_retraining_model_performance{specialist_type=~\"$specialist\", metric_name=\"recall\"}",
+            "legendFormat": "{{ specialist_type }} - Recall"
+          },
+          {
+            "expr": "neural_hive_retraining_model_performance{specialist_type=~\"$specialist\", metric_name=\"f1\"}",
+            "legendFormat": "{{ specialist_type }} - F1"
+          }
+        ],
+        "gridPos": {"h": 10, "w": 24, "x": 0, "y": 43},
+        "yaxes": [
+          {
+            "format": "percentunit",
+            "label": "Score",
+            "min": 0,
+            "max": 1
+          },
+          {
+            "format": "short",
+            "show": false
+          }
+        ],
+        "lines": true,
+        "linewidth": 2,
+        "fill": 0,
+        "seriesOverrides": [
+          {
+            "alias": "/Precision/",
+            "color": "#1f77b4"
+          },
+          {
+            "alias": "/Recall/",
+            "color": "#ff7f0e"
+          },
+          {
+            "alias": "/F1/",
+            "color": "#2ca02c"
+          }
+        ],
+        "thresholds": [
+          {
+            "colorMode": "critical",
+            "fill": true,
+            "line": true,
+            "op": "lt",
+            "value": 0.75,
+            "yaxis": "left"
+          }
+        ],
+        "alert": {
+          "name": "Model F1 Below Threshold",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [0.75],
+                "type": "lt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["C", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "for": "5m",
+          "frequency": "1m",
+          "message": "Model F1 score has dropped below 0.75. Check model performance and consider retraining.",
+          "noDataState": "no_data"
+        }
+      },
+      {
+        "id": 105,
+        "title": "Dataset Quality",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 53},
+        "collapsed": false
+      },
+      {
+        "id": 15,
+        "title": "Dataset Size by Type",
+        "description": "Size of training/validation/test datasets",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "neural_hive_retraining_dataset_size{specialist_type=~\"$specialist\"}",
+            "legendFormat": "{{ specialist_type }} - {{ dataset_type }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 54},
+        "yaxes": [
+          {
+            "format": "short",
+            "label": "Samples",
+            "min": 0
+          },
+          {
+            "format": "short",
+            "show": false
+          }
+        ],
+        "stack": true,
+        "fill": 1,
+        "linewidth": 1
+      },
+      {
+        "id": 16,
+        "title": "Feedback API Errors",
+        "description": "Rate of errors from the feedback API",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum by (error_type) (rate(neural_hive_feedback_api_errors_total{specialist_type=~\"$specialist\"}[$time_range]))",
+            "legendFormat": "{{ error_type }}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 54},
+        "yaxes": [
+          {
+            "format": "ops",
+            "label": "Errors/sec",
+            "min": 0
+          },
+          {
+            "format": "short",
+            "show": false
+          }
+        ],
+        "lines": true,
+        "linewidth": 2,
+        "fill": 1,
+        "thresholds": [
+          {
+            "colorMode": "critical",
+            "fill": true,
+            "line": true,
+            "op": "gt",
+            "value": 0.1,
+            "yaxis": "left"
+          }
+        ]
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "name": "Retraining Triggered",
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "changes(neural_hive_retraining_triggers_total{specialist_type=~\"$specialist\"}[1m]) > 0",
+          "iconColor": "blue",
+          "tagKeys": "specialist_type,status",
+          "titleFormat": "Retraining Triggered"
+        },
+        {
+          "name": "Auto-Retrain Triggered",
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "changes(neural_hive_auto_retrain_triggered_total{specialist_type=~\"$specialist\"}[1m]) > 0",
+          "iconColor": "purple",
+          "tagKeys": "specialist_type,status",
+          "titleFormat": "Auto-Retrain Triggered"
+        },
+        {
+          "name": "Model Degradation",
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "neural_hive_model_degradation_detected{specialist_type=~\"$specialist\"} == 1",
+          "iconColor": "red",
+          "tagKeys": "specialist_type",
+          "titleFormat": "Model Degradation Detected"
+        }
+      ]
+    },
+    "links": [
+      {
+        "title": "Continuous Learning Dashboard",
+        "url": "/d/continuous-learning",
+        "type": "link",
+        "icon": "dashboard",
+        "targetBlank": false
+      },
+      {
+        "title": "Feedback Collection Runbook",
+        "url": "docs/runbooks/feedback-collection-low.md",
+        "type": "link",
+        "icon": "doc",
+        "targetBlank": true
+      },
+      {
+        "title": "Auto-Retrain Failed Runbook",
+        "url": "docs/runbooks/auto-retrain-failed.md",
+        "type": "link",
+        "icon": "doc",
+        "targetBlank": true
+      },
+      {
+        "title": "Model Degraded Runbook",
+        "url": "docs/runbooks/model-degraded.md",
+        "type": "link",
+        "icon": "doc",
+        "targetBlank": true
+      }
+    ],
+    "schemaVersion": 38,
+    "version": 1,
+    "uid": "ml-feedback-retraining"
+  }
+}
