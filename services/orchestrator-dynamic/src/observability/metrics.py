@@ -490,6 +490,63 @@ class OrchestratorMetrics:
             ['model_name']
         )
 
+        # Shadow Mode Metrics (usando prefixo neural_hive_shadow_* conforme requisito)
+        self.ml_shadow_predictions_total = Counter(
+            'neural_hive_shadow_predictions_total',
+            'Total de predições shadow executadas',
+            ['model_name', 'model_version', 'status']
+        )
+
+        self.ml_shadow_agreement_rate = Gauge(
+            'neural_hive_shadow_agreement_rate',
+            'Taxa de agreement entre produção e shadow',
+            ['model_name', 'model_version', 'agreement_type']
+        )
+
+        self.ml_shadow_latency_seconds = Histogram(
+            'neural_hive_shadow_latency_seconds',
+            'Latência de predições shadow',
+            ['model_name', 'model_version'],
+            buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0]
+        )
+
+        self.ml_shadow_comparison_errors = Counter(
+            'neural_hive_shadow_comparison_errors_total',
+            'Erros durante comparação shadow',
+            ['model_name', 'error_type']
+        )
+
+        self.ml_shadow_circuit_breaker_state = Gauge(
+            'neural_hive_shadow_circuit_breaker_state',
+            'Estado do circuit breaker shadow (0=closed, 1=open, 2=half-open)',
+            ['model_name']
+        )
+
+        # Gradual Rollout Metrics
+        self.ml_rollout_stage = Gauge(
+            'neural_hive_rollout_stage',
+            'Current rollout stage (1-4)',
+            ['model_name']
+        )
+
+        self.ml_rollout_traffic_pct = Gauge(
+            'neural_hive_rollout_traffic_pct',
+            'Current rollout traffic percentage',
+            ['model_name']
+        )
+
+        self.ml_rollout_checkpoint_total = Counter(
+            'neural_hive_rollout_checkpoint_total',
+            'Total rollout checkpoints executed',
+            ['model_name', 'stage', 'status']
+        )
+
+        self.ml_rollout_degradation_total = Counter(
+            'neural_hive_rollout_degradation_total',
+            'Total rollout degradations detected',
+            ['model_name', 'stage', 'reason']
+        )
+
         # ML Scheduling Optimization Metrics
         self.scheduler_ml_optimizations_applied_total = Counter(
             'orchestration_scheduler_ml_optimizations_applied_total',
@@ -1308,6 +1365,135 @@ class OrchestratorMetrics:
         """Registra cache hit/miss de forecast (stub para compatibilidade)."""
         if hit:
             self.ml_prediction_cache_hits_total.labels(model_name='load-predictor').inc()
+
+    # Shadow Mode Helper Methods
+
+    def record_shadow_prediction(
+        self,
+        model_name: str,
+        model_version: str,
+        status: str,
+        latency: float,
+        agreement: dict = None
+    ):
+        """
+        Registra predição shadow.
+
+        Args:
+            model_name: Nome do modelo
+            model_version: Versão do modelo shadow
+            status: Status da predição (success, error, skipped)
+            latency: Latência em segundos
+            agreement: Dict com agreement por tipo (optional)
+        """
+        self.ml_shadow_predictions_total.labels(
+            model_name=model_name,
+            model_version=model_version,
+            status=status
+        ).inc()
+
+        self.ml_shadow_latency_seconds.labels(
+            model_name=model_name,
+            model_version=model_version
+        ).observe(latency)
+
+        if agreement:
+            for agreement_type, agreed in agreement.items():
+                self.ml_shadow_agreement_rate.labels(
+                    model_name=model_name,
+                    model_version=model_version,
+                    agreement_type=agreement_type
+                ).set(1.0 if agreed else 0.0)
+
+    def record_shadow_error(self, model_name: str, error_type: str):
+        """
+        Registra erro de shadow mode.
+
+        Args:
+            model_name: Nome do modelo
+            error_type: Tipo do erro (prediction_error, comparison_error, timeout)
+        """
+        self.ml_shadow_comparison_errors.labels(
+            model_name=model_name,
+            error_type=error_type
+        ).inc()
+
+    def set_shadow_circuit_breaker_state(self, model_name: str, state: str):
+        """
+        Atualiza estado do circuit breaker shadow.
+
+        Args:
+            model_name: Nome do modelo
+            state: Estado do circuit breaker (closed, open, half_open)
+        """
+        state_map = {'closed': 0, 'open': 1, 'half_open': 2}
+        self.ml_shadow_circuit_breaker_state.labels(
+            model_name=model_name
+        ).set(state_map.get(state, 0))
+
+    def update_shadow_agreement_rate(
+        self,
+        model_name: str,
+        model_version: str,
+        agreement_rate: float,
+        agreement_type: str = 'overall'
+    ):
+        """
+        Atualiza gauge de taxa de agreement shadow.
+
+        Args:
+            model_name: Nome do modelo
+            model_version: Versão do modelo shadow
+            agreement_rate: Taxa de agreement (0.0 - 1.0)
+            agreement_type: Tipo de agreement (overall, duration, anomaly, confidence)
+        """
+        self.ml_shadow_agreement_rate.labels(
+            model_name=model_name,
+            model_version=model_version,
+            agreement_type=agreement_type
+        ).set(agreement_rate)
+
+    # Gradual Rollout Helper Methods
+
+    def set_rollout_stage(self, model_name: str, stage: int):
+        """Define o estágio atual de rollout."""
+        try:
+            self.ml_rollout_stage.labels(
+                model_name=model_name
+            ).set(stage)
+        except Exception as e:
+            logger.warning("set_rollout_stage_failed", error=str(e))
+
+    def set_rollout_traffic_pct(self, model_name: str, traffic_pct: float):
+        """Define o percentual de tráfego atual do rollout."""
+        try:
+            self.ml_rollout_traffic_pct.labels(
+                model_name=model_name
+            ).set(traffic_pct)
+        except Exception as e:
+            logger.warning("set_rollout_traffic_pct_failed", error=str(e))
+
+    def record_rollout_checkpoint(self, model_name: str, stage: str, status: str):
+        """Registra execução de checkpoint de rollout."""
+        try:
+            self.ml_rollout_checkpoint_total.labels(
+                model_name=model_name,
+                stage=stage,
+                status=status
+            ).inc()
+        except Exception as e:
+            logger.warning("record_rollout_checkpoint_failed", error=str(e))
+
+    def record_rollout_degradation(self, model_name: str, stage: str, reason: str):
+        """Registra detecção de degradação durante rollout."""
+        try:
+            self.ml_rollout_degradation_total.labels(
+                model_name=model_name,
+                stage=stage,
+                reason=reason
+            ).inc()
+        except Exception as e:
+            logger.warning("record_rollout_degradation_failed", error=str(e))
 
 
 @lru_cache()
