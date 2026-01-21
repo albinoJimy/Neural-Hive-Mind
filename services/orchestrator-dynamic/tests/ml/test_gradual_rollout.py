@@ -431,6 +431,74 @@ class TestGradualRollout:
         assert request.model_name not in promotion_manager._rollout_baseline_metrics
         assert request.model_name not in promotion_manager._canary_traffic_split
 
+    @pytest.mark.asyncio
+    async def test_gradual_rollout_error_rate_rollback(self, promotion_manager, mock_metrics):
+        """Testa rollback automático por error rate elevado via _collect_current_metrics."""
+        # Arrange
+        request = PromotionRequest(
+            request_id="test_promo_12",
+            model_name="duration_predictor",
+            source_version="v2.0",
+            config=PromotionConfig(
+                gradual_rollout_enabled=True,
+                rollout_stages=[0.25, 0.50, 1.0],
+                checkpoint_duration_minutes=0.001,
+                auto_rollback_enabled=True,
+                checkpoint_mae_threshold_pct=50.0,  # Alto threshold MAE para não triggar
+                checkpoint_error_rate_threshold=0.001  # 0.1% threshold
+            )
+        )
+
+        # Mock métricas: baseline OK, checkpoint com error_rate elevado
+        baseline_metrics = {'mae_pct': 10.0, 'sample_count': 100, 'error_rate': 0.0}
+        high_error_rate_metrics = {'mae_pct': 10.0, 'sample_count': 100, 'error_rate': 0.01}  # 1% > 0.1%
+
+        promotion_manager._collect_current_metrics = AsyncMock(
+            side_effect=[baseline_metrics, high_error_rate_metrics]
+        )
+
+        promotion_manager._execute_rollback = AsyncMock()
+
+        # Act
+        result = await promotion_manager._run_gradual_rollout(request)
+
+        # Assert
+        assert result is False
+        assert promotion_manager._execute_rollback.called
+        assert request.error_message is not None
+        mock_metrics.record_rollout_degradation.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_collect_current_metrics_returns_error_rate(self, mock_config, mock_model_registry, mock_mongodb, mock_metrics):
+        """Testa que _collect_current_metrics retorna error_rate do continuous_validator."""
+        # Arrange - criar validator que retorna error_rate
+        validator_with_error_rate = MagicMock()
+        validator_with_error_rate.get_current_metrics = MagicMock(return_value={
+            '24h': {
+                'mae': 500,
+                'mae_pct': 10.0,
+                'sample_count': 100,
+                'error_rate': 0.005  # 0.5% error rate
+            }
+        })
+
+        manager = ModelPromotionManager(
+            config=mock_config,
+            model_registry=mock_model_registry,
+            continuous_validator=validator_with_error_rate,
+            mongodb_client=mock_mongodb,
+            metrics=mock_metrics
+        )
+
+        # Act
+        metrics = await manager._collect_current_metrics("duration_predictor")
+
+        # Assert
+        assert 'error_rate' in metrics
+        assert metrics['error_rate'] == 0.005
+        assert metrics['mae_pct'] == 10.0
+        assert metrics['sample_count'] == 100
+
 
 class TestPromotionConfigGradualRollout:
     """Testes para configuração de gradual rollout."""
