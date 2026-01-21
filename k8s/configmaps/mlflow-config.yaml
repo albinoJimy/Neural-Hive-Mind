@@ -1,0 +1,120 @@
+# =============================================================================
+# ConfigMap MLflow para Pipelines de ML
+# =============================================================================
+#
+# Este ConfigMap centraliza configuracoes para MLflow e retraining:
+# - Tracking URI para registro de experimentos
+# - Parametros de retraining automatico
+# - Configuracoes de promocao de modelos
+#
+# Referenciado por:
+# - k8s/cronjobs/retraining-trigger-job.yaml (namespace: neural-hive-mind)
+#
+# =============================================================================
+# CONFIGURACOES POR AMBIENTE
+# =============================================================================
+#
+# DESENVOLVIMENTO LOCAL:
+#   tracking-uri: http://mlflow.mlflow.svc.cluster.local:5000
+#   artifact-location: /mlflow/artifacts
+#
+# PRODUCAO (EKS com S3):
+#   tracking-uri: http://mlflow.mlflow.svc.cluster.local:5000
+#   artifact-location: s3://neural-hive-mlflow-artifacts-prod
+#
+# Para sobrescrever valores por ambiente, use Kustomize ou Helm values.
+#
+# =============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mlflow-config
+  namespace: neural-hive-mind
+  labels:
+    app: neural-hive
+    component: ml-config
+    layer: ml-ops
+  annotations:
+    description: "Configuracoes centralizadas para MLflow e retraining"
+data:
+  # =============================================================================
+  # CONEXAO MLFLOW
+  # =============================================================================
+
+  # URI do servidor MLflow Tracking
+  # Usa DNS interno do Kubernetes: <service>.<namespace>.svc.cluster.local
+  tracking-uri: "http://mlflow.mlflow.svc.cluster.local:5000"
+
+  # URI do Model Registry (geralmente mesmo que tracking-uri)
+  model-registry-uri: "http://mlflow.mlflow.svc.cluster.local:5000"
+
+  # Local de armazenamento de artefatos
+  # Desenvolvimento: /mlflow/artifacts (volume local)
+  # Producao: s3://bucket-name (AWS S3)
+  artifact-location: "/mlflow/artifacts"
+
+  # =============================================================================
+  # PARAMETROS DE RETRAINING
+  # =============================================================================
+
+  # Numero de feedbacks necessarios para disparar retraining
+  # Valor padrao: 100 feedbacks acumulados
+  # Ajuste baseado na frequencia de feedbacks do seu sistema
+  retraining-threshold: "100"
+
+  # Janela temporal (em dias) para contar feedbacks
+  # Apenas feedbacks dos ultimos N dias sao considerados
+  # Evita acumulo indefinido de feedbacks antigos
+  retraining-window-days: "7"
+
+  # Tempo minimo (em horas) entre retrainings consecutivos
+  # Previne retrainings muito frequentes que podem sobrecarregar recursos
+  # Valor padrao: 24 horas
+  retraining-cooldown-hours: "24"
+
+  # =============================================================================
+  # PROMOCAO AUTOMATICA DE MODELOS
+  # =============================================================================
+
+  # Habilitar promocao automatica de modelos para producao
+  # Se true: modelo e promovido automaticamente se metricas forem melhores
+  # Se false: promocao requer aprovacao manual
+  enable-auto-promotion: "true"
+
+  # Melhoria minima necessaria para promocao automatica
+  # Valor: 0.05 = 5% de melhoria em relacao ao modelo atual
+  # Evita promocoes de modelos com ganho marginal
+  promotion-metric-threshold: "0.05"
+
+# =============================================================================
+# OVERRIDE POR AMBIENTE COM KUSTOMIZE
+# =============================================================================
+#
+# Criar patch em kustomize/overlays/production/mlflow-config-patch.yaml:
+#
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: mlflow-config
+#   namespace: neural-hive-mind
+# data:
+#   artifact-location: "s3://neural-hive-mlflow-artifacts-prod"
+#   retraining-threshold: "500"
+#   retraining-cooldown-hours: "48"
+#
+# =============================================================================
+# TROUBLESHOOTING
+# =============================================================================
+#
+# Verificar ConfigMap:
+#   kubectl get configmap mlflow-config -n neural-hive-mind -o yaml
+#
+# Verificar se CronJob esta usando valores corretos:
+#   kubectl describe cronjob retraining-trigger -n neural-hive-mind | grep -A5 configMapKeyRef
+#
+# Testar conectividade com MLflow:
+#   kubectl run -it --rm test-mlflow --image=curlimages/curl --restart=Never \
+#     -- curl -s http://mlflow.mlflow.svc.cluster.local:5000/health
+#
+# =============================================================================

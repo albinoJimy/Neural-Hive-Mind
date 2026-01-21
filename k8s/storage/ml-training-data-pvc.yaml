@@ -1,0 +1,140 @@
+# =============================================================================
+# PersistentVolumeClaim para Dados de Treinamento ML
+# =============================================================================
+#
+# Este PVC armazena datasets de treinamento para os pipelines de ML:
+# - Dados coletados de feedback
+# - Datasets pre-processados
+# - Cache de features
+#
+# Referenciado por:
+# - k8s/cronjobs/specialist-retraining-job.yaml (linha 119)
+#
+# =============================================================================
+# STORAGECLASS POR AMBIENTE
+# =============================================================================
+#
+# DESENVOLVIMENTO LOCAL (Kubeadm/Minikube/k3s):
+#   storageClassName: local-path
+#   Limitacao: ReadWriteOnce, dados perdidos se no deletado
+#
+# PRODUCAO EKS COM EBS (gp2/gp3):
+#   storageClassName: gp2
+#   Limitacao: ReadWriteOnce, nao suporta multiplos pods simultaneos
+#   Recomendado apenas para workloads single-pod
+#
+# PRODUCAO EKS COM EFS (Recomendado para ML):
+#   storageClassName: efs-sc
+#   Vantagens: ReadWriteMany, suporta multiplos pods simultaneos
+#   Ideal para pipelines de ML paralelos
+#
+# =============================================================================
+# PRE-REQUISITOS PARA EFS
+# =============================================================================
+#
+# 1. Instalar EFS CSI Driver:
+#    kubectl apply -k "github.com/kubernetes-sigs/aws-efs-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.5"
+#
+# 2. Criar EFS File System via AWS Console ou CLI:
+#    aws efs create-file-system --creation-token neural-hive-ml-data \
+#      --performance-mode generalPurpose --throughput-mode bursting
+#
+# 3. Criar StorageClass EFS (ver exemplo comentado abaixo)
+#
+# 4. Configurar Security Groups para permitir NFS (porta 2049)
+#
+# =============================================================================
+# TROUBLESHOOTING
+# =============================================================================
+#
+# Verificar status do PVC:
+#   kubectl get pvc ml-training-data-pvc -n mlflow
+#
+# Ver eventos detalhados:
+#   kubectl describe pvc ml-training-data-pvc -n mlflow
+#
+# Problemas comuns:
+# - "Pending": StorageClass nao existe ou provisioner nao esta rodando
+# - "Lost": Volume foi deletado mas PVC ainda existe
+# - "WaitForFirstConsumer": Normal, sera provisionado quando pod usar
+#
+# Verificar StorageClasses disponiveis:
+#   kubectl get storageclass
+#
+# =============================================================================
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ml-training-data-pvc
+  namespace: mlflow
+  labels:
+    app: neural-hive
+    component: ml-training
+    layer: storage
+  annotations:
+    description: "Armazenamento para datasets de treinamento ML"
+spec:
+  # ReadWriteMany para suportar multiplos pods de treinamento
+  # Requer StorageClass com suporte (EFS, NFS, etc)
+  # Para desenvolvimento local, altere para ReadWriteOnce
+  accessModes:
+    - ReadWriteMany
+
+  # ALTERE para sua StorageClass:
+  # - local-path: desenvolvimento local
+  # - gp2: EKS com EBS (ReadWriteOnce apenas)
+  # - efs-sc: EKS com EFS (recomendado para producao)
+  storageClassName: local-path
+
+  resources:
+    requests:
+      # 10Gi suficiente para ~100k amostras de treinamento
+      # Ajuste conforme volume de dados esperado
+      storage: 10Gi
+
+# =============================================================================
+# EXEMPLO: StorageClass EFS para EKS
+# =============================================================================
+#
+# Salvar em k8s/infrastructure/storageclass-efs.yaml:
+#
+# ---
+# apiVersion: storage.k8s.io/v1
+# kind: StorageClass
+# metadata:
+#   name: efs-sc
+#   labels:
+#     app: neural-hive
+# provisioner: efs.csi.aws.com
+# parameters:
+#   # ID do EFS File System criado na AWS
+#   fileSystemId: fs-XXXXXXXX
+#   # Modo de provisionamento dinamico
+#   provisioningMode: efs-ap
+#   # Permissoes do diretorio
+#   directoryPerms: "700"
+#   # UID/GID do owner (opcional)
+#   # uid: "1000"
+#   # gid: "1000"
+# reclaimPolicy: Retain
+# volumeBindingMode: Immediate
+# =============================================================================
+
+# =============================================================================
+# EXEMPLO: PVC com EBS gp3 para single-pod workloads
+# =============================================================================
+#
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: ml-training-data-pvc
+#   namespace: mlflow
+# spec:
+#   accessModes:
+#     - ReadWriteOnce  # EBS suporta apenas RWO
+#   storageClassName: gp3
+#   resources:
+#     requests:
+#       storage: 50Gi  # EBS permite tamanhos maiores facilmente
+# =============================================================================
