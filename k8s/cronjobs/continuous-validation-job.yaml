@@ -104,7 +104,7 @@ spec:
 
             # Prometheus Pushgateway
             - name: PROMETHEUS_PUSHGATEWAY_URL
-              value: "http://prometheus-pushgateway.monitoring.svc.cluster.local:9091"
+              value: "https://prometheus-pushgateway.monitoring.svc.cluster.local:9091"
 
             # Redis (cache)
             - name: REDIS_CLUSTER_NODES

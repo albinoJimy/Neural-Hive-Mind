@@ -263,6 +263,11 @@ class ContinuousValidator:
         # Histórico de métricas
         self._metrics_history: deque = deque(maxlen=1000)
 
+        # Cache de baseline de treinamento
+        self._training_baseline: Optional[Dict[str, Any]] = None
+        self._baseline_cache_ttl_hours = 24
+        self._baseline_last_fetched: Optional[datetime] = None
+
     def record_prediction(
         self,
         ticket_id: str,
@@ -553,17 +558,162 @@ class ContinuousValidator:
 
         return results
 
+    async def _fetch_training_baseline(
+        self,
+        model_name: str = 'duration-predictor'
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Busca baseline de treinamento do MongoDB.
+
+        Args:
+            model_name: Nome do modelo
+
+        Returns:
+            Dict com métricas baseline (mae, rmse, mae_pct, r2) ou None
+        """
+        # Verificar cache
+        if (
+            self._training_baseline is not None and
+            self._baseline_last_fetched is not None and
+            datetime.utcnow() - self._baseline_last_fetched < timedelta(hours=self._baseline_cache_ttl_hours)
+        ):
+            return self._training_baseline
+
+        if not self.mongodb_client or not self.use_mongodb:
+            return None
+
+        try:
+            # Buscar baseline mais recente da coleção de histórico de treinamento
+            baseline_doc = await self.mongodb_client.db['ml_training_history'].find_one(
+                {
+                    'model_name': model_name,
+                    'status': 'completed',
+                    'metrics': {'$exists': True}
+                },
+                sort=[('trained_at', -1)]
+            )
+
+            if baseline_doc and baseline_doc.get('metrics'):
+                metrics = baseline_doc['metrics']
+                self._training_baseline = {
+                    'mae': metrics.get('mae'),
+                    'rmse': metrics.get('rmse'),
+                    'mae_pct': metrics.get('mae_pct'),
+                    'r2': metrics.get('r2'),
+                    'trained_at': baseline_doc.get('trained_at'),
+                    'model_version': baseline_doc.get('model_version')
+                }
+                self._baseline_last_fetched = datetime.utcnow()
+
+                self.logger.info(
+                    "training_baseline_fetched",
+                    model_name=model_name,
+                    baseline_mae=self._training_baseline.get('mae'),
+                    baseline_mae_pct=self._training_baseline.get('mae_pct'),
+                    trained_at=str(self._training_baseline.get('trained_at'))
+                )
+
+                return self._training_baseline
+
+            self.logger.warning(
+                "training_baseline_not_found",
+                model_name=model_name
+            )
+            return None
+
+        except Exception as e:
+            self.logger.warning(
+                "training_baseline_fetch_failed",
+                model_name=model_name,
+                error=str(e)
+            )
+            return None
+
     async def _check_thresholds(self, results: Dict[str, Any]) -> None:
-        """Verifica thresholds e gera alertas se necessário."""
+        """
+        Verifica thresholds e gera alertas se necessário.
+
+        Primeiro compara métricas atuais com baseline de treinamento.
+        Usa threshold fixo como fallback se baseline não disponível.
+        """
+        # Buscar baseline de treinamento
+        baseline = await self._fetch_training_baseline()
+
         for window_name, metrics in results.get('windows', {}).items():
             if not metrics.get('sufficient_data'):
                 continue
 
             mae_pct = metrics.get('mae_pct')
+            mae = metrics.get('mae')
+            rmse = metrics.get('rmse')
+
             if mae_pct is None:
                 continue
 
-            # Verificar threshold
+            # Comparar com baseline se disponível
+            if baseline is not None:
+                baseline_mae_pct = baseline.get('mae_pct')
+                baseline_mae = baseline.get('mae')
+                baseline_rmse = baseline.get('rmse')
+
+                # Calcular degradação relativa ao baseline
+                degradation_detected = False
+                degradation_details = []
+
+                # Verificar MAE percentual (principal métrica)
+                if baseline_mae_pct is not None and baseline_mae_pct > 0:
+                    mae_pct_ratio = mae_pct / baseline_mae_pct
+                    # Alerta se MAE atual for 50% maior que baseline
+                    if mae_pct_ratio > 1.5:
+                        degradation_detected = True
+                        degradation_details.append(
+                            f"MAE% {mae_pct:.1f}% vs baseline {baseline_mae_pct:.1f}% (ratio: {mae_pct_ratio:.2f}x)"
+                        )
+
+                # Verificar MAE absoluto
+                if baseline_mae is not None and mae is not None and baseline_mae > 0:
+                    mae_ratio = mae / baseline_mae
+                    if mae_ratio > 1.5:
+                        degradation_detected = True
+                        degradation_details.append(
+                            f"MAE {mae:.2f}ms vs baseline {baseline_mae:.2f}ms (ratio: {mae_ratio:.2f}x)"
+                        )
+
+                # Verificar RMSE
+                if baseline_rmse is not None and rmse is not None and baseline_rmse > 0:
+                    rmse_ratio = rmse / baseline_rmse
+                    if rmse_ratio > 1.5:
+                        degradation_detected = True
+                        degradation_details.append(
+                            f"RMSE {rmse:.2f}ms vs baseline {baseline_rmse:.2f}ms (ratio: {rmse_ratio:.2f}x)"
+                        )
+
+                if degradation_detected:
+                    # Determinar severidade com base no maior ratio
+                    max_ratio = max([
+                        (mae_pct / baseline_mae_pct) if baseline_mae_pct and baseline_mae_pct > 0 else 0,
+                        (mae / baseline_mae) if baseline_mae and mae and baseline_mae > 0 else 0,
+                        (rmse / baseline_rmse) if baseline_rmse and rmse and baseline_rmse > 0 else 0
+                    ])
+                    severity = 'critical' if max_ratio > 2.0 else 'warning'
+
+                    await self._generate_alert(
+                        alert_type='accuracy_degradation_vs_baseline',
+                        severity=severity,
+                        message=f"Degradação detectada vs baseline de treinamento na janela {window_name}: {'; '.join(degradation_details)}",
+                        metrics={
+                            **metrics,
+                            'baseline_mae_pct': baseline_mae_pct,
+                            'baseline_mae': baseline_mae,
+                            'baseline_rmse': baseline_rmse,
+                            'baseline_trained_at': str(baseline.get('trained_at')),
+                            'degradation_details': degradation_details
+                        },
+                        window=window_name
+                    )
+                    continue  # Não verificar threshold fixo se baseline detectou problema
+
+            # Fallback: verificar threshold fixo se baseline não disponível ou não detectou degradação
             if mae_pct > self.mae_threshold_pct:
                 await self._generate_alert(
                     alert_type='accuracy_degradation',
@@ -752,8 +902,23 @@ class ContinuousValidator:
         for ticket_id in expired:
             del self._pending_predictions[ticket_id]
 
-    def get_current_metrics(self) -> Dict[str, Any]:
-        """Retorna métricas atuais de todas as janelas."""
+    async def get_current_metrics(self, force_reload: bool = False) -> Dict[str, Any]:
+        """
+        Retorna métricas atuais de todas as janelas.
+
+        Se ml_validation_use_mongodb estiver ativo, recarrega dados do MongoDB
+        para garantir que métricas reflitam o estado atual de model_predictions.
+
+        Args:
+            force_reload: Forçar recarga do MongoDB mesmo se não habilitado
+
+        Returns:
+            Dict com métricas de predição e latência por janela
+        """
+        # Recarregar do MongoDB se habilitado
+        if (self.use_mongodb and self.mongodb_client) or force_reload:
+            await self._reload_windows_from_mongodb()
+
         metrics = {
             'prediction_metrics': {
                 window_name: window.compute_metrics()
@@ -768,6 +933,42 @@ class ContinuousValidator:
             }
 
         return metrics
+
+    async def _reload_windows_from_mongodb(
+        self,
+        model_name: str = 'duration-predictor'
+    ) -> None:
+        """
+        Recarrega dados do MongoDB para todas as janelas.
+
+        Limpa janelas antes de repopular para evitar duplicidades
+        e garante que métricas reflitam model_predictions no momento da consulta.
+
+        Args:
+            model_name: Nome do modelo
+        """
+        if not self.mongodb_client or not self.use_mongodb:
+            return
+
+        # Limpar todas as janelas antes de repopular
+        for window in self.windows.values():
+            window.predictions.clear()
+            window.actuals.clear()
+            window.timestamps.clear()
+
+        if self.latency_enabled:
+            for latency_window in self.latency_windows.values():
+                latency_window.latencies.clear()
+                latency_window.errors.clear()
+                latency_window.timestamps.clear()
+
+        self.logger.debug(
+            "windows_cleared_for_reload",
+            model_name=model_name
+        )
+
+        # Repopular janelas do MongoDB
+        await self.populate_windows_from_mongodb(model_name)
 
     def get_validation_status(self) -> Dict[str, Any]:
         """Retorna status do validador."""

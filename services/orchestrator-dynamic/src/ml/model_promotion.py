@@ -909,7 +909,7 @@ class ModelPromotionManager:
             return {}
 
         try:
-            current_metrics = self.continuous_validator.get_current_metrics()
+            current_metrics = await self.continuous_validator.get_current_metrics()
 
             # Métricas de predição (janela 24h)
             prediction_metrics = current_metrics.get('prediction_metrics', {})
