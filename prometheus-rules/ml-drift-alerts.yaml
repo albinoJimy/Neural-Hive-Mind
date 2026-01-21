@@ -60,7 +60,7 @@ spec:
               Monitorar e considerar retreinamento se persistir.
 
               Verificar dashboard: Orchestrator ML Predictions
-            runbook_url: "https://docs.neuralhive.io/runbooks/ml-drift-warning"
+            runbook_url: "https://docs.neuralhive.io/runbooks/ml-drift-critical"
 
         # Feature drift (PSI) exceeds threshold
         - alert: MLFeatureDriftHigh
@@ -81,7 +81,7 @@ spec:
               significativamente em relação ao baseline de treino.
 
               Investigar mudanças recentes nos dados de entrada.
-            runbook_url: "https://docs.neuralhive.io/runbooks/feature-drift"
+            runbook_url: "https://docs.neuralhive.io/runbooks/ml-drift-critical"
 
         # Prediction drift (MAE ratio) exceeds threshold
         - alert: MLPredictionDriftCritical
@@ -103,7 +103,7 @@ spec:
 
               Comando:
               python ml_pipelines/monitoring/auto_retrain.py --specialist-type all --force
-            runbook_url: "https://docs.neuralhive.io/runbooks/prediction-drift"
+            runbook_url: "https://docs.neuralhive.io/runbooks/ml-drift-critical"
 
         # Target drift (low p-value)
         - alert: MLTargetDriftDetected
@@ -123,7 +123,7 @@ spec:
 
               Isso pode indicar mudanças no padrão de carga de trabalho.
               Verificar se é uma mudança esperada ou anomalia.
-            runbook_url: "https://docs.neuralhive.io/runbooks/target-drift"
+            runbook_url: "https://docs.neuralhive.io/runbooks/ml-drift-critical"
 
     # ==========================================================================
     # Model Performance Alerts
@@ -168,7 +168,7 @@ spec:
               Score atual: {{ $value | printf "%.3f" }}
 
               Considerar retreinamento ou revisão de feedback.
-            runbook_url: "https://docs.neuralhive.io/runbooks/low-performance"
+            runbook_url: "https://docs.neuralhive.io/runbooks/model-degraded"
 
         # F1 score below threshold
         - alert: MLModelLowF1Score
@@ -185,7 +185,7 @@ spec:
               do threshold (0.72).
 
               F1 atual: {{ $value | printf "%.3f" }}
-            runbook_url: "https://docs.neuralhive.io/runbooks/low-f1"
+            runbook_url: "https://docs.neuralhive.io/runbooks/model-degraded"
 
     # ==========================================================================
     # Auto-Retrain Alerts
@@ -231,7 +231,7 @@ spec:
               Duração: {{ $value | humanizeDuration }}
 
               Verificar se há problemas de recursos ou dataset muito grande.
-            runbook_url: "https://docs.neuralhive.io/runbooks/long-retrain"
+            runbook_url: "https://docs.neuralhive.io/runbooks/auto-retrain-failed"
 
         # No retrain in last 30 days (if drift detected)
         - alert: NoRetrainWithDrift
@@ -254,7 +254,7 @@ spec:
 
               Considerar executar retreinamento manual:
               python ml_pipelines/monitoring/auto_retrain.py --specialist-type all --force
-            runbook_url: "https://docs.neuralhive.io/runbooks/stale-retrain"
+            runbook_url: "https://docs.neuralhive.io/runbooks/auto-retrain-failed"
 
     # ==========================================================================
     # Drift CronJob Health Alerts
@@ -286,7 +286,7 @@ spec:
               Verificar se está suspenso:
               kubectl get cronjob orchestrator-dynamic-ml-drift -n neural-hive-orchestration \
                 -o jsonpath='{.spec.suspend}'
-            runbook_url: "https://docs.neuralhive.io/runbooks/cronjob-not-running"
+            runbook_url: "https://docs.neuralhive.io/runbooks/ml-drift-critical"
 
         # CronJob jobs failing
         - alert: MLDriftCronJobFailing
@@ -310,4 +310,4 @@ spec:
 
               Verificar eventos:
               kubectl describe job -n neural-hive-orchestration {{ $labels.job_name }}
-            runbook_url: "https://docs.neuralhive.io/runbooks/drift-job-failed"
+            runbook_url: "https://docs.neuralhive.io/runbooks/ml-drift-critical"

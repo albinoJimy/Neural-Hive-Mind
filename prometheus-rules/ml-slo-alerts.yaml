@@ -34,7 +34,7 @@ spec:
             threshold: "0.75"
             impact: "Decisoes de aprovacao podem estar com qualidade reduzida"
             recommended_action: "Verificar dados de treinamento, analisar drift de modelo, considerar retreinamento"
-            runbook_url: "https://docs.neural-hive.local/runbooks/ml-f1-score-slo"
+            runbook_url: "https://docs.neural-hive.local/runbooks/model-degraded"
             dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
         # SLO 1 Critical: F1 Score < 0.70 (70%)
@@ -56,7 +56,7 @@ spec:
             critical_threshold: "0.70"
             impact: "Qualidade das decisoes de ML severamente degradada, considerar fallback para heuristicas"
             immediate_action: "Ativar fallback, iniciar investigacao de root cause, avaliar rollback de modelo"
-            runbook_url: "https://docs.neural-hive.local/runbooks/ml-f1-score-critical"
+            runbook_url: "https://docs.neural-hive.local/runbooks/model-degraded"
             dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
         # SLO 2: Latency P95 > 100ms
@@ -78,7 +78,7 @@ spec:
             threshold: "0.1s"
             impact: "Experiencia do usuario degradada no fluxo de aprovacao"
             recommended_action: "Verificar carga do sistema, recursos de GPU/CPU, complexidade do modelo"
-            runbook_url: "https://docs.neural-hive.local/runbooks/ml-latency-slo"
+            runbook_url: "https://docs.neural-hive.local/runbooks/model-degraded"
             dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
         # SLO 2 Critical: Latency P95 > 200ms
@@ -100,7 +100,7 @@ spec:
             critical_threshold: "200ms"
             impact: "Timeouts potenciais no fluxo de aprovacao, degradacao severa da experiencia"
             immediate_action: "Verificar status dos pods ML, escalar horizontalmente, ativar rate limiting"
-            runbook_url: "https://docs.neural-hive.local/runbooks/ml-latency-critical"
+            runbook_url: "https://docs.neural-hive.local/runbooks/model-degraded"
             dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
         # SLO 3: Feedback Rate < 10%
@@ -122,7 +122,7 @@ spec:
             threshold: "0.10"
             impact: "Qualidade do retreinamento de modelos pode ser comprometida"
             recommended_action: "Verificar UI de feedback, incentivar coleta de feedback, revisar fluxo de usuario"
-            runbook_url: "https://docs.neural-hive.local/runbooks/ml-feedback-rate-slo"
+            runbook_url: "https://docs.neural-hive.local/runbooks/feedback-collection-low"
             dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
         # SLO 3 Critical: Feedback Rate < 5%
@@ -144,7 +144,7 @@ spec:
             critical_threshold: "5%"
             impact: "Impossibilidade de retreinar modelos com qualidade, degradacao progressiva esperada"
             immediate_action: "Verificar integridade do sistema de feedback, alertar equipe de produto"
-            runbook_url: "https://docs.neural-hive.local/runbooks/ml-feedback-rate-critical"
+            runbook_url: "https://docs.neural-hive.local/runbooks/feedback-collection-low"
             dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
         # SLO 4: Uptime < 99.5%
@@ -166,7 +166,7 @@ spec:
             threshold: "0.995"
             impact: "Sistema pode estar usando fallback de heuristicas com frequencia"
             recommended_action: "Verificar logs de erro, analisar padrao de falhas, revisar health checks"
-            runbook_url: "https://docs.neural-hive.local/runbooks/ml-uptime-slo"
+            runbook_url: "https://docs.neural-hive.local/runbooks/model-degraded"
             dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
         # SLO 4 Critical: Uptime < 99%
@@ -188,7 +188,7 @@ spec:
             critical_threshold: "99%"
             impact: "Alto uso de fallback, qualidade das decisoes comprometida sistematicamente"
             immediate_action: "Verificar status de deployment, analisar causa raiz, considerar rollback"
-            runbook_url: "https://docs.neural-hive.local/runbooks/ml-uptime-critical"
+            runbook_url: "https://docs.neural-hive.local/runbooks/model-degraded"
             dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
     - name: ml_error_budget_burn
@@ -210,7 +210,7 @@ spec:
             description: "Burn rate 1h: {{ $value | printf \"%.3f\" }}, 6h: {{ with query \"neural_hive:slo:ml_burn_rate:f1_score:6h\" }}{{ . | first | value | printf \"%.3f\" }}{{ end }}. Error budget pode esgotar em horas."
             impact: "SLO de F1 Score em risco de ser violado"
             immediate_action: "Investigar degradacao de modelo, verificar qualidade dos dados recentes"
-            runbook_url: "https://docs.neural-hive.local/runbooks/ml-error-budget-burn"
+            runbook_url: "https://docs.neural-hive.local/runbooks/model-degraded"
             dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
         # Error Budget Slow Burn - F1 Score
@@ -229,7 +229,7 @@ spec:
             description: "Burn rate 6h: {{ $value | printf \"%.3f\" }}. Tendencia de degradacao detectada."
             impact: "SLO de F1 Score pode ser violado em dias"
             recommended_action: "Monitorar tendencia, planejar retreinamento preventivo"
-            runbook_url: "https://docs.neural-hive.local/runbooks/ml-error-budget-burn"
+            runbook_url: "https://docs.neural-hive.local/runbooks/model-degraded"
             dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
         # Error Budget Fast Burn - Latency
@@ -248,7 +248,7 @@ spec:
             description: "Burn rate de latencia 1h: {{ $value | humanizePercentage }}. Error budget pode esgotar em horas."
             impact: "SLO de latencia em risco de ser violado"
             immediate_action: "Verificar carga do sistema, escalar recursos se necessario"
-            runbook_url: "https://docs.neural-hive.local/runbooks/ml-error-budget-burn"
+            runbook_url: "https://docs.neural-hive.local/runbooks/model-degraded"
             dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
         # Error Budget Fast Burn - Availability
@@ -267,7 +267,7 @@ spec:
             description: "Taxa de erro 1h: {{ $value | humanizePercentage }}. Sistema ML apresentando alta taxa de falhas."
             impact: "SLO de disponibilidade em risco de ser violado"
             immediate_action: "Verificar health dos pods, analisar logs de erro, considerar rollback"
-            runbook_url: "https://docs.neural-hive.local/runbooks/ml-error-budget-burn"
+            runbook_url: "https://docs.neural-hive.local/runbooks/model-degraded"
             dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
     - name: ml_slo_compliance
@@ -288,5 +288,5 @@ spec:
             description: "SLOs em conformidade: {{ with query \"neural_hive:slo:ml_compliance:count\" }}{{ . | first | value }}{{ end }}/4. Verificar dashboard para detalhes."
             impact: "Sistema ML nao esta atendendo todos os objetivos de nivel de servico"
             recommended_action: "Verificar qual SLO esta em violacao e tomar acao corretiva"
-            runbook_url: "https://docs.neural-hive.local/runbooks/ml-slo-overview"
+            runbook_url: "https://docs.neural-hive.local/runbooks/model-degraded"
             dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
