@@ -642,6 +642,60 @@ def create_feedback_router(
                 detail=f"Erro ao disparar atualização online: {str(e)}"
             )
 
+    @router.get(
+        '/feedback/health',
+        summary="Health check for feedback API",
+        description="Verifica se o feedback API está operacional"
+    )
+    async def feedback_health_check():
+        """
+        Health check específico para feedback API.
+
+        Verifica:
+        - FeedbackCollector está inicializado
+        - MongoDB está acessível
+        - Circuit breaker não está aberto
+
+        Returns:
+            Dict com status de saúde
+        """
+        try:
+            # Verificar se feedback collector está funcional
+            if not feedback_collector:
+                return {
+                    "status": "unhealthy",
+                    "reason": "feedback_collector_not_initialized"
+                }
+
+            # Verificar conexão MongoDB (quick check)
+            try:
+                # Tentar contar documentos (operação leve)
+                count = feedback_collector.count_recent_feedback(
+                    specialist_type=config.specialist_type,
+                    window_days=1
+                )
+
+                return {
+                    "status": "healthy",
+                    "specialist_type": config.specialist_type,
+                    "mongodb_connected": True,
+                    "recent_feedback_count": count
+                }
+            except FeedbackStoreUnavailable:
+                return {
+                    "status": "degraded",
+                    "reason": "mongodb_unavailable",
+                    "specialist_type": config.specialist_type
+                }
+
+        except Exception as e:
+            logger.error("Feedback health check failed", error=str(e))
+            return {
+                "status": "unhealthy",
+                "reason": str(e),
+                "specialist_type": config.specialist_type
+            }
+
     return router
 
 

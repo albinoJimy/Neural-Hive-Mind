@@ -18,7 +18,7 @@ logger = structlog.get_logger()
 # Importar módulo de feedback (lazy import para evitar erros se não disponível)
 try:
     from neural_hive_specialists.feedback import create_feedback_router, FeedbackCollector
-    from neural_hive_specialists.compliance import AuditLogger
+    from neural_hive_specialists.compliance import AuditLogger, PIIDetector
     FEEDBACK_AVAILABLE = True
 except ImportError:
     logger.warning("Feedback module not available - feedback API will not be enabled")
@@ -321,11 +321,15 @@ def create_fastapi_app(specialist, config) -> FastAPI:
             # Inicializar FeedbackCollector
             feedback_collector = FeedbackCollector(config, audit_logger)
 
-            # Criar e registrar router de feedback com audit_logger
+            # Inicializar PIIDetector para anonimização de feedback notes
+            pii_detector = PIIDetector(config) if config.enable_pii_detection else None
+
+            # Criar e registrar router de feedback com audit_logger e pii_detector
             feedback_router = create_feedback_router(
                 feedback_collector,
                 config,
                 metrics=specialist.metrics,
+                pii_detector=pii_detector,
                 audit_logger=audit_logger
             )
             app.include_router(feedback_router, prefix="/api/v1", tags=["feedback"])

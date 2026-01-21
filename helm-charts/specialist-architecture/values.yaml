@@ -144,6 +144,17 @@ config:
     enableTracing: true
     useSemanticFallback: true
 
+  # Feedback Collection Configuration
+  feedback:
+    enabled: true
+    apiEnabled: true
+    requireAuthentication: true
+    allowedRoles:
+      - admin
+      - specialist_reviewer
+      - human_expert
+    mongodbCollection: "specialist_feedback"
+
   architecture:
     designPatternsEnabled: true
     solidAnalysisEnabled: true
