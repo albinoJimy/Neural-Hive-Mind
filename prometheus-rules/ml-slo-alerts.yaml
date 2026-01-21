@@ -1,0 +1,292 @@
+# ML SLO Alerts
+# Alerts for ML model SLO breaches using recording rules from ml-slo-recording-rules.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ml-slo-alerts
+  namespace: monitoring
+  labels:
+    app: neural-hive
+    component: ml-slos
+    prometheus: k8s
+    role: alert-rules
+spec:
+  groups:
+    - name: ml_slo_violations
+      interval: 30s
+      rules:
+        # SLO 1: F1 Score < 0.75 (75%)
+        - alert: MLModelF1ScoreSLOBreach
+          expr: |
+            neural_hive:slo:ml_f1_score:7d < 0.75
+          for: 5m
+          labels:
+            severity: warning
+            slo: ml-f1-score
+            neural_hive_component: ml-models
+            neural_hive_layer: cognicao
+            error_budget_burn_rate: moderate
+          annotations:
+            summary: "ML Model F1 Score SLO violation"
+            description: "F1 score atual: {{ $value | printf \"%.3f\" }} (SLO: >= 0.75). Qualidade das predicoes de ML abaixo do objetivo."
+            current_value: "{{ $value | printf \"%.3f\" }}"
+            slo_target: "0.75 (75%)"
+            threshold: "0.75"
+            impact: "Decisoes de aprovacao podem estar com qualidade reduzida"
+            recommended_action: "Verificar dados de treinamento, analisar drift de modelo, considerar retreinamento"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-f1-score-slo"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
+
+        # SLO 1 Critical: F1 Score < 0.70 (70%)
+        - alert: MLModelF1ScoreSLOCritical
+          expr: |
+            neural_hive:slo:ml_f1_score:7d < 0.70
+          for: 2m
+          labels:
+            severity: critical
+            slo: ml-f1-score
+            neural_hive_component: ml-models
+            neural_hive_layer: cognicao
+            error_budget_burn_rate: critical
+          annotations:
+            summary: "ML Model F1 Score criticamente baixo"
+            description: "F1 score atual: {{ $value | printf \"%.3f\" }} (SLO: >= 0.75, Critico: < 0.70). Modelo requer atencao imediata."
+            current_value: "{{ $value | printf \"%.3f\" }}"
+            slo_target: "0.75 (75%)"
+            critical_threshold: "0.70"
+            impact: "Qualidade das decisoes de ML severamente degradada, considerar fallback para heuristicas"
+            immediate_action: "Ativar fallback, iniciar investigacao de root cause, avaliar rollback de modelo"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-f1-score-critical"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
+
+        # SLO 2: Latency P95 > 100ms
+        - alert: MLModelLatencySLOBreach
+          expr: |
+            neural_hive:slo:ml_latency_p95_total:5m > 0.1
+          for: 5m
+          labels:
+            severity: warning
+            slo: ml-latency-p95
+            neural_hive_component: ml-models
+            neural_hive_layer: cognicao
+            error_budget_burn_rate: moderate
+          annotations:
+            summary: "ML Model Latency P95 SLO violation"
+            description: "Latencia P95 atual: {{ $value | humanizeDuration }} (SLO: < 100ms). Predicoes de ML estao mais lentas que o esperado."
+            current_value: "{{ $value | humanizeDuration }}"
+            slo_target: "100ms"
+            threshold: "0.1s"
+            impact: "Experiencia do usuario degradada no fluxo de aprovacao"
+            recommended_action: "Verificar carga do sistema, recursos de GPU/CPU, complexidade do modelo"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-latency-slo"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
+
+        # SLO 2 Critical: Latency P95 > 200ms
+        - alert: MLModelLatencySLOCritical
+          expr: |
+            neural_hive:slo:ml_latency_p95_total:5m > 0.2
+          for: 2m
+          labels:
+            severity: critical
+            slo: ml-latency-p95
+            neural_hive_component: ml-models
+            neural_hive_layer: cognicao
+            error_budget_burn_rate: critical
+          annotations:
+            summary: "ML Model Latency criticamente alta"
+            description: "Latencia P95 atual: {{ $value | humanizeDuration }} (SLO: < 100ms, Critico: > 200ms). Sistema de ML pode estar sobrecarregado."
+            current_value: "{{ $value | humanizeDuration }}"
+            slo_target: "100ms"
+            critical_threshold: "200ms"
+            impact: "Timeouts potenciais no fluxo de aprovacao, degradacao severa da experiencia"
+            immediate_action: "Verificar status dos pods ML, escalar horizontalmente, ativar rate limiting"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-latency-critical"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
+
+        # SLO 3: Feedback Rate < 10%
+        - alert: MLModelFeedbackRateSLOBreach
+          expr: |
+            neural_hive:slo:ml_feedback_rate:7d < 0.10
+          for: 15m
+          labels:
+            severity: warning
+            slo: ml-feedback-rate
+            neural_hive_component: feedback-loop
+            neural_hive_layer: cognicao
+            error_budget_burn_rate: moderate
+          annotations:
+            summary: "ML Feedback Collection Rate SLO violation"
+            description: "Taxa de feedback atual: {{ $value | humanizePercentage }} (SLO: >= 10%). Coleta de feedback insuficiente para retreinamento efetivo."
+            current_value: "{{ $value | humanizePercentage }}"
+            slo_target: "10%"
+            threshold: "0.10"
+            impact: "Qualidade do retreinamento de modelos pode ser comprometida"
+            recommended_action: "Verificar UI de feedback, incentivar coleta de feedback, revisar fluxo de usuario"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-feedback-rate-slo"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
+
+        # SLO 3 Critical: Feedback Rate < 5%
+        - alert: MLModelFeedbackRateSLOCritical
+          expr: |
+            neural_hive:slo:ml_feedback_rate:7d < 0.05
+          for: 10m
+          labels:
+            severity: critical
+            slo: ml-feedback-rate
+            neural_hive_component: feedback-loop
+            neural_hive_layer: cognicao
+            error_budget_burn_rate: critical
+          annotations:
+            summary: "ML Feedback Collection criticamente baixa"
+            description: "Taxa de feedback atual: {{ $value | humanizePercentage }} (SLO: >= 10%, Critico: < 5%). Retreinamento de modelos comprometido."
+            current_value: "{{ $value | humanizePercentage }}"
+            slo_target: "10%"
+            critical_threshold: "5%"
+            impact: "Impossibilidade de retreinar modelos com qualidade, degradacao progressiva esperada"
+            immediate_action: "Verificar integridade do sistema de feedback, alertar equipe de produto"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-feedback-rate-critical"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
+
+        # SLO 4: Uptime < 99.5%
+        - alert: MLModelUptimeSLOBreach
+          expr: |
+            neural_hive:slo:ml_availability:30d < 0.995
+          for: 5m
+          labels:
+            severity: warning
+            slo: ml-uptime
+            neural_hive_component: ml-models
+            neural_hive_layer: cognicao
+            error_budget_burn_rate: moderate
+          annotations:
+            summary: "ML Model Uptime SLO violation"
+            description: "Disponibilidade atual: {{ $value | humanizePercentage }} (SLO: >= 99.5%). Modelos ML apresentando mais erros que o esperado."
+            current_value: "{{ $value | humanizePercentage }}"
+            slo_target: "99.5%"
+            threshold: "0.995"
+            impact: "Sistema pode estar usando fallback de heuristicas com frequencia"
+            recommended_action: "Verificar logs de erro, analisar padrao de falhas, revisar health checks"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-uptime-slo"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
+
+        # SLO 4 Critical: Uptime < 99%
+        - alert: MLModelUptimeSLOCritical
+          expr: |
+            neural_hive:slo:ml_availability:30d < 0.99
+          for: 2m
+          labels:
+            severity: critical
+            slo: ml-uptime
+            neural_hive_component: ml-models
+            neural_hive_layer: cognicao
+            error_budget_burn_rate: critical
+          annotations:
+            summary: "ML Model Uptime criticamente baixo"
+            description: "Disponibilidade atual: {{ $value | humanizePercentage }} (SLO: >= 99.5%, Critico: < 99%). Sistema ML instavel."
+            current_value: "{{ $value | humanizePercentage }}"
+            slo_target: "99.5%"
+            critical_threshold: "99%"
+            impact: "Alto uso de fallback, qualidade das decisoes comprometida sistematicamente"
+            immediate_action: "Verificar status de deployment, analisar causa raiz, considerar rollback"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-uptime-critical"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
+
+    - name: ml_error_budget_burn
+      interval: 1m
+      rules:
+        # Error Budget Fast Burn - F1 Score
+        - alert: MLModelF1ScoreErrorBudgetFastBurn
+          expr: |
+            neural_hive:slo:ml_burn_rate:f1_score:1h > 0.5 and neural_hive:slo:ml_burn_rate:f1_score:6h > 0.25
+          for: 2m
+          labels:
+            severity: critical
+            slo: ml-f1-score
+            neural_hive_component: ml-models
+            neural_hive_layer: cognicao
+            burn_rate: fast
+          annotations:
+            summary: "F1 Score error budget sendo consumido rapidamente"
+            description: "Burn rate 1h: {{ $value | printf \"%.3f\" }}, 6h: {{ with query \"neural_hive:slo:ml_burn_rate:f1_score:6h\" }}{{ . | first | value | printf \"%.3f\" }}{{ end }}. Error budget pode esgotar em horas."
+            impact: "SLO de F1 Score em risco de ser violado"
+            immediate_action: "Investigar degradacao de modelo, verificar qualidade dos dados recentes"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-error-budget-burn"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
+
+        # Error Budget Slow Burn - F1 Score
+        - alert: MLModelF1ScoreErrorBudgetSlowBurn
+          expr: |
+            neural_hive:slo:ml_burn_rate:f1_score:6h > 0.1 and neural_hive:slo:ml_burn_rate:f1_score:24h > 0.05
+          for: 15m
+          labels:
+            severity: warning
+            slo: ml-f1-score
+            neural_hive_component: ml-models
+            neural_hive_layer: cognicao
+            burn_rate: slow
+          annotations:
+            summary: "F1 Score error budget em consumo gradual"
+            description: "Burn rate 6h: {{ $value | printf \"%.3f\" }}. Tendencia de degradacao detectada."
+            impact: "SLO de F1 Score pode ser violado em dias"
+            recommended_action: "Monitorar tendencia, planejar retreinamento preventivo"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-error-budget-burn"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
+
+        # Error Budget Fast Burn - Latency
+        - alert: MLModelLatencyErrorBudgetFastBurn
+          expr: |
+            neural_hive:slo:ml_burn_rate:latency:1h > 0.1 and neural_hive:slo:ml_burn_rate:latency:6h > 0.05
+          for: 2m
+          labels:
+            severity: critical
+            slo: ml-latency-p95
+            neural_hive_component: ml-models
+            neural_hive_layer: cognicao
+            burn_rate: fast
+          annotations:
+            summary: "Latency error budget sendo consumido rapidamente"
+            description: "Burn rate de latencia 1h: {{ $value | humanizePercentage }}. Error budget pode esgotar em horas."
+            impact: "SLO de latencia em risco de ser violado"
+            immediate_action: "Verificar carga do sistema, escalar recursos se necessario"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-error-budget-burn"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
+
+        # Error Budget Fast Burn - Availability
+        - alert: MLModelAvailabilityErrorBudgetFastBurn
+          expr: |
+            neural_hive:slo:ml_burn_rate:availability:1h > 0.01 and neural_hive:slo:ml_burn_rate:availability:6h > 0.005
+          for: 2m
+          labels:
+            severity: critical
+            slo: ml-uptime
+            neural_hive_component: ml-models
+            neural_hive_layer: cognicao
+            burn_rate: fast
+          annotations:
+            summary: "Availability error budget sendo consumido rapidamente"
+            description: "Taxa de erro 1h: {{ $value | humanizePercentage }}. Sistema ML apresentando alta taxa de falhas."
+            impact: "SLO de disponibilidade em risco de ser violado"
+            immediate_action: "Verificar health dos pods, analisar logs de erro, considerar rollback"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-error-budget-burn"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
+
+    - name: ml_slo_compliance
+      interval: 5m
+      rules:
+        # Overall ML SLO compliance check
+        - alert: MLModelOverallSLONonCompliant
+          expr: |
+            neural_hive:slo:ml_compliance:overall == 0
+          for: 10m
+          labels:
+            severity: warning
+            slo: ml-overall
+            neural_hive_component: ml-models
+            neural_hive_layer: cognicao
+          annotations:
+            summary: "Pelo menos um ML SLO nao esta em conformidade"
+            description: "SLOs em conformidade: {{ with query \"neural_hive:slo:ml_compliance:count\" }}{{ . | first | value }}{{ end }}/4. Verificar dashboard para detalhes."
+            impact: "Sistema ML nao esta atendendo todos os objetivos de nivel de servico"
+            recommended_action: "Verificar qual SLO esta em violacao e tomar acao corretiva"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-slo-overview"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"

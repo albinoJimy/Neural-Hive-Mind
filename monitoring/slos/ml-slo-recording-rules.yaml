@@ -1,0 +1,256 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ml-slo-recording-rules
+  namespace: monitoring
+  labels:
+    app: neural-hive
+    component: ml-slos
+    prometheus: k8s
+    role: recording-rules
+spec:
+  groups:
+    # Recording rules for ML SLO metrics
+    - name: ml_slo_metrics
+      interval: 30s
+      rules:
+        # F1 Score aggregated over 7 days
+        - record: neural_hive:slo:ml_f1_score:7d
+          expr: |
+            avg_over_time(
+              avg(neural_hive_mlflow_model_f1{specialist_type=~".+"}) [7d]
+            )
+
+        # F1 Score per specialist type (7d)
+        - record: neural_hive:slo:ml_f1_score_by_specialist:7d
+          expr: |
+            avg_over_time(
+              neural_hive_mlflow_model_f1{specialist_type=~".+"} [7d]
+            )
+
+        # Latency P95 (5m window)
+        - record: neural_hive:slo:ml_latency_p95:5m
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(neural_hive_specialist_evaluation_duration_seconds_bucket[5m])) by (le, specialist_type)
+            )
+
+        # Latency P95 aggregated (5m window)
+        - record: neural_hive:slo:ml_latency_p95_total:5m
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(neural_hive_specialist_evaluation_duration_seconds_bucket[5m])) by (le)
+            )
+
+        # Latency P99 (5m window) for reference
+        - record: neural_hive:slo:ml_latency_p99:5m
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(neural_hive_specialist_evaluation_duration_seconds_bucket[5m])) by (le, specialist_type)
+            )
+
+        # Feedback collection rate (7d)
+        - record: neural_hive:slo:ml_feedback_rate:7d
+          expr: |
+            (
+              sum(rate(neural_hive_feedback_submissions_total[7d]))
+              /
+              sum(rate(neural_hive_specialist_evaluations_total[7d]))
+            ) or vector(0)
+
+        # Feedback collection rate per specialist (7d)
+        - record: neural_hive:slo:ml_feedback_rate_by_specialist:7d
+          expr: |
+            (
+              sum(rate(neural_hive_feedback_submissions_total[7d])) by (specialist_type)
+              /
+              sum(rate(neural_hive_specialist_evaluations_total[7d])) by (specialist_type)
+            ) or vector(0)
+
+        # Model availability (30d)
+        - record: neural_hive:slo:ml_availability:30d
+          expr: |
+            1 - (
+              sum(rate(neural_hive_specialist_evaluations_total{status="error"}[30d]))
+              /
+              sum(rate(neural_hive_specialist_evaluations_total[30d]))
+            ) or vector(1)
+
+        # Model availability per specialist (30d)
+        - record: neural_hive:slo:ml_availability_by_specialist:30d
+          expr: |
+            1 - (
+              sum(rate(neural_hive_specialist_evaluations_total{status="error"}[30d])) by (specialist_type)
+              /
+              sum(rate(neural_hive_specialist_evaluations_total[30d])) by (specialist_type)
+            ) or vector(1)
+
+        # Evaluation throughput (requests per second)
+        - record: neural_hive:slo:ml_evaluation_rps:5m
+          expr: |
+            sum(rate(neural_hive_specialist_evaluations_total[5m])) by (specialist_type)
+
+        # Total evaluation throughput
+        - record: neural_hive:slo:ml_evaluation_rps_total:5m
+          expr: |
+            sum(rate(neural_hive_specialist_evaluations_total[5m]))
+
+    # Error budget calculations
+    - name: ml_error_budget
+      interval: 1m
+      rules:
+        # Error budget remaining for F1 Score (as percentage)
+        # Budget = (current - target) / (1 - target) * 100
+        # When current >= target, budget is positive (good)
+        # When current < target, budget is negative (consuming budget)
+        - record: neural_hive:slo:ml_error_budget_remaining:f1_score
+          expr: |
+            clamp_min(
+              (
+                (neural_hive:slo:ml_f1_score:7d - 0.75) / (1 - 0.75)
+              ) * 100,
+              -100
+            ) or vector(100)
+
+        # Error budget remaining for Latency (as percentage)
+        # For latency, good = below threshold, so we invert
+        - record: neural_hive:slo:ml_error_budget_remaining:latency
+          expr: |
+            clamp_min(
+              (
+                1 - (neural_hive:slo:ml_latency_p95_total:5m / 0.1)
+              ) * 100,
+              -100
+            ) or vector(100)
+
+        # Error budget remaining for Feedback Rate (as percentage)
+        - record: neural_hive:slo:ml_error_budget_remaining:feedback_rate
+          expr: |
+            clamp_min(
+              (
+                (neural_hive:slo:ml_feedback_rate:7d - 0.10) / (1 - 0.10)
+              ) * 100,
+              -100
+            ) or vector(100)
+
+        # Error budget remaining for Availability (as percentage)
+        - record: neural_hive:slo:ml_error_budget_remaining:availability
+          expr: |
+            clamp_min(
+              (
+                (neural_hive:slo:ml_availability:30d - 0.995) / (1 - 0.995)
+              ) * 100,
+              -100
+            ) or vector(100)
+
+        # Error budget consumed (inverse of remaining)
+        - record: neural_hive:slo:ml_error_budget_consumed:f1_score
+          expr: |
+            100 - neural_hive:slo:ml_error_budget_remaining:f1_score
+
+        - record: neural_hive:slo:ml_error_budget_consumed:latency
+          expr: |
+            100 - neural_hive:slo:ml_error_budget_remaining:latency
+
+        - record: neural_hive:slo:ml_error_budget_consumed:feedback_rate
+          expr: |
+            100 - neural_hive:slo:ml_error_budget_remaining:feedback_rate
+
+        - record: neural_hive:slo:ml_error_budget_consumed:availability
+          expr: |
+            100 - neural_hive:slo:ml_error_budget_remaining:availability
+
+    # Burn rate calculations for multi-window alerting
+    - name: ml_error_budget_burn_rate
+      interval: 1m
+      rules:
+        # F1 Score burn rate (1h window)
+        - record: neural_hive:slo:ml_burn_rate:f1_score:1h
+          expr: |
+            (0.75 - avg_over_time(avg(neural_hive_mlflow_model_f1{specialist_type=~".+"})[1h])) / (1 - 0.75)
+
+        # F1 Score burn rate (6h window)
+        - record: neural_hive:slo:ml_burn_rate:f1_score:6h
+          expr: |
+            (0.75 - avg_over_time(avg(neural_hive_mlflow_model_f1{specialist_type=~".+"})[6h])) / (1 - 0.75)
+
+        # F1 Score burn rate (24h window)
+        - record: neural_hive:slo:ml_burn_rate:f1_score:24h
+          expr: |
+            (0.75 - avg_over_time(avg(neural_hive_mlflow_model_f1{specialist_type=~".+"})[24h])) / (1 - 0.75)
+
+        # Latency burn rate (1h window) - percentage of requests exceeding threshold
+        - record: neural_hive:slo:ml_burn_rate:latency:1h
+          expr: |
+            1 - (
+              sum(rate(neural_hive_specialist_evaluation_duration_seconds_bucket{le="0.1"}[1h]))
+              /
+              sum(rate(neural_hive_specialist_evaluation_duration_seconds_count[1h]))
+            )
+
+        # Latency burn rate (6h window)
+        - record: neural_hive:slo:ml_burn_rate:latency:6h
+          expr: |
+            1 - (
+              sum(rate(neural_hive_specialist_evaluation_duration_seconds_bucket{le="0.1"}[6h]))
+              /
+              sum(rate(neural_hive_specialist_evaluation_duration_seconds_count[6h]))
+            )
+
+        # Availability burn rate (1h window)
+        - record: neural_hive:slo:ml_burn_rate:availability:1h
+          expr: |
+            sum(rate(neural_hive_specialist_evaluations_total{status="error"}[1h]))
+            /
+            sum(rate(neural_hive_specialist_evaluations_total[1h]))
+
+        # Availability burn rate (6h window)
+        - record: neural_hive:slo:ml_burn_rate:availability:6h
+          expr: |
+            sum(rate(neural_hive_specialist_evaluations_total{status="error"}[6h]))
+            /
+            sum(rate(neural_hive_specialist_evaluations_total[6h]))
+
+    # SLO compliance tracking
+    - name: ml_slo_compliance
+      interval: 5m
+      rules:
+        # Binary compliance indicator for F1 Score (1 = compliant, 0 = violation)
+        - record: neural_hive:slo:ml_compliance:f1_score
+          expr: |
+            (neural_hive:slo:ml_f1_score:7d >= 0.75) or vector(0)
+
+        # Binary compliance indicator for Latency
+        - record: neural_hive:slo:ml_compliance:latency
+          expr: |
+            (neural_hive:slo:ml_latency_p95_total:5m < 0.1) or vector(0)
+
+        # Binary compliance indicator for Feedback Rate
+        - record: neural_hive:slo:ml_compliance:feedback_rate
+          expr: |
+            (neural_hive:slo:ml_feedback_rate:7d >= 0.10) or vector(0)
+
+        # Binary compliance indicator for Availability
+        - record: neural_hive:slo:ml_compliance:availability
+          expr: |
+            (neural_hive:slo:ml_availability:30d >= 0.995) or vector(0)
+
+        # Overall ML SLO compliance (all 4 SLOs must be met)
+        - record: neural_hive:slo:ml_compliance:overall
+          expr: |
+            (
+              neural_hive:slo:ml_compliance:f1_score
+              * neural_hive:slo:ml_compliance:latency
+              * neural_hive:slo:ml_compliance:feedback_rate
+              * neural_hive:slo:ml_compliance:availability
+            ) or vector(0)
+
+        # Count of SLOs in compliance
+        - record: neural_hive:slo:ml_compliance:count
+          expr: |
+            (
+              neural_hive:slo:ml_compliance:f1_score
+              + neural_hive:slo:ml_compliance:latency
+              + neural_hive:slo:ml_compliance:feedback_rate
+              + neural_hive:slo:ml_compliance:availability
+            ) or vector(0)
