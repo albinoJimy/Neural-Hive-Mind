@@ -42,7 +42,8 @@ spec:
 
               Comando para verificar:
               kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=100 | grep drift
-            runbook_url: "https://docs.neuralhive.io/runbooks/ml-drift-critical"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-drift-critical"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
         # Warning level drift - monitor closely
         - alert: MLDriftWarning
@@ -60,7 +61,8 @@ spec:
               Monitorar e considerar retreinamento se persistir.
 
               Verificar dashboard: Orchestrator ML Predictions
-            runbook_url: "https://docs.neuralhive.io/runbooks/ml-drift-critical"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-drift-critical"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
         # Feature drift (PSI) exceeds threshold
         - alert: MLFeatureDriftHigh
@@ -81,7 +83,8 @@ spec:
               significativamente em relação ao baseline de treino.
 
               Investigar mudanças recentes nos dados de entrada.
-            runbook_url: "https://docs.neuralhive.io/runbooks/ml-drift-critical"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-drift-critical"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
         # Prediction drift (MAE ratio) exceeds threshold
         - alert: MLPredictionDriftCritical
@@ -103,7 +106,8 @@ spec:
 
               Comando:
               python ml_pipelines/monitoring/auto_retrain.py --specialist-type all --force
-            runbook_url: "https://docs.neuralhive.io/runbooks/ml-drift-critical"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-drift-critical"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
         # Target drift (low p-value)
         - alert: MLTargetDriftDetected
@@ -123,7 +127,8 @@ spec:
 
               Isso pode indicar mudanças no padrão de carga de trabalho.
               Verificar se é uma mudança esperada ou anomalia.
-            runbook_url: "https://docs.neuralhive.io/runbooks/ml-drift-critical"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-drift-critical"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
     # ==========================================================================
     # Model Performance Alerts
@@ -149,7 +154,8 @@ spec:
               python ml_pipelines/monitoring/model_performance_monitor.py \
                 --specialist-type {{ $labels.specialist_type }} \
                 --output-format json
-            runbook_url: "https://docs.neuralhive.io/runbooks/model-degraded"
+            runbook_url: "https://docs.neural-hive.local/runbooks/model-degraded"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
         # Low performance score
         - alert: MLModelLowPerformance
@@ -168,7 +174,8 @@ spec:
               Score atual: {{ $value | printf "%.3f" }}
 
               Considerar retreinamento ou revisão de feedback.
-            runbook_url: "https://docs.neuralhive.io/runbooks/model-degraded"
+            runbook_url: "https://docs.neural-hive.local/runbooks/model-degraded"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
         # F1 score below threshold
         - alert: MLModelLowF1Score
@@ -185,7 +192,8 @@ spec:
               do threshold (0.72).
 
               F1 atual: {{ $value | printf "%.3f" }}
-            runbook_url: "https://docs.neuralhive.io/runbooks/model-degraded"
+            runbook_url: "https://docs.neural-hive.local/runbooks/model-degraded"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
     # ==========================================================================
     # Auto-Retrain Alerts
@@ -212,7 +220,8 @@ spec:
 
               Verificar status no MongoDB:
               db.retraining_triggers.find({status: 'failed'}).sort({triggered_at: -1}).limit(5)
-            runbook_url: "https://docs.neuralhive.io/runbooks/auto-retrain-failed"
+            runbook_url: "https://docs.neural-hive.local/runbooks/auto-retrain-failed"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
         # Long retrain duration
         - alert: AutoRetrainLongDuration
@@ -231,7 +240,8 @@ spec:
               Duração: {{ $value | humanizeDuration }}
 
               Verificar se há problemas de recursos ou dataset muito grande.
-            runbook_url: "https://docs.neuralhive.io/runbooks/auto-retrain-failed"
+            runbook_url: "https://docs.neural-hive.local/runbooks/auto-retrain-failed"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
         # No retrain in last 30 days (if drift detected)
         - alert: NoRetrainWithDrift
@@ -254,7 +264,8 @@ spec:
 
               Considerar executar retreinamento manual:
               python ml_pipelines/monitoring/auto_retrain.py --specialist-type all --force
-            runbook_url: "https://docs.neuralhive.io/runbooks/auto-retrain-failed"
+            runbook_url: "https://docs.neural-hive.local/runbooks/auto-retrain-failed"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
     # ==========================================================================
     # Drift CronJob Health Alerts
@@ -286,7 +297,8 @@ spec:
               Verificar se está suspenso:
               kubectl get cronjob orchestrator-dynamic-ml-drift -n neural-hive-orchestration \
                 -o jsonpath='{.spec.suspend}'
-            runbook_url: "https://docs.neuralhive.io/runbooks/ml-drift-critical"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-drift-critical"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"
 
         # CronJob jobs failing
         - alert: MLDriftCronJobFailing
@@ -310,4 +322,5 @@ spec:
 
               Verificar eventos:
               kubectl describe job -n neural-hive-orchestration {{ $labels.job_name }}
-            runbook_url: "https://docs.neuralhive.io/runbooks/ml-drift-critical"
+            runbook_url: "https://docs.neural-hive.local/runbooks/ml-drift-critical"
+            dashboard_url: "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos"

@@ -1,0 +1,587 @@
+{{/* Template Customizado do Slack para Alertas ML */}}
+{{/* Arquivo: ml-message-template.tmpl */}}
+{{/* Uso: Referenciar em alertmanager.yml via templates: ['/etc/alertmanager/templates/*.tmpl'] */}}
+
+{{/* ==========================================================================
+     TEMPLATE PRINCIPAL - ALERTAS CRITICOS ML
+     ========================================================================== */}}
+{{ define "ml.slack.critical" }}
+{{- $status := .Status -}}
+{{- $severity := .CommonLabels.severity | default "unknown" -}}
+{{- $alertname := .GroupLabels.alertname | default "UnknownAlert" -}}
+{{- $specialist := .CommonLabels.specialist_type | default "All Specialists" -}}
+
+{{/* Emoji e Header */}}
+{{- if eq $status "firing" }}:rotating_light: *ALERTA CRITICO ML*{{ else }}:white_check_mark: *RESOLVIDO*{{ end }}
+@ml-oncall - Atencao imediata requerida
+
+:warning: *{{ $alertname }}* - {{ $specialist }}
+
+{{/* Descricao do Alerta */}}
+:page_facing_up: *Descricao:* {{ .CommonAnnotations.description | default .CommonAnnotations.summary | default "Alerta critico de ML detectado." }}
+
+{{/* Informacoes de Contexto */}}
+:package: *Componente:* {{ .CommonLabels.neural_hive_component | default "ml-models" }}
+:brain: *Layer:* {{ .CommonLabels.neural_hive_layer | default "cognicao" }}
+{{- if .CommonLabels.specialist_type }}
+:bust_in_silhouette: *Specialist Type:* `{{ .CommonLabels.specialist_type }}`
+{{- end }}
+:clock1: *Timestamp:* {{ .StartsAt | date "2006-01-02 15:04:05 MST" }}
+
+{{/* Detalhes Especificos por Tipo de Alerta */}}
+
+{{- if eq $alertname "MLDriftCritical" }}
+{{/* Drift Critical Alert */}}
+:chart_with_downwards_trend: *Status de Drift:* CRITICO
+{{- if .CommonAnnotations.current_value }}
+:bar_chart: *Valor Atual:* {{ .CommonAnnotations.current_value }}
+{{- end }}
+
+:rotating_light: *Impacto:* Modelos ML estao produzindo predicoes com drift significativo. Qualidade das decisoes comprometida.
+
+*Acao Requerida:* Verificar logs do drift job e considerar retreinamento urgente.
+
+```bash
+# Verificar status do drift
+kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=100 | grep drift
+
+# Retreinamento urgente
+kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
+  python ml_pipelines/monitoring/auto_retrain.py --specialist-type {{ .CommonLabels.specialist_type | default "all" }} --force
+```
+
+{{- else if eq $alertname "MLPredictionDriftCritical" }}
+{{/* Prediction Drift Critical */}}
+:chart_with_downwards_trend: *MAE Ratio:* {{ .CommonAnnotations.current_value | default "N/A" }}
+:dart: *Threshold:* {{ .CommonAnnotations.threshold | default "1.5" }}
+
+:rotating_light: *Impacto:* Degradacao de 50%+ na acuracia das predicoes. Retreinamento urgente recomendado.
+
+```bash
+# Verificar metricas de predicao
+kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
+  python -c "from src.ml.duration_predictor import DurationPredictor; dp = DurationPredictor(); print(dp.get_metrics())"
+
+# Retreinamento urgente
+kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
+  python ml_pipelines/monitoring/auto_retrain.py --specialist-type all --force
+```
+
+{{- else if eq $alertname "MLModelF1ScoreSLOCritical" }}
+{{/* F1 Score SLO Critical */}}
+:chart_with_downwards_trend: *F1 Score Atual:* {{ .CommonAnnotations.current_value | default "N/A" }}
+:dart: *SLO Target:* {{ .CommonAnnotations.slo_target | default "0.75 (75%)" }}
+:warning: *Threshold Critico:* {{ .CommonAnnotations.critical_threshold | default "0.70" }}
+
+:rotating_light: *Impacto:* {{ .CommonAnnotations.impact | default "Qualidade das decisoes de ML severamente degradada." }}
+
+*Acao Imediata:* {{ .CommonAnnotations.immediate_action | default "Ativar fallback, iniciar investigacao de root cause, avaliar rollback de modelo." }}
+
+```bash
+# Verificar F1 score atual
+kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
+  python -c "from src.ml import get_model_metrics; print(get_model_metrics('{{ .CommonLabels.specialist_type | default "all" }}'))"
+
+# Ativar fallback para heuristicas
+kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
+  python -c "from src.config import settings; settings.USE_ML_FALLBACK = True"
+```
+
+{{- else if eq $alertname "MLModelLatencySLOCritical" }}
+{{/* Latency SLO Critical */}}
+:stopwatch: *Latencia P95 Atual:* {{ .CommonAnnotations.current_value | default "N/A" }}
+:dart: *SLO Target:* {{ .CommonAnnotations.slo_target | default "100ms" }}
+:warning: *Threshold Critico:* {{ .CommonAnnotations.critical_threshold | default "200ms" }}
+
+:rotating_light: *Impacto:* {{ .CommonAnnotations.impact | default "Timeouts potenciais no fluxo de aprovacao." }}
+
+*Acao Imediata:* {{ .CommonAnnotations.immediate_action | default "Verificar status dos pods ML, escalar horizontalmente, ativar rate limiting." }}
+
+```bash
+# Verificar recursos dos pods
+kubectl top pods -n neural-hive-orchestration -l app=orchestrator-dynamic
+
+# Escalar horizontalmente
+kubectl scale deployment/orchestrator-dynamic -n neural-hive-orchestration --replicas=3
+
+# Verificar latencia atual
+kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
+  curl -s localhost:8000/metrics | grep prediction_latency
+```
+
+{{- else if eq $alertname "MLModelFeedbackRateSLOCritical" }}
+{{/* Feedback Rate SLO Critical */}}
+:chart_with_downwards_trend: *Taxa de Feedback Atual:* {{ .CommonAnnotations.current_value | default "N/A" }}
+:dart: *SLO Target:* {{ .CommonAnnotations.slo_target | default "10%" }}
+:warning: *Threshold Critico:* {{ .CommonAnnotations.critical_threshold | default "5%" }}
+
+:rotating_light: *Impacto:* {{ .CommonAnnotations.impact | default "Impossibilidade de retreinar modelos com qualidade." }}
+
+*Acao Imediata:* {{ .CommonAnnotations.immediate_action | default "Verificar integridade do sistema de feedback, alertar equipe de produto." }}
+
+```bash
+# Verificar coleta de feedback
+kubectl exec -n neural-hive-orchestration deployment/approval-service -- \
+  python -c "from src.services.feedback_service import FeedbackService; fs = FeedbackService(); print(fs.get_collection_stats())"
+
+# Verificar logs do feedback collector
+kubectl logs -n neural-hive-orchestration -l app=approval-service --tail=100 | grep feedback
+```
+
+{{- else if eq $alertname "MLModelUptimeSLOCritical" }}
+{{/* Uptime SLO Critical */}}
+:chart_with_downwards_trend: *Disponibilidade Atual:* {{ .CommonAnnotations.current_value | default "N/A" }}
+:dart: *SLO Target:* {{ .CommonAnnotations.slo_target | default "99.5%" }}
+:warning: *Threshold Critico:* {{ .CommonAnnotations.critical_threshold | default "99%" }}
+
+:rotating_light: *Impacto:* {{ .CommonAnnotations.impact | default "Alto uso de fallback, qualidade das decisoes comprometida sistematicamente." }}
+
+*Acao Imediata:* {{ .CommonAnnotations.immediate_action | default "Verificar status de deployment, analisar causa raiz, considerar rollback." }}
+
+```bash
+# Verificar health dos pods
+kubectl get pods -n neural-hive-orchestration -l app=orchestrator-dynamic -o wide
+
+# Verificar logs de erro
+kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=200 | grep -i error
+
+# Rollback se necessario
+kubectl rollout undo deployment/orchestrator-dynamic -n neural-hive-orchestration
+```
+
+{{- else if or (contains "ErrorBudgetFastBurn" $alertname) }}
+{{/* Error Budget Fast Burn */}}
+:fire: *Burn Rate 1h:* {{ .CommonAnnotations.burn_rate_1h | default .CommonAnnotations.current_value | default "N/A" }}
+:chart_with_downwards_trend: *SLO:* {{ .CommonLabels.slo | default "N/A" }}
+
+:rotating_light: *Impacto:* {{ .CommonAnnotations.impact | default "Error budget pode esgotar em horas." }}
+
+*Acao Imediata:* {{ .CommonAnnotations.immediate_action | default "Investigar degradacao imediatamente." }}
+
+```bash
+# Verificar error budget atual
+curl -s "http://prometheus.monitoring:9090/api/v1/query?query=neural_hive:slo:ml_burn_rate:{{ .CommonLabels.slo }}:1h" | jq '.data.result[0].value[1]'
+
+# Verificar alertas relacionados
+kubectl exec -n monitoring alertmanager-0 -- amtool alert query alertname=~"ML.*"
+```
+
+{{- else }}
+{{/* Generic Critical Alert */}}
+:page_facing_up: *Descricao:* {{ .CommonAnnotations.description | default .CommonAnnotations.summary | default "Alerta critico de ML detectado." }}
+{{- if .CommonAnnotations.current_value }}
+:bar_chart: *Valor Atual:* {{ .CommonAnnotations.current_value }}
+{{- end }}
+{{- if .CommonAnnotations.threshold }}
+:dart: *Threshold:* {{ .CommonAnnotations.threshold }}
+{{- end }}
+
+:rotating_light: *Impacto:* {{ .CommonAnnotations.impact | default "Sistema ML requer atencao imediata." }}
+
+```bash
+# Verificar logs recentes
+kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=100
+
+# Verificar status geral
+kubectl get pods -n neural-hive-orchestration
+```
+{{- end }}
+
+{{/* Links de Acao */}}
+:link: *Links:*
+{{- if .CommonAnnotations.dashboard_url }}
+  • <{{ .CommonAnnotations.dashboard_url }}|:bar_chart: Dashboard ML>
+{{- else }}
+  • <https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos|:bar_chart: Dashboard ML>
+{{- end }}
+{{- if .CommonAnnotations.runbook_url }}
+  • <{{ .CommonAnnotations.runbook_url }}|:book: Runbook>
+{{- else }}
+  • <https://docs.neural-hive.local/runbooks/model-degraded|:book: Runbook>
+{{- end }}
+  • <{{ .GeneratorURL }}|:mag: Ver no Prometheus>
+
+{{/* Lista de Alertas (se multiplos) */}}
+{{- if gt (len .Alerts) 1 }}
+
+:bell: *Alertas neste Grupo:* {{ .Alerts | len }}
+{{- range .Alerts }}
+  • `{{ .Labels.specialist_type | default .Labels.alertname }}` - {{ .Status | toUpper }} ({{ .StartsAt | since }})
+{{- end }}
+{{- end }}
+
+{{/* Footer */}}
+---
+:mute: <{{ .ExternalURL }}/#/silences/new?filter=%7Balertname%3D%22{{ $alertname }}%22%7D|Silenciar este alerta> | :bar_chart: <{{ .GeneratorURL }}|Ver no Prometheus>
+{{ end }}
+
+
+{{/* ==========================================================================
+     TEMPLATE PRINCIPAL - ALERTAS WARNING ML
+     ========================================================================== */}}
+{{ define "ml.slack.warning" }}
+{{- $status := .Status -}}
+{{- $severity := .CommonLabels.severity | default "unknown" -}}
+{{- $alertname := .GroupLabels.alertname | default "UnknownAlert" -}}
+{{- $specialist := .CommonLabels.specialist_type | default "All Specialists" -}}
+
+{{/* Emoji e Header */}}
+{{- if eq $status "firing" }}:warning: *ALERTA ML*{{ else }}:white_check_mark: *RESOLVIDO*{{ end }}
+
+:eyes: *{{ $alertname }}* - {{ $specialist }}
+
+{{/* Descricao do Alerta */}}
+:page_facing_up: *Descricao:* {{ .CommonAnnotations.description | default .CommonAnnotations.summary | default "Alerta de warning detectado." }}
+
+{{/* Informacoes de Contexto */}}
+:package: *Componente:* {{ .CommonLabels.neural_hive_component | default "ml-models" }}
+{{- if .CommonLabels.specialist_type }}
+:bust_in_silhouette: *Specialist Type:* `{{ .CommonLabels.specialist_type }}`
+{{- end }}
+:clock1: *Timestamp:* {{ .StartsAt | date "2006-01-02 15:04:05 MST" }}
+
+{{/* Detalhes Especificos por Tipo de Alerta */}}
+
+{{- if eq $alertname "MLDriftWarning" }}
+{{/* Drift Warning Alert */}}
+:chart_with_downwards_trend: *Status de Drift:* WARNING
+{{- if .CommonAnnotations.current_value }}
+:bar_chart: *Valor Atual:* {{ .CommonAnnotations.current_value }}
+{{- end }}
+
+:eyes: *Acao Recomendada:* Monitorar e considerar retreinamento se persistir.
+
+```bash
+# Verificar status do drift
+kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=50 | grep drift
+```
+
+{{- else if eq $alertname "MLFeatureDriftHigh" }}
+{{/* Feature Drift High */}}
+:bar_chart: *PSI Maximo:* {{ .CommonAnnotations.current_value | default "N/A" }}
+:dart: *Threshold:* 0.25
+
+:eyes: *Acao Recomendada:* Investigar mudancas recentes nos dados de entrada.
+
+{{- else if eq $alertname "MLTargetDriftDetected" }}
+{{/* Target Drift */}}
+:bar_chart: *P-value K-S:* {{ .CommonAnnotations.current_value | default "N/A" }}
+:dart: *Threshold:* 0.05
+
+:eyes: *Acao Recomendada:* Verificar se e uma mudanca esperada ou anomalia.
+
+{{- else if eq $alertname "MLModelDegraded" }}
+{{/* Model Degraded */}}
+:chart_with_downwards_trend: *Performance Score:* {{ .CommonAnnotations.current_value | default "N/A" }}
+
+:eyes: *Acao Recomendada:* Verificar ModelPerformanceMonitor para detalhes.
+
+```bash
+python ml_pipelines/monitoring/model_performance_monitor.py \
+  --specialist-type {{ .CommonLabels.specialist_type | default "all" }} \
+  --output-format json
+```
+
+{{- else if eq $alertname "MLModelLowF1Score" }}
+{{/* Low F1 Score */}}
+:chart_with_downwards_trend: *F1 Score:* {{ .CommonAnnotations.current_value | default "N/A" }}
+:dart: *Threshold:* 0.72
+
+:eyes: *Acao Recomendada:* Considerar retreinamento ou revisao de feedback.
+
+{{- else if eq $alertname "AutoRetrainFailed" }}
+{{/* Auto-Retrain Failed */}}
+:x: *Status:* Retreinamento automatico falhou
+
+:eyes: *Acao Recomendada:* Verificar logs do auto_retrain.py.
+
+```bash
+# Verificar logs
+kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=500 | grep retrain
+
+# Verificar status no MongoDB
+kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
+  python -c "from pymongo import MongoClient; print(list(MongoClient('mongodb://mongodb:27017').neural_hive.retraining_triggers.find({'status': 'failed'}).sort('triggered_at', -1).limit(5)))"
+```
+
+{{- else if eq $alertname "AutoRetrainLongDuration" }}
+{{/* Auto-Retrain Long Duration */}}
+:hourglass: *Duracao:* {{ .CommonAnnotations.current_value | default "N/A" }}
+
+:eyes: *Acao Recomendada:* Verificar se ha problemas de recursos ou dataset muito grande.
+
+{{- else if eq $alertname "NoRetrainWithDrift" }}
+{{/* No Retrain With Drift */}}
+:warning: Drift detectado mas sem retreinamento nos ultimos 30 dias.
+
+:eyes: *Acao Recomendada:* Executar retreinamento manual.
+
+```bash
+python ml_pipelines/monitoring/auto_retrain.py --specialist-type all --force
+```
+
+{{- else if contains "SLOBreach" $alertname }}
+{{/* SLO Breach Warnings */}}
+:chart_with_downwards_trend: *Valor Atual:* {{ .CommonAnnotations.current_value | default "N/A" }}
+:dart: *SLO Target:* {{ .CommonAnnotations.slo_target | default "N/A" }}
+
+:eyes: *Acao Recomendada:* {{ .CommonAnnotations.recommended_action | default "Verificar metricas e considerar acao corretiva." }}
+
+{{- else if contains "ErrorBudgetSlowBurn" $alertname }}
+{{/* Error Budget Slow Burn */}}
+:chart_with_downwards_trend: *Burn Rate:* {{ .CommonAnnotations.current_value | default "N/A" }}
+
+:eyes: *Acao Recomendada:* {{ .CommonAnnotations.recommended_action | default "Monitorar tendencia, planejar retreinamento preventivo." }}
+
+{{- else if contains "CronJob" $alertname }}
+{{/* CronJob Health Warnings */}}
+:gear: *CronJob:* orchestrator-dynamic-ml-drift
+
+:eyes: *Acao Recomendada:* Verificar se CronJob esta ativo e funcionando.
+
+```bash
+kubectl get cronjob -n neural-hive-orchestration orchestrator-dynamic-ml-drift
+```
+
+{{- else }}
+{{/* Generic Warning Alert */}}
+:page_facing_up: *Descricao:* {{ .CommonAnnotations.description | default .CommonAnnotations.summary | default "Alerta de warning detectado." }}
+{{- if .CommonAnnotations.current_value }}
+:bar_chart: *Valor Atual:* {{ .CommonAnnotations.current_value }}
+{{- end }}
+{{- end }}
+
+{{/* Links de Acao */}}
+:link: *Links:*
+{{- if .CommonAnnotations.dashboard_url }}
+  • <{{ .CommonAnnotations.dashboard_url }}|:bar_chart: Dashboard ML>
+{{- else }}
+  • <https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos|:bar_chart: Dashboard ML>
+{{- end }}
+{{- if .CommonAnnotations.runbook_url }}
+  • <{{ .CommonAnnotations.runbook_url }}|:book: Runbook>
+{{- end }}
+
+{{/* Footer */}}
+---
+:mute: <{{ .ExternalURL }}/#/silences/new?filter=%7Balertname%3D%22{{ $alertname }}%22%7D|Silenciar> | :mag: <{{ .GeneratorURL }}|Prometheus>
+{{ end }}
+
+
+{{/* ==========================================================================
+     TEMPLATE PARA ALERTAS RESOLVIDOS ML
+     ========================================================================== */}}
+{{ define "ml.slack.resolved" }}
+{{- $alertname := .GroupLabels.alertname | default "UnknownAlert" -}}
+{{- $specialist := .CommonLabels.specialist_type | default "All Specialists" -}}
+
+:white_check_mark: *[RESOLVIDO] {{ $alertname }}*
+
+:bust_in_silhouette: *Specialist:* {{ $specialist }}
+:hourglass: *Duracao do Incidente:* {{ .StartsAt | since }}
+:clock1: *Resolvido em:* {{ .EndsAt | date "2006-01-02 15:04:05 MST" }}
+
+{{- if .CommonAnnotations.resolution_summary }}
+:page_facing_up: *Resumo da Resolucao:* {{ .CommonAnnotations.resolution_summary }}
+{{- end }}
+
+---
+:bar_chart: <{{ .CommonAnnotations.dashboard_url | default "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos" }}|Dashboard ML>
+{{ end }}
+
+
+{{/* ==========================================================================
+     TEMPLATES AUXILIARES
+     ========================================================================== */}}
+
+{{/* Template para Titulo Curto */}}
+{{ define "ml.slack.title" }}
+{{- if eq .Status "firing" -}}
+  {{- if eq .CommonLabels.severity "critical" -}}
+    :rotating_light: [CRITICAL]
+  {{- else -}}
+    :warning: [WARNING]
+  {{- end -}}
+{{- else -}}
+  :white_check_mark: [RESOLVED]
+{{- end }} {{ .GroupLabels.alertname }}{{ if .CommonLabels.specialist_type }} - {{ .CommonLabels.specialist_type }}{{ end }}
+{{- end }}
+
+
+{{/* Template para Cor do Slack */}}
+{{ define "ml.slack.color" }}
+{{- if eq .Status "firing" -}}
+  {{- if eq .CommonLabels.severity "critical" -}}
+    danger
+  {{- else -}}
+    warning
+  {{- end -}}
+{{- else -}}
+  good
+{{- end -}}
+{{- end }}
+
+
+{{/* Template para Sumario Executivo (PagerDuty) */}}
+{{ define "ml.pagerduty.summary" }}
+{{- $alertname := .GroupLabels.alertname | default "UnknownAlert" -}}
+{{- $severity := .CommonLabels.severity | default "unknown" | toUpper -}}
+{{- $specialist := .CommonLabels.specialist_type | default "all" -}}
+{{- $component := .CommonLabels.neural_hive_component | default "ml-models" -}}
+
+[{{ $severity }}] {{ $alertname }} - {{ $component }}
+{{- if ne $specialist "all" }} ({{ $specialist }}){{ end }}
+{{- if .CommonAnnotations.current_value }} - Valor: {{ .CommonAnnotations.current_value }}{{ end }}
+{{- if .CommonAnnotations.slo_target }} - SLO: {{ .CommonAnnotations.slo_target }}{{ end }}
+{{- end }}
+
+
+{{/* Template para Email Subject (futuro) */}}
+{{ define "ml.email.subject" }}
+[{{ .Status | toUpper }}] {{ .CommonLabels.severity | toUpper }}: {{ .GroupLabels.alertname }}{{ if .CommonLabels.specialist_type }} - {{ .CommonLabels.specialist_type }}{{ end }}
+{{- end }}
+
+
+{{/* Template para Email Body (futuro) */}}
+{{ define "ml.email.body" }}
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    .alert-critical { background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 4px; }
+    .alert-warning { background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 4px; }
+    .alert-resolved { background-color: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 4px; }
+    .details { margin: 15px 0; }
+    .label { font-weight: bold; color: #333; }
+    .code { background-color: #f4f4f4; padding: 10px; border-radius: 4px; font-family: monospace; }
+    .links { margin-top: 20px; }
+    .links a { margin-right: 15px; }
+  </style>
+</head>
+<body>
+  <div class="alert-{{ if eq .Status "firing" }}{{ .CommonLabels.severity }}{{ else }}resolved{{ end }}">
+    <h2>{{ template "ml.email.subject" . }}</h2>
+
+    <div class="details">
+      <p><span class="label">Componente:</span> {{ .CommonLabels.neural_hive_component | default "ml-models" }}</p>
+      {{- if .CommonLabels.specialist_type }}
+      <p><span class="label">Specialist Type:</span> {{ .CommonLabels.specialist_type }}</p>
+      {{- end }}
+      <p><span class="label">Timestamp:</span> {{ .StartsAt | date "2006-01-02 15:04:05 MST" }}</p>
+    </div>
+
+    {{- if .CommonAnnotations.description }}
+    <p>{{ .CommonAnnotations.description }}</p>
+    {{- end }}
+
+    <div class="details">
+      {{- if .CommonAnnotations.current_value }}
+      <p><span class="label">Valor Atual:</span> {{ .CommonAnnotations.current_value }}</p>
+      {{- end }}
+      {{- if .CommonAnnotations.slo_target }}
+      <p><span class="label">SLO Target:</span> {{ .CommonAnnotations.slo_target }}</p>
+      {{- end }}
+      {{- if .CommonAnnotations.impact }}
+      <p><span class="label">Impacto:</span> {{ .CommonAnnotations.impact }}</p>
+      {{- end }}
+    </div>
+
+    <div class="links">
+      <h3>Acoes:</h3>
+      <ul>
+        <li><a href="{{ .CommonAnnotations.dashboard_url | default "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos" }}">Dashboard ML</a></li>
+        <li><a href="{{ .CommonAnnotations.runbook_url | default "https://docs.neural-hive.local/runbooks/model-degraded" }}">Runbook</a></li>
+        <li><a href="{{ .GeneratorURL }}">Ver no Prometheus</a></li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>
+{{- end }}
+
+
+{{/* ==========================================================================
+     INSTRUCOES DE USO
+     ==========================================================================
+
+  1. DEPLOYMENT:
+
+     # Criar ConfigMap com o template
+     kubectl create configmap alertmanager-ml-templates \
+       --from-file=ml-message-template.tmpl=monitoring/alertmanager/ml-message-template.tmpl \
+       -n monitoring --dry-run=client -o yaml | kubectl apply -f -
+
+     # Montar em /etc/alertmanager/templates/ no pod do Alertmanager
+     # Adicionar ao deployment/statefulset do Alertmanager:
+     volumes:
+       - name: ml-templates
+         configMap:
+           name: alertmanager-ml-templates
+     volumeMounts:
+       - name: ml-templates
+         mountPath: /etc/alertmanager/templates/ml-message-template.tmpl
+         subPath: ml-message-template.tmpl
+
+  2. CONFIGURACAO NO ALERTMANAGER.YML:
+
+     templates:
+       - '/etc/alertmanager/templates/*.tmpl'
+
+     receivers:
+       - name: 'slack-ml-oncall'
+         slack_configs:
+           - channel: '#ml-alerts'
+             text: '{{ template "ml.slack.critical" . }}'
+             title: '{{ template "ml.slack.title" . }}'
+             color: '{{ template "ml.slack.color" . }}'
+
+  3. TESTE:
+
+     # Enviar alerta de teste
+     curl -H "Content-Type: application/json" -d '[{
+       "labels": {
+         "alertname": "MLDriftCritical",
+         "severity": "critical",
+         "neural_hive_component": "ml-models",
+         "specialist_type": "technical"
+       },
+       "annotations": {
+         "summary": "Test: Drift critico detectado",
+         "current_value": "0.35",
+         "threshold": "0.25"
+       }
+     }]' http://alertmanager:9093/api/v1/alerts
+
+  4. TEMPLATES DISPONIVEIS:
+
+     - ml.slack.critical: Alertas criticos (com comandos de resolucao)
+     - ml.slack.warning: Alertas de warning (com recomendacoes)
+     - ml.slack.resolved: Alertas resolvidos
+     - ml.slack.title: Titulo curto com emoji e severidade
+     - ml.slack.color: Cor baseada em severidade
+     - ml.pagerduty.summary: Sumario executivo para PagerDuty
+     - ml.email.subject: Subject para email
+     - ml.email.body: Body HTML para email
+
+  5. FUNCOES DISPONIVEIS:
+
+     - {{ .Status }}: "firing" ou "resolved"
+     - {{ .GroupLabels.alertname }}: Nome do alerta
+     - {{ .CommonLabels.severity }}: Severidade (critical, warning, info)
+     - {{ .CommonLabels.specialist_type }}: Tipo do specialist
+     - {{ .CommonLabels.neural_hive_component }}: Componente
+     - {{ .CommonAnnotations.campo }}: Annotations do Prometheus alert rule
+     - {{ .StartsAt }}: Timestamp de inicio
+     - {{ .EndsAt }}: Timestamp de fim (se resolved)
+     - {{ .Alerts }}: Lista de todos os alertas no grupo
+     - {{ date "layout" .StartsAt }}: Formatar data (Go time layout)
+     - {{ since .StartsAt }}: Duracao desde inicio
+     - {{ toUpper "text" }}: Converter para maiusculas
+     - {{ default "valor" .Campo }}: Valor padrao se campo nao existe
+     - {{ contains "substring" .String }}: Verificar se contem substring
+
+  REFERENCIAS:
+    - Template Language: https://prometheus.io/docs/alerting/latest/notification_examples/
+    - Slack Formatting: https://api.slack.com/reference/surfaces/formatting
+    - Go Templates: https://pkg.go.dev/text/template
+*/}}

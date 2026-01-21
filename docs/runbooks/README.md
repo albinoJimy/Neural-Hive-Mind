@@ -85,6 +85,31 @@ Runbooks gerais para operacoes da Fase 2.
 
 ---
 
+## Alert Management
+
+Para informacoes sobre como gerenciar alertas ML (silenciar, escalar, resolver), consulte:
+- [Alert Management Guide](../operations/alert-management.md)
+
+### Comandos Rapidos de Alerting
+
+```bash
+# Silenciar alerta durante manutencao
+kubectl exec -n monitoring alertmanager-0 -- amtool silence add \
+  alertname="MLDriftCritical" --duration=2h --comment="Manutencao" --author="$(whoami)"
+
+# Verificar alertas ativos
+kubectl exec -n monitoring alertmanager-0 -- amtool alert query
+
+# Testar routing de alerta
+kubectl exec -n monitoring alertmanager-0 -- amtool config routes test \
+  alertname="MLDriftCritical" severity="critical"
+
+# Listar silences ativos
+kubectl exec -n monitoring alertmanager-0 -- amtool silence query
+```
+
+---
+
 ## Quick Reference
 
 ### Comandos Uteis

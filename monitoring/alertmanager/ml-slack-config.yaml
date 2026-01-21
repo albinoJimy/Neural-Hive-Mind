@@ -1,0 +1,676 @@
+# Configuracao Alertmanager para Alertas ML
+#
+# IMPORTANTE: Este arquivo configura routing especifico para alertas de Machine Learning.
+# Para usar em producao:
+# 1. Substitua os placeholders YOUR_SLACK_WEBHOOK_URL, YOUR_PAGERDUTY_KEY
+# 2. Merge com sua configuracao existente do Alertmanager
+# 3. Teste as rotas com: amtool config routes test
+#
+# Deploy:
+# kubectl apply -f monitoring/alertmanager/ml-slack-config.yaml -n monitoring
+#
+# Merge com ConfigMap existente:
+# kubectl get configmap alertmanager-config -n monitoring -o yaml > current-config.yaml
+# # Merge manualmente as secoes 'routes', 'receivers' e 'inhibit_rules'
+# kubectl apply -f merged-config.yaml
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-ml-config
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/component: ml-alerting
+    neural-hive-component: ml-models
+  annotations:
+    description: "Configuracao de routing de alertas ML para Slack e PagerDuty"
+data:
+  alertmanager-ml.yml: |
+    # ==========================================================================
+    # CONFIGURACAO ALERTMANAGER PARA ALERTAS ML
+    # ==========================================================================
+    # Esta configuracao deve ser mergeada com o alertmanager.yml existente
+    # Nao substitua toda a configuracao, apenas adicione/atualize as secoes
+
+    global:
+      resolve_timeout: 5m
+      # Slack API URL - obter em: https://api.slack.com/messaging/webhooks
+      slack_api_url: 'https://hooks.slack.com/services/YOUR_SLACK_WEBHOOK_URL'
+      # PagerDuty API URL
+      pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+
+    # Templates customizados para formatacao de mensagens ML
+    templates:
+      - '/etc/alertmanager/templates/*.tmpl'
+
+    # ==========================================================================
+    # ROUTING DE ALERTAS ML
+    # ==========================================================================
+    # Adicionar estas rotas ao seu route.routes existente
+
+    route:
+      # Receiver padrao para alertas ML nao matcheados
+      receiver: 'ml-default'
+
+      # Agrupar alertas por estas labels
+      group_by: ['alertname', 'specialist_type']
+
+      # Tempo para aguardar antes de enviar notificacao apos primeiro alerta
+      group_wait: 10s
+
+      # Tempo para aguardar antes de enviar notificacao sobre novos alertas do mesmo grupo
+      group_interval: 5m
+
+      # Tempo para aguardar antes de reenviar notificacao
+      repeat_interval: 4h
+
+      routes:
+        # ------------------------------------------------------------------
+        # ALERTAS INFO ML -> Silenciados (sem notificacao)
+        # ------------------------------------------------------------------
+        - match_re:
+            neural_hive_component: 'ml-models|feedback-loop|auto-retrain'
+            severity: info
+          receiver: ml-silenced
+
+        # ------------------------------------------------------------------
+        # ALERTAS CRITICOS ML -> Slack #ml-alerts + PagerDuty
+        # ------------------------------------------------------------------
+        # Drift Critico
+        - match:
+            alertname: MLDriftCritical
+            severity: critical
+          receiver: slack-ml-oncall
+          group_wait: 5s
+          repeat_interval: 1h
+          continue: true
+
+        - match:
+            alertname: MLDriftCritical
+            severity: critical
+          receiver: pagerduty-ml-critical
+
+        # Prediction Drift Critico
+        - match:
+            alertname: MLPredictionDriftCritical
+            severity: critical
+          receiver: slack-ml-oncall
+          group_wait: 5s
+          repeat_interval: 1h
+          continue: true
+
+        - match:
+            alertname: MLPredictionDriftCritical
+            severity: critical
+          receiver: pagerduty-ml-critical
+
+        # F1 Score SLO Critico
+        - match:
+            alertname: MLModelF1ScoreSLOCritical
+            severity: critical
+          receiver: slack-ml-oncall
+          group_wait: 5s
+          repeat_interval: 1h
+          continue: true
+
+        - match:
+            alertname: MLModelF1ScoreSLOCritical
+            severity: critical
+          receiver: pagerduty-ml-critical
+
+        # Latency SLO Critico
+        - match:
+            alertname: MLModelLatencySLOCritical
+            severity: critical
+          receiver: slack-ml-oncall
+          group_wait: 5s
+          repeat_interval: 1h
+          continue: true
+
+        - match:
+            alertname: MLModelLatencySLOCritical
+            severity: critical
+          receiver: pagerduty-ml-critical
+
+        # Feedback Rate SLO Critico
+        - match:
+            alertname: MLModelFeedbackRateSLOCritical
+            severity: critical
+          receiver: slack-ml-oncall
+          group_wait: 5s
+          repeat_interval: 1h
+          continue: true
+
+        - match:
+            alertname: MLModelFeedbackRateSLOCritical
+            severity: critical
+          receiver: pagerduty-ml-critical
+
+        # Uptime SLO Critico
+        - match:
+            alertname: MLModelUptimeSLOCritical
+            severity: critical
+          receiver: slack-ml-oncall
+          group_wait: 5s
+          repeat_interval: 1h
+          continue: true
+
+        - match:
+            alertname: MLModelUptimeSLOCritical
+            severity: critical
+          receiver: pagerduty-ml-critical
+
+        # Error Budget Fast Burn (todos os tipos)
+        - match_re:
+            alertname: 'MLModel.*ErrorBudgetFastBurn'
+            severity: critical
+          receiver: slack-ml-oncall
+          group_wait: 5s
+          repeat_interval: 1h
+          continue: true
+
+        - match_re:
+            alertname: 'MLModel.*ErrorBudgetFastBurn'
+            severity: critical
+          receiver: pagerduty-ml-critical
+
+        # ------------------------------------------------------------------
+        # ALERTAS WARNING ML -> Slack #ml-alerts (sem mention)
+        # ------------------------------------------------------------------
+        # Drift Warning
+        - match:
+            alertname: MLDriftWarning
+            severity: warning
+          receiver: slack-ml-warnings
+          group_wait: 30s
+          repeat_interval: 4h
+
+        # Feature Drift High
+        - match:
+            alertname: MLFeatureDriftHigh
+            severity: warning
+          receiver: slack-ml-warnings
+          group_wait: 30s
+          repeat_interval: 4h
+
+        # Target Drift Detected
+        - match:
+            alertname: MLTargetDriftDetected
+            severity: warning
+          receiver: slack-ml-warnings
+          group_wait: 30s
+          repeat_interval: 4h
+
+        # Model Degraded
+        - match:
+            alertname: MLModelDegraded
+            severity: warning
+          receiver: slack-ml-warnings
+          group_wait: 30s
+          repeat_interval: 4h
+
+        # Model Low Performance
+        - match:
+            alertname: MLModelLowPerformance
+            severity: warning
+          receiver: slack-ml-warnings
+          group_wait: 30s
+          repeat_interval: 4h
+
+        # Model Low F1 Score
+        - match:
+            alertname: MLModelLowF1Score
+            severity: warning
+          receiver: slack-ml-warnings
+          group_wait: 30s
+          repeat_interval: 4h
+
+        # Auto-Retrain Failed
+        - match:
+            alertname: AutoRetrainFailed
+            severity: warning
+          receiver: slack-ml-warnings
+          group_wait: 30s
+          repeat_interval: 4h
+
+        # Auto-Retrain Long Duration
+        - match:
+            alertname: AutoRetrainLongDuration
+            severity: warning
+          receiver: slack-ml-warnings
+          group_wait: 30s
+          repeat_interval: 4h
+
+        # No Retrain With Drift
+        - match:
+            alertname: NoRetrainWithDrift
+            severity: warning
+          receiver: slack-ml-warnings
+          group_wait: 30s
+          repeat_interval: 4h
+
+        # SLO Breaches (Warning)
+        - match_re:
+            alertname: 'MLModel.*SLOBreach'
+            severity: warning
+          receiver: slack-ml-warnings
+          group_wait: 30s
+          repeat_interval: 4h
+
+        # Error Budget Slow Burn
+        - match_re:
+            alertname: 'MLModel.*ErrorBudgetSlowBurn'
+            severity: warning
+          receiver: slack-ml-warnings
+          group_wait: 30s
+          repeat_interval: 4h
+
+        # CronJob Health Warnings
+        - match_re:
+            alertname: 'MLDriftCronJob.*'
+            severity: warning
+          receiver: slack-ml-warnings
+          group_wait: 30s
+          repeat_interval: 4h
+
+        # Overall SLO Non-Compliant
+        - match:
+            alertname: MLModelOverallSLONonCompliant
+            severity: warning
+          receiver: slack-ml-warnings
+          group_wait: 30s
+          repeat_interval: 4h
+
+        # ------------------------------------------------------------------
+        # CATCH-ALL para alertas ML por component label
+        # ------------------------------------------------------------------
+        - match_re:
+            neural_hive_component: 'ml-models|feedback-loop|auto-retrain'
+            severity: critical
+          receiver: slack-ml-oncall
+          group_wait: 5s
+          repeat_interval: 1h
+          mute_time_intervals:
+            - ml-maintenance
+          continue: true
+
+        - match_re:
+            neural_hive_component: 'ml-models|feedback-loop|auto-retrain'
+            severity: critical
+          receiver: pagerduty-ml-critical
+          mute_time_intervals:
+            - ml-maintenance
+
+        - match_re:
+            neural_hive_component: 'ml-models|feedback-loop|auto-retrain'
+            severity: warning
+          receiver: slack-ml-warnings
+          group_wait: 30s
+          repeat_interval: 4h
+          mute_time_intervals:
+            - ml-maintenance
+
+    # ==========================================================================
+    # RECEIVERS ML
+    # ==========================================================================
+    receivers:
+      # ------------------------------------------------------------------
+      # Slack para alertas criticos ML (com mention @ml-oncall)
+      # ------------------------------------------------------------------
+      - name: 'slack-ml-oncall'
+        slack_configs:
+          - channel: '#ml-alerts'
+            send_resolved: true
+            link_names: true
+            title_link: '{{ .ExternalURL }}'
+
+            # Titulo com status e nome do alerta
+            title: '{{ template "ml.slack.title" . }}'
+
+            # Cor baseada na severidade
+            color: '{{ template "ml.slack.color" . }}'
+
+            # Template da mensagem (referencia ml-message-template.tmpl)
+            text: '{{ template "ml.slack.critical" . }}'
+
+            # Campos estruturados
+            fields:
+              - title: "Specialist Type"
+                value: "{{ .CommonLabels.specialist_type | default \"All\" }}"
+                short: true
+              - title: "Severidade"
+                value: "{{ .CommonLabels.severity | toUpper }}"
+                short: true
+              - title: "Componente"
+                value: "{{ .CommonLabels.neural_hive_component | default \"ml-models\" }}"
+                short: true
+              - title: "Valor Atual"
+                value: "{{ .CommonAnnotations.current_value | default \"N/A\" }}"
+                short: true
+
+            # Acoes (botoes)
+            actions:
+              - type: button
+                text: '📊 Dashboard ML'
+                url: '{{ .CommonAnnotations.dashboard_url | default "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos" }}'
+              - type: button
+                text: '📖 Runbook'
+                url: '{{ .CommonAnnotations.runbook_url | default "https://docs.neural-hive.local/runbooks/model-degraded" }}'
+              - type: button
+                text: '🔇 Silence'
+                url: '{{ .ExternalURL }}/#/silences/new?filter=%7Balertname%3D%22{{ .GroupLabels.alertname }}%22%7D'
+
+      # ------------------------------------------------------------------
+      # Slack para alertas warning ML (sem mention)
+      # ------------------------------------------------------------------
+      - name: 'slack-ml-warnings'
+        slack_configs:
+          - channel: '#ml-alerts'
+            send_resolved: true
+            title_link: '{{ .ExternalURL }}'
+
+            # Titulo com status e nome do alerta
+            title: '{{ template "ml.slack.title" . }}'
+
+            # Cor baseada na severidade
+            color: '{{ template "ml.slack.color" . }}'
+
+            # Template da mensagem
+            text: '{{ template "ml.slack.warning" . }}'
+
+            # Campos estruturados
+            fields:
+              - title: "Specialist Type"
+                value: "{{ .CommonLabels.specialist_type | default \"All\" }}"
+                short: true
+              - title: "Severidade"
+                value: "{{ .CommonLabels.severity | toUpper }}"
+                short: true
+              - title: "Componente"
+                value: "{{ .CommonLabels.neural_hive_component | default \"ml-models\" }}"
+                short: true
+              - title: "Valor Atual"
+                value: "{{ .CommonAnnotations.current_value | default \"N/A\" }}"
+                short: true
+
+            # Acoes (botoes)
+            actions:
+              - type: button
+                text: '📊 Dashboard ML'
+                url: '{{ .CommonAnnotations.dashboard_url | default "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos" }}'
+              - type: button
+                text: '📖 Runbook'
+                url: '{{ .CommonAnnotations.runbook_url | default "https://docs.neural-hive.local/runbooks/model-degraded" }}'
+              - type: button
+                text: '🔇 Silence'
+                url: '{{ .ExternalURL }}/#/silences/new?filter=%7Balertname%3D%22{{ .GroupLabels.alertname }}%22%7D'
+
+      # ------------------------------------------------------------------
+      # PagerDuty para alertas criticos ML
+      # ------------------------------------------------------------------
+      - name: 'pagerduty-ml-critical'
+        pagerduty_configs:
+          - service_key: 'YOUR_PAGERDUTY_KEY'
+            send_resolved: true
+
+            # Routing key baseada no alerta
+            routing_key: 'ml-{{ .GroupLabels.alertname }}'
+
+            # Descricao do incidente
+            description: '{{ template "ml.pagerduty.summary" . }}'
+
+            # Severidade mapeada
+            severity: 'critical'
+
+            # Detalhes customizados
+            details:
+              alert_name: '{{ .GroupLabels.alertname }}'
+              specialist_type: '{{ .CommonLabels.specialist_type | default "all" }}'
+              component: '{{ .CommonLabels.neural_hive_component | default "ml-models" }}'
+              layer: '{{ .CommonLabels.neural_hive_layer | default "cognicao" }}'
+              current_value: '{{ .CommonAnnotations.current_value | default "N/A" }}'
+              slo_target: '{{ .CommonAnnotations.slo_target | default "N/A" }}'
+              threshold: '{{ .CommonAnnotations.threshold | default "N/A" }}'
+              impact: '{{ .CommonAnnotations.impact | default "N/A" }}'
+              firing_alerts: '{{ .Alerts.Firing | len }}'
+              resolved_alerts: '{{ .Alerts.Resolved | len }}'
+
+            # Links para dashboard e logs
+            links:
+              - href: '{{ .CommonAnnotations.dashboard_url | default "https://grafana.neural-hive.local/d/ml-slos-dashboard/ml-slos" }}'
+                text: 'ML SLOs Dashboard'
+              - href: '{{ .CommonAnnotations.runbook_url | default "https://docs.neural-hive.local/runbooks/model-degraded" }}'
+                text: 'Runbook'
+              - href: '{{ .GeneratorURL }}'
+                text: 'Prometheus Alert'
+
+      # ------------------------------------------------------------------
+      # Receiver padrao para alertas ML nao matcheados
+      # ------------------------------------------------------------------
+      - name: 'ml-default'
+        slack_configs:
+          - channel: '#ml-alerts-general'
+            send_resolved: true
+            title: '[{{ .Status | toUpper }}] ML Alert: {{ .GroupLabels.alertname }}'
+            text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+            color: '{{ if eq .Status "firing" }}warning{{ else }}good{{ end }}'
+
+      # ------------------------------------------------------------------
+      # Receiver silencioso para alertas info (sem notificacao)
+      # ------------------------------------------------------------------
+      - name: 'ml-silenced'
+        # Nenhuma configuracao de notificacao - alertas sao silenciados
+
+    # ==========================================================================
+    # TIME INTERVALS PARA MANUTENCOES PROGRAMADAS
+    # ==========================================================================
+    # Definir intervalos de tempo para silenciamento automatico durante manutencoes
+    # Uso: Aplicar mute_time_intervals nas rotas ML correspondentes
+    #
+    # Exemplos de uso manual via amtool:
+    #   kubectl exec -n monitoring alertmanager-0 -- amtool silence add \
+    #     alertname=~"ML.*" --duration=2h --comment="Manutencao programada"
+    #
+    # Para sobrepor manualmente (silences via amtool/UI), os silences manuais
+    # sempre tem precedencia sobre time_intervals.
+
+    time_intervals:
+      # Intervalo de manutencao padrao: Domingos 02:00-06:00 UTC
+      - name: ml-maintenance
+        time_intervals:
+          - weekdays: ['sunday']
+            times:
+              - start_time: '02:00'
+                end_time: '06:00'
+
+      # Intervalo de manutencao emergencial (ativar manualmente via config update)
+      - name: ml-emergency-maintenance
+        time_intervals:
+          - weekdays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+            times:
+              - start_time: '00:00'
+                end_time: '00:00'
+
+    # ==========================================================================
+    # INHIBITION RULES ML
+    # ==========================================================================
+    # Adicionar estas regras ao seu inhibit_rules existente
+
+    inhibit_rules:
+      # Inibir warnings quando critical esta ativo (mesmo alertname + specialist_type)
+      - source_match:
+          severity: 'critical'
+        target_match:
+          severity: 'warning'
+        equal: ['alertname', 'specialist_type']
+
+      # Inibir MLDriftWarning quando MLDriftCritical esta ativo
+      - source_match:
+          alertname: 'MLDriftCritical'
+        target_match:
+          alertname: 'MLDriftWarning'
+        equal: ['specialist_type']
+
+      # Inibir MLModelLowF1Score quando MLModelF1ScoreSLOCritical esta ativo
+      - source_match:
+          alertname: 'MLModelF1ScoreSLOCritical'
+        target_match:
+          alertname: 'MLModelLowF1Score'
+        equal: ['specialist_type']
+
+      # Inibir MLModelLowPerformance quando MLModelDegraded esta ativo
+      - source_match:
+          alertname: 'MLModelDegraded'
+        target_match:
+          alertname: 'MLModelLowPerformance'
+        equal: ['specialist_type']
+
+      # Inibir AutoRetrainFailed quando MLModelDegraded esta ativo (mesmo specialist)
+      - source_match:
+          alertname: 'MLModelDegraded'
+        target_match:
+          alertname: 'AutoRetrainFailed'
+        equal: ['specialist_type']
+
+      # Inibir SLO Breach quando SLO Critical esta ativo
+      - source_match:
+          alertname: 'MLModelF1ScoreSLOCritical'
+        target_match:
+          alertname: 'MLModelF1ScoreSLOBreach'
+        equal: []
+
+      - source_match:
+          alertname: 'MLModelLatencySLOCritical'
+        target_match:
+          alertname: 'MLModelLatencySLOBreach'
+        equal: []
+
+      - source_match:
+          alertname: 'MLModelFeedbackRateSLOCritical'
+        target_match:
+          alertname: 'MLModelFeedbackRateSLOBreach'
+        equal: []
+
+      - source_match:
+          alertname: 'MLModelUptimeSLOCritical'
+        target_match:
+          alertname: 'MLModelUptimeSLOBreach'
+        equal: []
+
+      # Inibir Error Budget Slow Burn quando Fast Burn esta ativo
+      - source_match_re:
+          alertname: 'MLModel.*ErrorBudgetFastBurn'
+        target_match_re:
+          alertname: 'MLModel.*ErrorBudgetSlowBurn'
+        equal: ['slo']
+
+---
+# ==========================================================================
+# INSTRUCOES DE DEPLOYMENT
+# ==========================================================================
+#
+# 1. OBTER CREDENCIAIS:
+#
+#    Slack Webhook URL:
+#    - Acesse: https://api.slack.com/messaging/webhooks
+#    - Crie um Incoming Webhook para seu workspace
+#    - Configure para os canais: #ml-alerts, #ml-alerts-general
+#    - Substitua YOUR_SLACK_WEBHOOK_URL na configuracao
+#
+#    PagerDuty Integration Key:
+#    - Acesse: https://your-subdomain.pagerduty.com/services
+#    - Crie servico "Neural Hive ML Platform"
+#    - Adicione integracao "Events API V2"
+#    - Substitua YOUR_PAGERDUTY_KEY na configuracao
+#
+# 2. CRIAR KUBERNETES SECRET:
+#
+#    kubectl create secret generic alertmanager-ml-secrets -n monitoring \
+#      --from-literal=slack-webhook-url='https://hooks.slack.com/services/...' \
+#      --from-literal=pagerduty-key='YOUR_KEY'
+#
+# 3. CRIAR CONFIGMAP COM TEMPLATES:
+#
+#    kubectl create configmap alertmanager-ml-templates \
+#      --from-file=ml-message-template.tmpl=monitoring/alertmanager/ml-message-template.tmpl \
+#      -n monitoring
+#
+# 4. MERGE COM CONFIGURACAO EXISTENTE:
+#
+#    # Backup
+#    kubectl get configmap alertmanager-config -n monitoring -o yaml > backup.yaml
+#
+#    # Editar e merge manualmente as secoes:
+#    # - routes (adicionar novas rotas)
+#    # - receivers (adicionar novos receivers)
+#    # - inhibit_rules (adicionar novas regras)
+#
+# 5. APLICAR E RECARREGAR:
+#
+#    kubectl apply -f monitoring/alertmanager/ml-slack-config.yaml
+#    kubectl exec -n monitoring alertmanager-0 -- kill -HUP 1
+#
+# 6. VALIDAR CONFIGURACAO:
+#
+#    # Verificar se ConfigMap foi aplicado
+#    kubectl get configmap alertmanager-ml-config -n monitoring
+#
+#    # Verificar configuracao carregada
+#    kubectl exec -n monitoring alertmanager-0 -- amtool config show
+#
+#    # Testar routing de alerta critico
+#    kubectl exec -n monitoring alertmanager-0 -- amtool config routes test \
+#      alertname="MLDriftCritical" \
+#      severity="critical" \
+#      neural_hive_component="ml-models"
+#
+#    # Testar routing de alerta warning
+#    kubectl exec -n monitoring alertmanager-0 -- amtool config routes test \
+#      alertname="MLModelDegraded" \
+#      severity="warning" \
+#      specialist_type="technical"
+#
+# 7. TESTAR ALERTAS:
+#
+#    # Enviar alerta critico de teste
+#    curl -H "Content-Type: application/json" -d '[{
+#      "labels": {
+#        "alertname": "MLDriftCritical",
+#        "severity": "critical",
+#        "neural_hive_component": "ml-models",
+#        "specialist_type": "technical"
+#      },
+#      "annotations": {
+#        "summary": "Test: Drift critico detectado",
+#        "description": "Alerta de teste para validar configuracao",
+#        "current_value": "0.35",
+#        "threshold": "0.25",
+#        "runbook_url": "https://docs.neural-hive.local/runbooks/ml-drift-critical",
+#        "dashboard_url": "https://grafana.neural-hive.local/d/ml-slos-dashboard"
+#      }
+#    }]' http://alertmanager.monitoring:9093/api/v1/alerts
+#
+# 8. CRIAR SILENCES PARA MANUTENCAO:
+#
+#    # Silence durante manutencao de retraining (2h)
+#    kubectl exec -n monitoring alertmanager-0 -- amtool silence add \
+#      alertname=~"AutoRetrain.*" \
+#      --duration=2h \
+#      --comment="Manutencao programada de retraining" \
+#      --author="sre-team"
+#
+#    # Silence por specialist especifico
+#    kubectl exec -n monitoring alertmanager-0 -- amtool silence add \
+#      alertname=~"ML.*" \
+#      specialist_type="technical" \
+#      --duration=1h \
+#      --comment="Deploy de novo modelo technical specialist" \
+#      --author="ml-team"
+#
+# REFERENCIAS:
+#   - Alertmanager Config: https://prometheus.io/docs/alerting/latest/configuration/
+#   - Slack API: https://api.slack.com/messaging/webhooks
+#   - PagerDuty Events API: https://developer.pagerduty.com/docs/events-api-v2/overview/
+#   - Runbooks ML: docs/runbooks/ml-drift-critical.md
+#   - Alert Management Guide: docs/operations/alert-management.md
