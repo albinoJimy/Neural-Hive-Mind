@@ -21,10 +21,7 @@ spec:
           labels:
             app: neural-hive
             component: retraining-trigger
-          annotations:
-            prometheus.io/scrape: "true"
-            prometheus.io/port: "8080"
-            prometheus.io/path: "/metrics"
+          # Note: Metrics are pushed to Pushgateway, no HTTP endpoint exposed
         spec:
           restartPolicy: OnFailure
           containers:

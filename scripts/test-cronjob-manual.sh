@@ -50,11 +50,12 @@ create_manual_job() {
     local namespace=$2
     local job_name="${cronjob_name}-manual-$(date +%s)"
 
-    echo -e "${YELLOW}Criando job manual: $job_name${NC}"
+    echo -e "${YELLOW}Criando job manual: $job_name${NC}" >&2
 
     kubectl create job "$job_name" \
         --from=cronjob/"$cronjob_name" \
-        -n "$namespace"
+        -n "$namespace" \
+        -o name 2>&1 >&2
 
     echo "$job_name"
 }

@@ -26,9 +26,7 @@ spec:
           labels:
             app: neural-hive
             component: specialist-retraining
-          annotations:
-            prometheus.io/scrape: "true"
-            prometheus.io/port: "8080"
+          # Note: Metrics are pushed to Pushgateway, no HTTP endpoint exposed
         spec:
           restartPolicy: OnFailure
           securityContext:
