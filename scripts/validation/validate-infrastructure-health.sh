@@ -93,6 +93,18 @@ JSON_OUTPUT=false
 # Results storage for JSON output
 declare -a RESULTS=()
 
+# JSON escape helper function
+json_escape() {
+    local str="$1"
+    # Use Python for reliable JSON escaping, fallback to basic sed if Python unavailable
+    if command -v python3 &>/dev/null; then
+        printf '%s' "$str" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read())[1:-1], end="")'
+    else
+        # Basic escaping: backslash, quotes, newlines, tabs, carriage returns
+        printf '%s' "$str" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e ':a' -e 'N' -e '$!ba' -e 's/\n/\\n/g' -e 's/\t/\\t/g' -e 's/\r/\\r/g'
+    fi
+}
+
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
@@ -190,7 +202,12 @@ record_result() {
             ;;
     esac
 
-    RESULTS+=("{\"component\":\"$component\",\"check\":\"$check_name\",\"status\":\"$status\",\"details\":\"$details\"}")
+    # JSON-escape all fields to handle newlines, quotes, and special characters
+    local escaped_component=$(json_escape "$component")
+    local escaped_check_name=$(json_escape "$check_name")
+    local escaped_details=$(json_escape "$details")
+
+    RESULTS+=("{\"component\":\"$escaped_component\",\"check\":\"$escaped_check_name\",\"status\":\"$status\",\"details\":\"$escaped_details\"}")
 }
 
 # =============================================================================
@@ -223,7 +240,7 @@ check_kafka_health() {
     fi
 
     # Check broker connectivity
-    local broker_check=$(kubectl exec -it "$kafka_pod" -n "$KAFKA_NAMESPACE" -- \
+    local broker_check=$(kubectl exec -i "$kafka_pod" -n "$KAFKA_NAMESPACE" -- \
         kafka-broker-api-versions.sh --bootstrap-server localhost:9092 2>&1 | head -1 || echo "ERROR")
 
     if [[ "$broker_check" != *"ERROR"* ]] && [[ "$broker_check" != "" ]]; then
@@ -233,7 +250,7 @@ check_kafka_health() {
     fi
 
     # Check topics existence
-    local existing_topics=$(kubectl exec -it "$kafka_pod" -n "$KAFKA_NAMESPACE" -- \
+    local existing_topics=$(kubectl exec -i "$kafka_pod" -n "$KAFKA_NAMESPACE" -- \
         kafka-topics.sh --bootstrap-server localhost:9092 --list 2>/dev/null | tr -d '\r' || echo "")
 
     local missing_topics=()
@@ -256,7 +273,7 @@ check_kafka_health() {
 
     if [[ "$QUICK_MODE" == "false" ]]; then
         # Check consumer groups
-        local consumer_groups=$(kubectl exec -it "$kafka_pod" -n "$KAFKA_NAMESPACE" -- \
+        local consumer_groups=$(kubectl exec -i "$kafka_pod" -n "$KAFKA_NAMESPACE" -- \
             kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list 2>/dev/null | wc -l || echo "0")
 
         if [[ "$consumer_groups" -gt 0 ]]; then
@@ -266,7 +283,7 @@ check_kafka_health() {
         fi
 
         # Check for high consumer lag
-        local high_lag=$(kubectl exec -it "$kafka_pod" -n "$KAFKA_NAMESPACE" -- \
+        local high_lag=$(kubectl exec -i "$kafka_pod" -n "$KAFKA_NAMESPACE" -- \
             kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --all-groups 2>/dev/null | \
             awk 'NR>1 && $6 ~ /^[0-9]+$/ && $6 > 1000 {print $1":"$3":"$6}' | head -5 || echo "")
 
@@ -327,7 +344,7 @@ check_clickhouse_health() {
     fi
 
     # Check connectivity
-    local conn_check=$(kubectl exec -it "$ch_pod" -n "$CLICKHOUSE_NAMESPACE" -- \
+    local conn_check=$(kubectl exec -i "$ch_pod" -n "$CLICKHOUSE_NAMESPACE" -- \
         clickhouse-client --query "SELECT 1" 2>&1 | tr -d '\r\n' || echo "ERROR")
 
     if [[ "$conn_check" == "1" ]]; then
@@ -338,7 +355,7 @@ check_clickhouse_health() {
     fi
 
     # Check database exists
-    local db_exists=$(kubectl exec -it "$ch_pod" -n "$CLICKHOUSE_NAMESPACE" -- \
+    local db_exists=$(kubectl exec -i "$ch_pod" -n "$CLICKHOUSE_NAMESPACE" -- \
         clickhouse-client --query "SELECT count() FROM system.databases WHERE name = 'neural_hive'" 2>/dev/null | tr -d '\r\n' || echo "0")
 
     if [[ "$db_exists" == "1" ]]; then
@@ -349,7 +366,7 @@ check_clickhouse_health() {
     fi
 
     # Check tables
-    local existing_tables=$(kubectl exec -it "$ch_pod" -n "$CLICKHOUSE_NAMESPACE" -- \
+    local existing_tables=$(kubectl exec -i "$ch_pod" -n "$CLICKHOUSE_NAMESPACE" -- \
         clickhouse-client --query "SELECT name FROM system.tables WHERE database = 'neural_hive' AND engine NOT LIKE '%View%'" 2>/dev/null | tr -d '\r' || echo "")
 
     local table_count=0
@@ -371,7 +388,7 @@ check_clickhouse_health() {
 
     if [[ "$QUICK_MODE" == "false" ]]; then
         # Check materialized views
-        local existing_views=$(kubectl exec -it "$ch_pod" -n "$CLICKHOUSE_NAMESPACE" -- \
+        local existing_views=$(kubectl exec -i "$ch_pod" -n "$CLICKHOUSE_NAMESPACE" -- \
             clickhouse-client --query "SELECT name FROM system.tables WHERE database = 'neural_hive' AND engine LIKE '%View%'" 2>/dev/null | tr -d '\r' || echo "")
 
         local view_count=0
@@ -385,13 +402,13 @@ check_clickhouse_health() {
         done
 
         # Check disk usage
-        local disk_usage=$(kubectl exec -it "$ch_pod" -n "$CLICKHOUSE_NAMESPACE" -- \
+        local disk_usage=$(kubectl exec -i "$ch_pod" -n "$CLICKHOUSE_NAMESPACE" -- \
             clickhouse-client --query "SELECT round(sum(bytes) / 1024 / 1024, 2) as size_mb FROM system.parts WHERE database = 'neural_hive'" 2>/dev/null | tr -d '\r\n' || echo "0")
 
         record_result "ClickHouse" "Data size" "PASS" "${disk_usage} MB"
 
         # Check for recent data
-        local last_insert=$(kubectl exec -it "$ch_pod" -n "$CLICKHOUSE_NAMESPACE" -- \
+        local last_insert=$(kubectl exec -i "$ch_pod" -n "$CLICKHOUSE_NAMESPACE" -- \
             clickhouse-client --query "SELECT max(modification_time) FROM system.parts WHERE database = 'neural_hive'" 2>/dev/null | tr -d '\r\n' || echo "")
 
         if [[ -n "$last_insert" ]] && [[ "$last_insert" != "1970-01-01 00:00:00" ]]; then
@@ -432,7 +449,7 @@ check_otel_health() {
         fi
 
         # Check if metrics endpoint is accessible
-        local metrics_check=$(kubectl exec -it "$otel_pod" -n "$OBSERVABILITY_NAMESPACE" -- \
+        local metrics_check=$(kubectl exec -i "$otel_pod" -n "$OBSERVABILITY_NAMESPACE" -- \
             curl -s -o /dev/null -w "%{http_code}" http://localhost:8888/metrics 2>/dev/null || echo "000")
 
         if [[ "$metrics_check" == "200" ]]; then
@@ -443,10 +460,10 @@ check_otel_health() {
 
         if [[ "$QUICK_MODE" == "false" ]]; then
             # Check span acceptance rate
-            local accepted_spans=$(kubectl exec -it "$otel_pod" -n "$OBSERVABILITY_NAMESPACE" -- \
+            local accepted_spans=$(kubectl exec -i "$otel_pod" -n "$OBSERVABILITY_NAMESPACE" -- \
                 curl -s http://localhost:8888/metrics 2>/dev/null | grep "otelcol_receiver_accepted_spans" | head -1 || echo "")
 
-            local refused_spans=$(kubectl exec -it "$otel_pod" -n "$OBSERVABILITY_NAMESPACE" -- \
+            local refused_spans=$(kubectl exec -i "$otel_pod" -n "$OBSERVABILITY_NAMESPACE" -- \
                 curl -s http://localhost:8888/metrics 2>/dev/null | grep "otelcol_receiver_refused_spans" | head -1 || echo "")
 
             if [[ -n "$accepted_spans" ]]; then
@@ -485,7 +502,7 @@ check_otel_health() {
 
         if [[ "$QUICK_MODE" == "false" ]]; then
             # Check services count
-            local services_response=$(kubectl exec -it "$jaeger_pod" -n "$OBSERVABILITY_NAMESPACE" -- \
+            local services_response=$(kubectl exec -i "$jaeger_pod" -n "$OBSERVABILITY_NAMESPACE" -- \
                 curl -s http://localhost:16686/api/services 2>/dev/null || echo "{}")
 
             local services_count=$(echo "$services_response" | jq -r '.data | length' 2>/dev/null || echo "0")

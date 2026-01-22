@@ -1,8 +1,10 @@
 from fastapi import APIRouter, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import structlog
 
 from src.config.settings import get_settings
+from neural_hive_observability.health import HealthStatus
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="", tags=["health"])
@@ -109,7 +111,37 @@ async def readiness_check():
         logger.warning("grpc_orchestrator_health_check_failed", error=str(e))
         checks["grpc_orchestrator"] = "disconnected"
 
-    all_ready = all(v == "connected" for v in checks.values())
+    # Verificar ClickHouse schema health check
+    clickhouse_healthy = True
+    try:
+        if app_main.health_checker:
+            ch_result = await app_main.health_checker.check_single("clickhouse_schema")
+            if ch_result:
+                if ch_result.status == HealthStatus.HEALTHY:
+                    checks["clickhouse_schema"] = "healthy"
+                elif ch_result.status == HealthStatus.DEGRADED:
+                    checks["clickhouse_schema"] = "degraded"
+                    clickhouse_healthy = False
+                else:
+                    checks["clickhouse_schema"] = "unhealthy"
+                    clickhouse_healthy = False
+            else:
+                checks["clickhouse_schema"] = "not_configured"
+        else:
+            checks["clickhouse_schema"] = "not_configured"
+    except Exception as e:
+        logger.warning("clickhouse_schema_health_check_failed", error=str(e))
+        checks["clickhouse_schema"] = "unhealthy"
+        clickhouse_healthy = False
+
+    all_ready = all(v == "connected" for v in checks.values() if v != "not_configured" and v not in ["healthy", "degraded", "unhealthy"])
+    all_ready = all_ready and clickhouse_healthy
+
+    if not all_ready:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": "not_ready", "ready": False, "checks": checks}
+        )
 
     return ReadinessResponse(status="ready" if all_ready else "not_ready", ready=all_ready, checks=checks)
 

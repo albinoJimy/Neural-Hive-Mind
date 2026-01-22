@@ -32,13 +32,16 @@ try:
     from neural_hive_observability import trace_intent, get_metrics, get_context_manager
     from neural_hive_observability.tracing import get_current_trace_id, get_current_span_id
     from neural_hive_observability.health import HealthManager, RedisHealthCheck, CustomHealthCheck, HealthStatus
+    from neural_hive_observability.health_checks.otel import OTELPipelineHealthCheck
     from observability.metrics import (
         intent_counter, latency_histogram, confidence_histogram,
         low_confidence_routed_counter, record_too_large_counter
     )
     OBSERVABILITY_AVAILABLE = True
+    OTEL_HEALTH_CHECK_AVAILABLE = True
 except ImportError:
     OBSERVABILITY_AVAILABLE = False
+    OTEL_HEALTH_CHECK_AVAILABLE = False
     # Stubs temporários para desenvolvimento local sem neural_hive_observability
     class HealthManager:
         def __init__(self):
@@ -312,6 +315,18 @@ async def lifespan(app: FastAPI):
                 )
             )
 
+        # Add OTEL pipeline health check
+        if settings.otel_enabled and OTEL_HEALTH_CHECK_AVAILABLE:
+            otel_health_check = OTELPipelineHealthCheck(
+                otel_endpoint=settings.otel_endpoint,
+                service_name="gateway-intencoes",
+                name="otel_pipeline",
+                timeout_seconds=5.0,
+                verify_trace_export=True
+            )
+            health_manager.add_check(otel_health_check)
+            logger.info("otel_pipeline_health_check_registered", otel_endpoint=settings.otel_endpoint)
+
         logger.info("Gateway de Intenções iniciado com sucesso - Redis e OAuth2 ativos")
 
         yield
@@ -486,18 +501,34 @@ async def readiness_check():
         # Check critical components for readiness
         critical_checks = ["redis", "kafka_producer"]
         overall_ready = True
+        check_results = {}
 
         for check_name in critical_checks:
             result = await health_manager.check_single(check_name)
-            if result and result.status != HealthStatus.HEALTHY:
-                overall_ready = False
-                break
+            if result:
+                check_results[check_name] = result.status.value if hasattr(result.status, 'value') else str(result.status)
+                if result.status != HealthStatus.HEALTHY:
+                    overall_ready = False
+            else:
+                check_results[check_name] = "not_configured"
+
+        # Check OTEL pipeline health (if enabled)
+        if settings.otel_enabled and OTEL_HEALTH_CHECK_AVAILABLE:
+            otel_result = await health_manager.check_single("otel_pipeline")
+            if otel_result:
+                check_results["otel_pipeline"] = otel_result.status.value if hasattr(otel_result.status, 'value') else str(otel_result.status)
+                if otel_result.status == HealthStatus.UNHEALTHY:
+                    overall_ready = False
+                    logger.warning("otel_pipeline_unhealthy", status=otel_result.status, message=otel_result.message)
+            else:
+                check_results["otel_pipeline"] = "not_configured"
 
         response_data = {
             "status": "ready" if overall_ready else "not_ready",
             "timestamp": datetime.utcnow().isoformat(),
             "service_name": "gateway-intencoes",
-            "neural_hive_component": "gateway"
+            "neural_hive_component": "gateway",
+            "checks": check_results
         }
 
         return JSONResponse(

@@ -11,6 +11,9 @@ from neural_hive_observability import (
     instrument_kafka_consumer,
     instrument_kafka_producer,
 )
+from neural_hive_observability.health import HealthChecker, HealthStatus
+from neural_hive_observability.health_checks.clickhouse import ClickHouseSchemaHealthCheck
+from neural_hive_observability.config import ObservabilityConfig
 
 from src.clients import (
     MongoDBClient,
@@ -94,6 +97,9 @@ grpc_task = None
 background_tasks = []
 consumer_tasks = []
 
+# Health checker
+health_checker = None
+
 
 async def startup():
     """Tarefas de inicialização."""
@@ -152,6 +158,26 @@ async def startup():
     except Exception as e:
         logger.warning("clickhouse_client_initialization_failed_continuing_without", error=str(e))
         clickhouse_client = None
+
+    # Initialize HealthChecker and register ClickHouse schema health check
+    global health_checker
+    observability_config = ObservabilityConfig(
+        service_name=settings.service_name,
+        service_version=settings.service_version,
+        neural_hive_component='optimizer-agent',
+        neural_hive_layer='otimizacao',
+    )
+    health_checker = HealthChecker(config=observability_config)
+
+    if clickhouse_client:
+        clickhouse_health_check = ClickHouseSchemaHealthCheck(
+            clickhouse_client=clickhouse_client.client if hasattr(clickhouse_client, 'client') else clickhouse_client,
+            expected_tables=['execution_logs', 'telemetry_metrics', 'worker_utilization', 'queue_snapshots', 'ml_model_performance', 'scheduling_decisions'],
+            expected_views=['hourly_ticket_volume', 'daily_worker_stats'],
+            database='neural_hive',
+        )
+        health_checker.register_check(clickhouse_health_check)
+        logger.info("clickhouse_schema_health_check_registered")
 
     # Inicializar clientes gRPC (não-fatal - continuam se falhar)
     # Consensus Engine

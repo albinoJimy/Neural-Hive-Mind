@@ -4,6 +4,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from neural_hive_observability import init_observability
+from neural_hive_observability.health import HealthChecker
+from neural_hive_observability.health_checks.clickhouse import ClickHouseSchemaHealthCheck
+from neural_hive_observability.config import ObservabilityConfig
 
 from .config import get_settings
 from .clients import MongoDBClient, RedisClient, Neo4jClient, ClickHouseClient, ElasticsearchClient, PrometheusClient, QueenAgentGRPCClient
@@ -48,6 +51,9 @@ class AppState:
 
         # gRPC
         self.grpc_server = None
+
+        # Health checker
+        self.health_checker = None
 
 
 app_state = AppState()
@@ -108,6 +114,25 @@ async def lifespan(app: FastAPI):
             database=settings.CLICKHOUSE_DATABASE
         )
         app_state.clickhouse_client.initialize()
+
+        # Initialize HealthChecker and register ClickHouse schema health check
+        observability_config = ObservabilityConfig(
+            service_name='analyst-agents',
+            service_version=settings.SERVICE_VERSION,
+            neural_hive_component='analyst-agent',
+            neural_hive_layer='analise',
+        )
+        app_state.health_checker = HealthChecker(config=observability_config)
+
+        if app_state.clickhouse_client and app_state.clickhouse_client.client:
+            clickhouse_health_check = ClickHouseSchemaHealthCheck(
+                clickhouse_client=app_state.clickhouse_client.client,
+                expected_tables=['execution_logs', 'telemetry_metrics', 'worker_utilization', 'queue_snapshots', 'ml_model_performance', 'scheduling_decisions'],
+                expected_views=['hourly_ticket_volume', 'daily_worker_stats'],
+                database='neural_hive',
+            )
+            app_state.health_checker.register_check(clickhouse_health_check)
+            logger.info('clickhouse_schema_health_check_registered')
 
         # Elasticsearch
         app_state.elasticsearch_client = ElasticsearchClient(

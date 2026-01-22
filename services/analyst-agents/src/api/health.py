@@ -1,5 +1,8 @@
 from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 import structlog
+
+from neural_hive_observability.health import HealthStatus
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -55,7 +58,41 @@ async def readiness_check(request: Request):
         else:
             dependencies['prometheus'] = 'disconnected'
 
-        ready = all(status == 'connected' for status in dependencies.values())
+        # Verificar ClickHouse schema health check
+        clickhouse_schema_healthy = True
+        try:
+            if app_state.health_checker:
+                ch_result = await app_state.health_checker.check_single("clickhouse_schema")
+                if ch_result:
+                    if ch_result.status == HealthStatus.HEALTHY:
+                        dependencies["clickhouse_schema"] = "healthy"
+                    elif ch_result.status == HealthStatus.DEGRADED:
+                        dependencies["clickhouse_schema"] = "degraded"
+                        clickhouse_schema_healthy = False
+                    else:
+                        dependencies["clickhouse_schema"] = "unhealthy"
+                        clickhouse_schema_healthy = False
+                else:
+                    dependencies["clickhouse_schema"] = "not_configured"
+            else:
+                dependencies["clickhouse_schema"] = "not_configured"
+        except Exception as e:
+            logger.warning("clickhouse_schema_health_check_failed", error=str(e))
+            dependencies["clickhouse_schema"] = "unhealthy"
+            clickhouse_schema_healthy = False
+
+        ready = all(status == 'connected' for status in dependencies.values() if status not in ['healthy', 'degraded', 'unhealthy', 'not_configured'])
+        ready = ready and clickhouse_schema_healthy
+
+        if not ready:
+            return JSONResponse(
+                status_code=503,
+                content={
+                    'ready': False,
+                    'dependencies': dependencies,
+                    'timestamp': int(__import__('time').time() * 1000)
+                }
+            )
 
         return {
             'ready': ready,

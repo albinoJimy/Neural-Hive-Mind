@@ -18,6 +18,9 @@ from neural_hive_observability import (
     instrument_kafka_consumer,
     instrument_kafka_producer,
 )
+from neural_hive_observability.health import HealthChecker, HealthStatus
+from neural_hive_observability.health_checks.otel import OTELPipelineHealthCheck
+from neural_hive_observability.config import ObservabilityConfig
 
 from src.config.settings import get_settings
 from src.consumers.intent_consumer import IntentConsumer
@@ -149,6 +152,27 @@ async def lifespan(app: FastAPI):
         otel_endpoint=settings.otel_endpoint,
         prometheus_port=0,  # Desabilitado - usando /metrics endpoint do FastAPI
     )
+
+    # Initialize HealthChecker for OTEL pipeline validation
+    observability_config = ObservabilityConfig(
+        service_name='semantic-translation-engine',
+        service_version='1.0.0',
+        neural_hive_component='semantic-translator',
+        neural_hive_layer='cognitiva',
+    )
+    health_checker = HealthChecker(config=observability_config)
+
+    # Register OTEL pipeline health check
+    otel_health_check = OTELPipelineHealthCheck(
+        otel_endpoint=settings.otel_endpoint,
+        service_name='semantic-translation-engine',
+        name='otel_pipeline',
+        timeout_seconds=5.0,
+        verify_trace_export=True
+    )
+    health_checker.register_check(otel_health_check)
+    state['health_checker'] = health_checker
+    logger.info('otel_pipeline_health_check_registered', otel_endpoint=settings.otel_endpoint)
 
     try:
         # Initialize clients
@@ -565,7 +589,31 @@ async def readiness_check():
             settings = get_settings()
             checks['nlp_processor'] = not settings.nlp_enabled
 
-        all_ready = all(checks.values())
+        # Check OTEL pipeline health
+        otel_healthy = True
+        if 'health_checker' in state and state['health_checker']:
+            try:
+                otel_result = await state['health_checker'].check_single('otel_pipeline')
+                if otel_result:
+                    if otel_result.status == HealthStatus.HEALTHY:
+                        checks['otel_pipeline'] = True
+                    elif otel_result.status == HealthStatus.DEGRADED:
+                        checks['otel_pipeline'] = True  # Degraded is still acceptable
+                        logger.warning('otel_pipeline_degraded', message=otel_result.message)
+                    else:
+                        checks['otel_pipeline'] = False
+                        otel_healthy = False
+                        logger.warning('otel_pipeline_unhealthy', message=otel_result.message)
+                else:
+                    checks['otel_pipeline'] = True  # Not configured, mark as ready
+            except Exception as e:
+                logger.warning('otel_pipeline_health_check_error', error=str(e))
+                checks['otel_pipeline'] = False
+                otel_healthy = False
+        else:
+            checks['otel_pipeline'] = True  # Health checker not available, skip
+
+        all_ready = all(checks.values()) and otel_healthy
 
         response_data = {
             "ready": all_ready,
