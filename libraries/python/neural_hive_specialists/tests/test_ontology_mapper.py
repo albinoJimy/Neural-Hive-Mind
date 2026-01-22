@@ -9,6 +9,7 @@ sys.path.append(str(ROOT / "libraries" / "python"))
 from neural_hive_specialists.feature_extraction.ontology_mapper import (  # noqa: E402
     OntologyMapper,
 )
+from neural_hive_domain import UnifiedDomain  # noqa: E402
 
 
 class DummyEmbeddingsGenerator:
@@ -108,3 +109,77 @@ def test_semantic_match_average_rule():
     # high_match -> média ~0.5 (um alto, um baixo) => conta
     # low_match -> média baixa => não conta
     assert matches == 1
+
+
+def test_get_unified_domain():
+    """Valida mapeamento de domínio de ontologia para UnifiedDomain."""
+    mapper = OntologyMapper()
+
+    # Testes de mapeamento válido
+    assert mapper.get_unified_domain('security-analysis') == UnifiedDomain.SECURITY
+    assert mapper.get_unified_domain('architecture-review') == UnifiedDomain.TECHNICAL
+    assert mapper.get_unified_domain('performance-optimization') == UnifiedDomain.OPERATIONAL
+    assert mapper.get_unified_domain('code-quality') == UnifiedDomain.TECHNICAL
+
+    # Teste de domínio inválido
+    assert mapper.get_unified_domain('invalid-domain') is None
+
+
+def test_map_domain_to_unified_domain_returns_unified_domain():
+    """Valida que map_domain_to_unified_domain retorna UnifiedDomain diretamente."""
+    mapper = OntologyMapper()
+
+    result = mapper.map_domain_to_unified_domain('security-analysis')
+    assert result is not None
+    assert isinstance(result, UnifiedDomain)
+    assert result == UnifiedDomain.SECURITY
+
+
+def test_map_domain_to_unified_domain_all_domains():
+    """Valida que todos os domínios retornam UnifiedDomain corretamente."""
+    mapper = OntologyMapper()
+
+    domain_mappings = {
+        'security-analysis': UnifiedDomain.SECURITY,
+        'architecture-review': UnifiedDomain.TECHNICAL,
+        'performance-optimization': UnifiedDomain.OPERATIONAL,
+        'code-quality': UnifiedDomain.TECHNICAL
+    }
+
+    for domain, expected_unified in domain_mappings.items():
+        result = mapper.map_domain_to_unified_domain(domain)
+        assert result is not None, f"Domain {domain} not found"
+        assert isinstance(result, UnifiedDomain), \
+            f"Domain {domain} should return UnifiedDomain, got {type(result)}"
+        assert result == expected_unified, \
+            f"Domain {domain} expected {expected_unified}, got {result}"
+
+
+def test_map_domain_to_unified_domain_unknown_returns_none():
+    """Valida que domínio desconhecido retorna None."""
+    mapper = OntologyMapper()
+
+    result = mapper.map_domain_to_unified_domain('unknown-domain')
+    assert result is None
+
+
+def test_get_taxonomy_entry_returns_full_dict():
+    """Valida que get_taxonomy_entry retorna dicionário completo com metadados."""
+    mapper = OntologyMapper()
+
+    result = mapper.get_taxonomy_entry('security-analysis')
+    assert result is not None
+    assert isinstance(result, dict)
+    assert 'id' in result
+    assert result['id'] == 'SEC'
+    assert 'unified_domain' in result
+    assert result['unified_domain'] == UnifiedDomain.SECURITY
+    assert 'risk_weight' in result
+
+
+def test_get_taxonomy_entry_unknown_returns_none():
+    """Valida que get_taxonomy_entry retorna None para domínio desconhecido."""
+    mapper = OntologyMapper()
+
+    result = mapper.get_taxonomy_entry('unknown-domain')
+    assert result is None

@@ -17,6 +17,7 @@ import structlog
 from .ontology_mapper import OntologyMapper
 from .graph_analyzer import GraphAnalyzer
 from .embeddings_generator import EmbeddingsGenerator
+from neural_hive_domain import UnifiedDomain
 
 if TYPE_CHECKING:
     from ..metrics import SpecialistMetrics
@@ -161,13 +162,25 @@ class FeatureExtractor:
 
     def _extract_ontology_features(self, domain: str, tasks: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Extrai features baseadas em ontologia."""
-        # Mapear domínio
-        domain_mapping = self.ontology_mapper.map_domain_to_taxonomy(domain)
+        # Mapear domínio para UnifiedDomain diretamente
+        unified_domain = self.ontology_mapper.map_domain_to_unified_domain(domain)
+
+        # Obter metadados da taxonomia para outras features
+        taxonomy_entry = self.ontology_mapper.get_taxonomy_entry(domain)
 
         features = {
-            'domain_id': domain_mapping['id'] if domain_mapping else 'UNKNOWN',
-            'domain_risk_weight': domain_mapping.get('risk_weight', 0.5) if domain_mapping else 0.5
+            'domain_id': taxonomy_entry['id'] if taxonomy_entry else 'UNKNOWN',
+            'domain_risk_weight': taxonomy_entry.get('risk_weight', 0.5) if taxonomy_entry else 0.5,
+            'unified_domain': unified_domain,
+            'unified_domain_value': unified_domain.value if unified_domain else 'UNKNOWN'
         }
+
+        if unified_domain:
+            logger.debug(
+                "Domain mapped to UnifiedDomain",
+                original_domain=domain,
+                unified_domain=unified_domain.value
+            )
 
         # Mapear tipos de tarefa
         task_type_scores = []

@@ -12,6 +12,8 @@ import numpy as np
 import structlog
 from pathlib import Path
 
+from neural_hive_domain import UnifiedDomain, DomainMapper
+
 logger = structlog.get_logger(__name__)
 
 
@@ -138,19 +140,71 @@ class OntologyMapper:
                 "Falha ao pré-computar embeddings de indicadores",
                 error=str(e)
             )
-    def map_domain_to_taxonomy(self, domain: str) -> Optional[Dict[str, Any]]:
+    def get_unified_domain(self, domain: str) -> Optional[UnifiedDomain]:
         """
-        Mapeia domínio do plano para entrada de taxonomia.
+        Retorna UnifiedDomain para um domínio de ontologia.
+
+        Args:
+            domain: Domínio da ontologia (ex: 'security-analysis')
+
+        Returns:
+            UnifiedDomain enum ou None se não encontrado
+        """
+        try:
+            return DomainMapper.from_ontology(domain)
+        except ValueError:
+            logger.warning("Failed to map domain to UnifiedDomain", domain=domain)
+            return None
+
+    def map_domain_to_unified_domain(self, domain: str) -> Optional[UnifiedDomain]:
+        """
+        Mapeia domínio do plano para UnifiedDomain.
+
+        Este é o método principal para obter o UnifiedDomain a partir de um
+        domínio de ontologia. Primeiro tenta usar o valor da taxonomia,
+        depois faz fallback para DomainMapper.
 
         Args:
             domain: Domínio original do plano (ex: 'security-analysis')
 
         Returns:
-            Dicionário com id, description, risk_weight, subcategories
+            UnifiedDomain enum ou None se não encontrado
         """
         domains = self.intents_taxonomy.get('domains', {})
         if domain in domains:
-            return domains[domain]
+            taxonomy_entry = domains[domain]
+
+            # Primeiro tentar usar unified_domain da taxonomia
+            if 'unified_domain' in taxonomy_entry:
+                try:
+                    return UnifiedDomain(taxonomy_entry['unified_domain'])
+                except ValueError:
+                    logger.warning("Invalid unified_domain in taxonomy", domain=domain)
+
+        # Fallback: usar DomainMapper
+        return self.get_unified_domain(domain)
+
+    def get_taxonomy_entry(self, domain: str) -> Optional[Dict[str, Any]]:
+        """
+        Retorna entrada completa de taxonomia para um domínio.
+
+        Use este método quando precisar de metadados adicionais além do
+        UnifiedDomain, como id, description, risk_weight, subcategories.
+
+        Args:
+            domain: Domínio original do plano (ex: 'security-analysis')
+
+        Returns:
+            Dicionário com id, description, risk_weight, subcategories, unified_domain
+        """
+        domains = self.intents_taxonomy.get('domains', {})
+        if domain in domains:
+            taxonomy_entry = domains[domain].copy()
+
+            # Adicionar unified_domain resolvido
+            taxonomy_entry['unified_domain'] = self.map_domain_to_unified_domain(domain)
+
+            return taxonomy_entry
 
         logger.warning("Domain not found in taxonomy", domain=domain)
         return None
