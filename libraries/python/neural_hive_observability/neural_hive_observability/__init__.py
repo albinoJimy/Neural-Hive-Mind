@@ -41,6 +41,7 @@ from .tracing import init_tracing, trace_intent, trace_plan, get_tracer, trace_g
 from .metrics import init_metrics, NeuralHiveMetrics
 from .logging import init_logging, get_logger
 from .health import HealthChecker
+from .health_checks import ClickHouseSchemaHealthCheck, OTELPipelineHealthCheck
 from .context import ContextManager
 from .grpc_instrumentation import (
     init_grpc_instrumentation,
@@ -61,7 +62,7 @@ from .kafka_instrumentation import (
 )
 
 # Versão da biblioteca
-__version__ = "1.2.2"
+__version__ = "1.3.0"
 
 # Logger da biblioteca
 logger = stdlib_logging.getLogger(__name__)
@@ -197,6 +198,8 @@ __all__ = [
     # Health checks
     "HealthChecker",
     "get_health_checker",
+    "ClickHouseSchemaHealthCheck",
+    "OTELPipelineHealthCheck",
 
     # Context
     "ContextManager",

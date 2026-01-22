@@ -1,0 +1,324 @@
+groups:
+# ============================================================================
+# KAFKA DIAGNOSTIC ALERTS
+# ============================================================================
+- name: neural-hive.kafka.diagnostics
+  rules:
+  - alert: KafkaTopicMissing
+    expr: |
+      absent(kafka_topic_partitions{topic="intentions.security"}) or
+      absent(kafka_topic_partitions{topic="intentions.business"}) or
+      absent(kafka_topic_partitions{topic="intentions.technical"}) or
+      absent(kafka_topic_partitions{topic="intentions.infrastructure"})
+    for: 2m
+    labels:
+      severity: critical
+      neural_hive_component: kafka
+      neural_hive_layer: messaging
+    annotations:
+      summary: "Topico Kafka critico ausente"
+      description: "Um ou mais topicos de intencoes nao encontrados no cluster Kafka. Verifique se todos os topicos intentions.* existem."
+      runbook_url: "https://docs.neural-hive.local/runbooks/kafka-topic-missing"
+      remediation: "Aplicar Helm chart: helm upgrade kafka-topics ./helm-charts/kafka-topics -n neural-hive-kafka"
+
+  - alert: KafkaTopicNamingIncorrect
+    expr: kafka_topic_partitions{topic=~"intentions-.*"} > 0
+    for: 1m
+    labels:
+      severity: warning
+      neural_hive_component: kafka
+      neural_hive_layer: messaging
+    annotations:
+      summary: "Topico Kafka com nomenclatura incorreta"
+      description: "Topico {{ $labels.topic }} usa hifen ao inves de ponto. A convencao correta eh intentions.* (com ponto)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/kafka-topic-naming"
+      remediation: "Deletar topico incorreto e recriar com nomenclatura correta (intentions.* ao inves de intentions-*)"
+
+  - alert: KafkaConsumerLagCritical
+    expr: kafka_consumer_lag_max{topic=~"intentions.*"} > 1000
+    for: 5m
+    labels:
+      severity: critical
+      neural_hive_component: kafka
+      neural_hive_layer: messaging
+    annotations:
+      summary: "Lag critico no consumer Kafka"
+      description: "Consumer {{ $labels.consumergroup }} com lag de {{ $value | humanize }} mensagens no topico {{ $labels.topic }}"
+      runbook_url: "https://docs.neural-hive.local/runbooks/kafka-consumer-lag-critical"
+      remediation: "Verificar performance dos consumidores e considerar scale out. Executar: kubectl scale deployment/<consumer-service> --replicas=<N>"
+
+  - alert: KafkaConsumerLagWarning
+    expr: kafka_consumer_lag_max{topic=~"intentions.*"} > 100 and kafka_consumer_lag_max{topic=~"intentions.*"} <= 1000
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: kafka
+      neural_hive_layer: messaging
+    annotations:
+      summary: "Lag elevado no consumer Kafka"
+      description: "Consumer {{ $labels.consumergroup }} com lag de {{ $value | humanize }} mensagens no topico {{ $labels.topic }}"
+      runbook_url: "https://docs.neural-hive.local/runbooks/kafka-consumer-lag-warning"
+
+  - alert: KafkaBrokerDown
+    expr: up{job="kafka"} == 0
+    for: 3m
+    labels:
+      severity: critical
+      neural_hive_component: kafka
+      neural_hive_layer: messaging
+    annotations:
+      summary: "Broker Kafka inativo"
+      description: "Broker Kafka {{ $labels.instance }} esta inativo ha mais de 3 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/kafka-broker-down"
+      remediation: "Verificar status do pod: kubectl get pods -n neural-hive-kafka -l app.kubernetes.io/name=kafka"
+
+  - alert: KafkaSchemaRegistryDown
+    expr: up{job="schema-registry"} == 0
+    for: 3m
+    labels:
+      severity: warning
+      neural_hive_component: kafka
+      neural_hive_layer: messaging
+    annotations:
+      summary: "Schema Registry inativo"
+      description: "Schema Registry esta inativo ha mais de 3 minutos. Novos schemas nao poderao ser registrados."
+      runbook_url: "https://docs.neural-hive.local/runbooks/schema-registry-down"
+      remediation: "kubectl rollout restart deployment/schema-registry -n neural-hive-kafka"
+
+  - alert: KafkaUnderReplicatedPartitions
+    expr: kafka_server_replicamanager_underreplicatedpartitions > 0
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: kafka
+      neural_hive_layer: messaging
+    annotations:
+      summary: "Particoes Kafka sub-replicadas"
+      description: "{{ $value | humanize }} particoes estao sub-replicadas no cluster Kafka"
+      runbook_url: "https://docs.neural-hive.local/runbooks/kafka-under-replicated"
+
+# ============================================================================
+# CLICKHOUSE DIAGNOSTIC ALERTS
+# ============================================================================
+- name: neural-hive.clickhouse.diagnostics
+  rules:
+  - alert: ClickHouseSchemaIncomplete
+    expr: clickhouse_tables_count{database="neural_hive"} < 6
+    for: 5m
+    labels:
+      severity: critical
+      neural_hive_component: clickhouse
+      neural_hive_layer: analytics
+    annotations:
+      summary: "Schema ClickHouse incompleto"
+      description: "Database neural_hive tem {{ $value }} tabelas (esperado: 6). Schema pode nao ter sido inicializado corretamente."
+      runbook_url: "https://docs.neural-hive.local/runbooks/clickhouse-schema-incomplete"
+      remediation: "Executar Job de inicializacao: kubectl apply -f k8s/clickhouse-ml-schema.yaml"
+
+  - alert: ClickHouseDown
+    expr: up{job="clickhouse"} == 0
+    for: 3m
+    labels:
+      severity: critical
+      neural_hive_component: clickhouse
+      neural_hive_layer: analytics
+    annotations:
+      summary: "ClickHouse inativo"
+      description: "Instancia ClickHouse {{ $labels.instance }} esta inativa ha mais de 3 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/clickhouse-down"
+      remediation: "kubectl rollout restart statefulset/clickhouse -n clickhouse"
+
+  - alert: ClickHouseNoRecentData
+    expr: |
+      time() - clickhouse_table_last_insert_timestamp{database="neural_hive", table="execution_logs"} > 3600
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: clickhouse
+      neural_hive_layer: analytics
+    annotations:
+      summary: "ClickHouse sem dados recentes"
+      description: "Tabela {{ $labels.table }} sem insercoes ha {{ $value | humanizeDuration }}. Pipeline de ingestao pode estar falhando."
+      runbook_url: "https://docs.neural-hive.local/runbooks/clickhouse-no-recent-data"
+
+  - alert: ClickHouseHighQueryLatency
+    expr: histogram_quantile(0.95, rate(clickhouse_query_duration_seconds_bucket[5m])) > 0.5
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: clickhouse
+      neural_hive_layer: analytics
+    annotations:
+      summary: "Alta latencia de queries ClickHouse"
+      description: "Latencia P95 de queries ClickHouse em {{ $value | humanizeDuration }}. Performance pode estar degradada."
+      runbook_url: "https://docs.neural-hive.local/runbooks/clickhouse-high-latency"
+
+  - alert: ClickHouseDiskSpaceLow
+    expr: (clickhouse_disk_usage_bytes / clickhouse_disk_total_bytes) * 100 > 85
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: clickhouse
+      neural_hive_layer: analytics
+    annotations:
+      summary: "Pouco espaco em disco no ClickHouse"
+      description: "ClickHouse com {{ $value | humanize }}% de uso de disco. Considere expandir storage ou aplicar retencao de dados."
+      runbook_url: "https://docs.neural-hive.local/runbooks/clickhouse-disk-space-low"
+
+  - alert: ClickHouseDiskSpaceCritical
+    expr: (clickhouse_disk_usage_bytes / clickhouse_disk_total_bytes) * 100 > 95
+    for: 5m
+    labels:
+      severity: critical
+      neural_hive_component: clickhouse
+      neural_hive_layer: analytics
+    annotations:
+      summary: "Espaco em disco critico no ClickHouse"
+      description: "ClickHouse com {{ $value | humanize }}% de uso de disco. Acao imediata necessaria."
+      runbook_url: "https://docs.neural-hive.local/runbooks/clickhouse-disk-space-critical"
+      remediation: "Executar limpeza de dados antigos ou expandir PVC"
+
+# ============================================================================
+# OTEL/JAEGER DIAGNOSTIC ALERTS
+# ============================================================================
+- name: neural-hive.observability.diagnostics
+  rules:
+  - alert: OTELCollectorDown
+    expr: up{job="opentelemetry-collector"} == 0
+    for: 3m
+    labels:
+      severity: critical
+      neural_hive_component: otel-collector
+      neural_hive_layer: observability
+    annotations:
+      summary: "OTEL Collector inativo"
+      description: "OTEL Collector nao esta processando telemetria ha mais de 3 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/otel-collector-down"
+      remediation: "kubectl rollout restart deployment/otel-collector -n observability"
+
+  - alert: OTELCollectorHighRefusalRate
+    expr: |
+      rate(otelcol_receiver_refused_spans[5m]) /
+      (rate(otelcol_receiver_accepted_spans[5m]) + rate(otelcol_receiver_refused_spans[5m])) > 0.1
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: otel-collector
+      neural_hive_layer: observability
+    annotations:
+      summary: "Alta taxa de rejeicao no OTEL Collector"
+      description: "OTEL Collector rejeitando {{ $value | humanizePercentage }} dos spans recebidos. Verificar configuracao e capacidade."
+      runbook_url: "https://docs.neural-hive.local/runbooks/otel-high-refusal"
+
+  - alert: JaegerNoTraces
+    expr: rate(jaeger_spans_stored_total[5m]) == 0
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: jaeger
+      neural_hive_layer: observability
+    annotations:
+      summary: "Jaeger nao esta recebendo traces"
+      description: "Nenhum trace armazenado nos ultimos 10 minutos. Pipeline de observabilidade pode estar falhando."
+      runbook_url: "https://docs.neural-hive.local/runbooks/jaeger-no-traces"
+
+  - alert: JaegerDown
+    expr: up{job=~"jaeger.*"} == 0
+    for: 3m
+    labels:
+      severity: warning
+      neural_hive_component: jaeger
+      neural_hive_layer: observability
+    annotations:
+      summary: "Jaeger inativo"
+      description: "Servico Jaeger {{ $labels.job }} esta inativo ha mais de 3 minutos"
+      runbook_url: "https://docs.neural-hive.local/runbooks/jaeger-down"
+      remediation: "kubectl rollout restart deployment/jaeger-query -n observability"
+
+  - alert: ServiceTracingDisabled
+    expr: |
+      up{neural_hive_component!=""} == 1
+      unless on(instance)
+      rate(otelcol_receiver_accepted_spans{service_name!=""}[5m]) > 0
+    for: 15m
+    labels:
+      severity: info
+      neural_hive_layer: observability
+    annotations:
+      summary: "Servico possivelmente sem tracing habilitado"
+      description: "Servico {{ $labels.neural_hive_component }} pode nao estar enviando traces. Verificar configuracao OTEL_ENABLED."
+      runbook_url: "https://docs.neural-hive.local/runbooks/service-tracing-disabled"
+
+  - alert: OTELExporterErrors
+    expr: rate(otelcol_exporter_send_failed_spans[5m]) > 0
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: otel-collector
+      neural_hive_layer: observability
+    annotations:
+      summary: "Erros no export de spans OTEL"
+      description: "OTEL Collector falhando ao exportar {{ $value | humanize }} spans/s para o backend"
+      runbook_url: "https://docs.neural-hive.local/runbooks/otel-exporter-errors"
+
+# ============================================================================
+# INTEGRATION HEALTH ALERTS
+# ============================================================================
+- name: neural-hive.integration.diagnostics
+  rules:
+  - alert: EndToEndPipelineStalled
+    expr: |
+      rate(neural_hive_requests_total[10m]) > 0 and
+      rate(neural_hive_cognitive_plans_generated_total[10m]) == 0
+    for: 15m
+    labels:
+      severity: critical
+      neural_hive_component: integration
+      neural_hive_layer: pipeline
+    annotations:
+      summary: "Pipeline end-to-end parado"
+      description: "Intencoes estao sendo recebidas mas nenhum Cognitive Plan sendo gerado. Verificar componentes intermediarios."
+      runbook_url: "https://docs.neural-hive.local/runbooks/pipeline-stalled"
+      remediation: "Executar script de diagnostico: ./scripts/validation/validate-infrastructure-health.sh"
+
+  - alert: HighIntentRejectionRate
+    expr: |
+      sum(rate(neural_hive_requests_total{status=~"4..|5.."}[5m])) /
+      sum(rate(neural_hive_requests_total[5m])) > 0.05
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: gateway
+      neural_hive_layer: experiencia
+    annotations:
+      summary: "Alta taxa de rejeicao de intencoes"
+      description: "{{ $value | humanizePercentage }} das intencoes estao sendo rejeitadas. Verificar validacao e configuracao."
+      runbook_url: "https://docs.neural-hive.local/runbooks/high-intent-rejection"
+
+  - alert: SLAComplianceAtRisk
+    expr: |
+      (sum(rate(neural_hive_requests_total{status!~"5.."}[5m])) /
+       sum(rate(neural_hive_requests_total[5m]))) * 100 < 99
+    for: 15m
+    labels:
+      severity: warning
+      neural_hive_component: sla
+      neural_hive_layer: business
+    annotations:
+      summary: "SLA de disponibilidade em risco"
+      description: "Disponibilidade atual em {{ $value | humanize }}% (SLO: >= 99%). Investigar causa da degradacao."
+      runbook_url: "https://docs.neural-hive.local/runbooks/sla-at-risk"
+
+  - alert: SLAComplianceViolated
+    expr: |
+      (sum(rate(neural_hive_requests_total{status!~"5.."}[5m])) /
+       sum(rate(neural_hive_requests_total[5m]))) * 100 < 95
+    for: 5m
+    labels:
+      severity: critical
+      neural_hive_component: sla
+      neural_hive_layer: business
+    annotations:
+      summary: "SLA de disponibilidade violado"
+      description: "Disponibilidade em {{ $value | humanize }}% - abaixo do SLO minimo de 95%. Acao imediata necessaria."
+      runbook_url: "https://docs.neural-hive.local/runbooks/sla-violated"

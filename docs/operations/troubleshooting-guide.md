@@ -497,6 +497,342 @@ kubectl exec -it <pod-name> -n neural-hive-mind -- iostat -x 1 5
    kubectl patch configmap <db-config> -n neural-hive-mind -p='{"data":{"postgresql.conf":"shared_buffers = 256MB\neffective_cache_size = 1GB"}}'
    ```
 
+### 6. Problemas de Integração (Kafka, ClickHouse, OTEL)
+
+#### 6.1 Tópicos Kafka Inacessíveis
+
+**Sintomas:**
+- Mensagens não estão sendo produzidas/consumidas
+- Consumer lag crescente
+- Erros de serialização/deserialização
+- Timeouts de conexão ao broker
+
+**Diagnóstico:**
+```bash
+# Validação completa dos tópicos Kafka
+./scripts/validation/validate-kafka-topics.sh
+
+# Verificar conectividade com broker
+kubectl exec -it kafka-0 -n neural-hive-kafka -- kafka-broker-api-versions.sh --bootstrap-server localhost:9092
+
+# Listar tópicos existentes
+kubectl exec -it kafka-0 -n neural-hive-kafka -- kafka-topics.sh --bootstrap-server localhost:9092 --list
+
+# Verificar consumer lag
+kubectl exec -it kafka-0 -n neural-hive-kafka -- kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --all-groups
+
+# Verificar configuração do tópico
+kubectl exec -it kafka-0 -n neural-hive-kafka -- kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic intentions.security
+```
+
+**Soluções:**
+
+1. **Tópicos Não Existem**
+   ```bash
+   # Criar tópicos via Helm chart
+   helm upgrade kafka-topics ./helm-charts/kafka-topics -n neural-hive-kafka
+
+   # Ou criar manualmente
+   kubectl exec -it kafka-0 -n neural-hive-kafka -- kafka-topics.sh \
+     --bootstrap-server localhost:9092 \
+     --create --topic intentions.security \
+     --partitions 3 --replication-factor 2
+   ```
+
+2. **Nomenclatura Incorreta (hífen vs ponto)**
+   ```bash
+   # Verificar se existem tópicos com nomenclatura errada
+   kubectl exec -it kafka-0 -n neural-hive-kafka -- kafka-topics.sh \
+     --bootstrap-server localhost:9092 --list | grep "intentions-"
+
+   # Se encontrar tópicos com hífen, deletar e recriar com ponto
+   kubectl exec -it kafka-0 -n neural-hive-kafka -- kafka-topics.sh \
+     --bootstrap-server localhost:9092 --delete --topic intentions-security
+
+   kubectl exec -it kafka-0 -n neural-hive-kafka -- kafka-topics.sh \
+     --bootstrap-server localhost:9092 --create --topic intentions.security \
+     --partitions 3 --replication-factor 2
+   ```
+
+3. **Consumer Lag Crítico**
+   ```bash
+   # Identificar consumer group com lag
+   kubectl exec -it kafka-0 -n neural-hive-kafka -- kafka-consumer-groups.sh \
+     --bootstrap-server localhost:9092 --describe --group neural-hive-consumers
+
+   # Scale up do serviço consumidor
+   kubectl scale deployment orchestrator-dynamic -n neural-hive-mind --replicas=5
+
+   # Reset offset se necessário (cuidado!)
+   kubectl exec -it kafka-0 -n neural-hive-kafka -- kafka-consumer-groups.sh \
+     --bootstrap-server localhost:9092 --group neural-hive-consumers \
+     --reset-offsets --to-latest --topic intentions.security --execute
+   ```
+
+4. **Problemas de Schema Registry**
+   ```bash
+   # Verificar status do Schema Registry
+   kubectl get pods -n neural-hive-kafka -l app=schema-registry
+
+   # Verificar conectividade
+   kubectl exec -it <pod-name> -n neural-hive-mind -- curl -s http://schema-registry:8081/subjects
+
+   # Restart se necessário
+   kubectl rollout restart deployment/schema-registry -n neural-hive-kafka
+   ```
+
+#### 6.2 ClickHouse Sem Schema
+
+**Sintomas:**
+- Queries falham com "Table not found"
+- Dashboard de ML não exibe dados
+- Pipelines de treinamento falham
+- Alertas de schema incompleto no Prometheus
+
+**Diagnóstico:**
+```bash
+# Verificar conexão com ClickHouse
+kubectl exec -it clickhouse-0 -n clickhouse -- clickhouse-client --query "SELECT 1"
+
+# Verificar se database existe
+kubectl exec -it clickhouse-0 -n clickhouse -- clickhouse-client --query "SHOW DATABASES" | grep neural_hive
+
+# Listar tabelas existentes
+kubectl exec -it clickhouse-0 -n clickhouse -- clickhouse-client --query "SHOW TABLES FROM neural_hive"
+
+# Contar tabelas (esperado: 6)
+kubectl exec -it clickhouse-0 -n clickhouse -- clickhouse-client --query "SELECT count() FROM system.tables WHERE database = 'neural_hive' AND engine NOT LIKE '%View%'"
+
+# Verificar views materializadas (esperado: 2)
+kubectl exec -it clickhouse-0 -n clickhouse -- clickhouse-client --query "SELECT count() FROM system.tables WHERE database = 'neural_hive' AND engine LIKE '%View%'"
+```
+
+**Soluções:**
+
+1. **Database Não Existe**
+   ```bash
+   # Criar database
+   kubectl exec -it clickhouse-0 -n clickhouse -- clickhouse-client --query "CREATE DATABASE IF NOT EXISTS neural_hive"
+
+   # Aplicar schema completo
+   kubectl apply -f k8s/clickhouse-ml-schema.yaml
+   ```
+
+2. **Tabelas Faltando**
+   ```bash
+   # Verificar quais tabelas estão faltando
+   kubectl exec -it clickhouse-0 -n clickhouse -- clickhouse-client --query "
+     SELECT 'execution_logs' WHERE NOT EXISTS (SELECT 1 FROM system.tables WHERE database = 'neural_hive' AND name = 'execution_logs')
+     UNION ALL
+     SELECT 'telemetry_metrics' WHERE NOT EXISTS (SELECT 1 FROM system.tables WHERE database = 'neural_hive' AND name = 'telemetry_metrics')
+     UNION ALL
+     SELECT 'worker_utilization' WHERE NOT EXISTS (SELECT 1 FROM system.tables WHERE database = 'neural_hive' AND name = 'worker_utilization')
+     UNION ALL
+     SELECT 'queue_snapshots' WHERE NOT EXISTS (SELECT 1 FROM system.tables WHERE database = 'neural_hive' AND name = 'queue_snapshots')
+     UNION ALL
+     SELECT 'ml_model_performance' WHERE NOT EXISTS (SELECT 1 FROM system.tables WHERE database = 'neural_hive' AND name = 'ml_model_performance')
+     UNION ALL
+     SELECT 'scheduling_decisions' WHERE NOT EXISTS (SELECT 1 FROM system.tables WHERE database = 'neural_hive' AND name = 'scheduling_decisions')
+   "
+
+   # Recriar schema
+   kubectl delete -f k8s/clickhouse-ml-schema.yaml
+   kubectl apply -f k8s/clickhouse-ml-schema.yaml
+   ```
+
+3. **Views Materializadas Ausentes**
+   ```bash
+   # Verificar views
+   kubectl exec -it clickhouse-0 -n clickhouse -- clickhouse-client --query "
+     SELECT name FROM system.tables
+     WHERE database = 'neural_hive'
+     AND engine LIKE '%View%'
+   "
+
+   # Recriar views (exemplo)
+   kubectl exec -it clickhouse-0 -n clickhouse -- clickhouse-client --query "
+     CREATE MATERIALIZED VIEW IF NOT EXISTS neural_hive.hourly_ticket_volume
+     ENGINE = SummingMergeTree()
+     ORDER BY (hour)
+     AS SELECT
+       toStartOfHour(timestamp) AS hour,
+       count() AS volume
+     FROM neural_hive.execution_logs
+     GROUP BY hour
+   "
+   ```
+
+4. **Problemas de Conectividade**
+   ```bash
+   # Verificar pod do ClickHouse
+   kubectl get pods -n clickhouse -l app=clickhouse
+
+   # Verificar service
+   kubectl get svc -n clickhouse
+
+   # Testar conectividade de outro pod
+   kubectl exec -it <app-pod> -n neural-hive-mind -- nc -zv clickhouse.clickhouse.svc.cluster.local 9000
+
+   # Restart se necessário
+   kubectl rollout restart statefulset/clickhouse -n clickhouse
+   ```
+
+#### 6.3 Pipeline OTEL/Jaeger Sem Traces
+
+**Sintomas:**
+- Jaeger UI não mostra serviços
+- Traces não aparecem
+- Métricas de spans rejeitados aumentando
+- Health checks de OTEL falham
+
+**Diagnóstico:**
+```bash
+# Verificar status do OTEL Collector
+kubectl get pods -n observability -l app=opentelemetry-collector
+
+# Verificar logs do OTEL Collector
+kubectl logs -n observability -l app=opentelemetry-collector --tail=100
+
+# Verificar métricas do collector
+kubectl exec -it <otel-pod> -n observability -- curl -s localhost:8888/metrics | grep otelcol_receiver
+
+# Verificar Jaeger
+kubectl get pods -n observability -l app=jaeger
+
+# Testar endpoint de traces
+kubectl exec -it <app-pod> -n neural-hive-mind -- curl -s http://opentelemetry-collector.observability:4318/v1/traces -X POST -H "Content-Type: application/json" -d '{}'
+```
+
+**Soluções:**
+
+1. **OTEL Collector Down**
+   ```bash
+   # Verificar status
+   kubectl describe pod -n observability -l app=opentelemetry-collector
+
+   # Verificar configuração
+   kubectl get configmap otel-collector-config -n observability -o yaml
+
+   # Restart collector
+   kubectl rollout restart deployment/otel-collector -n observability
+   ```
+
+2. **Serviços Não Enviam Traces**
+   ```bash
+   # Verificar variáveis de ambiente OTEL nos pods
+   kubectl get deployment <deployment-name> -n neural-hive-mind -o yaml | grep -A2 OTEL
+
+   # Verificar se OTEL está habilitado
+   kubectl exec -it <app-pod> -n neural-hive-mind -- env | grep OTEL
+
+   # Adicionar variáveis se faltando
+   kubectl patch deployment <deployment-name> -n neural-hive-mind --type='json' -p='[
+     {"op": "add", "path": "/spec/template/spec/containers/0/env/-", "value": {"name": "OTEL_ENABLED", "value": "true"}},
+     {"op": "add", "path": "/spec/template/spec/containers/0/env/-", "value": {"name": "OTEL_EXPORTER_OTLP_ENDPOINT", "value": "http://opentelemetry-collector.observability:4317"}}
+   ]'
+   ```
+
+3. **Jaeger Não Recebe Dados**
+   ```bash
+   # Verificar configuração do exporter no OTEL Collector
+   kubectl get configmap otel-collector-config -n observability -o yaml | grep -A10 exporters
+
+   # Verificar conectividade com Jaeger
+   kubectl exec -it <otel-pod> -n observability -- nc -zv jaeger-collector.observability 14250
+
+   # Restart Jaeger
+   kubectl rollout restart deployment/jaeger-query -n observability
+   kubectl rollout restart deployment/jaeger-collector -n observability
+   ```
+
+4. **Alta Taxa de Rejeição de Spans**
+   ```bash
+   # Verificar métricas de rejeição
+   kubectl exec -it <otel-pod> -n observability -- curl -s localhost:8888/metrics | grep refused
+
+   # Verificar logs de erro
+   kubectl logs -n observability -l app=opentelemetry-collector | grep -i "refused\|error\|fail"
+
+   # Aumentar batch size se necessário
+   kubectl edit configmap otel-collector-config -n observability
+   # Ajustar: batch/send_batch_size e batch/timeout
+
+   # Restart para aplicar
+   kubectl rollout restart deployment/otel-collector -n observability
+   ```
+
+#### 6.4 Scripts de Diagnóstico Automatizado
+
+**Script de Validação Completa de Integração:**
+```bash
+#!/bin/bash
+# validate-integration-health.sh
+
+echo "=== Neural Hive-Mind Integration Health Check ==="
+echo ""
+
+# Kafka
+echo "📨 Kafka Health:"
+./scripts/validation/validate-kafka-topics.sh --quick 2>/dev/null
+KAFKA_STATUS=$?
+
+# ClickHouse
+echo ""
+echo "📊 ClickHouse Health:"
+CH_TABLES=$(kubectl exec -it clickhouse-0 -n clickhouse -- clickhouse-client --query "SELECT count() FROM system.tables WHERE database = 'neural_hive' AND engine NOT LIKE '%View%'" 2>/dev/null | tr -d '[:space:]')
+if [ "$CH_TABLES" -ge 6 ]; then
+    echo "  ✅ Schema completo ($CH_TABLES tabelas)"
+    CH_STATUS=0
+else
+    echo "  ❌ Schema incompleto ($CH_TABLES/6 tabelas)"
+    CH_STATUS=1
+fi
+
+# OTEL/Jaeger
+echo ""
+echo "🔍 OTEL/Jaeger Health:"
+OTEL_POD=$(kubectl get pods -n observability -l app=opentelemetry-collector -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+if [ -n "$OTEL_POD" ]; then
+    OTEL_RUNNING=$(kubectl get pod $OTEL_POD -n observability -o jsonpath='{.status.phase}' 2>/dev/null)
+    if [ "$OTEL_RUNNING" = "Running" ]; then
+        echo "  ✅ OTEL Collector running"
+        OTEL_STATUS=0
+    else
+        echo "  ❌ OTEL Collector not running (status: $OTEL_RUNNING)"
+        OTEL_STATUS=1
+    fi
+else
+    echo "  ❌ OTEL Collector not found"
+    OTEL_STATUS=1
+fi
+
+JAEGER_SERVICES=$(kubectl exec -it <jaeger-query-pod> -n observability -- curl -s localhost:16686/api/services 2>/dev/null | jq -r '.data | length' 2>/dev/null || echo "0")
+if [ "$JAEGER_SERVICES" -gt 0 ]; then
+    echo "  ✅ Jaeger receiving traces ($JAEGER_SERVICES services)"
+else
+    echo "  ⚠️ Jaeger not receiving traces"
+fi
+
+# Summary
+echo ""
+echo "=== Summary ==="
+[ $KAFKA_STATUS -eq 0 ] && echo "  Kafka: ✅ OK" || echo "  Kafka: ❌ ISSUES"
+[ $CH_STATUS -eq 0 ] && echo "  ClickHouse: ✅ OK" || echo "  ClickHouse: ❌ ISSUES"
+[ $OTEL_STATUS -eq 0 ] && echo "  OTEL: ✅ OK" || echo "  OTEL: ❌ ISSUES"
+```
+
+**Uso:**
+```bash
+# Executar diagnóstico completo
+./scripts/validation/validate-infrastructure-health.sh
+
+# Executar apenas Kafka
+./scripts/validation/validate-kafka-topics.sh
+
+# Verificar health checks programáticos
+curl -s http://<service>:8000/health | jq .
+```
+
 ## Scripts de Diagnóstico
 
 ### Script de Coleta Automática

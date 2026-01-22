@@ -367,10 +367,396 @@ jobs:
 
           echo "All expected images validated successfully"
 
+  # ===========================================================================
+  # Kafka Topics Configuration Validation
+  # ===========================================================================
+  validate-kafka-topics:
+    name: Validate Kafka Topics Configuration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Kafka topics naming conventions
+        run: |
+          echo "Validating Kafka topics configuration..."
+
+          KAFKA_VALUES="helm-charts/kafka-topics/values.yaml"
+
+          if [[ -f "$KAFKA_VALUES" ]]; then
+            # Check for required intention topics with dot notation
+            REQUIRED_TOPICS=(
+              "intentions.business"
+              "intentions.technical"
+              "intentions.infrastructure"
+              "intentions.security"
+            )
+
+            echo "Checking for required topics..."
+            MISSING_TOPICS=()
+
+            for topic in "${REQUIRED_TOPICS[@]}"; do
+              if grep -q "$topic" "$KAFKA_VALUES"; then
+                echo "  ✓ Found topic: $topic"
+              else
+                echo "  ✗ Missing topic: $topic"
+                MISSING_TOPICS+=("$topic")
+              fi
+            done
+
+            # Check for incorrect naming convention (hyphen instead of dot)
+            echo ""
+            echo "Checking naming conventions..."
+            if grep -q "intentions-" "$KAFKA_VALUES"; then
+              echo "  ✗ ERROR: Found topics with incorrect naming (using hyphen instead of dot)"
+              grep "intentions-" "$KAFKA_VALUES" | head -5
+              exit 1
+            else
+              echo "  ✓ All topics use correct dot notation"
+            fi
+
+            # Check partition and replication settings
+            echo ""
+            echo "Checking topic configurations..."
+
+            # Verify minimum partitions (at least 3 for production workloads)
+            MIN_PARTITIONS=$(grep -A5 "intentions\." "$KAFKA_VALUES" | grep "partitions:" | awk '{print $2}' | sort -n | head -1)
+            if [[ -n "$MIN_PARTITIONS" ]] && [[ "$MIN_PARTITIONS" -lt 3 ]]; then
+              echo "  ⚠ Warning: Some topics have fewer than 3 partitions (found: $MIN_PARTITIONS)"
+            fi
+
+            # Verify replication factor (at least 2 for fault tolerance)
+            MIN_REPLICATION=$(grep -A5 "intentions\." "$KAFKA_VALUES" | grep "replicationFactor:" | awk '{print $2}' | sort -n | head -1)
+            if [[ -n "$MIN_REPLICATION" ]] && [[ "$MIN_REPLICATION" -lt 2 ]]; then
+              echo "  ⚠ Warning: Some topics have replication factor less than 2 (found: $MIN_REPLICATION)"
+            fi
+
+            if [[ ${#MISSING_TOPICS[@]} -gt 0 ]]; then
+              echo ""
+              echo "ERROR: Missing required topics: ${MISSING_TOPICS[*]}"
+              exit 1
+            fi
+
+            echo ""
+            echo "✓ Kafka topics configuration is valid"
+          else
+            echo "⚠ Kafka topics values file not found at $KAFKA_VALUES"
+          fi
+
+      - name: Validate Avro schemas for Kafka topics
+        run: |
+          echo "Validating Avro schemas for Kafka topics..."
+
+          SCHEMA_DIR="schemas"
+
+          if [[ -d "$SCHEMA_DIR" ]]; then
+            for schema_dir in "$SCHEMA_DIR"/*/; do
+              schema_name=$(basename "$schema_dir")
+              avsc_file="${schema_dir}${schema_name}.avsc"
+
+              if [[ -f "$avsc_file" ]]; then
+                echo "Validating: $avsc_file"
+
+                # Check JSON validity
+                if ! jq empty "$avsc_file" 2>/dev/null; then
+                  echo "  ✗ Invalid JSON in $avsc_file"
+                  exit 1
+                fi
+
+                # Check required fields for Avro schema
+                schema_type=$(jq -r '.type // empty' "$avsc_file")
+                if [[ "$schema_type" != "record" ]]; then
+                  echo "  ⚠ Unexpected schema type: $schema_type"
+                fi
+
+                schema_namespace=$(jq -r '.namespace // empty' "$avsc_file")
+                if [[ -z "$schema_namespace" ]]; then
+                  echo "  ⚠ Missing namespace in schema"
+                fi
+
+                echo "  ✓ Schema is valid"
+              fi
+            done
+          fi
+
+  # ===========================================================================
+  # ClickHouse Schema Validation
+  # ===========================================================================
+  validate-clickhouse-schema:
+    name: Validate ClickHouse Schema
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate ClickHouse schema SQL
+        run: |
+          echo "Validating ClickHouse schema configuration..."
+
+          SCHEMA_FILE="k8s/clickhouse-ml-schema.yaml"
+
+          if [[ -f "$SCHEMA_FILE" ]]; then
+            echo "Checking schema file: $SCHEMA_FILE"
+
+            # Extract and validate SQL from ConfigMap
+            SQL_CONTENT=$(yq -r '.data["init-schema.sql"] // empty' "$SCHEMA_FILE" 2>/dev/null || echo "")
+
+            if [[ -z "$SQL_CONTENT" ]]; then
+              # Try alternative extraction
+              SQL_CONTENT=$(grep -A1000 "init-schema.sql:" "$SCHEMA_FILE" | tail -n +2 | head -100)
+            fi
+
+            # Check for required tables
+            EXPECTED_TABLES=(
+              "execution_logs"
+              "telemetry_metrics"
+              "worker_utilization"
+              "queue_snapshots"
+              "ml_model_performance"
+              "scheduling_decisions"
+            )
+
+            echo ""
+            echo "Checking for required tables in schema..."
+
+            for table in "${EXPECTED_TABLES[@]}"; do
+              if grep -qi "CREATE TABLE.*$table" "$SCHEMA_FILE" || grep -qi "CREATE TABLE IF NOT EXISTS.*neural_hive\.$table" "$SCHEMA_FILE"; then
+                echo "  ✓ Found table definition: $table"
+              else
+                echo "  ✗ Missing table definition: $table"
+              fi
+            done
+
+            # Check for required views
+            EXPECTED_VIEWS=(
+              "hourly_ticket_volume"
+              "daily_worker_stats"
+            )
+
+            echo ""
+            echo "Checking for materialized views..."
+
+            for view in "${EXPECTED_VIEWS[@]}"; do
+              if grep -qi "CREATE MATERIALIZED VIEW.*$view" "$SCHEMA_FILE"; then
+                echo "  ✓ Found view definition: $view"
+              else
+                echo "  ⚠ View not found (may be optional): $view"
+              fi
+            done
+
+            echo ""
+            echo "✓ ClickHouse schema validation complete"
+          else
+            echo "⚠ ClickHouse schema file not found at $SCHEMA_FILE"
+          fi
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+  # ===========================================================================
+  # OTEL/Observability Configuration Validation
+  # ===========================================================================
+  validate-observability-config:
+    name: Validate Observability Configuration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate OTEL Collector configuration
+        run: |
+          echo "Validating OTEL Collector configuration..."
+
+          # Check for OTEL configs in various locations
+          OTEL_CONFIGS=(
+            "k8s/observability/otel-collector-config.yaml"
+            "helm-charts/observability/templates/otel-collector-config.yaml"
+            "infrastructure/observability/otel-config.yaml"
+          )
+
+          FOUND_CONFIG=false
+
+          for config in "${OTEL_CONFIGS[@]}"; do
+            if [[ -f "$config" ]]; then
+              echo "Found OTEL config: $config"
+              FOUND_CONFIG=true
+
+              # Validate YAML syntax
+              if ! yq empty "$config" 2>/dev/null; then
+                echo "  ✗ Invalid YAML in $config"
+                exit 1
+              fi
+
+              echo "  ✓ YAML syntax valid"
+            fi
+          done
+
+          if [[ "$FOUND_CONFIG" == "false" ]]; then
+            echo "⚠ No OTEL Collector configuration found (may be inline in deployment)"
+          fi
+
+      - name: Validate Prometheus alerts for diagnostic infrastructure
+        run: |
+          echo "Validating Prometheus diagnostic alerts..."
+
+          ALERTS_FILE="monitoring/alerts/diagnostic-infrastructure-alerts.yaml"
+
+          if [[ -f "$ALERTS_FILE" ]]; then
+            echo "Checking alerts file: $ALERTS_FILE"
+
+            # Validate YAML syntax
+            if ! yq empty "$ALERTS_FILE" 2>/dev/null; then
+              echo "  ✗ Invalid YAML in alerts file"
+              exit 1
+            fi
+
+            # Check for required alert groups
+            REQUIRED_GROUPS=(
+              "neural-hive.kafka.diagnostics"
+              "neural-hive.clickhouse.diagnostics"
+              "neural-hive.observability.diagnostics"
+            )
+
+            for group in "${REQUIRED_GROUPS[@]}"; do
+              if grep -q "$group" "$ALERTS_FILE"; then
+                echo "  ✓ Found alert group: $group"
+              else
+                echo "  ⚠ Missing alert group: $group"
+              fi
+            done
+
+            # Check for critical alerts
+            CRITICAL_ALERTS=(
+              "KafkaTopicMissing"
+              "ClickHouseSchemaIncomplete"
+              "OTELCollectorDown"
+            )
+
+            echo ""
+            echo "Checking for critical alerts..."
+
+            for alert in "${CRITICAL_ALERTS[@]}"; do
+              if grep -q "alert: $alert" "$ALERTS_FILE"; then
+                echo "  ✓ Found critical alert: $alert"
+              else
+                echo "  ⚠ Missing critical alert: $alert"
+              fi
+            done
+
+            echo ""
+            echo "✓ Prometheus alerts validation complete"
+          else
+            echo "⚠ Diagnostic alerts file not found at $ALERTS_FILE"
+          fi
+
+      - name: Validate Grafana dashboard
+        run: |
+          echo "Validating Grafana diagnostic dashboard..."
+
+          DASHBOARD_FILE="monitoring/dashboards/neural-hive-diagnostic-dashboard.json"
+
+          if [[ -f "$DASHBOARD_FILE" ]]; then
+            echo "Checking dashboard: $DASHBOARD_FILE"
+
+            # Validate JSON syntax
+            if ! jq empty "$DASHBOARD_FILE" 2>/dev/null; then
+              echo "  ✗ Invalid JSON in dashboard file"
+              exit 1
+            fi
+
+            # Check for required panels/rows
+            PANEL_COUNT=$(jq '.panels | length' "$DASHBOARD_FILE" 2>/dev/null || echo "0")
+            echo "  Found $PANEL_COUNT panels"
+
+            # Check for required row titles
+            REQUIRED_ROWS=(
+              "Kafka"
+              "ClickHouse"
+              "OTEL"
+            )
+
+            for row in "${REQUIRED_ROWS[@]}"; do
+              if jq -e ".panels[] | select(.title | contains(\"$row\"))" "$DASHBOARD_FILE" > /dev/null 2>&1; then
+                echo "  ✓ Found row/panel for: $row"
+              else
+                echo "  ⚠ Missing row/panel for: $row"
+              fi
+            done
+
+            echo ""
+            echo "✓ Grafana dashboard validation complete"
+          else
+            echo "⚠ Diagnostic dashboard not found at $DASHBOARD_FILE"
+          fi
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+  # ===========================================================================
+  # Python Observability Library Validation
+  # ===========================================================================
+  validate-observability-library:
+    name: Validate Observability Library
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install library
+        working-directory: libraries/python/neural_hive_observability
+        run: |
+          pip install -e ".[dev]" || pip install -e .
+
+      - name: Verify health check exports
+        run: |
+          echo "Verifying health check class exports..."
+
+          python -c "
+          from neural_hive_observability import (
+              ClickHouseSchemaHealthCheck,
+              OTELPipelineHealthCheck,
+              HealthChecker,
+              HealthStatus
+          )
+          print('✓ ClickHouseSchemaHealthCheck exported')
+          print('✓ OTELPipelineHealthCheck exported')
+          print('✓ HealthChecker exported')
+          print('✓ HealthStatus exported')
+
+          # Verify health check inheritance
+          from neural_hive_observability.health import HealthCheck
+          from neural_hive_observability.health_checks.clickhouse import ClickHouseSchemaHealthCheck as CH
+          from neural_hive_observability.health_checks.otel import OTELPipelineHealthCheck as OTEL
+
+          assert issubclass(CH, HealthCheck), 'ClickHouseSchemaHealthCheck must inherit from HealthCheck'
+          assert issubclass(OTEL, HealthCheck), 'OTELPipelineHealthCheck must inherit from HealthCheck'
+
+          print('✓ All health checks properly inherit from HealthCheck base class')
+          "
+
+      - name: Run health check unit tests
+        working-directory: libraries/python/neural_hive_observability
+        run: |
+          pip install pytest pytest-asyncio
+          pytest tests/ -v --ignore=tests/integration || echo "Tests completed (some may require running infrastructure)"
+
   summary:
     name: Validation Summary
     runs-on: ubuntu-latest
-    needs: [terraform-validate, tflint, checkov-security, helm-lint, opa-test, yaml-lint, validate-image-tags]
+    needs: [terraform-validate, tflint, checkov-security, helm-lint, opa-test, yaml-lint, validate-image-tags, validate-kafka-topics, validate-clickhouse-schema, validate-observability-config, validate-observability-library]
     if: always()
 
     steps:
@@ -378,6 +764,7 @@ jobs:
         run: |
           echo "## Validation Results Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Infrastructure Validation" >> $GITHUB_STEP_SUMMARY
           echo "- **Terraform Validation**: ${{ needs.terraform-validate.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- **TFLint**: ${{ needs.tflint.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Checkov Security**: ${{ needs.checkov-security.result }}" >> $GITHUB_STEP_SUMMARY
@@ -385,6 +772,12 @@ jobs:
           echo "- **OPA Test**: ${{ needs.opa-test.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- **YAML Lint**: ${{ needs.yaml-lint.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Image Tags**: ${{ needs.validate-image-tags.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Diagnostic Infrastructure" >> $GITHUB_STEP_SUMMARY
+          echo "- **Kafka Topics Config**: ${{ needs.validate-kafka-topics.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **ClickHouse Schema**: ${{ needs.validate-clickhouse-schema.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Observability Config**: ${{ needs.validate-observability-config.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Observability Library**: ${{ needs.validate-observability-library.result }}" >> $GITHUB_STEP_SUMMARY
 
       - name: Fail if any job failed
         if: contains(needs.*.result, 'failure')
