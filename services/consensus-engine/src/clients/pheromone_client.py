@@ -1,7 +1,10 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 from datetime import datetime, timedelta
 import json
 import structlog
+
+from neural_hive_domain import DomainMapper, UnifiedDomain
+
 from src.models.pheromone_signal import PheromoneSignal, PheromoneType
 
 logger = structlog.get_logger()
@@ -17,14 +20,14 @@ class PheromoneClient:
     async def publish_pheromone(
         self,
         specialist_type: str,
-        domain: str,
+        domain: Union[str, UnifiedDomain],
         pheromone_type: PheromoneType,
         strength: float,
         plan_id: str,
         intent_id: str,
         decision_id: Optional[str] = None
     ) -> str:
-        '''Publica feromônio no Redis'''
+        '''Publica feromônio no Redis usando chave padronizada via DomainMapper'''
         # Criar PheromoneSignal
         signal = PheromoneSignal(
             specialist_type=specialist_type,
@@ -67,29 +70,62 @@ class PheromoneClient:
     async def get_pheromone_strength(
         self,
         specialist_type: str,
-        domain: str,
+        domain: Union[str, UnifiedDomain],
         pheromone_type: PheromoneType
     ) -> float:
-        '''Consulta força atual de feromônio (com decay)'''
-        key = f'pheromone:{specialist_type}:{domain}:{pheromone_type.value}'
-        signal_json = await self.redis.get(key)
+        '''Consulta força atual de feromônio (com decay) usando chave padronizada.
 
-        if not signal_json:
+        Filtra por specialist_type usando a lista de feromônios ativos para
+        garantir que apenas sinais do especialista correto sejam agregados.
+        '''
+        # Normalizar domain para UnifiedDomain se necessário
+        if isinstance(domain, str):
+            normalized_domain = DomainMapper.normalize(domain, 'intent_envelope')
+        else:
+            normalized_domain = domain
+
+        # Usar a lista de feromônios ativos para filtrar por specialist_type
+        # Esta lista é mantida em publish_pheromone() com o formato:
+        # pheromones:active:{specialist_type}:{domain}
+        list_key = f'pheromones:active:{specialist_type}:{normalized_domain.value}'
+
+        # Obter signal_ids do especialista específico
+        signal_ids = await self.redis.lrange(list_key, 0, -1)
+
+        if not signal_ids:
             return 0.0
 
-        # Deserializar JSON e reconstruir PheromoneSignal
-        signal_data = json.loads(signal_json)
-        signal = PheromoneSignal(**signal_data)
+        # Agregar força apenas dos feromônios do especialista específico
+        total_strength = 0.0
+        count = 0
+        for signal_id in signal_ids:
+            # Decodificar signal_id se necessário (Redis pode retornar bytes)
+            if isinstance(signal_id, bytes):
+                signal_id = signal_id.decode('utf-8')
 
-        # Calcular força atual com decay
-        current_strength = signal.calculate_current_strength()
+            # Construir a chave Redis usando DomainMapper
+            key = DomainMapper.to_pheromone_key(
+                domain=normalized_domain,
+                layer='consensus',
+                pheromone_type=pheromone_type.value,
+                id=signal_id
+            )
 
-        return current_strength
+            signal_json = await self.redis.get(key)
+            if signal_json:
+                signal_data = json.loads(signal_json)
+                signal = PheromoneSignal(**signal_data)
+                # Verificar se o pheromone_type corresponde ao solicitado
+                if signal.pheromone_type == pheromone_type:
+                    total_strength += signal.calculate_current_strength()
+                    count += 1
+
+        return total_strength / count if count > 0 else 0.0
 
     async def get_aggregated_pheromone(
         self,
         specialist_type: str,
-        domain: str
+        domain: Union[str, UnifiedDomain]
     ) -> Dict[str, float]:
         '''Agrega feromônios de todos os tipos para um especialista + domínio'''
         success_strength = await self.get_pheromone_strength(
@@ -116,7 +152,7 @@ class PheromoneClient:
     async def calculate_dynamic_weight(
         self,
         specialist_type: str,
-        domain: str,
+        domain: Union[str, UnifiedDomain],
         base_weight: float = 0.2
     ) -> float:
         '''Calcula peso dinâmico baseado em feromônios'''
