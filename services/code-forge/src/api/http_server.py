@@ -54,11 +54,11 @@ def create_app() -> FastAPI:
             logger.warning('mongodb_health_check_failed', error=str(e))
             dependencies['mongodb'] = 'disconnected'
 
-        # Verificar Redis (com ping)
+        # Verificar Redis (com health_check)
         try:
             if hasattr(request.app.state, 'redis_client') and request.app.state.redis_client:
-                await request.app.state.redis_client.ping()
-                dependencies['redis'] = 'connected'
+                is_healthy = await request.app.state.redis_client.health_check()
+                dependencies['redis'] = 'connected' if is_healthy else 'disconnected'
             else:
                 dependencies['redis'] = 'disconnected'
         except Exception as e:

@@ -83,9 +83,11 @@ async def generate_execution_tickets(
             task_id = task['task_id']
             task_to_ticket_map[task_id] = ticket_id
 
-            # Calcular SLA
+            # Calcular SLA com timeout mínimo para evitar SLA violations prematuros
             estimated_duration_ms = task.get('estimated_duration_ms', 60000)
-            timeout_ms = int(estimated_duration_ms * 1.5)  # Buffer 50%
+            # Buffer 50% com timeout mínimo de 30 segundos
+            min_timeout_ms = 30000  # 30 segundos mínimo
+            timeout_ms = max(min_timeout_ms, int(estimated_duration_ms * 1.5))
             deadline = int((datetime.now().timestamp() + timeout_ms / 1000) * 1000)
 
             # Mapear max_retries baseado em risk_band

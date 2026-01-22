@@ -186,6 +186,7 @@ async def main():
     await postgres_client.start()
     await mongodb_client.start()
     await redis_client.start()
+    await service_registry.initialize()
 
     # 5. Inicializar pipeline engine e subpipelines
     logger.info('initializing_pipeline_engine')

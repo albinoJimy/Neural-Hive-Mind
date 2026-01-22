@@ -152,9 +152,10 @@ class AlertManager:
 
             # Publicar no Kafka (tópico dedicado para alertas proativos)
             topic = self.config.sla_alerts_topic
-            await self.kafka_producer.publish_ticket(
+            await self.kafka_producer.send(
                 topic=topic,
-                ticket=alert_payload
+                value=alert_payload,
+                key=alert_payload['alert_id']
             )
 
             # Cachear alerta enviado
@@ -269,9 +270,10 @@ class AlertManager:
 
             # Publicar no Kafka (tópico dedicado para violações formais)
             topic = self.config.sla_violations_topic
-            await self.kafka_producer.publish_ticket(
+            await self.kafka_producer.send(
                 topic=topic,
-                ticket=violation_event
+                value=violation_event,
+                key=violation_event['violation_id']
             )
 
             # Registrar métrica
