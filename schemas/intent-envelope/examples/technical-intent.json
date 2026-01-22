@@ -17,7 +17,7 @@
   "intent": {
     "@type": "Intent",
     "text": "Otimizar performance da API de usuários que está com latência alta (>500ms P95) e implementar cache Redis para reduzir carga no banco PostgreSQL",
-    "domain": "technical",
+    "domain": "TECHNICAL",
     "classification": "performance-optimization",
     "originalLanguage": "pt-BR",
     "processedText": "Otimizar performance da API de usuários que está com latência alta (>500ms P95) e implementar cache Redis para reduzir carga no banco PostgreSQL",

@@ -101,12 +101,16 @@ class EnvelopeValidator:
                 if 'domain' not in intent:
                     errors.append("Campo 'intent.domain' é obrigatório")
 
-                # Validar domínios válidos
+                # Validar domínios válidos (7 domínios unificados)
                 if 'domain' in intent:
-                    valid_domains = ['business', 'technical', 'infrastructure', 'security',
-                                   'BUSINESS', 'TECHNICAL', 'INFRASTRUCTURE', 'SECURITY']
+                    valid_domains = [
+                        'BUSINESS', 'TECHNICAL', 'SECURITY', 'INFRASTRUCTURE',
+                        'BEHAVIOR', 'OPERATIONAL', 'COMPLIANCE',
+                        'business', 'technical', 'security', 'infrastructure',
+                        'behavior', 'operational', 'compliance'
+                    ]
                     if intent['domain'] not in valid_domains:
-                        errors.append(f"Domínio inválido: {intent['domain']}")
+                        errors.append(f"Domínio inválido: {intent['domain']}. Domínios válidos: BUSINESS, TECHNICAL, SECURITY, INFRASTRUCTURE, BEHAVIOR, OPERATIONAL, COMPLIANCE")
 
         return errors
 
@@ -193,13 +197,16 @@ class EnvelopeValidator:
         if 'intent' in converted and isinstance(converted['intent'], dict):
             intent = converted['intent']
 
-            # Converter domain para formato enum
+            # Converter domain para formato enum (7 domínios unificados)
             if 'domain' in intent:
                 domain_map = {
                     'business': 'BUSINESS',
                     'technical': 'TECHNICAL',
                     'infrastructure': 'INFRASTRUCTURE',
-                    'security': 'SECURITY'
+                    'security': 'SECURITY',
+                    'behavior': 'BEHAVIOR',
+                    'operational': 'OPERATIONAL',
+                    'compliance': 'COMPLIANCE'
                 }
                 domain = intent['domain']
                 intent['domain'] = domain_map.get(domain.lower(), domain.upper())

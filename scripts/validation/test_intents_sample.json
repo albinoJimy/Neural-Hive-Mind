@@ -30,5 +30,17 @@
   {
     "text": "Implementar autenticação JWT",
     "expected_domain": "SECURITY"
+  },
+  {
+    "text": "Analisar comportamento de usuários no fluxo de onboarding",
+    "expected_domain": "BEHAVIOR"
+  },
+  {
+    "text": "Configurar monitoramento de SLO para serviços críticos",
+    "expected_domain": "OPERATIONAL"
+  },
+  {
+    "text": "Implementar política de retenção de dados conforme GDPR",
+    "expected_domain": "COMPLIANCE"
   }
 ]

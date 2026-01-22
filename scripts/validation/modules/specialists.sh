@@ -2,14 +2,21 @@
 
 validate_specialists() {
     log_info "=== Validando Specialists ==="
-    
+
     # Se componente específico foi especificado
     if [[ -n "$COMPONENT" ]]; then
         validate_single_specialist "$COMPONENT"
         return
     fi
-    
-    # Validar todos os specialists
+
+    # Specialists disponíveis (não mapeiam 1:1 com os 7 domínios unificados)
+    # Domínios Unificados: BUSINESS, TECHNICAL, SECURITY, INFRASTRUCTURE, BEHAVIOR, OPERATIONAL, COMPLIANCE
+    # Specialists são componentes de serviço que podem processar múltiplos domínios
+    # - business specialist: processa domínio BUSINESS
+    # - technical specialist: processa domínios TECHNICAL, SECURITY
+    # - behavior specialist: processa domínio BEHAVIOR
+    # - evolution specialist: processa domínios OPERATIONAL, COMPLIANCE
+    # - architecture specialist: processa domínio INFRASTRUCTURE
     local specialists=("business" "technical" "behavior" "evolution" "architecture")
     
     for specialist in "${specialists[@]}"; do

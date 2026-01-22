@@ -15,9 +15,9 @@ Protocolo de comunicação indireta entre agentes do Neural Hive-Mind inspirado 
 ```python
 {
   'signal_id': UUID,
-  'specialist_type': str,  # business, technical, behavior, evolution, architecture
-  'domain': str,  # workflow-analysis, code-quality, user-journey, etc.
-  'pheromone_type': enum,  # SUCCESS, FAILURE, WARNING
+  'layer': str,  # strategic, exploration, consensus, specialist
+  'domain': UnifiedDomain,  # BUSINESS, TECHNICAL, SECURITY, INFRASTRUCTURE, BEHAVIOR, OPERATIONAL, COMPLIANCE
+  'pheromone_type': enum,  # SUCCESS, FAILURE, WARNING, ANOMALY_POSITIVE, ANOMALY_NEGATIVE
   'strength': float,  # 0.0-1.0
   'plan_id': str,
   'intent_id': str,
@@ -29,23 +29,42 @@ Protocolo de comunicação indireta entre agentes do Neural Hive-Mind inspirado 
 }
 ```
 
-### Chave Redis
+### Chave Redis Unificada
 ```
-pheromone:{specialist_type}:{domain}:{pheromone_type}
+pheromone:{layer}:{domain}:{pheromone_type}:{id}
 ```
+
+**Exemplos:**
+```
+pheromone:strategic:BUSINESS:SUCCESS:plan-123
+pheromone:exploration:BEHAVIOR:ANOMALY_POSITIVE:signal-456
+pheromone:consensus:SECURITY:WARNING:decision-789
+pheromone:specialist:TECHNICAL:SUCCESS:evaluation-012
+```
+
+### Domínios Unificados
+- **BUSINESS**: Análise de negócios, workflows, processos
+- **TECHNICAL**: Código, APIs, performance técnica
+- **SECURITY**: Autenticação, autorização, vulnerabilidades
+- **INFRASTRUCTURE**: Provisionamento, deployment, escalabilidade
+- **BEHAVIOR**: Padrões de uso, UX, jornadas de usuário
+- **OPERATIONAL**: Monitoramento, SLAs, alertas, observabilidade
+- **COMPLIANCE**: Auditoria, governança, regulamentações
 
 ### Lista de Feromônios Ativos
 ```
-pheromones:active:{specialist_type}:{domain}
+pheromones:active:{layer}:{domain}
 ```
 
 ## Operações
 
 ### 1. Publicar Feromônio
 ```python
+from neural_hive_domain import UnifiedDomain
+
 await pheromone_client.publish_pheromone(
-    specialist_type='business',
-    domain='workflow-analysis',
+    layer='strategic',
+    domain=UnifiedDomain.BUSINESS,
     pheromone_type=PheromoneType.SUCCESS,
     strength=0.85,
     plan_id='plan-123',
@@ -57,8 +76,8 @@ await pheromone_client.publish_pheromone(
 ### 2. Consultar Força de Feromônio
 ```python
 strength = await pheromone_client.get_pheromone_strength(
-    specialist_type='business',
-    domain='workflow-analysis',
+    layer='strategic',
+    domain=UnifiedDomain.BUSINESS,
     pheromone_type=PheromoneType.SUCCESS
 )
 ```
@@ -66,8 +85,8 @@ strength = await pheromone_client.get_pheromone_strength(
 ### 3. Calcular Peso Dinâmico
 ```python
 weight = await pheromone_client.calculate_dynamic_weight(
-    specialist_type='business',
-    domain='workflow-analysis',
+    layer='consensus',
+    domain=UnifiedDomain.TECHNICAL,
     base_weight=0.2
 )
 ```
@@ -110,15 +129,15 @@ current_strength = initial_strength * ((1 - decay_rate) ^ elapsed_hours)
 ## Métricas e Observabilidade
 
 ### Métricas Prometheus
-- `neural_hive_pheromones_published_total{specialist_type, domain, pheromone_type}`
-- `neural_hive_pheromone_strength{specialist_type, domain, pheromone_type}`
-- `neural_hive_specialist_dynamic_weight{specialist_type, domain}`
-- `neural_hive_pheromone_decay_rate{specialist_type, domain}`
+- `neural_hive_pheromones_published_total{layer, domain, pheromone_type}`
+- `neural_hive_pheromone_strength{layer, domain, pheromone_type}`
+- `neural_hive_specialist_dynamic_weight{layer, domain}`
+- `neural_hive_pheromone_decay_rate{layer, domain}`
 
 ### Logs Estruturados
-- Publicação: `specialist_type`, `domain`, `pheromone_type`, `strength`, `signal_id`
-- Consulta: `specialist_type`, `domain`, `current_strength`, `age_hours`
-- Peso dinâmico: `base_weight`, `net_strength`, `adjusted_weight`
+- Publicação: `layer`, `domain`, `pheromone_type`, `strength`, `signal_id`
+- Consulta: `layer`, `domain`, `current_strength`, `age_hours`
+- Peso dinâmico: `layer`, `domain`, `base_weight`, `net_strength`, `adjusted_weight`
 
 ### Traces OpenTelemetry
 - Span `pheromone.publish` com atributos `pheromone.type`, `pheromone.strength`

@@ -17,7 +17,7 @@
   "intent": {
     "@type": "Intent",
     "text": "Preciso criar uma nova funcionalidade de relatórios financeiros para o Q4 com dashboards interativos e exportação para Excel",
-    "domain": "business",
+    "domain": "BUSINESS",
     "classification": "feature-request",
     "originalLanguage": "pt-BR",
     "processedText": "Preciso criar uma nova funcionalidade de relatórios financeiros para o Q4 com dashboards interativos e exportação para Excel",
