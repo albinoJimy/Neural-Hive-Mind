@@ -8,7 +8,8 @@ import yaml
 from contextlib import nullcontext
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-from models.intent_envelope import NLUResult, Entity, IntentDomain
+from models.intent_envelope import NLUResult, Entity
+from neural_hive_domain import UnifiedDomain
 from config.settings import get_settings
 from cache.redis_client import get_redis_client
 
@@ -449,6 +450,19 @@ class NLUPipeline:
                         data["confidence_status"] = "medium"
                     else:
                         data["confidence_status"] = "low"
+                # Normalize domain to UnifiedDomain (handles legacy lowercase strings)
+                if "domain" in data:
+                    domain_value = data["domain"]
+                    if isinstance(domain_value, str):
+                        try:
+                            # Try uppercase first (new format)
+                            data["domain"] = UnifiedDomain[domain_value.upper()]
+                        except KeyError:
+                            # Unknown domain - fallback to TECHNICAL
+                            logger.warning(
+                                f"Unknown domain '{domain_value}' in cache, falling back to TECHNICAL"
+                            )
+                            data["domain"] = UnifiedDomain.TECHNICAL
                 return NLUResult(**data)
         except Exception as e:
             logger.error(f"Erro obtendo do cache NLU: {e}")
@@ -621,14 +635,14 @@ class NLUPipeline:
                    (best_domain_name == 'SECURITY' and 'security' in user_role):
                     confidence = min(0.95, confidence + role_match_config.get("boost", 0.10))
 
-            # Converter nome do domínio para enum
+            # Converter nome do domínio para enum (agora UPPERCASE)
             try:
-                best_domain = IntentDomain[best_domain_name]
+                best_domain = UnifiedDomain[best_domain_name.upper()]
             except KeyError:
-                best_domain = IntentDomain.TECHNICAL  # Fallback
+                best_domain = UnifiedDomain.TECHNICAL  # Fallback
 
         else:
-            best_domain = IntentDomain.TECHNICAL  # Default
+            best_domain = UnifiedDomain.TECHNICAL  # Default
             confidence = 0.2
 
         # Determinar classificação específica (subcategoria)

@@ -9,6 +9,7 @@ import uuid
 
 from pydantic import BaseModel, Field, validator, root_validator
 from pydantic.types import UUID4
+from neural_hive_domain import UnifiedDomain
 
 class ActorType(str, Enum):
     """Tipos de ator que podem originar intenções"""
@@ -16,13 +17,6 @@ class ActorType(str, Enum):
     SYSTEM = "system"
     SERVICE = "service"
     BOT = "bot"
-
-class IntentDomain(str, Enum):
-    """Domínios de intenção para particionamento"""
-    BUSINESS = "business"
-    TECHNICAL = "technical"
-    INFRASTRUCTURE = "infrastructure"
-    SECURITY = "security"
 
 class Channel(str, Enum):
     """Canais de origem da intenção"""
@@ -86,12 +80,26 @@ class Actor(BaseModel):
 class Intent(BaseModel):
     """Detalhes da intenção"""
     text: str = Field(..., min_length=1, max_length=10000, description="Texto da intenção")
-    domain: IntentDomain = Field(..., description="Domínio da intenção")
+    domain: UnifiedDomain = Field(..., description="Domínio da intenção")
     classification: Optional[str] = Field(None, description="Classificação específica")
     original_language: Optional[str] = Field(None, description="Idioma original (ISO 639-1)")
     processed_text: Optional[str] = Field(None, description="Texto processado")
     entities: List[Entity] = Field(default_factory=list, description="Entidades extraídas")
     keywords: List[str] = Field(default_factory=list, description="Palavras-chave")
+
+    @validator('domain', pre=True)
+    def coerce_domain_to_unified(cls, v):
+        """Coerce incoming strings to UnifiedDomain"""
+        if isinstance(v, UnifiedDomain):
+            return v
+        if isinstance(v, str):
+            try:
+                return UnifiedDomain[v.upper()]
+            except KeyError:
+                raise ValueError(
+                    f"Invalid domain '{v}'. Valid domains: {[d.name for d in UnifiedDomain]}"
+                )
+        return v
 
 class Context(BaseModel):
     """Contexto da intenção"""
@@ -297,7 +305,7 @@ class ASRResult(BaseModel):
 class NLUResult(BaseModel):
     """Resultado do pipeline NLU"""
     processed_text: str = Field(..., description="Texto processado")
-    domain: IntentDomain = Field(..., description="Domínio classificado")
+    domain: UnifiedDomain = Field(..., description="Domínio classificado")
     classification: str = Field(..., description="Classificação específica")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confiança da classificação")
     entities: List[Entity] = Field(default_factory=list, description="Entidades extraídas")
@@ -305,3 +313,17 @@ class NLUResult(BaseModel):
     requires_manual_validation: bool = Field(default=False, description="Requer validação manual")
     confidence_status: str = Field(default="medium", description="Status de confiança: high, medium, ou low")
     adaptive_threshold: Optional[float] = Field(None, description="Threshold adaptativo calculado pelo NLU")
+
+    @validator('domain', pre=True)
+    def coerce_domain_to_unified(cls, v):
+        """Coerce incoming strings to UnifiedDomain"""
+        if isinstance(v, UnifiedDomain):
+            return v
+        if isinstance(v, str):
+            try:
+                return UnifiedDomain[v.upper()]
+            except KeyError:
+                raise ValueError(
+                    f"Invalid domain '{v}'. Valid domains: {[d.name for d in UnifiedDomain]}"
+                )
+        return v

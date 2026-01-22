@@ -1,23 +1,17 @@
 from datetime import datetime
-from enum import Enum
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 from uuid import uuid4
 
-
-class ConflictDomain(str, Enum):
-    """Domínios de conflito"""
-    BUSINESS_VS_TECHNICAL = "BUSINESS_VS_TECHNICAL"
-    SECURITY_VS_PERFORMANCE = "SECURITY_VS_PERFORMANCE"
-    COST_VS_QUALITY = "COST_VS_QUALITY"
-    SPEED_VS_RELIABILITY = "SPEED_VS_RELIABILITY"
+from neural_hive_domain import UnifiedDomain
 
 
 class Conflict(BaseModel):
     """Representa um conflito entre domínios"""
 
     conflict_id: str = Field(default_factory=lambda: str(uuid4()), description="ID único do conflito")
-    conflict_domain: ConflictDomain = Field(..., description="Domínio do conflito")
+    left_domain: UnifiedDomain = Field(..., description="Primeiro domínio em conflito")
+    right_domain: UnifiedDomain = Field(..., description="Segundo domínio em conflito")
 
     entities: List[Dict[str, Any]] = Field(default_factory=list, description="Entidades em conflito")
     severity: float = Field(0.0, ge=0.0, le=1.0, description="Severidade do conflito")
@@ -53,18 +47,30 @@ class Conflict(BaseModel):
         return severity
 
     def suggest_resolution(self) -> str:
-        """Sugerir estratégia de resolução"""
-        if self.conflict_domain == ConflictDomain.SECURITY_VS_PERFORMANCE:
+        """Sugerir estratégia de resolução baseada nos domínios em conflito"""
+        domains = {self.left_domain, self.right_domain}
+
+        # Security vs Performance/Operational
+        if UnifiedDomain.SECURITY in domains and (
+            UnifiedDomain.OPERATIONAL in domains or UnifiedDomain.INFRASTRUCTURE in domains
+        ):
             return "PRIORITIZE_SECURITY" if self.severity > 0.7 else "COMPROMISE"
 
-        elif self.conflict_domain == ConflictDomain.BUSINESS_VS_TECHNICAL:
+        # Business vs Technical
+        if UnifiedDomain.BUSINESS in domains and UnifiedDomain.TECHNICAL in domains:
             return "PRIORITIZE_BUSINESS" if self.severity < 0.5 else "COMPROMISE"
 
-        elif self.conflict_domain == ConflictDomain.COST_VS_QUALITY:
-            return "COMPROMISE"
+        # Compliance conflicts - always prioritize compliance
+        if UnifiedDomain.COMPLIANCE in domains:
+            return "PRIORITIZE_COMPLIANCE" if self.severity > 0.5 else "COMPROMISE"
 
-        elif self.conflict_domain == ConflictDomain.SPEED_VS_RELIABILITY:
+        # Infrastructure vs Operational (speed vs reliability)
+        if UnifiedDomain.INFRASTRUCTURE in domains and UnifiedDomain.OPERATIONAL in domains:
             return "PRIORITIZE_RELIABILITY" if self.severity > 0.6 else "COMPROMISE"
+
+        # Security vs Business
+        if UnifiedDomain.SECURITY in domains and UnifiedDomain.BUSINESS in domains:
+            return "PRIORITIZE_SECURITY" if self.severity > 0.6 else "COMPROMISE"
 
         return "ESCALATE_HUMAN"
 

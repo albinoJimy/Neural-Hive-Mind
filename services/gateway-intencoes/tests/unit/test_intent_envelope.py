@@ -22,7 +22,7 @@ class TestIntentEnvelope:
             },
             intent={
                 "text": "test intent",
-                "domain": "business",
+                "domain": "BUSINESS",
                 "classification": "request",
                 "original_language": "pt-BR",
                 "processed_text": "test intent processed",
@@ -51,7 +51,7 @@ class TestIntentEnvelope:
             },
             intent={
                 "text": "test",
-                "domain": "business",
+                "domain": "BUSINESS",
                 "classification": "request",
                 "entities": [],
                 "keywords": []
@@ -74,7 +74,7 @@ class TestIntentEnvelope:
             },
             intent={
                 "text": "test",
-                "domain": "business",
+                "domain": "BUSINESS",
                 "classification": "request",
                 "entities": [],
                 "keywords": []
@@ -99,7 +99,7 @@ class TestIntentEnvelope:
             },
             intent={
                 "text": "test intent",
-                "domain": "business",
+                "domain": "BUSINESS",
                 "classification": "request",
                 "original_language": "pt-BR",
                 "processed_text": "test intent processed",
@@ -149,7 +149,7 @@ class TestIntentEnvelope:
             },
             intent={
                 "text": "test",
-                "domain": "business",
+                "domain": "BUSINESS",
                 "classification": "request",
                 "entities": [],
                 "keywords": []
@@ -168,7 +168,7 @@ class TestIntentEnvelope:
             },
             intent={
                 "text": "test",
-                "domain": "business",
+                "domain": "BUSINESS",
                 "classification": "request",
                 "entities": [],
                 "keywords": []
@@ -186,7 +186,7 @@ class TestIntentEnvelope:
             },
             intent={
                 "text": "test",
-                "domain": "business",
+                "domain": "BUSINESS",
                 "classification": "request",
                 "entities": [],
                 "keywords": []

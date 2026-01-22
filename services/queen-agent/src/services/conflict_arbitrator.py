@@ -1,8 +1,10 @@
 import structlog
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Tuple
+
+from neural_hive_domain import UnifiedDomain
 
 from ..config import Settings
-from ..models import Conflict, ConflictDomain, ConflictResolution
+from ..models import Conflict, ConflictResolution
 from ..clients import Neo4jClient
 
 
@@ -53,14 +55,17 @@ class ConflictArbitrator:
             domain1 = decision1.get('specialist_type', 'unknown')
             domain2 = decision2.get('specialist_type', 'unknown')
 
-            # Mapear para ConflictDomain
-            conflict_domain = self._map_conflict_domain(domain1, domain2)
-            if not conflict_domain:
+            # Mapear para UnifiedDomain
+            unified_domains = self._map_to_unified_domains(domain1, domain2)
+            if not unified_domains:
                 return None
+
+            left_domain, right_domain = unified_domains
 
             # Criar conflito
             conflict = Conflict(
-                conflict_domain=conflict_domain,
+                left_domain=left_domain,
+                right_domain=right_domain,
                 entities=[decision1, decision2]
             )
 
@@ -77,21 +82,30 @@ class ConflictArbitrator:
             logger.error("check_conflict_failed", error=str(e))
             return None
 
-    def _map_conflict_domain(self, domain1: str, domain2: str) -> ConflictDomain | None:
-        """Mapear par de domínios para ConflictDomain"""
-        domains = {domain1.lower(), domain2.lower()}
+    def _map_to_unified_domains(self, domain1: str, domain2: str) -> Optional[Tuple[UnifiedDomain, UnifiedDomain]]:
+        """Mapear par de domínios para UnifiedDomain"""
+        # Mapping from specialist types to UnifiedDomain
+        domain_mapping = {
+            'security': UnifiedDomain.SECURITY,
+            'performance': UnifiedDomain.OPERATIONAL,
+            'business': UnifiedDomain.BUSINESS,
+            'technical': UnifiedDomain.TECHNICAL,
+            'engineering': UnifiedDomain.TECHNICAL,
+            'infrastructure': UnifiedDomain.INFRASTRUCTURE,
+            'compliance': UnifiedDomain.COMPLIANCE,
+            'behavior': UnifiedDomain.BEHAVIOR,
+            'operational': UnifiedDomain.OPERATIONAL,
+        }
 
-        if 'security' in domains and 'performance' in domains:
-            return ConflictDomain.SECURITY_VS_PERFORMANCE
+        d1_lower = domain1.lower()
+        d2_lower = domain2.lower()
 
-        elif 'business' in domains and ('technical' in domains or 'engineering' in domains):
-            return ConflictDomain.BUSINESS_VS_TECHNICAL
+        unified1 = domain_mapping.get(d1_lower)
+        unified2 = domain_mapping.get(d2_lower)
 
-        elif 'cost' in domains and 'quality' in domains:
-            return ConflictDomain.COST_VS_QUALITY
-
-        elif 'speed' in domains and 'reliability' in domains:
-            return ConflictDomain.SPEED_VS_RELIABILITY
+        # Only return if both domains are recognized and different
+        if unified1 and unified2 and unified1 != unified2:
+            return (unified1, unified2)
 
         return None
 
@@ -100,7 +114,7 @@ class ConflictArbitrator:
         try:
             # Consultar histórico de resoluções similares
             historical = await self.neo4j_client.get_domain_conflicts(
-                [conflict.conflict_domain.value]
+                [conflict.left_domain.value, conflict.right_domain.value]
             )
 
             # Sugerir estratégia
@@ -116,6 +130,16 @@ class ConflictArbitrator:
                 chosen_entity = self._choose_entity_by_domain(conflict.entities, 'business')
                 rationale = 'Objetivos de negócio priorizados devido à baixa severidade'
                 confidence = 0.8
+
+            elif strategy == 'PRIORITIZE_COMPLIANCE':
+                chosen_entity = self._choose_entity_by_domain(conflict.entities, 'compliance')
+                rationale = 'Compliance priorizado por requisitos regulatórios'
+                confidence = 0.9
+
+            elif strategy == 'PRIORITIZE_RELIABILITY':
+                chosen_entity = self._choose_entity_by_domain(conflict.entities, 'infrastructure')
+                rationale = 'Confiabilidade priorizada para estabilidade do sistema'
+                confidence = 0.85
 
             elif strategy == 'COMPROMISE':
                 chosen_entity = None
