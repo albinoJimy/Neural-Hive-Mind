@@ -83,6 +83,14 @@ class OrchestratorVaultClient:
         self._postgres_credentials: Optional[Dict[str, any]] = None
         self._postgres_credentials_expiry: Optional[datetime] = None
 
+        # Cache de credenciais MongoDB para gerenciar renovação
+        self._mongodb_credentials: Optional[Dict[str, any]] = None
+        self._mongodb_credentials_expiry: Optional[datetime] = None
+
+        # Cache de credenciais Kafka para gerenciar renovação
+        self._kafka_credentials: Optional[Dict[str, any]] = None
+        self._kafka_credentials_expiry: Optional[datetime] = None
+
     async def initialize(self):
         """Inicializa clientes Vault e SPIFFE"""
         self.logger.info("initializing_vault_integration")
@@ -181,6 +189,69 @@ class OrchestratorVaultClient:
                 return self.config.mongodb_uri
             raise
 
+    async def get_mongodb_credentials(self) -> Dict[str, str]:
+        """
+        Busca credenciais dinâmicas do MongoDB no Vault
+
+        Returns:
+            Dict com username, password, ttl
+        """
+        if not self.vault_client or not self.config.vault_enabled:
+            # Fallback to config - extract from URI
+            uri = self.config.mongodb_uri
+            username = ""
+            password = ""
+            if "://" in uri:
+                try:
+                    # Parse mongodb://username:password@host format
+                    auth_part = uri.split("://")[1].split("@")[0]
+                    if ":" in auth_part:
+                        username = auth_part.split(":")[0]
+                        password = auth_part.split(":")[1] if len(auth_part.split(":")) > 1 else ""
+                except (IndexError, ValueError):
+                    pass
+            return {
+                "username": username,
+                "password": password,
+                "ttl": 0
+            }
+
+        try:
+            self.logger.debug("fetching_mongodb_credentials")
+            creds = await self.vault_client.get_database_credentials("mongodb-orchestrator")
+
+            # Armazenar credenciais e expiry para renovação
+            self._mongodb_credentials = creds
+            if creds.get("ttl", 0) > 0:
+                self._mongodb_credentials_expiry = datetime.utcnow() + timedelta(seconds=creds["ttl"])
+
+            self.logger.info("mongodb_credentials_fetched", ttl=creds.get("ttl", 0))
+            vault_credentials_fetched_total.labels(credential_type="mongodb_dynamic", status="success").inc()
+            return creds
+
+        except Exception as e:
+            self.logger.error("mongodb_credentials_fetch_failed", error=str(e))
+            vault_credentials_fetched_total.labels(credential_type="mongodb_dynamic", status="error").inc()
+            if self.config.vault_fail_open:
+                # Fallback to config
+                uri = self.config.mongodb_uri
+                username = ""
+                password = ""
+                if "://" in uri:
+                    try:
+                        auth_part = uri.split("://")[1].split("@")[0]
+                        if ":" in auth_part:
+                            username = auth_part.split(":")[0]
+                            password = auth_part.split(":")[1] if len(auth_part.split(":")) > 1 else ""
+                    except (IndexError, ValueError):
+                        pass
+                return {
+                    "username": username,
+                    "password": password,
+                    "ttl": 0
+                }
+            raise
+
     async def get_redis_password(self) -> Optional[str]:
         """
         Busca senha do Redis no Vault
@@ -215,12 +286,13 @@ class OrchestratorVaultClient:
         Busca credenciais SASL do Kafka no Vault
 
         Returns:
-            Dict com username, password
+            Dict com username, password, ttl
         """
         if not self.vault_client or not self.config.vault_enabled:
             return {
                 "username": self.config.kafka_sasl_username,
-                "password": self.config.kafka_sasl_password
+                "password": self.config.kafka_sasl_password,
+                "ttl": 0
             }
 
         try:
@@ -228,17 +300,25 @@ class OrchestratorVaultClient:
             secret = await self.vault_client.read_secret("orchestrator/kafka")
 
             if secret:
-                self.logger.info("kafka_credentials_fetched")
+                # Armazenar credenciais e expiry para renovação
+                ttl = secret.get("ttl", 0)
+                self._kafka_credentials = secret
+                if ttl > 0:
+                    self._kafka_credentials_expiry = datetime.utcnow() + timedelta(seconds=ttl)
+
+                self.logger.info("kafka_credentials_fetched", ttl=ttl)
                 vault_credentials_fetched_total.labels(credential_type="kafka", status="success").inc()
                 return {
                     "username": secret.get("username"),
-                    "password": secret.get("password")
+                    "password": secret.get("password"),
+                    "ttl": ttl
                 }
             else:
                 self.logger.warning("kafka_credentials_not_found_in_vault")
                 return {
                     "username": self.config.kafka_sasl_username,
-                    "password": self.config.kafka_sasl_password
+                    "password": self.config.kafka_sasl_password,
+                    "ttl": 0
                 }
 
         except Exception as e:
@@ -247,7 +327,8 @@ class OrchestratorVaultClient:
             if self.config.vault_fail_open:
                 return {
                     "username": self.config.kafka_sasl_username,
-                    "password": self.config.kafka_sasl_password
+                    "password": self.config.kafka_sasl_password,
+                    "ttl": 0
                 }
             raise
 
@@ -277,6 +358,12 @@ class OrchestratorVaultClient:
 
                 # 2. Verificar e renovar credenciais PostgreSQL
                 await self._renew_postgres_credentials_if_needed()
+
+                # 3. Verificar e renovar credenciais MongoDB
+                await self._renew_mongodb_credentials_if_needed()
+
+                # 4. Verificar e renovar credenciais Kafka
+                await self._renew_kafka_credentials_if_needed()
 
                 self.logger.debug("credential_renewal_check_complete")
                 vault_renewal_task_runs_total.labels(status="success").inc()
@@ -312,6 +399,20 @@ class OrchestratorVaultClient:
             time_until_expiry = (self._postgres_credentials_expiry - datetime.utcnow()).total_seconds()
             if time_until_expiry > 0:
                 # Verificar quando atingir o threshold
+                check_at = time_until_expiry * (1 - self.config.vault_db_credentials_renewal_threshold)
+                intervals.append(max(check_at, 60))  # Mínimo 60s
+
+        # Considerar TTL das credenciais MongoDB
+        if self._mongodb_credentials_expiry:
+            time_until_expiry = (self._mongodb_credentials_expiry - datetime.utcnow()).total_seconds()
+            if time_until_expiry > 0:
+                check_at = time_until_expiry * (1 - self.config.vault_db_credentials_renewal_threshold)
+                intervals.append(max(check_at, 60))  # Mínimo 60s
+
+        # Considerar TTL das credenciais Kafka
+        if self._kafka_credentials_expiry:
+            time_until_expiry = (self._kafka_credentials_expiry - datetime.utcnow()).total_seconds()
+            if time_until_expiry > 0:
                 check_at = time_until_expiry * (1 - self.config.vault_db_credentials_renewal_threshold)
                 intervals.append(max(check_at, 60))  # Mínimo 60s
 
@@ -419,6 +520,122 @@ class OrchestratorVaultClient:
 
         except Exception as e:
             self.logger.error("postgres_credentials_renewal_failed", error=str(e))
+            vault_renewal_task_runs_total.labels(status="error").inc()
+            raise
+
+    async def _renew_mongodb_credentials_if_needed(self):
+        """
+        Verifica e renova credenciais MongoDB se necessário
+        """
+        if not self._mongodb_credentials_expiry:
+            return
+
+        time_until_expiry = (self._mongodb_credentials_expiry - datetime.utcnow()).total_seconds()
+        if time_until_expiry <= 0:
+            self.logger.warning("mongodb_credentials_expired", expired_seconds_ago=abs(time_until_expiry))
+            await self._fetch_and_update_mongodb_credentials()
+            return
+
+        original_ttl = self._mongodb_credentials.get("ttl", 0) if self._mongodb_credentials else 0
+        if original_ttl <= 0:
+            return
+
+        consumed_ratio = 1.0 - (time_until_expiry / original_ttl)
+
+        if consumed_ratio >= (1.0 - self.config.vault_db_credentials_renewal_threshold):
+            self.logger.info(
+                "renewing_mongodb_credentials",
+                time_until_expiry=time_until_expiry,
+                consumed_ratio=consumed_ratio
+            )
+            await self._fetch_and_update_mongodb_credentials()
+
+    async def _fetch_and_update_mongodb_credentials(self):
+        """
+        Busca novas credenciais MongoDB e atualiza cache interno
+        """
+        try:
+            new_creds = await self.vault_client.get_database_credentials("mongodb-orchestrator")
+
+            self._mongodb_credentials = new_creds
+            if new_creds.get("ttl", 0) > 0:
+                self._mongodb_credentials_expiry = datetime.utcnow() + timedelta(seconds=new_creds["ttl"])
+
+            self.logger.info(
+                "mongodb_credentials_renewed",
+                ttl=new_creds.get("ttl", 0),
+                username=new_creds.get("username")
+            )
+            vault_renewal_task_runs_total.labels(status="success").inc()
+
+            # NOTA: Atualização de connection pool do MongoDB requer
+            # recreação do MongoDBClient. Isso deve ser coordenado
+            # com o app_state no main.py.
+            self.logger.warning(
+                "mongodb_credentials_renewed_connection_pool_update_required",
+                note="MongoDB connection pool precisa ser atualizado com novas credenciais"
+            )
+
+        except Exception as e:
+            self.logger.error("mongodb_credentials_renewal_failed", error=str(e))
+            vault_renewal_task_runs_total.labels(status="error").inc()
+            raise
+
+    async def _renew_kafka_credentials_if_needed(self):
+        """
+        Verifica e renova credenciais Kafka se necessário
+        """
+        if not self._kafka_credentials_expiry:
+            return
+
+        time_until_expiry = (self._kafka_credentials_expiry - datetime.utcnow()).total_seconds()
+        if time_until_expiry <= 0:
+            self.logger.warning("kafka_credentials_expired", expired_seconds_ago=abs(time_until_expiry))
+            await self._fetch_and_update_kafka_credentials()
+            return
+
+        original_ttl = self._kafka_credentials.get("ttl", 0) if self._kafka_credentials else 0
+        if original_ttl <= 0:
+            return
+
+        consumed_ratio = 1.0 - (time_until_expiry / original_ttl)
+
+        if consumed_ratio >= (1.0 - self.config.vault_db_credentials_renewal_threshold):
+            self.logger.info(
+                "renewing_kafka_credentials",
+                time_until_expiry=time_until_expiry,
+                consumed_ratio=consumed_ratio
+            )
+            await self._fetch_and_update_kafka_credentials()
+
+    async def _fetch_and_update_kafka_credentials(self):
+        """
+        Busca novas credenciais Kafka e atualiza cache interno
+        """
+        try:
+            secret = await self.vault_client.read_secret("orchestrator/kafka")
+
+            if secret:
+                ttl = secret.get("ttl", 0)
+                self._kafka_credentials = secret
+                if ttl > 0:
+                    self._kafka_credentials_expiry = datetime.utcnow() + timedelta(seconds=ttl)
+
+                self.logger.info(
+                    "kafka_credentials_renewed",
+                    ttl=ttl,
+                    username=secret.get("username")
+                )
+                vault_renewal_task_runs_total.labels(status="success").inc()
+
+                # NOTA: Kafka producer precisa ser recriado com novas credenciais
+                self.logger.warning(
+                    "kafka_credentials_renewed_producer_update_required",
+                    note="Kafka producer precisa ser recriado com novas credenciais"
+                )
+
+        except Exception as e:
+            self.logger.error("kafka_credentials_renewal_failed", error=str(e))
             vault_renewal_task_runs_total.labels(status="error").inc()
             raise
 

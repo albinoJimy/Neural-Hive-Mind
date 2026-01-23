@@ -90,6 +90,8 @@ class Settings(BaseSettings):
     )
     VAULT_TLS_VERIFY: bool = Field(default=True, description="Verificar certificado TLS do Vault")
     VAULT_CA_BUNDLE: Optional[str] = Field(default=None, description="Caminho para CA bundle do Vault")
+    VAULT_NAMESPACE: str = Field(default="", description="Namespace Vault (vazio para root)")
+    VAULT_AUTH_METHOD: str = Field(default="kubernetes", description="Método de autenticação Vault")
     VAULT_KUBERNETES_ROLE: str = Field(
         default="service-registry",
         description="Role Kubernetes para autenticação Vault"
@@ -99,6 +101,38 @@ class Settings(BaseSettings):
         description="Caminho para arquivo de token Vault"
     )
     VAULT_MOUNT_KV: str = Field(default="secret", description="Mount point do KV secrets")
+    VAULT_TIMEOUT_SECONDS: int = Field(default=5, description="Timeout para requisições Vault")
+    VAULT_MAX_RETRIES: int = Field(default=3, description="Número de tentativas de retry")
+    VAULT_FAIL_OPEN: bool = Field(
+        default=False,
+        description=(
+            "Fail-open em erros do Vault (fallback para env vars). "
+            "ATENCAO: Deve ser False em producao para zero-trust security."
+        )
+    )
+
+    @field_validator('VAULT_FAIL_OPEN')
+    @classmethod
+    def validate_vault_fail_open_requires_dev_environment(cls, v: bool, info) -> bool:
+        """
+        Validar que VAULT_FAIL_OPEN só pode ser True em ambientes de desenvolvimento.
+        """
+        if v is not True:
+            return v
+
+        environment = info.data.get('ENVIRONMENT', '')
+
+        # Ambientes permitidos para fail_open=True
+        allowed_environments = ['development', 'dev', 'local', 'test']
+
+        if environment.lower() not in allowed_environments:
+            raise ValueError(
+                f'VAULT_FAIL_OPEN=True não é permitido em ambiente "{environment}". '
+                f'Apenas ambientes {allowed_environments} permitem fail_open. '
+                'Configure VAULT_FAIL_OPEN=false ou ENVIRONMENT=development.'
+            )
+
+        return v
 
     # SPIFFE Integration
     SPIFFE_ENABLED: bool = Field(default=False, description="Habilitar integração com SPIFFE")

@@ -919,8 +919,11 @@ def _get_predictor_info(model_name: str) -> Optional[dict]:
 
 @app.get('/health')
 async def health_check():
-    """Health check básico com status do Redis."""
+    """Health check básico com status do Redis e Vault."""
+    from datetime import datetime
+
     config = get_settings()
+    overall_status = 'healthy'
 
     # Verificar Redis (opcional - fail-open)
     redis_status = {
@@ -947,13 +950,48 @@ async def health_check():
         redis_status['circuit_breaker_state'] = cb_state['state']
         redis_status['error'] = 'not_initialized'
 
+    # Verificar Vault connectivity
+    vault_status = {
+        'enabled': config.vault_enabled,
+        'status': 'disabled'
+    }
+
+    if config.vault_enabled and app_state.vault_client:
+        try:
+            # Check if Vault client has health_check method
+            if hasattr(app_state.vault_client, 'vault_client') and app_state.vault_client.vault_client:
+                vault_healthy = await app_state.vault_client.vault_client.health_check()
+                vault_status['status'] = 'healthy' if vault_healthy else 'unhealthy'
+            else:
+                vault_status['status'] = 'client_not_initialized'
+
+            if vault_status['status'] == 'unhealthy':
+                # Check fail-open policy
+                if not config.vault_fail_open:
+                    overall_status = 'unhealthy'
+                    vault_status['error'] = 'Vault unhealthy and fail_open=false'
+        except Exception as e:
+            vault_status['status'] = 'error'
+            vault_status['error'] = str(e)
+            if not config.vault_fail_open:
+                overall_status = 'unhealthy'
+    elif config.vault_enabled and not app_state.vault_client:
+        vault_status['status'] = 'not_initialized'
+        if not config.vault_fail_open:
+            overall_status = 'unhealthy'
+            vault_status['error'] = 'Vault enabled but client not initialized'
+
     return JSONResponse(
-        status_code=200,
+        status_code=200 if overall_status == 'healthy' else 503,
         content={
-            'status': 'healthy',
+            'status': overall_status,
             'service': 'orchestrator-dynamic',
             'version': '1.0.0',
-            'redis': redis_status
+            'timestamp': datetime.utcnow().isoformat(),
+            'checks': {
+                'redis': redis_status,
+                'vault': vault_status
+            }
         }
     )
 

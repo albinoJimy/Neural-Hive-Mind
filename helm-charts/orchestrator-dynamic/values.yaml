@@ -221,7 +221,7 @@ config:
   # Vault Integration
   # Habilitado por padrão em produção para gerenciamento seguro de credenciais
   vault:
-    enabled: false  # Mudar para true em produção para zero-trust security
+    enabled: true  # Zero-trust security enabled
     address: http://vault.vault.svc.cluster.local:8200
     namespace: ""
     authMethod: kubernetes
@@ -232,6 +232,8 @@ config:
     timeoutSeconds: 5
     maxRetries: 3
     failOpen: false  # Fail-closed por padrao em producao
+    tokenRenewalThreshold: 0.2  # Renovar token quando 80% do TTL consumido
+    dbCredentialsRenewalThreshold: 0.2  # Renovar DB creds quando 80% do TTL consumido
 
   # SPIFFE Integration
   # Habilitado por padrão em produção para autenticação mTLS entre serviços

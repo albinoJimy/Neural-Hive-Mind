@@ -21,6 +21,14 @@ except ImportError:
     SPIFFEManager = None
     SPIFFEConfig = None
 
+# Import Vault integration (optional dependency)
+try:
+    from src.clients.vault_integration import ServiceRegistryVaultClient
+    VAULT_AVAILABLE = True
+except ImportError:
+    VAULT_AVAILABLE = False
+    ServiceRegistryVaultClient = None
+
 
 # Configurar structured logging
 structlog.configure(
@@ -57,6 +65,7 @@ class ServiceRegistryServer:
         self.health_check_manager = None
         self.spiffe_manager = None
         self.auth_interceptor = None
+        self.vault_client = None
         self._shutdown_event = asyncio.Event()
 
     async def _create_server_credentials(self):
@@ -130,19 +139,49 @@ class ServiceRegistryServer:
                 prometheus_port=self.settings.METRICS_PORT
             )
 
+        # Inicializar Vault integration se habilitado
+        redis_password = self.settings.REDIS_PASSWORD
+        if self.settings.VAULT_ENABLED and VAULT_AVAILABLE and ServiceRegistryVaultClient:
+            try:
+                logger.info("initializing_vault_integration")
+                self.vault_client = ServiceRegistryVaultClient(self.settings)
+                await self.vault_client.initialize()
+                logger.info("vault_integration_initialized")
+
+                # Get credentials from Vault
+                try:
+                    redis_password = await self.vault_client.get_redis_password()
+                    logger.info("redis_password_obtained_from_vault")
+                except Exception as redis_vault_error:
+                    logger.warning(
+                        "redis_password_vault_fetch_failed",
+                        error=str(redis_vault_error)
+                    )
+
+            except Exception as vault_error:
+                logger.error("vault_initialization_failed", error=str(vault_error))
+                if not self.settings.VAULT_FAIL_OPEN:
+                    raise
+                logger.warning("vault_fail_open_enabled_continuing_with_static_credentials")
+                self.vault_client = None
+        elif self.settings.VAULT_ENABLED and not VAULT_AVAILABLE:
+            logger.warning("vault_enabled_but_library_not_available")
+        else:
+            logger.info("vault_integration_disabled")
+
         # Inicializar clientes
         # Nota: EtcdClient é agora um alias para RedisRegistryClient
         self.etcd_client = EtcdClient(
             cluster_nodes=self.settings.ETCD_ENDPOINTS,
             prefix=self.settings.ETCD_PREFIX,
-            password=self.settings.REDIS_PASSWORD,
+            password=redis_password,
             timeout=self.settings.ETCD_TIMEOUT_SECONDS
         )
         await self.etcd_client.initialize()
 
         self.pheromone_client = PheromoneClient(
             cluster_nodes=self.settings.REDIS_CLUSTER_NODES,
-            password=self.settings.REDIS_PASSWORD
+            password=redis_password
         )
         await self.pheromone_client.initialize()
 
@@ -303,6 +342,14 @@ class ServiceRegistryServer:
                 logger.info("spiffe_manager_closed")
             except Exception as e:
                 logger.warning("spiffe_manager_close_failed", error=str(e))
+
+        # Fechar Vault client
+        if self.vault_client:
+            try:
+                await self.vault_client.close()
+                logger.info("vault_client_closed")
+            except Exception as e:
+                logger.warning("vault_client_close_failed", error=str(e))
 
         # Fechar clientes
         if self.etcd_client:

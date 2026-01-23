@@ -423,3 +423,418 @@ spec:
   - vault.vault.svc
   - vault.vault.svc.cluster.local
   - "*.vault-internal"
+EOF
+```
+
+### 7. Rotação Automática de Credenciais
+
+#### 7.1 MongoDB Dynamic Credentials
+
+**Configuração Vault:**
+```bash
+# Habilitar database secrets engine
+vault secrets enable database
+
+# Configurar MongoDB connection
+vault write database/config/mongodb-orchestrator \
+    plugin_name=mongodb-database-plugin \
+    allowed_roles="orchestrator-dynamic" \
+    connection_url="mongodb://{{username}}:{{password}}@mongodb:27017/admin" \
+    username="vault-admin" \
+    password="vault-admin-password"
+
+# Criar role com TTL 1h
+vault write database/roles/mongodb-orchestrator \
+    db_name=mongodb-orchestrator \
+    creation_statements='{ "db": "neural_hive_orchestration", "roles": [{ "role": "readWrite" }] }' \
+    default_ttl="1h" \
+    max_ttl="24h"
+```
+
+**Renovação Automática:**
+- Threshold: 80% do TTL (configurável via `vault_db_credentials_renewal_threshold`)
+- Background task monitora expiry
+- Novas credenciais buscadas automaticamente
+- **Limitação:** Connection pool do MongoDB não é atualizado automaticamente
+
+#### 7.2 Kafka SASL Credentials
+
+**Configuração Vault:**
+```bash
+# Armazenar credenciais Kafka no KV v2
+vault kv put secret/orchestrator/kafka \
+    username="orchestrator-kafka-user" \
+    password="generated-password" \
+    ttl=3600
+
+vault kv put secret/worker/kafka \
+    username="worker-kafka-user" \
+    password="generated-password" \
+    ttl=3600
+```
+
+**Renovação Automática:**
+- Threshold: 80% do TTL
+- Background task monitora expiry
+- Novas credenciais buscadas automaticamente
+- **Limitação:** Kafka producer não é recriado automaticamente
+
+#### 7.3 PostgreSQL Dynamic Credentials
+
+**Já Implementado** (ver seção 2.1)
+
+---
+
+### 8. Health Checks
+
+#### 8.1 Vault Connectivity
+
+**Endpoint:** `GET /health`
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-01-23T10:00:00Z",
+  "checks": {
+    "vault": {
+      "status": "healthy",
+      "enabled": true
+    },
+    "redis": {
+      "available": true,
+      "circuit_breaker_state": "closed"
+    }
+  }
+}
+```
+
+**Fail-Closed Behavior:**
+- Se `vault.failOpen: false` e Vault unhealthy → `/health` retorna `unhealthy`
+- Kubernetes readiness probe falha → pod removido do service
+- Garante que apenas pods com Vault funcional recebem tráfego
+
+**Fail-Open Behavior:**
+- Se `vault.failOpen: true` e Vault unhealthy → `/health` retorna `healthy`
+- Pod continua operando com credenciais estáticas
+- **Apenas para desenvolvimento**
+
+---
+
+### 9. Testes
+
+#### 9.1 Testes de Rotação
+
+**Localização:** `tests/integration/test_vault_*_rotation.py`
+
+**Cobertura:**
+- ✅ Renovação no threshold (80% TTL)
+- ✅ Não renovação antes do threshold
+- ✅ Renovação imediata em caso de expiração
+- ✅ Fallback para credenciais estáticas em fail-open
+- ✅ Fail-closed quando vault_fail_open=false
+
+**Executar:**
+```bash
+pytest tests/integration/test_vault_postgres_rotation.py -v
+pytest tests/integration/test_vault_mongodb_rotation.py -v
+pytest tests/integration/test_vault_kafka_rotation.py -v
+```
+
+#### 9.2 Testes E2E
+
+**Cenário:** Rotação de credenciais durante execução de workflow
+
+1. Iniciar workflow Temporal
+2. Aguardar 80% do TTL de credenciais PostgreSQL
+3. Verificar renovação automática
+4. Validar que workflow continua executando sem erros
+5. Verificar métricas de renovação
+
+---
+
+### 10. Métricas de Rotação
+
+**Novas Métricas:**
+```
+orchestrator_vault_credentials_fetched_total{credential_type, status}
+orchestrator_vault_renewal_task_runs_total{status}
+service_registry_vault_credentials_fetched_total{credential_type, status}
+```
+
+**Alertas Recomendados:**
+```yaml
+- alert: VaultCredentialRenewalFailed
+  expr: rate(orchestrator_vault_renewal_task_runs_total{status="error"}[5m]) > 0
+  for: 5m
+  labels:
+    severity: critical
+  annotations:
+    summary: "Falha na renovação de credenciais Vault"
+    description: "Renovação de credenciais falhou por 5 minutos"
+
+- alert: VaultCredentialExpiringSoon
+  expr: (vault_credential_expiry_seconds - time()) < 300
+  for: 1m
+  labels:
+    severity: warning
+  annotations:
+    summary: "Credencial Vault expirando em < 5min"
+```
+
+---
+
+### 11. Runbook Operacional
+
+#### 11.1 Habilitar Vault em Produção
+
+**Pré-requisitos:**
+1. Vault Server instalado e inicializado
+2. SPIRE Server e Agents instalados
+3. Terraform module `vault-ha` aplicado
+4. Secrets configurados no Vault
+
+**Passos:**
+
+1. **Configurar Vault Policies:**
+```bash
+# Orchestrator Dynamic
+vault policy write orchestrator-dynamic - <<EOF
+path "secret/data/orchestrator/*" {
+  capabilities = ["read"]
+}
+path "database/creds/temporal-orchestrator" {
+  capabilities = ["read"]
+}
+path "database/creds/mongodb-orchestrator" {
+  capabilities = ["read"]
+}
+EOF
+
+# Worker Agents
+vault policy write worker-agents - <<EOF
+path "secret/data/worker/*" {
+  capabilities = ["read", "create", "update"]
+}
+EOF
+
+# Service Registry
+vault policy write service-registry - <<EOF
+path "secret/data/service-registry/*" {
+  capabilities = ["read"]
+}
+EOF
+```
+
+2. **Configurar Kubernetes Auth:**
+```bash
+vault auth enable kubernetes
+
+vault write auth/kubernetes/config \
+    kubernetes_host="https://kubernetes.default.svc:443" \
+    kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+    token_reviewer_jwt=@/var/run/secrets/kubernetes.io/serviceaccount/token
+
+# Criar roles
+vault write auth/kubernetes/role/orchestrator-dynamic \
+    bound_service_account_names=orchestrator-dynamic \
+    bound_service_account_namespaces=neural-hive-orchestration \
+    policies=orchestrator-dynamic \
+    ttl=1h
+
+vault write auth/kubernetes/role/worker-agents \
+    bound_service_account_names=worker-agents \
+    bound_service_account_namespaces=neural-hive-execution \
+    policies=worker-agents \
+    ttl=1h
+
+vault write auth/kubernetes/role/service-registry \
+    bound_service_account_names=service-registry \
+    bound_service_account_namespaces=neural-hive-registry \
+    policies=service-registry \
+    ttl=1h
+```
+
+3. **Configurar Database Secrets Engine:**
+```bash
+# PostgreSQL (Temporal)
+vault secrets enable database
+
+vault write database/config/temporal-orchestrator \
+    plugin_name=postgresql-database-plugin \
+    allowed_roles="temporal-orchestrator" \
+    connection_url="postgresql://{{username}}:{{password}}@postgres:5432/temporal?sslmode=require" \
+    username="vault-admin" \
+    password="$POSTGRES_VAULT_PASSWORD"
+
+vault write database/roles/temporal-orchestrator \
+    db_name=temporal-orchestrator \
+    creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; \
+        GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO \"{{name}}\";" \
+    default_ttl="1h" \
+    max_ttl="24h"
+
+# MongoDB
+vault write database/config/mongodb-orchestrator \
+    plugin_name=mongodb-database-plugin \
+    allowed_roles="orchestrator-dynamic" \
+    connection_url="mongodb://{{username}}:{{password}}@mongodb:27017/admin" \
+    username="vault-admin" \
+    password="$MONGODB_VAULT_PASSWORD"
+
+vault write database/roles/mongodb-orchestrator \
+    db_name=mongodb-orchestrator \
+    creation_statements='{ "db": "neural_hive_orchestration", "roles": [{ "role": "readWrite" }] }' \
+    default_ttl="1h" \
+    max_ttl="24h"
+```
+
+4. **Armazenar Secrets Estáticos:**
+```bash
+# Kafka credentials
+vault kv put secret/orchestrator/kafka \
+    username="orchestrator-kafka-user" \
+    password="$KAFKA_ORCHESTRATOR_PASSWORD"
+
+vault kv put secret/worker/kafka \
+    username="worker-kafka-user" \
+    password="$KAFKA_WORKER_PASSWORD"
+
+# Redis passwords
+vault kv put secret/orchestrator/redis \
+    password="$REDIS_PASSWORD"
+
+vault kv put secret/service-registry/redis \
+    password="$REDIS_PASSWORD"
+
+# etcd credentials
+vault kv put secret/service-registry/etcd \
+    username="service-registry" \
+    password="$ETCD_PASSWORD"
+```
+
+5. **Atualizar Helm Values:**
+```bash
+# Orchestrator Dynamic
+helm upgrade orchestrator-dynamic ./helm-charts/orchestrator-dynamic \
+    --set vault.enabled=true \
+    --set vault.failOpen=false \
+    --set environment=production
+
+# Worker Agents
+helm upgrade worker-agents ./helm-charts/worker-agents \
+    --set vault.enabled=true \
+    --set vault.failOpen=false
+
+# Service Registry
+helm upgrade service-registry ./helm-charts/service-registry \
+    --set vault.enabled=true \
+    --set vault.failOpen=false
+```
+
+6. **Validar Health Checks:**
+```bash
+# Orchestrator Dynamic
+kubectl exec -it orchestrator-dynamic-0 -- curl http://localhost:8000/health | jq '.checks.vault'
+
+# Worker Agents
+kubectl exec -it worker-agents-0 -- curl http://localhost:8080/health | jq '.checks.vault'
+```
+
+7. **Monitorar Métricas:**
+```bash
+# Verificar renovações de credenciais
+kubectl port-forward svc/prometheus 9090:9090
+# Abrir http://localhost:9090
+# Query: rate(orchestrator_vault_renewal_task_runs_total[5m])
+```
+
+#### 11.2 Troubleshooting
+
+**Problema:** Vault health check falha
+
+**Diagnóstico:**
+```bash
+# Verificar conectividade
+kubectl exec -it orchestrator-dynamic-0 -- curl -k https://vault.vault.svc.cluster.local:8200/v1/sys/health
+
+# Verificar logs
+kubectl logs orchestrator-dynamic-0 | grep vault
+
+# Verificar service account token
+kubectl exec -it orchestrator-dynamic-0 -- cat /var/run/secrets/kubernetes.io/serviceaccount/token
+```
+
+**Solução:**
+- Verificar NetworkPolicy permite egress para namespace `vault`
+- Verificar Vault Server está healthy
+- Verificar Kubernetes auth configurado corretamente
+
+---
+
+**Problema:** Credenciais não renovam automaticamente
+
+**Diagnóstico:**
+```bash
+# Verificar logs de renovação
+kubectl logs orchestrator-dynamic-0 | grep renew
+
+# Verificar métricas
+curl http://orchestrator-dynamic:9090/metrics | grep vault_renewal
+```
+
+**Solução:**
+- Verificar TTL das credenciais > 5 minutos
+- Verificar threshold configurado corretamente (default: 0.2 = 80%)
+- Verificar background task está rodando
+
+---
+
+**Problema:** Pods não iniciam com Vault habilitado
+
+**Diagnóstico:**
+```bash
+# Verificar eventos
+kubectl describe pod orchestrator-dynamic-0
+
+# Verificar logs de inicialização
+kubectl logs orchestrator-dynamic-0 --previous
+```
+
+**Solução:**
+- Se `vault.failOpen: false`, pod não inicia se Vault indisponível
+- Verificar Vault Server está healthy
+- Temporariamente usar `vault.failOpen: true` para debug (apenas dev)
+
+---
+
+### 12. Limitações Conhecidas
+
+1. **Connection Pool Não Atualizado Automaticamente:**
+   - MongoDB e PostgreSQL connection pools não são recriados após renovação
+   - Conexões existentes continuam usando credenciais antigas até expiração
+   - **Mitigação:** TTL longo (1h) permite que conexões sejam recicladas naturalmente
+
+2. **Kafka Producer Não Recriado:**
+   - Producer Kafka não é recriado após renovação de SASL credentials
+   - **Mitigação:** Restart do pod após renovação (via rolling update)
+
+3. **Vault Indisponibilidade:**
+   - Com `failOpen: false`, pods não iniciam se Vault indisponível
+   - **Mitigação:** Garantir alta disponibilidade do Vault (3 replicas, Raft storage)
+
+---
+
+### 13. Próximos Passos (Fora do Escopo)
+
+1. **Recreação Automática de Connection Pools:**
+   - Implementar hot-reload de credenciais
+   - Requer coordenação com lifecycle dos clientes
+
+2. **Vault Agent Sidecar:**
+   - Usar Vault Agent para injeção automática de secrets
+   - Simplifica renovação (Agent gerencia)
+
+3. **External Secrets Operator:**
+   - Sincronizar secrets do Vault para Kubernetes Secrets
+   - Facilita integração com aplicações existentes
