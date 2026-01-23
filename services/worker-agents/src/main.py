@@ -16,6 +16,7 @@ from .clients import (
     ServiceRegistryClient,
     ExecutionTicketClient,
     KafkaTicketConsumer,
+    KafkaDLQConsumer,
     KafkaResultProducer
 )
 from .engine import ExecutionEngine, DependencyCoordinator
@@ -444,11 +445,30 @@ async def startup():
         )
         app_state['execution_engine'] = execution_engine
 
-        # Criar Kafka consumer
+        # Criar Kafka consumer com Redis para DLQ retry tracking
         kafka_consumer = KafkaTicketConsumer(config, execution_engine, metrics=metrics)
-        await kafka_consumer.initialize()
+        await kafka_consumer.initialize(redis_client=redis_client)
         kafka_consumer = instrument_kafka_consumer(kafka_consumer)
         app_state['kafka_consumer'] = kafka_consumer
+
+        # Inicializar DLQ consumer (opcional - depende de MongoDB)
+        mongodb_client = app_state.get('mongodb_client')  # Se disponivel
+        if getattr(config, 'kafka_dlq_enabled', True):
+            try:
+                dlq_consumer = KafkaDLQConsumer(
+                    config=config,
+                    mongodb_client=mongodb_client,
+                    alert_manager=None,  # TODO: Implementar AlertManager
+                    metrics=metrics
+                )
+                await dlq_consumer.initialize()
+                app_state['dlq_consumer'] = dlq_consumer
+                logger.info('dlq_consumer_initialized')
+            except Exception as dlq_error:
+                logger.warning(
+                    'dlq_consumer_init_failed_continuing_without',
+                    error=str(dlq_error)
+                )
 
         # Registrar no Service Registry
         agent_id = await registry_client.register()
@@ -470,6 +490,11 @@ async def startup():
         app_state['heartbeat_task'] = asyncio.create_task(heartbeat_loop(config, registry_client))
         app_state['consumer_task'] = asyncio.create_task(kafka_consumer.start())
 
+        # Iniciar DLQ consumer em background
+        if 'dlq_consumer' in app_state:
+            app_state['dlq_consumer_task'] = asyncio.create_task(app_state['dlq_consumer'].start())
+            logger.info('dlq_consumer_started')
+
         logger.info('worker_agent_started', agent_id=config.agent_id)
 
     except Exception as e:
@@ -490,6 +515,9 @@ async def shutdown():
 
         if 'consumer_task' in app_state:
             app_state['consumer_task'].cancel()
+
+        if 'dlq_consumer_task' in app_state:
+            app_state['dlq_consumer_task'].cancel()
 
         # Fechar Vault client
         if 'vault_client' in app_state and app_state['vault_client']:
@@ -517,6 +545,9 @@ async def shutdown():
         # Fechar clientes
         if 'kafka_consumer' in app_state:
             await app_state['kafka_consumer'].stop()
+
+        if 'dlq_consumer' in app_state:
+            await app_state['dlq_consumer'].stop()
 
         if 'result_producer' in app_state:
             await app_state['result_producer'].stop()

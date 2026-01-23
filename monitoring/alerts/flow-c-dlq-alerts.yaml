@@ -1,0 +1,65 @@
+groups:
+  - name: flow_c_dlq
+    interval: 30s
+    rules:
+      # Mensagens acumulando no DLQ
+      - alert: FlowCDLQMessagesAccumulating
+        expr: |
+          sum(worker_agent_dlq_messages_total) > 10
+        for: 5m
+        labels:
+          severity: critical
+          component: worker-agents
+          team: platform
+        annotations:
+          summary: "Mensagens acumulando no DLQ do Flow C"
+          description: "{{ $value }} mensagens no DLQ. Investigar causas de falha recorrentes."
+          runbook_url: "https://docs.neural-hive.io/runbooks/dlq-ticket-recovery"
+          dashboard_url: "https://grafana.neural-hive.io/d/worker-agents-dlq"
+
+      # Taxa alta de envio para DLQ
+      - alert: FlowCHighDLQRate
+        expr: |
+          rate(worker_agent_dlq_messages_total[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          component: worker-agents
+          team: platform
+        annotations:
+          summary: "Taxa alta de mensagens para DLQ"
+          description: "{{ $value }} mensagens/s sendo enviadas para DLQ. Possivel problema sistemico."
+          runbook_url: "https://docs.neural-hive.io/runbooks/dlq-high-rate"
+          dashboard_url: "https://grafana.neural-hive.io/d/worker-agents-dlq"
+
+      # Falhas ao publicar no DLQ
+      - alert: FlowCDLQPublishFailures
+        expr: |
+          rate(worker_agent_dlq_publish_errors_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: critical
+          component: worker-agents
+          team: platform
+        annotations:
+          summary: "Falhas ao publicar no DLQ"
+          description: "Worker agents nao conseguem publicar no DLQ. Mensagens podem estar presas."
+          runbook_url: "https://docs.neural-hive.io/runbooks/dlq-publish-failures"
+          dashboard_url: "https://grafana.neural-hive.io/d/worker-agents-dlq"
+
+      # Tickets com muitos retries (antes de ir para DLQ)
+      - alert: FlowCHighRetryCount
+        expr: |
+          histogram_quantile(0.95,
+            rate(worker_agent_ticket_retry_count_bucket[10m])
+          ) >= 2
+        for: 5m
+        labels:
+          severity: warning
+          component: worker-agents
+          team: platform
+        annotations:
+          summary: "Tickets com alto numero de retries"
+          description: "p95 de retries: {{ $value }}. Tickets proximos de ir para DLQ."
+          runbook_url: "https://docs.neural-hive.io/runbooks/high-retry-count"
+          dashboard_url: "https://grafana.neural-hive.io/d/worker-agents-dlq"

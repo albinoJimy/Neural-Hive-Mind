@@ -64,6 +64,11 @@ config:
     sslCertificateLocation: ""
     sslKeyLocation: ""
     schemasBasePath: /app/schemas
+    # Dead Letter Queue
+    dlq:
+      enabled: true
+      topic: execution.tickets.dlq
+      maxRetriesBeforeDLQ: 3  # Numero de falhas antes de enviar para DLQ
 
   serviceRegistry:
     host: service-registry.neural-hive.svc.cluster.local

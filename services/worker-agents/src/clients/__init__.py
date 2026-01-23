@@ -1,6 +1,7 @@
 from .service_registry_client import ServiceRegistryClient
 from .execution_ticket_client import ExecutionTicketClient
 from .kafka_ticket_consumer import KafkaTicketConsumer
+from .kafka_dlq_consumer import KafkaDLQConsumer
 from .kafka_result_producer import KafkaResultProducer
 from .github_actions_client import GitHubActionsClient
 from .gitlab_ci_client import GitLabCIClient, GitLabCIAPIError, GitLabCITimeoutError
@@ -80,6 +81,7 @@ __all__ = [
     'ServiceRegistryClient',
     'ExecutionTicketClient',
     'KafkaTicketConsumer',
+    'KafkaDLQConsumer',
     'KafkaResultProducer',
     'GitHubActionsClient',
     'GitLabCIClient',

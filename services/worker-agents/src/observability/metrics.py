@@ -152,6 +152,32 @@ class WorkerAgentMetrics:
             'Total de erros no producer Kafka'
         )
 
+        # Dead Letter Queue (DLQ)
+        self.dlq_messages_total = Counter(
+            'worker_agent_dlq_messages_total',
+            'Total de mensagens enviadas para DLQ',
+            ['reason', 'task_type']
+        )
+
+        self.dlq_publish_duration_seconds = Histogram(
+            'worker_agent_dlq_publish_duration_seconds',
+            'Duracao de publicacao no DLQ',
+            buckets=[0.1, 0.5, 1, 2, 5, 10]
+        )
+
+        self.dlq_publish_errors_total = Counter(
+            'worker_agent_dlq_publish_errors_total',
+            'Total de erros ao publicar no DLQ',
+            ['error_type']
+        )
+
+        self.ticket_retry_count = Histogram(
+            'worker_agent_ticket_retry_count',
+            'Numero de tentativas de processamento por ticket',
+            ['task_type'],
+            buckets=[1, 2, 3, 4, 5, 10, 20]
+        )
+
         # Executors
         self.executors_registered_total = Counter(
             'worker_agent_executors_registered_total',

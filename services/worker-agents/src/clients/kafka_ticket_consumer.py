@@ -13,7 +13,7 @@ logger = structlog.get_logger()
 
 
 class KafkaTicketConsumer:
-    '''Consumer Kafka para tópico execution.tickets'''
+    '''Consumer Kafka para topico execution.tickets'''
 
     def __init__(self, config, execution_engine, metrics=None):
         self.config = config
@@ -24,9 +24,11 @@ class KafkaTicketConsumer:
         self.schema_registry_client: Optional[SchemaRegistryClient] = None
         self.avro_deserializer: Optional[AvroDeserializer] = None
         self.running = False
+        self.redis_client = None  # Sera injetado via initialize()
 
-    async def initialize(self):
+    async def initialize(self, redis_client=None):
         '''Inicializar consumer Kafka'''
+        self.redis_client = redis_client
         try:
             consumer_config = {
                 'bootstrap.servers': self.config.kafka_bootstrap_servers,
@@ -159,21 +161,56 @@ class KafkaTicketConsumer:
 
                     await self.execution_engine.process_ticket(ticket)
 
-                    # Commit offset após processamento bem-sucedido
+                    # Limpar contador de retries apos sucesso
+                    await self._clear_retry_count(ticket.get('ticket_id'))
+
+                    # Commit offset apos processamento bem-sucedido
                     await asyncio.get_event_loop().run_in_executor(
                         None, lambda: self.consumer.commit(message)
                     )
 
                 except Exception as e:
-                    self.logger.error(
-                        'ticket_processing_failed',
-                        ticket_id=ticket.get('ticket_id') if isinstance(ticket, dict) else None,
-                        error=str(e),
-                        topic=message.topic,
-                        partition=message.partition,
-                        offset=message.offset
-                    )
-                    # Não commit - permite retry
+                    ticket_id_for_log = ticket.get('ticket_id') if isinstance(ticket, dict) else None
+
+                    # Incrementar contador de retries
+                    retry_count = await self._increment_retry_count(ticket_id_for_log) if ticket_id_for_log else 1
+
+                    # Verificar se excedeu limite de retries
+                    max_retries = getattr(self.config, 'kafka_max_retries_before_dlq', 3)
+
+                    if retry_count >= max_retries:
+                        self.logger.error(
+                            'ticket_max_retries_exceeded_sending_to_dlq',
+                            ticket_id=ticket_id_for_log,
+                            retry_count=retry_count,
+                            max_retries=max_retries,
+                            error=str(e)
+                        )
+
+                        # Publicar no DLQ
+                        await self._publish_to_dlq(ticket, e, retry_count)
+
+                        # Limpar contador de retries
+                        if ticket_id_for_log:
+                            await self._clear_retry_count(ticket_id_for_log)
+
+                        # Commit offset para nao reprocessar
+                        await asyncio.get_event_loop().run_in_executor(
+                            None, lambda: self.consumer.commit(message)
+                        )
+                    else:
+                        self.logger.error(
+                            'ticket_processing_failed_will_retry',
+                            ticket_id=ticket_id_for_log,
+                            retry_count=retry_count,
+                            max_retries=max_retries,
+                            error=str(e),
+                            topic=message.topic(),
+                            partition=message.partition(),
+                            offset=message.offset()
+                        )
+                        # Nao commit - permite retry via Kafka redelivery
+
                     if self.metrics:
                         error_type = type(e).__name__
                         self.metrics.kafka_consumer_errors_total.labels(error_type=error_type).inc()
@@ -213,3 +250,182 @@ class KafkaTicketConsumer:
                 security_config['ssl.key.location'] = self.config.kafka_ssl_key_location
 
         return security_config
+
+    async def _get_retry_count(self, ticket_id: str) -> int:
+        """
+        Obter contador de retries do Redis.
+
+        Args:
+            ticket_id: ID do execution ticket
+
+        Returns:
+            Numero de tentativas de processamento (0 se nao existe)
+        """
+        if not self.redis_client:
+            self.logger.warning('redis_not_available_retry_count_unavailable')
+            return 0
+
+        try:
+            retry_key = f"ticket:retry_count:{ticket_id}"
+            count = await self.redis_client.get(retry_key)
+            return int(count) if count else 0
+        except Exception as e:
+            self.logger.error('get_retry_count_failed', ticket_id=ticket_id, error=str(e))
+            return 0  # Fail-open: assumir 0 retries em caso de erro
+
+    async def _increment_retry_count(self, ticket_id: str) -> int:
+        """
+        Incrementar contador de retries no Redis.
+
+        Args:
+            ticket_id: ID do execution ticket
+
+        Returns:
+            Novo valor do contador
+        """
+        if not self.redis_client:
+            self.logger.warning('redis_not_available_cannot_increment_retry')
+            return 1  # Fail-open: assumir primeira tentativa
+
+        try:
+            retry_key = f"ticket:retry_count:{ticket_id}"
+            # Incrementar com TTL de 7 dias (alinhado com retention do topico)
+            new_count = await self.redis_client.incr(retry_key)
+            await self.redis_client.expire(retry_key, 604800)  # 7 dias
+
+            self.logger.debug(
+                'retry_count_incremented',
+                ticket_id=ticket_id,
+                retry_count=new_count
+            )
+
+            return new_count
+        except Exception as e:
+            self.logger.error('increment_retry_count_failed', ticket_id=ticket_id, error=str(e))
+            return 1  # Fail-open
+
+    async def _clear_retry_count(self, ticket_id: str):
+        """
+        Limpar contador de retries apos sucesso.
+
+        Args:
+            ticket_id: ID do execution ticket
+        """
+        if not self.redis_client:
+            return
+
+        try:
+            retry_key = f"ticket:retry_count:{ticket_id}"
+            await self.redis_client.delete(retry_key)
+            self.logger.debug('retry_count_cleared', ticket_id=ticket_id)
+        except Exception as e:
+            self.logger.error('clear_retry_count_failed', ticket_id=ticket_id, error=str(e))
+
+    async def _publish_to_dlq(self, ticket: dict, error: Exception, retry_count: int):
+        """
+        Publicar ticket no Dead Letter Queue.
+
+        Args:
+            ticket: Execution ticket original
+            error: Excecao que causou a falha
+            retry_count: Numero de tentativas de processamento
+        """
+        import time
+        from datetime import datetime
+        from confluent_kafka import Producer
+
+        ticket_id = ticket.get('ticket_id', 'unknown')
+        task_type = ticket.get('task_type', 'unknown')
+
+        start_time = time.time()
+
+        try:
+            # Enriquecer ticket com metadata de DLQ
+            dlq_message = {
+                **ticket,
+                'dlq_metadata': {
+                    'original_error': str(error),
+                    'error_type': type(error).__name__,
+                    'retry_count': retry_count,
+                    'last_failure_timestamp': int(datetime.now().timestamp() * 1000),
+                    'dlq_published_at': int(datetime.now().timestamp() * 1000)
+                }
+            }
+
+            # Publicar no topico DLQ
+            dlq_topic = getattr(self.config, 'kafka_dlq_topic', 'execution.tickets.dlq')
+
+            # Usar producer simples (JSON) para DLQ
+            producer_config = {
+                'bootstrap.servers': self.config.kafka_bootstrap_servers,
+                'acks': 'all',
+                'retries': 3,
+                'enable.idempotence': True
+            }
+            producer_config.update(self._configure_security())
+
+            producer = Producer(producer_config)
+
+            # Serializar como JSON
+            message_value = json.dumps(dlq_message).encode('utf-8')
+
+            delivery_result = {'success': False, 'error': None}
+
+            # Publicar com callback
+            def delivery_callback(err, msg):
+                if err:
+                    delivery_result['error'] = err
+                    self.logger.error(
+                        'dlq_publish_failed',
+                        ticket_id=ticket_id,
+                        error=str(err)
+                    )
+                    if self.metrics:
+                        self.metrics.dlq_publish_errors_total.labels(error_type=type(err).__name__).inc()
+                else:
+                    delivery_result['success'] = True
+                    self.logger.info(
+                        'dlq_publish_success',
+                        ticket_id=ticket_id,
+                        partition=msg.partition(),
+                        offset=msg.offset()
+                    )
+
+            producer.produce(
+                topic=dlq_topic,
+                key=ticket_id.encode('utf-8'),
+                value=message_value,
+                callback=delivery_callback
+            )
+
+            producer.flush(timeout=10)
+
+            duration = time.time() - start_time
+
+            self.logger.warning(
+                'ticket_sent_to_dlq',
+                ticket_id=ticket_id,
+                task_type=task_type,
+                retry_count=retry_count,
+                error=str(error),
+                duration_seconds=duration
+            )
+
+            if self.metrics:
+                self.metrics.dlq_messages_total.labels(
+                    reason='max_retries_exceeded',
+                    task_type=task_type
+                ).inc()
+                self.metrics.dlq_publish_duration_seconds.observe(duration)
+                self.metrics.ticket_retry_count.labels(task_type=task_type).observe(retry_count)
+
+        except Exception as dlq_error:
+            self.logger.error(
+                'dlq_publish_exception',
+                ticket_id=ticket_id,
+                error=str(dlq_error),
+                exc_info=True
+            )
+            if self.metrics:
+                self.metrics.dlq_publish_errors_total.labels(error_type=type(dlq_error).__name__).inc()
+            # Nao propagar excecao - ja estamos em error handling

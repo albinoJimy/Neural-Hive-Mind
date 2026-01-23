@@ -25,6 +25,13 @@ data:
   KAFKA_SCHEMA_REGISTRY_URL: {{ .Values.config.kafka.schemaRegistryUrl | quote }}
   SCHEMAS_BASE_PATH: {{ .Values.config.kafka.schemasBasePath | quote }}
 
+  # Dead Letter Queue (DLQ)
+  {{- if .Values.config.kafka.dlq }}
+  KAFKA_DLQ_ENABLED: {{ .Values.config.kafka.dlq.enabled | quote }}
+  KAFKA_DLQ_TOPIC: {{ .Values.config.kafka.dlq.topic | quote }}
+  KAFKA_MAX_RETRIES_BEFORE_DLQ: {{ .Values.config.kafka.dlq.maxRetriesBeforeDLQ | quote }}
+  {{- end }}
+
   SERVICE_REGISTRY_HOST: {{ .Values.config.serviceRegistry.host | quote }}
   SERVICE_REGISTRY_PORT: {{ .Values.config.serviceRegistry.port | quote }}
   HEARTBEAT_INTERVAL_SECONDS: {{ .Values.config.serviceRegistry.heartbeatIntervalSeconds | quote }}

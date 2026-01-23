@@ -42,6 +42,20 @@ class WorkerAgentSettings(BaseSettings):
         default='https://schema-registry.neural-hive-kafka.svc.cluster.local:8081',
         description='URL do Schema Registry'
     )
+
+    # Dead Letter Queue (DLQ)
+    kafka_dlq_topic: str = Field(
+        default='execution.tickets.dlq',
+        description='Topico Kafka para Dead Letter Queue'
+    )
+    kafka_dlq_enabled: bool = Field(
+        default=True,
+        description='Habilitar consumo do DLQ'
+    )
+    kafka_max_retries_before_dlq: int = Field(
+        default=3,
+        description='Numero maximo de retries antes de enviar para DLQ'
+    )
     schema_registry_tls_verify: bool = Field(default=True, description='Verificar certificado TLS do Schema Registry')
     schema_registry_ca_bundle: Optional[str] = Field(default=None, description='Caminho para CA bundle do Schema Registry')
     schemas_base_path: str = Field(
