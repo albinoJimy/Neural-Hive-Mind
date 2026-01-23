@@ -1,0 +1,289 @@
+---
+# Alertas de Segurança para Flow C - Orquestração de Execução Adaptativa
+#
+# Monitora violações de segurança, autenticação, autorização e compliance
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: flow-c-security-alerts
+  namespace: monitoring
+  labels:
+    app: orchestrator-dynamic
+    component: flow-c-security
+    prometheus: kube-prometheus
+spec:
+  groups:
+    - name: flow_c_opa_security
+      interval: 30s
+      rules:
+        - alert: FlowCOPAViolationsHigh
+          expr: |
+            (
+              sum(rate(orchestration_opa_policy_rejections_total{severity="critical"}[5m]))
+              /
+              sum(rate(orchestration_opa_validations_total[5m]))
+            ) * 100 > 5
+          for: 5m
+          labels:
+            severity: critical
+            component: flow-c-security
+            team: platform
+          annotations:
+            summary: "Flow C com alta taxa de violações OPA críticas ({{ $value | humanize }}%)"
+            description: |
+              Taxa de violações OPA críticas está acima de 5% nos últimos 5 minutos.
+              Valor atual: {{ $value | humanize }}%
+
+              Políticas violadas: {{ $labels.policy_name }}
+              Regra: {{ $labels.rule }}
+
+              Possíveis causas:
+              - Tickets com configurações de segurança inválidas
+              - Tentativas de cross-tenant access
+              - Violações de RBAC
+              - Dados sensíveis sem classificação adequada
+
+              Ação: Verificar logs do orchestrator-dynamic e políticas OPA.
+            runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-opa-violations"
+            dashboard_url: "https://grafana.neural-hive.io/d/flow-c-security"
+
+        - alert: FlowCOPAPolicyRejectionSpike
+          expr: |
+            (
+              rate(orchestration_opa_policy_rejections_total[5m])
+              /
+              (rate(orchestration_opa_policy_rejections_total[5m] offset 1h) + 0.01)
+            ) > 3
+          for: 10m
+          labels:
+            severity: warning
+            component: flow-c-security
+            team: platform
+          annotations:
+            summary: "Spike de rejeições OPA no Flow C ({{ $value }}x acima da média)"
+            description: |
+              Taxa de rejeições OPA está 3x acima da média da última hora.
+
+              Policy: {{ $labels.policy_name }}
+              Rule: {{ $labels.rule }}
+              Severity: {{ $labels.severity }}
+
+              Pode indicar:
+              - Mudança recente em políticas
+              - Ataque em andamento
+              - Bug em geração de tickets
+
+              Ação: Investigar causa raiz do spike.
+            runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-opa-spike"
+            dashboard_url: "https://grafana.neural-hive.io/d/flow-c-security"
+
+    - name: flow_c_authentication
+      interval: 30s
+      rules:
+        - alert: FlowCJWTValidationFailuresHigh
+          expr: |
+            rate(orchestration_jwt_validation_failures_total[5m]) > 0.5
+          for: 5m
+          labels:
+            severity: warning
+            component: flow-c-security
+            team: platform
+          annotations:
+            summary: "Alta taxa de falhas de validação JWT no Flow C ({{ $value | humanize }}/s)"
+            description: |
+              Falhas de validação JWT estão acima de 0.5/s.
+
+              Tenant: {{ $labels.tenant_id }}
+              Razão: {{ $labels.reason }}
+
+              Razões comuns:
+              - expired: Token expirado
+              - invalid_signature: Assinatura inválida
+              - invalid_issuer: Issuer não confiável
+              - invalid_audience: Audience incorreto
+              - missing_claims: Claims obrigatórios ausentes
+
+              Ação: Verificar configuração de JWT e logs de autenticação.
+            runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-jwt-failures"
+            dashboard_url: "https://grafana.neural-hive.io/d/flow-c-security"
+
+        - alert: FlowCAuthenticationFailureSpike
+          expr: |
+            rate(orchestration_security_authentication_failures_total[5m]) > 1
+          for: 3m
+          labels:
+            severity: critical
+            component: flow-c-security
+            team: platform
+          annotations:
+            summary: "Spike de falhas de autenticação no Flow C ({{ $value | humanize }}/s)"
+            description: |
+              Taxa de falhas de autenticação está acima de 1/s.
+
+              Tenant: {{ $labels.tenant_id }}
+              Razão: {{ $labels.reason }}
+
+              Pode indicar:
+              - Ataque de força bruta
+              - Credenciais comprometidas
+              - Configuração incorreta de cliente
+
+              Ação urgente: Verificar origem das requisições e considerar bloqueio temporário.
+            runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-auth-spike"
+            dashboard_url: "https://grafana.neural-hive.io/d/flow-c-security"
+
+    - name: flow_c_mtls
+      interval: 30s
+      rules:
+        - alert: FlowCMTLSHandshakeFailures
+          expr: |
+            rate(orchestration_mtls_handshake_failures_total[5m]) > 0.1
+          for: 5m
+          labels:
+            severity: warning
+            component: flow-c-security
+            team: platform
+          annotations:
+            summary: "Falhas de handshake mTLS no Flow C ({{ $value | humanize }}/s)"
+            description: |
+              Taxa de falhas de handshake mTLS está acima de 0.1/s.
+
+              Serviço: {{ $labels.service }}
+              Razão: {{ $labels.reason }}
+
+              Razões comuns:
+              - invalid_cert: Certificado inválido
+              - ca_mismatch: CA não confiável
+              - expired_cert: Certificado expirado
+              - connection_error: Erro de conexão
+
+              Impacto: Comunicação com {{ $labels.service }} pode estar comprometida.
+
+              Ação: Verificar certificados e configuração SPIFFE/SPIRE.
+            runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-mtls-failures"
+            dashboard_url: "https://grafana.neural-hive.io/d/flow-c-security"
+
+        - alert: FlowCMTLSCertificateExpiringSoon
+          expr: |
+            (probe_ssl_earliest_cert_expiry{job="orchestrator-dynamic"} - time()) / 86400 < 7
+          for: 1h
+          labels:
+            severity: warning
+            component: flow-c-security
+            team: platform
+          annotations:
+            summary: "Certificado mTLS do Flow C expirando em {{ $value | humanize }} dias"
+            description: |
+              Certificado mTLS para orchestrator-dynamic expira em menos de 7 dias.
+
+              Dias restantes: {{ $value | humanize }}
+
+              Ação: Renovar certificado via SPIFFE/SPIRE ou cert-manager.
+            runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-cert-renewal"
+            dashboard_url: "https://grafana.neural-hive.io/d/flow-c-security"
+
+    - name: flow_c_authorization
+      interval: 30s
+      rules:
+        - alert: FlowCAuthorizationDenialsHigh
+          expr: |
+            rate(orchestration_security_authorization_denials_total[5m]) > 0.5
+          for: 5m
+          labels:
+            severity: warning
+            component: flow-c-security
+            team: platform
+          annotations:
+            summary: "Alta taxa de negações de autorização no Flow C ({{ $value | humanize }}/s)"
+            description: |
+              Taxa de negações de autorização está acima de 0.5/s.
+
+              Tenant: {{ $labels.tenant_id }}
+              User: {{ $labels.user_id }}
+              Capability: {{ $labels.capability }}
+
+              Pode indicar:
+              - Usuários tentando acessar recursos não autorizados
+              - Configuração incorreta de RBAC
+              - Mudança recente em permissões
+
+              Ação: Revisar políticas RBAC e logs de autorização.
+            runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-authz-denials"
+            dashboard_url: "https://grafana.neural-hive.io/d/flow-c-security"
+
+        - alert: FlowCTenantIsolationViolation
+          expr: |
+            increase(orchestration_security_tenant_isolation_violations_total[5m]) > 0
+          for: 0m
+          labels:
+            severity: critical
+            component: flow-c-security
+            team: platform
+          annotations:
+            summary: "Violação de isolamento de tenant detectada no Flow C"
+            description: |
+              Tentativa de cross-tenant access detectada.
+
+              Source Tenant: {{ $labels.source_tenant }}
+              Target Tenant: {{ $labels.target_tenant }}
+
+              AÇÃO URGENTE: Investigar imediatamente. Possível violação de compliance.
+            runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-tenant-isolation"
+            dashboard_url: "https://grafana.neural-hive.io/d/flow-c-security"
+
+    - name: flow_c_rate_limiting
+      interval: 30s
+      rules:
+        - alert: FlowCRateLimitExceededFrequently
+          expr: |
+            rate(orchestration_security_rate_limit_exceeded_total[5m]) > 1
+          for: 10m
+          labels:
+            severity: warning
+            component: flow-c-security
+            team: platform
+          annotations:
+            summary: "Rate limit excedido frequentemente no Flow C ({{ $value | humanize }}/s)"
+            description: |
+              Taxa de rate limit exceeded está acima de 1/s.
+
+              Tenant: {{ $labels.tenant_id }}
+              Limit Type: {{ $labels.limit_type }}
+
+              Pode indicar:
+              - Tenant legítimo com carga alta
+              - Ataque de DoS
+              - Configuração de rate limit muito restritiva
+
+              Ação: Analisar padrão de tráfego e ajustar limites se necessário.
+            runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-rate-limit"
+            dashboard_url: "https://grafana.neural-hive.io/d/flow-c-security"
+
+    - name: flow_c_data_governance
+      interval: 30s
+      rules:
+        - alert: FlowCDataGovernanceViolation
+          expr: |
+            increase(orchestration_security_data_governance_violations_total[5m]) > 0
+          for: 0m
+          labels:
+            severity: high
+            component: flow-c-security
+            team: platform
+          annotations:
+            summary: "Violação de governança de dados no Flow C"
+            description: |
+              Violação de governança de dados detectada.
+
+              Tenant: {{ $labels.tenant_id }}
+              Violation Type: {{ $labels.violation_type }}
+
+              Tipos comuns:
+              - pii_without_classification: PII sem classificação adequada
+              - data_residency_violation: Dados fora da região permitida
+              - retention_policy_violation: Violação de política de retenção
+
+              Ação: Investigar e corrigir violação. Pode impactar compliance.
+            runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-data-governance"
+            dashboard_url: "https://grafana.neural-hive.io/d/flow-c-security"

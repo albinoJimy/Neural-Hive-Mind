@@ -198,6 +198,14 @@ class OrchestratorMetrics:
             ['reason']
         )
 
+        # Compensation duration histogram
+        self.compensation_duration_seconds = Histogram(
+            'orchestration_compensation_duration_seconds',
+            'Duração de compensações executadas',
+            ['reason', 'status'],  # status: success, failed
+            buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60, 120]
+        )
+
         # Métricas de Kafka
         self.kafka_messages_consumed_total = Counter(
             'orchestration_kafka_messages_consumed_total',
@@ -449,6 +457,20 @@ class OrchestratorMetrics:
             'orchestration_security_rate_limit_exceeded_total',
             'Total de rate limits excedidos',
             ['tenant_id', 'limit_type']
+        )
+
+        # JWT validation failures
+        self.jwt_validation_failures_total = Counter(
+            'orchestration_jwt_validation_failures_total',
+            'Total de falhas na validação de JWT',
+            ['tenant_id', 'reason']  # reason: expired, invalid_signature, invalid_issuer, invalid_audience, missing_claims
+        )
+
+        # mTLS handshake failures
+        self.mtls_handshake_failures_total = Counter(
+            'orchestration_mtls_handshake_failures_total',
+            'Total de falhas em handshake mTLS',
+            ['service', 'reason']  # reason: invalid_cert, ca_mismatch, expired_cert, connection_error
         )
 
         # ML Predictions Metrics
@@ -728,6 +750,37 @@ class OrchestratorMetrics:
     def record_compensation(self, reason: str):
         """Registra compensação acionada."""
         self.compensations_triggered_total.labels(reason=reason).inc()
+
+    def record_compensation_duration(self, reason: str, status: str, duration_seconds: float):
+        """
+        Registra duração de compensação executada.
+
+        Args:
+            reason: Razão da compensação (task_failed, workflow_inconsistent, manual_trigger)
+            status: Status da compensação (success, failed)
+            duration_seconds: Duração em segundos
+        """
+        self.compensation_duration_seconds.labels(reason=reason, status=status).observe(duration_seconds)
+
+    def record_jwt_validation_failure(self, tenant_id: str, reason: str):
+        """
+        Registra falha na validação de JWT.
+
+        Args:
+            tenant_id: ID do tenant
+            reason: Razão da falha (expired, invalid_signature, invalid_issuer, invalid_audience, missing_claims)
+        """
+        self.jwt_validation_failures_total.labels(tenant_id=tenant_id, reason=reason).inc()
+
+    def record_mtls_handshake_failure(self, service: str, reason: str):
+        """
+        Registra falha em handshake mTLS.
+
+        Args:
+            service: Nome do serviço (service-registry, execution-ticket-service, etc)
+            reason: Razão da falha (invalid_cert, ca_mismatch, expired_cert, connection_error)
+        """
+        self.mtls_handshake_failures_total.labels(service=service, reason=reason).inc()
 
     def record_kafka_message_consumed(self):
         """Registra mensagem consumida do Kafka."""

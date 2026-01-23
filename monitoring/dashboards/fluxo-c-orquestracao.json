@@ -1187,6 +1187,620 @@
       "title": "Alert Deduplication Rate",
       "type": "timeseries",
       "description": "Percentual de alertas bloqueados por deduplicação (prevenção de alert storms)"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 86},
+      "id": 26,
+      "panels": [],
+      "title": "Idempotência (Deduplicação)",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "Duplicatas/s",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "ops"
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 87},
+      "id": 27,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "expr": "rate(orchestrator_decision_duplicates_detected_total[5m])",
+          "legendFormat": "Orchestrator - {{component}}",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(worker_agent_ticket_duplicates_detected_total[5m])",
+          "legendFormat": "Worker - {{component}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Duplicatas Detectadas por Componente",
+      "type": "timeseries",
+      "description": "Taxa de mensagens duplicadas detectadas pelo mecanismo de idempotência"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 5},
+              {"color": "red", "value": 10}
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 87},
+      "id": 28,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "(sum(rate(orchestrator_decision_duplicates_detected_total[1h])) / sum(rate(orchestration_kafka_messages_consumed_total[1h]))) * 100",
+          "refId": "A"
+        }
+      ],
+      "title": "Razão de Duplicatas (Orchestrator)",
+      "type": "gauge",
+      "description": "Percentual de decisões que são duplicatas"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 1}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 87},
+      "id": 29,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "sum(increase(orchestrator_decision_duplicates_detected_total[1h])) + sum(increase(worker_agent_ticket_duplicates_detected_total[1h]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Duplicatas Totais (Última Hora)",
+      "type": "stat",
+      "description": "Total de mensagens duplicadas detectadas na última hora"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 95},
+      "id": 30,
+      "panels": [],
+      "title": "Compensação",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "Compensações/s",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "ops"
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 96},
+      "id": 31,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "expr": "rate(orchestration_compensations_triggered_total[5m])",
+          "legendFormat": "{{reason}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Compensações por Razão",
+      "type": "timeseries",
+      "description": "Taxa de compensações acionadas por razão (task_failed, workflow_inconsistent, manual_trigger)"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "Duração (s)",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 96},
+      "id": 32,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(orchestration_compensation_duration_seconds_bucket[5m]))",
+          "legendFormat": "p95 - {{reason}} ({{status}})",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.50, rate(orchestration_compensation_duration_seconds_bucket[5m]))",
+          "legendFormat": "p50 - {{reason}} ({{status}})",
+          "refId": "B"
+        }
+      ],
+      "title": "Duração de Compensações (p50, p95)",
+      "type": "timeseries",
+      "description": "Duração de compensações executadas por razão e status"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 104},
+      "id": 33,
+      "panels": [],
+      "title": "Segurança",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "Falhas/s",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "ops"
+        }
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 105},
+      "id": 34,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "expr": "rate(orchestration_jwt_validation_failures_total[5m])",
+          "legendFormat": "JWT - {{reason}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Falhas de Validação JWT",
+      "type": "timeseries",
+      "description": "Falhas de validação JWT por razão (expired, invalid_signature, invalid_issuer, invalid_audience, missing_claims)"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "Falhas/s",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "ops"
+        }
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 105},
+      "id": 35,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "expr": "rate(orchestration_mtls_handshake_failures_total[5m])",
+          "legendFormat": "mTLS - {{service}} ({{reason}})",
+          "refId": "A"
+        }
+      ],
+      "title": "Falhas de Handshake mTLS",
+      "type": "timeseries",
+      "description": "Falhas de handshake mTLS por serviço e razão"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "Rejeições/s",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "ops"
+        }
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 105},
+      "id": 36,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "expr": "rate(orchestration_opa_policy_rejections_total[5m])",
+          "legendFormat": "{{policy_name}} - {{severity}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Rejeições OPA por Política",
+      "type": "timeseries",
+      "description": "Rejeições OPA por policy_name e severity"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "red", "value": 5}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 113},
+      "id": 37,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "sum(increase(orchestration_security_authentication_failures_total[1h]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Falhas de Autenticação (1h)",
+      "type": "stat",
+      "description": "Total de falhas de autenticação na última hora"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "red", "value": 5}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 6, "y": 113},
+      "id": 38,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "sum(increase(orchestration_security_authorization_denials_total[1h]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Negações de Autorização (1h)",
+      "type": "stat",
+      "description": "Total de negações de autorização na última hora"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 1}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 113},
+      "id": 39,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "sum(increase(orchestration_security_tenant_isolation_violations_total[1h]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Violações de Isolamento (1h)",
+      "type": "stat",
+      "description": "Total de violações de isolamento de tenant na última hora"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 10},
+              {"color": "red", "value": 50}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 113},
+      "id": 40,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "sum(increase(orchestration_security_rate_limit_exceeded_total[1h]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Rate Limits Excedidos (1h)",
+      "type": "stat",
+      "description": "Total de rate limits excedidos na última hora"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 121},
+      "id": 41,
+      "panels": [],
+      "title": "ML Drift e Anomalias",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "Score",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 122},
+      "id": 42,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "last"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "expr": "orchestration_ml_drift_score{drift_type=\"prediction\",model_name=\"duration-predictor\"}",
+          "legendFormat": "Prediction Drift (MAE Ratio)",
+          "refId": "A"
+        },
+        {
+          "expr": "2.0",
+          "legendFormat": "Threshold Crítico",
+          "refId": "B"
+        }
+      ],
+      "title": "ML Drift Score - Predições",
+      "type": "timeseries",
+      "description": "Score de drift de predições (MAE atual / MAE treinamento). Crítico > 2.0"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "Anomalias/s",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "ops"
+        }
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 122},
+      "id": 43,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "expr": "rate(orchestration_ml_anomalies_detected_total[5m])",
+          "legendFormat": "{{anomaly_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Anomalias Detectadas por Tipo",
+      "type": "timeseries",
+      "description": "Taxa de anomalias detectadas pelo modelo ML"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 10},
+              {"color": "red", "value": 15}
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 122},
+      "id": 44,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "orchestration_ml_model_accuracy{model_name=\"duration-predictor\",metric_type=\"mae_pct\"}",
+          "refId": "A"
+        }
+      ],
+      "title": "Erro de Predição de Duração (MAE %)",
+      "type": "gauge",
+      "description": "Mean Absolute Error percentual do modelo de predição de duração"
     }
   ],
   "refresh": "10s",

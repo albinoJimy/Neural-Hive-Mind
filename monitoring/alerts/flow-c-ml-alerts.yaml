@@ -1,0 +1,182 @@
+---
+# Alertas de Machine Learning para Flow C - Orquestração de Execução Adaptativa
+#
+# Monitora drift, degradação de modelos e anomalias específicas do Flow C
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: flow-c-ml-alerts
+  namespace: monitoring
+  labels:
+    app: orchestrator-dynamic
+    component: flow-c-ml
+    prometheus: kube-prometheus
+spec:
+  groups:
+    - name: flow_c_ml_drift
+      interval: 1m
+      rules:
+        - alert: FlowCMLDriftCritical
+          expr: |
+            orchestration_ml_drift_score{
+              drift_type="prediction",
+              model_name="duration-predictor"
+            } > 2.0
+          for: 30m
+          labels:
+            severity: critical
+            component: flow-c-ml
+            team: platform
+          annotations:
+            summary: "Drift crítico detectado em predições ML do Flow C (MAE Ratio={{ $value | humanize }})"
+            description: |
+              Ratio MAE atual/MAE treinamento está acima de 2.0 para o modelo de predição de duração.
+              Valor atual: {{ $value | humanize }}
+
+              Impacto no Flow C:
+              - Alocação de recursos imprecisa
+              - SLA timeouts inadequados
+              - Priorização incorreta de tickets
+
+              Ação urgente:
+              - Trigger retreinamento manual: curl -X POST http://orchestrator-dynamic:8000/api/v1/ml/train
+              - Verificar mudanças recentes no workload
+              - Analisar distribuição de erros no dashboard
+            runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-ml-drift-critical"
+            dashboard_url: "https://grafana.neural-hive.io/d/flow-c-ml-predictions"
+
+        - alert: FlowCMLFeatureDriftSignificant
+          expr: |
+            orchestration_ml_drift_score{drift_type="feature"} > 0.25
+          for: 15m
+          labels:
+            severity: warning
+            component: flow-c-ml
+            team: platform
+          annotations:
+            summary: "Drift significativo em feature do Flow C: {{ $labels.feature }} (PSI={{ $value | humanize }})"
+            description: |
+              PSI (Population Stability Index) para feature {{ $labels.feature }} está acima de 0.25.
+              Valor atual: {{ $value | humanize }}
+
+              Thresholds:
+              - PSI < 0.1: Sem drift
+              - PSI 0.1-0.25: Drift moderado
+              - PSI > 0.25: Drift significativo
+
+              Impacto: Distribuição da feature mudou significativamente desde o treinamento.
+
+              Ação: Considerar retreinamento do modelo se drift persistir.
+            runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-ml-feature-drift"
+            dashboard_url: "https://grafana.neural-hive.io/d/flow-c-ml-predictions"
+
+    - name: flow_c_ml_anomalies
+      interval: 1m
+      rules:
+        - alert: FlowCMLHighAnomalyRate
+          expr: |
+            (
+              sum(rate(orchestration_ml_anomalies_detected_total[15m]))
+              /
+              sum(rate(orchestration_ml_predictions_total{model_type="anomaly"}[15m]))
+            ) * 100 > 10
+          for: 30m
+          labels:
+            severity: warning
+            component: flow-c-ml
+            team: platform
+          annotations:
+            summary: "Taxa de anomalias detectadas no Flow C muito alta ({{ $value | humanize }}%)"
+            description: |
+              Taxa de anomalias detectadas está acima de 10% (contamination esperado: 5%).
+              Valor atual: {{ $value | humanize }}%
+
+              Tipos de anomalias: {{ $labels.anomaly_type }}
+
+              Pode indicar:
+              - Mudança nos padrões de tickets do Flow C
+              - Configurações anômalas sendo enviadas
+              - Modelo precisa ser retreinado
+
+              Ação: Revisar tipos de anomalias no dashboard e investigar causa.
+            runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-ml-high-anomaly-rate"
+            dashboard_url: "https://grafana.neural-hive.io/d/flow-c-ml-predictions"
+
+        - alert: FlowCMLAnomalyDetectorDegraded
+          expr: |
+            orchestration_ml_model_accuracy{
+              model_name="anomaly-detector",
+              metric_type="precision"
+            } < 0.6
+          for: 1h
+          labels:
+            severity: warning
+            component: flow-c-ml
+            team: platform
+          annotations:
+            summary: "Precision do detector de anomalias do Flow C abaixo de 60% ({{ $value | humanize }})"
+            description: |
+              Precision do anomaly-detector está abaixo de 0.6 (60%).
+              Valor atual: {{ $value | humanize }}
+
+              Impacto: Muitos falsos positivos podem afetar alocação de tickets.
+
+              Ação: Revisar contamination rate e considerar retreinamento.
+            runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-ml-anomaly-degraded"
+            dashboard_url: "https://grafana.neural-hive.io/d/flow-c-ml-predictions"
+
+    - name: flow_c_ml_model_performance
+      interval: 1m
+      rules:
+        - alert: FlowCMLDurationPredictionInaccurate
+          expr: |
+            orchestration_ml_model_accuracy{
+              model_name="duration-predictor",
+              metric_type="mae_pct"
+            } > 15
+          for: 1h
+          labels:
+            severity: warning
+            component: flow-c-ml
+            team: platform
+          annotations:
+            summary: "Modelo de predição de duração do Flow C com erro acima de 15%"
+            description: |
+              MAE percentual está acima de 15%.
+              Valor atual: {{ $value | humanize }}%
+
+              Impacto no Flow C:
+              - SLA timeouts calculados incorretamente
+              - Priorização de tickets imprecisa
+              - Alocação de recursos subótima
+
+              Ação: Verificar dashboard de erros e considerar retreinamento.
+            runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-ml-inaccurate-predictions"
+            dashboard_url: "https://grafana.neural-hive.io/d/flow-c-ml-predictions"
+
+        - alert: FlowCMLPredictionErrorsHigh
+          expr: |
+            rate(orchestration_ml_predictions_total{status="error"}[5m]) > 0.5
+          for: 10m
+          labels:
+            severity: warning
+            component: flow-c-ml
+            team: platform
+          annotations:
+            summary: "Alta taxa de erros em predições ML do Flow C ({{ $value | humanize }}/s)"
+            description: |
+              Taxa de erro de predições ML está acima de 0.5/s.
+
+              Model Type: {{ $labels.model_type }}
+
+              Possíveis causas:
+              - Modelos não carregados corretamente
+              - Erros de feature extraction
+              - Dados de entrada inválidos
+
+              Impacto: Flow C pode estar usando fallback heurístico.
+
+              Ação: Verificar logs do orchestrator-dynamic para detalhes.
+            runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-ml-prediction-errors"
+            dashboard_url: "https://grafana.neural-hive.io/d/flow-c-ml-predictions"
