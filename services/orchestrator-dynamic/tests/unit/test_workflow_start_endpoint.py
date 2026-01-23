@@ -559,3 +559,254 @@ class TestWorkflowStartInputData:
 
         assert input_data["consolidated_decision"]["plan_id"] == "unknown"
         assert input_data["consolidated_decision"]["intent_id"] == "unknown"
+
+
+# =============================================================================
+# Testes para GET /api/v1/tickets/{ticket_id}
+# =============================================================================
+
+class TestGetTicketEndpoint:
+    """Testes para o endpoint GET /api/v1/tickets/{ticket_id}."""
+
+    @pytest.fixture
+    def mock_mongodb_client(self):
+        """Mock do cliente MongoDB."""
+        client = AsyncMock()
+        client.get_ticket = AsyncMock()
+        return client
+
+    @pytest.mark.asyncio
+    async def test_get_ticket_success(self, mock_app_state, mock_mongodb_client):
+        """Testa consulta de ticket com sucesso."""
+        from src.main import app
+
+        expected_ticket = {
+            'ticket_id': 'ticket-123',
+            'plan_id': 'plan-456',
+            'status': 'COMPLETED',
+            'task_type': 'BUILD'
+        }
+        mock_mongodb_client.get_ticket.return_value = expected_ticket
+        mock_app_state.mongodb_client = mock_mongodb_client
+        mock_app_state.redis_client = None
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/api/v1/tickets/ticket-123")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['ticket_id'] == 'ticket-123'
+        assert data['status'] == 'COMPLETED'
+        assert data['cached'] is False
+
+    @pytest.mark.asyncio
+    async def test_get_ticket_not_found(self, mock_app_state, mock_mongodb_client):
+        """Testa erro 404 quando ticket não existe."""
+        from src.main import app
+
+        mock_mongodb_client.get_ticket.return_value = None
+        mock_app_state.mongodb_client = mock_mongodb_client
+        mock_app_state.redis_client = None
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/api/v1/tickets/ticket-inexistente")
+
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_get_ticket_mongodb_unavailable(self, mock_app_state):
+        """Testa erro 503 quando MongoDB não está disponível."""
+        from src.main import app
+
+        mock_app_state.mongodb_client = None
+        mock_app_state.redis_client = None
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/api/v1/tickets/ticket-123")
+
+        assert response.status_code == 503
+        assert "MongoDB not available" in response.json()["detail"]
+
+
+# =============================================================================
+# Testes para GET /api/v1/tickets/by-plan/{plan_id}
+# =============================================================================
+
+class TestGetTicketsByPlanEndpoint:
+    """Testes para o endpoint GET /api/v1/tickets/by-plan/{plan_id}."""
+
+    @pytest.fixture
+    def mock_mongodb_client(self):
+        """Mock do cliente MongoDB com collection de tickets."""
+        client = AsyncMock()
+        client.execution_tickets = MagicMock()
+        return client
+
+    @pytest.mark.asyncio
+    async def test_get_tickets_by_plan_success(self, mock_app_state, mock_mongodb_client):
+        """Testa listagem de tickets com sucesso."""
+        from src.main import app
+
+        expected_tickets = [
+            {'ticket_id': 'ticket-1', 'status': 'COMPLETED'},
+            {'ticket_id': 'ticket-2', 'status': 'RUNNING'}
+        ]
+
+        # Mock collection methods
+        mock_cursor = AsyncMock()
+        mock_cursor.to_list = AsyncMock(return_value=expected_tickets)
+
+        mock_mongodb_client.execution_tickets.count_documents = AsyncMock(return_value=2)
+        mock_mongodb_client.execution_tickets.find.return_value.sort.return_value.skip.return_value.limit.return_value = mock_cursor
+
+        mock_app_state.mongodb_client = mock_mongodb_client
+        mock_app_state.redis_client = None
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/api/v1/tickets/by-plan/plan-123")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data['tickets']) == 2
+        assert data['total'] == 2
+        assert data['cached'] is False
+
+    @pytest.mark.asyncio
+    async def test_get_tickets_by_plan_with_status_filter(self, mock_app_state, mock_mongodb_client):
+        """Testa filtragem por status."""
+        from src.main import app
+
+        expected_tickets = [{'ticket_id': 'ticket-1', 'status': 'COMPLETED'}]
+
+        mock_cursor = AsyncMock()
+        mock_cursor.to_list = AsyncMock(return_value=expected_tickets)
+
+        mock_mongodb_client.execution_tickets.count_documents = AsyncMock(return_value=1)
+        mock_mongodb_client.execution_tickets.find.return_value.sort.return_value.skip.return_value.limit.return_value = mock_cursor
+
+        mock_app_state.mongodb_client = mock_mongodb_client
+        mock_app_state.redis_client = None
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/api/v1/tickets/by-plan/plan-123?status=COMPLETED")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data['tickets']) == 1
+
+    @pytest.mark.asyncio
+    async def test_get_tickets_by_plan_invalid_limit(self, mock_app_state, mock_mongodb_client):
+        """Testa erro 400 quando limit > 500."""
+        from src.main import app
+
+        mock_app_state.mongodb_client = mock_mongodb_client
+        mock_app_state.redis_client = None
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/api/v1/tickets/by-plan/plan-123?limit=600")
+
+        assert response.status_code == 400
+        assert "cannot exceed 500" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_get_tickets_by_plan_invalid_status(self, mock_app_state, mock_mongodb_client):
+        """Testa erro 400 com status inválido."""
+        from src.main import app
+
+        mock_mongodb_client.execution_tickets.count_documents = AsyncMock(return_value=0)
+        mock_app_state.mongodb_client = mock_mongodb_client
+        mock_app_state.redis_client = None
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/api/v1/tickets/by-plan/plan-123?status=INVALID")
+
+        assert response.status_code == 400
+        assert "Invalid status" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_get_tickets_by_plan_mongodb_unavailable(self, mock_app_state):
+        """Testa erro 503 quando MongoDB não está disponível."""
+        from src.main import app
+
+        mock_app_state.mongodb_client = None
+        mock_app_state.redis_client = None
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/api/v1/tickets/by-plan/plan-123")
+
+        assert response.status_code == 503
+        assert "MongoDB not available" in response.json()["detail"]
+
+
+# =============================================================================
+# Testes para GET /api/v1/workflows/{workflow_id}
+# =============================================================================
+
+class TestGetWorkflowStatusEndpoint:
+    """Testes para o endpoint GET /api/v1/workflows/{workflow_id}."""
+
+    @pytest.mark.asyncio
+    async def test_get_workflow_status_success(self, mock_app_state):
+        """Testa consulta de status de workflow com sucesso."""
+        from src.main import app
+
+        # Mock Temporal client
+        mock_handle = AsyncMock()
+        mock_description = MagicMock()
+        mock_description.workflow_execution_info = MagicMock()
+        mock_description.workflow_execution_info.status.name = 'RUNNING'
+        mock_description.workflow_execution_info.start_time = None
+        mock_description.workflow_execution_info.close_time = None
+        mock_description.workflow_execution_info.execution_time = None
+        mock_description.workflow_execution_info.type = MagicMock()
+        mock_description.workflow_execution_info.type.name = 'OrchestrationWorkflow'
+        mock_description.workflow_execution_info.task_queue = 'orchestration-tasks'
+        mock_handle.describe = AsyncMock(return_value=mock_description)
+
+        mock_temporal = MagicMock()
+        mock_temporal.get_workflow_handle.return_value = mock_handle
+        mock_app_state.temporal_client = mock_temporal
+        mock_app_state.redis_client = None
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/api/v1/workflows/flow-c-test-123")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['workflow_id'] == 'flow-c-test-123'
+        assert data['status'] == 'RUNNING'
+        assert data['cached'] is False
+
+    @pytest.mark.asyncio
+    async def test_get_workflow_status_not_found(self, mock_app_state):
+        """Testa erro 404 quando workflow não existe."""
+        from src.main import app
+
+        mock_handle = AsyncMock()
+        mock_handle.describe = AsyncMock(side_effect=Exception("Workflow not found"))
+
+        mock_temporal = MagicMock()
+        mock_temporal.get_workflow_handle.return_value = mock_handle
+        mock_app_state.temporal_client = mock_temporal
+        mock_app_state.redis_client = None
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/api/v1/workflows/workflow-inexistente")
+
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_get_workflow_status_temporal_unavailable(self, mock_app_state):
+        """Testa erro 503 quando Temporal não está disponível."""
+        from src.main import app
+
+        mock_app_state.temporal_client = None
+        mock_app_state.redis_client = None
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.get("/api/v1/workflows/flow-c-test-123")
+
+        assert response.status_code == 503
+        assert "Temporal client not available" in response.json()["detail"]

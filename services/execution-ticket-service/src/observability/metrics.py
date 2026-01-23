@@ -104,3 +104,14 @@ class TicketServiceMetrics:
             'kafka_consumer_lag',
             'Lag do consumer Kafka'
         )
+
+        # Idempotency
+        self.duplicates_detected_total = Counter(
+            'ticket_service_duplicates_detected_total',
+            'Total de tickets duplicados detectados',
+            ['component']
+        )
+        self.idempotency_cache_hits_total = Counter(
+            'ticket_service_idempotency_cache_hits_total',
+            'Total de cache hits na verificação de idempotência'
+        )

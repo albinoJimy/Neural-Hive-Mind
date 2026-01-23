@@ -96,6 +96,15 @@ class TicketServiceSettings(BaseSettings):
     max_connection_retries: int = Field(default=5, description='Número máximo de tentativas de conexão')
     initial_retry_delay_seconds: float = Field(default=1.0, description='Delay inicial entre retries (exponential backoff)')
 
+    # Redis (Idempotency)
+    redis_url: Optional[str] = Field(default=None, description='URL de conexão Redis (opcional, se não definido usa host/port)')
+    redis_host: str = Field(default='localhost', description='Host do Redis')
+    redis_port: int = Field(default=6379, description='Porta do Redis')
+    redis_password: Optional[str] = Field(default=None, description='Senha do Redis')
+    redis_ssl_enabled: bool = Field(default=False, description='Habilitar SSL para Redis')
+    redis_idempotency_ttl_seconds: int = Field(default=604800, description='TTL para chaves de idempotência (7 dias)')
+    enable_idempotency: bool = Field(default=True, description='Habilitar verificação de idempotência')
+
     @validator('environment')
     def validate_environment(cls, v):
         """Validar ambiente."""

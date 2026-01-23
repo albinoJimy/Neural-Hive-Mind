@@ -94,6 +94,18 @@ class WorkerAgentMetrics:
             'Total de tarefas canceladas'
         )
 
+        # Idempotency
+        self.duplicates_detected_total = Counter(
+            'worker_agent_duplicates_detected_total',
+            'Total de tickets duplicados detectados',
+            ['component']
+        )
+
+        self.idempotency_cache_hits_total = Counter(
+            'worker_agent_idempotency_cache_hits_total',
+            'Total de cache hits na verificação de idempotência'
+        )
+
         # API Calls
         self.ticket_api_calls_total = Counter(
             'worker_agent_ticket_api_calls_total',

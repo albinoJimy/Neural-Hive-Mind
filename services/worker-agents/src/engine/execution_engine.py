@@ -1,6 +1,6 @@
 import structlog
 import asyncio
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime
 
 from neural_hive_observability import get_tracer
@@ -15,12 +15,18 @@ class TaskExecutionError(Exception):
 class ExecutionEngine:
     '''Orquestrador principal de execução de tarefas'''
 
-    def __init__(self, config, ticket_client, result_producer, dependency_coordinator, executor_registry, metrics=None):
+    # TTL para deduplicação de tickets (7 dias - alinhado com retention Kafka)
+    DEDUPLICATION_TTL_SECONDS = 604800
+    # TTL para chave de processing (10 minutos - tempo máximo esperado de processamento)
+    PROCESSING_TTL_SECONDS = 600
+
+    def __init__(self, config, ticket_client, result_producer, dependency_coordinator, executor_registry, redis_client=None, metrics=None):
         self.config = config
         self.ticket_client = ticket_client
         self.result_producer = result_producer
         self.dependency_coordinator = dependency_coordinator
         self.executor_registry = executor_registry
+        self.redis_client = redis_client
         self.metrics = metrics
         self.logger = logger.bind(service='execution_engine')
 
@@ -30,9 +36,148 @@ class ExecutionEngine:
         # Limitar concorrência
         self.task_semaphore = asyncio.Semaphore(config.max_concurrent_tasks)
 
+    async def _is_duplicate_ticket(self, ticket_id: str) -> bool:
+        """
+        Verificar se ticket já foi processado usando Redis (two-phase scheme).
+
+        Implementa deduplicação em duas fases:
+        1. Verifica se já existe chave 'processed' (processamento concluído anteriormente)
+        2. Verifica se já existe chave 'processing' (processamento em andamento)
+        3. Se nenhuma existe, marca como 'processing' com TTL curto
+
+        Args:
+            ticket_id: ID do execution ticket
+
+        Returns:
+            True se duplicata (já processado ou em processamento), False caso contrário
+        """
+        if not self.redis_client:
+            self.logger.warning('redis_client_not_available_skipping_deduplication')
+            return False
+
+        try:
+            processed_key = f"ticket:processed:{ticket_id}"
+            processing_key = f"ticket:processing:{ticket_id}"
+
+            # Fase 1: Verificar se já foi processado com sucesso
+            if await self.redis_client.exists(processed_key):
+                self.logger.info(
+                    'duplicate_ticket_detected',
+                    ticket_id=ticket_id,
+                    message='Ticket já foi processado com sucesso, ignorando'
+                )
+                if self.metrics and hasattr(self.metrics, 'duplicates_detected_total'):
+                    self.metrics.duplicates_detected_total.labels(component='execution_engine').inc()
+                return True
+
+            # Fase 2: Tentar marcar como em processamento (SETNX)
+            is_new = await self.redis_client.set(
+                processing_key,
+                "1",
+                ex=self.PROCESSING_TTL_SECONDS,
+                nx=True
+            )
+
+            if not is_new:
+                self.logger.info(
+                    'ticket_already_processing',
+                    ticket_id=ticket_id,
+                    message='Ticket já está em processamento por outro worker, ignorando'
+                )
+                if self.metrics and hasattr(self.metrics, 'duplicates_detected_total'):
+                    self.metrics.duplicates_detected_total.labels(component='execution_engine').inc()
+                return True
+
+            self.logger.debug('ticket_marked_as_processing', ticket_id=ticket_id)
+            return False
+
+        except Exception as e:
+            self.logger.error(
+                'deduplication_check_failed',
+                ticket_id=ticket_id,
+                error=str(e),
+                message='Continuando processamento sem deduplicação'
+            )
+            # Fail-open: continuar processamento em caso de erro no Redis
+            return False
+
+    async def _mark_ticket_processed(self, ticket_id: str) -> None:
+        """
+        Marca ticket como processado com sucesso e remove chave de processing.
+
+        Args:
+            ticket_id: ID do execution ticket
+        """
+        if not self.redis_client or not ticket_id:
+            return
+
+        try:
+            processed_key = f"ticket:processed:{ticket_id}"
+            processing_key = f"ticket:processing:{ticket_id}"
+
+            # Marcar como processado com TTL longo
+            await self.redis_client.set(
+                processed_key,
+                "1",
+                ex=self.DEDUPLICATION_TTL_SECONDS
+            )
+
+            # Remover chave de processing
+            await self.redis_client.delete(processing_key)
+
+            self.logger.debug('ticket_marked_as_processed', ticket_id=ticket_id)
+
+        except Exception as e:
+            self.logger.error(
+                'mark_ticket_processed_failed',
+                ticket_id=ticket_id,
+                error=str(e)
+            )
+
+    async def _clear_ticket_processing(self, ticket_id: str) -> None:
+        """
+        Limpa chave de processing para permitir reprocessamento após falha.
+
+        Args:
+            ticket_id: ID do execution ticket
+        """
+        if not self.redis_client or not ticket_id:
+            return
+
+        try:
+            processing_key = f"ticket:processing:{ticket_id}"
+            await self.redis_client.delete(processing_key)
+            self.logger.debug('ticket_processing_cleared', ticket_id=ticket_id)
+
+        except Exception as e:
+            self.logger.error(
+                'clear_ticket_processing_failed',
+                ticket_id=ticket_id,
+                error=str(e)
+            )
+
     async def process_ticket(self, ticket: Dict[str, Any]):
         '''Processar ticket de execução'''
         ticket_id = ticket.get('ticket_id')
+
+        # Validar que ticket_id está presente e não é vazio
+        if not ticket_id:
+            self.logger.error(
+                'ticket_id_missing_or_empty',
+                ticket=ticket,
+                message='Ticket inválido: ticket_id ausente ou vazio. Ignorando processamento.'
+            )
+            if self.metrics and hasattr(self.metrics, 'tickets_failed_total'):
+                task_type = ticket.get('task_type', 'unknown')
+                self.metrics.tickets_failed_total.labels(task_type=task_type, error_type='invalid_ticket_id').inc()
+            return
+
+        # Verificar duplicata via Redis (idempotência)
+        if await self._is_duplicate_ticket(ticket_id):
+            self.logger.info('duplicate_ticket_skipped', ticket_id=ticket_id)
+            if self.metrics and hasattr(self.metrics, 'duplicates_detected_total'):
+                self.metrics.duplicates_detected_total.labels(component='execution_engine').inc()
+            return
 
         # Validar se já está em execução
         if ticket_id in self.active_tasks:
@@ -95,6 +240,10 @@ class ExecutionEngine:
                         )
                         span.set_attribute("error", True)
                         span.set_attribute("error.type", "dependency")
+
+                        # Limpar chave de processing para permitir retry (two-phase scheme)
+                        await self._clear_ticket_processing(ticket_id)
+
                         # Marcar como FAILED
                         await self.ticket_client.update_ticket_status(
                             ticket_id,
@@ -143,6 +292,9 @@ class ExecutionEngine:
                             duration_ms=duration_ms
                         )
 
+                        # Marcar ticket como processado com sucesso (two-phase scheme)
+                        await self._mark_ticket_processed(ticket_id)
+
                         if self.metrics:
                             if hasattr(self.metrics, 'tickets_completed_total'):
                                 self.metrics.tickets_completed_total.labels(task_type=task_type).inc()
@@ -154,6 +306,9 @@ class ExecutionEngine:
                         duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
                         span.set_attribute("error", True)
                         span.set_attribute("error.type", "execution_error")
+
+                        # Limpar chave de processing para permitir retry (two-phase scheme)
+                        await self._clear_ticket_processing(ticket_id)
 
                         await self.ticket_client.update_ticket_status(
                             ticket_id,
@@ -189,6 +344,10 @@ class ExecutionEngine:
                 span.set_attribute('error', True)
                 span.set_attribute('error.type', 'timeout')
                 self.logger.error('ticket_execution_timeout', ticket_id=ticket_id)
+
+                # Limpar chave de processing para permitir retry (two-phase scheme)
+                await self._clear_ticket_processing(ticket_id)
+
                 await self.ticket_client.update_ticket_status(
                     ticket_id,
                     'FAILED',
@@ -221,6 +380,10 @@ class ExecutionEngine:
                     error=str(e),
                     exc_info=True
                 )
+
+                # Limpar chave de processing para permitir retry (two-phase scheme)
+                await self._clear_ticket_processing(ticket_id)
+
                 await self.ticket_client.update_ticket_status(
                     ticket_id,
                     'FAILED',

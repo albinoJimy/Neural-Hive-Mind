@@ -438,10 +438,14 @@ async def lifespan(app: FastAPI):
 
         # Inicializar Kafka Consumer
         logger.info('Inicializando Kafka Consumer', topic=config.kafka_consensus_topic)
+        from src.observability.metrics import get_metrics
+        orchestrator_metrics = get_metrics()
         app_state.kafka_consumer = DecisionConsumer(
             config,
             app_state.temporal_client,
             app_state.mongodb_client,
+            redis_client=app_state.redis_client,
+            metrics=orchestrator_metrics,
             sasl_username_override=kafka_username,
             sasl_password_override=kafka_password
         )
@@ -1259,16 +1263,281 @@ async def get_redis_stats():
 
 @app.get('/api/v1/tickets/{ticket_id}')
 async def get_ticket(ticket_id: str):
-    """Consultar ticket por ID."""
-    # Implementação futura: consultar MongoDB
-    raise HTTPException(status_code=501, detail='Not implemented')
+    """
+    Consultar ticket de execução por ID.
+
+    Retorna informações detalhadas do ticket incluindo status, alocação,
+    SLA e metadata. Utiliza cache Redis para reduzir carga no MongoDB.
+
+    Args:
+        ticket_id: ID único do ticket de execução
+
+    Returns:
+        JSON com dados completos do ticket
+
+    Raises:
+        HTTPException 404: Ticket não encontrado
+        HTTPException 503: MongoDB não disponível
+        HTTPException 500: Erro interno
+    """
+    from opentelemetry import trace as otel_trace
+    import json
+
+    tracer = otel_trace.get_tracer(__name__)
+
+    with tracer.start_as_current_span(
+        "orchestrator.get_ticket",
+        attributes={
+            "ticket.id": ticket_id,
+        }
+    ) as span:
+        try:
+            # Verificar cache Redis primeiro (fail-open)
+            cache_key = f"ticket:{ticket_id}"
+            cached_data = await redis_get_safe(cache_key)
+            if cached_data:
+                try:
+                    cached_ticket = json.loads(cached_data)
+                    logger.info(
+                        'ticket_cache_hit',
+                        ticket_id=ticket_id
+                    )
+                    span.set_attribute("cache.hit", True)
+                    cached_ticket['cached'] = True
+                    return JSONResponse(status_code=200, content=cached_ticket)
+                except json.JSONDecodeError:
+                    logger.warning('ticket_cache_decode_error', ticket_id=ticket_id)
+
+            span.set_attribute("cache.hit", False)
+
+            # Verificar disponibilidade do MongoDB
+            if not app_state.mongodb_client:
+                logger.error(
+                    'ticket_query_rejected',
+                    reason='mongodb_unavailable',
+                    ticket_id=ticket_id
+                )
+                raise HTTPException(
+                    status_code=503,
+                    detail='MongoDB not available'
+                )
+
+            # Buscar ticket no MongoDB
+            ticket = await app_state.mongodb_client.get_ticket(ticket_id)
+
+            if not ticket:
+                logger.warning(
+                    'ticket_not_found',
+                    ticket_id=ticket_id
+                )
+                span.set_attribute("ticket.found", False)
+                raise HTTPException(
+                    status_code=404,
+                    detail=f'Ticket {ticket_id} not found'
+                )
+
+            # Remover _id do MongoDB para serialização JSON
+            if '_id' in ticket:
+                del ticket['_id']
+
+            ticket['cached'] = False
+
+            logger.info(
+                'ticket_retrieved',
+                ticket_id=ticket_id,
+                status=ticket.get('status'),
+                plan_id=ticket.get('plan_id')
+            )
+            span.set_attribute("ticket.found", True)
+            span.set_attribute("ticket.status", ticket.get('status', 'unknown'))
+
+            # Cachear resultado (fail-open - não bloqueia se Redis falhar)
+            try:
+                await redis_setex_safe(cache_key, 300, json.dumps(ticket))  # 5 minutos
+            except Exception as cache_err:
+                logger.warning('ticket_cache_write_error', ticket_id=ticket_id, error=str(cache_err))
+
+            return JSONResponse(status_code=200, content=ticket)
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(
+                'ticket_query_error',
+                ticket_id=ticket_id,
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            span.record_exception(e)
+            raise HTTPException(
+                status_code=500,
+                detail=f'Error retrieving ticket: {str(e)}'
+            )
 
 
 @app.get('/api/v1/tickets/by-plan/{plan_id}')
-async def get_tickets_by_plan(plan_id: str):
-    """Listar tickets de um plano."""
-    # Implementação futura: consultar MongoDB
-    raise HTTPException(status_code=501, detail='Not implemented')
+async def get_tickets_by_plan(
+    plan_id: str,
+    status: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0
+):
+    """
+    Listar tickets de execução de um plano cognitivo.
+
+    Suporta filtragem por status e paginação. Utiliza cache Redis
+    para reduzir carga no MongoDB.
+
+    Args:
+        plan_id: ID do plano cognitivo
+        status: Filtro opcional de status (PENDING, RUNNING, COMPLETED, FAILED)
+        limit: Número máximo de resultados (default: 100, max: 500)
+        offset: Offset para paginação (default: 0)
+
+    Returns:
+        JSON com lista de tickets e metadados de paginação
+
+    Raises:
+        HTTPException 400: Parâmetros inválidos
+        HTTPException 503: MongoDB não disponível
+        HTTPException 500: Erro interno
+    """
+    from opentelemetry import trace as otel_trace
+    import json
+
+    tracer = otel_trace.get_tracer(__name__)
+
+    # Validar parâmetros
+    if limit > 500:
+        raise HTTPException(
+            status_code=400,
+            detail='Limit cannot exceed 500'
+        )
+
+    if offset < 0:
+        raise HTTPException(
+            status_code=400,
+            detail='Offset must be non-negative'
+        )
+
+    with tracer.start_as_current_span(
+        "orchestrator.get_tickets_by_plan",
+        attributes={
+            "plan.id": plan_id,
+            "filter.status": status or "all",
+            "pagination.limit": limit,
+            "pagination.offset": offset,
+        }
+    ) as span:
+        try:
+            # Construir cache key baseado em filtros
+            cache_key_parts = [plan_id]
+            if status:
+                cache_key_parts.append(status)
+            cache_key_parts.extend([str(limit), str(offset)])
+            cache_key = f"tickets:plan:{':'.join(cache_key_parts)}"
+
+            # Verificar cache Redis primeiro (fail-open)
+            cached_data = await redis_get_safe(cache_key)
+            if cached_data:
+                try:
+                    cached_result = json.loads(cached_data)
+                    logger.info(
+                        'tickets_list_cache_hit',
+                        plan_id=plan_id,
+                        status=status,
+                        count=len(cached_result.get('tickets', []))
+                    )
+                    span.set_attribute("cache.hit", True)
+                    cached_result['cached'] = True
+                    return JSONResponse(status_code=200, content=cached_result)
+                except json.JSONDecodeError:
+                    logger.warning('tickets_list_cache_decode_error', plan_id=plan_id)
+
+            span.set_attribute("cache.hit", False)
+
+            # Verificar disponibilidade do MongoDB
+            if not app_state.mongodb_client:
+                logger.error(
+                    'tickets_list_query_rejected',
+                    reason='mongodb_unavailable',
+                    plan_id=plan_id
+                )
+                raise HTTPException(
+                    status_code=503,
+                    detail='MongoDB not available'
+                )
+
+            # Construir query MongoDB
+            query = {'plan_id': plan_id}
+            if status:
+                # Validar status
+                valid_statuses = ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'REJECTED', 'COMPENSATING', 'COMPENSATED']
+                if status.upper() not in valid_statuses:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f'Invalid status. Must be one of: {", ".join(valid_statuses)}'
+                    )
+                query['status'] = status.upper()
+
+            # Buscar tickets com paginação
+            collection = app_state.mongodb_client.execution_tickets
+
+            # Count total (para metadata de paginação)
+            total = await collection.count_documents(query)
+
+            # Buscar tickets
+            cursor = collection.find(query).sort('created_at', -1).skip(offset).limit(limit)
+            tickets = await cursor.to_list(length=limit)
+
+            # Remover _id do MongoDB para serialização JSON
+            for ticket in tickets:
+                if '_id' in ticket:
+                    del ticket['_id']
+
+            result = {
+                'tickets': tickets,
+                'total': total,
+                'limit': limit,
+                'offset': offset,
+                'has_more': (offset + len(tickets)) < total,
+                'cached': False
+            }
+
+            logger.info(
+                'tickets_list_retrieved',
+                plan_id=plan_id,
+                status=status,
+                count=len(tickets),
+                total=total
+            )
+            span.set_attribute("tickets.count", len(tickets))
+            span.set_attribute("tickets.total", total)
+
+            # Cachear resultado (fail-open - não bloqueia se Redis falhar)
+            # TTL menor para listas (2 minutos) pois podem mudar frequentemente
+            try:
+                await redis_setex_safe(cache_key, 120, json.dumps(result))
+            except Exception as cache_err:
+                logger.warning('tickets_list_cache_write_error', plan_id=plan_id, error=str(cache_err))
+
+            return JSONResponse(status_code=200, content=result)
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(
+                'tickets_list_query_error',
+                plan_id=plan_id,
+                status=status,
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            span.record_exception(e)
+            raise HTTPException(
+                status_code=500,
+                detail=f'Error retrieving tickets: {str(e)}'
+            )
 
 
 @app.get('/api/v1/flow-c/status')
@@ -1784,9 +2053,149 @@ async def get_prediction_statistics():
 
 @app.get('/api/v1/workflows/{workflow_id}')
 async def get_workflow_status(workflow_id: str):
-    """Consultar status de workflow Temporal."""
-    # Implementação futura: consultar Temporal
-    raise HTTPException(status_code=501, detail='Not implemented')
+    """
+    Consultar status de workflow Temporal via describe.
+
+    Este endpoint retorna informações básicas do workflow incluindo
+    status de execução, timestamps e metadata. Para queries mais
+    específicas (como tickets gerados), use o endpoint de query.
+
+    Args:
+        workflow_id: ID do workflow Temporal
+
+    Returns:
+        JSON com status do workflow
+
+    Raises:
+        HTTPException 503: Temporal client não disponível
+        HTTPException 404: Workflow não encontrado
+        HTTPException 500: Erro ao consultar workflow
+    """
+    from opentelemetry import trace as otel_trace
+    import json
+
+    tracer = otel_trace.get_tracer(__name__)
+
+    with tracer.start_as_current_span(
+        "orchestrator.get_workflow_status",
+        attributes={
+            "workflow.id": workflow_id,
+        }
+    ) as span:
+        # Validar disponibilidade do Temporal client
+        if not app_state.temporal_client:
+            logger.warning(
+                'workflow_status_rejected',
+                reason='temporal_client_unavailable',
+                workflow_id=workflow_id
+            )
+            raise HTTPException(
+                status_code=503,
+                detail='Temporal client not available. Service running in degraded mode.'
+            )
+
+        # Verificar cache Redis primeiro (fail-open)
+        cache_key = f"workflow:status:{workflow_id}"
+        cached_data = await redis_get_safe(cache_key)
+        if cached_data:
+            try:
+                cached_status = json.loads(cached_data)
+                logger.info(
+                    'workflow_status_cache_hit',
+                    workflow_id=workflow_id
+                )
+                span.set_attribute("cache.hit", True)
+                cached_status['cached'] = True
+                return JSONResponse(status_code=200, content=cached_status)
+            except json.JSONDecodeError:
+                logger.warning('workflow_status_cache_decode_error', workflow_id=workflow_id)
+
+        span.set_attribute("cache.hit", False)
+
+        logger.info(
+            'workflow_status_query',
+            workflow_id=workflow_id
+        )
+
+        try:
+            # Obter handle do workflow
+            handle = app_state.temporal_client.get_workflow_handle(workflow_id)
+
+            # Describe workflow para obter status
+            description = await handle.describe()
+
+            # Extrair informações relevantes
+            workflow_info = description.workflow_execution_info if hasattr(description, 'workflow_execution_info') else description
+
+            status_data = {
+                'workflow_id': workflow_id,
+                'status': workflow_info.status.name if hasattr(workflow_info, 'status') else 'UNKNOWN',
+                'start_time': workflow_info.start_time.isoformat() if hasattr(workflow_info, 'start_time') and workflow_info.start_time else None,
+                'close_time': workflow_info.close_time.isoformat() if hasattr(workflow_info, 'close_time') and workflow_info.close_time else None,
+                'execution_time': workflow_info.execution_time.isoformat() if hasattr(workflow_info, 'execution_time') and workflow_info.execution_time else None,
+                'workflow_type': workflow_info.type.name if hasattr(workflow_info, 'type') and workflow_info.type else None,
+                'task_queue': workflow_info.task_queue if hasattr(workflow_info, 'task_queue') else None,
+                'cached': False
+            }
+
+            # Adicionar informações de resultado se workflow completou
+            if hasattr(workflow_info, 'close_time') and workflow_info.close_time:
+                try:
+                    result = await handle.result()
+                    if result:
+                        status_data['result_summary'] = {
+                            'status': result.get('status') if isinstance(result, dict) else 'completed',
+                            'tickets_generated': result.get('metrics', {}).get('total_tickets') if isinstance(result, dict) else None
+                        }
+                except Exception as e:
+                    logger.warning(
+                        'workflow_result_unavailable',
+                        workflow_id=workflow_id,
+                        error=str(e)
+                    )
+
+            logger.info(
+                'workflow_status_retrieved',
+                workflow_id=workflow_id,
+                status=status_data['status']
+            )
+            span.set_attribute("workflow.status", status_data['status'])
+
+            # Cachear resultado (fail-open)
+            # TTL baseado no status: workflows em execução = 30s, completados = 5min
+            ttl = 30 if status_data['status'] in ['RUNNING', 'PENDING'] else 300
+            try:
+                await redis_setex_safe(cache_key, ttl, json.dumps(status_data))
+            except Exception as cache_err:
+                logger.warning('workflow_status_cache_write_error', workflow_id=workflow_id, error=str(cache_err))
+
+            return JSONResponse(status_code=200, content=status_data)
+
+        except Exception as e:
+            error_str = str(e)
+            span.record_exception(e)
+
+            # Verificar se é erro de workflow não encontrado
+            if 'not found' in error_str.lower() or 'does not exist' in error_str.lower():
+                logger.warning(
+                    'workflow_not_found',
+                    workflow_id=workflow_id,
+                    error=error_str
+                )
+                raise HTTPException(
+                    status_code=404,
+                    detail=f'Workflow {workflow_id} not found'
+                )
+
+            logger.error(
+                'workflow_status_query_error',
+                workflow_id=workflow_id,
+                error=error_str
+            )
+            raise HTTPException(
+                status_code=500,
+                detail=f'Error retrieving workflow status: {error_str}'
+            )
 
 
 @app.post('/api/v1/workflows/start')

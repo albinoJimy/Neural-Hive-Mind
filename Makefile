@@ -35,10 +35,15 @@ proto-gen: ; @./scripts/compile_protos.sh --service specialists
 proto-gen-all:
 	@./scripts/compile_protos.sh --all
 	@make proto-service-registry
+	@make proto-ticket-service
 proto-service-registry:
 	@echo "Compiling Service Registry protos..."
 	@bash services/service-registry/scripts/compile_protos.sh
 	@echo "Service Registry protos compiled"
+proto-ticket-service:
+	@echo "Compiling Execution Ticket Service protos..."
+	@bash services/execution-ticket-service/scripts/compile_protos.sh
+	@echo "Execution Ticket Service protos compiled"
 clean-proto: ; @rm -rf libraries/python/neural_hive_specialists/proto_gen
 
 .PHONY: minikube-setup minikube-start minikube-stop minikube-clean minikube-reset minikube-validate minikube-status minikube-dashboard

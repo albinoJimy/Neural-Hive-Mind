@@ -34,11 +34,15 @@ logger = logging.getLogger(__name__)
 class TicketConsumer:
     """Consumer Kafka para processar Execution Tickets."""
 
+    # TTL para deduplicação de tickets (7 dias - alinhado com retention Kafka)
+    IDEMPOTENCY_TTL_SECONDS = 604800
+
     def __init__(
         self,
         settings,
         metrics: TicketServiceMetrics,
-        webhook_manager_getter: Optional[Callable[[], Optional['WebhookManager']]] = None
+        webhook_manager_getter: Optional[Callable[[], Optional['WebhookManager']]] = None,
+        redis_client_getter: Optional[Callable[[], Optional[object]]] = None
     ):
         """
         Inicializa consumer.
@@ -47,10 +51,12 @@ class TicketConsumer:
             settings: Configurações do serviço
             metrics: Instância de métricas
             webhook_manager_getter: Função para obter WebhookManager (permite lazy loading)
+            redis_client_getter: Função para obter Redis client (permite lazy loading)
         """
         self.settings = settings
         self.metrics = metrics
         self._webhook_manager_getter = webhook_manager_getter
+        self._redis_client_getter = redis_client_getter
         self.consumer: Optional[Consumer] = None
         self.schema_registry_client: Optional[SchemaRegistryClient] = None
         self.avro_deserializer: Optional[AvroDeserializer] = None
@@ -62,6 +68,97 @@ class TicketConsumer:
         if self._webhook_manager_getter:
             return self._webhook_manager_getter()
         return None
+
+    @property
+    def redis_client(self) -> Optional[object]:
+        """Obtém redis client via getter (permite lazy loading)."""
+        if self._redis_client_getter:
+            return self._redis_client_getter()
+        return None
+
+    async def _check_idempotency(self, idempotency_key: str) -> Optional[str]:
+        """
+        Verifica se ticket já foi processado usando Redis.
+
+        Implementa deduplicação baseada em idempotency_key para garantir
+        processamento at-most-once de tickets de execução.
+
+        Args:
+            idempotency_key: Chave de idempotência do ticket
+
+        Returns:
+            ticket_id existente se duplicata, None caso contrário
+        """
+        if not self.redis_client:
+            logger.warning('redis_client_not_available_skipping_idempotency_check')
+            return None
+
+        if not idempotency_key:
+            logger.warning('idempotency_key_missing_skipping_check')
+            return None
+
+        try:
+            key = f"ticket:idempotency:{idempotency_key}"
+
+            # Verificar se chave já existe
+            existing_ticket_id = await self.redis_client.get(key)
+
+            if existing_ticket_id:
+                logger.info(
+                    'duplicate_ticket_detected_by_idempotency_key',
+                    idempotency_key=idempotency_key,
+                    existing_ticket_id=existing_ticket_id,
+                    message='Ticket já foi processado, retornando existente'
+                )
+                self.metrics.duplicates_detected_total.labels(component='ticket_consumer').inc()
+                self.metrics.idempotency_cache_hits_total.inc()
+                return existing_ticket_id
+
+            return None
+
+        except Exception as e:
+            logger.error(
+                'idempotency_check_failed',
+                idempotency_key=idempotency_key,
+                error=str(e),
+                message='Continuando processamento sem verificação de idempotência'
+            )
+            # Fail-open: continuar processamento em caso de erro no Redis
+            return None
+
+    async def _mark_ticket_processed(self, idempotency_key: str, ticket_id: str) -> bool:
+        """
+        Marca ticket como processado no Redis.
+
+        Args:
+            idempotency_key: Chave de idempotência do ticket
+            ticket_id: ID do ticket processado
+
+        Returns:
+            True se marcado com sucesso, False caso contrário
+        """
+        if not self.redis_client:
+            return False
+
+        if not idempotency_key or not ticket_id:
+            return False
+
+        try:
+            key = f"ticket:idempotency:{idempotency_key}"
+            ttl = getattr(self.settings, 'redis_idempotency_ttl_seconds', self.IDEMPOTENCY_TTL_SECONDS)
+
+            await self.redis_client.set(key, ticket_id, ex=ttl)
+            logger.debug('ticket_marked_as_processed', idempotency_key=idempotency_key, ticket_id=ticket_id)
+            return True
+
+        except Exception as e:
+            logger.error(
+                'mark_ticket_processed_failed',
+                idempotency_key=idempotency_key,
+                ticket_id=ticket_id,
+                error=str(e)
+            )
+            return False
 
     async def start(self):
         """Inicia consumer Kafka."""
@@ -201,6 +298,24 @@ class TicketConsumer:
         )
 
         try:
+            # 0. Verificar idempotência antes de persistir
+            idempotency_key = None
+            if ticket.metadata:
+                idempotency_key = ticket.metadata.get('idempotency_key')
+            # Fallback para ticket_id se idempotency_key não estiver presente
+            if not idempotency_key:
+                idempotency_key = ticket.ticket_id
+
+            existing_ticket_id = await self._check_idempotency(idempotency_key)
+            if existing_ticket_id:
+                logger.info(
+                    'duplicate_ticket_skipped',
+                    ticket_id=ticket.ticket_id,
+                    existing_ticket_id=existing_ticket_id,
+                    idempotency_key=idempotency_key
+                )
+                return  # Skip processing - ticket already exists
+
             # 1. Persistir no PostgreSQL
             postgres_client = await get_postgres_client()
             await postgres_client.create_ticket(ticket)
@@ -254,6 +369,10 @@ class TicketConsumer:
             self.metrics.tickets_persisted_total.inc()
             self.metrics.tickets_by_status.labels(status=ticket.status.value).set(1)
 
+            # Marcar como processado no Redis para idempotência
+            if idempotency_key:
+                await self._mark_ticket_processed(idempotency_key, ticket.ticket_id)
+
             duration_ms = int((time.time() - start_time) * 1000)
             self.metrics.ticket_processing_duration_seconds.observe(duration_ms / 1000.0)
 
@@ -297,7 +416,8 @@ class TicketConsumer:
 
 async def start_ticket_consumer(
     metrics: TicketServiceMetrics,
-    webhook_manager_getter: Optional[Callable[[], Optional['WebhookManager']]] = None
+    webhook_manager_getter: Optional[Callable[[], Optional['WebhookManager']]] = None,
+    redis_client_getter: Optional[Callable[[], Optional[object]]] = None
 ) -> TicketConsumer:
     """
     Factory function para criar e iniciar consumer.
@@ -305,11 +425,12 @@ async def start_ticket_consumer(
     Args:
         metrics: Instância de TicketServiceMetrics
         webhook_manager_getter: Função para obter WebhookManager (permite lazy loading)
+        redis_client_getter: Função para obter Redis client (permite lazy loading)
 
     Returns:
         TicketConsumer iniciado
     """
     settings = get_settings()
-    consumer = TicketConsumer(settings, metrics, webhook_manager_getter)
+    consumer = TicketConsumer(settings, metrics, webhook_manager_getter, redis_client_getter)
     await consumer.start()
     return consumer

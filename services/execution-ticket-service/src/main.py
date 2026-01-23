@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from neural_hive_observability import init_observability
 
 from .config import get_settings
-from .database import get_postgres_client, get_mongodb_client
+from .database import get_postgres_client, get_mongodb_client, get_redis_client, close_redis_client
 from .api import health_router, tickets_router
 from .observability import TicketServiceMetrics
 
@@ -89,6 +89,19 @@ async def lifespan(app: FastAPI):
     app.state.metrics = TicketServiceMetrics()
     logger.info('metrics_initialized')
 
+    # Conectar Redis (OPCIONAL - fail-open se indisponível)
+    redis_client = None
+    if settings.enable_idempotency:
+        try:
+            redis_client = await get_redis_client(settings)
+            if redis_client:
+                logger.info('redis_connected')
+            else:
+                logger.warning('redis_unavailable_idempotency_disabled')
+        except Exception as e:
+            logger.warning('redis_connection_failed_non_critical', error=str(e))
+    app.state.redis_client = redis_client
+
     # Initialize state for non-critical components
     app.state.ticket_consumer = None
     app.state.webhook_manager = None
@@ -104,9 +117,12 @@ async def lifespan(app: FastAPI):
             from .consumers import start_ticket_consumer
             # Passa getter para webhook_manager (permite lazy loading)
             webhook_manager_getter = lambda: app.state.webhook_manager
+            # Passa redis_client getter (permite lazy loading)
+            redis_client_getter = lambda: app.state.redis_client
             app.state.ticket_consumer = await start_ticket_consumer(
                 app.state.metrics,
-                webhook_manager_getter=webhook_manager_getter
+                webhook_manager_getter=webhook_manager_getter,
+                redis_client_getter=redis_client_getter
             )
             app.state.consumer_task = asyncio.create_task(app.state.ticket_consumer.consume())
             logger.info('kafka_consumer_started')
@@ -186,6 +202,9 @@ async def lifespan(app: FastAPI):
         await postgres_client.disconnect()
     if mongodb_client:
         await mongodb_client.disconnect()
+
+    # Fechar Redis
+    await close_redis_client()
 
     logger.info('service_shutdown_complete')
 
