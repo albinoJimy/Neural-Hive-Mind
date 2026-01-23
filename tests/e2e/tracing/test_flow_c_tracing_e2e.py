@@ -8,8 +8,21 @@ Requer:
 - Cluster Kubernetes com todos os serviços
 - OpenTelemetry Collector configurado
 - Jaeger UI acessível
+
+Variáveis de ambiente:
+- GATEWAY_URL: URL do Gateway (default: http://gateway-intencoes.neural-hive.svc.cluster.local)
+- JAEGER_QUERY_URL: URL do Jaeger Query (default: http://jaeger-query.observability.svc.cluster.local:16686)
+
+Exemplo de uso local com port-forward:
+    kubectl port-forward -n neural-hive svc/gateway-intencoes 8000:80 &
+    kubectl port-forward -n observability svc/jaeger-query 16686:16686 &
+
+    GATEWAY_URL=http://localhost:8000 \\
+    JAEGER_QUERY_URL=http://localhost:16686 \\
+    pytest tests/e2e/tracing/test_flow_c_tracing_e2e.py -v
 """
 
+import os
 import pytest
 import asyncio
 import httpx
@@ -18,8 +31,14 @@ from typing import Optional
 
 
 # Configuração - URLs podem ser sobrescritas via variáveis de ambiente
-GATEWAY_URL = "http://gateway-intencoes.neural-hive.svc.cluster.local"
-JAEGER_QUERY_URL = "http://jaeger-query.observability.svc.cluster.local:16686"
+GATEWAY_URL = os.getenv(
+    'GATEWAY_URL',
+    'http://gateway-intencoes.neural-hive.svc.cluster.local'
+)
+JAEGER_QUERY_URL = os.getenv(
+    'JAEGER_QUERY_URL',
+    'http://jaeger-query.observability.svc.cluster.local:16686'
+)
 
 
 @pytest.mark.e2e
@@ -33,7 +52,15 @@ async def test_flow_c_trace_propagation():
     2. Aguardar processamento (STE → Consensus → Orchestrator)
     3. Consultar Jaeger para validar trace completo
     4. Validar spans esperados: C1-C6
+    5. Validar continuidade de trace_id
+    6. Validar hierarquia parent-child
     """
+
+    # Log configuração do teste
+    print(f"Configuração do teste:")
+    print(f"  Gateway URL: {GATEWAY_URL}")
+    print(f"  Jaeger URL: {JAEGER_QUERY_URL}")
+    print()
 
     # 1. Enviar intenção de teste
     intent_payload = {
@@ -117,6 +144,46 @@ async def test_flow_c_trace_propagation():
         assert "neural.hive.component" in tags or "component" in tags
 
         print(f"✅ Span validado: {span['operationName']}")
+
+    # 5. Validar continuidade de trace_id (todos os spans devem ter o mesmo trace_id)
+    trace_ids_in_spans = {span.get('traceID') for span in spans}
+    assert len(trace_ids_in_spans) == 1, (
+        f"Fragmentação de trace detectada: {len(trace_ids_in_spans)} trace_ids diferentes. "
+        f"Esperado: 1 trace_id único. Encontrados: {trace_ids_in_spans}"
+    )
+    print(f"✅ Continuidade de trace_id validada: {trace_ids_in_spans.pop()}")
+
+    # 6. Validar parent-child relationships para spans do Fluxo C
+    flow_c_root = next((s for s in spans if 'flow_c.execute' in s['operationName']), None)
+    if flow_c_root:
+        for operation in ['C1.validate_decision', 'C2.generate_tickets', 'C3.discover_workers']:
+            child_span = next((s for s in spans if operation in s['operationName']), None)
+            if child_span:
+                references = child_span.get('references', [])
+                parent_ref = next((r for r in references if r.get('refType') == 'CHILD_OF'), None)
+                if parent_ref:
+                    parent_span_id = parent_ref.get('spanID')
+                    if parent_span_id == flow_c_root['spanID']:
+                        print(f"✅ Hierarquia validada: {operation} → flow_c.execute")
+
+    # 7. Validar ausência de erros
+    error_spans = [s for s in spans if any(
+        tag.get('key') == 'error' and tag.get('value') is True
+        for tag in s.get('tags', [])
+    )]
+    assert len(error_spans) == 0, (
+        f"Spans com erro detectados: {[s['operationName'] for s in error_spans]}"
+    )
+    print(f"✅ Nenhum span com erro detectado")
+
+    # 8. Validar latências razoáveis (< 60s para cada span)
+    for span in spans:
+        duration_us = span.get('duration', 0)
+        duration_s = duration_us / 1_000_000
+        assert duration_s < 60, (
+            f"Span {span['operationName']} com latência excessiva: {duration_s:.2f}s"
+        )
+    print(f"✅ Latências validadas (todas < 60s)")
 
     print(f"\n🎉 Teste E2E de tracing concluído com sucesso!")
     print(f"   Trace ID: {trace_id}")

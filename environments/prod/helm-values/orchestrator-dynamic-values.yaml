@@ -1,0 +1,22 @@
+# Orchestrator Dynamic - Ambiente de Producao
+# Configuracoes otimizadas para producao
+
+replicaCount: 3
+
+config:
+  environment: prod
+  logLevel: WARNING
+
+  observability:
+    otelEnabled: true
+    otelExporterEndpoint: https://opentelemetry-collector.observability.svc.cluster.local:4317  # HTTPS em prod
+    tracingSamplingRate: 0.1  # 10% em prod para reduzir overhead
+
+  vault:
+    enabled: true
+    failOpen: false
+
+  spiffe:
+    enabled: true
+
+environment: prod

@@ -12,6 +12,8 @@ from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer
 import structlog
 
+from neural_hive_observability import instrument_kafka_producer
+
 logger = structlog.get_logger()
 
 
@@ -53,6 +55,16 @@ class KafkaProducerClient:
 
         producer_config.update(self._configure_security())
         self.producer = Producer(producer_config)
+
+        # Instrumentar producer para injetar headers de tracing (traceparent W3C)
+        try:
+            self.producer = instrument_kafka_producer(self.producer)
+            logger.info('Kafka producer instrumentado com OpenTelemetry')
+        except Exception as e:
+            logger.warning(
+                'Falha ao instrumentar Kafka producer, continuando sem tracing',
+                error=str(e)
+            )
 
         try:
             self.schema_registry_client = SchemaRegistryClient({'url': self.config.kafka_schema_registry_url})

@@ -15,6 +15,8 @@ from confluent_kafka.serialization import SerializationContext, MessageField
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroDeserializer
 
+from neural_hive_observability.context import extract_context_from_headers, set_baggage
+
 from src.config.settings import Settings
 
 logger = structlog.get_logger()
@@ -276,7 +278,17 @@ class IntentConsumer:
                 # Deserialize message
                 intent_envelope = self._deserialize_message(msg)
 
-                # Extract trace context from headers
+                # Extract W3C trace context from Kafka headers (traceparent)
+                headers_dict = {k: v.decode('utf-8') if isinstance(v, bytes) else v
+                                for k, v in (msg.headers() or [])}
+                extract_context_from_headers(headers_dict)
+
+                # Set baggage for correlation
+                intent_id = intent_envelope.get('id')
+                if intent_id:
+                    set_baggage('neural.hive.intent.id', intent_id)
+
+                # Extract legacy trace context (deprecated, mantido para compatibilidade)
                 trace_context = self._extract_trace_context(msg.headers() or [])
 
                 # Process message in same event loop
@@ -368,7 +380,11 @@ class IntentConsumer:
 
     def _extract_trace_context(self, headers: list) -> Dict[str, str]:
         """
-        Extract OpenTelemetry trace context from headers
+        Extract legacy trace context from headers (deprecated).
+
+        NOTA: Esta função é mantida para compatibilidade com headers customizados
+        (trace-id, span-id, correlation-id). O contexto W3C traceparent é extraído
+        via extract_context_from_headers() em _consume_async_loop.
 
         Args:
             headers: Kafka message headers

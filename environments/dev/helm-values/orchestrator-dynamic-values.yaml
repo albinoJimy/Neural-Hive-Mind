@@ -1,0 +1,40 @@
+# Orchestrator Dynamic - Ambiente de Desenvolvimento
+# Configuracoes otimizadas para desenvolvimento local
+
+replicaCount: 1
+
+image:
+  tag: latest
+  pullPolicy: Always
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+
+config:
+  environment: dev
+  logLevel: DEBUG
+
+  observability:
+    otelEnabled: false  # Desabilitado em dev para reduzir overhead
+    otelExporterEndpoint: http://localhost:4317
+    tracingSamplingRate: 1.0  # 100% quando habilitado
+
+  kafka:
+    securityProtocol: PLAINTEXT
+
+  temporal:
+    tlsEnabled: false
+
+  vault:
+    enabled: false
+    failOpen: true
+
+  spiffe:
+    enabled: false
+
+environment: dev

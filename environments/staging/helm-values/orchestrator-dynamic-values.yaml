@@ -1,0 +1,22 @@
+# Orchestrator Dynamic - Ambiente de Staging
+# Configuracoes para validacao pre-producao
+
+replicaCount: 2
+
+config:
+  environment: staging
+  logLevel: INFO
+
+  observability:
+    otelEnabled: true
+    otelExporterEndpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
+    tracingSamplingRate: 0.5  # 50% em staging
+
+  vault:
+    enabled: true
+    failOpen: false
+
+  spiffe:
+    enabled: true
+
+environment: staging

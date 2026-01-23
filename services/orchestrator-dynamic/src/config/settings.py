@@ -444,8 +444,8 @@ class OrchestratorSettings(BaseSettings):
 
     # Observabilidade
     otel_enabled: bool = Field(
-        default=True,
-        description='Habilitar OpenTelemetry tracing (True em prod, False para dev local)'
+        default=False,
+        description='Habilitar OpenTelemetry tracing (False por default, True em prod/staging via Helm)'
     )
     otel_exporter_endpoint: str = Field(
         default='https://opentelemetry-collector.observability.svc.cluster.local:4317',
@@ -453,6 +453,12 @@ class OrchestratorSettings(BaseSettings):
     )
     otel_tls_verify: bool = Field(default=True, description='Verificar certificado TLS do OTEL Collector')
     otel_ca_bundle: Optional[str] = Field(default=None, description='Caminho para CA bundle do OTEL Collector')
+    otel_sampling_rate: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description='Taxa de amostragem de traces (0.0-1.0). Default 1.0 (100%), configurar via Helm por ambiente.'
+    )
     prometheus_port: int = Field(default=9090, description='Porta para métricas Prometheus')
 
     # OPA Policy Engine

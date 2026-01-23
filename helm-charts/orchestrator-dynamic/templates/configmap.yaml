@@ -77,8 +77,9 @@ data:
   RETRY_MAX_INTERVAL_MS: {{ .Values.config.retry.maxIntervalMs | quote }}
 
   # Observability
-  OTEL_ENABLED: {{ .Values.config.observability.otelEnabled | default true | quote }}
+  OTEL_ENABLED: {{ .Values.config.observability.otelEnabled | quote }}
   OTEL_EXPORTER_ENDPOINT: {{ .Values.config.observability.otelExporterEndpoint | quote }}
+  OTEL_SAMPLING_RATE: {{ .Values.config.observability.tracingSamplingRate | quote }}
   PROMETHEUS_PORT: {{ .Values.config.observability.prometheusPort | quote }}
 
   # OPA Policy Engine

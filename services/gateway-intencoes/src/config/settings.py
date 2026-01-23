@@ -128,7 +128,10 @@ class Settings(BaseSettings):
     allowed_hosts: List[str] = Field(default=["*"])
     
     # Observabilidade - OpenTelemetry Collector OTLP endpoint
-    otel_enabled: bool = Field(default=False, description="Habilitar OpenTelemetry para tracing distribuído")
+    otel_enabled: bool = Field(
+        default=True,
+        description="Habilitar OpenTelemetry para tracing distribuído (True em prod/staging, False em dev via Helm)"
+    )
     otel_endpoint: str = Field(default="https://opentelemetry-collector.observability.svc.cluster.local:4317")
     otel_tls_verify: bool = Field(default=True, description="Verificar certificado TLS do OTEL Collector")
     otel_ca_bundle: Optional[str] = Field(default=None, description="Caminho para CA bundle do OTEL Collector")

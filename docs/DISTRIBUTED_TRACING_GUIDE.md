@@ -415,6 +415,69 @@ observability:
 - Verificar que consumers extraem contexto dos headers Kafka
 - Reiniciar pods após mudanças de configuração
 
+### Problema: Propagação via Kafka headers não funciona
+
+**Sintomas**: Cada serviço tem trace_id diferente, spans não conectados no Jaeger
+
+**Verificações**:
+
+1. Verificar headers nas mensagens Kafka:
+   ```bash
+   # Consumir mensagem do tópico intentions.captured
+   kubectl exec -it kafka-0 -n kafka -- kafka-console-consumer \
+     --bootstrap-server localhost:9092 \
+     --topic intentions.captured \
+     --property print.headers=true \
+     --property print.key=true \
+     --max-messages 1
+   ```
+
+2. Headers esperados:
+   ```
+   traceparent:00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
+   x-neural-hive-intent-id:intent-123
+   x-neural-hive-plan-id:plan-456
+   x-neural-hive-user-id:user-789
+   correlation-id:corr-abc
+   ```
+
+3. Formato W3C traceparent:
+   - `00`: Versão
+   - `4bf92f35...`: Trace ID (32 hex chars)
+   - `00f067aa...`: Span ID (16 hex chars)
+   - `01`: Flags (01 = sampled)
+
+4. Verificar que producer injeta headers:
+   ```bash
+   # Verificar logs do Gateway
+   kubectl logs -n neural-hive gateway-intencoes-xxx | grep "traceparent"
+   ```
+
+5. Verificar que consumer extrai headers:
+   ```bash
+   # Verificar logs do STE
+   kubectl logs -n neural-hive semantic-translation-engine-xxx | grep "Trace context extraído"
+   ```
+
+**Solução**:
+- Verificar que producers chamam `instrument_kafka_producer()`
+- Verificar que consumers chamam `extract_context_from_headers()`
+- Verificar que biblioteca `neural_hive_observability` está instalada
+- Reiniciar pods após mudanças
+
+**Exemplo de código correto**:
+```python
+# Producer
+from neural_hive_observability import instrument_kafka_producer
+producer = instrument_kafka_producer(producer)
+
+# Consumer
+from neural_hive_observability.context import extract_context_from_headers
+headers_dict = {k: v.decode('utf-8') if isinstance(v, bytes) else v
+                for k, v in (message.headers or [])}
+extract_context_from_headers(headers_dict)
+```
+
 ### Problema: Traces não aparecem no Jaeger
 
 **Sintomas**: Nenhum trace visível na UI do Jaeger
@@ -528,6 +591,58 @@ Sempre incluir `trace_id` nos logs estruturados para correlação.
 Documentar novos spans em:
 - Este guia (hierarquia e atributos)
 - Código (docstrings)
+
+## Exemplos Práticos - Fluxo C
+
+### Enviar Intenção e Rastrear Trace
+
+```bash
+# 1. Enviar intenção
+curl -X POST http://gateway-intencoes/intentions \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Deploy service to prod", "domain": "technical"}'
+
+# Resposta:
+# {"intent_id": "intent-123", "traceId": "4bf92f35...", ...}
+
+# 2. Aguardar processamento
+sleep 30
+
+# 3. Buscar no Jaeger
+open "http://jaeger-ui:16686/search?service=gateway-intencoes&tags={\"neural.hive.intent.id\":\"intent-123\"}"
+```
+
+### Verificar Headers Kafka em Mensagens
+
+```bash
+# Port-forward para Kafka
+kubectl port-forward -n kafka svc/kafka 9092:9092 &
+
+# Consumir mensagem com headers visíveis
+kubectl exec -it kafka-0 -n kafka -- kafka-console-consumer \
+  --bootstrap-server localhost:9092 \
+  --topic plans.consensus \
+  --property print.headers=true \
+  --max-messages 1
+
+# Output esperado:
+# Headers: traceparent:00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01,
+#          x-neural-hive-plan-id:plan-123,correlation-id:corr-abc
+# Value: {"plan_id":"plan-123",...}
+```
+
+### Executar Teste E2E de Tracing
+
+```bash
+# Port-forward para Gateway e Jaeger
+kubectl port-forward -n neural-hive svc/gateway-intencoes 8000:80 &
+kubectl port-forward -n observability svc/jaeger-query 16686:16686 &
+
+# Executar teste com URLs locais
+GATEWAY_URL=http://localhost:8000 \
+JAEGER_QUERY_URL=http://localhost:16686 \
+pytest tests/e2e/tracing/test_flow_c_tracing_e2e.py -v
+```
 
 ## Referências
 

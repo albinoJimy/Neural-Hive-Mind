@@ -10,6 +10,7 @@ from confluent_kafka.schema_registry.avro import AvroDeserializer
 import structlog
 import grpc
 from neural_hive_observability import get_tracer
+from neural_hive_observability.context import extract_context_from_headers, set_baggage
 from src.services.consensus_orchestrator import ConsensusOrchestrator
 from src.observability.metrics import ConsensusMetrics
 
@@ -626,12 +627,22 @@ class PlanConsumer:
     async def _process_message(self, msg, cognitive_plan):
         '''Processa mensagem do Kafka'''
         try:
+            # Extract W3C trace context from Kafka headers (traceparent)
+            headers_dict = {k: v.decode('utf-8') if isinstance(v, bytes) else v
+                            for k, v in (msg.headers() or [])}
+            extract_context_from_headers(headers_dict)
+
+            # Set baggage for correlation
+            plan_id = cognitive_plan.get('plan_id')
+            if plan_id:
+                set_baggage('neural.hive.plan.id', plan_id)
+
             logger.info(
                 'Mensagem recebida',
                 topic=msg.topic(),
                 partition=msg.partition(),
                 offset=msg.offset(),
-                plan_id=cognitive_plan.get('plan_id')
+                plan_id=plan_id
             )
 
             # 1. Invocar especialistas via gRPC

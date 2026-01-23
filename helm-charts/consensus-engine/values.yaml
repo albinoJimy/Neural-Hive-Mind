@@ -107,9 +107,9 @@ config:
     pheromoneDecayRate: 0.1
 
   openTelemetry:
-    enabled: true  # Habilitar OpenTelemetry (true em prod, false para dev local)
-    endpoint: "http://otel-collector:4317"
-    samplingRate: 1.0
+    enabled: true  # Habilitar OpenTelemetry (true em prod, false para dev local via Helm values)
+    endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+    samplingRate: 1.0  # 100% em dev, 50% em staging, 10% em prod (via environment values)
 
   consensus:
     minConfidenceScore: 0.8
