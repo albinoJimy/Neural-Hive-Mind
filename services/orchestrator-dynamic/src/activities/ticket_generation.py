@@ -442,9 +442,25 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Resultado da publicação: {'published': bool, 'ticket_id': str, 'kafka_offset': int, 'ticket': dict}
         Para tickets rejeitados: {'published': False, 'ticket_id': str, 'rejected': True, 'rejection_reason': str}
+
+    Raises:
+        RuntimeError: Se dependências não foram injetadas ou persistência falhar (fail-closed)
     """
     ticket_id = ticket['ticket_id']
-    activity.logger.info(f'Publicando ticket {ticket_id} no Kafka')
+
+    # === Validar dependências injetadas no início ===
+    if _config is None:
+        raise RuntimeError(
+            'Config não foi injetado nas activities. '
+            'Verifique se set_activity_dependencies() foi chamado no worker.'
+        )
+
+    activity.logger.info(
+        'publishing_ticket_to_kafka',
+        ticket_id=ticket_id,
+        plan_id=ticket.get('plan_id'),
+        fail_open_enabled=_config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS
+    )
 
     try:
         # === Gate: Verificar se ticket foi rejeitado pelo scheduler ===
@@ -531,13 +547,18 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 plan_id=ticket['plan_id']
             )
         except CircuitBreakerError:
-            # Circuit breaker aberto - degradação controlada
-            activity.logger.warning(
+            # Circuit breaker aberto - problema sistêmico, sempre propagar
+            activity.logger.error(
                 'execution_ticket_persist_circuit_open',
                 ticket_id=ticket_id,
-                plan_id=ticket.get('plan_id')
+                plan_id=ticket.get('plan_id'),
+                circuit_state='open'
             )
-            # Ticket já foi publicado no Kafka, continuar sem persistência
+            # Circuit breaker indica problema sistêmico - propagar para retry
+            raise RuntimeError(
+                f'Circuit breaker aberto para persistência do ticket {ticket_id}. '
+                'Problema sistêmico detectado no MongoDB.'
+            )
 
         except PyMongoError as db_error:
             # Erro de MongoDB - verificar política de fail-open
@@ -546,21 +567,31 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 ticket_id=ticket_id,
                 plan_id=ticket.get('plan_id'),
                 error=str(db_error),
-                error_type=type(db_error).__name__
+                error_type=type(db_error).__name__,
+                fail_open_enabled=_config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS
             )
 
             # Verificar política de fail-open configurável
-            fail_open = _config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS if _config else False
-            if fail_open:
+            if _config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS:
                 activity.logger.warning(
-                    'execution_ticket_persist_fail_open_enabled',
-                    ticket_id=ticket_id
+                    'execution_ticket_persist_fail_open_activated',
+                    ticket_id=ticket_id,
+                    plan_id=ticket.get('plan_id')
                 )
+                # Registrar métrica de fail-open
+                try:
+                    from src.observability.metrics import get_metrics
+                    metrics = get_metrics()
+                    metrics.record_mongodb_persistence_fail_open('execution_tickets')
+                except Exception:
+                    pass  # Não falhar por causa de métricas
                 # Continuar sem persistência
             else:
-                # Propagar erro para retry do Temporal
+                # Fail-closed: propagar erro para retry do Temporal
                 # Auditoria é crítica para compliance
-                raise RuntimeError(f'Falha crítica na persistência do ticket {ticket_id}: {str(db_error)}')
+                raise RuntimeError(
+                    f'Falha crítica na persistência do ticket {ticket_id}: {str(db_error)}'
+                )
 
         except Exception as e:
             # Erro inesperado - logar e verificar política
@@ -570,12 +601,28 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 plan_id=ticket.get('plan_id'),
                 error=str(e),
                 error_type=type(e).__name__,
+                fail_open_enabled=_config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS,
                 exc_info=True
             )
 
-            fail_open = _config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS if _config else False
-            if not fail_open:
-                raise RuntimeError(f'Erro inesperado na persistência do ticket {ticket_id}: {str(e)}')
+            if _config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS:
+                activity.logger.warning(
+                    'execution_ticket_persist_fail_open_activated',
+                    ticket_id=ticket_id,
+                    plan_id=ticket.get('plan_id'),
+                    error_type='unexpected'
+                )
+                # Registrar métrica de fail-open
+                try:
+                    from src.observability.metrics import get_metrics
+                    metrics = get_metrics()
+                    metrics.record_mongodb_persistence_fail_open('execution_tickets')
+                except Exception:
+                    pass  # Não falhar por causa de métricas
+            else:
+                raise RuntimeError(
+                    f'Erro inesperado na persistência do ticket {ticket_id}: {str(e)}'
+                )
 
         # Construir resultado com informações do Kafka
         result = {

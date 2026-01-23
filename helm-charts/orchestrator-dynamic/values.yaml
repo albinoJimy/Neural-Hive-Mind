@@ -100,6 +100,26 @@ config:
     maxPoolSize: 100  # Tuneable via Helm for replica-based sizing
     minPoolSize: 10   # Maintain warm connections for burst traffic
 
+    # Coleções explícitas
+    collectionTickets: execution_tickets
+    collectionWorkflows: workflows
+
+    # Políticas de Persistência
+    # Define comportamento em caso de erro de persistência MongoDB
+    persistence:
+      # Execution Tickets: fail-closed por padrão (compliance)
+      # Falhas de persistência bloqueiam workflow para garantir audit trail
+      # Mudar para true apenas em ambientes de desenvolvimento
+      failOpenExecutionTickets: false
+
+      # Validation Audit: fail-open (não crítico)
+      # Auditoria de validação não bloqueia execução
+      failOpenValidationAudit: true
+
+      # Workflow Results: fail-open (pode ser reconstruído)
+      # Resultados podem ser reconstruídos a partir de tickets
+      failOpenWorkflowResults: true
+
   redis:
     clusterNodes: redis-cluster.redis-cluster.svc.cluster.local:6379
     sslEnabled: false

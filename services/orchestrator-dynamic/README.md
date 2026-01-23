@@ -193,6 +193,117 @@ services/orchestrator-dynamic/
 - Índices: executar `db.<collection>.getIndexes()` para validar criação; `workflow_results` usa `_id=workflow_id` com índice único
 - Consultas rápidas: contar validações por plano (`db.validation_audit.countDocuments({plan_id: "<id>"})`), listar SLA violados (`db.workflow_results.find({"sla_status.violations_count": {$gt: 0}})`), incidentes críticos (`db.incidents.find({severity: "CRITICAL"})`)
 
+## Execution Tickets Persistence (Fail-Open vs Fail-Closed)
+
+O Orchestrator Dynamic suporta políticas configuráveis de fail-open/fail-closed para persistência de execution tickets no MongoDB.
+
+### Políticas de Persistência
+
+| Coleção | Política Padrão | Rationale |
+|---------|-----------------|-----------|
+| `execution_tickets` | **Fail-closed** | Audit trail crítico para compliance |
+| `validation_audit` | Fail-open | Não crítico para execução |
+| `workflow_results` | Fail-open | Pode ser reconstruído a partir de tickets |
+| `incidents` | Fail-open | Logging de incidentes não bloqueia workflow |
+
+### Comportamento Fail-Closed (Produção)
+
+Quando `MONGODB_FAIL_OPEN_EXECUTION_TICKETS=false` (padrão):
+- Erros de persistência bloqueiam o workflow
+- Temporal faz retry automático da activity
+- CircuitBreakerError sempre propaga (indica problema sistêmico)
+- Garante que tickets são sempre auditados antes de execução
+
+### Comportamento Fail-Open (Desenvolvimento)
+
+Quando `MONGODB_FAIL_OPEN_EXECUTION_TICKETS=true`:
+- Erros de persistência são logados mas não bloqueiam workflow
+- Métrica `mongodb_persistence_fail_open_total` é incrementada
+- Ticket já publicado no Kafka continua sendo processado
+- CircuitBreakerError ainda propaga (problema sistêmico não deve ser ignorado)
+
+### Configuração via Helm
+
+```yaml
+config:
+  mongodb:
+    persistence:
+      failOpenExecutionTickets: false  # prod/staging
+      failOpenValidationAudit: true
+      failOpenWorkflowResults: true
+```
+
+### Validação de Configuração
+
+O MongoDBClient valida configuração crítica no startup:
+- `mongodb_collection_tickets` deve estar definido
+- Erro se a configuração estiver vazia ou None
+
+Logs de inicialização indicam configuração carregada:
+```
+mongodb_client_initialized collection_tickets=execution_tickets fail_open_tickets=false
+```
+
+### Métricas de Persistência
+
+```promql
+# Taxa de erros de persistência
+rate(mongodb_persistence_errors_total{collection="execution_tickets"}[5m])
+
+# Ativações de fail-open (erros ignorados)
+rate(mongodb_persistence_fail_open_total{collection="execution_tickets"}[5m])
+
+# Validação de índices no startup
+mongodb_index_validation_total{collection="execution_tickets", status="validated"}
+```
+
+### Troubleshooting de Persistência
+
+**Tickets não persistidos (fail-closed)**
+```bash
+# Verificar logs de erro
+kubectl logs -n neural-hive-orchestration orchestrator-dynamic-xxx | grep "execution_ticket_persist_failed"
+
+# Verificar circuit breaker
+kubectl logs -n neural-hive-orchestration orchestrator-dynamic-xxx | grep "circuit_open"
+```
+
+**Verificar tickets no MongoDB**
+```bash
+# Conectar ao MongoDB
+kubectl exec -it mongodb-0 -n mongodb-cluster -- mongosh
+
+# Contar tickets
+use neural_hive_orchestration
+db.execution_tickets.countDocuments({})
+
+# Buscar tickets de um plan
+db.execution_tickets.find({plan_id: "plan-123"})
+
+# Verificar índices
+db.execution_tickets.getIndexes()
+```
+
+**Verificar métricas Prometheus**
+```bash
+curl http://orchestrator-dynamic:9090/metrics | grep mongodb_persistence
+```
+
+### Índices de Execution Tickets
+
+Índices criados automaticamente no startup:
+- `ticket_id_1` (único)
+- `plan_id_1`
+- `intent_id_1`
+- `decision_id_1`
+- `status_1`
+- `plan_id_1_created_at_-1` (composto)
+
+Validação de índices logada no startup:
+```
+indexes_validated collection=execution_tickets count=6
+```
+
 ## Testes de Persistência
 
 - Rodar unitários: `pytest services/orchestrator-dynamic/tests/test_mongodb_persistence.py`

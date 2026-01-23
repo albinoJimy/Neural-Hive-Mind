@@ -27,6 +27,8 @@ def mock_config():
         mongodb_database='test-db',
         mongodb_collection_tickets='execution_tickets',
         mongodb_collection_workflows='workflows',
+        MONGODB_FAIL_OPEN_EXECUTION_TICKETS=False,
+        CIRCUIT_BREAKER_ENABLED=False,
         retry_max_attempts=3,
         retry_initial_interval_ms=1,
         retry_backoff_coefficient=1,
@@ -226,7 +228,7 @@ async def test_save_execution_ticket_success(client):
 
 @pytest.mark.asyncio
 async def test_save_execution_ticket_records_error_metrics(client):
-    """Deve registrar métricas de erro em falhas de persistência."""
+    """Deve registrar métricas de erro em falhas de persistência (fail-closed)."""
     client.execution_tickets.insert_one.side_effect = PyMongoError('Test error')
 
     ticket = {
@@ -238,23 +240,26 @@ async def test_save_execution_ticket_records_error_metrics(client):
     with patch('src.clients.mongodb_client.get_metrics') as mock_metrics:
         mock_metrics_instance = types.SimpleNamespace(
             record_mongodb_persistence_duration=MagicMock(),
-            record_mongodb_persistence_error=MagicMock()
+            record_mongodb_persistence_error=MagicMock(),
+            record_mongodb_persistence_fail_open=MagicMock()
         )
         mock_metrics.return_value = mock_metrics_instance
 
-        with pytest.raises(PyMongoError):
+        # Fail-closed: erro é encapsulado em RuntimeError
+        with pytest.raises(RuntimeError, match='Falha crítica'):
             await client.save_execution_ticket(ticket)
 
+        # Após retries esgotados, tenacity encapsula em RetryError
         mock_metrics_instance.record_mongodb_persistence_error.assert_called_once_with(
             'execution_tickets',
             'insert',
-            'PyMongoError'
+            'RetryError'
         )
 
 
 @pytest.mark.asyncio
 async def test_save_execution_ticket_propagates_critical_errors(client):
-    """Erros críticos devem propagar exceção."""
+    """Erros críticos devem propagar exceção (encapsulada em RuntimeError)."""
     from pymongo.errors import ServerSelectionTimeoutError
     client.execution_tickets.insert_one.side_effect = ServerSelectionTimeoutError('MongoDB unreachable')
 
@@ -267,9 +272,11 @@ async def test_save_execution_ticket_propagates_critical_errors(client):
     with patch('src.clients.mongodb_client.get_metrics') as mock_metrics:
         mock_metrics_instance = types.SimpleNamespace(
             record_mongodb_persistence_duration=MagicMock(),
-            record_mongodb_persistence_error=MagicMock()
+            record_mongodb_persistence_error=MagicMock(),
+            record_mongodb_persistence_fail_open=MagicMock()
         )
         mock_metrics.return_value = mock_metrics_instance
 
-        with pytest.raises(ServerSelectionTimeoutError):
+        # Fail-closed: erro é encapsulado em RuntimeError
+        with pytest.raises(RuntimeError, match='Falha crítica'):
             await client.save_execution_ticket(ticket)

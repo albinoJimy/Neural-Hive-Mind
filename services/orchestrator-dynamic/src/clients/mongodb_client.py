@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 
 from pymongo.errors import DuplicateKeyError, PyMongoError
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, retry_if_exception
 import structlog
 
 from neural_hive_resilience.circuit_breaker import MonitoredCircuitBreaker, CircuitBreakerError
@@ -23,6 +23,42 @@ logger = structlog.get_logger()
 class MongoDBClient:
     """Cliente MongoDB para ledger de planos cognitivos e tickets de execução."""
 
+    # Índices esperados por coleção (usado em validate_indexes)
+    EXPECTED_INDEXES = {
+        'execution_tickets': [
+            'ticket_id_1',
+            'plan_id_1',
+            'intent_id_1',
+            'decision_id_1',
+            'status_1',
+            'plan_id_1_created_at_-1'
+        ],
+        'cognitive_ledger': [
+            'plan_id_1',
+            'intent_id_1',
+            'created_at_1',
+            'status_1_created_at_-1'
+        ],
+        'workflows': [
+            'workflow_id_1',
+            'plan_id_1',
+            'status_1'
+        ],
+        'validation_audit': [
+            'plan_id_1',
+            'workflow_id_1',
+            'timestamp_1',
+            'plan_id_1_timestamp_-1'
+        ],
+        'workflow_results': [
+            'workflow_id_1',
+            'plan_id_1',
+            'status_1',
+            'consolidated_at_1',
+            'status_1_consolidated_at_-1'
+        ]
+    }
+
     def __init__(self, config, uri_override: Optional[str] = None):
         """
         Inicializa o cliente MongoDB.
@@ -30,7 +66,18 @@ class MongoDBClient:
         Args:
             config: Configurações da aplicação
             uri_override: URI MongoDB alternativa (para integração Vault)
+
+        Raises:
+            ValueError: Se mongodb_collection_tickets não estiver configurado
         """
+        # Validar configuração crítica antes de prosseguir
+        collection_tickets = getattr(config, 'mongodb_collection_tickets', None)
+        if not collection_tickets:
+            raise ValueError(
+                'mongodb_collection_tickets não configurado. '
+                'Configure MONGODB_COLLECTION_TICKETS no ambiente ou Helm values.'
+            )
+
         self.config = config
         self.uri_override = uri_override
         self.client = None
@@ -46,6 +93,15 @@ class MongoDBClient:
         self.validation_audit_breaker = None
         self.workflow_results_breaker = None
         self.circuit_breaker_enabled = getattr(config, "CIRCUIT_BREAKER_ENABLED", False)
+
+        # Log configuração carregada
+        logger.info(
+            'mongodb_client_initialized',
+            collection_tickets=collection_tickets,
+            collection_workflows=getattr(config, 'mongodb_collection_workflows', 'workflows'),
+            fail_open_tickets=getattr(config, 'MONGODB_FAIL_OPEN_EXECUTION_TICKETS', False),
+            circuit_breaker_enabled=self.circuit_breaker_enabled
+        )
 
     async def initialize(self):
         """Inicializar cliente MongoDB e criar índices."""
@@ -125,9 +181,16 @@ class MongoDBClient:
         # Criar índices
         await self._create_indexes()
 
+        # Validar índices criados
+        await self.validate_indexes()
+
         # Verificar conectividade
         await self.client.admin.command('ping')
-        logger.info('MongoDB client inicializado')
+        logger.info(
+            'mongodb_client_ready',
+            database=self.config.mongodb_database,
+            collections_initialized=len(critical_collections)
+        )
 
     async def _create_indexes(self):
         """Criar índices necessários para performance e integridade."""
@@ -192,6 +255,48 @@ class MongoDBClient:
             )
             raise
 
+    async def validate_indexes(self) -> None:
+        """
+        Validar que índices críticos foram criados corretamente.
+
+        Não bloqueia startup, apenas loga warnings para índices faltantes.
+        """
+        metrics = get_metrics()
+
+        for collection_name, expected_indexes in self.EXPECTED_INDEXES.items():
+            try:
+                collection = self.db[collection_name]
+                indexes = await collection.list_indexes().to_list(length=None)
+                existing_names = {idx['name'] for idx in indexes}
+
+                # Remover índice _id_ da comparação (sempre existe)
+                existing_names.discard('_id_')
+
+                missing = set(expected_indexes) - existing_names
+                if missing:
+                    logger.warning(
+                        'indexes_missing',
+                        collection=collection_name,
+                        missing_indexes=list(missing),
+                        existing_indexes=list(existing_names)
+                    )
+                    metrics.record_mongodb_index_validation(collection_name, 'missing', len(missing))
+                else:
+                    logger.info(
+                        'indexes_validated',
+                        collection=collection_name,
+                        count=len(expected_indexes)
+                    )
+                    metrics.record_mongodb_index_validation(collection_name, 'validated', len(expected_indexes))
+
+            except Exception as e:
+                logger.error(
+                    'index_validation_failed',
+                    collection=collection_name,
+                    error=str(e)
+                )
+                metrics.record_mongodb_index_validation(collection_name, 'error', 0)
+
     async def _create_indexes_extended(self):
         """Criar índices adicionais para coleções de auditoria e telemetria."""
         await self.validation_audit.create_index('plan_id')
@@ -244,13 +349,14 @@ class MongoDBClient:
         Persiste um Execution Ticket no MongoDB para auditoria.
 
         Erros críticos (configuração, schema) propagam exceção.
-        Erros transitórios usam circuit breaker com retry.
+        Erros transitórios usam circuit breaker com retry automático.
 
         Args:
             ticket: Ticket de execução a ser salvo
 
         Raises:
             CircuitBreakerError: Se circuit breaker estiver aberto
+            RuntimeError: Para erros de persistência quando fail-open está desabilitado
             PyMongoError: Para erros de persistência não recuperáveis
         """
         metrics = get_metrics()
@@ -261,12 +367,20 @@ class MongoDBClient:
         ticket_id = ticket['ticket_id']
         plan_id = ticket.get('plan_id', 'unknown')
 
-        try:
+        # Função interna com retry para erros transitórios
+        # Exclui DuplicateKeyError do retry para permitir fallback para replace_one
+        retry_decorator = self._get_retry_decorator(exclude_duplicate_key=True)
+
+        @retry_decorator
+        async def _persist_with_retry():
             await self._execute_with_breaker(
                 self.execution_ticket_breaker,
                 self.execution_tickets.insert_one,
                 document
             )
+
+        try:
+            await _persist_with_retry()
 
             duration = (datetime.now() - start_time).total_seconds()
             metrics.record_mongodb_persistence_duration(
@@ -350,14 +464,32 @@ class MongoDBClient:
                 'insert',
                 error_type
             )
+
+            # Verificar política de fail-open
+            fail_open = getattr(self.config, 'MONGODB_FAIL_OPEN_EXECUTION_TICKETS', False)
+
             logger.error(
                 'execution_ticket_save_failed',
                 ticket_id=ticket_id,
                 plan_id=plan_id,
                 error=str(e),
-                error_type=error_type
+                error_type=error_type,
+                fail_open_enabled=fail_open
             )
-            raise
+
+            if fail_open:
+                # Fail-open: registrar métrica e continuar sem persistência
+                logger.warning(
+                    'execution_ticket_persist_fail_open_activated',
+                    ticket_id=ticket_id,
+                    plan_id=plan_id
+                )
+                metrics.record_mongodb_persistence_fail_open('execution_tickets')
+            else:
+                # Fail-closed: propagar erro para retry do Temporal
+                raise RuntimeError(
+                    f'Falha crítica na persistência do ticket {ticket_id}: {str(e)}'
+                )
 
     async def update_ticket_status(self, ticket_id: str, status: str, **kwargs):
         """
@@ -386,8 +518,20 @@ class MongoDBClient:
         """
         return await self.execution_tickets.find_one({'ticket_id': ticket_id})
 
-    def _get_retry_decorator(self):
-        """Retorna decorator de retry configurado conforme settings."""
+    def _get_retry_decorator(self, exclude_duplicate_key: bool = False):
+        """Retorna decorator de retry configurado conforme settings.
+
+        Args:
+            exclude_duplicate_key: Se True, não faz retry em DuplicateKeyError
+        """
+        if exclude_duplicate_key:
+            # Retry em PyMongoError EXCETO DuplicateKeyError
+            retry_condition = retry_if_exception(
+                lambda e: isinstance(e, PyMongoError) and not isinstance(e, DuplicateKeyError)
+            )
+        else:
+            retry_condition = retry_if_exception_type(PyMongoError)
+
         return retry(
             stop=stop_after_attempt(self.config.retry_max_attempts),
             wait=wait_exponential(
@@ -395,7 +539,7 @@ class MongoDBClient:
                 min=self.config.retry_initial_interval_ms / 1000,
                 max=self.config.retry_max_interval_ms / 1000
             ),
-            retry=retry_if_exception_type(PyMongoError)
+            retry=retry_condition
         )
 
     async def save_validation_audit(self, plan_id: str, validation_result: Dict[str, Any], workflow_id: str) -> None:

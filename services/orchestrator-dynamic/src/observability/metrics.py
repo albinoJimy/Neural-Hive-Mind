@@ -81,6 +81,18 @@ class OrchestratorMetrics:
             ['circuit_name']
         )
 
+        self.mongodb_index_validation = Counter(
+            'mongodb_index_validation_total',
+            'Validação de índices MongoDB',
+            ['collection', 'status']  # status: validated, missing, error
+        )
+
+        self.mongodb_persistence_fail_open = Counter(
+            'mongodb_persistence_fail_open_total',
+            'Ativações de fail-open de persistência MongoDB (erro ignorado)',
+            ['collection']
+        )
+
         # Métricas de Tickets
         self.tickets_generated_total = Counter(
             'orchestration_tickets_generated_total',
@@ -1652,6 +1664,37 @@ class OrchestratorMetrics:
         self.mongodb_circuit_breaker_state.labels(
             circuit_name=circuit_name
         ).set(state_map.get(state.lower(), 0))
+
+    def record_mongodb_index_validation(self, collection: str, status: str, count: int):
+        """
+        Registra resultado de validação de índices MongoDB.
+
+        Args:
+            collection: Nome da coleção
+            status: Status da validação (validated, missing, error)
+            count: Número de índices (validados ou faltantes)
+        """
+        self.mongodb_index_validation.labels(
+            collection=collection,
+            status=status
+        ).inc(count)
+
+    def record_mongodb_persistence_fail_open(self, collection: str):
+        """
+        Registra ativação de fail-open de persistência MongoDB.
+
+        Indica que um erro de persistência foi ignorado devido à política fail-open.
+
+        Args:
+            collection: Nome da coleção onde ocorreu o erro
+        """
+        self.mongodb_persistence_fail_open.labels(
+            collection=collection
+        ).inc()
+        logger.warning(
+            'mongodb_persistence_fail_open_metric_recorded',
+            collection=collection
+        )
 
 
 @lru_cache()
