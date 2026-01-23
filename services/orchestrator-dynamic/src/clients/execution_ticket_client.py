@@ -3,7 +3,6 @@ Execution Ticket Service client com suporte a autenticação JWT-SVID via SPIFFE
 """
 
 import sys
-from pathlib import Path
 from typing import Optional, Dict, List, Any, TYPE_CHECKING
 
 import grpc
@@ -23,17 +22,8 @@ else:
 if TYPE_CHECKING:
     from neural_hive_security import SPIFFEManager
 
-# Ajustar path para protos do execution-ticket-service
-PROTO_PATH = Path(__file__).resolve().parents[3] / 'execution-ticket-service' / 'src' / 'grpc_service'
-if str(PROTO_PATH) not in sys.path:
-    sys.path.insert(0, str(PROTO_PATH))
-
-try:
-    import ticket_service_pb2
-    import ticket_service_pb2_grpc
-except ImportError:
-    ticket_service_pb2 = None
-    ticket_service_pb2_grpc = None
+# Import compiled proto stubs from neural_hive_integration
+from neural_hive_integration.proto_stubs import ticket_service_pb2, ticket_service_pb2_grpc
 
 logger = structlog.get_logger(__name__)
 
@@ -75,10 +65,6 @@ class ExecutionTicketClient:
 
     async def initialize(self):
         """Inicializa canal gRPC e stub."""
-        if ticket_service_pb2 is None or ticket_service_pb2_grpc is None:
-            self.logger.error('execution_ticket_proto_not_found')
-            raise ImportError('ticket_service_pb2/_grpc not found in path')
-
         try:
             self.logger.info('initializing_execution_ticket_client', target=self.target)
             self.channel = instrument_grpc_channel(

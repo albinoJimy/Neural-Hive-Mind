@@ -1305,6 +1305,137 @@ curl -X POST http://orchestrator-dynamic:8000/api/v1/workflows/nhm-flow-c-corr-1
   -d '{"query_name": "get_tickets"}'
 ```
 
+### GET /api/v1/tickets/{ticket_id}
+
+Consulta um ticket de execução por ID.
+
+**Resposta de Sucesso (200):**
+```json
+{
+  "ticket_id": "ticket-uuid-123",
+  "plan_id": "plan-uuid-456",
+  "intent_id": "intent-uuid-789",
+  "task_id": "task-001",
+  "task_type": "BUILD",
+  "description": "Compilar aplicação",
+  "status": "COMPLETED",
+  "priority": 7,
+  "risk_band": "LOW",
+  "created_at": 1704067200000,
+  "started_at": 1704067205000,
+  "completed_at": 1704067250000,
+  "cached": false
+}
+```
+
+**Códigos de Status:**
+- `200`: Ticket encontrado
+- `404`: Ticket não encontrado
+- `503`: MongoDB não disponível
+- `500`: Erro interno
+
+**Caching:** Respostas são cacheadas no Redis (TTL: 5min).
+
+**Exemplo curl:**
+```bash
+curl http://orchestrator-dynamic:8000/api/v1/tickets/ticket-uuid-123
+```
+
+### GET /api/v1/tickets/by-plan/{plan_id}
+
+Lista todos os tickets de um plano cognitivo com suporte a filtros e paginação.
+
+**Parâmetros de Query:**
+| Parâmetro | Tipo | Default | Descrição |
+|-----------|------|---------|-----------|
+| `status` | string | - | Filtra por status (PENDING, RUNNING, COMPLETED, FAILED, REJECTED, COMPENSATING, COMPENSATED) |
+| `limit` | int | 100 | Máximo de resultados (max: 500) |
+| `offset` | int | 0 | Offset para paginação |
+
+**Resposta de Sucesso (200):**
+```json
+{
+  "tickets": [
+    {
+      "ticket_id": "ticket-1",
+      "plan_id": "plan-123",
+      "status": "COMPLETED",
+      "task_type": "BUILD",
+      "created_at": 1704067200000
+    },
+    {
+      "ticket_id": "ticket-2",
+      "plan_id": "plan-123",
+      "status": "RUNNING",
+      "task_type": "TEST",
+      "created_at": 1704067210000
+    }
+  ],
+  "total": 15,
+  "limit": 100,
+  "offset": 0,
+  "has_more": false,
+  "cached": false
+}
+```
+
+**Códigos de Status:**
+- `200`: Lista retornada (pode ser vazia)
+- `400`: Parâmetros inválidos (limit > 500, offset negativo, status inválido)
+- `503`: MongoDB não disponível
+- `500`: Erro interno
+
+**Caching:** Respostas são cacheadas no Redis (TTL: 2min) com chave baseada em filtros.
+
+**Exemplo curl:**
+```bash
+# Listar todos os tickets de um plano
+curl "http://orchestrator-dynamic:8000/api/v1/tickets/by-plan/plan-uuid-123"
+
+# Filtrar por status com paginação
+curl "http://orchestrator-dynamic:8000/api/v1/tickets/by-plan/plan-uuid-123?status=RUNNING&limit=50&offset=0"
+```
+
+### GET /api/v1/workflows/{workflow_id}
+
+Consulta o status de um workflow Temporal via describe.
+
+**Resposta de Sucesso (200):**
+```json
+{
+  "workflow_id": "nhm-flow-c-corr-123",
+  "status": "RUNNING",
+  "workflow_type": "OrchestrationWorkflow",
+  "task_queue": "orchestration-tasks",
+  "start_time": "2025-01-20T10:30:00Z",
+  "close_time": null,
+  "execution_time": null,
+  "cached": false
+}
+```
+
+**Status Possíveis:**
+- `RUNNING`: Workflow em execução
+- `COMPLETED`: Workflow finalizado com sucesso
+- `FAILED`: Workflow falhou
+- `CANCELED`: Workflow cancelado
+- `TERMINATED`: Workflow terminado externamente
+- `CONTINUED_AS_NEW`: Workflow continuado como nova execução
+- `TIMED_OUT`: Workflow expirou por timeout
+
+**Códigos de Status:**
+- `200`: Workflow encontrado
+- `404`: Workflow não encontrado
+- `503`: Temporal client não disponível (serviço em modo degradado)
+- `500`: Erro ao consultar workflow
+
+**Caching:** Respostas são cacheadas no Redis (TTL: 5min) para workflows em estados terminais.
+
+**Exemplo curl:**
+```bash
+curl http://orchestrator-dynamic:8000/api/v1/workflows/nhm-flow-c-corr-123
+```
+
 ## Schemas
 
 ### Execution Ticket (Avro)
