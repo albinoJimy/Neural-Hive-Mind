@@ -402,6 +402,14 @@ class TestPublishTicketToKafka:
         mock_kafka_producer.publish_ticket.assert_called_once()
         mock_mongodb_client.save_execution_ticket.assert_called_once()
 
+        # Verificar que o ticket foi publicado com status PENDING
+        published_ticket = mock_kafka_producer.publish_ticket.call_args[0][0]
+        assert published_ticket['status'] == 'PENDING', "Ticket deve ser publicado com status PENDING"
+
+        # Verificar que o ticket foi persistido com status PENDING
+        saved_ticket = mock_mongodb_client.save_execution_ticket.call_args[0][0]
+        assert saved_ticket['status'] == 'PENDING', "Ticket deve ser persistido com status PENDING"
+
     @pytest.mark.asyncio
     async def test_rejected_ticket_not_published(
         self, mock_activity_info, mock_kafka_producer, mock_mongodb_client
@@ -449,6 +457,10 @@ class TestPublishTicketToKafka:
 
         mock_mongodb_client.save_execution_ticket.assert_called_once()
 
+        # Verificar que o ticket persistido mantém status PENDING
+        saved_ticket = mock_mongodb_client.save_execution_ticket.call_args[0][0]
+        assert saved_ticket['status'] == 'PENDING'
+
     @pytest.mark.asyncio
     async def test_publish_raises_when_kafka_unavailable(self, mock_activity_info):
         """Publicação deve falhar quando Kafka producer não disponível."""
@@ -465,3 +477,32 @@ class TestPublishTicketToKafka:
 
         with pytest.raises(RuntimeError, match='Kafka producer'):
             await publish_ticket_to_kafka(ticket)
+
+    @pytest.mark.asyncio
+    async def test_publish_maintains_pending_status(
+        self, mock_activity_info, mock_kafka_producer, mock_mongodb_client
+    ):
+        """Ticket com status PENDING deve manter o status após publicação."""
+        ticket = {
+            'ticket_id': str(uuid.uuid4()),
+            'plan_id': 'plan-001',
+            'status': 'PENDING',
+            'allocation_metadata': {'agent_id': 'worker-001'}
+        }
+        set_activity_dependencies(
+            kafka_producer=mock_kafka_producer,
+            mongodb_client=mock_mongodb_client
+        )
+
+        result = await publish_ticket_to_kafka(ticket)
+
+        # Verificar que o status não foi alterado para RUNNING
+        assert result['ticket']['status'] == 'PENDING'
+
+        # Verificar que o ticket publicado no Kafka tem status PENDING
+        published_ticket = mock_kafka_producer.publish_ticket.call_args[0][0]
+        assert published_ticket['status'] == 'PENDING'
+
+        # Verificar que o ticket persistido no MongoDB tem status PENDING
+        saved_ticket = mock_mongodb_client.save_execution_ticket.call_args[0][0]
+        assert saved_ticket['status'] == 'PENDING'

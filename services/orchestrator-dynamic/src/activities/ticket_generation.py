@@ -483,9 +483,9 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
                     error=str(e)
                 )
 
-        # Atualizar status do ticket para RUNNING (se não for COMPLETED)
-        if ticket.get('status') != 'COMPLETED':
-            ticket['status'] = 'RUNNING'
+        # IMPORTANTE: O ticket deve ser publicado com status 'PENDING'.
+        # O Worker Agent é responsável por mudar o status para 'RUNNING' quando iniciar o processamento.
+        # Ref: services/worker-agents/src/engine/execution_engine.py linha 85
 
         # Publicar ticket no Kafka usando o producer real
         kafka_result = await _kafka_producer.publish_ticket(ticket)
