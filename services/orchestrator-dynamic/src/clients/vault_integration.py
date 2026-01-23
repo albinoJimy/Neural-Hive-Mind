@@ -91,6 +91,36 @@ class OrchestratorVaultClient:
         self._kafka_credentials: Optional[Dict[str, any]] = None
         self._kafka_credentials_expiry: Optional[datetime] = None
 
+        # Callbacks para notificar atualização de credenciais
+        self._mongodb_credential_update_callback = None
+        self._kafka_credential_update_callback = None
+
+    def set_mongodb_credential_callback(self, callback):
+        """
+        Registra callback para atualização de credenciais MongoDB.
+
+        O callback será chamado quando novas credenciais forem obtidas do Vault,
+        permitindo a recriação do cliente/pool MongoDB.
+
+        Args:
+            callback: Async callable que recebe Dict com username, password, ttl
+        """
+        self._mongodb_credential_update_callback = callback
+        self.logger.info("mongodb_credential_callback_registered")
+
+    def set_kafka_credential_callback(self, callback):
+        """
+        Registra callback para atualização de credenciais Kafka.
+
+        O callback será chamado quando novas credenciais forem obtidas do Vault,
+        permitindo a recriação do producer Kafka.
+
+        Args:
+            callback: Async callable que recebe Dict com username, password, ttl
+        """
+        self._kafka_credential_update_callback = callback
+        self.logger.info("kafka_credential_callback_registered")
+
     async def initialize(self):
         """Inicializa clientes Vault e SPIFFE"""
         self.logger.info("initializing_vault_integration")
@@ -568,13 +598,24 @@ class OrchestratorVaultClient:
             )
             vault_renewal_task_runs_total.labels(status="success").inc()
 
-            # NOTA: Atualização de connection pool do MongoDB requer
-            # recreação do MongoDBClient. Isso deve ser coordenado
-            # com o app_state no main.py.
-            self.logger.warning(
-                "mongodb_credentials_renewed_connection_pool_update_required",
-                note="MongoDB connection pool precisa ser atualizado com novas credenciais"
-            )
+            # Notificar callback para atualização do cliente MongoDB
+            if self._mongodb_credential_update_callback:
+                try:
+                    await self._mongodb_credential_update_callback(new_creds)
+                    self.logger.info(
+                        "mongodb_credentials_callback_executed",
+                        note="MongoDB client atualizado via callback"
+                    )
+                except Exception as cb_error:
+                    self.logger.error(
+                        "mongodb_credentials_callback_failed",
+                        error=str(cb_error)
+                    )
+            else:
+                self.logger.warning(
+                    "mongodb_credentials_renewed_no_callback",
+                    note="Nenhum callback registrado para atualização do MongoDB client"
+                )
 
         except Exception as e:
             self.logger.error("mongodb_credentials_renewal_failed", error=str(e))
@@ -628,11 +669,28 @@ class OrchestratorVaultClient:
                 )
                 vault_renewal_task_runs_total.labels(status="success").inc()
 
-                # NOTA: Kafka producer precisa ser recriado com novas credenciais
-                self.logger.warning(
-                    "kafka_credentials_renewed_producer_update_required",
-                    note="Kafka producer precisa ser recriado com novas credenciais"
-                )
+                # Notificar callback para atualização do producer Kafka
+                if self._kafka_credential_update_callback:
+                    try:
+                        await self._kafka_credential_update_callback({
+                            "username": secret.get("username"),
+                            "password": secret.get("password"),
+                            "ttl": ttl
+                        })
+                        self.logger.info(
+                            "kafka_credentials_callback_executed",
+                            note="Kafka producer atualizado via callback"
+                        )
+                    except Exception as cb_error:
+                        self.logger.error(
+                            "kafka_credentials_callback_failed",
+                            error=str(cb_error)
+                        )
+                else:
+                    self.logger.warning(
+                        "kafka_credentials_renewed_no_callback",
+                        note="Nenhum callback registrado para atualização do Kafka producer"
+                    )
 
         except Exception as e:
             self.logger.error("kafka_credentials_renewal_failed", error=str(e))

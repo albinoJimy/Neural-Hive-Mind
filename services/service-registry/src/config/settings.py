@@ -169,23 +169,42 @@ class Settings(BaseSettings):
         """
         Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
         Endpoints verificados: OTEL Collector, Vault.
+
+        Excecao: Endpoints internos do cluster Kubernetes (.svc.cluster.local)
+        sao permitidos usar HTTP em producao, pois o trafego ja esta protegido
+        pela rede interna do cluster e/ou service mesh (Istio mTLS).
         """
         is_prod_staging = self.ENVIRONMENT.lower() in ('production', 'staging', 'prod')
         if not is_prod_staging:
             return self
 
+        def is_internal_cluster_endpoint(url: str) -> bool:
+            """Verifica se URL e um endpoint interno do cluster Kubernetes."""
+            internal_suffixes = (
+                '.svc.cluster.local',
+                '.svc.cluster',
+                '.svc',
+            )
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            hostname = parsed.hostname or ''
+            return any(hostname.endswith(suffix) for suffix in internal_suffixes)
+
         # Endpoints criticos que devem usar HTTPS em producao
         http_endpoints = []
         if self.OTEL_EXPORTER_ENDPOINT.startswith('http://'):
-            http_endpoints.append(('OTEL_EXPORTER_ENDPOINT', self.OTEL_EXPORTER_ENDPOINT))
+            if not is_internal_cluster_endpoint(self.OTEL_EXPORTER_ENDPOINT):
+                http_endpoints.append(('OTEL_EXPORTER_ENDPOINT', self.OTEL_EXPORTER_ENDPOINT))
         if self.VAULT_ENABLED and self.VAULT_ADDRESS.startswith('http://'):
-            http_endpoints.append(('VAULT_ADDRESS', self.VAULT_ADDRESS))
+            if not is_internal_cluster_endpoint(self.VAULT_ADDRESS):
+                http_endpoints.append(('VAULT_ADDRESS', self.VAULT_ADDRESS))
 
         if http_endpoints:
             endpoint_list = ', '.join(f'{name}={url}' for name, url in http_endpoints)
             raise ValueError(
                 f"Endpoints HTTP inseguros detectados em ambiente {self.ENVIRONMENT}: {endpoint_list}. "
-                "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+                "Use HTTPS em producao/staging para garantir seguranca de dados em transito. "
+                "Endpoints internos do cluster (.svc.cluster.local) sao permitidos usar HTTP."
             )
 
         return self

@@ -50,6 +50,51 @@ except ImportError:
 logger = structlog.get_logger()
 
 
+def _build_mongodb_uri_with_credentials(base_uri: str, username: str, password: str) -> str:
+    """
+    Constrói uma URI MongoDB com credenciais dinâmicas.
+
+    Suporta URIs no formato:
+    - mongodb://host:port/database
+    - mongodb://existing_user:pass@host:port/database
+    - mongodb+srv://host/database
+
+    Args:
+        base_uri: URI base do MongoDB (pode ou não ter credenciais)
+        username: Usuário dinâmico do Vault
+        password: Senha dinâmica do Vault
+
+    Returns:
+        URI com credenciais atualizadas
+    """
+    from urllib.parse import urlparse, urlunparse, quote_plus
+
+    parsed = urlparse(base_uri)
+
+    # Escapar caracteres especiais em credenciais
+    safe_username = quote_plus(username)
+    safe_password = quote_plus(password)
+
+    # Construir netloc com novas credenciais
+    host_part = parsed.hostname
+    if parsed.port:
+        host_part = f'{host_part}:{parsed.port}'
+
+    new_netloc = f'{safe_username}:{safe_password}@{host_part}'
+
+    # Reconstruir URI
+    new_uri = urlunparse((
+        parsed.scheme,
+        new_netloc,
+        parsed.path,
+        parsed.params,
+        parsed.query,
+        parsed.fragment
+    ))
+
+    return new_uri
+
+
 class AppState:
     """Gerencia estado global da aplicação."""
 
@@ -184,6 +229,7 @@ async def lifespan(app: FastAPI):
 
         # Buscar segredos/credenciais com fallback para configuração
         mongodb_uri = config.mongodb_uri
+        mongodb_credentials = None
         redis_password = config.redis_password
         kafka_username = config.kafka_sasl_username
         kafka_password = config.kafka_sasl_password
@@ -192,10 +238,21 @@ async def lifespan(app: FastAPI):
 
         if vault_client:
             try:
-                mongodb_uri = await vault_client.get_mongodb_uri()
+                # Usar credenciais dinâmicas em vez de URI estática
+                mongodb_credentials = await vault_client.get_mongodb_credentials()
+                if mongodb_credentials.get('username') and mongodb_credentials.get('password'):
+                    mongodb_uri = _build_mongodb_uri_with_credentials(
+                        config.mongodb_uri,
+                        mongodb_credentials['username'],
+                        mongodb_credentials['password']
+                    )
+                    logger.info(
+                        'Credenciais MongoDB dinâmicas obtidas do Vault',
+                        ttl=mongodb_credentials.get('ttl', 0)
+                    )
             except Exception as mongo_vault_error:
                 logger.warning(
-                    'Falha ao buscar MongoDB URI do Vault, usando configuração',
+                    'Falha ao buscar credenciais MongoDB do Vault, usando configuração',
                     error=str(mongo_vault_error)
                 )
 
@@ -240,6 +297,37 @@ async def lifespan(app: FastAPI):
             app_state.mongodb_client = MongoDBClient(config, uri_override=mongodb_uri)
             await app_state.mongodb_client.initialize()
             logger.info('MongoDB conectado com sucesso')
+
+            # Registrar callback para rotação de credenciais MongoDB
+            if vault_client and mongodb_credentials and mongodb_credentials.get('ttl', 0) > 0:
+                async def _mongodb_credential_update_callback(new_creds: Dict[str, Any]):
+                    """Callback para recriar cliente MongoDB com novas credenciais."""
+                    try:
+                        new_uri = _build_mongodb_uri_with_credentials(
+                            config.mongodb_uri,
+                            new_creds['username'],
+                            new_creds['password']
+                        )
+                        # Fechar cliente antigo
+                        if app_state.mongodb_client:
+                            await app_state.mongodb_client.close()
+                        # Criar novo cliente com credenciais atualizadas
+                        app_state.mongodb_client = MongoDBClient(config, uri_override=new_uri)
+                        await app_state.mongodb_client.initialize()
+                        logger.info(
+                            'MongoDB client recriado com novas credenciais',
+                            ttl=new_creds.get('ttl', 0)
+                        )
+                    except Exception as e:
+                        logger.error(
+                            'Falha ao recriar MongoDB client com novas credenciais',
+                            error=str(e)
+                        )
+                        raise
+
+                vault_client.set_mongodb_credential_callback(_mongodb_credential_update_callback)
+                logger.info('Callback de rotação de credenciais MongoDB registrado')
+
         except Exception as mongo_error:
             logger.warning(
                 'Falha ao conectar ao MongoDB, continuando em modo degradado',

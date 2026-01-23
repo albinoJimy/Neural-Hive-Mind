@@ -66,6 +66,8 @@ class ServiceRegistryServer:
         self.spiffe_manager = None
         self.auth_interceptor = None
         self.vault_client = None
+        self.health_servicer = None
+        self._vault_health_task = None
         self._shutdown_event = asyncio.Event()
 
     async def _create_server_credentials(self):
@@ -263,9 +265,12 @@ class ServiceRegistryServer:
         )
 
         # Registrar health check
-        health_servicer = health.HealthServicer()
-        health_pb2_grpc.add_HealthServicer_to_server(health_servicer, self.server)
-        health_servicer.set("", health_pb2.HealthCheckResponse.SERVING)
+        self.health_servicer = health.HealthServicer()
+        health_pb2_grpc.add_HealthServicer_to_server(self.health_servicer, self.server)
+        self.health_servicer.set("", health_pb2.HealthCheckResponse.SERVING)
+
+        # Configurar health checks de dependências (incluindo Vault)
+        await self._update_health_status()
 
         # Criar credenciais de servidor para mTLS (se habilitado)
         server_credentials = await self._create_server_credentials()
@@ -301,6 +306,67 @@ class ServiceRegistryServer:
             mtls_enabled=server_credentials is not None
         )
 
+    async def _update_health_status(self):
+        """
+        Atualiza status de health baseado nas dependências críticas.
+
+        Verifica:
+        - Vault (se habilitado e VAULT_FAIL_OPEN=false)
+        """
+        if not self.health_servicer:
+            return
+
+        # Se Vault está habilitado e fail_open=false, verificar saúde
+        if self.settings.VAULT_ENABLED and not self.settings.VAULT_FAIL_OPEN:
+            if self.vault_client:
+                try:
+                    vault_healthy = await self.vault_client.health_check()
+                    if vault_healthy:
+                        self.health_servicer.set("", health_pb2.HealthCheckResponse.SERVING)
+                        logger.debug("vault_health_check_passed")
+                    else:
+                        self.health_servicer.set("", health_pb2.HealthCheckResponse.NOT_SERVING)
+                        logger.warning(
+                            "vault_health_check_failed_setting_not_serving",
+                            reason="Vault health check returned false"
+                        )
+                except Exception as e:
+                    self.health_servicer.set("", health_pb2.HealthCheckResponse.NOT_SERVING)
+                    logger.error(
+                        "vault_health_check_exception_setting_not_serving",
+                        error=str(e)
+                    )
+            else:
+                # Vault habilitado mas client não inicializado
+                self.health_servicer.set("", health_pb2.HealthCheckResponse.NOT_SERVING)
+                logger.warning(
+                    "vault_client_not_initialized_setting_not_serving",
+                    reason="Vault enabled but client not initialized"
+                )
+        else:
+            # Vault desabilitado ou fail_open=true
+            self.health_servicer.set("", health_pb2.HealthCheckResponse.SERVING)
+
+    async def _vault_health_check_loop(self):
+        """
+        Background task para monitorar saúde do Vault periodicamente.
+
+        Atualiza o status de health do gRPC baseado na disponibilidade do Vault.
+        """
+        check_interval = 30  # segundos
+        logger.info("starting_vault_health_check_loop", interval_seconds=check_interval)
+
+        while True:
+            try:
+                await asyncio.sleep(check_interval)
+                await self._update_health_status()
+            except asyncio.CancelledError:
+                logger.info("vault_health_check_loop_cancelled")
+                break
+            except Exception as e:
+                logger.error("vault_health_check_loop_error", error=str(e))
+                # Continuar mesmo em caso de erro
+
     async def start(self):
         """Inicia o servidor"""
         logger.info("starting_service_registry")
@@ -314,6 +380,11 @@ class ServiceRegistryServer:
         # Iniciar health check manager
         await self.health_check_manager.start()
 
+        # Iniciar task de monitoramento de Vault health
+        if self.settings.VAULT_ENABLED and not self.settings.VAULT_FAIL_OPEN:
+            self._vault_health_task = asyncio.create_task(self._vault_health_check_loop())
+            logger.info("vault_health_monitoring_started")
+
         logger.info(
             "service_registry_started",
             grpc_port=self.settings.GRPC_PORT,
@@ -326,6 +397,15 @@ class ServiceRegistryServer:
     async def stop(self):
         """Para o servidor gracefully"""
         logger.info("stopping_service_registry")
+
+        # Parar task de monitoramento de Vault health
+        if self._vault_health_task:
+            self._vault_health_task.cancel()
+            try:
+                await self._vault_health_task
+            except asyncio.CancelledError:
+                pass
+            logger.info("vault_health_monitoring_stopped")
 
         # Parar health check manager
         if self.health_check_manager:

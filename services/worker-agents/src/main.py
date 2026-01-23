@@ -185,6 +185,7 @@ async def startup():
         # Get Kafka credentials from Vault se habilitado
         kafka_username = None
         kafka_password = None
+        kafka_creds = None
         if vault_client:
             logger.info('Buscando credenciais Kafka do Vault')
             kafka_creds = await vault_client.get_kafka_credentials()
@@ -200,6 +201,46 @@ async def startup():
         await result_producer.initialize()
         result_producer = instrument_kafka_producer(result_producer)
         app_state['result_producer'] = result_producer
+
+        # Registrar callback para rotação de credenciais Kafka
+        if vault_client and kafka_creds and kafka_creds.get('ttl', 0) > 0:
+            async def _kafka_credential_update_callback(new_creds):
+                """Callback para recriar KafkaResultProducer com novas credenciais."""
+                try:
+                    logger.info(
+                        'Recriando KafkaResultProducer com novas credenciais',
+                        ttl=new_creds.get('ttl', 0)
+                    )
+                    # Parar producer antigo
+                    old_producer = app_state.get('result_producer')
+                    if old_producer:
+                        await old_producer.stop()
+
+                    # Criar novo producer com credenciais atualizadas
+                    new_producer = KafkaResultProducer(
+                        config,
+                        sasl_username_override=new_creds.get('username'),
+                        sasl_password_override=new_creds.get('password'),
+                        metrics=metrics
+                    )
+                    await new_producer.initialize()
+                    new_producer = instrument_kafka_producer(new_producer)
+                    app_state['result_producer'] = new_producer
+
+                    # Atualizar referência no execution engine
+                    if 'execution_engine' in app_state:
+                        app_state['execution_engine'].result_producer = new_producer
+
+                    logger.info('KafkaResultProducer recriado com sucesso')
+                except Exception as e:
+                    logger.error(
+                        'Falha ao recriar KafkaResultProducer',
+                        error=str(e)
+                    )
+                    raise
+
+            vault_client.set_kafka_credential_callback(_kafka_credential_update_callback)
+            logger.info('Callback de rotação de credenciais Kafka registrado')
 
         # Inicializar GitHub Actions client se habilitado
         github_actions_client = None
