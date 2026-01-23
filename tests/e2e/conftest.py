@@ -30,6 +30,7 @@ _fixture_modules = [
     "tests.e2e.fixtures.schema_registry",
     "tests.e2e.fixtures.avro_helpers",
     "tests.e2e.fixtures.specialists",
+    "tests.e2e.fixtures.circuit_breakers",
 ]
 
 for module in _fixture_modules:
