@@ -257,6 +257,14 @@ class WorkerAgentSettings(BaseSettings):
         description='Cadeia de fallback entre runtimes'
     )
 
+    # Redis (para deduplicação de tickets)
+    redis_url: Optional[str] = Field(default=None, description='URL completa do Redis (se fornecida, ignora host/port)')
+    redis_host: str = Field(default='redis.neural-hive-cache.svc.cluster.local', description='Host do Redis')
+    redis_port: int = Field(default=6379, description='Porta do Redis')
+    redis_password: Optional[str] = Field(default=None, description='Senha do Redis')
+    redis_ssl_enabled: bool = Field(default=False, description='Habilitar SSL para conexão Redis')
+    redis_enabled: bool = Field(default=True, description='Habilitar deduplicação via Redis (fail-open se indisponível)')
+
     def get_metadata(self) -> Dict[str, str]:
         '''Retorna metadata para registro no Service Registry'''
         metadata = {

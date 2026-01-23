@@ -2034,6 +2034,259 @@
       "title": "Erro de Predição de Duração (MAE %)",
       "type": "gauge",
       "description": "Mean Absolute Error percentual do modelo de predição de duração"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 130},
+      "id": 50,
+      "panels": [],
+      "title": "Compensação Automática (Saga Pattern)",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "Compensações/min",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "ops"
+        }
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 131},
+      "id": 51,
+      "options": {
+        "legend": {
+          "calcs": ["sum", "mean"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(orchestration_compensations_triggered_total[5m])) by (reason) * 60",
+          "legendFormat": "{{reason}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Compensações Acionadas por Motivo",
+      "type": "timeseries",
+      "description": "Taxa de compensações acionadas por minuto, agrupadas por motivo"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 70},
+              {"color": "green", "value": 90}
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 131},
+      "id": 52,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "(sum(rate(orchestration_compensations_executed_total{status=\"success\"}[30m])) / sum(rate(orchestration_compensations_executed_total[30m]))) * 100",
+          "refId": "A"
+        }
+      ],
+      "title": "Taxa de Sucesso de Compensação",
+      "type": "gauge",
+      "description": "Percentual de compensações executadas com sucesso nos últimos 30 minutos"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "Duração (s)",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 131},
+      "id": 53,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "p95", "max"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(orchestration_compensation_duration_seconds_bucket[5m]))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(orchestration_compensation_duration_seconds_bucket[5m]))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(orchestration_compensation_duration_seconds_bucket[5m]))",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ],
+      "title": "Duração de Compensação (Percentis)",
+      "type": "timeseries",
+      "description": "Distribuição de duração das compensações (p50, p95, p99)"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "Compensações",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "stacking": {"mode": "normal"}
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 139},
+      "id": 54,
+      "options": {
+        "legend": {
+          "calcs": ["sum"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(orchestration_compensations_executed_total{status=\"success\"}[5m])) by (action)",
+          "legendFormat": "{{action}} (success)",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(increase(orchestration_compensations_executed_total{status=\"failed\"}[5m])) by (action)",
+          "legendFormat": "{{action}} (failed)",
+          "refId": "B"
+        }
+      ],
+      "title": "Compensações por Tipo de Ação",
+      "type": "timeseries",
+      "description": "Breakdown de compensações por ação (delete_artifacts, rollback_deployment, etc.)"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 5},
+              {"color": "red", "value": 10}
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 139},
+      "id": 55,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "sum(increase(orchestration_compensations_triggered_total[1h]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Compensações (1h)",
+      "type": "stat",
+      "description": "Total de compensações acionadas na última hora"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 1}
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 139},
+      "id": 56,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "sum(increase(orchestration_compensations_executed_total{status=\"failed\"}[1h]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Compensações Falhadas (1h)",
+      "type": "stat",
+      "description": "Total de compensações que falharam na última hora"
     }
   ],
   "refresh": "10s",

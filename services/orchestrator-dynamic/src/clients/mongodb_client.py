@@ -506,6 +506,54 @@ class MongoDBClient:
             {'$set': update_fields}
         )
 
+    async def update_ticket_compensation(
+        self,
+        ticket_id: str,
+        compensation_ticket_id: str,
+        status: str = 'COMPENSATING'
+    ):
+        """
+        Atualiza ticket original com referencia ao ticket de compensacao.
+
+        Args:
+            ticket_id: ID do ticket original
+            compensation_ticket_id: ID do ticket de compensacao criado
+            status: Novo status do ticket (default: COMPENSATING)
+        """
+        try:
+            await self.execution_tickets.update_one(
+                {'ticket_id': ticket_id},
+                {
+                    '$set': {
+                        'compensation_ticket_id': compensation_ticket_id,
+                        'status': status,
+                        'compensation_triggered_at': datetime.now().isoformat()
+                    }
+                }
+            )
+            logger.info(
+                'ticket_compensation_updated',
+                ticket_id=ticket_id,
+                compensation_ticket_id=compensation_ticket_id,
+                status=status
+            )
+        except PyMongoError as e:
+            logger.warning(
+                'ticket_compensation_update_failed',
+                ticket_id=ticket_id,
+                error=str(e)
+            )
+            # Fail-open: nao propagar erro
+
+    async def save_ticket(self, ticket: Dict[str, Any]):
+        """
+        Salva ticket no MongoDB (alias para save_execution_ticket).
+
+        Args:
+            ticket: Dados do ticket
+        """
+        await self.save_execution_ticket(ticket)
+
     async def get_ticket(self, ticket_id: str) -> Optional[Dict[str, Any]]:
         """
         Busca um ticket por ID.

@@ -19,13 +19,15 @@ from .clients import (
     KafkaResultProducer
 )
 from .engine import ExecutionEngine, DependencyCoordinator
+from .clients.redis_client import get_redis_client, close_redis_client
 from .executors import (
     TaskExecutorRegistry,
     BuildExecutor,
     DeployExecutor,
     TestExecutor,
     ValidateExecutor,
-    ExecuteExecutor
+    ExecuteExecutor,
+    CompensateExecutor
 )
 from .api import create_http_server
 from .observability import init_metrics
@@ -235,6 +237,23 @@ async def startup():
             except Exception as e:
                 logger.warning('jenkins_client_init_failed', error=str(e))
 
+        # Inicializar Redis Client para deduplicação de tickets (fail-open)
+        redis_client = None
+        try:
+            logger.info('Inicializando Redis Client para deduplicação de tickets')
+            redis_client = await get_redis_client(config)
+            if redis_client:
+                app_state['redis_client'] = redis_client
+                logger.info('Redis Client inicializado com sucesso')
+            else:
+                logger.warning('Redis Client retornou None - operando sem deduplicação')
+        except Exception as redis_error:
+            logger.warning(
+                'Falha ao inicializar Redis Client, continuando sem deduplicação',
+                error=str(redis_error)
+            )
+            redis_client = None
+
         # Criar componentes de execução
         dependency_coordinator = DependencyCoordinator(config, ticket_client, metrics=metrics)
         app_state['dependency_coordinator'] = dependency_coordinator
@@ -360,6 +379,15 @@ async def startup():
             lambda_client=lambda_client,
             local_client=local_client
         ))
+        executor_registry.register_executor(CompensateExecutor(
+            config,
+            vault_client=vault_client,
+            code_forge_client=code_forge_client,
+            metrics=metrics,
+            argocd_client=argocd_client,
+            flux_client=flux_client,
+            k8s_jobs_client=k8s_jobs_client
+        ))
         executor_registry.validate_configuration()
         app_state['executor_registry'] = executor_registry
 
@@ -370,6 +398,7 @@ async def startup():
             result_producer,
             dependency_coordinator,
             executor_registry,
+            redis_client=redis_client,
             metrics=metrics
         )
         app_state['execution_engine'] = execution_engine
@@ -487,6 +516,15 @@ async def shutdown():
 
         if 'local_client' in app_state and app_state['local_client']:
             await app_state['local_client'].close()
+
+        # Fechar Redis client
+        if 'redis_client' in app_state and app_state['redis_client']:
+            try:
+                logger.info('Fechando Redis Client')
+                await close_redis_client()
+                logger.info('Redis Client fechado com sucesso')
+            except Exception as redis_close_error:
+                logger.warning('Erro ao fechar Redis Client', error=str(redis_close_error))
 
         logger.info('worker_agent_shutdown_complete')
 

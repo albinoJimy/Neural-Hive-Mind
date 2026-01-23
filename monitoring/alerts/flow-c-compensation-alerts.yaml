@@ -1,0 +1,138 @@
+# Alertas para Compensacao Automatica (Saga Pattern) - Fluxo C
+# Monitora compensacoes acionadas, taxas de falha e latencia
+
+groups:
+  - name: flow_c_compensation
+    interval: 30s
+    rules:
+      # Alerta quando compensacao e acionada
+      - alert: FlowCCompensationTriggered
+        expr: increase(orchestration_compensations_triggered_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+          domain: flow-c
+        annotations:
+          summary: "Compensacao acionada no Fluxo C"
+          description: "{{ $value }} compensacoes foram acionadas nos ultimos 5 minutos. Reason: {{ $labels.reason }}"
+          runbook_url: "https://docs.neural-hive.local/runbooks/compensation-triggered"
+
+      # Alta taxa de falha em compensacoes
+      - alert: FlowCCompensationHighFailureRate
+        expr: |
+          (
+            sum(rate(orchestration_compensations_executed_total{status="failed"}[5m]))
+            /
+            sum(rate(orchestration_compensations_executed_total[5m]))
+          ) > 0.2
+        for: 5m
+        labels:
+          severity: critical
+          component: orchestrator-dynamic
+          layer: orchestration
+          domain: flow-c
+        annotations:
+          summary: "Alta taxa de falha em compensacoes"
+          description: "{{ $value | humanizePercentage }} das compensacoes estao falhando nos ultimos 5 minutos"
+          runbook_url: "https://docs.neural-hive.local/runbooks/compensation-failures"
+
+      # Compensacoes lentas (P95 > 60s)
+      - alert: FlowCCompensationSlow
+        expr: |
+          histogram_quantile(0.95,
+            rate(orchestration_compensation_duration_seconds_bucket[5m])
+          ) > 60
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+          domain: flow-c
+        annotations:
+          summary: "Compensacoes lentas detectadas"
+          description: "P95 de duracao de compensacao e {{ $value | humanizeDuration }} (threshold: 60s)"
+          runbook_url: "https://docs.neural-hive.local/runbooks/compensation-slow"
+
+      # Volume alto de compensacoes (indicativo de instabilidade)
+      - alert: FlowCCompensationVolumeHigh
+        expr: |
+          sum(rate(orchestration_compensations_triggered_total[15m])) * 60 > 10
+        for: 10m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+          domain: flow-c
+        annotations:
+          summary: "Volume alto de compensacoes"
+          description: "Mais de 10 compensacoes/minuto nos ultimos 15 minutos - possivel instabilidade no sistema"
+          runbook_url: "https://docs.neural-hive.local/runbooks/compensation-volume-high"
+
+      # Compensacao de rollback de deploy falhou
+      - alert: FlowCCompensationDeployRollbackFailed
+        expr: |
+          increase(orchestration_compensations_executed_total{status="failed", action="rollback_deployment"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: worker-agents
+          layer: execution
+          domain: flow-c
+        annotations:
+          summary: "Rollback de deploy falhou durante compensacao"
+          description: "Falha ao executar rollback de deployment. Intervencao manual pode ser necessaria."
+          runbook_url: "https://docs.neural-hive.local/runbooks/compensation-deploy-rollback-failed"
+
+      # Compensacao de cleanup de teste falhou
+      - alert: FlowCCompensationTestCleanupFailed
+        expr: |
+          increase(orchestration_compensations_executed_total{status="failed", action="cleanup_test_env"}[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+          component: worker-agents
+          layer: execution
+          domain: flow-c
+        annotations:
+          summary: "Cleanup de ambiente de teste falhou"
+          description: "Falha ao limpar ambiente de teste durante compensacao. Recursos podem estar vazando."
+          runbook_url: "https://docs.neural-hive.local/runbooks/compensation-test-cleanup-failed"
+
+      # Taxa de sucesso de compensacao muito baixa
+      - alert: FlowCCompensationSuccessRateLow
+        expr: |
+          (
+            sum(rate(orchestration_compensations_executed_total{status="success"}[30m]))
+            /
+            sum(rate(orchestration_compensations_executed_total[30m]))
+          ) < 0.8
+        for: 15m
+        labels:
+          severity: critical
+          component: orchestrator-dynamic
+          layer: orchestration
+          domain: flow-c
+        annotations:
+          summary: "Taxa de sucesso de compensacao baixa"
+          description: "Apenas {{ $value | humanizePercentage }} das compensacoes estao tendo sucesso nos ultimos 30 minutos"
+          runbook_url: "https://docs.neural-hive.local/runbooks/compensation-success-rate-low"
+
+      # Compensacoes pendentes (nao processadas)
+      - alert: FlowCCompensationBacklog
+        expr: |
+          sum(increase(orchestration_compensations_triggered_total[5m]))
+          -
+          sum(increase(orchestration_compensations_executed_total[5m]))
+          > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          layer: orchestration
+          domain: flow-c
+        annotations:
+          summary: "Backlog de compensacoes crescendo"
+          description: "{{ $value }} compensacoes estao pendentes de processamento"
+          runbook_url: "https://docs.neural-hive.local/runbooks/compensation-backlog"

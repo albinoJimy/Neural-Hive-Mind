@@ -26,6 +26,11 @@ with workflow.unsafe.imports_passed_through():
         publish_telemetry,
         buffer_telemetry
     )
+    from src.activities.compensation import (
+        compensate_ticket,
+        build_compensation_order,
+        update_ticket_compensation_status
+    )
     from src.activities.sla_monitoring import check_workflow_sla_proactive
     from src.config.settings import get_settings
     from neural_hive_observability import get_tracer, trace_plan
@@ -284,9 +289,71 @@ class OrchestrationWorkflow:
 
                 self._workflow_result = workflow_result
 
-                # Se resultado inconsistente, acionar autocura
+                # Se resultado inconsistente, acionar compensacao (Saga Pattern) e autocura
                 if not workflow_result.get('consistent', True):
-                    workflow.logger.warning('Resultado inconsistente detectado, acionando autocura')
+                    workflow.logger.warning('Resultado inconsistente detectado, acionando compensacao')
+
+                    # Identificar tickets que falharam
+                    failed_tickets = [
+                        t for t in published_tickets
+                        if t.get('ticket', {}).get('status') == 'FAILED'
+                    ]
+
+                    compensation_results = []
+                    if failed_tickets:
+                        # Ordenacao topologica reversa para compensacao
+                        # Compensar na ordem inversa de execucao
+                        try:
+                            tickets_to_compensate = await workflow.execute_activity(
+                                build_compensation_order,
+                                args=[failed_tickets, published_tickets],
+                                start_to_close_timeout=timedelta(seconds=10)
+                            )
+
+                            # Executar compensacao para cada ticket
+                            for ticket_to_compensate in tickets_to_compensate:
+                                try:
+                                    compensation_ticket_id = await workflow.execute_activity(
+                                        compensate_ticket,
+                                        args=[ticket_to_compensate, 'workflow_inconsistent'],
+                                        start_to_close_timeout=timedelta(seconds=30),
+                                        retry_policy=RetryPolicy(
+                                            maximum_attempts=3,
+                                            initial_interval=timedelta(seconds=2)
+                                        )
+                                    )
+
+                                    # Atualizar ticket original com referencia
+                                    await workflow.execute_activity(
+                                        update_ticket_compensation_status,
+                                        args=[ticket_to_compensate.get('ticket_id'), compensation_ticket_id],
+                                        start_to_close_timeout=timedelta(seconds=5)
+                                    )
+
+                                    compensation_results.append({
+                                        'original_ticket_id': ticket_to_compensate.get('ticket_id'),
+                                        'compensation_ticket_id': compensation_ticket_id,
+                                        'status': 'triggered'
+                                    })
+                                except Exception as comp_err:
+                                    workflow.logger.error(
+                                        f'Falha ao compensar ticket {ticket_to_compensate.get("ticket_id")}: {comp_err}'
+                                    )
+                                    compensation_results.append({
+                                        'original_ticket_id': ticket_to_compensate.get('ticket_id'),
+                                        'compensation_ticket_id': None,
+                                        'status': 'failed',
+                                        'error': str(comp_err)
+                                    })
+                        except Exception as build_order_err:
+                            workflow.logger.error(f'Falha ao construir ordem de compensacao: {build_order_err}')
+
+                        # Adicionar resultados de compensacao ao workflow_result
+                        workflow_result['compensation_results'] = compensation_results
+                        workflow_result['compensation_triggered'] = len([c for c in compensation_results if c['status'] == 'triggered'])
+
+                    # Ainda acionar self-healing para analise
+                    workflow.logger.info('Acionando self-healing apos compensacao')
                     await workflow.execute_activity(
                         trigger_self_healing,
                         args=[workflow_id, workflow_result.get('errors', []), published_tickets, workflow_result],

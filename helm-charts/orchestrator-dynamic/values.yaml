@@ -205,6 +205,13 @@ config:
     timeoutSeconds: 60   # Open for 60s
     recoveryTimeoutSeconds: 30  # Half-open after 30s
 
+  # Saga Pattern - Compensacao Automatica
+  compensation:
+    enabled: true  # Feature flag para habilitar compensacao
+    maxRetries: 3  # Maximo de retries para compensacao
+    timeoutSeconds: 60  # Timeout para cada compensacao
+    failOpen: false  # Se true, falha na compensacao nao bloqueia workflow
+
   observability:
     otelEnabled: true  # Habilitar OpenTelemetry (true em prod/staging, false para dev local via Helm values)
     otelExporterEndpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317

@@ -47,6 +47,7 @@ config:
     - TEST
     - VALIDATE
     - EXECUTE
+    - COMPENSATE
   maxConcurrentTasks: 5
 
   kafka:
@@ -131,6 +132,21 @@ config:
       - mvn test
       - jest
       - cargo test
+
+  # Saga Pattern - Compensacao Automatica
+  compensation:
+    enabled: true
+    timeoutSeconds: 120
+    # Configuracoes especificas por tipo de compensacao
+    build:
+      cleanupArtifacts: true
+    deploy:
+      argocdEnabled: true
+      fluxEnabled: true
+      rollbackRevisionDefault: "HEAD~1"
+    test:
+      cleanupNamespacePattern: "test-*"
+      cleanupJobs: true
 
   vault:
     enabled: false

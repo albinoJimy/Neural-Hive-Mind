@@ -442,6 +442,24 @@ class OrchestratorSettings(BaseSettings):
         description='Permitir fail-open para resultados de workflow'
     )
 
+    # Compensacao Automatica (Saga Pattern)
+    compensation_enabled: bool = Field(
+        default=True,
+        description='Habilitar compensacao automatica quando workflows falham'
+    )
+    compensation_max_retries: int = Field(
+        default=3,
+        description='Maximo de tentativas para compensacao'
+    )
+    compensation_timeout_seconds: int = Field(
+        default=60,
+        description='Timeout para cada operacao de compensacao'
+    )
+    compensation_fail_open: bool = Field(
+        default=False,
+        description='Se True, falha na compensacao nao bloqueia workflow'
+    )
+
     # Observabilidade
     otel_enabled: bool = Field(
         default=False,

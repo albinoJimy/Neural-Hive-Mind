@@ -166,6 +166,39 @@ class PostgresClient:
             await session.commit()
             return result.scalar_one_or_none()
 
+    async def update_ticket_compensation(
+        self,
+        ticket_id: str,
+        compensation_ticket_id: str,
+        status: str = 'COMPENSATING'
+    ) -> Optional[TicketORM]:
+        """
+        Atualiza ticket original com referencia ao ticket de compensacao.
+
+        Args:
+            ticket_id: ID do ticket original
+            compensation_ticket_id: ID do ticket de compensacao
+            status: Novo status do ticket
+        """
+        async with self._session_maker() as session:
+            stmt = (
+                update(TicketORM)
+                .where(TicketORM.ticket_id == ticket_id)
+                .values(
+                    compensation_ticket_id=compensation_ticket_id,
+                    status=status
+                )
+                .returning(TicketORM)
+            )
+            result = await session.execute(stmt)
+            await session.commit()
+            logger.info(
+                'ticket_compensation_updated',
+                ticket_id=ticket_id,
+                compensation_ticket_id=compensation_ticket_id
+            )
+            return result.scalar_one_or_none()
+
     async def list_tickets(self, filters: dict, offset: int = 0, limit: int = 100) -> List[TicketORM]:
         """Lista tickets com filtros."""
         async with self._session_maker() as session:
