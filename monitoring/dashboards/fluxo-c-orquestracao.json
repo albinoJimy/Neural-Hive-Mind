@@ -1402,9 +1402,125 @@
       "description": "Duração de compensações executadas por razão e status"
     },
     {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "Execuções/s",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "ops"
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 104},
+      "id": 45,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "expr": "rate(orchestration_compensations_executed_total[5m])",
+          "legendFormat": "{{reason}} - {{status}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Compensações Executadas por Razão e Status",
+      "type": "timeseries",
+      "description": "Taxa de compensações executadas por razão (task_failed, workflow_inconsistent, manual_trigger) e status (success, failed)"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 5},
+              {"color": "red", "value": 10}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 104},
+      "id": 46,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "sum(increase(orchestration_compensations_executed_total{status=\"failed\"}[1h]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Compensações Falhadas (1h)",
+      "type": "stat",
+      "description": "Total de compensações que falharam na última hora"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 80},
+              {"color": "green", "value": 95}
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 104},
+      "id": 47,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "(sum(rate(orchestration_compensations_executed_total{status=\"success\"}[5m])) / sum(rate(orchestration_compensations_executed_total[5m]))) * 100",
+          "refId": "A"
+        }
+      ],
+      "title": "Taxa de Sucesso de Compensações",
+      "type": "gauge",
+      "description": "Percentual de compensações executadas com sucesso"
+    },
+    {
       "collapsed": false,
       "datasource": null,
-      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 104},
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 112},
       "id": 33,
       "panels": [],
       "title": "Segurança",
@@ -1519,6 +1635,82 @@
       "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisLabel": "Violações/s",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "ops"
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 121},
+      "id": 48,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {"mode": "multi"}
+      },
+      "targets": [
+        {
+          "expr": "rate(orchestration_opa_violations_by_policy_total[5m])",
+          "legendFormat": "{{policy_name}} - {{rule}} ({{severity}})",
+          "refId": "A"
+        }
+      ],
+      "title": "Violações OPA por Política",
+      "type": "timeseries",
+      "description": "Taxa de violações OPA por policy_name, rule e severity"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 5},
+              {"color": "red", "value": 10}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 121},
+      "id": 49,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "sum(increase(orchestration_opa_violations_by_policy_total{severity=\"critical\"}[1h]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Violações OPA Críticas (1h)",
+      "type": "stat",
+      "description": "Total de violações OPA críticas na última hora"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
           "color": {"mode": "thresholds"},
           "mappings": [],
           "thresholds": {
@@ -1531,7 +1723,48 @@
           }
         }
       },
-      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 113},
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 121},
+      "id": 50,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "sum(increase(orchestration_opa_violations_by_policy_total[1h]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Violações OPA (1h)",
+      "type": "stat",
+      "description": "Total de todas as violações OPA na última hora"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "red", "value": 5}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 129},
       "id": 37,
       "options": {
         "colorMode": "value",

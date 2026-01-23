@@ -78,6 +78,48 @@ spec:
             runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-opa-spike"
             dashboard_url: "https://grafana.neural-hive.io/d/flow-c-security"
 
+        - alert: FlowCOPAViolationsByPolicyHigh
+          expr: |
+            sum by (policy_name, severity) (rate(orchestration_opa_violations_by_policy_total{severity=~"critical|high"}[5m])) > 0.1
+          for: 5m
+          labels:
+            severity: warning
+            component: flow-c-security
+            team: platform
+          annotations:
+            summary: "Violações OPA de alta severidade detectadas ({{ $labels.policy_name }})"
+            description: |
+              Violações OPA de severidade {{ $labels.severity }} detectadas para a política {{ $labels.policy_name }}.
+
+              Taxa atual: {{ $value | humanize }}/s
+
+              Política: {{ $labels.policy_name }}
+              Severidade: {{ $labels.severity }}
+
+              Ação: Revisar logs do orchestrator e verificar causa das violações.
+            runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-opa-violations-by-policy"
+            dashboard_url: "https://grafana.neural-hive.io/d/flow-c-security"
+
+        - alert: FlowCOPACriticalViolationsSpike
+          expr: |
+            increase(orchestration_opa_violations_by_policy_total{severity="critical"}[15m]) > 10
+          for: 0m
+          labels:
+            severity: critical
+            component: flow-c-security
+            team: platform
+          annotations:
+            summary: "Spike de violações OPA críticas ({{ $value }} em 15min)"
+            description: |
+              Mais de 10 violações OPA críticas nos últimos 15 minutos.
+
+              Política: {{ $labels.policy_name }}
+              Regra: {{ $labels.rule }}
+
+              AÇÃO URGENTE: Investigar imediatamente. Possível ataque ou configuração incorreta.
+            runbook_url: "https://docs.neural-hive.io/runbooks/flow-c-opa-critical-spike"
+            dashboard_url: "https://grafana.neural-hive.io/d/flow-c-security"
+
     - name: flow_c_authentication
       interval: 30s
       rules:

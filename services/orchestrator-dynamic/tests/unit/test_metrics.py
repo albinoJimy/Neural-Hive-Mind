@@ -4,7 +4,7 @@ Testes unitários para métricas do Orchestrator Dynamic.
 Testa os métodos de registro de métricas de compensação e segurança.
 """
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 
 
 class TestCompensationMetrics:

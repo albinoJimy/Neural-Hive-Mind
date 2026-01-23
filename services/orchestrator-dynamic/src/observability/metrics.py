@@ -198,6 +198,12 @@ class OrchestratorMetrics:
             ['reason']
         )
 
+        self.compensations_executed_total = Counter(
+            'orchestration_compensations_executed_total',
+            'Total de compensações executadas',
+            ['reason', 'status']  # status: success, failed
+        )
+
         # Compensation duration histogram
         self.compensation_duration_seconds = Histogram(
             'orchestration_compensation_duration_seconds',
@@ -362,6 +368,12 @@ class OrchestratorMetrics:
             'orchestration_opa_policy_warnings_total',
             'Total de warnings de políticas OPA',
             ['policy_name', 'rule']
+        )
+
+        self.opa_violations_by_policy = Counter(
+            'orchestration_opa_violations_by_policy_total',
+            'Total de violações OPA por política',
+            ['policy_name', 'rule', 'severity']  # severity: critical, high, medium, low
         )
 
         self.opa_evaluation_errors_total = Counter(
@@ -762,6 +774,16 @@ class OrchestratorMetrics:
         """
         self.compensation_duration_seconds.labels(reason=reason, status=status).observe(duration_seconds)
 
+    def record_compensation_executed(self, reason: str, status: str):
+        """
+        Registra compensação executada.
+
+        Args:
+            reason: Razão da compensação (task_failed, workflow_inconsistent, manual_trigger)
+            status: Status da compensação (success, failed)
+        """
+        self.compensations_executed_total.labels(reason=reason, status=status).inc()
+
     def record_jwt_validation_failure(self, tenant_id: str, reason: str):
         """
         Registra falha na validação de JWT.
@@ -952,6 +974,21 @@ class OrchestratorMetrics:
     def record_opa_rejection(self, policy_name: str, rule: str, severity: str):
         """Registra rejeição por política OPA."""
         self.opa_policy_rejections_total.labels(
+            policy_name=policy_name,
+            rule=rule,
+            severity=severity
+        ).inc()
+
+    def record_opa_violation_by_policy(self, policy_name: str, rule: str, severity: str):
+        """
+        Registra violação OPA por política.
+
+        Args:
+            policy_name: Nome da política OPA
+            rule: Regra que foi violada
+            severity: Severidade da violação (critical, high, medium, low)
+        """
+        self.opa_violations_by_policy.labels(
             policy_name=policy_name,
             rule=rule,
             severity=severity
