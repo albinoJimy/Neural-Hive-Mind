@@ -338,6 +338,89 @@ spec:
 - [VAULT_SPIFFE_OPERATIONS_GUIDE.md](security/VAULT_SPIFFE_OPERATIONS_GUIDE.md)
 - [SPIFFE Official Documentation](https://spiffe.io/docs/)
 - [SPIRE Quick Start](https://spiffe.io/docs/latest/spire/installing/)
+- [Runbook de Operacoes SPIFFE](runbooks/spiffe-operations.md)
+
+---
+
+### SPIFFE/SPIRE Production Deployment Checklist
+
+#### Pre-Deployment
+
+- [ ] SPIRE Server instalado e configurado no namespace `spire-system`
+- [ ] SPIRE Agent rodando como DaemonSet em todos os nodes
+- [ ] Entries SPIFFE criadas para todos os servicos do Fluxo C
+- [ ] Helm values atualizados com `spiffe.enabled: true`
+- [ ] Volume mounts do SPIRE Agent socket configurados
+
+#### Deployment
+
+```bash
+# 1. Atualizar Orchestrator Dynamic
+helm upgrade orchestrator-dynamic ./helm-charts/orchestrator-dynamic \
+  --set config.spiffe.enabled=true \
+  --set config.spiffe.fallbackAllowed=false \
+  --namespace neural-hive-orchestration
+
+# 2. Atualizar Worker Agents
+helm upgrade worker-agents ./helm-charts/worker-agents \
+  --set config.spiffe.enabled=true \
+  --set config.spiffe.fallbackAllowed=false \
+  --namespace neural-hive-execution
+
+# 3. Atualizar Service Registry
+helm upgrade service-registry ./helm-charts/service-registry \
+  --set config.spiffe.enabled=true \
+  --set config.spiffe.verifyPeer=true \
+  --namespace neural-hive-execution
+```
+
+#### Post-Deployment Validation
+
+```bash
+# Verificar que pods estao rodando
+kubectl get pods -n neural-hive-orchestration -l app.kubernetes.io/name=orchestrator-dynamic
+kubectl get pods -n neural-hive-execution -l app.kubernetes.io/name=worker-agents
+kubectl get pods -n neural-hive-execution -l app.kubernetes.io/name=service-registry
+
+# Verificar logs de autenticacao
+kubectl logs -n neural-hive-orchestration deployment/orchestrator-dynamic | grep -i spiffe
+kubectl logs -n neural-hive-execution deployment/service-registry | grep -i "spiffe_authentication_success"
+
+# Verificar metricas de autenticacao
+kubectl port-forward -n neural-hive-execution svc/service-registry 9090:9090
+curl http://localhost:9090/metrics | grep grpc_auth_attempts_total
+```
+
+#### Rollback Procedure
+
+Se houver problemas apos deployment:
+
+```bash
+# Desabilitar SPIFFE temporariamente
+helm upgrade orchestrator-dynamic ./helm-charts/orchestrator-dynamic \
+  --set config.spiffe.enabled=false \
+  --namespace neural-hive-orchestration
+
+helm upgrade worker-agents ./helm-charts/worker-agents \
+  --set config.spiffe.enabled=false \
+  --namespace neural-hive-execution
+
+helm upgrade service-registry ./helm-charts/service-registry \
+  --set config.spiffe.enabled=false \
+  --namespace neural-hive-execution
+```
+
+#### Monitoring
+
+Alertas a configurar:
+
+- `SPIFFEAuthFailureRate > 5%` - Taxa de falha de autenticacao alta
+- `SPIFFESVIDExpirationSoon` - X.509-SVID expirando em < 1h
+- `SPIREAgentDown` - SPIRE Agent nao disponivel em node
+
+#### Troubleshooting
+
+Ver secao [SPIFFE/SPIRE mTLS Setup Guide](#spiffespire-mtls-setup-guide) para comandos de troubleshooting.
 
 ### mTLS and Service Mesh Security (Legacy)
 - Configuration details in [Security Operations](operations/security-operations.md#service-mesh-security)

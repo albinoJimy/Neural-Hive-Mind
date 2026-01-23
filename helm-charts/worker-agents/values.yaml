@@ -162,13 +162,13 @@ config:
     failOpen: true
 
   spiffe:
-    enabled: false
+    enabled: true  # Zero-trust authentication habilitado
     socketPath: unix:///run/spire/sockets/agent.sock
     trustDomain: neural-hive.local
     jwtAudience: service-registry.neural-hive.local
     jwtTtlSeconds: 3600
     enableX509: true
-    fallbackAllowed: false
+    fallbackAllowed: false  # Fail-closed em produção
 
   githubActions:
     enabled: false

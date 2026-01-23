@@ -67,9 +67,9 @@ config:
     exporterEndpoint: http://otel-collector:4317
 
   spiffe:
-    enabled: false
+    enabled: true  # Zero-trust authentication habilitado
     enableX509: true
-    verifyPeer: true
+    verifyPeer: true  # Validar SPIFFE ID dos clientes
     socketPath: unix:///run/spire/sockets/agent.sock
     trustDomain: neural-hive.local
 

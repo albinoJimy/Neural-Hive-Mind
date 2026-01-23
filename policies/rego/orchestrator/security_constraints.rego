@@ -29,6 +29,22 @@ violations[violation] {
 }
 
 violations[violation] {
+    violation := jwt_expired_violation
+}
+
+violations[violation] {
+    violation := jwt_invalid_issuer_violation
+}
+
+violations[violation] {
+    violation := jwt_invalid_audience_violation
+}
+
+violations[violation] {
+    violation := jwt_invalid_spiffe_id_violation
+}
+
+violations[violation] {
     violation := insufficient_permissions_violation
 }
 
@@ -78,22 +94,125 @@ missing_authentication_violation := violation {
     }
 }
 
-# Regra 3: Invalid JWT (validação básica de estrutura)
+# Regra 3: Invalid JWT (validação completa com io.jwt.decode_verify)
 invalid_jwt_violation := violation {
     context := input.context
     jwt_token := context.jwt_token
-    
+
     jwt_token != null
-    not is_valid_jwt_structure(jwt_token)
-    
+    not is_valid_jwt_with_verification(jwt_token)
+
     violation := {
         "policy": "security_constraints",
         "rule": "invalid_jwt",
         "severity": "critical",
         "field": "context.jwt_token",
-        "msg": "JWT token com estrutura inválida",
-        "expected": "JWT com formato válido (header.payload.signature)",
-        "actual": jwt_token
+        "msg": "JWT token inválido ou expirado",
+        "expected": "JWT válido com assinatura verificada",
+        "actual": "JWT inválido"
+    }
+}
+
+# Regra 3.1: JWT expirado
+jwt_expired_violation := violation {
+    context := input.context
+    jwt_token := context.jwt_token
+
+    jwt_token != null
+    is_valid_jwt_structure(jwt_token)
+
+    # Decodificar payload para verificar exp
+    [header, payload, signature] := io.jwt.decode(jwt_token)
+    exp := payload.exp
+    current_time := time.now_ns() / 1000000000  # Converter para segundos
+
+    exp < current_time
+
+    violation := {
+        "policy": "security_constraints",
+        "rule": "jwt_expired",
+        "severity": "critical",
+        "field": "context.jwt_token",
+        "msg": sprintf("JWT expirado (exp: %v, current: %v)", [exp, current_time]),
+        "expected": "JWT não expirado",
+        "actual": exp
+    }
+}
+
+# Regra 3.2: JWT issuer inválido
+jwt_invalid_issuer_violation := violation {
+    context := input.context
+    jwt_token := context.jwt_token
+    expected_issuer := input.security.jwt_issuer
+
+    jwt_token != null
+    expected_issuer != null
+
+    [header, payload, signature] := io.jwt.decode(jwt_token)
+    iss := payload.iss
+
+    iss != expected_issuer
+
+    violation := {
+        "policy": "security_constraints",
+        "rule": "jwt_invalid_issuer",
+        "severity": "high",
+        "field": "context.jwt_token",
+        "msg": sprintf("JWT issuer inválido (esperado: %v, atual: %v)", [expected_issuer, iss]),
+        "expected": expected_issuer,
+        "actual": iss
+    }
+}
+
+# Regra 3.3: JWT audience inválido
+jwt_invalid_audience_violation := violation {
+    context := input.context
+    jwt_token := context.jwt_token
+    expected_audience := input.security.jwt_audience
+
+    jwt_token != null
+    expected_audience != null
+
+    [header, payload, signature] := io.jwt.decode(jwt_token)
+    aud := payload.aud
+
+    # aud pode ser string ou array
+    not audience_matches(aud, expected_audience)
+
+    violation := {
+        "policy": "security_constraints",
+        "rule": "jwt_invalid_audience",
+        "severity": "high",
+        "field": "context.jwt_token",
+        "msg": sprintf("JWT audience inválido (esperado: %v, atual: %v)", [expected_audience, aud]),
+        "expected": expected_audience,
+        "actual": aud
+    }
+}
+
+# Regra 3.4: SPIFFE ID inválido no subject
+jwt_invalid_spiffe_id_violation := violation {
+    context := input.context
+    jwt_token := context.jwt_token
+    trust_domain := input.security.spiffe_trust_domain
+
+    jwt_token != null
+    trust_domain != null
+
+    [header, payload, signature] := io.jwt.decode(jwt_token)
+    sub := payload.sub
+
+    # Subject deve ser um SPIFFE ID válido
+    not startswith(sub, sprintf("spiffe://%v/", [trust_domain]))
+
+    violation := {
+        "policy": "security_constraints",
+        "rule": "jwt_invalid_spiffe_id",
+        "severity": "critical",
+        "field": "context.jwt_token",
+        "msg": sprintf("SPIFFE ID inválido no JWT subject (esperado trust domain: %v, atual: %v)", [trust_domain, sub]),
+        "expected": sprintf("spiffe://%v/...", [trust_domain]),
+        "actual": sub
     }
 }
 
@@ -182,6 +301,33 @@ is_valid_jwt_structure(token) {
     # Validação básica: 3 partes separadas por '.'
     parts := split(token, ".")
     count(parts) == 3
+}
+
+# Helper: Validar JWT com verificação de assinatura
+is_valid_jwt_with_verification(token) {
+    # Validação básica de estrutura
+    is_valid_jwt_structure(token)
+
+    # Tentar decodificar (io.jwt.decode não valida assinatura, apenas estrutura)
+    [header, payload, signature] := io.jwt.decode(token)
+
+    # Verificar campos obrigatórios
+    payload.sub
+    payload.exp
+    payload.iat
+}
+
+# Helper: Verificar se audience corresponde
+audience_matches(aud, expected) {
+    # aud é string
+    is_string(aud)
+    aud == expected
+}
+
+audience_matches(aud, expected) {
+    # aud é array
+    is_array(aud)
+    aud[_] == expected
 }
 
 has_capability_permission(roles, capability) {

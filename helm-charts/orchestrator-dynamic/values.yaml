@@ -236,12 +236,14 @@ config:
   # SPIFFE Integration
   # Habilitado por padrão em produção para autenticação mTLS entre serviços
   spiffe:
-    enabled: false  # Mudar para true em produção para zero-trust authentication
+    enabled: true  # Zero-trust authentication habilitado
     socketPath: unix:///run/spire/sockets/agent.sock
     trustDomain: neural-hive.local
     jwtAudience: vault.neural-hive.local  # Audience para JWT-SVID
     enableX509: true  # Habilitar X.509-SVID para mTLS
-    fallbackAllowed: false
+    fallbackAllowed: false  # Fail-closed em produção
+    # Configuração específica para Service Registry client
+    serviceRegistryJwtAudience: service-registry.neural-hive.local
 
     # ClickHouse para dados históricos (usado pelo Optimizer Agents)
     clickhouse:
@@ -435,6 +437,11 @@ config:
         tenant-rate-limited: 100  # Override específico; demais usam default_tenant_rate_limit
       global_rate_limit: 1000
       default_tenant_rate_limit: 100
+      # JWT Validation Configuration (SPIFFE/SPIRE)
+      jwt_issuer: "https://spire-server.spire-system.svc.cluster.local"
+      jwt_audience: "orchestrator-dynamic.neural-hive-orchestration.svc.cluster.local"
+      spiffe_trust_domain: "neural-hive.local"
+      spiffe_enabled: true
 
 # OPA Deployment
 opa:

@@ -16,6 +16,32 @@
 {{- $env = append $env (dict "name" "REDIS_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" (printf "%s-secret" (include "service-registry.fullname" .)) "key" "redis-password"))) }}
 {{- $env = append $env (dict "name" "OTEL_EXPORTER_ENDPOINT" "value" .Values.config.otel.exporterEndpoint) }}
 
+{{/* SPIFFE environment variables */}}
+{{- if .Values.config.spiffe.enabled }}
+{{- $env = append $env (dict "name" "SPIFFE_ENABLED" "value" "true") }}
+{{- $env = append $env (dict "name" "SPIFFE_SOCKET_PATH" "value" .Values.config.spiffe.socketPath) }}
+{{- $env = append $env (dict "name" "SPIFFE_TRUST_DOMAIN" "value" .Values.config.spiffe.trustDomain) }}
+{{- $env = append $env (dict "name" "SPIFFE_ENABLE_X509" "value" (printf "%t" .Values.config.spiffe.enableX509)) }}
+{{- $env = append $env (dict "name" "SPIFFE_VERIFY_PEER" "value" (printf "%t" .Values.config.spiffe.verifyPeer)) }}
+{{- end }}
+
+{{/* Construir volumes dinamicamente (incluindo SPIFFE se habilitado) */}}
+{{- $volumes := list }}
+{{- if .Values.config.spiffe.enabled }}
+{{- $volumes = append $volumes (dict "name" "spire-agent-socket" "hostPath" (dict "path" "/run/spire/sockets" "type" "Directory")) }}
+{{- end }}
+
+{{/* Construir volumeMounts dinamicamente (incluindo SPIFFE se habilitado) */}}
+{{- $volumeMounts := list }}
+{{- if .Values.config.spiffe.enabled }}
+{{- $volumeMounts = append $volumeMounts (dict "name" "spire-agent-socket" "mountPath" "/run/spire/sockets" "readOnly" true) }}
+{{- end }}
+
+{{/* Construir valores modificados com overrides */}}
+{{- $modifiedValues := deepCopy .Values }}
+{{- $_ := set $modifiedValues "volumes" $volumes }}
+{{- $_ := set $modifiedValues "volumeMounts" $volumeMounts }}
+
 {{- $config := dict "env" $env }}
 
-{{- include "neural-hive.deployment" (dict "values" .Values "context" $ctx "config" $config) }}
+{{- include "neural-hive.deployment" (dict "values" $modifiedValues "context" $ctx "config" $config) }}
