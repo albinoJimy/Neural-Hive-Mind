@@ -4,7 +4,8 @@ from unittest.mock import MagicMock, patch, AsyncMock
 from typing import Dict, Any
 
 from pipelines.nlu_pipeline import NLUPipeline
-from models.intent_envelope import NLUResult, Entity, IntentDomain
+from models.intent_envelope import NLUResult, Entity
+from neural_hive_domain import UnifiedDomain
 
 
 class TestNLUPipeline:
@@ -92,7 +93,7 @@ class TestNLUPipeline:
         )
 
         assert isinstance(result, NLUResult)
-        assert result.domain in [IntentDomain.BUSINESS, IntentDomain.TECHNICAL, IntentDomain.INFRASTRUCTURE, IntentDomain.SECURITY]
+        assert result.domain in [UnifiedDomain.BUSINESS, UnifiedDomain.TECHNICAL, UnifiedDomain.INFRASTRUCTURE, UnifiedDomain.SECURITY]
         assert result.classification is not None
         assert result.confidence >= 0.0  # Can be any valid confidence
         assert result.confidence_status in ["high", "medium", "low"]
@@ -119,7 +120,7 @@ class TestNLUPipeline:
 
         # Mock classification with low confidence
         with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
-            mock_classify.return_value = (IntentDomain.BUSINESS, "request", 0.35)  # Low confidence
+            mock_classify.return_value = (UnifiedDomain.BUSINESS, "request", 0.35)  # Low confidence
 
             result = await nlu_pipeline.process(
                 text="texto ambíguo sem contexto claro",
@@ -176,14 +177,14 @@ class TestNLUPipeline:
         nlu_pipeline._ready = True
 
         test_cases = [
-            ("Implementar autenticação OAuth2", IntentDomain.TECHNICAL),
-            ("Configurar servidor Kubernetes", IntentDomain.INFRASTRUCTURE),
-            ("Analisar vulnerabilidades de segurança", IntentDomain.SECURITY),
-            ("Desenvolver nova feature de vendas", IntentDomain.BUSINESS),
-            ("Criar relatório de faturamento", IntentDomain.BUSINESS),
-            ("Corrigir bug no sistema de login", IntentDomain.TECHNICAL),
-            ("Configurar backup automático", IntentDomain.INFRASTRUCTURE),
-            ("Implementar criptografia de dados", IntentDomain.SECURITY)
+            ("Implementar autenticação OAuth2", UnifiedDomain.TECHNICAL),
+            ("Configurar servidor Kubernetes", UnifiedDomain.INFRASTRUCTURE),
+            ("Analisar vulnerabilidades de segurança", UnifiedDomain.SECURITY),
+            ("Desenvolver nova feature de vendas", UnifiedDomain.BUSINESS),
+            ("Criar relatório de faturamento", UnifiedDomain.BUSINESS),
+            ("Corrigir bug no sistema de login", UnifiedDomain.TECHNICAL),
+            ("Configurar backup automático", UnifiedDomain.INFRASTRUCTURE),
+            ("Implementar criptografia de dados", UnifiedDomain.SECURITY)
         ]
 
         for text, expected_domain in test_cases:
@@ -209,7 +210,7 @@ class TestNLUPipeline:
         nlu_pipeline.nlp = mock_nlp
 
         with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
-            mock_classify.return_value = (IntentDomain.BUSINESS, "unknown", 0.40)  # Below threshold
+            mock_classify.return_value = (UnifiedDomain.BUSINESS, "unknown", 0.40)  # Below threshold
 
             result = await nlu_pipeline.process(
                 text=low_confidence_text,
@@ -359,19 +360,19 @@ class TestNLUPipeline:
         # Test business domain keywords
         business_text = "venda marketing cliente receita faturamento"
         domain, _, _ = await nlu_pipeline._classify_intent_advanced(business_text, [], "pt", {})
-        assert domain == IntentDomain.BUSINESS
+        assert domain == UnifiedDomain.BUSINESS
 
         # Test technical domain keywords
         technical_text = "código bug API database implementar desenvolver"
         domain, _, _ = await nlu_pipeline._classify_intent_advanced(technical_text, [], "pt", {})
-        assert domain == IntentDomain.TECHNICAL
+        assert domain == UnifiedDomain.TECHNICAL
 
         # Test infrastructure domain keywords
         infra_text = "servidor kubernetes docker deploy configurar"
         domain, _, _ = await nlu_pipeline._classify_intent_advanced(infra_text, [], "pt", {})
-        assert domain == IntentDomain.INFRASTRUCTURE
+        assert domain == UnifiedDomain.INFRASTRUCTURE
 
         # Test security domain keywords
         security_text = "segurança vulnerabilidade autenticação criptografia"
         domain, _, _ = await nlu_pipeline._classify_intent_advanced(security_text, [], "pt", {})
-        assert domain == IntentDomain.SECURITY
+        assert domain == UnifiedDomain.SECURITY

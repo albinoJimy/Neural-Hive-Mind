@@ -3,6 +3,7 @@
   "domains": {
     "security-analysis": {
       "id": "SEC",
+      "unified_domain": "SECURITY",
       "description": "Análise de segurança e vulnerabilidades",
       "keywords": ["auth", "security", "validate", "sanitize", "encrypt"],
       "risk_weight": 0.35,
@@ -14,6 +15,7 @@
     },
     "architecture-review": {
       "id": "ARCH",
+      "unified_domain": "TECHNICAL",
       "description": "Padrões arquiteturais e design",
       "keywords": ["service", "controller", "repository", "pattern"],
       "risk_weight": 0.30,
@@ -25,12 +27,14 @@
     },
     "performance-optimization": {
       "id": "PERF",
+      "unified_domain": "OPERATIONAL",
       "description": "Otimização de performance",
       "keywords": ["cache", "async", "parallel", "optimize"],
       "risk_weight": 0.20
     },
     "code-quality": {
       "id": "QUAL",
+      "unified_domain": "TECHNICAL",
       "description": "Qualidade e manutenibilidade",
       "keywords": ["test", "doc", "error", "log"],
       "risk_weight": 0.15

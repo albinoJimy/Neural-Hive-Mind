@@ -4,7 +4,7 @@ import numpy as np
 import structlog
 
 from ..models.raw_event import RawEvent
-from ..models.scout_signal import ExplorationDomain
+from neural_hive_domain import UnifiedDomain
 
 logger = structlog.get_logger()
 
@@ -21,24 +21,24 @@ class CuriosityScorer:
                 'information_gain': 0.2,
                 'uncertainty': 0.1
             }
-            for domain in ExplorationDomain
+            for domain in UnifiedDomain
         }
 
         # Historical feature vectors for novelty calculation
         self.historical_features: Dict[str, List[np.ndarray]] = {
-            domain.value: [] for domain in ExplorationDomain
+            domain.value: [] for domain in UnifiedDomain
         }
 
         # Validation feedback tracking
         self.validation_stats: Dict[str, Dict[str, int]] = {
             domain.value: {'validated': 0, 'rejected': 0}
-            for domain in ExplorationDomain
+            for domain in UnifiedDomain
         }
 
     def calculate_score(
         self,
         event: RawEvent,
-        domain: ExplorationDomain,
+        domain: UnifiedDomain,
         context: Dict = None
     ) -> float:
         """
@@ -100,7 +100,7 @@ class CuriosityScorer:
             )
             return 0.5  # Default moderate curiosity
 
-    def calculate_novelty(self, features: np.ndarray, domain: ExplorationDomain) -> float:
+    def calculate_novelty(self, features: np.ndarray, domain: UnifiedDomain) -> float:
         """
         Calculate novelty score based on distance from historical features
 
@@ -139,7 +139,7 @@ class CuriosityScorer:
     def calculate_relevance(
         self,
         event: RawEvent,
-        domain: ExplorationDomain,
+        domain: UnifiedDomain,
         context: Dict = None
     ) -> float:
         """
@@ -155,11 +155,11 @@ class CuriosityScorer:
         """
         # Base relevance by domain
         domain_relevance = {
-            ExplorationDomain.BUSINESS: 0.9,
-            ExplorationDomain.SECURITY: 0.95,
-            ExplorationDomain.TECHNICAL: 0.7,
-            ExplorationDomain.BEHAVIOR: 0.8,
-            ExplorationDomain.INFRASTRUCTURE: 0.75
+            UnifiedDomain.BUSINESS: 0.9,
+            UnifiedDomain.SECURITY: 0.95,
+            UnifiedDomain.TECHNICAL: 0.7,
+            UnifiedDomain.BEHAVIOR: 0.8,
+            UnifiedDomain.INFRASTRUCTURE: 0.75
         }
 
         base_score = domain_relevance.get(domain, 0.5)
@@ -180,7 +180,7 @@ class CuriosityScorer:
     def calculate_information_gain(
         self,
         features: np.ndarray,
-        domain: ExplorationDomain
+        domain: UnifiedDomain
     ) -> float:
         """
         Calculate potential information gain from this signal
@@ -247,7 +247,7 @@ class CuriosityScorer:
         except:
             return 0.5
 
-    def adapt_weights(self, domain: ExplorationDomain, feedback_score: float):
+    def adapt_weights(self, domain: UnifiedDomain, feedback_score: float):
         """
         Adapt scoring weights based on validation feedback
 
@@ -299,7 +299,7 @@ class CuriosityScorer:
                 new_weights=self.weights[domain.value]
             )
 
-    def get_score_distribution(self, domain: ExplorationDomain) -> Dict[str, float]:
+    def get_score_distribution(self, domain: UnifiedDomain) -> Dict[str, float]:
         """
         Get statistical distribution of scores for domain
 

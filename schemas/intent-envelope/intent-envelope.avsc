@@ -79,7 +79,7 @@
             "type": {
               "type": "enum",
               "name": "IntentDomain",
-              "symbols": ["BUSINESS", "TECHNICAL", "INFRASTRUCTURE", "SECURITY"]
+              "symbols": ["BUSINESS", "TECHNICAL", "INFRASTRUCTURE", "SECURITY", "BEHAVIOR", "OPERATIONAL", "COMPLIANCE"]
             },
             "doc": "Domínio da intenção conforme particionamento"
           },

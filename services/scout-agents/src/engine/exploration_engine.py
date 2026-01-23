@@ -7,7 +7,8 @@ import structlog
 from neural_hive_observability import get_tracer, instrument_kafka_producer
 
 from ..models.raw_event import RawEvent
-from ..models.scout_signal import ScoutSignal, ExplorationDomain, ChannelType
+from ..models.scout_signal import ScoutSignal, ChannelType
+from neural_hive_domain import UnifiedDomain
 from ..detection.signal_detector import SignalDetector
 from ..clients.kafka_signal_producer import KafkaSignalProducer
 from ..clients.memory_layer_client import MemoryLayerClient
@@ -93,7 +94,7 @@ class ExplorationEngine:
     async def process_event(
         self,
         event: RawEvent,
-        domain: ExplorationDomain,
+        domain: UnifiedDomain,
         channel: ChannelType = ChannelType.CORE
     ) -> Optional[ScoutSignal]:
         """

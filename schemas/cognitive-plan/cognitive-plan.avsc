@@ -128,7 +128,19 @@
     },
     {
       "name": "original_domain",
-      "type": "string",
+      "type": {
+        "type": "enum",
+        "name": "CognitiveDomain",
+        "symbols": [
+          "BUSINESS",
+          "TECHNICAL",
+          "SECURITY",
+          "INFRASTRUCTURE",
+          "BEHAVIOR",
+          "OPERATIONAL",
+          "COMPLIANCE"
+        ]
+      },
       "doc": "Domínio da intenção original"
     },
     {
@@ -191,7 +203,7 @@
       "name": "risk_matrix",
       "type": ["null", {"type": "map", "values": "double"}],
       "default": null,
-      "doc": "Scores de risco multi-domínio (BUSINESS, SECURITY, OPERATIONAL)"
+      "doc": "Scores de risco multi-domínio (BUSINESS, TECHNICAL, SECURITY, INFRASTRUCTURE, BEHAVIOR, OPERATIONAL, COMPLIANCE)"
     },
     {
       "name": "schema_version",

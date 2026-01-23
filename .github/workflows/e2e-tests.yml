@@ -9,9 +9,98 @@ on:
     - cron: "0 2 * * *"
 
 jobs:
+  # =============================================================================
+  # ML Integration Tests - Required Gate Before Deploy
+  # =============================================================================
+  ml-integration-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd="mongosh --eval 'db.adminCommand({ping: 1})'"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-ml-${{ hashFiles('tests/requirements-test.txt', 'services/orchestrator-dynamic/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-ml-
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r tests/requirements-test.txt
+          pip install -r services/orchestrator-dynamic/requirements.txt
+          pip install scikit-learn pandas numpy mlflow pytest-asyncio motor
+
+      - name: Verify MongoDB connection
+        run: |
+          pip install pymongo
+          python -c "from pymongo import MongoClient; c = MongoClient('mongodb://localhost:27017'); c.admin.command('ping'); print('MongoDB conectado')"
+
+      - name: Run ML Integration Tests (Staging Gate)
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+          MLFLOW_TRACKING_URI: file:///tmp/mlflow_test
+          PYTHONPATH: services/orchestrator-dynamic/src
+        run: |
+          echo "🔒 Running ML Integration Tests as Staging Gate..."
+          pytest tests/integration/ml/ \
+            -v \
+            --tb=short \
+            -m "ml_integration" \
+            --junit-xml=tests/results/ml-staging-gate-junit.xml \
+            --cov=services/orchestrator-dynamic/src/ml \
+            --cov-report=xml:tests/results/ml-staging-gate-coverage.xml \
+            --log-cli-level=INFO \
+            --strict-markers
+        timeout-minutes: 20
+
+      - name: Upload ML Integration Test Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: ml-staging-gate-results
+          path: tests/results/ml-staging-gate-*.xml
+
+      - name: ML Staging Gate Summary
+        if: always()
+        run: |
+          echo "## 🔒 ML Integration Tests - Staging Gate" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f "tests/results/ml-staging-gate-junit.xml" ]; then
+            echo "✅ ML Integration Tests PASSED - Deploy gate approved" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ ML Integration Tests FAILED - Deploy gate BLOCKED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Production deployment is blocked until ML integration tests pass." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # =============================================================================
+  # E2E Tests - Requires ML Integration Gate
+  # =============================================================================
   e2e-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    needs: ml-integration-gate  # Requires ML tests to pass first
 
     services:
       localstack:

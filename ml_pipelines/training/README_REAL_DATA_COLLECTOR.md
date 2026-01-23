@@ -329,14 +329,112 @@ df, data_source, metadata = load_dataset_with_real_data_priority(
 # - metadata: Dict com estatísticas e validações
 ```
 
+## Validação de Qualidade de Dados (DataQualityValidator)
+
+O `RealDataCollector` integra automaticamente o `DataQualityValidator` para validação avançada de qualidade de dados. Esta integração complementa as validações básicas com análises mais sofisticadas.
+
+### Validações Avançadas
+
+Além das validações básicas, o `DataQualityValidator` adiciona:
+
+| Validação | Descrição |
+|-----------|-----------|
+| **Correlação de Features** | Detecta features redundantes com correlação > 0.95 |
+| **Desbalanceamento de Labels** | Identifica classes < 5% ou > 80% |
+| **Quality Score** | Score agregado (0.0-1.0) com interpretação |
+| **Recomendações Acionáveis** | Sugestões para corrigir problemas |
+| **Relatórios MLflow** | Artefatos JSON estruturados para tracking |
+
+### Uso com Validação Integrada (Default)
+
+```python
+from real_data_collector import RealDataCollector
+
+# Validação habilitada por padrão
+collector = RealDataCollector()
+
+df = await collector.collect_training_data(
+    specialist_type="technical",
+    days=90,
+    min_samples=1000
+)
+
+# Acessar relatório de qualidade do DataFrame
+quality_report = df.attrs.get('quality_report')
+print(f"Quality Score: {quality_report['quality_score']}")
+print(f"Warnings: {quality_report['warnings']}")
+print(f"Recommendations: {quality_report['recommendations']}")
+```
+
+### Desabilitar Validação Avançada
+
+```python
+collector = RealDataCollector(
+    enable_quality_validation=False  # Usa apenas validações básicas
+)
+```
+
+### Validador Customizado
+
+```python
+from data_quality_validator import DataQualityValidator
+
+# Configurar thresholds personalizados
+custom_validator = DataQualityValidator(
+    max_missing_pct=10.0,      # Mais tolerante com missing values
+    min_class_pct=3.0,         # Aceita classes menores
+    max_correlation=0.99       # Menos restritivo com correlação
+)
+
+collector = RealDataCollector(
+    data_quality_validator=custom_validator
+)
+```
+
+### Relatório no Pipeline MLflow
+
+Quando integrado com `train_specialist_model.py`, o relatório de qualidade é automaticamente logado:
+
+```python
+# Artefato: data_quality_report.json
+# Métricas:
+#   - data_quality_score: Score geral (0.0-1.0)
+#   - data_missing_values_max_pct: Max % de missing
+#   - data_sparsity_rate: % de features sparse
+#   - data_max_outlier_pct: Max % de outliers
+# Params:
+#   - data_quality_passed: True/False
+#   - data_labels_balanced: True/False
+```
+
+### Configuração via Variáveis de Ambiente
+
+```bash
+# Thresholds de qualidade
+DATA_QUALITY_MAX_MISSING_PCT=5.0
+DATA_QUALITY_MAX_SPARSITY_PCT=50.0
+DATA_QUALITY_MAX_OUTLIER_PCT=10.0
+DATA_QUALITY_MIN_CLASS_PCT=5.0
+DATA_QUALITY_MAX_CORRELATION=0.95
+DATA_QUALITY_MIN_SCORE=0.6
+```
+
+### Documentação Completa
+
+Para detalhes sobre o `DataQualityValidator`, consulte:
+[README_DATA_QUALITY_VALIDATOR.md](README_DATA_QUALITY_VALIDATOR.md)
+
 ## Estrutura de Arquivos
 
 ```
 ml_pipelines/training/
-├── real_data_collector.py         # Classe principal
-├── README_REAL_DATA_COLLECTOR.md  # Esta documentação
+├── real_data_collector.py             # Classe principal
+├── data_quality_validator.py          # Validador avançado de qualidade
+├── README_REAL_DATA_COLLECTOR.md      # Esta documentação
+├── README_DATA_QUALITY_VALIDATOR.md   # Documentação do validador
 ├── tests/
-│   └── test_real_data_collector.py
+│   ├── test_real_data_collector.py
+│   └── test_data_quality_validator.py
 └── examples/
     └── collect_real_data_example.py
 ```

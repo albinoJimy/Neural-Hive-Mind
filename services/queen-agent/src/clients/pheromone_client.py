@@ -3,6 +3,8 @@ import time
 from typing import Dict, List, Any, Optional, TYPE_CHECKING
 from datetime import datetime
 
+from neural_hive_domain import DomainMapper, UnifiedDomain
+
 if TYPE_CHECKING:
     from .redis_client import RedisClient
     from ..config import Settings
@@ -21,7 +23,6 @@ class PheromoneClient:
     def __init__(self, redis_client: 'RedisClient', settings: 'Settings'):
         self.redis_client = redis_client
         self.settings = settings
-        self.prefix = settings.REDIS_PHEROMONE_PREFIX
         # Cache local para trilhas de sucesso
         self._success_trails_cache: Optional[List[Dict[str, Any]]] = None
         self._cache_timestamp: float = 0
@@ -33,9 +34,15 @@ class PheromoneClient:
         strength: float,
         metadata: Dict[str, Any]
     ) -> None:
-        """Publicar feromônio"""
+        """Publicar feromônio usando chave padronizada via DomainMapper"""
         try:
-            key = f"{self.prefix}{domain}:{pheromone_type}"
+            # Normalizar domain para UnifiedDomain
+            normalized_domain = DomainMapper.normalize(domain, 'intent_envelope')
+            key = DomainMapper.to_pheromone_key(
+                domain=normalized_domain,
+                layer='strategic',
+                pheromone_type=pheromone_type
+            )
 
             pheromone_data = {
                 "strength": strength,
@@ -56,17 +63,24 @@ class PheromoneClient:
             logger.debug(
                 "pheromone_published",
                 type=pheromone_type,
-                domain=domain,
-                strength=strength
+                domain=normalized_domain.value,
+                strength=strength,
+                key=key
             )
 
         except Exception as e:
             logger.error("pheromone_publish_failed", error=str(e))
 
     async def get_pheromone_strength(self, domain: str, pheromone_type: str) -> float:
-        """Obter força de feromônio"""
+        """Obter força de feromônio usando chave padronizada via DomainMapper"""
         try:
-            key = f"{self.prefix}{domain}:{pheromone_type}"
+            # Normalizar domain para UnifiedDomain
+            normalized_domain = DomainMapper.normalize(domain, 'intent_envelope')
+            key = DomainMapper.to_pheromone_key(
+                domain=normalized_domain,
+                layer='strategic',
+                pheromone_type=pheromone_type
+            )
             data = await self.redis_client.get_cached_context(key)
 
             if data and 'strength' in data:
@@ -124,8 +138,9 @@ class PheromoneClient:
 
             QueenAgentMetrics.pheromone_trails_cache_misses_total.inc()
 
-            # Padrão de busca para trilhas SUCCESS
-            pattern = f"{self.prefix}*:SUCCESS"
+            # Padrão de busca para trilhas SUCCESS (formato unificado)
+            # Formato: pheromone:strategic:{domain}:SUCCESS
+            pattern = "pheromone:strategic:*:SUCCESS"
             trails: List[Dict[str, Any]] = []
             keys_scanned = 0
 
@@ -139,13 +154,13 @@ class PheromoneClient:
                 try:
                     # Formato esperado: pheromone:strategic:{domain}:SUCCESS
                     key_parts = key.split(':')
-                    if len(key_parts) < 4:
+                    if len(key_parts) != 4:
                         logger.warning("malformed_pheromone_key", key=key)
                         continue
 
-                    # Extrair domain (pode conter ':')
+                    # Extrair domain (UnifiedDomain não contém ':')
                     # pheromone:strategic:{domain}:SUCCESS
-                    domain = ':'.join(key_parts[2:-1])
+                    domain = key_parts[2]
 
                 except Exception as parse_error:
                     logger.warning(

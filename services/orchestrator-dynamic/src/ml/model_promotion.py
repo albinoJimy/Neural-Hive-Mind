@@ -18,6 +18,8 @@ import structlog
 
 if TYPE_CHECKING:
     from .shadow_mode import ShadowModeRunner
+    from .model_comparator import ModelComparator, ComparisonResult
+    from .model_audit_logger import ModelAuditLogger, AuditEventContext
 
 logger = structlog.get_logger(__name__)
 
@@ -65,6 +67,9 @@ class PromotionConfig:
     checkpoint_duration_minutes: int = 30
     checkpoint_mae_threshold_pct: float = 20.0
     checkpoint_error_rate_threshold: float = 0.001  # 0.1%
+    # Detailed Comparison Configuration
+    enable_detailed_comparison: bool = True
+    comparison_confidence_threshold: float = 0.7  # Mínimo para promoção automática
 
 
 @dataclass
@@ -117,7 +122,8 @@ class ModelPromotionManager:
         model_validator=None,
         continuous_validator=None,
         mongodb_client=None,
-        metrics=None
+        metrics=None,
+        audit_logger: 'ModelAuditLogger' = None
     ):
         """
         Args:
@@ -127,6 +133,7 @@ class ModelPromotionManager:
             continuous_validator: ContinuousValidator instance (opcional)
             mongodb_client: Cliente MongoDB (opcional)
             metrics: OrchestratorMetrics (opcional)
+            audit_logger: ModelAuditLogger instance (opcional, para audit logging)
         """
         self.config = config
         self.model_registry = model_registry
@@ -134,6 +141,7 @@ class ModelPromotionManager:
         self.continuous_validator = continuous_validator
         self.mongodb_client = mongodb_client
         self.metrics = metrics
+        self.audit_logger = audit_logger
         self.logger = logger.bind(component="model_promotion")
         self._initialized = False
 
@@ -176,6 +184,9 @@ class ModelPromotionManager:
         self._rollout_current_stage: Dict[str, int] = {}  # model_name -> stage_index
         self._rollout_baseline_metrics: Dict[str, Dict[str, float]] = {}  # model_name -> metrics
 
+        # Model comparator para análise detalhada
+        self._model_comparator: Optional['ModelComparator'] = None
+
     async def initialize(self) -> None:
         """
         Inicializa o ModelPromotionManager.
@@ -187,8 +198,23 @@ class ModelPromotionManager:
 
         self.logger.info("model_promotion_manager_initializing")
 
-        # Inicialização de recursos se necessário
-        # (atualmente não há recursos que precisem de inicialização async)
+        # Inicializar ModelComparator para comparação detalhada
+        try:
+            from .model_comparator import ModelComparator
+            self._model_comparator = ModelComparator(
+                config=self.config,
+                model_registry=self.model_registry,
+                mongodb_client=self.mongodb_client,
+                metrics=self.metrics,
+                logger=self.logger
+            )
+            self.logger.info("model_comparator_initialized")
+        except Exception as e:
+            self.logger.warning(
+                "model_comparator_initialization_failed",
+                error=str(e)
+            )
+            self._model_comparator = None
 
         self._initialized = True
         self.logger.info("model_promotion_manager_initialized")
@@ -287,6 +313,31 @@ class ModelPromotionManager:
             target_stage=target_stage
         )
 
+        # Audit logging - promoção iniciada
+        if self.audit_logger:
+            try:
+                from .model_audit_logger import AuditEventContext
+                context = AuditEventContext(
+                    user_id=initiated_by,
+                    reason=f'Promoção para {target_stage}',
+                    environment=getattr(self.config, 'environment', 'production'),
+                    triggered_by='manual' if initiated_by != 'system' else 'automatic',
+                    metadata={'request_id': request_id, 'skip_canary': skip_canary}
+                )
+                await self.audit_logger.log_promotion_initiated(
+                    model_name=model_name,
+                    model_version=version,
+                    context=context,
+                    promotion_config={
+                        'target_stage': target_stage,
+                        'shadow_mode_enabled': config.shadow_mode_enabled,
+                        'canary_enabled': config.canary_enabled,
+                        'gradual_rollout_enabled': config.gradual_rollout_enabled
+                    }
+                )
+            except Exception as audit_error:
+                self.logger.warning('audit_logging_failed', error=str(audit_error))
+
         # Executar promoção em background
         asyncio.create_task(self._execute_promotion(request))
 
@@ -382,6 +433,28 @@ class ModelPromotionManager:
 
             if model is None:
                 request.error_message = "Modelo não encontrado"
+
+                # Audit log: validation_failed
+                if self.audit_logger:
+                    try:
+                        from .model_audit_logger import AuditEventContext
+                        context = AuditEventContext(
+                            user_id=request.initiated_by,
+                            reason='Modelo não encontrado',
+                            environment=getattr(self.config, 'environment', 'production'),
+                            triggered_by='automatic',
+                            metadata={'request_id': request.request_id}
+                        )
+                        await self.audit_logger.log_validation_failed(
+                            model_name=request.model_name,
+                            model_version=request.source_version,
+                            context=context,
+                            validation_results={'validation_type': 'pre_promotion'},
+                            failure_reasons=['model_not_found']
+                        )
+                    except Exception as audit_error:
+                        self.logger.warning('audit_logging_validation_failed_error', error=str(audit_error))
+
                 return False
 
             # Buscar metadados
@@ -398,6 +471,28 @@ class ModelPromotionManager:
                         f"MAE ({mae_pct:.2f}%) excede threshold "
                         f"({request.config.mae_threshold_pct:.2f}%)"
                     )
+
+                    # Audit log: validation_failed (MAE)
+                    if self.audit_logger:
+                        try:
+                            from .model_audit_logger import AuditEventContext
+                            context = AuditEventContext(
+                                user_id=request.initiated_by,
+                                reason=request.error_message,
+                                environment=getattr(self.config, 'environment', 'production'),
+                                triggered_by='automatic',
+                                metadata={'request_id': request.request_id, 'mae_pct': mae_pct}
+                            )
+                            await self.audit_logger.log_validation_failed(
+                                model_name=request.model_name,
+                                model_version=request.source_version,
+                                context=context,
+                                validation_results={'metrics': metrics, 'validation_type': 'pre_promotion'},
+                                failure_reasons=['mae_threshold_exceeded']
+                            )
+                        except Exception as audit_error:
+                            self.logger.warning('audit_logging_validation_failed_error', error=str(audit_error))
+
                     return False
 
             elif 'anomaly' in request.model_name.lower():
@@ -407,6 +502,28 @@ class ModelPromotionManager:
                         f"Precision ({precision:.2f}) abaixo do threshold "
                         f"({request.config.precision_threshold:.2f})"
                     )
+
+                    # Audit log: validation_failed (precision)
+                    if self.audit_logger:
+                        try:
+                            from .model_audit_logger import AuditEventContext
+                            context = AuditEventContext(
+                                user_id=request.initiated_by,
+                                reason=request.error_message,
+                                environment=getattr(self.config, 'environment', 'production'),
+                                triggered_by='automatic',
+                                metadata={'request_id': request.request_id, 'precision': precision}
+                            )
+                            await self.audit_logger.log_validation_failed(
+                                model_name=request.model_name,
+                                model_version=request.source_version,
+                                context=context,
+                                validation_results={'metrics': metrics, 'validation_type': 'pre_promotion'},
+                                failure_reasons=['precision_below_threshold']
+                            )
+                        except Exception as audit_error:
+                            self.logger.warning('audit_logging_validation_failed_error', error=str(audit_error))
+
                     return False
 
             request.metrics['pre_validation'] = metrics
@@ -417,11 +534,201 @@ class ModelPromotionManager:
                 metrics=metrics
             )
 
+            # Audit log: validation_passed
+            if self.audit_logger:
+                try:
+                    from .model_audit_logger import AuditEventContext
+                    context = AuditEventContext(
+                        user_id=request.initiated_by,
+                        reason='Validação pré-promoção passou',
+                        environment=getattr(self.config, 'environment', 'production'),
+                        triggered_by='automatic',
+                        metadata={'request_id': request.request_id}
+                    )
+                    await self.audit_logger.log_validation_passed(
+                        model_name=request.model_name,
+                        model_version=request.source_version,
+                        context=context,
+                        validation_results={
+                            'metrics': metrics,
+                            'validation_type': 'pre_promotion'
+                        }
+                    )
+                except Exception as audit_error:
+                    self.logger.warning('audit_logging_validation_passed_failed', error=str(audit_error))
+
+            # Comparação detalhada com modelo atual (se habilitada)
+            if request.config.enable_detailed_comparison and self._model_comparator:
+                comparison_passed = await self._run_detailed_comparison(request, metadata)
+                if not comparison_passed:
+                    return False
+
             return True
 
         except Exception as e:
             request.error_message = f"Erro na validação: {str(e)}"
             return False
+
+    async def _run_detailed_comparison(
+        self,
+        request: PromotionRequest,
+        metadata: Dict[str, Any]
+    ) -> bool:
+        """
+        Executa comparação detalhada entre modelo candidato e atual.
+
+        Args:
+            request: PromotionRequest
+            metadata: Metadados do modelo
+
+        Returns:
+            True se aprovado, False se rejeitado
+        """
+        self.logger.info(
+            "running_detailed_model_comparison",
+            request_id=request.request_id
+        )
+
+        try:
+            # Buscar versão atual em produção
+            current_version = await self._get_production_version(request.model_name)
+
+            if not current_version:
+                self.logger.info(
+                    "no_production_version_for_comparison",
+                    request_id=request.request_id
+                )
+                # Sem modelo em produção, prosseguir com promoção
+                return True
+
+            # Carregar test dataset do MongoDB
+            test_data = await self._load_test_dataset(request.model_name)
+
+            if not test_data:
+                self.logger.warning(
+                    "test_dataset_not_found",
+                    request_id=request.request_id,
+                    model_name=request.model_name
+                )
+                # Sem dataset de teste, prosseguir sem comparação
+                return True
+
+            # Executar comparação (passando threshold de confiança configurado)
+            comparison_result = await self._model_comparator.compare_models(
+                model_name=request.model_name,
+                current_version=current_version,
+                candidate_version=request.source_version,
+                test_data=test_data,
+                confidence_threshold=request.config.comparison_confidence_threshold
+            )
+
+            # Salvar resultado no request
+            request.metrics['detailed_comparison'] = comparison_result.to_dict()
+
+            # Gerar e salvar relatório HTML
+            html_report = self._model_comparator._generate_html_report(comparison_result)
+            await self._model_comparator.save_report_to_mlflow(
+                html_report=html_report,
+                model_name=request.model_name,
+                run_id=metadata.get('run_id')
+            )
+
+            # Verificar recomendação
+            if comparison_result.recommendation == 'reject':
+                request.error_message = (
+                    f"Comparação detalhada recomenda rejeição: "
+                    f"{comparison_result.recommendation_reason}"
+                )
+                self.logger.warning(
+                    "detailed_comparison_rejected",
+                    request_id=request.request_id,
+                    reason=comparison_result.recommendation_reason
+                )
+                return False
+
+            self.logger.info(
+                "detailed_comparison_completed",
+                request_id=request.request_id,
+                recommendation=comparison_result.recommendation,
+                confidence=comparison_result.confidence_score
+            )
+
+            return True
+
+        except Exception as e:
+            self.logger.error(
+                "detailed_comparison_failed",
+                request_id=request.request_id,
+                error=str(e)
+            )
+            # Não falha a validação se comparação falhar
+            # Apenas loga o erro e continua
+            return True
+
+    async def _get_production_version(self, model_name: str) -> Optional[str]:
+        """
+        Busca versão atual em produção.
+
+        Args:
+            model_name: Nome do modelo
+
+        Returns:
+            Versão em produção ou None
+        """
+        try:
+            versions = await asyncio.to_thread(
+                self.model_registry.client.search_model_versions,
+                f"name='{model_name}'"
+            )
+
+            for v in versions:
+                if v.current_stage == 'Production':
+                    return v.version
+
+            return None
+
+        except Exception as e:
+            self.logger.error("get_production_version_failed", error=str(e))
+            return None
+
+    async def _load_test_dataset(self, model_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Carrega test dataset do MongoDB.
+
+        Espera collection 'model_test_datasets' com estrutura:
+        {
+            'model_name': str,
+            'X_test': List[Dict],  # Features
+            'y_test': List,        # Labels
+            'metadata': Dict       # task_type, domain, etc
+        }
+
+        Args:
+            model_name: Nome do modelo
+
+        Returns:
+            Dict com X_test, y_test, metadata ou None
+        """
+        if not self.mongodb_client:
+            return None
+
+        try:
+            dataset = await self.mongodb_client.db['model_test_datasets'].find_one({
+                'model_name': model_name
+            })
+
+            if not dataset:
+                return None
+
+            return {
+                'X_test': dataset['X_test'],
+                'y_test': dataset['y_test'],
+                'metadata': dataset.get('metadata', {})
+            }
+
+        except Exception as e:
+            self.logger.error("load_test_dataset_failed", error=str(e))
+            return None
 
     async def _run_shadow_mode(
         self,
@@ -485,7 +792,8 @@ class ModelPromotionManager:
                 mongodb_client=self.mongodb_client,
                 metrics=self.metrics,
                 model_name=request.model_name,
-                shadow_version=shadow_version
+                shadow_version=shadow_version,
+                audit_logger=self.audit_logger
             )
 
             # Registrar runner ativo
@@ -568,6 +876,30 @@ class ModelPromotionManager:
             traffic_pct=request.config.canary_traffic_pct,
             duration_minutes=request.config.canary_duration_minutes
         )
+
+        # Audit log: canary_deployed
+        if self.audit_logger:
+            try:
+                from .model_audit_logger import AuditEventContext
+                context = AuditEventContext(
+                    user_id=request.initiated_by,
+                    reason='Canary deployment iniciado',
+                    environment=getattr(self.config, 'environment', 'production'),
+                    triggered_by='automatic',
+                    metadata={'request_id': request.request_id}
+                )
+                await self.audit_logger.log_canary_deployed(
+                    model_name=request.model_name,
+                    model_version=request.source_version,
+                    context=context,
+                    canary_config={
+                        'traffic_percentage': request.config.canary_traffic_pct,
+                        'duration_minutes': request.config.canary_duration_minutes,
+                        'auto_rollback_enabled': request.config.auto_rollback_enabled
+                    }
+                )
+            except Exception as audit_error:
+                self.logger.warning('audit_logging_canary_deployed_failed', error=str(audit_error))
 
         try:
             # Configurar split de tráfego
@@ -788,6 +1120,30 @@ class ModelPromotionManager:
                     traffic_pct=traffic_pct * 100
                 )
 
+                # Audit log: rollout_stage_completed
+                if self.audit_logger:
+                    try:
+                        from .model_audit_logger import AuditEventContext
+                        context = AuditEventContext(
+                            user_id=request.initiated_by,
+                            reason=f'Estágio de rollout {stage_name} concluído',
+                            environment=getattr(self.config, 'environment', 'production'),
+                            triggered_by='automatic',
+                            metadata={'request_id': request.request_id}
+                        )
+                        await self.audit_logger.log_rollout_stage_completed(
+                            model_name=request.model_name,
+                            model_version=request.source_version,
+                            context=context,
+                            stage_info={
+                                'stage': stage_name,
+                                'traffic_percentage': traffic_pct * 100,
+                                'metrics': checkpoint_metrics
+                            }
+                        )
+                    except Exception as audit_error:
+                        self.logger.warning('audit_logging_rollout_stage_failed', error=str(audit_error))
+
             # Limpar estado de rollout
             self._rollout_current_stage.pop(request.model_name, None)
             self._rollout_baseline_metrics.pop(request.model_name, None)
@@ -984,6 +1340,28 @@ class ModelPromotionManager:
 
             request.metrics['rollback_result'] = result
 
+            # Audit logging - rollback executado
+            if self.audit_logger:
+                try:
+                    from .model_audit_logger import AuditEventContext
+                    context = AuditEventContext(
+                        user_id='system',
+                        reason=request.error_message or 'Degradação de métricas durante promoção',
+                        environment=getattr(self.config, 'environment', 'production'),
+                        triggered_by='automatic',
+                        metadata={'request_id': request.request_id}
+                    )
+                    previous_version = result.get('rolled_back_to', 'unknown') if isinstance(result, dict) else 'unknown'
+                    await self.audit_logger.log_rollback_executed(
+                        model_name=request.model_name,
+                        model_version=request.source_version,
+                        context=context,
+                        rollback_reason=request.error_message or 'Canary failed',
+                        previous_version=previous_version
+                    )
+                except Exception as audit_error:
+                    self.logger.warning('audit_logging_rollback_failed', error=str(audit_error))
+
         except Exception as e:
             self.logger.error(
                 "rollback_failed",
@@ -1018,6 +1396,37 @@ class ModelPromotionManager:
                 )
             except Exception:
                 pass
+
+        # Audit logging - promoção finalizada
+        if self.audit_logger and request.result == PromotionResult.SUCCESS:
+            try:
+                from .model_audit_logger import AuditEventContext
+                duration = (datetime.utcnow() - request.created_at).total_seconds()
+                context = AuditEventContext(
+                    user_id=request.initiated_by,
+                    reason=f'Promoção concluída com sucesso para {request.target_stage}',
+                    duration_seconds=duration,
+                    environment=getattr(self.config, 'environment', 'production'),
+                    triggered_by='manual' if request.initiated_by != 'system' else 'automatic',
+                    metadata={'request_id': request.request_id}
+                )
+                await self.audit_logger.log_model_promoted(
+                    model_name=request.model_name,
+                    model_version=request.source_version,
+                    context=context,
+                    promotion_summary={
+                        'target_stage': request.target_stage,
+                        'total_duration_seconds': duration,
+                        'metrics': request.metrics,
+                        'config': {
+                            'shadow_mode_enabled': request.config.shadow_mode_enabled,
+                            'canary_enabled': request.config.canary_enabled,
+                            'gradual_rollout_enabled': request.config.gradual_rollout_enabled
+                        }
+                    }
+                )
+            except Exception as audit_error:
+                self.logger.warning('audit_logging_promotion_finalized_failed', error=str(audit_error))
 
         self.logger.info(
             "promotion_finalized",

@@ -8,10 +8,10 @@ from ..models.raw_event import RawEvent
 from ..models.scout_signal import (
     ScoutSignal,
     SignalType,
-    ExplorationDomain,
     SignalSource,
     ChannelType
 )
+from neural_hive_domain import UnifiedDomain
 from ..config import get_settings
 from .bayesian_filter import BayesianFilter
 from .curiosity_scorer import CuriosityScorer
@@ -31,7 +31,7 @@ class SignalDetector:
     async def detect(
         self,
         event: RawEvent,
-        domain: ExplorationDomain,
+        domain: UnifiedDomain,
         channel: ChannelType = ChannelType.CORE
     ) -> Optional[ScoutSignal]:
         """
@@ -134,7 +134,7 @@ class SignalDetector:
     def detect_signal_type(
         self,
         event: RawEvent,
-        domain: ExplorationDomain
+        domain: UnifiedDomain
     ) -> tuple[Optional[SignalType], float]:
         """
         Detect signal type using heuristics
@@ -159,11 +159,11 @@ class SignalDetector:
             return SignalType.PATTERN_EMERGING, 0.75
 
         # Opportunity detection
-        if domain == ExplorationDomain.BUSINESS and anomaly_score > 0.6:
+        if domain == UnifiedDomain.BUSINESS and anomaly_score > 0.6:
             return SignalType.OPPORTUNITY, 0.70
 
         # Threat detection
-        if domain == ExplorationDomain.SECURITY and anomaly_score > 0.7:
+        if domain == UnifiedDomain.SECURITY and anomaly_score > 0.7:
             return SignalType.THREAT, 0.80
 
         # Trend detection
@@ -172,10 +172,10 @@ class SignalDetector:
 
         return None, 0.0
 
-    def _is_positive_anomaly(self, event: RawEvent, domain: ExplorationDomain) -> bool:
+    def _is_positive_anomaly(self, event: RawEvent, domain: UnifiedDomain) -> bool:
         """Determine if anomaly is positive based on domain and event type"""
         # Heuristic: user_action events in BUSINESS domain tend to be positive
-        if domain == ExplorationDomain.BUSINESS and event.event_type == 'user_action':
+        if domain == UnifiedDomain.BUSINESS and event.event_type == 'user_action':
             return True
 
         # Metrics above threshold could be positive
@@ -189,7 +189,7 @@ class SignalDetector:
     def _detect_emerging_pattern(
         self,
         features: list[float],
-        domain: ExplorationDomain
+        domain: UnifiedDomain
     ) -> bool:
         """Detect emerging patterns - MVP heuristic"""
         # Simple pattern: high variance in features
@@ -199,7 +199,7 @@ class SignalDetector:
         variance = np.var(features)
         return variance > 0.5  # Threshold for pattern detection
 
-    def _detect_trend(self, features: list[float], domain: ExplorationDomain) -> bool:
+    def _detect_trend(self, features: list[float], domain: UnifiedDomain) -> bool:
         """Detect trends - MVP heuristic"""
         if not features or len(features) < 10:
             return False
@@ -258,12 +258,12 @@ class SignalDetector:
 
         return min(quality_score, 1.0)
 
-    def calculate_relevance(self, event: RawEvent, domain: ExplorationDomain) -> float:
+    def calculate_relevance(self, event: RawEvent, domain: UnifiedDomain) -> float:
         """Calculate relevance score for the system"""
         # Delegate to curiosity scorer's relevance calculation
         return self.curiosity_scorer.calculate_relevance(event, domain)
 
-    def calculate_risk(self, signal_type: SignalType, domain: ExplorationDomain) -> float:
+    def calculate_risk(self, signal_type: SignalType, domain: UnifiedDomain) -> float:
         """
         Calculate risk score based on signal type and domain
 
@@ -288,11 +288,11 @@ class SignalDetector:
 
         # Domain risk multiplier
         domain_multiplier = {
-            ExplorationDomain.SECURITY: 1.2,
-            ExplorationDomain.INFRASTRUCTURE: 1.1,
-            ExplorationDomain.BUSINESS: 0.9,
-            ExplorationDomain.TECHNICAL: 1.0,
-            ExplorationDomain.BEHAVIOR: 0.95
+            UnifiedDomain.SECURITY: 1.2,
+            UnifiedDomain.INFRASTRUCTURE: 1.1,
+            UnifiedDomain.BUSINESS: 0.9,
+            UnifiedDomain.TECHNICAL: 1.0,
+            UnifiedDomain.BEHAVIOR: 0.95
         }
 
         risk = base_risk * domain_multiplier.get(domain, 1.0)
@@ -303,7 +303,7 @@ class SignalDetector:
         self,
         signal_type: SignalType,
         event: RawEvent,
-        domain: ExplorationDomain
+        domain: UnifiedDomain
     ) -> str:
         """Generate human-readable description of signal"""
         descriptions = {

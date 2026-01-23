@@ -16,6 +16,9 @@ from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 import uuid
 
+from pymongo.errors import PyMongoError
+from neural_hive_resilience.circuit_breaker import CircuitBreakerError
+
 from src.activities.ticket_generation import (
     generate_execution_tickets,
     allocate_resources,
@@ -506,3 +509,225 @@ class TestPublishTicketToKafka:
         # Verificar que o ticket persistido no MongoDB tem status PENDING
         saved_ticket = mock_mongodb_client.save_execution_ticket.call_args[0][0]
         assert saved_ticket['status'] == 'PENDING'
+
+
+class TestSLATimeoutConfiguration:
+    """Testes para configuração de timeout de SLA."""
+
+    @pytest.mark.asyncio
+    async def test_timeout_uses_configured_minimum(
+        self, mock_activity_info, consolidated_decision
+    ):
+        """Timeout deve respeitar o mínimo configurado."""
+        # Configurar mock com valores customizados
+        mock_cfg = MagicMock()
+        mock_cfg.sla_ticket_min_timeout_ms = 90000  # 90 segundos
+        mock_cfg.sla_ticket_timeout_buffer_multiplier = 3.0
+
+        plan = {
+            'plan_id': 'plan-timeout-test',
+            'intent_id': 'intent-timeout-test',
+            'tasks': [{
+                'task_id': 'task-1',
+                'dependencies': [],
+                'estimated_duration_ms': 10000  # 10s (menor que mínimo)
+            }],
+            'execution_order': ['task-1'],
+            'risk_band': 'medium'
+        }
+
+        set_activity_dependencies(
+            kafka_producer=None,
+            mongodb_client=None,
+            config=mock_cfg
+        )
+
+        tickets = await generate_execution_tickets(plan, consolidated_decision)
+
+        # Timeout deve ser o mínimo configurado (90s), não 10s * 3.0 = 30s
+        assert tickets[0]['sla']['timeout_ms'] == 90000
+
+    @pytest.mark.asyncio
+    async def test_timeout_uses_configured_multiplier(
+        self, mock_activity_info, consolidated_decision
+    ):
+        """Timeout deve usar multiplicador configurado."""
+        mock_cfg = MagicMock()
+        mock_cfg.sla_ticket_min_timeout_ms = 60000  # 60 segundos
+        mock_cfg.sla_ticket_timeout_buffer_multiplier = 4.0  # 4x buffer
+
+        plan = {
+            'plan_id': 'plan-multiplier-test',
+            'intent_id': 'intent-multiplier-test',
+            'tasks': [{
+                'task_id': 'task-1',
+                'dependencies': [],
+                'estimated_duration_ms': 30000  # 30s
+            }],
+            'execution_order': ['task-1'],
+            'risk_band': 'medium'
+        }
+
+        set_activity_dependencies(
+            kafka_producer=None,
+            mongodb_client=None,
+            config=mock_cfg
+        )
+
+        tickets = await generate_execution_tickets(plan, consolidated_decision)
+
+        # Timeout deve ser 30s * 4.0 = 120s (maior que mínimo de 60s)
+        assert tickets[0]['sla']['timeout_ms'] == 120000
+
+    @pytest.mark.asyncio
+    async def test_timeout_defaults_when_config_unavailable(
+        self, mock_activity_info, consolidated_decision
+    ):
+        """Timeout deve usar defaults quando config não disponível."""
+        plan = {
+            'plan_id': 'plan-default-test',
+            'intent_id': 'intent-default-test',
+            'tasks': [{
+                'task_id': 'task-1',
+                'dependencies': [],
+                'estimated_duration_ms': 10000  # 10s
+            }],
+            'execution_order': ['task-1'],
+            'risk_band': 'medium'
+        }
+
+        set_activity_dependencies(
+            kafka_producer=None,
+            mongodb_client=None,
+            config=None  # Sem config
+        )
+
+        tickets = await generate_execution_tickets(plan, consolidated_decision)
+
+        # Deve usar defaults: max(60000, 10000 * 3.0) = 60000
+        assert tickets[0]['sla']['timeout_ms'] == 60000
+
+
+class TestMongoDBPersistenceFailOpen:
+    """Testes para configuração fail-open de persistência MongoDB."""
+
+    @pytest.mark.asyncio
+    async def test_publish_propagates_persistence_error_when_fail_open_disabled(
+        self, mock_activity_info, mock_kafka_producer
+    ):
+        """publish_ticket_to_kafka deve propagar erros quando fail-open=False."""
+        mock_mongodb = AsyncMock()
+        mock_mongodb.save_execution_ticket = AsyncMock(
+            side_effect=PyMongoError('Database error')
+        )
+
+        mock_cfg = MagicMock()
+        mock_cfg.MONGODB_FAIL_OPEN_EXECUTION_TICKETS = False
+
+        ticket = {
+            'ticket_id': str(uuid.uuid4()),
+            'plan_id': 'plan-001',
+            'status': 'PENDING',
+            'allocation_metadata': {'agent_id': 'worker-001'}
+        }
+
+        set_activity_dependencies(
+            kafka_producer=mock_kafka_producer,
+            mongodb_client=mock_mongodb,
+            config=mock_cfg
+        )
+
+        with pytest.raises(RuntimeError, match='Falha crítica na persistência'):
+            await publish_ticket_to_kafka(ticket)
+
+    @pytest.mark.asyncio
+    async def test_publish_continues_when_fail_open_enabled(
+        self, mock_activity_info, mock_kafka_producer
+    ):
+        """publish_ticket_to_kafka deve continuar quando fail-open=True."""
+        mock_mongodb = AsyncMock()
+        mock_mongodb.save_execution_ticket = AsyncMock(
+            side_effect=PyMongoError('Database error')
+        )
+
+        mock_cfg = MagicMock()
+        mock_cfg.MONGODB_FAIL_OPEN_EXECUTION_TICKETS = True
+
+        ticket = {
+            'ticket_id': str(uuid.uuid4()),
+            'plan_id': 'plan-001',
+            'status': 'PENDING',
+            'allocation_metadata': {'agent_id': 'worker-001'}
+        }
+
+        set_activity_dependencies(
+            kafka_producer=mock_kafka_producer,
+            mongodb_client=mock_mongodb,
+            config=mock_cfg
+        )
+
+        result = await publish_ticket_to_kafka(ticket)
+
+        # Deve continuar com publicação mesmo com erro de persistência
+        assert result['published'] is True
+        assert result['ticket_id'] == ticket['ticket_id']
+        mock_kafka_producer.publish_ticket.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_publish_handles_circuit_breaker_error(
+        self, mock_activity_info, mock_kafka_producer
+    ):
+        """Circuit breaker aberto deve permitir degradação controlada."""
+        mock_mongodb = AsyncMock()
+        mock_mongodb.save_execution_ticket = AsyncMock(
+            side_effect=CircuitBreakerError('Circuit breaker is open')
+        )
+
+        mock_cfg = MagicMock()
+        mock_cfg.MONGODB_FAIL_OPEN_EXECUTION_TICKETS = False
+
+        ticket = {
+            'ticket_id': str(uuid.uuid4()),
+            'plan_id': 'plan-001',
+            'status': 'PENDING',
+            'allocation_metadata': {'agent_id': 'worker-001'}
+        }
+
+        set_activity_dependencies(
+            kafka_producer=mock_kafka_producer,
+            mongodb_client=mock_mongodb,
+            config=mock_cfg
+        )
+
+        # Circuit breaker deve permitir degradação (ticket já foi publicado no Kafka)
+        result = await publish_ticket_to_kafka(ticket)
+
+        assert result['published'] is True
+        mock_kafka_producer.publish_ticket.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_publish_uses_default_fail_open_when_config_unavailable(
+        self, mock_activity_info, mock_kafka_producer
+    ):
+        """Deve usar fail-open=False como default quando config indisponível."""
+        mock_mongodb = AsyncMock()
+        mock_mongodb.save_execution_ticket = AsyncMock(
+            side_effect=PyMongoError('Database error')
+        )
+
+        ticket = {
+            'ticket_id': str(uuid.uuid4()),
+            'plan_id': 'plan-001',
+            'status': 'PENDING',
+            'allocation_metadata': {'agent_id': 'worker-001'}
+        }
+
+        set_activity_dependencies(
+            kafka_producer=mock_kafka_producer,
+            mongodb_client=mock_mongodb,
+            config=None  # Sem config
+        )
+
+        # Sem config, fail-open=False por default, então deve propagar erro
+        with pytest.raises(RuntimeError, match='Falha crítica na persistência'):
+            await publish_ticket_to_kafka(ticket)

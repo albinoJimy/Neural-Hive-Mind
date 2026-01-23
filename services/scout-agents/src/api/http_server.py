@@ -6,7 +6,8 @@ from fastapi.responses import PlainTextResponse
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 import structlog
 
-from ..models.scout_signal import ScoutSignal, ExplorationDomain, SignalType, ChannelType
+from ..models.scout_signal import ScoutSignal, SignalType, ChannelType
+from neural_hive_domain import UnifiedDomain
 from ..models.raw_event import RawEvent
 from ..engine.exploration_engine import ExplorationEngine
 from ..config import get_settings
@@ -84,7 +85,7 @@ async def get_status():
 
 @app.get("/api/v1/signals")
 async def list_signals(
-    domain: Optional[ExplorationDomain] = None,
+    domain: Optional[UnifiedDomain] = None,
     signal_type: Optional[SignalType] = None,
     limit: int = Query(default=100, le=1000)
 ):
@@ -121,7 +122,7 @@ async def get_signal(signal_id: str):
 
 @app.post("/api/v1/signals/simulate")
 async def simulate_signal(
-    domain: ExplorationDomain = ExplorationDomain.TECHNICAL,
+    domain: UnifiedDomain = UnifiedDomain.TECHNICAL,
     channel: ChannelType = ChannelType.CORE
 ):
     """

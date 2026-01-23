@@ -10,8 +10,9 @@ integração de detecção de operações destrutivas.
 import structlog
 from typing import Dict, List, Tuple
 
-from neural_hive_risk_scoring import RiskScoringEngine, RiskScoringConfig, RiskDomain
+from neural_hive_risk_scoring import RiskScoringEngine, RiskScoringConfig
 from neural_hive_risk_scoring import RiskBand as SharedRiskBand
+from neural_hive_domain import UnifiedDomain
 
 from src.config.settings import Settings
 from src.models.cognitive_plan import RiskBand, TaskNode
@@ -107,7 +108,7 @@ class RiskScorer:
         }
 
         # Usar engine compartilhado - domínio BUSINESS
-        assessment = self.engine.score(entity, RiskDomain.BUSINESS)
+        assessment = self.engine.score(entity, UnifiedDomain.BUSINESS)
 
         # Converter RiskBand da biblioteca para o modelo local
         risk_band = self._convert_risk_band(assessment.band)
@@ -221,17 +222,17 @@ class RiskScorer:
         }
 
         # 3. Avaliar domínio BUSINESS
-        business_assessment = self.engine.score(entity, RiskDomain.BUSINESS)
+        business_assessment = self.engine.score(entity, UnifiedDomain.BUSINESS)
 
         # 4. Avaliar domínio SECURITY
         # Enriquecer entidade com campos específicos de segurança
         entity['handles_pii'] = security_level in ['confidential', 'restricted']
-        security_assessment = self.engine.score(entity, RiskDomain.SECURITY)
+        security_assessment = self.engine.score(entity, UnifiedDomain.SECURITY)
 
         # 5. Avaliar domínio OPERATIONAL
         # Enriquecer entidade com campos específicos operacionais
         entity['num_destructive_tasks'] = num_destructive_tasks
-        operational_assessment = self.engine.score(entity, RiskDomain.OPERATIONAL)
+        operational_assessment = self.engine.score(entity, UnifiedDomain.OPERATIONAL)
 
         # 6. Calcular score agregado
         overall_score = self._aggregate_scores(
@@ -248,9 +249,9 @@ class RiskScorer:
 
         # 9. Identificar domínio de maior risco para logging
         domain_scores = {
-            RiskDomain.BUSINESS: business_assessment.score,
-            RiskDomain.SECURITY: security_assessment.score,
-            RiskDomain.OPERATIONAL: operational_assessment.score
+            UnifiedDomain.BUSINESS: business_assessment.score,
+            UnifiedDomain.SECURITY: security_assessment.score,
+            UnifiedDomain.OPERATIONAL: operational_assessment.score
         }
         highest_risk_domain = max(domain_scores, key=domain_scores.get)
 

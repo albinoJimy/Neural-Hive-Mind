@@ -55,3 +55,6 @@ pandas==2.2.3
 python-dotenv==1.0.1
 click==8.1.7
 rich==13.7.0
+
+# Internal libraries
+neural-hive-domain @ file:../../libraries/python/neural_hive_domain

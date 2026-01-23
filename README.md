@@ -2576,7 +2576,7 @@ sequenceDiagram
 - [BusinessMetricsCollector](libraries/python/neural_hive_specialists/observability/business_metrics_collector.py)
 - [AnomalyDetector](libraries/python/neural_hive_specialists/observability/anomaly_detector.py)
 - [Scripts](libraries/python/neural_hive_specialists/scripts/)
-- [CronJob Kubernetes](k8s/cronjobs/business-metrics-collector-job.yaml)
+- [CronJob Kubernetes](k8s/cronjobs/business-metrics-job.yaml)
 - [Alertas](monitoring/alerts/business-metrics-alerts.yaml)
 
 ## 🤝 Contribuição

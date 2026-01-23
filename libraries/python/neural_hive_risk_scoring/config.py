@@ -7,15 +7,7 @@ Configuração Pydantic para motor de risk scoring multi-domínio.
 from pydantic import BaseModel, Field
 from typing import Dict
 from enum import Enum
-
-
-class RiskDomain(str, Enum):
-    """Domínios de avaliação de risco."""
-    BUSINESS = 'business'
-    TECHNICAL = 'technical'
-    SECURITY = 'security'
-    OPERATIONAL = 'operational'
-    COMPLIANCE = 'compliance'
+from neural_hive_domain import UnifiedDomain
 
 
 class RiskBand(str, Enum):
@@ -63,24 +55,24 @@ class RiskScoringConfig(BaseModel):
         default={'regulatory': 0.4, 'audit_trail': 0.3, 'data_retention': 0.2, 'policy_adherence': 0.1}
     )
 
-    def get_thresholds(self, domain: RiskDomain) -> Dict[str, float]:
+    def get_thresholds(self, domain: UnifiedDomain) -> Dict[str, float]:
         """Retorna thresholds para domínio."""
         mapping = {
-            RiskDomain.BUSINESS: self.business_thresholds,
-            RiskDomain.TECHNICAL: self.technical_thresholds,
-            RiskDomain.SECURITY: self.security_thresholds,
-            RiskDomain.OPERATIONAL: self.operational_thresholds,
-            RiskDomain.COMPLIANCE: self.compliance_thresholds
+            UnifiedDomain.BUSINESS: self.business_thresholds,
+            UnifiedDomain.TECHNICAL: self.technical_thresholds,
+            UnifiedDomain.SECURITY: self.security_thresholds,
+            UnifiedDomain.OPERATIONAL: self.operational_thresholds,
+            UnifiedDomain.COMPLIANCE: self.compliance_thresholds
         }
         return mapping.get(domain, self.business_thresholds)
 
-    def get_weights(self, domain: RiskDomain) -> Dict[str, float]:
+    def get_weights(self, domain: UnifiedDomain) -> Dict[str, float]:
         """Retorna pesos para domínio."""
         mapping = {
-            RiskDomain.BUSINESS: self.business_weights,
-            RiskDomain.TECHNICAL: self.technical_weights,
-            RiskDomain.SECURITY: self.security_weights,
-            RiskDomain.OPERATIONAL: self.operational_weights,
-            RiskDomain.COMPLIANCE: self.compliance_weights
+            UnifiedDomain.BUSINESS: self.business_weights,
+            UnifiedDomain.TECHNICAL: self.technical_weights,
+            UnifiedDomain.SECURITY: self.security_weights,
+            UnifiedDomain.OPERATIONAL: self.operational_weights,
+            UnifiedDomain.COMPLIANCE: self.compliance_weights
         }
         return mapping.get(domain, self.business_weights)

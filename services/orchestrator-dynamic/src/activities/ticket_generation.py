@@ -8,6 +8,7 @@ from typing import Dict, Any, List
 from temporalio import activity
 import structlog
 from neural_hive_resilience.circuit_breaker import CircuitBreakerError
+from pymongo.errors import PyMongoError
 
 from src.scheduler import IntelligentScheduler
 
@@ -83,11 +84,33 @@ async def generate_execution_tickets(
             task_id = task['task_id']
             task_to_ticket_map[task_id] = ticket_id
 
-            # Calcular SLA com timeout mínimo para evitar SLA violations prematuros
+            # ============================================================================
+            # SLA Timeout Calculation
+            # ============================================================================
+            # Fórmula: timeout_ms = max(min_timeout_ms, estimated_duration_ms * buffer_multiplier)
+            #
+            # Configuração via environment variables:
+            #   - SLA_TICKET_MIN_TIMEOUT_MS (default: 60000ms = 60s)
+            #   - SLA_TICKET_TIMEOUT_BUFFER_MULTIPLIER (default: 3.0)
+            #
+            # Histórico de mudanças:
+            #   - v1.0.0: min=30s, buffer=1.5x (resultou em 100% falsos positivos)
+            #   - v1.0.9: min=60s, buffer=3.0x (baseado em análise de logs de produção)
+            #
+            # Rationale dos valores atuais:
+            #   - 60s mínimo: Acomoda overhead de inicialização de workers e rede
+            #   - 3.0x buffer: Margem para variabilidade de carga e recursos
+            # ============================================================================
             estimated_duration_ms = task.get('estimated_duration_ms', 60000)
-            # Buffer 50% com timeout mínimo de 30 segundos
-            min_timeout_ms = 30000  # 30 segundos mínimo
-            timeout_ms = max(min_timeout_ms, int(estimated_duration_ms * 1.5))
+
+            # Usar valores configuráveis de timeout (via environment variables)
+            # - min_timeout_ms: Timeout mínimo absoluto (default 60s)
+            # - buffer_multiplier: Multiplicador de buffer (default 3.0x)
+            # Rationale: Valores aumentados baseados em análise de logs de produção
+            # que mostraram 100% de falsos positivos com valores anteriores (30s/1.5x)
+            min_timeout_ms = _config.sla_ticket_min_timeout_ms if _config else 60000
+            buffer_multiplier = _config.sla_ticket_timeout_buffer_multiplier if _config else 3.0
+            timeout_ms = max(min_timeout_ms, int(estimated_duration_ms * buffer_multiplier))
             deadline = int((datetime.now().timestamp() + timeout_ms / 1000) * 1000)
 
             # Mapear max_retries baseado em risk_band
@@ -503,24 +526,56 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
         try:
             await _mongodb_client.save_execution_ticket(ticket)
             activity.logger.info(
-                f'Ticket {ticket_id} persistido no MongoDB',
+                'ticket_persisted_successfully',
+                ticket_id=ticket_id,
                 plan_id=ticket['plan_id']
             )
         except CircuitBreakerError:
+            # Circuit breaker aberto - degradação controlada
             activity.logger.warning(
                 'execution_ticket_persist_circuit_open',
                 ticket_id=ticket_id,
                 plan_id=ticket.get('plan_id')
             )
-            # Degradação: manter publicação e registrar alerta
-        except Exception as db_error:
-            # Log do erro mas não falha a publicação do ticket
-            # O ticket já foi publicado no Kafka com sucesso
+            # Ticket já foi publicado no Kafka, continuar sem persistência
+
+        except PyMongoError as db_error:
+            # Erro de MongoDB - verificar política de fail-open
             activity.logger.error(
-                f'Erro ao persistir ticket no MongoDB: {db_error}',
+                'execution_ticket_persist_failed',
                 ticket_id=ticket_id,
+                plan_id=ticket.get('plan_id'),
+                error=str(db_error),
+                error_type=type(db_error).__name__
+            )
+
+            # Verificar política de fail-open configurável
+            fail_open = _config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS if _config else False
+            if fail_open:
+                activity.logger.warning(
+                    'execution_ticket_persist_fail_open_enabled',
+                    ticket_id=ticket_id
+                )
+                # Continuar sem persistência
+            else:
+                # Propagar erro para retry do Temporal
+                # Auditoria é crítica para compliance
+                raise RuntimeError(f'Falha crítica na persistência do ticket {ticket_id}: {str(db_error)}')
+
+        except Exception as e:
+            # Erro inesperado - logar e verificar política
+            activity.logger.error(
+                'execution_ticket_persist_unexpected_error',
+                ticket_id=ticket_id,
+                plan_id=ticket.get('plan_id'),
+                error=str(e),
+                error_type=type(e).__name__,
                 exc_info=True
             )
+
+            fail_open = _config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS if _config else False
+            if not fail_open:
+                raise RuntimeError(f'Erro inesperado na persistência do ticket {ticket_id}: {str(e)}')
 
         # Construir resultado com informações do Kafka
         result = {

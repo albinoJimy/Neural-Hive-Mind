@@ -173,6 +173,26 @@ class BusinessMetricsCollector:
                     variants_processed=len(ab_test_metrics)
                 )
 
+            # 4.6. Calcular métricas de auto-approval
+            auto_approval_result = self.calculate_auto_approval_metrics(window_hours)
+            if auto_approval_result.get('status') == 'success':
+                logger.info("Auto-approval metrics calculated successfully")
+
+            # 4.7. Calcular métricas de approval time
+            approval_time_result = self.calculate_approval_time_metrics(window_hours)
+            if approval_time_result.get('status') == 'success':
+                logger.info("Approval time metrics calculated successfully")
+
+            # 4.8. Calcular métricas de time saved
+            time_saved_result = self.calculate_time_saved_metrics(window_hours)
+            if time_saved_result.get('status') == 'success':
+                logger.info("Time saved metrics calculated successfully")
+
+            # 4.9. Calcular métricas de model uptime
+            uptime_result = self.calculate_model_uptime_metrics(window_hours)
+            if uptime_result.get('status') == 'success':
+                logger.info("Model uptime metrics calculated successfully")
+
             # 5. Calcular valor de negócio (se habilitado)
             if self.enable_business_value_tracking and self.execution_ticket_api_url:
                 plan_ids = [d.get('plan_id') for d in decisions if d.get('plan_id')]
@@ -214,6 +234,471 @@ class BusinessMetricsCollector:
                 exc_info=True
             )
             return {'status': 'error', 'error': str(e)}
+
+    # ============================================================================
+    # Auto-Approval Metrics
+    # ============================================================================
+
+    def calculate_auto_approval_metrics(
+        self,
+        window_hours: Optional[int] = None,
+        confidence_threshold: float = 0.9
+    ) -> Dict[str, Any]:
+        """
+        Calcula métricas de auto-approval baseadas em confidence score.
+
+        Args:
+            window_hours: Janela de tempo em horas
+            confidence_threshold: Threshold de confiança para auto-approval (default: 0.9)
+
+        Returns:
+            Dict com estatísticas de auto-approval por specialist
+        """
+        window_hours = window_hours or self.window_hours
+
+        try:
+            # Buscar opiniões com confidence score
+            opinions = self._fetch_opinions_with_confidence(window_hours)
+
+            if not opinions:
+                logger.warning("No opinions with confidence score found")
+                return {'status': 'no_data'}
+
+            # Agrupar por specialist_type
+            metrics_by_specialist = defaultdict(lambda: {
+                'total_opinions': 0,
+                'auto_approved': 0,
+                'manual_review': 0,
+                'auto_approval_rate': 0.0
+            })
+
+            for opinion in opinions:
+                specialist_type = opinion.get('specialist_type')
+                confidence = opinion.get('confidence_score', 0.0)
+
+                metrics_by_specialist[specialist_type]['total_opinions'] += 1
+
+                if confidence >= confidence_threshold:
+                    metrics_by_specialist[specialist_type]['auto_approved'] += 1
+                else:
+                    metrics_by_specialist[specialist_type]['manual_review'] += 1
+
+            # Calcular rates e atualizar Prometheus
+            for specialist_type, metrics in metrics_by_specialist.items():
+                if metrics['total_opinions'] > 0:
+                    auto_approval_rate = metrics['auto_approved'] / metrics['total_opinions']
+                    metrics['auto_approval_rate'] = auto_approval_rate
+
+                    # Atualizar Prometheus
+                    if specialist_type in self.metrics_registry:
+                        self.metrics_registry[specialist_type].set_auto_approval_rate(
+                            auto_approval_rate,
+                            confidence_threshold
+                        )
+
+                        # Incrementar contadores de auto-approvals e manual reviews
+                        for _ in range(metrics['auto_approved']):
+                            self.metrics_registry[specialist_type].increment_auto_approvals()
+
+                        for _ in range(metrics['manual_review']):
+                            self.metrics_registry[specialist_type].increment_manual_reviews()
+
+            logger.info(
+                "Auto-approval metrics calculated",
+                specialists_processed=len(metrics_by_specialist),
+                confidence_threshold=confidence_threshold
+            )
+
+            return {
+                'status': 'success',
+                'metrics_by_specialist': dict(metrics_by_specialist),
+                'confidence_threshold': confidence_threshold
+            }
+
+        except Exception as e:
+            logger.error("Error calculating auto-approval metrics", error=str(e), exc_info=True)
+            return {'status': 'error', 'error': str(e)}
+
+    def _fetch_opinions_with_confidence(self, window_hours: int) -> List[Dict]:
+        """Busca opiniões com confidence score da janela de tempo."""
+        try:
+            cutoff_time = datetime.utcnow() - timedelta(hours=window_hours)
+
+            query = {
+                'evaluated_at': {'$gte': cutoff_time},
+                'confidence_score': {'$exists': True, '$ne': None}
+            }
+
+            opinions = list(self.ledger_collection.find(query))
+
+            logger.debug(
+                "Opinions with confidence fetched",
+                count=len(opinions),
+                window_hours=window_hours
+            )
+
+            return opinions
+
+        except PyMongoError as e:
+            logger.error("Error fetching opinions with confidence", error=str(e))
+            return []
+
+    # ============================================================================
+    # Approval Time Metrics
+    # ============================================================================
+
+    def calculate_approval_time_metrics(
+        self,
+        window_hours: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Calcula métricas de tempo de aprovação humana.
+
+        Correlaciona opiniões com decisões de aprovação para calcular
+        tempo entre criação da opinião e decisão humana.
+
+        Args:
+            window_hours: Janela de tempo em horas
+
+        Returns:
+            Dict com estatísticas de approval time por specialist
+        """
+        window_hours = window_hours or self.window_hours
+
+        try:
+            # Buscar opiniões e decisões de aprovação
+            opinions = self._fetch_opinions(window_hours)
+            approvals = self._fetch_approval_decisions(window_hours)
+
+            if not opinions or not approvals:
+                logger.warning("No data for approval time calculation")
+                return {'status': 'no_data'}
+
+            # Criar índice de opiniões por opinion_id
+            opinions_by_id = {
+                op.get('opinion_id'): op
+                for op in opinions
+                if op.get('opinion_id')
+            }
+
+            # Calcular tempos de aprovação
+            metrics_by_specialist = defaultdict(lambda: {
+                'approval_times': [],
+                'avg_approval_time_seconds': 0.0,
+                'total_approvals': 0
+            })
+
+            for approval in approvals:
+                opinion_id = approval.get('opinion_id')
+                if not opinion_id or opinion_id not in opinions_by_id:
+                    continue
+
+                opinion = opinions_by_id[opinion_id]
+                specialist_type = opinion.get('specialist_type')
+
+                # Calcular tempo de aprovação
+                opinion_time = opinion.get('evaluated_at')
+                approval_time = approval.get('approved_at') or approval.get('rejected_at')
+
+                if opinion_time and approval_time:
+                    time_diff_seconds = (approval_time - opinion_time).total_seconds()
+
+                    if time_diff_seconds >= 0:  # Validar que approval veio depois
+                        metrics_by_specialist[specialist_type]['approval_times'].append(time_diff_seconds)
+                        metrics_by_specialist[specialist_type]['total_approvals'] += 1
+
+            # Calcular médias e atualizar Prometheus
+            for specialist_type, metrics in metrics_by_specialist.items():
+                if metrics['approval_times']:
+                    avg_time = sum(metrics['approval_times']) / len(metrics['approval_times'])
+                    metrics['avg_approval_time_seconds'] = avg_time
+
+                    # Atualizar Prometheus
+                    if specialist_type in self.metrics_registry:
+                        self.metrics_registry[specialist_type].set_avg_approval_time(avg_time)
+
+                        # Observar tempos individuais no histogram
+                        for time_seconds in metrics['approval_times']:
+                            self.metrics_registry[specialist_type].observe_approval_time(time_seconds)
+
+            logger.info(
+                "Approval time metrics calculated",
+                specialists_processed=len(metrics_by_specialist)
+            )
+
+            return {
+                'status': 'success',
+                'metrics_by_specialist': {
+                    k: {
+                        'avg_approval_time_seconds': v['avg_approval_time_seconds'],
+                        'total_approvals': v['total_approvals']
+                    }
+                    for k, v in metrics_by_specialist.items()
+                }
+            }
+
+        except Exception as e:
+            logger.error("Error calculating approval time metrics", error=str(e), exc_info=True)
+            return {'status': 'error', 'error': str(e)}
+
+    def _fetch_approval_decisions(self, window_hours: int) -> List[Dict]:
+        """Busca decisões de aprovação/rejeição da janela de tempo."""
+        try:
+            cutoff_time = datetime.utcnow() - timedelta(hours=window_hours)
+
+            # Buscar do approval-service MongoDB
+            approval_db = self.ledger_client[self.ledger_database]
+            approval_collection = approval_db['approvals']
+
+            query = {
+                '$or': [
+                    {'approved_at': {'$gte': cutoff_time}},
+                    {'rejected_at': {'$gte': cutoff_time}}
+                ],
+                'opinion_id': {'$exists': True}
+            }
+
+            approvals = list(approval_collection.find(query))
+
+            logger.debug(
+                "Approval decisions fetched",
+                count=len(approvals),
+                window_hours=window_hours
+            )
+
+            return approvals
+
+        except PyMongoError as e:
+            logger.error("Error fetching approval decisions", error=str(e))
+            return []
+
+    # ============================================================================
+    # Time Saved Metrics
+    # ============================================================================
+
+    def calculate_time_saved_metrics(
+        self,
+        window_hours: Optional[int] = None,
+        estimated_review_time_minutes: float = 5.0
+    ) -> Dict[str, Any]:
+        """
+        Calcula tempo economizado em revisões humanas.
+
+        Estima tempo economizado multiplicando número de auto-approvals
+        pelo tempo médio estimado de revisão manual.
+
+        Args:
+            window_hours: Janela de tempo em horas
+            estimated_review_time_minutes: Tempo estimado de revisão manual (minutos)
+
+        Returns:
+            Dict com estatísticas de time saved por specialist
+        """
+        window_hours = window_hours or self.window_hours
+        estimated_review_time_seconds = estimated_review_time_minutes * 60
+
+        try:
+            # Reutilizar cálculo de auto-approval
+            auto_approval_result = self.calculate_auto_approval_metrics(window_hours)
+
+            if auto_approval_result.get('status') != 'success':
+                return auto_approval_result
+
+            metrics_by_specialist = auto_approval_result['metrics_by_specialist']
+
+            # Calcular time saved
+            for specialist_type, metrics in metrics_by_specialist.items():
+                auto_approved_count = metrics['auto_approved']
+
+                # Time saved = auto_approvals × estimated_review_time
+                time_saved_seconds = auto_approved_count * estimated_review_time_seconds
+                time_saved_hours = time_saved_seconds / 3600
+
+                metrics['time_saved_hours'] = time_saved_hours
+                metrics['estimated_review_time_seconds'] = estimated_review_time_seconds
+
+                # Atualizar Prometheus
+                if specialist_type in self.metrics_registry:
+                    self.metrics_registry[specialist_type].set_human_review_time_saved(time_saved_hours)
+                    self.metrics_registry[specialist_type].set_estimated_review_time_per_plan(
+                        estimated_review_time_seconds
+                    )
+
+            logger.info(
+                "Time saved metrics calculated",
+                specialists_processed=len(metrics_by_specialist),
+                estimated_review_time_minutes=estimated_review_time_minutes
+            )
+
+            return {
+                'status': 'success',
+                'metrics_by_specialist': dict(metrics_by_specialist),
+                'estimated_review_time_minutes': estimated_review_time_minutes
+            }
+
+        except Exception as e:
+            logger.error("Error calculating time saved metrics", error=str(e), exc_info=True)
+            return {'status': 'error', 'error': str(e)}
+
+    # ============================================================================
+    # Model Uptime Metrics
+    # ============================================================================
+
+    def calculate_model_uptime_metrics(
+        self,
+        window_hours: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Calcula métricas de uptime dos modelos.
+
+        Analisa health checks e falhas de inferência para determinar
+        disponibilidade dos modelos.
+
+        Args:
+            window_hours: Janela de tempo em horas
+
+        Returns:
+            Dict com estatísticas de uptime por specialist
+        """
+        window_hours = window_hours or self.window_hours
+
+        try:
+            # Buscar health checks e falhas de inferência
+            health_checks = self._fetch_model_health_checks(window_hours)
+            inference_failures = self._fetch_inference_failures(window_hours)
+
+            # Calcular uptime por specialist
+            metrics_by_specialist = defaultdict(lambda: {
+                'total_checks': 0,
+                'successful_checks': 0,
+                'failed_checks': 0,
+                'uptime_percentage': 1.0,
+                'downtime_seconds': 0,
+                'availability_seconds': 0
+            })
+
+            # Track health check failures for Prometheus counter updates
+            health_check_failures_by_specialist = defaultdict(int)
+
+            # Processar health checks
+            for check in health_checks:
+                specialist_type = check.get('specialist_type')
+                status = check.get('status')
+
+                metrics_by_specialist[specialist_type]['total_checks'] += 1
+
+                if status == 'healthy':
+                    metrics_by_specialist[specialist_type]['successful_checks'] += 1
+                else:
+                    metrics_by_specialist[specialist_type]['failed_checks'] += 1
+                    health_check_failures_by_specialist[specialist_type] += 1
+
+            # Processar falhas de inferência (também contam como checks para cálculo de uptime)
+            for failure in inference_failures:
+                specialist_type = failure.get('specialist_type')
+                # Inference failures count as both a check and a failure
+                metrics_by_specialist[specialist_type]['total_checks'] += 1
+                metrics_by_specialist[specialist_type]['failed_checks'] += 1
+                health_check_failures_by_specialist[specialist_type] += 1
+
+            # Calcular uptime percentage
+            window_seconds = window_hours * 3600
+
+            for specialist_type, metrics in metrics_by_specialist.items():
+                if metrics['total_checks'] > 0:
+                    uptime_percentage = metrics['successful_checks'] / metrics['total_checks']
+                    metrics['uptime_percentage'] = uptime_percentage
+
+                    # Estimar downtime e availability
+                    metrics['availability_seconds'] = window_seconds * uptime_percentage
+                    metrics['downtime_seconds'] = window_seconds * (1 - uptime_percentage)
+
+                    # Atualizar Prometheus
+                    if specialist_type in self.metrics_registry:
+                        self.metrics_registry[specialist_type].set_model_uptime(uptime_percentage)
+                        self.metrics_registry[specialist_type].increment_model_availability(
+                            metrics['availability_seconds']
+                        )
+                        self.metrics_registry[specialist_type].increment_model_downtime(
+                            metrics['downtime_seconds']
+                        )
+
+                        # Incrementar contador de falhas de health check
+                        failure_count = health_check_failures_by_specialist.get(specialist_type, 0)
+                        for _ in range(failure_count):
+                            self.metrics_registry[specialist_type].increment_model_health_check_failure()
+
+            logger.info(
+                "Model uptime metrics calculated",
+                specialists_processed=len(metrics_by_specialist)
+            )
+
+            return {
+                'status': 'success',
+                'metrics_by_specialist': dict(metrics_by_specialist)
+            }
+
+        except Exception as e:
+            logger.error("Error calculating model uptime metrics", error=str(e), exc_info=True)
+            return {'status': 'error', 'error': str(e)}
+
+    def _fetch_model_health_checks(self, window_hours: int) -> List[Dict]:
+        """Busca health checks dos modelos da janela de tempo."""
+        try:
+            cutoff_time = datetime.utcnow() - timedelta(hours=window_hours)
+
+            # Buscar de collection de health checks
+            health_db = self.ledger_client[self.ledger_database]
+
+            # Verificar se collection existe
+            if 'model_health_checks' not in health_db.list_collection_names():
+                logger.warning("model_health_checks collection not found")
+                return []
+
+            health_collection = health_db['model_health_checks']
+
+            query = {
+                'timestamp': {'$gte': cutoff_time}
+            }
+
+            checks = list(health_collection.find(query))
+
+            logger.debug(
+                "Model health checks fetched",
+                count=len(checks),
+                window_hours=window_hours
+            )
+
+            return checks
+
+        except PyMongoError as e:
+            logger.error("Error fetching model health checks", error=str(e))
+            return []
+
+    def _fetch_inference_failures(self, window_hours: int) -> List[Dict]:
+        """Busca falhas de inferência da janela de tempo."""
+        try:
+            cutoff_time = datetime.utcnow() - timedelta(hours=window_hours)
+
+            # Buscar opiniões com erro de inferência
+            query = {
+                'evaluated_at': {'$gte': cutoff_time},
+                'inference_error': {'$exists': True, '$ne': None}
+            }
+
+            failures = list(self.ledger_collection.find(query))
+
+            logger.debug(
+                "Inference failures fetched",
+                count=len(failures),
+                window_hours=window_hours
+            )
+
+            return failures
+
+        except PyMongoError as e:
+            logger.error("Error fetching inference failures", error=str(e))
+            return []
 
     def _fetch_opinions(self, window_hours: int) -> List[Dict]:
         """
@@ -801,6 +1286,77 @@ class BusinessMetricsCollector:
                 'is_significant': False,
                 'winner': None,
                 'error': str(e)
+            }
+
+    # ============================================================================
+    # Daily Metrics Collection (Public API for CronJob/Scripts)
+    # ============================================================================
+
+    def collect_daily_metrics(self) -> Dict[str, Any]:
+        """
+        Coleta métricas de negócio das últimas 24 horas.
+
+        Método público para ser invocado por CronJobs ou scripts externos.
+        Agrega todas as métricas de negócio do dia anterior.
+
+        Returns:
+            Dict com sumário diário contendo:
+            - status: 'success', 'error', ou 'disabled'
+            - window_hours: sempre 24
+            - collection_timestamp: timestamp da coleta
+            - metrics_summary: resumo das métricas calculadas
+            - errors: lista de erros encontrados (se houver)
+        """
+        collection_timestamp = datetime.utcnow().isoformat()
+
+        logger.info(
+            "Starting daily metrics collection",
+            collection_timestamp=collection_timestamp
+        )
+
+        try:
+            # Coletar métricas com janela de 24 horas
+            result = self.collect_business_metrics(window_hours=24)
+
+            # Construir payload de sumário diário
+            daily_summary = {
+                'status': result.get('status', 'unknown'),
+                'window_hours': 24,
+                'collection_timestamp': collection_timestamp,
+                'metrics_summary': {
+                    'opinions_processed': result.get('opinions_processed', 0),
+                    'decisions_processed': result.get('decisions_processed', 0),
+                    'correlations_created': result.get('correlations_created', 0),
+                    'specialists_updated': result.get('specialists_updated', 0),
+                    'duration_seconds': result.get('duration_seconds', 0)
+                },
+                'errors': []
+            }
+
+            if result.get('status') == 'error':
+                daily_summary['errors'].append(result.get('error', 'Unknown error'))
+
+            logger.info(
+                "Daily metrics collection completed",
+                status=daily_summary['status'],
+                opinions_processed=daily_summary['metrics_summary']['opinions_processed'],
+                decisions_processed=daily_summary['metrics_summary']['decisions_processed']
+            )
+
+            return daily_summary
+
+        except Exception as e:
+            logger.error(
+                "Error in daily metrics collection",
+                error=str(e),
+                exc_info=True
+            )
+            return {
+                'status': 'error',
+                'window_hours': 24,
+                'collection_timestamp': collection_timestamp,
+                'metrics_summary': {},
+                'errors': [str(e)]
             }
 
     def close(self):

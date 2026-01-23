@@ -5,7 +5,7 @@ from scipy import stats
 import structlog
 
 from ..models.raw_event import RawEvent
-from ..models.scout_signal import ExplorationDomain
+from neural_hive_domain import UnifiedDomain
 
 logger = structlog.get_logger()
 
@@ -17,13 +17,13 @@ class BayesianFilter:
         # Prior distributions per domain (Beta distribution parameters)
         # Start with uniform prior Beta(1, 1)
         self.priors: Dict[str, Tuple[float, float]] = {
-            domain.value: (1.0, 1.0) for domain in ExplorationDomain
+            domain.value: (1.0, 1.0) for domain in UnifiedDomain
         }
 
         # Likelihood parameters (mean and std for normal distribution)
         self.likelihoods: Dict[str, Tuple[float, float]] = {}
 
-    def filter(self, event: RawEvent, domain: ExplorationDomain) -> Tuple[bool, float]:
+    def filter(self, event: RawEvent, domain: UnifiedDomain) -> Tuple[bool, float]:
         """
         Apply Bayesian filter to event
 
@@ -92,7 +92,7 @@ class BayesianFilter:
             # Default to processing on error
             return True, 0.5
 
-    def calculate_likelihood(self, feature_mean: float, domain: ExplorationDomain) -> float:
+    def calculate_likelihood(self, feature_mean: float, domain: UnifiedDomain) -> float:
         """
         Calculate likelihood P(features|signal)
 
@@ -120,7 +120,7 @@ class BayesianFilter:
 
         return likelihood
 
-    def update_prior(self, domain: ExplorationDomain, is_valid_signal: bool):
+    def update_prior(self, domain: UnifiedDomain, is_valid_signal: bool):
         """
         Update prior distribution based on feedback
 
@@ -148,7 +148,7 @@ class BayesianFilter:
 
     def update_likelihood(
         self,
-        domain: ExplorationDomain,
+        domain: UnifiedDomain,
         feature_mean: float,
         weight: float = 0.1
     ):
@@ -182,7 +182,7 @@ class BayesianFilter:
             std=new_std
         )
 
-    def get_posterior_stats(self, domain: ExplorationDomain) -> Dict[str, float]:
+    def get_posterior_stats(self, domain: UnifiedDomain) -> Dict[str, float]:
         """
         Get statistical summary of posterior distribution
 

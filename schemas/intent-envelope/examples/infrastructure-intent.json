@@ -1,0 +1,105 @@
+{
+  "@context": "https://neural-hive-mind.org/schemas/intent-envelope/context/v1",
+  "@type": "IntentEnvelope",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "version": "1.0.0",
+  "correlationId": "d4e5f6g7-h8i9-j0k1-l2m3-n4o5p6q7r8s9",
+  "traceId": "5cf93f4688c45eb7b4cf030d1f1f5847",
+  "spanId": "01g178bb1cb913c8",
+
+  "actor": {
+    "@type": "Actor",
+    "id": "devops-team-001",
+    "actorType": "HUMAN",
+    "name": "Carlos Mendes"
+  },
+
+  "intent": {
+    "@type": "Intent",
+    "text": "Provisionar cluster Kubernetes com 5 nodes e configurar auto-scaling para suportar 10k requisições/segundo",
+    "domain": "INFRASTRUCTURE",
+    "classification": "infrastructure-provisioning",
+    "originalLanguage": "pt-BR",
+    "processedText": "Provisionar cluster Kubernetes com 5 nodes e configurar auto-scaling para suportar 10k requisições/segundo",
+    "entities": [
+      {
+        "type": "TECHNOLOGY",
+        "value": "Kubernetes",
+        "confidence": 0.98,
+        "start": 22,
+        "end": 32
+      },
+      {
+        "type": "QUANTITY",
+        "value": "5 nodes",
+        "confidence": 0.95,
+        "start": 37,
+        "end": 44
+      },
+      {
+        "type": "FEATURE",
+        "value": "auto-scaling",
+        "confidence": 0.93,
+        "start": 59,
+        "end": 71
+      },
+      {
+        "type": "METRIC",
+        "value": "10k requisições/segundo",
+        "confidence": 0.91,
+        "start": 86,
+        "end": 109
+      }
+    ],
+    "keywords": [
+      "provisionar",
+      "cluster",
+      "kubernetes",
+      "nodes",
+      "auto-scaling",
+      "requisições"
+    ]
+  },
+
+  "confidence": 0.94,
+
+  "context": {
+    "@type": "Context",
+    "sessionId": "sess_infra_9x8y7z6w5v",
+    "userId": "devops-team-001",
+    "tenantId": "acme-corp",
+    "channel": "API",
+    "userAgent": "InfrastructureCLI/2.1.0",
+    "clientIp": "10.0.1.***",
+    "geolocation": {
+      "country": "BR",
+      "region": "SP",
+      "city": "São Paulo",
+      "timezone": "America/Sao_Paulo"
+    }
+  },
+
+  "constraints": {
+    "@type": "Constraint",
+    "priority": "HIGH",
+    "deadline": "2025-02-15T18:00:00Z",
+    "maxRetries": 3,
+    "timeout": "PT2H",
+    "requiredCapabilities": [
+      "kubernetes",
+      "cloud-infrastructure",
+      "auto-scaling",
+      "terraform"
+    ],
+    "securityLevel": "INTERNAL"
+  },
+
+  "qos": {
+    "@type": "QualityOfService",
+    "deliveryMode": "EXACTLY_ONCE",
+    "durability": "PERSISTENT",
+    "consistency": "STRONG"
+  },
+
+  "timestamp": "2025-01-15T14:30:00.000Z"
+}

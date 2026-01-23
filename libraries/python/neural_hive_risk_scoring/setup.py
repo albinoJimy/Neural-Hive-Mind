@@ -10,6 +10,7 @@ setup(
         "pydantic>=2.5.2",
         "structlog>=23.2.0",
         "prometheus-client>=0.19.0",
+        "neural-hive-domain",
     ],
     python_requires=">=3.11",
 )

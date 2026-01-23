@@ -510,6 +510,92 @@ class SpecialistMetrics:
             ['specialist_type']
         )
 
+        # ============================================================================
+        # Auto-Approval Metrics
+        # ============================================================================
+        self.auto_approval_rate = Gauge(
+            'neural_hive_auto_approval_rate',
+            'Taxa de aprovação automática (confidence > threshold)',
+            ['specialist_type', 'confidence_threshold']
+        )
+
+        self.auto_approvals_total = Counter(
+            'neural_hive_auto_approvals_total',
+            'Total de aprovações automáticas',
+            ['specialist_type']
+        )
+
+        self.manual_reviews_total = Counter(
+            'neural_hive_manual_reviews_total',
+            'Total de revisões manuais necessárias',
+            ['specialist_type']
+        )
+
+        # ============================================================================
+        # Approval Time Metrics
+        # ============================================================================
+        self.avg_approval_time_seconds = Gauge(
+            'neural_hive_avg_approval_time_seconds',
+            'Tempo médio de aprovação humana (segundos)',
+            ['specialist_type']
+        )
+
+        self.approval_time_histogram = Histogram(
+            'neural_hive_approval_time_seconds',
+            'Distribuição de tempo de aprovação',
+            ['specialist_type'],
+            buckets=[60, 300, 600, 1800, 3600, 7200, 14400, 28800]  # 1min a 8h
+        )
+
+        # ============================================================================
+        # Time Saved Metrics
+        # ============================================================================
+        self.human_review_time_saved_hours = Gauge(
+            'neural_hive_human_review_time_saved_hours',
+            'Tempo economizado em revisões humanas (horas)',
+            ['specialist_type']
+        )
+
+        # Alias metric for backward compatibility and clarity
+        self.time_saved_hours = Gauge(
+            'neural_hive_time_saved_hours',
+            'Total de tempo economizado em horas (alias de human_review_time_saved_hours)',
+            ['specialist_type']
+        )
+
+        self.estimated_review_time_per_plan_seconds = Gauge(
+            'neural_hive_estimated_review_time_per_plan_seconds',
+            'Tempo estimado de revisão por plano (segundos)',
+            ['specialist_type']
+        )
+
+        # ============================================================================
+        # Model Uptime Metrics
+        # ============================================================================
+        self.model_uptime_percentage = Gauge(
+            'neural_hive_model_uptime_percentage',
+            'Percentual de uptime do modelo (0.0-1.0)',
+            ['specialist_type']
+        )
+
+        self.model_availability_total_seconds = Counter(
+            'neural_hive_model_availability_total_seconds',
+            'Total de segundos que o modelo esteve disponível',
+            ['specialist_type']
+        )
+
+        self.model_downtime_total_seconds = Counter(
+            'neural_hive_model_downtime_total_seconds',
+            'Total de segundos que o modelo esteve indisponível',
+            ['specialist_type']
+        )
+
+        self.model_health_check_failures_total = Counter(
+            'neural_hive_model_health_check_failures_total',
+            'Total de falhas em health checks do modelo',
+            ['specialist_type']
+        )
+
         # Anomaly Detection
         self.anomaly_detected_total = Counter(
             'neural_hive_anomaly_detected_total',
@@ -2231,6 +2317,112 @@ class SpecialistMetrics:
             self.specialist_type,
             variant
         ).set(size)
+
+    # ============================================================================
+    # Auto-Approval and Business Impact Helper Methods
+    # ============================================================================
+
+    def set_auto_approval_rate(self, rate: float, confidence_threshold: float = 0.9):
+        """
+        Define taxa de aprovação automática.
+
+        Args:
+            rate: Taxa de auto-approval (0.0 a 1.0)
+            confidence_threshold: Threshold de confiança usado (default: 0.9)
+        """
+        self.auto_approval_rate.labels(
+            specialist_type=self.specialist_type,
+            confidence_threshold=str(confidence_threshold)
+        ).set(rate)
+
+    def increment_auto_approvals(self):
+        """Incrementa contador de aprovações automáticas."""
+        self.auto_approvals_total.labels(specialist_type=self.specialist_type).inc()
+
+    def increment_manual_reviews(self):
+        """Incrementa contador de revisões manuais."""
+        self.manual_reviews_total.labels(specialist_type=self.specialist_type).inc()
+
+    def set_avg_approval_time(self, time_seconds: float):
+        """
+        Define tempo médio de aprovação.
+
+        Args:
+            time_seconds: Tempo médio em segundos
+        """
+        self.avg_approval_time_seconds.labels(specialist_type=self.specialist_type).set(time_seconds)
+
+    def observe_approval_time(self, time_seconds: float):
+        """
+        Observa tempo de aprovação individual.
+
+        Args:
+            time_seconds: Tempo de aprovação em segundos
+        """
+        self.approval_time_histogram.labels(specialist_type=self.specialist_type).observe(time_seconds)
+
+    def set_human_review_time_saved(self, hours: float):
+        """
+        Define tempo economizado em revisões humanas.
+
+        Args:
+            hours: Tempo economizado em horas
+        """
+        self.human_review_time_saved_hours.labels(specialist_type=self.specialist_type).set(hours)
+        # Also update the alias metric
+        self.time_saved_hours.labels(specialist_type=self.specialist_type).set(hours)
+
+    def set_time_saved_hours(self, hours: float):
+        """
+        Define tempo total economizado em horas.
+
+        Alias method that updates both time_saved_hours and human_review_time_saved_hours.
+
+        Args:
+            hours: Tempo economizado em horas
+        """
+        self.time_saved_hours.labels(specialist_type=self.specialist_type).set(hours)
+        self.human_review_time_saved_hours.labels(specialist_type=self.specialist_type).set(hours)
+
+    def set_estimated_review_time_per_plan(self, seconds: float):
+        """
+        Define tempo estimado de revisão por plano.
+
+        Args:
+            seconds: Tempo estimado em segundos
+        """
+        self.estimated_review_time_per_plan_seconds.labels(specialist_type=self.specialist_type).set(seconds)
+
+    def set_model_uptime(self, uptime_percentage: float):
+        """
+        Define percentual de uptime do modelo.
+
+        Args:
+            uptime_percentage: Percentual de uptime (0.0 a 1.0)
+        """
+        self.model_uptime_percentage.labels(specialist_type=self.specialist_type).set(uptime_percentage)
+
+    def increment_model_availability(self, seconds: float):
+        """
+        Incrementa tempo de disponibilidade do modelo.
+
+        Args:
+            seconds: Segundos de disponibilidade
+        """
+        self.model_availability_total_seconds.labels(specialist_type=self.specialist_type).inc(seconds)
+
+    def increment_model_downtime(self, seconds: float):
+        """
+        Incrementa tempo de indisponibilidade do modelo.
+
+        Args:
+            seconds: Segundos de indisponibilidade
+        """
+        self.model_downtime_total_seconds.labels(specialist_type=self.specialist_type).inc(seconds)
+
+    def increment_model_health_check_failure(self):
+        """Incrementa contador de falhas em health checks."""
+        self.model_health_check_failures_total.labels(specialist_type=self.specialist_type).inc()
 
     # ============================================================================
     # Feedback and Continuous Learning Helper Methods

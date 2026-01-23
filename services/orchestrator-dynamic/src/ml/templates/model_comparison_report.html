@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório de Comparação: {{ model_name }}</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f0f2f5;
+            color: #1a1a2e;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1a1a2e;
+            border-bottom: 3px solid #4361ee;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+        h2 {
+            color: #2d3748;
+            margin-top: 35px;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+            border-left: 4px solid #4361ee;
+            padding-left: 12px;
+        }
+        h3 {
+            color: #4a5568;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        .header-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .header-info p {
+            margin: 0;
+        }
+        .header-info strong {
+            color: #4361ee;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 0.95em;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        tr:hover {
+            background: #f8f9fa;
+        }
+        .metric-improved {
+            color: #10b981;
+            font-weight: 600;
+        }
+        .metric-improved::before {
+            content: '↓ ';
+        }
+        .metric-degraded {
+            color: #ef4444;
+            font-weight: 600;
+        }
+        .metric-degraded::before {
+            content: '↑ ';
+        }
+        .recommendation-promote {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 5px solid #10b981;
+            margin: 15px 0;
+        }
+        .recommendation-promote .badge {
+            background: #10b981;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        .recommendation-reject {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 5px solid #ef4444;
+            margin: 15px 0;
+        }
+        .recommendation-reject .badge {
+            background: #ef4444;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        .recommendation-review {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 5px solid #f59e0b;
+            margin: 15px 0;
+        }
+        .recommendation-review .badge {
+            background: #f59e0b;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        .recommendation-box h3 {
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .recommendation-box p {
+            margin: 10px 0 0 0;
+            color: #374151;
+        }
+        .confidence-bar {
+            margin-top: 15px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 10px;
+            height: 24px;
+            overflow: hidden;
+            position: relative;
+        }
+        .confidence-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 10px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.85em;
+        }
+        .confidence-high { background: linear-gradient(90deg, #10b981, #34d399); }
+        .confidence-medium { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+        .confidence-low { background: linear-gradient(90deg, #ef4444, #f87171); }
+        .test-result {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .test-result p {
+            margin: 5px 0;
+        }
+        .test-significant {
+            color: #10b981;
+            font-weight: 600;
+        }
+        .test-not-significant {
+            color: #6b7280;
+        }
+        .fairness-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .fair-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        .fair { background: #d1fae5; color: #065f46; }
+        .unfair { background: #fee2e2; color: #991b1b; }
+        .visualization {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .visualization h3 {
+            margin-top: 0;
+        }
+        .visualization img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #e2e8f0;
+            color: #6b7280;
+            font-size: 0.9em;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        footer p {
+            margin: 5px 0;
+        }
+        .summary {
+            margin-bottom: 30px;
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            table {
+                font-size: 0.85em;
+            }
+            th, td {
+                padding: 8px 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Relatório de Comparação de Modelos</h1>
+
+        <div class="header-info">
+            <p><strong>Modelo:</strong> {{ model_name }}</p>
+            <p><strong>Versão Atual:</strong> {{ current_version }}</p>
+            <p><strong>Versão Candidata:</strong> {{ candidate_version }}</p>
+            <p><strong>Amostras:</strong> {{ test_samples_count }}</p>
+        </div>
+
+        <section class="summary">
+            <h2>Resumo Executivo</h2>
+            <div class="{{ recommendation_class }} recommendation-box">
+                <h3>
+                    <span class="badge">{{ recommendation | upper }}</span>
+                    Recomendação
+                </h3>
+                <p>{{ recommendation_reason }}</p>
+                <div class="confidence-bar">
+                    <div class="confidence-fill {% if confidence_score >= 70 %}confidence-high{% elif confidence_score >= 40 %}confidence-medium{% else %}confidence-low{% endif %}"
+                         style="width: {{ confidence_score }}%">
+                        {{ confidence_score }}%
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="metrics">
+            <h2>Comparação de Métricas de Performance</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Métrica</th>
+                        <th>Modelo Atual</th>
+                        <th>Modelo Candidato</th>
+                        <th>Variação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for metric, values in metrics_comparison.items() %}
+                    {% if not metric.startswith('latency_') %}
+                    <tr>
+                        <td><strong>{{ metric | upper }}</strong></td>
+                        <td>{{ "%.4f"|format(values.current) }}</td>
+                        <td>{{ "%.4f"|format(values.candidate) }}</td>
+                        <td class="{{ 'metric-improved' if values.improved else 'metric-degraded' }}">
+                            {{ "%.2f"|format(values.diff_pct) }}%
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        {% set has_latency = metrics_comparison.get('latency_p50_ms') %}
+        {% if has_latency %}
+        <section class="latency-metrics">
+            <h2>Comparação de Latência</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Percentil</th>
+                        <th>Modelo Atual (ms)</th>
+                        <th>Modelo Candidato (ms)</th>
+                        <th>Variação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for metric, values in metrics_comparison.items() %}
+                    {% if metric.startswith('latency_') %}
+                    <tr>
+                        <td><strong>{{ metric | replace('latency_', '') | replace('_ms', '') | upper }}</strong></td>
+                        <td>{{ "%.2f"|format(values.current) }}</td>
+                        <td>{{ "%.2f"|format(values.candidate) }}</td>
+                        <td class="{{ 'metric-improved' if values.improved else 'metric-degraded' }}">
+                            {{ "%.2f"|format(values.diff_pct) }}%
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+        {% endif %}
+
+        <section class="statistical-tests">
+            <h2>Testes Estatísticos</h2>
+            {% for test_name, result in statistical_tests.items() %}
+            <div class="test-result">
+                <h3>{{ test_name | replace("_", " ") | title }}</h3>
+                <p><strong>Estatística de teste:</strong> {{ "%.4f"|format(result.statistic) }}</p>
+                <p><strong>P-valor:</strong> {{ "%.6f"|format(result.p_value) }}</p>
+                <p class="{{ 'test-significant' if result.significant else 'test-not-significant' }}">
+                    <strong>Resultado:</strong> {{ "Estatisticamente significativo (p < 0.05)" if result.significant else "Não significativo (p >= 0.05)" }}
+                </p>
+                <p><strong>Interpretação:</strong> {{ result.interpretation }}</p>
+                {% if result.mean_current_error is defined %}
+                <p><strong>Erro médio atual:</strong> {{ "%.4f"|format(result.mean_current_error) }} |
+                   <strong>Erro médio candidato:</strong> {{ "%.4f"|format(result.mean_candidate_error) }}</p>
+                {% endif %}
+                {% if result.b is defined %}
+                <p><strong>Discordâncias:</strong> Atual correto/Candidato errado: {{ result.b }} | Atual errado/Candidato correto: {{ result.c }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </section>
+
+        {% if fairness_analysis %}
+        <section class="fairness">
+            <h2>Análise de Fairness</h2>
+            {% for group_field, analysis in fairness_analysis.items() %}
+            {% set metric_type = analysis.get('metric_type', 'mae') %}
+            {% set metric_label = 'Accuracy' if metric_type == 'accuracy' else 'MAE' %}
+            <div class="fairness-card">
+                <h3>{{ group_field | replace("_", " ") | title }}</h3>
+                <p>
+                    <strong>Ratio de Disparidade:</strong> {{ "%.2f"|format(analysis.disparity_ratio) }}
+                    <span class="fair-badge {{ 'fair' if analysis.is_fair else 'unfair' }}">
+                        {{ "Justo (< 2.0)" if analysis.is_fair else "Disparidade Alta (>= 2.0)" }}
+                    </span>
+                    <span style="margin-left: 10px; color: #6b7280; font-size: 0.9em;">(Métrica: {{ metric_label }})</span>
+                </p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Grupo</th>
+                            <th>{{ metric_label }} Atual</th>
+                            <th>{{ metric_label }} Candidato</th>
+                            <th>Melhoria</th>
+                            <th>Amostras</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for group, metrics in analysis.groups.items() %}
+                        {% set current_key = 'current_' ~ metric_type %}
+                        {% set candidate_key = 'candidate_' ~ metric_type %}
+                        <tr>
+                            <td>{{ group }}</td>
+                            <td>{{ "%.4f"|format(metrics.get(current_key, metrics.get('current_mae', 0))) }}</td>
+                            <td>{{ "%.4f"|format(metrics.get(candidate_key, metrics.get('candidate_mae', 0))) }}</td>
+                            <td class="{{ 'metric-improved' if metrics.improvement_pct > 0 else 'metric-degraded' if metrics.improvement_pct < 0 else '' }}">
+                                {{ "%.2f"|format(metrics.improvement_pct) }}%
+                            </td>
+                            <td>{{ metrics.sample_count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endfor %}
+        </section>
+        {% endif %}
+
+        {% if visualizations %}
+        <section class="visualizations">
+            <h2>Visualizações</h2>
+            {% for viz_name, base64_img in visualizations.items() %}
+            <div class="visualization">
+                <h3>{{ viz_name | replace("_", " ") | title }}</h3>
+                <img src="data:image/png;base64,{{ base64_img }}" alt="{{ viz_name }}">
+            </div>
+            {% endfor %}
+        </section>
+        {% endif %}
+
+        <footer>
+            <p><strong>Data da comparação:</strong> {{ compared_at }}</p>
+            <p><strong>Total de amostras de teste:</strong> {{ test_samples_count }}</p>
+            <p><strong>Gerado por:</strong> Neural Hive Mind - ModelComparator</p>
+        </footer>
+    </div>
+</body>
+</html>

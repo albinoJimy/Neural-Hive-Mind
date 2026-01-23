@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field, field_validator
+from neural_hive_domain import UnifiedDomain
 
 
 class SignalType(str, Enum):
@@ -14,15 +15,6 @@ class SignalType(str, Enum):
     OPPORTUNITY = "OPPORTUNITY"
     THREAT = "THREAT"
     TREND = "TREND"
-
-
-class ExplorationDomain(str, Enum):
-    """Domain of exploration"""
-    BUSINESS = "BUSINESS"
-    TECHNICAL = "TECHNICAL"
-    BEHAVIOR = "BEHAVIOR"
-    INFRASTRUCTURE = "INFRASTRUCTURE"
-    SECURITY = "SECURITY"
 
 
 class ChannelType(str, Enum):
@@ -71,7 +63,7 @@ class ScoutSignal(BaseModel):
     span_id: str
     scout_agent_id: str
     signal_type: SignalType
-    exploration_domain: ExplorationDomain
+    exploration_domain: UnifiedDomain
     source: SignalSource
     curiosity_score: float
     confidence: float
@@ -122,7 +114,7 @@ class ScoutSignal(BaseModel):
         """Create instance from Avro dictionary"""
         # Convert string enums back
         data['signal_type'] = SignalType(data['signal_type'])
-        data['exploration_domain'] = ExplorationDomain(data['exploration_domain'])
+        data['exploration_domain'] = UnifiedDomain(data['exploration_domain'])
         data['source']['channel'] = ChannelType(data['source']['channel'])
 
         # Handle optional geolocation

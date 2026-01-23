@@ -1,0 +1,106 @@
+{
+  "@context": "https://neural-hive-mind.org/schemas/intent-envelope/context/v1",
+  "@type": "IntentEnvelope",
+  "id": "b2c3d4e5-f6g7-8901-bcde-f23456789012",
+  "version": "1.0.0",
+  "correlationId": "e5f6g7h8-i9j0-k1l2-m3n4-o5p6q7r8s9t0",
+  "traceId": "6dg04g5799d56fc8c5dg141e2g2g6958",
+  "spanId": "02h289cc2dc024d9",
+
+  "actor": {
+    "@type": "Actor",
+    "id": "security-team-002",
+    "actorType": "HUMAN",
+    "name": "Ana Costa"
+  },
+
+  "intent": {
+    "@type": "Intent",
+    "text": "Implementar autenticação multi-fator (MFA) com TOTP e backup codes para todos os usuários administrativos",
+    "domain": "SECURITY",
+    "classification": "security-enhancement",
+    "originalLanguage": "pt-BR",
+    "processedText": "Implementar autenticação multi-fator (MFA) com TOTP e backup codes para todos os usuários administrativos",
+    "entities": [
+      {
+        "type": "SECURITY_FEATURE",
+        "value": "autenticação multi-fator",
+        "confidence": 0.97,
+        "start": 12,
+        "end": 35
+      },
+      {
+        "type": "TECHNOLOGY",
+        "value": "TOTP",
+        "confidence": 0.96,
+        "start": 47,
+        "end": 51
+      },
+      {
+        "type": "FEATURE",
+        "value": "backup codes",
+        "confidence": 0.94,
+        "start": 54,
+        "end": 66
+      },
+      {
+        "type": "USER_GROUP",
+        "value": "usuários administrativos",
+        "confidence": 0.92,
+        "start": 81,
+        "end": 105
+      }
+    ],
+    "keywords": [
+      "autenticação",
+      "multi-fator",
+      "MFA",
+      "TOTP",
+      "backup",
+      "codes",
+      "administrativos"
+    ]
+  },
+
+  "confidence": 0.95,
+
+  "context": {
+    "@type": "Context",
+    "sessionId": "sess_sec_3a4b5c6d7e",
+    "userId": "security-team-002",
+    "tenantId": "acme-corp",
+    "channel": "WEB",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    "clientIp": "192.168.2.***",
+    "geolocation": {
+      "country": "BR",
+      "region": "RJ",
+      "city": "Rio de Janeiro",
+      "timezone": "America/Sao_Paulo"
+    }
+  },
+
+  "constraints": {
+    "@type": "Constraint",
+    "priority": "CRITICAL",
+    "deadline": "2025-01-31T23:59:59Z",
+    "maxRetries": 2,
+    "timeout": "PT1H",
+    "requiredCapabilities": [
+      "authentication",
+      "mfa",
+      "security-hardening",
+      "cryptography"
+    ],
+    "securityLevel": "RESTRICTED"
+  },
+
+  "qos": {
+    "@type": "QualityOfService",
+    "deliveryMode": "EXACTLY_ONCE",
+    "durability": "PERSISTENT",
+    "consistency": "STRONG"
+  },
+
+  "timestamp": "2025-01-10T09:00:00.000Z"
+}

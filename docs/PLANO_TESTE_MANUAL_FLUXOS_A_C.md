@@ -1,9 +1,10 @@
 # Plano de Teste Manual Completo - Fluxos A, B e C - Neural Hive-Mind
 
-> **Versão:** 1.0
-> **Data:** 2026-01-16
+> **Versão:** 1.1
+> **Data:** 2026-01-22
 > **Autor:** QA/DevOps Team
 > **Status:** Aprovado para Execução
+> **Referência Phase 2:** docs/PHASE2_FLOW_C_INTEGRATION.md
 
 ---
 
@@ -14,8 +15,13 @@
 3. [FLUXO A - Gateway de Intenções → Kafka](#3-fluxo-a---gateway-de-intenções--kafka)
 4. [FLUXO B - Semantic Translation Engine → Plano Cognitivo](#4-fluxo-b---semantic-translation-engine--plano-cognitivo)
 5. [FLUXO B - Specialists (5 Especialistas via gRPC)](#5-fluxo-b---specialists-5-especialistas-via-grpc)
-6. [FLUXO C - Consensus Engine → Decisão Consolidada](#6-fluxo-c---consensus-engine--decisão-consolidada)
-7. [FLUXO C - Orchestrator Dynamic → Execution Tickets](#7-fluxo-c---orchestrator-dynamic--execution-tickets)
+6. [FLUXO C - Consensus Engine → Decisão Consolidada (C1)](#6-fluxo-c---consensus-engine--decisão-consolidada)
+7. [FLUXO C - Orchestrator Dynamic → Execution Tickets (C1-C2)](#7-fluxo-c---orchestrator-dynamic--execution-tickets)
+   - 7.9 [FLUXO C3 - Discover Workers](#79-fluxo-c3---discover-workers-service-registry)
+   - 7.10 [FLUXO C4 - Assign Tickets](#710-fluxo-c4---assign-tickets-worker-assignment)
+   - 7.11 [FLUXO C5 - Monitor Execution](#711-fluxo-c5---monitor-execution-polling--results)
+   - 7.12 [FLUXO C6 - Publish Telemetry](#712-fluxo-c6---publish-telemetry-kafka--buffer)
+   - 7.13 [Checklist Consolidado C1-C6](#713-checklist-consolidado-fluxo-c-completo-c1-c6)
 8. [Validação Consolidada End-to-End](#8-validação-consolidada-end-to-end)
 9. [Testes de Cenários Adicionais](#9-testes-de-cenários-adicionais)
 10. [Troubleshooting e Casos de Falha](#10-troubleshooting-e-casos-de-falha)
@@ -36,18 +42,53 @@ Validar manualmente os 3 fluxos principais do Neural Hive-Mind (A, B e C) sem us
 |-------|-------------|-----------|
 | **A** | Gateway → Kafka | Recepção de intenções, classificação NLU, publicação no Kafka |
 | **B** | STE → Specialists | Geração de plano cognitivo, consulta a 5 especialistas via gRPC |
-| **C** | Consensus → Orchestrator | Agregação Bayesiana, decisão final, geração de execution tickets |
+| **C** | Consensus → Orchestrator → Workers | Agregação Bayesiana, decisão final, execução completa |
+
+### 1.2.1 Detalhamento do Fluxo C (Phase 2)
+
+| Step | Nome | Descrição |
+|------|------|-----------|
+| **C1** | Validate Decision | Validar campos obrigatórios da decisão consolidada |
+| **C2** | Generate Tickets | Iniciar Temporal workflow, criar tickets via ExecutionTicketClient |
+| **C3** | Discover Workers | Descobrir workers via ServiceRegistryClient (filtro: status=healthy) |
+| **C4** | Assign Tickets | Round-robin assignment, despachar via WorkerAgentClient |
+| **C5** | Monitor Execution | Polling até conclusão ou deadline SLA (4h) |
+| **C6** | Publish Telemetry | Publicar eventos no tópico telemetry-flow-c |
 
 ### 1.3 Pipeline Completo
 
 ```
-Gateway → Kafka → STE → Kafka → Consensus → Specialists (5x gRPC) → Consensus → Kafka → Orchestrator → Kafka/MongoDB
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                              NEURAL HIVE-MIND PIPELINE                                   │
+├─────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                          │
+│  FLUXO A          FLUXO B                         FLUXO C (C1-C6)                       │
+│  ───────          ───────                         ───────────────                        │
+│  Gateway    →     STE      →   Specialists   →    Consensus    →   Orchestrator         │
+│     │               │            (5x gRPC)            │               │                  │
+│     v               v               │                 v               v                  │
+│  Kafka          Kafka           Opinions          Decision      C1: Validate            │
+│  (intents)      (plans)            │                 │          C2: Tickets             │
+│                                    v                 v               │                  │
+│                               Consensus         Kafka           C3: Workers             │
+│                                                (consensus)      C4: Assign              │
+│                                                     │           C5: Monitor             │
+│                                                     v           C6: Telemetry           │
+│                                                Orchestrator          │                  │
+│                                                     │                v                  │
+│                                                     v           COMPLETED               │
+│                                               MongoDB/Kafka                              │
+│                                                                                          │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 1.4 Tempo Estimado
 
-- **Execução completa:** 90-120 minutos
-- **Por fluxo:** 25-35 minutos
+- **Execução completa (C1-C6):** 150-180 minutos
+- **Fluxo A:** 25-35 minutos
+- **Fluxo B:** 30-40 minutos
+- **Fluxo C (C1-C2):** 25-35 minutos
+- **Fluxo C (C3-C6):** 45-60 minutos
 - **Validação E2E:** 15-20 minutos
 
 ### 1.5 Pré-requisitos
@@ -252,6 +293,18 @@ Copie e preencha esta tabela durante a execução do teste:
 | `opinion_id` (evolution) | __________________ | __________ |
 | `opinion_id` (architecture) | __________________ | __________ |
 
+### Campos Adicionais para C3-C6
+
+| Campo | Valor | Timestamp |
+|-------|-------|-----------|
+| `worker_id` (primeiro) | __________________ | __________ |
+| `workers_discovered` | __________________ | __________ |
+| `tickets_assigned` | __________________ | __________ |
+| `tickets_completed` | __________________ | __________ |
+| `tickets_failed` | __________________ | __________ |
+| `telemetry_event_id` | __________________ | __________ |
+| `total_duration_ms` | __________________ | __________ |
+
 ### 2.5 Identificar Pods para Comandos
 
 ```bash
@@ -264,6 +317,10 @@ export KAFKA_POD=$(kubectl get pods -n kafka -l app=kafka -o jsonpath='{.items[0
 export MONGO_POD=$(kubectl get pods -n mongodb -l app=mongodb -o jsonpath='{.items[0].metadata.name}')
 export REDIS_POD=$(kubectl get pods -n redis -l app=redis -o jsonpath='{.items[0].metadata.name}')
 
+# Pods adicionais para C3-C6 (Phase 2)
+export SERVICE_REGISTRY_POD=$(kubectl get pods -n neural-hive -l app=service-registry -o jsonpath='{.items[0].metadata.name}')
+export WORKER_POD=$(kubectl get pods -n neural-hive -l app=code-forge-worker -o jsonpath='{.items[0].metadata.name}')
+
 # Verificar
 echo "Gateway: $GATEWAY_POD"
 echo "STE: $STE_POD"
@@ -272,7 +329,11 @@ echo "Orchestrator: $ORCHESTRATOR_POD"
 echo "Kafka: $KAFKA_POD"
 echo "MongoDB: $MONGO_POD"
 echo "Redis: $REDIS_POD"
+echo "Service Registry: $SERVICE_REGISTRY_POD"
+echo "Worker: $WORKER_POD"
 ```
+
+> **Nota:** Os pods `SERVICE_REGISTRY_POD` e `WORKER_POD` são necessários apenas para os steps C3-C6. Se não estiverem disponíveis, os steps C3-C6 não poderão ser executados.
 
 ---
 
@@ -1903,7 +1964,7 @@ Verificar que o trace inclui TODOS os componentes:
 - Spans ausentes
 - Trace fragmentado
 
-### 7.8 Checklist de Validação Fluxo C (Orchestrator)
+### 7.8 Checklist de Validação Fluxo C (Orchestrator - C1/C2)
 
 | # | Validação | Status |
 |---|-----------|--------|
@@ -1915,7 +1976,914 @@ Verificar que o trace inclui TODOS os componentes:
 | 6 | Métricas incrementadas | [ ] |
 | 7 | Trace E2E completo | [ ] |
 
-**Status Fluxo C (Orchestrator):** [ ] PASSOU / [ ] FALHOU
+**Status Fluxo C (C1-C2 Ticket Generation):** [ ] PASSOU / [ ] FALHOU
+
+---
+
+## 7.9 FLUXO C3 - Discover Workers (Service Registry)
+
+> **Referência:** docs/PHASE2_FLOW_C_INTEGRATION.md
+
+### 7.9.1 Verificar Workers Disponíveis no Service Registry
+
+#### Comando
+
+```bash
+kubectl exec -n neural-hive $SERVICE_REGISTRY_POD -- curl -s http://localhost:8080/api/v1/agents?type=worker&status=healthy | jq .
+```
+
+#### Output Esperado
+
+```json
+{
+  "agents": [
+    {
+      "agent_id": "worker-code-forge-001",
+      "agent_type": "worker",
+      "status": "healthy",
+      "capabilities": ["python", "fastapi", "code_generation", "testing"],
+      "last_heartbeat": "2026-01-16T10:30:00Z",
+      "metadata": {
+        "version": "1.0.0",
+        "region": "us-east-1",
+        "max_concurrent_tasks": 5
+      }
+    },
+    {
+      "agent_id": "worker-code-forge-002",
+      "agent_type": "worker",
+      "status": "healthy",
+      "capabilities": ["python", "fastapi", "code_generation"],
+      "last_heartbeat": "2026-01-16T10:30:01Z",
+      "metadata": {
+        "version": "1.0.0",
+        "region": "us-east-1",
+        "max_concurrent_tasks": 5
+      }
+    }
+  ],
+  "total": 2
+}
+```
+
+#### Anotar
+
+```
+worker_id (primeiro): __________________________
+workers_discovered: __________________________
+```
+
+#### Validação de Campos
+
+| Campo | Descrição |
+|-------|-----------|
+| `agent_id` | Identificador único do worker |
+| `agent_type` | Deve ser "worker" |
+| `status` | Deve ser "healthy" |
+| `capabilities` | Array de capacidades suportadas |
+| `last_heartbeat` | Timestamp do último heartbeat (< 5 minutos) |
+
+#### Critérios de Sucesso
+- [ ] Pelo menos 1 worker disponível
+- [ ] Status = "healthy"
+- [ ] Heartbeat recente (< 5 minutos)
+- [ ] Capabilities incluem requisitos dos tickets
+
+#### Critérios de Falha
+- Nenhum worker disponível
+- Workers com status "unhealthy"
+- Heartbeat antigo (> 5 minutos)
+
+### 7.9.2 Validar Matching de Capabilities
+
+#### Conceito
+
+Os tickets possuem `required_capabilities` que devem ser satisfeitas pelos workers:
+
+```
+Ticket requires: ["python", "code_generation"]
+Worker provides: ["python", "fastapi", "code_generation", "testing"]
+Match: ✅ (worker possui todas as capabilities requeridas)
+```
+
+#### Comando - Listar Capabilities Requeridas pelos Tickets
+
+```bash
+kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "
+db.execution_tickets.distinct('required_capabilities', {plan_id: '<plan_id>'})
+" neural_hive
+```
+
+#### Comando - Comparar com Capabilities dos Workers
+
+```bash
+# Capabilities do primeiro worker
+kubectl exec -n neural-hive $SERVICE_REGISTRY_POD -- curl -s http://localhost:8080/api/v1/agents/<worker_id> | jq '.capabilities'
+```
+
+#### Validação
+- [ ] Todas as capabilities requeridas são satisfeitas por pelo menos um worker
+- [ ] Workers com capabilities matching estão healthy
+
+#### Critérios de Sucesso
+- Match completo de capabilities
+
+#### Critérios de Falha
+- Capabilities órfãs (sem worker capaz)
+
+### 7.9.3 Validar Logs de Discovery no Orchestrator
+
+#### Comando
+
+```bash
+kubectl logs -n orchestrator-dynamic $ORCHESTRATOR_POD --tail=100 | grep -E "discover|worker|registry|capabilities"
+```
+
+#### Output Esperado
+
+```
+INFO  Iniciando discovery de workers via ServiceRegistry
+INFO  Query: type=worker status=healthy
+INFO  Workers descobertos: 2 workers healthy
+INFO  Worker worker-code-forge-001: capabilities=[python, fastapi, code_generation, testing]
+INFO  Worker worker-code-forge-002: capabilities=[python, fastapi, code_generation]
+INFO  Matching capabilities: 2 workers aptos para 5 tickets
+```
+
+#### Critérios de Sucesso
+- [ ] Discovery executado
+- [ ] Workers encontrados
+
+#### Critérios de Falha
+- Erro de conexão com Service Registry
+- Nenhum worker encontrado
+
+### 7.9.4 Validar Métricas de Discovery
+
+#### Query 1: Latência de Discovery
+
+```bash
+curl -s 'http://localhost:9090/api/v1/query?query=neural_hive_flow_c_worker_discovery_duration_seconds' | jq '.data.result'
+```
+
+#### Query 2: Workers Descobertos
+
+```bash
+curl -s 'http://localhost:9090/api/v1/query?query=neural_hive_flow_c_workers_discovered_total' | jq '.data.result[0].value[1]'
+```
+
+#### Query 3: Falhas de Discovery
+
+```bash
+curl -s 'http://localhost:9090/api/v1/query?query=neural_hive_flow_c_worker_discovery_failures_total' | jq '.data.result[0].value[1]'
+```
+
+#### Validação de SLO
+| Métrica | SLO |
+|---------|-----|
+| Discovery latency (p95) | < 200ms |
+| Workers discovered | >= 1 |
+| Discovery failures | = 0 |
+
+#### Critérios de Sucesso
+- [ ] Latência < 200ms
+- [ ] Workers >= 1
+- [ ] Failures = 0
+
+#### Critérios de Falha
+- Latência > 200ms
+- Workers = 0
+- Failures > 0
+
+### 7.9.5 Checklist de Validação C3 (Discover Workers)
+
+| # | Validação | Status |
+|---|-----------|--------|
+| 1 | Service Registry acessível | [ ] |
+| 2 | Workers healthy disponíveis | [ ] |
+| 3 | Heartbeat recente (< 5 min) | [ ] |
+| 4 | Capabilities matching com tickets | [ ] |
+| 5 | Métricas de discovery registradas | [ ] |
+| 6 | Latência < 200ms | [ ] |
+
+**Status Fluxo C3 (Discover Workers):** [ ] PASSOU / [ ] FALHOU
+
+---
+
+## 7.10 FLUXO C4 - Assign Tickets (Worker Assignment)
+
+### 7.10.1 Verificar Assignment de Tickets para Workers
+
+#### Comando
+
+```bash
+kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "
+db.execution_tickets.find(
+  {plan_id: '<plan_id>', assigned_worker: {\$exists: true}},
+  {ticket_id: 1, assigned_worker: 1, status: 1, assigned_at: 1}
+).limit(5).toArray()
+" neural_hive
+```
+
+#### Output Esperado
+
+```json
+[
+  {
+    "ticket_id": "ticket-1",
+    "assigned_worker": "worker-code-forge-001",
+    "status": "ASSIGNED",
+    "assigned_at": ISODate("2026-01-16T10:35:00Z")
+  },
+  {
+    "ticket_id": "ticket-2",
+    "assigned_worker": "worker-code-forge-002",
+    "status": "ASSIGNED",
+    "assigned_at": ISODate("2026-01-16T10:35:01Z")
+  },
+  {
+    "ticket_id": "ticket-3",
+    "assigned_worker": "worker-code-forge-001",
+    "status": "ASSIGNED",
+    "assigned_at": ISODate("2026-01-16T10:35:02Z")
+  }
+]
+```
+
+#### Anotar
+
+```
+tickets_assigned: __________________________
+workers_utilizados: __________________________
+```
+
+#### Validação de Campos
+
+| Campo | Descrição |
+|-------|-----------|
+| `assigned_worker` | ID do worker que recebeu o ticket |
+| `status` | Deve ser "ASSIGNED" (não mais "PENDING") |
+| `assigned_at` | Timestamp do assignment |
+
+#### Critérios de Sucesso
+- [ ] Todos os tickets com `assigned_worker` preenchido
+- [ ] Status alterado para "ASSIGNED"
+- [ ] `assigned_at` presente
+
+#### Critérios de Falha
+- Tickets sem `assigned_worker`
+- Status ainda "PENDING"
+
+### 7.10.2 Validar Algoritmo Round-Robin
+
+#### Conceito
+
+O assignment usa round-robin para distribuir carga entre workers disponíveis:
+
+```
+Ticket 1 → Worker A
+Ticket 2 → Worker B
+Ticket 3 → Worker A
+Ticket 4 → Worker B
+...
+```
+
+#### Comando - Contar Tickets por Worker
+
+```bash
+kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "
+db.execution_tickets.aggregate([
+  {\$match: {plan_id: '<plan_id>'}},
+  {\$group: {_id: '\$assigned_worker', count: {\$sum: 1}}}
+]).toArray()
+" neural_hive
+```
+
+#### Output Esperado
+
+```json
+[
+  { "_id": "worker-code-forge-001", "count": 3 },
+  { "_id": "worker-code-forge-002", "count": 2 }
+]
+```
+
+#### Validação
+- [ ] Distribuição balanceada (±1 ticket de diferença entre workers)
+- [ ] Nenhum worker sobrecarregado
+
+#### Critérios de Sucesso
+- Balanceamento adequado
+
+#### Critérios de Falha
+- Worker com mais de 50% dos tickets (se > 1 worker disponível)
+
+### 7.10.3 Validar Logs de Assignment no Orchestrator
+
+#### Comando
+
+```bash
+kubectl logs -n orchestrator-dynamic $ORCHESTRATOR_POD --tail=100 | grep -E "assign|dispatch|worker|ticket"
+```
+
+#### Output Esperado
+
+```
+INFO  Iniciando assignment de 5 tickets para 2 workers
+INFO  Ticket ticket-1 assigned para worker-code-forge-001
+INFO  Ticket ticket-2 assigned para worker-code-forge-002
+INFO  Ticket ticket-3 assigned para worker-code-forge-001
+INFO  Ticket ticket-4 assigned para worker-code-forge-002
+INFO  Ticket ticket-5 assigned para worker-code-forge-001
+INFO  Assignment completo: 5/5 tickets atribuídos
+INFO  Dispatch via WorkerAgentClient: 5 tasks enviadas
+```
+
+#### Critérios de Sucesso
+- [ ] Todos os tickets assigned
+- [ ] Dispatch confirmado
+
+#### Critérios de Falha
+- Tickets não assigned
+- Erro no dispatch
+
+### 7.10.4 Validar Dispatch via gRPC para Workers
+
+#### Comando - Verificar Logs do Worker
+
+```bash
+kubectl logs -n neural-hive $WORKER_POD --tail=100 | grep -E "received|task|ticket"
+```
+
+#### Output Esperado
+
+```
+INFO  Received task assignment: ticket_id=ticket-1 task_type=VALIDATE
+INFO  Task enqueued: ticket_id=ticket-1 position=1
+INFO  Received task assignment: ticket_id=ticket-3 task_type=BUILD
+INFO  Task enqueued: ticket_id=ticket-3 position=2
+```
+
+#### Critérios de Sucesso
+- [ ] Worker recebeu tasks
+- [ ] Tasks enfileiradas corretamente
+
+#### Critérios de Falha
+- Worker não recebeu tasks
+- Erro no enqueue
+
+### 7.10.5 Validar Métricas de Assignment
+
+#### Query 1: Tickets Assigned
+
+```bash
+curl -s 'http://localhost:9090/api/v1/query?query=neural_hive_flow_c_tickets_assigned_total' | jq '.data.result'
+```
+
+#### Query 2: Assignment por Worker
+
+```bash
+curl -s 'http://localhost:9090/api/v1/query?query=neural_hive_flow_c_tickets_assigned_total{worker!=""}' | jq '.data.result'
+```
+
+#### Query 3: Latência de Assignment
+
+```bash
+curl -s 'http://localhost:9090/api/v1/query?query=histogram_quantile(0.95,rate(neural_hive_flow_c_assignment_duration_seconds_bucket[5m]))' | jq '.data.result[0].value[1]'
+```
+
+#### Validação de SLO
+| Métrica | SLO |
+|---------|-----|
+| Assignment latency (p95) | < 500ms |
+| Tickets assigned | = total de tickets |
+| Assignment failures | = 0 |
+
+#### Critérios de Sucesso
+- [ ] Todos os tickets assigned
+- [ ] Latência < 500ms
+
+#### Critérios de Falha
+- Tickets não assigned
+- Latência > 500ms
+
+### 7.10.6 Checklist de Validação C4 (Assign Tickets)
+
+| # | Validação | Status |
+|---|-----------|--------|
+| 1 | Tickets com `assigned_worker` preenchido | [ ] |
+| 2 | Status alterado para "ASSIGNED" | [ ] |
+| 3 | Round-robin distribuiu corretamente | [ ] |
+| 4 | Logs confirmam dispatch para workers | [ ] |
+| 5 | Workers receberam tasks | [ ] |
+| 6 | Métricas de assignment registradas | [ ] |
+
+**Status Fluxo C4 (Assign Tickets):** [ ] PASSOU / [ ] FALHOU
+
+---
+
+## 7.11 FLUXO C5 - Monitor Execution (Polling & Results)
+
+### 7.11.1 Verificar Status de Execução dos Tickets
+
+#### Comando - Agregação por Status
+
+```bash
+kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "
+db.execution_tickets.aggregate([
+  {\$match: {plan_id: '<plan_id>'}},
+  {\$group: {_id: '\$status', count: {\$sum: 1}}}
+]).toArray()
+" neural_hive
+```
+
+#### Output Esperado (Durante Execução)
+
+```json
+[
+  { "_id": "COMPLETED", "count": 3 },
+  { "_id": "IN_PROGRESS", "count": 1 },
+  { "_id": "PENDING", "count": 1 }
+]
+```
+
+#### Output Esperado (Após Conclusão)
+
+```json
+[
+  { "_id": "COMPLETED", "count": 5 }
+]
+```
+
+#### Anotar
+
+```
+tickets_completed: __________________________
+tickets_in_progress: __________________________
+tickets_failed: __________________________
+```
+
+#### Critérios de Sucesso
+- [ ] Tickets progredindo (PENDING → IN_PROGRESS → COMPLETED)
+- [ ] Maioria em COMPLETED ao final
+
+#### Critérios de Falha
+- Tickets travados em PENDING
+- Muitos tickets FAILED
+
+### 7.11.2 Verificar Tickets Completados com Resultados
+
+#### Comando
+
+```bash
+kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "
+db.execution_tickets.findOne(
+  {plan_id: '<plan_id>', status: 'COMPLETED'},
+  {ticket_id: 1, status: 1, result: 1, completed_at: 1, duration_ms: 1}
+)" neural_hive
+```
+
+#### Output Esperado
+
+```json
+{
+  "ticket_id": "ticket-1",
+  "status": "COMPLETED",
+  "result": {
+    "success": true,
+    "output": "Validation passed: OAuth2 requirements met",
+    "artifacts": [
+      {
+        "type": "report",
+        "path": "/artifacts/ticket-1/validation-report.json"
+      }
+    ],
+    "metrics": {
+      "checks_passed": 15,
+      "checks_failed": 0,
+      "coverage": 0.95
+    }
+  },
+  "completed_at": ISODate("2026-01-16T10:45:00Z"),
+  "duration_ms": 45000
+}
+```
+
+#### Validação de Campos
+
+| Campo | Descrição |
+|-------|-----------|
+| `result.success` | true para sucesso, false para falha |
+| `result.output` | Mensagem de output |
+| `result.artifacts` | Lista de artefatos gerados |
+| `completed_at` | Timestamp de conclusão |
+| `duration_ms` | Duração da execução em ms |
+
+#### Critérios de Sucesso
+- [ ] `result.success` = true
+- [ ] `completed_at` presente
+- [ ] `duration_ms` razoável (< SLA)
+
+#### Critérios de Falha
+- `result.success` = false
+- `completed_at` ausente
+
+### 7.11.3 Verificar Tickets Falhados (se houver)
+
+#### Comando
+
+```bash
+kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "
+db.execution_tickets.find(
+  {plan_id: '<plan_id>', status: 'FAILED'},
+  {ticket_id: 1, status: 1, error: 1, retry_count: 1, failed_at: 1}
+).toArray()
+" neural_hive
+```
+
+#### Output Esperado (Ideal: Vazio)
+
+```json
+[]
+```
+
+#### Output se Houver Falhas
+
+```json
+[
+  {
+    "ticket_id": "ticket-5",
+    "status": "FAILED",
+    "error": {
+      "code": "WORKER_TIMEOUT",
+      "message": "Worker did not respond within SLA deadline",
+      "details": {
+        "assigned_worker": "worker-code-forge-001",
+        "timeout_ms": 300000
+      }
+    },
+    "retry_count": 3,
+    "failed_at": ISODate("2026-01-16T11:30:00Z")
+  }
+]
+```
+
+#### Critérios de Sucesso
+- [ ] Nenhum ticket FAILED
+
+#### Critérios de Falha
+- Tickets FAILED (investigar causa)
+
+### 7.11.4 Validar SLA Compliance
+
+#### Conceito
+
+SLA padrão:
+- Deadline: 4 horas
+- Timeout por ticket: 5 minutos (300000ms)
+- Max retries: 3
+
+#### Comando - Verificar Violações de SLA
+
+```bash
+kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "
+db.execution_tickets.find({
+  plan_id: '<plan_id>',
+  \$or: [
+    {status: 'FAILED', 'error.code': 'SLA_VIOLATION'},
+    {duration_ms: {\$gt: 300000}}
+  ]
+}).count()
+" neural_hive
+```
+
+#### Output Esperado
+
+```
+0
+```
+
+#### Critérios de Sucesso
+- [ ] Zero violações de SLA
+
+#### Critérios de Falha
+- Violações de SLA detectadas
+
+### 7.11.5 Validar Logs de Monitoring no Orchestrator
+
+#### Comando
+
+```bash
+kubectl logs -n orchestrator-dynamic $ORCHESTRATOR_POD --tail=100 | grep -E "polling|monitor|status|completed|progress"
+```
+
+#### Output Esperado
+
+```
+INFO  Iniciando monitoramento de 5 tickets
+INFO  Polling interval: 60 segundos
+INFO  SLA deadline: 2026-01-16T14:35:00Z (4h)
+INFO  [Poll 1] Status: COMPLETED=1 IN_PROGRESS=3 PENDING=1
+INFO  [Poll 2] Status: COMPLETED=2 IN_PROGRESS=2 PENDING=1
+INFO  [Poll 3] Status: COMPLETED=3 IN_PROGRESS=2 PENDING=0
+INFO  [Poll 4] Status: COMPLETED=5 IN_PROGRESS=0 PENDING=0
+INFO  Monitoramento completo: 5/5 tickets concluídos
+INFO  Tempo total de execução: 180000ms
+```
+
+#### Critérios de Sucesso
+- [ ] Polling executado periodicamente
+- [ ] Todos os tickets concluídos
+
+#### Critérios de Falha
+- Polling não executado
+- Tickets não concluídos
+
+### 7.11.6 Validar Métricas de Execução
+
+#### Query 1: Tickets Completed
+
+```bash
+curl -s 'http://localhost:9090/api/v1/query?query=neural_hive_flow_c_tickets_completed_total' | jq '.data.result[0].value[1]'
+```
+
+#### Query 2: Tickets Failed
+
+```bash
+curl -s 'http://localhost:9090/api/v1/query?query=neural_hive_flow_c_tickets_failed_total' | jq '.data.result[0].value[1]'
+```
+
+#### Query 3: Duração de Execução (Histograma)
+
+```bash
+curl -s 'http://localhost:9090/api/v1/query?query=histogram_quantile(0.95,rate(neural_hive_flow_c_execution_duration_seconds_bucket[5m]))' | jq '.data.result[0].value[1]'
+```
+
+#### Query 4: SLA Violations
+
+```bash
+curl -s 'http://localhost:9090/api/v1/query?query=neural_hive_flow_c_sla_violations_total' | jq '.data.result[0].value[1]'
+```
+
+#### Validação de SLO
+| Métrica | SLO |
+|---------|-----|
+| Tickets completed | = total tickets |
+| Tickets failed | = 0 |
+| Execution duration (p95) | < 4h |
+| SLA violations | = 0 |
+
+#### Critérios de Sucesso
+- [ ] Todos os tickets completed
+- [ ] Zero failures
+- [ ] Duração < 4h
+- [ ] Zero SLA violations
+
+#### Critérios de Falha
+- Tickets failed > 0
+- SLA violations > 0
+
+### 7.11.7 Checklist de Validação C5 (Monitor Execution)
+
+| # | Validação | Status |
+|---|-----------|--------|
+| 1 | Tickets progredindo (PENDING → IN_PROGRESS → COMPLETED) | [ ] |
+| 2 | Resultados coletados com sucesso | [ ] |
+| 3 | Nenhum ticket FAILED | [ ] |
+| 4 | SLA compliance (0 violations) | [ ] |
+| 5 | Polling logs confirmam monitoramento | [ ] |
+| 6 | Métricas de execução registradas | [ ] |
+
+**Status Fluxo C5 (Monitor Execution):** [ ] PASSOU / [ ] FALHOU
+
+---
+
+## 7.12 FLUXO C6 - Publish Telemetry (Kafka & Buffer)
+
+### 7.12.1 Verificar Eventos no Topic telemetry-flow-c
+
+#### Comando
+
+```bash
+kubectl exec -n kafka $KAFKA_POD -- kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic telemetry-flow-c \
+  --from-beginning \
+  --max-messages 5 \
+  --timeout-ms 10000
+```
+
+#### Output Esperado
+
+```json
+{"event_type":"FLOW_C_STARTED","plan_id":"<uuid>","intent_id":"<uuid>","correlation_id":"<uuid>","timestamp":"2026-01-16T10:35:00Z"}
+{"event_type":"TICKET_ASSIGNED","ticket_id":"ticket-1","worker_id":"worker-code-forge-001","timestamp":"2026-01-16T10:35:01Z"}
+{"event_type":"TICKET_COMPLETED","ticket_id":"ticket-1","duration_ms":45000,"success":true,"timestamp":"2026-01-16T10:45:00Z"}
+{"event_type":"TICKET_COMPLETED","ticket_id":"ticket-2","duration_ms":38000,"success":true,"timestamp":"2026-01-16T10:43:00Z"}
+{"event_type":"FLOW_C_COMPLETED","plan_id":"<uuid>","total_tickets":5,"completed_tickets":5,"failed_tickets":0,"total_duration_ms":180000,"sla_compliant":true,"timestamp":"2026-01-16T10:50:00Z"}
+```
+
+#### Anotar
+
+```
+telemetry_event_id: __________________________
+total_duration_ms: __________________________
+```
+
+#### Tipos de Eventos
+
+| Evento | Descrição |
+|--------|-----------|
+| `FLOW_C_STARTED` | Início do fluxo C |
+| `TICKET_ASSIGNED` | Ticket atribuído a worker |
+| `TICKET_COMPLETED` | Ticket concluído com sucesso |
+| `TICKET_FAILED` | Ticket falhou |
+| `FLOW_C_COMPLETED` | Fluxo C finalizado |
+| `SLA_VIOLATION` | Violação de SLA detectada |
+
+#### Critérios de Sucesso
+- [ ] Eventos publicados no topic
+- [ ] Evento `FLOW_C_COMPLETED` presente
+- [ ] `sla_compliant` = true
+
+#### Critérios de Falha
+- Eventos ausentes
+- `sla_compliant` = false
+
+### 7.12.2 Validar Schema dos Eventos de Telemetria
+
+#### Comando - Verificar Schema Registry
+
+```bash
+curl -s http://localhost:8081/subjects/telemetry-flow-c-value/versions/latest | jq '.schema | fromjson'
+```
+
+#### Output Esperado
+
+```json
+{
+  "type": "record",
+  "name": "FlowCTelemetryEvent",
+  "namespace": "com.neural_hive.telemetry",
+  "fields": [
+    {"name": "event_type", "type": {"type": "enum", "name": "EventType", "symbols": ["FLOW_C_STARTED", "TICKET_ASSIGNED", "TICKET_COMPLETED", "TICKET_FAILED", "FLOW_C_COMPLETED", "SLA_VIOLATION"]}},
+    {"name": "plan_id", "type": "string"},
+    {"name": "intent_id", "type": ["null", "string"], "default": null},
+    {"name": "correlation_id", "type": "string"},
+    {"name": "ticket_id", "type": ["null", "string"], "default": null},
+    {"name": "worker_id", "type": ["null", "string"], "default": null},
+    {"name": "duration_ms", "type": ["null", "long"], "default": null},
+    {"name": "success", "type": ["null", "boolean"], "default": null},
+    {"name": "sla_compliant", "type": ["null", "boolean"], "default": null},
+    {"name": "timestamp", "type": "long"}
+  ]
+}
+```
+
+#### Critérios de Sucesso
+- [ ] Schema registrado
+- [ ] Campos obrigatórios presentes
+
+#### Critérios de Falha
+- Schema ausente
+- Incompatibilidade de schema
+
+### 7.12.3 Verificar Buffer Redis de Telemetria
+
+#### Conceito
+
+O buffer Redis é usado como fallback quando Kafka está indisponível:
+- TTL: 1 hora
+- Tamanho máximo: 1000 eventos
+- Flush automático quando Kafka reconecta
+
+#### Comando - Verificar Tamanho do Buffer
+
+```bash
+kubectl exec -n redis $REDIS_POD -- redis-cli LLEN telemetry:flow-c:buffer
+```
+
+#### Output Esperado (Operação Normal)
+
+```
+(integer) 0
+```
+
+#### Output se Kafka Indisponível
+
+```
+(integer) 42
+```
+
+#### Comando - Verificar Eventos no Buffer (se > 0)
+
+```bash
+kubectl exec -n redis $REDIS_POD -- redis-cli LRANGE telemetry:flow-c:buffer 0 5
+```
+
+#### Critérios de Sucesso
+- [ ] Buffer vazio (Kafka operacional)
+- [ ] Ou: Buffer com eventos sendo drenado
+
+#### Critérios de Falha
+- Buffer crescendo indefinidamente
+- Buffer cheio (> 1000)
+
+### 7.12.4 Validar Logs de Telemetria no Orchestrator
+
+#### Comando
+
+```bash
+kubectl logs -n orchestrator-dynamic $ORCHESTRATOR_POD --tail=100 | grep -E "telemetry|publish|kafka|buffer"
+```
+
+#### Output Esperado
+
+```
+INFO  Publicando evento de telemetria: FLOW_C_STARTED
+INFO  Evento publicado no Kafka: topic=telemetry-flow-c offset=142
+INFO  Publicando evento de telemetria: TICKET_ASSIGNED ticket_id=ticket-1
+INFO  Evento publicado no Kafka: topic=telemetry-flow-c offset=143
+INFO  Publicando evento de telemetria: TICKET_COMPLETED ticket_id=ticket-1
+INFO  Evento publicado no Kafka: topic=telemetry-flow-c offset=144
+INFO  Publicando evento de telemetria: FLOW_C_COMPLETED
+INFO  Evento publicado no Kafka: topic=telemetry-flow-c offset=149
+INFO  Telemetria completa: 7 eventos publicados
+```
+
+#### Critérios de Sucesso
+- [ ] Eventos publicados com sucesso
+- [ ] Offset incrementando
+
+#### Critérios de Falha
+- Erros de publicação
+- Fallback para buffer Redis
+
+### 7.12.5 Validar Métricas de Telemetria
+
+#### Query 1: Eventos Publicados por Tipo
+
+```bash
+curl -s 'http://localhost:9090/api/v1/query?query=neural_hive_flow_c_telemetry_events_total' | jq '.data.result'
+```
+
+#### Query 2: Buffer Size
+
+```bash
+curl -s 'http://localhost:9090/api/v1/query?query=neural_hive_flow_c_telemetry_buffer_size' | jq '.data.result[0].value[1]'
+```
+
+#### Query 3: Publish Failures
+
+```bash
+curl -s 'http://localhost:9090/api/v1/query?query=neural_hive_flow_c_telemetry_publish_failures_total' | jq '.data.result[0].value[1]'
+```
+
+#### Validação de SLO
+| Métrica | SLO |
+|---------|-----|
+| Events published | = esperado (7+ por flow) |
+| Buffer size | = 0 (normal) |
+| Publish failures | = 0 |
+
+#### Critérios de Sucesso
+- [ ] Eventos publicados conforme esperado
+- [ ] Buffer = 0
+- [ ] Zero failures
+
+#### Critérios de Falha
+- Eventos faltando
+- Buffer > 0 persistente
+- Failures > 0
+
+### 7.12.6 Checklist de Validação C6 (Publish Telemetry)
+
+| # | Validação | Status |
+|---|-----------|--------|
+| 1 | Eventos publicados no topic telemetry-flow-c | [ ] |
+| 2 | Schema Avro válido | [ ] |
+| 3 | Evento FLOW_C_COMPLETED presente | [ ] |
+| 4 | Buffer Redis vazio (ou flush completo) | [ ] |
+| 5 | Logs confirmam publicação | [ ] |
+| 6 | Métricas de telemetria registradas | [ ] |
+
+**Status Fluxo C6 (Publish Telemetry):** [ ] PASSOU / [ ] FALHOU
+
+---
+
+## 7.13 Checklist Consolidado Fluxo C Completo (C1-C6)
+
+| Step | Descrição | Seção | Status |
+|------|-----------|-------|--------|
+| C1 | Validate Decision | 7.1 | [ ] |
+| C2 | Generate Tickets | 7.2-7.5 | [ ] |
+| C2 | Persist & Publish Tickets | 7.3-7.4 | [ ] |
+| C3 | Discover Workers | 7.9 | [ ] |
+| C4 | Assign Tickets | 7.10 | [ ] |
+| C5 | Monitor Execution | 7.11 | [ ] |
+| C6 | Publish Telemetry | 7.12 | [ ] |
+
+**Status Fluxo C Completo (C1-C6):** [ ] PASSOU / [ ] FALHOU
 
 ---
 

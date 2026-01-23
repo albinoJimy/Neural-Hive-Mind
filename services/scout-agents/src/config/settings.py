@@ -62,7 +62,10 @@ class PheromoneConfig(BaseModel):
     enabled: bool = Field(default=True, description="Enable pheromone publishing")
     ttl: int = Field(default=3600, description="Pheromone TTL in seconds (1 hour)")
     decay_rate: float = Field(default=0.15, description="Decay rate per hour (15%)")
-    redis_key_prefix: str = Field(default="pheromone:exploration:", description="Redis key prefix")
+    # DEPRECATED: Chaves de feromônio agora são geradas via DomainMapper.to_pheromone_key()
+    # Formato unificado: pheromone:{layer}:{domain}:{type}:{id?}
+    # Esta configuração será removida em versão futura
+    redis_key_prefix: str = Field(default="pheromone:exploration:", description="DEPRECATED - Redis key prefix")
     redis_url: str = Field(default="redis://neural-hive-cache.redis-cluster.svc.cluster.local:6379", description="Redis URL")
 
     @field_validator('decay_rate')

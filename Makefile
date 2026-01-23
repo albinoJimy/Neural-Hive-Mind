@@ -133,7 +133,7 @@ ml-generate-dataset: ; @$(ML) generate-dataset --specialist $(SPECIALIST_TYPE)
 .PHONY: business-metrics-collect anomaly-detector-train deploy-business-metrics-cronjob view-business-metrics
 business-metrics-collect: ; @$(ML) business-metrics collect --window-hours 24
 anomaly-detector-train: ; @$(ML) anomaly-detector train --window-days 30
-deploy-business-metrics-cronjob: ; @kubectl apply -f k8s/cronjobs/business-metrics-collector-job.yaml
+deploy-business-metrics-cronjob: ; @kubectl apply -f k8s/cronjobs/business-metrics-job.yaml
 view-business-metrics: ; @$(OBS) dashboards access --dashboard business-metrics
 
 .PHONY: continuous-learning-trigger deploy-retraining-cronjob continuous-learning-feedback continuous-learning-monitor view-continuous-learning

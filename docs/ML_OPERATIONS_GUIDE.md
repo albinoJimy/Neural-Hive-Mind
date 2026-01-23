@@ -107,6 +107,67 @@ ml_retraining_events_total{model_type, success}
   - Features com maior drift
   - Historico de retreinamentos
 
+- **ML SLOs Dashboard**: SLOs e Error Budgets de ML
+  - Compliance de F1 Score, Latencia, Feedback, Uptime
+  - Error budget consumption
+  - Burn rate alerting
+  - Acesso: `/d/ml-slos-dashboard/ml-slos`
+
+## Service Level Objectives (SLOs)
+
+Os modelos ML possuem 4 SLOs criticos:
+
+| SLO | Target | Janela | Metrica |
+|-----|--------|--------|---------|
+| F1 Score | >= 0.75 | 7d | `neural_hive:slo:ml_f1_score:7d` |
+| Latencia P95 | < 100ms | 24h | `neural_hive:slo:ml_latency_p95_total:5m` |
+| Feedback Rate | >= 10% | 7d | `neural_hive:slo:ml_feedback_rate:7d` |
+| Uptime | >= 99.5% | 30d | `neural_hive:slo:ml_availability:30d` |
+
+### Alertas de SLO
+
+Alertas configurados em `prometheus-rules/ml-slo-alerts.yaml`:
+
+- **Critical**: F1 Score SLO Breach, Error Budget Fast Burn, Uptime Critical
+- **Warning**: Latency SLO Breach, Feedback Rate Low, Error Budget Slow Burn
+
+### Acoes em Violacao
+
+#### F1 Score < 0.75
+```bash
+# Verificar drift
+kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic | grep drift
+
+# Analisar distribuicao de predicoes
+curl -s "http://prometheus:9090/api/v1/query?query=neural_hive_mlflow_model_f1" | jq
+
+# Considerar retreinamento
+python train_predictive_models.py --model-type all --promote-if-better
+```
+
+#### Latencia P95 > 100ms
+```bash
+# Verificar recursos dos pods
+kubectl top pods -n neural-hive-orchestration
+
+# Verificar cache MLflow
+kubectl logs -n mlflow -l app=mlflow-server | grep cache
+
+# Escalar se necessario
+kubectl scale deployment orchestrator-dynamic -n neural-hive-orchestration --replicas=3
+```
+
+#### Feedback Rate < 10%
+```bash
+# Verificar API de feedback
+curl -s "http://approval-service:8000/api/v1/feedback/health"
+
+# Verificar taxa atual
+curl -s "http://prometheus:9090/api/v1/query?query=neural_hive:slo:ml_feedback_rate:7d" | jq
+```
+
+Para documentacao completa de SLOs: `docs/slos/ml-models.md`
+
 ## Retreinamento
 
 ### Automatico (Drift-Triggered)

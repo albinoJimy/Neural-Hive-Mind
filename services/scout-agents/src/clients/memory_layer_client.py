@@ -4,7 +4,8 @@ from typing import Optional, Dict, Any, List
 import httpx
 import structlog
 
-from ..models.scout_signal import ScoutSignal, ExplorationDomain
+from ..models.scout_signal import ScoutSignal
+from neural_hive_domain import UnifiedDomain
 from ..config import get_settings
 
 logger = structlog.get_logger()
@@ -125,7 +126,7 @@ class MemoryLayerClient:
 
     async def query_historical_signals(
         self,
-        domain: Optional[ExplorationDomain] = None,
+        domain: Optional[UnifiedDomain] = None,
         limit: int = 100
     ) -> List[Dict[str, Any]]:
         """

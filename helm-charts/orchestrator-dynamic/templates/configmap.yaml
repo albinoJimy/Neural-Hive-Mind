@@ -62,6 +62,8 @@ data:
   SLA_DEFAULT_TIMEOUT_MS: {{ printf "%d" (int64 .Values.config.sla.defaultTimeoutMs) | quote }}
   SLA_CHECK_INTERVAL_SECONDS: {{ .Values.config.sla.checkIntervalSeconds | quote }}
   SLA_ALERT_THRESHOLD_PERCENT: {{ .Values.config.sla.alertThresholdPercent | quote }}
+  SLA_TICKET_MIN_TIMEOUT_MS: {{ printf "%d" (int64 .Values.config.sla.ticketMinTimeoutMs) | quote }}
+  SLA_TICKET_TIMEOUT_BUFFER_MULTIPLIER: {{ .Values.config.sla.ticketTimeoutBufferMultiplier | quote }}
 
   # Retry
   RETRY_MAX_ATTEMPTS: {{ .Values.config.retry.maxAttempts | quote }}

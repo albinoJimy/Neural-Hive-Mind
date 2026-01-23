@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     REDIS_CLUSTER_NODES: str
     REDIS_PASSWORD: str = ''
     REDIS_SSL_ENABLED: bool = True
+    # DEPRECATED: Chaves de feromônio agora são geradas via DomainMapper.to_pheromone_key()
+    # Formato unificado: pheromone:{layer}:{domain}:{type}:{id?}
+    # Esta configuração será removida em versão futura
     REDIS_PHEROMONE_PREFIX: str = 'pheromone:strategic:'
     REDIS_CACHE_TTL_SECONDS: int = 300
 

@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kaniko-build-context
+  namespace: neural-hive
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kaniko-context-loader
+  namespace: neural-hive
+spec:
+  restartPolicy: Never
+  containers:
+    - name: loader
+      image: busybox
+      command: ['sh', '-c', 'echo "Context loader ready" && sleep 3600']
+      volumeMounts:
+        - name: context
+          mountPath: /context
+  volumes:
+    - name: context
+      persistentVolumeClaim:
+        claimName: kaniko-build-context
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kaniko-orchestrator-dynamic
+  namespace: neural-hive
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:latest
+          args:
+            - "--dockerfile=services/orchestrator-dynamic/Dockerfile"
+            - "--context=dir:///context"
+            - "--destination=docker-registry.registry.svc.cluster.local:5000/orchestrator-dynamic:1.0.8-fixed"
+            - "--insecure"
+            - "--skip-tls-verify"
+          volumeMounts:
+            - name: context
+              mountPath: /context
+      volumes:
+        - name: context
+          persistentVolumeClaim:
+            claimName: kaniko-build-context

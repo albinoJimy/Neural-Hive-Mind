@@ -5,6 +5,8 @@ from typing import Optional
 import structlog
 import redis.asyncio as redis
 
+from neural_hive_domain import DomainMapper, UnifiedDomain
+
 from ..models.scout_signal import ScoutSignal
 from ..config import get_settings
 
@@ -20,7 +22,6 @@ class PheromoneClient:
         self.enabled = self.settings.pheromone.enabled
         self.ttl = self.settings.pheromone.ttl
         self.decay_rate = self.settings.pheromone.decay_rate
-        self.key_prefix = self.settings.pheromone.redis_key_prefix
 
     async def start(self):
         """Inicializa conexão com Redis"""
@@ -72,11 +73,11 @@ class PheromoneClient:
                 'signal_id': signal.signal_id,
                 'scout_agent_id': signal.scout_agent_id,
                 'domain': signal.exploration_domain.value,
-                'channel': signal.channel_type.value,
+                'channel': signal.source.channel.value,
                 'signal_type': signal.signal_type.value,
                 'intensity': initial_intensity,
                 'decay_rate': self.decay_rate,
-                'created_at': signal.detected_at.isoformat(),
+                'created_at': datetime.utcnow().isoformat(),
                 'updated_at': datetime.utcnow().isoformat(),
                 'metadata': {
                     'curiosity_score': signal.curiosity_score,
@@ -86,12 +87,13 @@ class PheromoneClient:
                 }
             }
 
-            # Chave Redis baseada em domínio e tipo de sinal
-            redis_key = (
-                f"{self.key_prefix}"
-                f"{signal.exploration_domain.value}:"
-                f"{signal.signal_type.value}:"
-                f"{signal.signal_id}"
+            # Chave Redis padronizada via DomainMapper
+            # Formato: pheromone:exploration:{domain}:{signal_type}:{signal_id}
+            redis_key = DomainMapper.to_pheromone_key(
+                domain=signal.exploration_domain,  # Já é UnifiedDomain
+                layer='exploration',
+                pheromone_type=signal.signal_type.value,
+                id=signal.signal_id
             )
 
             # Armazena com TTL
@@ -140,7 +142,14 @@ class PheromoneClient:
             return None
 
         try:
-            redis_key = f"{self.key_prefix}{domain}:{signal_type}:{signal_id}"
+            # Normalizar domain para UnifiedDomain e gerar chave padronizada
+            normalized_domain = DomainMapper.normalize(domain, 'scout_signal')
+            redis_key = DomainMapper.to_pheromone_key(
+                domain=normalized_domain,
+                layer='exploration',
+                pheromone_type=signal_type,
+                id=signal_id
+            )
             data_str = await self.redis_client.get(redis_key)
 
             if not data_str:

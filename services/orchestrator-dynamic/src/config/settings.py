@@ -183,6 +183,24 @@ class OrchestratorSettings(BaseSettings):
     sla_check_interval_seconds: int = Field(default=30, description='Intervalo de verificação de SLA')
     sla_alert_threshold_percent: float = Field(default=0.8, description='Threshold para alertas (80%)')
 
+    # SLA Ticket Timeout Configuration
+    sla_ticket_min_timeout_ms: int = Field(
+        default=60000,
+        description=(
+            'Timeout mínimo para tickets em milissegundos (60 segundos). '
+            'Aumentado de 30s para 60s para reduzir falsos positivos de SLA violation. '
+            'Ref: Análise de logs mostrou remaining_seconds=-8.5 antes de workflow completar.'
+        )
+    )
+    sla_ticket_timeout_buffer_multiplier: float = Field(
+        default=3.0,
+        description=(
+            'Multiplicador de buffer para cálculo de timeout (3.0x estimated_duration). '
+            'Aumentado de 1.5x para 3.0x para acomodar variabilidade de execução. '
+            'Fórmula: timeout_ms = max(min_timeout_ms, estimated_duration_ms * multiplier)'
+        )
+    )
+
     # SLA Management System Integration
     sla_management_enabled: bool = Field(
         default=True,
@@ -409,6 +427,20 @@ class OrchestratorSettings(BaseSettings):
     CIRCUIT_BREAKER_FAIL_MAX: int = Field(default=5, description='Falhas consecutivas para abrir circuito')
     CIRCUIT_BREAKER_TIMEOUT: int = Field(default=60, description='Tempo em segundos com circuito aberto')
     CIRCUIT_BREAKER_RECOVERY_TIMEOUT: int = Field(default=30, description='Tempo em segundos para half-open')
+
+    # MongoDB Persistence Policies
+    MONGODB_FAIL_OPEN_EXECUTION_TICKETS: bool = Field(
+        default=False,
+        description='Permitir fail-open para persistência de execution tickets (não recomendado para compliance)'
+    )
+    MONGODB_FAIL_OPEN_VALIDATION_AUDIT: bool = Field(
+        default=True,
+        description='Permitir fail-open para auditoria de validação'
+    )
+    MONGODB_FAIL_OPEN_WORKFLOW_RESULTS: bool = Field(
+        default=True,
+        description='Permitir fail-open para resultados de workflow'
+    )
 
     # Observabilidade
     otel_exporter_endpoint: str = Field(
@@ -769,6 +801,20 @@ class OrchestratorSettings(BaseSettings):
     ml_shadow_model_version: Optional[str] = Field(
         default=None,
         description='Versão específica do modelo shadow a ser usada (se None, usa versão mais recente em staging)'
+    )
+
+    # ML Audit Logging Configuration
+    ml_audit_enabled: bool = Field(
+        default=True,
+        description='Habilitar audit logging para ciclo de vida de modelos ML'
+    )
+    ml_audit_log_collection: str = Field(
+        default='model_audit_log',
+        description='Nome da collection MongoDB para audit logs de modelos'
+    )
+    ml_audit_retention_days: int = Field(
+        default=365,
+        description='Retenção de audit logs em dias (TTL index)'
     )
 
     # Gradual Rollout Configuration

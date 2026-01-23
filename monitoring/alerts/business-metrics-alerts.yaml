@@ -265,3 +265,106 @@ groups:
         Ação: Verificar logs do job:
         kubectl logs -l component=business-metrics -n neural-hive-mind --tail=100
       runbook_url: "https://docs.neural-hive.com/runbooks/business-metrics/job-failing"
+
+  # ============================================================================
+  # Auto-Approval Efficiency
+  # ============================================================================
+
+  - alert: LowAutoApprovalRate
+    expr: neural_hive_auto_approval_rate{specialist_type=~".*", confidence_threshold="0.9"} < 0.4
+    for: 2h
+    labels:
+      severity: warning
+      neural_hive_component: business-metrics
+      neural_hive_layer: observability
+    annotations:
+      summary: "Taxa de auto-approval baixa para {{ $labels.specialist_type }}"
+      description: |
+        O especialista {{ $labels.specialist_type }} tem taxa de auto-approval de apenas {{ $value | humanizePercentage }}
+        (threshold: 40%).
+
+        Isso pode indicar:
+        - Modelos com baixa confiança
+        - Threshold de confiança muito alto
+        - Dados de entrada complexos
+
+        Ação: Revisar threshold de confiança e performance do modelo.
+      runbook_url: "https://docs.neural-hive.com/runbooks/business-metrics/low-auto-approval"
+
+  - alert: HighApprovalTime
+    expr: neural_hive_avg_approval_time_seconds{specialist_type=~".*"} > 3600
+    for: 1h
+    labels:
+      severity: warning
+      neural_hive_component: business-metrics
+      neural_hive_layer: observability
+    annotations:
+      summary: "Tempo de aprovação alto para {{ $labels.specialist_type }}"
+      description: |
+        O tempo médio de aprovação para {{ $labels.specialist_type }} é de {{ $value | humanizeDuration }}
+        (threshold: 1 hora).
+
+        Possíveis causas:
+        - Backlog de aprovações pendentes
+        - Falta de revisores disponíveis
+        - Planos complexos requerem mais análise
+
+        Ação: Verificar fila de aprovações e disponibilidade de revisores.
+      runbook_url: "https://docs.neural-hive.com/runbooks/business-metrics/high-approval-time"
+
+  # ============================================================================
+  # Model Uptime
+  # ============================================================================
+
+  - alert: LowModelUptime
+    expr: neural_hive_model_uptime_percentage{specialist_type=~".*"} < 0.995
+    for: 15m
+    labels:
+      severity: warning
+      neural_hive_component: business-metrics
+      neural_hive_layer: observability
+    annotations:
+      summary: "Uptime baixo para modelo {{ $labels.specialist_type }}"
+      description: |
+        O modelo {{ $labels.specialist_type }} tem uptime de {{ $value | humanizePercentage }}
+        (target: 99.5%).
+
+        Possíveis causas:
+        - Falhas de inferência
+        - Health checks falhando
+        - Problemas de infraestrutura
+
+        Ação: Verificar logs do specialist e health checks.
+      runbook_url: "https://docs.neural-hive.com/runbooks/business-metrics/low-uptime"
+
+  - alert: CriticalModelUptime
+    expr: neural_hive_model_uptime_percentage{specialist_type=~".*"} < 0.98
+    for: 5m
+    labels:
+      severity: critical
+      neural_hive_component: business-metrics
+      neural_hive_layer: observability
+      pagerduty: "true"
+    annotations:
+      summary: "UPTIME CRÍTICO para modelo {{ $labels.specialist_type }}"
+      description: |
+        O modelo {{ $labels.specialist_type }} tem uptime CRÍTICO de {{ $value | humanizePercentage }}
+        (threshold crítico: 98%).
+
+        Ação urgente: Investigar imediatamente falhas do modelo.
+      runbook_url: "https://docs.neural-hive.com/runbooks/business-metrics/critical-uptime"
+
+  - alert: FrequentHealthCheckFailures
+    expr: increase(neural_hive_model_health_check_failures_total{specialist_type=~".*"}[1h]) > 5
+    for: 0m
+    labels:
+      severity: warning
+      neural_hive_component: business-metrics
+      neural_hive_layer: observability
+    annotations:
+      summary: "Falhas frequentes de health check para {{ $labels.specialist_type }}"
+      description: |
+        O modelo {{ $labels.specialist_type }} teve {{ $value }} falhas de health check na última hora.
+
+        Ação: Verificar logs e status do specialist.
+      runbook_url: "https://docs.neural-hive.com/runbooks/business-metrics/health-check-failures"

@@ -61,7 +61,9 @@
           "TECHNICAL",
           "BEHAVIOR",
           "INFRASTRUCTURE",
-          "SECURITY"
+          "SECURITY",
+          "OPERATIONAL",
+          "COMPLIANCE"
         ]
       },
       "doc": "Domain of exploration"

@@ -78,6 +78,9 @@ class DurationPredictor:
         # Nome do modelo no registry
         self.model_name = 'ticket-duration-predictor'
 
+        # Referência ao promotion manager (injetada externamente para shadow mode)
+        self.promotion_manager = None
+
     async def initialize(self):
         """
         Inicializa predictor carregando modelo do registry.
@@ -199,6 +202,8 @@ class DurationPredictor:
         """
         Prediz duração do ticket com confidence score.
 
+        Se shadow mode ativo, executa predição shadow em paralelo.
+
         Args:
             ticket: Dict com dados do ticket
 
@@ -222,7 +227,34 @@ class DurationPredictor:
             # Normaliza features para array
             features = normalize_features(features_dict)
 
-            # Prediz duração
+            # Verifica se shadow mode está ativo
+            shadow_runner = None
+            if self.promotion_manager:
+                shadow_runner = self.promotion_manager.get_shadow_runner(self.model_name)
+
+            # Se shadow mode ativo, usa shadow runner
+            if shadow_runner:
+                context = {
+                    'ticket_id': ticket.get('ticket_id'),
+                    'task_type': ticket.get('task_type'),
+                    'risk_band': ticket.get('risk_band')
+                }
+                result = await shadow_runner.predict_with_shadow(
+                    features=features_dict,
+                    context=context
+                )
+
+                # Métricas
+                duration_seconds = time.time() - start_time
+                self.metrics.record_ml_prediction(
+                    model_type='duration',
+                    status='success',
+                    duration=duration_seconds
+                )
+
+                return result
+
+            # Predição normal (sem shadow mode)
             if self.model and hasattr(self.model, 'predict'):
                 try:
                     predicted_duration = float(self.model.predict(features)[0])

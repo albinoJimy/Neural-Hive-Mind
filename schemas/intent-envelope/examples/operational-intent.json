@@ -1,0 +1,106 @@
+{
+  "@context": "https://neural-hive-mind.org/schemas/intent-envelope/context/v1",
+  "@type": "IntentEnvelope",
+  "id": "d4e5f6g7-h8i9-0123-defg-h45678901234",
+  "version": "1.0.0",
+  "correlationId": "g7h8i9j0-k1l2-m3n4-o5p6-q7r8s9t0u1v2",
+  "traceId": "8fi26i7911f78he0e7fi363g4i4i8170",
+  "spanId": "04j401ee4fe246f1",
+
+  "actor": {
+    "@type": "Actor",
+    "id": "sre-team-004",
+    "actorType": "HUMAN",
+    "name": "Fernanda Lima"
+  },
+
+  "intent": {
+    "@type": "Intent",
+    "text": "Configurar alertas de SLA para APIs críticas com threshold de 99.9% uptime e notificação via PagerDuty",
+    "domain": "OPERATIONAL",
+    "classification": "operational-monitoring",
+    "originalLanguage": "pt-BR",
+    "processedText": "Configurar alertas de SLA para APIs críticas com threshold de 99.9% uptime e notificação via PagerDuty",
+    "entities": [
+      {
+        "type": "CONFIGURATION",
+        "value": "alertas de SLA",
+        "confidence": 0.96,
+        "start": 11,
+        "end": 25
+      },
+      {
+        "type": "TARGET",
+        "value": "APIs críticas",
+        "confidence": 0.94,
+        "start": 31,
+        "end": 44
+      },
+      {
+        "type": "METRIC",
+        "value": "99.9% uptime",
+        "confidence": 0.98,
+        "start": 62,
+        "end": 74
+      },
+      {
+        "type": "INTEGRATION",
+        "value": "PagerDuty",
+        "confidence": 0.97,
+        "start": 93,
+        "end": 102
+      }
+    ],
+    "keywords": [
+      "configurar",
+      "alertas",
+      "SLA",
+      "APIs",
+      "críticas",
+      "uptime",
+      "PagerDuty"
+    ]
+  },
+
+  "confidence": 0.96,
+
+  "context": {
+    "@type": "Context",
+    "sessionId": "sess_ops_2k3l4m5n6o",
+    "userId": "sre-team-004",
+    "tenantId": "acme-corp",
+    "channel": "API",
+    "userAgent": "SREToolkit/3.0.1",
+    "clientIp": "10.0.2.***",
+    "geolocation": {
+      "country": "BR",
+      "region": "SP",
+      "city": "Campinas",
+      "timezone": "America/Sao_Paulo"
+    }
+  },
+
+  "constraints": {
+    "@type": "Constraint",
+    "priority": "HIGH",
+    "deadline": "2025-01-20T18:00:00Z",
+    "maxRetries": 3,
+    "timeout": "PT30M",
+    "requiredCapabilities": [
+      "monitoring",
+      "alerting",
+      "sla-management",
+      "pagerduty-integration"
+    ],
+    "securityLevel": "INTERNAL"
+  },
+
+  "qos": {
+    "@type": "QualityOfService",
+    "deliveryMode": "EXACTLY_ONCE",
+    "durability": "PERSISTENT",
+    "consistency": "STRONG"
+  },
+
+  "timestamp": "2025-01-08T16:20:00.000Z"
+}

@@ -4,6 +4,8 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
+from neural_hive_domain import DomainMapper, UnifiedDomain
+
 
 class PheromoneType(str, Enum):
     '''Tipo de feromônio digital'''
@@ -16,7 +18,7 @@ class PheromoneSignal(BaseModel):
     '''Sinalização de feromônio digital para coordenação de enxame'''
     signal_id: str = Field(default_factory=lambda: str(uuid.uuid4()), description='ID do sinal')
     specialist_type: str = Field(..., description='Tipo do especialista')
-    domain: str = Field(..., description='Domínio da avaliação')
+    domain: UnifiedDomain = Field(..., description='Domínio unificado da avaliação')
     pheromone_type: PheromoneType = Field(..., description='Tipo de feromônio')
 
     # Força do feromônio
@@ -45,9 +47,22 @@ class PheromoneSignal(BaseModel):
                 return PheromoneType[v.upper()]
         return v
 
+    @field_validator('domain', mode='before')
+    @classmethod
+    def coerce_domain(cls, v):
+        '''Garante que domain seja sempre UnifiedDomain'''
+        if isinstance(v, str):
+            return DomainMapper.normalize(v, 'intent_envelope')
+        return v
+
     def get_redis_key(self) -> str:
-        '''Gera chave Redis para o feromônio'''
-        return f'pheromone:{self.specialist_type}:{self.domain}:{self.pheromone_type.value}'
+        '''Gera chave Redis padronizada para o feromônio via DomainMapper'''
+        return DomainMapper.to_pheromone_key(
+            domain=self.domain,
+            layer='consensus',
+            pheromone_type=self.pheromone_type.value,
+            id=self.signal_id
+        )
 
     def calculate_current_strength(self) -> float:
         '''Calcula força atual considerando decay temporal'''

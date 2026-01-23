@@ -8,8 +8,8 @@ metadata:
     component: business-metrics
     layer: observability
 spec:
-  # Executa a cada hora
-  schedule: "0 * * * *"
+  # Executa diariamente à meia-noite UTC
+  schedule: "0 0 * * *"
 
   # Timezone (se suportado pelo cluster)
   # timeZone: "America/Sao_Paulo"

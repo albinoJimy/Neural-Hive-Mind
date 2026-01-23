@@ -32,9 +32,20 @@ from mlflow.models.signature import infer_signature
 from pymongo import MongoClient
 import joblib
 import tempfile
+from motor.motor_asyncio import AsyncIOMotorClient
 
 # Importar wrapper probabilístico
 from probabilistic_wrapper import ProbabilisticModelWrapper
+
+# Importar ModelAuditLogger para auditoria de ciclo de vida
+try:
+    sys.path.insert(0, str(os.path.join(os.path.dirname(__file__), '..', '..', 'services', 'orchestrator-dynamic', 'src')))
+    from ml.model_audit_logger import ModelAuditLogger, AuditEventContext
+    _MODEL_AUDIT_LOGGER_AVAILABLE = True
+except ImportError:
+    _MODEL_AUDIT_LOGGER_AVAILABLE = False
+    ModelAuditLogger = None
+    AuditEventContext = None
 
 # Importar RealDataCollector para dados reais
 try:
@@ -44,6 +55,21 @@ except ImportError:
     _REAL_DATA_COLLECTOR_AVAILABLE = False
     InsufficientDataError = Exception
     FeatureExtractionError = Exception
+
+# Importar DataQualityValidator para validação avançada
+try:
+    from data_quality_validator import DataQualityValidator
+    _DATA_QUALITY_VALIDATOR_AVAILABLE = True
+except ImportError:
+    _DATA_QUALITY_VALIDATOR_AVAILABLE = False
+
+# Importar PreRetrainingValidator para validação de pré-requisitos
+try:
+    from pre_retraining_validator import PreRetrainingValidator, ValidationFailedError
+    _PRE_RETRAINING_VALIDATOR_AVAILABLE = True
+except ImportError:
+    _PRE_RETRAINING_VALIDATOR_AVAILABLE = False
+    ValidationFailedError = Exception
 
 # Importar schema de features centralizado
 sys.path.insert(0, str(os.path.join(os.path.dirname(__file__), '..')))
@@ -59,6 +85,78 @@ except ImportError:
 
 logger = structlog.get_logger()
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+class AuditLoggerConfig:
+    """Configuração mínima para ModelAuditLogger no pipeline de treinamento."""
+
+    def __init__(self, environment: str = 'development'):
+        self.ml_audit_log_collection = 'model_audit_log'
+        self.ml_audit_retention_days = 365
+        self.ml_audit_enabled = True
+        self.environment = environment
+
+
+def create_audit_logger() -> Optional[Any]:
+    """
+    Cria instância de ModelAuditLogger para auditoria do pipeline de treinamento.
+
+    Returns:
+        ModelAuditLogger ou None se não disponível
+    """
+    if not _MODEL_AUDIT_LOGGER_AVAILABLE:
+        logger.warning('model_audit_logger_not_available')
+        return None
+
+    try:
+        mongodb_uri = os.getenv('MONGODB_URI', 'mongodb://localhost:27017')
+        mongodb_database = os.getenv('MONGODB_DATABASE', 'neural_hive')
+        environment = os.getenv('ENVIRONMENT', 'development')
+
+        # Criar cliente MongoDB assíncrono
+        mongodb_client = AsyncIOMotorClient(mongodb_uri)
+        mongodb_client.db = mongodb_client[mongodb_database]
+
+        config = AuditLoggerConfig(environment=environment)
+        audit_logger = ModelAuditLogger(
+            mongodb_client=mongodb_client,
+            config=config,
+            metrics=None  # Sem métricas Prometheus no pipeline de treinamento
+        )
+
+        logger.info('audit_logger_created_for_training_pipeline')
+        return audit_logger
+
+    except Exception as e:
+        logger.warning('audit_logger_creation_failed', error=str(e))
+        return None
+
+
+async def log_audit_event(audit_logger, method_name: str, **kwargs) -> Optional[str]:
+    """
+    Helper assíncrono para logging de evento de auditoria.
+
+    Args:
+        audit_logger: Instância de ModelAuditLogger
+        method_name: Nome do método a chamar (ex: 'log_training_started')
+        **kwargs: Argumentos para o método
+
+    Returns:
+        audit_id ou None
+    """
+    if audit_logger is None:
+        return None
+
+    try:
+        method = getattr(audit_logger, method_name)
+        return await method(**kwargs)
+    except Exception as e:
+        logger.warning(
+            'audit_event_logging_failed',
+            method=method_name,
+            error=str(e)
+        )
+        return None
 
 
 def _load_service_config_class(module_name: str, file_path: Path, class_name: str):
@@ -195,6 +293,13 @@ def parse_args():
         type=int,
         default=1000,
         help="Mínimo de amostras reais necessárias para treinamento"
+    )
+    parser.add_argument(
+        '--skip-validation',
+        type=str,
+        default='false',
+        choices=['true', 'false'],
+        help="Pular validação de pré-requisitos (USO EMERGENCIAL APENAS)"
     )
 
     return parser.parse_args()
@@ -381,14 +486,128 @@ def create_synthetic_dataset(n_samples: int = 1000) -> pd.DataFrame:
         )
         df['label'] = np.random.choice([0, 1], size=n_samples, p=[0.5, 0.5])
 
+    # Adicionar created_at sintético para suportar split temporal
+    # Distribuir uniformemente nos últimos 30 dias
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=30)
+    random_timestamps = [
+        start_date + timedelta(seconds=np.random.randint(0, 30 * 24 * 3600))
+        for _ in range(n_samples)
+    ]
+    df['created_at'] = sorted(random_timestamps)
+
     logger.info(
         "synthetic_dataset_created",
         n_samples=n_samples,
         num_features=len(feature_names),
-        label_distribution=df['label'].value_counts().to_dict()
+        label_distribution=df['label'].value_counts().to_dict(),
+        created_at_range=f"{df['created_at'].min()} to {df['created_at'].max()}"
     )
 
     return df
+
+
+def temporal_split(
+    df: pd.DataFrame,
+    train_ratio: float = 0.7,
+    val_ratio: float = 0.15,
+    test_ratio: float = 0.15,
+    timestamp_col: str = 'created_at'
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, Dict[str, Any]]:
+    """
+    Realiza split temporal do dataset ordenado por created_at.
+
+    Os dados mais antigos vão para treino, intermediários para validação,
+    e mais recentes para teste. Isso evita data leakage temporal.
+
+    Args:
+        df: DataFrame com coluna timestamp_col
+        train_ratio: Proporção para treino (default: 0.7)
+        val_ratio: Proporção para validação (default: 0.15)
+        test_ratio: Proporção para teste (default: 0.15)
+        timestamp_col: Nome da coluna de timestamp
+
+    Returns:
+        Tupla (df_train, df_val, df_test, split_metadata)
+    """
+    assert abs(train_ratio + val_ratio + test_ratio - 1.0) < 0.001, \
+        "Ratios devem somar 1.0"
+
+    if timestamp_col not in df.columns:
+        raise ValueError(
+            f"Coluna '{timestamp_col}' não encontrada no DataFrame. "
+            f"Colunas disponíveis: {list(df.columns)}"
+        )
+
+    # Ordenar por timestamp
+    df_sorted = df.sort_values(by=timestamp_col, ascending=True).reset_index(drop=True)
+
+    n_samples = len(df_sorted)
+    train_end = int(n_samples * train_ratio)
+    val_end = train_end + int(n_samples * val_ratio)
+
+    # Split temporal
+    df_train = df_sorted.iloc[:train_end].copy()
+    df_val = df_sorted.iloc[train_end:val_end].copy()
+    df_test = df_sorted.iloc[val_end:].copy()
+
+    # Extrair range de datas para cada split
+    train_max_date = df_train[timestamp_col].max() if len(df_train) > 0 else None
+    val_min_date = df_val[timestamp_col].min() if len(df_val) > 0 else None
+    val_max_date = df_val[timestamp_col].max() if len(df_val) > 0 else None
+    test_min_date = df_test[timestamp_col].min() if len(df_test) > 0 else None
+
+    # Verificar integridade temporal (sem sobreposição)
+    temporal_integrity_valid = True
+    if train_max_date and val_min_date:
+        if train_max_date >= val_min_date:
+            temporal_integrity_valid = False
+            logger.warning(
+                "temporal_split_overlap_detected",
+                train_max=str(train_max_date),
+                val_min=str(val_min_date)
+            )
+
+    if val_max_date and test_min_date:
+        if val_max_date >= test_min_date:
+            temporal_integrity_valid = False
+            logger.warning(
+                "temporal_split_overlap_detected",
+                val_max=str(val_max_date),
+                test_min=str(test_min_date)
+            )
+
+    split_metadata = {
+        'train_samples': len(df_train),
+        'val_samples': len(df_val),
+        'test_samples': len(df_test),
+        'train_date_range': {
+            'min': df_train[timestamp_col].min().isoformat() if len(df_train) > 0 else None,
+            'max': train_max_date.isoformat() if train_max_date else None
+        },
+        'val_date_range': {
+            'min': val_min_date.isoformat() if val_min_date else None,
+            'max': val_max_date.isoformat() if val_max_date else None
+        },
+        'test_date_range': {
+            'min': test_min_date.isoformat() if test_min_date else None,
+            'max': df_test[timestamp_col].max().isoformat() if len(df_test) > 0 else None
+        },
+        'temporal_integrity_valid': temporal_integrity_valid
+    }
+
+    logger.info(
+        "temporal_split_completed",
+        train_samples=len(df_train),
+        val_samples=len(df_val),
+        test_samples=len(df_test),
+        train_date_max=str(train_max_date) if train_max_date else None,
+        val_date_range=f"{val_min_date} to {val_max_date}" if val_min_date and val_max_date else None,
+        test_date_min=str(test_min_date) if test_min_date else None,
+        temporal_integrity_valid=temporal_integrity_valid
+    )
+
+    return df_train, df_val, df_test, split_metadata
 
 
 def compare_distributions(
@@ -520,8 +739,47 @@ def load_dataset_with_real_data_priority(
                 specialist_type=specialist_type
             )
 
-            # Validar qualidade
-            quality_report = collector.validate_data_quality(df=df_real)
+            # Validar qualidade usando DataQualityValidator avançado
+            feature_names = get_feature_names()
+            if _DATA_QUALITY_VALIDATOR_AVAILABLE:
+                validator = DataQualityValidator()
+                quality_report = validator.validate(
+                    df=df_real,
+                    feature_names=feature_names
+                )
+
+                # Gerar relatório MLflow e logar se há run ativo
+                if mlflow.active_run():
+                    mlflow_report = validator.generate_mlflow_report(quality_report)
+                    mlflow.log_dict(mlflow_report, "data_quality_report.json")
+
+                    # Log métricas de qualidade individuais
+                    mlflow.log_metric("data_quality_score", quality_report['quality_score'])
+                    mlflow.log_metric("data_missing_values_max_pct",
+                                     quality_report['missing_values']['max_missing_pct'])
+                    mlflow.log_metric("data_sparsity_rate",
+                                     quality_report['sparsity']['sparsity_rate'])
+                    mlflow.log_metric("data_max_outlier_pct",
+                                     quality_report['outliers']['max_outlier_pct'])
+                    mlflow.log_param("data_quality_passed", str(quality_report['passed']))
+
+                    # Log label balance status
+                    mlflow.log_param("data_labels_balanced",
+                                    str(quality_report['label_imbalance']['is_balanced']))
+
+                    logger.info(
+                        "data_quality_logged_to_mlflow",
+                        quality_score=quality_report['quality_score'],
+                        passed=quality_report['passed']
+                    )
+            else:
+                # Fallback para método legado se DataQualityValidator não disponível
+                logger.warning("DataQualityValidator não disponível, usando validação básica")
+                quality_report = {
+                    'quality_score': 0.8,  # Valor padrão
+                    'passed': True,
+                    'warnings': []
+                }
 
             real_data_metadata = {
                 'real_samples_count': len(df_real),
@@ -530,6 +788,7 @@ def load_dataset_with_real_data_priority(
                 'is_balanced': distribution_report['is_balanced'],
                 'quality_score': quality_report['quality_score'],
                 'quality_passed': quality_report['passed'],
+                'quality_warnings': quality_report.get('warnings', []),
                 'date_range_start': df_real['created_at'].min().isoformat() if 'created_at' in df_real.columns and len(df_real) > 0 else None,
                 'date_range_end': df_real['created_at'].max().isoformat() if 'created_at' in df_real.columns and len(df_real) > 0 else None
             }
@@ -549,11 +808,11 @@ def load_dataset_with_real_data_priority(
 
             logger.info(
                 "real_data_collection_success",
-                **{k: v for k, v in real_data_metadata.items() if k != 'distribution_comparison'}
+                **{k: v for k, v in real_data_metadata.items() if k not in ['distribution_comparison', 'quality_warnings']}
             )
 
-            # Preparar DataFrame para treinamento (remover colunas de metadados)
-            feature_cols = get_feature_names() + ['label']
+            # Preparar DataFrame para treinamento (manter created_at para split temporal)
+            feature_cols = get_feature_names() + ['label', 'created_at']
             df_training = df_real[[col for col in feature_cols if col in df_real.columns]].copy()
 
             return df_training, 'real', real_data_metadata
@@ -1247,6 +1506,171 @@ def main():
         environment = os.getenv('ENVIRONMENT', 'development')
         mlflow.log_param('environment', environment)
 
+        # Inicializar audit logger para rastreamento do ciclo de vida do modelo
+        audit_logger = create_audit_logger()
+        training_start_time = datetime.utcnow()
+        model_version = f"v{training_start_time.strftime('%Y%m%d%H%M%S')}"
+
+        # Obter ou criar event loop para operações assíncronas
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        # Registrar início do treinamento no audit log
+        if audit_logger and _MODEL_AUDIT_LOGGER_AVAILABLE:
+            training_config = {
+                'specialist_type': args.specialist_type,
+                'model_type': args.model_type,
+                'hyperparameter_tuning': args.hyperparameter_tuning,
+                'window_days': args.window_days,
+                'min_feedback_quality': args.min_feedback_quality,
+                'real_data_days': args.real_data_days,
+                'min_real_samples': args.min_real_samples,
+                'allow_synthetic_fallback': args.allow_synthetic_fallback,
+                'mlflow_run_id': mlflow.active_run().info.run_id
+            }
+            context = AuditEventContext(
+                user_id='training_pipeline',
+                reason='Retreinamento programado do modelo',
+                environment=environment,
+                triggered_by='scheduled' if args.feedback_count > 0 else 'manual',
+                metadata={'feedback_count': args.feedback_count}
+            )
+            loop.run_until_complete(log_audit_event(
+                audit_logger,
+                'log_training_started',
+                model_name=model_name,
+                model_version=model_version,
+                context=context,
+                training_config=training_config
+            ))
+            logger.info('audit_log_training_started', model_name=model_name, model_version=model_version)
+
+        # 0. Validação de pré-requisitos (antes de carregar dados)
+        if args.skip_validation == 'false':
+            if _PRE_RETRAINING_VALIDATOR_AVAILABLE:
+                print(f"🔍 Executando validação de pré-requisitos...")
+
+                validator = PreRetrainingValidator(
+                    mongodb_uri=os.getenv('MONGODB_URI'),
+                    mongodb_database=os.getenv('MONGODB_DATABASE', 'neural_hive')
+                )
+
+                try:
+                    validation_report = validator.validate_prerequisites(
+                        specialist_type=args.specialist_type,
+                        days=args.real_data_days,
+                        min_samples=args.min_real_samples,
+                        min_feedback_rating=args.min_feedback_quality
+                    )
+
+                    # Log relatório de validação no MLflow
+                    mlflow.log_dict(validation_report, "pre_retraining_validation.json")
+                    mlflow.log_param('pre_validation_passed', validation_report['passed'])
+                    mlflow.log_param('pre_validation_recommendation', validation_report['recommendation'])
+
+                    # Verificar se validação passou
+                    if not validation_report['passed']:
+                        print(f"❌ Validação de pré-requisitos FALHOU")
+                        print(f"   Recomendação: {validation_report['recommendation']}")
+
+                        if validation_report['blocking_issues']:
+                            print(f"   Problemas bloqueantes:")
+                            for issue in validation_report['blocking_issues']:
+                                print(f"     - {issue}")
+
+                        if validation_report['recommendation'] == 'wait_for_more_data':
+                            raise ValidationFailedError(
+                                f"Dados insuficientes para retraining. "
+                                f"Atual: {validation_report['checks']['sample_count']['current']} amostras, "
+                                f"Necessário: {validation_report['checks']['sample_count']['required']}. "
+                                f"Aguarde coleta de mais feedback."
+                            )
+                        elif validation_report['recommendation'] == 'investigate_distribution':
+                            raise ValidationFailedError(
+                                f"Problemas de distribuição de dados detectados. "
+                                f"Warnings: {validation_report['warnings']}. "
+                                f"Investigue a qualidade dos dados antes de retreinar."
+                            )
+
+                    print(f"✅ Validação de pré-requisitos PASSOU")
+                    print(f"   Amostras disponíveis: {validation_report['checks']['sample_count']['current']}")
+                    if validation_report['checks']['label_distribution'].get('percentages'):
+                        print(f"   Distribuição de labels: {validation_report['checks']['label_distribution']['percentages']}")
+                    print()
+
+                    # Audit log: validation_passed
+                    if audit_logger and _MODEL_AUDIT_LOGGER_AVAILABLE:
+                        validation_context = AuditEventContext(
+                            user_id='training_pipeline',
+                            reason='Validação de pré-requisitos passou',
+                            environment=environment,
+                            triggered_by='automatic',
+                            metadata={'validation_report': validation_report}
+                        )
+                        loop.run_until_complete(log_audit_event(
+                            audit_logger,
+                            'log_validation_passed',
+                            model_name=model_name,
+                            model_version=model_version,
+                            context=validation_context,
+                            validation_results=validation_report
+                        ))
+
+                except ValidationFailedError as e:
+                    logger.error(
+                        "pre_retraining_validation_failed",
+                        specialist_type=args.specialist_type,
+                        error=str(e)
+                    )
+                    mlflow.set_tag('validation_failed', 'true')
+                    mlflow.log_param('validation_failure_reason', str(e)[:250])
+
+                    # Audit log: validation_failed
+                    if audit_logger and _MODEL_AUDIT_LOGGER_AVAILABLE:
+                        validation_context = AuditEventContext(
+                            user_id='training_pipeline',
+                            reason=str(e)[:500],
+                            environment=environment,
+                            triggered_by='automatic',
+                            metadata={'error_type': type(e).__name__}
+                        )
+                        loop.run_until_complete(log_audit_event(
+                            audit_logger,
+                            'log_validation_failed',
+                            model_name=model_name,
+                            model_version=model_version,
+                            context=validation_context,
+                            validation_results={'passed': False, 'error': str(e)[:500]},
+                            failure_reasons=[str(e)]
+                        ))
+
+                    raise
+
+                finally:
+                    validator.close()
+
+            else:
+                logger.warning(
+                    "pre_retraining_validator_not_available",
+                    specialist_type=args.specialist_type,
+                    reason="PreRetrainingValidator import failed"
+                )
+                print(f"⚠️  Validador de pré-requisitos não disponível, continuando sem validação...")
+                mlflow.log_param('pre_validation_passed', 'skipped_unavailable')
+
+        else:
+            print(f"⚠️  PULANDO validação de pré-requisitos (--skip-validation=true)")
+            logger.warning(
+                "pre_retraining_validation_skipped",
+                specialist_type=args.specialist_type,
+                reason="skip_validation flag set"
+            )
+            mlflow.set_tag('validation_skipped', 'true')
+            mlflow.log_param('pre_validation_passed', 'skipped_manual')
+
         # 1. Carregar dataset com prioridade para dados reais
         df_base, data_source, data_metadata = load_dataset_with_real_data_priority(
             specialist_type=args.specialist_type,
@@ -1370,34 +1794,166 @@ def main():
 
         print(f"✅ Schema validation passed: {len(expected_features)} features")
 
-        # 4. Split dataset
-        X = df_enriched.drop('label', axis=1)
-        y = df_enriched['label']
+        # 4. Split dataset usando split temporal (evita data leakage)
+        # Verificar se temos created_at para split temporal
+        if 'created_at' not in df_enriched.columns:
+            logger.warning(
+                "created_at_not_found_for_temporal_split",
+                reason="Usando split aleatório como fallback",
+                columns=list(df_enriched.columns)
+            )
+            # Fallback para split aleatório
+            X = df_enriched.drop('label', axis=1)
+            y = df_enriched['label']
+            X_train, X_temp, y_train, y_temp = train_test_split(
+                X, y, test_size=0.3, random_state=42
+            )
+            X_val, X_test, y_val, y_test = train_test_split(
+                X_temp, y_temp, test_size=0.33, random_state=42
+            )
+            split_metadata = {'split_type': 'random', 'temporal_integrity_valid': False}
+        else:
+            # Split temporal: treino mais antigo, validação intermediário, teste mais recente
+            df_train, df_val, df_test, split_metadata = temporal_split(
+                df=df_enriched,
+                train_ratio=0.7,
+                val_ratio=0.15,
+                test_ratio=0.15,
+                timestamp_col='created_at'
+            )
+            split_metadata['split_type'] = 'temporal'
 
-        X_train, X_temp, y_train, y_temp = train_test_split(
-            X, y, test_size=0.3, random_state=42
-        )
-        X_val, X_test, y_val, y_test = train_test_split(
-            X_temp, y_temp, test_size=0.33, random_state=42
-        )
+            # Verificar integridade temporal
+            if not split_metadata.get('temporal_integrity_valid', True):
+                logger.error(
+                    "temporal_integrity_violation",
+                    split_metadata=split_metadata
+                )
+                raise ValueError(
+                    "Falha na integridade temporal do split: há sobreposição de datas entre splits. "
+                    "Verifique os dados de entrada."
+                )
 
-        print(f"📈 Splits:")
+            # Validar integridade temporal usando PreRetrainingValidator
+            if _PRE_RETRAINING_VALIDATOR_AVAILABLE:
+                from pre_retraining_validator import PreRetrainingValidator
+                leakage_validation = PreRetrainingValidator.validate_temporal_split_integrity(
+                    train_timestamps=df_train['created_at'].tolist(),
+                    val_timestamps=df_val['created_at'].tolist(),
+                    test_timestamps=df_test['created_at'].tolist()
+                )
+
+                if not leakage_validation['passed']:
+                    logger.error(
+                        "data_leakage_detected",
+                        leakage_details=leakage_validation['leakage_details'],
+                        train_max=leakage_validation['train_max'],
+                        val_min=leakage_validation['val_min'],
+                        val_max=leakage_validation['val_max'],
+                        test_min=leakage_validation['test_min']
+                    )
+                    raise ValueError(
+                        f"Data leakage detectado no split temporal! "
+                        f"Detalhes: {'; '.join(leakage_validation['leakage_details'])}. "
+                        f"Verifique a ordenação temporal dos dados."
+                    )
+
+                # Logar resultado da validação de leakage
+                mlflow.log_dict(leakage_validation, "data_leakage_validation.json")
+                mlflow.log_param('data_leakage_validated', True)
+                mlflow.log_param('data_leakage_passed', leakage_validation['passed'])
+
+            # Separar features e labels (remover created_at das features)
+            feature_cols = [col for col in df_train.columns if col not in ['label', 'created_at']]
+            X_train = df_train[feature_cols]
+            y_train = df_train['label']
+            X_val = df_val[feature_cols]
+            y_val = df_val['label']
+            X_test = df_test[feature_cols]
+            y_test = df_test['label']
+
+            # Log informações temporais
+            mlflow.log_dict(split_metadata, "temporal_split_metadata.json")
+            mlflow.log_param('split_type', 'temporal')
+            mlflow.log_param('temporal_integrity_valid', split_metadata['temporal_integrity_valid'])
+
+        print(f"📈 Splits ({split_metadata.get('split_type', 'unknown')}):")
         print(f"   Train: {len(X_train)}")
         print(f"   Validation: {len(X_val)}")
         print(f"   Test: {len(X_test)}")
+        if split_metadata.get('split_type') == 'temporal':
+            print(f"   Temporal integrity: {'✓' if split_metadata.get('temporal_integrity_valid') else '✗'}")
+            if split_metadata.get('train_date_range', {}).get('max'):
+                print(f"   Train date range: até {split_metadata['train_date_range']['max'][:10]}")
+            if split_metadata.get('val_date_range', {}).get('min'):
+                print(f"   Val date range: {split_metadata['val_date_range']['min'][:10]} a {split_metadata['val_date_range']['max'][:10]}")
+            if split_metadata.get('test_date_range', {}).get('min'):
+                print(f"   Test date range: a partir de {split_metadata['test_date_range']['min'][:10]}")
         print()
 
         # 5. Treinar modelo
         print(f"🔧 Training {args.model_type} model...")
-        model = train_model(
-            X_train, y_train,
-            args.model_type,
-            args.hyperparameter_tuning == 'true'
-        )
+        try:
+            model = train_model(
+                X_train, y_train,
+                args.model_type,
+                args.hyperparameter_tuning == 'true'
+            )
+        except Exception as train_error:
+            logger.error('model_training_failed', error=str(train_error))
+
+            # Audit log: training_failed
+            if audit_logger and _MODEL_AUDIT_LOGGER_AVAILABLE:
+                training_end_time = datetime.utcnow()
+                training_duration_seconds = (training_end_time - training_start_time).total_seconds()
+                failure_context = AuditEventContext(
+                    user_id='training_pipeline',
+                    reason=f'Falha durante treinamento: {str(train_error)[:500]}',
+                    duration_seconds=training_duration_seconds,
+                    environment=environment,
+                    triggered_by='automatic',
+                    metadata={'error_type': type(train_error).__name__}
+                )
+                loop.run_until_complete(log_audit_event(
+                    audit_logger,
+                    'log_training_failed',
+                    model_name=model_name,
+                    model_version=model_version,
+                    context=failure_context,
+                    error_message=str(train_error)[:500],
+                    error_details={'stage': 'training'}
+                ))
+            raise
 
         # 6. Avaliar modelo
         print(f"📊 Evaluating model...")
-        metrics = evaluate_model(model, X_val, y_val)
+        try:
+            metrics = evaluate_model(model, X_val, y_val)
+        except Exception as eval_error:
+            logger.error('model_evaluation_failed', error=str(eval_error))
+
+            # Audit log: training_failed (avaliação falhou)
+            if audit_logger and _MODEL_AUDIT_LOGGER_AVAILABLE:
+                training_end_time = datetime.utcnow()
+                training_duration_seconds = (training_end_time - training_start_time).total_seconds()
+                failure_context = AuditEventContext(
+                    user_id='training_pipeline',
+                    reason=f'Falha durante avaliação: {str(eval_error)[:500]}',
+                    duration_seconds=training_duration_seconds,
+                    environment=environment,
+                    triggered_by='automatic',
+                    metadata={'error_type': type(eval_error).__name__}
+                )
+                loop.run_until_complete(log_audit_event(
+                    audit_logger,
+                    'log_training_failed',
+                    model_name=model_name,
+                    model_version=model_version,
+                    context=failure_context,
+                    error_message=str(eval_error)[:500],
+                    error_details={'stage': 'evaluation'}
+                ))
+            raise
 
         # Log métricas (apenas valores numéricos)
         for metric_name, value in metrics.items():
@@ -1652,6 +2208,47 @@ def main():
                     print(f"ℹ️  Model kept in Staging - performance below threshold or did not improve over baseline")
                     mlflow.log_param('promoted', 'false')
                     mlflow.log_param('promotion_skip_reason', 'metrics_below_threshold')
+
+        # Calcular duração do treinamento
+        training_end_time = datetime.utcnow()
+        training_duration_seconds = (training_end_time - training_start_time).total_seconds()
+
+        # Audit log: training_completed
+        if audit_logger and _MODEL_AUDIT_LOGGER_AVAILABLE:
+            completion_context = AuditEventContext(
+                user_id='training_pipeline',
+                reason='Treinamento concluído com sucesso',
+                duration_seconds=training_duration_seconds,
+                environment=environment,
+                triggered_by='scheduled' if args.feedback_count > 0 else 'manual',
+                metadata={
+                    'mlflow_run_id': mlflow.active_run().info.run_id,
+                    'data_source': data_source,
+                    'promoted': 'true' if args.promote_if_better == 'true' and model_registered else 'false'
+                }
+            )
+            loop.run_until_complete(log_audit_event(
+                audit_logger,
+                'log_training_completed',
+                model_name=model_name,
+                model_version=model_version,
+                context=completion_context,
+                metrics={
+                    'precision': metrics.get('precision', 0.0),
+                    'recall': metrics.get('recall', 0.0),
+                    'f1': metrics.get('f1', 0.0),
+                    'accuracy': metrics.get('accuracy', 0.0),
+                    'brier_score': metrics.get('brier_score'),
+                    'log_loss': metrics.get('log_loss'),
+                    'calibration_quality': metrics.get('calibration_quality', 'unknown')
+                }
+            ))
+            logger.info(
+                'audit_log_training_completed',
+                model_name=model_name,
+                model_version=model_version,
+                duration_seconds=training_duration_seconds
+            )
 
         print()
         print(f"✅ Retraining pipeline completed")

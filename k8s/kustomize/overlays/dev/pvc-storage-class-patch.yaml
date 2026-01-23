@@ -1,0 +1,20 @@
+# =============================================================================
+# Patch: StorageClass para Desenvolvimento Local
+# =============================================================================
+#
+# Altera o storageClassName de efs-sc (producao) para local-path (dev).
+# Para usar: kubectl apply -k k8s/kustomize/overlays/dev
+#
+# =============================================================================
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ml-training-data-pvc
+  namespace: mlflow
+spec:
+  storageClassName: local-path
+  # Nota: local-path pode nao suportar ReadWriteMany em todos os provisioners.
+  # Se houver problemas, considere usar ReadWriteOnce para dev:
+  # accessModes:
+  #   - ReadWriteOnce

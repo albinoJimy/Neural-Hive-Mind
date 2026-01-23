@@ -21,6 +21,9 @@ from .anomaly_detector import AnomalyDetector
 from .model_registry import ModelRegistry
 from .ml_predictor import MLPredictor
 from .training_pipeline import TrainingPipeline
+from .model_promotion import ModelPromotionManager
+from .model_comparator import ModelComparator, ComparisonResult
+from .model_audit_logger import ModelAuditLogger, AuditEventContext, ModelLifecycleEvent
 from .feature_engineering import (
     extract_ticket_features,
     encode_risk_band,
@@ -35,6 +38,12 @@ __all__ = [
     'ModelRegistry',
     'MLPredictor',
     'TrainingPipeline',
+    'ModelPromotionManager',
+    'ModelComparator',
+    'ComparisonResult',
+    'ModelAuditLogger',
+    'AuditEventContext',
+    'ModelLifecycleEvent',
     'extract_ticket_features',
     'encode_risk_band',
     'encode_qos',

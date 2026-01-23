@@ -6,6 +6,9 @@ MLflow de re-treinamento quando threshold é atingido.
 """
 
 import uuid
+import asyncio
+import os
+import sys
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, Tuple
 import structlog
@@ -16,6 +19,20 @@ import mlflow
 from ..config import SpecialistConfig
 from .feedback_collector import FeedbackCollector
 from ..mlflow_client import MLflowClient
+
+# Importar ModelAuditLogger para auditoria do ciclo de vida de modelos
+try:
+    _orchestrator_path = os.path.join(
+        os.path.dirname(__file__), '..', '..', '..', '..', '..',
+        'services', 'orchestrator-dynamic', 'src'
+    )
+    sys.path.insert(0, _orchestrator_path)
+    from ml.model_audit_logger import ModelAuditLogger, AuditEventContext
+    _MODEL_AUDIT_LOGGER_AVAILABLE = True
+except ImportError:
+    _MODEL_AUDIT_LOGGER_AVAILABLE = False
+    ModelAuditLogger = None
+    AuditEventContext = None
 
 logger = structlog.get_logger()
 
@@ -95,7 +112,8 @@ class RetrainingTrigger:
         config: SpecialistConfig,
         feedback_collector: FeedbackCollector,
         mlflow_client: Optional[MLflowClient] = None,
-        metrics: 'SpecialistMetrics' = None
+        metrics: 'SpecialistMetrics' = None,
+        audit_logger: 'ModelAuditLogger' = None
     ):
         """
         Inicializa RetrainingTrigger.
@@ -105,11 +123,13 @@ class RetrainingTrigger:
             feedback_collector: Coletor de feedback
             mlflow_client: Cliente MLflow (opcional, será criado se não fornecido)
             metrics: Instância de SpecialistMetrics (opcional)
+            audit_logger: ModelAuditLogger para auditoria de ciclo de vida (opcional)
         """
         self.config = config
         self.feedback_collector = feedback_collector
         self.mlflow_client = mlflow_client or MLflowClient(config)
         self.metrics = metrics
+        self.audit_logger = audit_logger
 
         # Conectar ao MongoDB para triggers
         self._client = MongoClient(config.mongodb_uri)
@@ -361,6 +381,62 @@ class RetrainingTrigger:
                 import time
                 self.metrics.increment_retraining_trigger('success')
                 self.metrics.set_retraining_last_trigger_timestamp(time.time())
+
+            # Audit log: retraining_triggered
+            if self.audit_logger and _MODEL_AUDIT_LOGGER_AVAILABLE:
+                try:
+                    # Obter nome do modelo baseado no tipo de especialista
+                    model_name = f"{specialist_type}_model"
+                    environment = getattr(self.config, 'environment', 'production')
+
+                    context = AuditEventContext(
+                        user_id='retraining_trigger',
+                        reason=f'Threshold de feedback atingido: {feedback_count}/{self.config.retraining_feedback_threshold}',
+                        environment=environment,
+                        triggered_by='automatic',
+                        metadata={
+                            'feedback_count': feedback_count,
+                            'feedback_threshold': self.config.retraining_feedback_threshold,
+                            'feedback_window_days': self.config.retraining_feedback_window_days,
+                            'trigger_id': trigger_record.trigger_id,
+                            'mlflow_run_id': run_id,
+                            'mlflow_experiment_id': experiment_id
+                        }
+                    )
+
+                    # Executar logging assíncrono de forma síncrona
+                    try:
+                        loop = asyncio.get_event_loop()
+                    except RuntimeError:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+
+                    loop.run_until_complete(
+                        self.audit_logger.log_retraining_triggered(
+                            model_name=model_name,
+                            model_version='pending',  # Versão será definida durante treinamento
+                            context=context,
+                            trigger_info={
+                                'trigger_reason': f'feedback_threshold_reached:{feedback_count}',
+                                'threshold': self.config.retraining_feedback_threshold,
+                                'window_days': self.config.retraining_feedback_window_days,
+                                'min_feedback_quality': self.config.retraining_min_feedback_quality
+                            }
+                        )
+                    )
+
+                    logger.info(
+                        'audit_log_retraining_triggered',
+                        specialist_type=specialist_type,
+                        trigger_id=trigger_record.trigger_id
+                    )
+
+                except Exception as audit_error:
+                    logger.warning(
+                        'audit_logging_retraining_triggered_failed',
+                        error=str(audit_error),
+                        trigger_id=trigger_record.trigger_id
+                    )
 
             logger.info(
                 "Retraining triggered successfully",

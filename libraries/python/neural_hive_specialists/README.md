@@ -186,6 +186,30 @@ Cada chamada gRPC é instrumentada com:
 - **Tenant Isolation** - Propagação de `x-tenant-id` via metadata
 - **PII Sanitization** - Remoção automática de dados sensíveis
 
+## Mapeamento de Domínios
+
+O `OntologyMapper` integra com `UnifiedDomain` da biblioteca `neural_hive_domain`:
+
+```python
+from neural_hive_specialists.feature_extraction import OntologyMapper
+
+mapper = OntologyMapper()
+
+# Obter UnifiedDomain diretamente
+unified = mapper.get_unified_domain('security-analysis')  # UnifiedDomain.SECURITY
+
+# Obter taxonomia completa com unified_domain
+taxonomy = mapper.map_domain_to_taxonomy('security-analysis')
+# {'id': 'SEC', 'unified_domain': UnifiedDomain.SECURITY, ...}
+```
+
+| Ontologia | UnifiedDomain |
+|-----------|---------------|
+| security-analysis | SECURITY |
+| architecture-review | TECHNICAL |
+| performance-optimization | OPERATIONAL |
+| code-quality | TECHNICAL |
+
 ## Testes
 
 ### Unitários

@@ -1,17 +1,17 @@
 """Data models for Scout Agents"""
 from .scout_signal import (
     SignalType,
-    ExplorationDomain,
     ChannelType,
     Geolocation,
     SignalSource,
     ScoutSignal
 )
 from .raw_event import RawEvent
+from neural_hive_domain import UnifiedDomain
 
 __all__ = [
     'SignalType',
-    'ExplorationDomain',
+    'UnifiedDomain',
     'ChannelType',
     'Geolocation',
     'SignalSource',

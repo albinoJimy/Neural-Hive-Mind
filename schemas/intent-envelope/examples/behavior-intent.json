@@ -1,0 +1,106 @@
+{
+  "@context": "https://neural-hive-mind.org/schemas/intent-envelope/context/v1",
+  "@type": "IntentEnvelope",
+  "id": "c3d4e5f6-g7h8-9012-cdef-g34567890123",
+  "version": "1.0.0",
+  "correlationId": "f6g7h8i9-j0k1-l2m3-n4o5-p6q7r8s9t0u1",
+  "traceId": "7eh15h6800e67gd9d6eh252f3h3h7069",
+  "spanId": "03i390dd3ed135e0",
+
+  "actor": {
+    "@type": "Actor",
+    "id": "product-team-003",
+    "actorType": "HUMAN",
+    "name": "Ricardo Santos"
+  },
+
+  "intent": {
+    "@type": "Intent",
+    "text": "Analisar padrões de uso da funcionalidade de checkout para identificar pontos de abandono e otimizar conversão",
+    "domain": "BEHAVIOR",
+    "classification": "behavior-analysis",
+    "originalLanguage": "pt-BR",
+    "processedText": "Analisar padrões de uso da funcionalidade de checkout para identificar pontos de abandono e otimizar conversão",
+    "entities": [
+      {
+        "type": "ANALYSIS_TYPE",
+        "value": "padrões de uso",
+        "confidence": 0.94,
+        "start": 9,
+        "end": 23
+      },
+      {
+        "type": "FEATURE",
+        "value": "checkout",
+        "confidence": 0.97,
+        "start": 44,
+        "end": 52
+      },
+      {
+        "type": "METRIC",
+        "value": "pontos de abandono",
+        "confidence": 0.91,
+        "start": 68,
+        "end": 86
+      },
+      {
+        "type": "GOAL",
+        "value": "otimizar conversão",
+        "confidence": 0.93,
+        "start": 89,
+        "end": 107
+      }
+    ],
+    "keywords": [
+      "analisar",
+      "padrões",
+      "uso",
+      "checkout",
+      "abandono",
+      "conversão",
+      "otimizar"
+    ]
+  },
+
+  "confidence": 0.92,
+
+  "context": {
+    "@type": "Context",
+    "sessionId": "sess_behav_7f8g9h0i1j",
+    "userId": "product-team-003",
+    "tenantId": "acme-corp",
+    "channel": "WEB",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
+    "clientIp": "192.168.3.***",
+    "geolocation": {
+      "country": "BR",
+      "region": "MG",
+      "city": "Belo Horizonte",
+      "timezone": "America/Sao_Paulo"
+    }
+  },
+
+  "constraints": {
+    "@type": "Constraint",
+    "priority": "NORMAL",
+    "deadline": "2025-02-28T23:59:59Z",
+    "maxRetries": 3,
+    "timeout": "PT4H",
+    "requiredCapabilities": [
+      "user-analytics",
+      "behavior-tracking",
+      "conversion-optimization",
+      "data-analysis"
+    ],
+    "securityLevel": "CONFIDENTIAL"
+  },
+
+  "qos": {
+    "@type": "QualityOfService",
+    "deliveryMode": "AT_LEAST_ONCE",
+    "durability": "PERSISTENT",
+    "consistency": "EVENTUAL"
+  },
+
+  "timestamp": "2025-01-12T11:45:00.000Z"
+}

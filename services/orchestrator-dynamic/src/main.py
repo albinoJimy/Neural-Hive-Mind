@@ -32,6 +32,8 @@ from src.clients.redis_client import (
 )
 from src.integration.flow_c_consumer import FlowCConsumer
 from src.workflows.orchestration_workflow import OrchestrationWorkflow
+from src.ml.model_audit_logger import ModelAuditLogger
+from src.api.model_audit import create_model_audit_router
 from pydantic import BaseModel, Field
 from uuid import uuid4
 
@@ -79,6 +81,7 @@ class AppState:
         self.grpc_server = None
         self.opa_client = None
         self.intelligent_scheduler = None
+        self.audit_logger: Optional[ModelAuditLogger] = None
 
 
 app_state = AppState()
@@ -234,6 +237,28 @@ async def lifespan(app: FastAPI):
                 error=str(mongo_error)
             )
             app_state.mongodb_client = None
+
+        # Inicializar Model Audit Logger (fail-open)
+        if app_state.mongodb_client and getattr(config, 'ml_audit_enabled', True):
+            try:
+                from src.observability.metrics import get_metrics
+                metrics = get_metrics()
+                app_state.audit_logger = ModelAuditLogger(
+                    mongodb_client=app_state.mongodb_client.client,
+                    config=config,
+                    metrics=metrics
+                )
+                logger.info(
+                    'Model Audit Logger inicializado',
+                    collection=app_state.audit_logger.collection_name,
+                    retention_days=app_state.audit_logger.retention_days
+                )
+            except Exception as audit_error:
+                logger.warning(
+                    'Falha ao inicializar Model Audit Logger',
+                    error=str(audit_error)
+                )
+                app_state.audit_logger = None
 
         # Inicializar Redis Client (fail-open para cache de predições ML)
         try:
@@ -530,6 +555,9 @@ async def lifespan(app: FastAPI):
                 )
                 app_state.grpc_server = None
 
+        # Incluir Model Audit API Router
+        include_audit_router()
+
         logger.info('Orchestrator Dynamic inicializado com sucesso')
 
     except Exception as e:
@@ -660,6 +688,18 @@ app.add_middleware(
 # Montar métricas Prometheus
 metrics_app = make_asgi_app()
 app.mount('/metrics', metrics_app)
+
+
+# =============================================================================
+# Model Audit API Router
+# =============================================================================
+
+def include_audit_router():
+    """Inclui o router de audit se o audit logger estiver inicializado."""
+    if app_state.audit_logger:
+        audit_router = create_model_audit_router(app_state.audit_logger)
+        app.include_router(audit_router)
+        logger.info('Model Audit API router incluído')
 
 
 # =============================================================================

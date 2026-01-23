@@ -4,6 +4,7 @@ Approval Service - Logica de negocio para aprovacao de planos
 Camada de servico que coordena operacoes entre API, MongoDB e Kafka.
 """
 
+import asyncio
 import structlog
 from datetime import datetime
 from typing import Dict, List, Optional, Any
@@ -187,7 +188,10 @@ class ApprovalService:
                         specialist_type=opinion.get('specialist_type'),
                         error=str(e)
                     )
-                    # Continuar para proxima opiniao
+                    # Verificar modo de falha para submissoes individuais
+                    if self.settings.feedback_on_approval_failure_mode == 'raise_error':
+                        raise
+                    # Continuar para proxima opiniao apenas se modo for log_and_continue
                     continue
 
             logger.info(
@@ -208,6 +212,62 @@ class ApprovalService:
             if self.settings.feedback_on_approval_failure_mode == 'raise_error':
                 raise
             # Caso contrario, apenas logar e continuar
+
+    def _submit_feedback_background(
+        self,
+        plan_id: str,
+        human_decision: str,
+        human_rating: float,
+        user_id: str,
+        comments: Optional[str] = None
+    ) -> Optional[asyncio.Task]:
+        """
+        Submete feedback ML em background sem bloquear o fluxo principal.
+
+        Cria uma task asyncio que executa _submit_feedback_for_plan de forma
+        assincrona. Erros sao logados mas nao propagados para o caller.
+
+        Args:
+            plan_id: ID do plano
+            human_decision: Decisao humana ('approve' ou 'reject')
+            human_rating: Rating numerico (0.0-1.0)
+            user_id: ID do usuario que decidiu
+            comments: Comentarios opcionais
+
+        Returns:
+            Task asyncio ou None se feedback desabilitado
+        """
+        # Skip se feedback collection desabilitado
+        if not self.settings.enable_feedback_collection:
+            logger.debug('Feedback collection desabilitado, skip background task', plan_id=plan_id)
+            return None
+
+        async def _safe_submit():
+            """Wrapper que captura excecoes para nao crashar a task."""
+            try:
+                await self._submit_feedback_for_plan(
+                    plan_id=plan_id,
+                    human_decision=human_decision,
+                    human_rating=human_rating,
+                    user_id=user_id,
+                    comments=comments
+                )
+            except Exception as e:
+                # Erro ja foi logado em _submit_feedback_for_plan
+                # Aqui apenas garantimos que a task nao propaga excecao
+                logger.warning(
+                    'Background feedback task falhou',
+                    plan_id=plan_id,
+                    error=str(e)
+                )
+
+        task = asyncio.create_task(_safe_submit())
+        logger.debug(
+            'Feedback task criada em background',
+            plan_id=plan_id,
+            task_name=task.get_name()
+        )
+        return task
 
     async def approve_plan(
         self,
@@ -282,8 +342,8 @@ class ApprovalService:
             time_to_decision_seconds=time_to_decision
         )
 
-        # Submete feedback ML (nao bloqueia aprovacao)
-        await self._submit_feedback_for_plan(
+        # Submete feedback ML em background (nao bloqueia aprovacao)
+        self._submit_feedback_background(
             plan_id=plan_id,
             human_decision='approve',
             human_rating=1.0,  # Aprovado = rating maximo
@@ -374,8 +434,8 @@ class ApprovalService:
             time_to_decision_seconds=time_to_decision
         )
 
-        # Submete feedback ML (nao bloqueia rejeicao)
-        await self._submit_feedback_for_plan(
+        # Submete feedback ML em background (nao bloqueia rejeicao)
+        self._submit_feedback_background(
             plan_id=plan_id,
             human_decision='reject',
             human_rating=0.0,  # Rejeitado = rating minimo

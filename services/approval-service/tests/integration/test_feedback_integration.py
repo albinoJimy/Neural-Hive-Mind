@@ -5,6 +5,7 @@ Valida integracao entre decisoes humanas (aprovacao/rejeicao) e
 submissao de feedback para continuous learning dos specialists.
 """
 
+import asyncio
 import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, AsyncMock, patch
@@ -75,6 +76,9 @@ class TestFeedbackIntegration:
             comments='Aprovado'
         )
 
+        # Aguardar background task completar
+        await asyncio.sleep(0)
+
         # Assert
         assert decision.decision == 'approved'
 
@@ -115,6 +119,9 @@ class TestFeedbackIntegration:
             comments='Necessita revisao da arquitetura'
         )
 
+        # Aguardar background task completar
+        await asyncio.sleep(0)
+
         # Assert
         assert decision.decision == 'rejected'
 
@@ -149,6 +156,9 @@ class TestFeedbackIntegration:
             user_id='admin@example.com'
         )
 
+        # Aguardar background task completar
+        await asyncio.sleep(0)
+
         # Assert - aprovacao deve funcionar
         assert decision.decision == 'approved'
 
@@ -175,6 +185,9 @@ class TestFeedbackIntegration:
             user_id='admin@example.com'
         )
 
+        # Aguardar background task completar
+        await asyncio.sleep(0)
+
         # Assert - aprovacao deve funcionar
         assert decision.decision == 'approved'
 
@@ -197,6 +210,9 @@ class TestFeedbackIntegration:
             plan_id=sample_approval_request.plan_id,
             user_id='admin@example.com'
         )
+
+        # Aguardar background task completar
+        await asyncio.sleep(0)
 
         # Assert - aprovacao deve funcionar
         assert decision.decision == 'approved'
@@ -251,6 +267,9 @@ class TestFeedbackIntegration:
             user_id='admin@example.com'
         )
 
+        # Aguardar background task completar
+        await asyncio.sleep(0)
+
         # Assert - feedback para cada specialist
         assert mock_feedback_collector.submit_feedback.call_count == 3
 
@@ -268,11 +287,13 @@ class TestFeedbackIntegration:
         mock_mongodb_client,
         mock_feedback_collector,
         mock_ledger_client,
+        mock_settings,
         sample_approval_request
     ):
-        """Falha em um feedback nao deve impedir outros."""
+        """Falha em um feedback nao deve impedir outros quando modo e log_and_continue."""
         # Arrange
         mock_mongodb_client.get_approval_by_plan_id.return_value = sample_approval_request
+        mock_settings.feedback_on_approval_failure_mode = 'log_and_continue'
 
         # Primeiro feedback falha, segundo sucesso
         mock_feedback_collector.submit_feedback.side_effect = [
@@ -285,6 +306,9 @@ class TestFeedbackIntegration:
             plan_id=sample_approval_request.plan_id,
             user_id='admin@example.com'
         )
+
+        # Aguardar background task completar
+        await asyncio.sleep(0)
 
         # Assert
         assert decision.decision == 'approved'

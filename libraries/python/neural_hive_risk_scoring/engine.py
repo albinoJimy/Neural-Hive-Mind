@@ -10,7 +10,8 @@ from datetime import datetime
 from typing import Dict, Any
 from prometheus_client import Counter, Histogram
 
-from .config import RiskDomain, RiskBand, RiskScoringConfig
+from .config import RiskBand, RiskScoringConfig
+from neural_hive_domain import UnifiedDomain
 from .models import RiskAssessment
 
 logger = structlog.get_logger(__name__)
@@ -62,14 +63,14 @@ class RiskScoringEngine:
     def _load_domain_weights(self) -> Dict[str, Dict[str, float]]:
         """Carrega pesos de domínios da configuração."""
         return {
-            RiskDomain.BUSINESS.value: self.config.business_weights,
-            RiskDomain.TECHNICAL.value: self.config.technical_weights,
-            RiskDomain.SECURITY.value: self.config.security_weights,
-            RiskDomain.OPERATIONAL.value: self.config.operational_weights,
-            RiskDomain.COMPLIANCE.value: self.config.compliance_weights,
+            UnifiedDomain.BUSINESS.value: self.config.business_weights,
+            UnifiedDomain.TECHNICAL.value: self.config.technical_weights,
+            UnifiedDomain.SECURITY.value: self.config.security_weights,
+            UnifiedDomain.OPERATIONAL.value: self.config.operational_weights,
+            UnifiedDomain.COMPLIANCE.value: self.config.compliance_weights,
         }
 
-    def score(self, entity: Dict[str, Any], domain: RiskDomain) -> RiskAssessment:
+    def score(self, entity: Dict[str, Any], domain: UnifiedDomain) -> RiskAssessment:
         """Calcula score de risco para entidade.
 
         Args:
@@ -112,17 +113,17 @@ class RiskScoringEngine:
             assessed_at=datetime.utcnow()
         )
 
-    def _calculate_factors(self, entity: Dict, domain: RiskDomain) -> Dict[str, float]:
+    def _calculate_factors(self, entity: Dict, domain: UnifiedDomain) -> Dict[str, float]:
         """Calcula fatores de risco por domínio."""
-        if domain == RiskDomain.BUSINESS:
+        if domain == UnifiedDomain.BUSINESS:
             return self._calculate_business_factors(entity)
-        elif domain == RiskDomain.TECHNICAL:
+        elif domain == UnifiedDomain.TECHNICAL:
             return self._calculate_technical_factors(entity)
-        elif domain == RiskDomain.SECURITY:
+        elif domain == UnifiedDomain.SECURITY:
             return self._calculate_security_factors(entity)
-        elif domain == RiskDomain.OPERATIONAL:
+        elif domain == UnifiedDomain.OPERATIONAL:
             return self._calculate_operational_factors(entity)
-        elif domain == RiskDomain.COMPLIANCE:
+        elif domain == UnifiedDomain.COMPLIANCE:
             return self._calculate_compliance_factors(entity)
         else:
             return {}
@@ -172,7 +173,7 @@ class RiskScoringEngine:
             'policy_adherence': self._calculate_policy_risk(entity)
         }
 
-    def _calculate_weighted_score(self, factors: Dict[str, float], domain: RiskDomain) -> float:
+    def _calculate_weighted_score(self, factors: Dict[str, float], domain: UnifiedDomain) -> float:
         """Calcula score ponderado."""
         weights = self.domain_weights.get(domain.value, {})
 
@@ -188,7 +189,7 @@ class RiskScoringEngine:
         risk_score = weighted_sum / total_weight if total_weight > 0 else 0.5
         return max(0.0, min(1.0, risk_score))
 
-    def _classify_risk_band(self, risk_score: float, domain: RiskDomain) -> RiskBand:
+    def _classify_risk_band(self, risk_score: float, domain: UnifiedDomain) -> RiskBand:
         """Classifica score em risk band."""
         thresholds = self.config.get_thresholds(domain)
 

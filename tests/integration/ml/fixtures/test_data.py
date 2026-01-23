@@ -139,12 +139,12 @@ def generate_shadow_comparisons(
             'shadow_version': shadow_version,
             'production_prediction': float(prod_pred),
             'shadow_prediction': float(shadow_pred),
-            'diff_percent': diff_percent,
-            'agreed': agreed,
+            'diff_percent': float(diff_percent),
+            'agreed': bool(agreed),  # Convert numpy.bool_ to Python bool
             'created_at': base_time + datetime.timedelta(seconds=i * 10),
             'input_hash': f'hash_{i}',
-            'latency_production_ms': np.random.randint(10, 100),
-            'latency_shadow_ms': np.random.randint(10, 100)
+            'latency_production_ms': int(np.random.randint(10, 100)),
+            'latency_shadow_ms': int(np.random.randint(10, 100))
         })
 
     return comparisons

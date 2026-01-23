@@ -81,11 +81,14 @@ spec:
   accessModes:
     - ReadWriteMany
 
-  # ALTERE para sua StorageClass:
-  # - local-path: desenvolvimento local
-  # - gp2: EKS com EBS (ReadWriteOnce apenas)
-  # - efs-sc: EKS com EFS (recomendado para producao)
-  storageClassName: local-path
+  # StorageClass por ambiente:
+  # - efs-sc: EKS com EFS (padrao - suporta ReadWriteMany)
+  # - gp2: EKS com EBS (ReadWriteOnce apenas, altere accessModes)
+  # - local-path: desenvolvimento local (use overlay/patch para dev)
+  #
+  # Para desenvolvimento local com local-path, crie um overlay Kustomize:
+  # kustomize/overlays/dev/pvc-patch.yaml com storageClassName: local-path
+  storageClassName: efs-sc
 
   resources:
     requests:

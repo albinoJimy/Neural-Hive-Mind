@@ -7,7 +7,8 @@ Modelos Pydantic para representação de avaliações de risco.
 from pydantic import BaseModel, Field
 from typing import Dict, Any
 from datetime import datetime
-from .config import RiskDomain, RiskBand
+from .config import RiskBand
+from neural_hive_domain import UnifiedDomain
 
 
 class RiskFactor(BaseModel):
@@ -23,7 +24,7 @@ class RiskAssessment(BaseModel):
     """Avaliação de risco completa."""
     score: float = Field(ge=0.0, le=1.0, description='Score de risco agregado')
     band: RiskBand = Field(description='Classificação de risco')
-    domain: RiskDomain = Field(description='Domínio de avaliação')
+    domain: UnifiedDomain = Field(description='Domínio de avaliação')
     factors: Dict[str, float] = Field(description='Fatores individuais')
     reasoning: str = Field(description='Justificativa da avaliação')
     assessed_at: datetime = Field(default_factory=datetime.utcnow)
@@ -40,5 +41,5 @@ class RiskMatrix(BaseModel):
     assessments: Dict[str, RiskAssessment]  # Por domínio
     overall_score: float = Field(ge=0.0, le=1.0)
     overall_band: RiskBand
-    highest_risk_domain: RiskDomain
+    highest_risk_domain: UnifiedDomain
     created_at: datetime = Field(default_factory=datetime.utcnow)

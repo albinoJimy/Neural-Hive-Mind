@@ -89,6 +89,8 @@ config:
     defaultTimeoutMs: 1800000
     checkIntervalSeconds: 30
     alertThresholdPercent: 0.8
+    ticketMinTimeoutMs: 60000         # Timeout mínimo para tickets (60s)
+    ticketTimeoutBufferMultiplier: 3.0  # Multiplicador de buffer para cálculo de timeout
   # Retry configuration
   retry:
     maxAttempts: 2

@@ -48,3 +48,6 @@ httpx==0.28.1
 
 # NLP processing
 spacy==3.7.2
+
+# Internal libraries
+neural-hive-domain @ file:../../libraries/python/neural_hive_domain

@@ -2,6 +2,8 @@ from typing import Dict, Any, List
 from datetime import datetime, timedelta
 import uuid
 import structlog
+
+from neural_hive_domain import DomainMapper, UnifiedDomain
 from neural_hive_observability import get_tracer
 from src.models.consolidated_decision import (
     ConsolidatedDecision,
@@ -237,7 +239,18 @@ class ConsensusOrchestrator:
     ) -> Dict[str, float]:
         '''Calcula pesos dinâmicos baseados em feromônios'''
         weights = {}
-        domain = cognitive_plan.get('domain', 'general')
+        domain_str = cognitive_plan.get('domain', 'general')
+
+        # Normalizar domain para UnifiedDomain
+        try:
+            domain = DomainMapper.normalize(domain_str, 'intent_envelope')
+        except ValueError:
+            logger.warning(
+                'domain_normalization_failed_using_default',
+                original_domain=domain_str,
+                default_domain='BUSINESS'
+            )
+            domain = UnifiedDomain.BUSINESS
 
         for opinion in specialist_opinions:
             specialist_type = opinion['specialist_type']
@@ -254,7 +267,7 @@ class ConsensusOrchestrator:
 
             weights[specialist_type] = weight
 
-        logger.debug('Pesos dinâmicos calculados', weights=weights)
+        logger.debug('Pesos dinâmicos calculados', weights=weights, domain=domain.value)
         return weights
 
     async def _get_average_pheromone_strength(
@@ -266,12 +279,23 @@ class ConsensusOrchestrator:
         if not self.config.enable_pheromones or not self.pheromone_client:
             return 0.0
 
+        # Normalizar domain para UnifiedDomain
+        try:
+            normalized_domain = DomainMapper.normalize(domain, 'intent_envelope')
+        except ValueError:
+            logger.warning(
+                'domain_normalization_failed_using_default',
+                original_domain=domain,
+                default_domain='BUSINESS'
+            )
+            normalized_domain = UnifiedDomain.BUSINESS
+
         strengths = []
         for opinion in specialist_opinions:
             specialist_type = opinion['specialist_type']
             pheromones = await self.pheromone_client.get_aggregated_pheromone(
                 specialist_type,
-                domain
+                normalized_domain
             )
             strengths.append(pheromones['net_strength'])
 
@@ -356,7 +380,18 @@ class ConsensusOrchestrator:
         if not self.config.enable_pheromones or not self.pheromone_client:
             return
 
-        domain = cognitive_plan.get('domain', 'general')
+        domain_str = cognitive_plan.get('domain', 'general')
+
+        # Normalizar domain para UnifiedDomain
+        try:
+            domain = DomainMapper.normalize(domain_str, 'intent_envelope')
+        except ValueError:
+            logger.warning(
+                'domain_normalization_failed_using_default',
+                original_domain=domain_str,
+                default_domain='BUSINESS'
+            )
+            domain = UnifiedDomain.BUSINESS
 
         # Determinar tipo de feromônio baseado na decisão
         from src.models.pheromone_signal import PheromoneType
@@ -389,5 +424,6 @@ class ConsensusOrchestrator:
             'Feromônios publicados',
             decision_id=decision.decision_id,
             pheromone_type=pheromone_type.value,
+            domain=domain.value,
             num_specialists=len(specialist_opinions)
         )

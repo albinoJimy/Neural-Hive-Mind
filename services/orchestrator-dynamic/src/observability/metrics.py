@@ -61,6 +61,26 @@ class OrchestratorMetrics:
             'MongoDB connections checked out'
         )
 
+        # Métricas de Persistência MongoDB
+        self.mongodb_persistence_errors_total = Counter(
+            'mongodb_persistence_errors_total',
+            'Total de erros de persistência MongoDB',
+            ['collection', 'operation', 'error_type']
+        )
+
+        self.mongodb_persistence_duration_seconds = Histogram(
+            'mongodb_persistence_duration_seconds',
+            'Duração de operações de persistência MongoDB',
+            ['collection', 'operation'],
+            buckets=[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0]
+        )
+
+        self.mongodb_circuit_breaker_state = Gauge(
+            'mongodb_circuit_breaker_state',
+            'Estado do circuit breaker MongoDB (0=closed, 1=open, 2=half_open)',
+            ['circuit_name']
+        )
+
         # Métricas de Tickets
         self.tickets_generated_total = Counter(
             'orchestration_tickets_generated_total',
@@ -522,6 +542,26 @@ class OrchestratorMetrics:
             ['model_name']
         )
 
+        # Model Comparison Metrics
+        self.ml_model_comparison_total = Counter(
+            'neural_hive_model_comparison_total',
+            'Total de comparações de modelos executadas',
+            ['model_name', 'recommendation']
+        )
+
+        self.ml_model_comparison_duration_seconds = Histogram(
+            'neural_hive_model_comparison_duration_seconds',
+            'Duração da comparação de modelos',
+            ['model_name'],
+            buckets=[1, 5, 10, 30, 60, 120, 300]
+        )
+
+        self.ml_model_comparison_confidence = Gauge(
+            'neural_hive_model_comparison_confidence',
+            'Confidence score da última comparação',
+            ['model_name']
+        )
+
         # Gradual Rollout Metrics
         self.ml_rollout_stage = Gauge(
             'neural_hive_rollout_stage',
@@ -545,6 +585,13 @@ class OrchestratorMetrics:
             'neural_hive_rollout_degradation_total',
             'Total rollout degradations detected',
             ['model_name', 'stage', 'reason']
+        )
+
+        # ML Model Audit Metrics
+        self.ml_model_audit_events_total = Counter(
+            'neural_hive_model_audit_events_total',
+            'Total de eventos de auditoria de modelos ML',
+            ['model_name', 'event_type']
         )
 
         # ML Scheduling Optimization Metrics
@@ -1494,6 +1541,117 @@ class OrchestratorMetrics:
             ).inc()
         except Exception as e:
             logger.warning("record_rollout_degradation_failed", error=str(e))
+
+    # Model Comparison Helper Methods
+
+    def record_model_comparison(
+        self,
+        model_name: str,
+        recommendation: str,
+        duration_seconds: float,
+        confidence_score: float
+    ):
+        """
+        Registra métricas de comparação de modelos.
+
+        Args:
+            model_name: Nome do modelo
+            recommendation: Recomendação (promote, reject, manual_review)
+            duration_seconds: Duração da comparação
+            confidence_score: Score de confiança (0-1)
+        """
+        try:
+            self.ml_model_comparison_total.labels(
+                model_name=model_name,
+                recommendation=recommendation
+            ).inc()
+
+            self.ml_model_comparison_duration_seconds.labels(
+                model_name=model_name
+            ).observe(duration_seconds)
+
+            self.ml_model_comparison_confidence.labels(
+                model_name=model_name
+            ).set(confidence_score)
+        except Exception as e:
+            logger.warning("record_model_comparison_failed", error=str(e))
+
+    def update_model_comparison_confidence(self, model_name: str, confidence_score: float):
+        """
+        Atualiza gauge de confidence da comparação.
+
+        Args:
+            model_name: Nome do modelo
+            confidence_score: Score de confiança (0-1)
+        """
+        try:
+            self.ml_model_comparison_confidence.labels(
+                model_name=model_name
+            ).set(confidence_score)
+        except Exception as e:
+            logger.warning("update_model_comparison_confidence_failed", error=str(e))
+
+    # Model Audit Helper Methods
+
+    def increment_model_audit_event(self, model_name: str, event_type: str):
+        """
+        Incrementa contador de eventos de auditoria de modelos.
+
+        Args:
+            model_name: Nome do modelo
+            event_type: Tipo do evento (training_started, model_promoted, etc)
+        """
+        try:
+            self.ml_model_audit_events_total.labels(
+                model_name=model_name,
+                event_type=event_type
+            ).inc()
+        except Exception as e:
+            logger.warning("increment_model_audit_event_failed", error=str(e))
+
+    # MongoDB Persistence Helper Methods
+
+    def record_mongodb_persistence_error(self, collection: str, operation: str, error_type: str):
+        """
+        Registra erro de persistência MongoDB.
+
+        Args:
+            collection: Nome da coleção
+            operation: Operação (insert, update, delete)
+            error_type: Tipo do erro (PyMongoError, CircuitBreakerError, etc)
+        """
+        self.mongodb_persistence_errors_total.labels(
+            collection=collection,
+            operation=operation,
+            error_type=error_type
+        ).inc()
+
+    def record_mongodb_persistence_duration(self, collection: str, operation: str, duration_seconds: float):
+        """
+        Registra duração de operação de persistência MongoDB.
+
+        Args:
+            collection: Nome da coleção
+            operation: Operação (insert, update, delete)
+            duration_seconds: Duração em segundos
+        """
+        self.mongodb_persistence_duration_seconds.labels(
+            collection=collection,
+            operation=operation
+        ).observe(duration_seconds)
+
+    def set_mongodb_circuit_breaker_state(self, circuit_name: str, state: str):
+        """
+        Atualiza estado do circuit breaker MongoDB.
+
+        Args:
+            circuit_name: Nome do circuit breaker
+            state: Estado (closed, open, half_open)
+        """
+        state_map = {'closed': 0, 'open': 1, 'half_open': 2}
+        self.mongodb_circuit_breaker_state.labels(
+            circuit_name=circuit_name
+        ).set(state_map.get(state.lower(), 0))
 
 
 @lru_cache()

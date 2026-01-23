@@ -155,6 +155,24 @@ config:
     proactiveMonitoringEnabled: true  # Monitoramento proativo de SLA em C2/C4
     budgetCriticalThreshold: 0.2      # Threshold para alertas de budget crítico (20%)
     deadlineWarningThreshold: 0.8     # Threshold para alertas de deadline (80%)
+    ticketMinTimeoutMs: 60000         # Timeout mínimo para tickets (60s)
+    ticketTimeoutBufferMultiplier: 3.0  # Multiplicador de buffer para cálculo de timeout
+
+  # SLA Management System Integration
+  slaManagement:
+    enabled: true
+    host: sla-management-system.neural-hive-orchestration.svc.cluster.local
+    port: 8000
+    timeoutSeconds: 5
+    cacheTtlSeconds: 10
+
+  # Service Registry para descoberta de workers
+  serviceRegistry:
+    host: service-registry.neural-hive-execution.svc.cluster.local
+    port: 50051
+    timeoutSeconds: 3
+    maxResults: 5
+    cacheTtlSeconds: 10
 
   retry:
     maxAttempts: 3

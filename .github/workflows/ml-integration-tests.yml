@@ -1,5 +1,15 @@
 name: ML Integration Tests
 
+# =============================================================================
+# ML Integration Tests
+#
+# This workflow runs ML integration tests independently.
+# Note: These tests are ALSO executed as a required staging gate
+# in e2e-tests.yml before any production deployment.
+#
+# See: .github/workflows/e2e-tests.yml -> ml-integration-gate job
+# =============================================================================
+
 on:
   push:
     branches: [main, develop]
@@ -15,6 +25,7 @@ on:
       - 'tests/integration/ml/**'
   schedule:
     - cron: "0 3 * * *"
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   ml-integration-tests:

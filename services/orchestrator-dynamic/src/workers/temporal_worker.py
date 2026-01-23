@@ -61,6 +61,7 @@ class TemporalWorkerManager:
         self.policy_validator = None
         self.ml_predictor = None
         self.training_pipeline = None
+        self.promotion_manager = None
         self.worker = None
         self.running = False
 
@@ -204,7 +205,7 @@ class TemporalWorkerManager:
             logger.info('Inicializando ML Predictor')
 
             try:
-                from src.ml import ModelRegistry, MLPredictor, TrainingPipeline
+                from src.ml import ModelRegistry, MLPredictor, TrainingPipeline, ModelPromotionManager
 
                 # Criar Model Registry
                 model_registry = ModelRegistry(self.config)
@@ -220,6 +221,30 @@ class TemporalWorkerManager:
                 )
                 await ml_predictor.initialize()
                 self.ml_predictor = ml_predictor
+
+                # Criar Model Promotion Manager (Shadow Mode)
+                if self.config.ml_shadow_mode_enabled:
+                    promotion_manager = ModelPromotionManager(
+                        config=self.config,
+                        mongodb_client=self.mongodb_client,
+                        model_registry=model_registry,
+                        metrics=metrics
+                    )
+                    await promotion_manager.initialize()
+                    self.promotion_manager = promotion_manager
+
+                    # Injetar promotion_manager nos predictors para Shadow Mode
+                    ml_predictor.duration_predictor.promotion_manager = promotion_manager
+                    ml_predictor.anomaly_detector.promotion_manager = promotion_manager
+
+                    logger.info(
+                        'ModelPromotionManager inicializado com Shadow Mode',
+                        shadow_mode_duration_minutes=self.config.ml_shadow_mode_duration_minutes,
+                        shadow_mode_min_predictions=self.config.ml_shadow_mode_min_predictions
+                    )
+                else:
+                    self.promotion_manager = None
+                    logger.info('Shadow Mode desabilitado por configuração')
 
                 # Criar Training Pipeline
                 training_pipeline = TrainingPipeline(
@@ -380,6 +405,14 @@ class TemporalWorkerManager:
                 await self.opa_client.close()
             except Exception as e:
                 logger.warning('Erro ao fechar OPA Client', error=str(e))
+
+        # Fechar Model Promotion Manager se existir
+        if self.promotion_manager:
+            logger.info('Fechando Model Promotion Manager')
+            try:
+                await self.promotion_manager.close()
+            except Exception as e:
+                logger.warning('Erro ao fechar Model Promotion Manager', error=str(e))
 
         # Parar Training Pipeline se existir
         if self.training_pipeline:

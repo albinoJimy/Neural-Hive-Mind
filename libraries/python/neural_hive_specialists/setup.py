@@ -37,6 +37,7 @@ setup(
         "prometheus-client>=0.19.0",
         "tenacity>=8.2.3",
         "circuitbreaker>=1.4.0",
+        "neural-hive-domain>=1.0.0",
     ],
     extras_require={
         "explainability": ["shap>=0.44.0", "lime>=0.2.0.1"],

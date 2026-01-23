@@ -1,0 +1,106 @@
+{
+  "@context": "https://neural-hive-mind.org/schemas/intent-envelope/context/v1",
+  "@type": "IntentEnvelope",
+  "id": "e5f6g7h8-i9j0-1234-efgh-i56789012345",
+  "version": "1.0.0",
+  "correlationId": "h8i9j0k1-l2m3-n4o5-p6q7-r8s9t0u1v2w3",
+  "traceId": "9gj37j8022g89if1f8gj474h5j5j9281",
+  "spanId": "05k512ff5gf357g2",
+
+  "actor": {
+    "@type": "Actor",
+    "id": "compliance-team-005",
+    "actorType": "HUMAN",
+    "name": "Paulo Oliveira"
+  },
+
+  "intent": {
+    "@type": "Intent",
+    "text": "Implementar auditoria de acesso a dados sensíveis conforme LGPD com retenção de logs por 5 anos",
+    "domain": "COMPLIANCE",
+    "classification": "compliance-audit",
+    "originalLanguage": "pt-BR",
+    "processedText": "Implementar auditoria de acesso a dados sensíveis conforme LGPD com retenção de logs por 5 anos",
+    "entities": [
+      {
+        "type": "FEATURE",
+        "value": "auditoria de acesso",
+        "confidence": 0.95,
+        "start": 12,
+        "end": 31
+      },
+      {
+        "type": "DATA_TYPE",
+        "value": "dados sensíveis",
+        "confidence": 0.97,
+        "start": 34,
+        "end": 49
+      },
+      {
+        "type": "REGULATION",
+        "value": "LGPD",
+        "confidence": 0.99,
+        "start": 59,
+        "end": 63
+      },
+      {
+        "type": "RETENTION_PERIOD",
+        "value": "5 anos",
+        "confidence": 0.96,
+        "start": 89,
+        "end": 95
+      }
+    ],
+    "keywords": [
+      "auditoria",
+      "acesso",
+      "dados",
+      "sensíveis",
+      "LGPD",
+      "retenção",
+      "logs"
+    ]
+  },
+
+  "confidence": 0.97,
+
+  "context": {
+    "@type": "Context",
+    "sessionId": "sess_compl_8p9q0r1s2t",
+    "userId": "compliance-team-005",
+    "tenantId": "acme-corp",
+    "channel": "WEB",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Firefox/121.0",
+    "clientIp": "192.168.5.***",
+    "geolocation": {
+      "country": "BR",
+      "region": "DF",
+      "city": "Brasília",
+      "timezone": "America/Sao_Paulo"
+    }
+  },
+
+  "constraints": {
+    "@type": "Constraint",
+    "priority": "CRITICAL",
+    "deadline": "2025-03-31T23:59:59Z",
+    "maxRetries": 2,
+    "timeout": "PT2H",
+    "requiredCapabilities": [
+      "audit-logging",
+      "compliance-lgpd",
+      "data-governance",
+      "log-retention"
+    ],
+    "securityLevel": "RESTRICTED"
+  },
+
+  "qos": {
+    "@type": "QualityOfService",
+    "deliveryMode": "EXACTLY_ONCE",
+    "durability": "PERSISTENT",
+    "consistency": "STRONG"
+  },
+
+  "timestamp": "2025-01-05T08:30:00.000Z"
+}
