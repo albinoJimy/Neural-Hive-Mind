@@ -2,7 +2,7 @@
 Testes para persistência MongoDB no MongoDBClient com retry e fail-open.
 """
 import types
-from unittest.mock import AsyncMock, call
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 from pymongo.errors import PyMongoError
@@ -150,3 +150,126 @@ async def test_create_indexes(client):
     assert any(call.args[0] == 'workflow_id' and call.kwargs.get('unique') for call in workflow_index_calls)
     telemetry_index_calls = client.telemetry_buffer.create_index.await_args_list
     assert any(call.args[0] == 'retry_count' for call in telemetry_index_calls)
+
+
+# ======================================================
+# Testes para ensure_collection_exists
+# ======================================================
+
+@pytest.mark.asyncio
+async def test_ensure_collection_exists_creates_new_collection(mock_config):
+    """Deve criar coleção se não existir."""
+    client = MongoDBClient(mock_config)
+    client.db = AsyncMock()
+    client.db.list_collection_names = AsyncMock(return_value=['other_collection'])
+    client.db.create_collection = AsyncMock()
+
+    result = await client.ensure_collection_exists('new_collection')
+
+    assert result is True
+    client.db.create_collection.assert_awaited_once_with('new_collection')
+
+
+@pytest.mark.asyncio
+async def test_ensure_collection_exists_skips_existing(mock_config):
+    """Não deve criar coleção se já existir."""
+    client = MongoDBClient(mock_config)
+    client.db = AsyncMock()
+    client.db.list_collection_names = AsyncMock(return_value=['execution_tickets'])
+    client.db.create_collection = AsyncMock()
+
+    result = await client.ensure_collection_exists('execution_tickets')
+
+    assert result is True
+    client.db.create_collection.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_ensure_collection_exists_propagates_error(mock_config):
+    """Erros na criação de coleção devem propagar exceção."""
+    client = MongoDBClient(mock_config)
+    client.db = AsyncMock()
+    client.db.list_collection_names = AsyncMock(return_value=[])
+    client.db.create_collection = AsyncMock(side_effect=PyMongoError('Permission denied'))
+
+    with pytest.raises(PyMongoError, match='Permission denied'):
+        await client.ensure_collection_exists('restricted_collection')
+
+
+# ======================================================
+# Testes para save_execution_ticket com métricas
+# ======================================================
+
+@pytest.mark.asyncio
+async def test_save_execution_ticket_success(client):
+    """Deve salvar ticket e registrar métricas de duração."""
+    ticket = {
+        'ticket_id': 'ticket-success-1',
+        'plan_id': 'plan-1',
+        'status': 'PENDING'
+    }
+
+    with patch('src.clients.mongodb_client.get_metrics') as mock_metrics:
+        mock_metrics_instance = types.SimpleNamespace(
+            record_mongodb_persistence_duration=MagicMock(),
+            record_mongodb_persistence_error=MagicMock()
+        )
+        mock_metrics.return_value = mock_metrics_instance
+
+        await client.save_execution_ticket(ticket)
+
+        mock_metrics_instance.record_mongodb_persistence_duration.assert_called_once()
+        call_args = mock_metrics_instance.record_mongodb_persistence_duration.call_args
+        assert call_args[0][0] == 'execution_tickets'
+        assert call_args[0][1] == 'insert'
+
+
+@pytest.mark.asyncio
+async def test_save_execution_ticket_records_error_metrics(client):
+    """Deve registrar métricas de erro em falhas de persistência."""
+    client.execution_tickets.insert_one.side_effect = PyMongoError('Test error')
+
+    ticket = {
+        'ticket_id': 'ticket-error-1',
+        'plan_id': 'plan-1',
+        'status': 'PENDING'
+    }
+
+    with patch('src.clients.mongodb_client.get_metrics') as mock_metrics:
+        mock_metrics_instance = types.SimpleNamespace(
+            record_mongodb_persistence_duration=MagicMock(),
+            record_mongodb_persistence_error=MagicMock()
+        )
+        mock_metrics.return_value = mock_metrics_instance
+
+        with pytest.raises(PyMongoError):
+            await client.save_execution_ticket(ticket)
+
+        mock_metrics_instance.record_mongodb_persistence_error.assert_called_once_with(
+            'execution_tickets',
+            'insert',
+            'PyMongoError'
+        )
+
+
+@pytest.mark.asyncio
+async def test_save_execution_ticket_propagates_critical_errors(client):
+    """Erros críticos devem propagar exceção."""
+    from pymongo.errors import ServerSelectionTimeoutError
+    client.execution_tickets.insert_one.side_effect = ServerSelectionTimeoutError('MongoDB unreachable')
+
+    ticket = {
+        'ticket_id': 'ticket-critical-1',
+        'plan_id': 'plan-1',
+        'status': 'PENDING'
+    }
+
+    with patch('src.clients.mongodb_client.get_metrics') as mock_metrics:
+        mock_metrics_instance = types.SimpleNamespace(
+            record_mongodb_persistence_duration=MagicMock(),
+            record_mongodb_persistence_error=MagicMock()
+        )
+        mock_metrics.return_value = mock_metrics_instance
+
+        with pytest.raises(ServerSelectionTimeoutError):
+            await client.save_execution_ticket(ticket)

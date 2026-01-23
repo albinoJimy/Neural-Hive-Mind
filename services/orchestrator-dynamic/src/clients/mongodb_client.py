@@ -15,6 +15,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 import structlog
 
 from neural_hive_resilience.circuit_breaker import MonitoredCircuitBreaker, CircuitBreakerError
+from src.observability.metrics import get_metrics
 
 logger = structlog.get_logger()
 
@@ -109,6 +110,18 @@ class MongoDBClient:
                 expected_exception=Exception,
             )
 
+        # Garantir que coleções críticas existam antes de criar índices
+        critical_collections = [
+            self.config.mongodb_collection_tickets,  # execution_tickets
+            'cognitive_ledger',
+            'validation_audit',
+            'workflow_results',
+            'incidents',
+            'telemetry_buffer',
+        ]
+        for collection_name in critical_collections:
+            await self.ensure_collection_exists(collection_name)
+
         # Criar índices
         await self._create_indexes()
 
@@ -138,6 +151,46 @@ class MongoDBClient:
         await self.workflows.create_index('status')
 
         await self._create_indexes_extended()
+
+    async def ensure_collection_exists(self, collection_name: str) -> bool:
+        """
+        Garante que uma coleção existe no MongoDB, criando-a se necessário.
+
+        Args:
+            collection_name: Nome da coleção a verificar/criar
+
+        Returns:
+            True se coleção existe ou foi criada com sucesso
+
+        Raises:
+            PyMongoError: Se falhar ao criar coleção
+        """
+        try:
+            existing_collections = await self.db.list_collection_names()
+
+            if collection_name in existing_collections:
+                logger.debug(
+                    'collection_already_exists',
+                    collection=collection_name
+                )
+                return True
+
+            # Criar coleção explicitamente
+            await self.db.create_collection(collection_name)
+
+            logger.info(
+                'collection_created',
+                collection=collection_name
+            )
+            return True
+
+        except Exception as e:
+            logger.error(
+                'collection_creation_failed',
+                collection=collection_name,
+                error=str(e)
+            )
+            raise
 
     async def _create_indexes_extended(self):
         """Criar índices adicionais para coleções de auditoria e telemetria."""
@@ -190,11 +243,23 @@ class MongoDBClient:
         """
         Persiste um Execution Ticket no MongoDB para auditoria.
 
+        Erros críticos (configuração, schema) propagam exceção.
+        Erros transitórios usam circuit breaker com retry.
+
         Args:
             ticket: Ticket de execução a ser salvo
+
+        Raises:
+            CircuitBreakerError: Se circuit breaker estiver aberto
+            PyMongoError: Para erros de persistência não recuperáveis
         """
+        metrics = get_metrics()
+        start_time = datetime.now()
+
         document = ticket.copy()
         document['_id'] = ticket['ticket_id']
+        ticket_id = ticket['ticket_id']
+        plan_id = ticket.get('plan_id', 'unknown')
 
         try:
             await self._execute_with_breaker(
@@ -202,28 +267,95 @@ class MongoDBClient:
                 self.execution_tickets.insert_one,
                 document
             )
-            logger.info(
-                'Execution ticket salvo',
-                ticket_id=ticket['ticket_id'],
-                plan_id=ticket['plan_id']
+
+            duration = (datetime.now() - start_time).total_seconds()
+            metrics.record_mongodb_persistence_duration(
+                'execution_tickets',
+                'insert',
+                duration
             )
+
+            logger.info(
+                'execution_ticket_saved',
+                ticket_id=ticket_id,
+                plan_id=plan_id,
+                duration_ms=duration * 1000
+            )
+
         except DuplicateKeyError:
-            # Se já existe, atualizar
-            await self._execute_with_breaker(
-                self.execution_ticket_breaker,
-                self.execution_tickets.replace_one,
-                {'ticket_id': ticket['ticket_id']},
-                document
-            )
-            logger.info(
-                'Execution ticket atualizado',
-                ticket_id=ticket['ticket_id']
-            )
+            # Ticket já existe, atualizar
+            try:
+                await self._execute_with_breaker(
+                    self.execution_ticket_breaker,
+                    self.execution_tickets.replace_one,
+                    {'ticket_id': ticket_id},
+                    document
+                )
+
+                duration = (datetime.now() - start_time).total_seconds()
+                metrics.record_mongodb_persistence_duration(
+                    'execution_tickets',
+                    'update',
+                    duration
+                )
+
+                logger.info(
+                    'execution_ticket_updated',
+                    ticket_id=ticket_id,
+                    plan_id=plan_id
+                )
+            except CircuitBreakerError:
+                metrics.record_mongodb_persistence_error(
+                    'execution_tickets',
+                    'update',
+                    'CircuitBreakerError'
+                )
+                logger.error(
+                    'execution_ticket_update_circuit_open',
+                    ticket_id=ticket_id,
+                    plan_id=plan_id
+                )
+                raise
+            except Exception as e:
+                metrics.record_mongodb_persistence_error(
+                    'execution_tickets',
+                    'update',
+                    type(e).__name__
+                )
+                logger.error(
+                    'execution_ticket_update_failed',
+                    ticket_id=ticket_id,
+                    plan_id=plan_id,
+                    error=str(e)
+                )
+                raise
+
         except CircuitBreakerError:
-            logger.warning(
+            metrics.record_mongodb_persistence_error(
+                'execution_tickets',
+                'insert',
+                'CircuitBreakerError'
+            )
+            logger.error(
                 'execution_ticket_circuit_open',
-                ticket_id=ticket['ticket_id'],
-                plan_id=ticket['plan_id']
+                ticket_id=ticket_id,
+                plan_id=plan_id
+            )
+            raise
+
+        except Exception as e:
+            error_type = type(e).__name__
+            metrics.record_mongodb_persistence_error(
+                'execution_tickets',
+                'insert',
+                error_type
+            )
+            logger.error(
+                'execution_ticket_save_failed',
+                ticket_id=ticket_id,
+                plan_id=plan_id,
+                error=str(e),
+                error_type=error_type
             )
             raise
 
