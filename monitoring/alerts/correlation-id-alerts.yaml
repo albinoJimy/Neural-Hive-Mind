@@ -1,0 +1,81 @@
+groups:
+  - name: correlation_id_propagation
+    interval: 30s
+    rules:
+      - alert: CorrelationIdMissingHighRate
+        expr: |
+          (
+            sum(rate(neural_hive_gateway_correlation_id_missing_total[5m])) +
+            sum(rate(neural_hive_ste_correlation_id_missing_total[5m])) +
+            sum(rate(neural_hive_consensus_correlation_id_missing_total[5m])) +
+            sum(rate(neural_hive_orchestrator_correlation_id_missing_total[5m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: observability
+        annotations:
+          summary: "Alta taxa de correlation_id ausente no pipeline"
+          description: |
+            Taxa de correlation_id ausente: {{ $value | humanize }} req/s
+
+            Componentes afetados:
+            - Gateway: {{ with query "rate(neural_hive_gateway_correlation_id_missing_total[5m])" }}{{ . | first | value | humanize }}{{ end }} req/s
+            - STE: {{ with query "rate(neural_hive_ste_correlation_id_missing_total[5m])" }}{{ . | first | value | humanize }}{{ end }} req/s
+            - Consensus: {{ with query "rate(neural_hive_consensus_correlation_id_missing_total[5m])" }}{{ . | first | value | humanize }}{{ end }} req/s
+            - Orchestrator: {{ with query "rate(neural_hive_orchestrator_correlation_id_missing_total[5m])" }}{{ . | first | value | humanize }}{{ end }} req/s
+
+            Impacto: Rastreamento distribuído comprometido, dificultando debugging.
+          runbook_url: "https://docs.neural-hive.local/runbooks/correlation-id-missing"
+          dashboard_url: "https://grafana.neural-hive.local/d/correlation-id-propagation"
+
+      - alert: CorrelationIdConsensusGenerationSpike
+        expr: |
+          rate(neural_hive_consensus_correlation_id_generated_total[5m]) > 0.05
+        for: 10m
+        labels:
+          severity: critical
+          component: consensus-engine
+        annotations:
+          summary: "Consensus Engine gerando correlation_ids automaticamente (UUID fallback)"
+          description: |
+            Taxa de geração de correlation_id: {{ $value | humanize }} req/s
+
+            Causa provável: STE não está propagando correlation_id corretamente.
+
+            Ação requerida:
+            1. Verificar logs do STE para erros de serialização
+            2. Validar schema Avro cognitive-plan.avsc
+            3. Verificar propagação de headers Kafka
+          runbook_url: "https://docs.neural-hive.local/runbooks/correlation-id-generation-spike"
+
+      - alert: CorrelationIdGatewayMissingHigh
+        expr: |
+          rate(neural_hive_gateway_correlation_id_missing_total{source="user_request"}[5m]) > 0.5
+        for: 5m
+        labels:
+          severity: info
+          component: gateway-intencoes
+        annotations:
+          summary: "Alta taxa de requisições sem correlation_id no Gateway"
+          description: |
+            Taxa: {{ $value | humanize }} req/s
+
+            Isso é esperado se clientes externos não enviam correlation_id.
+            Gateway está gerando automaticamente.
+
+      - alert: CorrelationIdSTEFormatMismatch
+        expr: |
+          sum(rate(neural_hive_ste_correlation_id_missing_total{format="none"}[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: semantic-translation-engine
+        annotations:
+          summary: "STE recebendo intents sem correlation_id"
+          description: |
+            Taxa de intents sem correlation_id: {{ $value | humanize }} req/s
+
+            Verificar:
+            1. Gateway está propagando correlation_id nos headers Kafka
+            2. Schema Avro intent-envelope inclui campo correlationId

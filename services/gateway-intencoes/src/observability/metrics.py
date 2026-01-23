@@ -64,6 +64,13 @@ record_too_large_counter = Counter(
     ['domain']
 )
 
+# Métrica de correlation_id ausente
+correlation_id_missing_total = Counter(
+    'neural_hive_gateway_correlation_id_missing_total',
+    'Total de intents recebidos sem correlation_id (gerado automaticamente)',
+    ['source']  # source: 'user_request', 'kafka_header', etc.
+)
+
 def setup_metrics():
     """Configurar métricas"""
     pass  # Métricas já configuradas

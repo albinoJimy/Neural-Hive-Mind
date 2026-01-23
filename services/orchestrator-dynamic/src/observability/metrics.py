@@ -270,6 +270,12 @@ class OrchestratorMetrics:
             'Total de ativações de burst capacity'
         )
 
+        # Métricas de correlation_id
+        self.correlation_id_missing_total = Counter(
+            'neural_hive_orchestrator_correlation_id_missing_total',
+            'Total de workflows iniciados sem correlation_id na decisão consolidada',
+        )
+
         # Métricas de Scheduler
         self.scheduler_allocations_total = Counter(
             'orchestration_scheduler_allocations_total',
@@ -757,6 +763,10 @@ class OrchestratorMetrics:
     def record_burst_capacity_activation(self):
         """Registra ativação de burst capacity."""
         self.burst_capacity_activations_total.inc()
+
+    def record_correlation_id_missing(self):
+        """Registra workflow iniciado sem correlation_id na decisão consolidada."""
+        self.correlation_id_missing_total.inc()
 
     def record_scheduler_allocation(self, status: str, fallback: bool, duration_seconds: float, has_predictions: bool = False):
         """Registra alocação do scheduler."""

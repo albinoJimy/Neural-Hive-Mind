@@ -204,6 +204,18 @@ schema_registry_latency_seconds = Histogram(
 )
 
 
+# Métricas de correlation_id
+correlation_id_missing_total = Counter(
+    'neural_hive_consensus_correlation_id_missing_total',
+    'Total de decisões geradas com correlation_id ausente no cognitive_plan',
+)
+
+correlation_id_generated_total = Counter(
+    'neural_hive_consensus_correlation_id_generated_total',
+    'Total de correlation_ids gerados automaticamente (UUID fallback)',
+)
+
+
 class ConsensusMetrics:
     '''Wrapper para métricas de consenso com métodos de conveniência'''
 
@@ -289,6 +301,20 @@ class ConsensusMetrics:
             domain=domain,
             violation_type=violation_type
         ).inc()
+
+    # ===========================
+    # Métricas de correlation_id
+    # ===========================
+
+    @staticmethod
+    def increment_correlation_id_missing():
+        '''Incrementa contador de correlation_id ausente'''
+        correlation_id_missing_total.inc()
+
+    @staticmethod
+    def increment_correlation_id_generated():
+        '''Incrementa contador de correlation_id gerado automaticamente'''
+        correlation_id_generated_total.inc()
 
     # ===========================
     # Métricas do Consumer Kafka

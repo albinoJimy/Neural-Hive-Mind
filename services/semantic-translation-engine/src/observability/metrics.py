@@ -251,6 +251,14 @@ dag_generation_visualization_generated_total = Counter(
 )
 
 
+# Métrica de correlation_id ausente no STE
+correlation_id_missing_total = Counter(
+    'neural_hive_ste_correlation_id_missing_total',
+    'Total de cognitive plans gerados sem correlation_id no intent_envelope',
+    ['format']  # format: 'camelCase', 'snake_case', 'none'
+)
+
+
 class NeuralHiveMetrics:
     """Wrapper for Neural Hive metrics"""
 

@@ -84,17 +84,24 @@ def port_forward_manager() -> Dict[str, str]:
 @pytest.fixture(scope="session")
 def k8s_service_endpoints(k8s_client: CoreV1Api) -> Dict[str, str]:
     services = {
-        "kafka": ("neural-hive-kafka", "kafka", 9092),
-        "schema_registry": ("neural-hive-kafka", "schema-registry", 8081),
+        "kafka": ("kafka", "neural-hive-kafka-kafka-bootstrap", 9092),
+        "schema_registry": ("kafka", "schema-registry", 8081),
         "mongodb": ("mongodb-cluster", "mongodb", 27017),
-        "redis": ("redis-cluster", "redis", 6379),
-        "service_registry": ("neural-hive-orchestration", "service-registry", 50051),
-        "temporal": ("neural-hive-orchestration", "temporal-frontend", 7233),
+        "redis": ("redis-cluster", "neural-hive-cache", 6379),
+        "service_registry": ("neural-hive", "service-registry", 50051),
+        "temporal": ("temporal", "temporal-frontend", 7233),
         "temporal_db": ("temporal", "temporal-postgresql", 5432),
     }
     endpoints: Dict[str, str] = {}
     for name, (namespace, service, port) in services.items():
-        svc = k8s_client.read_namespaced_service(name=service, namespace=namespace)
-        host = f"{svc.metadata.name}.{svc.metadata.namespace}.svc.cluster.local"
-        endpoints[name] = f"{host}:{port}"
+        try:
+            svc = k8s_client.read_namespaced_service(name=service, namespace=namespace)
+            host = f"{svc.metadata.name}.{svc.metadata.namespace}.svc.cluster.local"
+            endpoints[name] = f"{host}:{port}"
+        except ApiException as e:
+            if e.status == 404:
+                # Serviço não encontrado, usar fallback
+                endpoints[name] = f"{service}.{namespace}.svc.cluster.local:{port}"
+            else:
+                raise
     return endpoints

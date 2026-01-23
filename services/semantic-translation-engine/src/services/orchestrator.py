@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List
 
 from neural_hive_observability import get_tracer
+from src.observability.metrics import correlation_id_missing_total
 from src.services.semantic_parser import SemanticParser
 from src.services.dag_generator import DAGGenerator
 from src.services.risk_scorer import RiskScorer
@@ -83,6 +84,12 @@ class SemanticTranslationOrchestrator:
             origem='trace_context' if trace_correlation_id else 'intent_envelope',
             envelope_format=envelope_format
         )
+
+        # Registrar métrica de formato de correlation_id
+        if not envelope_correlation_id and not trace_correlation_id:
+            correlation_id_missing_total.labels(format='none').inc()
+        else:
+            correlation_id_missing_total.labels(format=envelope_format).inc()
 
         try:
             # B1: Validate Intent Envelope

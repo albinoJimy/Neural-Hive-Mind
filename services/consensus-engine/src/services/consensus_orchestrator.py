@@ -12,6 +12,7 @@ from src.models.consolidated_decision import (
     SpecialistVote,
     ConsensusMetrics
 )
+from src.observability.metrics import ConsensusMetrics as ObservabilityMetrics
 from src.services.bayesian_aggregator import BayesianAggregator
 from src.services.voting_ensemble import VotingEnsemble
 from src.services.compliance_fallback import ComplianceFallback
@@ -149,6 +150,11 @@ class ConsensusOrchestrator:
         correlation_id = cognitive_plan.get('correlation_id')
         if not correlation_id or (isinstance(correlation_id, str) and not correlation_id.strip()):
             correlation_id = str(uuid.uuid4())
+
+            # Registrar métricas
+            ObservabilityMetrics.increment_correlation_id_missing()
+            ObservabilityMetrics.increment_correlation_id_generated()
+
             # ERROR: Isso quebra rastreamento distribuído - deve ser investigado
             logger.error(
                 'VULN-001: correlation_id ausente no cognitive_plan - rastreamento distribuído comprometido',
