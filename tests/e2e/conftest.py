@@ -406,3 +406,91 @@ def test_intent_id() -> str:
     """Fixture providing a unique test intent ID."""
     import uuid
     return f"intent-pytest-{uuid.uuid4().hex[:8]}"
+
+
+# ============================================
+# Status Tracking Fixtures (Flow C)
+# ============================================
+
+
+@pytest.fixture
+def ticket_status_tracker(mongodb_test_helper, postgresql_tickets_helper):
+    """
+    Fixture que fornece TicketStatusTracker configurado.
+
+    Usado para rastrear transições de status em testes do Fluxo C.
+    """
+    try:
+        from tests.e2e.utils.status_tracker import TicketStatusTracker
+
+        tracker = TicketStatusTracker(
+            mongodb_helper=mongodb_test_helper,
+            postgresql_helper=postgresql_tickets_helper,
+            poll_interval_seconds=1.0,
+        )
+        yield tracker
+        tracker.clear_history()
+    except ImportError:
+        pytest.skip("status_tracker not available")
+    except Exception as e:
+        pytest.skip(f"Could not create TicketStatusTracker: {e}")
+
+
+@pytest.fixture
+def flow_c_status_tracker(ticket_status_tracker):
+    """
+    Fixture que fornece FlowCStatusTracker especializado.
+
+    Usado para monitorar etapas C1-C6 do fluxo de orquestração.
+    """
+    try:
+        from tests.e2e.utils.status_tracker import FlowCStatusTracker
+
+        return FlowCStatusTracker(ticket_status_tracker)
+    except ImportError:
+        pytest.skip("FlowCStatusTracker not available")
+
+
+@pytest.fixture
+def mock_executor_registry():
+    """
+    Fixture que fornece registry de executores mock.
+
+    Usado para injetar executores simulados em testes de falha.
+    """
+    class MockExecutorRegistry:
+        def __init__(self):
+            self._executors = {}
+
+        def register(self, task_type: str, executor):
+            self._executors[task_type] = executor
+
+        def get_executor(self, task_type: str):
+            return self._executors.get(task_type)
+
+        def has_executor(self, task_type: str) -> bool:
+            return task_type in self._executors
+
+    return MockExecutorRegistry()
+
+
+@pytest.fixture
+def flow_c_test_context(
+    ticket_status_tracker,
+    kafka_test_helper,
+    mongodb_test_helper,
+    postgresql_tickets_helper,
+    temporal_test_helper,
+):
+    """
+    Contexto completo para testes do Fluxo C.
+
+    Agrupa todos os helpers necessários em um único objeto.
+    """
+    return {
+        "status_tracker": ticket_status_tracker,
+        "kafka_helper": kafka_test_helper,
+        "mongodb_helper": mongodb_test_helper,
+        "postgresql_helper": postgresql_tickets_helper,
+        "temporal_helper": temporal_test_helper,
+    }

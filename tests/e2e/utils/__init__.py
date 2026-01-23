@@ -24,6 +24,25 @@ from tests.e2e.utils.kafka_helpers import (
     wait_for_kafka_message,
     collect_kafka_messages,
 )
+from tests.e2e.utils.status_tracker import (
+    TicketStatusTracker,
+    FlowCStatusTracker,
+    TicketStatus,
+    TicketStatusHistory,
+    StatusTransition,
+    VALID_TRANSITIONS,
+)
+from tests.e2e.utils.flow_c_validators import (
+    validate_ticket_status_transition,
+    validate_status_sequence,
+    validate_telemetry_completeness,
+    validate_telemetry_step_metrics,
+    validate_sla_compliance,
+    validate_result_structure,
+    validate_dependency_chain,
+    validate_trace_correlation,
+    ValidationResult,
+)
 
 __all__ = [
     # Temporal
@@ -47,4 +66,21 @@ __all__ = [
     "validate_kafka_messages",
     "wait_for_kafka_message",
     "collect_kafka_messages",
+    # Status Tracking
+    "TicketStatusTracker",
+    "FlowCStatusTracker",
+    "TicketStatus",
+    "TicketStatusHistory",
+    "StatusTransition",
+    "VALID_TRANSITIONS",
+    # Flow C Validators
+    "validate_ticket_status_transition",
+    "validate_status_sequence",
+    "validate_telemetry_completeness",
+    "validate_telemetry_step_metrics",
+    "validate_sla_compliance",
+    "validate_result_structure",
+    "validate_dependency_chain",
+    "validate_trace_correlation",
+    "ValidationResult",
 ]
