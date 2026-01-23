@@ -52,6 +52,15 @@ class BenchmarkResult:
     batch_enabled: bool
 
 
+# Limite de latência p95 em milissegundos (10 segundos)
+P95_LATENCY_THRESHOLD_MS = 10000.0
+
+
+class P95ThresholdExceededError(Exception):
+    """Erro lançado quando latência p95 excede o limite de 10 segundos."""
+    pass
+
+
 def generate_test_plans(num_plans: int, tasks_per_plan: int = 10) -> List[Dict[str, Any]]:
     """
     Gera lista de planos cognitivos para benchmark.
@@ -227,12 +236,53 @@ async def benchmark_batch_processing(
     )
 
 
-def print_results(results: List[BenchmarkResult]):
+def validate_p95_threshold(results: List[BenchmarkResult], threshold_ms: float = P95_LATENCY_THRESHOLD_MS) -> bool:
     """
-    Imprime resultados do benchmark em formato tabular.
+    Valida se a latência p95 dos resultados está abaixo do limite.
+
+    Args:
+        results: Lista de resultados de benchmark
+        threshold_ms: Limite de latência p95 em milissegundos (default: 10000ms = 10s)
+
+    Returns:
+        True se todos os resultados com otimizações estão abaixo do limite
+
+    Raises:
+        P95ThresholdExceededError: Se algum resultado otimizado exceder o limite
+    """
+    # Verificar apenas cenários com otimizações habilitadas
+    optimized_results = [
+        r for r in results
+        if r.feature_cache_enabled or r.batch_enabled or r.gpu_enabled
+    ]
+
+    violations = []
+    for result in optimized_results:
+        if result.p95_latency_ms > threshold_ms:
+            violations.append({
+                'scenario': result.scenario_name,
+                'p95_ms': result.p95_latency_ms,
+                'threshold_ms': threshold_ms
+            })
+
+    if violations:
+        error_msg = f"ERRO: Latência p95 excede limite de {threshold_ms/1000:.1f}s:\n"
+        for v in violations:
+            error_msg += f"  - {v['scenario']}: p95={v['p95_ms']:.2f}ms (limite: {v['threshold_ms']:.2f}ms)\n"
+        raise P95ThresholdExceededError(error_msg)
+
+    return True
+
+
+def print_results(results: List[BenchmarkResult]) -> bool:
+    """
+    Imprime resultados do benchmark em formato tabular e valida p95.
 
     Args:
         results: Lista de resultados
+
+    Returns:
+        True se validação p95 passou, False se falhou
     """
     print("\n" + "=" * 100)
     print("BENCHMARK RESULTS")
@@ -243,13 +293,22 @@ def print_results(results: List[BenchmarkResult]):
     print("-" * 100)
 
     baseline_latency = results[0].avg_latency_ms if results else 1
+    p95_threshold_exceeded = False
 
     for result in results:
         speedup = baseline_latency / result.avg_latency_ms if result.avg_latency_ms > 0 else 0
+
+        # Marcar se p95 excede threshold para cenários otimizados
+        p95_status = ""
+        is_optimized = result.feature_cache_enabled or result.batch_enabled or result.gpu_enabled
+        if is_optimized and result.p95_latency_ms > P95_LATENCY_THRESHOLD_MS:
+            p95_status = " [EXCEDE LIMITE]"
+            p95_threshold_exceeded = True
+
         print(
             f"{result.scenario_name:<40} | "
             f"{result.avg_latency_ms:>8.2f}ms | "
-            f"{result.p95_latency_ms:>8.2f}ms | "
+            f"{result.p95_latency_ms:>8.2f}ms{p95_status} | "
             f"{result.p99_latency_ms:>8.2f}ms | "
             f"{result.throughput_plans_per_sec:>8.2f} pl/s | "
             f"{speedup:>6.2f}x"
@@ -257,14 +316,30 @@ def print_results(results: List[BenchmarkResult]):
 
     print("-" * 100)
 
+    # Imprimir validação de threshold
+    print(f"\n{'='*50}")
+    print(f"VALIDAÇÃO DE LATÊNCIA p95 (limite: {P95_LATENCY_THRESHOLD_MS/1000:.1f}s)")
+    print(f"{'='*50}")
 
-async def run_benchmarks(num_plans: int = 50, tasks_per_plan: int = 10):
+    if p95_threshold_exceeded:
+        print("RESULTADO: FALHOU - Latência p95 excede limite em cenários otimizados")
+        return False
+    else:
+        print("RESULTADO: PASSOU - Todos os cenários otimizados estão dentro do limite")
+        return True
+
+
+async def run_benchmarks(num_plans: int = 50, tasks_per_plan: int = 10, enforce_threshold: bool = True) -> bool:
     """
     Executa suite completa de benchmarks.
 
     Args:
         num_plans: Número de planos para testar
         tasks_per_plan: Tarefas por plano
+        enforce_threshold: Se True, retorna False quando p95 excede 10s
+
+    Returns:
+        True se benchmark passou (p95 < 10s para cenários otimizados), False caso contrário
     """
     print("=" * 80)
     print("BENCHMARK: Business Specialist Performance Optimizations")
@@ -274,6 +349,7 @@ async def run_benchmarks(num_plans: int = 50, tasks_per_plan: int = 10):
     print(f"  - Number of plans: {num_plans}")
     print(f"  - Tasks per plan: {tasks_per_plan}")
     print(f"  - Total tasks: {num_plans * tasks_per_plan}")
+    print(f"  - p95 latency threshold: {P95_LATENCY_THRESHOLD_MS/1000:.1f}s")
 
     print("\n[1/5] Generating test plans...")
     plans = generate_test_plans(num_plans, tasks_per_plan)
@@ -299,7 +375,8 @@ async def run_benchmarks(num_plans: int = 50, tasks_per_plan: int = 10):
     result = await benchmark_batch_processing(plans, batch_size=32)
     results.append(result)
 
-    print_results(results)
+    # Imprimir resultados e validar threshold
+    validation_passed = print_results(results)
 
     print("\n" + "=" * 80)
     print("OPTIMIZATION RECOMMENDATIONS")
@@ -328,16 +405,31 @@ Baseado nos resultados:
    - Meta: latência p95 < 10s (vs 49-66s baseline)
 """)
 
+    # Retornar resultado da validação
+    if enforce_threshold and not validation_passed:
+        print("\n" + "=" * 80)
+        print("BENCHMARK FALHOU: Latência p95 excede limite de 10 segundos")
+        print("=" * 80)
+        return False
+
+    return True
+
 
 if __name__ == '__main__':
     # Parâmetros de benchmark
     NUM_PLANS = 30  # Reduzido para execução rápida
     TASKS_PER_PLAN = 10
+    ENFORCE_THRESHOLD = True
 
     # Verificar argumentos
     if len(sys.argv) > 1:
         NUM_PLANS = int(sys.argv[1])
     if len(sys.argv) > 2:
         TASKS_PER_PLAN = int(sys.argv[2])
+    if len(sys.argv) > 3:
+        # --no-enforce para desabilitar validação de threshold
+        ENFORCE_THRESHOLD = sys.argv[3] != '--no-enforce'
 
-    asyncio.run(run_benchmarks(NUM_PLANS, TASKS_PER_PLAN))
+    # Executar benchmark e sair com código de erro se threshold excedido
+    success = asyncio.run(run_benchmarks(NUM_PLANS, TASKS_PER_PLAN, ENFORCE_THRESHOLD))
+    sys.exit(0 if success else 1)

@@ -35,3 +35,12 @@ data:
   cost_analysis_enabled: {{ .Values.config.business.costAnalysisEnabled | quote }}
   kpi_threshold_high: {{ .Values.config.business.kpiThresholdHigh | quote }}
   kpi_threshold_low: {{ .Values.config.business.kpiThresholdLow | quote }}
+
+  # Performance Optimization Configuration
+  feature_cache_enabled: {{ .Values.config.featureCacheEnabled | quote }}
+  feature_cache_ttl_seconds: {{ .Values.config.featureCacheTtlSeconds | quote }}
+  enable_batch_inference: {{ .Values.config.enableBatchInference | quote }}
+  batch_inference_size: {{ .Values.config.batchInferenceSize | quote }}
+  batch_inference_max_workers: {{ .Values.config.batchInferenceMaxWorkers | quote }}
+  enable_gpu_acceleration: {{ .Values.config.enableGpuAcceleration | quote }}
+  gpu_device: {{ .Values.config.gpuDevice | quote }}

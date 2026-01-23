@@ -1376,7 +1376,8 @@ class BaseSpecialist(ABC):
 
             context['correlation_id'] = request.correlation_id
 
-            # Tentar inferência com modelo ML
+            # Tentar inferência com modelo ML (includes feature extraction + inference)
+            inference_start_time = time.time()
             if self.tracer:
                 with self.tracer.start_as_current_span("specialist.predict_with_model") as span:
                     try:
@@ -1394,6 +1395,19 @@ class BaseSpecialist(ABC):
                         ml_result = None
             else:
                 ml_result = self._predict_with_model(cognitive_plan)
+
+            # Record step timing for feature_extraction + inference combined
+            inference_duration = time.time() - inference_start_time
+            if ml_result is not None:
+                # Record feature extraction time from ml_result metadata
+                feature_extraction_time = ml_result.get('metadata', {}).get('feature_extraction_time_ms', 0) / 1000.0
+                inference_only_time = ml_result.get('metadata', {}).get('inference_duration_ms', 0) / 1000.0
+
+                if hasattr(self.metrics, 'observe_step_duration'):
+                    if feature_extraction_time > 0:
+                        self.metrics.observe_step_duration('feature_extraction', feature_extraction_time)
+                    if inference_only_time > 0:
+                        self.metrics.observe_step_duration('inference', inference_only_time)
 
             if ml_result is not None:
                 # Usar resultado do modelo
@@ -1478,7 +1492,8 @@ class BaseSpecialist(ABC):
             else:
                 self._validate_evaluation_result(evaluation_result)
 
-            # Gerar explicabilidade
+            # Gerar explicabilidade (post-processing step)
+            post_processing_start = time.time()
             if self.tracer:
                 with self.tracer.start_as_current_span("specialist.generate_explainability") as span:
                     try:
@@ -1499,6 +1514,11 @@ class BaseSpecialist(ABC):
                     cognitive_plan,
                     self.model
                 )
+
+            # Record post_processing step timing
+            post_processing_duration = time.time() - post_processing_start
+            if hasattr(self.metrics, 'observe_step_duration'):
+                self.metrics.observe_step_duration('post_processing', post_processing_duration)
 
             # Construir parecer
             opinion = {
@@ -1784,6 +1804,9 @@ class BaseSpecialist(ABC):
         """
         Avalia múltiplos planos em paralelo com controle de concorrência.
 
+        Quando enable_batch_inference está habilitado e batch_evaluator está disponível,
+        usa evaluate_plans_batch_optimized() para melhor performance.
+
         Args:
             requests: Lista de EvaluatePlanRequest protobuf messages
             max_concurrency: Concorrência máxima (usa config se None)
@@ -1798,9 +1821,98 @@ class BaseSpecialist(ABC):
             "Starting batch evaluation",
             specialist_type=self.specialist_type,
             batch_size=len(requests),
-            max_concurrency=concurrency
+            max_concurrency=concurrency,
+            batch_inference_enabled=getattr(self.config, 'enable_batch_inference', False)
         )
 
+        # Use optimized batch evaluation if enabled and available
+        if getattr(self.config, 'enable_batch_inference', False) and self.batch_evaluator:
+            try:
+                # Extract cognitive plans from requests
+                cognitive_plans = []
+                request_map = {}  # Map plan_id to original request for result assembly
+                for req in requests:
+                    try:
+                        cognitive_plan = self._deserialize_plan(req.cognitive_plan)
+                        cognitive_plan['plan_id'] = req.plan_id
+                        cognitive_plan['intent_id'] = req.intent_id
+                        cognitive_plans.append(cognitive_plan)
+                        request_map[req.plan_id] = req
+                    except Exception as e:
+                        logger.warning(
+                            "Failed to deserialize plan for batch, will process individually",
+                            plan_id=req.plan_id,
+                            error=str(e)
+                        )
+
+                if cognitive_plans:
+                    # Use optimized batch processing
+                    context = dict(requests[0].context) if requests and hasattr(requests[0], 'context') else {}
+                    optimized_results = await self.evaluate_plans_batch_optimized(cognitive_plans, context)
+
+                    # Convert optimized results back to expected format
+                    successful = []
+                    failed = []
+                    for i, result in enumerate(optimized_results):
+                        plan_id = cognitive_plans[i].get('plan_id')
+                        if 'error' in result.get('metadata', {}):
+                            failed.append({
+                                'success': False,
+                                'error': result['metadata']['error'],
+                                'plan_id': plan_id
+                            })
+                        else:
+                            # Wrap result in expected response format
+                            successful.append({
+                                'opinion': result,
+                                'plan_id': plan_id,
+                                'processing_time_ms': result.get('metadata', {}).get('evaluation_time_ms', 0)
+                            })
+
+                    duration = time.time() - start_time
+                    success_rate = len(successful) / len(requests) if requests else 0
+
+                    self.metrics.observe_batch_evaluation(
+                        total=len(requests),
+                        successful=len(successful),
+                        failed=len(failed),
+                        duration=duration
+                    )
+
+                    logger.info(
+                        "Optimized batch evaluation completed",
+                        specialist_type=self.specialist_type,
+                        total=len(requests),
+                        successful=len(successful),
+                        failed=len(failed),
+                        success_rate=success_rate,
+                        duration_seconds=duration,
+                        batch_method='optimized'
+                    )
+
+                    return {
+                        'successful': successful,
+                        'failed': failed,
+                        'exceptions': [],
+                        'statistics': {
+                            'total': len(requests),
+                            'successful': len(successful),
+                            'failed': len(failed),
+                            'success_rate': success_rate,
+                            'duration_seconds': duration,
+                            'avg_duration_per_plan_ms': int((duration / len(requests)) * 1000) if requests else 0,
+                            'batch_method': 'optimized'
+                        }
+                    }
+
+            except Exception as e:
+                logger.warning(
+                    "Optimized batch evaluation failed, falling back to standard processing",
+                    error=str(e)
+                )
+                # Fall through to standard processing
+
+        # Standard processing (fallback or when batch inference is disabled)
         # Criar semáforo para controlar concorrência
         semaphore = asyncio.Semaphore(concurrency)
         loop = asyncio.get_event_loop()
@@ -1852,7 +1964,8 @@ class BaseSpecialist(ABC):
             successful=len(successful),
             failed=len(failed) + len(exceptions),
             success_rate=success_rate,
-            duration_seconds=duration
+            duration_seconds=duration,
+            batch_method='standard'
         )
 
         return {
@@ -1865,7 +1978,8 @@ class BaseSpecialist(ABC):
                 'failed': len(failed) + len(exceptions),
                 'success_rate': success_rate,
                 'duration_seconds': duration,
-                'avg_duration_per_plan_ms': int((duration / len(requests)) * 1000) if requests else 0
+                'avg_duration_per_plan_ms': int((duration / len(requests)) * 1000) if requests else 0,
+                'batch_method': 'standard'
             }
         }
 

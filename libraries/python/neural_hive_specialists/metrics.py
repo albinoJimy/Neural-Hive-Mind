@@ -351,6 +351,15 @@ class SpecialistMetrics:
             ['specialist_type']
         )
 
+        # Step-level Profiling Metrics
+        # Captures duration of individual evaluation steps (feature_extraction, inference, post_processing, etc.)
+        self.step_duration_seconds = Histogram(
+            'neural_hive_specialist_step_duration_seconds',
+            'Duração de etapas individuais de avaliação em segundos',
+            ['specialist_type', 'step'],
+            buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0]
+        )
+
         # Compliance Metrics - PII Detection
         self.compliance_pii_entities_detected_total = Counter(
             'neural_hive_compliance_pii_entities_detected_total',
@@ -1427,6 +1436,36 @@ class SpecialistMetrics:
             failed=failed,
             status=status,
             duration_seconds=duration
+        )
+
+    def observe_step_duration(self, step_name: str, duration_seconds: float):
+        """
+        Registra duração de uma etapa individual de avaliação.
+
+        Usado para profiling detalhado de etapas como:
+        - feature_extraction
+        - inference
+        - post_processing
+        - workflow_analysis
+        - kpi_analysis
+        - cost_analysis
+        - risk_calculation
+        - reasoning_generation
+
+        Args:
+            step_name: Nome da etapa (e.g., 'feature_extraction', 'inference')
+            duration_seconds: Duração da etapa em segundos
+        """
+        self.step_duration_seconds.labels(
+            specialist_type=self.specialist_type,
+            step=step_name
+        ).observe(duration_seconds)
+
+        logger.debug(
+            "Step duration recorded",
+            specialist_type=self.specialist_type,
+            step=step_name,
+            duration_ms=round(duration_seconds * 1000, 2)
         )
 
     def observe_warmup_duration(self, duration: float, status: str):

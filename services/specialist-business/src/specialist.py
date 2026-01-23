@@ -53,14 +53,20 @@ class BusinessSpecialist(BaseSpecialist):
         try:
             yield
         finally:
-            duration_ms = (time.time() - start_time) * 1000
+            duration_seconds = time.time() - start_time
+            duration_ms = duration_seconds * 1000
 
-            # Registrar métrica Prometheus se disponível
-            if self.metrics and hasattr(self.metrics, 'evaluation_duration_seconds'):
+            # Registrar métrica Prometheus com label de step para profiling detalhado
+            if self.metrics:
                 try:
-                    self.metrics.evaluation_duration_seconds.labels(
-                        specialist_type=self.specialist_type
-                    ).observe(duration_ms / 1000)
+                    # Usar nova métrica step_duration_seconds com label step
+                    if hasattr(self.metrics, 'observe_step_duration'):
+                        self.metrics.observe_step_duration(step_name, duration_seconds)
+                    # Fallback para métrica antiga se a nova não existir
+                    elif hasattr(self.metrics, 'evaluation_duration_seconds'):
+                        self.metrics.evaluation_duration_seconds.labels(
+                            specialist_type=self.specialist_type
+                        ).observe(duration_seconds)
                 except Exception:
                     pass  # Não falhar por métricas
 

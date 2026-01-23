@@ -48,6 +48,15 @@ Construir lista de env vars para o deployment
 {{- $envVars = append $envVars (dict "name" "FEEDBACK_ALLOWED_ROLES" "value" (default "admin,specialist_reviewer,human_expert" (join "," .Values.config.feedback.allowedRoles))) }}
 {{- $envVars = append $envVars (dict "name" "FEEDBACK_MONGODB_COLLECTION" "value" (default "specialist_feedback" .Values.config.feedback.mongodbCollection)) }}
 
+{{/* Performance Optimization Configuration */}}
+{{- $envVars = append $envVars (dict "name" "FEATURE_CACHE_ENABLED" "value" (default "true" .Values.config.featureCacheEnabled | toString)) }}
+{{- $envVars = append $envVars (dict "name" "FEATURE_CACHE_TTL_SECONDS" "value" (default "3600" .Values.config.featureCacheTtlSeconds | toString)) }}
+{{- $envVars = append $envVars (dict "name" "ENABLE_BATCH_INFERENCE" "value" (default "true" .Values.config.enableBatchInference | toString)) }}
+{{- $envVars = append $envVars (dict "name" "BATCH_INFERENCE_SIZE" "value" (default "32" .Values.config.batchInferenceSize | toString)) }}
+{{- $envVars = append $envVars (dict "name" "BATCH_INFERENCE_MAX_WORKERS" "value" (default "8" .Values.config.batchInferenceMaxWorkers | toString)) }}
+{{- $envVars = append $envVars (dict "name" "ENABLE_GPU_ACCELERATION" "value" (default "false" .Values.config.enableGpuAcceleration | toString)) }}
+{{- $envVars = append $envVars (dict "name" "GPU_DEVICE" "value" (default "auto" .Values.config.gpuDevice)) }}
+
 {{/*
 Construir volumes e volumeMounts
 */}}
