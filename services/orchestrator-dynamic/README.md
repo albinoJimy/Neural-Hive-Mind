@@ -962,6 +962,93 @@ Ver `docs/ML_FEEDBACK_LOOP_ARCHITECTURE.md` para arquitetura completa.
 
 ## API Endpoints
 
+### Workflow Start (`POST /api/v1/workflows/start`)
+
+Inicia um workflow Temporal para execução de plano cognitivo (Fluxo C).
+
+Este endpoint é chamado pelo `FlowCOrchestrator` via `OrchestratorClient` para iniciar a orquestração de execução adaptativa.
+
+**Request:**
+```json
+{
+    "cognitive_plan": {
+        "plan_id": "plan-456",
+        "intent_id": "intent-789",
+        "decision_id": "decision-123",
+        "tasks": [...]
+    },
+    "correlation_id": "corr-abc-123",
+    "priority": 7,
+    "sla_deadline_seconds": 14400
+}
+```
+
+**Campos:**
+
+| Campo | Tipo | Obrigatório | Default | Descrição |
+|-------|------|-------------|---------|-----------|
+| `cognitive_plan` | object | Sim | - | Plano cognitivo a ser executado (contém plan_id, intent_id, tasks) |
+| `correlation_id` | string | Sim | - | ID de correlação para rastreabilidade end-to-end |
+| `priority` | integer | Não | 5 | Prioridade do workflow (1-10, onde 10 é mais alta) |
+| `sla_deadline_seconds` | integer | Não | 14400 | Deadline SLA em segundos (default: 4 horas) |
+
+**Response (200 OK):**
+```json
+{
+    "workflow_id": "nhm-flow-c-corr-abc-123",
+    "status": "started",
+    "correlation_id": "corr-abc-123"
+}
+```
+
+**Códigos de Status:**
+- `200`: Workflow iniciado com sucesso
+- `422`: Erro de validação (campos obrigatórios ausentes ou inválidos)
+- `503`: Temporal client não disponível (serviço em modo degradado)
+- `500`: Erro ao iniciar workflow (erro interno do Temporal)
+
+**Comportamento:**
+
+1. **Geração de workflow_id**: Formato `{prefix}flow-c-{correlation_id}` onde `prefix` é configurável via `TEMPORAL_WORKFLOW_ID_PREFIX`
+2. **Fallback de decision_id**: Se `cognitive_plan.decision_id` não existir, usa `correlation_id` como fallback
+3. **Validação de Temporal**: Retorna 503 se Temporal client não estiver disponível (fail-fast)
+4. **Logging estruturado**: Todos os eventos são logados com contexto completo (workflow_id, plan_id, correlation_id)
+
+**Exemplo curl:**
+```bash
+curl -X POST http://orchestrator-dynamic:8000/api/v1/workflows/start \
+  -H "Content-Type: application/json" \
+  -H "X-Correlation-ID: corr-abc-123" \
+  -d '{
+    "cognitive_plan": {
+      "plan_id": "plan-456",
+      "intent_id": "intent-789",
+      "tasks": []
+    },
+    "correlation_id": "corr-abc-123",
+    "priority": 7
+  }'
+```
+
+**Integração com FlowCOrchestrator:**
+
+Este endpoint é chamado automaticamente pelo `FlowCOrchestrator` (biblioteca `neural_hive_integration`) via `OrchestratorClient.start_workflow()`:
+
+```python
+from neural_hive_integration.clients import OrchestratorClient
+
+client = OrchestratorClient(base_url="http://orchestrator-dynamic:8000")
+response = await client.start_workflow(
+    cognitive_plan={...},
+    correlation_id="corr-123",
+    priority=7
+)
+```
+
+**Observabilidade:**
+
+- **Logs**: `workflow_start_attempt`, `workflow_started`, `workflow_start_failed`, `workflow_start_rejected`
+
 ### Workflow Query (`POST /api/v1/workflows/{workflow_id}/query`)
 
 Executa queries no workflow Temporal para consultar estado em tempo real.
