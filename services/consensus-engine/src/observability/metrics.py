@@ -204,6 +204,40 @@ schema_registry_latency_seconds = Histogram(
 )
 
 
+# ===========================
+# Métricas de Specialists gRPC
+# ===========================
+
+# Latência de invocação de specialists
+specialist_invocation_duration_seconds = Histogram(
+    'neural_hive_specialist_invocation_duration_seconds',
+    'Duração da invocação de specialist individual',
+    ['specialist_type', 'status'],
+    buckets=[0.1, 0.5, 1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 180.0]
+)
+
+# Total de invocações de specialists
+specialist_invocations_total = Counter(
+    'neural_hive_specialist_invocations_total',
+    'Total de invocações de specialists',
+    ['specialist_type', 'status']
+)
+
+# Timeouts de specialists
+specialist_timeouts_total = Counter(
+    'neural_hive_specialist_timeouts_total',
+    'Total de timeouts de specialists',
+    ['specialist_type']
+)
+
+# Erros gRPC de specialists
+specialist_grpc_errors_total = Counter(
+    'neural_hive_specialist_grpc_errors_total',
+    'Total de erros gRPC de specialists',
+    ['specialist_type', 'grpc_code']
+)
+
+
 # Métricas de correlation_id
 correlation_id_missing_total = Counter(
     'neural_hive_consensus_correlation_id_missing_total',
@@ -399,3 +433,36 @@ class ConsensusMetrics:
     def observe_schema_registry_latency(duration: float, operation: str):
         '''Observa latência do Schema Registry'''
         schema_registry_latency_seconds.labels(operation=operation).observe(duration)
+
+    # ===========================
+    # Métricas de Specialists gRPC
+    # ===========================
+
+    @staticmethod
+    def observe_specialist_invocation_duration(duration: float, specialist_type: str, status: str):
+        '''Observa duração de invocação de specialist'''
+        specialist_invocation_duration_seconds.labels(
+            specialist_type=specialist_type,
+            status=status
+        ).observe(duration)
+
+    @staticmethod
+    def increment_specialist_invocation(specialist_type: str, status: str):
+        '''Incrementa contador de invocações de specialist'''
+        specialist_invocations_total.labels(
+            specialist_type=specialist_type,
+            status=status
+        ).inc()
+
+    @staticmethod
+    def increment_specialist_timeout(specialist_type: str):
+        '''Incrementa contador de timeouts de specialist'''
+        specialist_timeouts_total.labels(specialist_type=specialist_type).inc()
+
+    @staticmethod
+    def increment_specialist_grpc_error(specialist_type: str, grpc_code: str):
+        '''Incrementa contador de erros gRPC de specialist'''
+        specialist_grpc_errors_total.labels(
+            specialist_type=specialist_type,
+            grpc_code=grpc_code
+        ).inc()

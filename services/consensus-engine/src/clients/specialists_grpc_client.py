@@ -2,11 +2,14 @@ import grpc
 import asyncio
 import json
 from datetime import datetime
+from time import time
 from typing import List, Dict, Any, Optional, Tuple
 from tenacity import AsyncRetrying, stop_after_attempt, wait_exponential, RetryError
 import structlog
 from google.protobuf.timestamp_pb2 import Timestamp
 from neural_hive_observability import instrument_grpc_channel
+
+from ..observability.metrics import ConsensusMetrics
 
 # Importar SPIFFE/mTLS se disponível
 try:
@@ -163,6 +166,17 @@ class SpecialistsGrpcClient:
     ) -> Dict[str, Any]:
         '''Invocar especialista individual para avaliar plano com retry'''
 
+        # Obter timeout específico para o specialist (fallback para timeout global)
+        timeout_ms = self.config.get_specialist_timeout_ms(specialist_type)
+        start_time = time()
+
+        logger.debug(
+            'invoking_specialist',
+            specialist_type=specialist_type,
+            plan_id=cognitive_plan['plan_id'],
+            timeout_ms=timeout_ms
+        )
+
         # Usar AsyncRetrying para suportar código async
         async for attempt in AsyncRetrying(
             stop=stop_after_attempt(3),
@@ -190,17 +204,17 @@ class SpecialistsGrpcClient:
                     cognitive_plan=plan_bytes,
                     plan_version=cognitive_plan.get('version', '1.0.0'),
                     context={},
-                    timeout_ms=self.config.grpc_timeout_ms
+                    timeout_ms=timeout_ms
                 )
 
                 # Obter metadata com JWT-SVID
                 grpc_metadata = await self._get_grpc_metadata(specialist_type)
 
-                # Invocar com timeout
+                # Invocar com timeout específico do specialist
                 try:
                     response = await asyncio.wait_for(
                         stub.EvaluatePlan(request, metadata=grpc_metadata),
-                        timeout=self.config.grpc_timeout_ms / 1000.0
+                        timeout=timeout_ms / 1000.0
                     )
 
                     # Converter response para dict
@@ -312,6 +326,18 @@ class SpecialistsGrpcClient:
                         )
                         raise
 
+                    # Registrar métricas de sucesso
+                    duration = time() - start_time
+                    ConsensusMetrics.observe_specialist_invocation_duration(
+                        duration=duration,
+                        specialist_type=specialist_type,
+                        status='success'
+                    )
+                    ConsensusMetrics.increment_specialist_invocation(
+                        specialist_type=specialist_type,
+                        status='success'
+                    )
+
                     return {
                         'opinion_id': response.opinion_id,
                         'specialist_type': response.specialist_type,
@@ -322,23 +348,63 @@ class SpecialistsGrpcClient:
                     }
 
                 except asyncio.TimeoutError:
+                    duration = time() - start_time
+                    ConsensusMetrics.observe_specialist_invocation_duration(
+                        duration=duration,
+                        specialist_type=specialist_type,
+                        status='timeout'
+                    )
+                    ConsensusMetrics.increment_specialist_invocation(
+                        specialist_type=specialist_type,
+                        status='timeout'
+                    )
+                    ConsensusMetrics.increment_specialist_timeout(specialist_type)
+
                     logger.error(
                         'Timeout ao invocar especialista',
                         specialist_type=specialist_type,
                         plan_id=cognitive_plan['plan_id'],
-                        timeout_ms=self.config.grpc_timeout_ms
+                        timeout_ms=timeout_ms,
+                        duration_seconds=duration
                     )
                     raise
                 except grpc.RpcError as e:
+                    duration = time() - start_time
+                    ConsensusMetrics.observe_specialist_invocation_duration(
+                        duration=duration,
+                        specialist_type=specialist_type,
+                        status='grpc_error'
+                    )
+                    ConsensusMetrics.increment_specialist_invocation(
+                        specialist_type=specialist_type,
+                        status='grpc_error'
+                    )
+                    ConsensusMetrics.increment_specialist_grpc_error(
+                        specialist_type=specialist_type,
+                        grpc_code=e.code().name
+                    )
+
                     logger.error(
                         'Erro gRPC ao invocar especialista',
                         specialist_type=specialist_type,
                         plan_id=cognitive_plan['plan_id'],
                         error=str(e),
-                        code=e.code()
+                        code=e.code(),
+                        duration_seconds=duration
                     )
                     raise
                 except Exception as e:
+                    duration = time() - start_time
+                    ConsensusMetrics.observe_specialist_invocation_duration(
+                        duration=duration,
+                        specialist_type=specialist_type,
+                        status='error'
+                    )
+                    ConsensusMetrics.increment_specialist_invocation(
+                        specialist_type=specialist_type,
+                        status='error'
+                    )
+
                     import traceback
                     logger.error(
                         'Exceção não tratada ao invocar especialista',
@@ -346,6 +412,7 @@ class SpecialistsGrpcClient:
                         plan_id=cognitive_plan['plan_id'],
                         error=str(e),
                         error_type=type(e).__name__,
+                        duration_seconds=duration,
                         traceback=traceback.format_exc()
                     )
                     raise

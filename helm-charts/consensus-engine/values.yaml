@@ -68,9 +68,20 @@ config:
     behaviorEndpoint: "specialist-behavior.neural-hive.svc.cluster.local:50051"
     evolutionEndpoint: "specialist-evolution.neural-hive.svc.cluster.local:50051"
     architectureEndpoint: "specialist-architecture.neural-hive.svc.cluster.local:50051"
-    # Timeout increased to 120000ms (120 seconds) to accommodate specialist processing time of 49-66 seconds for ML inference
+    # Timeout global (fallback para specialists sem timeout específico)
+    # Aumentado para 120000ms (120 segundos) para acomodar tempo de processamento de 49-66 segundos para ML inference
     grpcTimeoutMs: 120000
     grpcMaxRetries: 3
+    # Timeouts específicos por specialist (opcional, fallback para grpcTimeoutMs)
+    # Configurar apenas para specialists que requerem timeout diferente do padrão
+    specialistTimeouts:
+      # Business Specialist requer timeout maior devido a processamento ML pesado (49-66s observado)
+      business: 120000  # 2 minutos
+      # Outros specialists usam timeout padrão (grpcTimeoutMs) se não especificado
+      # technical: 30000
+      # behavior: 30000
+      # evolution: 30000
+      # architecture: 30000
 
   queenAgent:
     grpcHost: "queen-agent.queen-agent.svc.cluster.local"

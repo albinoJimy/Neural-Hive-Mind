@@ -67,6 +67,39 @@ class Settings(BaseSettings):
     )
     grpc_max_retries: int = Field(default=3, description='Máximo de retries gRPC', ge=0)
 
+    # Timeouts específicos por specialist (opcional, fallback para grpc_timeout_ms)
+    specialist_business_timeout_ms: Optional[int] = Field(
+        default=None,
+        description='Timeout específico para Business Specialist em milliseconds. '
+                    'Se não configurado, usa grpc_timeout_ms. '
+                    'Recomendado: 120000ms (2 minutos) devido a processamento ML pesado (49-66s observado).',
+        gt=0
+    )
+    specialist_technical_timeout_ms: Optional[int] = Field(
+        default=None,
+        description='Timeout específico para Technical Specialist em milliseconds. '
+                    'Se não configurado, usa grpc_timeout_ms.',
+        gt=0
+    )
+    specialist_behavior_timeout_ms: Optional[int] = Field(
+        default=None,
+        description='Timeout específico para Behavior Specialist em milliseconds. '
+                    'Se não configurado, usa grpc_timeout_ms.',
+        gt=0
+    )
+    specialist_evolution_timeout_ms: Optional[int] = Field(
+        default=None,
+        description='Timeout específico para Evolution Specialist em milliseconds. '
+                    'Se não configurado, usa grpc_timeout_ms.',
+        gt=0
+    )
+    specialist_architecture_timeout_ms: Optional[int] = Field(
+        default=None,
+        description='Timeout específico para Architecture Specialist em milliseconds. '
+                    'Se não configurado, usa grpc_timeout_ms.',
+        gt=0
+    )
+
     # gRPC Client (Queen Agent)
     queen_agent_grpc_host: str = Field(
         default='queen-agent.queen-agent.svc.cluster.local',
@@ -258,6 +291,21 @@ class Settings(BaseSettings):
         description='[NÃO IMPLEMENTADO] Máximo de retries antes de enviar mensagem para DLQ.',
         ge=0
     )
+
+    def get_specialist_timeout_ms(self, specialist_type: str) -> int:
+        """
+        Retorna timeout específico para o specialist type.
+        Fallback para grpc_timeout_ms se não configurado.
+
+        Args:
+            specialist_type: Tipo do specialist (business, technical, behavior, evolution, architecture)
+
+        Returns:
+            Timeout em milliseconds
+        """
+        timeout_field = f'specialist_{specialist_type}_timeout_ms'
+        specific_timeout = getattr(self, timeout_field, None)
+        return specific_timeout if specific_timeout is not None else self.grpc_timeout_ms
 
     @field_validator('grpc_timeout_ms', 'grpc_max_retries', 'pheromone_ttl', 'prometheus_port')
     @classmethod

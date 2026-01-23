@@ -190,3 +190,96 @@ groups:
       summary: "Processo de evaporação de feromônios travado"
       description: "Última evaporação há {{ $value | humanizeDuration }} (>15min)"
       runbook_url: "https://docs.neural-hive.local/runbooks/pheromone-evaporation-stalled"
+
+- name: neural-hive.consensus-specialists
+  rules:
+  - alert: SpecialistHighLatency
+    expr: |
+      (
+        rate(neural_hive_specialist_invocation_duration_seconds_sum{status="success"}[5m])
+        /
+        rate(neural_hive_specialist_invocation_duration_seconds_count{status="success"}[5m])
+      ) > 60
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: consensus-engine
+      neural_hive_layer: cognitiva
+    annotations:
+      summary: "Specialist {{ $labels.specialist_type }} com alta latência"
+      description: "Latência média de {{ $labels.specialist_type }}: {{ $value | humanizeDuration }} (>60s)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/specialist-high-latency"
+      dashboard_url: "https://grafana.neural-hive.local/d/consensus-specialists"
+
+  - alert: SpecialistCriticalLatency
+    expr: |
+      (
+        rate(neural_hive_specialist_invocation_duration_seconds_sum{status="success"}[5m])
+        /
+        rate(neural_hive_specialist_invocation_duration_seconds_count{status="success"}[5m])
+      ) > 90
+    for: 3m
+    labels:
+      severity: critical
+      neural_hive_component: consensus-engine
+      neural_hive_layer: cognitiva
+    annotations:
+      summary: "Specialist {{ $labels.specialist_type }} com latência crítica"
+      description: "Latência média de {{ $labels.specialist_type }}: {{ $value | humanizeDuration }} (>90s) - próximo ao timeout"
+      runbook_url: "https://docs.neural-hive.local/runbooks/specialist-critical-latency"
+      dashboard_url: "https://grafana.neural-hive.local/d/consensus-specialists"
+
+  - alert: SpecialistTimeoutRateHigh
+    expr: |
+      (
+        rate(neural_hive_specialist_timeouts_total[5m])
+        /
+        rate(neural_hive_specialist_invocations_total[5m])
+      ) > 0.05
+    for: 5m
+    labels:
+      severity: critical
+      neural_hive_component: consensus-engine
+      neural_hive_layer: cognitiva
+    annotations:
+      summary: "Specialist {{ $labels.specialist_type }} com alta taxa de timeouts"
+      description: "Taxa de timeout de {{ $labels.specialist_type }}: {{ $value | humanizePercentage }} (>5%)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/specialist-timeout-rate-high"
+      dashboard_url: "https://grafana.neural-hive.local/d/consensus-specialists"
+
+  - alert: SpecialistGrpcErrorRateHigh
+    expr: |
+      (
+        rate(neural_hive_specialist_grpc_errors_total[5m])
+        /
+        rate(neural_hive_specialist_invocations_total[5m])
+      ) > 0.1
+    for: 5m
+    labels:
+      severity: warning
+      neural_hive_component: consensus-engine
+      neural_hive_layer: cognitiva
+    annotations:
+      summary: "Specialist {{ $labels.specialist_type }} com alta taxa de erros gRPC"
+      description: "Taxa de erro gRPC de {{ $labels.specialist_type }}: {{ $value | humanizePercentage }} (>10%)"
+      runbook_url: "https://docs.neural-hive.local/runbooks/specialist-grpc-error-rate-high"
+      dashboard_url: "https://grafana.neural-hive.local/d/consensus-specialists"
+
+  - alert: BusinessSpecialistSlowInference
+    expr: |
+      (
+        rate(neural_hive_specialist_invocation_duration_seconds_sum{specialist_type="business",status="success"}[5m])
+        /
+        rate(neural_hive_specialist_invocation_duration_seconds_count{specialist_type="business",status="success"}[5m])
+      ) > 70
+    for: 10m
+    labels:
+      severity: warning
+      neural_hive_component: specialist-business
+      neural_hive_layer: cognitiva
+    annotations:
+      summary: "Business Specialist com inferência ML lenta"
+      description: "Latência média do Business Specialist: {{ $value | humanizeDuration }} (>70s) - considerar otimização do modelo"
+      runbook_url: "https://docs.neural-hive.local/runbooks/business-specialist-slow-inference"
+      dashboard_url: "https://grafana.neural-hive.local/d/specialist-business"
+      action_required: "Criar issue para otimização do modelo Business Specialist (GPU, cache de features, model distillation)"

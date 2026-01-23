@@ -30,6 +30,24 @@ data:
   # processing time of 49-66 seconds for ML inference.
   GRPC_TIMEOUT_MS: {{ .Values.config.specialists.grpcTimeoutMs | quote }}
   GRPC_MAX_RETRIES: {{ .Values.config.specialists.grpcMaxRetries | quote }}
+  # Timeouts específicos por specialist (opcional, fallback para GRPC_TIMEOUT_MS)
+  {{- if .Values.config.specialists.specialistTimeouts }}
+  {{- if .Values.config.specialists.specialistTimeouts.business }}
+  SPECIALIST_BUSINESS_TIMEOUT_MS: {{ .Values.config.specialists.specialistTimeouts.business | quote }}
+  {{- end }}
+  {{- if .Values.config.specialists.specialistTimeouts.technical }}
+  SPECIALIST_TECHNICAL_TIMEOUT_MS: {{ .Values.config.specialists.specialistTimeouts.technical | quote }}
+  {{- end }}
+  {{- if .Values.config.specialists.specialistTimeouts.behavior }}
+  SPECIALIST_BEHAVIOR_TIMEOUT_MS: {{ .Values.config.specialists.specialistTimeouts.behavior | quote }}
+  {{- end }}
+  {{- if .Values.config.specialists.specialistTimeouts.evolution }}
+  SPECIALIST_EVOLUTION_TIMEOUT_MS: {{ .Values.config.specialists.specialistTimeouts.evolution | quote }}
+  {{- end }}
+  {{- if .Values.config.specialists.specialistTimeouts.architecture }}
+  SPECIALIST_ARCHITECTURE_TIMEOUT_MS: {{ .Values.config.specialists.specialistTimeouts.architecture | quote }}
+  {{- end }}
+  {{- end }}
 
   # Queen Agent gRPC Configuration
   {{- if .Values.config.queenAgent }}

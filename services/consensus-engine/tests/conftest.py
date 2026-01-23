@@ -29,6 +29,49 @@ def mock_consensus_config():
     config.specialist_architecture_endpoint = "specialist-architecture.neural-hive.svc.cluster.local:50051"
     config.grpc_timeout_ms = 5000
     config.grpc_max_retries = 3
+    # Timeouts específicos por specialist (None = usa grpc_timeout_ms)
+    config.specialist_business_timeout_ms = None
+    config.specialist_technical_timeout_ms = None
+    config.specialist_behavior_timeout_ms = None
+    config.specialist_evolution_timeout_ms = None
+    config.specialist_architecture_timeout_ms = None
+
+    def get_specialist_timeout_ms(specialist_type: str) -> int:
+        """Retorna timeout específico ou fallback para global."""
+        timeout_field = f'specialist_{specialist_type}_timeout_ms'
+        specific_timeout = getattr(config, timeout_field, None)
+        return specific_timeout if specific_timeout is not None else config.grpc_timeout_ms
+
+    config.get_specialist_timeout_ms = get_specialist_timeout_ms
+    return config
+
+
+@pytest.fixture
+def mock_consensus_config_with_specific_timeouts():
+    """Configuração mock com timeouts específicos por specialist."""
+    config = MagicMock()
+    config.specialist_business_endpoint = "specialist-business.neural-hive.svc.cluster.local:50051"
+    config.specialist_technical_endpoint = "specialist-technical.neural-hive.svc.cluster.local:50051"
+    config.specialist_behavior_endpoint = "specialist-behavior.neural-hive.svc.cluster.local:50051"
+    config.specialist_evolution_endpoint = "specialist-evolution.neural-hive.svc.cluster.local:50051"
+    config.specialist_architecture_endpoint = "specialist-architecture.neural-hive.svc.cluster.local:50051"
+    config.grpc_timeout_ms = 30000  # 30s padrão
+    config.grpc_max_retries = 3
+    # Business Specialist com timeout específico de 120s (ML pesado)
+    config.specialist_business_timeout_ms = 120000
+    # Outros usam fallback
+    config.specialist_technical_timeout_ms = None
+    config.specialist_behavior_timeout_ms = None
+    config.specialist_evolution_timeout_ms = None
+    config.specialist_architecture_timeout_ms = None
+
+    def get_specialist_timeout_ms(specialist_type: str) -> int:
+        """Retorna timeout específico ou fallback para global."""
+        timeout_field = f'specialist_{specialist_type}_timeout_ms'
+        specific_timeout = getattr(config, timeout_field, None)
+        return specific_timeout if specific_timeout is not None else config.grpc_timeout_ms
+
+    config.get_specialist_timeout_ms = get_specialist_timeout_ms
     return config
 
 
@@ -331,6 +374,20 @@ def mock_config_with_resilience():
     config.consumer_enable_dlq = False
     config.kafka_dlq_topic = 'plans.ready.dlq'
     config.consumer_max_retries_before_dlq = 2
+    # Timeouts específicos por specialist
+    config.specialist_business_timeout_ms = None
+    config.specialist_technical_timeout_ms = None
+    config.specialist_behavior_timeout_ms = None
+    config.specialist_evolution_timeout_ms = None
+    config.specialist_architecture_timeout_ms = None
+
+    def get_specialist_timeout_ms(specialist_type: str) -> int:
+        """Retorna timeout específico ou fallback para global."""
+        timeout_field = f'specialist_{specialist_type}_timeout_ms'
+        specific_timeout = getattr(config, timeout_field, None)
+        return specific_timeout if specific_timeout is not None else config.grpc_timeout_ms
+
+    config.get_specialist_timeout_ms = get_specialist_timeout_ms
     return config
 
 
