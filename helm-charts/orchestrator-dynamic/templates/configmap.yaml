@@ -104,3 +104,14 @@ data:
   OPA_AUTO_SCALING_ENABLED: {{ .Values.config.opa.featureFlags.autoScalingEnabled | quote }}
   OPA_SCHEDULER_NAMESPACES: {{ .Values.config.opa.featureFlags.schedulerNamespaces | toJson | quote }}
   OPA_PREMIUM_TENANTS: {{ .Values.config.opa.featureFlags.premiumTenants | toJson | quote }}
+
+  # SPIFFE/SPIRE Configuration
+  {{- if .Values.config.spiffe.enabled }}
+  SPIFFE_ENABLED: {{ .Values.config.spiffe.enabled | quote }}
+  SPIFFE_SOCKET_PATH: {{ .Values.config.spiffe.socketPath | quote }}
+  SPIFFE_TRUST_DOMAIN: {{ .Values.config.spiffe.trustDomain | quote }}
+  SPIFFE_JWT_AUDIENCE: {{ .Values.config.spiffe.jwtAudience | quote }}
+  SPIFFE_ENABLE_X509: {{ .Values.config.spiffe.enableX509 | quote }}
+  SPIFFE_FALLBACK_ALLOWED: {{ .Values.config.spiffe.fallbackAllowed | quote }}
+  SERVICE_REGISTRY_JWT_AUDIENCE: {{ .Values.config.spiffe.serviceRegistryJwtAudience | quote }}
+  {{- end }}

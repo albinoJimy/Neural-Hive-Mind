@@ -143,6 +143,11 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
 
+        {{/* Extra/sidecar containers (e.g., SPIRE Agent) */}}
+        {{- with $values.extraContainers }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+
       {{- with $values.volumes }}
       volumes:
         {{- toYaml . | nindent 8 }}

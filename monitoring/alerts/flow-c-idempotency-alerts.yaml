@@ -1,0 +1,89 @@
+groups:
+  - name: flow_c_idempotency
+    interval: 30s
+    rules:
+      - alert: FlowCHighDuplicateRate
+        expr: |
+          rate(orchestrator_decision_duplicates_detected_total[5m]) > 10
+          or
+          rate(worker_agent_ticket_duplicates_detected_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: flow-c
+          category: idempotency
+        annotations:
+          summary: "Alta taxa de duplicatas detectadas no Fluxo C"
+          description: "Componente {{ $labels.component }} detectou {{ $value | humanize }} duplicatas/s nos últimos 5 minutos. Pode indicar problema de redelivery no Kafka."
+          runbook_url: "https://docs.neural-hive.local/runbooks/flow-c-duplicates"
+          dashboard_url: "https://grafana.neural-hive.local/d/flow-c-idempotency"
+
+      - alert: FlowCVeryHighDuplicateRate
+        expr: |
+          rate(orchestrator_decision_duplicates_detected_total[5m]) > 50
+          or
+          rate(worker_agent_ticket_duplicates_detected_total[5m]) > 50
+        for: 2m
+        labels:
+          severity: critical
+          component: flow-c
+          category: idempotency
+        annotations:
+          summary: "Taxa muito alta de duplicatas detectadas no Fluxo C"
+          description: "Componente {{ $labels.component }} detectou {{ $value | humanize }} duplicatas/s nos últimos 5 minutos. Investigar urgentemente - possível loop de redelivery no Kafka."
+          runbook_url: "https://docs.neural-hive.local/runbooks/flow-c-duplicates-critical"
+          dashboard_url: "https://grafana.neural-hive.local/d/flow-c-idempotency"
+
+      - alert: FlowCIdempotencyCacheUnavailable
+        expr: |
+          (
+            rate(orchestrator_decision_duplicates_detected_total[5m]) == 0
+            and
+            rate(orchestration_workflows_started_total[5m]) > 0
+          )
+          or
+          (
+            rate(worker_agent_ticket_duplicates_detected_total[5m]) == 0
+            and
+            rate(worker_agent_tasks_completed_total[5m]) > 0
+          )
+        for: 10m
+        labels:
+          severity: warning
+          component: flow-c
+          category: idempotency
+        annotations:
+          summary: "Cache de idempotência pode estar indisponível"
+          description: "Nenhuma duplicata detectada apesar de processamento ativo. Redis pode estar indisponível - sistema operando sem deduplicação (fail-open)."
+          runbook_url: "https://docs.neural-hive.local/runbooks/redis-troubleshooting"
+          dashboard_url: "https://grafana.neural-hive.local/d/redis-overview"
+
+      - alert: FlowCDuplicateRatioHigh
+        expr: |
+          (
+            sum(rate(orchestrator_decision_duplicates_detected_total[1h]))
+            /
+            sum(rate(orchestration_kafka_messages_consumed_total[1h]))
+          ) > 0.1
+        for: 15m
+        labels:
+          severity: warning
+          component: flow-c
+          category: idempotency
+        annotations:
+          summary: "Razão de duplicatas acima de 10%"
+          description: "Mais de 10% das mensagens processadas são duplicatas. Verificar configuração de retry do Kafka e health dos consumers."
+          runbook_url: "https://docs.neural-hive.local/runbooks/kafka-consumer-health"
+
+      - alert: FlowCRedisCircuitBreakerOpen
+        expr: |
+          redis_circuit_breaker_state{service=~"orchestrator-dynamic|worker-agents"} == 2
+        for: 2m
+        labels:
+          severity: warning
+          component: flow-c
+          category: idempotency
+        annotations:
+          summary: "Circuit breaker Redis aberto"
+          description: "O circuit breaker do Redis está aberto em {{ $labels.service }}. A deduplicação está desabilitada temporariamente."
+          runbook_url: "https://docs.neural-hive.local/runbooks/redis-circuit-breaker"

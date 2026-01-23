@@ -24,9 +24,36 @@
 {{- $volumeMounts = append $volumeMounts (dict "name" "spire-agent-socket" "mountPath" "/run/spire/sockets" "readOnly" true) }}
 {{- end }}
 
+{{/* Construir extraContainers para SPIRE Agent sidecar (se habilitado) */}}
+{{- $extraContainers := list }}
+{{- if .Values.config.spiffe.enabled }}
+{{- $spireAgent := dict
+    "name" "spire-agent"
+    "image" (printf "%s:%s" (.Values.config.spiffe.agentImage | default "ghcr.io/spiffe/spire-agent") (.Values.config.spiffe.agentTag | default "1.9.0"))
+    "imagePullPolicy" "IfNotPresent"
+    "args" (list "-config" "/run/spire/config/agent.conf")
+    "env" (list
+        (dict "name" "MY_NODE_NAME" "valueFrom" (dict "fieldRef" (dict "fieldPath" "spec.nodeName")))
+    )
+    "volumeMounts" (list
+        (dict "name" "spire-agent-socket" "mountPath" "/run/spire/sockets")
+        (dict "name" "spire-agent-config" "mountPath" "/run/spire/config" "readOnly" true)
+    )
+    "resources" (dict
+        "requests" (dict "cpu" "50m" "memory" "64Mi")
+        "limits" (dict "cpu" "200m" "memory" "128Mi")
+    )
+    "securityContext" (dict "runAsNonRoot" true "allowPrivilegeEscalation" false)
+}}
+{{- $extraContainers = append $extraContainers $spireAgent }}
+{{/* Add SPIRE Agent config volume */}}
+{{- $volumes = append $volumes (dict "name" "spire-agent-config" "configMap" (dict "name" (printf "%s-spire-agent-config" (include "worker-agents.fullname" .)))) }}
+{{- end }}
+
 {{- $modifiedValues := deepCopy .Values }}
 {{- $_ := set $modifiedValues "volumeMounts" $volumeMounts }}
 {{- $_ := set $modifiedValues "volumes" $volumes }}
+{{- $_ := set $modifiedValues "extraContainers" $extraContainers }}
 
 {{- $podAnnotations := dict }}
 {{- if .Values.config.vault.enabled }}

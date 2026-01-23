@@ -71,6 +71,9 @@ class SPIFFEAuthInterceptor(aio.ServerInterceptor):
             "Register": [
                 f"spiffe://{settings.SPIFFE_TRUST_DOMAIN}/ns/neural-hive-execution/sa/worker-agents"
             ],
+            "Deregister": [
+                f"spiffe://{settings.SPIFFE_TRUST_DOMAIN}/ns/neural-hive-execution/sa/worker-agents"
+            ],
             "Heartbeat": [
                 f"spiffe://{settings.SPIFFE_TRUST_DOMAIN}/ns/neural-hive-execution/sa/worker-agents"
             ],
@@ -79,7 +82,21 @@ class SPIFFEAuthInterceptor(aio.ServerInterceptor):
                 f"spiffe://{settings.SPIFFE_TRUST_DOMAIN}/ns/neural-hive-execution/sa/worker-agents"
             ],
             "Health": ["*"],  # Allow all for health checks
+            "Check": ["*"],   # gRPC health check method
+            "Watch": ["*"],   # gRPC health watch method
         }
+
+        # Methods to skip authentication entirely (health checks, reflection, etc.)
+        self.unauthenticated_methods = {
+            "Health",
+            "Check",
+            "Watch",
+        }
+        # Method prefixes to skip authentication (e.g., grpc.health.v1.Health/)
+        self.unauthenticated_prefixes = [
+            "/grpc.health.v1.Health/",
+            "/grpc.reflection.v1alpha.ServerReflection/",
+        ]
 
     async def intercept_service(
         self,
@@ -89,11 +106,21 @@ class SPIFFEAuthInterceptor(aio.ServerInterceptor):
         """
         Intercept gRPC service calls para autenticação
         """
-        method = handler_call_details.method.split("/")[-1]
+        full_method = handler_call_details.method
+        method = full_method.split("/")[-1]
 
-        # Skip auth for health checks
-        if method == "Health" or not self.settings.SPIFFE_VERIFY_PEER:
+        # Skip auth if SPIFFE_VERIFY_PEER is disabled
+        if not self.settings.SPIFFE_VERIFY_PEER:
             return await continuation(handler_call_details)
+
+        # Skip auth for health checks and reflection by method name
+        if method in self.unauthenticated_methods:
+            return await continuation(handler_call_details)
+
+        # Skip auth for health/reflection by full method path prefix
+        for prefix in self.unauthenticated_prefixes:
+            if full_method.startswith(prefix):
+                return await continuation(handler_call_details)
 
         # Extract authorization header
         metadata = dict(handler_call_details.invocation_metadata)
@@ -231,12 +258,29 @@ class SPIFFEAuthInterceptor(aio.ServerInterceptor):
                 return spiffe_id
 
             else:
-                # Fallback: Decode without verification (not secure - for testing only)
+                # Fallback: In production/staging, fail-closed when JWT verification is not available
+                environment = getattr(self.settings, 'ENVIRONMENT', 'development').lower()
+
+                if environment in ('production', 'staging'):
+                    self.logger.error(
+                        "jwt_validation_unavailable_production",
+                        jwt_lib=JWT_LIB_AVAILABLE,
+                        spiffe_manager=self.spiffe_manager is not None,
+                        method=method,
+                        environment=environment,
+                        msg="Fail-closed: JWT library not available in production/staging"
+                    )
+                    # Fail-closed: reject the request
+                    return None
+
+                # Development/test fallback: Decode without verification (not secure - for testing only)
                 self.logger.warning(
-                    "jwt_validation_unavailable",
+                    "jwt_validation_unavailable_dev_fallback",
                     jwt_lib=JWT_LIB_AVAILABLE,
                     spiffe_manager=self.spiffe_manager is not None,
-                    method=method
+                    method=method,
+                    environment=environment,
+                    msg="INSECURE: Using unverified JWT parsing in non-production environment"
                 )
 
                 # Decode without verification to get claims

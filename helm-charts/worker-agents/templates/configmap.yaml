@@ -139,3 +139,14 @@ data:
   DEFAULT_RUNTIME: {{ .Values.config.runtimes.defaultRuntime | quote }}
   RUNTIME_FALLBACK_CHAIN: '{{ .Values.config.runtimes.fallbackChain | toJson }}'
   {{- end }}
+
+  # SPIFFE/SPIRE Configuration
+  {{- if .Values.config.spiffe.enabled }}
+  SPIFFE_ENABLED: {{ .Values.config.spiffe.enabled | quote }}
+  SPIFFE_SOCKET_PATH: {{ .Values.config.spiffe.socketPath | quote }}
+  SPIFFE_TRUST_DOMAIN: {{ .Values.config.spiffe.trustDomain | quote }}
+  SPIFFE_JWT_AUDIENCE: {{ .Values.config.spiffe.jwtAudience | quote }}
+  SPIFFE_JWT_TTL_SECONDS: {{ .Values.config.spiffe.jwtTtlSeconds | quote }}
+  SPIFFE_ENABLE_X509: {{ .Values.config.spiffe.enableX509 | quote }}
+  SPIFFE_FALLBACK_ALLOWED: {{ .Values.config.spiffe.fallbackAllowed | quote }}
+  {{- end }}

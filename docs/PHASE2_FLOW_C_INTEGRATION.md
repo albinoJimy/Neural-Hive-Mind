@@ -115,6 +115,73 @@ POST /api/v1/webhooks/pipeline-completed
 - Incremento no buffer, decremento no flush
 - TTL: 1 hora
 
+### 5. Idempotência End-to-End
+
+**Estratégia:**
+- Deduplicação baseada em Redis com TTL apropriado
+- Fail-open: erros no Redis não bloqueiam processamento
+- Métricas para observabilidade de duplicatas
+
+**Componentes:**
+
+1. **Decision Consumer (Orchestrator Dynamic)**
+   - Key pattern: `decision:processed:{decision_id}`
+   - TTL: 24 horas
+   - Previne múltiplos workflows para mesma decisão
+   - Localização: `services/orchestrator-dynamic/src/consumers/decision_consumer.py`
+
+2. **Execution Engine (Worker Agents)**
+   - Key pattern: `ticket:processed:{ticket_id}`
+   - TTL: 7 dias (alinhado com retention Kafka)
+   - Previne execução duplicada de tarefas
+   - Localização: `services/worker-agents/src/engine/execution_engine.py`
+
+3. **Redis Client**
+   - Circuit breaker para resiliência
+   - Fail-open em caso de erro
+   - Métricas de estado do circuit breaker
+
+**Métricas Prometheus:**
+```promql
+# Duplicatas detectadas por componente
+rate(orchestrator_decision_duplicates_detected_total[5m])
+rate(worker_agent_ticket_duplicates_detected_total[5m])
+
+# Idempotency cache hits
+rate(orchestrator_idempotency_cache_hits_total[5m])
+rate(worker_agent_idempotency_cache_hits_total[5m])
+
+# Razão de duplicatas sobre total processado
+sum(rate(orchestrator_decision_duplicates_detected_total[1h]))
+/
+sum(rate(orchestration_kafka_messages_consumed_total[1h]))
+```
+
+**Alertas:**
+- `FlowCHighDuplicateRate`: Taxa de duplicatas > 10/s por 5min (warning)
+- `FlowCVeryHighDuplicateRate`: Taxa de duplicatas > 50/s por 2min (critical)
+- `FlowCIdempotencyCacheUnavailable`: Nenhuma duplicata detectada apesar de atividade (warning)
+- `FlowCDuplicateRatioHigh`: Razão de duplicatas > 10% (warning)
+- `FlowCRedisCircuitBreakerOpen`: Circuit breaker Redis aberto (warning)
+
+**Testes:**
+- `tests/integration/test_decision_consumer_idempotency.py`
+- `tests/integration/test_execution_engine_idempotency.py`
+
+**Comandos de Validação:**
+```bash
+# Verificar métricas de duplicatas
+curl http://orchestrator-dynamic:8000/metrics | grep duplicates_detected_total
+curl http://worker-agent:8000/metrics | grep duplicates_detected_total
+
+# Verificar chaves Redis
+kubectl exec -it redis-0 -- redis-cli KEYS "decision:processed:*"
+kubectl exec -it redis-0 -- redis-cli KEYS "ticket:processed:*"
+
+# Verificar TTL das chaves
+kubectl exec -it redis-0 -- redis-cli TTL "decision:processed:decision-123"
+```
+
 ## Contratos de Dados
 
 ### Ticket Payload
