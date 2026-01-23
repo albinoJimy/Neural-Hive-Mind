@@ -25,6 +25,9 @@ from .semantic_pipeline import SemanticPipeline
 from .feature_store import FeatureStore
 from .opinion_cache import OpinionCache
 from .compliance import ComplianceLayer
+from .feature_cache import FeatureCache
+from .gpu_inference import GPUInferenceWrapper
+from .batch_evaluator import BatchEvaluator
 from pydantic import ValidationError
 from .schemas import (
     CognitivePlanSchema,
@@ -183,6 +186,29 @@ class BaseSpecialist(ABC):
             except Exception as e:
                 logger.warning("Opinion cache unavailable - continuing without cache", error=str(e))
                 self.opinion_cache = None
+
+        # Inicializar feature cache para otimização de performance
+        self.feature_cache = None
+        if getattr(config, 'feature_cache_enabled', True) and config.enable_caching:
+            try:
+                self.feature_cache = FeatureCache(
+                    redis_cluster_nodes=config.redis_cluster_nodes,
+                    redis_password=config.redis_password,
+                    redis_ssl_enabled=config.redis_ssl_enabled,
+                    cache_ttl_seconds=getattr(config, 'feature_cache_ttl_seconds', 3600),
+                    specialist_type=self.specialist_type
+                )
+                if self.feature_cache.is_connected():
+                    logger.info(
+                        "Feature cache initialized",
+                        ttl_seconds=getattr(config, 'feature_cache_ttl_seconds', 3600)
+                    )
+                else:
+                    self.feature_cache = None
+                    logger.warning("Feature cache failed to connect - continuing without")
+            except Exception as e:
+                logger.warning("Feature cache unavailable - continuing without", error=str(e))
+                self.feature_cache = None
 
         # Inicializar feature extractor ANTES de explainability
         self.feature_extractor = FeatureExtractor(config={
@@ -348,6 +374,45 @@ class BaseSpecialist(ABC):
                 )
                 self.online_learning_client = None
 
+        # Aplicar GPU wrapper ao modelo se habilitado
+        if self.model and getattr(config, 'enable_gpu_acceleration', False):
+            try:
+                self.model = GPUInferenceWrapper(
+                    self.model,
+                    device=getattr(config, 'gpu_device', 'auto')
+                )
+                logger.info(
+                    "GPU acceleration enabled for model",
+                    device=self.model.device,
+                    use_gpu=self.model.use_gpu
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to enable GPU acceleration - using CPU",
+                    error=str(e)
+                )
+
+        # Inicializar batch evaluator para processamento otimizado
+        self.batch_evaluator = None
+        if getattr(config, 'enable_batch_inference', True):
+            try:
+                self.batch_evaluator = BatchEvaluator(
+                    specialist=self,
+                    batch_size=getattr(config, 'batch_inference_size', 32),
+                    max_workers=getattr(config, 'batch_inference_max_workers', 8)
+                )
+                logger.info(
+                    "Batch evaluator initialized",
+                    batch_size=getattr(config, 'batch_inference_size', 32),
+                    max_workers=getattr(config, 'batch_inference_max_workers', 8)
+                )
+            except Exception as e:
+                logger.warning(
+                    "Batch evaluator unavailable - continuing without",
+                    error=str(e)
+                )
+                self.batch_evaluator = None
+
         logger.info(
             "Specialist initialized successfully",
             specialist_type=self.specialist_type,
@@ -356,6 +421,8 @@ class BaseSpecialist(ABC):
             semantic_pipeline_ready=True,
             drift_monitoring_enabled=self.drift_detector is not None,
             online_learning_enabled=self.online_learning_client is not None,
+            feature_cache_enabled=self.feature_cache is not None,
+            batch_evaluator_enabled=self.batch_evaluator is not None,
             service_registry_enabled=SERVICE_REGISTRY_ENABLED
         )
 
@@ -438,16 +505,53 @@ class BaseSpecialist(ABC):
         try:
             # Extrair features sob span dedicado
             plan_id = cognitive_plan.get('plan_id')
+            plan_hash = self._hash_plan(cognitive_plan)
+
+            # Verificar feature cache primeiro
+            cached_features = None
+            cache_hit = False
+            if self.feature_cache:
+                cached_features = self.feature_cache.get(plan_hash)
+                if cached_features:
+                    cache_hit = True
+                    logger.debug(
+                        "Feature cache hit",
+                        plan_id=plan_id,
+                        plan_hash=plan_hash[:16] + "..."
+                    )
+
             if self.tracer:
                 with self.tracer.start_as_current_span("specialist.extract_features") as span:
                     try:
                         start_time = time.time()
-                        features = self.feature_extractor.extract_features(
-                            cognitive_plan,
-                            include_embeddings=include_embeddings
-                        )
+
+                        if cache_hit and cached_features:
+                            # Usar features do cache
+                            features = cached_features
+                            feature_extraction_time = 0.001  # Cache hit ~1ms
+                            span.set_attribute("cache.hit", True)
+
+                            # Gerar embeddings se necessário (não cacheados)
+                            if include_embeddings and 'embedding_features' not in features:
+                                embedding_start = time.time()
+                                features['embedding_features'] = self.feature_extractor._extract_embedding_features(
+                                    cognitive_plan.get('tasks', [])
+                                )
+                                feature_extraction_time = time.time() - embedding_start
+                        else:
+                            # Extrair features completas
+                            features = self.feature_extractor.extract_features(
+                                cognitive_plan,
+                                include_embeddings=include_embeddings
+                            )
+                            feature_extraction_time = time.time() - start_time
+                            span.set_attribute("cache.hit", False)
+
+                            # Cachear features extraídas
+                            if self.feature_cache:
+                                self.feature_cache.set(plan_hash, features)
+
                         feature_vector = features['aggregated_features']
-                        feature_extraction_time = time.time() - start_time
 
                         # Definir atributos do span
                         if plan_id:
@@ -458,7 +562,8 @@ class BaseSpecialist(ABC):
                         logger.debug(
                             "Features extracted",
                             num_features=len(feature_vector),
-                            extraction_time_ms=int(feature_extraction_time * 1000)
+                            extraction_time_ms=int(feature_extraction_time * 1000),
+                            cache_hit=cache_hit
                         )
 
                         # Salvar features no feature store
@@ -490,17 +595,38 @@ class BaseSpecialist(ABC):
                         raise
             else:
                 start_time = time.time()
-                features = self.feature_extractor.extract_features(
-                    cognitive_plan,
-                    include_embeddings=include_embeddings
-                )
+
+                if cache_hit and cached_features:
+                    # Usar features do cache
+                    features = cached_features
+                    feature_extraction_time = 0.001  # Cache hit ~1ms
+
+                    # Gerar embeddings se necessário (não cacheados)
+                    if include_embeddings and 'embedding_features' not in features:
+                        embedding_start = time.time()
+                        features['embedding_features'] = self.feature_extractor._extract_embedding_features(
+                            cognitive_plan.get('tasks', [])
+                        )
+                        feature_extraction_time = time.time() - embedding_start
+                else:
+                    # Extrair features completas
+                    features = self.feature_extractor.extract_features(
+                        cognitive_plan,
+                        include_embeddings=include_embeddings
+                    )
+                    feature_extraction_time = time.time() - start_time
+
+                    # Cachear features extraídas
+                    if self.feature_cache:
+                        self.feature_cache.set(plan_hash, features)
+
                 feature_vector = features['aggregated_features']
-                feature_extraction_time = time.time() - start_time
 
                 logger.debug(
                     "Features extracted",
                     num_features=len(feature_vector),
-                    extraction_time_ms=int(feature_extraction_time * 1000)
+                    extraction_time_ms=int(feature_extraction_time * 1000),
+                    cache_hit=cache_hit
                 )
 
                 # Salvar features no feature store
@@ -1742,6 +1868,84 @@ class BaseSpecialist(ABC):
                 'avg_duration_per_plan_ms': int((duration / len(requests)) * 1000) if requests else 0
             }
         }
+
+    async def evaluate_plans_batch_optimized(
+        self,
+        cognitive_plans: list,
+        context: Optional[Dict[str, Any]] = None
+    ) -> list:
+        """
+        Avalia múltiplos planos em batch otimizado.
+
+        Usa BatchEvaluator para feature extraction paralela e inferência em batch,
+        reduzindo significativamente a latência para múltiplos planos.
+
+        Args:
+            cognitive_plans: Lista de planos cognitivos (dicionários)
+            context: Contexto compartilhado opcional
+
+        Returns:
+            Lista de resultados de avaliação
+        """
+        if not cognitive_plans:
+            return []
+
+        logger.info(
+            "Starting optimized batch evaluation",
+            specialist_type=self.specialist_type,
+            num_plans=len(cognitive_plans)
+        )
+
+        # Usar BatchEvaluator se disponível
+        if self.batch_evaluator:
+            try:
+                return await self.batch_evaluator.evaluate_batch(cognitive_plans, context)
+            except Exception as e:
+                logger.warning(
+                    "BatchEvaluator failed, falling back to sequential processing",
+                    error=str(e)
+                )
+                # Fallback para processamento sequencial
+                return await self._evaluate_plans_sequentially(cognitive_plans, context)
+        else:
+            # Sem batch evaluator, usar processamento sequencial
+            return await self._evaluate_plans_sequentially(cognitive_plans, context)
+
+    async def _evaluate_plans_sequentially(
+        self,
+        cognitive_plans: list,
+        context: Optional[Dict[str, Any]] = None
+    ) -> list:
+        """
+        Avalia planos sequencialmente (fallback).
+
+        Args:
+            cognitive_plans: Lista de planos cognitivos
+            context: Contexto compartilhado
+
+        Returns:
+            Lista de resultados de avaliação
+        """
+        results = []
+        for plan in cognitive_plans:
+            try:
+                result = self._evaluate_plan_internal(plan, context or {})
+                results.append(result)
+            except Exception as e:
+                logger.error(
+                    "Sequential evaluation failed for plan",
+                    plan_id=plan.get('plan_id'),
+                    error=str(e)
+                )
+                results.append({
+                    'confidence_score': 0.5,
+                    'risk_score': 0.5,
+                    'recommendation': 'review_required',
+                    'reasoning_summary': f'Avaliação falhou: {str(e)}',
+                    'reasoning_factors': [],
+                    'metadata': {'error': str(e)}
+                })
+        return results
 
     def warmup(self) -> Dict[str, Any]:
         """

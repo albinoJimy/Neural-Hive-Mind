@@ -161,6 +161,26 @@ config:
     kpiThresholdHigh: 0.8
     kpiThresholdLow: 0.5
 
+  # =========================================================================
+  # Performance Optimization Configuration
+  # =========================================================================
+  # Feature Cache: Cache Redis de features extraídas
+  # Ganho esperado: 30-40% redução de latência para planos repetidos
+  featureCacheEnabled: true
+  featureCacheTtlSeconds: 3600  # 1 hora
+
+  # Batch Inference: Processamento otimizado em batch
+  # Ganho esperado: 50-70% redução de latência para múltiplos planos
+  enableBatchInference: true
+  batchInferenceSize: 32
+  batchInferenceMaxWorkers: 8
+
+  # GPU Acceleration: Requer CUDA e nodes com GPU
+  # Ganho esperado: 60-80% redução de latência de embeddings
+  # NOTA: Habilitar apenas se cluster tiver nodes com GPU
+  enableGpuAcceleration: false
+  gpuDevice: "auto"  # 'auto', 'cuda', ou 'cpu'
+
 serviceMonitor:
   enabled: true
   interval: 30s

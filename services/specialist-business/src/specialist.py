@@ -6,10 +6,18 @@ Analisa planos cognitivos sob perspectiva de negócios:
 - KPIs e métricas de negócio
 - Análise de custos
 - Eficiência operacional
+
+Otimizações de Performance:
+- Profiling detalhado por etapa de avaliação
+- Feature caching via Redis (TTL: 1h)
+- Batch inference para múltiplos planos
+- GPU acceleration opcional (requer CUDA)
 """
 
 import sys
-from typing import Dict, Any, List
+import time
+from typing import Dict, Any, List, Optional
+from contextlib import contextmanager
 import structlog
 
 sys.path.insert(0, '/app/libraries/python')
@@ -21,7 +29,48 @@ logger = structlog.get_logger()
 
 
 class BusinessSpecialist(BaseSpecialist):
-    """Especialista em análise de negócios, workflows, KPIs e custos."""
+    """
+    Especialista em análise de negócios, workflows, KPIs e custos.
+
+    Otimizações de Performance:
+    - _profile_step(): Context manager para profiling de etapas
+    - Feature cache: Cache Redis de features extraídas
+    - Batch evaluator: Processamento em batch otimizado
+    """
+
+    @contextmanager
+    def _profile_step(self, step_name: str, plan_id: Optional[str] = None):
+        """
+        Context manager para profiling de etapas de avaliação.
+
+        Registra duração de cada etapa em métricas Prometheus e logs.
+
+        Args:
+            step_name: Nome da etapa (workflow_analysis, kpi_analysis, etc.)
+            plan_id: ID do plano sendo avaliado
+        """
+        start_time = time.time()
+        try:
+            yield
+        finally:
+            duration_ms = (time.time() - start_time) * 1000
+
+            # Registrar métrica Prometheus se disponível
+            if self.metrics and hasattr(self.metrics, 'evaluation_duration_seconds'):
+                try:
+                    self.metrics.evaluation_duration_seconds.labels(
+                        specialist_type=self.specialist_type
+                    ).observe(duration_ms / 1000)
+                except Exception:
+                    pass  # Não falhar por métricas
+
+            # Log debug com tempo de execução
+            logger.debug(
+                f"{step_name}_completed",
+                plan_id=plan_id,
+                duration_ms=round(duration_ms, 2),
+                step=step_name
+            )
 
     def _get_specialist_type(self) -> str:
         """Retorna tipo do especialista."""
@@ -75,6 +124,8 @@ class BusinessSpecialist(BaseSpecialist):
         """
         Avalia plano sob perspectiva de negócios.
 
+        Inclui profiling detalhado de cada etapa para identificar bottlenecks.
+
         Args:
             cognitive_plan: Plano cognitivo a ser avaliado
             context: Contexto adicional da avaliação
@@ -82,9 +133,13 @@ class BusinessSpecialist(BaseSpecialist):
         Returns:
             Dicionário com resultado da avaliação
         """
+        eval_start_time = time.time()
+        plan_id = cognitive_plan.get('plan_id')
+        step_timings = {}
+
         logger.info(
             "Evaluating plan from business perspective",
-            plan_id=cognitive_plan.get('plan_id'),
+            plan_id=plan_id,
             domain=cognitive_plan.get('original_domain')
         )
 
@@ -93,36 +148,52 @@ class BusinessSpecialist(BaseSpecialist):
         domain = cognitive_plan.get('original_domain')
         priority = cognitive_plan.get('original_priority', 'normal')
 
-        # Análise de workflows
-        workflow_score = self._analyze_workflow(tasks)
+        # Profiling: Análise de workflows
+        with self._profile_step('workflow_analysis', plan_id):
+            step_start = time.time()
+            workflow_score = self._analyze_workflow(tasks)
+            step_timings['workflow_analysis_ms'] = round((time.time() - step_start) * 1000, 2)
 
-        # Análise de KPIs
-        kpi_score = self._analyze_kpis(cognitive_plan, context)
+        # Profiling: Análise de KPIs
+        with self._profile_step('kpi_analysis', plan_id):
+            step_start = time.time()
+            kpi_score = self._analyze_kpis(cognitive_plan, context)
+            step_timings['kpi_analysis_ms'] = round((time.time() - step_start) * 1000, 2)
 
-        # Análise de custos
-        cost_score = self._analyze_costs(tasks)
+        # Profiling: Análise de custos
+        with self._profile_step('cost_analysis', plan_id):
+            step_start = time.time()
+            cost_score = self._analyze_costs(tasks)
+            step_timings['cost_analysis_ms'] = round((time.time() - step_start) * 1000, 2)
 
         # Calcular scores agregados
         confidence_score = (workflow_score + kpi_score + cost_score) / 3.0
 
-        # Calcular risco de negócio
-        risk_score = self._calculate_business_risk(
-            cognitive_plan,
-            workflow_score,
-            kpi_score,
-            cost_score
-        )
+        # Profiling: Cálculo de risco
+        with self._profile_step('risk_calculation', plan_id):
+            step_start = time.time()
+            risk_score = self._calculate_business_risk(
+                cognitive_plan,
+                workflow_score,
+                kpi_score,
+                cost_score
+            )
+            step_timings['risk_calculation_ms'] = round((time.time() - step_start) * 1000, 2)
 
         # Determinar recomendação
         recommendation = self._determine_recommendation(confidence_score, risk_score)
 
-        # Gerar justificativa
-        reasoning_summary = self._generate_reasoning(
-            workflow_score,
-            kpi_score,
-            cost_score,
-            recommendation
-        )
+        # Profiling: Geração de reasoning e mitigações
+        with self._profile_step('reasoning_generation', plan_id):
+            step_start = time.time()
+            reasoning_summary = self._generate_reasoning(
+                workflow_score,
+                kpi_score,
+                cost_score,
+                recommendation
+            )
+            mitigations = self._generate_mitigations(workflow_score, kpi_score, cost_score)
+            step_timings['reasoning_generation_ms'] = round((time.time() - step_start) * 1000, 2)
 
         # Fatores de raciocínio estruturados
         reasoning_factors = [
@@ -146,15 +217,17 @@ class BusinessSpecialist(BaseSpecialist):
             }
         ]
 
-        # Sugestões de mitigação
-        mitigations = self._generate_mitigations(workflow_score, kpi_score, cost_score)
+        # Calcular duração total da avaliação
+        total_eval_time_ms = round((time.time() - eval_start_time) * 1000, 2)
 
         logger.info(
             "Business evaluation completed",
-            plan_id=cognitive_plan.get('plan_id'),
+            plan_id=plan_id,
             confidence_score=confidence_score,
             risk_score=risk_score,
-            recommendation=recommendation
+            recommendation=recommendation,
+            total_eval_time_ms=total_eval_time_ms,
+            **step_timings
         )
 
         return {
@@ -170,7 +243,9 @@ class BusinessSpecialist(BaseSpecialist):
                 'cost_score': cost_score,
                 'domain': domain,
                 'priority': priority,
-                'num_tasks': len(tasks)
+                'num_tasks': len(tasks),
+                'evaluation_time_ms': total_eval_time_ms,
+                'step_timings': step_timings
             }
         }
 

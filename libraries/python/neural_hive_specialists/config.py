@@ -279,6 +279,50 @@ class SpecialistConfig(BaseSettings):
         description="Feature flag para escrever no ledger antigo (explainability_ledger)"
     )
 
+    # =========================================================================
+    # Performance Optimization Configuration
+    # =========================================================================
+    # Feature Cache Configuration
+    feature_cache_enabled: bool = Field(
+        default=True,
+        env="FEATURE_CACHE_ENABLED",
+        description="Feature flag para habilitar cache de features extraídas"
+    )
+    feature_cache_ttl_seconds: int = Field(
+        default=3600,
+        env="FEATURE_CACHE_TTL_SECONDS",
+        description="TTL do cache de features (1 hora default)"
+    )
+
+    # GPU Acceleration Configuration
+    enable_gpu_acceleration: bool = Field(
+        default=False,
+        env="ENABLE_GPU_ACCELERATION",
+        description="Habilitar aceleração GPU para inferência (requer CUDA)"
+    )
+    gpu_device: str = Field(
+        default='auto',
+        env="GPU_DEVICE",
+        description="Dispositivo GPU: 'auto', 'cuda', ou 'cpu'"
+    )
+
+    # Batch Inference Configuration
+    enable_batch_inference: bool = Field(
+        default=True,
+        env="ENABLE_BATCH_INFERENCE",
+        description="Habilitar inferência em batch otimizada"
+    )
+    batch_inference_size: int = Field(
+        default=32,
+        env="BATCH_INFERENCE_SIZE",
+        description="Tamanho do batch para inferência"
+    )
+    batch_inference_max_workers: int = Field(
+        default=8,
+        env="BATCH_INFERENCE_MAX_WORKERS",
+        description="Número máximo de workers para feature extraction paralela"
+    )
+
     # Feature Store
     ontology_path: Optional[str] = Field(
         default=None,
