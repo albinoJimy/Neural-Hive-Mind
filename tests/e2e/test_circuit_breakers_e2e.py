@@ -308,11 +308,15 @@ async def test_mongodb_circuit_breaker_opens_on_failures(
     """
     import uuid
 
-    # Pegar estado inicial
-    initial_state = await circuit_breaker_validator.get_circuit_breaker_state(
-        "execution_ticket_persistence"
-    )
+    circuit_name = "execution_ticket_persistence"
+
+    # Pegar estado inicial - deve estar closed
+    initial_state = await circuit_breaker_validator.get_circuit_breaker_state(circuit_name)
     logger.info(f"Initial circuit breaker state: {initial_state}")
+
+    # Pegar contador inicial de falhas
+    initial_failures = await circuit_breaker_validator.get_circuit_breaker_failures(circuit_name)
+    logger.info(f"Initial failure count: {initial_failures}")
 
     # Matar port-forward para simular MongoDB indisponivel
     _kill_port_forward(mongodb_port_forward)
@@ -320,8 +324,10 @@ async def test_mongodb_circuit_breaker_opens_on_failures(
 
     # Tentar operacoes que usam MongoDB
     failures = 0
+    request_times = []
     for i in range(CIRCUIT_BREAKER_FAILURE_THRESHOLD + 2):
         try:
+            start_time = time.time()
             # Criar ticket que deve falhar ao persistir audit
             ticket_id = f"cb-test-{uuid.uuid4().hex[:8]}"
             response = await orchestrator_client.post(
@@ -332,6 +338,8 @@ async def test_mongodb_circuit_breaker_opens_on_failures(
                     "task_type": "code_generation",
                 }
             )
+            elapsed = time.time() - start_time
+            request_times.append(elapsed)
             if response.status_code >= 500:
                 failures += 1
             await asyncio.sleep(0.5)
@@ -341,22 +349,64 @@ async def test_mongodb_circuit_breaker_opens_on_failures(
 
     logger.info(f"Observed {failures} failures")
 
-    # Verificar estado do circuit breaker
-    await asyncio.sleep(2)  # Aguardar metricas atualizarem
-    state = await circuit_breaker_validator.get_circuit_breaker_state(
-        "execution_ticket_persistence"
+    # Aguardar metricas atualizarem
+    await asyncio.sleep(2)
+
+    # Verificar estado do circuit breaker - DEVE estar open apos threshold
+    state = await circuit_breaker_validator.get_circuit_breaker_state(circuit_name)
+    logger.info(f"Circuit breaker state after failures: {state}")
+
+    # Asserção: circuit breaker deve estar open apos atingir threshold
+    assert state == "open", (
+        f"Circuit breaker should be 'open' after {CIRCUIT_BREAKER_FAILURE_THRESHOLD} failures, "
+        f"but got state: {state}"
     )
 
-    if state:
-        logger.info(f"Circuit breaker state after failures: {state}")
-        # Circuit breaker deve estar open ou sistema deve ter fail-open
-        assert state in ["open", "closed"], f"Unexpected state: {state}"
-
-    # Verificar metrica de falhas
-    total_failures = await circuit_breaker_validator.get_circuit_breaker_failures(
-        "execution_ticket_persistence"
-    )
+    # Verificar metrica de falhas - deve ter incrementado
+    total_failures = await circuit_breaker_validator.get_circuit_breaker_failures(circuit_name)
     logger.info(f"Total circuit breaker failures: {total_failures}")
+
+    # Asserção: contador de falhas deve ter atingido ou excedido o threshold
+    assert total_failures >= initial_failures + CIRCUIT_BREAKER_FAILURE_THRESHOLD, (
+        f"Failure counter should have increased by at least {CIRCUIT_BREAKER_FAILURE_THRESHOLD}, "
+        f"but only went from {initial_failures} to {total_failures}"
+    )
+
+    # Testar fail-fast: proximas requisicoes devem falhar imediatamente
+    logger.info("Testing fail-fast behavior with circuit open...")
+    fail_fast_times = []
+    for i in range(3):
+        start_time = time.time()
+        try:
+            ticket_id = f"cb-failfast-{uuid.uuid4().hex[:8]}"
+            response = await orchestrator_client.post(
+                "/api/v1/flow-c/tickets",
+                json={
+                    "ticket_id": ticket_id,
+                    "plan_id": f"plan-failfast-{uuid.uuid4().hex[:8]}",
+                    "task_type": "code_generation",
+                }
+            )
+            elapsed = time.time() - start_time
+            fail_fast_times.append(elapsed)
+
+            # Com circuit open, requests devem falhar rapidamente (fail-fast)
+            # ou retornar erro 503 Service Unavailable
+            assert response.status_code in [503, 500, 429], (
+                f"With circuit breaker open, expected 503/500/429, got {response.status_code}"
+            )
+        except Exception as e:
+            elapsed = time.time() - start_time
+            fail_fast_times.append(elapsed)
+            logger.debug(f"Fail-fast request failed as expected: {e}")
+
+    # Asserção: fail-fast deve ser rapido (< 1 segundo por request)
+    if fail_fast_times:
+        avg_fail_fast_time = sum(fail_fast_times) / len(fail_fast_times)
+        logger.info(f"Average fail-fast time: {avg_fail_fast_time:.3f}s")
+        assert avg_fail_fast_time < 1.0, (
+            f"Fail-fast should be quick (<1s), but averaged {avg_fail_fast_time:.3f}s"
+        )
 
 
 @pytest.mark.e2e
@@ -376,48 +426,82 @@ async def test_mongodb_circuit_breaker_half_open_recovery(
     4. Proxima tentativa bem sucedida
     5. Circuit breaker state = "closed"
     """
+    import uuid
+
+    circuit_name = "execution_ticket_persistence"
+
     # Este teste assume que circuit breaker ja esta open
     # (pode ser rodado apos test_mongodb_circuit_breaker_opens_on_failures)
-
-    initial_state = await circuit_breaker_validator.get_circuit_breaker_state(
-        "execution_ticket_persistence"
-    )
+    initial_state = await circuit_breaker_validator.get_circuit_breaker_state(circuit_name)
     logger.info(f"Initial state for recovery test: {initial_state}")
 
     if initial_state != "open":
         pytest.skip("Circuit breaker not in open state, skipping recovery test")
+
+    # Pegar transicoes iniciais para verificar depois
+    initial_transitions_to_half_open = await circuit_breaker_validator.get_circuit_breaker_transitions(
+        circuit_name, "open", "half_open"
+    )
 
     # Aguardar recovery timeout
     logger.info(f"Waiting {CIRCUIT_BREAKER_RECOVERY_TIMEOUT}s for recovery timeout...")
     await asyncio.sleep(CIRCUIT_BREAKER_RECOVERY_TIMEOUT + 5)
 
     # Verificar se transicionou para half_open
-    state = await circuit_breaker_validator.get_circuit_breaker_state(
-        "execution_ticket_persistence"
-    )
+    state = await circuit_breaker_validator.get_circuit_breaker_state(circuit_name)
     logger.info(f"State after recovery timeout: {state}")
 
-    # Fazer uma requisicao bem sucedida
-    import uuid
-    try:
-        response = await orchestrator_client.post(
-            "/api/v1/flow-c/tickets",
-            json={
-                "ticket_id": f"cb-recovery-{uuid.uuid4().hex[:8]}",
-                "plan_id": f"plan-recovery-{uuid.uuid4().hex[:8]}",
-                "task_type": "code_generation",
-            }
-        )
-        logger.info(f"Recovery request status: {response.status_code}")
-    except Exception as e:
-        logger.warning(f"Recovery request failed: {e}")
-
-    # Verificar estado final
-    await asyncio.sleep(2)
-    final_state = await circuit_breaker_validator.get_circuit_breaker_state(
-        "execution_ticket_persistence"
+    # Asserção: circuit breaker deve estar em half_open apos recovery timeout
+    assert state == "half_open", (
+        f"Circuit breaker should transition to 'half_open' after {CIRCUIT_BREAKER_RECOVERY_TIMEOUT}s, "
+        f"but got state: {state}"
     )
+
+    # Verificar que transicao open->half_open ocorreu
+    transitions_to_half_open = await circuit_breaker_validator.get_circuit_breaker_transitions(
+        circuit_name, "open", "half_open"
+    )
+    assert transitions_to_half_open > initial_transitions_to_half_open, (
+        f"Expected open->half_open transition to be recorded, "
+        f"but transitions count unchanged: {transitions_to_half_open}"
+    )
+
+    # Fazer uma requisicao bem sucedida (MongoDB deve estar disponivel agora)
+    response = await orchestrator_client.post(
+        "/api/v1/flow-c/tickets",
+        json={
+            "ticket_id": f"cb-recovery-{uuid.uuid4().hex[:8]}",
+            "plan_id": f"plan-recovery-{uuid.uuid4().hex[:8]}",
+            "task_type": "code_generation",
+        }
+    )
+    logger.info(f"Recovery request status: {response.status_code}")
+
+    # Asserção: requisicao deve ter sucesso para fechar o circuit
+    assert response.status_code in [200, 201], (
+        f"Recovery request should succeed to close circuit, but got {response.status_code}"
+    )
+
+    # Aguardar metricas atualizarem
+    await asyncio.sleep(2)
+
+    # Verificar estado final - deve estar closed apos sucesso
+    final_state = await circuit_breaker_validator.get_circuit_breaker_state(circuit_name)
     logger.info(f"Final circuit breaker state: {final_state}")
+
+    # Asserção: circuit breaker deve voltar para closed apos sucesso
+    assert final_state == "closed", (
+        f"Circuit breaker should return to 'closed' after successful request, "
+        f"but got state: {final_state}"
+    )
+
+    # Verificar que transicao half_open->closed ocorreu
+    transitions_to_closed = await circuit_breaker_validator.get_circuit_breaker_transitions(
+        circuit_name, "half_open", "closed"
+    )
+    assert transitions_to_closed > 0, (
+        f"Expected half_open->closed transition to be recorded, but count is {transitions_to_closed}"
+    )
 
 
 # ============================================
@@ -606,6 +690,7 @@ async def test_cache_serves_during_circuit_breaker_open(
     4. Fazer discovery novamente
     5. Resposta vem do cache (nao falha)
     6. Metrica cache_hits_total incrementou
+    7. Dados em cache correspondem aos dados originais
     """
     import uuid
 
@@ -615,6 +700,7 @@ async def test_cache_serves_during_circuit_breaker_open(
         "service_registry_cache_hits_total",
     )
     initial_cache_hits = int(initial_cache_hits) if initial_cache_hits else 0
+    logger.info(f"Initial cache hits: {initial_cache_hits}")
 
     # Fazer discovery para popular cache
     response = await orchestrator_client.get(
@@ -626,10 +712,17 @@ async def test_cache_serves_during_circuit_breaker_open(
         logger.info(f"Initial discovery failed: {response.status_code}")
         pytest.skip("Discovery endpoint not available")
 
-    logger.info("Cache populated with initial discovery")
+    # Guardar dados originais para comparacao
+    original_data = response.json()
+    original_agents = original_data if isinstance(original_data, list) else original_data.get("agents", [])
+    logger.info(f"Cache populated with {len(original_agents)} agents")
 
-    # Matar port-forward
+    # Matar port-forward para simular Service Registry indisponivel
     _kill_port_forward(service_registry_port_forward)
+    logger.info("Service Registry port-forward killed")
+
+    # Aguardar um pouco para garantir que conexao foi perdida
+    await asyncio.sleep(1)
 
     # Fazer discovery novamente (deve usar cache)
     response = await orchestrator_client.get(
@@ -639,20 +732,46 @@ async def test_cache_serves_during_circuit_breaker_open(
 
     logger.info(f"Discovery after Service Registry down: {response.status_code}")
 
-    # Se retornou dados, cache funcionou
-    if response.status_code == 200:
-        data = response.json()
-        logger.info(f"Cache served data: {len(data) if isinstance(data, list) else data}")
+    # Asserção: request deve ter sucesso usando cache
+    assert response.status_code == 200, (
+        f"Discovery should succeed from cache when Service Registry is down, "
+        f"but got status {response.status_code}"
+    )
+
+    # Verificar dados retornados do cache
+    cached_data = response.json()
+    cached_agents = cached_data if isinstance(cached_data, list) else cached_data.get("agents", [])
+
+    # Asserção: dados do cache devem conter os agents esperados
+    assert len(cached_agents) > 0, "Cache should return agent data, but got empty list"
+
+    # Verificar que os dados correspondem aos originais
+    if original_agents:
+        # Verificar que pelo menos os mesmos agent_ids estao presentes
+        original_ids = {a.get("agent_id") or a.get("id") for a in original_agents if isinstance(a, dict)}
+        cached_ids = {a.get("agent_id") or a.get("id") for a in cached_agents if isinstance(a, dict)}
+        if original_ids and cached_ids:
+            assert original_ids == cached_ids, (
+                f"Cached agents should match original agents. "
+                f"Original: {original_ids}, Cached: {cached_ids}"
+            )
+
+    # Aguardar metricas atualizarem
+    await asyncio.sleep(2)
 
     # Verificar metrica de cache hits
-    await asyncio.sleep(2)
     final_cache_hits = await get_metric_value(
         PROMETHEUS_ENDPOINT,
         "service_registry_cache_hits_total",
     )
     final_cache_hits = int(final_cache_hits) if final_cache_hits else 0
-
     logger.info(f"Cache hits: {initial_cache_hits} -> {final_cache_hits}")
+
+    # Asserção: cache hits deve ter incrementado em pelo menos 1
+    assert final_cache_hits > initial_cache_hits, (
+        f"Cache hits should have increased after serving from cache. "
+        f"Initial: {initial_cache_hits}, Final: {final_cache_hits}"
+    )
 
 
 # ============================================

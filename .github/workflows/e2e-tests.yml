@@ -96,10 +96,12 @@ jobs:
 
   # =============================================================================
   # E2E Tests - Requires ML Integration Gate
+  # Nota: Timeout aumentado para 180 minutos conforme suite E2E atualizada
+  # (120-170 min documentado em tests/e2e/README.md)
   # =============================================================================
   e2e-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 180
     needs: ml-integration-gate  # Requires ML tests to pass first
 
     services:

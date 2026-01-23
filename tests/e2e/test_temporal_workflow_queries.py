@@ -175,7 +175,7 @@ async def test_query_workflow_status_running(temporal_client, orchestrator_clien
     Valida:
     1. Workflow iniciado via API
     2. Query get_status retorna estado atual
-    3. Resposta contem: current_step, tickets_generated, tickets_completed
+    3. Resposta contem campos obrigatorios: current_step, tickets_generated, tickets_completed
     """
     # Iniciar workflow
     response = await orchestrator_client.post(
@@ -200,25 +200,58 @@ async def test_query_workflow_status_running(temporal_client, orchestrator_clien
         # Obter handle e fazer query
         handle = temporal_client.get_workflow_handle(workflow_id)
 
-        try:
-            status = await handle.query("get_status")
+        # Executar query get_status
+        status = await handle.query("get_status")
 
-            # Validar campos esperados
-            assert status is not None, "Query should return status"
+        # Asserção: query deve retornar dados
+        assert status is not None, "Query get_status should return status data, got None"
 
-            # Verificar campos comuns de status
-            if isinstance(status, dict):
-                # Pode ter current_step ou step ou stage
-                has_step = any(k in status for k in ["current_step", "step", "stage"])
-                logger.info(f"Workflow status: {status}")
+        # Asserção: resposta deve ser um dicionario
+        assert isinstance(status, dict), (
+            f"Query get_status should return a dict, got {type(status).__name__}"
+        )
+        logger.info(f"Workflow status: {status}")
 
-                # Validar que temos alguma informacao de progresso
-                assert status, "Status should not be empty"
+        # Asserção: deve conter campo current_step (ou variantes)
+        step_field_names = ["current_step", "step", "stage", "phase"]
+        has_step_field = any(field in status for field in step_field_names)
+        assert has_step_field, (
+            f"Status should contain one of {step_field_names}. "
+            f"Got keys: {list(status.keys())}"
+        )
 
-        except Exception as query_error:
-            # Query pode nao estar implementada ainda
-            logger.warning(f"Query get_status not available: {query_error}")
-            pytest.skip(f"Query get_status not implemented: {query_error}")
+        # Asserção: deve conter campo tickets_generated (ou variante)
+        tickets_generated_names = ["tickets_generated", "generated_tickets", "tickets_count"]
+        has_tickets_generated = any(field in status for field in tickets_generated_names)
+        assert has_tickets_generated, (
+            f"Status should contain one of {tickets_generated_names}. "
+            f"Got keys: {list(status.keys())}"
+        )
+
+        # Asserção: deve conter campo tickets_completed (ou variante)
+        tickets_completed_names = ["tickets_completed", "completed_tickets", "completed_count"]
+        has_tickets_completed = any(field in status for field in tickets_completed_names)
+        assert has_tickets_completed, (
+            f"Status should contain one of {tickets_completed_names}. "
+            f"Got keys: {list(status.keys())}"
+        )
+
+        # Validar valores sao do tipo correto
+        current_step = status.get("current_step") or status.get("step") or status.get("stage")
+        assert isinstance(current_step, (str, int)), (
+            f"current_step should be str or int, got {type(current_step).__name__}"
+        )
+
+        tickets_gen = (
+            status.get("tickets_generated") or
+            status.get("generated_tickets") or
+            status.get("tickets_count", 0)
+        )
+        assert isinstance(tickets_gen, int), (
+            f"tickets_generated should be int, got {type(tickets_gen).__name__}"
+        )
+
+        logger.info(f"Query get_status validation passed: step={current_step}, tickets_generated={tickets_gen}")
 
     finally:
         # Cleanup
@@ -309,7 +342,7 @@ async def test_query_workflow_tickets(temporal_client, orchestrator_client, samp
     1. Workflow iniciado com plan de 3 tasks
     2. Aguardar fase C2 (geracao de tickets)
     3. Query get_tickets retorna lista de tickets
-    4. Cada ticket tem: ticket_id, task_id, status
+    4. Cada ticket tem campos obrigatorios: ticket_id, task_id, status
     """
     # Iniciar workflow
     response = await orchestrator_client.post(
@@ -333,31 +366,62 @@ async def test_query_workflow_tickets(temporal_client, orchestrator_client, samp
         # Aguardar tempo para C2 gerar tickets
         await asyncio.sleep(10)
 
-        try:
-            tickets = await handle.query("get_tickets")
+        # Executar query get_tickets
+        tickets = await handle.query("get_tickets")
 
-            # Validar resposta
-            assert tickets is not None, "Query should return tickets"
+        # Asserção: query deve retornar dados
+        assert tickets is not None, "Query get_tickets should return tickets data, got None"
 
-            if isinstance(tickets, list):
-                logger.info(f"Found {len(tickets)} tickets")
+        # Normalizar resposta para lista
+        if isinstance(tickets, dict):
+            ticket_list = tickets.get("tickets", tickets.get("items", []))
+        elif isinstance(tickets, list):
+            ticket_list = tickets
+        else:
+            pytest.fail(f"Query get_tickets returned unexpected type: {type(tickets).__name__}")
 
-                # Validar estrutura de cada ticket
-                for ticket in tickets:
-                    if isinstance(ticket, dict):
-                        # Verificar campos comuns
-                        has_ticket_id = "ticket_id" in ticket or "id" in ticket
-                        has_task_id = "task_id" in ticket
-                        logger.debug(f"Ticket: {ticket}")
+        logger.info(f"Found {len(ticket_list)} tickets")
 
-            elif isinstance(tickets, dict):
-                # Pode retornar dict com lista de tickets
-                ticket_list = tickets.get("tickets", tickets.get("items", []))
-                logger.info(f"Found {len(ticket_list)} tickets in dict")
+        # Asserção: deve ter pelo menos alguns tickets (plan tem 3 tasks)
+        # Nota: pode ter menos se ainda em geracao
+        assert isinstance(ticket_list, list), (
+            f"Tickets should be a list, got {type(ticket_list).__name__}"
+        )
 
-        except Exception as query_error:
-            logger.warning(f"Query get_tickets not available: {query_error}")
-            pytest.skip(f"Query get_tickets not implemented: {query_error}")
+        # Validar estrutura de cada ticket
+        for i, ticket in enumerate(ticket_list):
+            # Asserção: cada ticket deve ser um dicionario
+            assert isinstance(ticket, dict), (
+                f"Ticket {i} should be a dict, got {type(ticket).__name__}"
+            )
+
+            # Asserção: ticket_id deve estar presente
+            ticket_id_field = ticket.get("ticket_id") or ticket.get("id")
+            assert ticket_id_field is not None, (
+                f"Ticket {i} missing 'ticket_id' or 'id'. Got keys: {list(ticket.keys())}"
+            )
+
+            # Asserção: task_id deve estar presente
+            assert "task_id" in ticket, (
+                f"Ticket {i} missing 'task_id'. Got keys: {list(ticket.keys())}"
+            )
+
+            # Asserção: status deve estar presente
+            assert "status" in ticket, (
+                f"Ticket {i} missing 'status'. Got keys: {list(ticket.keys())}"
+            )
+
+            # Validar tipos dos campos
+            assert isinstance(ticket["task_id"], str), (
+                f"Ticket {i} task_id should be str, got {type(ticket['task_id']).__name__}"
+            )
+            assert isinstance(ticket["status"], str), (
+                f"Ticket {i} status should be str, got {type(ticket['status']).__name__}"
+            )
+
+            logger.debug(f"Ticket {i}: id={ticket_id_field}, task_id={ticket['task_id']}, status={ticket['status']}")
+
+        logger.info(f"Query get_tickets validation passed: {len(ticket_list)} tickets with valid structure")
 
     finally:
         try:

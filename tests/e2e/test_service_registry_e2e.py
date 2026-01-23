@@ -14,6 +14,7 @@ Valida:
 import asyncio
 import logging
 import os
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -541,12 +542,13 @@ async def test_discover_agents_with_filters(service_registry_client):
     Valida:
     1. Agents com diferentes status (HEALTHY, DEGRADED) registrados
     2. Discovery com filter status=HEALTHY retorna apenas agents HEALTHY
-    3. Discovery com filter namespace retorna apenas agents do namespace
+    3. Discovery com filter status=HEALTHY exclui agents DEGRADED
+    4. Discovery com filter namespace retorna apenas agents do namespace
     """
     registered_agents = []
 
     try:
-        # Register healthy agent
+        # Register healthy agent in production
         healthy_agent = await service_registry_client.register(
             agent_type="worker",
             namespace="production",
@@ -554,7 +556,8 @@ async def test_discover_agents_with_filters(service_registry_client):
             capabilities=["python"],
             metadata={"status": "healthy"},
         )
-        registered_agents.append(healthy_agent)
+        registered_agents.append(("healthy", healthy_agent))
+        logger.info(f"Registered healthy agent: {healthy_agent}")
 
         # Register another healthy agent in different namespace
         staging_agent = await service_registry_client.register(
@@ -564,9 +567,48 @@ async def test_discover_agents_with_filters(service_registry_client):
             capabilities=["python"],
             metadata={"status": "healthy"},
         )
-        registered_agents.append(staging_agent)
+        registered_agents.append(("staging", staging_agent))
+        logger.info(f"Registered staging agent: {staging_agent}")
 
-        # Discover with namespace filter
+        # ===== Registrar agent DEGRADED para testar filtro de status =====
+        # Primeiro registrar como healthy, depois enviar heartbeat com status degraded
+        degraded_agent = await service_registry_client.register(
+            agent_type="worker",
+            namespace="production",
+            endpoint="localhost:50072",
+            capabilities=["python"],
+            metadata={"status": "degraded"},
+        )
+        registered_agents.append(("degraded", degraded_agent))
+        logger.info(f"Registered agent for degradation: {degraded_agent}")
+
+        # Enviar heartbeat com status DEGRADED para marcar o agent como degradado
+        # Nota: algumas implementacoes usam heartbeat, outras usam update_status
+        try:
+            await service_registry_client.heartbeat(
+                agent_id=degraded_agent,
+                success_rate=0.5,  # Taxa baixa indica problemas
+                avg_duration_ms=500,
+                total_executions=10,
+                status="DEGRADED",  # Status degradado
+            )
+            logger.info(f"Agent {degraded_agent} marked as DEGRADED via heartbeat")
+        except TypeError:
+            # Se heartbeat nao aceita status, tentar update_status
+            try:
+                await service_registry_client.update_status(
+                    agent_id=degraded_agent,
+                    status="DEGRADED",
+                )
+                logger.info(f"Agent {degraded_agent} marked as DEGRADED via update_status")
+            except AttributeError:
+                # Se nenhum metodo disponivel, usar metadados para simular
+                logger.warning("No method to set DEGRADED status, test may be limited")
+
+        # Aguardar propagacao do status
+        await asyncio.sleep(2)
+
+        # ===== Teste 1: Filtro por namespace =====
         production_agents = await service_registry_client.discover(
             capabilities=["python"],
             namespace="production",
@@ -575,29 +617,54 @@ async def test_discover_agents_with_filters(service_registry_client):
 
         assert healthy_agent in production_ids, "Healthy agent should be in production namespace"
         assert staging_agent not in production_ids, "Staging agent should not be in production namespace"
+        logger.info(f"Namespace filter test passed: {len(production_ids)} agents in production")
 
-        # Discover with status filter
+        # ===== Teste 2: Filtro por status=HEALTHY deve EXCLUIR degraded =====
         healthy_agents = await service_registry_client.discover(
             capabilities=["python"],
+            namespace="production",
             status="HEALTHY",
         )
-
         healthy_ids = [a.agent_id for a in healthy_agents]
-        assert healthy_agent in healthy_ids or staging_agent in healthy_ids, \
-            "At least one healthy agent should be found"
 
-        logger.info("Discovery with filters working correctly")
+        # Asserção: agent healthy deve estar presente
+        assert healthy_agent in healthy_ids, (
+            f"Healthy agent {healthy_agent} should be in HEALTHY filter results. "
+            f"Got: {healthy_ids}"
+        )
+
+        # Asserção: agent degraded deve ser EXCLUIDO do filtro HEALTHY
+        assert degraded_agent not in healthy_ids, (
+            f"Degraded agent {degraded_agent} should NOT be in HEALTHY filter results. "
+            f"Got: {healthy_ids}"
+        )
+
+        logger.info(f"Status filter test passed: {len(healthy_ids)} healthy agents found, degraded excluded")
+
+        # ===== Teste 3: Discovery sem filtro de status deve incluir todos =====
+        all_production_agents = await service_registry_client.discover(
+            capabilities=["python"],
+            namespace="production",
+        )
+        all_production_ids = [a.agent_id for a in all_production_agents]
+
+        # Ambos agents de production devem estar presentes
+        assert healthy_agent in all_production_ids, "Healthy agent should be in unfiltered discovery"
+        assert degraded_agent in all_production_ids, "Degraded agent should be in unfiltered discovery"
+
+        logger.info("Discovery with filters working correctly: namespace and status filters validated")
 
     finally:
-        for agent_id in registered_agents:
+        for name, agent_id in registered_agents:
             try:
                 await service_registry_client.deregister(agent_id)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to deregister {name} agent {agent_id}: {e}")
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_discover_agents_cache_hit(service_registry_client):
     """
     Testa cache de discovery.
@@ -621,40 +688,116 @@ async def test_discover_agents_cache_hit(service_registry_client):
         )
         registered_agents.append(agent_id)
 
-        # Get initial cache hit metric
+        # Get initial cache metrics
         initial_cache_hits = await get_metric_value(
             PROMETHEUS_ENDPOINT,
             "service_registry_cache_hits_total",
         )
         initial_cache_hits = int(initial_cache_hits) if initial_cache_hits else 0
 
-        # First discovery (cache miss)
+        initial_cache_misses = await get_metric_value(
+            PROMETHEUS_ENDPOINT,
+            "service_registry_cache_misses_total",
+        )
+        initial_cache_misses = int(initial_cache_misses) if initial_cache_misses else 0
+        logger.info(f"Initial cache metrics - hits: {initial_cache_hits}, misses: {initial_cache_misses}")
+
+        # Medir latencia da primeira discovery (cache miss - deve ser mais lenta)
+        import time
+        start_time = time.time()
         await service_registry_client.discover(
             capabilities=["python"],
             namespace="test-cache",
         )
+        first_discovery_latency = time.time() - start_time
+        logger.info(f"First discovery (cache miss) latency: {first_discovery_latency:.3f}s")
 
-        # Second discovery immediately (cache hit expected)
+        # Segunda discovery imediatamente (cache hit - deve ser mais rapida)
+        start_time = time.time()
         await service_registry_client.discover(
             capabilities=["python"],
             namespace="test-cache",
         )
+        second_discovery_latency = time.time() - start_time
+        logger.info(f"Second discovery (cache hit) latency: {second_discovery_latency:.3f}s")
 
-        # Give time for metrics to propagate
+        # Aguardar metricas propagarem
         await asyncio.sleep(2)
 
-        # Check cache hit metric increased
-        final_cache_hits = await get_metric_value(
+        # Verificar metrica de cache hit aumentou
+        mid_cache_hits = await get_metric_value(
             PROMETHEUS_ENDPOINT,
             "service_registry_cache_hits_total",
         )
-        final_cache_hits = int(final_cache_hits) if final_cache_hits else 0
+        mid_cache_hits = int(mid_cache_hits) if mid_cache_hits else 0
 
-        # Cache hit should have increased
-        assert final_cache_hits >= initial_cache_hits, \
-            "Cache hits should have increased after second discovery"
+        # Asserção: cache hit deve ter aumentado apos segunda discovery
+        assert mid_cache_hits > initial_cache_hits, (
+            f"Cache hits should increase after second discovery. "
+            f"Initial: {initial_cache_hits}, After: {mid_cache_hits}"
+        )
+        logger.info(f"Cache hit confirmed: hits went from {initial_cache_hits} to {mid_cache_hits}")
 
-        logger.info(f"Cache working: hits went from {initial_cache_hits} to {final_cache_hits}")
+        # ===== Teste de TTL expiry =====
+        logger.info(f"Waiting {CACHE_TTL_SECONDS}s for cache TTL to expire...")
+        await asyncio.sleep(CACHE_TTL_SECONDS + 5)
+
+        # Guardar metricas apos TTL
+        pre_ttl_hits = await get_metric_value(
+            PROMETHEUS_ENDPOINT,
+            "service_registry_cache_hits_total",
+        )
+        pre_ttl_hits = int(pre_ttl_hits) if pre_ttl_hits else 0
+
+        pre_ttl_misses = await get_metric_value(
+            PROMETHEUS_ENDPOINT,
+            "service_registry_cache_misses_total",
+        )
+        pre_ttl_misses = int(pre_ttl_misses) if pre_ttl_misses else 0
+
+        # Terceira discovery apos TTL (cache miss esperado)
+        start_time = time.time()
+        await service_registry_client.discover(
+            capabilities=["python"],
+            namespace="test-cache",
+        )
+        third_discovery_latency = time.time() - start_time
+        logger.info(f"Third discovery (after TTL) latency: {third_discovery_latency:.3f}s")
+
+        # Aguardar metricas propagarem
+        await asyncio.sleep(2)
+
+        # Verificar metricas apos TTL expiry
+        post_ttl_hits = await get_metric_value(
+            PROMETHEUS_ENDPOINT,
+            "service_registry_cache_hits_total",
+        )
+        post_ttl_hits = int(post_ttl_hits) if post_ttl_hits else 0
+
+        post_ttl_misses = await get_metric_value(
+            PROMETHEUS_ENDPOINT,
+            "service_registry_cache_misses_total",
+        )
+        post_ttl_misses = int(post_ttl_misses) if post_ttl_misses else 0
+
+        # Asserção: cache miss deve ocorrer apos TTL expirar (ou hit counter nao aumenta)
+        # Dois cenarios validos:
+        # 1. Cache miss counter aumenta
+        # 2. Cache hit counter NAO aumenta (indicando que nao foi cache hit)
+        cache_miss_occurred = (post_ttl_misses > pre_ttl_misses)
+        cache_hit_unchanged = (post_ttl_hits == pre_ttl_hits)
+
+        assert cache_miss_occurred or cache_hit_unchanged, (
+            f"After TTL expiry, should be cache miss. "
+            f"Hits: {pre_ttl_hits}->{post_ttl_hits}, Misses: {pre_ttl_misses}->{post_ttl_misses}"
+        )
+
+        # Asserção adicional: latencia apos TTL deve ser similar a primeira discovery (mais lenta)
+        # Cache hit tipicamente e mais rapido que cache miss
+        if third_discovery_latency > second_discovery_latency * 0.8:
+            logger.info(f"Latency increase after TTL confirms cache miss")
+
+        logger.info(f"Cache TTL expiry verified. Final metrics - hits: {post_ttl_hits}, misses: {post_ttl_misses}")
 
     finally:
         for agent_id in registered_agents:
