@@ -109,6 +109,7 @@ config:
 
   # Observabilidade
   openTelemetry:
+    enabled: true  # Habilitar OpenTelemetry (true em prod, false para dev local)
     endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
     samplingRate: 1.0
 

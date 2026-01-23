@@ -206,8 +206,10 @@ config:
     recoveryTimeoutSeconds: 30  # Half-open after 30s
 
   observability:
+    otelEnabled: true  # Habilitar OpenTelemetry (true em prod, false para dev local)
     otelExporterEndpoint: http://otel-collector.observability.svc.cluster.local:4317
     prometheusPort: 9090
+    tracingSamplingRate: 1.0  # 100% em dev/staging, 0.1 (10%) em prod
 
   # Vault Integration
   # Habilitado por padrão em produção para gerenciamento seguro de credenciais

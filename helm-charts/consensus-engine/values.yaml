@@ -107,6 +107,7 @@ config:
     pheromoneDecayRate: 0.1
 
   openTelemetry:
+    enabled: true  # Habilitar OpenTelemetry (true em prod, false para dev local)
     endpoint: "http://otel-collector:4317"
     samplingRate: 1.0
 

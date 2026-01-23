@@ -443,6 +443,10 @@ class OrchestratorSettings(BaseSettings):
     )
 
     # Observabilidade
+    otel_enabled: bool = Field(
+        default=True,
+        description='Habilitar OpenTelemetry tracing (True em prod, False para dev local)'
+    )
     otel_exporter_endpoint: str = Field(
         default='https://opentelemetry-collector.observability.svc.cluster.local:4317',
         description='Endpoint do OpenTelemetry Collector'

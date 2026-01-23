@@ -144,34 +144,43 @@ async def lifespan(app: FastAPI):
         spiffe_manager = vault_client.spiffe_manager if vault_client else None
         app_state.spiffe_manager = spiffe_manager
 
-        try:
-            otel_endpoint = os.getenv('OTEL_EXPORTER_ENDPOINT', getattr(config, 'otel_exporter_endpoint', None))
-            init_observability(
-                service_name=getattr(config, 'service_name', "orchestrator-dynamic"),
-                service_version=config.service_version,
-                neural_hive_component="orchestrator",
-                neural_hive_layer="orchestration",
-                environment=config.environment,
-                otel_endpoint=otel_endpoint,
-            )
-            logger.info("OpenTelemetry tracing initialized via neural_hive_observability")
-        except Exception as observability_error:
-            logger.warning(
-                "Failed to initialize OpenTelemetry tracing via neural_hive_observability",
-                error=str(observability_error)
-            )
+        # Initialize OpenTelemetry tracing (conditional based on otel_enabled)
+        otel_enabled = getattr(config, 'otel_enabled', True)
+        if otel_enabled:
+            try:
+                otel_endpoint = os.getenv('OTEL_EXPORTER_ENDPOINT', getattr(config, 'otel_exporter_endpoint', None))
+                init_observability(
+                    service_name=getattr(config, 'service_name', "orchestrator-dynamic"),
+                    service_version=config.service_version,
+                    neural_hive_component="orchestrator",
+                    neural_hive_layer="orchestration",
+                    environment=config.environment,
+                    otel_endpoint=otel_endpoint,
+                )
+                logger.info(
+                    "OpenTelemetry habilitado e inicializado",
+                    otel_endpoint=otel_endpoint,
+                    service_name=config.service_name
+                )
+            except Exception as observability_error:
+                logger.warning(
+                    "Failed to initialize OpenTelemetry tracing via neural_hive_observability",
+                    error=str(observability_error)
+                )
 
-        try:
-            trace_logger = get_logger(__name__)
-            trace_logger.info(
-                f"Orchestrator Dynamic initialized with OpenTelemetry tracing - "
-                f"version={config.service_version}, endpoint={config.otel_exporter_endpoint}"
-            )
-        except Exception as log_error:
-            logger.warning(
-                "Failed to configure structured logging with trace correlation",
-                error=str(log_error)
-            )
+            try:
+                trace_logger = get_logger(__name__)
+                trace_logger.info(
+                    f"Orchestrator Dynamic initialized with OpenTelemetry tracing - "
+                    f"version={config.service_version}, endpoint={config.otel_exporter_endpoint}"
+                )
+            except Exception as log_error:
+                logger.warning(
+                    "Failed to configure structured logging with trace correlation",
+                    error=str(log_error)
+                )
+        else:
+            logger.info("OpenTelemetry desabilitado via OTEL_ENABLED=false")
 
         # Buscar segredos/credenciais com fallback para configuração
         mongodb_uri = config.mongodb_uri

@@ -307,7 +307,113 @@ Clicar no exemplar no Grafana leva diretamente ao trace no Jaeger.
 2. **Desabilitar spans detalhados**: `ENABLE_DETAILED_SPANS=false`
 3. **Não incluir conteúdo do plano**: `SPAN_INCLUDE_PLAN_CONTENT=false` (padrão)
 
+## Fluxo C - Orquestração de Execução
+
+### Arquitetura de Tracing do Fluxo C
+
+```
+Gateway → STE → Consensus → Orchestrator Dynamic → Workers
+    │       │        │              │                  │
+    └───────┴────────┴──────────────┴──────────────────┘
+                         ↓
+           OpenTelemetry Collector
+                         ↓
+                 Jaeger / Tempo
+```
+
+### Spans do Fluxo C
+
+```
+gateway.process_intent
+└── ste.generate_plan
+    └── consensus.aggregate_opinions
+        └── orchestrator.flow_c.execute
+            ├── C1.validate_decision
+            ├── C2.generate_tickets
+            │   ├── opa.validate_policy
+            │   ├── ml.predict_duration
+            │   └── scheduler.allocate_resources
+            ├── C3.discover_workers
+            │   └── service_registry.query
+            ├── C4.assign_tickets
+            │   └── kafka.publish_tickets
+            ├── C5.monitor_execution
+            │   └── sla.check_budget
+            └── C6.publish_telemetry
+                └── kafka.publish_telemetry
+```
+
+### Atributos Customizados - Fluxo C
+
+| Atributo | Tipo | Exemplo | Descrição |
+|----------|------|---------|-----------|
+| `neural.hive.flow` | string | `flow_c` | Identificador do fluxo |
+| `neural.hive.step` | string | `C2` | Etapa do fluxo (C1-C6) |
+| `neural.hive.plan.id` | string | `plan-123` | ID do plano cognitivo |
+| `neural.hive.decision.id` | string | `dec-456` | ID da decisão consolidada |
+| `neural.hive.workflow.id` | string | `wf-789` | ID do workflow Temporal |
+| `neural.hive.tickets.count` | int | `8` | Número de tickets gerados |
+| `neural.hive.sla.deadline` | int | `14400000` | Deadline SLA (ms) |
+| `neural.hive.sla.budget_remaining` | float | `0.75` | Budget SLA restante (0-1) |
+
+### Configuração por Ambiente
+
+#### Desenvolvimento
+```yaml
+observability:
+  otelEnabled: true
+  otelEndpoint: "http://localhost:4317"
+  tracingSamplingRate: 1.0  # 100% dos traces
+```
+
+#### Staging
+```yaml
+observability:
+  otelEnabled: true
+  otelEndpoint: "http://otel-collector.observability.svc.cluster.local:4317"
+  tracingSamplingRate: 0.5  # 50% dos traces
+```
+
+#### Produção
+```yaml
+observability:
+  otelEnabled: true
+  otelEndpoint: "http://otel-collector.observability.svc.cluster.local:4317"
+  tracingSamplingRate: 0.1  # 10% dos traces (reduz overhead)
+```
+
 ## Troubleshooting
+
+### Problema: Traces do Fluxo C incompletos
+
+**Sintomas**: Apenas alguns serviços aparecem no trace, spans C1-C6 faltando
+
+**Verificações**:
+1. Verificar que `OTEL_ENABLED=true` em todos os serviços:
+   ```bash
+   kubectl get pods -n neural-hive -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].env[?(@.name=="OTEL_ENABLED")].value}{"\n"}{end}'
+   ```
+
+2. Verificar logs de inicialização:
+   ```bash
+   kubectl logs -n neural-hive gateway-intencoes-xxx | grep "OpenTelemetry"
+   kubectl logs -n neural-hive orchestrator-dynamic-xxx | grep "OpenTelemetry"
+   ```
+
+3. Verificar propagação de headers Kafka:
+   ```bash
+   # Consumir mensagem do tópico e verificar headers
+   kubectl exec -it kafka-0 -n kafka -- kafka-console-consumer \
+     --bootstrap-server localhost:9092 \
+     --topic plans.consensus \
+     --property print.headers=true \
+     --max-messages 1
+   ```
+
+**Solução**:
+- Habilitar OTEL em todos os serviços
+- Verificar que consumers extraem contexto dos headers Kafka
+- Reiniciar pods após mudanças de configuração
 
 ### Problema: Traces não aparecem no Jaeger
 
