@@ -620,6 +620,230 @@ class TestSLATimeoutConfiguration:
         assert tickets[0]['sla']['timeout_ms'] == 60000
 
 
+class TestSLATimeoutFormulaValidation:
+    """Testes abrangentes para validação da fórmula de timeout de SLA."""
+
+    @pytest.mark.asyncio
+    async def test_timeout_formula_with_very_short_duration(
+        self, mock_activity_info, consolidated_decision
+    ):
+        """Duração muito curta (1ms) deve usar timeout mínimo."""
+        mock_cfg = MagicMock()
+        mock_cfg.sla_ticket_min_timeout_ms = 60000
+        mock_cfg.sla_ticket_timeout_buffer_multiplier = 3.0
+
+        plan = {
+            'plan_id': 'plan-short',
+            'intent_id': 'intent-short',
+            'tasks': [{
+                'task_id': 'task-1',
+                'dependencies': [],
+                'estimated_duration_ms': 1  # 1ms
+            }],
+            'execution_order': ['task-1'],
+            'risk_band': 'low'
+        }
+
+        set_activity_dependencies(
+            kafka_producer=None,
+            mongodb_client=None,
+            config=mock_cfg
+        )
+
+        tickets = await generate_execution_tickets(plan, consolidated_decision)
+
+        # Fórmula: max(60000, 1 * 3.0) = max(60000, 3) = 60000
+        assert tickets[0]['sla']['timeout_ms'] == 60000
+
+    @pytest.mark.asyncio
+    async def test_timeout_formula_at_threshold(
+        self, mock_activity_info, consolidated_decision
+    ):
+        """Duração exatamente no threshold (20s) deve usar timeout mínimo."""
+        mock_cfg = MagicMock()
+        mock_cfg.sla_ticket_min_timeout_ms = 60000
+        mock_cfg.sla_ticket_timeout_buffer_multiplier = 3.0
+
+        plan = {
+            'plan_id': 'plan-threshold',
+            'intent_id': 'intent-threshold',
+            'tasks': [{
+                'task_id': 'task-1',
+                'dependencies': [],
+                'estimated_duration_ms': 20000  # 20s
+            }],
+            'execution_order': ['task-1'],
+            'risk_band': 'medium'
+        }
+
+        set_activity_dependencies(
+            kafka_producer=None,
+            mongodb_client=None,
+            config=mock_cfg
+        )
+
+        tickets = await generate_execution_tickets(plan, consolidated_decision)
+
+        # Fórmula: max(60000, 20000 * 3.0) = max(60000, 60000) = 60000
+        assert tickets[0]['sla']['timeout_ms'] == 60000
+
+    @pytest.mark.asyncio
+    async def test_timeout_formula_above_threshold(
+        self, mock_activity_info, consolidated_decision
+    ):
+        """Duração acima do threshold deve usar multiplicador."""
+        mock_cfg = MagicMock()
+        mock_cfg.sla_ticket_min_timeout_ms = 60000
+        mock_cfg.sla_ticket_timeout_buffer_multiplier = 3.0
+
+        plan = {
+            'plan_id': 'plan-above',
+            'intent_id': 'intent-above',
+            'tasks': [{
+                'task_id': 'task-1',
+                'dependencies': [],
+                'estimated_duration_ms': 50000  # 50s
+            }],
+            'execution_order': ['task-1'],
+            'risk_band': 'high'
+        }
+
+        set_activity_dependencies(
+            kafka_producer=None,
+            mongodb_client=None,
+            config=mock_cfg
+        )
+
+        tickets = await generate_execution_tickets(plan, consolidated_decision)
+
+        # Fórmula: max(60000, 50000 * 3.0) = max(60000, 150000) = 150000
+        assert tickets[0]['sla']['timeout_ms'] == 150000
+
+    @pytest.mark.asyncio
+    async def test_timeout_formula_with_large_duration(
+        self, mock_activity_info, consolidated_decision
+    ):
+        """Duração grande (10 minutos) deve usar multiplicador."""
+        mock_cfg = MagicMock()
+        mock_cfg.sla_ticket_min_timeout_ms = 60000
+        mock_cfg.sla_ticket_timeout_buffer_multiplier = 3.0
+
+        plan = {
+            'plan_id': 'plan-large',
+            'intent_id': 'intent-large',
+            'tasks': [{
+                'task_id': 'task-1',
+                'dependencies': [],
+                'estimated_duration_ms': 600000  # 10 minutos
+            }],
+            'execution_order': ['task-1'],
+            'risk_band': 'critical'
+        }
+
+        set_activity_dependencies(
+            kafka_producer=None,
+            mongodb_client=None,
+            config=mock_cfg
+        )
+
+        tickets = await generate_execution_tickets(plan, consolidated_decision)
+
+        # Fórmula: max(60000, 600000 * 3.0) = max(60000, 1800000) = 1800000 (30 min)
+        assert tickets[0]['sla']['timeout_ms'] == 1800000
+
+    @pytest.mark.asyncio
+    async def test_timeout_never_below_minimum_with_various_configs(
+        self, mock_activity_info, consolidated_decision
+    ):
+        """Validar que timeout nunca fica abaixo do mínimo com diferentes configs."""
+        test_cases = [
+            # (min_timeout, multiplier, estimated_duration, expected_timeout)
+            (60000, 3.0, 1, 60000),
+            (60000, 3.0, 100, 60000),
+            (60000, 3.0, 10000, 60000),
+            (60000, 3.0, 19999, 60000),
+            (60000, 3.0, 20000, 60000),
+            (60000, 3.0, 20001, 60003),
+            (90000, 4.0, 10000, 90000),
+            (120000, 2.0, 50000, 120000),
+        ]
+
+        for min_timeout, multiplier, estimated, expected in test_cases:
+            mock_cfg = MagicMock()
+            mock_cfg.sla_ticket_min_timeout_ms = min_timeout
+            mock_cfg.sla_ticket_timeout_buffer_multiplier = multiplier
+
+            plan = {
+                'plan_id': f'plan-{estimated}',
+                'intent_id': f'intent-{estimated}',
+                'tasks': [{
+                    'task_id': 'task-1',
+                    'dependencies': [],
+                    'estimated_duration_ms': estimated
+                }],
+                'execution_order': ['task-1'],
+                'risk_band': 'medium'
+            }
+
+            set_activity_dependencies(
+                kafka_producer=None,
+                mongodb_client=None,
+                config=mock_cfg
+            )
+
+            tickets = await generate_execution_tickets(plan, consolidated_decision)
+
+            assert tickets[0]['sla']['timeout_ms'] == expected, (
+                f"Falhou para min={min_timeout}, mult={multiplier}, est={estimated}: "
+                f"esperado {expected}, obtido {tickets[0]['sla']['timeout_ms']}"
+            )
+
+    @pytest.mark.asyncio
+    async def test_timeout_calculation_with_different_multipliers(
+        self, mock_activity_info, consolidated_decision
+    ):
+        """Validar cálculo com diferentes multiplicadores."""
+        estimated_duration = 30000  # 30s
+
+        test_cases = [
+            (1.5, 60000),  # 30s * 1.5 = 45s < 60s → 60s
+            (2.0, 60000),  # 30s * 2.0 = 60s = 60s → 60s
+            (2.5, 75000),  # 30s * 2.5 = 75s > 60s → 75s
+            (3.0, 90000),  # 30s * 3.0 = 90s > 60s → 90s
+            (4.0, 120000), # 30s * 4.0 = 120s > 60s → 120s
+        ]
+
+        for multiplier, expected_timeout in test_cases:
+            mock_cfg = MagicMock()
+            mock_cfg.sla_ticket_min_timeout_ms = 60000
+            mock_cfg.sla_ticket_timeout_buffer_multiplier = multiplier
+
+            plan = {
+                'plan_id': f'plan-mult-{multiplier}',
+                'intent_id': f'intent-mult-{multiplier}',
+                'tasks': [{
+                    'task_id': 'task-1',
+                    'dependencies': [],
+                    'estimated_duration_ms': estimated_duration
+                }],
+                'execution_order': ['task-1'],
+                'risk_band': 'medium'
+            }
+
+            set_activity_dependencies(
+                kafka_producer=None,
+                mongodb_client=None,
+                config=mock_cfg
+            )
+
+            tickets = await generate_execution_tickets(plan, consolidated_decision)
+
+            assert tickets[0]['sla']['timeout_ms'] == expected_timeout, (
+                f"Multiplicador {multiplier}: esperado {expected_timeout}ms, "
+                f"obtido {tickets[0]['sla']['timeout_ms']}ms"
+            )
+
+
 class TestMongoDBPersistenceFailOpen:
     """Testes para configuração fail-open de persistência MongoDB."""
 

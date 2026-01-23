@@ -113,6 +113,35 @@ async def generate_execution_tickets(
             timeout_ms = max(min_timeout_ms, int(estimated_duration_ms * buffer_multiplier))
             deadline = int((datetime.now().timestamp() + timeout_ms / 1000) * 1000)
 
+            # Log detalhado do cálculo de timeout para auditoria e debugging
+            activity.logger.info(
+                'sla_timeout_calculated',
+                ticket_id=ticket_id,
+                task_id=task_id,
+                estimated_duration_ms=estimated_duration_ms,
+                min_timeout_ms=min_timeout_ms,
+                buffer_multiplier=buffer_multiplier,
+                calculated_timeout_before_max=int(estimated_duration_ms * buffer_multiplier),
+                final_timeout_ms=timeout_ms,
+                timeout_seconds=timeout_ms / 1000,
+                risk_band=risk_band,
+                config_source='injected' if _config else 'defaults'
+            )
+
+            # Validação: garantir que timeout nunca seja menor que o mínimo configurado
+            if timeout_ms < min_timeout_ms:
+                activity.logger.error(
+                    'sla_timeout_below_minimum',
+                    ticket_id=ticket_id,
+                    timeout_ms=timeout_ms,
+                    min_timeout_ms=min_timeout_ms,
+                    estimated_duration_ms=estimated_duration_ms
+                )
+                raise RuntimeError(
+                    f'Timeout calculado ({timeout_ms}ms) está abaixo do mínimo configurado ({min_timeout_ms}ms). '
+                    f'Isso indica um bug na fórmula de cálculo.'
+                )
+
             # Mapear max_retries baseado em risk_band
             retry_map = {'critical': 5, 'high': 3, 'medium': 2, 'low': 1}
             max_retries = retry_map.get(risk_band, 2)

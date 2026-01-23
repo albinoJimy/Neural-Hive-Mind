@@ -1071,6 +1071,98 @@ ML_DURATION_ERROR_THRESHOLD: 0.15
 
 Ver `docs/ML_FEEDBACK_LOOP_ARCHITECTURE.md` para arquitetura completa.
 
+## Configuração de SLA Timeouts
+
+O Orchestrator Dynamic calcula timeouts de SLA para cada execution ticket usando a seguinte fórmula:
+
+```
+timeout_ms = max(min_timeout_ms, estimated_duration_ms * buffer_multiplier)
+```
+
+### Parâmetros Configuráveis
+
+| Parâmetro | Variável de Ambiente | Valor Padrão | Descrição |
+|-----------|---------------------|--------------|-----------|
+| **Timeout Mínimo** | `SLA_TICKET_MIN_TIMEOUT_MS` | `60000` (60s) | Timeout mínimo absoluto para qualquer ticket |
+| **Multiplicador de Buffer** | `SLA_TICKET_TIMEOUT_BUFFER_MULTIPLIER` | `3.0` | Multiplicador aplicado à duração estimada |
+
+### Rationale dos Valores Padrão
+
+**Histórico de Mudanças:**
+- **v1.0.0**: `min=30s`, `buffer=1.5x` → Resultou em 100% de falsos positivos
+- **v1.0.9**: `min=60s`, `buffer=3.0x` → Baseado em análise de logs de produção
+
+**Por que 60s mínimo?**
+- Acomoda overhead de inicialização de workers (~10-15s)
+- Acomoda latência de rede e scheduling (~5-10s)
+- Margem para variabilidade de recursos (~10-20s)
+
+**Por que 3.0x buffer?**
+- Acomoda variabilidade de carga (workers podem estar ocupados)
+- Acomoda variabilidade de recursos (CPU/memória disponível)
+- Reduz falsos positivos de SLA violation
+
+### Exemplos de Cálculo
+
+| Duração Estimada | Cálculo | Timeout Final | Observação |
+|------------------|---------|---------------|------------|
+| 1ms | `max(60000, 1 * 3.0)` | **60000ms** (60s) | Usa mínimo |
+| 10s (10000ms) | `max(60000, 10000 * 3.0)` | **60000ms** (60s) | Usa mínimo |
+| 20s (20000ms) | `max(60000, 20000 * 3.0)` | **60000ms** (60s) | Threshold |
+| 30s (30000ms) | `max(60000, 30000 * 3.0)` | **90000ms** (90s) | Usa multiplicador |
+| 60s (60000ms) | `max(60000, 60000 * 3.0)` | **180000ms** (3min) | Usa multiplicador |
+| 10min (600000ms) | `max(60000, 600000 * 3.0)` | **1800000ms** (30min) | Usa multiplicador |
+
+### Validação
+
+Para validar a configuração antes do deploy:
+
+```bash
+# Executar script de validação
+python services/orchestrator-dynamic/scripts/validate_sla_config.py
+
+# Verificar logs durante execução
+kubectl logs -n neural-hive-orchestration deployment/orchestrator-dynamic | grep sla_timeout_calculated
+```
+
+### Troubleshooting de SLA Timeout
+
+**Problema: Muitos falsos positivos de SLA violation**
+
+Sintomas:
+- Logs mostram `remaining_seconds` negativo antes de workflow completar
+- Métricas `sla_violations_total` aumentando sem falhas reais
+
+Solução:
+1. Aumentar `SLA_TICKET_MIN_TIMEOUT_MS` para 90000 (90s)
+2. Aumentar `SLA_TICKET_TIMEOUT_BUFFER_MULTIPLIER` para 4.0
+3. Revalidar com script de validação
+
+**Problema: Timeouts muito longos**
+
+Sintomas:
+- Tickets com duração curta têm timeouts excessivos
+- SLA violations reais não são detectadas a tempo
+
+Solução:
+1. Reduzir `SLA_TICKET_TIMEOUT_BUFFER_MULTIPLIER` para 2.5
+2. Manter `SLA_TICKET_MIN_TIMEOUT_MS` em 60000
+3. Monitorar métricas de SLA por 24h
+
+### Métricas de Timeout
+
+```promql
+# Distribuição de timeouts calculados
+histogram_quantile(0.95, rate(neural_hive_orchestrator_ticket_timeout_ms_bucket[5m]))
+
+# Taxa de SLA violations
+rate(neural_hive_orchestrator_sla_violations_total[5m])
+
+# Tickets com timeout mínimo vs multiplicador
+sum(rate(neural_hive_orchestrator_tickets_generated_total{timeout_source="minimum"}[5m]))
+sum(rate(neural_hive_orchestrator_tickets_generated_total{timeout_source="multiplier"}[5m]))
+```
+
 ## API Endpoints
 
 ### Workflow Start (`POST /api/v1/workflows/start`)

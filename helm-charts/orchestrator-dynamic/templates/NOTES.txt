@@ -65,6 +65,37 @@ Tópicos Kafka monitorados:
 
 =============================================================
 
+⏱️ SLA Timeout Configuration:
+
+{{- $minTimeout := .Values.config.sla.ticketMinTimeoutMs | default 60000 }}
+{{- $multiplier := .Values.config.sla.ticketTimeoutBufferMultiplier | default 3.0 }}
+
+{{- if lt (int $minTimeout) 60000 }}
+⚠️  WARNING: config.sla.ticketMinTimeoutMs está configurado para {{ $minTimeout }}ms,
+    que é menor que o recomendado (60000ms). Isso pode causar falsos positivos de SLA violation.
+    Recomendação: Configurar para pelo menos 60000ms (60 segundos).
+{{- end }}
+
+{{- if lt $multiplier 2.0 }}
+⚠️  WARNING: config.sla.ticketTimeoutBufferMultiplier está configurado para {{ $multiplier }},
+    que é menor que o recomendado (2.0). Isso pode causar timeouts prematuros.
+    Recomendação: Configurar para pelo menos 3.0 para acomodar variabilidade de execução.
+{{- end }}
+
+  Minimum Timeout: {{ $minTimeout }}ms ({{ div (int $minTimeout) 1000 }}s)
+  Buffer Multiplier: {{ $multiplier }}x
+  Fórmula: timeout_ms = max(min_timeout_ms, estimated_duration_ms * buffer_multiplier)
+
+Exemplos de cálculo:
+  - Task 10s estimado: {{ max (int $minTimeout) (mul 10000 $multiplier) }}ms
+  - Task 30s estimado: {{ max (int $minTimeout) (mul 30000 $multiplier) }}ms
+  - Task 60s estimado: {{ max (int $minTimeout) (mul 60000 $multiplier) }}ms
+
+Para validar configuração:
+  python services/orchestrator-dynamic/scripts/validate_sla_config.py
+
+=============================================================
+
 📝 Próximos Passos:
 
 1. Validar deployment:
