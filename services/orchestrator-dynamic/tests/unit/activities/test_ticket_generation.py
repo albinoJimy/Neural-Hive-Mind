@@ -381,9 +381,16 @@ class TestAllocateResources:
 class TestPublishTicketToKafka:
     """Testes para publish_ticket_to_kafka activity."""
 
+    @pytest.fixture
+    def mock_config_publish(self):
+        """Config mock para testes de publish_ticket_to_kafka."""
+        config = MagicMock()
+        config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS = False
+        return config
+
     @pytest.mark.asyncio
     async def test_publish_valid_ticket(
-        self, mock_activity_info, mock_kafka_producer, mock_mongodb_client
+        self, mock_activity_info, mock_kafka_producer, mock_mongodb_client, mock_config_publish
     ):
         """Ticket válido deve ser publicado no Kafka."""
         ticket = {
@@ -394,7 +401,8 @@ class TestPublishTicketToKafka:
         }
         set_activity_dependencies(
             kafka_producer=mock_kafka_producer,
-            mongodb_client=mock_mongodb_client
+            mongodb_client=mock_mongodb_client,
+            config=mock_config_publish
         )
 
         result = await publish_ticket_to_kafka(ticket)
@@ -415,7 +423,7 @@ class TestPublishTicketToKafka:
 
     @pytest.mark.asyncio
     async def test_rejected_ticket_not_published(
-        self, mock_activity_info, mock_kafka_producer, mock_mongodb_client
+        self, mock_activity_info, mock_kafka_producer, mock_mongodb_client, mock_config_publish
     ):
         """Ticket rejeitado não deve ser publicado no Kafka."""
         ticket = {
@@ -430,7 +438,8 @@ class TestPublishTicketToKafka:
         }
         set_activity_dependencies(
             kafka_producer=mock_kafka_producer,
-            mongodb_client=mock_mongodb_client
+            mongodb_client=mock_mongodb_client,
+            config=mock_config_publish
         )
 
         result = await publish_ticket_to_kafka(ticket)
@@ -442,7 +451,7 @@ class TestPublishTicketToKafka:
 
     @pytest.mark.asyncio
     async def test_publish_persists_to_mongodb(
-        self, mock_activity_info, mock_kafka_producer, mock_mongodb_client
+        self, mock_activity_info, mock_kafka_producer, mock_mongodb_client, mock_config_publish
     ):
         """Ticket publicado deve ser persistido no MongoDB."""
         ticket = {
@@ -453,7 +462,8 @@ class TestPublishTicketToKafka:
         }
         set_activity_dependencies(
             kafka_producer=mock_kafka_producer,
-            mongodb_client=mock_mongodb_client
+            mongodb_client=mock_mongodb_client,
+            config=mock_config_publish
         )
 
         await publish_ticket_to_kafka(ticket)
@@ -465,7 +475,7 @@ class TestPublishTicketToKafka:
         assert saved_ticket['status'] == 'PENDING'
 
     @pytest.mark.asyncio
-    async def test_publish_raises_when_kafka_unavailable(self, mock_activity_info):
+    async def test_publish_raises_when_kafka_unavailable(self, mock_activity_info, mock_config_publish):
         """Publicação deve falhar quando Kafka producer não disponível."""
         ticket = {
             'ticket_id': str(uuid.uuid4()),
@@ -475,7 +485,8 @@ class TestPublishTicketToKafka:
         }
         set_activity_dependencies(
             kafka_producer=None,  # Sem producer
-            mongodb_client=None
+            mongodb_client=None,
+            config=mock_config_publish
         )
 
         with pytest.raises(RuntimeError, match='Kafka producer'):
@@ -483,7 +494,7 @@ class TestPublishTicketToKafka:
 
     @pytest.mark.asyncio
     async def test_publish_maintains_pending_status(
-        self, mock_activity_info, mock_kafka_producer, mock_mongodb_client
+        self, mock_activity_info, mock_kafka_producer, mock_mongodb_client, mock_config_publish
     ):
         """Ticket com status PENDING deve manter o status após publicação."""
         ticket = {
@@ -494,7 +505,8 @@ class TestPublishTicketToKafka:
         }
         set_activity_dependencies(
             kafka_producer=mock_kafka_producer,
-            mongodb_client=mock_mongodb_client
+            mongodb_client=mock_mongodb_client,
+            config=mock_config_publish
         )
 
         result = await publish_ticket_to_kafka(ticket)
@@ -677,7 +689,7 @@ class TestMongoDBPersistenceFailOpen:
     async def test_publish_handles_circuit_breaker_error(
         self, mock_activity_info, mock_kafka_producer
     ):
-        """Circuit breaker aberto deve permitir degradação controlada."""
+        """Circuit breaker aberto deve propagar RuntimeError para retry do Temporal."""
         mock_mongodb = AsyncMock()
         mock_mongodb.save_execution_ticket = AsyncMock(
             side_effect=CircuitBreakerError('Circuit breaker is open')
@@ -699,21 +711,21 @@ class TestMongoDBPersistenceFailOpen:
             config=mock_cfg
         )
 
-        # Circuit breaker deve permitir degradação (ticket já foi publicado no Kafka)
-        result = await publish_ticket_to_kafka(ticket)
+        # Circuit breaker aberto indica problema sistêmico - deve propagar RuntimeError
+        # para que o Temporal possa fazer retry quando o circuit breaker fechar
+        with pytest.raises(RuntimeError, match='Circuit breaker aberto'):
+            await publish_ticket_to_kafka(ticket)
 
-        assert result['published'] is True
+        # Kafka publish foi chamado antes da persistência falhar
         mock_kafka_producer.publish_ticket.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_publish_uses_default_fail_open_when_config_unavailable(
+    async def test_publish_raises_when_config_unavailable(
         self, mock_activity_info, mock_kafka_producer
     ):
-        """Deve usar fail-open=False como default quando config indisponível."""
+        """Deve falhar quando config não foi injetado."""
         mock_mongodb = AsyncMock()
-        mock_mongodb.save_execution_ticket = AsyncMock(
-            side_effect=PyMongoError('Database error')
-        )
+        mock_mongodb.save_execution_ticket = AsyncMock()
 
         ticket = {
             'ticket_id': str(uuid.uuid4()),
@@ -728,6 +740,6 @@ class TestMongoDBPersistenceFailOpen:
             config=None  # Sem config
         )
 
-        # Sem config, fail-open=False por default, então deve propagar erro
-        with pytest.raises(RuntimeError, match='Falha crítica na persistência'):
+        # Sem config, deve propagar erro de configuração
+        with pytest.raises(RuntimeError, match='Config não foi injetado'):
             await publish_ticket_to_kafka(ticket)

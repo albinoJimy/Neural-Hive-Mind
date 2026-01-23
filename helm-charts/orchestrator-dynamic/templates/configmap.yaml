@@ -42,6 +42,11 @@ data:
 
   # MongoDB
   MONGODB_DATABASE: {{ .Values.config.mongodb.database | quote }}
+  MONGODB_COLLECTION_TICKETS: {{ .Values.config.mongodb.collectionTickets | quote }}
+  MONGODB_COLLECTION_WORKFLOWS: {{ .Values.config.mongodb.collectionWorkflows | quote }}
+  MONGODB_FAIL_OPEN_EXECUTION_TICKETS: {{ .Values.config.mongodb.persistence.failOpenExecutionTickets | quote }}
+  MONGODB_FAIL_OPEN_VALIDATION_AUDIT: {{ .Values.config.mongodb.persistence.failOpenValidationAudit | quote }}
+  MONGODB_FAIL_OPEN_WORKFLOW_RESULTS: {{ .Values.config.mongodb.persistence.failOpenWorkflowResults | quote }}
 
   # Redis
   REDIS_CLUSTER_NODES: {{ .Values.config.redis.clusterNodes | quote }}
