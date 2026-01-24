@@ -344,6 +344,41 @@ class OrchestratorMetrics:
             ['reason']
         )
 
+        # Preemption Metrics
+        self.tasks_preempted_total = Counter(
+            'orchestration_tasks_preempted_total',
+            'Total de tasks preemptadas',
+            ['preempted_priority', 'preemptor_priority']
+        )
+
+        self.preemption_attempts_total = Counter(
+            'orchestration_preemption_attempts_total',
+            'Total de tentativas de preempção',
+            ['success', 'reason']
+        )
+
+        self.preemption_failures_total = Counter(
+            'orchestration_preemption_failures_total',
+            'Total de falhas de preempção',
+            ['reason']
+        )
+
+        self.preemption_duration_seconds = Histogram(
+            'orchestration_preemption_duration_seconds',
+            'Duração do processo de preempção',
+            buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60]
+        )
+
+        self.active_preemptions = Gauge(
+            'orchestration_active_preemptions',
+            'Número de preempções em andamento'
+        )
+
+        self.preempted_tasks_retried_total = Counter(
+            'orchestration_preempted_tasks_retried_total',
+            'Total de tasks preemptadas que foram reagendadas'
+        )
+
         # Affinity/Anti-Affinity Metrics
         self.affinity_hits_total = Counter(
             'neural_hive_orchestrator_affinity_hits_total',
@@ -926,6 +961,65 @@ class OrchestratorMetrics:
     def record_scheduler_rejection(self, reason: str):
         """Registra rejeição de alocação pelo scheduler."""
         self.scheduler_rejections_total.labels(reason=reason).inc()
+
+    # Preemption Helper Methods
+
+    def record_task_preempted(self, preempted_priority: str, preemptor_priority: str):
+        """
+        Registra task preemptada.
+
+        Args:
+            preempted_priority: Prioridade da task preemptada
+            preemptor_priority: Prioridade da task que causou preempção
+        """
+        self.tasks_preempted_total.labels(
+            preempted_priority=preempted_priority,
+            preemptor_priority=preemptor_priority
+        ).inc()
+
+    def record_preemption_attempt(self, success: bool, reason: str):
+        """
+        Registra tentativa de preempção.
+
+        Args:
+            success: Se a preempção foi bem-sucedida
+            reason: Razão do sucesso/falha
+        """
+        self.preemption_attempts_total.labels(
+            success=str(success).lower(),
+            reason=reason
+        ).inc()
+
+    def record_preemption_failure(self, reason: str):
+        """
+        Registra falha de preempção.
+
+        Args:
+            reason: Razão da falha (timeout, worker_rejected, error, max_concurrent)
+        """
+        self.preemption_failures_total.labels(reason=reason).inc()
+
+    def record_preemption_duration(self, duration_seconds: float):
+        """
+        Registra duração do processo de preempção.
+
+        Args:
+            duration_seconds: Duração em segundos
+        """
+        self.preemption_duration_seconds.observe(duration_seconds)
+
+    def set_active_preemptions(self, count: int):
+        """
+        Atualiza gauge de preempções ativas.
+
+        Args:
+            count: Número de preempções ativas
+        """
+        self.active_preemptions.set(count)
+
+    def record_preempted_task_retried(self):
+        """Registra task preemptada que foi reagendada."""
+        self.preempted_tasks_retried_total.inc()
 
     # Affinity/Anti-Affinity Helper Methods
 

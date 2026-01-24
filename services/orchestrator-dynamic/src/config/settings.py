@@ -180,6 +180,89 @@ class OrchestratorSettings(BaseSettings):
         description='Priorities que ativam anti-affinity'
     )
 
+    # Preemption Configuration
+    scheduler_enable_preemption: bool = Field(
+        default=False,
+        description='Habilitar preempção de tasks de baixa prioridade por tasks de alta prioridade'
+    )
+    scheduler_preemption_min_preemptor_priority: str = Field(
+        default='HIGH',
+        description='Prioridade mínima para preemptar (HIGH ou CRITICAL)'
+    )
+    scheduler_preemption_max_preemptable_priority: str = Field(
+        default='LOW',
+        description='Prioridade máxima que pode ser preemptada (LOW ou MEDIUM)'
+    )
+    scheduler_preemption_grace_period_seconds: int = Field(
+        default=30,
+        ge=5,
+        le=300,
+        description='Período de graça para cancelamento graceful (checkpointing)'
+    )
+    scheduler_preemption_max_concurrent: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description='Limite de preempções simultâneas'
+    )
+    scheduler_preemption_worker_cooldown_seconds: int = Field(
+        default=60,
+        ge=10,
+        le=600,
+        description='Cooldown de worker após preempção (evitar thrashing)'
+    )
+    scheduler_preemption_retry_preempted_tasks: bool = Field(
+        default=True,
+        description='Reagendar tasks preemptadas automaticamente'
+    )
+    scheduler_preemption_retry_delay_seconds: int = Field(
+        default=300,
+        ge=60,
+        le=3600,
+        description='Delay antes de reagendar task preemptada (5 minutos default)'
+    )
+
+    @model_validator(mode='after')
+    def validate_affinity_weights(self) -> 'OrchestratorSettings':
+        """
+        Valida que os pesos de affinity somam 1.0 e estão no intervalo [0, 1].
+
+        Pesos:
+        - scheduler_affinity_plan_weight: peso de data locality
+        - scheduler_affinity_anti_weight: peso de anti-affinity para tolerância a falhas
+        - scheduler_affinity_intent_weight: peso de workflow co-location
+
+        A soma deve ser 1.0 (com tolerância de 0.001) para garantir que
+        o score de affinity seja normalizado corretamente.
+        """
+        weights = [
+            ('scheduler_affinity_plan_weight', self.scheduler_affinity_plan_weight),
+            ('scheduler_affinity_anti_weight', self.scheduler_affinity_anti_weight),
+            ('scheduler_affinity_intent_weight', self.scheduler_affinity_intent_weight),
+        ]
+
+        # Validar que cada peso está no intervalo [0, 1]
+        for name, weight in weights:
+            if weight < 0.0 or weight > 1.0:
+                raise ValueError(
+                    f'{name}={weight} está fora do intervalo permitido [0.0, 1.0]. '
+                    'Cada peso de affinity deve estar entre 0 e 1.'
+                )
+
+        # Validar que a soma é 1.0 (com tolerância)
+        total = sum(w for _, w in weights)
+        tolerance = 0.001
+        if abs(total - 1.0) > tolerance:
+            raise ValueError(
+                f'A soma dos pesos de affinity ({total:.4f}) difere de 1.0. '
+                f'Valores atuais: plan_weight={self.scheduler_affinity_plan_weight}, '
+                f'anti_weight={self.scheduler_affinity_anti_weight}, '
+                f'intent_weight={self.scheduler_affinity_intent_weight}. '
+                'Ajuste os valores para que a soma seja exatamente 1.0.'
+            )
+
+        return self
+
     # ML Predictions
     ml_predictions_enabled: bool = Field(
         default=True,

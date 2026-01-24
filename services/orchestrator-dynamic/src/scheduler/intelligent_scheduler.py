@@ -6,10 +6,12 @@ Implementa cache de descobertas e fallback para Service Registry indisponível.
 """
 
 import asyncio
+import httpx
 import structlog
 from datetime import datetime, timedelta
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Set
 from functools import lru_cache
+from enum import Enum
 
 from src.config.settings import OrchestratorSettings
 from src.observability.metrics import OrchestratorMetrics
@@ -27,6 +29,14 @@ except ImportError:
     ML_AVAILABLE = False
 
 logger = structlog.get_logger(__name__)
+
+
+class Priority(Enum):
+    """Task priority levels for preemption logic."""
+    LOW = 1
+    MEDIUM = 2
+    HIGH = 3
+    CRITICAL = 4
 
 
 class IntelligentScheduler:
@@ -94,6 +104,10 @@ class IntelligentScheduler:
 
         # Cache de alocações de recursos: {workflow_id: allocation_dict}
         self._workflow_allocations: Dict[str, Dict] = {}
+
+        # Preemption tracking
+        self._preemption_cooldowns: Dict[str, datetime] = {}  # worker_id -> cooldown_end_time
+        self._active_preemptions: Set[str] = set()  # Set of ticket_ids being preempted
 
     async def schedule_ticket(self, ticket: Dict) -> Dict:
         """
@@ -211,15 +225,29 @@ class IntelligentScheduler:
             workers = await self._discover_workers_cached(ticket)
 
             if not workers:
-                self.logger.error(
-                    'no_workers_discovered_ticket_rejected',
-                    ticket_id=ticket_id,
-                    required_capabilities=ticket.get('required_capabilities'),
-                    namespace=ticket.get('namespace', 'default')
-                )
-                # Registrar rejeição e marcar ticket como rejeitado
-                self.metrics.record_scheduler_rejection('no_workers')
-                return self._reject_ticket(ticket, 'no_workers', 'Nenhum worker disponível para o ticket')
+                # Attempt preemption for high-priority tickets
+                ticket_priority = ticket.get('priority', 'MEDIUM')
+                if self._can_preempt(ticket_priority, 'LOW'):
+                    self.logger.info(
+                        'attempting_preemption_no_workers',
+                        ticket_id=ticket_id,
+                        priority=ticket_priority
+                    )
+                    freed_workers = await self.preempt_low_priority_tasks(ticket, required_workers=1)
+                    if freed_workers:
+                        # Re-discover workers after preemption
+                        workers = await self._discover_workers_cached(ticket)
+
+                if not workers:
+                    self.logger.error(
+                        'no_workers_discovered_ticket_rejected',
+                        ticket_id=ticket_id,
+                        required_capabilities=ticket.get('required_capabilities'),
+                        namespace=ticket.get('namespace', 'default')
+                    )
+                    # Registrar rejeição e marcar ticket como rejeitado
+                    self.metrics.record_scheduler_rejection('no_workers')
+                    return self._reject_ticket(ticket, 'no_workers', 'Nenhum worker disponível para o ticket')
 
             self.metrics.record_workers_discovered(len(workers))
 
@@ -561,6 +589,270 @@ class IntelligentScheduler:
             ticket['predictions'] = predictions
 
         return ticket
+
+    def _can_preempt(self, preemptor_priority: str, preemptable_priority: str) -> bool:
+        """
+        Check if a task with preemptor_priority can preempt a task with preemptable_priority.
+
+        Args:
+            preemptor_priority: Priority of the incoming high-priority ticket
+            preemptable_priority: Priority of the running task
+
+        Returns:
+            True if preemption is allowed
+        """
+        if not self.config.scheduler_enable_preemption:
+            return False
+
+        priority_order = {'LOW': 1, 'MEDIUM': 2, 'HIGH': 3, 'CRITICAL': 4}
+
+        preemptor_level = priority_order.get(preemptor_priority.upper(), 0)
+        preemptable_level = priority_order.get(preemptable_priority.upper(), 0)
+
+        min_preemptor = priority_order.get(
+            self.config.scheduler_preemption_min_preemptor_priority.upper(), 3
+        )
+        max_preemptable = priority_order.get(
+            self.config.scheduler_preemption_max_preemptable_priority.upper(), 1
+        )
+
+        return preemptor_level >= min_preemptor and preemptable_level <= max_preemptable
+
+    async def preempt_low_priority_tasks(
+        self,
+        high_priority_ticket: Dict,
+        required_workers: int = 1
+    ) -> List[str]:
+        """
+        Preempt low-priority tasks to make room for high-priority ticket.
+
+        Args:
+            high_priority_ticket: The high-priority ticket that needs resources
+            required_workers: Number of workers needed
+
+        Returns:
+            List of freed worker IDs
+        """
+        if not self.config.scheduler_enable_preemption:
+            self.logger.debug("preemption_disabled")
+            return []
+
+        # Check concurrent preemption limit
+        if len(self._active_preemptions) >= self.config.scheduler_preemption_max_concurrent:
+            self.logger.warning(
+                "max_concurrent_preemptions_reached",
+                active_preemptions=len(self._active_preemptions),
+                limit=self.config.scheduler_preemption_max_concurrent
+            )
+            self.metrics.record_preemption_attempt(success=False, reason="max_concurrent")
+            return []
+
+        ticket_priority = high_priority_ticket.get('priority', 'MEDIUM')
+
+        # Find preemptable tasks
+        preemptable_tasks = await self._find_preemptable_tasks(
+            high_priority_ticket,
+            limit=required_workers
+        )
+
+        if not preemptable_tasks:
+            self.logger.info(
+                "no_preemptable_tasks_found",
+                ticket_id=high_priority_ticket.get('ticket_id'),
+                priority=ticket_priority
+            )
+            return []
+
+        freed_workers = []
+        for task in preemptable_tasks:
+            if len(freed_workers) >= required_workers:
+                break
+
+            worker_id = task.get('worker_id')
+
+            # Check cooldown
+            if worker_id in self._preemption_cooldowns:
+                cooldown_end = self._preemption_cooldowns[worker_id]
+                if datetime.now() < cooldown_end:
+                    self.logger.debug(
+                        "worker_in_cooldown",
+                        worker_id=worker_id,
+                        cooldown_remaining_seconds=(cooldown_end - datetime.now()).total_seconds()
+                    )
+                    continue
+
+            # Attempt preemption
+            success = await self._preempt_task(task, high_priority_ticket)
+
+            if success:
+                freed_workers.append(worker_id)
+
+                # Set cooldown
+                cooldown_seconds = self.config.scheduler_preemption_worker_cooldown_seconds
+                self._preemption_cooldowns[worker_id] = datetime.now() + timedelta(seconds=cooldown_seconds)
+
+                self.logger.info(
+                    "task_preempted_successfully",
+                    preempted_ticket_id=task.get('ticket_id'),
+                    worker_id=worker_id,
+                    preemptor_ticket_id=high_priority_ticket.get('ticket_id'),
+                    preemptor_priority=ticket_priority
+                )
+
+        self.metrics.record_preemption_attempt(
+            success=len(freed_workers) > 0,
+            reason="success" if freed_workers else "preemption_failed"
+        )
+
+        return freed_workers
+
+    async def _find_preemptable_tasks(
+        self,
+        high_priority_ticket: Dict,
+        limit: int = 5
+    ) -> List[Dict]:
+        """
+        Find tasks that can be preempted based on priority and matching capabilities.
+
+        Args:
+            high_priority_ticket: The ticket needing resources
+            limit: Maximum number of preemptable tasks to return
+
+        Returns:
+            List of preemptable task metadata
+        """
+        preemptable = []
+        ticket_priority = high_priority_ticket.get('priority', 'MEDIUM')
+        required_capabilities = set(high_priority_ticket.get('required_capabilities', []))
+
+        try:
+            # Query running tasks from worker agents via Service Registry
+            workers = await self._discover_workers_cached(high_priority_ticket)
+
+            for worker in workers:
+                worker_id = worker.get('agent_id')
+
+                # Skip workers in cooldown
+                if worker_id in self._preemption_cooldowns:
+                    if datetime.now() < self._preemption_cooldowns[worker_id]:
+                        continue
+
+                # Check if worker has matching capabilities
+                worker_capabilities = set(worker.get('capabilities', []))
+                if not required_capabilities.issubset(worker_capabilities):
+                    continue
+
+                # Get running task info from worker
+                running_task = worker.get('running_task', {})
+                if not running_task:
+                    continue
+
+                running_priority = running_task.get('priority', 'MEDIUM')
+
+                # Check if can preempt
+                if self._can_preempt(ticket_priority, running_priority):
+                    preemptable.append({
+                        'ticket_id': running_task.get('ticket_id'),
+                        'worker_id': worker_id,
+                        'worker_endpoint': worker.get('endpoint'),
+                        'priority': running_priority,
+                        'started_at': running_task.get('started_at'),
+                        'progress_pct': running_task.get('progress_pct', 0)
+                    })
+
+                if len(preemptable) >= limit:
+                    break
+
+            # Sort by priority (lowest first) then by progress (lowest first - less work lost)
+            priority_order = {'LOW': 1, 'MEDIUM': 2, 'HIGH': 3, 'CRITICAL': 4}
+            preemptable.sort(
+                key=lambda x: (
+                    priority_order.get(x['priority'], 2),
+                    x.get('progress_pct', 0)
+                )
+            )
+
+        except Exception as e:
+            self.logger.error(
+                "find_preemptable_tasks_error",
+                error=str(e),
+                ticket_id=high_priority_ticket.get('ticket_id')
+            )
+
+        return preemptable[:limit]
+
+    async def _preempt_task(
+        self,
+        task: Dict,
+        preemptor_ticket: Dict
+    ) -> bool:
+        """
+        Send cancellation signal to worker agent to preempt a task.
+
+        Args:
+            task: Task metadata to preempt
+            preemptor_ticket: The high-priority ticket causing preemption
+
+        Returns:
+            True if preemption signal was sent successfully
+        """
+        ticket_id = task.get('ticket_id')
+        worker_endpoint = task.get('worker_endpoint')
+
+        if not worker_endpoint:
+            self.logger.error(
+                "preemption_failed_no_endpoint",
+                ticket_id=ticket_id
+            )
+            return False
+
+        self._active_preemptions.add(ticket_id)
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    f"{worker_endpoint}/api/v1/tasks/{ticket_id}/cancel",
+                    json={
+                        "reason": "preemption",
+                        "preempted_by": preemptor_ticket.get('ticket_id'),
+                        "grace_period_seconds": self.config.scheduler_preemption_grace_period_seconds
+                    }
+                )
+
+                if response.status_code == 200:
+                    self.metrics.record_task_preempted(
+                        preempted_priority=task.get('priority'),
+                        preemptor_priority=preemptor_ticket.get('priority')
+                    )
+                    return True
+                else:
+                    self.logger.warning(
+                        "preemption_request_failed",
+                        ticket_id=ticket_id,
+                        status_code=response.status_code,
+                        response=response.text
+                    )
+                    self.metrics.record_preemption_failure(reason="worker_rejected")
+                    return False
+
+        except httpx.TimeoutException:
+            self.logger.error(
+                "preemption_timeout",
+                ticket_id=ticket_id,
+                worker_endpoint=worker_endpoint
+            )
+            self.metrics.record_preemption_failure(reason="timeout")
+            return False
+        except Exception as e:
+            self.logger.error(
+                "preemption_error",
+                ticket_id=ticket_id,
+                error=str(e)
+            )
+            self.metrics.record_preemption_failure(reason="error")
+            return False
+        finally:
+            self._active_preemptions.discard(ticket_id)
 
     async def update_workflow_priority(
         self,

@@ -452,6 +452,150 @@ pytest tests/integration/test_scheduler_integration.py -v
 
 **Cobertura de Testes:** 40+ testes cobrindo todos os componentes do scheduler e cenários de integração
 
+## Task Preemption
+
+O Orchestrator Dynamic suporta preempção de tarefas de baixa prioridade para liberar recursos para tickets de alta prioridade. Esta funcionalidade é desabilitada por padrão e pode ser habilitada via configuração.
+
+### Visão Geral
+
+Quando um ticket de alta prioridade (HIGH/CRITICAL) não encontra workers disponíveis, o scheduler pode preemptar tarefas de baixa prioridade (LOW/MEDIUM) em execução, liberando recursos para o ticket mais crítico.
+
+```
+HIGH Priority Ticket → No Workers Available → Find Preemptable Tasks → Send Cancel Signal → Free Worker → Allocate
+                                                        ↓
+                                              Worker Agent receives cancel
+                                              • Save checkpoint to Redis
+                                              • Graceful shutdown
+                                              • Mark as PREEMPTED
+```
+
+### Configuração
+
+```yaml
+# Helm values (helm-charts/orchestrator-dynamic/values.yaml)
+scheduler:
+  enablePreemption: false  # Feature flag (disabled by default)
+  preemption:
+    minPreemptorPriority: HIGH       # Minimum priority to preempt
+    maxPreemptablePriority: LOW      # Maximum priority that can be preempted
+    gracePeriodSeconds: 30           # Grace period for checkpointing
+    maxConcurrentPreemptions: 5      # Limit concurrent preemptions
+    workerCooldownSeconds: 60        # Cooldown after preemption
+    retryPreemptedTasks: true        # Retry preempted tasks
+    retryDelaySeconds: 300           # Delay before retrying
+```
+
+```bash
+# Environment variables
+SCHEDULER_ENABLE_PREEMPTION="false"
+SCHEDULER_PREEMPTION_MIN_PREEMPTOR_PRIORITY="HIGH"
+SCHEDULER_PREEMPTION_MAX_PREEMPTABLE_PRIORITY="LOW"
+SCHEDULER_PREEMPTION_GRACE_PERIOD_SECONDS="30"
+SCHEDULER_PREEMPTION_MAX_CONCURRENT="5"
+SCHEDULER_PREEMPTION_WORKER_COOLDOWN_SECONDS="60"
+```
+
+### Priority Mapping
+
+| Preemptor Priority | Can Preempt |
+|--------------------|-------------|
+| CRITICAL           | LOW, MEDIUM |
+| HIGH               | LOW         |
+| MEDIUM             | (none)      |
+| LOW                | (none)      |
+
+> **Note:** The default configuration only allows HIGH+ to preempt LOW. Adjust `maxPreemptablePriority` to extend preemption scope.
+
+### How It Works
+
+1. **Detection**: When `schedule_ticket()` finds no available workers for a HIGH/CRITICAL ticket
+2. **Discovery**: `_find_preemptable_tasks()` queries workers with running LOW priority tasks
+3. **Selection**: Tasks sorted by priority (lowest first), then progress (lowest first - less work lost)
+4. **Preemption**: HTTP POST to `worker:8080/api/v1/tasks/{ticket_id}/cancel`
+5. **Checkpoint**: Worker saves state to Redis before terminating
+6. **Cooldown**: Worker enters cooldown period to prevent thrashing
+7. **Retry**: Preempted task can be automatically retried after delay
+
+### Worker Agent Endpoint
+
+```http
+POST /api/v1/tasks/{ticket_id}/cancel
+Content-Type: application/json
+Authorization: Bearer <SPIFFE JWT>
+
+{
+  "reason": "preemption",
+  "preempted_by": "high-priority-ticket-id",
+  "grace_period_seconds": 30
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "ticket_id": "preempted-ticket-id",
+  "reason": "preemption",
+  "checkpoint_saved": true,
+  "checkpoint_key": "checkpoint:preempted-ticket-id"
+}
+```
+
+### Métricas
+
+**Orchestrator Dynamic:**
+- `orchestration_tasks_preempted_total{preempted_priority, preemptor_priority}`: Tasks preempted
+- `orchestration_preemption_attempts_total{success, reason}`: Preemption attempts
+- `orchestration_preemption_failures_total{reason}`: Failures (timeout, rejected, error)
+- `orchestration_preemption_duration_seconds`: Preemption latency histogram
+- `orchestration_active_preemptions`: Current active preemptions gauge
+- `orchestration_preempted_tasks_retried_total`: Preempted tasks retried
+
+**Worker Agents:**
+- `worker_agent_tasks_cancelled_total{reason}`: Tasks cancelled by reason
+- `worker_agent_tasks_preempted_total`: Tasks preempted
+- `worker_agent_checkpoint_saves_total{success}`: Checkpoint operations
+- `worker_agent_graceful_cancellation_duration_seconds`: Cancellation duration
+
+### Alertas
+
+Alertas definidos em `monitoring/alerts/flow-c-preemption-alerts.yaml`:
+
+| Alert | Severity | Condition |
+|-------|----------|-----------|
+| `HighPreemptionFailureRate` | warning | >30% failure rate over 5m |
+| `HighConcurrentPreemptions` | warning | >10 concurrent preemptions |
+| `PreemptionTimeoutRate` | warning | >10% timeout rate |
+| `SlowPreemptionDuration` | warning | P95 > 30s |
+| `HighCheckpointFailureRate` | warning | >20% checkpoint failures |
+| `HighPriorityResourceStarvation` | critical | Rejections despite preemption |
+
+### Best Practices
+
+1. **Start Disabled**: Enable preemption only when resource contention is a real problem
+2. **Conservative Thresholds**: Start with HIGH→LOW only, expand gradually
+3. **Monitor Carefully**: Watch preemption metrics before production rollout
+4. **Checkpoint Design**: Ensure tasks can resume from checkpoints
+5. **Cooldown Tuning**: Adjust cooldown to prevent worker thrashing
+6. **Test Thoroughly**: Test preemption in staging before production
+
+### Troubleshooting
+
+**Preemption Not Working:**
+- Verify `enablePreemption: true` in config
+- Check priority levels match configuration
+- Confirm workers are reachable via HTTP
+
+**High Failure Rate:**
+- Check worker agent logs for connectivity issues
+- Verify SPIFFE authentication is working
+- Increase grace period if checkpoints timeout
+
+**Workers Being Preempted Too Often:**
+- Increase `workerCooldownSeconds`
+- Reduce `maxConcurrentPreemptions`
+- Consider scaling worker agents instead
+
 ## SLA Monitoring
 
 O Orchestrator Dynamic implementa monitoramento proativo de SLA em tempo de execução, integrado com o SLA Management System.

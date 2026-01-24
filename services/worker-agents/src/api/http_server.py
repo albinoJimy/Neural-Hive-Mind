@@ -1,12 +1,20 @@
 from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.responses import PlainTextResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel, Field
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from datetime import datetime
 from typing import Optional
 import structlog
 import base64
 import json
+
+
+class TaskCancellationRequest(BaseModel):
+    """Request model for task cancellation/preemption."""
+    reason: str = Field(..., description="Reason for cancellation (e.g., 'preemption', 'timeout', 'user_request')")
+    preempted_by: Optional[str] = Field(None, description="Ticket ID of the preempting task")
+    grace_period_seconds: int = Field(default=30, ge=0, le=300, description="Grace period for checkpointing")
 
 logger = structlog.get_logger()
 
@@ -281,6 +289,78 @@ def create_http_server(config, app_state):
             },
             'authenticated_spiffe_id': spiffe_id
         }
+
+    @app.post('/api/v1/tasks/{ticket_id}/cancel')
+    async def cancel_task(
+        ticket_id: str,
+        request: TaskCancellationRequest,
+        spiffe_id: Optional[str] = Depends(verify_spiffe_token)
+    ):
+        """
+        Cancel/preempt a running task with optional grace period for checkpointing.
+
+        This endpoint is called by the Orchestrator's IntelligentScheduler when
+        a high-priority task needs to preempt a low-priority running task.
+        """
+        execution_engine = app_state.get('execution_engine')
+
+        if not execution_engine:
+            logger.error('cancel_task_engine_not_available', ticket_id=ticket_id)
+            raise HTTPException(status_code=503, detail='Execution engine not available')
+
+        logger.info(
+            'task_cancellation_requested',
+            ticket_id=ticket_id,
+            reason=request.reason,
+            preempted_by=request.preempted_by,
+            grace_period_seconds=request.grace_period_seconds,
+            authenticated_spiffe_id=spiffe_id
+        )
+
+        # Check if task is active
+        if ticket_id not in execution_engine.active_tasks:
+            logger.warning(
+                'cancel_task_not_found',
+                ticket_id=ticket_id,
+                active_tasks=list(execution_engine.active_tasks.keys())
+            )
+            raise HTTPException(status_code=404, detail=f'Task {ticket_id} not found or not active')
+
+        try:
+            # Call execution engine's cancel method
+            result = await execution_engine.cancel_active_task(
+                ticket_id=ticket_id,
+                reason=request.reason,
+                preempted_by=request.preempted_by,
+                grace_period_seconds=request.grace_period_seconds
+            )
+
+            logger.info(
+                'task_cancellation_completed',
+                ticket_id=ticket_id,
+                success=result.get('success', False),
+                checkpoint_saved=result.get('checkpoint_saved', False)
+            )
+
+            return {
+                'success': result.get('success', False),
+                'ticket_id': ticket_id,
+                'reason': request.reason,
+                'checkpoint_saved': result.get('checkpoint_saved', False),
+                'checkpoint_key': result.get('checkpoint_key'),
+                'message': result.get('message', 'Task cancellation processed')
+            }
+
+        except Exception as e:
+            logger.error(
+                'task_cancellation_failed',
+                ticket_id=ticket_id,
+                error=str(e)
+            )
+            raise HTTPException(
+                status_code=500,
+                detail=f'Failed to cancel task: {str(e)}'
+            )
 
     @app.on_event('startup')
     async def startup():

@@ -120,7 +120,26 @@ class WorkerAgentMetrics:
 
         self.tasks_cancelled_total = Counter(
             'worker_agent_tasks_cancelled_total',
-            'Total de tarefas canceladas'
+            'Total de tarefas canceladas',
+            ['reason']  # reason: preemption, timeout, user_request, shutdown
+        )
+
+        # Preemption Metrics
+        self.tasks_preempted_total = Counter(
+            'worker_agent_tasks_preempted_total',
+            'Total de tarefas preemptadas por tickets de alta prioridade'
+        )
+
+        self.checkpoint_saves_total = Counter(
+            'worker_agent_checkpoint_saves_total',
+            'Total de checkpoints salvos durante cancelamento',
+            ['success']  # success: true, false
+        )
+
+        self.graceful_cancellation_duration_seconds = Histogram(
+            'worker_agent_graceful_cancellation_duration_seconds',
+            'Duração do cancelamento graceful de tarefas',
+            buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60]
         )
 
         # Idempotency

@@ -339,6 +339,20 @@ class ExecutionEngine:
                             if hasattr(self.metrics, 'task_duration_seconds'):
                                 self.metrics.task_duration_seconds.labels(task_type=task_type).observe(duration_ms / 1000)
 
+            except asyncio.CancelledError:
+                # Task was cancelled (preemption or graceful shutdown)
+                duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+                span.set_attribute('error', True)
+                span.set_attribute('error.type', 'cancelled')
+                self.logger.info(
+                    'ticket_execution_cancelled',
+                    ticket_id=ticket_id,
+                    duration_ms=duration_ms
+                )
+                # Note: Status update and result publish are handled by cancel_active_task
+                # Just clean up and re-raise to signal cancellation
+                raise
+
             except asyncio.TimeoutError:
                 duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
                 span.set_attribute('error', True)
@@ -518,3 +532,214 @@ class ExecutionEngine:
                 'shutdown_timeout_tasks_cancelled',
                 cancelled_count=cancelled_count
             )
+
+    async def cancel_active_task(
+        self,
+        ticket_id: str,
+        reason: str = 'preemption',
+        preempted_by: Optional[str] = None,
+        grace_period_seconds: int = 30
+    ) -> Dict[str, Any]:
+        """
+        Cancel an active task with optional checkpointing.
+
+        Called by the HTTP endpoint when the Orchestrator requests preemption.
+
+        Args:
+            ticket_id: ID of the ticket to cancel
+            reason: Reason for cancellation (preemption, timeout, user_request)
+            preempted_by: ID of the ticket that is preempting this one
+            grace_period_seconds: Time to wait for graceful cancellation
+
+        Returns:
+            Dict with cancellation result
+        """
+        if ticket_id not in self.active_tasks:
+            self.logger.warning(
+                'cancel_task_not_active',
+                ticket_id=ticket_id
+            )
+            return {
+                'success': False,
+                'message': f'Task {ticket_id} is not active'
+            }
+
+        task = self.active_tasks[ticket_id]
+        checkpoint_saved = False
+        checkpoint_key = None
+
+        self.logger.info(
+            'cancelling_active_task',
+            ticket_id=ticket_id,
+            reason=reason,
+            preempted_by=preempted_by,
+            grace_period_seconds=grace_period_seconds
+        )
+
+        try:
+            # Save checkpoint before cancellation if Redis is available
+            if self.redis_client:
+                checkpoint_result = await self._save_checkpoint(
+                    ticket_id,
+                    reason=reason,
+                    preempted_by=preempted_by
+                )
+                checkpoint_saved = checkpoint_result.get('success', False)
+                checkpoint_key = checkpoint_result.get('checkpoint_key')
+
+            # Cancel the task
+            task.cancel()
+
+            # Wait for graceful cancellation with timeout
+            try:
+                await asyncio.wait_for(
+                    asyncio.shield(task),
+                    timeout=grace_period_seconds
+                )
+            except asyncio.CancelledError:
+                pass  # Expected
+            except asyncio.TimeoutError:
+                self.logger.warning(
+                    'graceful_cancellation_timeout',
+                    ticket_id=ticket_id,
+                    grace_period_seconds=grace_period_seconds
+                )
+
+            # Update ticket status to PREEMPTED
+            status = 'PREEMPTED' if reason == 'preemption' else 'CANCELLED'
+            try:
+                await self.ticket_client.update_ticket_status(
+                    ticket_id,
+                    status,
+                    error_message=f'Task {reason}: preempted by {preempted_by}' if preempted_by else f'Task {reason}'
+                )
+            except Exception as status_error:
+                self.logger.error(
+                    'update_status_failed',
+                    ticket_id=ticket_id,
+                    error=str(status_error)
+                )
+
+            # Publish result
+            try:
+                await self.result_producer.publish_result(
+                    ticket_id,
+                    status,
+                    {
+                        'success': False,
+                        'reason': reason,
+                        'preempted_by': preempted_by,
+                        'checkpoint_key': checkpoint_key
+                    },
+                    error_message=f'Task {reason}'
+                )
+            except Exception as pub_error:
+                self.logger.error(
+                    'publish_result_failed',
+                    ticket_id=ticket_id,
+                    error=str(pub_error)
+                )
+
+            # Clear processing key to allow retry
+            await self._clear_ticket_processing(ticket_id)
+
+            # Record metrics
+            if self.metrics:
+                if hasattr(self.metrics, 'tasks_cancelled_total'):
+                    self.metrics.tasks_cancelled_total.labels(reason=reason).inc()
+                if hasattr(self.metrics, 'tasks_preempted_total') and reason == 'preemption':
+                    self.metrics.tasks_preempted_total.inc()
+                if hasattr(self.metrics, 'checkpoint_saves_total') and checkpoint_saved:
+                    self.metrics.checkpoint_saves_total.labels(success='true').inc()
+
+            self.logger.info(
+                'task_cancelled_successfully',
+                ticket_id=ticket_id,
+                reason=reason,
+                checkpoint_saved=checkpoint_saved,
+                checkpoint_key=checkpoint_key
+            )
+
+            return {
+                'success': True,
+                'ticket_id': ticket_id,
+                'reason': reason,
+                'checkpoint_saved': checkpoint_saved,
+                'checkpoint_key': checkpoint_key,
+                'message': f'Task {ticket_id} cancelled successfully'
+            }
+
+        except Exception as e:
+            self.logger.error(
+                'cancel_task_failed',
+                ticket_id=ticket_id,
+                error=str(e)
+            )
+            return {
+                'success': False,
+                'ticket_id': ticket_id,
+                'message': f'Failed to cancel task: {str(e)}'
+            }
+
+    async def _save_checkpoint(
+        self,
+        ticket_id: str,
+        reason: str = 'preemption',
+        preempted_by: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Save task checkpoint to Redis for later retry.
+
+        Args:
+            ticket_id: ID of the ticket being checkpointed
+            reason: Reason for checkpoint
+            preempted_by: ID of preempting ticket
+
+        Returns:
+            Dict with checkpoint result
+        """
+        if not self.redis_client:
+            return {'success': False, 'message': 'Redis not available'}
+
+        checkpoint_key = f"checkpoint:{ticket_id}"
+
+        try:
+            import json as json_lib
+            checkpoint_data = {
+                'ticket_id': ticket_id,
+                'reason': reason,
+                'preempted_by': preempted_by,
+                'timestamp': datetime.now().isoformat(),
+                'worker_id': getattr(self.config, 'agent_id', 'unknown')
+            }
+
+            # Store checkpoint with 24h TTL
+            await self.redis_client.set(
+                checkpoint_key,
+                json_lib.dumps(checkpoint_data),
+                ex=86400  # 24 hours
+            )
+
+            self.logger.info(
+                'checkpoint_saved',
+                ticket_id=ticket_id,
+                checkpoint_key=checkpoint_key
+            )
+
+            return {
+                'success': True,
+                'checkpoint_key': checkpoint_key
+            }
+
+        except Exception as e:
+            self.logger.error(
+                'checkpoint_save_failed',
+                ticket_id=ticket_id,
+                error=str(e)
+            )
+            if self.metrics and hasattr(self.metrics, 'checkpoint_saves_total'):
+                self.metrics.checkpoint_saves_total.labels(success='false').inc()
+            return {
+                'success': False,
+                'message': str(e)
+            }

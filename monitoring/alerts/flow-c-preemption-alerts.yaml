@@ -1,0 +1,133 @@
+groups:
+  - name: orchestrator-preemption
+    rules:
+      # High preemption failure rate
+      - alert: HighPreemptionFailureRate
+        expr: |
+          sum(rate(orchestration_preemption_failures_total[5m])) /
+          sum(rate(orchestration_preemption_attempts_total[5m])) > 0.3
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          feature: preemption
+        annotations:
+          summary: "High preemption failure rate detected"
+          description: "Preemption failure rate is {{ $value | humanizePercentage }} over the last 5 minutes. Check worker agent connectivity and resource availability."
+          runbook_url: "https://docs.neural-hive-mind.io/runbooks/preemption-failures"
+
+      # Too many concurrent preemptions
+      - alert: HighConcurrentPreemptions
+        expr: orchestration_active_preemptions > 10
+        for: 2m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          feature: preemption
+        annotations:
+          summary: "High number of concurrent preemptions"
+          description: "{{ $value }} concurrent preemptions active. This may indicate resource contention or priority inversion."
+          runbook_url: "https://docs.neural-hive-mind.io/runbooks/concurrent-preemptions"
+
+      # Preemption timeout rate
+      - alert: PreemptionTimeoutRate
+        expr: |
+          sum(rate(orchestration_preemption_failures_total{reason="timeout"}[5m])) /
+          sum(rate(orchestration_preemption_attempts_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          feature: preemption
+        annotations:
+          summary: "High preemption timeout rate"
+          description: "{{ $value | humanizePercentage }} of preemption attempts are timing out. Workers may be unresponsive or overloaded."
+          runbook_url: "https://docs.neural-hive-mind.io/runbooks/preemption-timeouts"
+
+      # Preemption duration too long
+      - alert: SlowPreemptionDuration
+        expr: histogram_quantile(0.95, rate(orchestration_preemption_duration_seconds_bucket[5m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          feature: preemption
+        annotations:
+          summary: "Slow preemption duration"
+          description: "P95 preemption duration is {{ $value | humanizeDuration }}. This may delay high-priority task execution."
+          runbook_url: "https://docs.neural-hive-mind.io/runbooks/slow-preemption"
+
+      # Worker checkpoint failures
+      - alert: HighCheckpointFailureRate
+        expr: |
+          sum(rate(worker_agent_checkpoint_saves_total{success="false"}[5m])) /
+          sum(rate(worker_agent_checkpoint_saves_total[5m])) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          component: worker-agents
+          feature: preemption
+        annotations:
+          summary: "High checkpoint save failure rate"
+          description: "{{ $value | humanizePercentage }} of checkpoints are failing. Preempted tasks may lose progress."
+          runbook_url: "https://docs.neural-hive-mind.io/runbooks/checkpoint-failures"
+
+      # Preempted tasks not being retried
+      - alert: PreemptedTasksNotRetried
+        expr: |
+          sum(increase(orchestration_tasks_preempted_total[1h])) > 10
+          and
+          sum(increase(orchestration_preempted_tasks_retried_total[1h])) == 0
+        for: 30m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          feature: preemption
+        annotations:
+          summary: "Preempted tasks are not being retried"
+          description: "{{ $value }} tasks have been preempted in the last hour but none have been retried. Check retry configuration."
+          runbook_url: "https://docs.neural-hive-mind.io/runbooks/preemption-retry"
+
+      # Critical: High priority starvation (many preemptions but still no resources)
+      - alert: HighPriorityResourceStarvation
+        expr: |
+          sum(rate(orchestration_scheduler_rejections_total{reason="no_workers"}[10m])) > 0.5
+          and
+          sum(rate(orchestration_tasks_preempted_total[10m])) > 0.1
+        for: 10m
+        labels:
+          severity: critical
+          component: orchestrator-dynamic
+          feature: preemption
+        annotations:
+          summary: "High-priority tasks starving despite preemption"
+          description: "High-priority tasks are being rejected despite active preemption. Consider scaling worker agents."
+          runbook_url: "https://docs.neural-hive-mind.io/runbooks/resource-starvation"
+
+  - name: worker-agent-preemption
+    rules:
+      # Worker being preempted too frequently
+      - alert: WorkerPreemptedFrequently
+        expr: sum by (agent_id) (rate(worker_agent_tasks_preempted_total[10m])) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          component: worker-agents
+          feature: preemption
+        annotations:
+          summary: "Worker being preempted frequently"
+          description: "Worker {{ $labels.agent_id }} is being preempted frequently. Consider rebalancing workload distribution."
+          runbook_url: "https://docs.neural-hive-mind.io/runbooks/worker-preemption"
+
+      # Graceful cancellation taking too long
+      - alert: SlowGracefulCancellation
+        expr: histogram_quantile(0.95, rate(worker_agent_graceful_cancellation_duration_seconds_bucket[5m])) > 45
+        for: 5m
+        labels:
+          severity: warning
+          component: worker-agents
+          feature: preemption
+        annotations:
+          summary: "Slow graceful cancellation"
+          description: "P95 graceful cancellation duration is {{ $value | humanizeDuration }}. Tasks may not be checkpointing properly."
+          runbook_url: "https://docs.neural-hive-mind.io/runbooks/slow-cancellation"

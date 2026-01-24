@@ -129,6 +129,17 @@ config:
     enableMlEnhancedScheduling: true
     maxParallelTickets: 100
 
+    # Preemption Configuration
+    enablePreemption: false  # Feature flag (default: disabled)
+    preemption:
+      minPreemptorPriority: HIGH       # Minimum priority to preempt (HIGH or CRITICAL)
+      maxPreemptablePriority: LOW      # Maximum priority that can be preempted (LOW or MEDIUM)
+      gracePeriodSeconds: 30           # Time for graceful cancellation
+      maxConcurrentPreemptions: 5      # Limit concurrent preemptions
+      workerCooldownSeconds: 60        # Cooldown after preemption
+      retryPreemptedTasks: true        # Retry preempted tasks
+      retryDelaySeconds: 300           # Delay before retrying (5 minutes)
+
     # Affinity/Anti-Affinity Configuration
     enableAffinity: true  # Feature flag para habilitar affinity/anti-affinity
     affinity:
