@@ -17,7 +17,9 @@ from .clients import (
     ExecutionTicketClient,
     KafkaTicketConsumer,
     KafkaDLQConsumer,
-    KafkaResultProducer
+    KafkaResultProducer,
+    MongoDBClient,
+    DLQAlertManager
 )
 from .engine import ExecutionEngine, DependencyCoordinator
 from .clients.redis_client import get_redis_client, close_redis_client
@@ -451,19 +453,56 @@ async def startup():
         kafka_consumer = instrument_kafka_consumer(kafka_consumer)
         app_state['kafka_consumer'] = kafka_consumer
 
-        # Inicializar DLQ consumer (opcional - depende de MongoDB)
-        mongodb_client = app_state.get('mongodb_client')  # Se disponivel
+        # Inicializar MongoDB client para persistência de DLQ (Comment 2)
+        mongodb_client = None
+        if getattr(config, 'mongodb_enabled', True):
+            try:
+                logger.info('Inicializando MongoDB Client para persistência de DLQ')
+                mongodb_client = MongoDBClient(config)
+                await mongodb_client.initialize()
+                app_state['mongodb_client'] = mongodb_client
+                logger.info('MongoDB Client inicializado com sucesso')
+            except ImportError:
+                logger.warning('MongoDB habilitado mas motor não instalado')
+            except Exception as mongo_error:
+                logger.warning(
+                    'MongoDB Client init falhou, continuando sem persistência DLQ',
+                    error=str(mongo_error)
+                )
+                mongodb_client = None
+
+        # Inicializar DLQ Alert Manager para alertas SRE (Comment 2)
+        dlq_alert_manager = None
+        if getattr(config, 'dlq_alert_enabled', True):
+            try:
+                logger.info('Inicializando DLQ Alert Manager')
+                dlq_alert_manager = DLQAlertManager(config, metrics=metrics)
+                await dlq_alert_manager.initialize()
+                app_state['dlq_alert_manager'] = dlq_alert_manager
+                logger.info('DLQ Alert Manager inicializado com sucesso')
+            except Exception as alert_error:
+                logger.warning(
+                    'DLQ Alert Manager init falhou, continuando sem alertas',
+                    error=str(alert_error)
+                )
+                dlq_alert_manager = None
+
+        # Inicializar DLQ consumer com MongoDB e AlertManager reais (Comment 2)
         if getattr(config, 'kafka_dlq_enabled', True):
             try:
                 dlq_consumer = KafkaDLQConsumer(
                     config=config,
                     mongodb_client=mongodb_client,
-                    alert_manager=None,  # TODO: Implementar AlertManager
+                    alert_manager=dlq_alert_manager,
                     metrics=metrics
                 )
                 await dlq_consumer.initialize()
                 app_state['dlq_consumer'] = dlq_consumer
-                logger.info('dlq_consumer_initialized')
+                logger.info(
+                    'dlq_consumer_initialized',
+                    mongodb_enabled=mongodb_client is not None,
+                    alerts_enabled=dlq_alert_manager is not None
+                )
             except Exception as dlq_error:
                 logger.warning(
                     'dlq_consumer_init_failed_continuing_without',
@@ -597,6 +636,24 @@ async def shutdown():
                 logger.info('Redis Client fechado com sucesso')
             except Exception as redis_close_error:
                 logger.warning('Erro ao fechar Redis Client', error=str(redis_close_error))
+
+        # Fechar MongoDB client (Comment 2)
+        if 'mongodb_client' in app_state and app_state['mongodb_client']:
+            try:
+                logger.info('Fechando MongoDB Client')
+                await app_state['mongodb_client'].close()
+                logger.info('MongoDB Client fechado com sucesso')
+            except Exception as mongo_close_error:
+                logger.warning('Erro ao fechar MongoDB Client', error=str(mongo_close_error))
+
+        # Fechar DLQ Alert Manager (Comment 2)
+        if 'dlq_alert_manager' in app_state and app_state['dlq_alert_manager']:
+            try:
+                logger.info('Fechando DLQ Alert Manager')
+                await app_state['dlq_alert_manager'].close()
+                logger.info('DLQ Alert Manager fechado com sucesso')
+            except Exception as alert_close_error:
+                logger.warning('Erro ao fechar DLQ Alert Manager', error=str(alert_close_error))
 
         logger.info('worker_agent_shutdown_complete')
 

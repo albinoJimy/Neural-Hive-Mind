@@ -130,6 +130,9 @@ class TestKafkaTicketConsumerDLQ:
 
         mock_engine = AsyncMock()
 
+        # Configurar retry para apenas 1 tentativa no teste
+        mock_config.dlq_publish_max_retries = 1
+
         consumer = KafkaTicketConsumer(
             config=mock_config,
             execution_engine=mock_engine,
@@ -149,7 +152,22 @@ class TestKafkaTicketConsumerDLQ:
             mock_producer_instance = MagicMock()
             MockProducer.return_value = mock_producer_instance
 
-            await consumer._publish_to_dlq(ticket, error, 3)
+            # Simular callback de sucesso quando produce é chamado
+            def simulate_success_produce(**kwargs):
+                callback = kwargs.get('callback')
+                if callback:
+                    # Simular entrega bem-sucedida
+                    mock_msg = MagicMock()
+                    mock_msg.partition.return_value = 0
+                    mock_msg.offset.return_value = 100
+                    callback(None, mock_msg)  # err=None indica sucesso
+
+            mock_producer_instance.produce.side_effect = simulate_success_produce
+
+            result = await consumer._publish_to_dlq(ticket, error, 3)
+
+            # Verificar que retornou sucesso
+            assert result is True
 
             # Verificar que producer.produce foi chamado
             mock_producer_instance.produce.assert_called_once()
@@ -265,6 +283,9 @@ class TestDLQMetrics:
 
         mock_engine = AsyncMock()
 
+        # Configurar retry para apenas 1 tentativa no teste
+        mock_config.dlq_publish_max_retries = 1
+
         consumer = KafkaTicketConsumer(
             config=mock_config,
             execution_engine=mock_engine,
@@ -283,7 +304,21 @@ class TestDLQMetrics:
             mock_producer_instance = MagicMock()
             MockProducer.return_value = mock_producer_instance
 
-            await consumer._publish_to_dlq(ticket, error, 3)
+            # Simular callback de sucesso quando produce é chamado
+            def simulate_success_produce(**kwargs):
+                callback = kwargs.get('callback')
+                if callback:
+                    mock_msg = MagicMock()
+                    mock_msg.partition.return_value = 0
+                    mock_msg.offset.return_value = 100
+                    callback(None, mock_msg)
+
+            mock_producer_instance.produce.side_effect = simulate_success_produce
+
+            result = await consumer._publish_to_dlq(ticket, error, 3)
+
+            # Verificar sucesso
+            assert result is True
 
             # Verificar metricas
             mock_metrics.dlq_messages_total.labels.assert_called_with(

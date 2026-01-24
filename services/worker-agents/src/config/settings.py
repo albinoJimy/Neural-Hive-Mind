@@ -279,6 +279,29 @@ class WorkerAgentSettings(BaseSettings):
     redis_ssl_enabled: bool = Field(default=False, description='Habilitar SSL para conexão Redis')
     redis_enabled: bool = Field(default=True, description='Habilitar deduplicação via Redis (fail-open se indisponível)')
 
+    # MongoDB (para persistência de DLQ)
+    mongodb_uri: str = Field(
+        default='mongodb://mongodb.neural-hive-data.svc.cluster.local:27017',
+        description='URI de conexão MongoDB'
+    )
+    mongodb_database: str = Field(default='neural_hive_workers', description='Nome do database MongoDB')
+    mongodb_dlq_collection: str = Field(default='execution_tickets_dlq', description='Coleção para DLQ')
+    mongodb_enabled: bool = Field(default=True, description='Habilitar MongoDB para persistência DLQ')
+    mongodb_max_pool_size: int = Field(default=10, description='Tamanho máximo do pool de conexões')
+    mongodb_server_selection_timeout_ms: int = Field(default=5000, description='Timeout seleção de servidor')
+
+    # DLQ Alerting
+    dlq_alert_kafka_topic: str = Field(
+        default='sre.alerts',
+        description='Tópico Kafka para alertas de DLQ'
+    )
+    dlq_alert_enabled: bool = Field(default=True, description='Habilitar alertas para mensagens DLQ')
+
+    # DLQ Retry
+    dlq_publish_max_retries: int = Field(default=3, description='Número máximo de retries para publicar no DLQ')
+    dlq_publish_retry_backoff_base_seconds: float = Field(default=1.0, description='Base do backoff exponencial (segundos)')
+    dlq_publish_retry_backoff_max_seconds: float = Field(default=30.0, description='Máximo do backoff exponencial (segundos)')
+
     def get_metadata(self) -> Dict[str, str]:
         '''Retorna metadata para registro no Service Registry'''
         metadata = {

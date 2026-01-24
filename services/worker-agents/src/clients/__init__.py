@@ -3,6 +3,8 @@ from .execution_ticket_client import ExecutionTicketClient
 from .kafka_ticket_consumer import KafkaTicketConsumer
 from .kafka_dlq_consumer import KafkaDLQConsumer
 from .kafka_result_producer import KafkaResultProducer
+from .mongodb_client import MongoDBClient
+from .dlq_alert_manager import DLQAlertManager
 from .github_actions_client import GitHubActionsClient
 from .gitlab_ci_client import GitLabCIClient, GitLabCIAPIError, GitLabCITimeoutError
 from .jenkins_client import JenkinsClient
@@ -83,6 +85,8 @@ __all__ = [
     'KafkaTicketConsumer',
     'KafkaDLQConsumer',
     'KafkaResultProducer',
+    'MongoDBClient',
+    'DLQAlertManager',
     'GitHubActionsClient',
     'GitLabCIClient',
     'GitLabCIAPIError',

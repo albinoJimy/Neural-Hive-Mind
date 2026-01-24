@@ -187,17 +187,29 @@ class KafkaTicketConsumer:
                             error=str(e)
                         )
 
-                        # Publicar no DLQ
-                        await self._publish_to_dlq(ticket, e, retry_count)
+                        # Construir payload seguro para DLQ (Comment 3)
+                        dlq_payload = self._build_dlq_payload(ticket, message)
 
-                        # Limpar contador de retries
-                        if ticket_id_for_log:
-                            await self._clear_retry_count(ticket_id_for_log)
+                        # Publicar no DLQ com retry/backoff (Comment 1)
+                        dlq_success = await self._publish_to_dlq(dlq_payload, e, retry_count)
 
-                        # Commit offset para nao reprocessar
-                        await asyncio.get_event_loop().run_in_executor(
-                            None, lambda: self.consumer.commit(message)
-                        )
+                        if dlq_success:
+                            # Limpar contador de retries apenas se DLQ publicou com sucesso
+                            if ticket_id_for_log:
+                                await self._clear_retry_count(ticket_id_for_log)
+
+                            # Commit offset apenas se DLQ publicou com sucesso (Comment 1)
+                            await asyncio.get_event_loop().run_in_executor(
+                                None, lambda: self.consumer.commit(message)
+                            )
+                        else:
+                            # DLQ falhou - não fazer commit para reprocessar
+                            self.logger.error(
+                                'dlq_publish_failed_will_retry_message',
+                                ticket_id=ticket_id_for_log,
+                                retry_count=retry_count
+                            )
+                            # Não fazer commit - mensagem será reprocessada
                     else:
                         self.logger.error(
                             'ticket_processing_failed_will_retry',
@@ -321,14 +333,71 @@ class KafkaTicketConsumer:
         except Exception as e:
             self.logger.error('clear_retry_count_failed', ticket_id=ticket_id, error=str(e))
 
-    async def _publish_to_dlq(self, ticket: dict, error: Exception, retry_count: int):
+    def _build_dlq_payload(self, ticket, message) -> dict:
         """
-        Publicar ticket no Dead Letter Queue.
+        Construir payload seguro para DLQ, tratando casos de deserialização falha.
+
+        Se ticket não for um dict válido, constrói um payload mínimo com
+        informações da mensagem Kafka original para análise forense.
 
         Args:
-            ticket: Execution ticket original
+            ticket: Ticket deserializado (pode ser None ou tipo inválido)
+            message: Mensagem Kafka original
+
+        Returns:
+            Dict com payload seguro para DLQ
+        """
+        if isinstance(ticket, dict) and ticket:
+            return ticket
+
+        # Ticket inválido - construir payload mínimo (Comment 3)
+        raw_value = None
+        try:
+            if message.value():
+                raw_value = message.value().decode('utf-8', errors='replace')[:1000]  # Limitar tamanho
+        except Exception:
+            raw_value = '<falha ao decodificar mensagem>'
+
+        minimal_payload = {
+            'ticket_id': 'unknown',
+            'task_id': 'unknown',
+            'task_type': 'unknown',
+            'status': 'DESERIALIZATION_FAILED',
+            'dependencies': [],
+            '_deserialization_error': True,
+            '_raw_message_preview': raw_value,
+            '_kafka_metadata': {
+                'topic': message.topic(),
+                'partition': message.partition(),
+                'offset': message.offset(),
+                'timestamp': message.timestamp()[1] if message.timestamp() else None
+            }
+        }
+
+        self.logger.warning(
+            'ticket_deserialization_failed_using_minimal_payload',
+            topic=message.topic(),
+            partition=message.partition(),
+            offset=message.offset(),
+            raw_preview=raw_value[:100] if raw_value else None
+        )
+
+        return minimal_payload
+
+    async def _publish_to_dlq(self, ticket: dict, error: Exception, retry_count: int) -> bool:
+        """
+        Publicar ticket no Dead Letter Queue com retry e backoff.
+
+        Implementa retry com backoff exponencial para garantir que a mensagem
+        seja publicada no DLQ antes de fazer commit do offset. (Comment 1)
+
+        Args:
+            ticket: Execution ticket original (já validado por _build_dlq_payload)
             error: Excecao que causou a falha
             retry_count: Numero de tentativas de processamento
+
+        Returns:
+            bool: True se publicação foi bem-sucedida, False caso contrário
         """
         import time
         from datetime import datetime
@@ -337,95 +406,137 @@ class KafkaTicketConsumer:
         ticket_id = ticket.get('ticket_id', 'unknown')
         task_type = ticket.get('task_type', 'unknown')
 
+        # Configurações de retry do DLQ (com fallback para valores default)
+        max_retries_val = getattr(self.config, 'dlq_publish_max_retries', None)
+        max_retries = max_retries_val if isinstance(max_retries_val, int) else 3
+
+        backoff_base_val = getattr(self.config, 'dlq_publish_retry_backoff_base_seconds', None)
+        backoff_base = backoff_base_val if isinstance(backoff_base_val, (int, float)) else 1.0
+
+        backoff_max_val = getattr(self.config, 'dlq_publish_retry_backoff_max_seconds', None)
+        backoff_max = backoff_max_val if isinstance(backoff_max_val, (int, float)) else 30.0
+
         start_time = time.time()
 
+        # Enriquecer ticket com metadata de DLQ
+        dlq_message = {
+            **ticket,
+            'dlq_metadata': {
+                'original_error': str(error),
+                'error_type': type(error).__name__,
+                'retry_count': retry_count,
+                'last_failure_timestamp': int(datetime.now().timestamp() * 1000),
+                'dlq_published_at': int(datetime.now().timestamp() * 1000)
+            }
+        }
+
+        # Publicar no topico DLQ
+        dlq_topic = getattr(self.config, 'kafka_dlq_topic', 'execution.tickets.dlq')
+
+        # Usar producer simples (JSON) para DLQ
+        producer_config = {
+            'bootstrap.servers': self.config.kafka_bootstrap_servers,
+            'acks': 'all',
+            'retries': 3,
+            'enable.idempotence': True
+        }
+        producer_config.update(self._configure_security())
+
+        # Serializar como JSON
         try:
-            # Enriquecer ticket com metadata de DLQ
-            dlq_message = {
-                **ticket,
-                'dlq_metadata': {
-                    'original_error': str(error),
-                    'error_type': type(error).__name__,
-                    'retry_count': retry_count,
-                    'last_failure_timestamp': int(datetime.now().timestamp() * 1000),
-                    'dlq_published_at': int(datetime.now().timestamp() * 1000)
-                }
-            }
-
-            # Publicar no topico DLQ
-            dlq_topic = getattr(self.config, 'kafka_dlq_topic', 'execution.tickets.dlq')
-
-            # Usar producer simples (JSON) para DLQ
-            producer_config = {
-                'bootstrap.servers': self.config.kafka_bootstrap_servers,
-                'acks': 'all',
-                'retries': 3,
-                'enable.idempotence': True
-            }
-            producer_config.update(self._configure_security())
-
-            producer = Producer(producer_config)
-
-            # Serializar como JSON
             message_value = json.dumps(dlq_message).encode('utf-8')
+        except Exception as serialize_error:
+            self.logger.error(
+                'dlq_serialization_failed',
+                ticket_id=ticket_id,
+                error=str(serialize_error)
+            )
+            return False
 
-            delivery_result = {'success': False, 'error': None}
+        # Retry loop com backoff exponencial (Comment 1)
+        for attempt in range(max_retries):
+            try:
+                producer = Producer(producer_config)
+                delivery_result = {'success': False, 'error': None}
 
-            # Publicar com callback
-            def delivery_callback(err, msg):
-                if err:
-                    delivery_result['error'] = err
-                    self.logger.error(
-                        'dlq_publish_failed',
-                        ticket_id=ticket_id,
-                        error=str(err)
-                    )
-                    if self.metrics:
-                        self.metrics.dlq_publish_errors_total.labels(error_type=type(err).__name__).inc()
-                else:
-                    delivery_result['success'] = True
+                # Publicar com callback
+                def delivery_callback(err, msg):
+                    if err:
+                        delivery_result['error'] = err
+                    else:
+                        delivery_result['success'] = True
+
+                producer.produce(
+                    topic=dlq_topic,
+                    key=ticket_id.encode('utf-8'),
+                    value=message_value,
+                    callback=delivery_callback
+                )
+
+                # Flush com timeout
+                producer.flush(timeout=10)
+
+                if delivery_result['success']:
+                    duration = time.time() - start_time
+
                     self.logger.info(
                         'dlq_publish_success',
                         ticket_id=ticket_id,
-                        partition=msg.partition(),
-                        offset=msg.offset()
+                        task_type=task_type,
+                        attempt=attempt + 1,
+                        duration_seconds=duration
                     )
 
-            producer.produce(
-                topic=dlq_topic,
-                key=ticket_id.encode('utf-8'),
-                value=message_value,
-                callback=delivery_callback
-            )
+                    self.logger.warning(
+                        'ticket_sent_to_dlq',
+                        ticket_id=ticket_id,
+                        task_type=task_type,
+                        retry_count=retry_count,
+                        error=str(error),
+                        duration_seconds=duration
+                    )
 
-            producer.flush(timeout=10)
+                    if self.metrics:
+                        self.metrics.dlq_messages_total.labels(
+                            reason='max_retries_exceeded',
+                            task_type=task_type
+                        ).inc()
+                        self.metrics.dlq_publish_duration_seconds.observe(duration)
+                        self.metrics.ticket_retry_count.labels(task_type=task_type).observe(retry_count)
 
-            duration = time.time() - start_time
+                    return True
+                else:
+                    # Delivery callback reportou erro
+                    raise Exception(f"Kafka delivery failed: {delivery_result['error']}")
 
-            self.logger.warning(
-                'ticket_sent_to_dlq',
-                ticket_id=ticket_id,
-                task_type=task_type,
-                retry_count=retry_count,
-                error=str(error),
-                duration_seconds=duration
-            )
+            except Exception as dlq_error:
+                self.logger.warning(
+                    'dlq_publish_attempt_failed',
+                    ticket_id=ticket_id,
+                    attempt=attempt + 1,
+                    max_retries=max_retries,
+                    error=str(dlq_error)
+                )
 
-            if self.metrics:
-                self.metrics.dlq_messages_total.labels(
-                    reason='max_retries_exceeded',
-                    task_type=task_type
-                ).inc()
-                self.metrics.dlq_publish_duration_seconds.observe(duration)
-                self.metrics.ticket_retry_count.labels(task_type=task_type).observe(retry_count)
+                if attempt < max_retries - 1:
+                    # Calcular backoff exponencial
+                    backoff_time = min(backoff_base * (2 ** attempt), backoff_max)
+                    self.logger.debug(
+                        'dlq_publish_retry_backoff',
+                        ticket_id=ticket_id,
+                        backoff_seconds=backoff_time
+                    )
+                    await asyncio.sleep(backoff_time)
 
-        except Exception as dlq_error:
-            self.logger.error(
-                'dlq_publish_exception',
-                ticket_id=ticket_id,
-                error=str(dlq_error),
-                exc_info=True
-            )
-            if self.metrics:
-                self.metrics.dlq_publish_errors_total.labels(error_type=type(dlq_error).__name__).inc()
-            # Nao propagar excecao - ja estamos em error handling
+        # Todas as tentativas falharam
+        self.logger.error(
+            'dlq_publish_all_retries_exhausted',
+            ticket_id=ticket_id,
+            max_retries=max_retries,
+            error=str(error)
+        )
+
+        if self.metrics:
+            self.metrics.dlq_publish_errors_total.labels(error_type='all_retries_exhausted').inc()
+
+        return False
