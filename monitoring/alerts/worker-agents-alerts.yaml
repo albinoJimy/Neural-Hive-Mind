@@ -1,0 +1,88 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: worker-agents-backpressure-alerts
+  namespace: neural-hive-execution
+  labels:
+    app: worker-agents
+    prometheus: kube-prometheus
+spec:
+  groups:
+    - name: worker-agents-backpressure
+      interval: 30s
+      rules:
+        - alert: WorkerBackpressureActive
+          expr: |
+            (
+              worker_agent_tickets_in_flight
+              / on(instance, job) group_left()
+              worker_agent_max_concurrent_tickets
+            ) > 0.8
+          for: 2m
+          labels:
+            severity: warning
+            component: worker-agents
+            layer: execution
+          annotations:
+            summary: "Worker Agent com backpressure ativo"
+            description: |
+              Worker Agent {{ $labels.pod }} está com {{ $value | humanizePercentage }} de utilização de tickets in-flight.
+              Isso indica que o consumer está próximo do limite de capacidade.
+
+              Valor atual: {{ with printf "worker_agent_tickets_in_flight{instance='%s',job='%s'}" $labels.instance $labels.job | query }}{{ . | first | value }}{{ end }} tickets in-flight
+              Limite configurado: {{ with printf "worker_agent_max_concurrent_tickets{instance='%s',job='%s'}" $labels.instance $labels.job | query }}{{ . | first | value }}{{ end }}
+              Threshold: 80%
+
+              Ações:
+              1. Verificar se há tickets travados: kubectl logs -n neural-hive-execution {{ $labels.pod }}
+              2. Considerar aumentar maxConcurrentTickets se carga sustentada
+              3. Verificar latência de processamento de tickets
+            runbook_url: "https://docs.neural-hive.local/runbooks/worker-backpressure"
+            dashboard_url: "https://grafana.neural-hive.local/d/worker-agents/worker-agents-dashboard?var-pod={{ $labels.pod }}"
+
+        - alert: WorkerBackpressureCritical
+          expr: |
+            worker_agent_tickets_in_flight >= worker_agent_max_concurrent_tickets
+          for: 5m
+          labels:
+            severity: critical
+            component: worker-agents
+            layer: execution
+          annotations:
+            summary: "Worker Agent com backpressure crítico"
+            description: |
+              Worker Agent {{ $labels.pod }} atingiu o limite máximo de tickets in-flight.
+              Consumer está pausado e não está consumindo novas mensagens.
+
+              Valor atual: {{ with printf "worker_agent_tickets_in_flight{instance='%s',job='%s'}" $labels.instance $labels.job | query }}{{ . | first | value }}{{ end }} tickets in-flight
+              Limite máximo configurado: {{ with printf "worker_agent_max_concurrent_tickets{instance='%s',job='%s'}" $labels.instance $labels.job | query }}{{ . | first | value }}{{ end }}
+
+              Ações imediatas:
+              1. Verificar logs: kubectl logs -n neural-hive-execution {{ $labels.pod }} --tail=100
+              2. Verificar tickets travados: kubectl exec -n neural-hive-execution {{ $labels.pod }} -- curl localhost:8080/metrics | grep active_tasks
+              3. Considerar restart se tickets travados: kubectl delete pod -n neural-hive-execution {{ $labels.pod }}
+            runbook_url: "https://docs.neural-hive.local/runbooks/worker-backpressure-critical"
+
+        - alert: WorkerConsumerPausedTooLong
+          expr: |
+            rate(worker_agent_consumer_paused_total[5m]) > 0
+            and
+            worker_agent_consumer_pause_duration_seconds > 300
+          for: 5m
+          labels:
+            severity: warning
+            component: worker-agents
+            layer: execution
+          annotations:
+            summary: "Worker Agent consumer pausado por muito tempo"
+            description: |
+              Worker Agent {{ $labels.pod }} está com consumer pausado há mais de 5 minutos.
+              Isso indica processamento lento ou tickets travados.
+
+              Duração da pausa: {{ $value | humanizeDuration }}
+
+              Ações:
+              1. Verificar latência de processamento: kubectl logs -n neural-hive-execution {{ $labels.pod }} | grep task_duration
+              2. Verificar dependências travadas: kubectl logs -n neural-hive-execution {{ $labels.pod }} | grep dependency_wait
+              3. Considerar aumentar maxConcurrentTasks se processamento lento
+            runbook_url: "https://docs.neural-hive.local/runbooks/worker-consumer-paused"

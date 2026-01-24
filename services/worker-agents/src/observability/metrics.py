@@ -62,6 +62,35 @@ class WorkerAgentMetrics:
             'Número de tarefas ativas no momento'
         )
 
+        self.tickets_in_flight = Gauge(
+            'worker_agent_tickets_in_flight',
+            'Número de tickets consumidos mas ainda não finalizados (backpressure)'
+        )
+
+        self.max_concurrent_tickets = Gauge(
+            'worker_agent_max_concurrent_tickets',
+            'Limite máximo configurado de tickets em processamento simultâneo'
+        )
+        # Inicializar com valor da config
+        max_tickets = getattr(config, 'max_concurrent_tickets', 10)
+        self.max_concurrent_tickets.set(max_tickets)
+
+        self.consumer_paused_total = Counter(
+            'worker_agent_consumer_paused_total',
+            'Total de vezes que o consumer foi pausado por backpressure'
+        )
+
+        self.consumer_resumed_total = Counter(
+            'worker_agent_consumer_resumed_total',
+            'Total de vezes que o consumer foi resumido após backpressure'
+        )
+
+        self.consumer_pause_duration_seconds = Histogram(
+            'worker_agent_consumer_pause_duration_seconds',
+            'Duração de pausas do consumer por backpressure',
+            buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300]
+        )
+
         self.task_duration_seconds = Histogram(
             'worker_agent_task_duration_seconds',
             'Duração de execução de tarefas',

@@ -26,9 +26,28 @@ class KafkaTicketConsumer:
         self.running = False
         self.redis_client = None  # Sera injetado via initialize()
 
+        # Backpressure control
+        self.tickets_semaphore = None  # Inicializado em initialize()
+        self.in_flight_tickets: set = set()  # Rastrear ticket_ids em processamento
+        self.consumer_paused = False
+        self.pause_start_time = None
+
+        # Lock para serializar chamadas a Consumer.commit (evita race conditions)
+        self._commit_lock = asyncio.Lock()
+
     async def initialize(self, redis_client=None):
         '''Inicializar consumer Kafka'''
         self.redis_client = redis_client
+
+        # Inicializar semaphore de backpressure
+        max_concurrent = getattr(self.config, 'max_concurrent_tickets', 10)
+        self.tickets_semaphore = asyncio.Semaphore(max_concurrent)
+
+        self.logger.info(
+            'backpressure_initialized',
+            max_concurrent_tickets=max_concurrent
+        )
+
         try:
             consumer_config = {
                 'bootstrap.servers': self.config.kafka_bootstrap_servers,
@@ -81,6 +100,9 @@ class KafkaTicketConsumer:
 
         try:
             while self.running:
+                # Verificar se deve resumir consumer
+                await self._resume_consumer_if_needed()
+
                 message = await asyncio.get_event_loop().run_in_executor(
                     None, lambda: self.consumer.poll(timeout=1.0)
                 )
@@ -117,9 +139,7 @@ class KafkaTicketConsumer:
                             ticket_id=ticket.get('ticket_id'),
                             missing_fields=missing_fields
                         )
-                        await asyncio.get_event_loop().run_in_executor(
-                            None, lambda: self.consumer.commit(message)
-                        )
+                        await self._commit_with_lock(message)
                         continue
 
                     # Verificar se task_type é suportado
@@ -130,9 +150,7 @@ class KafkaTicketConsumer:
                             ticket_id=ticket.get('ticket_id'),
                             task_type=task_type
                         )
-                        await asyncio.get_event_loop().run_in_executor(
-                            None, lambda: self.consumer.commit(message)
-                        )
+                        await self._commit_with_lock(message)
                         continue
 
                     # Verificar status
@@ -143,30 +161,37 @@ class KafkaTicketConsumer:
                             ticket_id=ticket.get('ticket_id'),
                             status=status
                         )
-                        await asyncio.get_event_loop().run_in_executor(
-                            None, lambda: self.consumer.commit(message)
-                        )
+                        await self._commit_with_lock(message)
                         continue
 
-                    # Processar ticket
+                    # Adquirir semaphore de backpressure (bloqueia se limite atingido)
+                    await self.tickets_semaphore.acquire()
+
+                    ticket_id = ticket.get('ticket_id')
+                    self.in_flight_tickets.add(ticket_id)
+
+                    # Atualizar métrica
+                    if self.metrics:
+                        self.metrics.tickets_in_flight.set(len(self.in_flight_tickets))
+
+                    # Verificar se deve pausar consumer
+                    await self._pause_consumer_if_needed()
+
+                    # Processar ticket em background task
                     self.logger.info(
                         'ticket_consumed',
-                        ticket_id=ticket.get('ticket_id'),
+                        ticket_id=ticket_id,
                         task_type=task_type,
-                        plan_id=ticket.get('plan_id')
+                        plan_id=ticket.get('plan_id'),
+                        in_flight_tickets=len(self.in_flight_tickets)
                     )
 
                     if self.metrics:
                         self.metrics.tickets_consumed_total.labels(task_type=task_type).inc()
 
-                    await self.execution_engine.process_ticket(ticket)
-
-                    # Limpar contador de retries apos sucesso
-                    await self._clear_retry_count(ticket.get('ticket_id'))
-
-                    # Commit offset apos processamento bem-sucedido
-                    await asyncio.get_event_loop().run_in_executor(
-                        None, lambda: self.consumer.commit(message)
+                    # Criar background task para processamento
+                    asyncio.create_task(
+                        self._process_ticket_with_cleanup(ticket, message)
                     )
 
                 except Exception as e:
@@ -187,10 +212,10 @@ class KafkaTicketConsumer:
                             error=str(e)
                         )
 
-                        # Construir payload seguro para DLQ (Comment 3)
+                        # Construir payload seguro para DLQ
                         dlq_payload = self._build_dlq_payload(ticket, message)
 
-                        # Publicar no DLQ com retry/backoff (Comment 1)
+                        # Publicar no DLQ com retry/backoff
                         dlq_success = await self._publish_to_dlq(dlq_payload, e, retry_count)
 
                         if dlq_success:
@@ -198,10 +223,8 @@ class KafkaTicketConsumer:
                             if ticket_id_for_log:
                                 await self._clear_retry_count(ticket_id_for_log)
 
-                            # Commit offset apenas se DLQ publicou com sucesso (Comment 1)
-                            await asyncio.get_event_loop().run_in_executor(
-                                None, lambda: self.consumer.commit(message)
-                            )
+                            # Commit offset apenas se DLQ publicou com sucesso
+                            await self._commit_with_lock(message)
                         else:
                             # DLQ falhou - não fazer commit para reprocessar
                             self.logger.error(
@@ -239,6 +262,189 @@ class KafkaTicketConsumer:
         if self.consumer:
             await asyncio.get_event_loop().run_in_executor(None, self.consumer.close)
             self.logger.info('kafka_consumer_stopped')
+
+    def _should_pause_consumer(self) -> bool:
+        """
+        Verificar se consumer deve ser pausado por backpressure.
+
+        Returns:
+            True se deve pausar, False caso contrário
+        """
+        if not self.tickets_semaphore:
+            return False
+
+        max_concurrent = self.tickets_semaphore._value + len(self.in_flight_tickets)
+        threshold = getattr(self.config, 'consumer_pause_threshold', 0.8)
+        pause_limit = int(max_concurrent * threshold)
+
+        return len(self.in_flight_tickets) >= pause_limit
+
+    def _should_resume_consumer(self) -> bool:
+        """
+        Verificar se consumer deve ser resumido após backpressure.
+
+        Returns:
+            True se deve resumir, False caso contrário
+        """
+        if not self.tickets_semaphore or not self.consumer_paused:
+            return False
+
+        max_concurrent = self.tickets_semaphore._value + len(self.in_flight_tickets)
+        threshold = getattr(self.config, 'consumer_resume_threshold', 0.5)
+        resume_limit = int(max_concurrent * threshold)
+
+        return len(self.in_flight_tickets) <= resume_limit
+
+    async def _pause_consumer_if_needed(self):
+        """
+        Pausar consumer se threshold de backpressure atingido.
+        """
+        if self._should_pause_consumer() and not self.consumer_paused:
+            self.consumer.pause(self.consumer.assignment())
+            self.consumer_paused = True
+            self.pause_start_time = asyncio.get_event_loop().time()
+
+            self.logger.warning(
+                'consumer_paused_backpressure',
+                in_flight_tickets=len(self.in_flight_tickets),
+                max_concurrent=self.tickets_semaphore._value + len(self.in_flight_tickets)
+            )
+
+            if self.metrics:
+                self.metrics.consumer_paused_total.inc()
+                self.metrics.tickets_in_flight.set(len(self.in_flight_tickets))
+
+    async def _resume_consumer_if_needed(self):
+        """
+        Resumir consumer se threshold de resume atingido.
+        """
+        if self._should_resume_consumer():
+            self.consumer.resume(self.consumer.assignment())
+            self.consumer_paused = False
+
+            if self.pause_start_time:
+                pause_duration = asyncio.get_event_loop().time() - self.pause_start_time
+
+                self.logger.info(
+                    'consumer_resumed_backpressure',
+                    in_flight_tickets=len(self.in_flight_tickets),
+                    pause_duration_seconds=pause_duration
+                )
+
+                if self.metrics:
+                    self.metrics.consumer_resumed_total.inc()
+                    self.metrics.consumer_pause_duration_seconds.observe(pause_duration)
+
+                self.pause_start_time = None
+
+            if self.metrics:
+                self.metrics.tickets_in_flight.set(len(self.in_flight_tickets))
+
+    async def _process_ticket_with_cleanup(self, ticket: dict, message):
+        """
+        Processar ticket e fazer cleanup de backpressure após conclusão.
+
+        Implementa lógica completa de retry/DLQ para falhas em process_ticket.
+
+        Args:
+            ticket: Execution ticket deserializado
+            message: Mensagem Kafka original
+        """
+        ticket_id = ticket.get('ticket_id')
+        task_type = ticket.get('task_type', 'unknown')
+        should_commit = False
+
+        try:
+            # Processar ticket via execution engine
+            await self.execution_engine.process_ticket(ticket)
+
+            # Limpar contador de retries após sucesso
+            await self._clear_retry_count(ticket_id)
+
+            # Marcar para commit
+            should_commit = True
+
+        except Exception as e:
+            # Incrementar contador de retries
+            retry_count = await self._increment_retry_count(ticket_id)
+            max_retries = getattr(self.config, 'kafka_max_retries_before_dlq', 3)
+
+            if retry_count >= max_retries:
+                self.logger.error(
+                    'ticket_max_retries_exceeded_sending_to_dlq',
+                    ticket_id=ticket_id,
+                    task_type=task_type,
+                    retry_count=retry_count,
+                    max_retries=max_retries,
+                    error=str(e)
+                )
+
+                # Publicar no DLQ com retry/backoff
+                dlq_success = await self._publish_to_dlq(ticket, e, retry_count)
+
+                if dlq_success:
+                    # Limpar contador de retries após DLQ publicado
+                    await self._clear_retry_count(ticket_id)
+                    # Commit apenas se DLQ publicou com sucesso
+                    should_commit = True
+                else:
+                    # DLQ falhou - não fazer commit para reprocessar
+                    self.logger.error(
+                        'dlq_publish_failed_will_retry_message',
+                        ticket_id=ticket_id,
+                        retry_count=retry_count
+                    )
+            else:
+                self.logger.error(
+                    'ticket_processing_failed_will_retry',
+                    ticket_id=ticket_id,
+                    task_type=task_type,
+                    retry_count=retry_count,
+                    max_retries=max_retries,
+                    error=str(e)
+                )
+                # Não fazer commit - permite retry via Kafka redelivery
+
+            if self.metrics:
+                error_type = type(e).__name__
+                self.metrics.kafka_consumer_errors_total.labels(error_type=error_type).inc()
+
+        finally:
+            # Commit offset se marcado para commit (sucesso ou DLQ confirmado)
+            if should_commit:
+                await self._commit_with_lock(message)
+
+            # Cleanup de backpressure (sempre executado)
+            if ticket_id in self.in_flight_tickets:
+                self.in_flight_tickets.remove(ticket_id)
+
+            # Liberar semaphore
+            self.tickets_semaphore.release()
+
+            # Atualizar métrica
+            if self.metrics:
+                self.metrics.tickets_in_flight.set(len(self.in_flight_tickets))
+
+            self.logger.debug(
+                'ticket_cleanup_completed',
+                ticket_id=ticket_id,
+                in_flight_tickets=len(self.in_flight_tickets)
+            )
+
+    async def _commit_with_lock(self, message):
+        """
+        Commit offset com lock para serializar chamadas concorrentes.
+
+        Evita comportamento indefinido quando múltiplas tasks tentam
+        chamar Consumer.commit() em paralelo.
+
+        Args:
+            message: Mensagem Kafka para commit
+        """
+        async with self._commit_lock:
+            await asyncio.get_event_loop().run_in_executor(
+                None, lambda: self.consumer.commit(message)
+            )
 
     def _configure_security(self) -> dict:
         """Configuração de segurança Kafka (SASL/SSL)."""

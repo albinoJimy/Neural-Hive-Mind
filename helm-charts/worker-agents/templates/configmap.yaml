@@ -11,6 +11,11 @@ data:
   SUPPORTED_TASK_TYPES: '{{ .Values.config.supportedTaskTypes | toJson }}'
   MAX_CONCURRENT_TASKS: {{ .Values.config.maxConcurrentTasks | quote }}
 
+  # Backpressure Control
+  MAX_CONCURRENT_TICKETS: {{ .Values.config.maxConcurrentTickets | quote }}
+  CONSUMER_PAUSE_THRESHOLD: {{ .Values.config.consumerPauseThreshold | quote }}
+  CONSUMER_RESUME_THRESHOLD: {{ .Values.config.consumerResumeThreshold | quote }}
+
   KAFKA_BOOTSTRAP_SERVERS: {{ .Values.config.kafka.bootstrapServers | quote }}
   KAFKA_TICKETS_TOPIC: {{ .Values.config.kafka.ticketsTopic | quote }}
   KAFKA_RESULTS_TOPIC: {{ .Values.config.kafka.resultsTopic | quote }}

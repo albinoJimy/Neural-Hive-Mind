@@ -58,6 +58,11 @@ config:
     - EXECUTE
   maxConcurrentTasks: 5
 
+  # Backpressure Control (valores reduzidos para desenvolvimento local)
+  maxConcurrentTickets: 5
+  consumerPauseThreshold: 0.8
+  consumerResumeThreshold: 0.5
+
   kafka:
     bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
     ticketsTopic: execution.tickets
