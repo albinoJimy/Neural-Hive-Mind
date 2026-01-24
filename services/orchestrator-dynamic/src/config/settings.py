@@ -146,6 +146,40 @@ class OrchestratorSettings(BaseSettings):
         description='Pesos de priorização (risk, qos, sla)'
     )
 
+    # Affinity/Anti-Affinity Configuration
+    scheduler_enable_affinity: bool = Field(
+        default=True,
+        description='Habilitar affinity/anti-affinity para alocação de tickets'
+    )
+    scheduler_affinity_plan_weight: float = Field(
+        default=0.6,
+        description='Peso de plan affinity no score (data locality)'
+    )
+    scheduler_affinity_anti_weight: float = Field(
+        default=0.3,
+        description='Peso de anti-affinity para tickets críticos (fault tolerance)'
+    )
+    scheduler_affinity_intent_weight: float = Field(
+        default=0.1,
+        description='Peso de intent affinity no score (workflow co-location)'
+    )
+    scheduler_affinity_plan_threshold: int = Field(
+        default=3,
+        description='Número de tickets para affinity máxima (3+ = score 1.0)'
+    )
+    scheduler_affinity_cache_ttl_seconds: int = Field(
+        default=14400,
+        description='TTL do cache de alocações em Redis (4 horas, alinhado com SLA)'
+    )
+    scheduler_affinity_anti_affinity_risk_bands: List[str] = Field(
+        default=['critical', 'high'],
+        description='Risk bands que ativam anti-affinity'
+    )
+    scheduler_affinity_anti_affinity_priorities: List[str] = Field(
+        default=['CRITICAL', 'HIGH'],
+        description='Priorities que ativam anti-affinity'
+    )
+
     # ML Predictions
     ml_predictions_enabled: bool = Field(
         default=True,
@@ -427,6 +461,24 @@ class OrchestratorSettings(BaseSettings):
     CIRCUIT_BREAKER_FAIL_MAX: int = Field(default=5, description='Falhas consecutivas para abrir circuito')
     CIRCUIT_BREAKER_TIMEOUT: int = Field(default=60, description='Tempo em segundos com circuito aberto')
     CIRCUIT_BREAKER_RECOVERY_TIMEOUT: int = Field(default=30, description='Tempo em segundos para half-open')
+
+    # Kafka Circuit Breaker
+    KAFKA_CIRCUIT_BREAKER_ENABLED: bool = Field(default=True, description='Habilitar circuit breaker para Kafka Producer')
+    KAFKA_CIRCUIT_BREAKER_FAIL_MAX: int = Field(default=5, description='Falhas consecutivas para abrir circuito Kafka')
+    KAFKA_CIRCUIT_BREAKER_TIMEOUT: int = Field(default=60, description='Tempo em segundos com circuito Kafka aberto')
+    KAFKA_CIRCUIT_BREAKER_RECOVERY_TIMEOUT: int = Field(default=30, description='Tempo de recuperação do circuito Kafka')
+
+    # Temporal Circuit Breaker
+    TEMPORAL_CIRCUIT_BREAKER_ENABLED: bool = Field(default=True, description='Habilitar circuit breaker para Temporal Client')
+    TEMPORAL_CIRCUIT_BREAKER_FAIL_MAX: int = Field(default=5, description='Falhas consecutivas para abrir circuito Temporal')
+    TEMPORAL_CIRCUIT_BREAKER_TIMEOUT: int = Field(default=60, description='Tempo em segundos com circuito Temporal aberto')
+    TEMPORAL_CIRCUIT_BREAKER_RECOVERY_TIMEOUT: int = Field(default=30, description='Tempo de recuperação do circuito Temporal')
+
+    # Redis Circuit Breaker
+    REDIS_CIRCUIT_BREAKER_ENABLED: bool = Field(default=True, description='Habilitar circuit breaker para Redis Client')
+    REDIS_CIRCUIT_BREAKER_FAIL_MAX: int = Field(default=5, description='Falhas consecutivas para abrir circuito Redis')
+    REDIS_CIRCUIT_BREAKER_TIMEOUT: int = Field(default=60, description='Tempo em segundos com circuito Redis aberto')
+    REDIS_CIRCUIT_BREAKER_RECOVERY_TIMEOUT: int = Field(default=60, description='Tempo de recuperação do circuito Redis (maior para cache)')
 
     # MongoDB Persistence Policies
     MONGODB_FAIL_OPEN_EXECUTION_TICKETS: bool = Field(

@@ -344,6 +344,38 @@ class OrchestratorMetrics:
             ['reason']
         )
 
+        # Affinity/Anti-Affinity Metrics
+        self.affinity_hits_total = Counter(
+            'neural_hive_orchestrator_affinity_hits_total',
+            'Total de alocações com affinity hit (co-location)',
+            ['affinity_type']  # plan, intent
+        )
+
+        self.affinity_misses_total = Counter(
+            'neural_hive_orchestrator_affinity_misses_total',
+            'Total de alocações sem affinity hit',
+            ['affinity_type']
+        )
+
+        self.anti_affinity_enforced_total = Counter(
+            'neural_hive_orchestrator_anti_affinity_enforced_total',
+            'Total de alocações onde anti-affinity foi aplicado',
+            ['risk_band', 'priority']
+        )
+
+        self.affinity_score_distribution = Histogram(
+            'neural_hive_orchestrator_affinity_score',
+            'Distribuição de affinity scores',
+            ['affinity_type'],
+            buckets=[0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+        )
+
+        self.affinity_cache_operations_total = Counter(
+            'neural_hive_orchestrator_affinity_cache_operations_total',
+            'Total de operações no cache de affinity',
+            ['operation', 'status']  # operation: get_plan/get_intent/get_critical/record/cleanup, status: success/failure
+        )
+
         # Métricas de OPA Policy Validation
         self.opa_validations_total = Counter(
             'orchestration_opa_validations_total',
@@ -894,6 +926,62 @@ class OrchestratorMetrics:
     def record_scheduler_rejection(self, reason: str):
         """Registra rejeição de alocação pelo scheduler."""
         self.scheduler_rejections_total.labels(reason=reason).inc()
+
+    # Affinity/Anti-Affinity Helper Methods
+
+    def record_affinity_hit(self, affinity_type: str):
+        """
+        Registra affinity hit (co-location bem-sucedida).
+
+        Args:
+            affinity_type: Tipo de affinity (plan, intent)
+        """
+        self.affinity_hits_total.labels(affinity_type=affinity_type).inc()
+
+    def record_affinity_miss(self, affinity_type: str):
+        """
+        Registra affinity miss (sem co-location).
+
+        Args:
+            affinity_type: Tipo de affinity (plan, intent)
+        """
+        self.affinity_misses_total.labels(affinity_type=affinity_type).inc()
+
+    def record_anti_affinity_enforced(self, risk_band: str, priority: str):
+        """
+        Registra aplicação de anti-affinity.
+
+        Args:
+            risk_band: Banda de risco do ticket
+            priority: Prioridade do ticket
+        """
+        self.anti_affinity_enforced_total.labels(
+            risk_band=risk_band,
+            priority=priority
+        ).inc()
+
+    def record_affinity_score(self, affinity_type: str, score: float):
+        """
+        Registra distribuição de affinity scores.
+
+        Args:
+            affinity_type: Tipo de affinity (plan, intent, composite)
+            score: Score calculado (0.0-1.0)
+        """
+        self.affinity_score_distribution.labels(affinity_type=affinity_type).observe(score)
+
+    def record_affinity_cache_operation(self, operation: str, status: str):
+        """
+        Registra operação no cache de affinity.
+
+        Args:
+            operation: Tipo de operação (get_plan, get_intent, get_critical, record, cleanup)
+            status: Status da operação (success, failure)
+        """
+        self.affinity_cache_operations_total.labels(
+            operation=operation,
+            status=status
+        ).inc()
 
     def record_ticket_rejected(self, rejection_reason: str):
         """

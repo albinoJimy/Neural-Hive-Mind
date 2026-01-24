@@ -57,6 +57,16 @@ data:
   ENABLE_ML_ENHANCED_SCHEDULING: {{ .Values.config.scheduler.enableMlEnhancedScheduling | quote }}
   SCHEDULER_MAX_PARALLEL_TICKETS: {{ .Values.config.scheduler.maxParallelTickets | quote }}
 
+  # Scheduler Affinity/Anti-Affinity
+  SCHEDULER_ENABLE_AFFINITY: {{ .Values.config.scheduler.enableAffinity | quote }}
+  SCHEDULER_AFFINITY_PLAN_WEIGHT: {{ .Values.config.scheduler.affinity.weights.planAffinity | quote }}
+  SCHEDULER_AFFINITY_ANTI_WEIGHT: {{ .Values.config.scheduler.affinity.weights.antiAffinity | quote }}
+  SCHEDULER_AFFINITY_INTENT_WEIGHT: {{ .Values.config.scheduler.affinity.weights.intentAffinity | quote }}
+  SCHEDULER_AFFINITY_PLAN_THRESHOLD: {{ .Values.config.scheduler.affinity.planAffinityThreshold | quote }}
+  SCHEDULER_AFFINITY_CACHE_TTL_SECONDS: {{ .Values.config.scheduler.affinity.cacheTtlSeconds | quote }}
+  SCHEDULER_AFFINITY_ANTI_AFFINITY_RISK_BANDS: {{ .Values.config.scheduler.affinity.antiAffinityRiskBands | toJson | quote }}
+  SCHEDULER_AFFINITY_ANTI_AFFINITY_PRIORITIES: {{ .Values.config.scheduler.affinity.antiAffinityPriorities | toJson | quote }}
+
   # ML
   ML_PREDICTIONS_ENABLED: {{ .Values.config.ml.predictionsEnabled | quote }}
   ML_DRIFT_DETECTION_ENABLED: {{ .Values.config.ml.driftDetectionEnabled | quote }}
@@ -104,6 +114,30 @@ data:
   OPA_AUTO_SCALING_ENABLED: {{ .Values.config.opa.featureFlags.autoScalingEnabled | quote }}
   OPA_SCHEDULER_NAMESPACES: {{ .Values.config.opa.featureFlags.schedulerNamespaces | toJson | quote }}
   OPA_PREMIUM_TENANTS: {{ .Values.config.opa.featureFlags.premiumTenants | toJson | quote }}
+
+  # Circuit Breaker Configuration
+  CIRCUIT_BREAKER_ENABLED: {{ .Values.config.circuitBreaker.enabled | quote }}
+  CIRCUIT_BREAKER_FAIL_MAX: {{ .Values.config.circuitBreaker.failMax | quote }}
+  CIRCUIT_BREAKER_TIMEOUT: {{ .Values.config.circuitBreaker.timeoutSeconds | quote }}
+  CIRCUIT_BREAKER_RECOVERY_TIMEOUT: {{ .Values.config.circuitBreaker.recoveryTimeoutSeconds | quote }}
+
+  # Kafka Circuit Breaker
+  KAFKA_CIRCUIT_BREAKER_ENABLED: {{ .Values.config.circuitBreaker.kafka.enabled | quote }}
+  KAFKA_CIRCUIT_BREAKER_FAIL_MAX: {{ .Values.config.circuitBreaker.kafka.failMax | quote }}
+  KAFKA_CIRCUIT_BREAKER_TIMEOUT: {{ .Values.config.circuitBreaker.kafka.timeoutSeconds | quote }}
+  KAFKA_CIRCUIT_BREAKER_RECOVERY_TIMEOUT: {{ .Values.config.circuitBreaker.kafka.recoveryTimeoutSeconds | quote }}
+
+  # Temporal Circuit Breaker
+  TEMPORAL_CIRCUIT_BREAKER_ENABLED: {{ .Values.config.circuitBreaker.temporal.enabled | quote }}
+  TEMPORAL_CIRCUIT_BREAKER_FAIL_MAX: {{ .Values.config.circuitBreaker.temporal.failMax | quote }}
+  TEMPORAL_CIRCUIT_BREAKER_TIMEOUT: {{ .Values.config.circuitBreaker.temporal.timeoutSeconds | quote }}
+  TEMPORAL_CIRCUIT_BREAKER_RECOVERY_TIMEOUT: {{ .Values.config.circuitBreaker.temporal.recoveryTimeoutSeconds | quote }}
+
+  # Redis Circuit Breaker
+  REDIS_CIRCUIT_BREAKER_ENABLED: {{ .Values.config.circuitBreaker.redis.enabled | quote }}
+  REDIS_CIRCUIT_BREAKER_FAIL_MAX: {{ .Values.config.circuitBreaker.redis.failMax | quote }}
+  REDIS_CIRCUIT_BREAKER_TIMEOUT: {{ .Values.config.circuitBreaker.redis.timeoutSeconds | quote }}
+  REDIS_CIRCUIT_BREAKER_RECOVERY_TIMEOUT: {{ .Values.config.circuitBreaker.redis.recoveryTimeoutSeconds | quote }}
 
   # SPIFFE/SPIRE Configuration
   {{- if .Values.config.spiffe.enabled }}

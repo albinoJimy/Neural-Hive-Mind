@@ -6,6 +6,7 @@ from temporalio.worker import Worker
 import structlog
 
 from src.scheduler import IntelligentScheduler, PriorityCalculator, ResourceAllocator
+from src.scheduler.affinity_tracker import AffinityTracker
 from src.clients.service_registry_client import ServiceRegistryClient
 from src.observability.metrics import get_metrics
 from src.policies import OPAClient, PolicyValidator
@@ -148,12 +149,33 @@ class TemporalWorkerManager:
                         )
                         scheduling_optimizer = None
 
-                # Criar ResourceAllocator com scheduling_optimizer
+                # Criar AffinityTracker se affinity habilitado
+                affinity_tracker = None
+                if getattr(self.config, 'scheduler_enable_affinity', False) and redis_client:
+                    try:
+                        affinity_tracker = AffinityTracker(
+                            redis_client=redis_client,
+                            config=self.config,
+                            metrics=metrics
+                        )
+                        logger.info(
+                            'AffinityTracker inicializado',
+                            cache_ttl_seconds=getattr(self.config, 'scheduler_affinity_cache_ttl_seconds', 14400)
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            'Falha ao inicializar AffinityTracker, continuando sem affinity',
+                            error=str(e)
+                        )
+                        affinity_tracker = None
+
+                # Criar ResourceAllocator com scheduling_optimizer e affinity_tracker
                 resource_allocator = ResourceAllocator(
                     registry_client=registry_client,
                     config=self.config,
                     metrics=metrics,
-                    scheduling_optimizer=scheduling_optimizer
+                    scheduling_optimizer=scheduling_optimizer,
+                    affinity_tracker=affinity_tracker
                 )
 
                 # Criar Intelligent Scheduler (com modelos centralizados se disponíveis)

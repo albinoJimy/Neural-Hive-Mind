@@ -1,0 +1,165 @@
+# Alertas Prometheus para Affinity/Anti-Affinity do Orchestrator Dynamic
+#
+# Monitora:
+# - Co-location rate para plan affinity
+# - Falhas no cache de affinity (Redis)
+# - Aplicação de anti-affinity para tickets críticos
+
+groups:
+  - name: orchestrator-dynamic-affinity
+    interval: 30s
+    rules:
+      # Alerta: Co-location rate baixo
+      - alert: AffinityCoLocationRateLow
+        expr: |
+          (
+            sum(rate(neural_hive_orchestrator_affinity_hits_total{affinity_type="plan"}[5m]))
+            /
+            (
+              sum(rate(neural_hive_orchestrator_affinity_hits_total{affinity_type="plan"}[5m]))
+              +
+              sum(rate(neural_hive_orchestrator_affinity_misses_total{affinity_type="plan"}[5m]))
+            )
+          ) < 0.6
+        for: 10m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          feature: affinity
+        annotations:
+          summary: "Affinity co-location rate baixo"
+          description: |
+            Co-location rate para plan affinity está abaixo de 60%.
+            Valor atual: {{ $value | humanizePercentage }}
+
+            Possíveis causas:
+            - Workers com capacidade insuficiente
+            - Muitos tickets paralelos do mesmo plan
+            - Configuração de pesos de affinity inadequada
+          runbook_url: "https://docs.neural-hive.io/runbooks/affinity-low-co-location"
+
+      # Alerta: Alta taxa de falhas no cache de affinity
+      - alert: AffinityCacheFailureRate
+        expr: |
+          (
+            sum(rate(neural_hive_orchestrator_affinity_cache_operations_total{status="failure"}[5m]))
+            /
+            sum(rate(neural_hive_orchestrator_affinity_cache_operations_total[5m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          feature: affinity
+        annotations:
+          summary: "Alta taxa de falhas no cache de affinity"
+          description: |
+            Taxa de falhas no Redis affinity cache está acima de 10%.
+            Valor atual: {{ $value | humanizePercentage }}
+
+            Impacto:
+            - Affinity operando em modo degradado (fail-open)
+            - Co-location não garantida
+
+            Possíveis causas:
+            - Redis indisponível ou lento
+            - Problemas de rede
+            - Circuit breaker aberto
+          runbook_url: "https://docs.neural-hive.io/runbooks/affinity-cache-failures"
+
+      # Alerta: Anti-affinity não está sendo aplicado
+      - alert: AntiAffinityNotEnforced
+        expr: |
+          sum(rate(neural_hive_orchestrator_anti_affinity_enforced_total[5m])) == 0
+          and
+          sum(rate(neural_hive_orchestrator_tickets_generated_total{risk_band="critical"}[5m])) > 0
+        for: 15m
+        labels:
+          severity: info
+          component: orchestrator-dynamic
+          feature: affinity
+        annotations:
+          summary: "Anti-affinity não está sendo aplicado"
+          description: |
+            Tickets críticos estão sendo gerados mas anti-affinity não está sendo aplicado.
+
+            Possíveis causas:
+            - Feature flag scheduler.enableAffinity=false
+            - AffinityTracker não inicializado
+            - Erro na detecção de tickets críticos
+          runbook_url: "https://docs.neural-hive.io/runbooks/anti-affinity-not-enforced"
+
+      # Alerta: Affinity score muito baixo consistentemente
+      - alert: AffinityScoreConsistentlyLow
+        expr: |
+          histogram_quantile(0.50,
+            sum(rate(neural_hive_orchestrator_affinity_score_bucket{affinity_type="composite"}[10m])) by (le)
+          ) < 0.4
+        for: 15m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          feature: affinity
+        annotations:
+          summary: "Affinity scores consistentemente baixos"
+          description: |
+            Mediana de affinity scores está abaixo de 0.4 nos últimos 15 minutos.
+            Valor atual: {{ $value }}
+
+            Impacto:
+            - Scheduling pode não estar otimizado para data locality
+            - Tickets críticos podem estar concentrados
+
+            Recomendação:
+            - Verificar distribuição de tickets por plan_id
+            - Analisar se anti-affinity está penalizando excessivamente
+          runbook_url: "https://docs.neural-hive.io/runbooks/affinity-low-scores"
+
+      # Alerta: Cache de affinity com operações lentas
+      - alert: AffinityCacheSlowOperations
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(neural_hive_orchestrator_affinity_cache_operations_seconds_bucket[5m])) by (le, operation)
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          feature: affinity
+        annotations:
+          summary: "Operações de cache de affinity lentas"
+          description: |
+            Percentil 95 de latência do cache de affinity está acima de 100ms.
+            Valor atual: {{ $value }}s
+
+            Impacto:
+            - Aumento na latência de alocação de tickets
+            - Possível degradação de throughput
+          runbook_url: "https://docs.neural-hive.io/runbooks/affinity-cache-slow"
+
+      # Alerta: Muitos tickets críticos no mesmo worker
+      - alert: CriticalTicketsConcentrated
+        expr: |
+          max(
+            count by (agent_id) (
+              neural_hive_orchestrator_tickets_allocated{risk_band="critical"}
+            )
+          ) > 3
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+          feature: affinity
+        annotations:
+          summary: "Tickets críticos concentrados em um worker"
+          description: |
+            Mais de 3 tickets críticos estão alocados no mesmo worker.
+
+            Impacto:
+            - Risco de fault tolerance reduzido
+            - Falha do worker afetaria múltiplos tickets críticos
+
+            Recomendação:
+            - Verificar se anti-affinity está habilitado
+            - Verificar disponibilidade de outros workers
+          runbook_url: "https://docs.neural-hive.io/runbooks/critical-tickets-concentrated"

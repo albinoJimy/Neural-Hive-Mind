@@ -129,6 +129,29 @@ config:
     enableMlEnhancedScheduling: true
     maxParallelTickets: 100
 
+    # Affinity/Anti-Affinity Configuration
+    enableAffinity: true  # Feature flag para habilitar affinity/anti-affinity
+    affinity:
+      # Pesos para cálculo de affinity score (devem somar 1.0)
+      weights:
+        planAffinity: 0.6      # Data locality (mesmo plan_id)
+        antiAffinity: 0.3      # Distribuir tickets críticos (fault tolerance)
+        intentAffinity: 0.1    # Mesmo intent_id (workflow co-location)
+
+      # Thresholds
+      planAffinityThreshold: 3  # 3+ tickets = affinity máxima
+
+      # Redis TTL para cache de alocações (segundos)
+      cacheTtlSeconds: 14400  # 4 horas (alinhado com SLA deadline)
+
+      # Anti-affinity apenas para risk_band/priority específicos
+      antiAffinityRiskBands:
+        - critical
+        - high
+      antiAffinityPriorities:
+        - CRITICAL
+        - HIGH
+
   # ML Scheduling Optimization (Dual-mode: Remote Optimizer + Local Fallback)
   # Remote Optimizer-Agents Integration (Prophet/ARIMA + Q-learning RL)
   optimizer:
@@ -204,6 +227,27 @@ config:
     failMax: 5           # Trip after 5 failures
     timeoutSeconds: 60   # Open for 60s
     recoveryTimeoutSeconds: 30  # Half-open after 30s
+
+    # Circuit breaker específico para Kafka Producer
+    kafka:
+      enabled: true
+      failMax: 5
+      timeoutSeconds: 60
+      recoveryTimeoutSeconds: 30
+
+    # Circuit breaker específico para Temporal Client
+    temporal:
+      enabled: true
+      failMax: 5
+      timeoutSeconds: 60
+      recoveryTimeoutSeconds: 30
+
+    # Circuit breaker específico para Redis Client
+    redis:
+      enabled: true
+      failMax: 5
+      timeoutSeconds: 60
+      recoveryTimeoutSeconds: 60  # Maior para Redis (cache)
 
   # Saga Pattern - Compensacao Automatica
   compensation:
