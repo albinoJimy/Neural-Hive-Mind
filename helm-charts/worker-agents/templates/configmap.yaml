@@ -162,3 +162,6 @@ data:
   SPIFFE_ENABLE_X509: {{ .Values.config.spiffe.enableX509 | quote }}
   SPIFFE_FALLBACK_ALLOWED: {{ .Values.config.spiffe.fallbackAllowed | quote }}
   {{- end }}
+
+  # Scheduler Preemption (aceitar chamadas de preempção do orchestrator)
+  SCHEDULER_ENABLE_PREEMPTION: {{ .Values.config.scheduler.enablePreemption | default false | quote }}

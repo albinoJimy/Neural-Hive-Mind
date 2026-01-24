@@ -57,6 +57,16 @@ data:
   ENABLE_ML_ENHANCED_SCHEDULING: {{ .Values.config.scheduler.enableMlEnhancedScheduling | quote }}
   SCHEDULER_MAX_PARALLEL_TICKETS: {{ .Values.config.scheduler.maxParallelTickets | quote }}
 
+  # Scheduler Preemption
+  SCHEDULER_ENABLE_PREEMPTION: {{ .Values.config.scheduler.enablePreemption | quote }}
+  SCHEDULER_PREEMPTION_MIN_PREEMPTOR_PRIORITY: {{ .Values.config.scheduler.preemption.minPreemptorPriority | quote }}
+  SCHEDULER_PREEMPTION_MAX_PREEMPTABLE_PRIORITY: {{ .Values.config.scheduler.preemption.maxPreemptablePriority | quote }}
+  SCHEDULER_PREEMPTION_GRACE_PERIOD_SECONDS: {{ .Values.config.scheduler.preemption.gracePeriodSeconds | quote }}
+  SCHEDULER_PREEMPTION_MAX_CONCURRENT: {{ .Values.config.scheduler.preemption.maxConcurrentPreemptions | quote }}
+  SCHEDULER_PREEMPTION_WORKER_COOLDOWN_SECONDS: {{ .Values.config.scheduler.preemption.workerCooldownSeconds | quote }}
+  SCHEDULER_PREEMPTION_RETRY_PREEMPTED_TASKS: {{ .Values.config.scheduler.preemption.retryPreemptedTasks | quote }}
+  SCHEDULER_PREEMPTION_RETRY_DELAY_SECONDS: {{ .Values.config.scheduler.preemption.retryDelaySeconds | quote }}
+
   # Scheduler Affinity/Anti-Affinity
   SCHEDULER_ENABLE_AFFINITY: {{ .Values.config.scheduler.enableAffinity | quote }}
   SCHEDULER_AFFINITY_PLAN_WEIGHT: {{ .Values.config.scheduler.affinity.weights.planAffinity | quote }}

@@ -12,6 +12,10 @@ from src.scheduler.intelligent_scheduler import IntelligentScheduler, Priority
 def mock_config():
     """Create mock configuration for tests."""
     config = MagicMock()
+    # Identificação do serviço
+    config.service_name = 'orchestrator-dynamic'
+
+    # Configurações de preempção
     config.scheduler_enable_preemption = True
     config.scheduler_preemption_min_preemptor_priority = 'HIGH'
     config.scheduler_preemption_max_preemptable_priority = 'LOW'
@@ -20,16 +24,27 @@ def mock_config():
     config.scheduler_preemption_worker_cooldown_seconds = 60
     config.scheduler_preemption_retry_preempted_tasks = True
     config.scheduler_preemption_retry_delay_seconds = 300
+
+    # Configurações do Service Registry
     config.service_registry_host = 'localhost'
     config.service_registry_port = 50051
     config.service_registry_timeout_seconds = 3
     config.service_registry_max_results = 5
     config.service_registry_cache_ttl_seconds = 10
+
+    # Configurações do scheduler
     config.enable_intelligent_scheduler = True
     config.enable_ml_enhanced_scheduling = False
     config.scheduler_max_parallel_tickets = 100
     config.scheduler_priority_weights = {'risk': 0.4, 'qos': 0.3, 'sla': 0.3}
     config.scheduler_enable_affinity = False
+
+    # Circuit breaker (desabilitado para testes)
+    config.CIRCUIT_BREAKER_ENABLED = False
+
+    # SPIFFE (desabilitado para testes)
+    config.spiffe_enabled = False
+
     return config
 
 
@@ -48,7 +63,7 @@ def mock_metrics():
 def mock_priority_calculator():
     """Create mock priority calculator."""
     calculator = MagicMock()
-    calculator.calculate_priority = MagicMock(return_value=0.5)
+    calculator.calculate_priority_score = MagicMock(return_value=0.5)
     return calculator
 
 
@@ -56,7 +71,8 @@ def mock_priority_calculator():
 def mock_resource_allocator():
     """Create mock resource allocator."""
     allocator = MagicMock()
-    allocator.allocate = AsyncMock(return_value={'worker_id': 'test-worker'})
+    allocator.discover_workers = AsyncMock(return_value=[])
+    allocator.select_best_worker = AsyncMock(return_value={'agent_id': 'test-worker', 'score': 0.8})
     return allocator
 
 

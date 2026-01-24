@@ -24,6 +24,24 @@ class WorkerAgentSettings(BaseSettings):
     max_concurrent_tasks: int = 5
     task_timeout_multiplier: float = 1.5
 
+    # Backpressure Control
+    max_concurrent_tickets: int = Field(
+        default=10,
+        description='Número máximo de tickets em processamento simultâneo (backpressure)'
+    )
+    consumer_pause_threshold: float = Field(
+        default=0.8,
+        ge=0.0,
+        le=1.0,
+        description='Threshold para pausar consumer (% de max_concurrent_tickets)'
+    )
+    consumer_resume_threshold: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description='Threshold para resumir consumer (% de max_concurrent_tickets)'
+    )
+
     # Kafka
     kafka_bootstrap_servers: str = 'localhost:9092'
     kafka_tickets_topic: str = 'execution.tickets'
@@ -221,6 +239,16 @@ class WorkerAgentSettings(BaseSettings):
     spiffe_enable_x509: bool = Field(
         default=True,
         description='Habilitar X.509-SVID para mTLS'
+    )
+    spiffe_fallback_allowed: bool = Field(
+        default=False,
+        description='Permitir fallback insecure quando SPIFFE indisponível (apenas para desenvolvimento)'
+    )
+
+    # Scheduler Preemption (configuração do orchestrator compartilhada)
+    scheduler_enable_preemption: bool = Field(
+        default=False,
+        description='Habilitar aceitação de chamadas de preempção do orchestrator via mTLS'
     )
 
     # Docker Runtime

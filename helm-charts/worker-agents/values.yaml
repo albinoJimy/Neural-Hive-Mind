@@ -49,6 +49,10 @@ config:
     - EXECUTE
     - COMPENSATE
   maxConcurrentTasks: 5
+  # Backpressure Control
+  maxConcurrentTickets: 10  # Limite de tickets em processamento simultâneo
+  consumerPauseThreshold: 0.8  # Pausar consumer quando 80% da capacidade
+  consumerResumeThreshold: 0.5  # Resumir consumer quando 50% da capacidade
 
   kafka:
     bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
@@ -174,6 +178,10 @@ config:
     jwtTtlSeconds: 3600
     enableX509: true
     fallbackAllowed: false  # Fail-closed em produção
+
+  # Scheduler Integration (aceitar chamadas de preempção do orchestrator)
+  scheduler:
+    enablePreemption: false  # Deve estar alinhado com orchestrator-dynamic
 
   githubActions:
     enabled: false

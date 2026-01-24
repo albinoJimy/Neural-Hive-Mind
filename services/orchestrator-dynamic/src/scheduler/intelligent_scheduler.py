@@ -56,7 +56,8 @@ class IntelligentScheduler:
         scheduling_optimizer=None,
         scheduling_predictor: Optional[SchedulingPredictor] = None,
         load_predictor: Optional[LoadPredictor] = None,
-        anomaly_detector=None
+        anomaly_detector=None,
+        spiffe_manager=None
     ):
         """
         Inicializa o scheduler.
@@ -70,6 +71,7 @@ class IntelligentScheduler:
             scheduling_predictor: Preditor de duração/recursos (ML centralizado)
             load_predictor: Preditor de carga do sistema (ML centralizado)
             anomaly_detector: Detector de anomalias (ML centralizado)
+            spiffe_manager: Gerenciador SPIFFE para obtenção de JWT-SVID (opcional)
         """
         self.config = config
         self.metrics = metrics
@@ -79,6 +81,7 @@ class IntelligentScheduler:
         self.scheduling_predictor = scheduling_predictor
         self.load_predictor = load_predictor
         self.anomaly_detector = anomaly_detector
+        self.spiffe_manager = spiffe_manager
         self.logger = logger.bind(component='intelligent_scheduler')
         self.registry_breaker = None
         if getattr(config, "CIRCUIT_BREAKER_ENABLED", False):
@@ -225,7 +228,7 @@ class IntelligentScheduler:
             workers = await self._discover_workers_cached(ticket)
 
             if not workers:
-                # Attempt preemption for high-priority tickets
+                # Tentar preempção para tickets de alta prioridade quando descoberta retorna vazia
                 ticket_priority = ticket.get('priority', 'MEDIUM')
                 if self._can_preempt(ticket_priority, 'LOW'):
                     self.logger.info(
@@ -235,8 +238,8 @@ class IntelligentScheduler:
                     )
                     freed_workers = await self.preempt_low_priority_tasks(ticket, required_workers=1)
                     if freed_workers:
-                        # Re-discover workers after preemption
-                        workers = await self._discover_workers_cached(ticket)
+                        # Redescobrir workers após preempção, invalidando cache
+                        workers = await self._discover_workers_cached(ticket, force_refresh=True)
 
                 if not workers:
                     self.logger.error(
@@ -258,6 +261,29 @@ class IntelligentScheduler:
                 ticket=ticket,
                 load_forecast=load_forecast
             )
+
+            # Tentar preempção também quando select_best_worker retorna None (workers ocupados)
+            if not best_worker:
+                ticket_priority = ticket.get('priority', 'MEDIUM')
+                if self._can_preempt(ticket_priority, 'LOW'):
+                    self.logger.info(
+                        'attempting_preemption_no_suitable_worker',
+                        ticket_id=ticket_id,
+                        priority=ticket_priority,
+                        workers_count=len(workers)
+                    )
+                    freed_workers = await self.preempt_low_priority_tasks(ticket, required_workers=1)
+                    if freed_workers:
+                        # Redescobrir workers após preempção, invalidando cache
+                        workers = await self._discover_workers_cached(ticket, force_refresh=True)
+                        if workers:
+                            # Tentar selecionar novamente após preempção
+                            best_worker = await self.resource_allocator.select_best_worker(
+                                workers=workers,
+                                priority_score=priority_score,
+                                ticket=ticket,
+                                load_forecast=load_forecast
+                            )
 
             if not best_worker:
                 self.logger.error(
@@ -357,7 +383,11 @@ class IntelligentScheduler:
 
             return self._reject_ticket(ticket, 'scheduling_error', str(e))
 
-    async def _discover_workers_cached(self, ticket: Dict) -> List[Dict]:
+    async def _discover_workers_cached(
+        self,
+        ticket: Dict,
+        force_refresh: bool = False
+    ) -> List[Dict]:
         """
         Descobre workers com cache.
 
@@ -366,11 +396,20 @@ class IntelligentScheduler:
 
         Args:
             ticket: Ticket para descoberta
+            force_refresh: Se True, ignora cache e força nova descoberta
 
         Returns:
             Lista de workers disponíveis
         """
         cache_key = self._build_cache_key(ticket)
+
+        # Invalidate cache if force_refresh requested
+        if force_refresh and cache_key in self._discovery_cache:
+            del self._discovery_cache[cache_key]
+            self.logger.debug(
+                'cache_invalidated_force_refresh',
+                cache_key=cache_key
+            )
 
         cached = self._discovery_cache.get(cache_key)
         if cached:
@@ -781,20 +820,54 @@ class IntelligentScheduler:
 
         return preemptable[:limit]
 
+    async def _get_auth_headers(self) -> Dict[str, str]:
+        """
+        Obtém headers de autenticação para chamadas de preempção.
+
+        Usa JWT-SVID do SPIFFE manager se disponível.
+
+        Returns:
+            Dict com headers de autenticação (vazio se não disponível)
+        """
+        headers = {}
+
+        if self.spiffe_manager and self.config.spiffe_enabled:
+            try:
+                # Obter JWT-SVID para autenticação com worker-agents
+                audience = getattr(self.config, 'spiffe_jwt_audience', 'worker-agents.neural-hive.local')
+                jwt_token = await self.spiffe_manager.get_jwt_svid(audience=audience)
+
+                if jwt_token:
+                    headers['Authorization'] = f'Bearer {jwt_token}'
+                    self.logger.debug(
+                        'preemption_auth_header_obtained',
+                        audience=audience
+                    )
+                else:
+                    self.logger.warning('preemption_jwt_token_not_available')
+
+            except Exception as e:
+                self.logger.warning(
+                    'preemption_auth_header_failed',
+                    error=str(e)
+                )
+
+        return headers
+
     async def _preempt_task(
         self,
         task: Dict,
         preemptor_ticket: Dict
     ) -> bool:
         """
-        Send cancellation signal to worker agent to preempt a task.
+        Envia sinal de cancelamento ao worker agent para preemptar uma tarefa.
 
         Args:
-            task: Task metadata to preempt
-            preemptor_ticket: The high-priority ticket causing preemption
+            task: Metadados da tarefa a ser preemptada
+            preemptor_ticket: O ticket de alta prioridade causando a preempção
 
         Returns:
-            True if preemption signal was sent successfully
+            True se o sinal de preempção foi enviado com sucesso
         """
         ticket_id = task.get('ticket_id')
         worker_endpoint = task.get('worker_endpoint')
@@ -809,6 +882,9 @@ class IntelligentScheduler:
         self._active_preemptions.add(ticket_id)
 
         try:
+            # Obter headers de autenticação (JWT-SVID se SPIFFE habilitado)
+            auth_headers = await self._get_auth_headers()
+
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.post(
                     f"{worker_endpoint}/api/v1/tasks/{ticket_id}/cancel",
@@ -816,7 +892,8 @@ class IntelligentScheduler:
                         "reason": "preemption",
                         "preempted_by": preemptor_ticket.get('ticket_id'),
                         "grace_period_seconds": self.config.scheduler_preemption_grace_period_seconds
-                    }
+                    },
+                    headers=auth_headers
                 )
 
                 if response.status_code == 200:

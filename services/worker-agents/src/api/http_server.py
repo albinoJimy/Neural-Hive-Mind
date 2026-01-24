@@ -161,12 +161,40 @@ def create_http_server(config, app_state):
     # SPIFFE JWT validator instance
     jwt_validator = SPIFFEJWTValidator(config, app_state)
 
+    def _is_internal_orchestrator_call(request: Request) -> bool:
+        """
+        Verifica se a chamada é de um orquestrador interno via mTLS.
+
+        Chamadas internas do orchestrator-dynamic são identificadas por:
+        - Presença de header X-Forwarded-Client-Cert (mTLS via Istio/Envoy)
+        - Ou header X-Internal-Caller com valor 'orchestrator-dynamic'
+
+        Returns:
+            True se é uma chamada interna autorizada
+        """
+        # Verificar header de mTLS do Istio/Envoy
+        client_cert = request.headers.get('X-Forwarded-Client-Cert', '')
+        if client_cert and 'orchestrator-dynamic' in client_cert:
+            return True
+
+        # Verificar header de chamada interna (para clusters sem mTLS)
+        internal_caller = request.headers.get('X-Internal-Caller', '')
+        trust_domain = getattr(config, 'spiffe_trust_domain', 'neural-hive.local')
+        if internal_caller == f'spiffe://{trust_domain}/orchestrator-dynamic':
+            return True
+
+        return False
+
     async def verify_spiffe_token(
+        request: Request,
         credentials: HTTPAuthorizationCredentials = Depends(security)
     ) -> Optional[str]:
         '''
         Dependency to verify SPIFFE JWT-SVID tokens.
         Returns the SPIFFE ID if valid, raises HTTPException otherwise.
+
+        Aceita chamadas internas do orchestrator via mTLS quando
+        scheduler_enable_preemption está ativo.
         '''
         # Check if SPIFFE validation is enabled
         spiffe_enabled = getattr(config, 'spiffe_enabled', False)
@@ -175,6 +203,17 @@ def create_http_server(config, app_state):
 
         # Check if fallback is allowed (for dev environments)
         fallback_allowed = getattr(config, 'spiffe_fallback_allowed', False)
+
+        # Permitir chamadas internas do orchestrator via mTLS/service-account
+        # quando preempção está habilitada
+        preemption_enabled = getattr(config, 'scheduler_enable_preemption', False)
+        if preemption_enabled and _is_internal_orchestrator_call(request):
+            logger.info(
+                'internal_orchestrator_call_allowed',
+                path=request.url.path,
+                method=request.method
+            )
+            return 'internal:orchestrator-dynamic'
 
         if credentials is None:
             if fallback_allowed:
