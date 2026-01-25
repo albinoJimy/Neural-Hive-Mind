@@ -6,7 +6,7 @@ Coordinates Intent → Decision → Orchestration → Tickets → Workers → Co
 
 import structlog
 import asyncio
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from opentelemetry import trace
 from prometheus_client import Counter, Histogram
@@ -19,6 +19,7 @@ from neural_hive_integration.clients.code_forge_client import CodeForgeClient
 from neural_hive_integration.clients.sla_management_client import SLAManagementClient
 from neural_hive_integration.models.flow_c_context import FlowCContext, FlowCStep, FlowCResult
 from neural_hive_integration.telemetry.flow_c_telemetry import FlowCTelemetryPublisher
+from neural_hive_resilience.circuit_breaker import MonitoredCircuitBreaker, CircuitBreakerError
 
 logger = structlog.get_logger()
 tracer = trace.get_tracer(__name__)
@@ -68,6 +69,14 @@ class FlowCOrchestrator:
         self.sla_client = SLAManagementClient()
         self.telemetry = FlowCTelemetryPublisher()
         self.logger = logger.bind(service="flow_c_orchestrator")
+        
+        # Circuit breaker para status checks (C5)
+        self.status_check_breaker = MonitoredCircuitBreaker(
+            service_name="flow_c_orchestrator",
+            circuit_name="ticket_status_check",
+            fail_max=5,
+            reset_timeout=60,
+        )
 
     async def initialize(self):
         """Initialize all clients."""
@@ -620,8 +629,8 @@ class FlowCOrchestrator:
             for ticket in tickets:
                 all_capabilities.update(ticket.get("required_capabilities", []))
 
-            # Discover workers
-            workers = await self.service_registry.discover_agents(
+            # Discover workers (com cache Redis se disponível)
+            workers = await self.service_registry.discover_agents_cached(
                 capabilities=list(all_capabilities),
                 filters={"status": "healthy"},
             )
@@ -631,13 +640,85 @@ class FlowCOrchestrator:
 
             return workers
 
+    def _calculate_worker_weights(self, workers: List[AgentInfo]) -> Dict[str, float]:
+        """
+        Calcular pesos para weighted round-robin baseado em telemetria dos workers.
+
+        Fatores considerados:
+        - success_rate: Taxa de sucesso histórica (0.0 - 1.0)
+        - avg_duration_ms: Duração média das tarefas
+        - current_load: Carga atual (número de tarefas em execução)
+
+        Returns:
+            Dict mapeando agent_id para peso (maior = mais preferido)
+        """
+        weights = {}
+        for worker in workers:
+            telemetry = worker.metadata.get('telemetry', {})
+
+            # Extrair métricas (com defaults conservadores)
+            success_rate = float(telemetry.get('success_rate', 0.8))
+            avg_duration = float(telemetry.get('avg_duration_ms', 1000))
+            current_load = int(telemetry.get('current_load', 0))
+            max_capacity = int(telemetry.get('max_capacity', 10))
+
+            # Fator de duração: workers mais rápidos têm peso maior
+            # Normalizado para evitar divisão por zero
+            duration_factor = max(0.1, 1.0 - (avg_duration / 10000.0))
+
+            # Fator de carga: workers com menos carga têm peso maior
+            load_factor = max(0.1, 1.0 - (current_load / max(max_capacity, 1)))
+
+            # Peso final: combinação dos fatores
+            weight = success_rate * duration_factor * load_factor
+            weights[worker.agent_id] = max(0.1, weight)  # Peso mínimo de 0.1
+
+        return weights
+
+    def _select_worker_weighted_round_robin(
+        self,
+        workers: List[AgentInfo],
+        weights: Dict[str, float],
+        current_weights: Dict[str, float],
+    ) -> Optional[AgentInfo]:
+        """
+        Selecionar worker usando weighted round-robin.
+
+        Algoritmo:
+        1. Incrementar current_weight de cada worker pelo seu peso
+        2. Selecionar o worker com maior current_weight
+        3. Decrementar o current_weight do selecionado pela soma total dos pesos
+
+        Args:
+            workers: Lista de workers disponíveis
+            weights: Pesos calculados por worker
+            current_weights: Estado atual dos pesos (modificado in-place)
+
+        Returns:
+            Worker selecionado
+        """
+        weight_sum = sum(weights.values())
+        selected_worker = None
+        max_weight = -float('inf')
+
+        for worker in workers:
+            current_weights[worker.agent_id] += weights.get(worker.agent_id, 1.0)
+            if current_weights[worker.agent_id] > max_weight:
+                max_weight = current_weights[worker.agent_id]
+                selected_worker = worker
+
+        if selected_worker:
+            current_weights[selected_worker.agent_id] -= weight_sum
+
+        return selected_worker
+
     async def _execute_c4_assign_tickets(
         self,
         tickets: List[Dict[str, Any]],
         workers: List[AgentInfo],
         context: FlowCContext,
     ) -> List[Dict[str, Any]]:
-        """C4: Assign tickets to workers via direct gRPC/HTTP calls."""
+        """C4: Assign tickets to workers via weighted round-robin load balancing."""
         with flow_c_steps_duration.labels(step="C4").time():
             assignments = []
 
@@ -645,9 +726,27 @@ class FlowCOrchestrator:
                 self.logger.error("no_workers_available_for_assignment")
                 return assignments
 
-            for idx, ticket in enumerate(tickets):
-                # Round-robin assignment
-                worker = workers[idx % len(workers)]
+            # Calcular pesos baseados em telemetria dos workers
+            worker_weights = self._calculate_worker_weights(workers)
+            current_weights = {w.agent_id: 0.0 for w in workers}
+
+            self.logger.info(
+                "worker_weights_calculated",
+                weights={w.agent_id: round(worker_weights[w.agent_id], 3) for w in workers},
+            )
+
+            for ticket in tickets:
+                # Weighted round-robin selection
+                worker = self._select_worker_weighted_round_robin(
+                    workers, worker_weights, current_weights
+                )
+
+                if not worker:
+                    self.logger.error(
+                        "no_worker_selected",
+                        ticket_id=ticket["ticket_id"],
+                    )
+                    continue
 
                 # Criar cliente para o worker específico
                 worker_client = WorkerAgentClient(base_url=worker.endpoint)
@@ -723,8 +822,18 @@ class FlowCOrchestrator:
                 statuses = []
                 for ticket in tickets:
                     try:
-                        ticket_obj = await self.ticket_client.get_ticket(ticket["ticket_id"])
+                        # Usar circuit breaker para proteger chamadas de status
+                        ticket_obj = await self.status_check_breaker.call_async(
+                            self.ticket_client.get_ticket,
+                            ticket["ticket_id"]
+                        )
                         statuses.append(ticket_obj.status)
+                    except CircuitBreakerError:
+                        self.logger.warning(
+                            "status_check_circuit_open",
+                            ticket_id=ticket["ticket_id"],
+                        )
+                        statuses.append("unknown")  # Degradação graciosa
                     except Exception as e:
                         self.logger.error(
                             "failed_to_get_ticket_status",

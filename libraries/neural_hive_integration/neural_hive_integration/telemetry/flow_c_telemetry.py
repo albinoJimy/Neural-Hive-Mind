@@ -1,9 +1,16 @@
 """
 Flow C telemetry publisher for event tracking and correlation.
+
+Suporta:
+- Publicação de eventos para Kafka
+- Buffer Redis com fallback para in-memory
+- Background flush worker para recuperação automática
+- Limite de tamanho do buffer para evitar overflow
 """
 
 import structlog
 import json
+import asyncio
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from aiokafka import AIOKafkaProducer
@@ -24,10 +31,18 @@ telemetry_buffer_size = Gauge(
     "neural_hive_flow_c_telemetry_buffer_size",
     "Current telemetry buffer size",
 )
+telemetry_buffer_drops = Counter(
+    "neural_hive_flow_c_telemetry_buffer_drops_total",
+    "Events dropped due to buffer overflow",
+)
+telemetry_flush_success = Counter(
+    "neural_hive_flow_c_telemetry_flush_success_total",
+    "Successful buffer flushes",
+)
 
 
 class FlowCTelemetryPublisher:
-    """Publisher for Flow C telemetry events."""
+    """Publisher for Flow C telemetry events with resilient buffering."""
 
     def __init__(
         self,
@@ -35,32 +50,136 @@ class FlowCTelemetryPublisher:
         topic: str = "telemetry-flow-c",
         redis_url: str = "redis://redis-cluster.redis-cluster.svc.cluster.local:6379",
         buffer_ttl: int = 3600,  # 1 hour
+        max_buffer_size: int = 10000,
+        flush_interval: int = 60,  # segundos
     ):
         self.kafka_servers = kafka_bootstrap_servers
         self.topic = topic
         self.redis_url = redis_url
         self.buffer_ttl = buffer_ttl
+        self.max_buffer_size = max_buffer_size
+        self.flush_interval = flush_interval
         self.producer: Optional[AIOKafkaProducer] = None
         self.redis: Optional[aioredis.Redis] = None
         self.logger = logger.bind(service="flow_c_telemetry")
+        
+        # In-memory buffer como fallback final
+        self._in_memory_buffer: List[Dict[str, Any]] = []
+        self._flush_task: Optional[asyncio.Task] = None
+        self._running = False
 
     async def initialize(self):
-        """Initialize Kafka producer and Redis buffer."""
-        self.producer = AIOKafkaProducer(
-            bootstrap_servers=self.kafka_servers,
-            value_serializer=lambda v: json.dumps(v).encode(),
-        )
-        await self.producer.start()
+        """Initialize Kafka producer and Redis buffer with fallback handling."""
+        # Inicializar Kafka
+        try:
+            self.producer = AIOKafkaProducer(
+                bootstrap_servers=self.kafka_servers,
+                value_serializer=lambda v: json.dumps(v).encode(),
+            )
+            await self.producer.start()
+            self.logger.info("kafka_producer_initialized")
+        except Exception as e:
+            self.logger.error("kafka_producer_init_failed", error=str(e))
+            self.producer = None  # Usará buffer
 
-        self.redis = await aioredis.from_url(self.redis_url, decode_responses=True)
-        self.logger.info("telemetry_publisher_initialized")
+        # Inicializar Redis
+        try:
+            self.redis = await aioredis.from_url(self.redis_url, decode_responses=True)
+            await self.redis.ping()
+            self.logger.info("redis_buffer_initialized")
+        except Exception as e:
+            self.logger.warning(
+                "redis_buffer_init_failed",
+                error=str(e),
+                message="Usando buffer in-memory como fallback"
+            )
+            self.redis = None
+
+        # Iniciar background flush worker
+        self._running = True
+        self._flush_task = asyncio.create_task(self._background_flush_worker())
+
+        self.logger.info(
+            "telemetry_publisher_initialized",
+            kafka_available=self.producer is not None,
+            redis_available=self.redis is not None,
+        )
 
     async def close(self):
         """Close Kafka producer and Redis connection."""
+        self._running = False
+        
+        # Cancelar background task
+        if self._flush_task:
+            self._flush_task.cancel()
+            try:
+                await self._flush_task
+            except asyncio.CancelledError:
+                pass
+
+        # Tentar flush final antes de fechar
+        if self.producer and self._in_memory_buffer:
+            for event in self._in_memory_buffer[:]:
+                try:
+                    await self.producer.send_and_wait(self.topic, value=event)
+                    self._in_memory_buffer.remove(event)
+                except Exception:
+                    break
+
         if self.producer:
             await self.producer.stop()
         if self.redis:
             await self.redis.close()
+            
+        self.logger.info(
+            "telemetry_publisher_closed",
+            unflushed_events=len(self._in_memory_buffer),
+        )
+
+    async def _background_flush_worker(self):
+        """Background task para flush periódico de eventos bufferizados."""
+        while self._running:
+            try:
+                await asyncio.sleep(self.flush_interval)
+                
+                if not self.producer:
+                    continue
+                    
+                # Flush Redis buffer
+                if self.redis:
+                    try:
+                        keys = await self.redis.keys("telemetry:buffer:*")
+                        for key in keys:
+                            intent_id = key.split(":")[-1]
+                            await self.flush_buffer(intent_id)
+                    except Exception as e:
+                        self.logger.warning("redis_buffer_flush_failed", error=str(e))
+                
+                # Flush in-memory buffer
+                if self._in_memory_buffer:
+                    events_to_flush = self._in_memory_buffer.copy()
+                    self._in_memory_buffer.clear()
+                    
+                    for event in events_to_flush:
+                        try:
+                            await self.producer.send_and_wait(self.topic, value=event)
+                            telemetry_buffer_size.dec()
+                            telemetry_flush_success.inc()
+                        except Exception as e:
+                            # Re-buffer em caso de falha
+                            if len(self._in_memory_buffer) < self.max_buffer_size:
+                                self._in_memory_buffer.append(event)
+                            else:
+                                telemetry_buffer_drops.inc()
+                            self.logger.warning(
+                                "in_memory_flush_failed",
+                                error=str(e),
+                            )
+                            
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                self.logger.error("background_flush_error", error=str(e))
 
     @tracer.start_as_current_span("telemetry.publish_event")
     async def publish_event(
@@ -127,18 +246,55 @@ class FlowCTelemetryPublisher:
             await self._buffer_event(event)
 
     async def _buffer_event(self, event: Dict[str, Any]):
-        """Buffer event to Redis if Kafka is unavailable."""
-        if not self.redis:
-            return
+        """
+        Buffer event to Redis or in-memory if Kafka is unavailable.
+        
+        Hierarchy:
+        1. Redis buffer (preferido)
+        2. In-memory buffer (fallback)
+        3. Drop event (se ambos buffers estão cheios)
+        """
+        # Tentar Redis primeiro
+        if self.redis:
+            try:
+                buffer_key = f"telemetry:buffer:{event['intent_id']}"
+                
+                # Verificar tamanho do buffer
+                buffer_size = await self.redis.llen(buffer_key)
+                if buffer_size >= self.max_buffer_size:
+                    # Remover evento mais antigo para fazer espaço
+                    await self.redis.rpop(buffer_key)
+                    self.logger.warning(
+                        "buffer_full_dropping_oldest",
+                        buffer_key=buffer_key,
+                        buffer_size=buffer_size,
+                    )
+                
+                await self.redis.lpush(buffer_key, json.dumps(event))
+                await self.redis.expire(buffer_key, self.buffer_ttl)
+                telemetry_buffer_size.inc()
+                
+                self.logger.debug("event_buffered_redis", buffer_key=buffer_key)
+                return
+            except Exception as e:
+                self.logger.warning("redis_buffer_failed", error=str(e))
 
-        buffer_key = f"telemetry:buffer:{event['intent_id']}"
-        await self.redis.lpush(buffer_key, json.dumps(event))
-        await self.redis.expire(buffer_key, self.buffer_ttl)
-
-        # Incrementar Gauge
-        telemetry_buffer_size.inc()
-
-        self.logger.warning("event_buffered", buffer_key=buffer_key)
+        # Fallback para in-memory buffer
+        if len(self._in_memory_buffer) < self.max_buffer_size:
+            self._in_memory_buffer.append(event)
+            telemetry_buffer_size.inc()
+            self.logger.warning(
+                "event_buffered_in_memory",
+                events_buffered=len(self._in_memory_buffer),
+            )
+        else:
+            # Buffer cheio - dropar evento
+            telemetry_buffer_drops.inc()
+            self.logger.error(
+                "buffer_full_event_dropped",
+                intent_id=event.get('intent_id'),
+                event_type=event.get('event_type'),
+            )
 
     async def flush_buffer(self, intent_id: str):
         """Flush buffered events for intent."""

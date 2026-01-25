@@ -8,12 +8,22 @@ Suporta mTLS via SPIFFE/SPIRE para comunicação segura em produção.
 """
 
 import grpc
+import json
+import hashlib
 import structlog
 from typing import List, Dict, Any, Optional, Tuple
 from tenacity import retry, stop_after_attempt, wait_exponential
 from opentelemetry import trace
 from pydantic import BaseModel
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Histogram, Gauge
+
+# Redis para cache (opcional)
+try:
+    import redis.asyncio as aioredis
+    REDIS_AVAILABLE = True
+except ImportError:
+    aioredis = None
+    REDIS_AVAILABLE = False
 
 # Import gRPC stubs from bundled proto_stubs package
 # This ensures consistent imports regardless of deployment context
@@ -50,6 +60,14 @@ registry_latency = Histogram(
     "Service Registry call latency",
     ["operation"],
 )
+registry_cache_hits = Counter(
+    "neural_hive_service_registry_cache_hits_total",
+    "Service Registry cache hits",
+)
+registry_cache_misses = Counter(
+    "neural_hive_service_registry_cache_misses_total",
+    "Service Registry cache misses",
+)
 
 
 class AgentInfo(BaseModel):
@@ -78,6 +96,8 @@ class ServiceRegistryClient:
         spiffe_enabled: bool = False,
         spiffe_config: Optional[Any] = None,
         environment: str = "development",
+        redis_url: Optional[str] = None,
+        cache_ttl: int = 60,
     ):
         """
         Inicializa o cliente do Service Registry.
@@ -88,6 +108,8 @@ class ServiceRegistryClient:
             spiffe_enabled: Habilitar mTLS via SPIFFE
             spiffe_config: Configuração SPIFFE (SPIFFEConfig)
             environment: Ambiente de execução (development, staging, production)
+            redis_url: URL do Redis para cache (opcional)
+            cache_ttl: TTL do cache em segundos (default: 60s)
         """
         self.host = host
         self.port = port
@@ -100,6 +122,11 @@ class ServiceRegistryClient:
         self.stub = None
         self.spiffe_manager = None
         self._initialized = False
+        
+        # Cache Redis (opcional)
+        self.redis_url = redis_url
+        self.cache_ttl = cache_ttl
+        self.redis: Optional[Any] = None
 
     async def initialize(self):
         """Inicializar conexão gRPC com suporte a mTLS via SPIFFE."""
@@ -152,6 +179,23 @@ class ServiceRegistryClient:
 
             self.stub = service_registry_pb2_grpc.ServiceRegistryStub(self.channel)
             self._initialized = True
+
+            # Inicializar Redis cache se configurado
+            if self.redis_url and REDIS_AVAILABLE:
+                try:
+                    self.redis = await aioredis.from_url(
+                        self.redis_url,
+                        decode_responses=True
+                    )
+                    await self.redis.ping()
+                    self.logger.info('redis_cache_initialized', redis_url=self.redis_url)
+                except Exception as redis_error:
+                    self.logger.warning(
+                        'redis_cache_init_failed',
+                        error=str(redis_error),
+                        message='Continuando sem cache'
+                    )
+                    self.redis = None
 
             self.logger.info('service_registry_client_initialized', target=self.address)
 
@@ -349,6 +393,89 @@ class ServiceRegistryClient:
                 registry_calls.labels(operation="discover", status="error").inc()
                 self.logger.error("discover_failed", error=str(e))
                 raise
+
+    async def discover_agents_cached(
+        self,
+        capabilities: List[str],
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> List[AgentInfo]:
+        """
+        Discover agents with Redis caching layer.
+
+        Tenta obter do cache primeiro. Em caso de miss, chama o gRPC
+        e armazena o resultado no cache.
+
+        Args:
+            capabilities: Required capabilities
+            filters: Additional filters
+
+        Returns:
+            List of matching agents
+        """
+        # Gerar cache key baseada em capabilities e filters
+        cache_key = self._generate_cache_key(capabilities, filters)
+
+        # Tentar obter do cache
+        if self.redis:
+            try:
+                cached_data = await self.redis.get(cache_key)
+                if cached_data:
+                    registry_cache_hits.inc()
+                    self.logger.debug(
+                        "discovery_cache_hit",
+                        cache_key=cache_key,
+                        capabilities=capabilities,
+                    )
+                    agents_data = json.loads(cached_data)
+                    return [AgentInfo(**agent) for agent in agents_data]
+            except Exception as cache_error:
+                self.logger.warning(
+                    "cache_read_failed",
+                    error=str(cache_error),
+                    cache_key=cache_key,
+                )
+
+        # Cache miss - chamar gRPC
+        registry_cache_misses.inc()
+        agents = await self.discover_agents(capabilities, filters)
+
+        # Armazenar no cache
+        if self.redis and agents:
+            try:
+                agents_data = [agent.model_dump() for agent in agents]
+                await self.redis.setex(
+                    cache_key,
+                    self.cache_ttl,
+                    json.dumps(agents_data)
+                )
+                self.logger.debug(
+                    "discovery_cached",
+                    cache_key=cache_key,
+                    agents_count=len(agents),
+                    ttl=self.cache_ttl,
+                )
+            except Exception as cache_error:
+                self.logger.warning(
+                    "cache_write_failed",
+                    error=str(cache_error),
+                    cache_key=cache_key,
+                )
+
+        return agents
+
+    def _generate_cache_key(
+        self,
+        capabilities: List[str],
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Gerar cache key determinística para discovery."""
+        key_data = {
+            "capabilities": sorted(capabilities),
+            "filters": filters or {},
+        }
+        key_str = json.dumps(key_data, sort_keys=True)
+        key_hash = hashlib.md5(key_str.encode()).hexdigest()[:16]
+        return f"discovery:{key_hash}"
 
     def _agent_type_to_string(self, agent_type: int) -> str:
         """Converter enum AgentType para string."""
