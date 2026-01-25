@@ -234,6 +234,31 @@ class OrchestratorMetrics:
             ['operation', 'error_type']
         )
 
+        # Métricas de distribuição de partitions Kafka
+        self.kafka_partition_messages_total = Counter(
+            'neural_hive_kafka_partition_messages_total',
+            'Total de mensagens publicadas por partition',
+            ['topic', 'partition', 'service', 'component', 'layer']
+        )
+
+        self.kafka_partition_bytes_total = Counter(
+            'neural_hive_kafka_partition_bytes_total',
+            'Total de bytes publicados por partition',
+            ['topic', 'partition', 'service', 'component', 'layer']
+        )
+
+        self.kafka_partition_distribution_gauge = Gauge(
+            'neural_hive_kafka_partition_distribution',
+            'Distribuição percentual de mensagens por partition (últimos 5min)',
+            ['topic', 'partition', 'service', 'component', 'layer']
+        )
+
+        self.kafka_hot_partition_detected_total = Counter(
+            'neural_hive_kafka_hot_partition_detected_total',
+            'Total de hot partitions detectadas (partition > 2x média)',
+            ['topic', 'partition', 'service', 'component', 'layer']
+        )
+
         # Métricas de incidentes (Fluxo E)
         self.incident_publish_total = Counter(
             'orchestration_incident_publish_total',
@@ -495,6 +520,26 @@ class OrchestratorMetrics:
             'orchestration_opa_batch_evaluation_size',
             'Tamanho de batch evaluations OPA',
             buckets=[1, 2, 3, 4, 5, 10, 20, 50, 100]
+        )
+
+        # Authorization Audit Metrics
+        self.authorization_audit_logged_total = Counter(
+            'neural_hive_authorization_audit_logged_total',
+            'Total de decisões de autorização auditadas',
+            ['service', 'component', 'layer', 'policy_path', 'decision']
+        )
+
+        self.authorization_audit_errors_total = Counter(
+            'neural_hive_authorization_audit_errors_total',
+            'Total de erros ao auditar decisões',
+            ['service', 'component', 'layer', 'error_type']
+        )
+
+        self.authorization_audit_query_duration_seconds = Histogram(
+            'neural_hive_authorization_audit_query_duration_seconds',
+            'Duração de queries de auditoria',
+            ['service', 'component', 'layer', 'query_type'],
+            buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
         )
 
         # Contadores internos para cálculo de hit ratio
@@ -886,6 +931,35 @@ class OrchestratorMetrics:
     def record_kafka_error(self, operation: str, error_type: str):
         """Registra erro Kafka."""
         self.kafka_errors_total.labels(operation=operation, error_type=error_type).inc()
+
+    def record_kafka_partition_message(self, topic: str, partition: int, message_size_bytes: int):
+        """Registra mensagem publicada em partition específica."""
+        partition_str = str(partition)
+        self.kafka_partition_messages_total.labels(
+            topic=topic,
+            partition=partition_str,
+            service=self.service_name,
+            component=self.component,
+            layer=self.layer
+        ).inc()
+
+        self.kafka_partition_bytes_total.labels(
+            topic=topic,
+            partition=partition_str,
+            service=self.service_name,
+            component=self.component,
+            layer=self.layer
+        ).inc(message_size_bytes)
+
+    def record_hot_partition_detected(self, topic: str, partition: int):
+        """Registra detecção de hot partition."""
+        self.kafka_hot_partition_detected_total.labels(
+            topic=topic,
+            partition=str(partition),
+            service=self.service_name,
+            component=self.component,
+            layer=self.layer
+        ).inc()
 
     def record_incident_publish(self, incident_type: str, success: bool, duration_seconds: float, error_type: str = None):
         """Registra métricas de publicação de incidentes para autocura."""
@@ -2000,6 +2074,53 @@ class OrchestratorMetrics:
             'mongodb_persistence_fail_open_metric_recorded',
             collection=collection
         )
+
+    # Authorization Audit Helper Methods
+
+    def record_authorization_audit_logged(self, policy_path: str, decision: str):
+        """
+        Registra auditoria de decisão de autorização.
+
+        Args:
+            policy_path: Path da política avaliada
+            decision: Decisão ('allow' ou 'deny')
+        """
+        self.authorization_audit_logged_total.labels(
+            service=self.service_name,
+            component=self.component,
+            layer=self.layer,
+            policy_path=policy_path,
+            decision=decision
+        ).inc()
+
+    def record_authorization_audit_error(self, error_type: str):
+        """
+        Registra erro ao auditar decisão.
+
+        Args:
+            error_type: Tipo do erro (save_failed, query_failed, etc)
+        """
+        self.authorization_audit_errors_total.labels(
+            service=self.service_name,
+            component=self.component,
+            layer=self.layer,
+            error_type=error_type
+        ).inc()
+
+    def record_authorization_audit_query_duration(self, query_type: str, duration_seconds: float):
+        """
+        Registra duração de query de auditoria.
+
+        Args:
+            query_type: Tipo de query (list, count, etc)
+            duration_seconds: Duração em segundos
+        """
+        self.authorization_audit_query_duration_seconds.labels(
+            service=self.service_name,
+            component=self.component,
+            layer=self.layer,
+            query_type=query_type
+        ).observe(duration_seconds)
 
 
 @lru_cache()

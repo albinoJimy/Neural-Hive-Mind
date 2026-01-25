@@ -1,0 +1,281 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "kafka-partitions",
+    "title": "Kafka Partitions - execution.tickets",
+    "tags": ["kafka", "partitioning", "flow-c"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Mensagens por Partition (últimos 5min)",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "rate(neural_hive_kafka_partition_messages_total{topic=\"execution.tickets\"}[5m])",
+            "legendFormat": "Partition {{ partition }}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "custom": {
+              "drawStyle": "line",
+              "lineWidth": 1,
+              "fillOpacity": 10
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right"
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Distribuição Percentual por Partition",
+        "type": "piechart",
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 12,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "sum by (partition) (rate(neural_hive_kafka_partition_messages_total{topic=\"execution.tickets\"}[5m]))",
+            "legendFormat": "Partition {{ partition }}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right"
+          },
+          "pieType": "donut"
+        }
+      },
+      {
+        "id": 3,
+        "title": "Hot Partitions Detectadas",
+        "type": "stat",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 18,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "sum(neural_hive_kafka_hot_partition_detected_total{topic=\"execution.tickets\"})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 1, "color": "yellow" },
+                { "value": 5, "color": "red" }
+              ]
+            }
+          }
+        },
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none"
+        }
+      },
+      {
+        "id": 4,
+        "title": "Coeficiente de Variação (Balanceamento)",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 18,
+          "y": 4
+        },
+        "targets": [
+          {
+            "expr": "stddev(rate(neural_hive_kafka_partition_messages_total{topic=\"execution.tickets\"}[5m])) / avg(rate(neural_hive_kafka_partition_messages_total{topic=\"execution.tickets\"}[5m]))",
+            "legendFormat": "CV",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 0.3, "color": "yellow" },
+                { "value": 0.5, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Bytes por Partition (últimos 5min)",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "rate(neural_hive_kafka_partition_bytes_total{topic=\"execution.tickets\"}[5m])",
+            "legendFormat": "Partition {{ partition }}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "Bps",
+            "custom": {
+              "drawStyle": "line",
+              "lineWidth": 1,
+              "fillOpacity": 10
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right"
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Heatmap de Distribuição (24h)",
+        "type": "heatmap",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "rate(neural_hive_kafka_partition_messages_total{topic=\"execution.tickets\"}[5m])",
+            "legendFormat": "{{ partition }}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "calculate": false,
+          "color": {
+            "scheme": "Spectral",
+            "mode": "opacity"
+          },
+          "cellGap": 1,
+          "yAxis": {
+            "axisLabel": "Partition"
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Total de Mensagens por Partition (acumulado)",
+        "type": "bargauge",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 16
+        },
+        "targets": [
+          {
+            "expr": "sum by (partition) (neural_hive_kafka_partition_messages_total{topic=\"execution.tickets\"})",
+            "legendFormat": "Partition {{ partition }}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        },
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient"
+        }
+      },
+      {
+        "id": 8,
+        "title": "Ratio de Mensagens vs Média",
+        "type": "gauge",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 16
+        },
+        "targets": [
+          {
+            "expr": "(rate(neural_hive_kafka_partition_messages_total{topic=\"execution.tickets\"}[5m]) / avg(rate(neural_hive_kafka_partition_messages_total{topic=\"execution.tickets\"}[5m])))",
+            "legendFormat": "Partition {{ partition }}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "x",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "value": 0, "color": "blue" },
+                { "value": 1, "color": "green" },
+                { "value": 2, "color": "yellow" },
+                { "value": 3, "color": "red" }
+              ]
+            },
+            "min": 0,
+            "max": 4
+          }
+        },
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        }
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "service",
+          "type": "query",
+          "query": "label_values(neural_hive_kafka_partition_messages_total, service)",
+          "refresh": 2,
+          "includeAll": true,
+          "multi": true
+        }
+      ]
+    },
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    }
+  }
+}

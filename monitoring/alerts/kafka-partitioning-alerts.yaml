@@ -1,0 +1,77 @@
+groups:
+  - name: kafka_partitioning
+    interval: 60s
+    rules:
+      # Hot partition detectada (partition > 2x média)
+      - alert: KafkaHotPartitionDetected
+        expr: |
+          (
+            rate(neural_hive_kafka_partition_messages_total{topic="execution.tickets"}[5m])
+            /
+            avg(rate(neural_hive_kafka_partition_messages_total{topic="execution.tickets"}[5m]))
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+          component: kafka
+          team: platform
+        annotations:
+          summary: "Hot partition detectada no tópico execution.tickets"
+          description: "Partition {{ $labels.partition }} recebendo {{ $value | humanizePercentage }} da média de mensagens (> 200%)."
+          runbook_url: "https://docs.neural-hive.io/runbooks/kafka-hot-partition"
+          dashboard_url: "https://grafana.neural-hive.io/d/kafka-partitions"
+
+      # Distribuição muito desbalanceada (CV > 50%)
+      - alert: KafkaPartitionImbalance
+        expr: |
+          (
+            stddev(rate(neural_hive_kafka_partition_messages_total{topic="execution.tickets"}[5m]))
+            /
+            avg(rate(neural_hive_kafka_partition_messages_total{topic="execution.tickets"}[5m]))
+          ) > 0.5
+        for: 15m
+        labels:
+          severity: warning
+          component: kafka
+          team: platform
+        annotations:
+          summary: "Distribuição de partitions desbalanceada no tópico execution.tickets"
+          description: "Coeficiente de variação: {{ $value | humanizePercentage }} (> 50%). Partitions não estão balanceadas."
+          runbook_url: "https://docs.neural-hive.io/runbooks/kafka-partition-imbalance"
+          dashboard_url: "https://grafana.neural-hive.io/d/kafka-partitions"
+
+      # Partition sem mensagens (possível problema)
+      - alert: KafkaPartitionIdle
+        expr: |
+          rate(neural_hive_kafka_partition_messages_total{topic="execution.tickets"}[10m]) == 0
+          and
+          sum(rate(neural_hive_kafka_partition_messages_total{topic="execution.tickets"}[10m])) > 0
+        for: 30m
+        labels:
+          severity: info
+          component: kafka
+          team: platform
+        annotations:
+          summary: "Partition ociosa no tópico execution.tickets"
+          description: "Partition {{ $labels.partition }} não recebeu mensagens nos últimos 30min, mas outras partitions estão ativas."
+          runbook_url: "https://docs.neural-hive.io/runbooks/kafka-partition-idle"
+          dashboard_url: "https://grafana.neural-hive.io/d/kafka-partitions"
+
+      # Bytes desbalanceados (partition > 3x média)
+      - alert: KafkaPartitionBytesImbalance
+        expr: |
+          (
+            rate(neural_hive_kafka_partition_bytes_total{topic="execution.tickets"}[5m])
+            /
+            avg(rate(neural_hive_kafka_partition_bytes_total{topic="execution.tickets"}[5m]))
+          ) > 3
+        for: 15m
+        labels:
+          severity: warning
+          component: kafka
+          team: platform
+        annotations:
+          summary: "Partition com volume de bytes desbalanceado"
+          description: "Partition {{ $labels.partition }} recebendo {{ $value | humanizePercentage }} da média de bytes (> 300%)."
+          runbook_url: "https://docs.neural-hive.io/runbooks/kafka-partition-bytes-imbalance"
+          dashboard_url: "https://grafana.neural-hive.io/d/kafka-partitions"

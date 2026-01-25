@@ -13,6 +13,7 @@ from confluent_kafka.schema_registry.avro import AvroSerializer
 import structlog
 
 from neural_hive_observability import instrument_kafka_producer
+from neural_hive_resilience.circuit_breaker import MonitoredCircuitBreaker, CircuitBreakerError
 
 logger = structlog.get_logger()
 
@@ -37,6 +38,8 @@ class KafkaProducerClient:
         self.metrics = None
         self.sasl_username = sasl_username_override if sasl_username_override is not None else config.kafka_sasl_username
         self.sasl_password = sasl_password_override if sasl_password_override is not None else config.kafka_sasl_password
+        self.circuit_breaker_enabled = getattr(config, 'KAFKA_CIRCUIT_BREAKER_ENABLED', True)
+        self.producer_breaker: Optional[MonitoredCircuitBreaker] = None
 
     async def initialize(self):
         """Inicializa o producer Kafka."""
@@ -97,6 +100,21 @@ class KafkaProducerClient:
             self.avro_serializer = None
             self.incident_avro_serializer = None
 
+        # Inicializar circuit breaker para producer
+        if self.circuit_breaker_enabled:
+            self.producer_breaker = MonitoredCircuitBreaker(
+                service_name=self.config.service_name,
+                circuit_name='kafka_producer',
+                fail_max=getattr(self.config, 'KAFKA_CIRCUIT_BREAKER_FAIL_MAX', 5),
+                timeout_duration=getattr(self.config, 'KAFKA_CIRCUIT_BREAKER_TIMEOUT', 60),
+                recovery_timeout=getattr(self.config, 'KAFKA_CIRCUIT_BREAKER_RECOVERY_TIMEOUT', 30)
+            )
+            logger.info(
+                'Kafka producer circuit breaker habilitado',
+                fail_max=self.producer_breaker.fail_max,
+                timeout=self.producer_breaker.recovery_timeout
+            )
+
         logger.info('Kafka producer inicializado com sucesso')
 
     async def publish_ticket(
@@ -106,6 +124,11 @@ class KafkaProducerClient:
     ) -> Dict[str, Any]:
         """
         Publica um Execution Ticket no tópico Kafka.
+
+        Partition Key Strategy:
+        - Primary: plan_id (agrupa tickets do mesmo plano cognitivo)
+        - Fallback: intent_id (se plan_id ausente)
+        - Fallback: ticket_id (se ambos ausentes)
 
         Args:
             ticket: Ticket de execução a ser publicado
@@ -123,18 +146,37 @@ class KafkaProducerClient:
         topic = topic or self.config.kafka_tickets_topic
         ticket_id = ticket['ticket_id']
 
+        # Determinar partition key (plan_id > intent_id > ticket_id)
+        partition_key = ticket.get('plan_id') or ticket.get('intent_id') or ticket_id
+        partition_key_type = 'plan_id' if ticket.get('plan_id') else (
+            'intent_id' if ticket.get('intent_id') else 'ticket_id'
+        )
+
         try:
             serialized_value = self._serialize_value(ticket, topic)
-            key_bytes = ticket_id.encode('utf-8') if ticket_id else None
+            key_bytes = partition_key.encode('utf-8') if partition_key else None
 
-            result = await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: self._produce_sync(topic, serialized_value, key_bytes, ticket_id)
+            async def _do_produce():
+                return await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: self._produce_sync(topic, serialized_value, key_bytes, ticket_id)
+                )
+
+            result = await self._execute_with_breaker(_do_produce)
+
+            # Registrar métricas de partition
+            self._record_partition_metrics(
+                topic=result.get('topic'),
+                partition=result.get('partition'),
+                message_size=len(serialized_value)
             )
 
             logger.info(
                 'Ticket publicado com sucesso no Kafka',
                 ticket_id=ticket_id,
+                plan_id=ticket.get('plan_id'),
+                partition_key=partition_key,
+                partition_key_type=partition_key_type,
                 topic=result.get('topic'),
                 partition=result.get('partition'),
                 offset=result.get('offset')
@@ -142,6 +184,13 @@ class KafkaProducerClient:
 
             return result
 
+        except CircuitBreakerError:
+            logger.error(
+                'Kafka producer circuit breaker aberto',
+                ticket_id=ticket_id,
+                topic=topic
+            )
+            raise
         except KafkaError as e:
             logger.error(
                 'Erro ao publicar ticket no Kafka',
@@ -182,10 +231,13 @@ class KafkaProducerClient:
             serialized_value = self._serialize_value(value, topic)
             key_bytes = key.encode('utf-8') if key else None
 
-            result = await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: self._produce_sync(topic, serialized_value, key_bytes, key)
-            )
+            async def _do_produce():
+                return await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: self._produce_sync(topic, serialized_value, key_bytes, key)
+                )
+
+            result = await self._execute_with_breaker(_do_produce)
 
             logger.debug(
                 'Mensagem publicada com sucesso no Kafka',
@@ -197,6 +249,13 @@ class KafkaProducerClient:
 
             return result
 
+        except CircuitBreakerError:
+            logger.error(
+                'Kafka producer circuit breaker aberto',
+                topic=topic,
+                key=key
+            )
+            raise
         except KafkaError as e:
             logger.error(
                 'Erro ao publicar mensagem no Kafka',
@@ -231,10 +290,13 @@ class KafkaProducerClient:
                 serialized_value = self._serialize_incident_value(incident_event, topic)
                 key_bytes = key.encode('utf-8') if key else None
 
-                await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: self._produce_sync(topic, serialized_value, key_bytes, incident_id)
-                )
+                async def _do_produce():
+                    return await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: self._produce_sync(topic, serialized_value, key_bytes, incident_id)
+                    )
+
+                await self._execute_with_breaker(_do_produce)
 
                 duration = perf_counter() - start_time
                 self._record_incident_metrics(success=True, duration_seconds=duration, incident_type=incident_type)
@@ -247,6 +309,16 @@ class KafkaProducerClient:
                     duration_seconds=round(duration, 4)
                 )
                 return True
+            except CircuitBreakerError:
+                duration = perf_counter() - start_time
+                self._record_incident_metrics(success=False, duration_seconds=duration, incident_type=incident_type)
+                logger.error(
+                    'self_healing.kafka_circuit_breaker_open',
+                    incident_id=incident_id,
+                    workflow_id=incident_event.get('workflow_id'),
+                    incident_type=incident_type
+                )
+                return False
             except Exception as exc:
                 last_error = exc
                 duration = perf_counter() - start_time
@@ -406,3 +478,37 @@ class KafkaProducerClient:
             self.metrics = None
 
         return self.metrics
+
+    def _record_partition_metrics(self, topic: str, partition: int, message_size: int):
+        """Registra métricas de distribuição por partition."""
+        metrics = self._get_metrics()
+        if not metrics:
+            return
+
+        try:
+            metrics.record_kafka_partition_message(
+                topic=topic,
+                partition=partition,
+                message_size_bytes=message_size
+            )
+        except Exception as exc:
+            logger.warning('partition_metrics_record_failed', error=str(exc))
+
+    async def _execute_with_breaker(self, func, *args, **kwargs):
+        """
+        Executa operação Kafka protegida por circuit breaker.
+
+        Args:
+            func: Função a executar
+            *args, **kwargs: Argumentos da função
+
+        Returns:
+            Resultado da função
+
+        Raises:
+            CircuitBreakerError: Se circuit breaker estiver aberto
+        """
+        if not self.circuit_breaker_enabled or self.producer_breaker is None:
+            return await func(*args, **kwargs)
+
+        return await self.producer_breaker.call_async(func, *args, **kwargs)
