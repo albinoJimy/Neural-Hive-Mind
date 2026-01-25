@@ -1,0 +1,152 @@
+name: Performance Tests - Flow C
+
+on:
+  schedule:
+    # Executa semanalmente aos domingos as 2h UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      workflows_count:
+        description: 'Numero de workflows a testar'
+        required: false
+        default: '100'
+      concurrent:
+        description: 'Workflows concorrentes'
+        required: false
+        default: '50'
+      test_marker:
+        description: 'Marker pytest (performance, slow)'
+        required: false
+        default: 'performance'
+
+env:
+  PYTHON_VERSION: '3.11'
+  ORCHESTRATOR_URL: http://orchestrator-dynamic.neural-hive-orchestration.svc.cluster.local:8000
+  PROMETHEUS_URL: http://prometheus.monitoring.svc.cluster.local:9090
+  K8S_NAMESPACE: neural-hive-orchestration
+
+jobs:
+  performance-test:
+    name: Teste de Carga Fluxo C
+    runs-on: ubuntu-latest
+    timeout-minutes: 180  # 3 horas maximo
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r tests/requirements-test.txt
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > /tmp/kubeconfig
+          export KUBECONFIG=/tmp/kubeconfig
+
+      - name: Verificar conectividade
+        run: |
+          echo "Verificando orchestrator..."
+          kubectl get pods -n ${{ env.K8S_NAMESPACE }} -l app.kubernetes.io/name=orchestrator-dynamic
+          echo "Verificando prometheus..."
+          kubectl get pods -n monitoring -l app=prometheus
+
+      - name: Executar testes de performance
+        env:
+          WORKFLOWS_COUNT: ${{ github.event.inputs.workflows_count || 100 }}
+          CONCURRENT_WORKFLOWS: ${{ github.event.inputs.concurrent || 50 }}
+        run: |
+          mkdir -p reports
+          pytest tests/performance/test_flow_c_load.py \
+            -m "${{ github.event.inputs.test_marker || 'performance' }}" \
+            --junitxml=reports/performance-results.xml \
+            -v \
+            --tb=short \
+            2>&1 | tee reports/test-output.log
+
+      - name: Gerar relatorio de performance
+        if: always()
+        run: |
+          python -c "
+          from datetime import datetime
+          from tests.performance.report_generator import PerformanceReportGenerator, PerformanceTestResults
+          from tests.performance.slo_validator import LoadTestMetrics
+
+          # Criar resultados placeholder se necessario
+          print('Gerando relatorio...')
+          "
+
+      - name: Upload resultados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-report-${{ github.run_id }}
+          path: |
+            reports/
+          retention-days: 30
+
+      - name: Notificar Slack (falha)
+        if: failure()
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          payload: |
+            {
+              "text": "❌ Teste de Performance Fluxo C falhou",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "❌ *Teste de Performance Fluxo C falhou*\n\n*Workflow:* ${{ github.workflow }}\n*Run:* ${{ github.run_id }}\n*Branch:* ${{ github.ref_name }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+  analyze-results:
+    name: Analisar Resultados
+    needs: performance-test
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download resultados
+        uses: actions/download-artifact@v4
+        with:
+          name: performance-report-${{ github.run_id }}
+          path: reports/
+
+      - name: Publicar metricas
+        run: |
+          echo "## Resumo de Performance" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f reports/test-output.log ]; then
+            echo "### Resultados dos Testes" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -50 reports/test-output.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Verificar regressoes
+        run: |
+          echo "Verificando regressoes de performance..."
+          # TODO: Comparar com baseline
