@@ -51,6 +51,35 @@ PROMQL_QUERIES = {
     'tickets_completed_rate': 'sum(rate(neural_hive_execution_tickets_completed_total[5m]))',
     'hpa_current_replicas': 'kube_horizontalpodautoscaler_status_current_replicas{{horizontalpodautoscaler="orchestrator-dynamic"}}',
     'hpa_desired_replicas': 'kube_horizontalpodautoscaler_status_desired_replicas{{horizontalpodautoscaler="orchestrator-dynamic"}}',
+    # I/O metrics
+    'io_read_bytes_rate': '''
+        sum(rate(container_fs_reads_bytes_total{{pod=~"orchestrator-dynamic-.*", namespace="neural-hive-orchestration"}}[5m]))
+    ''',
+    'io_write_bytes_rate': '''
+        sum(rate(container_fs_writes_bytes_total{{pod=~"orchestrator-dynamic-.*", namespace="neural-hive-orchestration"}}[5m]))
+    ''',
+    'io_time_seconds_rate': '''
+        sum(rate(container_fs_io_time_seconds_total{{pod=~"orchestrator-dynamic-.*", namespace="neural-hive-orchestration"}}[5m]))
+    ''',
+    'disk_io_utilization': '''
+        sum(rate(node_disk_io_time_seconds_total{{device=~"sd.*|vd.*|nvme.*"}}[5m])) * 100
+    ''',
+    # Network metrics
+    'network_transmit_bytes_rate': '''
+        sum(rate(container_network_transmit_bytes_total{{pod=~"orchestrator-dynamic-.*", namespace="neural-hive-orchestration"}}[5m]))
+    ''',
+    'network_receive_bytes_rate': '''
+        sum(rate(container_network_receive_bytes_total{{pod=~"orchestrator-dynamic-.*", namespace="neural-hive-orchestration"}}[5m]))
+    ''',
+    'network_transmit_errors_rate': '''
+        sum(rate(container_network_transmit_errors_total{{pod=~"orchestrator-dynamic-.*", namespace="neural-hive-orchestration"}}[5m]))
+    ''',
+    'network_receive_errors_rate': '''
+        sum(rate(container_network_receive_errors_total{{pod=~"orchestrator-dynamic-.*", namespace="neural-hive-orchestration"}}[5m]))
+    ''',
+    'inter_service_latency_p95': '''
+        histogram_quantile(0.95, sum(rate(neural_hive_inter_service_request_duration_seconds_bucket[5m])) by (le, target_service))
+    ''',
 }
 
 
@@ -85,6 +114,17 @@ class MetricsSnapshot:
     tickets_per_second: Optional[float] = None
     circuit_breaker_states: Dict[str, str] = field(default_factory=dict)
     step_latencies: Dict[str, float] = field(default_factory=dict)
+    # I/O metrics
+    io_read_bytes_rate: Optional[float] = None
+    io_write_bytes_rate: Optional[float] = None
+    io_time_seconds_rate: Optional[float] = None
+    disk_io_utilization: Optional[float] = None
+    # Network metrics
+    network_transmit_bytes_rate: Optional[float] = None
+    network_receive_bytes_rate: Optional[float] = None
+    network_transmit_errors_rate: Optional[float] = None
+    network_receive_errors_rate: Optional[float] = None
+    inter_service_latencies: Dict[str, float] = field(default_factory=dict)
 
 
 class PrometheusClient:
@@ -330,6 +370,55 @@ class PrometheusClient:
             'desired_replicas': int(desired.value) if desired.value else 0,
         }
 
+    async def get_io_read_bytes_rate(self) -> Optional[float]:
+        """Obtem taxa de leitura de I/O em bytes/s."""
+        result = await self.query(PROMQL_QUERIES['io_read_bytes_rate'])
+        return result.value
+
+    async def get_io_write_bytes_rate(self) -> Optional[float]:
+        """Obtem taxa de escrita de I/O em bytes/s."""
+        result = await self.query(PROMQL_QUERIES['io_write_bytes_rate'])
+        return result.value
+
+    async def get_io_time_rate(self) -> Optional[float]:
+        """Obtem taxa de tempo gasto em I/O em segundos/s."""
+        result = await self.query(PROMQL_QUERIES['io_time_seconds_rate'])
+        return result.value
+
+    async def get_disk_io_utilization(self) -> Optional[float]:
+        """Obtem utilizacao de disco I/O em porcentagem."""
+        result = await self.query(PROMQL_QUERIES['disk_io_utilization'])
+        return result.value
+
+    async def get_network_transmit_bytes_rate(self) -> Optional[float]:
+        """Obtem taxa de transmissao de rede em bytes/s."""
+        result = await self.query(PROMQL_QUERIES['network_transmit_bytes_rate'])
+        return result.value
+
+    async def get_network_receive_bytes_rate(self) -> Optional[float]:
+        """Obtem taxa de recepcao de rede em bytes/s."""
+        result = await self.query(PROMQL_QUERIES['network_receive_bytes_rate'])
+        return result.value
+
+    async def get_network_transmit_errors_rate(self) -> Optional[float]:
+        """Obtem taxa de erros de transmissao de rede."""
+        result = await self.query(PROMQL_QUERIES['network_transmit_errors_rate'])
+        return result.value
+
+    async def get_network_receive_errors_rate(self) -> Optional[float]:
+        """Obtem taxa de erros de recepcao de rede."""
+        result = await self.query(PROMQL_QUERIES['network_receive_errors_rate'])
+        return result.value
+
+    async def get_inter_service_latencies(self) -> Dict[str, float]:
+        """Obtem latencias P95 entre servicos."""
+        result = await self.query(PROMQL_QUERIES['inter_service_latency_p95'])
+        latencies = {}
+        if result.labels and result.value is not None:
+            service = result.labels.get('target_service', 'unknown')
+            latencies[service] = result.value
+        return latencies
+
     async def collect_metrics_snapshot(self) -> MetricsSnapshot:
         """
         Coleta snapshot completo de metricas.
@@ -352,6 +441,17 @@ class PrometheusClient:
             'mongodb_pool': self.get_mongodb_pool_utilization(),
             'temporal_queue': self.get_temporal_queue_depth(),
             'tickets_per_sec': self.get_tickets_per_second(),
+            # I/O metrics
+            'io_read_bytes': self.get_io_read_bytes_rate(),
+            'io_write_bytes': self.get_io_write_bytes_rate(),
+            'io_time': self.get_io_time_rate(),
+            'disk_io_util': self.get_disk_io_utilization(),
+            # Network metrics
+            'net_tx_bytes': self.get_network_transmit_bytes_rate(),
+            'net_rx_bytes': self.get_network_receive_bytes_rate(),
+            'net_tx_errors': self.get_network_transmit_errors_rate(),
+            'net_rx_errors': self.get_network_receive_errors_rate(),
+            'inter_service': self.get_inter_service_latencies(),
         }
 
         # Adicionar circuit breakers
@@ -390,6 +490,21 @@ class PrometheusClient:
         snapshot.mongodb_pool_utilization = results.get('mongodb_pool')
         snapshot.temporal_queue_depth = results.get('temporal_queue')
         snapshot.tickets_per_second = results.get('tickets_per_sec')
+
+        # I/O metrics
+        snapshot.io_read_bytes_rate = results.get('io_read_bytes')
+        snapshot.io_write_bytes_rate = results.get('io_write_bytes')
+        snapshot.io_time_seconds_rate = results.get('io_time')
+        snapshot.disk_io_utilization = results.get('disk_io_util')
+
+        # Network metrics
+        snapshot.network_transmit_bytes_rate = results.get('net_tx_bytes')
+        snapshot.network_receive_bytes_rate = results.get('net_rx_bytes')
+        snapshot.network_transmit_errors_rate = results.get('net_tx_errors')
+        snapshot.network_receive_errors_rate = results.get('net_rx_errors')
+        inter_service = results.get('inter_service')
+        if isinstance(inter_service, dict):
+            snapshot.inter_service_latencies = inter_service
 
         # Circuit breaker states
         for comp in components:

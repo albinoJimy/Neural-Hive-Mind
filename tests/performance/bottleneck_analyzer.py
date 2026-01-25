@@ -87,6 +87,18 @@ class BottleneckThresholds:
     latency_p95_warning_seconds: float = 10800  # 3h
     latency_p95_critical_seconds: float = 14400  # 4h (SLO)
 
+    # I/O
+    io_utilization_warning_percent: float = 70.0
+    io_utilization_critical_percent: float = 85.0
+    io_time_warning_seconds: float = 0.5  # 50% do tempo em I/O
+    io_time_critical_seconds: float = 0.8  # 80% do tempo em I/O
+
+    # Network
+    network_errors_warning_rate: float = 1.0  # erros/s
+    network_errors_critical_rate: float = 10.0  # erros/s
+    inter_service_latency_warning_seconds: float = 1.0  # 1s
+    inter_service_latency_critical_seconds: float = 5.0  # 5s
+
 
 class BottleneckAnalyzer:
     """Analisador de bottlenecks para testes de carga."""
@@ -399,6 +411,162 @@ class BottleneckAnalyzer:
 
         return None
 
+    def analyze_io_bottleneck(
+        self,
+        io_utilization: Optional[float],
+        io_time_rate: Optional[float],
+    ) -> List[Bottleneck]:
+        """
+        Analisa bottleneck de I/O.
+
+        Args:
+            io_utilization: Utilizacao de disco I/O em porcentagem
+            io_time_rate: Taxa de tempo gasto em I/O (segundos/s)
+
+        Returns:
+            Lista de bottlenecks se detectados
+        """
+        bottlenecks = []
+
+        # Analise de utilizacao de disco
+        if io_utilization is not None:
+            if io_utilization >= self.thresholds.io_utilization_critical_percent:
+                bottlenecks.append(Bottleneck(
+                    type=BottleneckType.IO,
+                    severity=BottleneckSeverity.CRITICAL,
+                    metric_name='disk_io_utilization_percent',
+                    current_value=io_utilization,
+                    threshold=self.thresholds.io_utilization_critical_percent,
+                    description=f'Disco I/O saturado: {io_utilization:.1f}% (limite: {self.thresholds.io_utilization_critical_percent}%)',
+                    recommendation='Usar volumes SSD; aumentar IOPS; considerar cache local',
+                ))
+            elif io_utilization >= self.thresholds.io_utilization_warning_percent:
+                bottlenecks.append(Bottleneck(
+                    type=BottleneckType.IO,
+                    severity=BottleneckSeverity.WARNING,
+                    metric_name='disk_io_utilization_percent',
+                    current_value=io_utilization,
+                    threshold=self.thresholds.io_utilization_warning_percent,
+                    description=f'Disco I/O elevado: {io_utilization:.1f}% (alerta: {self.thresholds.io_utilization_warning_percent}%)',
+                    recommendation='Monitorar tendencia; otimizar operacoes de disco',
+                ))
+
+        # Analise de tempo em I/O
+        if io_time_rate is not None:
+            if io_time_rate >= self.thresholds.io_time_critical_seconds:
+                bottlenecks.append(Bottleneck(
+                    type=BottleneckType.IO,
+                    severity=BottleneckSeverity.CRITICAL,
+                    metric_name='io_time_seconds_rate',
+                    current_value=io_time_rate,
+                    threshold=self.thresholds.io_time_critical_seconds,
+                    description=f'Tempo I/O critico: {io_time_rate*100:.1f}% do tempo (limite: {self.thresholds.io_time_critical_seconds*100:.0f}%)',
+                    recommendation='Revisar padrao de acesso a disco; implementar buffering',
+                ))
+            elif io_time_rate >= self.thresholds.io_time_warning_seconds:
+                bottlenecks.append(Bottleneck(
+                    type=BottleneckType.IO,
+                    severity=BottleneckSeverity.WARNING,
+                    metric_name='io_time_seconds_rate',
+                    current_value=io_time_rate,
+                    threshold=self.thresholds.io_time_warning_seconds,
+                    description=f'Tempo I/O elevado: {io_time_rate*100:.1f}% do tempo (alerta: {self.thresholds.io_time_warning_seconds*100:.0f}%)',
+                    recommendation='Otimizar batch de escrita/leitura',
+                ))
+
+        return bottlenecks
+
+    def analyze_network_bottleneck(
+        self,
+        tx_errors_rate: Optional[float],
+        rx_errors_rate: Optional[float],
+        inter_service_latencies: Optional[Dict[str, float]],
+    ) -> List[Bottleneck]:
+        """
+        Analisa bottleneck de rede.
+
+        Args:
+            tx_errors_rate: Taxa de erros de transmissao (erros/s)
+            rx_errors_rate: Taxa de erros de recepcao (erros/s)
+            inter_service_latencies: Latencias P95 entre servicos (segundos)
+
+        Returns:
+            Lista de bottlenecks se detectados
+        """
+        bottlenecks = []
+
+        # Analise de erros de transmissao
+        if tx_errors_rate is not None:
+            if tx_errors_rate >= self.thresholds.network_errors_critical_rate:
+                bottlenecks.append(Bottleneck(
+                    type=BottleneckType.NETWORK,
+                    severity=BottleneckSeverity.CRITICAL,
+                    metric_name='network_transmit_errors_rate',
+                    current_value=tx_errors_rate,
+                    threshold=self.thresholds.network_errors_critical_rate,
+                    description=f'Erros de rede (TX) criticos: {tx_errors_rate:.2f}/s (limite: {self.thresholds.network_errors_critical_rate})',
+                    recommendation='Verificar conectividade de rede; revisar configuracao de MTU/TCP',
+                ))
+            elif tx_errors_rate >= self.thresholds.network_errors_warning_rate:
+                bottlenecks.append(Bottleneck(
+                    type=BottleneckType.NETWORK,
+                    severity=BottleneckSeverity.WARNING,
+                    metric_name='network_transmit_errors_rate',
+                    current_value=tx_errors_rate,
+                    threshold=self.thresholds.network_errors_warning_rate,
+                    description=f'Erros de rede (TX) elevados: {tx_errors_rate:.2f}/s (alerta: {self.thresholds.network_errors_warning_rate})',
+                    recommendation='Monitorar erros de rede; verificar saturacao de interface',
+                ))
+
+        # Analise de erros de recepcao
+        if rx_errors_rate is not None:
+            if rx_errors_rate >= self.thresholds.network_errors_critical_rate:
+                bottlenecks.append(Bottleneck(
+                    type=BottleneckType.NETWORK,
+                    severity=BottleneckSeverity.CRITICAL,
+                    metric_name='network_receive_errors_rate',
+                    current_value=rx_errors_rate,
+                    threshold=self.thresholds.network_errors_critical_rate,
+                    description=f'Erros de rede (RX) criticos: {rx_errors_rate:.2f}/s (limite: {self.thresholds.network_errors_critical_rate})',
+                    recommendation='Verificar configuracao de buffer de rede; aumentar capacidade',
+                ))
+            elif rx_errors_rate >= self.thresholds.network_errors_warning_rate:
+                bottlenecks.append(Bottleneck(
+                    type=BottleneckType.NETWORK,
+                    severity=BottleneckSeverity.WARNING,
+                    metric_name='network_receive_errors_rate',
+                    current_value=rx_errors_rate,
+                    threshold=self.thresholds.network_errors_warning_rate,
+                    description=f'Erros de rede (RX) elevados: {rx_errors_rate:.2f}/s (alerta: {self.thresholds.network_errors_warning_rate})',
+                    recommendation='Monitorar erros de rede; verificar congestao',
+                ))
+
+        # Analise de latencia entre servicos
+        if inter_service_latencies:
+            for service, latency in inter_service_latencies.items():
+                if latency >= self.thresholds.inter_service_latency_critical_seconds:
+                    bottlenecks.append(Bottleneck(
+                        type=BottleneckType.NETWORK,
+                        severity=BottleneckSeverity.CRITICAL,
+                        metric_name=f'inter_service_latency_{service}',
+                        current_value=latency,
+                        threshold=self.thresholds.inter_service_latency_critical_seconds,
+                        description=f'Latencia inter-servico {service} critica: {latency*1000:.0f}ms (limite: {self.thresholds.inter_service_latency_critical_seconds*1000:.0f}ms)',
+                        recommendation=f'Verificar conectividade com {service}; considerar co-localizacao',
+                    ))
+                elif latency >= self.thresholds.inter_service_latency_warning_seconds:
+                    bottlenecks.append(Bottleneck(
+                        type=BottleneckType.NETWORK,
+                        severity=BottleneckSeverity.WARNING,
+                        metric_name=f'inter_service_latency_{service}',
+                        current_value=latency,
+                        threshold=self.thresholds.inter_service_latency_warning_seconds,
+                        description=f'Latencia inter-servico {service} elevada: {latency*1000:.0f}ms (alerta: {self.thresholds.inter_service_latency_warning_seconds*1000:.0f}ms)',
+                        recommendation=f'Otimizar comunicacao com {service}; usar cache ou batch',
+                    ))
+
+        return bottlenecks
+
     def analyze_snapshot(self, snapshot: MetricsSnapshot) -> List[Bottleneck]:
         """
         Analisa um snapshot de metricas.
@@ -444,6 +612,21 @@ class BottleneckAnalyzer:
         latency_bn = self.analyze_latency(snapshot.flow_c_latency_p95)
         if latency_bn:
             bottlenecks.append(latency_bn)
+
+        # I/O
+        io_bottlenecks = self.analyze_io_bottleneck(
+            io_utilization=snapshot.disk_io_utilization,
+            io_time_rate=snapshot.io_time_seconds_rate,
+        )
+        bottlenecks.extend(io_bottlenecks)
+
+        # Network
+        network_bottlenecks = self.analyze_network_bottleneck(
+            tx_errors_rate=snapshot.network_transmit_errors_rate,
+            rx_errors_rate=snapshot.network_receive_errors_rate,
+            inter_service_latencies=snapshot.inter_service_latencies,
+        )
+        bottlenecks.extend(network_bottlenecks)
 
         return bottlenecks
 
@@ -571,6 +754,13 @@ class BottleneckAnalyzer:
         lines.append(f'- Warnings: {len(warnings)}')
         lines.append('')
 
+        # Agrupar por categoria
+        by_type = self._group_by_type()
+        lines.append('**Por categoria:**')
+        for type_name, count in by_type.items():
+            lines.append(f'- {type_name.upper()}: {count}')
+        lines.append('')
+
         if critical:
             lines.append('### Bottlenecks Criticos')
             lines.append('')
@@ -588,5 +778,25 @@ class BottleneckAnalyzer:
                 lines.append(f'{i}. **{bn.type.value.upper()}** - {bn.description}')
                 lines.append(f'   - Recomendacao: {bn.recommendation}')
                 lines.append('')
+
+        # Secao de I/O (Comment 5)
+        io_bottlenecks = [bn for bn in self.bottlenecks if bn.type == BottleneckType.IO]
+        if io_bottlenecks:
+            lines.append('### Bottlenecks de I/O')
+            lines.append('')
+            for bn in io_bottlenecks:
+                lines.append(f'- {bn.description}')
+                lines.append(f'  - Recomendacao: {bn.recommendation}')
+            lines.append('')
+
+        # Secao de Rede (Comment 5)
+        network_bottlenecks = [bn for bn in self.bottlenecks if bn.type == BottleneckType.NETWORK]
+        if network_bottlenecks:
+            lines.append('### Bottlenecks de Rede')
+            lines.append('')
+            for bn in network_bottlenecks:
+                lines.append(f'- {bn.description}')
+                lines.append(f'  - Recomendacao: {bn.recommendation}')
+            lines.append('')
 
         return '\n'.join(lines)
