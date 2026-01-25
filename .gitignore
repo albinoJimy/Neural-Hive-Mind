@@ -35,3 +35,17 @@ minikube
 infrastructure/terraform-simple/.terraform/
 infrastructure/terraform/modules/observability-stack/.terraform/
 *.terraform/
+
+# Build artifacts
+*.egg-info/
+build/
+dist/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Test results
+tests/results/
+tests/logs/
+**/tests/logs/
