@@ -314,7 +314,7 @@ class DecisionConsumer:
                 error=str(e)
             )
 
-    @trace_plan
+    @trace_plan()
     async def _process_message(self, message):
         """
         Processa uma mensagem do Kafka.

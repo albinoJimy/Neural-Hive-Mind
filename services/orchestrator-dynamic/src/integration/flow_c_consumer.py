@@ -244,7 +244,7 @@ class FlowCConsumer:
                 self.logger.error("consumption_error", error=str(e))
                 await asyncio.sleep(5)
 
-    @trace_plan
+    @trace_plan()
     async def _process_message(self, message):
         """Process single consolidated decision message."""
         messages_consumed.inc()
