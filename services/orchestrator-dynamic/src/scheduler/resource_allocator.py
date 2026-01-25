@@ -221,6 +221,60 @@ class ResourceAllocator:
         # Retornar melhor worker
         best_worker = scored_workers[0]
 
+        # Registrar métricas de affinity apenas para o worker selecionado
+        # (evita inflação de contagens ao registrar para cada candidato)
+        if affinity_enabled and affinity_data and ticket:
+            best_agent_id = best_worker.get('agent_id')
+            plan_allocations = affinity_data.get('plan_allocations', {})
+            intent_allocations = affinity_data.get('intent_allocations', {})
+            critical_tickets = affinity_data.get('critical_tickets', {}).get(best_agent_id, set())
+
+            # Plan affinity metrics
+            if plan_allocations.get(best_agent_id, 0) > 0:
+                self.metrics.record_affinity_hit('plan')
+            else:
+                self.metrics.record_affinity_miss('plan')
+
+            # Intent affinity metrics
+            if intent_allocations.get(best_agent_id, 0) > 0:
+                self.metrics.record_affinity_hit('intent')
+            else:
+                self.metrics.record_affinity_miss('intent')
+
+            # Anti-affinity metrics (apenas para tickets críticos)
+            risk_band = ticket.get('risk_band', '')
+            priority = ticket.get('priority', '')
+            anti_affinity_risk_bands = getattr(
+                self.config, 'scheduler_affinity_anti_affinity_risk_bands',
+                ['critical', 'high']
+            )
+            anti_affinity_priorities = getattr(
+                self.config, 'scheduler_affinity_anti_affinity_priorities',
+                ['CRITICAL', 'HIGH']
+            )
+            is_critical = (
+                risk_band.lower() in [rb.lower() for rb in anti_affinity_risk_bands] or
+                priority.upper() in [p.upper() for p in anti_affinity_priorities]
+            )
+            if is_critical:
+                self.metrics.record_anti_affinity_enforced(risk_band, priority)
+
+            # Registrar scores do worker selecionado
+            # Recalcular scores para o best_worker para métricas precisas
+            plan_threshold = getattr(self.config, 'scheduler_affinity_plan_threshold', 3)
+            plan_tickets = plan_allocations.get(best_agent_id, 0)
+            plan_score = 0.5 + (0.5 * min(1.0, plan_tickets / plan_threshold)) if plan_tickets > 0 else 0.5
+            intent_tickets = intent_allocations.get(best_agent_id, 0)
+            intent_score = 0.5 + (0.5 * min(1.0, intent_tickets / plan_threshold)) if intent_tickets > 0 else 0.5
+            if is_critical:
+                anti_score = 0.0 if len(critical_tickets) > 0 else 1.0
+            else:
+                anti_score = 0.5
+
+            self.metrics.record_affinity_score('plan', plan_score)
+            self.metrics.record_affinity_score('anti', anti_score)
+            self.metrics.record_affinity_score('intent', intent_score)
+
         # Registrar alocação no affinity tracker
         if self.affinity_tracker and ticket:
             try:
@@ -464,11 +518,9 @@ class ResourceAllocator:
             # 1 ticket = 0.5 + 0.5 * 0.33 = 0.67
             # 3+ tickets = 0.5 + 0.5 * 1.0 = 1.0
             plan_score = 0.5 + (0.5 * min(1.0, plan_tickets / plan_threshold))
-            self.metrics.record_affinity_hit('plan')
         else:
             # Worker não tem tickets do plan: score neutro
             plan_score = 0.5
-            self.metrics.record_affinity_miss('plan')
 
         # 2. Anti-Affinity para tickets críticos
         is_critical = (
@@ -483,22 +535,19 @@ class ResourceAllocator:
             else:
                 # Worker não tem tickets críticos: preferir (score alto)
                 anti_score = 1.0
-
-            self.metrics.record_anti_affinity_enforced(risk_band, priority)
         else:
-            # Ticket não é crítico: neutro
-            anti_score = 1.0
+            # Ticket não é crítico: score neutro (0.5) para não afetar o resultado
+            # Isso garante que affinity_multiplier seja ~1.0 quando não há afinidade
+            anti_score = 0.5
 
         # 3. Intent Affinity (workflow co-location)
         intent_tickets = intent_allocations.get(agent_id, 0)
         if intent_tickets > 0:
             # Worker já tem tickets do mesmo intent: score alto (0.5 + bonus até 1.0)
             intent_score = 0.5 + (0.5 * min(1.0, intent_tickets / plan_threshold))
-            self.metrics.record_affinity_hit('intent')
         else:
             # Worker não tem tickets do intent: score neutro
             intent_score = 0.5
-            self.metrics.record_affinity_miss('intent')
 
         # Score composto
         affinity_score = (
@@ -507,10 +556,8 @@ class ResourceAllocator:
             (intent_score * intent_weight)
         )
 
-        # Registrar scores individuais
-        self.metrics.record_affinity_score('plan', plan_score)
-        self.metrics.record_affinity_score('anti', anti_score)
-        self.metrics.record_affinity_score('intent', intent_score)
+        # NOTA: Métricas são registradas apenas para o worker selecionado
+        # em select_best_worker() para evitar inflação de contagens
 
         self.logger.debug(
             "affinity_score_calculated",

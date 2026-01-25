@@ -45,6 +45,14 @@ violations[violation] {
 }
 
 violations[violation] {
+    violation := jwt_missing_required_claims_violation
+}
+
+violations[violation] {
+    violation := jwt_jwks_unavailable_violation
+}
+
+violations[violation] {
     violation := insufficient_permissions_violation
 }
 
@@ -107,8 +115,8 @@ invalid_jwt_violation := violation {
         "rule": "invalid_jwt",
         "severity": "critical",
         "field": "context.jwt_token",
-        "msg": "JWT token inválido ou expirado",
-        "expected": "JWT válido com assinatura verificada",
+        "msg": "JWT token inválido: assinatura não verificada ou claims obrigatórios ausentes",
+        "expected": "JWT válido com assinatura verificada e claims obrigatórios (sub, exp, iat, tenant_id, roles)",
         "actual": "JWT inválido"
     }
 }
@@ -216,6 +224,61 @@ jwt_invalid_spiffe_id_violation := violation {
     }
 }
 
+# Regra 3.5: Claims obrigatórios ausentes (tenant_id, roles)
+jwt_missing_required_claims_violation := violation {
+    context := input.context
+    jwt_token := context.jwt_token
+
+    jwt_token != null
+    is_valid_jwt_structure(jwt_token)
+
+    [header, payload, signature] := io.jwt.decode(jwt_token)
+
+    # Verificar claims obrigatórios
+    required_claims := ["sub", "exp", "iat", "tenant_id", "roles"]
+    missing_claim := required_claims[_]
+    not payload[missing_claim]
+
+    violation := {
+        "policy": "security_constraints",
+        "rule": "jwt_missing_required_claims",
+        "severity": "critical",
+        "field": "context.jwt_token",
+        "msg": sprintf("JWT ausente claim obrigatório: %v", [missing_claim]),
+        "expected": required_claims,
+        "actual": missing_claim
+    }
+}
+
+# Regra 3.6: JWKS indisponível (fail-closed)
+# Esta violação é gerada quando:
+# 1. JWT token está presente
+# 2. JWKS não está disponível (nem via data nem via http.send)
+# 3. Fallback sem assinatura NÃO está habilitado (jwt_allow_unsigned_fallback != true)
+jwt_jwks_unavailable_violation := violation {
+    context := input.context
+    jwt_token := context.jwt_token
+
+    jwt_token != null
+    is_valid_jwt_structure(jwt_token)
+
+    # JWKS não disponível
+    not get_spire_jwks
+
+    # Fallback não permitido (comportamento seguro padrão)
+    not input.security.jwt_allow_unsigned_fallback == true
+
+    violation := {
+        "policy": "security_constraints",
+        "rule": "jwt_jwks_unavailable",
+        "severity": "critical",
+        "field": "context.jwt_token",
+        "msg": "JWKS indisponível para verificação de assinatura JWT. Configurar jwks_url ou data.spire_jwks",
+        "expected": "JWKS disponível via data.spire_jwks ou input.security.jwks_url",
+        "actual": "JWKS não encontrado"
+    }
+}
+
 # Regra 4: Insufficient permissions (RBAC)
 insufficient_permissions_violation := violation {
     ticket := input.resource
@@ -303,18 +366,99 @@ is_valid_jwt_structure(token) {
     count(parts) == 3
 }
 
-# Helper: Validar JWT com verificação de assinatura
+# Helper: Obter JWKS do SPIRE Server via HTTP
+# Usa cache interno do OPA para evitar requests excessivos
+# Retorna JWKS JSON ou undefined se indisponível
+get_spire_jwks := jwks {
+    # Verificar se JWKS foi fornecido via data (testes ou bundle)
+    jwks := data.spire_jwks
+} else := jwks {
+    # Buscar JWKS via HTTP do SPIRE Server
+    jwks_url := input.security.jwks_url
+    jwks_url != null
+
+    response := http.send({
+        "method": "GET",
+        "url": jwks_url,
+        "cache": true,
+        "force_cache": true,
+        "force_cache_duration_seconds": 300,  # Cache de 5 minutos
+        "timeout": "5s",
+        "raise_error": false
+    })
+
+    response.status_code == 200
+    jwks := response.body
+}
+
+# Helper: Validar JWT com verificação de assinatura usando JWKS do SPIRE
+# Modos de operação:
+# 1. Produção: JWKS carregado via http.send do SPIRE Server ou via data.spire_jwks
+# 2. Dev explícito: Fallback sem assinatura APENAS se input.security.jwt_allow_unsigned_fallback == true
+# 3. Fail-closed: Retorna false se JWKS indisponível e fallback não permitido
 is_valid_jwt_with_verification(token) {
     # Validação básica de estrutura
     is_valid_jwt_structure(token)
 
-    # Tentar decodificar (io.jwt.decode não valida assinatura, apenas estrutura)
-    [header, payload, signature] := io.jwt.decode(token)
+    # Obter configuração de segurança do input
+    issuer := input.security.jwt_issuer
+    audience := input.security.jwt_audience
 
-    # Verificar campos obrigatórios
+    # Obter JWKS (via data ou http.send)
+    jwks := get_spire_jwks
+
+    # Verificar assinatura com JWKS
+    # io.jwt.decode_verify retorna [valid, header, payload]
+    # IMPORTANTE: time deve estar em segundos (Unix timestamp), não nanosegundos
+    [valid, header, payload] := io.jwt.decode_verify(
+        token,
+        {
+            "cert": jwks,
+            "iss": issuer,
+            "aud": audience,
+            "time": time.now_ns() / 1000000000  # Converter nanosegundos para segundos
+        }
+    )
+
+    # Validação bem-sucedida se valid == true
+    valid == true
+
+    # Verificar claims obrigatórios (incluindo novos: tenant_id, roles)
     payload.sub
     payload.exp
     payload.iat
+    payload.tenant_id  # Claim obrigatório para multi-tenancy
+    payload.roles      # Claim obrigatório para RBAC
+}
+
+# Fallback EXPLÍCITO: Validar JWT sem verificação de assinatura
+# ATENÇÃO SEGURANÇA: Este fallback só é ativado quando:
+# 1. JWKS não está disponível (nem via data nem via http.send)
+# 2. input.security.jwt_allow_unsigned_fallback == true (opt-in explícito)
+# Em produção, jwt_allow_unsigned_fallback DEVE ser false (default)
+is_valid_jwt_with_verification(token) {
+    # Validação básica de estrutura
+    is_valid_jwt_structure(token)
+
+    # CRÍTICO: Fallback só permitido se explicitamente habilitado
+    input.security.jwt_allow_unsigned_fallback == true
+
+    # Verificar que JWKS realmente não está disponível
+    not get_spire_jwks
+
+    # Decodificar sem verificar assinatura
+    [header, payload, signature] := io.jwt.decode(token)
+
+    # Verificar campos obrigatórios mínimos (estrutura + expiração)
+    payload.sub
+    payload.exp
+    payload.iat
+    payload.tenant_id  # Também exigir claims de multi-tenancy
+    payload.roles      # Também exigir claims de RBAC
+
+    # Validar expiração manualmente
+    current_time := time.now_ns() / 1000000000
+    payload.exp > current_time
 }
 
 # Helper: Verificar se audience corresponde

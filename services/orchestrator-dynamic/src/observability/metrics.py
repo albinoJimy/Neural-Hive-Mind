@@ -526,7 +526,7 @@ class OrchestratorMetrics:
         self.authorization_audit_logged_total = Counter(
             'neural_hive_authorization_audit_logged_total',
             'Total de decisões de autorização auditadas',
-            ['service', 'component', 'layer', 'policy_path', 'decision']
+            ['service', 'component', 'layer', 'policy_path', 'decision', 'tenant_id']
         )
 
         self.authorization_audit_errors_total = Counter(
@@ -2077,20 +2077,22 @@ class OrchestratorMetrics:
 
     # Authorization Audit Helper Methods
 
-    def record_authorization_audit_logged(self, policy_path: str, decision: str):
+    def record_authorization_audit_logged(self, policy_path: str, decision: str, tenant_id: str = 'unknown'):
         """
         Registra auditoria de decisão de autorização.
 
         Args:
             policy_path: Path da política avaliada
             decision: Decisão ('allow' ou 'deny')
+            tenant_id: ID do tenant (opcional)
         """
         self.authorization_audit_logged_total.labels(
             service=self.service_name,
             component=self.component,
             layer=self.layer,
             policy_path=policy_path,
-            decision=decision
+            decision=decision,
+            tenant_id=tenant_id or 'unknown'
         ).inc()
 
     def record_authorization_audit_error(self, error_type: str):

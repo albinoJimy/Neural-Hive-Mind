@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from typing import Optional, Dict, Any, List
 
 import structlog
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
@@ -17,6 +17,7 @@ from neural_hive_observability import init_observability, get_logger
 from src.config import get_settings
 from src.consumers.decision_consumer import DecisionConsumer
 from src.workers.temporal_worker import TemporalWorkerManager, create_temporal_client
+from src.temporal_client import TemporalClientWrapper
 from src.clients.mongodb_client import MongoDBClient
 from src.clients.kafka_producer import KafkaProducerClient
 from src.clients.self_healing_client import SelfHealingClient
@@ -36,6 +37,30 @@ from src.ml.model_audit_logger import ModelAuditLogger
 from src.api.model_audit import create_model_audit_router
 from pydantic import BaseModel, Field
 from uuid import uuid4
+from datetime import datetime
+
+
+# =============================================================================
+# Pydantic Models for Authorization Audit
+# =============================================================================
+
+class AuthorizationAuditQuery(BaseModel):
+    """Query parameters para consulta de auditoria."""
+    user_id: Optional[str] = None
+    tenant_id: Optional[str] = None
+    decision: Optional[str] = None  # 'allow' ou 'deny'
+    policy_path: Optional[str] = None
+    start_time: Optional[str] = None  # ISO timestamp
+    end_time: Optional[str] = None    # ISO timestamp
+    limit: int = Field(default=100, ge=1, le=1000)
+    skip: int = Field(default=0, ge=0)
+
+
+class AuthorizationAuditResponse(BaseModel):
+    """Resposta de consulta de auditoria."""
+    total: int
+    results: List[Dict[str, Any]]
+    query: Dict[str, Any]
 
 # Import Vault integration (optional dependency)
 try:
@@ -505,14 +530,24 @@ async def lifespan(app: FastAPI):
                     namespace=config.temporal_namespace
                 )
                 # Observação: credenciais do Vault são aplicadas apenas no bootstrap; o client/pool Temporal não é rotacionado dinamicamente ainda.
-                app_state.temporal_client = await create_temporal_client(
+                temporal_client_raw = await create_temporal_client(
                     config,
                     postgres_user=postgres_user,
                     postgres_password=postgres_password
                 )
-                if app_state.temporal_client:
-                    logger.info('Cliente Temporal criado (lazy connection)')
+                if temporal_client_raw:
+                    # Envolver com circuit breaker
+                    app_state.temporal_client = TemporalClientWrapper(
+                        client=temporal_client_raw,
+                        service_name=config.service_name,
+                        circuit_breaker_enabled=getattr(config, 'TEMPORAL_CIRCUIT_BREAKER_ENABLED', True),
+                        fail_max=getattr(config, 'TEMPORAL_CIRCUIT_BREAKER_FAIL_MAX', 5),
+                        timeout_duration=getattr(config, 'TEMPORAL_CIRCUIT_BREAKER_TIMEOUT', 60),
+                        recovery_timeout=getattr(config, 'TEMPORAL_CIRCUIT_BREAKER_RECOVERY_TIMEOUT', 30)
+                    )
+                    logger.info('Cliente Temporal criado com circuit breaker (lazy connection)')
                 else:
+                    app_state.temporal_client = None
                     logger.info('Temporal desabilitado via create_temporal_client')
             except Exception as e:
                 logger.warning(
@@ -617,9 +652,12 @@ async def lifespan(app: FastAPI):
                 )
                 from src.policies.opa_client import OPAClient
 
-                # Inicializar OPA Client
+                # Inicializar OPA Client com mongodb_client para audit logging
                 if config.opa_enabled:
-                    app_state.opa_client = OPAClient(config)
+                    app_state.opa_client = OPAClient(
+                        config,
+                        mongodb_client=app_state.mongodb_client
+                    )
                     await app_state.opa_client.initialize()
                     logger.info('OPA Client inicializado para gRPC servicer')
 
@@ -1385,6 +1423,107 @@ async def get_redis_stats():
         logger.error('redis_stats_error', error=str(e))
         base_response['error'] = str(e)
         return JSONResponse(status_code=503, content=base_response)
+
+
+# =============================================================================
+# Authorization Audit API
+# =============================================================================
+
+@app.get('/api/v1/audit/authorizations', response_model=AuthorizationAuditResponse)
+async def query_authorization_audit(
+    user_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    decision: Optional[str] = None,
+    policy_path: Optional[str] = None,
+    start_time: Optional[str] = None,
+    end_time: Optional[str] = None,
+    limit: int = Query(default=100, ge=1, le=1000),
+    skip: int = Query(default=0, ge=0)
+):
+    """
+    Consultar audit log de decisões de autorização.
+
+    Filtros disponíveis:
+    - user_id: Filtrar por usuário
+    - tenant_id: Filtrar por tenant
+    - decision: Filtrar por decisão ('allow' ou 'deny')
+    - policy_path: Filtrar por política
+    - start_time: Timestamp inicial (ISO format)
+    - end_time: Timestamp final (ISO format)
+    - limit: Número máximo de resultados (1-1000)
+    - skip: Número de resultados a pular (paginação)
+
+    Returns:
+        Lista de entradas de auditoria com total e query
+    """
+    if not app_state.mongodb_client:
+        raise HTTPException(status_code=503, detail='MongoDB não disponível')
+
+    from src.observability.metrics import get_metrics
+    metrics = get_metrics()
+    start = datetime.now()
+
+    try:
+        # Construir filtro MongoDB
+        filter_query = {}
+
+        if user_id:
+            filter_query['user_id'] = user_id
+        if tenant_id:
+            filter_query['tenant_id'] = tenant_id
+        if decision:
+            filter_query['decision'] = decision
+        if policy_path:
+            filter_query['policy_path'] = policy_path
+
+        # Filtro de timestamp
+        if start_time or end_time:
+            timestamp_filter = {}
+            if start_time:
+                timestamp_filter['$gte'] = start_time
+            if end_time:
+                timestamp_filter['$lte'] = end_time
+            filter_query['timestamp'] = timestamp_filter
+
+        # Executar query com paginação
+        cursor = app_state.mongodb_client.authorization_audit.find(filter_query)
+        cursor = cursor.sort('timestamp', -1).skip(skip).limit(limit)
+
+        results = await cursor.to_list(length=limit)
+
+        # Contar total (sem paginação)
+        total = await app_state.mongodb_client.authorization_audit.count_documents(filter_query)
+
+        # Remover _id do MongoDB dos resultados
+        for result in results:
+            result.pop('_id', None)
+
+        duration = (datetime.now() - start).total_seconds()
+        metrics.record_authorization_audit_query_duration('list', duration)
+
+        return AuthorizationAuditResponse(
+            total=total,
+            results=results,
+            query={
+                'user_id': user_id,
+                'tenant_id': tenant_id,
+                'decision': decision,
+                'policy_path': policy_path,
+                'start_time': start_time,
+                'end_time': end_time,
+                'limit': limit,
+                'skip': skip
+            }
+        )
+
+    except Exception as e:
+        logger.error(
+            'authorization_audit_query_failed',
+            error=str(e),
+            filter_query=filter_query if 'filter_query' in locals() else {}
+        )
+        metrics.record_authorization_audit_error('query_failed')
+        raise HTTPException(status_code=500, detail=f'Erro ao consultar auditoria: {str(e)}')
 
 
 @app.get('/api/v1/tickets/{ticket_id}')

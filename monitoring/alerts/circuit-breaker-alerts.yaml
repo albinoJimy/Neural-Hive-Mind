@@ -9,7 +9,7 @@ groups:
           severity: warning
         annotations:
           summary: "Circuit breaker {{ $labels.circuit }} is open in {{ $labels.service }}"
-          
+
       - alert: CircuitBreakerHighFailureRate
         expr: rate(circuit_breaker_failures_total[5m]) > 0.1
         for: 5m
@@ -17,3 +17,47 @@ groups:
           severity: critical
         annotations:
           summary: "High failure rate in circuit {{ $labels.circuit }} ({{ $labels.service }})"
+
+      - alert: KafkaProducerCircuitBreakerOpen
+        expr: circuit_breaker_state{circuit="kafka_producer"} == 1
+        for: 2m
+        labels:
+          severity: critical
+          component: orchestrator-dynamic
+        annotations:
+          summary: "Kafka Producer circuit breaker aberto em {{ $labels.service }}"
+          description: "Circuit breaker do Kafka Producer está aberto há mais de 2 minutos. Tickets não estão sendo publicados."
+          runbook_url: "https://docs.neural-hive.local/runbooks/kafka-circuit-breaker"
+
+      - alert: TemporalClientCircuitBreakerOpen
+        expr: circuit_breaker_state{circuit="temporal_client"} == 1
+        for: 2m
+        labels:
+          severity: critical
+          component: orchestrator-dynamic
+        annotations:
+          summary: "Temporal Client circuit breaker aberto em {{ $labels.service }}"
+          description: "Circuit breaker do Temporal Client está aberto há mais de 2 minutos. Workflows não podem ser iniciados."
+          runbook_url: "https://docs.neural-hive.local/runbooks/temporal-circuit-breaker"
+
+      - alert: RedisClientCircuitBreakerOpen
+        expr: circuit_breaker_state{circuit="redis_client"} == 1
+        for: 5m
+        labels:
+          severity: warning
+          component: orchestrator-dynamic
+        annotations:
+          summary: "Redis Client circuit breaker aberto em {{ $labels.service }}"
+          description: "Circuit breaker do Redis Client está aberto há mais de 5 minutos. Cache indisponível, performance degradada."
+          runbook_url: "https://docs.neural-hive.local/runbooks/redis-circuit-breaker"
+
+      - alert: MultipleCircuitBreakersOpen
+        expr: count(circuit_breaker_state{service="orchestrator-dynamic"} == 1) >= 2
+        for: 1m
+        labels:
+          severity: critical
+          component: orchestrator-dynamic
+        annotations:
+          summary: "Múltiplos circuit breakers abertos em {{ $labels.service }}"
+          description: "{{ $value }} circuit breakers estão abertos simultaneamente. Sistema em estado crítico."
+          runbook_url: "https://docs.neural-hive.local/runbooks/multiple-circuit-breakers-open"

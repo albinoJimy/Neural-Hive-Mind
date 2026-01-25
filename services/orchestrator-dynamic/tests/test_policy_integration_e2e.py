@@ -548,7 +548,7 @@ def mock_metrics():
 @pytest.mark.asyncio
 async def test_real_opa_resource_limits_valid(opa_real_config, mock_metrics):
     """Testa avaliação de resource_limits com servidor OPA real."""
-    client = OPAClient(opa_real_config, mock_metrics)
+    client = OPAClient(opa_real_config, metrics=mock_metrics)
 
     input_data = {
         'resource': {
@@ -583,7 +583,7 @@ async def test_real_opa_resource_limits_valid(opa_real_config, mock_metrics):
 @pytest.mark.asyncio
 async def test_real_opa_sla_enforcement_deadline_valid(opa_real_config, mock_metrics):
     """Testa sla_enforcement com deadline válido no servidor OPA real."""
-    client = OPAClient(opa_real_config, mock_metrics)
+    client = OPAClient(opa_real_config, metrics=mock_metrics)
 
     current_time = int(datetime.now().timestamp() * 1000)
     deadline = int((datetime.now() + timedelta(hours=2)).timestamp() * 1000)
@@ -622,7 +622,7 @@ async def test_real_opa_sla_enforcement_deadline_valid(opa_real_config, mock_met
 @pytest.mark.asyncio
 async def test_real_opa_sla_enforcement_deadline_expired(opa_real_config, mock_metrics):
     """Testa sla_enforcement com deadline expirado no servidor OPA real."""
-    client = OPAClient(opa_real_config, mock_metrics)
+    client = OPAClient(opa_real_config, metrics=mock_metrics)
 
     current_time = int(datetime.now().timestamp() * 1000)
     deadline = int((datetime.now() - timedelta(hours=1)).timestamp() * 1000)  # Deadline passado
@@ -664,7 +664,7 @@ async def test_real_opa_sla_enforcement_deadline_expired(opa_real_config, mock_m
 @pytest.mark.asyncio
 async def test_real_opa_feature_flags_evaluation(opa_real_config, mock_metrics):
     """Testa feature_flags no servidor OPA real."""
-    client = OPAClient(opa_real_config, mock_metrics)
+    client = OPAClient(opa_real_config, metrics=mock_metrics)
 
     current_time = int(datetime.now().timestamp() * 1000)
 
@@ -707,7 +707,7 @@ async def test_real_opa_feature_flags_evaluation(opa_real_config, mock_metrics):
 @pytest.mark.asyncio
 async def test_real_opa_security_constraints_valid_tenant(opa_real_config, mock_metrics):
     """Testa security_constraints com tenant válido no servidor OPA real."""
-    client = OPAClient(opa_real_config, mock_metrics)
+    client = OPAClient(opa_real_config, metrics=mock_metrics)
 
     current_time = int(datetime.now().timestamp() * 1000)
 
@@ -748,7 +748,7 @@ async def test_real_opa_security_constraints_valid_tenant(opa_real_config, mock_
 @pytest.mark.asyncio
 async def test_real_opa_batch_evaluation(opa_real_config, mock_metrics):
     """Testa batch evaluation com servidor OPA real."""
-    client = OPAClient(opa_real_config, mock_metrics)
+    client = OPAClient(opa_real_config, metrics=mock_metrics)
 
     current_time = int(datetime.now().timestamp() * 1000)
 

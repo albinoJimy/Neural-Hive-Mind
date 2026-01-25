@@ -6,6 +6,53 @@ Procedimentos operacionais para Flow C - Orquestração de Execução Adaptativa
 
 ---
 
+## Configuração do Ambiente
+
+Configure estas variáveis antes de executar os comandos. Os valores mostrados são padrões baseados nas configurações dos Helm charts.
+
+```bash
+# Namespaces
+export ORCHESTRATION_NS="neural-hive-orchestration"
+export EXECUTION_NS="neural-hive-execution"
+export REGISTRY_NS="neural-hive-registry"
+export KAFKA_NS="kafka"
+export MONGODB_NS="mongodb-cluster"
+export REDIS_NS="redis-cluster"
+export MONITORING_NS="monitoring"
+
+# Nomes dos Releases Helm (usados para nomenclatura de ConfigMaps)
+export ORCHESTRATOR_RELEASE="orchestrator-dynamic"
+export WORKER_RELEASE="worker-agents"
+
+# Nomes dos ConfigMaps (gerados pelo Helm: <release>-config para orchestrator, <release> para workers)
+export ORCHESTRATOR_CONFIG="${ORCHESTRATOR_RELEASE}-config"
+export WORKER_CONFIG="${WORKER_RELEASE}"
+
+# Configuração Kafka (do values.yaml do Helm)
+export KAFKA_BOOTSTRAP="neural-hive-kafka-kafka-bootstrap.${KAFKA_NS}.svc.cluster.local:9092"
+export KAFKA_POD="neural-hive-kafka-kafka-0"
+
+# Configuração MongoDB (do values.yaml do Helm)
+# NOTA: Obtenha credenciais reais do Kubernetes secrets ou Vault
+export MONGODB_HOST="mongodb-0.mongodb-headless.${MONGODB_NS}.svc.cluster.local:27017"
+export MONGODB_DATABASE="neural_hive_orchestration"
+# Obter URI do MongoDB do secret do orchestrator (contém autenticação)
+# kubectl get secret ${ORCHESTRATOR_RELEASE}-secrets -n ${ORCHESTRATION_NS} -o jsonpath='{.data.MONGODB_URI}' | base64 -d
+
+# Configuração Redis
+export REDIS_POD="redis-cluster-0"
+export REDIS_HOST="redis-cluster.${REDIS_NS}.svc.cluster.local:6379"
+
+# Notas sobre Ferramentas:
+# - Comandos Kafka (kafka-topics.sh, kafka-console-consumer.sh): Executar do ${KAFKA_POD} em ${KAFKA_NS}
+# - Comandos MongoDB (mongosh): Executar do pod mongodb em ${MONGODB_NS}
+# - Comandos Redis (redis-cli): Executar do ${REDIS_POD} em ${REDIS_NS}
+# - grpcurl: Usar port-forward local + grpcurl instalado localmente
+# - temporal CLI: Disponível nos pods do orchestrator
+```
+
+---
+
 ## Service Inventory
 
 ### Orchestrator Dynamic
@@ -100,12 +147,14 @@ kubectl patch hpa orchestrator-dynamic -n neural-hive-orchestration -p '{"spec":
 #### Scale Worker Agents
 
 ```bash
-# Scale workers based on load
-kubectl scale deployment worker-agents --replicas=10 -n neural-hive-execution
+# Escalar workers baseado em carga
+kubectl scale deployment worker-agents --replicas=10 -n ${EXECUTION_NS}
 
-# Verify worker registration in Service Registry
-kubectl exec -n neural-hive-registry deployment/service-registry -- \
-  grpcurl -plaintext localhost:50051 list | grep WorkerAgent
+# Verificar registro de workers no Service Registry (via métricas ou logs)
+kubectl logs -n ${REGISTRY_NS} -l app=service-registry --tail=50 | grep -i "worker.*register"
+
+# Alternativa: Verificar quantidade de pods worker em execução
+kubectl get pods -n ${EXECUTION_NS} -l app=worker-agents -o wide
 ```
 
 #### Auto-scaling Configuration
@@ -223,32 +272,37 @@ kubectl exec -n neural-hive-orchestration deployment/execution-ticket-service --
   curl -s http://localhost:8001/health | jq
 ```
 
-#### Check Dependencies
+#### Verificar Dependências
+
+**NOTA:** Os pods de aplicação não contêm ferramentas como kafka-*, redis-cli ou grpcurl.
+Use os pods específicos de cada serviço ou port-forward para testar conectividade.
 
 ```bash
-# MongoDB connectivity
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  python -c "from pymongo import MongoClient; print(MongoClient('mongodb://mongodb:27017').server_info())"
+# MongoDB connectivity (via Python no orchestrator - pymongo está disponível)
+kubectl exec -n ${ORCHESTRATION_NS} deployment/orchestrator-dynamic -- \
+  python -c "import os; from pymongo import MongoClient; uri=os.environ.get('MONGODB_URI','mongodb://localhost:27017'); print(MongoClient(uri, serverSelectionTimeoutMS=5000).server_info())"
 
-# Kafka connectivity
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  kafka-console-consumer.sh --bootstrap-server kafka:9092 --topic plans.consensus --max-messages 1 --timeout-ms 5000
+# Kafka connectivity (executar do pod Kafka)
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
+  kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic plans.consensus --max-messages 1 --timeout-ms 5000
 
-# Temporal connectivity
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  temporal workflow list --namespace default --limit 1
+# Temporal connectivity (temporal CLI disponível no orchestrator)
+kubectl exec -n ${ORCHESTRATION_NS} deployment/orchestrator-dynamic -- \
+  temporal workflow list --namespace neural-hive-mind --limit 1
 
-# Redis connectivity
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  redis-cli -h redis -p 6379 PING
+# Redis connectivity (executar do pod Redis)
+kubectl exec -n redis-cluster ${REDIS_POD} -- redis-cli PING
 
-# Service Registry connectivity
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  grpcurl -plaintext service-registry.neural-hive-registry:50051 grpc.health.v1.Health/Check
+# Service Registry connectivity (via port-forward + grpcurl local, ou use Python no orchestrator)
+kubectl exec -n ${ORCHESTRATION_NS} deployment/orchestrator-dynamic -- \
+  python -c "import grpc; from proto import service_registry_pb2_grpc; ch=grpc.insecure_channel('service-registry.${REGISTRY_NS}:50051'); print('gRPC channel OK')"
 
-# etcd connectivity (from Service Registry)
-kubectl exec -n neural-hive-registry deployment/service-registry -- \
-  etcdctl --endpoints=http://etcd:2379 endpoint health
+# Alternativa: Port-forward para testes locais com grpcurl
+# kubectl port-forward -n ${REGISTRY_NS} svc/service-registry 50051:50051
+# grpcurl -plaintext localhost:50051 grpc.health.v1.Health/Check
+
+# etcd connectivity (do pod Service Registry, se etcdctl disponível)
+# Ou use port-forward: kubectl port-forward -n ${REGISTRY_NS} svc/etcd 2379:2379
 ```
 
 ---
@@ -307,21 +361,27 @@ kubectl port-forward -n monitoring svc/prometheus 9090:9090
 #### Update ConfigMap
 
 ```bash
-# View current config
-kubectl get configmap orchestrator-config -n neural-hive-orchestration -o yaml
+# View current orchestrator config (ConfigMap name: <release>-config)
+kubectl get configmap ${ORCHESTRATOR_CONFIG} -n ${ORCHESTRATION_NS} -o yaml
+
+# Alternative: Find ConfigMap by label selector
+kubectl get configmap -n ${ORCHESTRATION_NS} -l app.kubernetes.io/name=orchestrator-dynamic -o yaml
 
 # Edit orchestrator config
-kubectl edit configmap orchestrator-config -n neural-hive-orchestration
+kubectl edit configmap ${ORCHESTRATOR_CONFIG} -n ${ORCHESTRATION_NS}
 
 # Apply config changes (requires restart)
-kubectl rollout restart deployment/orchestrator-dynamic -n neural-hive-orchestration
+kubectl rollout restart deployment/orchestrator-dynamic -n ${ORCHESTRATION_NS}
 
-# View worker config
-kubectl get configmap worker-agents-config -n neural-hive-execution -o yaml
+# View worker config (ConfigMap name: <release>)
+kubectl get configmap ${WORKER_CONFIG} -n ${EXECUTION_NS} -o yaml
+
+# Alternative: Find ConfigMap by label selector
+kubectl get configmap -n ${EXECUTION_NS} -l app.kubernetes.io/name=worker-agents -o yaml
 
 # Edit worker config
-kubectl edit configmap worker-agents-config -n neural-hive-execution
-kubectl rollout restart deployment/worker-agents -n neural-hive-execution
+kubectl edit configmap ${WORKER_CONFIG} -n ${EXECUTION_NS}
+kubectl rollout restart deployment/worker-agents -n ${EXECUTION_NS}
 ```
 
 #### Update Secrets
@@ -355,86 +415,105 @@ kubectl rollout restart deployment/worker-agents -n neural-hive-execution
 
 #### MongoDB Queries
 
+**NOTE:** MongoDB commands must be run from the MongoDB pod in the `mongodb-cluster` namespace.
+The database name is `neural_hive_orchestration` and requires authentication.
+
 ```bash
-# Count execution tickets
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.execution_tickets.countDocuments({})'
+# Get MongoDB credentials from orchestrator secret
+MONGODB_URI=$(kubectl get secret ${ORCHESTRATOR_RELEASE}-secrets -n ${ORCHESTRATION_NS} \
+  -o jsonpath='{.data.MONGODB_URI}' 2>/dev/null | base64 -d || echo "mongodb://localhost:27017")
+
+# Count execution tickets (run from MongoDB pod)
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh "${MONGODB_URI}" --eval 'db.getSiblingDB("neural_hive_orchestration").execution_tickets.countDocuments({})'
 
 # Find tickets by plan_id
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.execution_tickets.find({plan_id: "plan-123"}).pretty()'
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh "${MONGODB_URI}" --eval 'db.getSiblingDB("neural_hive_orchestration").execution_tickets.find({plan_id: "plan-123"}).pretty()'
 
 # Find tickets by status
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.execution_tickets.find({status: "RUNNING"}).limit(10).pretty()'
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh "${MONGODB_URI}" --eval 'db.getSiblingDB("neural_hive_orchestration").execution_tickets.find({status: "RUNNING"}).limit(10).pretty()'
 
 # Check validation audit
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.validation_audit.find().sort({timestamp: -1}).limit(10).pretty()'
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh "${MONGODB_URI}" --eval 'db.getSiblingDB("neural_hive_orchestration").validation_audit.find().sort({timestamp: -1}).limit(10).pretty()'
 
 # Check workflow results
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.workflow_results.find().sort({completed_at: -1}).limit(10).pretty()'
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh "${MONGODB_URI}" --eval 'db.getSiblingDB("neural_hive_orchestration").workflow_results.find().sort({completed_at: -1}).limit(10).pretty()'
 
 # Get collection stats
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.execution_tickets.stats()'
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh "${MONGODB_URI}" --eval 'db.getSiblingDB("neural_hive_orchestration").execution_tickets.stats()'
 
 # Check indexes
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.execution_tickets.getIndexes()'
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh "${MONGODB_URI}" --eval 'db.getSiblingDB("neural_hive_orchestration").execution_tickets.getIndexes()'
+
+# Alternative: Use port-forward for local mongosh access
+# kubectl port-forward -n ${MONGODB_NS} svc/mongodb-headless 27017:27017
+# mongosh "mongodb://root:<password>@localhost:27017/?replicaSet=rs0" --authenticationDatabase admin
 ```
 
 #### Redis Operations
 
+**NOTE:** Redis is deployed as a cluster in the `redis-cluster` namespace.
+
 ```bash
-# Check idempotency keys
-kubectl exec -n neural-hive-orchestration redis-0 -- redis-cli KEYS "decision:processed:*"
-kubectl exec -n neural-hive-orchestration redis-0 -- redis-cli KEYS "ticket:processed:*"
+# Check idempotency keys (run from Redis pod)
+kubectl exec -n redis-cluster ${REDIS_POD} -- redis-cli KEYS "decision:processed:*"
+kubectl exec -n redis-cluster ${REDIS_POD} -- redis-cli KEYS "ticket:processed:*"
 
 # Count idempotency keys
-kubectl exec -n neural-hive-orchestration redis-0 -- redis-cli KEYS "decision:processed:*" | wc -l
+kubectl exec -n redis-cluster ${REDIS_POD} -- redis-cli KEYS "decision:processed:*" | wc -l
 
 # Check TTL
-kubectl exec -n neural-hive-orchestration redis-0 -- redis-cli TTL "decision:processed:decision-123"
+kubectl exec -n redis-cluster ${REDIS_POD} -- redis-cli TTL "decision:processed:decision-123"
 
 # Check pheromone cache
-kubectl exec -n neural-hive-orchestration redis-0 -- redis-cli KEYS "pheromone:*"
+kubectl exec -n redis-cluster ${REDIS_POD} -- redis-cli KEYS "pheromone:*"
 
 # Check telemetry buffer size
-kubectl exec -n neural-hive-orchestration redis-0 -- redis-cli KEYS "telemetry:buffer:*" | wc -l
+kubectl exec -n redis-cluster ${REDIS_POD} -- redis-cli KEYS "telemetry:buffer:*" | wc -l
 
 # Get database size
-kubectl exec -n neural-hive-orchestration redis-0 -- redis-cli DBSIZE
+kubectl exec -n redis-cluster ${REDIS_POD} -- redis-cli DBSIZE
 
 # Get memory usage
-kubectl exec -n neural-hive-orchestration redis-0 -- redis-cli INFO memory
+kubectl exec -n redis-cluster ${REDIS_POD} -- redis-cli INFO memory
 
 # Clear cache (use with caution - only in emergency)
-# kubectl exec -n neural-hive-orchestration redis-0 -- redis-cli FLUSHDB
+# kubectl exec -n redis-cluster ${REDIS_POD} -- redis-cli FLUSHDB
+
+# Alternative: Use port-forward for local redis-cli access
+# kubectl port-forward -n redis-cluster svc/redis-cluster 6379:6379
+# redis-cli -h localhost -p 6379
 ```
 
 #### Kafka Operations
 
+**NOTA:** Comandos Kafka devem ser executados a partir do pod Kafka no namespace `kafka`.
+
 ```bash
-# List topics
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+# Listar tópicos
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-topics.sh --bootstrap-server localhost:9092 --list
 
-# Describe topic
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+# Descrever tópico
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic execution.tickets
 
-# Check consumer group lag
-kubectl exec -n neural-hive-messaging kafka-0 -- \
-  kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group orchestrator-consumers
+# Verificar lag do consumer group
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
+  kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group orchestrator-dynamic
 
-# Check consumer group members
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+# Verificar membros do consumer group
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group worker-consumers --members
 
-# Read recent messages from topic
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+# Ler mensagens recentes do tópico
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic execution.tickets --from-beginning --max-messages 5
 ```
 
@@ -457,17 +536,22 @@ kubectl exec -n monitoring alertmanager-0 -- amtool silence add \
   --author="$(whoami)"
 ```
 
-- [ ] Backup MongoDB collections
+- [ ] Backup de coleções MongoDB
 
 ```bash
-kubectl exec -n neural-hive-orchestration mongodb-0 -- \
-  mongodump --uri mongodb://mongodb:27017/neural_hive --out /tmp/backup-$(date +%Y%m%d-%H%M)
+# Obter URI do MongoDB do secret (com autenticação)
+MONGODB_URI=$(kubectl get secret ${ORCHESTRATOR_RELEASE}-secrets -n ${ORCHESTRATION_NS} \
+  -o jsonpath='{.data.MONGODB_URI}' 2>/dev/null | base64 -d)
+
+# Executar backup do pod MongoDB
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongodump --uri "${MONGODB_URI}" --db ${MONGODB_DATABASE} --out /tmp/backup-$(date +%Y%m%d-%H%M)
 ```
 
-- [ ] Document Kafka consumer offsets
+- [ ] Documentar offsets dos consumer groups Kafka
 
 ```bash
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --all-groups > /tmp/kafka-offsets-backup.txt
 ```
 
@@ -513,25 +597,25 @@ kubectl exec -n monitoring alertmanager-0 -- amtool silence expire <silence-id>
 
 ## Emergency Procedures
 
-### Circuit Breaker Open
+### Circuit Breaker Aberto
 
 ```bash
-# Check circuit breaker state
-kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=100 | grep circuit_breaker_open
+# Verificar estado do circuit breaker
+kubectl logs -n ${ORCHESTRATION_NS} -l app=orchestrator-dynamic --tail=100 | grep circuit_breaker_open
 
-# Identify which circuit breaker is open
-kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=200 | grep -E "(circuit_breaker_state|circuit_breaker_open)" | jq
+# Identificar qual circuit breaker está aberto
+kubectl logs -n ${ORCHESTRATION_NS} -l app=orchestrator-dynamic --tail=200 | grep -E "(circuit_breaker_state|circuit_breaker_open)"
 
-# Verify downstream dependency
-kubectl get pods -n neural-hive-orchestration | grep mongodb
-kubectl get pods -n neural-hive-messaging | grep kafka
-kubectl get pods -n neural-hive-registry | grep service-registry
+# Verificar dependências downstream
+kubectl get pods -n ${MONGODB_NS} -l app=mongodb
+kubectl get pods -n ${KAFKA_NS} -l app=kafka
+kubectl get pods -n ${REGISTRY_NS} -l app=service-registry
 
-# Force circuit breaker reset (if dependency recovered)
-kubectl rollout restart deployment/orchestrator-dynamic -n neural-hive-orchestration
+# Forçar reset do circuit breaker (se dependência recuperada)
+kubectl rollout restart deployment/orchestrator-dynamic -n ${ORCHESTRATION_NS}
 
-# Monitor circuit breaker metrics
-curl -s "http://prometheus.monitoring:9090/api/v1/query?query=neural_hive_circuit_breaker_state" | jq
+# Monitorar métricas de circuit breaker
+curl -s "http://prometheus.${MONITORING_NS}:9090/api/v1/query?query=neural_hive_circuit_breaker_state" | jq
 ```
 
 ### High Memory Usage
@@ -656,6 +740,30 @@ kubectl rollout restart deployment/orchestrator-dynamic -n neural-hive-orchestra
 
 ---
 
+---
+
+## Simulação de Incidentes
+
+Para validação dos procedimentos deste runbook em ambiente de staging, utilize o script de simulação de incidentes:
+
+```bash
+# Executar simulação interativa
+./scripts/validation/simulate-flow-c-incidents.sh
+
+# Rollback de emergência
+./scripts/validation/simulate-flow-c-incidents.sh --rollback
+```
+
+**Cenários disponíveis:**
+1. Workers Indisponíveis (FlowCWorkersUnavailable)
+2. Consumer Group Pausado (lag em Kafka)
+3. Workflow Stuck (FlowCHighLatency)
+4. Circuit Breaker Aberto (MongoDB)
+
+**ATENÇÃO:** Executar apenas em ambiente de staging/desenvolvimento.
+
+---
+
 ## References
 
 - [Flow C Integration Guide](../PHASE2_FLOW_C_INTEGRATION.md)
@@ -664,3 +772,4 @@ kubectl rollout restart deployment/orchestrator-dynamic -n neural-hive-orchestra
 - [Prometheus Alerts](../../monitoring/alerts/flow-c-integration-alerts.yaml)
 - [Grafana Dashboard](../../monitoring/dashboards/fluxo-c-orquestracao.json)
 - [Phase 2 Operations](./phase2-operations.md)
+- [Script de Simulação de Incidentes](../../scripts/validation/simulate-flow-c-incidents.sh)

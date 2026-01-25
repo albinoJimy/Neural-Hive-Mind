@@ -40,18 +40,21 @@ class OPAEvaluationError(Exception):
 class OPAClient:
     """Cliente HTTP assíncrono para OPA REST API."""
 
-    def __init__(self, config):
+    def __init__(self, config, metrics=None, mongodb_client=None):
         """
         Inicializar cliente OPA.
 
         Args:
             config: OrchestratorSettings com configurações OPA
+            metrics: OrchestratorMetrics para métricas Prometheus (opcional)
+            mongodb_client: MongoDBClient para audit logging (opcional)
         """
         self.config = config
+        self.mongodb_client = mongodb_client
         self.base_url = f"http://{config.opa_host}:{config.opa_port}"
         self.timeout = aiohttp.ClientTimeout(total=config.opa_timeout_seconds)
         self.session: Optional[aiohttp.ClientSession] = None
-        self.metrics = get_metrics()
+        self.metrics = metrics or get_metrics()
 
         # Cache LRU de decisões com TTL
         self._cache = TTLCache(
@@ -156,6 +159,28 @@ class OPAClient:
         input_hash = hashlib.sha256(input_str.encode()).hexdigest()[:16]
 
         return f"{policy_path}:{input_hash}"
+
+    def _determine_decision(self, result: dict) -> str:
+        """
+        Determina decisão (allow/deny) baseado no resultado da avaliação.
+
+        Args:
+            result: Resultado da avaliação OPA
+
+        Returns:
+            'allow' ou 'deny'
+        """
+        decision = 'allow'
+        result_data = result.get('result', {})
+        if isinstance(result_data, dict):
+            # Se há violações, decisão é deny
+            violations = result_data.get('violations', [])
+            if violations:
+                decision = 'deny'
+            # Verificar campo 'allow' explícito
+            if 'allow' in result_data:
+                decision = 'allow' if result_data['allow'] else 'deny'
+        return decision
 
     async def _evaluate_policy_internal(
         self,
@@ -328,7 +353,18 @@ class OPAClient:
             self._update_cache_hit_ratio()
             logger.debug("Cache hit", policy_path=policy_path)
             self.metrics.record_opa_cache_hit()
-            return self._cache[cache_key]
+
+            # Auditar decisão do cache (Comment 1: decisões em cache também devem ser auditadas)
+            cached_result = self._cache[cache_key]
+            decision = self._determine_decision(cached_result)
+            await self._log_authorization_decision(
+                policy_path=policy_path,
+                input_data=input_data,
+                result=cached_result,
+                decision=decision
+            )
+
+            return cached_result
 
         # Cache miss - registrar métrica
         self._cache_misses += 1
@@ -357,6 +393,17 @@ class OPAClient:
                 if self._circuit_state != 'closed':
                     self._set_circuit_state('closed')
 
+            # Determinar decisão (allow/deny) baseado no resultado
+            decision = self._determine_decision(result)
+
+            # Registrar decisão no audit log (fail-open)
+            await self._log_authorization_decision(
+                policy_path=policy_path,
+                input_data=input_data,
+                result=result,
+                decision=decision
+            )
+
             return result
 
         except OPAPolicyNotFoundError:
@@ -377,6 +424,78 @@ class OPAClient:
                     self._set_circuit_state('open')
 
             raise
+
+    async def _log_authorization_decision(
+        self,
+        policy_path: str,
+        input_data: dict,
+        result: dict,
+        decision: str
+    ):
+        """
+        Registra decisão de autorização no audit log.
+
+        Fail-open: erros não propagam para não bloquear avaliações.
+
+        Args:
+            policy_path: Path da política avaliada
+            input_data: Dados de entrada
+            result: Resultado da avaliação
+            decision: 'allow' ou 'deny'
+        """
+        if not self.mongodb_client:
+            return  # Audit logging desabilitado
+
+        try:
+            # Extrair contexto da decisão
+            resource = input_data.get('input', {}).get('resource', {})
+            context = input_data.get('input', {}).get('context', {})
+            security = input_data.get('input', {}).get('security', {})
+
+            # Extrair violações (se houver)
+            violations = []
+            result_data = result.get('result', {})
+            if isinstance(result_data, dict):
+                violations = result_data.get('violations', [])
+
+            audit_entry = {
+                'timestamp': datetime.now().isoformat(),
+                'user_id': context.get('user_id'),
+                'tenant_id': resource.get('tenant_id') or security.get('tenant_id'),
+                'resource': {
+                    'type': resource.get('type'),
+                    'id': resource.get('id'),
+                    'task_type': resource.get('task_type')
+                },
+                'action': context.get('action', 'evaluate'),
+                'decision': decision,
+                'policy_path': policy_path,
+                'violations': violations,
+                'context': {
+                    'workflow_id': context.get('workflow_id'),
+                    'plan_id': context.get('plan_id'),
+                    'correlation_id': context.get('correlation_id')
+                }
+            }
+
+            # Persistir de forma assíncrona (fail-open)
+            await self.mongodb_client.save_authorization_audit(audit_entry)
+
+            # Registrar métrica com tenant_id para filtros no dashboard
+            tenant_id = audit_entry.get('tenant_id') or 'unknown'
+            self.metrics.record_authorization_audit_logged(
+                policy_path=policy_path,
+                decision=decision,
+                tenant_id=tenant_id
+            )
+
+        except Exception as e:
+            logger.warning(
+                'authorization_audit_logging_failed',
+                policy_path=policy_path,
+                error=str(e)
+            )
+            # Fail-open: não propagar erro
 
     async def _evaluate_with_semaphore(
         self,

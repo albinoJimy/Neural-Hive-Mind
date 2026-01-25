@@ -6,6 +6,36 @@ Procedimentos de disaster recovery específicos para Flow C - Orquestração de 
 
 ---
 
+## Configuração do Ambiente
+
+Configure estas variáveis antes de executar os comandos. Veja `flow-c-operations.md` para detalhes completos.
+
+```bash
+# Namespaces
+export ORCHESTRATION_NS="neural-hive-orchestration"
+export EXECUTION_NS="neural-hive-execution"
+export REGISTRY_NS="neural-hive-registry"
+export KAFKA_NS="kafka"
+export MONGODB_NS="mongodb-cluster"
+export REDIS_NS="redis-cluster"
+export MONITORING_NS="monitoring"
+export TEMPORAL_NS="temporal"
+
+# Nomes dos Releases Helm
+export ORCHESTRATOR_RELEASE="orchestrator-dynamic"
+export WORKER_RELEASE="worker-agents"
+
+# Pods de serviços externos
+export KAFKA_POD="neural-hive-kafka-kafka-0"
+export REDIS_POD="redis-cluster-0"
+export MONGODB_DATABASE="neural_hive_orchestration"
+
+# Obter URI MongoDB com autenticação
+# MONGODB_URI=$(kubectl get secret ${ORCHESTRATOR_RELEASE}-secrets -n ${ORCHESTRATION_NS} -o jsonpath='{.data.MONGODB_URI}' | base64 -d)
+```
+
+---
+
 ## Recovery Scenarios
 
 ### 1. MongoDB Orchestration Cluster Failure
@@ -65,19 +95,19 @@ tar -xzf /tmp/backup-2024-01-15.tar.gz -C /tmp/mongodb-restore/
 kubectl cp /tmp/mongodb-restore neural-hive-orchestration/mongodb-0:/tmp/restore
 
 # Restore using mongorestore
-kubectl exec -n neural-hive-orchestration mongodb-0 -- \
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
   mongorestore --uri mongodb://mongodb:27017 --drop /tmp/restore/
 
 # Verify restoration
-kubectl exec -n neural-hive-orchestration mongodb-0 -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.execution_tickets.countDocuments({})'
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh --quiet --eval 'db.getSiblingDB("neural_hive_orchestration") --eval 'db.execution_tickets.countDocuments({})'
 ```
 
 **4. Rebuild indexes:**
 
 ```bash
-kubectl exec -n neural-hive-orchestration mongodb-0 -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval '
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh --quiet --eval 'db.getSiblingDB("neural_hive_orchestration") --eval '
     // Execution tickets indexes
     db.execution_tickets.createIndex({ticket_id: 1}, {unique: true});
     db.execution_tickets.createIndex({plan_id: 1});
@@ -105,24 +135,24 @@ kubectl exec -n neural-hive-orchestration mongodb-0 -- \
 
 ```bash
 # Verify collections exist
-kubectl exec -n neural-hive-orchestration mongodb-0 -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.getCollectionNames()'
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh --quiet --eval 'db.getSiblingDB("neural_hive_orchestration") --eval 'db.getCollectionNames()'
 
 # Verify indexes
-kubectl exec -n neural-hive-orchestration mongodb-0 -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.execution_tickets.getIndexes()'
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh --quiet --eval 'db.getSiblingDB("neural_hive_orchestration") --eval 'db.execution_tickets.getIndexes()'
 
 # Verify document counts
-kubectl exec -n neural-hive-orchestration mongodb-0 -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval '
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh --quiet --eval 'db.getSiblingDB("neural_hive_orchestration") --eval '
     print("execution_tickets: " + db.execution_tickets.countDocuments({}));
     print("validation_audit: " + db.validation_audit.countDocuments({}));
     print("workflow_results: " + db.workflow_results.countDocuments({}));
   '
 
 # Sample data validation
-kubectl exec -n neural-hive-orchestration mongodb-0 -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.execution_tickets.find().limit(3).pretty()'
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh --quiet --eval 'db.getSiblingDB("neural_hive_orchestration") --eval 'db.execution_tickets.find().limit(3).pretty()'
 ```
 
 **6. Restart Flow C services:**
@@ -148,7 +178,7 @@ kubectl get pods -n neural-hive-execution
 
 # Verify MongoDB connectivity
 kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  python -c "from pymongo import MongoClient; print(MongoClient('mongodb://mongodb:27017').server_info())"
+  python -c "import os; from pymongo import MongoClient; uri=os.environ.get('MONGODB_URI','mongodb://localhost:27017'); print(MongoClient(uri, serverSelectionTimeoutMS=5000).server_info())"
 
 # Run smoke test
 ./tests/phase2-flow-c-integration-test.sh --smoke-test
@@ -187,7 +217,7 @@ kubectl get pods -n neural-hive-orchestration -l app=orchestrator-dynamic
 
 ```bash
 # Export offsets before recovery
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --all-groups > /tmp/offsets-pre-recovery.txt 2>/dev/null || true
 
 # Save to S3 for reference
@@ -204,11 +234,11 @@ kubectl exec -n neural-hive-messaging-backup kafka-mirror-0 -- \
   --whitelist "plans.consensus|execution.tickets|execution.results|telemetry-flow-c"
 
 # Option B: Restore from tiered storage (if enabled)
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-log-dirs.sh --bootstrap-server localhost:9092 --describe --topic-list plans.consensus,execution.tickets,execution.results,telemetry-flow-c
 
 # Option C: Recreate topics (data loss scenario)
-kubectl exec -n neural-hive-messaging kafka-0 -- bash -c '
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- bash -c '
   kafka-topics.sh --bootstrap-server localhost:9092 --create --topic plans.consensus --partitions 6 --replication-factor 3 --if-not-exists
   kafka-topics.sh --bootstrap-server localhost:9092 --create --topic execution.tickets --partitions 12 --replication-factor 3 --if-not-exists
   kafka-topics.sh --bootstrap-server localhost:9092 --create --topic execution.results --partitions 6 --replication-factor 3 --if-not-exists
@@ -220,14 +250,14 @@ kubectl exec -n neural-hive-messaging kafka-0 -- bash -c '
 
 ```bash
 # Reset to last checkpoint (if known)
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-consumer-groups.sh --bootstrap-server localhost:9092 --group orchestrator-consumers --reset-offsets --to-datetime 2024-01-15T10:00:00.000 --topic plans.consensus --execute
 
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-consumer-groups.sh --bootstrap-server localhost:9092 --group worker-consumers --reset-offsets --to-datetime 2024-01-15T10:00:00.000 --topic execution.tickets --execute
 
 # Or reset to latest (skip lost messages)
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-consumer-groups.sh --bootstrap-server localhost:9092 --group orchestrator-consumers --reset-offsets --to-latest --topic plans.consensus --execute
 ```
 
@@ -235,14 +265,14 @@ kubectl exec -n neural-hive-messaging kafka-0 -- \
 
 ```bash
 # List topics
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-topics.sh --bootstrap-server localhost:9092 --list | grep -E "(plans.consensus|execution.tickets|execution.results|telemetry-flow-c)"
 
 # Describe topics
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic plans.consensus
 
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic execution.tickets
 ```
 
@@ -261,25 +291,25 @@ kubectl wait --for=condition=ready pod -l app=worker-agents -n neural-hive-execu
 
 ```bash
 # Monitor consumer lag
-watch -n 5 'kubectl exec -n neural-hive-messaging kafka-0 -- kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group orchestrator-consumers'
+watch -n 5 'kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group orchestrator-consumers'
 ```
 
 #### Post-Recovery Validation
 
 ```bash
 # Verify topics exist
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-topics.sh --bootstrap-server localhost:9092 --list | grep -E "(plans.consensus|execution.tickets|execution.results|telemetry-flow-c)"
 
 # Verify consumers consuming
 kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=50 | grep "message_consumed"
 
 # Verify no lag
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group orchestrator-consumers | grep LAG
 
 # Test message flow
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-console-producer.sh --bootstrap-server localhost:9092 --topic execution.tickets <<< '{"test": "recovery-validation"}'
 ```
 
@@ -398,7 +428,7 @@ kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
 # Start retry workflow
 # Note: Will need to recreate input from MongoDB execution_tickets
 kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.execution_tickets.findOne({workflow_id: "flow-c-abc-123"})' > /tmp/workflow-input.json
+  mongosh --quiet --eval 'db.getSiblingDB("neural_hive_orchestration") --eval 'db.execution_tickets.findOne({workflow_id: "flow-c-abc-123"})' > /tmp/workflow-input.json
 
 kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
   temporal workflow start --workflow-id flow-c-abc-123-retry --type OrchestrationWorkflow --task-queue orchestration-tasks --input @/tmp/workflow-input.json
@@ -438,14 +468,14 @@ curl -s "http://prometheus.monitoring:9090/api/v1/query?query=temporal_workflow_
 
 ```bash
 kubectl get pods -n neural-hive-orchestration | grep redis
-kubectl logs -n neural-hive-orchestration redis-0 --tail=100
+kubectl logs -n ${REDIS_NS} ${REDIS_POD} --tail=100
 ```
 
 **2. Restore from persistence (if enabled):**
 
 ```bash
 # Check if AOF/RDB exists
-kubectl exec -n neural-hive-orchestration redis-0 -- ls -lh /data/
+kubectl exec -n ${REDIS_NS} ${REDIS_POD} -- ls -lh /data/
 
 # If dump.rdb or appendonly.aof exists:
 # Restart Redis to load from disk
@@ -455,7 +485,7 @@ kubectl rollout restart statefulset/redis -n neural-hive-orchestration
 kubectl wait --for=condition=ready pod -l app=redis -n neural-hive-orchestration --timeout=120s
 
 # Verify data loaded
-kubectl exec -n neural-hive-orchestration redis-0 -- redis-cli DBSIZE
+kubectl exec -n ${REDIS_NS} ${REDIS_POD} -- redis-cli DBSIZE
 ```
 
 **3. If no persistence (accept data loss):**
@@ -497,10 +527,10 @@ kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
 kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=50 | grep "idempotency"
 
 # Verify cache rebuilding
-kubectl exec -n neural-hive-orchestration redis-0 -- redis-cli DBSIZE
+kubectl exec -n ${REDIS_NS} ${REDIS_POD} -- redis-cli DBSIZE
 
 # Monitor over time
-watch -n 30 'kubectl exec -n neural-hive-orchestration redis-0 -- redis-cli DBSIZE'
+watch -n 30 'kubectl exec -n ${REDIS_NS} ${REDIS_POD} -- redis-cli DBSIZE'
 ```
 
 ---
@@ -590,19 +620,23 @@ kubectl wait --for=condition=ready pod -l app=worker-agents -n neural-hive-execu
 # Or manual validation
 # Test MongoDB
 kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  python -c "from pymongo import MongoClient; print(MongoClient('mongodb://mongodb:27017').server_info())"
+  python -c "import os; from pymongo import MongoClient; uri=os.environ.get('MONGODB_URI','mongodb://localhost:27017'); print(MongoClient(uri, serverSelectionTimeoutMS=5000).server_info())"
 
 # Test Kafka
 kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
   kafka-console-consumer.sh --bootstrap-server kafka:9092 --topic plans.consensus --max-messages 1 --timeout-ms 5000
 
-# Test Temporal
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  temporal workflow list --namespace default --limit 1
+# Testar Temporal
+kubectl exec -n ${ORCHESTRATION_NS} deployment/orchestrator-dynamic -- \
+  temporal workflow list --namespace neural-hive-mind --limit 1
 
-# Test Service Registry
-kubectl exec -n neural-hive-registry deployment/service-registry -- \
-  grpcurl -plaintext localhost:50051 grpc.health.v1.Health/Check
+# Testar Service Registry (via Python no orchestrator, grpcurl não disponível nos pods)
+kubectl exec -n ${ORCHESTRATION_NS} deployment/orchestrator-dynamic -- \
+  python -c "import grpc; ch=grpc.insecure_channel('service-registry.${REGISTRY_NS}:50051'); print('gRPC channel OK')"
+
+# Alternativa: Port-forward para grpcurl local
+# kubectl port-forward -n ${REGISTRY_NS} svc/service-registry 50051:50051
+# grpcurl -plaintext localhost:50051 grpc.health.v1.Health/Check
 ```
 
 **6. Verify alerts clear:**
@@ -643,24 +677,25 @@ watch -n 60 'curl -s "http://prometheus.monitoring:9090/api/v1/query?query=rate(
 #### Backup Strategy
 
 ```bash
-# Automated daily backups (configured in CronJob)
+# Backups diários automáticos (configurado via CronJob)
 # 0 2 * * * /scripts/backup/backup-mongodb-orchestration.sh
 
-# Manual backup
-kubectl exec -n neural-hive-orchestration mongodb-0 -- \
-  mongodump --uri mongodb://mongodb:27017/neural_hive --out /tmp/backup-$(date +%Y%m%d)
+# Backup manual (executar do pod MongoDB)
+# Nota: O MongoDB no namespace mongodb-cluster requer autenticação
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongodump --db neural_hive_orchestration --out /tmp/backup-$(date +%Y%m%d)
 
-# Upload to S3
-kubectl cp neural-hive-orchestration/mongodb-0:/tmp/backup-$(date +%Y%m%d) /tmp/mongodb-backup
+# Upload para S3
+kubectl cp ${MONGODB_NS}/mongodb-0:/tmp/backup-$(date +%Y%m%d) /tmp/mongodb-backup
 tar -czf /tmp/mongodb-backup-$(date +%Y%m%d).tar.gz -C /tmp mongodb-backup
 aws s3 cp /tmp/mongodb-backup-$(date +%Y%m%d).tar.gz s3://neural-hive-backups-prod/mongodb/orchestration/
 
-# Create metadata
+# Criar metadados
 cat > /tmp/backup-metadata.json << EOF
 {
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "type": "mongodb",
-  "database": "neural_hive",
+  "database": "neural_hive_orchestration",
   "collections": ["execution_tickets", "validation_audit", "workflow_results"],
   "size_bytes": $(du -b /tmp/mongodb-backup-$(date +%Y%m%d).tar.gz | cut -f1)
 }
@@ -671,19 +706,20 @@ aws s3 cp /tmp/backup-metadata.json s3://neural-hive-backups-prod/mongodb/orches
 #### Restore Specific Collection
 
 ```bash
-# Download and extract backup
+# Download e extrair backup
 aws s3 cp s3://neural-hive-backups-prod/mongodb/orchestration/backup-2024-01-15.tar.gz /tmp/
 tar -xzf /tmp/backup-2024-01-15.tar.gz -C /tmp/
 
-# Restore only execution_tickets
-kubectl cp /tmp/mongodb-backup/neural_hive/execution_tickets.bson neural-hive-orchestration/mongodb-0:/tmp/
+# Restaurar apenas execution_tickets
+kubectl cp /tmp/mongodb-backup/neural_hive_orchestration/execution_tickets.bson ${MONGODB_NS}/mongodb-0:/tmp/
 
-kubectl exec -n neural-hive-orchestration mongodb-0 -- \
-  mongorestore --uri mongodb://mongodb:27017/neural_hive --nsInclude neural_hive.execution_tickets --drop /tmp/execution_tickets.bson
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongorestore --db neural_hive_orchestration --nsInclude neural_hive_orchestration.execution_tickets --drop /tmp/
 
-# Rebuild indexes for restored collection
-kubectl exec -n neural-hive-orchestration mongodb-0 -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval '
+# Reconstruir índices para coleção restaurada
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh --quiet --eval '
+    db = db.getSiblingDB("neural_hive_orchestration");
     db.execution_tickets.createIndex({ticket_id: 1}, {unique: true});
     db.execution_tickets.createIndex({plan_id: 1});
     db.execution_tickets.createIndex({status: 1});
@@ -699,7 +735,7 @@ kubectl exec -n neural-hive-orchestration mongodb-0 -- \
 # See: k8s/kafka/mirror-maker.yaml
 
 # Manual backup (export messages for specific time range)
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic execution.tickets \
   --from-beginning --max-messages 10000 > /tmp/execution-tickets-backup.json
 

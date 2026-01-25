@@ -476,7 +476,7 @@ config:
         - staging
       premiumTenants: []
 
-    security:  # NOVO
+    security:
       enabled: true
       allowed_tenants: []  # Vazio = todos permitidos
       rbac_roles:
@@ -499,6 +499,11 @@ config:
       jwt_audience: "orchestrator-dynamic.neural-hive-orchestration.svc.cluster.local"
       spiffe_trust_domain: "neural-hive.local"
       spiffe_enabled: true
+      # JWKS URL para verificação de assinatura JWT (carregado via http.send na política)
+      jwks_url: "https://spire-server.spire-system.svc.cluster.local:8081/keys"
+      # Fallback sem verificação de assinatura (APENAS para desenvolvimento)
+      # CRÍTICO: Deve ser false em produção para comportamento fail-closed
+      jwt_allow_unsigned_fallback: false
 
 # OPA Deployment
 opa:
@@ -524,6 +529,8 @@ opa:
   config:
     logLevel: info
     logFormat: json
+    # JWKS é carregado via http.send na política Rego (não via bundles OPA)
+    # pois SPIRE /keys retorna JSON raw, não um bundle OPA válido.
 
 secrets:
   postgresUser: temporal

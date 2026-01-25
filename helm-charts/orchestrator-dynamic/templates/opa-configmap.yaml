@@ -20,4 +20,29 @@ data:
 
   security_constraints.rego: |
 {{ .Files.Get "policies/rego/orchestrator/security_constraints.rego" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "orchestrator-dynamic.fullname" . }}-opa-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: opa
+    component: policy-engine
+    {{- include "orchestrator-dynamic.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    # OPA Configuration para Neural Hive Orchestrator
+    # JWKS é carregado via http.send na política Rego (security_constraints.rego)
+    # em vez de bundles, pois SPIRE /keys retorna JSON raw, não um bundle OPA válido.
+    #
+    # A política usa input.security.jwks_url para buscar JWKS dinamicamente
+    # com cache de 5 minutos para evitar requests excessivos.
+    decision_logs:
+      console: true
+      reporting:
+        min_delay_seconds: 30
+        max_delay_seconds: 60
+    status:
+      console: true
 {{- end }}

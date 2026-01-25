@@ -30,6 +30,7 @@ spec:
         - "run"
         - "--server"
         - "--addr=0.0.0.0:8181"
+        - "--config-file=/config/config.yaml"
         - "--log-level={{ .Values.opa.config.logLevel | default "info" }}"
         - "--log-format={{ .Values.opa.config.logFormat | default "json" }}"
         - "--bundle"
@@ -64,6 +65,9 @@ spec:
         - name: policies
           mountPath: /policies
           readOnly: true
+        - name: opa-config
+          mountPath: /config
+          readOnly: true
         securityContext:
           runAsNonRoot: true
           runAsUser: 1000
@@ -75,6 +79,9 @@ spec:
       - name: policies
         configMap:
           name: opa-policies
+      - name: opa-config
+        configMap:
+          name: {{ include "orchestrator-dynamic.fullname" . }}-opa-config
 ---
 apiVersion: v1
 kind: Service

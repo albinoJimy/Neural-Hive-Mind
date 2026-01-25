@@ -5,14 +5,19 @@ Valida:
 - Distribuição balanceada de mensagens por partition
 - Ausência de hot partitions (> 2x média)
 - Coeficiente de variação < 30%
+
+Nota: Os testes usam offset snapshot antes de publicar mensagens para garantir
+que apenas mensagens do teste atual sejam consumidas, evitando interferência
+de mensagens históricas em ambientes compartilhados.
 """
 import asyncio
 import uuid
 from collections import defaultdict
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import pytest
-from confluent_kafka import Consumer, KafkaError
+from confluent_kafka import Consumer, KafkaError, TopicPartition
+from confluent_kafka.admin import AdminClient
 
 # Imports condicionais para evitar falhas em ambientes sem Kafka
 try:
@@ -42,6 +47,13 @@ async def test_partition_distribution_with_multiple_plans():
     num_plans = 10
     tickets_per_plan = 100
 
+    # Capturar offsets atuais ANTES de publicar para evitar consumir mensagens históricas
+    print("📍 Capturando offsets atuais...")
+    start_offsets = await _get_current_end_offsets(
+        config.kafka_bootstrap_servers,
+        config.kafka_tickets_topic
+    )
+
     # Gerar tickets
     plan_ids = [str(uuid.uuid4()) for _ in range(num_plans)]
 
@@ -54,13 +66,14 @@ async def test_partition_distribution_with_multiple_plans():
 
     await producer.close()
 
-    # Consumir e analisar distribuição
+    # Consumir e analisar distribuição (apenas mensagens após start_offsets)
     print("🔍 Analisando distribuição...")
 
     partition_counts = await _consume_and_analyze(
         config.kafka_bootstrap_servers,
         config.kafka_tickets_topic,
-        num_plans * tickets_per_plan
+        num_plans * tickets_per_plan,
+        start_offsets=start_offsets
     )
 
     # Validações
@@ -108,6 +121,13 @@ async def test_partition_distribution_with_burst():
     producer = KafkaProducerClient(config)
     await producer.initialize()
 
+    # Capturar offsets atuais ANTES de publicar para evitar consumir mensagens históricas
+    print("📍 Capturando offsets atuais...")
+    start_offsets = await _get_current_end_offsets(
+        config.kafka_bootstrap_servers,
+        config.kafka_tickets_topic
+    )
+
     # Plan com burst
     burst_plan_id = str(uuid.uuid4())
 
@@ -129,11 +149,12 @@ async def test_partition_distribution_with_burst():
 
     await producer.close()
 
-    # Analisar distribuição
+    # Analisar distribuição (apenas mensagens após start_offsets)
     partition_counts = await _consume_and_analyze(
         config.kafka_bootstrap_servers,
         config.kafka_tickets_topic,
-        590  # 500 + 90
+        590,  # 500 + 90
+        start_offsets=start_offsets
     )
 
     # Validar que burst não causou hot partition inesperada
@@ -159,28 +180,102 @@ async def test_partition_distribution_with_burst():
     print("✅ Burst isolado em uma única partition (data locality OK)!")
 
 
-async def _consume_and_analyze(
+async def _get_current_end_offsets(
     bootstrap_servers: str,
-    topic: str,
-    expected_messages: int
+    topic: str
 ) -> Dict[int, int]:
-    """Consome mensagens e retorna contagem por partition."""
+    """
+    Captura os offsets finais atuais de todas as partitions do tópico.
+
+    Usado para garantir que testes consumam apenas mensagens publicadas
+    após este ponto, evitando interferência de mensagens históricas.
+
+    Returns:
+        Dict mapeando partition -> offset final atual
+    """
     consumer_config = {
         'bootstrap.servers': bootstrap_servers,
-        'group.id': f'test-partition-analyzer-{uuid.uuid4()}',
-        'auto.offset.reset': 'earliest',
+        'group.id': f'test-offset-checker-{uuid.uuid4()}',
+        'auto.offset.reset': 'latest',
         'enable.auto.commit': False
     }
 
     consumer = Consumer(consumer_config)
-    consumer.subscribe([topic])
+    end_offsets: Dict[int, int] = {}
 
+    try:
+        # Obter metadata do tópico para descobrir partitions
+        metadata = consumer.list_topics(topic, timeout=10.0)
+
+        if topic not in metadata.topics:
+            print(f"⚠️ Tópico {topic} não encontrado, retornando offsets vazios")
+            return {}
+
+        topic_metadata = metadata.topics[topic]
+        partitions = list(topic_metadata.partitions.keys())
+
+        # Criar TopicPartitions e obter offsets finais
+        topic_partitions = [TopicPartition(topic, p) for p in partitions]
+
+        # Obter high watermarks (end offsets) para cada partition
+        for tp in topic_partitions:
+            low, high = consumer.get_watermark_offsets(tp, timeout=10.0)
+            end_offsets[tp.partition] = high
+
+        print(f"   Offsets capturados: {end_offsets}")
+
+    finally:
+        consumer.close()
+
+    return end_offsets
+
+
+async def _consume_and_analyze(
+    bootstrap_servers: str,
+    topic: str,
+    expected_messages: int,
+    start_offsets: Optional[Dict[int, int]] = None
+) -> Dict[int, int]:
+    """
+    Consome mensagens e retorna contagem por partition.
+
+    Args:
+        bootstrap_servers: Servidores Kafka
+        topic: Nome do tópico
+        expected_messages: Número esperado de mensagens
+        start_offsets: Dict de offsets iniciais por partition. Se fornecido,
+                       consume apenas mensagens a partir destes offsets,
+                       evitando mensagens históricas de testes anteriores.
+
+    Returns:
+        Dict mapeando partition -> contagem de mensagens
+    """
+    consumer_config = {
+        'bootstrap.servers': bootstrap_servers,
+        'group.id': f'test-partition-analyzer-{uuid.uuid4()}',
+        'auto.offset.reset': 'latest',  # Fallback seguro se não houver start_offsets
+        'enable.auto.commit': False
+    }
+
+    consumer = Consumer(consumer_config)
     partition_counts = defaultdict(int)
     messages_consumed = 0
     empty_polls = 0
     max_empty_polls = 20
 
     try:
+        if start_offsets:
+            # Assign manualmente as partitions com offsets específicos
+            topic_partitions = [
+                TopicPartition(topic, p, offset)
+                for p, offset in start_offsets.items()
+            ]
+            consumer.assign(topic_partitions)
+            print(f"   Consumindo a partir dos offsets: {start_offsets}")
+        else:
+            # Fallback: subscribe normal (não recomendado para testes)
+            consumer.subscribe([topic])
+
         while messages_consumed < expected_messages and empty_polls < max_empty_polls:
             msg = consumer.poll(timeout=5.0)
 

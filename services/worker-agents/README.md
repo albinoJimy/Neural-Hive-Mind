@@ -141,6 +141,105 @@ services/worker-agents/
 
 ## Configuração
 
+### Backpressure Control
+
+O Worker Agent implementa **backpressure automático** para prevenir sobrecarga de memória quando muitos tickets chegam rapidamente.
+
+#### Como Funciona
+
+1. **Semaphore de Consumo**: Limita o número de tickets "in-flight" (consumidos mas não finalizados)
+2. **Pause/Resume Automático**: Consumer Kafka é pausado quando threshold atingido, resumido quando capacidade disponível
+3. **Tracking de In-Flight**: Rastreamento preciso de tickets em processamento via `Set[ticket_id]`
+
+#### Configuração
+
+```yaml
+config:
+  maxConcurrentTickets: 10  # Limite de tickets in-flight (default: 10)
+  consumerPauseThreshold: 0.8  # Pausar quando 80% da capacidade (default: 0.8)
+  consumerResumeThreshold: 0.5  # Resumir quando 50% da capacidade (default: 0.5)
+```
+
+#### Métricas
+
+- `worker_agent_tickets_in_flight`: Gauge - Número de tickets in-flight
+- `worker_agent_consumer_paused_total`: Counter - Total de pausas por backpressure
+- `worker_agent_consumer_resumed_total`: Counter - Total de resumes após backpressure
+- `worker_agent_consumer_pause_duration_seconds`: Histogram - Duração de pausas
+
+#### Alertas
+
+- **WorkerBackpressureActive** (warning): In-flight > 80% por 2 minutos
+- **WorkerBackpressureCritical** (critical): In-flight = limite máximo por 5 minutos
+- **WorkerConsumerPausedTooLong** (warning): Consumer pausado > 5 minutos
+
+#### Troubleshooting
+
+**Sintoma**: Alerta `WorkerBackpressureActive` disparado
+
+**Causas Comuns**:
+1. Carga alta sustentada (muitos tickets chegando)
+2. Processamento lento (dependências lentas, I/O lento)
+3. Tickets travados (deadlock, timeout)
+
+**Ações**:
+1. Verificar latência de processamento:
+   ```bash
+   kubectl logs -n neural-hive-execution <pod-name> | grep task_duration
+   ```
+
+2. Verificar tickets in-flight:
+   ```bash
+   kubectl exec -n neural-hive-execution <pod-name> -- curl localhost:9090/metrics | grep tickets_in_flight
+   ```
+
+3. Considerar aumentar `maxConcurrentTickets` se carga sustentada:
+   ```yaml
+   config:
+     maxConcurrentTickets: 20  # Aumentar de 10 para 20
+   ```
+
+4. Considerar aumentar `maxConcurrentTasks` se processamento lento:
+   ```yaml
+   config:
+     maxConcurrentTasks: 10  # Aumentar de 5 para 10
+   ```
+
+**Sintoma**: Alerta `WorkerBackpressureCritical` disparado
+
+**Ações Imediatas**:
+1. Verificar logs de erro:
+   ```bash
+   kubectl logs -n neural-hive-execution <pod-name> --tail=100 | grep -E "error|failed"
+   ```
+
+2. Verificar tickets travados:
+   ```bash
+   kubectl exec -n neural-hive-execution <pod-name> -- curl localhost:9090/metrics | grep active_tasks
+   ```
+
+3. Considerar restart se tickets travados:
+   ```bash
+   kubectl delete pod -n neural-hive-execution <pod-name>
+   ```
+
+#### Tuning
+
+**Cenário 1: Carga Alta Sustentada**
+- Aumentar `maxConcurrentTickets` (ex: 20)
+- Aumentar `maxConcurrentTasks` (ex: 10)
+- Aumentar replicas (HPA)
+
+**Cenário 2: Processamento Lento**
+- Otimizar executores (cache, paralelização)
+- Aumentar `maxConcurrentTasks`
+- Aumentar timeout de tasks
+
+**Cenário 3: Picos de Carga**
+- Manter `maxConcurrentTickets` conservador (10)
+- Configurar HPA agressivo (targetCPU: 60%)
+- Aumentar `consumerPauseThreshold` (ex: 0.9)
+
 ### Variáveis de Ambiente
 
 ```bash

@@ -56,6 +56,16 @@ class MongoDBClient:
             'status_1',
             'consolidated_at_1',
             'status_1_consolidated_at_-1'
+        ],
+        'authorization_audit': [
+            'user_id_1',
+            'tenant_id_1',
+            'timestamp_1',
+            'decision_1',
+            'policy_path_1',
+            'tenant_id_1_timestamp_-1',
+            'user_id_1_timestamp_-1',
+            'decision_1_timestamp_-1'
         ]
     }
 
@@ -89,6 +99,7 @@ class MongoDBClient:
         self.workflow_results = None
         self.incidents = None
         self.telemetry_buffer = None
+        self.authorization_audit = None
         self.execution_ticket_breaker = None
         self.validation_audit_breaker = None
         self.workflow_results_breaker = None
@@ -127,6 +138,7 @@ class MongoDBClient:
         self.workflow_results = self.db['workflow_results']
         self.incidents = self.db['incidents']
         self.telemetry_buffer = self.db['telemetry_buffer']
+        self.authorization_audit = self.db['authorization_audit']
 
         if self.circuit_breaker_enabled:
             self.execution_ticket_breaker = MonitoredCircuitBreaker(
@@ -174,6 +186,7 @@ class MongoDBClient:
             'workflow_results',
             'incidents',
             'telemetry_buffer',
+            'authorization_audit',
         ]
         for collection_name in critical_collections:
             await self.ensure_collection_exists(collection_name)
@@ -320,6 +333,16 @@ class MongoDBClient:
         await self.telemetry_buffer.create_index('buffered_at')
         await self.telemetry_buffer.create_index('retry_count')
         await self.telemetry_buffer.create_index([('retry_count', 1), ('buffered_at', 1)])
+
+        # Índices para authorization_audit
+        await self.authorization_audit.create_index('user_id')
+        await self.authorization_audit.create_index('tenant_id')
+        await self.authorization_audit.create_index('timestamp')
+        await self.authorization_audit.create_index('decision')
+        await self.authorization_audit.create_index('policy_path')
+        await self.authorization_audit.create_index([('tenant_id', 1), ('timestamp', -1)])
+        await self.authorization_audit.create_index([('user_id', 1), ('timestamp', -1)])
+        await self.authorization_audit.create_index([('decision', 1), ('timestamp', -1)])
 
     async def get_cognitive_plan(self, plan_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -730,6 +753,48 @@ class MongoDBClient:
                 workflow_id=telemetry_frame.get('correlation', {}).get('workflow_id'),
                 error=str(e)
             )
+
+    async def save_authorization_audit(self, audit_entry: Dict[str, Any]) -> None:
+        """
+        Persiste auditoria de decisão de autorização OPA.
+
+        Fail-open: erros são logados mas não propagados para não bloquear
+        avaliações de políticas.
+
+        Args:
+            audit_entry: Entrada de auditoria com campos:
+                - timestamp: ISO timestamp da decisão
+                - user_id: ID do usuário (opcional)
+                - tenant_id: ID do tenant
+                - resource: Recurso sendo acessado
+                - action: Ação sendo executada
+                - decision: 'allow' ou 'deny'
+                - policy_path: Path da política avaliada
+                - violations: Lista de violações (se deny)
+                - context: Contexto adicional
+        """
+        retry_decorator = self._get_retry_decorator()
+
+        @retry_decorator
+        async def _persist():
+            await self.authorization_audit.insert_one(audit_entry)
+
+        try:
+            await _persist()
+            logger.info(
+                'authorization_audit_saved',
+                tenant_id=audit_entry.get('tenant_id'),
+                decision=audit_entry.get('decision'),
+                policy_path=audit_entry.get('policy_path')
+            )
+        except Exception as e:
+            logger.error(
+                'authorization_audit_save_failed',
+                tenant_id=audit_entry.get('tenant_id'),
+                policy_path=audit_entry.get('policy_path'),
+                error=str(e)
+            )
+            # Fail-open: não propagar erro
 
     async def close(self):
         """Fechar cliente MongoDB."""

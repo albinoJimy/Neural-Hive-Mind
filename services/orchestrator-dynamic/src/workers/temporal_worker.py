@@ -96,6 +96,10 @@ class TemporalWorkerManager:
                 metrics = get_metrics()
                 priority_calculator = PriorityCalculator(self.config)
 
+                # Inicializar redis_client antes do bloco de ML para evitar UnboundLocalError
+                # quando affinity está habilitado mas ML está desabilitado
+                redis_client = None
+
                 # Inicializar SchedulingOptimizer se habilitado
                 scheduling_optimizer = None
                 if self.config.ml_local_load_prediction_enabled or self.config.enable_optimizer_integration:
@@ -151,17 +155,31 @@ class TemporalWorkerManager:
 
                 # Criar AffinityTracker se affinity habilitado
                 affinity_tracker = None
-                if getattr(self.config, 'scheduler_enable_affinity', False) and redis_client:
+                if getattr(self.config, 'scheduler_enable_affinity', False):
                     try:
-                        affinity_tracker = AffinityTracker(
-                            redis_client=redis_client,
-                            config=self.config,
-                            metrics=metrics
-                        )
-                        logger.info(
-                            'AffinityTracker inicializado',
-                            cache_ttl_seconds=getattr(self.config, 'scheduler_affinity_cache_ttl_seconds', 14400)
-                        )
+                        # Obter Redis client de forma independente se não foi criado pelo bloco de ML
+                        if redis_client is None:
+                            from src.clients.redis_client import get_redis_client
+                            redis_client = await get_redis_client(self.config)
+                            logger.info(
+                                'Redis client inicializado independentemente para AffinityTracker',
+                                ml_enabled=False
+                            )
+
+                        if redis_client is not None:
+                            affinity_tracker = AffinityTracker(
+                                redis_client=redis_client,
+                                config=self.config,
+                                metrics=metrics
+                            )
+                            logger.info(
+                                'AffinityTracker inicializado',
+                                cache_ttl_seconds=getattr(self.config, 'scheduler_affinity_cache_ttl_seconds', 14400)
+                            )
+                        else:
+                            logger.warning(
+                                'AffinityTracker não inicializado - Redis client indisponível'
+                            )
                     except Exception as e:
                         logger.warning(
                             'Falha ao inicializar AffinityTracker, continuando sem affinity',
@@ -204,14 +222,18 @@ class TemporalWorkerManager:
             logger.info('Inicializando OPA Policy Engine')
 
             try:
-                # Criar OPA Client
-                self.opa_client = OPAClient(self.config)
+                # Criar OPA Client com MongoDB para audit logging
+                self.opa_client = OPAClient(self.config, mongodb_client=self.mongodb_client)
                 await self.opa_client.initialize()
 
                 # Criar PolicyValidator
                 self.policy_validator = PolicyValidator(self.opa_client, self.config)
 
-                logger.info('OPA Policy Engine inicializado', opa_host=self.config.opa_host)
+                logger.info(
+                    'OPA Policy Engine inicializado',
+                    opa_host=self.config.opa_host,
+                    audit_logging_enabled=self.mongodb_client is not None
+                )
 
             except Exception as e:
                 logger.error(f'Falha ao inicializar OPA: {e}', exc_info=True)

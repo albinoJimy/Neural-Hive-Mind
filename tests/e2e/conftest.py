@@ -17,28 +17,8 @@ from typing import Any, Dict, Generator, Optional
 
 import pytest
 
-# Conditionally import fixture modules - they may not all exist
-pytest_plugins = []
-
-# Try to register each plugin module, skip if not found
-_fixture_modules = [
-    "tests.e2e.fixtures.kubernetes",
-    "tests.e2e.fixtures.kafka",
-    "tests.e2e.fixtures.databases",
-    "tests.e2e.fixtures.services",
-    "tests.e2e.fixtures.test_data",
-    "tests.e2e.fixtures.schema_registry",
-    "tests.e2e.fixtures.avro_helpers",
-    "tests.e2e.fixtures.specialists",
-    "tests.e2e.fixtures.circuit_breakers",
-]
-
-for module in _fixture_modules:
-    try:
-        __import__(module)
-        pytest_plugins.append(module)
-    except ImportError:
-        pass
+# Note: pytest_plugins moved to top-level tests/conftest.py
+# per pytest requirements (plugins must be in root conftest)
 
 # Configuration from environment
 TEMPORAL_ENDPOINT = os.getenv(

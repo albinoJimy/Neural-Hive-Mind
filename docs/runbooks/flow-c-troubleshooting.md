@@ -6,6 +6,39 @@ Guia de diagnóstico e resolução de problemas para Flow C - Orquestração de 
 
 ---
 
+## Configuração do Ambiente
+
+Configure estas variáveis antes de executar os comandos. Veja `flow-c-operations.md` para detalhes completos.
+
+```bash
+# Namespaces
+export ORCHESTRATION_NS="neural-hive-orchestration"
+export EXECUTION_NS="neural-hive-execution"
+export REGISTRY_NS="neural-hive-registry"
+export KAFKA_NS="kafka"
+export MONGODB_NS="mongodb-cluster"
+export REDIS_NS="redis-cluster"
+export MONITORING_NS="monitoring"
+
+# Nomes dos Releases Helm
+export ORCHESTRATOR_RELEASE="orchestrator-dynamic"
+export WORKER_RELEASE="worker-agents"
+
+# ConfigMaps (gerados pelo Helm)
+export ORCHESTRATOR_CONFIG="${ORCHESTRATOR_RELEASE}-config"
+export WORKER_CONFIG="${WORKER_RELEASE}"
+
+# Pods de serviços externos
+export KAFKA_POD="neural-hive-kafka-kafka-0"
+export REDIS_POD="redis-cluster-0"
+export MONGODB_DATABASE="neural_hive_orchestration"
+
+# Obter URI MongoDB com autenticação
+# MONGODB_URI=$(kubectl get secret ${ORCHESTRATOR_RELEASE}-secrets -n ${ORCHESTRATION_NS} -o jsonpath='{.data.MONGODB_URI}' | base64 -d)
+```
+
+---
+
 ## Troubleshooting Flowchart
 
 ```mermaid
@@ -242,9 +275,9 @@ kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=100
 # Verificar Consensus Engine
 kubectl logs -n neural-hive-consensus -l app=consensus-engine --tail=100 | grep "decision_published"
 
-# Verificar formato da decisão
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.consensus_decisions.find().sort({timestamp: -1}).limit(1).pretty()'
+# Verificar formato da decisão (executar do pod MongoDB)
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh --quiet --eval 'db.getSiblingDB("neural_hive_orchestration").consensus_decisions.find().sort({timestamp: -1}).limit(1).pretty()'
 
 # Possível causa: Decisão sem cognitive_plan
 # Ação: Verificar Fluxo B
@@ -259,8 +292,8 @@ kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
   temporal workflow list --namespace default --query 'ExecutionStatus="Failed"' --limit 10
 
 # Verificar MongoDB persistence
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.execution_tickets.countDocuments({created_at: {$gte: new Date(Date.now() - 3600000)}})'
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh --quiet --eval 'db.getSiblingDB("neural_hive_orchestration").db.execution_tickets.countDocuments({created_at: {$gte: new Date(Date.now() - 3600000)}})'
 
 # Se 0 tickets: problema de persistência
 # Verificar circuit breaker MongoDB
@@ -268,26 +301,29 @@ kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=100
 
 # Verificar MongoDB connectivity
 kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  python -c "from pymongo import MongoClient; print(MongoClient('mongodb://mongodb:27017').server_info())"
+  python -c "import os; from pymongo import MongoClient; uri=os.environ.get('MONGODB_URI','mongodb://localhost:27017'); print(MongoClient(uri, serverSelectionTimeoutMS=5000).server_info())"
 ```
 
 **C3 (Discover Workers) falhando:**
 
 ```bash
 # Verificar Service Registry
-kubectl logs -n neural-hive-registry -l app=service-registry --tail=100
+kubectl logs -n ${REGISTRY_NS} -l app=service-registry --tail=100
 
-# Verificar workers registrados
-kubectl exec -n neural-hive-registry deployment/service-registry -- \
-  grpcurl -plaintext localhost:50051 list
+# Verificar workers registrados (via logs - grpcurl não disponível nos pods)
+kubectl logs -n ${REGISTRY_NS} -l app=service-registry --tail=200 | grep -i "worker.*register"
 
-# Verificar etcd
-kubectl exec -n neural-hive-registry deployment/service-registry -- \
-  etcdctl --endpoints=http://etcd:2379 get /registry/agents --prefix
+# Alternativa: Usar port-forward para grpcurl local
+# kubectl port-forward -n ${REGISTRY_NS} svc/service-registry 50051:50051
+# grpcurl -plaintext localhost:50051 list
 
-# Verificar conectividade gRPC
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  grpcurl -plaintext service-registry.neural-hive-registry:50051 grpc.health.v1.Health/Check
+# Verificar etcd (se etcdctl disponível no pod, ou usar port-forward)
+# kubectl port-forward -n ${REGISTRY_NS} svc/etcd 2379:2379
+# etcdctl --endpoints=http://localhost:2379 get /registry/agents --prefix
+
+# Verificar conectividade gRPC (via Python no orchestrator)
+kubectl exec -n ${ORCHESTRATION_NS} deployment/orchestrator-dynamic -- \
+  python -c "import grpc; ch=grpc.insecure_channel('service-registry.${REGISTRY_NS}:50051'); print('gRPC channel OK')"
 ```
 
 **C4 (Assign Tickets) falhando:**
@@ -312,8 +348,8 @@ kubectl exec -n neural-hive-execution deployment/worker-agents -- \
 
 ```bash
 # Verificar tickets stuck
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.execution_tickets.find({status: "RUNNING", created_at: {$lt: new Date(Date.now() - 14400000)}}).pretty()'
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh --quiet --eval 'db.getSiblingDB("neural_hive_orchestration").db.execution_tickets.find({status: "RUNNING", created_at: {$lt: new Date(Date.now() - 14400000)}}).pretty()'
 
 # Verificar Code Forge pipelines
 kubectl logs -n neural-hive-execution -l app=code-forge --tail=100 | grep "pipeline_failed"
@@ -327,10 +363,10 @@ kubectl exec -n neural-hive-execution deployment/worker-agents -- \
 
 ```bash
 # Verificar Kafka
-kubectl get pods -n neural-hive-messaging | grep kafka
+kubectl get pods -n ${KAFKA_NS} | grep kafka
 
 # Verificar tópico telemetry-flow-c
-kubectl exec -n neural-hive-messaging kafka-0 -- kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic telemetry-flow-c
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic telemetry-flow-c
 
 # Verificar buffer Redis
 curl -s "http://prometheus.monitoring:9090/api/v1/query?query=neural_hive_flow_c_telemetry_buffer_size" | jq
@@ -370,8 +406,8 @@ kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=100
 
 ```bash
 # Verificar se decisão tem cognitive_plan
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.consensus_decisions.find().sort({timestamp: -1}).limit(1).pretty()' | grep cognitive_plan
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh --quiet --eval 'db.getSiblingDB("neural_hive_orchestration").db.consensus_decisions.find().sort({timestamp: -1}).limit(1).pretty()' | grep cognitive_plan
 
 # Se null ou vazio: problema no Fluxo B
 ```
@@ -415,11 +451,11 @@ kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=200
 
 ```bash
 # Verificar Kafka consumer
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group orchestrator-consumers
 
 # Verificar se há mensagens no tópico
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic plans.consensus --from-beginning --max-messages 5
 ```
 
@@ -449,15 +485,15 @@ kubectl get pods -n neural-hive-orchestration | grep mongodb
 
 # Verificar conectividade
 kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  python -c "from pymongo import MongoClient; print(MongoClient('mongodb://mongodb:27017').server_info())"
+  python -c "import os; from pymongo import MongoClient; uri=os.environ.get('MONGODB_URI','mongodb://localhost:27017'); print(MongoClient(uri, serverSelectionTimeoutMS=5000).server_info())"
 
 # Criar coleção manualmente se não existir
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.createCollection("execution_tickets")'
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh --quiet --eval 'db.getSiblingDB("neural_hive_orchestration").db.createCollection("execution_tickets")'
 
 # Criar índices
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval '
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh --quiet --eval 'db.getSiblingDB("neural_hive_orchestration").
     db.execution_tickets.createIndex({ticket_id: 1}, {unique: true});
     db.execution_tickets.createIndex({plan_id: 1});
     db.execution_tickets.createIndex({status: 1});
@@ -488,7 +524,7 @@ kubectl rollout restart deployment/orchestrator-dynamic -n neural-hive-orchestra
 
 ```bash
 # Reset consumer offset (use com cuidado)
-kubectl exec -n neural-hive-messaging kafka-0 -- \
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
   kafka-consumer-groups.sh --bootstrap-server localhost:9092 --group orchestrator-consumers --reset-offsets --to-latest --topic plans.consensus --execute
 
 # Restart orchestrator
@@ -499,8 +535,8 @@ kubectl rollout restart deployment/orchestrator-dynamic -n neural-hive-orchestra
 
 ```bash
 # Verificar tickets sendo criados
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.execution_tickets.countDocuments({created_at: {$gte: new Date(Date.now() - 300000)}})'
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh --quiet --eval 'db.getSiblingDB("neural_hive_orchestration").db.execution_tickets.countDocuments({created_at: {$gte: new Date(Date.now() - 300000)}})'
 
 # Verificar métrica
 curl -s "http://prometheus.monitoring:9090/api/v1/query?query=rate(neural_hive_execution_tickets_created_total{source=\"flow_c\"}[5m])" | jq
@@ -538,17 +574,19 @@ kubectl describe pods -n neural-hive-execution -l app=worker-agents | grep -A 5 
 **2. Verificar registration no Service Registry:**
 
 ```bash
-# Listar agents registrados
-kubectl exec -n neural-hive-registry deployment/service-registry -- \
-  grpcurl -plaintext localhost:50051 list
+# Verificar registros via logs (grpcurl/etcdctl não disponíveis nos pods)
+kubectl logs -n ${REGISTRY_NS} -l app=service-registry --tail=200 | grep -i "register"
 
-# Verificar etcd
-kubectl exec -n neural-hive-registry deployment/service-registry -- \
-  etcdctl --endpoints=http://etcd:2379 get /registry/agents --prefix
+# Contar workers registrados via métricas Prometheus
+curl -s "http://prometheus.${MONITORING_NS}:9090/api/v1/query?query=neural_hive_service_registry_agents_total{agent_type=\"worker\"}" | jq
 
-# Verificar contagem de workers
-kubectl exec -n neural-hive-registry deployment/service-registry -- \
-  etcdctl --endpoints=http://etcd:2379 get /registry/agents --prefix --keys-only | wc -l
+# Alternativa: Port-forward para usar grpcurl local
+# kubectl port-forward -n ${REGISTRY_NS} svc/service-registry 50051:50051
+# grpcurl -plaintext localhost:50051 list
+
+# Alternativa: Port-forward para usar etcdctl local
+# kubectl port-forward -n ${REGISTRY_NS} svc/etcd 2379:2379
+# etcdctl --endpoints=http://localhost:2379 get /registry/agents --prefix --keys-only | wc -l
 ```
 
 **3. Verificar health dos workers:**
@@ -656,15 +694,14 @@ kubectl rollout restart deployment/worker-agents -n neural-hive-execution
 #### Verificação de Recuperação
 
 ```bash
-# Verificar workers healthy
-curl -s "http://prometheus.monitoring:9090/api/v1/query?query=count(neural_hive_service_registry_agents_total{agent_type=\"worker\",status=\"healthy\"})" | jq
+# Verificar workers healthy via métricas
+curl -s "http://prometheus.${MONITORING_NS}:9090/api/v1/query?query=count(neural_hive_service_registry_agents_total{agent_type=\"worker\",status=\"healthy\"})" | jq
 
-# Verificar registration
-kubectl exec -n neural-hive-registry deployment/service-registry -- \
-  grpcurl -plaintext localhost:50051 list | grep WorkerAgent
+# Verificar registration via logs
+kubectl logs -n ${REGISTRY_NS} -l app=service-registry --tail=100 | grep -i "worker.*register"
 
 # Verificar pods running
-kubectl get pods -n neural-hive-execution -l app=worker-agents | grep Running | wc -l
+kubectl get pods -n ${EXECUTION_NS} -l app=worker-agents | grep Running | wc -l
 ```
 
 ---
@@ -704,8 +741,8 @@ curl -s "http://prometheus.monitoring:9090/api/v1/query?query=sum by (violation_
 kubectl get configmap orchestrator-config -n neural-hive-orchestration -o yaml | grep -E "(sla_ticket_min_timeout_ms|sla_ticket_timeout_buffer_multiplier)"
 
 # Verificar tickets com timeout < 60s (bug conhecido)
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.execution_tickets.find({sla_timeout_ms: {$lt: 60000}}).count()'
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh --quiet --eval 'db.getSiblingDB("neural_hive_orchestration").db.execution_tickets.find({sla_timeout_ms: {$lt: 60000}}).count()'
 ```
 
 **3. Verificar workflows lentos:**
@@ -719,8 +756,8 @@ kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
 curl -s "http://prometheus.monitoring:9090/api/v1/query?query=histogram_quantile(0.99,rate(neural_hive_flow_c_steps_duration_seconds_bucket[5m]))" | jq
 
 # Verificar tickets mais antigos
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.execution_tickets.find({status: "RUNNING"}).sort({created_at: 1}).limit(5).pretty()'
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh --quiet --eval 'db.getSiblingDB("neural_hive_orchestration").db.execution_tickets.find({status: "RUNNING"}).sort({created_at: 1}).limit(5).pretty()'
 ```
 
 **4. Verificar causa raiz:**
@@ -746,8 +783,8 @@ kubectl patch configmap orchestrator-config -n neural-hive-orchestration -p '{"d
 kubectl rollout restart deployment/orchestrator-dynamic -n neural-hive-orchestration
 
 # Validar novos tickets
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.execution_tickets.find().sort({created_at: -1}).limit(1).pretty()' | grep sla_timeout_ms
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh --quiet --eval 'db.getSiblingDB("neural_hive_orchestration").db.execution_tickets.find().sort({created_at: -1}).limit(1).pretty()' | grep sla_timeout_ms
 ```
 
 **Opção 2: Execução realmente lenta**
@@ -823,23 +860,23 @@ kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
 curl -s "http://prometheus.monitoring:9090/api/v1/query?query=neural_hive_flow_c_telemetry_buffer_size" | jq
 
 # Verificar Redis
-kubectl exec -n neural-hive-orchestration redis-0 -- redis-cli KEYS "telemetry:buffer:*" | wc -l
+kubectl exec -n ${REDIS_NS} ${REDIS_POD} -- redis-cli KEYS "telemetry:buffer:*" | wc -l
 
 # Verificar memory usage
-kubectl exec -n neural-hive-orchestration redis-0 -- redis-cli INFO memory | grep used_memory_human
+kubectl exec -n ${REDIS_NS} ${REDIS_POD} -- redis-cli INFO memory | grep used_memory_human
 ```
 
 **2. Verificar Kafka:**
 
 ```bash
 # Verificar pods Kafka
-kubectl get pods -n neural-hive-messaging | grep kafka
+kubectl get pods -n ${KAFKA_NS} | grep kafka
 
 # Verificar tópico telemetry-flow-c
-kubectl exec -n neural-hive-messaging kafka-0 -- kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic telemetry-flow-c
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic telemetry-flow-c
 
 # Verificar consumer lag
-kubectl exec -n neural-hive-messaging kafka-0 -- kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group telemetry-consumers
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group telemetry-consumers
 ```
 
 **3. Verificar conectividade:**
@@ -856,7 +893,7 @@ kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=100
 **4. Verificar ACLs:**
 
 ```bash
-kubectl exec -n neural-hive-messaging kafka-0 -- kafka-acls.sh --bootstrap-server localhost:9092 --list --topic telemetry-flow-c
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- kafka-acls.sh --bootstrap-server localhost:9092 --list --topic telemetry-flow-c
 ```
 
 #### Resolução
@@ -865,42 +902,42 @@ kubectl exec -n neural-hive-messaging kafka-0 -- kafka-acls.sh --bootstrap-serve
 
 ```bash
 # Verificar Kafka pods
-kubectl get pods -n neural-hive-messaging | grep kafka
+kubectl get pods -n ${KAFKA_NS} | grep kafka
 
 # Check Kafka logs
-kubectl logs -n neural-hive-messaging kafka-0 --tail=100
+kubectl logs -n ${KAFKA_NS} ${KAFKA_POD} --tail=100
 
 # Restart Kafka se necessário
-kubectl rollout restart statefulset/kafka -n neural-hive-messaging
+kubectl rollout restart statefulset/kafka -n ${KAFKA_NS}
 
 # Wait for readiness
-kubectl wait --for=condition=ready pod -l app=kafka -n neural-hive-messaging --timeout=300s
+kubectl wait --for=condition=ready pod -l app=kafka -n ${KAFKA_NS} --timeout=300s
 ```
 
 **Opção 2: Tópico não existe**
 
 ```bash
 # Criar tópico manualmente
-kubectl exec -n neural-hive-messaging kafka-0 -- kafka-topics.sh --bootstrap-server localhost:9092 --create --topic telemetry-flow-c --partitions 6 --replication-factor 3
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- kafka-topics.sh --bootstrap-server localhost:9092 --create --topic telemetry-flow-c --partitions 6 --replication-factor 3
 
 # Ou via KafkaTopic CRD
 kubectl apply -f k8s/kafka-topics/telemetry-flow-c-topic.yaml
 
 # Verificar criação
-kubectl get kafkatopic telemetry-flow-c -n neural-hive-messaging
+kubectl get kafkatopic telemetry-flow-c -n ${KAFKA_NS}
 ```
 
 **Opção 3: Permissões ACL**
 
 ```bash
 # Verificar ACLs
-kubectl exec -n neural-hive-messaging kafka-0 -- kafka-acls.sh --bootstrap-server localhost:9092 --list --topic telemetry-flow-c
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- kafka-acls.sh --bootstrap-server localhost:9092 --list --topic telemetry-flow-c
 
 # Adicionar ACL se necessário
-kubectl exec -n neural-hive-messaging kafka-0 -- kafka-acls.sh --bootstrap-server localhost:9092 --add --allow-principal User:orchestrator-dynamic --operation Write --topic telemetry-flow-c
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- kafka-acls.sh --bootstrap-server localhost:9092 --add --allow-principal User:orchestrator-dynamic --operation Write --topic telemetry-flow-c
 
 # Adicionar ACL para consumer
-kubectl exec -n neural-hive-messaging kafka-0 -- kafka-acls.sh --bootstrap-server localhost:9092 --add --allow-principal User:telemetry-processor --operation Read --topic telemetry-flow-c
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- kafka-acls.sh --bootstrap-server localhost:9092 --add --allow-principal User:telemetry-processor --operation Read --topic telemetry-flow-c
 ```
 
 **Opção 4: Flush manual do buffer**
@@ -930,7 +967,7 @@ kubectl rollout restart deployment/orchestrator-dynamic -n neural-hive-orchestra
 curl -s "http://prometheus.monitoring:9090/api/v1/query?query=neural_hive_flow_c_telemetry_buffer_size" | jq
 
 # Verificar eventos sendo publicados
-kubectl exec -n neural-hive-messaging kafka-0 -- kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic telemetry-flow-c --max-messages 10
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic telemetry-flow-c --max-messages 10
 
 # Verificar logs de sucesso
 kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=50 | grep "telemetry_published"
@@ -994,16 +1031,16 @@ curl -s "http://prometheus.monitoring:9090/api/v1/query?query=rate(orchestration
 kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=200 | grep "compensation"
 
 # Verificar tickets com compensação pendente
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.execution_tickets.find({status: "FAILED", compensation_status: "PENDING"}).pretty()'
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh --quiet --eval 'db.getSiblingDB("neural_hive_orchestration").db.execution_tickets.find({status: "FAILED", compensation_status: "PENDING"}).pretty()'
 ```
 
 #### Resolução
 
 ```bash
 # Verificar tickets que precisam compensação
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  mongosh mongodb://mongodb:27017/neural_hive --eval 'db.execution_tickets.find({status: "FAILED", compensation_ticket_id: {$ne: null}}).pretty()'
+kubectl exec -n ${MONGODB_NS} mongodb-0 -- \
+  mongosh --quiet --eval 'db.getSiblingDB("neural_hive_orchestration").db.execution_tickets.find({status: "FAILED", compensation_ticket_id: {$ne: null}}).pretty()'
 
 # Executar compensação manual
 kubectl exec -n neural-hive-execution deployment/worker-agents -- \
@@ -1026,8 +1063,8 @@ kubectl logs -n neural-hive-execution -l app=worker-agents --tail=50 | grep "com
 curl -s "http://prometheus.monitoring:9090/api/v1/query?query=rate(orchestrator_decision_duplicates_detected_total[5m])" | jq
 
 # Verificar Redis
-kubectl exec -n neural-hive-orchestration redis-0 -- redis-cli KEYS "decision:processed:*" | wc -l
-kubectl exec -n neural-hive-orchestration redis-0 -- redis-cli KEYS "ticket:processed:*" | wc -l
+kubectl exec -n ${REDIS_NS} ${REDIS_POD} -- redis-cli KEYS "decision:processed:*" | wc -l
+kubectl exec -n ${REDIS_NS} ${REDIS_POD} -- redis-cli KEYS "ticket:processed:*" | wc -l
 
 # Verificar circuit breaker Redis
 kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=100 | grep "redis_circuit_breaker"
@@ -1044,10 +1081,10 @@ kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
   redis-cli -h redis -p 6379 PING
 
 # Verificar Redis memory
-kubectl exec -n neural-hive-orchestration redis-0 -- redis-cli INFO memory
+kubectl exec -n ${REDIS_NS} ${REDIS_POD} -- redis-cli INFO memory
 
 # Se OOM, clear old keys
-kubectl exec -n neural-hive-orchestration redis-0 -- redis-cli KEYS "decision:processed:*" | head -1000 | xargs redis-cli DEL
+kubectl exec -n ${REDIS_NS} ${REDIS_POD} -- redis-cli KEYS "decision:processed:*" | head -1000 | xargs redis-cli DEL
 
 # Restart Redis se necessário
 kubectl rollout restart statefulset/redis -n neural-hive-orchestration
@@ -1108,24 +1145,39 @@ kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=200
 
 ```bash
 # Verificar dependência afetada
-# MongoDB
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  python -c "from pymongo import MongoClient; print(MongoClient('mongodb://mongodb:27017', serverSelectionTimeoutMS=5000).server_info())"
 
-# Kafka
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  kafka-console-consumer.sh --bootstrap-server kafka:9092 --topic test --max-messages 1 --timeout-ms 5000
+# MongoDB (via Python no orchestrator - pymongo disponível)
+kubectl exec -n ${ORCHESTRATION_NS} deployment/orchestrator-dynamic -- \
+  python -c "import os; from pymongo import MongoClient; uri=os.environ.get('MONGODB_URI','mongodb://localhost:27017'); print(MongoClient(uri, serverSelectionTimeoutMS=5000).server_info())"
 
-# Service Registry
-kubectl exec -n neural-hive-orchestration deployment/orchestrator-dynamic -- \
-  grpcurl -plaintext service-registry.neural-hive-registry:50051 grpc.health.v1.Health/Check
+# Kafka (executar do pod Kafka)
+kubectl exec -n ${KAFKA_NS} ${KAFKA_POD} -- \
+  kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test --max-messages 1 --timeout-ms 5000
+
+# Service Registry (via Python no orchestrator)
+kubectl exec -n ${ORCHESTRATION_NS} deployment/orchestrator-dynamic -- \
+  python -c "import grpc; ch=grpc.insecure_channel('service-registry.${REGISTRY_NS}:50051'); print('gRPC channel OK')"
 
 # Forçar reset do circuit breaker
-kubectl rollout restart deployment/orchestrator-dynamic -n neural-hive-orchestration
+kubectl rollout restart deployment/orchestrator-dynamic -n ${ORCHESTRATION_NS}
 
-# Monitor recovery
-watch -n 5 'curl -s "http://prometheus.monitoring:9090/api/v1/query?query=neural_hive_circuit_breaker_state" | jq'
+# Monitorar recovery
+watch -n 5 'curl -s "http://prometheus.${MONITORING_NS}:9090/api/v1/query?query=neural_hive_circuit_breaker_state" | jq'
 ```
+
+---
+
+---
+
+## Simulação de Incidentes
+
+Para validação dos procedimentos deste runbook em ambiente de staging:
+
+```bash
+./scripts/validation/simulate-flow-c-incidents.sh
+```
+
+Veja detalhes em [flow-c-operations.md](./flow-c-operations.md#simulação-de-incidentes).
 
 ---
 
@@ -1137,3 +1189,4 @@ watch -n 5 'curl -s "http://prometheus.monitoring:9090/api/v1/query?query=neural
 - [Prometheus Alerts](../../monitoring/alerts/flow-c-integration-alerts.yaml)
 - [Grafana Dashboard](../../monitoring/dashboards/fluxo-c-orquestracao.json)
 - [Phase 2 Troubleshooting Flowchart](./phase2-troubleshooting-flowchart.md)
+- [Script de Simulação de Incidentes](../../scripts/validation/simulate-flow-c-incidents.sh)

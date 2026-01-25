@@ -71,11 +71,91 @@ sequenceDiagram
   - `SPIFFE_ENABLED`, `SPIFFE_TRUST_DOMAIN`
   - `OPA_ALLOWED_TENANTS`, `OPA_TENANT_RATE_LIMITS`, `OPA_DEFAULT_TENANT_RATE_LIMIT`, `OPA_GLOBAL_RATE_LIMIT`
 
+## Validação JWT com SPIFFE
+
+### Configuração JWKS
+
+O OPA é configurado para buscar automaticamente o JWKS do SPIRE Server para verificação de assinaturas JWT:
+
+```yaml
+# helm-charts/orchestrator-dynamic/values.yaml
+opa:
+  config:
+    services:
+      spire-jwks:
+        url: https://spire-server.spire-system.svc.cluster.local:8081
+    bundles:
+      spire-jwks:
+        service: spire-jwks
+        resource: /keys
+        polling:
+          min_delay_seconds: 60
+          max_delay_seconds: 120
+```
+
+### Processo de Verificação JWT
+
+1. **Cliente obtém JWT-SVID** do SPIRE Agent via Workload API
+2. **Cliente envia JWT** no header `Authorization: Bearer <jwt>`
+3. **Orchestrator extrai JWT** e passa para OPA via `input.context.jwt_token`
+4. **OPA valida JWT**:
+   - Busca chave pública do JWKS bundle
+   - Verifica assinatura usando `io.jwt.decode_verify()`
+   - Valida issuer, audience, expiração
+   - Verifica claims obrigatórios (`tenant_id`, `roles`)
+5. **OPA retorna decisão** (allow/deny) com violações detalhadas
+
+### Claims Obrigatórios
+
+Todos os JWTs devem conter:
+- `sub`: SPIFFE ID do workload
+- `iss`: Issuer (SPIRE Server)
+- `aud`: Audience (serviço destino)
+- `exp`: Timestamp de expiração
+- `iat`: Timestamp de emissão
+- `tenant_id`: ID do tenant (multi-tenancy)
+- `roles`: Array de roles (RBAC)
+
+### Métricas de Segurança JWT
+
+```python
+# Métricas recomendadas para monitoramento
+jwt_validation_failures_total = Counter(
+    'opa_jwt_validation_failures_total',
+    'Total de falhas de validação JWT',
+    ['failure_reason']  # signature_invalid, expired, missing_claims, invalid_issuer
+)
+```
+
+### Alertas Recomendados
+
+```yaml
+# monitoring/alerts/opa-security-alerts.yaml
+- alert: OPAJWTValidationFailureRate
+  expr: rate(opa_jwt_validation_failures_total[5m]) > 0.1
+  for: 5m
+  labels:
+    severity: critical
+  annotations:
+    summary: "Alta taxa de falhas de validação JWT"
+    description: "{{ $value }} falhas/s de validação JWT no OPA"
+
+- alert: OPAJWKSBundleLoadFailure
+  expr: opa_bundle_last_successful_activation_timestamp_nanoseconds{bundle="spire-jwks"} < (time() - 300) * 1e9
+  for: 5m
+  labels:
+    severity: warning
+  annotations:
+    summary: "Bundle JWKS não atualizado há mais de 5 minutos"
+```
+
 ## Troubleshooting
 - **OPA indisponível**: verifique `/health`, logs do container e métrica `orchestration_opa_evaluation_errors_total`.
 - **Políticas não encontradas**: confirme paths carregados em `/v1/policies`.
 - **Violações inesperadas**: copie o `input` para o OPA Playground e revise o Rego.
 - **Performance**: monitore `orchestration_opa_cache_hits_total` e `orchestration_opa_validation_duration_seconds`.
+- **JWT Signature Verification Failed**: verifique se OPA consegue acessar SPIRE JWKS endpoint.
+- **JWT Missing Required Claims**: verifique se JWT contém `tenant_id` e `roles`.
 
 ## Métricas Prometheus
 - `orchestration_opa_validations_total{policy_name, result}` - total de validações (allowed/denied/error).

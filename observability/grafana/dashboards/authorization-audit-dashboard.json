@@ -1,0 +1,293 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "authorization-audit",
+    "title": "Authorization Audit Trail",
+    "description": "Dashboard para monitoramento de decisões de autorização OPA no Orchestrator Dynamic",
+    "tags": ["security", "audit", "opa", "compliance"],
+    "timezone": "browser",
+    "schemaVersion": 36,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "tenant_id",
+          "type": "query",
+          "datasource": "Prometheus",
+          "query": "label_values(neural_hive_authorization_audit_logged_total, tenant_id)",
+          "refresh": 2,
+          "multi": true,
+          "includeAll": true
+        },
+        {
+          "name": "policy_path",
+          "type": "query",
+          "datasource": "Prometheus",
+          "query": "label_values(neural_hive_authorization_audit_logged_total, policy_path)",
+          "refresh": 2,
+          "multi": true,
+          "includeAll": true
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Authorization Decisions Over Time",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "sum(rate(neural_hive_authorization_audit_logged_total{decision=\"allow\"}[5m])) by (decision)",
+            "legendFormat": "{{decision}}"
+          },
+          {
+            "expr": "sum(rate(neural_hive_authorization_audit_logged_total{decision=\"deny\"}[5m])) by (decision)",
+            "legendFormat": "{{decision}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "custom": {
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "lineInterpolation": "smooth"
+            },
+            "unit": "reqps"
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Deny Rate",
+        "type": "gauge",
+        "gridPos": { "x": 12, "y": 0, "w": 6, "h": 8 },
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "sum(rate(neural_hive_authorization_audit_logged_total{decision=\"deny\"}[5m])) / sum(rate(neural_hive_authorization_audit_logged_total[5m])) * 100",
+            "legendFormat": "Deny Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 5 },
+                { "color": "red", "value": 10 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Total Decisions (24h)",
+        "type": "stat",
+        "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "sum(increase(neural_hive_authorization_audit_logged_total[24h]))",
+            "legendFormat": "Total"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Audit Errors",
+        "type": "stat",
+        "gridPos": { "x": 18, "y": 4, "w": 6, "h": 4 },
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "sum(increase(neural_hive_authorization_audit_errors_total[24h]))",
+            "legendFormat": "Errors"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": { "mode": "thresholds" },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 10 },
+                { "color": "red", "value": 100 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Decisions by Policy",
+        "type": "table",
+        "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "sum(neural_hive_authorization_audit_logged_total) by (policy_path, decision)",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": { "Time": true },
+              "renameByName": {
+                "policy_path": "Policy Path",
+                "decision": "Decision",
+                "Value": "Count"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Deny Rate by Tenant",
+        "type": "timeseries",
+        "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "sum(rate(neural_hive_authorization_audit_logged_total{decision=\"deny\", tenant_id=~\"$tenant_id\"}[5m])) by (tenant_id)",
+            "legendFormat": "{{tenant_id}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "fillOpacity": 20
+            },
+            "unit": "reqps"
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Audit Query Performance (p95)",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(neural_hive_authorization_audit_query_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(neural_hive_authorization_audit_query_duration_seconds_bucket[5m]))",
+            "legendFormat": "p99"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 0.5 },
+                { "color": "red", "value": 1 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "Decisions Heatmap by Hour",
+        "type": "heatmap",
+        "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "sum(increase(neural_hive_authorization_audit_logged_total[1h])) by (decision)",
+            "legendFormat": "{{decision}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "scaleDistribution": { "type": "log", "log": 2 }
+            }
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "Top 10 Denied Resources",
+        "type": "table",
+        "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "topk(10, sum(neural_hive_authorization_audit_logged_total{decision=\"deny\"}) by (policy_path, tenant_id))",
+            "format": "table",
+            "instant": true
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Audit Log Volume Trend",
+        "type": "timeseries",
+        "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "sum(rate(neural_hive_authorization_audit_logged_total[5m])) * 60 * 60",
+            "legendFormat": "Decisions/hour"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "custom": {
+              "drawStyle": "line",
+              "fillOpacity": 30,
+              "lineInterpolation": "smooth"
+            }
+          }
+        }
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "name": "Deployments",
+          "datasource": "Prometheus",
+          "enable": true,
+          "iconColor": "blue",
+          "expr": "changes(neural_hive_build_info[5m]) > 0"
+        }
+      ]
+    }
+  }
+}

@@ -261,11 +261,11 @@ class TestResourceAllocatorAffinity:
         )
 
         # Plan score = 1.0 (3 tickets >= threshold 3)
-        # Anti score = 1.0 (não é crítico)
+        # Anti score = 0.5 (não é crítico - neutro)
         # Intent score = 0.5 (neutro)
-        # Score = 0.6*1.0 + 0.3*1.0 + 0.1*0.5 = 0.95
-        assert score > 0.9
-        mock_metrics.record_affinity_hit.assert_any_call('plan')
+        # Score = 0.6*1.0 + 0.3*0.5 + 0.1*0.5 = 0.8
+        assert score >= 0.75
+        # NOTA: Métricas são registradas em select_best_worker, não em _calculate_affinity_score
 
     def test_calculate_affinity_score_plan_miss(self, resource_allocator, mock_metrics):
         """Score neutro quando worker não tem tickets do plan."""
@@ -280,11 +280,11 @@ class TestResourceAllocatorAffinity:
         )
 
         # Plan score = 0.5 (neutro - worker-002 não tem tickets)
-        # Anti score = 1.0 (não é crítico)
+        # Anti score = 0.5 (não é crítico - neutro)
         # Intent score = 0.5 (neutro)
-        # Score = 0.6*0.5 + 0.3*1.0 + 0.1*0.5 = 0.65
-        assert 0.6 <= score <= 0.75
-        mock_metrics.record_affinity_miss.assert_any_call('plan')
+        # Score = 0.6*0.5 + 0.3*0.5 + 0.1*0.5 = 0.5
+        assert 0.45 <= score <= 0.55
+        # NOTA: Métricas são registradas em select_best_worker, não em _calculate_affinity_score
 
     def test_calculate_affinity_score_anti_affinity_critical(self, resource_allocator, mock_metrics):
         """Score penalizado para worker com tickets críticos quando ticket é crítico."""
@@ -304,7 +304,7 @@ class TestResourceAllocatorAffinity:
         # Score = 0.6 * 0.833 + 0.3 * 0.0 + 0.1 * 0.5 = 0.55
         # Score é penalizado mas não bloqueado (anti_affinity é um fator, não veto)
         assert score < 0.7  # Menor que sem anti-affinity
-        mock_metrics.record_anti_affinity_enforced.assert_called()
+        # NOTA: Métricas são registradas em select_best_worker, não em _calculate_affinity_score
 
     def test_calculate_affinity_score_anti_affinity_no_criticals(self, resource_allocator, mock_metrics):
         """Score alto para worker sem tickets críticos quando ticket é crítico."""
@@ -334,8 +334,13 @@ class TestResourceAllocatorAffinity:
             agent, ticket, plan_allocations, intent_allocations, critical_tickets
         )
 
-        # Intent score contribui positivamente
-        mock_metrics.record_affinity_hit.assert_any_call('intent')
+        # Plan score = 0.5 (neutro)
+        # Anti score = 0.5 (não é crítico - neutro)
+        # Intent score = 0.5 + 0.5 * (2/3) = 0.833
+        # Score = 0.6*0.5 + 0.3*0.5 + 0.1*0.833 = 0.533
+        # Intent score contribui positivamente comparado a score totalmente neutro (0.5)
+        assert score > 0.5
+        # NOTA: Métricas são registradas em select_best_worker, não em _calculate_affinity_score
 
     @pytest.mark.asyncio
     async def test_select_best_worker_with_affinity_enabled(
