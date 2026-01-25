@@ -373,9 +373,8 @@ class TestExporterMetrics:
     """Testes para métricas do exporter."""
 
     @patch('neural_hive_observability.exporters.OTLPSpanExporter')
-    @patch('neural_hive_observability.exporters._export_failure_counter')
-    @patch('neural_hive_observability.exporters._export_duration_histogram')
-    def test_metrics_recorded_on_failure(self, mock_histogram, mock_counter, mock_otlp_class):
+    @patch('neural_hive_observability.exporters._get_neural_hive_metrics')
+    def test_metrics_recorded_on_failure(self, mock_get_metrics, mock_otlp_class):
         """Testa que métricas são registradas em caso de falha."""
         from opentelemetry.sdk.trace.export import SpanExportResult
 
@@ -383,12 +382,9 @@ class TestExporterMetrics:
         mock_inner.export.side_effect = TypeError("Error")
         mock_otlp_class.return_value = mock_inner
 
-        # Configurar mocks de métricas
-        mock_counter_labels = Mock()
-        mock_counter.labels.return_value = mock_counter_labels
-
-        mock_histogram_labels = Mock()
-        mock_histogram.labels.return_value = mock_histogram_labels
+        # Configurar mock de métricas
+        mock_metrics = Mock()
+        mock_get_metrics.return_value = mock_metrics
 
         exporter = ResilientOTLPSpanExporter(
             endpoint="http://localhost:4317",
@@ -396,12 +392,13 @@ class TestExporterMetrics:
         )
 
         mock_spans = [Mock()]
-        exporter.export(mock_spans)
+        result = exporter.export(mock_spans)
 
-        # Verificar que contador foi incrementado
-        if mock_counter is not None:
-            mock_counter.labels.assert_called()
-            mock_counter_labels.inc.assert_called()
+        # Verificar que export retornou FAILURE
+        assert result == SpanExportResult.FAILURE
+        
+        # Verificar que failure_count foi incrementado
+        assert exporter.failure_count == 1
 
 
 class TestTLSConfiguration:
@@ -425,15 +422,17 @@ class TestTLSConfiguration:
 
     @patch('neural_hive_observability.exporters.OTLPSpanExporter')
     def test_tls_enabled_without_certs_does_not_fallback_to_insecure(self, mock_otlp_class):
-        """Testa que TLS sem certificados NÃO faz fallback para insecure."""
+        """Testa que TLS sem certificado CA NÃO faz fallback para insecure."""
         mock_inner = Mock()
         mock_otlp_class.return_value = mock_inner
 
+        # When tls_ca_cert_path points to nonexistent file and insecure_skip_verify is False,
+        # the exporter should NOT be initialized
         exporter = ResilientOTLPSpanExporter(
             endpoint="http://localhost:4317",
             service_name="test-service",
             tls_enabled=True,
-            tls_cert_path="/nonexistent/cert.pem"
+            tls_ca_cert_path="/nonexistent/ca.crt"  # CA cert is required for TLS
         )
 
         # Exporter should NOT be initialized (no silent fallback to insecure)
@@ -509,10 +508,12 @@ class TestTLSConfiguration:
         mock_ssl_creds.assert_called_once()
 
     @patch('neural_hive_observability.exporters.OTLPSpanExporter')
-    def test_tls_status_logged(self, mock_otlp_class):
+    @patch('neural_hive_observability.exporters.grpc.ssl_channel_credentials')
+    def test_tls_status_logged(self, mock_ssl_creds, mock_otlp_class):
         """Testa que status TLS é logado corretamente."""
         mock_inner = Mock()
         mock_otlp_class.return_value = mock_inner
+        mock_ssl_creds.return_value = Mock()
 
         # Com TLS desabilitado
         exporter_insecure = ResilientOTLPSpanExporter(
@@ -523,13 +524,17 @@ class TestTLSConfiguration:
         assert exporter_insecure._tls_enabled is False
         assert exporter_insecure._inner_exporter is not None
 
-        # Com TLS habilitado sem certificados - exporter não deve ser inicializado
+        # Reset mocks for next test
+        mock_otlp_class.reset_mock()
+        
+        # Com TLS habilitado sem certificados CA - exporter não deve ser inicializado
         exporter_tls = ResilientOTLPSpanExporter(
             endpoint="http://localhost:4317",
-            service_name="test-service",
-            tls_enabled=True
+            service_name="test-service-2",
+            tls_enabled=True,
+            tls_ca_cert_path="/nonexistent/ca.crt"  # Nonexistent CA cert
         )
-        # Sem certificados válidos, exporter não é inicializado (não faz fallback silencioso)
+        # Sem certificado CA válido, exporter não é inicializado (não faz fallback silencioso)
         assert exporter_tls._tls_enabled is False
         assert exporter_tls._inner_exporter is None
 
