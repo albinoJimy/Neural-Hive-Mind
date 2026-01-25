@@ -73,6 +73,29 @@ Runbooks relacionados a infraestrutura e armazenamento.
 
 ---
 
+## Flow C - Orquestracao de Execucao Adaptativa
+
+Runbooks especificos para Flow C (Fase 2).
+
+| Runbook | Descricao |
+|---------|-----------|
+| [flow-c-operations.md](./flow-c-operations.md) | Operacoes diarias: start/stop/scale/restart |
+| [flow-c-troubleshooting.md](./flow-c-troubleshooting.md) | Diagnostico e resolucao de problemas |
+| [flow-c-disaster-recovery.md](./flow-c-disaster-recovery.md) | Procedimentos de disaster recovery |
+
+### Alertas Flow C
+
+| Alerta | Severidade | Runbook |
+|--------|------------|---------|
+| FlowCHighLatency | Warning | [flow-c-troubleshooting.md#1-flowchighlatency](./flow-c-troubleshooting.md#1-flowchighlatency-p95--3h) |
+| FlowCLowSuccessRate | Critical | [flow-c-troubleshooting.md#2-flowclowsuccessrate](./flow-c-troubleshooting.md#2-flowclowsuccessrate--99) |
+| FlowCNoTicketsGenerated | Critical | [flow-c-troubleshooting.md#3-flowcnoticketsgenerated](./flow-c-troubleshooting.md#3-flowcnoticketsgenerated) |
+| FlowCWorkersUnavailable | Critical | [flow-c-troubleshooting.md#4-flowcworkersunavailable](./flow-c-troubleshooting.md#4-flowcworkersunavailable) |
+| FlowCSLAViolations | Critical | [flow-c-troubleshooting.md#5-flowcslaviolations](./flow-c-troubleshooting.md#5-flowcslaviolations) |
+| FlowCTelemetryBufferFull | Warning | [flow-c-troubleshooting.md#6-flowctelemetrybufferfull](./flow-c-troubleshooting.md#6-flowctelemetrybufferfull) |
+
+---
+
 ## Phase 2 Operations
 
 Runbooks gerais para operacoes da Fase 2.
