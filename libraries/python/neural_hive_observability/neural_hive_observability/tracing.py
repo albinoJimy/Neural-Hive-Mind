@@ -18,7 +18,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.propagate import inject, extract
 from opentelemetry.trace import Status, StatusCode, Span
-from opentelemetry.baggage import get_baggage, set_baggage
+from opentelemetry.baggage import get_all as get_all_baggage, set_baggage
 from opentelemetry.context import attach, detach
 
 from .config import ObservabilityConfig
@@ -441,7 +441,7 @@ def get_correlation_context() -> Dict[str, Any]:
     context = {}
 
     # Extrair de baggage
-    baggage_items = get_baggage() or {}
+    baggage_items = get_all_baggage() or {}
     for key, value in baggage_items.items():
         if key.startswith("neural.hive."):
             context_key = key.replace("neural.hive.", "").replace(".", "_")

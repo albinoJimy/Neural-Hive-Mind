@@ -12,7 +12,7 @@ import threading
 
 from opentelemetry import trace, baggage, context
 from opentelemetry.propagate import inject, extract
-from opentelemetry.baggage import set_baggage, get_baggage
+from opentelemetry.baggage import set_baggage, get_all as get_all_baggage
 from opentelemetry.context import attach, detach
 
 from .config import ObservabilityConfig
@@ -131,7 +131,7 @@ class ContextManager:
         correlation = {}
 
         # Extrair de baggage
-        current_baggage = get_baggage()
+        current_baggage = get_all_baggage()
         if current_baggage:
             for key, value in current_baggage.items():
                 if key.startswith("neural.hive."):
@@ -296,27 +296,27 @@ class ContextManager:
 
     def get_intent_id(self) -> Optional[str]:
         """Retorna intent_id do contexto atual."""
-        baggage_data = get_baggage()
+        baggage_data = get_all_baggage()
         return baggage_data.get("neural.hive.intent.id") if baggage_data else None
 
     def get_plan_id(self) -> Optional[str]:
         """Retorna plan_id do contexto atual."""
-        baggage_data = get_baggage()
+        baggage_data = get_all_baggage()
         return baggage_data.get("neural.hive.plan.id") if baggage_data else None
 
     def get_user_id(self) -> Optional[str]:
         """Retorna user_id do contexto atual."""
-        baggage_data = get_baggage()
+        baggage_data = get_all_baggage()
         return baggage_data.get("neural.hive.user.id") if baggage_data else None
 
     def get_domain(self) -> Optional[str]:
         """Retorna domain do contexto atual."""
-        baggage_data = get_baggage()
+        baggage_data = get_all_baggage()
         return baggage_data.get("neural.hive.domain") if baggage_data else None
 
     def get_channel(self) -> Optional[str]:
         """Retorna channel do contexto atual."""
-        baggage_data = get_baggage()
+        baggage_data = get_all_baggage()
         return baggage_data.get("neural.hive.channel") if baggage_data else None
 
 
@@ -489,7 +489,7 @@ def inject_context_to_metadata(
         result.append((key, value))
 
     # Adicionar contexto Neural Hive do baggage atual
-    current_baggage = get_baggage()
+    current_baggage = get_all_baggage()
     if current_baggage:
         header_mapping = {
             "neural.hive.intent.id": "x-neural-hive-intent-id",

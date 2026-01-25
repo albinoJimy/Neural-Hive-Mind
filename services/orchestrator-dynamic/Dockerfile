@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM neural-hive-mind/python-observability-base:1.0.7 AS builder
+FROM neural-hive-mind/python-observability-base:1.2.3 AS builder
 
 # Instalar dependências de build
 RUN apt-get update && apt-get install -y --no-install-recommends \

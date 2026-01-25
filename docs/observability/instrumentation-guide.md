@@ -541,7 +541,7 @@ def check_observability_status():
     status = {
         "tracing_enabled": is_tracing_enabled(),
         "tracer_info": get_tracer_info(),
-        "baggage_keys": list(get_baggage().keys()),
+        "baggage_keys": list(get_all_baggage().keys()),  # Use get_all from opentelemetry.baggage
         "current_span_id": get_current_span().get_span_context().span_id
     }
 
