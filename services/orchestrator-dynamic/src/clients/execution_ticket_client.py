@@ -2,6 +2,7 @@
 Execution Ticket Service client com suporte a autenticação JWT-SVID via SPIFFE.
 """
 
+import asyncio
 import sys
 from typing import Optional, Dict, List, Any, TYPE_CHECKING
 
@@ -27,6 +28,9 @@ from neural_hive_integration.proto_stubs import ticket_service_pb2, ticket_servi
 
 logger = structlog.get_logger(__name__)
 
+# Default timeout for gRPC channel initialization (seconds)
+DEFAULT_CHANNEL_READY_TIMEOUT = 5
+
 
 class ExecutionTicketDict(TypedDict, total=False):
     ticket_id: str
@@ -43,6 +47,11 @@ class ExecutionTicketDict(TypedDict, total=False):
 class ExecutionTicketClient:
     """
     Cliente gRPC para o Execution Ticket Service com autenticação JWT-SVID opcional.
+
+    O cliente é resiliente a falhas de conexão durante a inicialização,
+    permitindo que o serviço inicie mesmo quando o Execution Ticket Service
+    não está disponível. As operações falharão graciosamente se o cliente
+    não estiver disponível.
     """
 
     def __init__(
@@ -60,11 +69,25 @@ class ExecutionTicketClient:
         self.logger = logger.bind(component='execution_ticket_client')
         self.channel: Optional[grpc.aio.Channel] = None
         self.stub = None
-        self.target = f"{getattr(config, 'execution_ticket_service_host', 'execution-ticket-service.neural-hive-execution.svc.cluster.local')}:{getattr(config, 'execution_ticket_service_port', 50052)}"
+        self.target = f"{getattr(config, 'execution_ticket_service_host', 'execution-ticket-service.neural-hive.svc.cluster.local')}:{getattr(config, 'execution_ticket_service_port', 50052)}"
         self.timeout_seconds = getattr(config, 'execution_ticket_timeout_seconds', 5)
+        self.channel_ready_timeout = getattr(config, 'execution_ticket_channel_ready_timeout', DEFAULT_CHANNEL_READY_TIMEOUT)
+        self._available = False
+
+    @property
+    def is_available(self) -> bool:
+        """Retorna True se o cliente está disponível para operações."""
+        return self._available and self.stub is not None
 
     async def initialize(self):
-        """Inicializa canal gRPC e stub."""
+        """
+        Inicializa canal gRPC e stub.
+
+        Este método não bloqueia indefinidamente - usa timeout para verificar
+        se o serviço está disponível. Se o serviço não estiver disponível,
+        o cliente é marcado como indisponível mas não impede a inicialização
+        do orchestrator.
+        """
         try:
             self.logger.info('initializing_execution_ticket_client', target=self.target)
             self.channel = instrument_grpc_channel(
@@ -73,11 +96,39 @@ class ExecutionTicketClient:
                 target_service="execution-ticket-service"
             )
             self.stub = ticket_service_pb2_grpc.TicketServiceStub(self.channel)
-            await self.channel.channel_ready()
-            self.logger.info('execution_ticket_grpc_channel_ready', target=self.target)
+
+            # Aguarda o canal ficar pronto com timeout
+            try:
+                await asyncio.wait_for(
+                    self.channel.channel_ready(),
+                    timeout=self.channel_ready_timeout
+                )
+                self._available = True
+                self.logger.info('execution_ticket_grpc_channel_ready', target=self.target)
+            except asyncio.TimeoutError:
+                self._available = False
+                self.logger.warning(
+                    'execution_ticket_client_channel_timeout',
+                    target=self.target,
+                    timeout=self.channel_ready_timeout,
+                    message='Execution Ticket Service não disponível, operando em modo degradado'
+                )
+            except grpc.aio.AioRpcError as e:
+                self._available = False
+                self.logger.warning(
+                    'execution_ticket_client_channel_error',
+                    target=self.target,
+                    error=str(e),
+                    message='Falha ao conectar ao Execution Ticket Service, operando em modo degradado'
+                )
+
         except Exception as e:
-            self.logger.error('execution_ticket_client_init_failed', error=str(e))
-            raise
+            self._available = False
+            self.logger.error(
+                'execution_ticket_client_init_failed',
+                error=str(e),
+                message='Falha na inicialização do cliente, operando em modo degradado'
+            )
 
     async def _build_metadata(self) -> Optional[List[tuple]]:
         """
@@ -113,11 +164,30 @@ class ExecutionTicketClient:
         metadata = inject_context_to_metadata(metadata or [])
         return metadata if metadata else None
 
+    def _check_availability(self, operation: str) -> bool:
+        """
+        Verifica se o cliente está disponível para operações.
+
+        Args:
+            operation: Nome da operação sendo executada (para logging)
+
+        Returns:
+            True se disponível, False caso contrário
+        """
+        if not self.is_available:
+            self.logger.warning(
+                'execution_ticket_client_unavailable',
+                operation=operation,
+                message='Operação ignorada - cliente não disponível'
+            )
+            return False
+        return True
+
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=0.5, max=2))
     async def get_ticket(self, ticket_id: str) -> Optional[ExecutionTicketDict]:
         """Busca ticket por ID."""
-        if not self.stub:
-            raise RuntimeError('ExecutionTicketClient not initialized')
+        if not self._check_availability('get_ticket'):
+            return None
 
         request = ticket_service_pb2.GetTicketRequest(ticket_id=ticket_id)
         metadata = await self._build_metadata()
@@ -140,8 +210,8 @@ class ExecutionTicketClient:
         limit: int = 100
     ) -> Dict[str, Any]:
         """Lista tickets com filtros opcionais."""
-        if not self.stub:
-            raise RuntimeError('ExecutionTicketClient not initialized')
+        if not self._check_availability('list_tickets'):
+            return {'tickets': [], 'total': 0}
 
         request = ticket_service_pb2.ListTicketsRequest(
             plan_id=plan_id or '',
@@ -166,8 +236,8 @@ class ExecutionTicketClient:
         error_message: Optional[str] = None
     ) -> Optional[ExecutionTicketDict]:
         """Atualiza status do ticket."""
-        if not self.stub:
-            raise RuntimeError('ExecutionTicketClient not initialized')
+        if not self._check_availability('update_status'):
+            return None
 
         request = ticket_service_pb2.UpdateTicketStatusRequest(
             ticket_id=ticket_id,
@@ -186,10 +256,10 @@ class ExecutionTicketClient:
         return None
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=0.5, max=2))
-    async def generate_token(self, ticket_id: str) -> Dict[str, Any]:
+    async def generate_token(self, ticket_id: str) -> Optional[Dict[str, Any]]:
         """Gera token JWT para ticket."""
-        if not self.stub:
-            raise RuntimeError('ExecutionTicketClient not initialized')
+        if not self._check_availability('generate_token'):
+            return None
 
         request = ticket_service_pb2.GenerateTokenRequest(ticket_id=ticket_id)
         metadata = await self._build_metadata()

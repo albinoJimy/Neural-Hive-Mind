@@ -200,8 +200,7 @@ class FlowCConsumer:
 
         # Initialize producer for incidents
         self.producer = instrument_kafka_producer(
-            AIOKafkaProducer(**producer_config),
-            service_name="orchestrator-dynamic-flowc"
+            AIOKafkaProducer(**producer_config)
         )
         await self.producer.start()
 

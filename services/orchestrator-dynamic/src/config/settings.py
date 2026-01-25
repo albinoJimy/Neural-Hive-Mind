@@ -126,7 +126,7 @@ class OrchestratorSettings(BaseSettings):
 
     # Service Registry
     service_registry_host: str = Field(
-        default='service-registry.neural-hive-execution.svc.cluster.local',
+        default='service-registry.neural-hive.svc.cluster.local',
         description='Host do Service Registry'
     )
     service_registry_port: int = Field(default=50051, description='Porta gRPC do Service Registry')
