@@ -295,8 +295,14 @@ class TestTracing:
 
     def test_trace_intent_decorator(self):
         """Testa decorator @trace_intent."""
-        # Mock do tracer
-        with patch('neural_hive_observability.tracing._tracer') as mock_tracer:
+        # Mock do tracer e config
+        mock_config = Mock()
+        mock_config.neural_hive_component = "test-component"
+        mock_config.neural_hive_layer = "test-layer"
+        mock_config.neural_hive_domain = None
+
+        with patch('neural_hive_observability.tracing._tracer') as mock_tracer, \
+             patch('neural_hive_observability.tracing._config', mock_config):
             mock_span = Mock()
             mock_tracer.start_as_current_span.return_value.__enter__.return_value = mock_span
 
@@ -311,7 +317,14 @@ class TestTracing:
 
     def test_trace_plan_decorator(self):
         """Testa decorator @trace_plan."""
-        with patch('neural_hive_observability.tracing._tracer') as mock_tracer:
+        # Mock do tracer e config
+        mock_config = Mock()
+        mock_config.neural_hive_component = "test-component"
+        mock_config.neural_hive_layer = "test-layer"
+        mock_config.neural_hive_domain = None
+
+        with patch('neural_hive_observability.tracing._tracer') as mock_tracer, \
+             patch('neural_hive_observability.tracing._config', mock_config):
             mock_span = Mock()
             mock_tracer.start_as_current_span.return_value.__enter__.return_value = mock_span
 

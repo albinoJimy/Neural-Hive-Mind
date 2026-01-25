@@ -170,6 +170,8 @@ def trace_intent(
     """
     Decorator para tracing automático de operações com intent_id.
 
+    Suporta funções síncronas e assíncronas.
+
     Args:
         operation_name: Nome da operação (padrão: nome da função)
         extract_intent_id_from: Nome do parâmetro que contém intent_id
@@ -178,65 +180,74 @@ def trace_intent(
         include_result: Incluir resultado no span
     """
     def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            if not _tracer:
-                return func(*args, **kwargs)
+        is_async = inspect.iscoroutinefunction(func)
 
-            # Determinar nome da operação
-            op_name = operation_name or f"{_config.neural_hive_component}.{func.__name__}"
-
-            # Extrair IDs dos parâmetros
+        def _extract_ids(args, kwargs):
+            """Extrai intent_id e plan_id dos argumentos."""
             intent_id = None
             plan_id = None
 
-            # Usar inspect para mapear args para parâmetros
-            sig = inspect.signature(func)
-            bound_args = sig.bind(*args, **kwargs)
-            bound_args.apply_defaults()
+            try:
+                sig = inspect.signature(func)
+                bound_args = sig.bind(*args, **kwargs)
+                bound_args.apply_defaults()
 
-            if extract_intent_id_from and extract_intent_id_from in bound_args.arguments:
-                intent_id = bound_args.arguments[extract_intent_id_from]
+                if extract_intent_id_from and extract_intent_id_from in bound_args.arguments:
+                    intent_id = bound_args.arguments[extract_intent_id_from]
 
-            if extract_plan_id_from and extract_plan_id_from in bound_args.arguments:
-                plan_id = bound_args.arguments[extract_plan_id_from]
+                if extract_plan_id_from and extract_plan_id_from in bound_args.arguments:
+                    plan_id = bound_args.arguments[extract_plan_id_from]
+            except Exception:
+                pass
 
-            # Tentar extrair de kwargs comuns
             if not intent_id:
                 intent_id = kwargs.get("intent_id") or kwargs.get("intention_id")
 
             if not plan_id:
                 plan_id = kwargs.get("plan_id")
 
+            return intent_id, plan_id
+
+        def _enrich_span(span, intent_id, plan_id, args, kwargs):
+            """Enriquece span com metadados."""
+            span.set_attribute("neural.hive.component", _config.neural_hive_component)
+            span.set_attribute("neural.hive.layer", _config.neural_hive_layer)
+            span.set_attribute("neural.hive.operation", func.__name__)
+
+            if intent_id:
+                span.set_attribute("neural.hive.intent.id", intent_id)
+                set_baggage("neural.hive.intent.id", intent_id)
+
+            if plan_id:
+                span.set_attribute("neural.hive.plan.id", plan_id)
+                set_baggage("neural.hive.plan.id", plan_id)
+
+            if _config.neural_hive_domain:
+                span.set_attribute("neural.hive.domain", _config.neural_hive_domain)
+
+            if include_args:
+                try:
+                    sig = inspect.signature(func)
+                    bound_args = sig.bind(*args, **kwargs)
+                    for param_name, value in bound_args.arguments.items():
+                        if not _is_sensitive_param(param_name):
+                            span.set_attribute(f"args.{param_name}", str(value)[:100])
+                except Exception:
+                    pass
+
+        @functools.wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            if not _tracer:
+                return await func(*args, **kwargs)
+
+            op_name = operation_name or f"{_config.neural_hive_component}.{func.__name__}"
+            intent_id, plan_id = _extract_ids(args, kwargs)
+
             with _tracer.start_as_current_span(op_name) as span:
                 try:
-                    # Enricher span com metadados
-                    span.set_attribute("neural.hive.component", _config.neural_hive_component)
-                    span.set_attribute("neural.hive.layer", _config.neural_hive_layer)
-                    span.set_attribute("neural.hive.operation", func.__name__)
+                    _enrich_span(span, intent_id, plan_id, args, kwargs)
+                    result = await func(*args, **kwargs)
 
-                    if intent_id:
-                        span.set_attribute("neural.hive.intent.id", intent_id)
-                        set_baggage("neural.hive.intent.id", intent_id)
-
-                    if plan_id:
-                        span.set_attribute("neural.hive.plan.id", plan_id)
-                        set_baggage("neural.hive.plan.id", plan_id)
-
-                    if _config.neural_hive_domain:
-                        span.set_attribute("neural.hive.domain", _config.neural_hive_domain)
-
-                    # Incluir argumentos se solicitado
-                    if include_args:
-                        for param_name, value in bound_args.arguments.items():
-                            # Evitar logar dados sensíveis
-                            if not _is_sensitive_param(param_name):
-                                span.set_attribute(f"args.{param_name}", str(value)[:100])
-
-                    # Executar função
-                    result = func(*args, **kwargs)
-
-                    # Incluir resultado se solicitado
                     if include_result and result is not None:
                         if hasattr(result, "__dict__"):
                             span.set_attribute("result.type", type(result).__name__)
@@ -251,7 +262,34 @@ def trace_intent(
                     span.record_exception(e)
                     raise
 
-        return wrapper
+        @functools.wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            if not _tracer:
+                return func(*args, **kwargs)
+
+            op_name = operation_name or f"{_config.neural_hive_component}.{func.__name__}"
+            intent_id, plan_id = _extract_ids(args, kwargs)
+
+            with _tracer.start_as_current_span(op_name) as span:
+                try:
+                    _enrich_span(span, intent_id, plan_id, args, kwargs)
+                    result = func(*args, **kwargs)
+
+                    if include_result and result is not None:
+                        if hasattr(result, "__dict__"):
+                            span.set_attribute("result.type", type(result).__name__)
+                        else:
+                            span.set_attribute("result", str(result)[:100])
+
+                    span.set_status(Status(StatusCode.OK))
+                    return result
+
+                except Exception as e:
+                    span.set_status(Status(StatusCode.ERROR, str(e)))
+                    span.record_exception(e)
+                    raise
+
+        return async_wrapper if is_async else sync_wrapper
     return decorator
 
 def trace_plan(

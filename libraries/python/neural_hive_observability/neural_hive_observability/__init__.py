@@ -25,7 +25,7 @@ init_observability(
 )
 
 # Usar decorador para tracing automático
-@trace_intent
+@trace_intent(extract_intent_id_from="intent_id")
 def process_intention(intent_id: str, user_input: str):
     metrics.intencoes_processadas.inc()
     return {"status": "processed", "intent_id": intent_id}
