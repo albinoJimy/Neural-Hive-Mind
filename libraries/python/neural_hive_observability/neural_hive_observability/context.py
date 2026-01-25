@@ -55,12 +55,12 @@ def extract_context_from_headers(headers: Dict[str, str]):
 class ContextManager:
     """Gerenciador de contexto distribuído."""
 
-    def __init__(self, config: ObservabilityConfig):
+    def __init__(self, config: Optional[ObservabilityConfig] = None):
         """
         Inicializa context manager.
 
         Args:
-            config: Configuração de observabilidade
+            config: Configuração de observabilidade (opcional)
         """
         self.config = config
         self._local = threading.local()
@@ -175,9 +175,10 @@ class ContextManager:
         if "channel" in correlation:
             new_headers["X-Neural-Hive-Channel"] = correlation["channel"]
 
-        # Adicionar identificação do serviço
-        new_headers["X-Neural-Hive-Source"] = self.config.service_name
-        new_headers["X-Neural-Hive-Component"] = self.config.neural_hive_component
+        # Adicionar identificação do serviço (se config disponível)
+        if self.config:
+            new_headers["X-Neural-Hive-Source"] = self.config.service_name
+            new_headers["X-Neural-Hive-Component"] = self.config.neural_hive_component
 
         return new_headers
 
