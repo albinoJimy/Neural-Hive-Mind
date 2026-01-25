@@ -1,5 +1,5 @@
 # Gateway de Intenções - Neural Hive-Mind
-FROM neural-hive-mind/python-observability-base:1.0.7
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.4
 
 # Definir versão e metadados
 ARG VERSION=1.0.0

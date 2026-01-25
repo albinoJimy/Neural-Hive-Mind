@@ -1,5 +1,5 @@
 # Stage 1 - Builder
-FROM neural-hive-mind/python-observability-base:1.2.3 AS builder
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.4 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -31,7 +31,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY services/guard-agents/src/ ./src/
 
 # Stage 2 - Runtime
-FROM neural-hive-mind/python-observability-base:1.2.3
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.4
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \

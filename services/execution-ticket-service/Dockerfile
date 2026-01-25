@@ -1,5 +1,5 @@
 # Single stage build using observability base
-FROM neural-hive-mind/python-observability-base:1.0.7
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.4
 
 WORKDIR /app
 

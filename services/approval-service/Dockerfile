@@ -12,9 +12,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy local libraries
+COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
+COPY libraries/python/neural_hive_specialists /tmp/neural_hive_specialists
+
 # Copy requirements and install dependencies
 COPY services/approval-service/requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt && \
+RUN pip install --no-cache-dir --user /tmp/neural_hive_domain && \
+    pip install --no-cache-dir --user /tmp/neural_hive_specialists && \
+    pip install --no-cache-dir --user -r requirements.txt && \
     python -m uvicorn --version && \
     echo "✓ uvicorn runtime verification passed"
 

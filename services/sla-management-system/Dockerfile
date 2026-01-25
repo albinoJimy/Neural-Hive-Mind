@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM 37.60.241.150:30500/python-observability-base:1.2.2 AS builder
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.4 AS builder
 
 WORKDIR /app
 
