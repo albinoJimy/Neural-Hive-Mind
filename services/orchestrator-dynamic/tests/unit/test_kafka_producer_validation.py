@@ -87,22 +87,25 @@ def test_kafka_producer_init_with_missing_tickets_topic():
         KafkaProducerClient(config)
 
 
-def test_kafka_producer_init_with_missing_schema_registry_url():
-    """Valida que ValueError é lançado se kafka_schema_registry_url estiver ausente."""
+def test_kafka_producer_init_without_schema_registry_url_succeeds():
+    """Valida que inicialização funciona sem kafka_schema_registry_url (modo JSON-only)."""
     from src.clients.kafka_producer import KafkaProducerClient
 
     config = types.SimpleNamespace(
         service_name='test-service',
         kafka_bootstrap_servers='localhost:9092',
         kafka_tickets_topic='tickets',
-        kafka_schema_registry_url=None,  # Ausente
+        kafka_schema_registry_url=None,  # Ausente - modo JSON fallback
         kafka_sasl_username=None,
         kafka_sasl_password=None,
         KAFKA_CIRCUIT_BREAKER_ENABLED=False
     )
 
-    with pytest.raises(ValueError, match='kafka_schema_registry_url'):
-        KafkaProducerClient(config)
+    with patch('src.clients.kafka_producer.logger'):
+        client = KafkaProducerClient(config)
+
+    assert client.config == config
+    # Não deve lançar exceção - kafka_schema_registry_url é opcional
 
 
 def test_kafka_producer_init_with_multiple_missing_attrs():
@@ -195,6 +198,67 @@ def test_kafka_producer_init_logs_configuration():
         call_args = mock_logger.info.call_args
         assert call_args[0][0] == 'kafka_producer_config_validated'
         assert call_args[1]['service_name'] == 'test-service'
+
+
+# ======================================================
+# Testes de Modo JSON-Only (sem Schema Registry)
+# ======================================================
+
+@pytest.mark.asyncio
+async def test_kafka_producer_initialize_json_only_mode():
+    """Valida que initialize() funciona em modo JSON-only sem schema registry."""
+    from src.clients.kafka_producer import KafkaProducerClient
+
+    config = types.SimpleNamespace(
+        service_name='test-service',
+        kafka_bootstrap_servers='localhost:9092',
+        kafka_tickets_topic='tickets',
+        kafka_schema_registry_url=None,  # Sem schema registry
+        kafka_sasl_username=None,
+        kafka_sasl_password=None,
+        kafka_security_protocol='PLAINTEXT',
+        schemas_base_path='/schemas',
+        KAFKA_CIRCUIT_BREAKER_ENABLED=False
+    )
+
+    with patch('src.clients.kafka_producer.logger'):
+        client = KafkaProducerClient(config)
+
+    with patch('src.clients.kafka_producer.Producer'):
+        with patch('src.clients.kafka_producer.instrument_kafka_producer', side_effect=lambda x: x):
+            with patch('src.clients.kafka_producer.logger') as mock_logger:
+                await client.initialize()
+
+                # Não deve lançar exceção
+                assert client.producer is not None
+                # Schema registry e Avro devem estar None
+                assert client.schema_registry_client is None
+                assert client.avro_serializer is None
+
+
+@pytest.mark.asyncio
+async def test_kafka_producer_json_only_logs_fallback():
+    """Valida que modo JSON-only loga corretamente o fallback."""
+    from src.clients.kafka_producer import KafkaProducerClient
+
+    config = types.SimpleNamespace(
+        service_name='test-service',
+        kafka_bootstrap_servers='localhost:9092',
+        kafka_tickets_topic='tickets',
+        kafka_schema_registry_url=None,  # Sem schema registry
+        kafka_sasl_username=None,
+        kafka_sasl_password=None,
+        kafka_security_protocol='PLAINTEXT',
+        schemas_base_path='/schemas',
+        KAFKA_CIRCUIT_BREAKER_ENABLED=False
+    )
+
+    with patch('src.clients.kafka_producer.logger') as mock_logger:
+        client = KafkaProducerClient(config)
+
+        # Deve logar que schema_registry_url não está configurado
+        call_args = mock_logger.info.call_args
+        assert 'NOT_CONFIGURED' in str(call_args) or 'JSON fallback' in str(call_args)
 
 
 # ======================================================

@@ -28,7 +28,10 @@ class KafkaProducerClient:
         - service_name: Nome do serviço para métricas e circuit breaker
         - kafka_bootstrap_servers: Endereço dos brokers Kafka
         - kafka_tickets_topic: Tópico para publicação de tickets
-        - kafka_schema_registry_url: URL do Schema Registry para Avro
+
+    Atributos Opcionais:
+        - kafka_schema_registry_url: URL do Schema Registry para Avro (opcional)
+          Se não configurado, o producer opera em modo JSON-only (fallback)
 
     Validação:
         O construtor valida a presença de todos os atributos obrigatórios
@@ -37,7 +40,7 @@ class KafkaProducerClient:
     Resiliência:
         - Circuit breaker é opcional e pode ser desabilitado via config
         - Se inicialização do circuit breaker falhar, opera em modo fail-open
-        - Schema Registry usa fallback para JSON se indisponível
+        - Schema Registry usa fallback para JSON se indisponível ou não configurado
     """
 
     def __init__(self, config, sasl_username_override=None, sasl_password_override=None):
@@ -58,24 +61,26 @@ class KafkaProducerClient:
                 "config não pode ser None. Forneça uma instância válida de OrchestratorSettings."
             )
 
-        # Validação: atributos obrigatórios
+        # Validação: atributos obrigatórios (kafka_schema_registry_url é opcional - fallback JSON)
         required_attrs = {
             'service_name': getattr(config, 'service_name', None),
             'kafka_bootstrap_servers': getattr(config, 'kafka_bootstrap_servers', None),
             'kafka_tickets_topic': getattr(config, 'kafka_tickets_topic', None),
-            'kafka_schema_registry_url': getattr(config, 'kafka_schema_registry_url', None),
         }
 
         missing = [attr for attr, value in required_attrs.items() if not value]
         if missing:
             raise ValueError(f"Atributos obrigatórios ausentes em config: {', '.join(missing)}")
 
+        # kafka_schema_registry_url é opcional (permite fallback JSON)
+        schema_registry_url = getattr(config, 'kafka_schema_registry_url', None)
+
         logger.info(
             'kafka_producer_config_validated',
             service_name=required_attrs['service_name'],
             bootstrap_servers=required_attrs['kafka_bootstrap_servers'],
             topic=required_attrs['kafka_tickets_topic'],
-            schema_registry_url=required_attrs['kafka_schema_registry_url'],
+            schema_registry_url=schema_registry_url or 'NOT_CONFIGURED (JSON fallback)',
         )
 
         self.config = config
@@ -99,7 +104,8 @@ class KafkaProducerClient:
             )
 
         # Validar atributos críticos que serão usados neste método
-        critical_attrs = ['kafka_bootstrap_servers', 'kafka_tickets_topic', 'kafka_schema_registry_url']
+        # Nota: kafka_schema_registry_url é opcional (permite fallback JSON)
+        critical_attrs = ['kafka_bootstrap_servers', 'kafka_tickets_topic']
         for attr in critical_attrs:
             if not getattr(self.config, attr, None):
                 raise RuntimeError(
@@ -107,12 +113,14 @@ class KafkaProducerClient:
                     f"Verifique a configuração do serviço."
                 )
 
+        schema_registry_url = getattr(self.config, 'kafka_schema_registry_url', None)
+
         logger.info(
             'kafka_producer_initialization_started',
             service_name=getattr(self.config, 'service_name', 'UNKNOWN'),
             bootstrap_servers=self.config.kafka_bootstrap_servers,
             topic=self.config.kafka_tickets_topic,
-            schema_registry_url=self.config.kafka_schema_registry_url,
+            schema_registry_url=schema_registry_url or 'NOT_CONFIGURED (JSON fallback)',
             circuit_breaker_enabled=self.circuit_breaker_enabled,
             sasl_username_provided=bool(self.sasl_username),
             sasl_password_provided=bool(self.sasl_password),
