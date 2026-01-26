@@ -19,7 +19,26 @@ logger = structlog.get_logger()
 
 
 class KafkaProducerClient:
-    """Producer Kafka para publicação de tickets no tópico execution.tickets."""
+    """
+    Producer Kafka para publicação de tickets no tópico execution.tickets.
+
+    Requisitos de Configuração:
+        O parâmetro config deve ser uma instância válida de OrchestratorSettings
+        contendo os seguintes atributos obrigatórios:
+        - service_name: Nome do serviço para métricas e circuit breaker
+        - kafka_bootstrap_servers: Endereço dos brokers Kafka
+        - kafka_tickets_topic: Tópico para publicação de tickets
+        - kafka_schema_registry_url: URL do Schema Registry para Avro
+
+    Validação:
+        O construtor valida a presença de todos os atributos obrigatórios
+        e lança ValueError se algum estiver ausente ou None.
+
+    Resiliência:
+        - Circuit breaker é opcional e pode ser desabilitado via config
+        - Se inicialização do circuit breaker falhar, opera em modo fail-open
+        - Schema Registry usa fallback para JSON se indisponível
+    """
 
     def __init__(self, config, sasl_username_override=None, sasl_password_override=None):
         """
@@ -29,7 +48,36 @@ class KafkaProducerClient:
             config: Configurações da aplicação
             sasl_username_override: Username SASL override (ex: de Vault)
             sasl_password_override: Password SASL override (ex: de Vault)
+
+        Raises:
+            ValueError: Se config for None ou estiver faltando atributos obrigatórios
         """
+        # Validação: config não pode ser None
+        if config is None:
+            raise ValueError(
+                "config não pode ser None. Forneça uma instância válida de OrchestratorSettings."
+            )
+
+        # Validação: atributos obrigatórios
+        required_attrs = {
+            'service_name': getattr(config, 'service_name', None),
+            'kafka_bootstrap_servers': getattr(config, 'kafka_bootstrap_servers', None),
+            'kafka_tickets_topic': getattr(config, 'kafka_tickets_topic', None),
+            'kafka_schema_registry_url': getattr(config, 'kafka_schema_registry_url', None),
+        }
+
+        missing = [attr for attr, value in required_attrs.items() if not value]
+        if missing:
+            raise ValueError(f"Atributos obrigatórios ausentes em config: {', '.join(missing)}")
+
+        logger.info(
+            'kafka_producer_config_validated',
+            service_name=required_attrs['service_name'],
+            bootstrap_servers=required_attrs['kafka_bootstrap_servers'],
+            topic=required_attrs['kafka_tickets_topic'],
+            schema_registry_url=required_attrs['kafka_schema_registry_url'],
+        )
+
         self.config = config
         self.producer: Optional[Producer] = None
         self.schema_registry_client: Optional[SchemaRegistryClient] = None
@@ -43,10 +91,31 @@ class KafkaProducerClient:
 
     async def initialize(self):
         """Inicializa o producer Kafka."""
+        # Re-validação defensiva (defesa em profundidade)
+        if self.config is None:
+            raise RuntimeError(
+                "self.config é None durante initialize(). "
+                "Isso indica que o objeto foi modificado incorretamente após a construção."
+            )
+
+        # Validar atributos críticos que serão usados neste método
+        critical_attrs = ['kafka_bootstrap_servers', 'kafka_tickets_topic', 'kafka_schema_registry_url']
+        for attr in critical_attrs:
+            if not getattr(self.config, attr, None):
+                raise RuntimeError(
+                    f"Atributo crítico '{attr}' não disponível em self.config durante initialize(). "
+                    f"Verifique a configuração do serviço."
+                )
+
         logger.info(
-            'Inicializando Kafka producer',
+            'kafka_producer_initialization_started',
+            service_name=getattr(self.config, 'service_name', 'UNKNOWN'),
+            bootstrap_servers=self.config.kafka_bootstrap_servers,
             topic=self.config.kafka_tickets_topic,
-            bootstrap_servers=self.config.kafka_bootstrap_servers
+            schema_registry_url=self.config.kafka_schema_registry_url,
+            circuit_breaker_enabled=self.circuit_breaker_enabled,
+            sasl_username_provided=bool(self.sasl_username),
+            sasl_password_provided=bool(self.sasl_password),
         )
 
         producer_config = {
@@ -100,22 +169,41 @@ class KafkaProducerClient:
             self.avro_serializer = None
             self.incident_avro_serializer = None
 
-        # Inicializar circuit breaker para producer
+        # Inicializar circuit breaker para producer (com fallback seguro)
         if self.circuit_breaker_enabled:
-            self.producer_breaker = MonitoredCircuitBreaker(
-                service_name=self.config.service_name,
-                circuit_name='kafka_producer',
-                fail_max=getattr(self.config, 'KAFKA_CIRCUIT_BREAKER_FAIL_MAX', 5),
-                timeout_duration=getattr(self.config, 'KAFKA_CIRCUIT_BREAKER_TIMEOUT', 60),
-                recovery_timeout=getattr(self.config, 'KAFKA_CIRCUIT_BREAKER_RECOVERY_TIMEOUT', 30)
-            )
-            logger.info(
-                'Kafka producer circuit breaker habilitado',
-                fail_max=self.producer_breaker.fail_max,
-                timeout=self.producer_breaker.recovery_timeout
-            )
+            try:
+                service_name = getattr(self.config, 'service_name', None)
+                if not service_name:
+                    raise ValueError("service_name não disponível em config para circuit breaker")
 
-        logger.info('Kafka producer inicializado com sucesso')
+                self.producer_breaker = MonitoredCircuitBreaker(
+                    service_name=service_name,
+                    circuit_name='kafka_producer',
+                    fail_max=getattr(self.config, 'KAFKA_CIRCUIT_BREAKER_FAIL_MAX', 5),
+                    timeout_duration=getattr(self.config, 'KAFKA_CIRCUIT_BREAKER_TIMEOUT', 60),
+                    recovery_timeout=getattr(self.config, 'KAFKA_CIRCUIT_BREAKER_RECOVERY_TIMEOUT', 30)
+                )
+                logger.info(
+                    'kafka_producer_circuit_breaker_enabled',
+                    service_name=service_name,
+                    fail_max=self.producer_breaker.fail_max,
+                    timeout=self.producer_breaker.recovery_timeout,
+                )
+            except Exception as cb_error:
+                logger.warning(
+                    'kafka_producer_circuit_breaker_init_failed',
+                    error=str(cb_error),
+                    fallback='circuit_breaker_disabled',
+                )
+                self.producer_breaker = None
+                self.circuit_breaker_enabled = False
+
+        logger.info(
+            'kafka_producer_initialized',
+            avro_enabled=self.avro_serializer is not None,
+            circuit_breaker_enabled=self.circuit_breaker_enabled,
+            schema_registry_enabled=self.schema_registry_client is not None,
+        )
 
     async def publish_ticket(
         self,
