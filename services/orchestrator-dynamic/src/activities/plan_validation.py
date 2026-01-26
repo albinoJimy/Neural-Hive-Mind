@@ -155,7 +155,7 @@ async def audit_validation(plan_id: str, validation_result: Dict[str, Any]) -> N
 
     try:
         if not _mongodb_client:
-            activity.logger.warning('mongodb_client_not_initialized', plan_id=plan_id)
+            activity.logger.warning(f'mongodb_client_not_initialized plan_id={plan_id}')
             return
 
         try:

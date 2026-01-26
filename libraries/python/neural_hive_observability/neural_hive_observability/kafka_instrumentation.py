@@ -72,22 +72,28 @@ class InstrumentedKafkaProducer:
             if value:
                 span.set_attribute("messaging.message_payload_size_bytes", len(value))
 
-            if self._config.neural_hive_component:
-                span.set_attribute("neural.hive.component", self._config.neural_hive_component)
-            if self._config.neural_hive_layer:
-                span.set_attribute("neural.hive.layer", self._config.neural_hive_layer)
+            if self._config:
+                if self._config.neural_hive_component:
+                    span.set_attribute("neural.hive.component", self._config.neural_hive_component)
+                if self._config.neural_hive_layer:
+                    span.set_attribute("neural.hive.layer", self._config.neural_hive_layer)
 
             try:
-                self._producer.produce(
-                    topic=topic,
-                    value=value,
-                    key=key,
-                    headers=self._headers_dict_to_sequence(header_map),
-                    partition=partition,
-                    on_delivery=on_delivery,
-                    *args,
-                    **kwargs
-                )
+                # Build produce kwargs, only include partition if explicitly set
+                produce_kwargs = {
+                    'topic': topic,
+                    'value': value,
+                    'key': key,
+                    'headers': self._headers_dict_to_sequence(header_map),
+                    'on_delivery': on_delivery,
+                }
+                # Only add partition if it's a valid integer (not None)
+                if partition is not None:
+                    produce_kwargs['partition'] = partition
+                
+                # Merge any additional kwargs
+                produce_kwargs.update(kwargs)
+                self._producer.produce(*args, **produce_kwargs)
                 span.set_status(Status(StatusCode.OK))
             except Exception as exc:
                 span.record_exception(exc)

@@ -677,8 +677,6 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
     except Exception as e:
         # Erro na publicação - permite retry pelo Temporal
         activity.logger.error(
-            f'Erro ao publicar ticket {ticket_id}: {e}',
-            plan_id=ticket.get('plan_id'),
-            exc_info=True
+            f'Erro ao publicar ticket {ticket_id} (plan_id={ticket.get("plan_id")}): {e}'
         )
         raise
