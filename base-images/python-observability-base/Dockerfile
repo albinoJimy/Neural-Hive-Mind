@@ -8,7 +8,7 @@
 FROM python:3.11-slim
 
 # Build arguments
-ARG VERSION=1.2.3
+ARG VERSION=1.2.5
 ARG BUILD_DATE
 
 # Labels

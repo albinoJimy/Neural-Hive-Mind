@@ -1,5 +1,5 @@
 # Stage 1 - Builder
-FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.4 AS builder
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.5 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -26,7 +26,7 @@ RUN pip install --no-cache-dir --user -r requirements.txt && \
 COPY services/self-healing-engine/src/ ./src/
 
 # Stage 2 - Runtime
-FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.4
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.5
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \

@@ -1,5 +1,5 @@
 # Gateway de Intenções - Neural Hive-Mind
-FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.4
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.5
 
 # Definir versão e metadados
 ARG VERSION=1.0.0
@@ -40,11 +40,16 @@ WORKDIR /app
 # Modelos ML (Whisper e spaCy) são gerenciados via init containers e volumes persistentes
 COPY services/gateway-intencoes/requirements.txt .
 
+# Copiar biblioteca interna neural_hive_domain
+COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
+
 # Instalar dependências Python em uma única camada para otimizar build
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --upgrade pip==24.0 && \
+    pip install --no-cache-dir /tmp/neural_hive_domain && \
     pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir --no-deps openai-whisper
+    pip install --no-cache-dir --no-deps openai-whisper && \
+    rm -rf /tmp/neural_hive_domain
 
 # Baixar modelos spaCy para todos os idiomas suportados (pt, en, es)
 RUN --mount=type=cache,target=/root/.cache/pip \

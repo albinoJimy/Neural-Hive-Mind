@@ -15,7 +15,7 @@ serviceAccount:
 
 image:
   repository: 37.60.241.150:30500/execution-ticket-service
-  tag: "1.2.1"
+  tag: "1.2.3"
   pullPolicy: Always
 
 deployment:
@@ -111,6 +111,9 @@ config:
   grpc:
     port: 50052
     maxWorkers: 10
+    # gRPC é o protocolo primário para comunicação com orchestrator-dynamic
+    critical: true
+    healthCheckService: ""  # Usa serviço padrão de health check gRPC
 
   observability:
     otelExporterEndpoint: http://otel-collector:4317
@@ -200,6 +203,17 @@ readinessProbe:
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 3
+
+# Arquitetura Dual-Protocol:
+# - HTTP (8000): Health checks, métricas, REST API (secundário)
+# - gRPC (50052): Protocolo primário para comunicação com orchestrator-dynamic
+#
+# NOTA: readinessProbe usa HTTP /ready temporariamente porque o servidor gRPC
+# tem um bug de import circular que impede sua inicialização.
+# TODO: Migrar para gRPC readinessProbe quando o bug for corrigido:
+#   grpc:
+#     port: 50052
+#     service: ""
 
 # Connection retry configuration
 connectionRetry:

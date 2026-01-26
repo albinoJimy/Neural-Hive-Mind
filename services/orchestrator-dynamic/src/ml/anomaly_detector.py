@@ -121,8 +121,11 @@ class AnomalyDetector:
         """
         Carrega modelo do ModelRegistry.
 
+        Valida se modelo está treinado verificando existência de estimators_.
+        Retorna None se modelo não estiver treinado (não retorna modelo inválido).
+
         Returns:
-            Modelo carregado ou None
+            Modelo treinado carregado ou None se não encontrado/não treinado
         """
         try:
             model = await self.model_registry.load_model(
@@ -131,16 +134,155 @@ class AnomalyDetector:
             )
 
             if model:
-                self.logger.info("anomaly_model_loaded", model_name=self.model_name)
+                # Validar se modelo está treinado (tem estimators_)
+                if not hasattr(model, 'estimators_'):
+                    self.logger.warning(
+                        "model_loaded_but_not_trained",
+                        model_name=self.model_name,
+                        reason="missing_estimators"
+                    )
+                    # Registrar status de modelo não treinado
+                    self.metrics.record_ml_model_init_training_status(
+                        model_name=self.model_name,
+                        status='untrained'
+                    )
+                    return None
+
+                self.logger.info(
+                    "anomaly_model_loaded",
+                    model_name=self.model_name,
+                    n_estimators=len(model.estimators_)
+                )
+                # Registrar status de modelo treinado
+                self.metrics.record_ml_model_init_training_status(
+                    model_name=self.model_name,
+                    status='trained'
+                )
                 return model
             else:
                 self.logger.warning("anomaly_model_not_found", model_name=self.model_name)
-                return self._create_default_model()
+                # Registrar status de modelo não treinado
+                self.metrics.record_ml_model_init_training_status(
+                    model_name=self.model_name,
+                    status='untrained'
+                )
+                return None
 
         except Exception as e:
             self.logger.error("anomaly_model_load_failed", error=str(e))
             self.metrics.record_ml_error('model_load')
             return None
+
+    async def _check_training_data_availability(self) -> tuple:
+        """
+        Verifica se há dados históricos suficientes para treinamento.
+
+        Returns:
+            Tuple (has_sufficient_data: bool, sample_count: int)
+        """
+        from datetime import datetime, timedelta
+
+        try:
+            cutoff_date = datetime.utcnow() - timedelta(
+                days=self.config.ml_training_window_days
+            )
+
+            count = await self.mongodb_client.db['execution_tickets'].count_documents({
+                'completed_at': {'$gte': cutoff_date}
+            })
+
+            has_sufficient = count >= self.config.ml_min_training_samples
+
+            self.logger.info(
+                "training_data_availability_checked",
+                sample_count=count,
+                required=self.config.ml_min_training_samples,
+                sufficient=has_sufficient
+            )
+
+            return has_sufficient, count
+
+        except Exception as e:
+            self.logger.error("data_availability_check_failed", error=str(e))
+            return False, 0
+
+    async def _ensure_model_trained(self) -> bool:
+        """
+        Garante que modelo está treinado, executando treinamento se necessário.
+
+        Verifica:
+        1. Se self.model existe e tem estimators_
+        2. Se não, tenta treinar com dados históricos
+        3. Se treinamento falhar (dados insuficientes), retorna False
+
+        Returns:
+            True se modelo treinado disponível, False caso contrário
+        """
+        try:
+            # Verificar modelo atual
+            if self.model and hasattr(self.model, 'estimators_'):
+                self.logger.info(
+                    "model_already_trained",
+                    model_name=self.model_name,
+                    n_estimators=len(self.model.estimators_)
+                )
+                return True
+
+            # Verificar dados históricos suficientes
+            has_sufficient, count = await self._check_training_data_availability()
+
+            if not has_sufficient:
+                self.logger.warning(
+                    "insufficient_data_for_training",
+                    sample_count=count,
+                    required=self.config.ml_min_training_samples,
+                    model_name=self.model_name
+                )
+                # Registrar status de falha
+                self.metrics.record_ml_model_training_status(
+                    model_name=self.model_name,
+                    is_trained=False,
+                    has_estimators=False
+                )
+                return False
+
+            # Executar treinamento
+            self.logger.info(
+                "auto_training_triggered",
+                model_name=self.model_name,
+                sample_count=count
+            )
+
+            metrics = await self.train_model()
+
+            if metrics.get('promoted'):
+                self.logger.info(
+                    "auto_training_succeeded",
+                    model_name=self.model_name,
+                    precision=metrics.get('precision')
+                )
+                return True
+            else:
+                self.logger.warning(
+                    "auto_training_not_promoted",
+                    model_name=self.model_name,
+                    reason="quality_below_threshold"
+                )
+                return False
+
+        except Exception as e:
+            self.logger.error(
+                "auto_training_failed",
+                error=str(e),
+                model_name=self.model_name
+            )
+            # Registrar status de falha
+            self.metrics.record_ml_model_training_status(
+                model_name=self.model_name,
+                is_trained=False,
+                has_estimators=False
+            )
+            return False
 
     async def _refresh_historical_stats(self):
         """

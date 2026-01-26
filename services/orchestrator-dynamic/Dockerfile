@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.3 AS builder
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.5 AS builder
 
 # Instalar dependências de build
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -17,8 +17,8 @@ COPY services/orchestrator-dynamic/requirements.txt .
 COPY libraries /libraries
 RUN pip install --no-cache-dir --user -r requirements.txt
 
-# Stage 2: Runtime
-FROM python:3.11-slim
+# Stage 2: Runtime - usar mesma base para manter neural_hive_observability
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.5
 
 # Metadados OCI para rastreabilidade
 LABEL org.opencontainers.image.title="Orchestrator Dynamic"
@@ -42,10 +42,10 @@ RUN mkdir -p /app/logs /app/tmp && chown -R orchestrator:orchestrator /app
 
 # Copiar dependências instaladas do builder
 COPY --from=builder --chown=orchestrator:orchestrator /root/.local /home/orchestrator/.local
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
-# Definir PATH para incluir binários do usuário
+# Definir PATH e PYTHONPATH para incluir user packages e base image packages
 ENV PATH=/home/orchestrator/.local/bin:$PATH
+ENV PYTHONPATH=/home/orchestrator/.local/lib/python3.11/site-packages:/usr/local/lib/python3.11/site-packages:/app
 
 # Definir diretório de trabalho
 WORKDIR /app

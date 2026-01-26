@@ -210,8 +210,11 @@ def trace_intent(
 
         def _enrich_span(span, intent_id, plan_id, args, kwargs):
             """Enriquece span com metadados."""
-            span.set_attribute("neural.hive.component", _config.neural_hive_component)
-            span.set_attribute("neural.hive.layer", _config.neural_hive_layer)
+            if _config:
+                span.set_attribute("neural.hive.component", _config.neural_hive_component)
+                span.set_attribute("neural.hive.layer", _config.neural_hive_layer)
+                if _config.neural_hive_domain:
+                    span.set_attribute("neural.hive.domain", _config.neural_hive_domain)
             span.set_attribute("neural.hive.operation", func.__name__)
 
             if intent_id:
@@ -221,9 +224,6 @@ def trace_intent(
             if plan_id:
                 span.set_attribute("neural.hive.plan.id", plan_id)
                 set_baggage("neural.hive.plan.id", plan_id)
-
-            if _config.neural_hive_domain:
-                span.set_attribute("neural.hive.domain", _config.neural_hive_domain)
 
             if include_args:
                 try:
@@ -240,7 +240,10 @@ def trace_intent(
             if not _tracer:
                 return await func(*args, **kwargs)
 
-            op_name = operation_name or f"{_config.neural_hive_component}.{func.__name__}"
+            op_name = operation_name or (
+                f"{_config.neural_hive_component}.{func.__name__}" if _config 
+                else func.__name__
+            )
             intent_id, plan_id = _extract_ids(args, kwargs)
 
             with _tracer.start_as_current_span(op_name) as span:
@@ -267,7 +270,10 @@ def trace_intent(
             if not _tracer:
                 return func(*args, **kwargs)
 
-            op_name = operation_name or f"{_config.neural_hive_component}.{func.__name__}"
+            op_name = operation_name or (
+                f"{_config.neural_hive_component}.{func.__name__}" if _config 
+                else func.__name__
+            )
             intent_id, plan_id = _extract_ids(args, kwargs)
 
             with _tracer.start_as_current_span(op_name) as span:
@@ -361,12 +367,16 @@ def trace_grpc_method(
             if extract_plan_id_from and hasattr(request, extract_plan_id_from):
                 plan_id = getattr(request, extract_plan_id_from, plan_id)
 
-            span_name = operation_name or f"{_config.neural_hive_component}.grpc.{func.__name__}"
+            span_name = operation_name or (
+                f"{_config.neural_hive_component}.grpc.{func.__name__}" if _config 
+                else f"grpc.{func.__name__}"
+            )
 
             with _tracer.start_as_current_span(span_name) as span:
                 try:
-                    span.set_attribute("neural.hive.component", _config.neural_hive_component)
-                    span.set_attribute("neural.hive.layer", _config.neural_hive_layer)
+                    if _config:
+                        span.set_attribute("neural.hive.component", _config.neural_hive_component)
+                        span.set_attribute("neural.hive.layer", _config.neural_hive_layer)
                     span.set_attribute("neural.hive.grpc.method", func.__name__)
                     span.set_attribute("neural.hive.grpc.service", self.__class__.__name__)
 

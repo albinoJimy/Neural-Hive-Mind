@@ -73,6 +73,16 @@ Runbooks relacionados a infraestrutura e armazenamento.
 
 ---
 
+## Initialization & Configuration
+
+Runbooks relacionados a inicialização de componentes e configuração.
+
+| Runbook | Alertas Relacionados | Severidade |
+|---------|---------------------|------------|
+| [initialization-errors.md](./initialization-errors.md) | KafkaProducerInitializationFailed, KafkaProducerConfigNone, TemporalActivityNotRegistered, MLModelNotTrained | Critical/Warning |
+
+---
+
 ## Flow C - Orquestracao de Execucao Adaptativa
 
 Runbooks especificos para Flow C (Fase 2).

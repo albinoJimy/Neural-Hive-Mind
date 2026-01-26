@@ -21,15 +21,15 @@ make proto
 ```bash
 python -m grpc_tools.protoc \
   -I./protos \
-  --python_out=./src/grpc_service \
-  --grpc_python_out=./src/grpc_service \
-  --pyi_out=./src/grpc_service \
+  --python_out=./src/proto_gen \
+  --grpc_python_out=./src/proto_gen \
+  --pyi_out=./src/proto_gen \
   ./protos/ticket_service.proto
 ```
 
 ## Arquivos Gerados
 
-Após compilação, serão criados em `src/grpc_service/`:
+Após compilação, serão criados em `src/proto_gen/`:
 
 - `ticket_service_pb2.py` - Mensagens Protocol Buffers
 - `ticket_service_pb2_grpc.py` - Stubs gRPC (client e server)

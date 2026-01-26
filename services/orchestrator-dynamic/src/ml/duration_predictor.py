@@ -8,7 +8,10 @@ Integra com ClickHouse para estatísticas históricas (mais rápido),
 com fallback para MongoDB quando ClickHouse indisponível.
 """
 
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .model_promotion import ModelPromotionManager
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
@@ -79,29 +82,44 @@ class DurationPredictor:
         self.model_name = 'ticket-duration-predictor'
 
         # Referência ao promotion manager (injetada externamente para shadow mode)
-        self.promotion_manager = None
+        self.promotion_manager: Optional['ModelPromotionManager'] = None
 
     async def initialize(self):
         """
         Inicializa predictor carregando modelo do registry.
+
+        Tenta carregar modelo existente e verifica se está treinado.
+        Se modelo não estiver treinado e houver dados suficientes, treina automaticamente.
         """
         try:
-            # Carrega modelo existente ou inicializa default
+            # Carrega modelo existente (retorna None se não treinado)
             self.model = await self._load_model()
 
             # Carrega estatísticas históricas
             await self._refresh_historical_stats()
 
+            # Verificar se modelo está treinado, treinar se necessário
+            model_ready = await self._ensure_model_trained()
+
+            if not model_ready:
+                self.logger.warning(
+                    "predictor_initialized_without_trained_model",
+                    fallback="heuristic",
+                    model_name=self.model_name
+                )
+
             self.logger.info(
                 "duration_predictor_initialized",
                 model_loaded=self.model is not None,
+                model_trained=model_ready,
+                has_estimators=hasattr(self.model, 'estimators_') if self.model else False,
                 stats_groups=len(self.historical_stats)
             )
 
         except Exception as e:
             self.logger.error("duration_predictor_init_failed", error=str(e))
-            # Inicializa modelo default
-            self.model = self._create_default_model()
+            # Não inicializa modelo default - mantém None para usar heurística
+            self.model = None
 
     def _create_default_model(self) -> RandomForestRegressor:
         """
@@ -123,8 +141,11 @@ class DurationPredictor:
         """
         Carrega modelo do ModelRegistry.
 
+        Valida se modelo está treinado verificando existência de estimators_.
+        Retorna None se modelo não estiver treinado (não retorna modelo inválido).
+
         Returns:
-            Modelo carregado ou None
+            Modelo treinado carregado ou None se não encontrado/não treinado
         """
         try:
             model = await self.model_registry.load_model(
@@ -133,16 +154,156 @@ class DurationPredictor:
             )
 
             if model:
-                self.logger.info("duration_model_loaded", model_name=self.model_name)
+                # Validar se modelo está treinado (tem estimators_)
+                if not hasattr(model, 'estimators_'):
+                    self.logger.warning(
+                        "model_loaded_but_not_trained",
+                        model_name=self.model_name,
+                        reason="missing_estimators"
+                    )
+                    # Registrar status de modelo não treinado
+                    self.metrics.record_ml_model_init_training_status(
+                        model_name=self.model_name,
+                        status='untrained'
+                    )
+                    return None
+
+                self.logger.info(
+                    "duration_model_loaded",
+                    model_name=self.model_name,
+                    n_estimators=len(model.estimators_)
+                )
+                # Registrar status de modelo treinado
+                self.metrics.record_ml_model_init_training_status(
+                    model_name=self.model_name,
+                    status='trained'
+                )
                 return model
             else:
                 self.logger.warning("duration_model_not_found", model_name=self.model_name)
-                return self._create_default_model()
+                # Registrar status de modelo não treinado
+                self.metrics.record_ml_model_init_training_status(
+                    model_name=self.model_name,
+                    status='untrained'
+                )
+                return None
 
         except Exception as e:
             self.logger.error("duration_model_load_failed", error=str(e))
             self.metrics.record_ml_error('model_load')
             return None
+
+    async def _check_training_data_availability(self) -> tuple:
+        """
+        Verifica se há dados históricos suficientes para treinamento.
+
+        Returns:
+            Tuple (has_sufficient_data: bool, sample_count: int)
+        """
+        from datetime import datetime, timedelta
+
+        try:
+            cutoff_date = datetime.utcnow() - timedelta(
+                days=self.config.ml_training_window_days
+            )
+
+            count = await self.mongodb_client.db['execution_tickets'].count_documents({
+                'completed_at': {'$gte': cutoff_date},
+                'actual_duration_ms': {'$exists': True, '$ne': None, '$gt': 0}
+            })
+
+            has_sufficient = count >= self.config.ml_min_training_samples
+
+            self.logger.info(
+                "training_data_availability_checked",
+                sample_count=count,
+                required=self.config.ml_min_training_samples,
+                sufficient=has_sufficient
+            )
+
+            return has_sufficient, count
+
+        except Exception as e:
+            self.logger.error("data_availability_check_failed", error=str(e))
+            return False, 0
+
+    async def _ensure_model_trained(self) -> bool:
+        """
+        Garante que modelo está treinado, executando treinamento se necessário.
+
+        Verifica:
+        1. Se self.model existe e tem estimators_
+        2. Se não, tenta treinar com dados históricos
+        3. Se treinamento falhar (dados insuficientes), retorna False
+
+        Returns:
+            True se modelo treinado disponível, False caso contrário
+        """
+        try:
+            # Verificar modelo atual
+            if self.model and hasattr(self.model, 'estimators_'):
+                self.logger.info(
+                    "model_already_trained",
+                    model_name=self.model_name,
+                    n_estimators=len(self.model.estimators_)
+                )
+                return True
+
+            # Verificar dados históricos suficientes
+            has_sufficient, count = await self._check_training_data_availability()
+
+            if not has_sufficient:
+                self.logger.warning(
+                    "insufficient_data_for_training",
+                    sample_count=count,
+                    required=self.config.ml_min_training_samples,
+                    model_name=self.model_name
+                )
+                # Registrar status de falha
+                self.metrics.record_ml_model_training_status(
+                    model_name=self.model_name,
+                    is_trained=False,
+                    has_estimators=False
+                )
+                return False
+
+            # Executar treinamento
+            self.logger.info(
+                "auto_training_triggered",
+                model_name=self.model_name,
+                sample_count=count
+            )
+
+            metrics = await self.train_model()
+
+            if metrics.get('promoted'):
+                self.logger.info(
+                    "auto_training_succeeded",
+                    model_name=self.model_name,
+                    mae_percentage=metrics.get('mae_percentage')
+                )
+                return True
+            else:
+                self.logger.warning(
+                    "auto_training_not_promoted",
+                    model_name=self.model_name,
+                    reason="quality_below_threshold"
+                )
+                return False
+
+        except Exception as e:
+            self.logger.error(
+                "auto_training_failed",
+                error=str(e),
+                model_name=self.model_name
+            )
+            # Registrar status de falha
+            self.metrics.record_ml_model_training_status(
+                model_name=self.model_name,
+                is_trained=False,
+                has_estimators=False
+            )
+            return False
 
     async def _refresh_historical_stats(self):
         """
@@ -255,7 +416,8 @@ class DurationPredictor:
                 return result
 
             # Predição normal (sem shadow mode)
-            if self.model and hasattr(self.model, 'predict'):
+            # Verifica se modelo está treinado (tem estimators_)
+            if self.model and hasattr(self.model, 'estimators_') and hasattr(self.model, 'predict'):
                 try:
                     predicted_duration = float(self.model.predict(features)[0])
 
@@ -269,11 +431,16 @@ class DurationPredictor:
                     self.logger.warning("prediction_failed", error=str(e))
                     # Fallback para heurística
                     predicted_duration = self._heuristic_prediction(features_dict)
-                    confidence = 0.5
+                    confidence = 0.3  # Confidence reduzido para heurística
             else:
                 # Modelo não treinado, usa heurística
+                self.logger.debug(
+                    "model_not_trained_using_heuristic",
+                    ticket_id=ticket.get('ticket_id'),
+                    reason="missing_estimators"
+                )
                 predicted_duration = self._heuristic_prediction(features_dict)
-                confidence = 0.5
+                confidence = 0.3  # Confidence baixo pois modelo não está treinado
 
             # Métricas
             duration_seconds = time.time() - start_time
@@ -319,6 +486,13 @@ class DurationPredictor:
         Returns:
             Duração estimada em ms
         """
+        self.logger.debug(
+            "using_heuristic_prediction",
+            reason="model_not_trained",
+            base_duration=features.get('avg_duration_by_task'),
+            risk_weight=features.get('risk_weight')
+        )
+
         base_duration = features.get('avg_duration_by_task', 60000.0)
         risk_weight = features.get('risk_weight', 0.5)
         capabilities_count = features.get('capabilities_count', 1.0)
@@ -377,7 +551,7 @@ class DurationPredictor:
             self.logger.warning("confidence_calculation_failed", error=str(e))
             return 0.5
 
-    async def train_model(self, training_window_days: Optional[int] = None) -> Dict[str, float]:
+    async def train_model(self, training_window_days: Optional[int] = None) -> Dict[str, Any]:
         """
         Treina modelo com dados históricos.
 
@@ -550,6 +724,22 @@ class DurationPredictor:
                 metrics=metrics
             )
 
+            # Registrar métricas de qualidade
+            self.metrics.record_ml_model_quality(
+                model_name=self.model_name,
+                mae=metrics.get('mae'),
+                rmse=metrics.get('rmse'),
+                r2=metrics.get('r2'),
+                mae_percentage=metrics.get('mae_percentage')
+            )
+
+            # Registrar status de treinamento
+            self.metrics.record_ml_model_training_status(
+                model_name=self.model_name,
+                is_trained=True,
+                has_estimators=hasattr(model, 'estimators_')
+            )
+
             self.logger.info(
                 "duration_model_trained",
                 metrics=metrics,
@@ -563,6 +753,12 @@ class DurationPredictor:
         except Exception as e:
             self.logger.error("training_failed", error=str(e))
             self.metrics.record_ml_error('training')
+            # Registrar status de falha
+            self.metrics.record_ml_model_training_status(
+                model_name=self.model_name,
+                is_trained=False,
+                has_estimators=False
+            )
             return {
                 'promoted': False,
                 'version': None,

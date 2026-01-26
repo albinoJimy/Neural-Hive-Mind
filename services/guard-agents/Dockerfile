@@ -1,5 +1,5 @@
 # Stage 1 - Builder
-FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.4 AS builder
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.5 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -19,11 +19,13 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Copy local libraries
 COPY libraries/security /tmp/neural_hive_security
 COPY libraries/neural_hive_integration /tmp/neural_hive_integration
+COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
 
 # Copy requirements and install dependencies to venv
 COPY services/guard-agents/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir /tmp/neural_hive_security || true && \
+    pip install --no-cache-dir /tmp/neural_hive_resilience && \
     pip install --no-cache-dir /tmp/neural_hive_integration && \
     pip install --no-cache-dir -r requirements.txt
 
@@ -31,7 +33,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY services/guard-agents/src/ ./src/
 
 # Stage 2 - Runtime
-FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.4
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.5
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \

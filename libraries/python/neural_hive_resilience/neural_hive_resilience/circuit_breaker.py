@@ -93,13 +93,13 @@ class MonitoredCircuitBreaker(CircuitBreaker):
         try:
             result = await func(*args, **kwargs)
         except Exception as exc:
-            self._state.failure(self, exc)
+            self._state.on_failure(exc)
             circuit_breaker_failures.labels(
                 service=self.service_name, circuit=self.circuit_name
             ).inc()
             raise
         else:
-            self._state.success(self)
+            self._state.on_success()
             circuit_breaker_state.labels(
                 service=self.service_name, circuit=self.circuit_name
             ).set(0)

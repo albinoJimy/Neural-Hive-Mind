@@ -96,122 +96,204 @@ class KafkaProducerClient:
 
     async def initialize(self):
         """Inicializa o producer Kafka."""
-        # Re-validação defensiva (defesa em profundidade)
-        if self.config is None:
-            raise RuntimeError(
-                "self.config é None durante initialize(). "
-                "Isso indica que o objeto foi modificado incorretamente após a construção."
-            )
+        start_time = perf_counter()
+        initialization_status = 'failed'  # Assume falha até sucesso
 
-        # Validar atributos críticos que serão usados neste método
-        # Nota: kafka_schema_registry_url é opcional (permite fallback JSON)
-        critical_attrs = ['kafka_bootstrap_servers', 'kafka_tickets_topic']
-        for attr in critical_attrs:
-            if not getattr(self.config, attr, None):
+        try:
+            # Re-validação defensiva (defesa em profundidade)
+            if self.config is None:
                 raise RuntimeError(
-                    f"Atributo crítico '{attr}' não disponível em self.config durante initialize(). "
+                    "self.config é None durante initialize(). "
+                    "Isso indica que o objeto foi modificado incorretamente após a construção."
+                )
+
+            # Validar TODAS as dependências críticas antes de prosseguir
+            critical_dependencies = {
+                'service_name': getattr(self.config, 'service_name', None),
+                'kafka_bootstrap_servers': getattr(self.config, 'kafka_bootstrap_servers', None),
+                'kafka_tickets_topic': getattr(self.config, 'kafka_tickets_topic', None),
+            }
+
+            missing_deps = [dep for dep, value in critical_dependencies.items() if not value]
+            if missing_deps:
+                error_msg = (
+                    f"Dependências críticas ausentes durante initialize(): {', '.join(missing_deps)}. "
                     f"Verifique a configuração do serviço."
                 )
+                logger.error(
+                    'kafka_producer_initialization_failed_missing_dependencies',
+                    missing_dependencies=missing_deps,
+                    config_snapshot={
+                        'service_name': critical_dependencies.get('service_name', 'MISSING'),
+                        'bootstrap_servers': critical_dependencies.get('kafka_bootstrap_servers', 'MISSING'),
+                        'topic': critical_dependencies.get('kafka_tickets_topic', 'MISSING'),
+                        'schema_registry_url': getattr(self.config, 'kafka_schema_registry_url', None) or 'NOT_CONFIGURED',
+                        'circuit_breaker_enabled': self.circuit_breaker_enabled,
+                    }
+                )
 
-        schema_registry_url = getattr(self.config, 'kafka_schema_registry_url', None)
+                # Registrar métrica de erro de validação
+                metrics = self._get_metrics()
+                if metrics:
+                    for dep in missing_deps:
+                        metrics.record_kafka_producer_config_validation_error(
+                            validation_stage='initialize',
+                            missing_attribute=dep
+                        )
 
-        logger.info(
-            'kafka_producer_initialization_started',
-            service_name=getattr(self.config, 'service_name', 'UNKNOWN'),
-            bootstrap_servers=self.config.kafka_bootstrap_servers,
-            topic=self.config.kafka_tickets_topic,
-            schema_registry_url=schema_registry_url or 'NOT_CONFIGURED (JSON fallback)',
-            circuit_breaker_enabled=self.circuit_breaker_enabled,
-            sasl_username_provided=bool(self.sasl_username),
-            sasl_password_provided=bool(self.sasl_password),
-        )
+                raise RuntimeError(error_msg)
 
-        producer_config = {
-            'bootstrap.servers': self.config.kafka_bootstrap_servers,
-            'enable.idempotence': True,
-            'acks': 'all',
-            'compression.type': 'gzip'
-        }
-
-        producer_config.update(self._configure_security())
-        self.producer = Producer(producer_config)
-
-        # Instrumentar producer para injetar headers de tracing (traceparent W3C)
-        try:
-            self.producer = instrument_kafka_producer(self.producer)
-            logger.info('Kafka producer instrumentado com OpenTelemetry')
-        except Exception as e:
-            logger.warning(
-                'Falha ao instrumentar Kafka producer, continuando sem tracing',
-                error=str(e)
+            # Log detalhado do estado completo do config (sanitizado)
+            schema_registry_url = getattr(self.config, 'kafka_schema_registry_url', None)
+            logger.info(
+                'kafka_producer_initialization_started',
+                config_snapshot={
+                    'service_name': critical_dependencies['service_name'],
+                    'bootstrap_servers': critical_dependencies['kafka_bootstrap_servers'],
+                    'topic': critical_dependencies['kafka_tickets_topic'],
+                    'schema_registry_url': schema_registry_url or 'NOT_CONFIGURED (JSON fallback)',
+                    'circuit_breaker_enabled': self.circuit_breaker_enabled,
+                    'sasl_username_provided': bool(self.sasl_username),
+                    'sasl_password_provided': bool(self.sasl_password),
+                    'security_protocol': getattr(self.config, 'kafka_security_protocol', 'PLAINTEXT'),
+                }
             )
 
-        try:
-            self.schema_registry_client = SchemaRegistryClient({'url': self.config.kafka_schema_registry_url})
+            producer_config = {
+                'bootstrap.servers': self.config.kafka_bootstrap_servers,
+                'enable.idempotence': True,
+                'acks': 'all',
+                'compression.type': 'gzip'
+            }
 
-            # Serializer de Execution Tickets
-            ticket_schema_path = Path(self.config.schemas_base_path) / 'execution-ticket' / 'execution-ticket.avsc'
-            ticket_schema_str = ticket_schema_path.read_text()
-            self.avro_serializer = AvroSerializer(self.schema_registry_client, ticket_schema_str)
+            producer_config.update(self._configure_security())
+            self.producer = Producer(producer_config)
 
-            # Serializer de incidentes de orquestração (Fluxo E)
-            incident_schema_path = Path(self.config.schemas_base_path) / 'orchestration-incident' / 'orchestration-incident.avsc'
+            # Instrumentar producer para injetar headers de tracing (traceparent W3C)
             try:
-                incident_schema_str = incident_schema_path.read_text()
-                self.incident_avro_serializer = AvroSerializer(self.schema_registry_client, incident_schema_str)
-            except Exception as incident_exc:
+                self.producer = instrument_kafka_producer(self.producer)
+                logger.info('Kafka producer instrumentado com OpenTelemetry')
+            except Exception as e:
                 logger.warning(
-                    'incident_schema_unavailable_fallback_json',
-                    error=str(incident_exc),
-                    schema_path=str(incident_schema_path)
+                    'Falha ao instrumentar Kafka producer, continuando sem tracing',
+                    error=str(e)
                 )
+
+            try:
+                self.schema_registry_client = SchemaRegistryClient({'url': self.config.kafka_schema_registry_url})
+
+                # Serializer de Execution Tickets
+                ticket_schema_path = Path(self.config.schemas_base_path) / 'execution-ticket' / 'execution-ticket.avsc'
+                ticket_schema_str = ticket_schema_path.read_text()
+                self.avro_serializer = AvroSerializer(self.schema_registry_client, ticket_schema_str)
+
+                # Serializer de incidentes de orquestração (Fluxo E)
+                incident_schema_path = Path(self.config.schemas_base_path) / 'orchestration-incident' / 'orchestration-incident.avsc'
+                try:
+                    incident_schema_str = incident_schema_path.read_text()
+                    self.incident_avro_serializer = AvroSerializer(self.schema_registry_client, incident_schema_str)
+                except Exception as incident_exc:
+                    logger.warning(
+                        'incident_schema_unavailable_fallback_json',
+                        error=str(incident_exc),
+                        schema_path=str(incident_schema_path)
+                    )
+                    self.incident_avro_serializer = None
+
+                logger.info('Schema Registry habilitado para producer', url=self.config.kafka_schema_registry_url)
+            except Exception as exc:
+                logger.warning(
+                    'Schema Registry indisponível - fallback para JSON',
+                    error=str(exc)
+                )
+                self.schema_registry_client = None
+                self.avro_serializer = None
                 self.incident_avro_serializer = None
 
-            logger.info('Schema Registry habilitado para producer', url=self.config.kafka_schema_registry_url)
-        except Exception as exc:
-            logger.warning(
-                'Schema Registry indisponível - fallback para JSON',
-                error=str(exc)
+            # Inicializar circuit breaker APÓS producer e schema registry estarem prontos
+            if self.circuit_breaker_enabled:
+                try:
+                    service_name = critical_dependencies['service_name']  # Já validado acima
+
+                    self.producer_breaker = MonitoredCircuitBreaker(
+                        service_name=service_name,
+                        circuit_name='kafka_producer',
+                        fail_max=getattr(self.config, 'KAFKA_CIRCUIT_BREAKER_FAIL_MAX', 5),
+                        timeout_duration=getattr(self.config, 'KAFKA_CIRCUIT_BREAKER_TIMEOUT', 60),
+                        recovery_timeout=getattr(self.config, 'KAFKA_CIRCUIT_BREAKER_RECOVERY_TIMEOUT', 30)
+                    )
+                    logger.info(
+                        'kafka_producer_circuit_breaker_enabled',
+                        service_name=service_name,
+                        fail_max=self.producer_breaker.fail_max,
+                        timeout=self.producer_breaker.recovery_timeout,
+                    )
+
+                    # Registrar status de circuit breaker inicializado com sucesso
+                    metrics = self._get_metrics()
+                    if metrics:
+                        metrics.record_circuit_breaker_initialization_status(
+                            circuit_name='kafka_producer',
+                            status='initialized',
+                            component='messaging',
+                            layer='infrastructure'
+                        )
+                except Exception as cb_error:
+                    logger.warning(
+                        'kafka_producer_circuit_breaker_init_failed',
+                        error=str(cb_error),
+                        error_type=type(cb_error).__name__,
+                        fallback='circuit_breaker_disabled',
+                    )
+
+                    # Registrar métrica de erro de circuit breaker
+                    metrics = self._get_metrics()
+                    if metrics:
+                        metrics.record_circuit_breaker_initialization_error(
+                            circuit_name='kafka_producer',
+                            error_type=type(cb_error).__name__
+                        )
+                        # Registrar status de circuit breaker como falha
+                        metrics.record_circuit_breaker_initialization_status(
+                            circuit_name='kafka_producer',
+                            status='failed',
+                            component='messaging',
+                            layer='infrastructure'
+                        )
+
+                    # Fail-open: desabilitar circuit breaker mas continuar operação
+                    self.producer_breaker = None
+                    self.circuit_breaker_enabled = False
+            else:
+                # Circuit breaker desabilitado via config - registrar como not_initialized
+                metrics = self._get_metrics()
+                if metrics:
+                    metrics.record_circuit_breaker_initialization_status(
+                        circuit_name='kafka_producer',
+                        status='not_initialized',
+                        component='messaging',
+                        layer='infrastructure'
+                    )
+
+            # Marcar inicialização como bem-sucedida
+            initialization_status = 'success'
+
+            logger.info(
+                'kafka_producer_initialized',
+                avro_enabled=self.avro_serializer is not None,
+                circuit_breaker_enabled=self.circuit_breaker_enabled,
+                schema_registry_enabled=self.schema_registry_client is not None,
             )
-            self.schema_registry_client = None
-            self.avro_serializer = None
-            self.incident_avro_serializer = None
-
-        # Inicializar circuit breaker para producer (com fallback seguro)
-        if self.circuit_breaker_enabled:
-            try:
-                service_name = getattr(self.config, 'service_name', None)
-                if not service_name:
-                    raise ValueError("service_name não disponível em config para circuit breaker")
-
-                self.producer_breaker = MonitoredCircuitBreaker(
-                    service_name=service_name,
-                    circuit_name='kafka_producer',
-                    fail_max=getattr(self.config, 'KAFKA_CIRCUIT_BREAKER_FAIL_MAX', 5),
-                    timeout_duration=getattr(self.config, 'KAFKA_CIRCUIT_BREAKER_TIMEOUT', 60),
-                    recovery_timeout=getattr(self.config, 'KAFKA_CIRCUIT_BREAKER_RECOVERY_TIMEOUT', 30)
+        finally:
+            # Registrar métrica de inicialização (sucesso ou falha)
+            duration = perf_counter() - start_time
+            metrics = self._get_metrics()
+            if metrics:
+                metrics.record_component_initialization(
+                    component_name='kafka_producer',
+                    status=initialization_status,
+                    duration_seconds=duration
                 )
-                logger.info(
-                    'kafka_producer_circuit_breaker_enabled',
-                    service_name=service_name,
-                    fail_max=self.producer_breaker.fail_max,
-                    timeout=self.producer_breaker.recovery_timeout,
-                )
-            except Exception as cb_error:
-                logger.warning(
-                    'kafka_producer_circuit_breaker_init_failed',
-                    error=str(cb_error),
-                    fallback='circuit_breaker_disabled',
-                )
-                self.producer_breaker = None
-                self.circuit_breaker_enabled = False
-
-        logger.info(
-            'kafka_producer_initialized',
-            avro_enabled=self.avro_serializer is not None,
-            circuit_breaker_enabled=self.circuit_breaker_enabled,
-            schema_registry_enabled=self.schema_registry_client is not None,
-        )
 
     async def publish_ticket(
         self,

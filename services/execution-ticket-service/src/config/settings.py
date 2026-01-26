@@ -75,6 +75,9 @@ class TicketServiceSettings(BaseSettings):
     grpc_port: int = Field(default=50052, description='Porta do servidor gRPC')
     grpc_max_workers: int = Field(default=10, description='Máximo de workers gRPC')
     grpc_max_concurrent_rpcs: int = Field(default=100, description='Máximo de RPCs concorrentes')
+    grpc_bind_retry_attempts: int = Field(default=5, description='Número de tentativas para bind da porta gRPC')
+    grpc_bind_retry_initial_delay: float = Field(default=1.0, description='Delay inicial entre retries de bind gRPC (exponential backoff)')
+    grpc_bind_retry_max_delay: float = Field(default=30.0, description='Delay máximo entre retries de bind gRPC')
 
     # Observabilidade
     otel_exporter_endpoint: str = Field(

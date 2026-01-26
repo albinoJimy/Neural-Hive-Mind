@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.4 AS builder
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.5 AS builder
 
 WORKDIR /build
 
@@ -17,7 +17,7 @@ RUN grep -vE "neural_hive_observability|opentelemetry-|prometheus-client|structl
     pip install --no-cache-dir --user -r requirements-filtered.txt
 
 # Stage 2: Runtime (herda da base de observabilidade com todos os pacotes)
-FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.4
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.5
 
 WORKDIR /app
 

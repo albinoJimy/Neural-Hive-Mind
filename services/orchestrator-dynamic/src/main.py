@@ -403,6 +403,8 @@ async def lifespan(app: FastAPI):
 
         # Inicializar modelos preditivos centralizados (se habilitado)
         if getattr(config, 'ml_predictions_enabled', False):
+            from src.observability.metrics import get_metrics as get_init_metrics
+            ml_init_metrics = get_init_metrics()
             try:
                 from neural_hive_ml.predictive_models import (
                     SchedulingPredictor,
@@ -425,6 +427,12 @@ async def lifespan(app: FastAPI):
                 metrics = OrchestratorMetrics()
 
                 # SchedulingPredictor
+                ml_init_metrics.record_component_initialization_status(
+                    component_name='scheduling_predictor',
+                    status='in_progress',
+                    component='ml',
+                    layer='intelligence'
+                )
                 scheduling_config = {
                     'model_name': 'scheduling-predictor',
                     'model_type': getattr(config, 'ml_scheduling_model_type', 'xgboost'),
@@ -436,9 +444,34 @@ async def lifespan(app: FastAPI):
                     metrics=metrics
                 )
                 await app_state.scheduling_predictor.initialize()
-                logger.info('SchedulingPredictor inicializado')
+                ml_init_metrics.record_component_initialization_status(
+                    component_name='scheduling_predictor',
+                    status='success',
+                    component='ml',
+                    layer='intelligence'
+                )
+                # Registrar status de treinamento do modelo scheduling predictor
+                scheduling_model_trained = (
+                    app_state.scheduling_predictor.model is not None
+                )
+                ml_init_metrics.record_ml_model_init_training_status(
+                    model_name='scheduling-predictor',
+                    status='trained' if scheduling_model_trained else 'untrained',
+                    component='ml',
+                    layer='intelligence'
+                )
+                logger.info(
+                    'SchedulingPredictor inicializado',
+                    model_trained=scheduling_model_trained
+                )
 
                 # LoadPredictor
+                ml_init_metrics.record_component_initialization_status(
+                    component_name='load_predictor',
+                    status='in_progress',
+                    component='ml',
+                    layer='intelligence'
+                )
                 load_config = {
                     'model_name': 'load-predictor',
                     'model_type': 'prophet',
@@ -453,12 +486,35 @@ async def lifespan(app: FastAPI):
                     redis_client=app_state.redis_client
                 )
                 await app_state.load_predictor.initialize()
+                ml_init_metrics.record_component_initialization_status(
+                    component_name='load_predictor',
+                    status='success',
+                    component='ml',
+                    layer='intelligence'
+                )
+                # Registrar status de treinamento do modelo load predictor
+                load_model_trained = (
+                    app_state.load_predictor.model is not None
+                )
+                ml_init_metrics.record_ml_model_init_training_status(
+                    model_name='load-predictor',
+                    status='trained' if load_model_trained else 'untrained',
+                    component='ml',
+                    layer='intelligence'
+                )
                 logger.info(
                     'LoadPredictor inicializado',
-                    redis_cache_enabled=app_state.redis_client is not None
+                    redis_cache_enabled=app_state.redis_client is not None,
+                    model_trained=load_model_trained
                 )
 
                 # AnomalyDetector
+                ml_init_metrics.record_component_initialization_status(
+                    component_name='anomaly_detector',
+                    status='in_progress',
+                    component='ml',
+                    layer='intelligence'
+                )
                 anomaly_config = {
                     'model_name': 'anomaly-detector',
                     'model_type': getattr(config, 'ml_anomaly_model_type', 'isolation_forest'),
@@ -470,6 +526,12 @@ async def lifespan(app: FastAPI):
                     metrics=metrics
                 )
                 await app_state.anomaly_detector.initialize()
+                ml_init_metrics.record_component_initialization_status(
+                    component_name='anomaly_detector',
+                    status='success',
+                    component='ml',
+                    layer='intelligence'
+                )
                 logger.info('AnomalyDetector inicializado')
 
                 logger.info('Modelos preditivos centralizados inicializados com sucesso')
@@ -479,6 +541,22 @@ async def lifespan(app: FastAPI):
                     'Falha ao inicializar modelos preditivos, continuando sem ML',
                     error=str(e)
                 )
+                # Registrar falha para todos os preditores (status de componente)
+                for predictor_name in ['scheduling_predictor', 'load_predictor', 'anomaly_detector']:
+                    ml_init_metrics.record_component_initialization_status(
+                        component_name=predictor_name,
+                        status='failed',
+                        component='ml',
+                        layer='intelligence'
+                    )
+                # Registrar falha no treinamento dos modelos ML
+                for model_name in ['scheduling-predictor', 'load-predictor', 'anomaly-detector']:
+                    ml_init_metrics.record_ml_model_init_training_status(
+                        model_name=model_name,
+                        status='failed',
+                        component='ml',
+                        layer='intelligence'
+                    )
                 app_state.scheduling_predictor = None
                 app_state.load_predictor = None
                 app_state.anomaly_detector = None
@@ -487,13 +565,40 @@ async def lifespan(app: FastAPI):
 
         # Inicializar Kafka Producer com credenciais do Vault
         logger.info('Inicializando Kafka Producer', topic=config.kafka_tickets_topic)
-        app_state.kafka_producer = KafkaProducerClient(
-            config,
-            sasl_username_override=kafka_username,
-            sasl_password_override=kafka_password
+        from src.observability.metrics import get_metrics
+        init_metrics = get_metrics()
+        init_metrics.record_component_initialization_status(
+            component_name='kafka_producer',
+            status='in_progress',
+            component='messaging',
+            layer='infrastructure'
         )
-        await app_state.kafka_producer.initialize()
-        logger.info('Kafka Producer inicializado com sucesso')
+        try:
+            app_state.kafka_producer = KafkaProducerClient(
+                config,
+                sasl_username_override=kafka_username,
+                sasl_password_override=kafka_password
+            )
+            await app_state.kafka_producer.initialize()
+            init_metrics.record_component_initialization_status(
+                component_name='kafka_producer',
+                status='success',
+                component='messaging',
+                layer='infrastructure'
+            )
+            logger.info('Kafka Producer inicializado com sucesso')
+        except Exception as kafka_init_error:
+            init_metrics.record_component_initialization_status(
+                component_name='kafka_producer',
+                status='failed',
+                component='messaging',
+                layer='infrastructure'
+            )
+            logger.error(
+                'Falha ao inicializar Kafka Producer',
+                error=str(kafka_init_error)
+            )
+            raise
 
         # Inicializar Execution Ticket Service client com SPIFFE (fail-open)
         try:
@@ -586,31 +691,58 @@ async def lifespan(app: FastAPI):
         # Inicializar Temporal Worker com dependências (se Temporal disponível)
         if app_state.temporal_client:
             logger.info('Inicializando Temporal Worker', task_queue=config.temporal_task_queue)
-            app_state.temporal_worker = TemporalWorkerManager(
-                config,
-                app_state.temporal_client,
-                app_state.kafka_producer,
-                app_state.mongodb_client,
-                optimizer_client=app_state.optimizer_client,
-                vault_client=app_state.vault_client,
-                scheduling_predictor=app_state.scheduling_predictor,
-                load_predictor=app_state.load_predictor,
-                anomaly_detector=app_state.anomaly_detector,
-                self_healing_client=app_state.self_healing_client
+            init_metrics.record_component_initialization_status(
+                component_name='temporal_worker',
+                status='in_progress',
+                component='workflow',
+                layer='orchestration'
             )
-            await app_state.temporal_worker.initialize()
+            try:
+                app_state.temporal_worker = TemporalWorkerManager(
+                    config,
+                    app_state.temporal_client,
+                    app_state.kafka_producer,
+                    app_state.mongodb_client,
+                    optimizer_client=app_state.optimizer_client,
+                    vault_client=app_state.vault_client,
+                    scheduling_predictor=app_state.scheduling_predictor,
+                    load_predictor=app_state.load_predictor,
+                    anomaly_detector=app_state.anomaly_detector,
+                    self_healing_client=app_state.self_healing_client
+                )
+                await app_state.temporal_worker.initialize()
 
-            logger.info(
-                'Temporal Worker inicializado com PolicyValidator',
-                opa_enabled=config.opa_enabled,
-                policy_validator_injected=app_state.temporal_worker.policy_validator is not None,
-                opa_host=getattr(config, 'opa_host', None),
-                opa_port=getattr(config, 'opa_port', None)
-            )
+                init_metrics.record_component_initialization_status(
+                    component_name='temporal_worker',
+                    status='success',
+                    component='workflow',
+                    layer='orchestration'
+                )
 
-            # Iniciar Temporal Worker em background
-            app_state.worker_task = asyncio.create_task(app_state.temporal_worker.start())
-            logger.info('Temporal Worker iniciado em background')
+                logger.info(
+                    'Temporal Worker inicializado com PolicyValidator',
+                    opa_enabled=config.opa_enabled,
+                    policy_validator_injected=app_state.temporal_worker.policy_validator is not None,
+                    opa_host=getattr(config, 'opa_host', None),
+                    opa_port=getattr(config, 'opa_port', None)
+                )
+
+                # Iniciar Temporal Worker em background
+                app_state.worker_task = asyncio.create_task(app_state.temporal_worker.start())
+                logger.info('Temporal Worker iniciado em background')
+            except Exception as temporal_init_error:
+                init_metrics.record_component_initialization_status(
+                    component_name='temporal_worker',
+                    status='failed',
+                    component='workflow',
+                    layer='orchestration'
+                )
+                logger.error(
+                    'Falha ao inicializar Temporal Worker',
+                    error=str(temporal_init_error)
+                )
+                # Não propaga erro - serviço continua em modo degradado
+                app_state.temporal_worker = None
         else:
             logger.warning('Temporal Worker não inicializado - Temporal client não disponível')
 
@@ -1228,6 +1360,147 @@ async def opa_health_check():
                 'last_check': datetime.now().isoformat()
             }
         )
+
+
+@app.get('/health/kafka-producer')
+async def kafka_producer_health_check():
+    """
+    Health check específico para Kafka Producer.
+
+    Valida:
+    - Producer inicializado
+    - Config válido (service_name presente)
+    - Circuit breaker inicializado
+    - Conexão com Kafka cluster
+    """
+    from datetime import datetime
+
+    status = 'healthy'
+    checks = {}
+
+    # Verificar se producer existe
+    if not app_state.kafka_producer:
+        return JSONResponse(
+            status_code=503,
+            content={
+                'status': 'unhealthy',
+                'error': 'Kafka Producer not initialized',
+                'timestamp': datetime.utcnow().isoformat()
+            }
+        )
+
+    producer = app_state.kafka_producer
+
+    # Verificar config
+    checks['config'] = {
+        'valid': False,
+        'service_name': None
+    }
+
+    if producer.config:
+        checks['config']['valid'] = True
+        checks['config']['service_name'] = getattr(producer.config, 'service_name', None)
+
+        if not checks['config']['service_name']:
+            status = 'degraded'
+            checks['config']['error'] = 'service_name is None'
+    else:
+        status = 'unhealthy'
+        checks['config']['error'] = 'config is None'
+
+    # Verificar circuit breaker
+    checks['circuit_breaker'] = {
+        'initialized': False,
+        'state': 'unknown'
+    }
+
+    if hasattr(producer, 'producer_breaker') and producer.producer_breaker:
+        checks['circuit_breaker']['initialized'] = True
+        checks['circuit_breaker']['state'] = producer.producer_breaker.current_state
+    else:
+        status = 'degraded'
+        checks['circuit_breaker']['error'] = 'Circuit breaker not initialized'
+
+    # Verificar producer Kafka
+    checks['kafka_connection'] = {
+        'initialized': False
+    }
+
+    if hasattr(producer, 'producer') and producer.producer:
+        checks['kafka_connection']['initialized'] = True
+    else:
+        status = 'unhealthy'
+        checks['kafka_connection']['error'] = 'Kafka producer not initialized'
+
+    return JSONResponse(
+        status_code=200 if status == 'healthy' else (503 if status == 'unhealthy' else 200),
+        content={
+            'status': status,
+            'component': 'kafka_producer',
+            'timestamp': datetime.utcnow().isoformat(),
+            'checks': checks
+        }
+    )
+
+
+@app.get('/health/temporal-activities')
+async def temporal_activities_health_check():
+    """
+    Health check para validar que todas as activities estão registradas.
+
+    Verifica se activities críticas estão na lista de activities do Worker.
+    """
+    from datetime import datetime
+
+    if not app_state.temporal_worker:
+        return JSONResponse(
+            status_code=503,
+            content={
+                'status': 'unavailable',
+                'error': 'Temporal Worker not initialized',
+                'timestamp': datetime.utcnow().isoformat()
+            }
+        )
+
+    # Lista de activities críticas esperadas
+    expected_activities = [
+        'validate_cognitive_plan',
+        'generate_execution_tickets',
+        'consolidate_results',
+        'check_workflow_sla_proactive',
+        'publish_ticket_to_kafka',
+        'allocate_resources'
+    ]
+
+    # Obter activities registradas
+    registered_activities = []
+    missing_activities = []
+
+    if hasattr(app_state.temporal_worker, 'worker') and app_state.temporal_worker.worker:
+        # Extrair nomes de activities registradas
+        worker = app_state.temporal_worker.worker
+        if hasattr(worker, '_activities'):
+            registered_activities = [act.__name__ for act in worker._activities]
+
+    # Verificar quais estão faltando
+    for activity in expected_activities:
+        if activity not in registered_activities:
+            missing_activities.append(activity)
+
+    status = 'healthy' if not missing_activities else 'degraded'
+
+    return JSONResponse(
+        status_code=200 if status == 'healthy' else 200,  # 200 mesmo degraded para não bloquear readiness
+        content={
+            'status': status,
+            'component': 'temporal_activities',
+            'timestamp': datetime.utcnow().isoformat(),
+            'registered_count': len(registered_activities),
+            'expected_count': len(expected_activities),
+            'missing_activities': missing_activities,
+            'registered_activities': registered_activities
+        }
+    )
 
 
 @app.get('/ready')

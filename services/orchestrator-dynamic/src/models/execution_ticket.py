@@ -15,14 +15,43 @@ from typing import Optional, Dict, List, Any
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
+def _get_enum_value(val) -> str:
+    """
+    Extrai valor de enum de forma segura.
+    
+    Com Pydantic ConfigDict(use_enum_values=True), os valores podem vir
+    já como strings em vez de objetos Enum. Esta função trata ambos os casos.
+    
+    Args:
+        val: Valor que pode ser um Enum ou uma string
+        
+    Returns:
+        String com o valor
+    """
+    return val.value if hasattr(val, 'value') else str(val)
+
+
 class TaskType(str, Enum):
-    """Tipos de tarefa."""
+    """Tipos de tarefa.
+    
+    Inclui tipos legados (lowercase) para compatibilidade com mensagens antigas.
+    Novos tickets devem usar os tipos em UPPERCASE.
+    """
+    # Tipos padrão (UPPERCASE)
     BUILD = 'BUILD'
     DEPLOY = 'DEPLOY'
     TEST = 'TEST'
     VALIDATE = 'VALIDATE'
     EXECUTE = 'EXECUTE'
     COMPENSATE = 'COMPENSATE'
+    
+    # Tipos legados (lowercase) - para compatibilidade com mensagens antigas
+    query = 'query'
+    transform = 'transform'
+    validate_legacy = 'validate'  # lowercase version
+    analyze = 'analyze'
+    generate = 'generate'
+    review = 'review'
 
 
 class TicketStatus(str, Enum):
@@ -119,7 +148,7 @@ class ExecutionTicket(BaseModel):
     risk_band: RiskBand = Field(..., description='Banda de risco')
     sla: SLA = Field(..., description='Definições de SLA')
     qos: QoS = Field(..., description='Definições de QoS')
-    parameters: Dict[str, str] = Field(default_factory=dict, description='Parâmetros da tarefa')
+    parameters: Dict[str, Any] = Field(default_factory=dict, description='Parâmetros da tarefa (valores podem ser string, list, dict)')
     required_capabilities: List[str] = Field(default_factory=list, description='Capacidades necessárias')
     security_level: SecurityLevel = Field(..., description='Nível de segurança')
     created_at: int = Field(..., description='Timestamp de criação (millis)')
@@ -165,12 +194,12 @@ class ExecutionTicket(BaseModel):
         """
         data = self.model_dump()
 
-        # Converter enums para strings
-        data['task_type'] = self.task_type.value
-        data['status'] = self.status.value
-        data['priority'] = self.priority.value
-        data['risk_band'] = self.risk_band.value
-        data['security_level'] = self.security_level.value
+        # Converter enums para strings (usando helper para suportar enum ou string)
+        data['task_type'] = _get_enum_value(self.task_type)
+        data['status'] = _get_enum_value(self.status)
+        data['priority'] = _get_enum_value(self.priority)
+        data['risk_band'] = _get_enum_value(self.risk_band)
+        data['security_level'] = _get_enum_value(self.security_level)
 
         # Converter SLA
         data['sla'] = {
@@ -179,11 +208,11 @@ class ExecutionTicket(BaseModel):
             'max_retries': self.sla.max_retries
         }
 
-        # Converter QoS
+        # Converter QoS (usando helper para suportar enum ou string)
         data['qos'] = {
-            'delivery_mode': self.qos.delivery_mode.value,
-            'consistency': self.qos.consistency.value,
-            'durability': self.qos.durability.value
+            'delivery_mode': _get_enum_value(self.qos.delivery_mode),
+            'consistency': _get_enum_value(self.qos.consistency),
+            'durability': _get_enum_value(self.qos.durability)
         }
 
         # Incluir predictions se presente

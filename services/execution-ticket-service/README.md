@@ -7,7 +7,8 @@ Serviço dedicado para gerenciamento do ciclo de vida completo de Execution Tick
 O **Execution Ticket Service** é responsável por:
 
 - **Persistir** tickets em PostgreSQL (primary store) e MongoDB (audit trail)
-- **Expor API REST/gRPC** para consultas e atualizações de tickets
+- **Expor API gRPC (primária) e REST (secundária)** para consultas e atualizações de tickets
+- **Comunicar com Orchestrator Dynamic via gRPC** para operações de alta performance
 - **Gerar tokens JWT** escopados por ticket para autorização
 - **Disparar webhooks** para notificar Worker Agents quando tickets ficam prontos
 - **Rastrear status** e histórico de mudanças de tickets
@@ -21,7 +22,8 @@ O **Execution Ticket Service** é responsável por:
 │                                                             │
 │  ┌────────────┐  ┌────────────┐  ┌──────────────────────┐ │
 │  │ FastAPI    │  │ gRPC Server│  │ Kafka Consumer       │ │
-│  │ (REST API) │  │ (port 50052│  │ (execution.tickets)  │ │
+│  │ (SECUNDÁRIO│  │ (PRIMÁRIO) │  │ (execution.tickets)  │ │
+│  │ health/met)│  │ porta 50052│  │                      │ │
 │  └─────┬──────┘  └─────┬──────┘  └──────────┬───────────┘ │
 │        │               │                    │              │
 │  ┌─────┴───────────────┴────────────────────┴───────────┐ │
@@ -73,6 +75,33 @@ execution-ticket-service/
 - **PyJWT**: Geração de tokens JWT
 - **Prometheus**: Métricas customizadas
 - **OpenTelemetry**: Distributed tracing
+
+## Protocolos de Comunicação
+
+### gRPC (Porta 50052 - Protocolo Primário)
+
+Usado pelo orchestrator-dynamic para operações de negócio. Oferece melhor performance, type safety via Protocol Buffers, e suporte nativo a streaming.
+
+**RPCs Disponíveis:**
+- `GetTicket(ticket_id) → ExecutionTicket`: Buscar ticket por ID
+- `ListTickets(plan_id, status, offset, limit) → TicketList`: Listar tickets com filtros
+- `UpdateTicketStatus(ticket_id, status, error_message) → ExecutionTicket`: Atualizar status
+- `GenerateToken(ticket_id) → TokenResponse`: Gerar JWT para autorização
+
+### HTTP/REST (Porta 8000 - Protocolo Secundário)
+
+Usado para health checks Kubernetes, métricas Prometheus, e operações administrativas/debugging. Mantido para compatibilidade e observabilidade.
+
+### Tabela de Protocolos
+
+| Operação | Protocolo | Porta | Uso |
+|----------|-----------|-------|-----|
+| GetTicket | gRPC | 50052 | Orchestrator → Ticket Service |
+| UpdateTicketStatus | gRPC | 50052 | Worker Agents → Ticket Service |
+| Health Check | HTTP | 8000 | Kubernetes probes |
+| Metrics | HTTP | 9090 | Prometheus scraping |
+
+> **Nota:** gRPC é o protocolo primário para comunicação com orchestrator-dynamic. HTTP é usado para health checks, métricas Prometheus e operações administrativas.
 
 ## API REST
 
@@ -228,8 +257,8 @@ O Orchestrator Dynamic continua gerando tickets e publicando no Kafka. O Executi
 
 - [ ] Implementar Kafka Consumer real (stub atual)
 - [ ] Implementar Webhook Manager real (stub atual)
-- [ ] Implementar gRPC Server completo
-- [ ] Integrar com SPIFFE/SPIRE para tokens mTLS
+- [ ] Migrar para mTLS com SPIFFE/SPIRE para autenticação gRPC
+- [ ] Implementar gRPC streaming para monitoramento de tickets em tempo real
 - [ ] Implementar Dead Letter Queue para erros persistentes
 - [ ] Adicionar rate limiting na API REST
 - [ ] Dashboard Grafana customizado
@@ -240,13 +269,13 @@ O Orchestrator Dynamic continua gerando tickets e publicando no Kafka. O Executi
 - Modelos de dados (Pydantic, ORM, migrations)
 - Clientes de database (PostgreSQL async, MongoDB)
 - API REST (health, tickets CRUD, token generation)
+- gRPC Server (proto definido, servicer completo, 4 RPCs implementados: GetTicket, ListTickets, UpdateTicketStatus, GenerateToken)
 - Observabilidade (métricas, tracing, logs estruturados)
 - Main application com lifecycle management
 
 ⚠️ **Componentes Stub** (implementação futura):
 - Kafka Consumer (placeholder)
 - Webhook Manager (placeholder)
-- gRPC Server (proto definido, servicer stub)
 
 ## Contribuindo
 

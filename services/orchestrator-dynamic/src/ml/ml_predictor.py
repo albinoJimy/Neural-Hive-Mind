@@ -96,6 +96,54 @@ class MLPredictor:
             self.logger.error("ml_predictor_init_failed", error=str(e))
             raise
 
+    async def ensure_models_trained(self) -> Dict[str, bool]:
+        """
+        Garante que modelos estão treinados, executando treinamento inicial se necessário.
+
+        Chamado durante startup para validar estado dos modelos.
+
+        Returns:
+            Dict com status de cada modelo: {'duration': bool, 'anomaly': bool}
+        """
+        try:
+            self.logger.info("checking_models_training_status")
+
+            # Verificar e treinar modelos em paralelo
+            results = await asyncio.gather(
+                self.duration_predictor._ensure_model_trained(),
+                self.anomaly_detector._ensure_model_trained(),
+                return_exceptions=True
+            )
+
+            duration_ready = results[0]
+            anomaly_ready = results[1]
+
+            # Handle exceptions
+            if isinstance(duration_ready, Exception):
+                self.logger.error("duration_model_check_failed", error=str(duration_ready))
+                duration_ready = False
+
+            if isinstance(anomaly_ready, Exception):
+                self.logger.error("anomaly_model_check_failed", error=str(anomaly_ready))
+                anomaly_ready = False
+
+            status = {
+                'duration': duration_ready,
+                'anomaly': anomaly_ready
+            }
+
+            self.logger.info(
+                "models_training_status_checked",
+                duration_ready=duration_ready,
+                anomaly_ready=anomaly_ready
+            )
+
+            return status
+
+        except Exception as e:
+            self.logger.error("ensure_models_trained_failed", error=str(e))
+            return {'duration': False, 'anomaly': False}
+
     async def predict_and_enrich(self, ticket: Dict[str, Any]) -> Dict[str, Any]:
         """
         Executa todas as predições e enriquece ticket com metadata.

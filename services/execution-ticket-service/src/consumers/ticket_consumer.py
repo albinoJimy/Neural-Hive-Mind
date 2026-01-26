@@ -2,7 +2,6 @@
 Kafka Consumer para consumir tickets do tópico execution.tickets.
 """
 import asyncio
-import logging
 import json
 import time
 import uuid
@@ -13,6 +12,7 @@ from confluent_kafka.serialization import SerializationContext, MessageField
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroDeserializer
 
+import structlog
 from neural_hive_observability import instrument_kafka_consumer
 from neural_hive_observability.context import (
     extract_context_from_headers,
@@ -28,7 +28,7 @@ from ..observability.metrics import TicketServiceMetrics
 if TYPE_CHECKING:
     from ..webhooks.webhook_manager import WebhookManager
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class TicketConsumer:
@@ -290,11 +290,15 @@ class TicketConsumer:
         """
         start_time = time.time()
 
+        # Extrair valores de enum de forma segura (pode ser enum ou string)
+        task_type_value = ticket.task_type.value if hasattr(ticket.task_type, 'value') else str(ticket.task_type)
+        status_value = ticket.status.value if hasattr(ticket.status, 'value') else str(ticket.status)
+        
         logger.info(
             f"Processing ticket {ticket.ticket_id}",
             plan_id=ticket.plan_id,
-            task_type=ticket.task_type.value,
-            status=ticket.status.value
+            task_type=task_type_value,
+            status=status_value
         )
 
         try:

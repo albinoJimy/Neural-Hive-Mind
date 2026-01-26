@@ -186,13 +186,14 @@ class NeuralHiveGrpcServerInterceptor(grpc.ServerInterceptor):
 
         service, method = self._parse_method(method_path)
 
-        span.set_attribute("neural.hive.component", self.config.neural_hive_component)
-        span.set_attribute("neural.hive.layer", self.config.neural_hive_layer)
+        if self.config:
+            span.set_attribute("neural.hive.component", self.config.neural_hive_component)
+            span.set_attribute("neural.hive.layer", self.config.neural_hive_layer)
+            if self.config.neural_hive_domain:
+                span.set_attribute("neural.hive.domain", self.config.neural_hive_domain)
+
         span.set_attribute("neural.hive.grpc.service", service)
         span.set_attribute("neural.hive.grpc.method", method)
-
-        if self.config.neural_hive_domain:
-            span.set_attribute("neural.hive.domain", self.config.neural_hive_domain)
 
         for key, value in baggage_values.items():
             span.set_attribute(f"neural.hive.{key.replace('_', '.')}", value)

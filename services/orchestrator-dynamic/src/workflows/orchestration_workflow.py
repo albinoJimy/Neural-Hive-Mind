@@ -178,7 +178,25 @@ class OrchestrationWorkflow:
                             'data': sla_check_result
                         })
                 except Exception as e:
-                    workflow.logger.warning(f'Falha na verificação proativa de SLA (pós C2): {e}')
+                    error_msg = str(e)
+                    # Verificar se erro é de activity não registrada
+                    if 'not registered' in error_msg.lower():
+                        # Extrair nome da activity do erro
+                        activity_name = 'check_workflow_sla_proactive'
+
+                        # Registrar métrica de activity não registrada
+                        from src.observability.metrics import get_metrics
+                        workflow_metrics = get_metrics()
+                        workflow_metrics.record_temporal_activity_registration_error(
+                            activity_name=activity_name,
+                            workflow_name='OrchestrationWorkflow'
+                        )
+
+                    workflow.logger.warning(
+                        'sla_proactive_check_failed_continuing',
+                        checkpoint='post_ticket_generation',
+                        error=error_msg
+                    )
 
                 # === C3: Alocar Recursos ===
                 self._status = 'allocating_resources'

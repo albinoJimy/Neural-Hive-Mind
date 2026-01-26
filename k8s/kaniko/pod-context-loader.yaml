@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kaniko-context-loader
+  namespace: neural-hive
+  labels:
+    app: kaniko-build
+    component: context-loader
+spec:
+  restartPolicy: Never
+  containers:
+    - name: loader
+      image: alpine:3.18
+      command:
+        - /bin/sh
+        - -c
+        - |
+          echo "=== Kaniko Context Loader Ready ==="
+          echo "Mount point: /context"
+          echo "Waiting for code sync via kubectl cp..."
+          echo ""
+          echo "Use: kubectl cp <local-path> neural-hive/kaniko-context-loader:/context/"
+          echo ""
+          # Keep running to allow kubectl cp
+          while true; do
+            echo "[$(date)] Context loader running. Files in /context:"
+            ls -la /context 2>/dev/null || echo "  (empty)"
+            sleep 60
+          done
+      volumeMounts:
+        - name: context
+          mountPath: /context
+        - name: cache
+          mountPath: /cache
+      resources:
+        limits:
+          memory: "128Mi"
+          cpu: "100m"
+        requests:
+          memory: "64Mi"
+          cpu: "50m"
+  volumes:
+    - name: context
+      persistentVolumeClaim:
+        claimName: kaniko-build-context
+    - name: cache
+      persistentVolumeClaim:
+        claimName: kaniko-cache

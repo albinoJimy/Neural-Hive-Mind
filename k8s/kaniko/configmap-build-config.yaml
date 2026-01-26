@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kaniko-build-config
+  namespace: neural-hive
+  labels:
+    app: kaniko-build
+data:
+  # Registry interno do cluster
+  REGISTRY_URL: "docker-registry.registry.svc.cluster.local:5000"
+  
+  # Lista de servicos para build
+  SERVICES: |
+    analyst-agents
+    code-forge
+    execution-ticket-service
+    explainability-api
+    gateway-intencoes
+    guard-agents
+    mcp-tool-catalog
+    memory-layer-api
+    orchestrator-dynamic
+    queen-agent
+    scout-agents
+    self-healing-engine
+    service-registry
+    sla-management-system
+
+  # Mapeamento de servicos para Dockerfiles
+  DOCKERFILE_MAP: |
+    analyst-agents=services/analyst-agents/Dockerfile
+    code-forge=services/code-forge/Dockerfile
+    execution-ticket-service=services/execution-ticket-service/Dockerfile
+    explainability-api=services/explainability-api/Dockerfile
+    gateway-intencoes=services/gateway-intencoes/Dockerfile
+    guard-agents=services/guard-agents/Dockerfile
+    mcp-tool-catalog=services/mcp-tool-catalog/Dockerfile
+    memory-layer-api=services/memory-layer-api/Dockerfile
+    orchestrator-dynamic=services/orchestrator-dynamic/Dockerfile
+    queen-agent=services/queen-agent/Dockerfile
+    scout-agents=services/scout-agents/Dockerfile
+    self-healing-engine=services/self-healing-engine/Dockerfile
+    service-registry=services/service-registry/Dockerfile
+    sla-management-system=services/sla-management-system/Dockerfile

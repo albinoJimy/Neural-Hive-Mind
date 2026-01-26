@@ -1,0 +1,310 @@
+---
+# Alertas Prometheus para Inicialização de Componentes
+#
+# Detecta problemas de inicialização que causaram os erros:
+# 1. NoneType service_name no Kafka Producer
+# 2. Activity não registrada no Temporal Worker
+# 3. Modelo ML não treinado
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: component-initialization-alerts
+  namespace: monitoring
+  labels:
+    app: orchestrator-dynamic
+    component: initialization
+    prometheus: kube-prometheus
+spec:
+  groups:
+    - name: component_initialization_status
+      interval: 30s
+      rules:
+        # Alerta 1: Kafka Producer com falha de inicialização
+        - alert: KafkaProducerInitializationFailed
+          expr: |
+            neural_hive_component_initialization_status{
+              component_name="kafka_producer"
+            } == 3
+          for: 2m
+          labels:
+            severity: critical
+            component: kafka_producer
+            team: orchestration
+            error_type: initialization_failure
+          annotations:
+            summary: "Kafka Producer falhou ao inicializar"
+            description: |
+              Kafka Producer está em estado de falha (status=3).
+              
+              Possíveis causas:
+              - Config None ou service_name ausente
+              - Falha na inicialização do circuit breaker
+              - Credenciais Vault inválidas
+              - Kafka cluster inacessível
+              
+              Ações urgentes:
+              - Verificar logs: kubectl logs -n neural-hive-orchestration -l app=orchestrator-dynamic --tail=100 | grep kafka_producer
+              - Verificar health check: curl http://orchestrator-dynamic:8000/health/kafka-producer
+              - Verificar config: kubectl get configmap orchestrator-config -n neural-hive-orchestration -o yaml
+            dashboard_url: "https://grafana.local/d/component-initialization"
+            runbook_url: "https://docs.internal/runbooks/initialization-errors#kafka-producer-failed"
+
+        # Alerta 2: Config None detectado
+        - alert: KafkaProducerConfigNone
+          expr: |
+            increase(neural_hive_kafka_producer_config_validation_errors_total{
+              missing_attribute="service_name"
+            }[5m]) > 0
+          labels:
+            severity: critical
+            component: kafka_producer
+            team: orchestration
+            error_type: config_validation
+          annotations:
+            summary: "Kafka Producer config é None ou service_name ausente"
+            description: |
+              Erro 'NoneType' object has no attribute 'service_name' detectado.
+              
+              Causa raiz: Config passado para KafkaProducerClient é None ou service_name não está definido.
+              
+              Ações urgentes:
+              - Verificar inicialização em main.py (linhas 489-497)
+              - Verificar se get_settings() retorna config válido
+              - Verificar variáveis de ambiente: SERVICE_NAME
+              - Verificar logs de Vault se credenciais dinâmicas estão sendo usadas
+            dashboard_url: "https://grafana.local/d/component-initialization"
+            runbook_url: "https://docs.internal/runbooks/initialization-errors#config-none"
+
+        # Alerta 3: Circuit Breaker não inicializado
+        - alert: CircuitBreakerInitializationFailed
+          expr: |
+            neural_hive_circuit_breaker_initialization_status{
+              circuit_name="kafka_producer"
+            } == 2
+          for: 2m
+          labels:
+            severity: warning
+            component: circuit_breaker
+            team: orchestration
+            error_type: circuit_breaker_failure
+          annotations:
+            summary: "Circuit Breaker do Kafka Producer falhou ao inicializar"
+            description: |
+              Circuit breaker está em estado de falha (status=2).
+              
+              Impacto: Kafka Producer pode estar operando sem proteção de circuit breaker.
+              
+              Ações:
+              - Verificar logs de inicialização do circuit breaker
+              - Verificar se service_name está disponível
+              - Considerar desabilitar circuit breaker temporariamente: KAFKA_CIRCUIT_BREAKER_ENABLED=false
+            dashboard_url: "https://grafana.local/d/component-initialization"
+            runbook_url: "https://docs.internal/runbooks/initialization-errors#circuit-breaker-failed"
+
+    - name: temporal_activities_registration
+      interval: 30s
+      rules:
+        # Alerta 4: Activity não registrada
+        - alert: TemporalActivityNotRegistered
+          expr: |
+            increase(neural_hive_temporal_activity_registration_errors_total[10m]) > 0
+          labels:
+            severity: warning
+            component: temporal_worker
+            team: orchestration
+            error_type: activity_not_registered
+          annotations:
+            summary: "Activity {{ $labels.activity_name }} não está registrada no Temporal Worker"
+            description: |
+              Activity {{ $labels.activity_name }} foi chamada mas não está registrada.
+              Workflow: {{ $labels.workflow_name }}
+              
+              Impacto: Funcionalidade pode estar degradada (fail-open).
+              
+              Ações:
+              - Adicionar activity na lista de activities em temporal_worker.py (linhas 404-415)
+              - Verificar import correto da activity
+              - Reiniciar Temporal Worker após correção
+              - Validar que activity está registrada via logs
+            dashboard_url: "https://grafana.local/d/component-initialization"
+            runbook_url: "https://docs.internal/runbooks/initialization-errors#activity-not-registered"
+
+        # Alerta 5: Temporal Worker com falha
+        - alert: TemporalWorkerInitializationFailed
+          expr: |
+            neural_hive_component_initialization_status{
+              component_name="temporal_worker"
+            } == 3
+          for: 2m
+          labels:
+            severity: critical
+            component: temporal_worker
+            team: orchestration
+            error_type: initialization_failure
+          annotations:
+            summary: "Temporal Worker falhou ao inicializar"
+            description: |
+              Temporal Worker está em estado de falha (status=3).
+              
+              Impacto crítico: Workflows não podem ser executados.
+              
+              Ações urgentes:
+              - Verificar conectividade com Temporal Server
+              - Verificar logs de inicialização
+              - Verificar se activities estão sendo importadas corretamente
+              - Verificar task queue configurada
+            dashboard_url: "https://grafana.local/d/component-initialization"
+            runbook_url: "https://docs.internal/runbooks/initialization-errors#temporal-worker-failed"
+
+    - name: ml_models_training_status
+      interval: 1m
+      rules:
+        # Alerta 6: Modelo ML não treinado
+        - alert: MLModelNotTrained
+          expr: |
+            neural_hive_ml_model_training_status{
+              model_name=~"duration-predictor|scheduling-predictor|anomaly-detector"
+            } == 0
+          for: 10m
+          labels:
+            severity: warning
+            component: ml_predictor
+            team: orchestration
+            error_type: model_not_trained
+          annotations:
+            summary: "Modelo ML {{ $labels.model_name }} não está treinado"
+            description: |
+              Modelo {{ $labels.model_name }} está em estado 'untrained' (status=0).
+              
+              Causa: Modelo criado mas .fit() não foi chamado (sem atributo estimators_).
+              
+              Impacto: Predições usando fallback heurístico com baixa confiança (0.3-0.5).
+              
+              Ações:
+              - Verificar se MLflow tem modelo disponível
+              - Verificar se MongoDB tem dados históricos suficientes (min: 100 samples)
+              - Executar treinamento manual: curl -X POST http://orchestrator-dynamic:8000/api/v1/ml/train
+              - Verificar threshold ml_min_training_samples
+            dashboard_url: "https://grafana.local/d/component-initialization"
+            runbook_url: "https://docs.internal/runbooks/initialization-errors#ml-model-not-trained"
+
+        # Alerta 7: Falha no treinamento ML
+        - alert: MLModelTrainingFailed
+          expr: |
+            neural_hive_ml_model_training_status{
+              model_name=~"duration-predictor|scheduling-predictor|anomaly-detector"
+            } == 2
+          for: 5m
+          labels:
+            severity: critical
+            component: ml_predictor
+            team: orchestration
+            error_type: training_failure
+          annotations:
+            summary: "Treinamento do modelo {{ $labels.model_name }} falhou"
+            description: |
+              Modelo {{ $labels.model_name }} está em estado 'failed' (status=2).
+              
+              Impacto: Predições ML indisponíveis, usando fallback heurístico.
+              
+              Ações urgentes:
+              - Verificar logs de treinamento
+              - Verificar acesso ao MongoDB e MLflow
+              - Verificar volume de dados históricos
+              - Verificar recursos (CPU/Memory) disponíveis
+            dashboard_url: "https://grafana.local/d/component-initialization"
+            runbook_url: "https://docs.internal/runbooks/initialization-errors#ml-training-failed"
+
+        # Alerta 8: ML Predictor com falha de inicialização
+        - alert: MLPredictorInitializationFailed
+          expr: |
+            neural_hive_component_initialization_status{
+              component_name=~"duration_predictor|scheduling_predictor|anomaly_detector"
+            } == 3
+          for: 2m
+          labels:
+            severity: warning
+            component: ml_predictor
+            team: orchestration
+            error_type: initialization_failure
+          annotations:
+            summary: "ML Predictor {{ $labels.component_name }} falhou ao inicializar"
+            description: |
+              Predictor {{ $labels.component_name }} está em estado de falha (status=3).
+              
+              Impacto: Predições ML indisponíveis para este modelo.
+              
+              Ações:
+              - Verificar logs de inicialização do predictor
+              - Verificar conectividade com MLflow
+              - Verificar se modelo existe no registry
+              - Considerar desabilitar ML temporariamente: ml_predictions_enabled=false
+            dashboard_url: "https://grafana.local/d/component-initialization"
+            runbook_url: "https://docs.internal/runbooks/initialization-errors#ml-predictor-failed"
+
+    - name: component_initialization_health
+      interval: 1m
+      rules:
+        # Alerta 9: Taxa de falha de inicialização alta
+        - alert: ComponentInitializationFailureRateHigh
+          expr: |
+            (
+              sum(rate(neural_hive_component_initialization_total{status="failed"}[10m]))
+              /
+              sum(rate(neural_hive_component_initialization_total[10m]))
+            ) * 100 > 20
+          for: 5m
+          labels:
+            severity: critical
+            component: orchestrator
+            team: orchestration
+            error_type: high_failure_rate
+          annotations:
+            summary: "Alta taxa de falhas de inicialização ({{ $value | humanize }}%)"
+            description: |
+              Mais de 20% das inicializações de componentes estão falhando.
+              Taxa atual: {{ $value | humanize }}%
+              
+              Pode indicar problema sistêmico:
+              - Vault indisponível
+              - Credenciais inválidas
+              - Dependências externas down (Kafka, MongoDB, MLflow)
+              - Problemas de rede
+              
+              Ações urgentes:
+              - Verificar status de dependências externas
+              - Verificar logs de todos os componentes
+              - Verificar health checks: /health, /health/kafka-producer, /health/ml
+            dashboard_url: "https://grafana.local/d/component-initialization"
+            runbook_url: "https://docs.internal/runbooks/initialization-errors#high-failure-rate"
+
+        # Alerta 10: Inicialização lenta
+        - alert: ComponentInitializationSlow
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(neural_hive_component_initialization_duration_seconds_bucket[5m])) by (le, component_name)
+            ) > 30
+          for: 10m
+          labels:
+            severity: warning
+            component: orchestrator
+            team: orchestration
+            error_type: slow_initialization
+          annotations:
+            summary: "Inicialização de {{ $labels.component_name }} está lenta (P95={{ $value }}s)"
+            description: |
+              P95 da duração de inicialização de {{ $labels.component_name }} está acima de 30s.
+              Duração atual: {{ $value }}s
+              
+              Pode indicar:
+              - Latência de rede alta
+              - Dependências lentas (Vault, MLflow)
+              - Recursos insuficientes
+              
+              Ações:
+              - Verificar latência de dependências
+              - Verificar recursos do pod (CPU/Memory throttling)
+              - Analisar logs de inicialização para identificar gargalo
+            dashboard_url: "https://grafana.local/d/component-initialization"
+            runbook_url: "https://docs.internal/runbooks/initialization-errors#slow-initialization"

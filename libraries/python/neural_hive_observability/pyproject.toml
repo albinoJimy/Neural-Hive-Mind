@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neural-hive-observability"
-version = "1.2.4"
+version = "1.2.5"
 description = "Biblioteca de observabilidade padronizada para Neural Hive-Mind"
 readme = {text = "Biblioteca Python que facilita instrumentação OpenTelemetry consistente entre serviços do Neural Hive-Mind com tracing, métricas e logging estruturado.", content-type = "text/plain"}
 requires-python = ">=3.8"
@@ -25,11 +25,13 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "opentelemetry-api>=1.29.0",
-    "opentelemetry-sdk>=1.29.0",
-    "opentelemetry-exporter-otlp-proto-grpc>=1.29.0",
-    "opentelemetry-instrumentation>=0.50b0",
-    "opentelemetry-instrumentation-grpc>=0.50b0",
+    "opentelemetry-api==1.29.0",
+    "opentelemetry-sdk==1.29.0",
+    "opentelemetry-exporter-otlp-proto-grpc==1.29.0",
+    "opentelemetry-exporter-otlp-proto-common==1.29.0",
+    "opentelemetry-proto==1.29.0",
+    "opentelemetry-instrumentation==0.50b0",
+    "opentelemetry-instrumentation-grpc==0.50b0",
     "grpcio>=1.68.1",
     "prometheus-client>=0.21.1",
     "structlog>=24.4.0",

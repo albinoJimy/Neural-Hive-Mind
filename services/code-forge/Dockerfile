@@ -1,6 +1,6 @@
 # Multi-stage Dockerfile for Code Forge - Neural Code Generation Pipeline
 # Stage 1: Builder
-FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.4 AS builder
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.5 AS builder
 
 WORKDIR /build
 
@@ -13,14 +13,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy local libraries first
 COPY libraries/neural_hive_integration /tmp/neural_hive_integration
+COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
 
 # Copy requirements and install dependencies
 COPY services/code-forge/requirements.txt .
-RUN pip install --no-cache-dir --user /tmp/neural_hive_integration || true && \
+RUN pip install --no-cache-dir --user /tmp/neural_hive_resilience && \
+    pip install --no-cache-dir --user /tmp/neural_hive_integration && \
     pip install --no-cache-dir --user -r requirements.txt
 
 # Stage 2: Runtime - use same base to get neural_hive_observability
-FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.4
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.5
 
 WORKDIR /app
 

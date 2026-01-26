@@ -1,5 +1,5 @@
 # Multi-stage build for Scout Agents
-FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.4 AS builder
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.5 AS builder
 
 WORKDIR /app
 
@@ -9,20 +9,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy libraries needed for requirements.txt
+COPY libraries /libraries
+
 # Copy requirements and install dependencies in virtualenv with system site-packages
 COPY services/scout-agents/requirements.txt .
 RUN python -m venv --system-site-packages /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
-
-# Copy and install neural_hive_integration library with proto_stubs
-COPY libraries/neural_hive_integration/ /tmp/neural_hive_integration/
-RUN pip install --no-cache-dir /tmp/neural_hive_integration/ && \
-    rm -rf /tmp/neural_hive_integration
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir /libraries/neural_hive_integration/
 
 # Runtime stage
-FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.4
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.5
 
 WORKDIR /app
 

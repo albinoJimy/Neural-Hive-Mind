@@ -37,6 +37,28 @@
   - Camada que coleta métricas de pipelines, deploys e runtime (lead time, taxa de falha, cobertura de testes) via OTel, Prometheus e Loki, retroalimentando Orquestração e Autocura.  
   - Calibra políticas de erro, thresholds de rollback e insights para experimentação.  
 
+## Execution Ticket Service (gRPC + PostgreSQL + MongoDB)
+
+Servico dedicado para persistencia e gerenciamento de execution tickets, expondo API gRPC para orchestrator e worker agents. Mantem dual-store (PostgreSQL para queries transacionais, MongoDB para audit trail).
+
+### Responsabilidades
+- Persistir tickets gerados pelo orchestrator (C2)
+- Fornecer queries de tickets por plan_id, status, priority (C3, C5)
+- Atualizar status de tickets durante execucao (C5)
+- Gerar tokens JWT para autorizacao de workers
+
+### Metricas Especificas
+- `tickets_persisted_total`: Total de tickets persistidos
+- `grpc_server_handled_total{grpc_method="GetTicket"}`: Chamadas gRPC por metodo
+- `grpc_server_handling_seconds{grpc_method="UpdateTicketStatus"}`: Latencia por metodo
+- `postgres_queries_total`: Queries PostgreSQL
+- `mongodb_operations_total`: Operacoes MongoDB
+
+### Protocolos
+- **gRPC (porta 50052)**: Protocolo primario para orchestrator-dynamic e worker-agents
+- **HTTP (porta 8000)**: Health checks e REST API secundaria
+- **HTTP (porta 9090)**: Metricas Prometheus
+
 ## Arquitetura e Tecnologias
 - Deployment automatizado via Terraform/Helm, ArgoCD/Tekton e GitOps.
 - Sidecars Istio asseguram mTLS e observabilidade; OTele instrumentation fornece métricas e traces.

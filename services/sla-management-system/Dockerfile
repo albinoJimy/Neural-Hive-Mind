@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.4 AS builder
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.5 AS builder
 
 WORKDIR /app
 
@@ -10,13 +10,13 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install dependencies
+# Copy requirements and install dependencies to user directory
 COPY services/sla-management-system/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir --user -r requirements.txt
 
-# Stage 2: Runtime
-FROM python:3.11-slim
+# Stage 2: Runtime - use same base to keep neural_hive_observability
+FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.5
 
 WORKDIR /app
 
@@ -27,15 +27,18 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed packages from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --from=builder /root/.local /home/appuser/.local
 
 # Copy application code
 COPY services/sla-management-system/src/ ./src/
 
 # Create non-root user
 RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
+    chown -R appuser:appuser /app /home/appuser
+
+# Set environment for user packages and base image packages
+ENV PATH=/home/appuser/.local/bin:$PATH
+ENV PYTHONPATH=/home/appuser/.local/lib/python3.11/site-packages:/usr/local/lib/python3.11/site-packages:/app
 
 USER appuser
 

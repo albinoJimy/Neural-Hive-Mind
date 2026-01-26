@@ -306,6 +306,14 @@ class TemporalWorkerManager:
                     interval_hours=self.config.ml_training_interval_hours
                 )
 
+                # Verificar e treinar modelos se necessário (startup check)
+                models_status = await ml_predictor.ensure_models_trained()
+                logger.info(
+                    'ml_models_startup_check_completed',
+                    duration_model_ready=models_status.get('duration'),
+                    anomaly_model_ready=models_status.get('anomaly')
+                )
+
                 logger.info(
                     'ML Predictor inicializado com sucesso',
                     training_interval_hours=self.config.ml_training_interval_hours
@@ -345,6 +353,7 @@ class TemporalWorkerManager:
             buffer_telemetry,
             set_activity_dependencies as set_consolidation_deps
         )
+        from src.activities.sla_monitoring import check_workflow_sla_proactive
 
         # Injetar PolicyValidator e MongoDB nas activities de validação (fail-open)
         if self.policy_validator:
@@ -411,13 +420,20 @@ class TemporalWorkerManager:
                 consolidate_results,
                 trigger_self_healing,
                 publish_telemetry,
-                buffer_telemetry
+                buffer_telemetry,
+                check_workflow_sla_proactive
             ],
             max_concurrent_workflow_tasks=10,
             max_concurrent_activities=50
         )
 
         logger.info('Temporal Worker inicializado com sucesso')
+
+        logger.info(
+            'SLA monitoring activity registrada no Worker',
+            activity='check_workflow_sla_proactive',
+            sla_management_enabled=self.config.sla_management_enabled
+        )
 
     async def start(self):
         """Inicia o worker."""

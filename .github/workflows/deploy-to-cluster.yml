@@ -1,0 +1,296 @@
+name: Deploy to Cluster
+
+on:
+  workflow_run:
+    workflows: ["Build and Push to GHCR"]
+    types: [completed]
+    branches: [main, develop]
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Ambiente de deploy'
+        required: true
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+        default: 'development'
+      services:
+        description: 'Servicos para deploy (separados por virgula, vazio = todos)'
+        required: false
+        type: string
+      image_tag:
+        description: 'Tag da imagem (ex: latest, sha-abc123)'
+        required: false
+        type: string
+        default: 'latest'
+      dry_run:
+        description: 'Apenas simular (nao aplicar)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  GHCR_PREFIX: ghcr.io/${{ github.repository_owner }}/neural-hive-mind
+
+jobs:
+  # ============================================================================
+  # Job 1: Preparar deploy
+  # ============================================================================
+  prepare:
+    name: Preparar Deploy
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    
+    outputs:
+      services_matrix: ${{ steps.set-services.outputs.matrix }}
+      environment: ${{ steps.set-env.outputs.environment }}
+      namespace: ${{ steps.set-env.outputs.namespace }}
+      image_tag: ${{ steps.set-env.outputs.image_tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Definir ambiente
+        id: set-env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ENV="${{ inputs.environment }}"
+            TAG="${{ inputs.image_tag }}"
+          else
+            # Deploy automatico baseado na branch
+            if [[ "${{ github.event.workflow_run.head_branch }}" == "main" ]]; then
+              ENV="production"
+            else
+              ENV="development"
+            fi
+            TAG="${{ github.event.workflow_run.head_sha }}"
+          fi
+
+          case "$ENV" in
+            production)
+              NAMESPACE="neural-hive"
+              ;;
+            staging)
+              NAMESPACE="neural-hive-staging"
+              ;;
+            *)
+              NAMESPACE="neural-hive-dev"
+              ;;
+          esac
+
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+          echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
+          echo "image_tag=${TAG:-latest}" >> $GITHUB_OUTPUT
+
+          echo "Ambiente: $ENV"
+          echo "Namespace: $NAMESPACE"
+          echo "Tag: ${TAG:-latest}"
+
+      - name: Definir servicos
+        id: set-services
+        run: |
+          ALL_SERVICES=(
+            "analyst-agents"
+            "code-forge"
+            "execution-ticket-service"
+            "explainability-api"
+            "gateway-intencoes"
+            "guard-agents"
+            "mcp-tool-catalog"
+            "memory-layer-api"
+            "orchestrator-dynamic"
+            "queen-agent"
+            "scout-agents"
+            "self-healing-engine"
+            "service-registry"
+            "sla-management-system"
+          )
+
+          if [[ -n "${{ inputs.services }}" ]]; then
+            IFS=',' read -ra SERVICES <<< "${{ inputs.services }}"
+          else
+            SERVICES=("${ALL_SERVICES[@]}")
+          fi
+
+          MATRIX_JSON=$(printf '%s\n' "${SERVICES[@]}" | jq -R -s -c 'split("\n") | map(select(. != ""))')
+          echo "matrix=${MATRIX_JSON}" >> $GITHUB_OUTPUT
+          echo "Servicos: $MATRIX_JSON"
+
+  # ============================================================================
+  # Job 2: Deploy dos servicos
+  # ============================================================================
+  deploy:
+    name: Deploy ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: prepare
+    environment: ${{ needs.prepare.outputs.environment }}
+    
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        service: ${{ fromJson(needs.prepare.outputs.services_matrix) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configurar kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Verificar conexao
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Verificar deployment existe
+        id: check-deployment
+        run: |
+          NAMESPACE="${{ needs.prepare.outputs.namespace }}"
+          SERVICE="${{ matrix.service }}"
+          
+          if kubectl get deployment "$SERVICE" -n "$NAMESPACE" &> /dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Deployment $SERVICE encontrado"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Deployment $SERVICE NAO encontrado - pulando"
+          fi
+
+      - name: Garantir imagePullSecrets
+        if: steps.check-deployment.outputs.exists == 'true'
+        run: |
+          NAMESPACE="${{ needs.prepare.outputs.namespace }}"
+          SERVICE="${{ matrix.service }}"
+          
+          # Verificar se secret existe
+          if ! kubectl get secret ghcr-secret -n "$NAMESPACE" &> /dev/null; then
+            echo "AVISO: Secret ghcr-secret nao encontrado"
+            exit 1
+          fi
+          
+          # Adicionar imagePullSecrets se nao existir
+          kubectl patch deployment "$SERVICE" -n "$NAMESPACE" \
+            --type='json' \
+            -p='[{"op": "add", "path": "/spec/template/spec/imagePullSecrets", "value": [{"name": "ghcr-secret"}]}]' 2>/dev/null || true
+
+      - name: Atualizar imagem
+        if: steps.check-deployment.outputs.exists == 'true' && inputs.dry_run != true
+        run: |
+          NAMESPACE="${{ needs.prepare.outputs.namespace }}"
+          SERVICE="${{ matrix.service }}"
+          TAG="${{ needs.prepare.outputs.image_tag }}"
+          NEW_IMAGE="${{ env.GHCR_PREFIX }}/${SERVICE}:${TAG}"
+          
+          echo "Atualizando $SERVICE para $NEW_IMAGE"
+          
+          kubectl set image deployment/"$SERVICE" \
+            "$SERVICE"="$NEW_IMAGE" \
+            -n "$NAMESPACE" --record
+          
+          # Aguardar rollout
+          kubectl rollout status deployment/"$SERVICE" \
+            -n "$NAMESPACE" \
+            --timeout=300s
+
+      - name: Dry Run - Mostrar mudancas
+        if: steps.check-deployment.outputs.exists == 'true' && inputs.dry_run == true
+        run: |
+          NAMESPACE="${{ needs.prepare.outputs.namespace }}"
+          SERVICE="${{ matrix.service }}"
+          TAG="${{ needs.prepare.outputs.image_tag }}"
+          NEW_IMAGE="${{ env.GHCR_PREFIX }}/${SERVICE}:${TAG}"
+          
+          echo "[DRY-RUN] Atualizaria $SERVICE para $NEW_IMAGE"
+          
+          CURRENT=$(kubectl get deployment "$SERVICE" -n "$NAMESPACE" \
+            -o jsonpath='{.spec.template.spec.containers[0].image}')
+          
+          echo "Atual: $CURRENT"
+          echo "Nova:  $NEW_IMAGE"
+
+      - name: Verificar health
+        if: steps.check-deployment.outputs.exists == 'true' && inputs.dry_run != true
+        run: |
+          NAMESPACE="${{ needs.prepare.outputs.namespace }}"
+          SERVICE="${{ matrix.service }}"
+          
+          # Aguardar pods ficarem ready
+          sleep 10
+          
+          READY=$(kubectl get deployment "$SERVICE" -n "$NAMESPACE" \
+            -o jsonpath='{.status.readyReplicas}')
+          DESIRED=$(kubectl get deployment "$SERVICE" -n "$NAMESPACE" \
+            -o jsonpath='{.status.replicas}')
+          
+          echo "Replicas: $READY/$DESIRED"
+          
+          if [[ "$READY" != "$DESIRED" ]]; then
+            echo "AVISO: Nem todas as replicas estao ready"
+            kubectl get pods -n "$NAMESPACE" -l app="$SERVICE"
+          fi
+
+  # ============================================================================
+  # Job 3: Resumo
+  # ============================================================================
+  summary:
+    name: Resumo do Deploy
+    runs-on: ubuntu-latest
+    needs: [prepare, deploy]
+    if: always()
+
+    steps:
+      - name: Gerar resumo
+        run: |
+          echo "## Deploy Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Ambiente:** ${{ needs.prepare.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Namespace:** ${{ needs.prepare.outputs.namespace }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** ${{ needs.prepare.outputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Dry Run:** ${{ inputs.dry_run || 'false' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Resultado" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.deploy.result }}" == "success" ]]; then
+            echo "Deploy concluido com sucesso!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Deploy teve falhas - verificar logs" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Notificar Slack (opcional)
+        if: always() && secrets.SLACK_WEBHOOK_URL != ''
+        run: |
+          STATUS="success"
+          if [[ "${{ needs.deploy.result }}" != "success" ]]; then
+            STATUS="failure"
+          fi
+          
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-type: application/json' \
+            -d '{
+              "text": "Deploy Neural Hive-Mind",
+              "attachments": [{
+                "color": "'$([ "$STATUS" = "success" ] && echo "good" || echo "danger")'",
+                "fields": [
+                  {"title": "Ambiente", "value": "${{ needs.prepare.outputs.environment }}", "short": true},
+                  {"title": "Tag", "value": "${{ needs.prepare.outputs.image_tag }}", "short": true},
+                  {"title": "Status", "value": "'"$STATUS"'", "short": true}
+                ]
+              }]
+            }' || true

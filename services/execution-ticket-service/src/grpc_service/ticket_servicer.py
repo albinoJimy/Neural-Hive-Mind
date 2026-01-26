@@ -12,9 +12,9 @@ Arquivos gerados pelo protoc:
 
 Comando para gerar arquivos:
     python -m grpc_tools.protoc -I./protos \
-        --python_out=./src/grpc_service \
-        --grpc_python_out=./src/grpc_service \
-        --pyi_out=./src/grpc_service \
+        --python_out=./src/proto_gen \
+        --grpc_python_out=./src/proto_gen \
+        --pyi_out=./src/proto_gen \
         ./protos/ticket_service.proto
 
 Conversões:
@@ -25,8 +25,8 @@ import logging
 from typing import Optional
 
 import grpc
-from . import ticket_service_pb2
-from . import ticket_service_pb2_grpc
+from ..proto_gen import ticket_service_pb2
+from ..proto_gen import ticket_service_pb2_grpc
 
 from neural_hive_observability import get_tracer
 from neural_hive_observability.context import set_baggage
@@ -39,6 +39,16 @@ from ..config import get_settings
 
 logger = logging.getLogger(__name__)
 tracer = get_tracer()
+
+
+def _get_enum_value(val) -> str:
+    """
+    Extrai valor de enum de forma segura.
+    
+    Com Pydantic ConfigDict(use_enum_values=True), os valores podem vir
+    já como strings em vez de objetos Enum. Esta função trata ambos os casos.
+    """
+    return val.value if hasattr(val, 'value') else str(val)
 
 
 class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
@@ -58,8 +68,8 @@ class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
         ticket_id = request.ticket_id
 
         try:
-            metadata_dict = dict(context.invocation_metadata())
-            extract_grpc_context(metadata_dict)
+            # Extrair contexto de tracing dos metadados gRPC
+            extract_grpc_context(context)
             if hasattr(request, "plan_id") and request.plan_id:
                 set_baggage("plan_id", request.plan_id)
             if ticket_id:
@@ -97,8 +107,8 @@ class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
             ListTicketsResponse
         """
         try:
-            metadata_dict = dict(context.invocation_metadata())
-            extract_grpc_context(metadata_dict)
+            # Extrair contexto de tracing dos metadados gRPC
+            extract_grpc_context(context)
             if hasattr(request, "plan_id") and request.plan_id:
                 set_baggage("plan_id", request.plan_id)
 
@@ -149,8 +159,8 @@ class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
         error_message = request.error_message if request.error_message else None
 
         try:
-            metadata_dict = dict(context.invocation_metadata())
-            extract_grpc_context(metadata_dict)
+            # Extrair contexto de tracing dos metadados gRPC
+            extract_grpc_context(context)
             if hasattr(request, "plan_id") and request.plan_id:
                 set_baggage("plan_id", request.plan_id)
             if ticket_id:
@@ -202,8 +212,8 @@ class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
         ticket_id = request.ticket_id
 
         try:
-            metadata_dict = dict(context.invocation_metadata())
-            extract_grpc_context(metadata_dict)
+            # Extrair contexto de tracing dos metadados gRPC
+            extract_grpc_context(context)
             if hasattr(request, "plan_id") and request.plan_id:
                 set_baggage("plan_id", request.plan_id)
             if ticket_id:
@@ -222,9 +232,10 @@ class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
             ticket = ticket_orm.to_pydantic()
 
             # Validar status
-            if ticket.status not in [TicketStatus.PENDING, TicketStatus.RUNNING]:
+            status_value = _get_enum_value(ticket.status)
+            if status_value not in ['PENDING', 'RUNNING']:
                 context.set_code(grpc.StatusCode.FAILED_PRECONDITION)
-                context.set_details(f'Cannot generate token for ticket with status {ticket.status.value}')
+                context.set_details(f'Cannot generate token for ticket with status {status_value}')
                 return ticket_service_pb2.GenerateTokenResponse()
 
             # Gerar token
@@ -236,7 +247,7 @@ class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
                     settings.jwt_algorithm,
                     settings.jwt_token_expiration_seconds
                 )
-                span.set_attribute("neural.hive.ticket.status", ticket.status.value)
+                span.set_attribute("neural.hive.ticket.status", status_value)
 
             return ticket_service_pb2.GenerateTokenResponse(
                 access_token=token.access_token,
@@ -264,9 +275,9 @@ class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
             plan_id=ticket.plan_id,
             intent_id=ticket.intent_id,
             task_id=ticket.task_id,
-            task_type=ticket.task_type.value,
+            task_type=_get_enum_value(ticket.task_type),
             description=ticket.description,
-            status=ticket.status.value,
-            priority=ticket.priority.value,
+            status=_get_enum_value(ticket.status),
+            priority=_get_enum_value(ticket.priority),
             created_at=ticket.created_at if ticket.created_at else 0
         )

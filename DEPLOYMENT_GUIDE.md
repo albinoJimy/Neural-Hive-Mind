@@ -383,6 +383,26 @@ helm upgrade --install worker-agents ./helm-charts/worker-agents \
 4. Confirmar métricas e logs nos namespaces `neural-hive-orchestration`, `neural-hive-execution`, `neural-hive-observability`.
 5. Somente concluir rollout após todos os scripts retornarem sucesso e os testes `tests/e2e/` passarem.
 
+### Validação de Comunicação gRPC
+
+Após deploy do orchestrator e execution-ticket-service, validar conectividade gRPC:
+
+```bash
+# Executar script de validação gRPC
+./scripts/validation/validate-grpc-ticket-service.sh
+```
+
+**Sinais de Sucesso:**
+- Log "grpc_server_started" (ou similar) no execution-ticket-service
+- Orchestrator log "execution_ticket_grpc_channel_ready"
+- Readiness probe gRPC passando (pod Ready)
+- Métricas `grpc_server_handled_total` presentes
+
+**Troubleshooting:**
+- Se "channel_timeout": verificar se execution-ticket-service está rodando
+- Se "ConnectError": verificar network policies e service DNS
+- Se "Unavailable": verificar se porta 50052 está exposta no service
+
 ## ✅ Validação
 
 ### Checklist de Validação

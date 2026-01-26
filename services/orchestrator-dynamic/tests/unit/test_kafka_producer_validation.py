@@ -298,7 +298,7 @@ async def test_kafka_producer_initialize_validates_config():
 
 @pytest.mark.asyncio
 async def test_kafka_producer_circuit_breaker_fallback_on_missing_service_name():
-    """Valida que circuit breaker é desabilitado se service_name falhar."""
+    """Valida que inicialização falha se service_name estiver ausente após construção."""
     from src.clients.kafka_producer import KafkaProducerClient
 
     config = types.SimpleNamespace(
@@ -319,25 +319,23 @@ async def test_kafka_producer_circuit_breaker_fallback_on_missing_service_name()
     with patch('src.clients.kafka_producer.logger'):
         client = KafkaProducerClient(config)
 
-    # Simular service_name None para forçar fallback
+    # Simular service_name None para forçar erro de validação
     client.config.service_name = None
 
     with patch('src.clients.kafka_producer.Producer'):
         with patch('src.clients.kafka_producer.instrument_kafka_producer', side_effect=lambda x: x):
             with patch('src.clients.kafka_producer.SchemaRegistryClient', side_effect=Exception('Schema unavailable')):
                 with patch('src.clients.kafka_producer.logger') as mock_logger:
-                    await client.initialize()
+                    # Deve lançar RuntimeError devido à validação antecipada
+                    with pytest.raises(RuntimeError, match='service_name'):
+                        await client.initialize()
 
-                    # Circuit breaker deve estar desabilitado
-                    assert client.circuit_breaker_enabled is False
-                    assert client.producer_breaker is None
-
-                    # Deve ter logado warning
-                    warning_calls = [
-                        call for call in mock_logger.warning.call_args_list
-                        if 'circuit_breaker_init_failed' in str(call)
+                    # Deve ter logado erro com dependências ausentes
+                    error_calls = [
+                        call for call in mock_logger.error.call_args_list
+                        if 'missing_dependencies' in str(call)
                     ]
-                    assert len(warning_calls) >= 1
+                    assert len(error_calls) >= 1
 
 
 @pytest.mark.asyncio
@@ -383,3 +381,81 @@ async def test_kafka_producer_circuit_breaker_enabled_with_valid_config():
                     mock_cb.assert_called_once()
                     call_kwargs = mock_cb.call_args[1]
                     assert call_kwargs['service_name'] == 'test-service'
+
+
+@pytest.mark.asyncio
+async def test_kafka_producer_initialize_records_success_metrics():
+    """Valida que métricas de sucesso são registradas na inicialização."""
+    from src.clients.kafka_producer import KafkaProducerClient
+
+    config = types.SimpleNamespace(
+        service_name='test-service',
+        kafka_bootstrap_servers='localhost:9092',
+        kafka_tickets_topic='tickets',
+        kafka_schema_registry_url='http://localhost:8081',
+        kafka_sasl_username=None,
+        kafka_sasl_password=None,
+        kafka_security_protocol='PLAINTEXT',
+        schemas_base_path='/schemas',
+        KAFKA_CIRCUIT_BREAKER_ENABLED=True,
+        KAFKA_CIRCUIT_BREAKER_FAIL_MAX=5,
+        KAFKA_CIRCUIT_BREAKER_TIMEOUT=60,
+        KAFKA_CIRCUIT_BREAKER_RECOVERY_TIMEOUT=30
+    )
+
+    with patch('src.clients.kafka_producer.logger'):
+        client = KafkaProducerClient(config)
+
+    with patch('src.clients.kafka_producer.Producer'):
+        with patch('src.clients.kafka_producer.instrument_kafka_producer', side_effect=lambda x: x):
+            with patch('src.clients.kafka_producer.SchemaRegistryClient', side_effect=Exception('Schema unavailable')):
+                with patch('src.clients.kafka_producer.MonitoredCircuitBreaker'):
+                    with patch.object(client, '_get_metrics') as mock_get_metrics:
+                        mock_metrics = MagicMock()
+                        mock_get_metrics.return_value = mock_metrics
+
+                        await client.initialize()
+
+                        # Verificar que métrica foi registrada
+                        mock_metrics.record_component_initialization.assert_called_once()
+                        call_kwargs = mock_metrics.record_component_initialization.call_args[1]
+                        assert call_kwargs['component_name'] == 'kafka_producer'
+                        assert call_kwargs['status'] == 'success'
+                        assert call_kwargs['duration_seconds'] > 0
+
+
+@pytest.mark.asyncio
+async def test_kafka_producer_initialize_records_failure_metrics():
+    """Valida que métricas de falha são registradas quando inicialização falha."""
+    from src.clients.kafka_producer import KafkaProducerClient
+
+    config = types.SimpleNamespace(
+        service_name='test-service',
+        kafka_bootstrap_servers='localhost:9092',
+        kafka_tickets_topic='tickets',
+        kafka_schema_registry_url='http://localhost:8081',
+        kafka_sasl_username=None,
+        kafka_sasl_password=None,
+        kafka_security_protocol='PLAINTEXT',
+        schemas_base_path='/schemas',
+        KAFKA_CIRCUIT_BREAKER_ENABLED=True
+    )
+
+    with patch('src.clients.kafka_producer.logger'):
+        client = KafkaProducerClient(config)
+
+    # Corromper config para forçar falha
+    client.config = None
+
+    with patch.object(client, '_get_metrics') as mock_get_metrics:
+        mock_metrics = MagicMock()
+        mock_get_metrics.return_value = mock_metrics
+
+        with pytest.raises(RuntimeError):
+            await client.initialize()
+
+        # Verificar que métrica de falha foi registrada
+        mock_metrics.record_component_initialization.assert_called_once()
+        call_kwargs = mock_metrics.record_component_initialization.call_args[1]
+        assert call_kwargs['component_name'] == 'kafka_producer'
+        assert call_kwargs['status'] == 'failed'

@@ -23,6 +23,22 @@ from . import ExecutionTicket, SLA, QoS
 Base = declarative_base()
 
 
+def _get_enum_value(val) -> str:
+    """
+    Extrai valor de enum de forma segura.
+    
+    Com Pydantic ConfigDict(use_enum_values=True), os valores podem vir
+    já como strings em vez de objetos Enum. Esta função trata ambos os casos.
+    
+    Args:
+        val: Valor que pode ser um Enum ou uma string
+        
+    Returns:
+        String com o valor
+    """
+    return val.value if hasattr(val, 'value') else str(val)
+
+
 class TicketORM(Base):
     """Modelo ORM para tabela execution_tickets."""
 
@@ -150,11 +166,11 @@ class TicketORM(Base):
             'max_retries': ticket.sla.max_retries
         }
 
-        # Converter QoS para dict
+        # Converter QoS para dict (usando helper para suportar enum ou string)
         qos_dict = {
-            'delivery_mode': ticket.qos.delivery_mode.value,
-            'consistency': ticket.qos.consistency.value,
-            'durability': ticket.qos.durability.value
+            'delivery_mode': _get_enum_value(ticket.qos.delivery_mode),
+            'consistency': _get_enum_value(ticket.qos.consistency),
+            'durability': _get_enum_value(ticket.qos.durability)
         }
 
         # Calcular hash
@@ -169,17 +185,17 @@ class TicketORM(Base):
             trace_id=ticket.trace_id,
             span_id=ticket.span_id,
             task_id=ticket.task_id,
-            task_type=ticket.task_type.value,
+            task_type=_get_enum_value(ticket.task_type),
             description=ticket.description,
             dependencies=ticket.dependencies,
-            status=ticket.status.value,
-            priority=ticket.priority.value,
-            risk_band=ticket.risk_band.value,
+            status=_get_enum_value(ticket.status),
+            priority=_get_enum_value(ticket.priority),
+            risk_band=_get_enum_value(ticket.risk_band),
             sla=sla_dict,
             qos=qos_dict,
             parameters=ticket.parameters,
             required_capabilities=ticket.required_capabilities,
-            security_level=ticket.security_level.value,
+            security_level=_get_enum_value(ticket.security_level),
             created_at=created_at,
             started_at=started_at,
             completed_at=completed_at,

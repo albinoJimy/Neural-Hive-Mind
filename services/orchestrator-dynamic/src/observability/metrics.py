@@ -2,6 +2,7 @@
 Métricas Prometheus customizadas para o Orchestrator Dynamic.
 """
 from functools import lru_cache
+from typing import Dict, Optional, Any
 
 from prometheus_client import Counter, Histogram, Gauge
 import structlog
@@ -257,6 +258,60 @@ class OrchestratorMetrics:
             'neural_hive_kafka_hot_partition_detected_total',
             'Total de hot partitions detectadas (partition > 2x média)',
             ['topic', 'partition', 'service', 'component', 'layer']
+        )
+
+        # Métricas de Inicialização de Componentes
+        self.component_initialization_total = Counter(
+            'neural_hive_component_initialization_total',
+            'Total de tentativas de inicialização de componentes',
+            ['service', 'component', 'layer', 'component_name', 'status']  # status: success, failed
+        )
+
+        self.component_initialization_duration_seconds = Histogram(
+            'neural_hive_component_initialization_duration_seconds',
+            'Duração de inicialização de componentes',
+            ['service', 'component', 'layer', 'component_name', 'status'],
+            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30, 60]
+        )
+
+        self.circuit_breaker_initialization_errors_total = Counter(
+            'neural_hive_circuit_breaker_initialization_errors_total',
+            'Total de erros na inicialização de circuit breakers',
+            ['service', 'component', 'layer', 'circuit_name', 'error_type']
+        )
+
+        self.kafka_producer_config_validation_errors_total = Counter(
+            'neural_hive_kafka_producer_config_validation_errors_total',
+            'Total de erros de validação de config do Kafka Producer',
+            ['service', 'component', 'layer', 'validation_stage', 'missing_attribute']
+        )
+
+        # Gauge para Status de Inicialização de Componentes
+        self.component_initialization_status = Gauge(
+            'neural_hive_component_initialization_status',
+            'Status de inicialização de componentes críticos (0=not_started, 1=in_progress, 2=success, 3=failed)',
+            ['service', 'component', 'layer', 'component_name']
+        )
+
+        # Gauge para Status de Treinamento de Modelos ML (inicialização)
+        self.ml_model_init_training_status = Gauge(
+            'neural_hive_ml_model_training_status',
+            'Status de treinamento de modelos ML (0=untrained, 1=trained, 2=failed)',
+            ['service', 'component', 'layer', 'model_name']
+        )
+
+        # Counter para Erros de Atividades Não Registradas
+        self.temporal_activity_registration_errors_total = Counter(
+            'neural_hive_temporal_activity_registration_errors_total',
+            'Total de erros de activities não registradas no Temporal Worker',
+            ['service', 'component', 'layer', 'activity_name', 'workflow_name']
+        )
+
+        # Gauge para Estado de Circuit Breakers
+        self.circuit_breaker_initialization_status = Gauge(
+            'neural_hive_circuit_breaker_initialization_status',
+            'Status de inicialização de circuit breakers (0=not_initialized, 1=initialized, 2=failed)',
+            ['service', 'component', 'layer', 'circuit_name']
         )
 
         # Métricas de incidentes (Fluxo E)
@@ -649,6 +704,19 @@ class OrchestratorMetrics:
             'Erros ao extrair features para ML'
         )
 
+        # ML Model Training Status Metrics
+        self.ml_model_training_status = Gauge(
+            'orchestration_ml_model_training_status',
+            'Status de treinamento do modelo ML (1=trained, 0=untrained)',
+            ['model_name', 'status']
+        )
+
+        self.ml_model_quality_metrics = Gauge(
+            'orchestration_ml_model_quality_metrics',
+            'Métricas de qualidade do modelo (MAE, RMSE, R2)',
+            ['model_name', 'metric_type']
+        )
+
         # ML Drift Detection Metrics
         self.ml_drift_score = Gauge(
             'orchestration_ml_drift_score',
@@ -961,7 +1029,7 @@ class OrchestratorMetrics:
             layer=self.layer
         ).inc()
 
-    def record_incident_publish(self, incident_type: str, success: bool, duration_seconds: float, error_type: str = None):
+    def record_incident_publish(self, incident_type: str, success: bool, duration_seconds: float, error_type: Optional[str] = None):
         """Registra métricas de publicação de incidentes para autocura."""
         status = 'success' if success else 'failed'
         self.incident_publish_total.labels(incident_type=incident_type, status=status).inc()
@@ -1445,6 +1513,86 @@ class OrchestratorMetrics:
         elif error_type in ['prediction', 'training']:
             self.ml_predictions_total.labels(model_type='unknown', status='error').inc()
 
+    def record_ml_model_training_status(
+        self,
+        model_name: str,
+        is_trained: bool,
+        has_estimators: bool = False,
+        failed: bool = False
+    ):
+        """
+        Registra status de treinamento do modelo.
+
+        Args:
+            model_name: Nome do modelo
+            is_trained: Se modelo foi treinado com sucesso
+            has_estimators: Se modelo tem estimators_ (validação técnica)
+            failed: Se o treinamento falhou
+        """
+        status = 'trained' if is_trained and has_estimators else 'untrained'
+        self.ml_model_training_status.labels(
+            model_name=model_name,
+            status=status
+        ).set(1 if is_trained else 0)
+
+        # Também atualizar o gauge neural_hive_ml_model_training_status usado nos alertas
+        # 0=untrained, 1=trained, 2=failed
+        if failed:
+            status_value = 2
+        elif is_trained and has_estimators:
+            status_value = 1
+        else:
+            status_value = 0
+
+        self.ml_model_init_training_status.labels(
+            service=self.service_name,
+            component='ml',
+            layer='intelligence',
+            model_name=model_name
+        ).set(status_value)
+
+    def record_ml_model_quality(
+        self,
+        model_name: str,
+        mae: Optional[float] = None,
+        rmse: Optional[float] = None,
+        r2: Optional[float] = None,
+        mae_percentage: Optional[float] = None
+    ):
+        """
+        Registra métricas de qualidade do modelo.
+
+        Args:
+            model_name: Nome do modelo
+            mae: Mean Absolute Error
+            rmse: Root Mean Squared Error
+            r2: R² score
+            mae_percentage: MAE como percentual da média
+        """
+        if mae is not None:
+            self.ml_model_quality_metrics.labels(
+                model_name=model_name,
+                metric_type='mae'
+            ).set(mae)
+
+        if rmse is not None:
+            self.ml_model_quality_metrics.labels(
+                model_name=model_name,
+                metric_type='rmse'
+            ).set(rmse)
+
+        if r2 is not None:
+            self.ml_model_quality_metrics.labels(
+                model_name=model_name,
+                metric_type='r2'
+            ).set(r2)
+
+        if mae_percentage is not None:
+            self.ml_model_quality_metrics.labels(
+                model_name=model_name,
+                metric_type='mae_percentage'
+            ).set(mae_percentage)
+
     # ML Drift Detection Methods
     def record_drift_score(
         self,
@@ -1741,7 +1889,7 @@ class OrchestratorMetrics:
         self,
         model_type: str,
         predicted_value: float,
-        actual_value: float = None,
+        actual_value: Optional[float] = None,
         latency: float = 0.0,
         confidence: float = 0.0
     ):
@@ -1812,7 +1960,7 @@ class OrchestratorMetrics:
         model_version: str,
         status: str,
         latency: float,
-        agreement: dict = None
+        agreement: Optional[Dict[str, Any]] = None
     ):
         """
         Registra predição shadow.
@@ -2123,6 +2271,190 @@ class OrchestratorMetrics:
             layer=self.layer,
             query_type=query_type
         ).observe(duration_seconds)
+
+    # Component Initialization Helper Methods
+
+    def record_component_initialization(
+        self,
+        component_name: str,
+        status: str,
+        duration_seconds: float
+    ):
+        """
+        Registra inicialização de componente.
+
+        Args:
+            component_name: Nome do componente (ex: 'kafka_producer', 'temporal_worker')
+            status: 'success' ou 'failed'
+            duration_seconds: Duração da inicialização
+        """
+        self.component_initialization_total.labels(
+            service=self.service_name,
+            component=self.component,
+            layer=self.layer,
+            component_name=component_name,
+            status=status
+        ).inc()
+
+        self.component_initialization_duration_seconds.labels(
+            service=self.service_name,
+            component=self.component,
+            layer=self.layer,
+            component_name=component_name,
+            status=status
+        ).observe(duration_seconds)
+
+    def record_circuit_breaker_initialization_error(
+        self,
+        circuit_name: str,
+        error_type: str
+    ):
+        """
+        Registra erro na inicialização de circuit breaker.
+
+        Args:
+            circuit_name: Nome do circuit breaker (ex: 'kafka_producer')
+            error_type: Tipo do erro (ex: 'missing_service_name', 'initialization_failed')
+        """
+        self.circuit_breaker_initialization_errors_total.labels(
+            service=self.service_name,
+            component=self.component,
+            layer=self.layer,
+            circuit_name=circuit_name,
+            error_type=error_type
+        ).inc()
+
+    def record_kafka_producer_config_validation_error(
+        self,
+        validation_stage: str,
+        missing_attribute: str
+    ):
+        """
+        Registra erro de validação de config do Kafka Producer.
+
+        Args:
+            validation_stage: 'constructor' ou 'initialize'
+            missing_attribute: Nome do atributo ausente
+        """
+        self.kafka_producer_config_validation_errors_total.labels(
+            service=self.service_name,
+            component=self.component,
+            layer=self.layer,
+            validation_stage=validation_stage,
+            missing_attribute=missing_attribute
+        ).inc()
+
+    def record_component_initialization_status(
+        self,
+        component_name: str,
+        status: str,  # 'not_started', 'in_progress', 'success', 'failed'
+        component: str = 'orchestrator',
+        layer: str = 'orchestration'
+    ):
+        """
+        Registra status de inicialização de componente.
+
+        Args:
+            component_name: Nome do componente (kafka_producer, temporal_worker, ml_predictor)
+            status: Status da inicialização
+            component: Tipo de componente
+            layer: Camada arquitetural
+        """
+        status_map = {
+            'not_started': 0,
+            'in_progress': 1,
+            'success': 2,
+            'failed': 3
+        }
+
+        self.component_initialization_status.labels(
+            service=self.service_name,
+            component=component,
+            layer=layer,
+            component_name=component_name
+        ).set(status_map.get(status, 0))
+
+    def record_ml_model_init_training_status(
+        self,
+        model_name: str,
+        status: str,  # 'untrained', 'trained', 'failed'
+        component: str = 'ml',
+        layer: str = 'intelligence'
+    ):
+        """
+        Registra status de treinamento de modelo ML (para inicialização).
+
+        Args:
+            model_name: Nome do modelo
+            status: Status do treinamento
+            component: Tipo de componente
+            layer: Camada arquitetural
+        """
+        status_map = {
+            'untrained': 0,
+            'trained': 1,
+            'failed': 2
+        }
+
+        self.ml_model_init_training_status.labels(
+            service=self.service_name,
+            component=component,
+            layer=layer,
+            model_name=model_name
+        ).set(status_map.get(status, 0))
+
+    def record_temporal_activity_registration_error(
+        self,
+        activity_name: str,
+        workflow_name: str,
+        component: str = 'workflow',
+        layer: str = 'orchestration'
+    ):
+        """
+        Registra erro de activity não registrada no Temporal Worker.
+
+        Args:
+            activity_name: Nome da activity
+            workflow_name: Nome do workflow
+            component: Tipo de componente
+            layer: Camada arquitetural
+        """
+        self.temporal_activity_registration_errors_total.labels(
+            service=self.service_name,
+            component=component,
+            layer=layer,
+            activity_name=activity_name,
+            workflow_name=workflow_name
+        ).inc()
+
+    def record_circuit_breaker_initialization_status(
+        self,
+        circuit_name: str,
+        status: str,  # 'not_initialized', 'initialized', 'failed'
+        component: str = 'circuit_breaker',
+        layer: str = 'infrastructure'
+    ):
+        """
+        Registra status de inicialização de circuit breaker.
+
+        Args:
+            circuit_name: Nome do circuit breaker
+            status: Status da inicialização
+            component: Tipo de componente
+            layer: Camada arquitetural
+        """
+        status_map = {
+            'not_initialized': 0,
+            'initialized': 1,
+            'failed': 2
+        }
+
+        self.circuit_breaker_initialization_status.labels(
+            service=self.service_name,
+            component=component,
+            layer=layer,
+            circuit_name=circuit_name
+        ).set(status_map.get(status, 0))
 
 
 @lru_cache()

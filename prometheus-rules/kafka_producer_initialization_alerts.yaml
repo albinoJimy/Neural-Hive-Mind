@@ -1,0 +1,55 @@
+groups:
+  - name: kafka_producer_initialization
+    interval: 30s
+    rules:
+      # Taxa de falha de inicialização
+      - alert: KafkaProducerInitializationFailureRate
+        expr: |
+          (
+            sum(rate(neural_hive_component_initialization_total{component_name="kafka_producer", status="failed"}[5m]))
+            /
+            sum(rate(neural_hive_component_initialization_total{component_name="kafka_producer"}[5m]))
+          ) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          component: kafka_producer
+        annotations:
+          summary: "Alta taxa de falha na inicialização do Kafka Producer"
+          description: "{{ $value | humanizePercentage }} das inicializações do Kafka Producer estão falhando nos últimos 5 minutos"
+
+      # Duração de inicialização elevada
+      - alert: KafkaProducerInitializationSlow
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(neural_hive_component_initialization_duration_seconds_bucket{component_name="kafka_producer"}[5m])) by (le)
+          ) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: kafka_producer
+        annotations:
+          summary: "Inicialização do Kafka Producer está lenta"
+          description: "P95 da duração de inicialização é {{ $value }}s (threshold: 10s)"
+
+      # Erros de circuit breaker
+      - alert: KafkaProducerCircuitBreakerInitErrors
+        expr: |
+          increase(neural_hive_circuit_breaker_initialization_errors_total{circuit_name="kafka_producer"}[10m]) > 0
+        labels:
+          severity: warning
+          component: kafka_producer
+        annotations:
+          summary: "Erros na inicialização do circuit breaker do Kafka Producer"
+          description: "{{ $value }} erros de inicialização do circuit breaker nos últimos 10 minutos"
+
+      # Config inválido
+      - alert: KafkaProducerConfigValidationErrors
+        expr: |
+          increase(neural_hive_kafka_producer_config_validation_errors_total[5m]) > 0
+        labels:
+          severity: critical
+          component: kafka_producer
+        annotations:
+          summary: "Erros de validação de config do Kafka Producer"
+          description: "Config inválido detectado: {{ $labels.missing_attribute }} ausente no estágio {{ $labels.validation_stage }}"

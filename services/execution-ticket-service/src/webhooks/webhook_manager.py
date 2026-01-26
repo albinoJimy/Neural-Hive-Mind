@@ -4,21 +4,32 @@ Webhook Manager para notificações push de Worker Agents.
 import asyncio
 import hashlib
 import hmac
-import logging
 import time
-from typing import Optional
+from typing import Dict, Optional
 
 import aiohttp
+import structlog
+from opentelemetry import trace
+from opentelemetry.propagate import inject
 
 from neural_hive_observability import get_tracer
-from neural_hive_observability.context import inject_context_to_headers
 
 from ..config import get_settings
 from ..models import WebhookEvent
 from ..observability.metrics import TicketServiceMetrics
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 tracer = get_tracer()
+
+
+def inject_context_to_headers(headers: Dict[str, str]) -> None:
+    """
+    Injeta contexto de trace OpenTelemetry em HTTP headers.
+    
+    Args:
+        headers: Dicionário de headers HTTP para injetar contexto
+    """
+    inject(headers)
 
 
 class WebhookManager:

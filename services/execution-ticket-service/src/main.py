@@ -81,9 +81,20 @@ async def lifespan(app: FastAPI):
         logger.error('mongodb_connection_failed_critical', error=str(e))
         critical_failures.append('mongodb')
 
+    # Iniciar servidor gRPC (CRÍTICO - necessário para Orchestrator)
+    grpc_server = None
+    grpc_health_servicer = None
+    try:
+        from .grpc_service import start_grpc_server
+        grpc_server, grpc_health_servicer = await start_grpc_server(settings)
+        logger.info('grpc_server_started_critical', port=settings.grpc_port)
+    except Exception as e:
+        logger.error('grpc_server_failed_critical', error=str(e), error_type=type(e).__name__)
+        critical_failures.append('grpc')
+
     # Se dependências críticas falharam, não podemos continuar
     if critical_failures:
-        raise RuntimeError(f"Dependências críticas falharam: {critical_failures}")
+        raise RuntimeError(f"Dependências críticas falharam (postgresql, mongodb, grpc): {critical_failures}")
 
     # Inicializar métricas
     app.state.metrics = TicketServiceMetrics()
@@ -102,10 +113,13 @@ async def lifespan(app: FastAPI):
             logger.warning('redis_connection_failed_non_critical', error=str(e))
     app.state.redis_client = redis_client
 
+    # Armazenar gRPC server e health servicer no state
+    app.state.grpc_server = grpc_server
+    app.state.grpc_health_servicer = grpc_health_servicer
+
     # Initialize state for non-critical components
     app.state.ticket_consumer = None
     app.state.webhook_manager = None
-    app.state.grpc_server = None
     app.state.background_init_tasks = []
 
     # Helper functions to start non-critical components in background
@@ -140,28 +154,17 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning('webhook_manager_failed_non_critical', error=str(e))
 
-    async def start_grpc_server_background():
-        """Start gRPC server in background (non-blocking)."""
-        try:
-            from .grpc_service import start_grpc_server
-            app.state.grpc_server = await start_grpc_server(settings)
-            if app.state.grpc_server:
-                logger.info('grpc_server_started')
-        except Exception as e:
-            logger.warning('grpc_server_failed_non_critical', error=str(e))
-
     # Start non-critical components as background tasks (non-blocking)
-    # This allows startup to complete without waiting for Kafka, webhooks, or gRPC
+    # This allows startup to complete without waiting for Kafka or webhooks
     app.state.background_init_tasks = [
         asyncio.create_task(start_kafka_consumer_background()),
         asyncio.create_task(start_webhook_manager_background()),
-        asyncio.create_task(start_grpc_server_background()),
     ]
 
     logger.info(
         'execution_ticket_service_started',
-        critical_components=['postgresql', 'mongodb'],
-        optional_components_starting=['kafka', 'webhooks', 'grpc']
+        critical_components=['postgresql', 'mongodb', 'grpc'],
+        optional_components_starting=['kafka', 'webhooks']
     )
 
     yield
@@ -195,7 +198,7 @@ async def lifespan(app: FastAPI):
     # Parar gRPC Server
     if app.state.grpc_server:
         from .grpc_service import stop_grpc_server
-        await stop_grpc_server(app.state.grpc_server)
+        await stop_grpc_server(app.state.grpc_server, getattr(app.state, 'grpc_health_servicer', None))
 
     # Desconectar databases
     if postgres_client:

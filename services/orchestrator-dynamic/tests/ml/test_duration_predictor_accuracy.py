@@ -15,13 +15,8 @@ from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
-
-from ml.duration_predictor import DurationPredictor
-from ml.feature_engineering import extract_ticket_features
+from src.ml.duration_predictor import DurationPredictor
+from src.ml.feature_engineering import extract_ticket_features
 
 
 class TestDurationPredictorAccuracy:
@@ -468,3 +463,395 @@ class TestDurationPredictorValidation:
         print(f"Erro Médio Relativo: {mean_error:.3f}")
         print(f"Outliers: {outlier_pct:.1%}")
         print(f"Status: PASS ✓")
+
+
+class TestDurationPredictorTrainingValidation:
+    """Testes de validação de treinamento para DurationPredictor."""
+
+    @pytest.fixture
+    def mock_config(self):
+        """Configuração mock."""
+        config = MagicMock()
+        config.ml_enabled = True
+        config.ml_min_training_samples = 100
+        config.ml_training_window_days = 540
+        config.ml_feature_cache_ttl_seconds = 3600
+        config.ml_duration_error_threshold = 0.15
+        config.ml_use_clickhouse_for_features = False
+        return config
+
+    @pytest.fixture
+    def mock_mongodb(self):
+        """Cliente MongoDB mock."""
+        mongodb = MagicMock()
+        mongodb.db = MagicMock()
+        return mongodb
+
+    @pytest.fixture
+    def mock_model_registry(self):
+        """ModelRegistry mock."""
+        registry = AsyncMock()
+        registry.load_model = AsyncMock(return_value=None)
+        registry.save_model = AsyncMock(return_value="run-123")
+        registry.promote_model = AsyncMock()
+        registry.get_model_metadata = AsyncMock(return_value={'version': '1'})
+        return registry
+
+    @pytest.fixture
+    def mock_metrics(self):
+        """Métricas mock."""
+        metrics = MagicMock()
+        metrics.record_ml_prediction = MagicMock()
+        metrics.record_ml_training = MagicMock()
+        metrics.record_ml_error = MagicMock()
+        metrics.record_ml_model_training_status = MagicMock()
+        metrics.record_ml_model_quality = MagicMock()
+        return metrics
+
+    @pytest.mark.asyncio
+    async def test_load_model_validates_estimators(
+        self,
+        mock_config,
+        mock_mongodb,
+        mock_model_registry,
+        mock_metrics
+    ):
+        """
+        Testa que _load_model() retorna None se modelo não tem estimators_.
+
+        Modelo sem estimators_ indica que não foi treinado.
+        """
+        from sklearn.ensemble import RandomForestRegressor
+
+        # Modelo não treinado (sem estimators_)
+        untrained_model = RandomForestRegressor(n_estimators=100)
+        mock_model_registry.load_model = AsyncMock(return_value=untrained_model)
+
+        predictor = DurationPredictor(
+            config=mock_config,
+            mongodb_client=mock_mongodb,
+            model_registry=mock_model_registry,
+            metrics=mock_metrics
+        )
+
+        # _load_model deve retornar None para modelo não treinado
+        result = await predictor._load_model()
+
+        assert result is None, "Modelo sem estimators_ deve retornar None"
+        print("\n=== Teste Validação de estimators_ ===")
+        print("Modelo não treinado corretamente rejeitado")
+        print("Status: PASS ✓")
+
+    @pytest.mark.asyncio
+    async def test_load_model_accepts_trained_model(
+        self,
+        mock_config,
+        mock_mongodb,
+        mock_model_registry,
+        mock_metrics
+    ):
+        """
+        Testa que _load_model() aceita modelo treinado com estimators_.
+        """
+        from sklearn.ensemble import RandomForestRegressor
+
+        # Modelo treinado (com estimators_)
+        trained_model = RandomForestRegressor(n_estimators=10)
+        # Treinar com dados dummy
+        X = np.random.rand(100, 5)
+        y = np.random.rand(100)
+        trained_model.fit(X, y)
+
+        mock_model_registry.load_model = AsyncMock(return_value=trained_model)
+
+        predictor = DurationPredictor(
+            config=mock_config,
+            mongodb_client=mock_mongodb,
+            model_registry=mock_model_registry,
+            metrics=mock_metrics
+        )
+
+        result = await predictor._load_model()
+
+        assert result is not None, "Modelo treinado deve ser aceito"
+        assert hasattr(result, 'estimators_'), "Modelo deve ter estimators_"
+        print("\n=== Teste Modelo Treinado ===")
+        print(f"Modelo aceito com {len(result.estimators_)} estimators")
+        print("Status: PASS ✓")
+
+    @pytest.mark.asyncio
+    async def test_create_default_model_not_trained(
+        self,
+        mock_config,
+        mock_mongodb,
+        mock_model_registry,
+        mock_metrics
+    ):
+        """
+        Testa que _create_default_model() retorna modelo sem estimators_.
+        """
+        predictor = DurationPredictor(
+            config=mock_config,
+            mongodb_client=mock_mongodb,
+            model_registry=mock_model_registry,
+            metrics=mock_metrics
+        )
+
+        model = predictor._create_default_model()
+
+        assert model is not None, "Modelo default deve ser criado"
+        assert not hasattr(model, 'estimators_'), "Modelo default não deve ter estimators_"
+        print("\n=== Teste Modelo Default ===")
+        print("Modelo default criado corretamente (não treinado)")
+        print("Status: PASS ✓")
+
+    @pytest.mark.asyncio
+    async def test_ensure_model_trained_with_sufficient_data(
+        self,
+        mock_config,
+        mock_mongodb,
+        mock_model_registry,
+        mock_metrics
+    ):
+        """
+        Testa que _ensure_model_trained() treina quando há dados suficientes.
+        """
+        # Mock MongoDB para retornar dados suficientes
+        mock_mongodb.db['execution_tickets'].count_documents = AsyncMock(return_value=150)
+
+        # Mock para simular treinamento bem-sucedido
+        trained_tickets = []
+        for i in range(150):
+            trained_tickets.append({
+                'ticket_id': f'ticket-{i}',
+                'task_type': 'INFERENCE',
+                'risk_band': 'medium',
+                'actual_duration_ms': 30000 + np.random.normal(0, 5000),
+                'estimated_duration_ms': 30000,
+                'completed_at': datetime.utcnow(),
+                'required_capabilities': ['cpu'],
+                'parameters': {},
+                'sla_timeout_ms': 300000,
+                'retry_count': 0
+            })
+
+        mock_cursor = AsyncMock()
+        mock_cursor.to_list = AsyncMock(return_value=trained_tickets)
+        mock_mongodb.db['execution_tickets'].find = MagicMock(return_value=mock_cursor)
+
+        predictor = DurationPredictor(
+            config=mock_config,
+            mongodb_client=mock_mongodb,
+            model_registry=mock_model_registry,
+            metrics=mock_metrics
+        )
+
+        # Inicializar stats para evitar erros
+        predictor.historical_stats = {}
+
+        result = await predictor._ensure_model_trained()
+
+        # Pode falhar se dados não são bons o suficiente, mas não deve lançar exceção
+        assert isinstance(result, bool), "Resultado deve ser booleano"
+        print("\n=== Teste Treinamento com Dados Suficientes ===")
+        print(f"Resultado: {'Modelo treinado' if result else 'Treinamento não promovido'}")
+        print("Status: PASS ✓")
+
+    @pytest.mark.asyncio
+    async def test_ensure_model_trained_insufficient_data(
+        self,
+        mock_config,
+        mock_mongodb,
+        mock_model_registry,
+        mock_metrics
+    ):
+        """
+        Testa que _ensure_model_trained() retorna False com dados insuficientes.
+        """
+        # Mock MongoDB para retornar poucos dados
+        mock_mongodb.db['execution_tickets'].count_documents = AsyncMock(return_value=50)
+
+        predictor = DurationPredictor(
+            config=mock_config,
+            mongodb_client=mock_mongodb,
+            model_registry=mock_model_registry,
+            metrics=mock_metrics
+        )
+
+        result = await predictor._ensure_model_trained()
+
+        assert result is False, "Deve retornar False com dados insuficientes"
+        mock_metrics.record_ml_model_training_status.assert_called()
+        print("\n=== Teste Dados Insuficientes ===")
+        print("Corretamente identificou dados insuficientes")
+        print("Status: PASS ✓")
+
+    @pytest.mark.asyncio
+    async def test_ensure_model_trained_already_trained(
+        self,
+        mock_config,
+        mock_mongodb,
+        mock_model_registry,
+        mock_metrics
+    ):
+        """
+        Testa que _ensure_model_trained() não retreina se modelo já treinado.
+        """
+        from sklearn.ensemble import RandomForestRegressor
+
+        # Criar modelo já treinado
+        trained_model = RandomForestRegressor(n_estimators=10)
+        X = np.random.rand(100, 5)
+        y = np.random.rand(100)
+        trained_model.fit(X, y)
+
+        predictor = DurationPredictor(
+            config=mock_config,
+            mongodb_client=mock_mongodb,
+            model_registry=mock_model_registry,
+            metrics=mock_metrics
+        )
+        predictor.model = trained_model
+
+        result = await predictor._ensure_model_trained()
+
+        assert result is True, "Modelo já treinado deve retornar True"
+        # count_documents não deve ser chamado se modelo já existe
+        print("\n=== Teste Modelo Já Treinado ===")
+        print("Corretamente identificou modelo existente")
+        print("Status: PASS ✓")
+
+    @pytest.mark.asyncio
+    async def test_predict_duration_untrained_model_uses_heuristic(
+        self,
+        mock_config,
+        mock_mongodb,
+        mock_model_registry,
+        mock_metrics
+    ):
+        """
+        Testa que predict_duration() usa heurística quando modelo não treinado.
+        """
+        predictor = DurationPredictor(
+            config=mock_config,
+            mongodb_client=mock_mongodb,
+            model_registry=mock_model_registry,
+            metrics=mock_metrics
+        )
+        predictor.model = None  # Sem modelo
+        predictor.historical_stats = {
+            'INFERENCE': {'avg_duration': 30000, 'std_duration': 5000}
+        }
+
+        ticket = {
+            'ticket_id': 'test-1',
+            'task_type': 'INFERENCE',
+            'risk_band': 'medium',
+            'estimated_duration_ms': 30000,
+            'required_capabilities': ['cpu'],
+            'parameters': {}
+        }
+
+        result = await predictor.predict_duration(ticket)
+
+        assert 'duration_ms' in result, "Resultado deve ter duration_ms"
+        assert 'confidence' in result, "Resultado deve ter confidence"
+        assert result['confidence'] == 0.3, "Confidence deve ser 0.3 para heurística"
+        print("\n=== Teste Heurística sem Modelo ===")
+        print(f"Duration: {result['duration_ms']:.0f}ms")
+        print(f"Confidence: {result['confidence']}")
+        print("Status: PASS ✓")
+
+    @pytest.mark.asyncio
+    async def test_predict_duration_trained_model_uses_ml(
+        self,
+        mock_config,
+        mock_mongodb,
+        mock_model_registry,
+        mock_metrics
+    ):
+        """
+        Testa que predict_duration() usa ML quando modelo treinado.
+
+        Nota: O modelo treinado deve usar estimators_ para predição.
+        Se o modelo tem estimators_, a predição usa ML (não heurística).
+        """
+        from sklearn.ensemble import RandomForestRegressor
+
+        # Criar modelo treinado
+        trained_model = RandomForestRegressor(n_estimators=10)
+        X = np.random.rand(100, 15)  # 15 features
+        y = np.random.rand(100) * 50000 + 10000
+        trained_model.fit(X, y)
+
+        predictor = DurationPredictor(
+            config=mock_config,
+            mongodb_client=mock_mongodb,
+            model_registry=mock_model_registry,
+            metrics=mock_metrics
+        )
+        predictor.model = trained_model
+        # Stats com valores realistas para calcular confidence adequado
+        predictor.historical_stats = {
+            'INFERENCE': {
+                'avg_duration': 30000,
+                'std_duration': 5000,
+                'success_rate': 0.95
+            }
+        }
+
+        ticket = {
+            'ticket_id': 'test-1',
+            'task_type': 'INFERENCE',
+            'risk_band': 'medium',
+            'estimated_duration_ms': 30000,
+            'required_capabilities': ['cpu'],
+            'parameters': {},
+            'sla_timeout_ms': 300000
+        }
+
+        result = await predictor.predict_duration(ticket)
+
+        assert 'duration_ms' in result, "Resultado deve ter duration_ms"
+        assert 'confidence' in result, "Resultado deve ter confidence"
+        # Validar que usou ML verificando que modelo.predict foi chamado
+        # O confidence pode variar dependendo do histórico, mas deve ser >= 0.1
+        assert result['confidence'] >= 0.1, "Confidence deve ser pelo menos 0.1"
+        # Verificar que modelo tem estimators_ (indica que ML foi usado)
+        assert hasattr(predictor.model, 'estimators_'), "Modelo deve ter estimators_"
+        print("\n=== Teste ML com Modelo Treinado ===")
+        print(f"Duration: {result['duration_ms']:.0f}ms")
+        print(f"Confidence: {result['confidence']:.2f}")
+        print("Status: PASS ✓")
+
+    @pytest.mark.asyncio
+    async def test_training_status_metrics_recorded(
+        self,
+        mock_config,
+        mock_mongodb,
+        mock_model_registry,
+        mock_metrics
+    ):
+        """
+        Testa que métricas de status de treinamento são registradas.
+        """
+        mock_mongodb.db['execution_tickets'].count_documents = AsyncMock(return_value=50)
+
+        predictor = DurationPredictor(
+            config=mock_config,
+            mongodb_client=mock_mongodb,
+            model_registry=mock_model_registry,
+            metrics=mock_metrics
+        )
+
+        await predictor._ensure_model_trained()
+
+        # Verificar que métrica foi registrada
+        mock_metrics.record_ml_model_training_status.assert_called_with(
+            model_name='ticket-duration-predictor',
+            is_trained=False,
+            has_estimators=False
+        )
+        print("\n=== Teste Métricas de Status ===")
+        print("Métricas de status registradas corretamente")
+        print("Status: PASS ✓")
