@@ -212,6 +212,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
           build-args: |
+            REGISTRY=ghcr.io/${{ github.repository_owner }}
             VERSION=${{ inputs.version_tag || 'latest' }}
             BUILD_DATE=${{ github.event.head_commit.timestamp }}
             VCS_REF=${{ github.sha }}
