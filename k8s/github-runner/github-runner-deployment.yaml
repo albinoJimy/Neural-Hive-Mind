@@ -1,0 +1,144 @@
+# GitHub Actions Self-Hosted Runner para Neural Hive-Mind
+# Este runner executa no cluster Kubernetes e não consome minutos do GitHub
+# Usa Docker-in-Docker (DinD) para builds de imagens
+#
+# CONFIGURACAO:
+# 1. Gere um token de registro em:
+#    Settings > Actions > Runners > New self-hosted runner
+#    Copie o token (comeca com AAAA...)
+#
+# 2. Crie o secret com o token:
+#    kubectl create secret generic github-runner-secret \
+#      --from-literal=RUNNER_TOKEN=<SEU_TOKEN> \
+#      -n github-runner
+#
+# 3. Aplique este manifesto:
+#    kubectl apply -f k8s/github-runner/
+#
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: github-runner
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: github-runner
+  namespace: github-runner
+---
+# RBAC para permitir que o runner acesse recursos do cluster
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: github-runner-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: github-runner
+    namespace: github-runner
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: github-runner-config
+  namespace: github-runner
+data:
+  RUNNER_REPOSITORY_URL: "https://github.com/albinoJimy/Neural-Hive-Mind"
+  RUNNER_NAME: "neural-hive-k8s-runner"
+  RUNNER_LABELS: "self-hosted,linux,x64,kubernetes,neural-hive"
+  RUNNER_WORKDIR: "/runner/_work"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: github-runner
+  namespace: github-runner
+  labels:
+    app: github-runner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: github-runner
+  template:
+    metadata:
+      labels:
+        app: github-runner
+    spec:
+      serviceAccountName: github-runner
+      containers:
+        # Docker-in-Docker sidecar para builds
+        - name: dind
+          image: docker:24-dind
+          securityContext:
+            privileged: true
+          env:
+            - name: DOCKER_TLS_CERTDIR
+              value: ""
+          resources:
+            limits:
+              memory: "2Gi"
+              cpu: "1"
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+          volumeMounts:
+            - name: docker-storage
+              mountPath: /var/lib/docker
+            - name: runner-work
+              mountPath: /runner/_work
+        # GitHub Actions Runner
+        - name: runner
+          image: myoung34/github-runner:latest
+          env:
+            - name: REPO_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: github-runner-config
+                  key: RUNNER_REPOSITORY_URL
+            - name: RUNNER_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: github-runner-config
+                  key: RUNNER_NAME
+            - name: RUNNER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-runner-secret
+                  key: RUNNER_TOKEN
+            - name: LABELS
+              valueFrom:
+                configMapKeyRef:
+                  name: github-runner-config
+                  key: RUNNER_LABELS
+            - name: RUNNER_WORKDIR
+              valueFrom:
+                configMapKeyRef:
+                  name: github-runner-config
+                  key: RUNNER_WORKDIR
+            - name: DISABLE_AUTO_UPDATE
+              value: "true"
+            # Connect to DinD sidecar
+            - name: DOCKER_HOST
+              value: "tcp://localhost:2375"
+          resources:
+            limits:
+              memory: "2Gi"
+              cpu: "1"
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+          volumeMounts:
+            - name: runner-work
+              mountPath: /runner/_work
+      volumes:
+        - name: docker-storage
+          emptyDir:
+            sizeLimit: 30Gi
+        - name: runner-work
+          emptyDir:
+            sizeLimit: 20Gi
