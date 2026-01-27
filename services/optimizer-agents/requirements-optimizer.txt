@@ -49,3 +49,6 @@ python-dotenv==1.0.1
 # Biblioteca centralizada de modelos preditivos
 # NOTA: neural_hive_ml é copiada e instalada no Dockerfile
 # Para desenvolvimento local: pip install -e ../../libraries/python/neural_hive_ml
+
+# HTTP Client (required by neural_hive_observability health checks)
+aiohttp>=3.9.0

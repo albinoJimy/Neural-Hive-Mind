@@ -51,3 +51,6 @@ spacy==3.7.2
 
 # Internal libraries
 # neural-hive-domain - installed via Dockerfile
+
+# HTTP Client (required by neural_hive_observability health checks)
+aiohttp>=3.9.0

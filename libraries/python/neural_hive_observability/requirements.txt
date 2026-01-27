@@ -8,3 +8,4 @@ prometheus-client==0.21.1
 psutil>=5.9.0
 opentelemetry-instrumentation-grpc==0.50b0
 grpcio==1.68.1
+aiohttp>=3.9.0

@@ -46,3 +46,6 @@ prometheus-client==0.21.1
 
 # Retry Logic
 tenacity==9.0.0
+
+# HTTP Client (required by neural_hive_observability health checks)
+aiohttp>=3.9.0
