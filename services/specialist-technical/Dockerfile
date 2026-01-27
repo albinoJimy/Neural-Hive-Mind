@@ -1,4 +1,5 @@
-FROM neural-hive-mind/python-specialist-base:1.0.7
+ARG REGISTRY=ghcr.io/albinojimy
+FROM ${REGISTRY}/neural-hive-mind/python-specialist-base:1.0.7
 
 WORKDIR /app
 

@@ -1,9 +1,16 @@
-FROM neural-hive-mind/python-nlp-base:1.0.7
+ARG REGISTRY=ghcr.io/albinojimy
+FROM ${REGISTRY}/neural-hive-mind/python-nlp-base:1.0.7
 
 ARG VERSION=1.0.0
 ARG BUILD_DATE
 
 WORKDIR /app
+
+# Copy and install neural_hive_domain (required by neural_hive_specialists)
+COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir /tmp/neural_hive_domain && \
+    rm -rf /tmp/neural_hive_domain
 
 # Copy and install neural_hive_specialists library
 COPY libraries/python/neural_hive_specialists /tmp/neural_hive_specialists
