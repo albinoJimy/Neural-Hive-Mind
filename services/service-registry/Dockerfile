@@ -1,5 +1,6 @@
 # Multi-stage build for Service Registry
-FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.5 AS builder
+ARG REGISTRY=ghcr.io/albinojimy
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5 AS builder
 
 WORKDIR /app
 

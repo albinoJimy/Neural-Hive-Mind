@@ -1,5 +1,6 @@
 # Single stage build for Memory Layer API using observability base
-FROM 37.60.241.150:30500/neural-hive-mind/python-observability-base:1.2.5
+ARG REGISTRY=ghcr.io/albinojimy
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5
 
 WORKDIR /app
 

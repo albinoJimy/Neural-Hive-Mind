@@ -1,5 +1,6 @@
 # Stage 1: Builder
-FROM 37.60.241.150:30500/neural-hive-mind/python-mlops-base:1.0.7 AS builder
+ARG REGISTRY=ghcr.io/albinojimy
+FROM ${REGISTRY}/neural-hive-mind/python-mlops-base:1.0.7 AS builder
 
 WORKDIR /app
 
@@ -20,7 +21,8 @@ RUN pip config set global.timeout 600 && \
 # Proto files já compilados no source com imports relativos corretos
 
 # Stage 2: Runtime
-FROM 37.60.241.150:30500/neural-hive-mind/python-mlops-base:1.0.7
+ARG REGISTRY=ghcr.io/albinojimy
+FROM ${REGISTRY}/neural-hive-mind/python-mlops-base:1.0.7
 
 WORKDIR /app
 

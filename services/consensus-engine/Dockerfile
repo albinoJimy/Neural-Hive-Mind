@@ -1,5 +1,6 @@
 # Stage 1: Builder
-FROM 37.60.241.150:30500/neural-hive-mind/python-grpc-base:1.0.7 AS builder
+ARG REGISTRY=ghcr.io/albinojimy
+FROM ${REGISTRY}/neural-hive-mind/python-grpc-base:1.0.7 AS builder
 
 WORKDIR /app
 
@@ -11,7 +12,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     echo "✓ uvicorn runtime verification passed"
 
 # Stage 2: Runtime
-FROM 37.60.241.150:30500/neural-hive-mind/python-grpc-base:1.0.7
+ARG REGISTRY=ghcr.io/albinojimy
+FROM ${REGISTRY}/neural-hive-mind/python-grpc-base:1.0.7
 
 WORKDIR /app
 

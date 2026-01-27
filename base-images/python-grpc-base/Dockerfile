@@ -1,14 +1,18 @@
 # Neural Hive-Mind Python gRPC Base Image
 # Base image with gRPC and protobuf for service communication
 
-FROM 37.60.241.150:30500/neural-hive-mind/python-ml-base:1.0.7
+# Registry pode ser sobrescrito no build:
+# --build-arg REGISTRY=37.60.241.150:30500 (interno)
+# --build-arg REGISTRY=ghcr.io/albinojimy (GHCR)
+ARG REGISTRY=ghcr.io/albinojimy
+FROM ${REGISTRY}/neural-hive-mind/python-ml-base:1.0.7
 
 # Build arguments for versioning
-ARG VERSION=1.0.0
+ARG VERSION=1.0.7
 ARG BUILD_DATE
 
 # Install gRPC dependencies
-# Versões normalizadas: grpcio 1.68.1 + protobuf 5.29.2
+# Versoes normalizadas: grpcio 1.68.1 + protobuf 5.29.2
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir \
     grpcio==1.68.1 \
@@ -17,7 +21,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     protobuf==5.29.2
 
 # Verify gRPC and protobuf installation
-RUN python -c "import grpc; import google.protobuf; print('✓ gRPC', grpc.__version__, 'protobuf', google.protobuf.__version__)"
+RUN python -c "import grpc; import google.protobuf; print('gRPC', grpc.__version__, 'protobuf', google.protobuf.__version__)"
 
 # OCI metadata labels
 LABEL org.opencontainers.image.title="Neural Hive-Mind Python gRPC Base"
