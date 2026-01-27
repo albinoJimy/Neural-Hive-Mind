@@ -50,4 +50,4 @@ httpx==0.28.1
 spacy==3.7.2
 
 # Internal libraries
-neural-hive-domain @ file:../../libraries/python/neural_hive_domain
+# neural-hive-domain - installed via Dockerfile

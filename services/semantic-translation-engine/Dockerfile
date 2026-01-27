@@ -13,15 +13,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy internal library
+COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
+
 # Copy requirements and install dependencies
 COPY services/semantic-translation-engine/requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt && \
+RUN pip install --no-cache-dir --user /tmp/neural_hive_domain && \
+    pip install --no-cache-dir --user -r requirements.txt && \
     python -m uvicorn --version && \
-    echo "✓ uvicorn runtime verification passed" && \
+    echo "uvicorn runtime verification passed" && \
     pip install --no-cache-dir --user \
         https://github.com/explosion/spacy-models/releases/download/pt_core_news_sm-3.7.0/pt_core_news_sm-3.7.0.tar.gz \
         https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz && \
-    echo "✓ spaCy models downloaded"
+    echo "spaCy models downloaded"
 
 # Stage 2: Runtime
 FROM python:3.11-slim
