@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM neural-hive-mind/python-mlops-base:1.0.7 AS builder
+FROM 37.60.241.150:30500/neural-hive-mind/python-mlops-base:1.0.7 AS builder
 
 WORKDIR /app
 
@@ -20,7 +20,7 @@ RUN pip config set global.timeout 600 && \
 # Proto files já compilados no source com imports relativos corretos
 
 # Stage 2: Runtime
-FROM neural-hive-mind/python-mlops-base:1.0.7
+FROM 37.60.241.150:30500/neural-hive-mind/python-mlops-base:1.0.7
 
 WORKDIR /app
 

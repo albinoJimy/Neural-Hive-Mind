@@ -14,11 +14,13 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Copiar bibliotecas locais primeiro
 COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
+COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
 
 # Copiar requirements e instalar dependências
 COPY services/queen-agent/requirements.txt /tmp/
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir /tmp/neural_hive_resilience || true && \
+    pip install --no-cache-dir /tmp/neural_hive_resilience && \
+    pip install --no-cache-dir /tmp/neural_hive_domain && \
     pip install --no-cache-dir -r /tmp/requirements.txt
 
 # Stage 2: Runtime - usar mesma base image para ter neural_hive_observability
