@@ -1,0 +1,129 @@
+name: Build Base Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      images:
+        description: 'Imagens a buildar (separadas por virgula, vazio = todas)'
+        required: false
+        type: string
+        default: ''
+      version:
+        description: 'Tag da versao'
+        required: false
+        type: string
+        default: '1.0.7'
+  push:
+    branches: [main]
+    paths:
+      - 'base-images/**'
+      - '.github/workflows/build-base-images.yml'
+
+env:
+  REGISTRY: 37.60.241.150:30500
+
+jobs:
+  build-base-images:
+    name: Build Imagens Base
+    runs-on: [self-hosted, linux, kubernetes, neural-hive]
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            network=host
+          buildkitd-config-inline: |
+            [registry."37.60.241.150:30500"]
+              http = true
+              insecure = true
+
+      - name: Determinar imagens a buildar
+        id: images
+        run: |
+          if [[ -n "${{ inputs.images }}" ]]; then
+            IFS=',' read -ra IMAGES <<< "${{ inputs.images }}"
+          else
+            # Ordem de dependencia importante!
+            IMAGES=(
+              "python-ml-base"
+              "python-grpc-base"
+              "python-mlops-base"
+            )
+          fi
+          
+          echo "images=${IMAGES[*]}" >> $GITHUB_OUTPUT
+          echo "Imagens a buildar: ${IMAGES[*]}"
+
+      - name: Build python-ml-base
+        if: contains(steps.images.outputs.images, 'python-ml-base')
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: base-images/python-ml-base/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/neural-hive-mind/python-ml-base:${{ inputs.version || '1.0.7' }}
+            ${{ env.REGISTRY }}/neural-hive-mind/python-ml-base:latest
+          build-args: |
+            VERSION=${{ inputs.version || '1.0.7' }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+
+      - name: Build python-grpc-base
+        if: contains(steps.images.outputs.images, 'python-grpc-base')
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: base-images/python-grpc-base/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/neural-hive-mind/python-grpc-base:${{ inputs.version || '1.0.7' }}
+            ${{ env.REGISTRY }}/neural-hive-mind/python-grpc-base:latest
+          build-args: |
+            VERSION=${{ inputs.version || '1.0.7' }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+
+      - name: Build python-mlops-base
+        if: contains(steps.images.outputs.images, 'python-mlops-base')
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: base-images/python-mlops-base/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/neural-hive-mind/python-mlops-base:${{ inputs.version || '1.0.7' }}
+            ${{ env.REGISTRY }}/neural-hive-mind/python-mlops-base:latest
+          build-args: |
+            VERSION=${{ inputs.version || '1.0.7' }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+
+      - name: Verificar imagens no registry
+        run: |
+          echo "=== Imagens base no registry ==="
+          curl -s http://${{ env.REGISTRY }}/v2/_catalog | jq -r '.repositories[]' | grep -E "python-" || echo "Nenhuma encontrada"
+          
+          echo ""
+          echo "=== Tags disponiveis ==="
+          for img in python-ml-base python-grpc-base python-mlops-base; do
+            echo "--- $img ---"
+            curl -s http://${{ env.REGISTRY }}/v2/neural-hive-mind/$img/tags/list 2>/dev/null | jq -r '.tags[]' 2>/dev/null || echo "Imagem nao existe"
+          done
+
+      - name: Resumo
+        run: |
+          echo "## Build Base Images Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Imagem | Tag | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          
+          for img in python-ml-base python-grpc-base python-mlops-base; do
+            TAGS=$(curl -s http://${{ env.REGISTRY }}/v2/neural-hive-mind/$img/tags/list 2>/dev/null | jq -r '.tags // [] | join(", ")' 2>/dev/null || echo "N/A")
+            if [[ "$TAGS" != "N/A" && -n "$TAGS" ]]; then
+              echo "| $img | $TAGS | OK |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| $img | - | MISSING |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done

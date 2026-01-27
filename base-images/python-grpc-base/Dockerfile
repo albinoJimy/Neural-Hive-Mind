@@ -1,7 +1,7 @@
 # Neural Hive-Mind Python gRPC Base Image
 # Base image with gRPC and protobuf for service communication
 
-FROM neural-hive-mind/python-ml-base:1.0.7
+FROM 37.60.241.150:30500/neural-hive-mind/python-ml-base:1.0.7
 
 # Build arguments for versioning
 ARG VERSION=1.0.0
