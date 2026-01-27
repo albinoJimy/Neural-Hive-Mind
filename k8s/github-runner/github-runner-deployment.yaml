@@ -70,6 +70,23 @@ spec:
         app: github-runner
     spec:
       serviceAccountName: github-runner
+      initContainers:
+        # Init container para criar daemon.json com insecure-registries
+        - name: init-docker-config
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              mkdir -p /etc/docker
+              cat > /etc/docker/daemon.json << 'EOF'
+              {
+                "insecure-registries": ["37.60.241.150:30500"]
+              }
+              EOF
+          volumeMounts:
+            - name: docker-config
+              mountPath: /etc/docker
       containers:
         # Docker-in-Docker sidecar para builds
         - name: dind
@@ -91,6 +108,8 @@ spec:
               mountPath: /var/lib/docker
             - name: runner-work
               mountPath: /runner/_work
+            - name: docker-config
+              mountPath: /etc/docker
         # GitHub Actions Runner
         - name: runner
           image: myoung34/github-runner:latest
@@ -142,3 +161,5 @@ spec:
         - name: runner-work
           emptyDir:
             sizeLimit: 20Gi
+        - name: docker-config
+          emptyDir: {}
