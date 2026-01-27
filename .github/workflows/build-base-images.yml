@@ -13,11 +13,6 @@ on:
         required: false
         type: string
         default: '1.0.7'
-      push_ghcr:
-        description: 'Publicar tambem no GHCR'
-        required: false
-        type: boolean
-        default: true
   push:
     branches: [main]
     paths:
@@ -25,7 +20,6 @@ on:
       - '.github/workflows/build-base-images.yml'
 
 env:
-  INTERNAL_REGISTRY: 37.60.241.150:30500
   GHCR_REGISTRY: ghcr.io
   IMAGE_PREFIX: ${{ github.repository_owner }}/neural-hive-mind
 
@@ -46,10 +40,6 @@ jobs:
         with:
           driver-opts: |
             network=host
-          buildkitd-config-inline: |
-            [registry."37.60.241.150:30500"]
-              http = true
-              insecure = true
 
       - name: Login no GHCR
         uses: docker/login-action@v3
@@ -64,7 +54,6 @@ jobs:
           if [[ -n "${{ inputs.images }}" ]]; then
             IFS=',' read -ra IMAGES <<< "${{ inputs.images }}"
           else
-            # Ordem de dependencia importante!
             IMAGES=(
               "python-ml-base"
               "python-observability-base"
@@ -85,13 +74,13 @@ jobs:
           file: base-images/python-ml-base/Dockerfile
           push: true
           tags: |
-            ${{ env.INTERNAL_REGISTRY }}/neural-hive-mind/python-ml-base:${{ inputs.version || '1.0.7' }}
-            ${{ env.INTERNAL_REGISTRY }}/neural-hive-mind/python-ml-base:latest
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-ml-base:${{ inputs.version || '1.0.7' }}
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-ml-base:latest
           build-args: |
             VERSION=${{ inputs.version || '1.0.7' }}
             BUILD_DATE=${{ github.event.head_commit.timestamp }}
+          cache-from: type=gha,scope=python-ml-base
+          cache-to: type=gha,mode=max,scope=python-ml-base
 
       # ===== python-observability-base =====
       - name: Build python-observability-base
@@ -102,15 +91,15 @@ jobs:
           file: base-images/python-observability-base/Dockerfile
           push: true
           tags: |
-            ${{ env.INTERNAL_REGISTRY }}/neural-hive-mind/python-observability-base:${{ inputs.version || '1.2.5' }}
-            ${{ env.INTERNAL_REGISTRY }}/neural-hive-mind/python-observability-base:latest
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-observability-base:${{ inputs.version || '1.2.5' }}
+            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-observability-base:1.2.5
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-observability-base:latest
           build-args: |
-            VERSION=${{ inputs.version || '1.2.5' }}
+            VERSION=1.2.5
             BUILD_DATE=${{ github.event.head_commit.timestamp }}
+          cache-from: type=gha,scope=python-observability-base
+          cache-to: type=gha,mode=max,scope=python-observability-base
 
-      # ===== python-grpc-base =====
+      # ===== python-grpc-base (depende de python-ml-base) =====
       - name: Build python-grpc-base
         if: contains(steps.images.outputs.images, 'python-grpc-base')
         uses: docker/build-push-action@v5
@@ -119,15 +108,16 @@ jobs:
           file: base-images/python-grpc-base/Dockerfile
           push: true
           tags: |
-            ${{ env.INTERNAL_REGISTRY }}/neural-hive-mind/python-grpc-base:${{ inputs.version || '1.0.7' }}
-            ${{ env.INTERNAL_REGISTRY }}/neural-hive-mind/python-grpc-base:latest
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-grpc-base:${{ inputs.version || '1.0.7' }}
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-grpc-base:latest
           build-args: |
+            REGISTRY=${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}
             VERSION=${{ inputs.version || '1.0.7' }}
             BUILD_DATE=${{ github.event.head_commit.timestamp }}
+          cache-from: type=gha,scope=python-grpc-base
+          cache-to: type=gha,mode=max,scope=python-grpc-base
 
-      # ===== python-mlops-base =====
+      # ===== python-mlops-base (depende de python-grpc-base) =====
       - name: Build python-mlops-base
         if: contains(steps.images.outputs.images, 'python-mlops-base')
         uses: docker/build-push-action@v5
@@ -136,43 +126,23 @@ jobs:
           file: base-images/python-mlops-base/Dockerfile
           push: true
           tags: |
-            ${{ env.INTERNAL_REGISTRY }}/neural-hive-mind/python-mlops-base:${{ inputs.version || '1.0.7' }}
-            ${{ env.INTERNAL_REGISTRY }}/neural-hive-mind/python-mlops-base:latest
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-mlops-base:${{ inputs.version || '1.0.7' }}
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-mlops-base:latest
           build-args: |
+            REGISTRY=${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}
             VERSION=${{ inputs.version || '1.0.7' }}
             BUILD_DATE=${{ github.event.head_commit.timestamp }}
-
-      - name: Verificar imagens no registry interno
-        run: |
-          echo "=== Imagens base no registry interno ==="
-          curl -s http://${{ env.INTERNAL_REGISTRY }}/v2/_catalog | jq -r '.repositories[]' | grep -E "python-" || echo "Nenhuma encontrada"
-          
-          echo ""
-          echo "=== Tags disponiveis ==="
-          for img in python-ml-base python-observability-base python-grpc-base python-mlops-base; do
-            echo "--- $img ---"
-            curl -s http://${{ env.INTERNAL_REGISTRY }}/v2/neural-hive-mind/$img/tags/list 2>/dev/null | jq -r '.tags[]' 2>/dev/null || echo "Imagem nao existe"
-          done
+          cache-from: type=gha,scope=python-mlops-base
+          cache-to: type=gha,mode=max,scope=python-mlops-base
 
       - name: Resumo
         run: |
           echo "## Build Base Images Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Registry Interno (${{ env.INTERNAL_REGISTRY }})" >> $GITHUB_STEP_SUMMARY
+          echo "### GHCR (${{ env.GHCR_REGISTRY }})" >> $GITHUB_STEP_SUMMARY
           echo "| Imagem | Tags |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|------|" >> $GITHUB_STEP_SUMMARY
-          
-          for img in python-ml-base python-observability-base python-grpc-base python-mlops-base; do
-            TAGS=$(curl -s http://${{ env.INTERNAL_REGISTRY }}/v2/neural-hive-mind/$img/tags/list 2>/dev/null | jq -r '.tags // [] | join(", ")' 2>/dev/null || echo "N/A")
-            echo "| $img | $TAGS |" >> $GITHUB_STEP_SUMMARY
-          done
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### GHCR (${{ env.GHCR_REGISTRY }})" >> $GITHUB_STEP_SUMMARY
-          echo "Imagens publicadas em:" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-ml-base\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-observability-base\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-grpc-base\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-mlops-base\`" >> $GITHUB_STEP_SUMMARY
+          echo "| python-ml-base | ${{ inputs.version || '1.0.7' }}, latest |" >> $GITHUB_STEP_SUMMARY
+          echo "| python-observability-base | 1.2.5, latest |" >> $GITHUB_STEP_SUMMARY
+          echo "| python-grpc-base | ${{ inputs.version || '1.0.7' }}, latest |" >> $GITHUB_STEP_SUMMARY
+          echo "| python-mlops-base | ${{ inputs.version || '1.0.7' }}, latest |" >> $GITHUB_STEP_SUMMARY
