@@ -146,7 +146,7 @@ cat > /tmp/intent-test-001.json <<'EOF'
     "environment": "e2e-testing"
   },
   "constraints": {
-    "priority": "HIGH",
+    "priority": "high",
     "timeout_ms": 30000,
     "max_specialists": 5
   },
@@ -222,6 +222,12 @@ echo "DOMAIN: $DOMAIN"
 - [ ] `domain`: identificado (technical/business/etc)
 - [ ] `trace_id`: presente
 
+#### Validação de Enums
+
+**IMPORTANTE:** Os enums devem estar em lowercase:
+- ✅ Correto: `"priority": "high"`, `"security_level": "confidential"`
+- ❌ Incorreto: `"priority": "HIGH"`, `"security_level": "CONFIDENTIAL"`
+
 ---
 
 ### 2.3 Logs Relevantes do Gateway
@@ -286,10 +292,10 @@ kubectl exec -n $NAMESPACE_KAFKA $KAFKA_POD -- \
     "confidence": 0.85
   },
   "constraints": {
-    "priority": "HIGH",
+    "priority": "high",
     "deadline": "<timestamp>",
     "maxRetries": 3,
-    "securityLevel": "INTERNAL"
+    "securityLevel": "internal"
   },
   "qos": {
     "deliveryMode": "EXACTLY_ONCE",
@@ -734,7 +740,7 @@ kubectl exec -n $NAMESPACE_KAFKA $KAFKA_POD -- \
   "task_id": "task-1",
   "task_type": "ANALYZE",
   "status": "PENDING",
-  "priority": "HIGH",
+  "priority": "high",
   "risk_band": "medium",
   "sla": {
     "deadline": "<timestamp>",
@@ -781,7 +787,7 @@ kubectl exec -n $NAMESPACE_MONGODB $MONGODB_POD -- mongosh --eval "
   "intent_id": "<INTENT_ID>",
   "task_id": "task-1",
   "status": "PENDING",
-  "priority": "HIGH",
+  "priority": "high",
   "sla": {
     "deadline": "<timestamp>",
     "timeout_ms": 60000,

@@ -209,7 +209,7 @@ EOF
       "delivery_mode": "EXACTLY_ONCE",
       "consistency": "STRONG"
     },
-    "priority": "CRITICAL",
+    "priority": "critical",
     "estimated_duration_ms": 60000
   },
   "context": {
@@ -244,7 +244,7 @@ EOF
       "delivery_mode": "EXACTLY_ONCE",
       "consistency": "STRONG"
     },
-    "priority": "CRITICAL",
+    "priority": "critical",
     "estimated_duration_ms": 60000
   },
   "context": {

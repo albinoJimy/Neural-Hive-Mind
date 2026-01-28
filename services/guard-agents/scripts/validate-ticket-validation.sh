@@ -61,7 +61,7 @@ cat <<EOF | kubectl exec -i -n $KAFKA_NAMESPACE kafka-0 -- kafka-console-produce
   "intent_id": "test-intent",
   "correlation_id": "test-corr",
   "task_type": "BUILD",
-  "security_level": "INTERNAL",
+  "security_level": "internal",
   "service_account": "default",
   "namespace": "default",
   "parameters": {

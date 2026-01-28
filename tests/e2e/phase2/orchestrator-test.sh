@@ -147,8 +147,8 @@ create_test_cognitive_plan() {
             "expected_outputs": ["processed_text"],
             "dependencies": [],
             "estimated_duration_ms": 5000,
-            "priority": "HIGH",
-            "risk_band": "MEDIUM"
+            "priority": "high",
+            "risk_band": "medium"
         },
         {
             "task_id": "task-002",
@@ -161,8 +161,8 @@ create_test_cognitive_plan() {
             "expected_outputs": ["transformed_data"],
             "dependencies": ["task-001"],
             "estimated_duration_ms": 3000,
-            "priority": "MEDIUM",
-            "risk_band": "LOW"
+            "priority": "medium",
+            "risk_band": "low"
         },
         {
             "task_id": "task-003",
@@ -175,8 +175,8 @@ create_test_cognitive_plan() {
             "expected_outputs": ["final_result"],
             "dependencies": ["task-001", "task-002"],
             "estimated_duration_ms": 2000,
-            "priority": "HIGH",
-            "risk_band": "MEDIUM"
+            "priority": "high",
+            "risk_band": "medium"
         }
     ],
     "constraints": {

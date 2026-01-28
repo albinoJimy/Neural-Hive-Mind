@@ -84,6 +84,11 @@ data:
   otel_enabled: {{ .Values.observability.otelEnabled | default "false" | quote }}
   otel_endpoint: {{ .Values.observability.otelEndpoint | default "http://opentelemetry-collector.observability.svc.cluster.local:4317" | quote }}
 
+  # Neural Hive Observability Metadata
+  neural_hive_service_name: {{ .Values.observability.neuralHive.serviceName | default "gateway-intencoes" | quote }}
+  neural_hive_component: {{ .Values.observability.neuralHive.component | default "gateway" | quote }}
+  neural_hive_layer: {{ .Values.observability.neuralHive.layer | default "experiencia" | quote }}
+
   # Rate Limiting Configuration
   rate_limit_enabled: {{ .Values.config.rateLimit.enabled | default "true" | quote }}
   rate_limit_requests_per_minute: {{ .Values.config.rateLimit.requestsPerMinute | default "1000" | quote }}

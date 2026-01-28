@@ -225,8 +225,9 @@ for i in $(seq 1 "$NUM_PAYLOADS"); do
     "channel": "API",
     "environment": "e2e-testing"
   },
+  # IMPORTANTE: Enums devem ser lowercase (high, normal, low, critical)
   "constraints": {
-    "priority": "HIGH",
+    "priority": "high",
     "timeout_ms": 30000,
     "max_specialists": 5
   },

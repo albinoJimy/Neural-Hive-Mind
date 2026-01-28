@@ -30,6 +30,10 @@ data:
   NLU_CONFIDENCE_THRESHOLD_STRICT: "0.75"
   NLU_ADAPTIVE_THRESHOLD_ENABLED: "true"
   NLU_RULES_CONFIG_PATH: "/app/config/nlu_rules.yaml"
+  # Neural Hive Observability Metadata
+  NEURAL_HIVE_SERVICE_NAME: "gateway-intencoes"
+  NEURAL_HIVE_COMPONENT: "gateway"
+  NEURAL_HIVE_LAYER: "experiencia"
 ---
 apiVersion: v1
 kind: Secret

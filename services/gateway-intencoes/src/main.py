@@ -230,20 +230,19 @@ async def lifespan(app: FastAPI):
         )
         await nlu_pipeline.initialize()
 
-        # Inicializar producer Kafka
-        logger.info("Conectando ao Kafka")
-        kafka_producer = KafkaIntentProducer(
-            bootstrap_servers=settings.kafka_bootstrap_servers,
-            schema_registry_url=settings.schema_registry_url
-        )
-        await kafka_producer.initialize()
+        # IMPORTANTE: Ordem de inicialização é crítica:
+        # 1. Redis, OAuth2, Rate Limiter (infraestrutura base)
+        # 2. ASR/NLU pipelines (processamento)
+        # 3. Observabilidade (DEVE vir antes do Kafka)
+        # 4. Kafka producer (depende de observabilidade para instrumentação)
+        # 5. Health checks (validação final)
 
-        # Setup observabilidade padronizada do Neural Hive-Mind
-        # Controlado pela feature flag otel_enabled e disponibilidade da biblioteca
+        # Inicializar observabilidade ANTES do Kafka producer
+        # para garantir que instrument_kafka_producer() tenha acesso ao config global
         if settings.otel_enabled and OBSERVABILITY_AVAILABLE:
             from neural_hive_observability import init_observability
 
-            # Initialize full observability stack
+            # Inicializar stack completo de observabilidade
             init_observability(
                 service_name="gateway-intencoes",
                 service_version="1.0.7",
@@ -258,12 +257,30 @@ async def lifespan(app: FastAPI):
             from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
             FastAPIInstrumentor.instrument_app(app)
 
-            logger.info("OpenTelemetry habilitado e inicializado", otel_endpoint=settings.otel_endpoint)
+            logger.info(
+                "Observabilidade inicializada com sucesso",
+                service_name="gateway-intencoes",
+                neural_hive_component="gateway",
+                neural_hive_layer="experiencia",
+                otel_endpoint=settings.otel_endpoint
+            )
         else:
             if settings.otel_enabled and not OBSERVABILITY_AVAILABLE:
                 logger.warning("OpenTelemetry solicitado mas biblioteca neural_hive_observability não disponível - usando stubs")
             else:
                 logger.info("OpenTelemetry desabilitado - usando stubs para dev local")
+
+        # Inicializar producer Kafka (após observabilidade para instrumentação correta)
+        logger.info(
+            "Conectando ao Kafka",
+            otel_enabled=settings.otel_enabled,
+            observability_available=OBSERVABILITY_AVAILABLE
+        )
+        kafka_producer = KafkaIntentProducer(
+            bootstrap_servers=settings.kafka_bootstrap_servers,
+            schema_registry_url=settings.schema_registry_url
+        )
+        await kafka_producer.initialize()
 
         # Initialize standardized health checks
         logger.info("Configurando health checks padronizados")

@@ -344,6 +344,12 @@ istio:
 observability:
   otelEnabled: true  # Habilitar OpenTelemetry em produção
   otelEndpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+  # Neural Hive Metadata - identificação do serviço no ecossistema
+  neuralHive:
+    serviceName: "gateway-intencoes"
+    component: "gateway"
+    layer: "experiencia"
+    domain: "captura-intencoes"
   # TLS Configuration para OpenTelemetry Exporter
   tls:
     enabled: false  # Habilitar em produção

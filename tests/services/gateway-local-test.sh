@@ -321,8 +321,8 @@ INTENT_ENVELOPE=$(cat <<EOF
     "channel": "API"
   },
   "constraints": {
-    "priority": "NORMAL",
-    "securityLevel": "INTERNAL"
+    "priority": "normal",
+    "securityLevel": "internal"
   },
   "qos": {
     "deliveryMode": "EXACTLY_ONCE",

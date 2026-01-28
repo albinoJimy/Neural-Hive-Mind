@@ -169,6 +169,8 @@ create_output_dir() {
 
 # Gerar payloads de teste
 generate_test_payloads() {
+    # NOTA: Todos os enums (priority, security_level) devem ser lowercase
+    # conforme contrato Pydantic do gateway-intencoes
     log INFO "Gerando payloads de teste..."
     
     local timestamp=$(date +%s)
@@ -185,7 +187,7 @@ generate_test_payloads() {
     "channel": "API"
   },
   "constraints": {
-    "priority": "HIGH",
+    "priority": "high",
     "timeout_ms": 30000
   }
 }
@@ -203,7 +205,7 @@ EOF
     "channel": "API"
   },
   "constraints": {
-    "priority": "MEDIUM",
+    "priority": "normal",
     "timeout_ms": 30000
   }
 }
@@ -221,7 +223,7 @@ EOF
     "channel": "API"
   },
   "constraints": {
-    "priority": "HIGH",
+    "priority": "high",
     "timeout_ms": 30000
   }
 }
@@ -239,7 +241,7 @@ EOF
     "channel": "API"
   },
   "constraints": {
-    "priority": "CRITICAL",
+    "priority": "critical",
     "timeout_ms": 30000
   }
 }
@@ -257,7 +259,7 @@ EOF
     "channel": "API"
   },
   "constraints": {
-    "priority": "MEDIUM",
+    "priority": "normal",
     "timeout_ms": 30000
   }
 }

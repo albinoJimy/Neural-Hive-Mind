@@ -210,8 +210,8 @@ cat > /tmp/intent-technical.json << 'EOF'
     }
   },
   "constraints": {
-    "priority": "HIGH",
-    "security_level": "CONFIDENTIAL",
+    "priority": "high",
+    "security_level": "confidential",
     "deadline": "2026-02-01T00:00:00Z"
   }
 }
@@ -234,8 +234,8 @@ cat > /tmp/intent-business.json << 'EOF'
     }
   },
   "constraints": {
-    "priority": "NORMAL",
-    "security_level": "INTERNAL",
+    "priority": "normal",
+    "security_level": "internal",
     "deadline": "2026-03-01T00:00:00Z"
   }
 }
@@ -258,8 +258,8 @@ cat > /tmp/intent-infrastructure.json << 'EOF'
     }
   },
   "constraints": {
-    "priority": "HIGH",
-    "security_level": "INTERNAL",
+    "priority": "high",
+    "security_level": "internal",
     "deadline": "2026-02-15T00:00:00Z"
   }
 }
@@ -274,6 +274,13 @@ jq . /tmp/intent-technical.json > /dev/null && echo "Payload 1 (TECHNICAL): OK"
 jq . /tmp/intent-business.json > /dev/null && echo "Payload 2 (BUSINESS): OK"
 jq . /tmp/intent-infrastructure.json > /dev/null && echo "Payload 3 (INFRASTRUCTURE): OK"
 ```
+
+> **⚠️ IMPORTANTE - Formato de Enums:**
+> Os campos `priority` e `security_level` devem usar valores em **lowercase**:
+> - `priority`: `low`, `normal`, `high`, `critical`
+> - `security_level`: `public`, `internal`, `confidential`, `restricted`
+>
+> Valores em uppercase (`HIGH`, `CONFIDENTIAL`) serão rejeitados com erro 422.
 
 ### 2.4 Tabela de Anotações
 

@@ -71,7 +71,7 @@ INTENT_PAYLOAD=$(cat <<EOF
   "intent_id": "${INTENT_ID}",
   "correlation_id": "${CORRELATION_ID}",
   "domain": "TECHNICAL",
-  "priority": "HIGH",
+  "priority": "high",
   "raw_intent": "Criar microserviço Python FastAPI com testes automatizados e validação de segurança",
   "metadata": {
     "language": "python",

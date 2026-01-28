@@ -206,12 +206,14 @@ cat > /tmp/intent-technical.json <<'EOF'
     "channel": "API"
   },
   "constraints": {
-    "priority": "HIGH",
+    "priority": "high",
     "timeout_ms": 30000
   }
 }
 EOF
 ```
+
+> **Nota sobre Enums:** Os valores de `priority` e `security_level` devem ser lowercase (`high`, `confidential`), não uppercase.
 
 **Enviar:**
 ```bash

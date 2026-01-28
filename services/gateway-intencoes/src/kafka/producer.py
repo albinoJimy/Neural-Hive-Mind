@@ -143,10 +143,26 @@ class KafkaIntentProducer:
             # Inicializar transações
             self.producer.init_transactions()
 
+            # Instrumentar producer Kafka com observabilidade (se disponível e configurado)
             if instrument_kafka_producer and self.settings.otel_enabled:
-                self.producer = instrument_kafka_producer(self.producer)
-                self._instrumented = True
-                logger.info("Instrumentação de Kafka habilitada para propagação de tracing")
+                try:
+                    from neural_hive_observability import get_config
+                    obs_config = get_config()
+
+                    if obs_config is None:
+                        logger.warning(
+                            "Config de observabilidade não inicializado - pulando instrumentação do Kafka. "
+                            "Verifique se init_observability() foi chamado antes de kafka_producer.initialize()"
+                        )
+                    else:
+                        self.producer = instrument_kafka_producer(self.producer, obs_config)
+                        self._instrumented = True
+                        logger.info(
+                            "Instrumentação de Kafka habilitada para propagação de tracing",
+                            service_name=obs_config.service_name if hasattr(obs_config, 'service_name') else 'unknown'
+                        )
+                except ImportError:
+                    logger.warning("neural_hive_observability.get_config não disponível - pulando instrumentação do Kafka")
 
             self._ready = True
 
