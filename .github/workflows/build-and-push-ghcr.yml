@@ -148,34 +148,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            network=host
-          buildkitd-config-inline: |
-            [registry."37.60.241.150:30500"]
-              http = true
-              insecure = true
-
-      - name: Login no GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extrair metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
-          tags: |
-            type=raw,value=${{ inputs.version_tag || 'latest' }}
-            type=sha,prefix=
-            type=ref,event=branch
-            type=raw,value={{date 'YYYYMMDD-HHmmss'}}
-
       - name: Verificar Dockerfile
         id: check-dockerfile
         run: |
@@ -188,41 +160,45 @@ jobs:
             echo "Dockerfile nao encontrado: $DOCKERFILE_PATH"
           fi
 
-      - name: Preparar contexto de build
+      - name: Login no GHCR
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
         run: |
-          # Alguns Dockerfiles referenciam imagens base do registry antigo
-          # Vamos verificar e ajustar se necessario
-          DOCKERFILE="services/${{ matrix.service }}/Dockerfile"
-          
-          # Verificar se usa imagem base do registry interno
-          if grep -q "37.60.241.150:30500" "$DOCKERFILE"; then
-            echo "AVISO: Dockerfile usa registry interno, pode precisar de ajuste"
-          fi
+          # Usar GHCR_TOKEN se disponivel, senao GITHUB_TOKEN
+          TOKEN="${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}"
+          echo "${TOKEN}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
 
       - name: Build e Push
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: services/${{ matrix.service }}/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.service }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
-          build-args: |
-            REGISTRY=ghcr.io/${{ github.repository_owner }}
-            VERSION=${{ inputs.version_tag || 'latest' }}
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
-            VCS_REF=${{ github.sha }}
-
-      - name: Verificar imagem
-        if: steps.check-dockerfile.outputs.dockerfile_exists == 'true' && github.event_name != 'pull_request'
         run: |
+          SERVICE="${{ matrix.service }}"
+          VERSION="${{ inputs.version_tag || 'latest' }}"
+          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${SERVICE}"
+          SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
+          DATE_TAG=$(date +%Y%m%d-%H%M%S)
+
+          echo "Building ${SERVICE}..."
+
+          docker build \
+            --build-arg REGISTRY=ghcr.io/${{ github.repository_owner }} \
+            --build-arg VERSION=${VERSION} \
+            -t ${IMAGE_BASE}:${VERSION} \
+            -t ${IMAGE_BASE}:${SHA_SHORT} \
+            -t ${IMAGE_BASE}:${{ github.ref_name }} \
+            -t ${IMAGE_BASE}:${DATE_TAG} \
+            -f services/${SERVICE}/Dockerfile \
+            .
+
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            echo "Pushing ${SERVICE}..."
+            docker push ${IMAGE_BASE}:${VERSION}
+            docker push ${IMAGE_BASE}:${SHA_SHORT}
+            docker push ${IMAGE_BASE}:${{ github.ref_name }}
+            docker push ${IMAGE_BASE}:${DATE_TAG}
+          fi
+
           echo "Imagem publicada:"
-          echo "  ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ inputs.version_tag || 'latest' }}"
-          echo "  ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ github.sha }}"
+          echo "  ${IMAGE_BASE}:${VERSION}"
+          echo "  ${IMAGE_BASE}:${SHA_SHORT}"
 
   # ============================================================================
   # Job 3: Resumo e notificacao

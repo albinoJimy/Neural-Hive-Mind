@@ -35,18 +35,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            network=host
-
       - name: Login no GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.GHCR_REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Usar GHCR_TOKEN se disponivel, senao GITHUB_TOKEN
+          TOKEN="${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}"
+          echo "${TOKEN}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
 
       - name: Determinar imagens a buildar
         id: images
@@ -61,79 +54,78 @@ jobs:
               "python-mlops-base"
             )
           fi
-          
+
           echo "images=${IMAGES[*]}" >> $GITHUB_OUTPUT
           echo "Imagens a buildar: ${IMAGES[*]}"
 
       # ===== python-ml-base =====
       - name: Build python-ml-base
         if: contains(steps.images.outputs.images, 'python-ml-base')
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: base-images/python-ml-base/Dockerfile
-          push: true
-          tags: |
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-ml-base:${{ inputs.version || '1.0.7' }}
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-ml-base:latest
-          build-args: |
-            VERSION=${{ inputs.version || '1.0.7' }}
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
-          cache-from: type=gha,scope=python-ml-base
-          cache-to: type=gha,mode=max,scope=python-ml-base
+        run: |
+          VERSION="${{ inputs.version || '1.0.7' }}"
+          IMAGE="${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-ml-base"
+
+          docker build \
+            --build-arg VERSION=${VERSION} \
+            -t ${IMAGE}:${VERSION} \
+            -t ${IMAGE}:latest \
+            -f base-images/python-ml-base/Dockerfile \
+            .
+
+          docker push ${IMAGE}:${VERSION}
+          docker push ${IMAGE}:latest
 
       # ===== python-observability-base =====
       - name: Build python-observability-base
         if: contains(steps.images.outputs.images, 'python-observability-base')
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: base-images/python-observability-base/Dockerfile
-          push: true
-          tags: |
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-observability-base:1.2.5
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-observability-base:latest
-          build-args: |
-            VERSION=1.2.5
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
-          cache-from: type=gha,scope=python-observability-base
-          cache-to: type=gha,mode=max,scope=python-observability-base
+        run: |
+          IMAGE="${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-observability-base"
+
+          docker build \
+            --build-arg VERSION=1.2.5 \
+            -t ${IMAGE}:1.2.5 \
+            -t ${IMAGE}:latest \
+            -f base-images/python-observability-base/Dockerfile \
+            .
+
+          docker push ${IMAGE}:1.2.5
+          docker push ${IMAGE}:latest
 
       # ===== python-grpc-base (depende de python-ml-base) =====
       - name: Build python-grpc-base
         if: contains(steps.images.outputs.images, 'python-grpc-base')
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: base-images/python-grpc-base/Dockerfile
-          push: true
-          tags: |
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-grpc-base:${{ inputs.version || '1.0.7' }}
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-grpc-base:latest
-          build-args: |
-            REGISTRY=${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}
-            VERSION=${{ inputs.version || '1.0.7' }}
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
-          cache-from: type=gha,scope=python-grpc-base
-          cache-to: type=gha,mode=max,scope=python-grpc-base
+        run: |
+          VERSION="${{ inputs.version || '1.0.7' }}"
+          IMAGE="${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-grpc-base"
+
+          docker build \
+            --build-arg REGISTRY=${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }} \
+            --build-arg VERSION=${VERSION} \
+            -t ${IMAGE}:${VERSION} \
+            -t ${IMAGE}:latest \
+            -f base-images/python-grpc-base/Dockerfile \
+            .
+
+          docker push ${IMAGE}:${VERSION}
+          docker push ${IMAGE}:latest
 
       # ===== python-mlops-base (depende de python-grpc-base) =====
       - name: Build python-mlops-base
         if: contains(steps.images.outputs.images, 'python-mlops-base')
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: base-images/python-mlops-base/Dockerfile
-          push: true
-          tags: |
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-mlops-base:${{ inputs.version || '1.0.7' }}
-            ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-mlops-base:latest
-          build-args: |
-            REGISTRY=${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}
-            VERSION=${{ inputs.version || '1.0.7' }}
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
-          cache-from: type=gha,scope=python-mlops-base
-          cache-to: type=gha,mode=max,scope=python-mlops-base
+        run: |
+          VERSION="${{ inputs.version || '1.0.7' }}"
+          IMAGE="${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-mlops-base"
+
+          docker build \
+            --build-arg REGISTRY=${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }} \
+            --build-arg VERSION=${VERSION} \
+            -t ${IMAGE}:${VERSION} \
+            -t ${IMAGE}:latest \
+            -f base-images/python-mlops-base/Dockerfile \
+            .
+
+          docker push ${IMAGE}:${VERSION}
+          docker push ${IMAGE}:latest
 
       - name: Resumo
         run: |
