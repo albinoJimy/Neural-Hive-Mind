@@ -1,6 +1,6 @@
 # Multi-stage build for MCP Tool Catalog Service
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5 AS builder
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6 AS builder
 
 WORKDIR /build
 
@@ -36,7 +36,7 @@ RUN pip install --no-cache-dir /tmp/neural_hive_observability/ && \
 
 # Runtime stage
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6
 
 WORKDIR /app
 

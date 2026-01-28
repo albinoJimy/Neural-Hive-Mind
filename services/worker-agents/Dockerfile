@@ -1,6 +1,6 @@
 # Stage 1 - Builder
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5 AS builder
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir --user /tmp/neural_hive_integration && \
 
 # Stage 2 - Runtime
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6
 
 # Create non-root user
 RUN groupadd -r worker-agent && useradd -r -g worker-agent worker-agent

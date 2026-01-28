@@ -1,6 +1,6 @@
 # Stage 1: Builder
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5 AS builder
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6 AS builder
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 # Stage 2: Runtime - use same base to keep neural_hive_observability
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6
 
 WORKDIR /app
 

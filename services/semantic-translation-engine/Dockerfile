@@ -1,7 +1,7 @@
 # Multi-stage build for Semantic Translation Engine
 # Stage 1: Builder
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5 AS builder
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6 AS builder
 
 WORKDIR /build
 

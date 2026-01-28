@@ -1,6 +1,6 @@
 # Multi-stage build for Service Registry
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5 AS builder
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6 AS builder
 
 WORKDIR /app
 

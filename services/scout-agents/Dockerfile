@@ -1,6 +1,6 @@
 # Multi-stage build for Scout Agents
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5 AS builder
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6 AS builder
 
 WORKDIR /app
 
@@ -24,7 +24,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 # Runtime stage
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6
 
 WORKDIR /app
 

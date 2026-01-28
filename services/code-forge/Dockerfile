@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile for Code Forge - Neural Code Generation Pipeline
 # Stage 1: Builder
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5 AS builder
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6 AS builder
 
 WORKDIR /build
 
@@ -24,7 +24,7 @@ RUN pip install --no-cache-dir --user /tmp/neural_hive_resilience && \
 
 # Stage 2: Runtime - use same base to get neural_hive_observability
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6
 
 WORKDIR /app
 

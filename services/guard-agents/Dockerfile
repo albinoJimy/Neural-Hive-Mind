@@ -1,6 +1,6 @@
 # Stage 1 - Builder
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5 AS builder
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -35,7 +35,7 @@ COPY services/guard-agents/src/ ./src/
 
 # Stage 2 - Runtime
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \

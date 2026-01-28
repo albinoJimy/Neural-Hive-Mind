@@ -1,6 +1,6 @@
 # Gateway de Intenções - Neural Hive-Mind
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6
 
 # Definir versão e metadados
 ARG VERSION=1.0.0

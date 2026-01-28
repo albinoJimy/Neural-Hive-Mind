@@ -17,6 +17,15 @@
 - pip: 24.0
 - Python: 3.11-slim
 
+## python-observability-base:1.2.6
+- opentelemetry-api: 1.39.1
+- opentelemetry-sdk: 1.39.1
+- opentelemetry-instrumentation-grpc: 0.60b1
+- prometheus-client: 0.21.1
+- grpcio: 1.68.1
+- **Novas funções exportadas:** instrument_grpc_channel, inject_context_to_metadata
+- **Fix 1.2.6:** Validação de service_name em init_observability() e inject_http_headers()
+
 ## python-observability-base:1.2.0
 - opentelemetry-api: 1.39.1
 - opentelemetry-sdk: 1.39.1

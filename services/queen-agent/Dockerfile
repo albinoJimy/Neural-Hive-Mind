@@ -1,6 +1,6 @@
 # Stage 1: Builder
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5 AS builder
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6 AS builder
 
 # Instalar dependências de build
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -28,7 +28,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 # Stage 2: Runtime - usar mesma base image para ter neural_hive_observability
 ARG REGISTRY=ghcr.io/albinojimy
-FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5
+FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6
 
 # Instalar apenas runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
