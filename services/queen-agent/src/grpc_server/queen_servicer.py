@@ -43,8 +43,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
         method_name = 'GetStrategicDecision'
 
         try:
-            metadata_dict = dict(context.invocation_metadata())
-            extract_grpc_context(metadata_dict)
+            extract_grpc_context(context)
             if hasattr(request, "plan_id") and request.plan_id:
                 set_baggage("plan_id", request.plan_id)
 
@@ -88,8 +87,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
         method_name = 'ListStrategicDecisions'
 
         try:
-            metadata_dict = dict(context.invocation_metadata())
-            extract_grpc_context(metadata_dict)
+            extract_grpc_context(context)
             if hasattr(request, "plan_id") and request.plan_id:
                 set_baggage("plan_id", request.plan_id)
 
@@ -157,8 +155,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
         method_name = 'MakeStrategicDecision'
 
         try:
-            metadata_dict = dict(context.invocation_metadata())
-            extract_grpc_context(metadata_dict)
+            extract_grpc_context(context)
             if hasattr(request, "plan_id") and request.plan_id:
                 set_baggage("plan_id", request.plan_id)
 
@@ -221,8 +218,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
         method_name = 'GetSystemStatus'
 
         try:
-            metadata_dict = dict(context.invocation_metadata())
-            extract_grpc_context(metadata_dict)
+            extract_grpc_context(context)
             if hasattr(request, "plan_id") and request.plan_id:
                 set_baggage("plan_id", request.plan_id)
 
@@ -259,8 +255,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
     async def RequestExceptionApproval(self, request, context):
         """Solicitar aprovação de exceção"""
         try:
-            metadata_dict = dict(context.invocation_metadata())
-            extract_grpc_context(metadata_dict)
+            extract_grpc_context(context)
             if hasattr(request, "plan_id") and request.plan_id:
                 set_baggage("plan_id", request.plan_id)
 
@@ -290,8 +285,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
     async def ApproveException(self, request, context):
         """Aprovar exceção"""
         try:
-            metadata_dict = dict(context.invocation_metadata())
-            extract_grpc_context(metadata_dict)
+            extract_grpc_context(context)
             if hasattr(request, "plan_id") and request.plan_id:
                 set_baggage("plan_id", request.plan_id)
 
@@ -320,8 +314,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
     async def RejectException(self, request, context):
         """Rejeitar exceção"""
         try:
-            metadata_dict = dict(context.invocation_metadata())
-            extract_grpc_context(metadata_dict)
+            extract_grpc_context(context)
             if hasattr(request, "plan_id") and request.plan_id:
                 set_baggage("plan_id", request.plan_id)
 
@@ -349,8 +342,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
     async def GetActiveConflicts(self, request, context):
         """Obter conflitos ativos"""
         try:
-            metadata_dict = dict(context.invocation_metadata())
-            extract_grpc_context(metadata_dict)
+            extract_grpc_context(context)
             if hasattr(request, "plan_id") and request.plan_id:
                 set_baggage("plan_id", request.plan_id)
 
@@ -381,8 +373,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
         method_name = 'SubmitInsight'
 
         try:
-            metadata_dict = dict(context.invocation_metadata())
-            extract_grpc_context(metadata_dict)
+            extract_grpc_context(context)
             if hasattr(request, "plan_id") and request.plan_id:
                 set_baggage("plan_id", request.plan_id)
 
