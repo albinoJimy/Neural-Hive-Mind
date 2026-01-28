@@ -175,10 +175,12 @@ class ContextManager:
         if "channel" in correlation:
             new_headers["X-Neural-Hive-Channel"] = correlation["channel"]
 
-        # Adicionar identificação do serviço (se config disponível)
+        # Adicionar identificação do serviço (se config disponível e valores válidos)
         if self.config:
-            new_headers["X-Neural-Hive-Source"] = self.config.service_name
-            new_headers["X-Neural-Hive-Component"] = self.config.neural_hive_component
+            if self.config.service_name:
+                new_headers["X-Neural-Hive-Source"] = self.config.service_name
+            if self.config.neural_hive_component:
+                new_headers["X-Neural-Hive-Component"] = self.config.neural_hive_component
 
         return new_headers
 

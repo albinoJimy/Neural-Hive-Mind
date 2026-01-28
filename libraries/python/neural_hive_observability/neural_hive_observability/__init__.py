@@ -90,7 +90,7 @@ def init_observability(
     Inicializa a observabilidade completa do Neural Hive-Mind.
 
     Args:
-        service_name: Nome do serviço
+        service_name: Nome do serviço (obrigatório)
         service_version: Versão do serviço
         neural_hive_component: Componente do Neural Hive-Mind
         neural_hive_layer: Camada arquitetural
@@ -101,8 +101,18 @@ def init_observability(
         log_level: Nível de log
         enable_health_checks: Habilitar health checks
         **kwargs: Configurações adicionais
+
+    Raises:
+        ValueError: Se service_name for None ou vazio
     """
     global _config, _metrics, _health_checker, _context_manager
+
+    # Validar service_name obrigatório
+    if not service_name or (isinstance(service_name, str) and not service_name.strip()):
+        raise ValueError(
+            "service_name é obrigatório para init_observability(). "
+            "Exemplo: init_observability(service_name='gateway-intencoes', ...)"
+        )
 
     # Criar configuração
     _config = ObservabilityConfig(

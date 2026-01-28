@@ -24,6 +24,15 @@ class InstrumentedKafkaProducer:
     """Wrapper para confluent-kafka Producer com tracing e injeção de contexto."""
 
     def __init__(self, producer: Any, config: ObservabilityConfig):
+        if config is None:
+            raise ValueError(
+                "config não pode ser None para InstrumentedKafkaProducer. "
+                "Use instrument_kafka_producer() que valida o config."
+            )
+        if not getattr(config, 'service_name', None):
+            raise ValueError(
+                "config.service_name não pode ser None ou vazio para InstrumentedKafkaProducer."
+            )
         self._producer = producer
         self._config = config
         self._context_manager = ContextManager(config)
@@ -135,6 +144,15 @@ class InstrumentedAIOKafkaProducer:
     """Wrapper assíncrono para aiokafka AIOKafkaProducer com tracing."""
 
     def __init__(self, producer: Any, config: ObservabilityConfig):
+        if config is None:
+            raise ValueError(
+                "config não pode ser None para InstrumentedAIOKafkaProducer. "
+                "Use instrument_kafka_producer() que valida o config."
+            )
+        if not getattr(config, 'service_name', None):
+            raise ValueError(
+                "config.service_name não pode ser None ou vazio para InstrumentedAIOKafkaProducer."
+            )
         self._producer = producer
         self._config = config
         self._context_manager = ContextManager(config)
@@ -224,6 +242,15 @@ class InstrumentedAIOKafkaConsumer:
     """Wrapper assíncrono para aiokafka AIOKafkaConsumer com extração de contexto."""
 
     def __init__(self, consumer: Any, config: ObservabilityConfig):
+        if config is None:
+            raise ValueError(
+                "config não pode ser None para InstrumentedAIOKafkaConsumer. "
+                "Use instrument_kafka_consumer() que valida o config."
+            )
+        if not getattr(config, 'service_name', None):
+            raise ValueError(
+                "config.service_name não pode ser None ou vazio para InstrumentedAIOKafkaConsumer."
+            )
         self._consumer = consumer
         self._config = config
         self._context_manager = ContextManager(config)
@@ -285,11 +312,29 @@ def instrument_kafka_producer(producer: Any, config: ObservabilityConfig = None)
     Args:
         producer: Instância do producer
         config: Configuração de observabilidade (opcional, usa config global se não fornecido)
+
+    Returns:
+        Producer instrumentado ou original se config inválido
     """
     # Se config não for fornecido, usar a configuração global
     if config is None:
         from . import _config as global_config
         config = global_config
+
+    # Validar config antes de instrumentar
+    if config is None:
+        logger.warning(
+            "Config de observabilidade é None - retornando producer sem instrumentação. "
+            "Verifique se init_observability() foi chamado antes."
+        )
+        return producer
+
+    if not getattr(config, 'service_name', None):
+        logger.warning(
+            "Config de observabilidade sem service_name válido - retornando producer sem instrumentação. "
+            "Verifique se init_observability() foi chamado com service_name válido."
+        )
+        return producer
 
     try:
         from confluent_kafka import Producer as ConfluentProducer  # type: ignore
@@ -318,11 +363,29 @@ def instrument_kafka_consumer(consumer: Any, config: ObservabilityConfig = None)
     Args:
         consumer: Instância do consumer
         config: Configuração de observabilidade (opcional, usa config global se não fornecido)
+
+    Returns:
+        Consumer instrumentado ou original se config inválido
     """
     # Se config não for fornecido, usar a configuração global
     if config is None:
         from . import _config as global_config
         config = global_config
+
+    # Validar config antes de instrumentar
+    if config is None:
+        logger.warning(
+            "Config de observabilidade é None - retornando consumer sem instrumentação. "
+            "Verifique se init_observability() foi chamado antes."
+        )
+        return consumer
+
+    if not getattr(config, 'service_name', None):
+        logger.warning(
+            "Config de observabilidade sem service_name válido - retornando consumer sem instrumentação. "
+            "Verifique se init_observability() foi chamado com service_name válido."
+        )
+        return consumer
 
     try:
         from aiokafka import AIOKafkaConsumer  # type: ignore
