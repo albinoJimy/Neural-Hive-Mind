@@ -4,9 +4,13 @@ FROM ${REGISTRY}/neural-hive-mind/python-grpc-base:1.0.7 AS builder
 
 WORKDIR /app
 
-# Instalar apenas dependências necessárias do consenso
+# Copy internal library for installation
+COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
+
+# Instalar dependências e biblioteca interna
 COPY services/consensus-engine/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --user /tmp/neural_hive_domain && \
     pip install --no-cache-dir --user -r requirements.txt && \
     python -m uvicorn --version && \
     echo "✓ uvicorn runtime verification passed"
@@ -23,7 +27,7 @@ RUN useradd -m -u 1000 consensus
 # Copiar dependências do builder
 COPY --from=builder --chown=consensus:consensus /root/.local /home/consensus/.local
 
-# Copiar biblioteca de observabilidade (pacote interno que tem todos os exports)
+# Copiar biblioteca de observabilidade (copiada directamente porque não é instalável via pip)
 COPY --chown=consensus:consensus libraries/python/neural_hive_observability/neural_hive_observability /app/neural_hive_observability
 
 # Copiar proto_gen da biblioteca neural_hive_specialists (apenas stubs gRPC necessários)
@@ -44,7 +48,8 @@ COPY --chown=consensus:consensus schemas/cognitive-plan/cognitive-plan.avsc /app
 COPY --chown=consensus:consensus schemas/consolidated-decision/consolidated-decision.avsc /app/schemas/consolidated-decision/consolidated-decision.avsc
 
 # Environment variables
-ENV PYTHONPATH=/app:/app/neural_hive_specialists:/home/consensus/.local/lib/python3.11/site-packages \
+# Include /app/src/proto for proto imports to work with absolute imports
+ENV PYTHONPATH=/app:/app/src/proto:/app/neural_hive_specialists:/home/consensus/.local/lib/python3.11/site-packages \
     PYTHONUNBUFFERED=1 \
     PATH=/home/consensus/.local/bin:$PATH
 

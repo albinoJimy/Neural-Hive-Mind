@@ -22,6 +22,8 @@ redis[hiredis]==5.2.1
 neo4j==5.14.0
 
 # ML/Optimization
+# Pin numpy<2.0 to avoid Prophet compatibility issues (np.float_ removed in NumPy 2.0)
+numpy<2.0
 dowhy==0.10.1
 gymnasium==0.29.1
 prophet==1.1.5

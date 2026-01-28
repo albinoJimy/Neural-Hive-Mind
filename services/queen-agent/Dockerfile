@@ -16,12 +16,14 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Copiar bibliotecas locais primeiro
 COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
 COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
+COPY libraries/neural_hive_integration /tmp/neural_hive_integration
 
 # Copiar requirements e instalar dependências
 COPY services/queen-agent/requirements.txt /tmp/
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir /tmp/neural_hive_resilience && \
     pip install --no-cache-dir /tmp/neural_hive_domain && \
+    pip install --no-cache-dir /tmp/neural_hive_integration && \
     pip install --no-cache-dir -r /tmp/requirements.txt
 
 # Stage 2: Runtime - usar mesma base image para ter neural_hive_observability
@@ -37,8 +39,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copiar virtualenv do builder
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-# Garantir acesso aos site-packages globais (onde neural_hive_observability está instalada)
-ENV PYTHONPATH="/usr/local/lib/python3.11/site-packages:$PYTHONPATH"
+# Garantir acesso aos site-packages globais e proto stubs
+# Include /app/src/proto for proto imports with absolute imports
+ENV PYTHONPATH="/app/src/proto:/usr/local/lib/python3.11/site-packages:$PYTHONPATH"
 
 # Criar usuário não-root
 RUN useradd -m -u 1000 -s /bin/bash queen-agent

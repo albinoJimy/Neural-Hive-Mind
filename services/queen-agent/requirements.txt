@@ -32,6 +32,7 @@ structlog==24.4.0
 httpx==0.28.1
 python-json-logger==2.0.7
 python-dotenv==1.0.1
+tenacity>=8.2.0
 
 # Bibliotecas internas
 # neural_hive_resilience é instalado explicitamente no Dockerfile

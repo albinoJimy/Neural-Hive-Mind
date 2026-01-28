@@ -61,6 +61,7 @@ async def startup_event():
         neural_hive_layer='cognitiva',
         neural_hive_domain='consensus',
         otel_endpoint=settings.otel_endpoint,
+        prometheus_port=settings.prometheus_port,
     )
 
     # Initialize HealthChecker for OTEL pipeline validation

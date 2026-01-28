@@ -161,6 +161,7 @@ async def lifespan(app: FastAPI):
             app_state.pheromone_client,
             app_state.replanning_coordinator,
             app_state.opa_client,
+            app_state.orchestrator_client,
             settings
         )
 

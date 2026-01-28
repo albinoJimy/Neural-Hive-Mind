@@ -7,6 +7,7 @@ WORKDIR /app
 # Copiar e instalar bibliotecas internas
 COPY libraries/python/neural_hive_ml /tmp/neural_hive_ml
 COPY libraries/python/neural_hive_observability /tmp/neural_hive_observability
+COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
 COPY libraries/neural_hive_integration /tmp/neural_hive_integration
 
 # Instalar dependências específicas do serviço
@@ -15,6 +16,7 @@ RUN pip config set global.timeout 600 && \
     pip config set global.retries 5 && \
     pip install --no-cache-dir --user /tmp/neural_hive_ml && \
     pip install --no-cache-dir --user /tmp/neural_hive_observability && \
+    pip install --no-cache-dir --user /tmp/neural_hive_resilience && \
     pip install --no-cache-dir --user /tmp/neural_hive_integration && \
     pip install --no-cache-dir --user -r requirements-optimizer.txt
 

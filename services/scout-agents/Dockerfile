@@ -19,6 +19,7 @@ RUN python -m venv --system-site-packages /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir /libraries/python/neural_hive_resilience/ && \
     pip install --no-cache-dir /libraries/neural_hive_integration/
 
 # Runtime stage

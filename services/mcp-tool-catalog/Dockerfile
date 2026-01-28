@@ -19,6 +19,11 @@ COPY services/mcp-tool-catalog/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
+# Copy and install neural_hive_resilience FIRST (dependency of integration)
+COPY libraries/python/neural_hive_resilience/ /tmp/neural_hive_resilience/
+RUN pip install --no-cache-dir /tmp/neural_hive_resilience/ && \
+    rm -rf /tmp/neural_hive_resilience
+
 # Copy and install neural_hive_integration library with proto_stubs
 COPY libraries/neural_hive_integration/ /tmp/neural_hive_integration/
 RUN pip install --no-cache-dir /tmp/neural_hive_integration/ && \

@@ -4,8 +4,12 @@ FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.5 AS builder
 
 WORKDIR /app
 
+# Copy internal libraries for installation
+COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
+
 COPY services/analyst-agents/requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt && \
+RUN pip install --no-cache-dir --user /tmp/neural_hive_resilience && \
+    pip install --no-cache-dir --user -r requirements.txt && \
     find /root/.local -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true && \
     find /root/.local -type f -name '*.pyc' -delete 2>/dev/null || true
 
@@ -26,6 +30,9 @@ COPY --chown=analyst:analyst libraries/python/neural_hive_observability/neural_h
 
 # Copy neural_hive_integration library (for ServiceRegistryClient and other integrations)
 COPY --chown=analyst:analyst libraries/neural_hive_integration/neural_hive_integration /app/neural_hive_integration
+
+# Copy neural_hive_resilience library (dependency of neural_hive_integration)
+COPY --chown=analyst:analyst libraries/python/neural_hive_resilience/neural_hive_resilience /app/neural_hive_resilience
 
 # Copy application code
 COPY --chown=analyst:analyst services/analyst-agents/src/ ./src/
