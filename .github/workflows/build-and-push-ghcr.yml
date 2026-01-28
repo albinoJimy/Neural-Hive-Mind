@@ -167,12 +167,34 @@ jobs:
           TOKEN="${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}"
           echo "${TOKEN}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
 
+      - name: Debug Environment
+        if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
+        run: |
+          echo "=== Debug Info ==="
+          echo "SERVICE: ${{ matrix.service }}"
+          echo "REGISTRY: ${{ env.REGISTRY }}"
+          echo "IMAGE_PREFIX: ${{ env.IMAGE_PREFIX }}"
+          echo "GITHUB_SHA: ${{ github.sha }}"
+          echo "GITHUB_REF_NAME: ${{ github.ref_name }}"
+          echo "VERSION_TAG_INPUT: '${{ inputs.version_tag }}'"
+          echo "EVENT_NAME: ${{ github.event_name }}"
+          echo "=== Docker Info ==="
+          docker version --format '{{.Server.Version}}' || echo "Docker version check failed"
+          docker info --format '{{.Driver}}' || echo "Docker info check failed"
+          echo "=== Filesystem Check ==="
+          ls -la services/${{ matrix.service }}/Dockerfile || echo "Dockerfile check failed"
+          echo "=== Working Directory ==="
+          pwd
+          ls -la
+
       - name: Build e Push
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
         env:
           SERVICE: ${{ matrix.service }}
           VERSION_INPUT: ${{ inputs.version_tag }}
         run: |
+          set -x  # Enable debug output
+
           # Definir VERSION com fallback para 'latest'
           VERSION="${VERSION_INPUT:-latest}"
           IMAGE_BASE="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${SERVICE}"
