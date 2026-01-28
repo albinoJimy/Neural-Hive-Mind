@@ -162,22 +162,31 @@ jobs:
 
       - name: Login no GHCR
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
+        env:
+          OWNER_LC: ${{ github.repository_owner }}
         run: |
+          # Converter owner para minusculas
+          OWNER_LOWER=$(echo "${OWNER_LC}" | tr '[:upper:]' '[:lower:]')
           # Usar GHCR_TOKEN se disponivel, senao GITHUB_TOKEN
           TOKEN="${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}"
-          echo "${TOKEN}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+          echo "${TOKEN}" | docker login ghcr.io -u ${OWNER_LOWER} --password-stdin
 
       - name: Build e Push
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
         env:
           SERVICE: ${{ matrix.service }}
           VERSION_INPUT: ${{ inputs.version_tag }}
+          # Garantir lowercase para GHCR
+          OWNER_LC: ${{ github.repository_owner }}
         run: |
           set -e  # Exit on error
 
+          # Converter owner para minusculas (GHCR requer lowercase)
+          OWNER_LOWER=$(echo "${OWNER_LC}" | tr '[:upper:]' '[:lower:]')
+
           # Definir VERSION com fallback para 'latest'
           VERSION="${VERSION_INPUT:-latest}"
-          IMAGE_BASE="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${SERVICE}"
+          IMAGE_BASE="${{ env.REGISTRY }}/${OWNER_LOWER}/neural-hive-mind/${SERVICE}"
           SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
           DATE_TAG=$(date +%Y%m%d-%H%M%S)
 
@@ -185,14 +194,14 @@ jobs:
           echo "SERVICE: ${SERVICE}"
           echo "VERSION: ${VERSION}"
           echo "IMAGE_BASE: ${IMAGE_BASE}"
-          echo "SHA_SHORT: ${SHA_SHORT}"
+          echo "OWNER_LOWER: ${OWNER_LOWER}"
 
           echo "=== Checking local base images ==="
           docker images | grep -E "python.*base|neural-hive" | head -10 || echo "No local base images found"
 
           echo "=== Starting build ==="
           docker build \
-            --build-arg REGISTRY=ghcr.io/${{ github.repository_owner }} \
+            --build-arg REGISTRY=ghcr.io/${OWNER_LOWER} \
             --build-arg VERSION=${VERSION} \
             -t "${IMAGE_BASE}:${VERSION}" \
             -t "${IMAGE_BASE}:${SHA_SHORT}" \

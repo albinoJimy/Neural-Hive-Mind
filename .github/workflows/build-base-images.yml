@@ -36,10 +36,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Login no GHCR
+        env:
+          OWNER_LC: ${{ github.repository_owner }}
         run: |
+          # Converter owner para minusculas (GHCR requer lowercase)
+          OWNER_LOWER=$(echo "${OWNER_LC}" | tr '[:upper:]' '[:lower:]')
           # Usar GHCR_TOKEN se disponivel, senao GITHUB_TOKEN
           TOKEN="${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}"
-          echo "${TOKEN}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+          echo "${TOKEN}" | docker login ghcr.io -u ${OWNER_LOWER} --password-stdin
 
       - name: Determinar imagens a buildar
         id: images
@@ -61,9 +65,13 @@ jobs:
       # ===== python-ml-base =====
       - name: Build python-ml-base
         if: contains(steps.images.outputs.images, 'python-ml-base')
+        env:
+          OWNER_LC: ${{ github.repository_owner }}
+          VERSION_INPUT: ${{ inputs.version }}
         run: |
-          VERSION="${{ inputs.version || '1.0.7' }}"
-          IMAGE="${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-ml-base"
+          OWNER_LOWER=$(echo "${OWNER_LC}" | tr '[:upper:]' '[:lower:]')
+          VERSION="${VERSION_INPUT:-1.0.7}"
+          IMAGE="${{ env.GHCR_REGISTRY }}/${OWNER_LOWER}/neural-hive-mind/python-ml-base"
 
           docker build \
             --build-arg VERSION=${VERSION} \
@@ -78,8 +86,11 @@ jobs:
       # ===== python-observability-base =====
       - name: Build python-observability-base
         if: contains(steps.images.outputs.images, 'python-observability-base')
+        env:
+          OWNER_LC: ${{ github.repository_owner }}
         run: |
-          IMAGE="${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-observability-base"
+          OWNER_LOWER=$(echo "${OWNER_LC}" | tr '[:upper:]' '[:lower:]')
+          IMAGE="${{ env.GHCR_REGISTRY }}/${OWNER_LOWER}/neural-hive-mind/python-observability-base"
 
           docker build \
             --build-arg VERSION=1.2.5 \
@@ -94,12 +105,16 @@ jobs:
       # ===== python-grpc-base (depende de python-ml-base) =====
       - name: Build python-grpc-base
         if: contains(steps.images.outputs.images, 'python-grpc-base')
+        env:
+          OWNER_LC: ${{ github.repository_owner }}
+          VERSION_INPUT: ${{ inputs.version }}
         run: |
-          VERSION="${{ inputs.version || '1.0.7' }}"
-          IMAGE="${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-grpc-base"
+          OWNER_LOWER=$(echo "${OWNER_LC}" | tr '[:upper:]' '[:lower:]')
+          VERSION="${VERSION_INPUT:-1.0.7}"
+          IMAGE="${{ env.GHCR_REGISTRY }}/${OWNER_LOWER}/neural-hive-mind/python-grpc-base"
 
           docker build \
-            --build-arg REGISTRY=${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }} \
+            --build-arg REGISTRY=${{ env.GHCR_REGISTRY }}/${OWNER_LOWER} \
             --build-arg VERSION=${VERSION} \
             -t ${IMAGE}:${VERSION} \
             -t ${IMAGE}:latest \
@@ -112,12 +127,16 @@ jobs:
       # ===== python-mlops-base (depende de python-grpc-base) =====
       - name: Build python-mlops-base
         if: contains(steps.images.outputs.images, 'python-mlops-base')
+        env:
+          OWNER_LC: ${{ github.repository_owner }}
+          VERSION_INPUT: ${{ inputs.version }}
         run: |
-          VERSION="${{ inputs.version || '1.0.7' }}"
-          IMAGE="${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_PREFIX }}/python-mlops-base"
+          OWNER_LOWER=$(echo "${OWNER_LC}" | tr '[:upper:]' '[:lower:]')
+          VERSION="${VERSION_INPUT:-1.0.7}"
+          IMAGE="${{ env.GHCR_REGISTRY }}/${OWNER_LOWER}/neural-hive-mind/python-mlops-base"
 
           docker build \
-            --build-arg REGISTRY=${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }} \
+            --build-arg REGISTRY=${{ env.GHCR_REGISTRY }}/${OWNER_LOWER} \
             --build-arg VERSION=${VERSION} \
             -t ${IMAGE}:${VERSION} \
             -t ${IMAGE}:latest \
