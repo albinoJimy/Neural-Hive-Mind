@@ -741,7 +741,9 @@
       "Bash(ENCRYPTED=\"2DCtXZ2vZg4QZ9ZLvLpf4n0CdNvh4nhTuL7I44nK0U1yos8Su2Ll7i6bEBknZm7ii3JO2i4HV7LodU+KjpafHAieyWyMz1dV1J/+H+l45LYsQot8E/ihQg==\")",
       "Bash(KEY_ID=\"3380204578043523366\")",
       "Bash(__NEW_LINE_9256a441b8b35247__ curl -s -X PUT -H \"Authorization: token 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\" -H \"Accept: application/vnd.github+json\" \"https://api.github.com/repos/albinoJimy/Neural-Hive-Mind/actions/secrets/GHCR_TOKEN\" -d \"{\"\"encrypted_value\"\":\"\"$ENCRYPTED\"\",\"\"key_id\"\":\"\"$KEY_ID\"\"}\")",
-      "Bash(gh run view:*)"
+      "Bash(gh run view:*)",
+      "Bash(# Verificar se já existe o GHCR_TOKEN que podemos usar kubectl get secret -n github-runner)",
+      "Bash(# Verificar se existe pod dind funcionando kubectl get pods -n github-runner -o wide && kubectl exec deploy/github-runner -n github-runner -c dind -- docker images)"
     ],
     "deny": [],
     "ask": []
