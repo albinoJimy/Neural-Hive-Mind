@@ -169,31 +169,35 @@ jobs:
 
       - name: Build e Push
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
+        env:
+          SERVICE: ${{ matrix.service }}
+          VERSION_INPUT: ${{ inputs.version_tag }}
         run: |
-          SERVICE="${{ matrix.service }}"
-          VERSION="${{ inputs.version_tag || 'latest' }}"
+          # Definir VERSION com fallback para 'latest'
+          VERSION="${VERSION_INPUT:-latest}"
           IMAGE_BASE="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${SERVICE}"
           SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
           DATE_TAG=$(date +%Y%m%d-%H%M%S)
 
-          echo "Building ${SERVICE}..."
+          echo "Building ${SERVICE} with VERSION=${VERSION}..."
+          echo "IMAGE_BASE: ${IMAGE_BASE}"
 
           docker build \
             --build-arg REGISTRY=ghcr.io/${{ github.repository_owner }} \
             --build-arg VERSION=${VERSION} \
-            -t ${IMAGE_BASE}:${VERSION} \
-            -t ${IMAGE_BASE}:${SHA_SHORT} \
-            -t ${IMAGE_BASE}:${{ github.ref_name }} \
-            -t ${IMAGE_BASE}:${DATE_TAG} \
-            -f services/${SERVICE}/Dockerfile \
+            -t "${IMAGE_BASE}:${VERSION}" \
+            -t "${IMAGE_BASE}:${SHA_SHORT}" \
+            -t "${IMAGE_BASE}:${{ github.ref_name }}" \
+            -t "${IMAGE_BASE}:${DATE_TAG}" \
+            -f "services/${SERVICE}/Dockerfile" \
             .
 
           if [[ "${{ github.event_name }}" != "pull_request" ]]; then
             echo "Pushing ${SERVICE}..."
-            docker push ${IMAGE_BASE}:${VERSION}
-            docker push ${IMAGE_BASE}:${SHA_SHORT}
-            docker push ${IMAGE_BASE}:${{ github.ref_name }}
-            docker push ${IMAGE_BASE}:${DATE_TAG}
+            docker push "${IMAGE_BASE}:${VERSION}"
+            docker push "${IMAGE_BASE}:${SHA_SHORT}"
+            docker push "${IMAGE_BASE}:${{ github.ref_name }}"
+            docker push "${IMAGE_BASE}:${DATE_TAG}"
           fi
 
           echo "Imagem publicada:"
