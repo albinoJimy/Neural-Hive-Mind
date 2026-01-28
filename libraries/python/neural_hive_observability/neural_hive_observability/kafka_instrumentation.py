@@ -25,14 +25,36 @@ class InstrumentedKafkaProducer:
 
     def __init__(self, producer: Any, config: ObservabilityConfig):
         if config is None:
+            logger.error(
+                "Tentativa de criar InstrumentedKafkaProducer com config=None. "
+                "Verifique se init_observability() foi chamado antes de instrumentar o producer."
+            )
             raise ValueError(
                 "config não pode ser None para InstrumentedKafkaProducer. "
                 "Use instrument_kafka_producer() que valida o config."
             )
-        if not getattr(config, 'service_name', None):
+
+        if not isinstance(config, ObservabilityConfig):
+            logger.error(
+                f"Tentativa de criar InstrumentedKafkaProducer com config de tipo inválido: {type(config).__name__}. "
+                "Use init_observability() para criar a configuração corretamente."
+            )
+            raise TypeError(
+                f"config deve ser uma instância de ObservabilityConfig, recebido {type(config).__name__}. "
+                "Use init_observability() para criar a configuração corretamente."
+            )
+
+        service_name = getattr(config, 'service_name', None)
+        if not service_name:
+            logger.error(
+                f"Tentativa de criar InstrumentedKafkaProducer com service_name inválido: "
+                f"config.service_name={service_name}. "
+                "Verifique se init_observability() foi chamado com service_name válido."
+            )
             raise ValueError(
                 "config.service_name não pode ser None ou vazio para InstrumentedKafkaProducer."
             )
+
         self._producer = producer
         self._config = config
         self._context_manager = ContextManager(config)
@@ -145,14 +167,36 @@ class InstrumentedAIOKafkaProducer:
 
     def __init__(self, producer: Any, config: ObservabilityConfig):
         if config is None:
+            logger.error(
+                "Tentativa de criar InstrumentedAIOKafkaProducer com config=None. "
+                "Verifique se init_observability() foi chamado antes de instrumentar o producer assíncrono."
+            )
             raise ValueError(
                 "config não pode ser None para InstrumentedAIOKafkaProducer. "
                 "Use instrument_kafka_producer() que valida o config."
             )
-        if not getattr(config, 'service_name', None):
+
+        if not isinstance(config, ObservabilityConfig):
+            logger.error(
+                f"Tentativa de criar InstrumentedAIOKafkaProducer com config de tipo inválido: {type(config).__name__}. "
+                "Use init_observability() para criar a configuração corretamente."
+            )
+            raise TypeError(
+                f"config deve ser uma instância de ObservabilityConfig, recebido {type(config).__name__}. "
+                "Use init_observability() para criar a configuração corretamente."
+            )
+
+        service_name = getattr(config, 'service_name', None)
+        if not service_name:
+            logger.error(
+                f"Tentativa de criar InstrumentedAIOKafkaProducer com service_name inválido: "
+                f"config.service_name={service_name}. "
+                "Verifique se init_observability() foi chamado com service_name válido."
+            )
             raise ValueError(
                 "config.service_name não pode ser None ou vazio para InstrumentedAIOKafkaProducer."
             )
+
         self._producer = producer
         self._config = config
         self._context_manager = ContextManager(config)
@@ -243,14 +287,36 @@ class InstrumentedAIOKafkaConsumer:
 
     def __init__(self, consumer: Any, config: ObservabilityConfig):
         if config is None:
+            logger.error(
+                "Tentativa de criar InstrumentedAIOKafkaConsumer com config=None. "
+                "Verifique se init_observability() foi chamado antes de instrumentar o consumer assíncrono."
+            )
             raise ValueError(
                 "config não pode ser None para InstrumentedAIOKafkaConsumer. "
                 "Use instrument_kafka_consumer() que valida o config."
             )
-        if not getattr(config, 'service_name', None):
+
+        if not isinstance(config, ObservabilityConfig):
+            logger.error(
+                f"Tentativa de criar InstrumentedAIOKafkaConsumer com config de tipo inválido: {type(config).__name__}. "
+                "Use init_observability() para criar a configuração corretamente."
+            )
+            raise TypeError(
+                f"config deve ser uma instância de ObservabilityConfig, recebido {type(config).__name__}. "
+                "Use init_observability() para criar a configuração corretamente."
+            )
+
+        service_name = getattr(config, 'service_name', None)
+        if not service_name:
+            logger.error(
+                f"Tentativa de criar InstrumentedAIOKafkaConsumer com service_name inválido: "
+                f"config.service_name={service_name}. "
+                "Verifique se init_observability() foi chamado com service_name válido."
+            )
             raise ValueError(
                 "config.service_name não pode ser None ou vazio para InstrumentedAIOKafkaConsumer."
             )
+
         self._consumer = consumer
         self._config = config
         self._context_manager = ContextManager(config)
@@ -316,23 +382,34 @@ def instrument_kafka_producer(producer: Any, config: ObservabilityConfig = None)
     Returns:
         Producer instrumentado ou original se config inválido
     """
+    logger.debug(
+        f"instrument_kafka_producer chamado com producer={type(producer).__name__}, "
+        f"config={config}"
+    )
+
     # Se config não for fornecido, usar a configuração global
     if config is None:
         from . import _config as global_config
         config = global_config
+        logger.debug(
+            f"Config não fornecido para instrument_kafka_producer, usando config global: "
+            f"{config.service_name if config and hasattr(config, 'service_name') else 'None'}"
+        )
 
     # Validar config antes de instrumentar
     if config is None:
         logger.warning(
             "Config de observabilidade é None - retornando producer sem instrumentação. "
-            "Verifique se init_observability() foi chamado antes."
+            "Verifique se init_observability() foi chamado antes. "
+            "Para resolver: chame init_observability(service_name='seu-servico') no início da aplicação."
         )
         return producer
 
     if not getattr(config, 'service_name', None):
         logger.warning(
             "Config de observabilidade sem service_name válido - retornando producer sem instrumentação. "
-            "Verifique se init_observability() foi chamado com service_name válido."
+            "Verifique se init_observability() foi chamado com service_name válido. "
+            "Para resolver: chame init_observability(service_name='seu-servico') com um nome de serviço não vazio."
         )
         return producer
 
@@ -347,12 +424,25 @@ def instrument_kafka_producer(producer: Any, config: ObservabilityConfig = None)
         AIOKafkaProducer = None  # type: ignore
 
     if ConfluentProducer and isinstance(producer, ConfluentProducer):
-        return InstrumentedKafkaProducer(producer, config)
+        instrumented = InstrumentedKafkaProducer(producer, config)
+        logger.info(
+            f"Kafka producer (confluent-kafka) instrumentado com sucesso para "
+            f"service_name={config.service_name}"
+        )
+        return instrumented
 
     if AIOKafkaProducer and isinstance(producer, AIOKafkaProducer):
-        return InstrumentedAIOKafkaProducer(producer, config)
+        instrumented = InstrumentedAIOKafkaProducer(producer, config)
+        logger.info(
+            f"Kafka producer (aiokafka) instrumentado com sucesso para "
+            f"service_name={config.service_name}"
+        )
+        return instrumented
 
-    logger.warning("Tipo de producer Kafka não reconhecido para instrumentação")
+    logger.warning(
+        f"Tipo de producer Kafka não reconhecido para instrumentação: {type(producer).__name__}. "
+        "Tipos suportados: confluent_kafka.Producer, aiokafka.AIOKafkaProducer"
+    )
     return producer
 
 
@@ -367,23 +457,34 @@ def instrument_kafka_consumer(consumer: Any, config: ObservabilityConfig = None)
     Returns:
         Consumer instrumentado ou original se config inválido
     """
+    logger.debug(
+        f"instrument_kafka_consumer chamado com consumer={type(consumer).__name__}, "
+        f"config={config}"
+    )
+
     # Se config não for fornecido, usar a configuração global
     if config is None:
         from . import _config as global_config
         config = global_config
+        logger.debug(
+            f"Config não fornecido para instrument_kafka_consumer, usando config global: "
+            f"{config.service_name if config and hasattr(config, 'service_name') else 'None'}"
+        )
 
     # Validar config antes de instrumentar
     if config is None:
         logger.warning(
             "Config de observabilidade é None - retornando consumer sem instrumentação. "
-            "Verifique se init_observability() foi chamado antes."
+            "Verifique se init_observability() foi chamado antes. "
+            "Para resolver: chame init_observability(service_name='seu-servico') no início da aplicação."
         )
         return consumer
 
     if not getattr(config, 'service_name', None):
         logger.warning(
             "Config de observabilidade sem service_name válido - retornando consumer sem instrumentação. "
-            "Verifique se init_observability() foi chamado com service_name válido."
+            "Verifique se init_observability() foi chamado com service_name válido. "
+            "Para resolver: chame init_observability(service_name='seu-servico') com um nome de serviço não vazio."
         )
         return consumer
 
@@ -393,7 +494,15 @@ def instrument_kafka_consumer(consumer: Any, config: ObservabilityConfig = None)
         AIOKafkaConsumer = None  # type: ignore
 
     if AIOKafkaConsumer and isinstance(consumer, AIOKafkaConsumer):
-        return InstrumentedAIOKafkaConsumer(consumer, config)
+        instrumented = InstrumentedAIOKafkaConsumer(consumer, config)
+        logger.info(
+            f"Kafka consumer (aiokafka) instrumentado com sucesso para "
+            f"service_name={config.service_name}"
+        )
+        return instrumented
 
-    logger.warning("Tipo de consumer Kafka não reconhecido para instrumentação")
+    logger.warning(
+        f"Tipo de consumer Kafka não reconhecido para instrumentação: {type(consumer).__name__}. "
+        "Tipos suportados: aiokafka.AIOKafkaConsumer"
+    )
     return consumer

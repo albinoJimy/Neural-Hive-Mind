@@ -60,10 +60,60 @@ class ContextManager:
         Inicializa context manager.
 
         Args:
-            config: Configuração de observabilidade (opcional)
+            config: Configuração de observabilidade (obrigatório)
+
+        Raises:
+            ValueError: Se config for None ou service_name for inválido
+            TypeError: Se config não for uma instância de ObservabilityConfig
         """
+        # Logging diagnóstico do estado recebido
+        logger.debug(f"ContextManager.__init__ chamado com config={config}, type={type(config)}")
+
+        # Validação robusta do config
+        if config is None:
+            logger.error(
+                "ContextManager.__init__ recebeu config=None. "
+                "Isso indica que init_observability() não foi chamado ou falhou. "
+                "Verifique os logs de inicialização do serviço."
+            )
+            raise ValueError(
+                "config não pode ser None para ContextManager. "
+                "Certifique-se de que init_observability() foi chamado antes de criar ContextManager."
+            )
+
+        # Validação de tipo
+        logger.debug(f"Validando tipo de config: {type(config).__name__}")
+        if not isinstance(config, ObservabilityConfig):
+            logger.error(
+                f"ContextManager.__init__ recebeu config de tipo inválido: {type(config).__name__}. "
+                f"Esperado: ObservabilityConfig. Recebido: {config}"
+            )
+            raise TypeError(
+                f"config deve ser uma instância de ObservabilityConfig, recebido {type(config).__name__}. "
+                "Use init_observability() para criar a configuração corretamente."
+            )
+
+        # Validação de service_name
+        service_name = getattr(config, 'service_name', None)
+        logger.debug(f"Validando service_name: {service_name}")
+        if not service_name or (isinstance(service_name, str) and not service_name.strip()):
+            logger.error(
+                f"ContextManager.__init__ recebeu config com service_name inválido: '{service_name}'. "
+                f"Config completo: {config}"
+            )
+            raise ValueError(
+                "config.service_name não pode ser None ou vazio. "
+                "Verifique se init_observability() foi chamado com service_name válido."
+            )
+
         self.config = config
         self._local = threading.local()
+
+        # Logging de sucesso
+        logger.debug(
+            f"ContextManager inicializado com sucesso para service_name={self.config.service_name}, "
+            f"component={getattr(self.config, 'neural_hive_component', 'N/A')}"
+        )
 
     @contextmanager
     def correlation_context(
@@ -176,11 +226,16 @@ class ContextManager:
             new_headers["X-Neural-Hive-Channel"] = correlation["channel"]
 
         # Adicionar identificação do serviço (se config disponível e valores válidos)
-        if self.config:
-            if self.config.service_name:
-                new_headers["X-Neural-Hive-Source"] = self.config.service_name
-            if self.config.neural_hive_component:
-                new_headers["X-Neural-Hive-Component"] = self.config.neural_hive_component
+        # Validação defensiva usando hasattr() e getattr() para prevenir AttributeError
+        if self.config and hasattr(self.config, 'service_name'):
+            service_name = getattr(self.config, 'service_name', None)
+            if service_name:
+                new_headers["X-Neural-Hive-Source"] = service_name
+
+        if self.config and hasattr(self.config, 'neural_hive_component'):
+            component = getattr(self.config, 'neural_hive_component', None)
+            if component:
+                new_headers["X-Neural-Hive-Component"] = component
 
         return new_headers
 
@@ -232,10 +287,15 @@ class ContextManager:
         Returns:
             Headers com contexto injetado
         """
+        # Validação preventiva - retornar headers sem modificação se config inválido
+        if not self.config:
+            logger.debug("Config não disponível, retornando headers sem injeção de contexto")
+            return headers
+
         # Converter para formato string temporariamente
         str_headers = {k: v.decode() if isinstance(v, bytes) else str(v) for k, v in headers.items()}
 
-        # Injetar contexto
+        # Injetar contexto (agora com validação defensiva em inject_http_headers)
         injected_headers = self.inject_http_headers(str_headers)
 
         # Converter de volta para bytes

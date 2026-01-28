@@ -212,3 +212,148 @@ def test_instrument_kafka_wrapper_detection_for_aiokafka():
     assert isinstance(wrapped, InstrumentedAIOKafkaConsumer)
 
     sys.modules.pop("aiokafka")
+
+
+# ============================================================================
+# Testes de Validação - Adicionados para prevenir AttributeError em service_name
+# ============================================================================
+
+import logging
+from unittest.mock import patch, MagicMock
+from neural_hive_observability.kafka_instrumentation import (
+    InstrumentedAIOKafkaProducer,
+)
+
+
+class TestInstrumentedKafkaProducerValidation:
+    """Testes de validação para InstrumentedKafkaProducer."""
+
+    def test_instrumented_kafka_producer_raises_value_error_when_config_is_none(self):
+        """Teste 14: Verificar que config=None lança ValueError."""
+        producer = DummyProducer()
+
+        with pytest.raises(ValueError) as exc_info:
+            InstrumentedKafkaProducer(producer, None)
+
+        assert "config não pode ser None" in str(exc_info.value)
+
+    def test_instrumented_kafka_producer_raises_type_error_when_config_is_invalid_type(self):
+        """Teste 15: Verificar que config de tipo errado lança TypeError."""
+        producer = DummyProducer()
+
+        with pytest.raises(TypeError) as exc_info:
+            InstrumentedKafkaProducer(producer, "invalid")
+
+        assert "ObservabilityConfig" in str(exc_info.value)
+
+    def test_instrumented_kafka_producer_raises_value_error_when_service_name_is_none(self):
+        """Verificar que service_name=None lança ValueError."""
+        producer = DummyProducer()
+
+        # Criar config mock que passa validação de tipo mas tem service_name None
+        with patch.object(ObservabilityConfig, '__post_init__', lambda self: None):
+            config = ObservabilityConfig(service_name=None)
+
+        with pytest.raises(ValueError) as exc_info:
+            InstrumentedKafkaProducer(producer, config)
+
+        assert "service_name" in str(exc_info.value)
+
+
+class TestInstrumentKafkaProducerFunction:
+    """Testes para a função instrument_kafka_producer."""
+
+    def test_instrument_kafka_producer_returns_unwrapped_when_global_config_is_none(self, caplog):
+        """Teste 16: Verificar que retorna producer original quando config global é None."""
+        import neural_hive_observability
+
+        producer = DummyProducer()
+
+        # Salvar config original
+        original_config = getattr(neural_hive_observability, '_config', None)
+
+        try:
+            # Definir config global como None
+            neural_hive_observability._config = None
+
+            with caplog.at_level(logging.WARNING):
+                result = instrument_kafka_producer(producer, None)
+
+            # Deve retornar o producer original sem instrumentação
+            assert result is producer
+
+            # Deve ter logado warning
+            log_messages = [record.message for record in caplog.records]
+            assert any("Config de observabilidade é None" in msg for msg in log_messages)
+        finally:
+            # Restaurar config original
+            neural_hive_observability._config = original_config
+
+    def test_instrument_kafka_producer_logs_success_when_instrumentation_succeeds(self, caplog):
+        """Teste 17: Verificar que log de info é gerado quando instrumentação é bem-sucedida."""
+        class FakeConfluentProducer:
+            pass
+
+        fake_module = types.SimpleNamespace(Producer=FakeConfluentProducer)
+        sys.modules["confluent_kafka"] = fake_module
+
+        try:
+            config = ObservabilityConfig(
+                service_name="test-service",
+                neural_hive_component="test-component"
+            )
+
+            with caplog.at_level(logging.INFO):
+                wrapped = instrument_kafka_producer(FakeConfluentProducer(), config)
+
+            assert isinstance(wrapped, InstrumentedKafkaProducer)
+
+            # Verificar log de sucesso
+            log_messages = [record.message for record in caplog.records]
+            assert any("instrumentado com sucesso" in msg for msg in log_messages)
+        finally:
+            sys.modules.pop("confluent_kafka", None)
+
+
+class TestInstrumentedAIOKafkaProducerValidation:
+    """Testes de validação para InstrumentedAIOKafkaProducer."""
+
+    def test_instrumented_aiokafka_producer_raises_value_error_when_config_is_none(self):
+        """Verificar que config=None lança ValueError para AIOKafkaProducer."""
+        producer = MagicMock()
+
+        with pytest.raises(ValueError) as exc_info:
+            InstrumentedAIOKafkaProducer(producer, None)
+
+        assert "config não pode ser None" in str(exc_info.value)
+
+    def test_instrumented_aiokafka_producer_raises_type_error_when_config_is_invalid(self):
+        """Verificar que config de tipo errado lança TypeError para AIOKafkaProducer."""
+        producer = MagicMock()
+
+        with pytest.raises(TypeError) as exc_info:
+            InstrumentedAIOKafkaProducer(producer, {"not": "a config"})
+
+        assert "ObservabilityConfig" in str(exc_info.value)
+
+
+class TestInstrumentedAIOKafkaConsumerValidation:
+    """Testes de validação para InstrumentedAIOKafkaConsumer."""
+
+    def test_instrumented_aiokafka_consumer_raises_value_error_when_config_is_none(self):
+        """Verificar que config=None lança ValueError para AIOKafkaConsumer."""
+        consumer = DummyAIOKafkaConsumer()
+
+        with pytest.raises(ValueError) as exc_info:
+            InstrumentedAIOKafkaConsumer(consumer, None)
+
+        assert "config não pode ser None" in str(exc_info.value)
+
+    def test_instrumented_aiokafka_consumer_raises_type_error_when_config_is_invalid(self):
+        """Verificar que config de tipo errado lança TypeError para AIOKafkaConsumer."""
+        consumer = DummyAIOKafkaConsumer()
+
+        with pytest.raises(TypeError) as exc_info:
+            InstrumentedAIOKafkaConsumer(consumer, 12345)
+
+        assert "ObservabilityConfig" in str(exc_info.value)
