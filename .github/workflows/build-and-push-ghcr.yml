@@ -148,6 +148,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set lowercase owner
+        id: owner
+        run: echo "lowercase=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Verificar Dockerfile
         id: check-dockerfile
         run: |
@@ -177,7 +181,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/neural-hive-mind/${{ matrix.service }}
+          images: ${{ env.REGISTRY }}/${{ steps.owner.outputs.lowercase }}/neural-hive-mind/${{ matrix.service }}
           tags: |
             type=raw,value=latest
             type=sha,prefix=
@@ -193,7 +197,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            REGISTRY=ghcr.io/${{ github.repository_owner }}
+            REGISTRY=ghcr.io/${{ steps.owner.outputs.lowercase }}
             VERSION=${{ inputs.version_tag || 'latest' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
