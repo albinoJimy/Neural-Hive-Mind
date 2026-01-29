@@ -130,7 +130,7 @@ jobs:
           pytest tests/performance/ -v --benchmark-json=benchmark.json
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
           path: services/mcp-tool-catalog/benchmark.json

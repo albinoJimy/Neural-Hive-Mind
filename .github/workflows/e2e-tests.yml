@@ -76,7 +76,7 @@ jobs:
 
       - name: Upload ML Integration Test Results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ml-staging-gate-results
           path: tests/results/ml-staging-gate-*.xml
@@ -228,21 +228,21 @@ jobs:
 
       - name: Upload Approval Flow Test Results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: approval-flow-test-results
           path: tests/results/approval-flow-*.xml
 
       - name: Upload Avro Flow Test Results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: avro-flow-test-results
           path: tests/results/avro-flow-*.xml
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: e2e-test-results
           path: tests/results/

@@ -48,7 +48,7 @@ jobs:
           done
 
       - name: Upload validation reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: background-dataset-reports
           path: data/*_report.json
@@ -87,7 +87,7 @@ jobs:
                  -m integration
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: libraries/python/neural_hive_specialists/coverage.xml
@@ -129,7 +129,7 @@ jobs:
                  --benchmark-json=benchmark_results.json
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: explainability-benchmarks
           path: libraries/python/neural_hive_specialists/benchmark_results.json
@@ -162,7 +162,7 @@ print('All benchmarks passed performance thresholds')
         uses: actions/checkout@v3
 
       - name: Download coverage report
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: coverage-report
           path: libraries/python/neural_hive_specialists/

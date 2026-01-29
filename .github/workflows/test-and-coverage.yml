@@ -39,7 +39,7 @@ jobs:
         run: ./tests/run-tests.sh --type unit --coverage --report
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-unit-py${{ matrix.python-version }}
           path: |
@@ -115,7 +115,7 @@ jobs:
         run: ./tests/run-tests.sh --type integration --coverage --report
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-integration-py${{ matrix.python-version }}
           path: |
@@ -158,7 +158,7 @@ jobs:
         run: ./tests/run-tests.sh --component services --coverage --report
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-services-py${{ matrix.python-version }}
           path: |
@@ -233,7 +233,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: code-forge-test-results
           path: |
@@ -242,7 +242,7 @@ jobs:
 
       - name: Upload coverage artifact for quality gate
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-code-forge
           path: |
@@ -288,7 +288,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: mcp-tool-catalog-test-results
           path: |
@@ -297,7 +297,7 @@ jobs:
 
       - name: Upload coverage artifact for quality gate
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-mcp-tool-catalog
           path: |
@@ -366,7 +366,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: worker-agents-integration-results
           path: |
@@ -417,7 +417,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download coverage data
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           pattern: coverage-*
           merge-multiple: true
@@ -462,7 +462,7 @@ PY
           echo "✅ Coverage OK: ${coverage_percent}%"
 
       - name: Upload aggregated coverage
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage.xml
