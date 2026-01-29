@@ -6,13 +6,34 @@ sentence-transformers. Calcula similaridade coseno entre descrições de tarefas
 e conceitos de domínio.
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, TYPE_CHECKING
 import numpy as np
-from sentence_transformers import SentenceTransformer
 import structlog
-from sklearn.metrics.pairwise import cosine_similarity
+
+# Lazy imports para evitar carregar dependências pesadas no import do módulo
+if TYPE_CHECKING:
+    from sentence_transformers import SentenceTransformer
 
 logger = structlog.get_logger(__name__)
+
+def _get_sentence_transformer(model_name: str = 'all-MiniLM-L6-v2'):
+    """Lazy load do SentenceTransformer."""
+    try:
+        from sentence_transformers import SentenceTransformer
+        return SentenceTransformer(model_name)
+    except ImportError:
+        logger.warning("sentence-transformers não instalado, SemanticAnalyzer não disponível")
+        return None
+
+_cosine_similarity_func = None
+
+def cosine_similarity(X, Y=None):
+    """Lazy load wrapper do cosine_similarity."""
+    global _cosine_similarity_func
+    if _cosine_similarity_func is None:
+        from sklearn.metrics.pairwise import cosine_similarity as _cs
+        _cosine_similarity_func = _cs
+    return _cosine_similarity_func(X, Y)
 
 
 class SemanticAnalyzer:
@@ -74,7 +95,7 @@ class SemanticAnalyzer:
         self.similarity_threshold = config.get("semantic_similarity_threshold", 0.4)
 
         # Lazy loading do modelo
-        self._model: Optional[SentenceTransformer] = None
+        self._model: Optional[Any] = None
 
         # Cache de embeddings de conceitos
         self._concept_embeddings_cache: Dict[str, np.ndarray] = {}
@@ -86,13 +107,15 @@ class SemanticAnalyzer:
         )
 
     @property
-    def model(self) -> SentenceTransformer:
+    def model(self) -> Any:
         """Lazy initialization do modelo de embeddings."""
         if self._model is None:
             logger.info(
                 "Loading sentence-transformers model", model=self.embeddings_model_name
             )
-            self._model = SentenceTransformer(self.embeddings_model_name)
+            self._model = _get_sentence_transformer(self.embeddings_model_name)
+            if self._model is None:
+                raise ImportError("sentence-transformers não está instalado")
         return self._model
 
     def analyze_security(self, tasks: List[Dict[str, Any]]) -> float:
