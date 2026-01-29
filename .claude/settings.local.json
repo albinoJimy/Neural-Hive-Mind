@@ -755,7 +755,9 @@
       "Bash(INTENT_ID=\"60907ace-7d64-441d-9dd1-d35819c7d9d9\")",
       "Bash(__NEW_LINE_eff4861e6489fe5f__ ls -lh /tmp/consensus-engine-context.tar.gz)",
       "Bash(black:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "WebFetch(domain:docs.pytest.org)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "ask": []

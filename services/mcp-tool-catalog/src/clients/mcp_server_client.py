@@ -601,8 +601,13 @@ class MCPServerClient:
                     self._stdio_request_duration_seconds.labels(method=method).observe(elapsed)
                     return data["result"]
 
+            except MCPTransportError:
+                # Transport errors são retryáveis e devem acionar circuit breaker
+                # Já foi incrementado _circuit_breaker_failures no try block
+                pass
+
             except MCPError:
-                # Re-raise MCP errors sem retry
+                # Protocol/Server errors não são retryáveis - re-raise imediatamente
                 self._stdio_requests_total.labels(method=method, status="error").inc()
                 raise
 
