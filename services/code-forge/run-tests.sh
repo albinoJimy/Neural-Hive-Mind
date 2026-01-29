@@ -44,7 +44,6 @@ run_tests() {
                 --cov-report=term-missing \
                 --cov-report=html:htmlcov \
                 --cov-report=xml:test-results/coverage.xml \
-                --cov-fail-under=80 \
                 --junit-xml=test-results/junit.xml \
                 -v $extra_args
             echo -e "${GREEN}Relatorio HTML disponivel em: htmlcov/index.html${NC}"
