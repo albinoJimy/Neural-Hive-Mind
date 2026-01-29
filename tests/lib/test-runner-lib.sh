@@ -430,21 +430,31 @@ run_parallel_tests() {
 aggregate_test_results() {
   local tests_array="[]"
   if [[ -f "$TEST_RESULT_FILE" && -s "$TEST_RESULT_FILE" ]]; then
-    tests_array=$(jq -s '.' "$TEST_RESULT_FILE" 2>/dev/null || echo "[]")
+    tests_array=$(jq -s '.' "$TEST_RESULT_FILE" 2>/dev/null) || tests_array="[]"
     # Garantir que tests_array é um array válido
-    if ! jq -e 'type == "array"' <<< "$tests_array" >/dev/null 2>&1; then
+    if [[ -z "$tests_array" ]] || ! jq -e 'type == "array"' <<< "$tests_array" >/dev/null 2>&1; then
       tests_array="[]"
     fi
   fi
+  # Garantir que contadores são números válidos
+  local total_runs=${TEST_TOTAL_COUNT:-0}
+  local passed_runs=${TEST_PASSED_COUNT:-0}
+  local failed_runs=${TEST_FAILED_COUNT:-0}
+  local cases_total=${TEST_CASES_TOTAL:-0}
+  local cases_passed=${TEST_CASES_PASSED:-0}
+  local cases_failed=${TEST_CASES_FAILED:-0}
   TEST_REPORT_JSON=$(jq -n \
-    --argjson total_runs "$TEST_TOTAL_COUNT" \
-    --argjson passed_runs "$TEST_PASSED_COUNT" \
-    --argjson failed_runs "$TEST_FAILED_COUNT" \
-    --argjson cases_total "$TEST_CASES_TOTAL" \
-    --argjson cases_passed "$TEST_CASES_PASSED" \
-    --argjson cases_failed "$TEST_CASES_FAILED" \
+    --argjson total_runs "$total_runs" \
+    --argjson passed_runs "$passed_runs" \
+    --argjson failed_runs "$failed_runs" \
+    --argjson cases_total "$cases_total" \
+    --argjson cases_passed "$cases_passed" \
+    --argjson cases_failed "$cases_failed" \
     --argjson tests "$tests_array" \
-    '{summary: {runs: $total_runs, passed: $passed_runs, failed: $failed_runs, cases_total: $cases_total, cases_passed: $cases_passed, cases_failed: $cases_failed}, tests: $tests}')
+    '{summary: {runs: $total_runs, passed: $passed_runs, failed: $failed_runs, cases_total: $cases_total, cases_passed: $cases_passed, cases_failed: $cases_failed}, tests: $tests}') || {
+    log_warning "Falha ao gerar JSON do relatório"
+    TEST_REPORT_JSON='{"summary":{"runs":0,"passed":0,"failed":0,"cases_total":0,"cases_passed":0,"cases_failed":0},"tests":[]}'
+  }
 }
 
 generate_markdown_summary() {
@@ -453,20 +463,25 @@ generate_markdown_summary() {
     log_warning "Nenhum resultado disponível para gerar resumo"
     return 1
   fi
-  local summary
-  summary=$(jq -r '.summary' <<< "$TEST_REPORT_JSON")
   local detail_lines
-  detail_lines=$(jq -r '(.tests // [])[] | "- [" + .status + "] " + .name + ": " + .details' <<< "$TEST_REPORT_JSON")
+  detail_lines=$(jq -r '(.tests // [])[] | "- [" + (.status // "unknown") + "] " + (.name // "unnamed") + ": " + (.details // "")' <<< "$TEST_REPORT_JSON" 2>/dev/null) || detail_lines=""
+  local total_runs passed_runs failed_runs cases_total cases_passed cases_failed
+  total_runs=$(jq -r '.summary.runs // 0' <<< "$TEST_REPORT_JSON" 2>/dev/null) || total_runs=0
+  passed_runs=$(jq -r '.summary.passed // 0' <<< "$TEST_REPORT_JSON" 2>/dev/null) || passed_runs=0
+  failed_runs=$(jq -r '.summary.failed // 0' <<< "$TEST_REPORT_JSON" 2>/dev/null) || failed_runs=0
+  cases_total=$(jq -r '.summary.cases_total // 0' <<< "$TEST_REPORT_JSON" 2>/dev/null) || cases_total=0
+  cases_passed=$(jq -r '.summary.cases_passed // 0' <<< "$TEST_REPORT_JSON" 2>/dev/null) || cases_passed=0
+  cases_failed=$(jq -r '.summary.cases_failed // 0' <<< "$TEST_REPORT_JSON" 2>/dev/null) || cases_failed=0
   cat <<EOF > "$destination"
 # Neural Hive-Mind Test Results
 
 ## Summary
-- Total Runs: $(jq -r '.summary.runs' <<< "$TEST_REPORT_JSON")
-- Passed Runs: $(jq -r '.summary.passed' <<< "$TEST_REPORT_JSON")
-- Failed Runs: $(jq -r '.summary.failed' <<< "$TEST_REPORT_JSON")
-- Test Cases: $(jq -r '.summary.cases_total' <<< "$TEST_REPORT_JSON")
-- Passed Cases: $(jq -r '.summary.cases_passed' <<< "$TEST_REPORT_JSON")
-- Failed Cases: $(jq -r '.summary.cases_failed' <<< "$TEST_REPORT_JSON")
+- Total Runs: $total_runs
+- Passed Runs: $passed_runs
+- Failed Runs: $failed_runs
+- Test Cases: $cases_total
+- Passed Cases: $cases_passed
+- Failed Cases: $cases_failed
 
 ## Details
 $detail_lines
@@ -503,9 +518,9 @@ display_test_summary() {
     return
   fi
   local total passed failed
-  total=$(jq -r '.summary.runs' <<< "$TEST_REPORT_JSON")
-  passed=$(jq -r '.summary.passed' <<< "$TEST_REPORT_JSON")
-  failed=$(jq -r '.summary.failed' <<< "$TEST_REPORT_JSON")
+  total=$(jq -r '.summary.runs // 0' <<< "$TEST_REPORT_JSON" 2>/dev/null) || total=0
+  passed=$(jq -r '.summary.passed // 0' <<< "$TEST_REPORT_JSON" 2>/dev/null) || passed=0
+  failed=$(jq -r '.summary.failed // 0' <<< "$TEST_REPORT_JSON" 2>/dev/null) || failed=0
   echo ""
   echo "=========================================="
   echo "Test Summary"
