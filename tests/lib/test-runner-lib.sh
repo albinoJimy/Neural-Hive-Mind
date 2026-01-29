@@ -316,6 +316,7 @@ run_pytest_tests() {
   fi
 
   log_phase "Pytest Suite: $suite_name"
+  ensure_output_dir "${OUTPUT_DIR}"
   local junit_file="${OUTPUT_DIR}/pytest-$(date +%s%N).xml"
   local pytest_args=("$test_path" "-v" "--tb=short" "--junit-xml=${junit_file}")
   if [[ -n "$markers" ]]; then
