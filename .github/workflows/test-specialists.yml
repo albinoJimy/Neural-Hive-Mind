@@ -63,8 +63,24 @@ jobs:
       - name: Gerar protobufs
         run: make proto-gen
 
+      - name: Create results directory
+        run: mkdir -p tests/results/coverage
+
       - name: Run specialists test suite
-        run: ./tests/run-tests.sh --component specialists --coverage --report
+        working-directory: libraries/python/neural_hive_specialists
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+          REDIS_URL: redis://localhost:6379
+        run: |
+          pytest tests/ \
+            -v \
+            --tb=short \
+            -m "not slow and not benchmark and not integration" \
+            --cov=. \
+            --cov-report=xml:../../../tests/results/coverage/coverage.xml \
+            --cov-report=html:../../../tests/results/coverage/ \
+            --junit-xml=../../../tests/results/specialists-junit.xml \
+            --ignore=tests/benchmarks
 
       - name: Upload coverage para Codecov
         uses: codecov/codecov-action@v3
