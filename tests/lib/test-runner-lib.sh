@@ -24,7 +24,7 @@ ensure_output_dir() {
   mkdir -p "$target_dir"
 }
 
-init_test_report() {
+_tr_init_test_report() {
   local label="${1:-neural-hive-mind-tests}"
   TEST_REPORT_LABEL="$label"
   local output_dir="${OUTPUT_DIR:-${LIB_DIR}/../results}"
@@ -151,7 +151,7 @@ detect_test_type() {
   echo "unit"
 }
 
-add_test_result() {
+_tr_add_test_result() {
   local test_name="$1"
   local status="$2"
   local details="$3"
@@ -301,7 +301,7 @@ run_bash_test() {
     TEST_FAILURE_COUNT=$((TEST_FAILURE_COUNT + 1))
     details="Duration: ${duration}s | Exit Code: ${exit_code}"
   fi
-  add_test_result "bash:${test_name}" "$status" "$details" "$artifact_file"
+  _tr_add_test_result "bash:${test_name}" "$status" "$details" "$artifact_file"
 }
 
 run_pytest_tests() {
@@ -343,7 +343,7 @@ parse_junit_results() {
   local override_status="${2:-}"
   if [[ ! -f "$junit_file" ]]; then
     log_warning "JUnit XML não encontrado: $junit_file"
-    add_test_result "pytest:junit" "failed" "Missing report" "$junit_file"
+    _tr_add_test_result "pytest:junit" "failed" "Missing report" "$junit_file"
     return 1
   fi
   local summary
@@ -380,7 +380,7 @@ PY
   TEST_CASES_PASSED=$((TEST_CASES_PASSED + passed))
   local status="${override_status:-$( [[ $failed -gt 0 ]] && echo "failed" || echo "passed" )}"
   local details="Tests: ${total}, Failed: ${failed}, Passed: ${passed}"
-  add_test_result "pytest:${junit_file##*/}" "$status" "$details" "$junit_file"
+  _tr_add_test_result "pytest:${junit_file##*/}" "$status" "$details" "$junit_file"
 }
 
 run_sequential_tests() {
@@ -457,7 +457,7 @@ aggregate_test_results() {
   }
 }
 
-generate_markdown_summary() {
+_tr_generate_markdown_summary() {
   local destination="$1"
   if [[ -z "$TEST_REPORT_JSON" ]]; then
     log_warning "Nenhum resultado disponível para gerar resumo"
@@ -488,7 +488,7 @@ $detail_lines
 EOF
 }
 
-save_test_report() {
+_tr_save_test_report() {
   local destination="$1"
   if [[ -z "$TEST_REPORT_JSON" ]]; then
     log_warning "Não há relatório para salvar"
@@ -503,9 +503,9 @@ generate_unified_report() {
   local timestamp
   timestamp=$(date +%Y%m%d-%H%M%S)
   local json_report="${OUTPUT_DIR}/test-report-${timestamp}.json"
-  save_test_report "$json_report"
+  _tr_save_test_report "$json_report"
   local md_report="${OUTPUT_DIR}/test-summary-${timestamp}.md"
-  generate_markdown_summary "$md_report"
+  _tr_generate_markdown_summary "$md_report"
   log_success "Reports generated:"
   log_info "  JSON: $json_report"
   log_info "  Markdown: $md_report"

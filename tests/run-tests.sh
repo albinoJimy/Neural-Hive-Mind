@@ -22,7 +22,7 @@ parse_test_args "$@"
 
 main() {
   log_info "Neural Hive-Mind Test Runner"
-  init_test_report "neural-hive-mind-tests"
+  _tr_init_test_report "neural-hive-mind-tests"
   local tests_to_run=()
   discover_tests tests_to_run
 
