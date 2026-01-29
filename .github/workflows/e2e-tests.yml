@@ -112,12 +112,14 @@ jobs:
 
     services:
       localstack:
-        image: localstack/localstack:3.0
+        image: localstack/localstack:3.4
         ports:
           - 4566:4566
         env:
           SERVICES: s3
           AWS_DEFAULT_REGION: us-east-1
+          LOCALSTACK_HOST: localhost
+          DEBUG: 0
         options: >-
           --health-cmd="curl -s http://localhost:4566/_localstack/health | grep -q '\"s3\": \"available\"'"
           --health-interval=10s
