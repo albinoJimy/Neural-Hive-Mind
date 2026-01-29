@@ -1,6 +1,17 @@
 import os
+import sys
 
 import pytest
+
+# Skip se ambiente de teste real não está habilitado
+REAL_E2E = os.getenv("RUN_VAULT_SPIFFE_E2E", "").lower() == "true"
+if not REAL_E2E:
+    pytest.skip("RUN_VAULT_SPIFFE_E2E not enabled", allow_module_level=True)
+
+# Adicionar path do orchestrator-dynamic ao PYTHONPATH
+from pathlib import Path
+ROOT_DIR = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT_DIR / "services/orchestrator-dynamic"))
 
 # Skip se dependências não estão disponíveis
 pytest.importorskip("grpc")
@@ -8,18 +19,18 @@ pytest.importorskip("neural_hive_security", reason="neural_hive_security not ins
 
 import grpc
 
-from tests.e2e.fixtures.vault_spire_setup import (
-    vault_client,
-    spiffe_manager,
-    orchestrator_vault_client,
-    require_real_env,
-    build_test_settings,
-)
-from src.clients.service_registry_client import ServiceRegistryClient
-from src.clients.execution_ticket_client import ExecutionTicketClient
-
-REAL_E2E = os.getenv("RUN_VAULT_SPIFFE_E2E", "").lower() == "true"
-pytestmark = pytest.mark.skipif(not REAL_E2E, reason="RUN_VAULT_SPIFFE_E2E not enabled")
+try:
+    from tests.e2e.fixtures.vault_spire_setup import (
+        vault_client,
+        spiffe_manager,
+        orchestrator_vault_client,
+        require_real_env,
+        build_test_settings,
+    )
+    from src.clients.service_registry_client import ServiceRegistryClient
+    from src.clients.execution_ticket_client import ExecutionTicketClient
+except ImportError as e:
+    pytest.skip(f"Required modules not available: {e}", allow_module_level=True)
 
 
 @pytest.mark.asyncio
