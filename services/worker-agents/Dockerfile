@@ -14,10 +14,12 @@ WORKDIR /app
 
 # Copy local libraries
 COPY libraries/neural_hive_integration /tmp/neural_hive_integration
+COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
 
 # Copy requirements and install dependencies
 COPY services/worker-agents/requirements.txt .
-RUN pip install --no-cache-dir --user /tmp/neural_hive_integration && \
+RUN pip install --no-cache-dir --user /tmp/neural_hive_resilience && \
+    pip install --no-cache-dir --user /tmp/neural_hive_integration && \
     pip install --no-cache-dir --user -r requirements.txt
 
 # Stage 2 - Runtime
