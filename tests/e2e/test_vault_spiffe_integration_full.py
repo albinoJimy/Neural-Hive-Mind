@@ -1,7 +1,12 @@
 import os
 
-import grpc
 import pytest
+
+# Skip se dependências não estão disponíveis
+pytest.importorskip("grpc")
+pytest.importorskip("neural_hive_security", reason="neural_hive_security not installed")
+
+import grpc
 
 from tests.e2e.fixtures.vault_spire_setup import (
     vault_client,

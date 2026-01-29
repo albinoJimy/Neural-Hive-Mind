@@ -1,7 +1,12 @@
 import asyncio
-import aiohttp
 
 import pytest
+
+# Skip se dependências não estão disponíveis
+pytest.importorskip("aiohttp")
+kubernetes = pytest.importorskip("kubernetes")
+
+import aiohttp
 
 from tests.e2e.utils.k8s_helpers import get_pod_logs
 from tests.e2e.utils.metrics import query_prometheus, get_metric_value
