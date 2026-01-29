@@ -21,7 +21,7 @@ def cognitive_plan_with_correlation_id():
         'plan_id': str(uuid.uuid4()),
         'intent_id': str(uuid.uuid4()),
         'correlation_id': str(uuid.uuid4()),
-        'domain': 'general',
+        'original_domain': 'BUSINESS',  # FIX BUG-002: Campo correto do schema Avro
         'trace_id': str(uuid.uuid4()),
         'span_id': str(uuid.uuid4())
     }
@@ -34,7 +34,7 @@ def cognitive_plan_with_whitespace_correlation_id():
         'plan_id': str(uuid.uuid4()),
         'intent_id': str(uuid.uuid4()),
         'correlation_id': '   ',
-        'domain': 'general'
+        'original_domain': 'BUSINESS'  # FIX BUG-002: Campo correto do schema Avro
     }
 
 
@@ -200,7 +200,7 @@ class TestConsensusOrchestratorCorrelationId:
             plan = {
                 'plan_id': str(uuid.uuid4()),
                 'intent_id': str(uuid.uuid4()),
-                'domain': 'general'
+                'original_domain': 'BUSINESS'  # FIX BUG-002: Campo correto do schema Avro
                 # Sem correlation_id
             }
 

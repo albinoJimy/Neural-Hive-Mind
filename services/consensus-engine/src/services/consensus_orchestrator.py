@@ -129,9 +129,10 @@ class ConsensusOrchestrator:
         convergence_time_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
 
         # Obter força de feromônio agregada
+        # FIX BUG-002: Usar 'original_domain' (campo correto do schema Avro) em vez de 'domain'
         pheromone_strength = await self._get_average_pheromone_strength(
             specialist_opinions,
-            cognitive_plan.get('domain', 'general')
+            cognitive_plan.get('original_domain', 'BUSINESS')
         )
 
         consensus_metrics = ConsensusMetrics(
@@ -217,7 +218,8 @@ class ConsensusOrchestrator:
             metadata={
                 'num_specialists': str(len(specialist_opinions)),
                 'vote_distribution': str(vote_distribution),
-                'domain': cognitive_plan.get('domain', 'general')
+                # FIX BUG-002: Usar 'original_domain' (campo correto do schema Avro)
+                'domain': cognitive_plan.get('original_domain', 'BUSINESS')
             }
         )
 
@@ -245,7 +247,8 @@ class ConsensusOrchestrator:
     ) -> Dict[str, float]:
         '''Calcula pesos dinâmicos baseados em feromônios'''
         weights = {}
-        domain_str = cognitive_plan.get('domain', 'general')
+        # FIX BUG-002: Usar 'original_domain' (campo correto do schema Avro) em vez de 'domain'
+        domain_str = cognitive_plan.get('original_domain', 'BUSINESS')
 
         # Normalizar domain para UnifiedDomain
         try:
@@ -386,7 +389,8 @@ class ConsensusOrchestrator:
         if not self.config.enable_pheromones or not self.pheromone_client:
             return
 
-        domain_str = cognitive_plan.get('domain', 'general')
+        # FIX BUG-002: Usar 'original_domain' (campo correto do schema Avro) em vez de 'domain'
+        domain_str = cognitive_plan.get('original_domain', 'BUSINESS')
 
         # Normalizar domain para UnifiedDomain
         try:

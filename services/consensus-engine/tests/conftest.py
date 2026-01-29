@@ -86,6 +86,7 @@ def sample_cognitive_plan():
         "plan_id": str(uuid.uuid4()),
         "intent_id": str(uuid.uuid4()),
         "correlation_id": str(uuid.uuid4()),
+        "original_domain": "BUSINESS",  # FIX BUG-002: Campo correto do schema Avro
         "version": "1.0",
         "tasks": [
             {
