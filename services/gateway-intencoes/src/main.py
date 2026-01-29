@@ -31,7 +31,55 @@ from middleware.rate_limiter import RateLimiter, set_rate_limiter, close_rate_li
 try:
     from neural_hive_observability import trace_intent, get_metrics, get_context_manager
     from neural_hive_observability.tracing import get_current_trace_id, get_current_span_id
-    from neural_hive_observability.health import HealthManager, RedisHealthCheck, CustomHealthCheck, HealthStatus
+    # v1.3.1+ usa HealthManager, v1.2.x usa HealthChecker
+    try:
+        from neural_hive_observability.health import HealthManager, RedisHealthCheck, CustomHealthCheck, HealthStatus
+    except ImportError:
+        # Fallback para versão 1.2.x da biblioteca
+        from neural_hive_observability.health import HealthChecker as HealthManager, HealthStatus
+        # Criar stubs simples para RedisHealthCheck e CustomHealthCheck
+        from neural_hive_observability.health import HealthCheck, HealthCheckResult
+        import asyncio
+        import time as _time
+
+        class RedisHealthCheck(HealthCheck):
+            def __init__(self, name="redis", connection_check=None):
+                super().__init__(name)
+                self.connection_check = connection_check
+
+            async def check(self):
+                start_time = _time.time()
+                try:
+                    if self.connection_check:
+                        if asyncio.iscoroutinefunction(self.connection_check):
+                            is_connected = await self.connection_check()
+                        else:
+                            is_connected = self.connection_check()
+                        status = HealthStatus.HEALTHY if is_connected else HealthStatus.UNHEALTHY
+                    else:
+                        status = HealthStatus.UNKNOWN
+                    return self._create_result(status, f"Redis {'conectado' if status == HealthStatus.HEALTHY else 'check não configurado'}", start_time=start_time)
+                except Exception as e:
+                    return self._create_result(HealthStatus.UNHEALTHY, f"Erro: {e}", start_time=start_time)
+
+        class CustomHealthCheck(HealthCheck):
+            def __init__(self, name, check_func, description="", timeout_seconds=5.0):
+                super().__init__(name, timeout_seconds)
+                self.check_func = check_func
+                self.description = description
+
+            async def check(self):
+                start_time = _time.time()
+                try:
+                    if asyncio.iscoroutinefunction(self.check_func):
+                        is_healthy = await self.check_func()
+                    else:
+                        is_healthy = self.check_func()
+                    status = HealthStatus.HEALTHY if is_healthy else HealthStatus.UNHEALTHY
+                    return self._create_result(status, self.description, start_time=start_time)
+                except Exception as e:
+                    return self._create_result(HealthStatus.UNHEALTHY, f"Erro: {e}", start_time=start_time)
+
     from neural_hive_observability.health_checks.otel import OTELPipelineHealthCheck
     from observability.metrics import (
         intent_counter, latency_histogram, confidence_histogram,
@@ -39,7 +87,7 @@ try:
     )
     OBSERVABILITY_AVAILABLE = True
     OTEL_HEALTH_CHECK_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     OBSERVABILITY_AVAILABLE = False
     OTEL_HEALTH_CHECK_AVAILABLE = False
     # Stubs temporários para desenvolvimento local sem neural_hive_observability

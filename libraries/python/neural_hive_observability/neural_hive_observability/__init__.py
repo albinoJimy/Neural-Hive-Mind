@@ -40,7 +40,18 @@ from .config import ObservabilityConfig
 from .tracing import init_tracing, trace_intent, trace_plan, get_tracer, trace_grpc_method
 from .metrics import init_metrics, NeuralHiveMetrics
 from .logging import init_logging, get_logger
-from .health import HealthChecker
+from .health import (
+    HealthChecker,
+    HealthManager,
+    HealthStatus,
+    HealthCheck,
+    HealthCheckResult,
+    RedisHealthCheck,
+    CustomHealthCheck,
+    DatabaseHealthCheck,
+    KafkaHealthCheck,
+    MemoryHealthCheck
+)
 from .health_checks import ClickHouseSchemaHealthCheck, OTELPipelineHealthCheck
 from .context import ContextManager
 from .grpc_instrumentation import (
@@ -62,7 +73,7 @@ from .kafka_instrumentation import (
 )
 
 # Versão da biblioteca
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 
 # Logger da biblioteca
 logger = stdlib_logging.getLogger(__name__)
@@ -207,6 +218,15 @@ __all__ = [
 
     # Health checks
     "HealthChecker",
+    "HealthManager",  # Alias para compatibilidade retroativa
+    "HealthStatus",
+    "HealthCheck",
+    "HealthCheckResult",
+    "RedisHealthCheck",
+    "CustomHealthCheck",
+    "DatabaseHealthCheck",
+    "KafkaHealthCheck",
+    "MemoryHealthCheck",
     "get_health_checker",
     "ClickHouseSchemaHealthCheck",
     "OTELPipelineHealthCheck",

@@ -431,3 +431,116 @@ class HealthChecker:
                 "checks": results_dict,
                 "timestamp": time.time(),
             }
+
+
+class RedisHealthCheck(HealthCheck):
+    """Health check para conexão com Redis."""
+
+    def __init__(self, name: str = "redis", connection_check: Optional[Callable] = None):
+        """
+        Inicializa health check de Redis.
+
+        Args:
+            name: Nome do check
+            connection_check: Função que retorna True se conectado (ping)
+        """
+        super().__init__(name)
+        self.connection_check = connection_check
+
+    async def check(self) -> HealthCheckResult:
+        """Verifica conexão com Redis."""
+        start_time = time.time()
+
+        try:
+            if self.connection_check is None:
+                return self._create_result(
+                    HealthStatus.UNKNOWN,
+                    "Redis connection check não configurado",
+                    start_time=start_time
+                )
+
+            # Executar check de conexão
+            if asyncio.iscoroutinefunction(self.connection_check):
+                is_connected = await self.connection_check()
+            else:
+                is_connected = self.connection_check()
+
+            if is_connected:
+                return self._create_result(
+                    HealthStatus.HEALTHY,
+                    "Redis conectado",
+                    start_time=start_time
+                )
+            else:
+                return self._create_result(
+                    HealthStatus.UNHEALTHY,
+                    "Redis não conectado",
+                    start_time=start_time
+                )
+
+        except Exception as e:
+            return self._create_result(
+                HealthStatus.UNHEALTHY,
+                f"Erro ao verificar conexão Redis: {str(e)}",
+                start_time=start_time
+            )
+
+
+class CustomHealthCheck(HealthCheck):
+    """Health check customizado baseado em função."""
+
+    def __init__(
+        self,
+        name: str,
+        check_func: Callable[[], bool],
+        description: str = "",
+        timeout_seconds: float = 5.0
+    ):
+        """
+        Inicializa health check customizado.
+
+        Args:
+            name: Nome do check
+            check_func: Função que retorna True se saudável
+            description: Descrição do check
+            timeout_seconds: Timeout em segundos
+        """
+        super().__init__(name, timeout_seconds)
+        self.check_func = check_func
+        self.description = description
+
+    async def check(self) -> HealthCheckResult:
+        """Executa health check customizado."""
+        start_time = time.time()
+
+        try:
+            # Executar função de check
+            if asyncio.iscoroutinefunction(self.check_func):
+                is_healthy = await self.check_func()
+            else:
+                is_healthy = self.check_func()
+
+            if is_healthy:
+                return self._create_result(
+                    HealthStatus.HEALTHY,
+                    self.description or f"{self.name} está saudável",
+                    start_time=start_time
+                )
+            else:
+                return self._create_result(
+                    HealthStatus.UNHEALTHY,
+                    self.description or f"{self.name} está indisponível",
+                    start_time=start_time
+                )
+
+        except Exception as e:
+            return self._create_result(
+                HealthStatus.UNHEALTHY,
+                f"Erro no check '{self.name}': {str(e)}",
+                start_time=start_time
+            )
+
+
+# Alias para compatibilidade retroativa
+# Alguns serviços usam HealthManager em vez de HealthChecker
+HealthManager = HealthChecker
