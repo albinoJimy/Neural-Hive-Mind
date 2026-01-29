@@ -92,7 +92,7 @@ spec:
     spec:
       containers:
       - name: approval-service
-        image: docker.io/neural-hive/approval-service:1.0.0
+        image: ghcr.io/albinojimy/neural-hive-mind/approval-service:1.0.0
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
