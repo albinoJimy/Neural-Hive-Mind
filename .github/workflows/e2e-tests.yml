@@ -112,16 +112,15 @@ jobs:
 
     services:
       localstack:
-        image: localstack/localstack:3.4
+        image: localstack/localstack:2.3.2
         ports:
           - 4566:4566
         env:
           SERVICES: s3
-          AWS_DEFAULT_REGION: us-east-1
-          LOCALSTACK_HOST: localhost
-          DEBUG: 0
+          DEFAULT_REGION: us-east-1
+          EDGE_PORT: 4566
         options: >-
-          --health-cmd="curl -s http://localhost:4566/_localstack/health | grep -q '\"s3\": \"available\"'"
+          --health-cmd="curl -s http://localhost:4566/_localstack/health | grep -q '\"s3\": \"running\"'"
           --health-interval=10s
           --health-timeout=10s
           --health-retries=10
