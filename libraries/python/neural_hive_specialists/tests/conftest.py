@@ -15,6 +15,7 @@ from neural_hive_specialists.schemas import CognitivePlanSchema, TaskSchema
 # Fixtures de Configuração
 # ============================================================================
 
+
 @pytest.fixture
 def mock_config():
     """Retorna SpecialistConfig com valores de teste."""
@@ -65,6 +66,7 @@ def mock_config_no_circuit_breaker(mock_config):
 # Fixtures de Componentes Mockados
 # ============================================================================
 
+
 @pytest.fixture
 def mock_mlflow_client(mocker, mock_config):
     """MLflowClient mockado com métodos stub."""
@@ -73,7 +75,7 @@ def mock_mlflow_client(mocker, mock_config):
     client._enabled = True
     client._model_cache = {}
     client.used_expired_cache_recently = False
-    client._circuit_breaker_state = 'closed'
+    client._circuit_breaker_state = "closed"
     client.load_model_with_fallback = mocker.MagicMock(return_value=Mock())
     client.get_last_model_update = mocker.MagicMock(return_value="2025-01-10T12:00:00Z")
     client.is_connected = mocker.MagicMock(return_value=True)
@@ -88,7 +90,7 @@ def mock_ledger_client(mocker, mock_config):
     client._buffer_max_size = mock_config.ledger_buffer_size
     client._opinion_buffer = mocker.MagicMock()
     client._opinion_buffer.qsize = mocker.MagicMock(return_value=0)
-    client._circuit_breaker_state = 'closed'
+    client._circuit_breaker_state = "closed"
     client._last_save_was_buffered = False
     client.save_opinion_with_fallback = mocker.MagicMock(return_value="opinion-123")
     client.get_opinion = mocker.MagicMock(return_value=None)
@@ -103,16 +105,18 @@ def mock_explainability_gen(mocker, mock_config):
     """ExplainabilityGenerator mockado."""
     gen = mocker.MagicMock()
     gen.config = mock_config
-    gen._circuit_breaker_state = 'closed'
-    gen.generate = mocker.MagicMock(return_value=(
-        "explainability-token-123",
-        {
-            "method": "heuristic",
-            "model_version": "heuristic",
-            "model_type": "heuristic",
-            "feature_importances": []
-        }
-    ))
+    gen._circuit_breaker_state = "closed"
+    gen.generate = mocker.MagicMock(
+        return_value=(
+            "explainability-token-123",
+            {
+                "method": "heuristic",
+                "model_version": "heuristic",
+                "model_type": "heuristic",
+                "feature_importances": [],
+            },
+        )
+    )
     return gen
 
 
@@ -131,6 +135,7 @@ def mock_metrics(mocker):
 # ============================================================================
 # Fixtures de Dados de Teste
 # ============================================================================
+
 
 @pytest.fixture
 def sample_cognitive_plan() -> Dict[str, Any]:
@@ -152,7 +157,7 @@ def sample_cognitive_plan() -> Dict[str, Any]:
                 "estimated_duration_ms": 1000,
                 "required_capabilities": ["data_analysis"],
                 "parameters": {"param1": "value1"},
-                "metadata": {}
+                "metadata": {},
             },
             {
                 "task_id": "task-2",
@@ -163,8 +168,8 @@ def sample_cognitive_plan() -> Dict[str, Any]:
                 "estimated_duration_ms": 2000,
                 "required_capabilities": ["data_transformation"],
                 "parameters": {},
-                "metadata": {}
-            }
+                "metadata": {},
+            },
         ],
         "execution_order": ["task-1", "task-2"],
         "original_domain": "test_domain",
@@ -180,7 +185,7 @@ def sample_cognitive_plan() -> Dict[str, Any]:
         "approved_at": None,
         "is_destructive": False,
         "destructive_tasks": [],
-        "risk_matrix": None
+        "risk_matrix": None,
     }
 
 
@@ -211,26 +216,23 @@ def sample_evaluation_result() -> Dict[str, Any]:
                 "factor": "Technical feasibility",
                 "weight": 0.3,
                 "score": 0.9,
-                "contribution": "positive"
+                "contribution": "positive",
             },
             {
                 "factor": "Resource availability",
                 "weight": 0.25,
                 "score": 0.8,
-                "contribution": "positive"
-            }
+                "contribution": "positive",
+            },
         ],
         "suggested_mitigations": [
             {
                 "risk": "Data quality issues",
                 "mitigation": "Implement data validation",
-                "priority": "high"
+                "priority": "high",
             }
         ],
-        "metadata": {
-            "model_used": "RandomForestClassifier",
-            "features_analyzed": 15
-        }
+        "metadata": {"model_used": "RandomForestClassifier", "features_analyzed": 15},
     }
 
 
@@ -253,26 +255,27 @@ def sample_opinion() -> Dict[str, Any]:
                 "factor": "Technical feasibility",
                 "weight": 0.3,
                 "score": 0.9,
-                "contribution": "positive"
+                "contribution": "positive",
             }
         ],
         "suggested_mitigations": [
             {
                 "risk": "Data quality issues",
                 "mitigation": "Implement data validation",
-                "priority": "high"
+                "priority": "high",
             }
         ],
         "explainability_token": "explainability-token-123",
         "processing_time_ms": 150.5,
         "timestamp": "2025-01-10T12:00:00Z",
-        "metadata": {}
+        "metadata": {},
     }
 
 
 # ============================================================================
 # Fixtures de gRPC (para testes de contrato)
 # ============================================================================
+
 
 @pytest.fixture
 def mock_specialist(mocker, mock_config):
@@ -283,42 +286,45 @@ def mock_specialist(mocker, mock_config):
     specialist.config = mock_config
 
     # Mock evaluate_plan para retornar parecer válido
-    specialist.evaluate_plan = mocker.MagicMock(return_value={
-        'opinion_id': 'test-opinion-123',
-        'specialist_type': mock_config.specialist_type,
-        'specialist_version': mock_config.specialist_version,
-        'opinion': {
-            'confidence_score': 0.85,
-            'risk_score': 0.2,
-            'recommendation': 'approve',
-            'reasoning_summary': 'Test reasoning',
-            'reasoning_factors': [],
-            'explainability_token': 'test-token',
-            'mitigations': [],
-            'metadata': {}
+    specialist.evaluate_plan = mocker.MagicMock(
+        return_value={
+            "opinion_id": "test-opinion-123",
+            "specialist_type": mock_config.specialist_type,
+            "specialist_version": mock_config.specialist_version,
+            "opinion": {
+                "confidence_score": 0.85,
+                "risk_score": 0.2,
+                "recommendation": "approve",
+                "reasoning_summary": "Test reasoning",
+                "reasoning_factors": [],
+                "explainability_token": "test-token",
+                "mitigations": [],
+                "metadata": {},
+            },
         }
-    })
+    )
 
     # Mock health_check
-    specialist.health_check = mocker.MagicMock(return_value={
-        'status': 'SERVING',
-        'details': {}
-    })
+    specialist.health_check = mocker.MagicMock(
+        return_value={"status": "SERVING", "details": {}}
+    )
 
     # Mock get_capabilities
-    specialist.get_capabilities = mocker.MagicMock(return_value={
-        'specialist_type': mock_config.specialist_type,
-        'version': mock_config.specialist_version,
-        'supported_domains': mock_config.supported_domains,
-        'supported_plan_versions': mock_config.supported_plan_versions,
-        'metrics': {
-            'average_processing_time_ms': 100.0,
-            'accuracy_score': 0.95,
-            'total_evaluations': 1000,
-            'last_model_update': '2025-01-10T12:00:00'
-        },
-        'configuration': {}
-    })
+    specialist.get_capabilities = mocker.MagicMock(
+        return_value={
+            "specialist_type": mock_config.specialist_type,
+            "version": mock_config.specialist_version,
+            "supported_domains": mock_config.supported_domains,
+            "supported_plan_versions": mock_config.supported_plan_versions,
+            "metrics": {
+                "average_processing_time_ms": 100.0,
+                "accuracy_score": 0.95,
+                "total_evaluations": 1000,
+                "last_model_update": "2025-01-10T12:00:00",
+            },
+            "configuration": {},
+        }
+    )
 
     return specialist
 
@@ -327,10 +333,12 @@ def mock_specialist(mocker, mock_config):
 def grpc_server(mock_specialist, mock_config):
     """Servidor gRPC de teste."""
     import grpc
-    from neural_hive_specialists.grpc_server import create_grpc_server_with_observability
+    from neural_hive_specialists.grpc_server import (
+        create_grpc_server_with_observability,
+    )
 
     server = create_grpc_server_with_observability(mock_specialist, mock_config)
-    port = server.add_insecure_port('localhost:0')
+    port = server.add_insecure_port("localhost:0")
     server.start()
 
     yield port
@@ -343,7 +351,7 @@ def grpc_channel(grpc_server):
     """Canal gRPC de teste."""
     import grpc
 
-    channel = grpc.insecure_channel(f'localhost:{grpc_server}')
+    channel = grpc.insecure_channel(f"localhost:{grpc_server}")
     yield channel
     channel.close()
 
@@ -359,6 +367,7 @@ def grpc_stub(grpc_channel):
 # ============================================================================
 # Fixtures de Integração (testcontainers)
 # ============================================================================
+
 
 @pytest.fixture(scope="session")
 def mongodb_container():
@@ -405,6 +414,7 @@ def redis_uri(redis_container):
 # ============================================================================
 # Fixtures de Limpeza
 # ============================================================================
+
 
 @pytest.fixture(autouse=True)
 def cleanup_metrics():

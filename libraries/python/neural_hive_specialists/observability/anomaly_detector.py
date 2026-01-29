@@ -34,23 +34,25 @@ class AnomalyDetector:
         self.config = config
 
         # Configurações de anomaly detection
-        self.enable_anomaly_detection = config.get('enable_anomaly_detection', True)
-        self.contamination = config.get('anomaly_contamination', 0.1)
-        self.n_estimators = config.get('anomaly_n_estimators', 100)
-        self.model_path = config.get('anomaly_model_path', '/data/models/anomaly_detector_{specialist_type}.pkl')
-        self.alert_threshold = config.get('anomaly_alert_threshold', -0.3)
+        self.enable_anomaly_detection = config.get("enable_anomaly_detection", True)
+        self.contamination = config.get("anomaly_contamination", 0.1)
+        self.n_estimators = config.get("anomaly_n_estimators", 100)
+        self.model_path = config.get(
+            "anomaly_model_path", "/data/models/anomaly_detector_{specialist_type}.pkl"
+        )
+        self.alert_threshold = config.get("anomaly_alert_threshold", -0.3)
 
         # Features usadas para detecção
         self.feature_names = [
-            'consensus_agreement_rate',
-            'false_positive_rate',
-            'false_negative_rate',
-            'avg_confidence_score',
-            'avg_risk_score',
-            'avg_processing_time_ms',
-            'evaluation_count',
-            'precision',
-            'recall'
+            "consensus_agreement_rate",
+            "false_positive_rate",
+            "false_negative_rate",
+            "avg_confidence_score",
+            "avg_risk_score",
+            "avg_processing_time_ms",
+            "evaluation_count",
+            "precision",
+            "recall",
         ]
 
         # Modelo e scaler (lazy initialization)
@@ -62,13 +64,13 @@ class AnomalyDetector:
             "AnomalyDetector initialized",
             contamination=self.contamination,
             n_estimators=self.n_estimators,
-            features_count=len(self.feature_names)
+            features_count=len(self.feature_names),
         )
 
     def train_on_historical_data(
         self,
         metrics_history: List[Dict[str, float]],
-        specialist_type: Optional[str] = None
+        specialist_type: Optional[str] = None,
     ) -> bool:
         """
         Treina modelo Isolation Forest em dados históricos.
@@ -96,7 +98,7 @@ class AnomalyDetector:
                 logger.warning(
                     "Insufficient data for training",
                     samples=X.shape[0],
-                    minimum_required=100
+                    minimum_required=100,
                 )
                 return False
 
@@ -104,7 +106,7 @@ class AnomalyDetector:
                 "Training Isolation Forest",
                 samples=X.shape[0],
                 features=X.shape[1],
-                contamination=self.contamination
+                contamination=self.contamination,
             )
 
             # Treinar scaler
@@ -115,9 +117,9 @@ class AnomalyDetector:
             self._model = IsolationForest(
                 contamination=self.contamination,
                 n_estimators=self.n_estimators,
-                max_samples='auto',
+                max_samples="auto",
                 random_state=42,
-                n_jobs=-1
+                n_jobs=-1,
             )
 
             self._model.fit(X_normalized)
@@ -138,23 +140,16 @@ class AnomalyDetector:
                 samples=X.shape[0],
                 features=X.shape[1],
                 anomalies_detected=int(anomaly_count),
-                anomaly_percentage=f"{anomaly_percentage:.2f}%"
+                anomaly_percentage=f"{anomaly_percentage:.2f}%",
             )
 
             return True
 
         except Exception as e:
-            logger.error(
-                "Error training anomaly detector",
-                error=str(e),
-                exc_info=True
-            )
+            logger.error("Error training anomaly detector", error=str(e), exc_info=True)
             return False
 
-    def detect_anomalies(
-        self,
-        current_metrics: Dict[str, float]
-    ) -> Dict[str, Any]:
+    def detect_anomalies(self, current_metrics: Dict[str, float]) -> Dict[str, Any]:
         """
         Detecta anomalias em métricas atuais.
 
@@ -173,22 +168,22 @@ class AnomalyDetector:
         """
         if not self.enable_anomaly_detection:
             return {
-                'is_anomaly': False,
-                'anomaly_score': 0.0,
-                'severity': 'info',
-                'anomalous_features': [],
-                'confidence': 0.0
+                "is_anomaly": False,
+                "anomaly_score": 0.0,
+                "severity": "info",
+                "anomalous_features": [],
+                "confidence": 0.0,
             }
 
         if not self._is_trained:
             logger.warning("Model not trained, cannot detect anomalies")
             return {
-                'is_anomaly': False,
-                'anomaly_score': 0.0,
-                'severity': 'info',
-                'anomalous_features': [],
-                'confidence': 0.0,
-                'error': 'model_not_trained'
+                "is_anomaly": False,
+                "anomaly_score": 0.0,
+                "severity": "info",
+                "anomalous_features": [],
+                "confidence": 0.0,
+                "error": "model_not_trained",
             }
 
         try:
@@ -197,12 +192,12 @@ class AnomalyDetector:
 
             if X is None:
                 return {
-                    'is_anomaly': False,
-                    'anomaly_score': 0.0,
-                    'severity': 'info',
-                    'anomalous_features': [],
-                    'confidence': 0.0,
-                    'error': 'invalid_features'
+                    "is_anomaly": False,
+                    "anomaly_score": 0.0,
+                    "severity": "info",
+                    "anomalous_features": [],
+                    "confidence": 0.0,
+                    "error": "invalid_features",
                 }
 
             # Normalizar
@@ -218,48 +213,39 @@ class AnomalyDetector:
             severity = self._calculate_severity(anomaly_score)
 
             # Identificar features anômalas
-            anomalous_features = self._identify_anomalous_features(
-                current_metrics,
-                X
-            ) if is_anomaly else []
+            anomalous_features = (
+                self._identify_anomalous_features(current_metrics, X)
+                if is_anomaly
+                else []
+            )
 
             # Confidence (inverso do anomaly score normalizado)
             confidence = 1.0 / (1.0 + abs(anomaly_score))
 
             result = {
-                'is_anomaly': bool(is_anomaly),
-                'anomaly_score': float(anomaly_score),
-                'severity': severity,
-                'anomalous_features': anomalous_features,
-                'confidence': float(confidence)
+                "is_anomaly": bool(is_anomaly),
+                "anomaly_score": float(anomaly_score),
+                "severity": severity,
+                "anomalous_features": anomalous_features,
+                "confidence": float(confidence),
             }
 
             if is_anomaly:
-                logger.warning(
-                    "Anomaly detected",
-                    **result
-                )
+                logger.warning("Anomaly detected", **result)
             else:
-                logger.debug(
-                    "No anomaly detected",
-                    anomaly_score=anomaly_score
-                )
+                logger.debug("No anomaly detected", anomaly_score=anomaly_score)
 
             return result
 
         except Exception as e:
-            logger.error(
-                "Error detecting anomalies",
-                error=str(e),
-                exc_info=True
-            )
+            logger.error("Error detecting anomalies", error=str(e), exc_info=True)
             return {
-                'is_anomaly': False,
-                'anomaly_score': 0.0,
-                'severity': 'info',
-                'anomalous_features': [],
-                'confidence': 0.0,
-                'error': str(e)
+                "is_anomaly": False,
+                "anomaly_score": 0.0,
+                "severity": "info",
+                "anomalous_features": [],
+                "confidence": 0.0,
+                "error": str(e),
             }
 
     def _prepare_features(self, metrics: Dict[str, float]) -> Optional[np.ndarray]:
@@ -287,16 +273,11 @@ class AnomalyDetector:
             return np.array(features)
 
         except Exception as e:
-            logger.error(
-                "Error preparing features",
-                error=str(e),
-                metrics=metrics
-            )
+            logger.error("Error preparing features", error=str(e), metrics=metrics)
             return None
 
     def _prepare_features_batch(
-        self,
-        metrics_list: List[Dict[str, float]]
+        self, metrics_list: List[Dict[str, float]]
     ) -> np.ndarray:
         """
         Prepara features de lista de métricas.
@@ -327,16 +308,14 @@ class AnomalyDetector:
             'critical', 'warning', ou 'info'
         """
         if anomaly_score < -0.5:
-            return 'critical'
+            return "critical"
         elif anomaly_score < -0.3:
-            return 'warning'
+            return "warning"
         else:
-            return 'info'
+            return "info"
 
     def _identify_anomalous_features(
-        self,
-        metrics: Dict[str, float],
-        features: np.ndarray
+        self, metrics: Dict[str, float], features: np.ndarray
     ) -> List[str]:
         """
         Identifica quais features são mais anômalas.
@@ -352,7 +331,7 @@ class AnomalyDetector:
         # (mais de 2 desvios padrão da média)
         anomalous = []
 
-        if not hasattr(self._scaler, 'mean_') or not hasattr(self._scaler, 'scale_'):
+        if not hasattr(self._scaler, "mean_") or not hasattr(self._scaler, "scale_"):
             return []
 
         for i, feature_name in enumerate(self.feature_names):
@@ -384,19 +363,22 @@ class AnomalyDetector:
             os.makedirs(os.path.dirname(model_path), exist_ok=True)
 
             # Adicionar timestamp ao nome do arquivo
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            base_path = model_path.replace('.pkl', '')
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            base_path = model_path.replace(".pkl", "")
             versioned_path = f"{base_path}_{timestamp}.pkl"
 
             # Salvar modelo e scaler
-            joblib.dump({
-                'model': self._model,
-                'scaler': self._scaler,
-                'feature_names': self.feature_names,
-                'contamination': self.contamination,
-                'n_estimators': self.n_estimators,
-                'timestamp': timestamp
-            }, versioned_path)
+            joblib.dump(
+                {
+                    "model": self._model,
+                    "scaler": self._scaler,
+                    "feature_names": self.feature_names,
+                    "contamination": self.contamination,
+                    "n_estimators": self.n_estimators,
+                    "timestamp": timestamp,
+                },
+                versioned_path,
+            )
 
             # Criar symlink para versão latest
             latest_path = f"{base_path}_latest.pkl"
@@ -407,17 +389,13 @@ class AnomalyDetector:
             logger.info(
                 "Model saved successfully",
                 versioned_path=versioned_path,
-                latest_path=latest_path
+                latest_path=latest_path,
             )
 
             return True
 
         except Exception as e:
-            logger.error(
-                "Error saving model",
-                model_path=model_path,
-                error=str(e)
-            )
+            logger.error("Error saving model", model_path=model_path, error=str(e))
             return False
 
     def _load_model(self, model_path: str) -> bool:
@@ -432,7 +410,7 @@ class AnomalyDetector:
         """
         try:
             # Tentar carregar versão latest
-            base_path = model_path.replace('.pkl', '')
+            base_path = model_path.replace(".pkl", "")
             latest_path = f"{base_path}_latest.pkl"
 
             if not os.path.exists(latest_path):
@@ -442,26 +420,22 @@ class AnomalyDetector:
             # Carregar modelo
             data = joblib.load(latest_path)
 
-            self._model = data['model']
-            self._scaler = data['scaler']
-            self.feature_names = data['feature_names']
+            self._model = data["model"]
+            self._scaler = data["scaler"]
+            self.feature_names = data["feature_names"]
             self._is_trained = True
 
             logger.info(
                 "Model loaded successfully",
                 model_path=latest_path,
                 features_count=len(self.feature_names),
-                timestamp=data.get('timestamp', 'unknown')
+                timestamp=data.get("timestamp", "unknown"),
             )
 
             return True
 
         except Exception as e:
-            logger.error(
-                "Error loading model",
-                model_path=model_path,
-                error=str(e)
-            )
+            logger.error("Error loading model", model_path=model_path, error=str(e))
             return False
 
     def load_model_for_specialist(self, specialist_type: str) -> bool:

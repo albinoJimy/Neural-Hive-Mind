@@ -70,7 +70,7 @@ class EnsembleSpecialist(BaseSpecialist):
         logger.info(
             "Carregando modelos para ensemble",
             models=self.config.ensemble_models,
-            stages=self.config.ensemble_stages
+            stages=self.config.ensemble_stages,
         )
 
         # Carregar cada modelo
@@ -81,7 +81,7 @@ class EnsembleSpecialist(BaseSpecialist):
 
         loaded_models = {}
         for i, model_name in enumerate(self.config.ensemble_models):
-            stage = stages[i] if i < len(stages) else 'Production'
+            stage = stages[i] if i < len(stages) else "Production"
 
             try:
                 with tracer.start_as_current_span("ensemble.load_model") as span:
@@ -94,20 +94,20 @@ class EnsembleSpecialist(BaseSpecialist):
                         logger.info(
                             "Modelo carregado com sucesso",
                             model_name=model_name,
-                            stage=stage
+                            stage=stage,
                         )
                     else:
                         logger.warning(
                             "Falha ao carregar modelo",
                             model_name=model_name,
-                            stage=stage
+                            stage=stage,
                         )
             except Exception as e:
                 logger.error(
                     "Erro ao carregar modelo para ensemble",
                     model_name=model_name,
                     stage=stage,
-                    error=str(e)
+                    error=str(e),
                 )
 
         if not loaded_models:
@@ -118,7 +118,7 @@ class EnsembleSpecialist(BaseSpecialist):
         logger.info(
             "Modelos carregados para ensemble",
             count=len(loaded_models),
-            models=list(loaded_models.keys())
+            models=list(loaded_models.keys()),
         )
 
         # Carregar pesos de ensemble
@@ -130,11 +130,11 @@ class EnsembleSpecialist(BaseSpecialist):
             logger.debug(
                 "Peso de ensemble publicado nas métricas",
                 model_name=model_name,
-                weight=weight
+                weight=weight,
             )
 
         # Carregar meta-modelo se necessário
-        if self.config.ensemble_aggregation_method == 'stacking':
+        if self.config.ensemble_aggregation_method == "stacking":
             self._load_meta_model()
 
         # Retornar primeiro modelo para compatibilidade com BaseSpecialist
@@ -152,16 +152,16 @@ class EnsembleSpecialist(BaseSpecialist):
         with tracer.start_as_current_span("ensemble.load_weights") as span:
             span.set_attribute("weights_source", weights_source)
 
-            if weights_source == 'config':
+            if weights_source == "config":
                 return self._load_weights_from_config()
-            elif weights_source == 'mlflow_artifact':
+            elif weights_source == "mlflow_artifact":
                 return self._load_weights_from_mlflow_artifact()
-            elif weights_source == 'learned':
+            elif weights_source == "learned":
                 return self._load_weights_from_meta_model()
             else:
                 logger.warning(
                     "weights_source desconhecido, usando pesos iguais",
-                    weights_source=weights_source
+                    weights_source=weights_source,
                 )
                 return self._get_equal_weights()
 
@@ -176,7 +176,7 @@ class EnsembleSpecialist(BaseSpecialist):
                 else:
                     logger.warning(
                         "Peso não fornecido para modelo, usando 0",
-                        model_name=model_name
+                        model_name=model_name,
                     )
                     weights[model_name] = 0.0
 
@@ -194,22 +194,28 @@ class EnsembleSpecialist(BaseSpecialist):
         try:
             # Usar primeiro modelo como referência para pegar artifact
             first_model_name = list(self.models.keys())[0]
-            first_stage = self.config.ensemble_stages[0] if self.config.ensemble_stages else 'Production'
+            first_stage = (
+                self.config.ensemble_stages[0]
+                if self.config.ensemble_stages
+                else "Production"
+            )
 
             logger.info(
                 "Carregando pesos de ensemble de MLflow artifact",
                 model=first_model_name,
-                stage=first_stage
+                stage=first_stage,
             )
 
             # Obter metadados do modelo incluindo run_id
-            model_metadata = self.mlflow_client.get_model_metadata(first_model_name, first_stage)
-            run_id = model_metadata.get('run_id')
+            model_metadata = self.mlflow_client.get_model_metadata(
+                first_model_name, first_stage
+            )
+            run_id = model_metadata.get("run_id")
 
             if not run_id:
                 logger.warning(
                     "run_id não encontrado nos metadados do modelo, usando pesos iguais",
-                    model=first_model_name
+                    model=first_model_name,
                 )
                 return self._get_equal_weights()
 
@@ -222,22 +228,24 @@ class EnsembleSpecialist(BaseSpecialist):
                 artifact_path = "ensemble_weights.json"
                 try:
                     local_path = self.mlflow_client.client.download_artifacts(
-                        run_id=run_id,
-                        path=artifact_path,
-                        dst_path=tmpdir
+                        run_id=run_id, path=artifact_path, dst_path=tmpdir
                     )
 
-                    weights_file = os.path.join(local_path, artifact_path) if os.path.isdir(local_path) else local_path
+                    weights_file = (
+                        os.path.join(local_path, artifact_path)
+                        if os.path.isdir(local_path)
+                        else local_path
+                    )
 
                     # Ler e parsear JSON
-                    with open(weights_file, 'r') as f:
+                    with open(weights_file, "r") as f:
                         weights_data = json.load(f)
 
                     # Validar formato
                     if not isinstance(weights_data, dict):
                         logger.error(
                             "Formato de weights inválido, esperado dict",
-                            type=type(weights_data).__name__
+                            type=type(weights_data).__name__,
                         )
                         return self._get_equal_weights()
 
@@ -249,7 +257,7 @@ class EnsembleSpecialist(BaseSpecialist):
                         else:
                             logger.warning(
                                 "Peso não encontrado para modelo no artifact",
-                                model=model_name
+                                model=model_name,
                             )
                             loaded_weights[model_name] = 0.0
 
@@ -257,20 +265,18 @@ class EnsembleSpecialist(BaseSpecialist):
                     total_weight = sum(loaded_weights.values())
                     if abs(total_weight - 1.0) > 0.01:
                         logger.warning(
-                            "Soma dos pesos não é 1.0, normalizando",
-                            total=total_weight
+                            "Soma dos pesos não é 1.0, normalizando", total=total_weight
                         )
                         # Normalizar
                         if total_weight > 0:
                             loaded_weights = {
-                                k: v / total_weight
-                                for k, v in loaded_weights.items()
+                                k: v / total_weight for k, v in loaded_weights.items()
                             }
 
                     logger.info(
                         "Pesos carregados de MLflow artifact",
                         weights=loaded_weights,
-                        run_id=run_id
+                        run_id=run_id,
                     )
 
                     # Publicar nas métricas
@@ -283,15 +289,13 @@ class EnsembleSpecialist(BaseSpecialist):
                     logger.warning(
                         "Artifact ensemble_weights.json não encontrado ou erro ao baixar",
                         run_id=run_id,
-                        error=str(artifact_error)
+                        error=str(artifact_error),
                     )
                     return self._get_equal_weights()
 
         except Exception as e:
             logger.error(
-                "Erro ao carregar pesos de MLflow artifact",
-                error=str(e),
-                exc_info=True
+                "Erro ao carregar pesos de MLflow artifact", error=str(e), exc_info=True
             )
             return self._get_equal_weights()
 
@@ -303,7 +307,7 @@ class EnsembleSpecialist(BaseSpecialist):
 
         try:
             # Assumir que meta-modelo é sklearn LogisticRegression ou similar
-            if hasattr(self.meta_model, 'coef_'):
+            if hasattr(self.meta_model, "coef_"):
                 coefs = self.meta_model.coef_[0]
                 # Normalizar coeficientes para somarem 1.0
                 normalized_coefs = np.abs(coefs) / np.sum(np.abs(coefs))
@@ -322,10 +326,7 @@ class EnsembleSpecialist(BaseSpecialist):
                 return self._get_equal_weights()
 
         except Exception as e:
-            logger.error(
-                "Erro ao extrair pesos do meta-modelo",
-                error=str(e)
-            )
+            logger.error("Erro ao extrair pesos do meta-modelo", error=str(e))
             return self._get_equal_weights()
 
     def _get_equal_weights(self) -> Dict[str, float]:
@@ -340,7 +341,9 @@ class EnsembleSpecialist(BaseSpecialist):
         logger.info("Usando pesos iguais para ensemble", weights=weights)
         return weights
 
-    def _redistribute_weights_for_missing_models(self, weights: Dict[str, float]) -> Dict[str, float]:
+    def _redistribute_weights_for_missing_models(
+        self, weights: Dict[str, float]
+    ) -> Dict[str, float]:
         """
         Redistribui pesos quando alguns modelos falharam no carregamento.
 
@@ -375,7 +378,7 @@ class EnsembleSpecialist(BaseSpecialist):
                 "Pesos redistribuídos devido a modelos não carregados",
                 original_count=len(weights),
                 loaded_count=len(normalized_weights),
-                normalized_weights=normalized_weights
+                normalized_weights=normalized_weights,
             )
 
             # Atualizar métricas Prometheus com pesos redistribuídos
@@ -394,11 +397,10 @@ class EnsembleSpecialist(BaseSpecialist):
 
         try:
             meta_model_name = self.config.ensemble_meta_model_name
-            stage = 'Production'  # Usar Production stage para meta-modelo
+            stage = "Production"  # Usar Production stage para meta-modelo
 
             logger.info(
-                "Carregando meta-modelo para stacking",
-                meta_model_name=meta_model_name
+                "Carregando meta-modelo para stacking", meta_model_name=meta_model_name
             )
 
             self.meta_model = self.mlflow_client.load_model(meta_model_name, stage)
@@ -409,10 +411,7 @@ class EnsembleSpecialist(BaseSpecialist):
                 logger.warning("Falha ao carregar meta-modelo")
 
         except Exception as e:
-            logger.error(
-                "Erro ao carregar meta-modelo",
-                error=str(e)
-            )
+            logger.error("Erro ao carregar meta-modelo", error=str(e))
 
     def _predict_with_model(self, cognitive_plan: dict) -> Optional[dict]:
         """
@@ -433,7 +432,9 @@ class EnsembleSpecialist(BaseSpecialist):
 
         with tracer.start_as_current_span("ensemble.predict") as span:
             span.set_attribute("ensemble.num_models", len(self.models))
-            span.set_attribute("ensemble.aggregation_method", self.config.ensemble_aggregation_method)
+            span.set_attribute(
+                "ensemble.aggregation_method", self.config.ensemble_aggregation_method
+            )
 
             # Executar predições em paralelo
             predictions = self._execute_parallel_predictions(cognitive_plan)
@@ -454,21 +455,23 @@ class EnsembleSpecialist(BaseSpecialist):
                 return None
 
             # Adicionar metadados de ensemble
-            aggregated_result['metadata'] = aggregated_result.get('metadata', {})
-            aggregated_result['metadata'].update({
-                'ensemble_models': list(predictions.keys()),
-                'ensemble_weights': self.ensemble_weights,
-                'ensemble_predictions': {
-                    model_name: {
-                        'confidence': pred.get('confidence_score'),
-                        'risk': pred.get('risk_score'),
-                        'recommendation': pred.get('recommendation')
-                    }
-                    for model_name, pred in predictions.items()
-                },
-                'ensemble_method': self.config.ensemble_aggregation_method,
-                'ensemble_variance': variance
-            })
+            aggregated_result["metadata"] = aggregated_result.get("metadata", {})
+            aggregated_result["metadata"].update(
+                {
+                    "ensemble_models": list(predictions.keys()),
+                    "ensemble_weights": self.ensemble_weights,
+                    "ensemble_predictions": {
+                        model_name: {
+                            "confidence": pred.get("confidence_score"),
+                            "risk": pred.get("risk_score"),
+                            "recommendation": pred.get("recommendation"),
+                        }
+                        for model_name, pred in predictions.items()
+                    },
+                    "ensemble_method": self.config.ensemble_aggregation_method,
+                    "ensemble_variance": variance,
+                }
+            )
 
             # Adicionar ensemble-aware explainability
             self._add_ensemble_explainability(aggregated_result, predictions)
@@ -480,7 +483,7 @@ class EnsembleSpecialist(BaseSpecialist):
                 "Predição de ensemble concluída",
                 num_models=len(predictions),
                 variance=variance,
-                aggregated_confidence=aggregated_result.get('confidence_score')
+                aggregated_confidence=aggregated_result.get("confidence_score"),
             )
 
             return aggregated_result
@@ -499,7 +502,9 @@ class EnsembleSpecialist(BaseSpecialist):
 
         with ThreadPoolExecutor(max_workers=len(self.models)) as executor:
             future_to_model = {
-                executor.submit(self._predict_with_single_model, model_name, model, cognitive_plan): model_name
+                executor.submit(
+                    self._predict_with_single_model, model_name, model, cognitive_plan
+                ): model_name
                 for model_name, model in self.models.items()
             }
 
@@ -516,17 +521,14 @@ class EnsembleSpecialist(BaseSpecialist):
                     logger.error(
                         "Erro na predição de modelo individual",
                         model_name=model_name,
-                        error=str(e)
+                        error=str(e),
                     )
                     self.metrics.increment_ensemble_model_failure(model_name)
 
         return predictions
 
     def _predict_with_single_model(
-        self,
-        model_name: str,
-        model: Any,
-        cognitive_plan: dict
+        self, model_name: str, model: Any, cognitive_plan: dict
     ) -> Optional[dict]:
         """
         Executa predição com modelo individual.
@@ -540,6 +542,7 @@ class EnsembleSpecialist(BaseSpecialist):
             Resultado da predição ou None se falhou
         """
         import time
+
         start_time = time.time()
 
         try:
@@ -563,20 +566,24 @@ class EnsembleSpecialist(BaseSpecialist):
                     logger.warning(
                         "Ensemble model returned no prediction",
                         model_name=model_name,
-                        plan_id=cognitive_plan.get('plan_id', 'unknown'),
-                        duration_seconds=duration
+                        plan_id=cognitive_plan.get("plan_id", "unknown"),
+                        duration_seconds=duration,
                     )
                     return None
 
                 # Só extrair metadata se result for um dicionário válido
-                prediction_method = result.get('metadata', {}).get('prediction_method', 'unknown')
-                calibrated = result.get('calibrated', False)
-                confidence_score = result.get('confidence_score', 0.5)
-                plan_id = cognitive_plan.get('plan_id', 'unknown')
-                model_version = result.get('metadata', {}).get('model_version', 'unknown')
+                prediction_method = result.get("metadata", {}).get(
+                    "prediction_method", "unknown"
+                )
+                calibrated = result.get("calibrated", False)
+                confidence_score = result.get("confidence_score", 0.5)
+                plan_id = cognitive_plan.get("plan_id", "unknown")
+                model_version = result.get("metadata", {}).get(
+                    "model_version", "unknown"
+                )
 
                 # Log estruturado baseado no método de predição usado
-                if prediction_method == 'predict_proba':
+                if prediction_method == "predict_proba":
                     logger.info(
                         "Ensemble model used probabilistic prediction",
                         model_name=model_name,
@@ -585,9 +592,9 @@ class EnsembleSpecialist(BaseSpecialist):
                         confidence_score=confidence_score,
                         plan_id=plan_id,
                         model_version=model_version,
-                        model_type=type(model).__name__
+                        model_type=type(model).__name__,
                     )
-                elif prediction_method in ('predict', 'predict_fallback'):
+                elif prediction_method in ("predict", "predict_fallback"):
                     logger.warning(
                         "Ensemble model used non-probabilistic prediction",
                         model_name=model_name,
@@ -596,7 +603,7 @@ class EnsembleSpecialist(BaseSpecialist):
                         confidence_score=confidence_score,
                         plan_id=plan_id,
                         model_version=model_version,
-                        model_type=type(model).__name__
+                        model_type=type(model).__name__,
                     )
 
                 return result
@@ -610,14 +617,12 @@ class EnsembleSpecialist(BaseSpecialist):
                 "Erro na predição com modelo individual",
                 model_name=model_name,
                 error=str(e),
-                duration_seconds=duration
+                duration_seconds=duration,
             )
             return None
 
     def _add_ensemble_explainability(
-        self,
-        aggregated_result: dict,
-        predictions: Dict[str, dict]
+        self, aggregated_result: dict, predictions: Dict[str, dict]
     ) -> None:
         """
         Adiciona explainability ensemble-aware ao resultado agregado.
@@ -633,23 +638,27 @@ class EnsembleSpecialist(BaseSpecialist):
             # Verificar se algum modelo tem explainability
             explainability_data = []
             for model_name, pred in predictions.items():
-                if 'explainability' in pred and pred['explainability']:
-                    explainability_data.append((model_name, pred['explainability']))
+                if "explainability" in pred and pred["explainability"]:
+                    explainability_data.append((model_name, pred["explainability"]))
 
             # Coletar informações de calibração de todos os modelos
             calibrated_models = [
-                model_name for model_name, pred in predictions.items()
-                if pred.get('calibrated', False)
+                model_name
+                for model_name, pred in predictions.items()
+                if pred.get("calibrated", False)
             ]
             non_calibrated_models = [
-                model_name for model_name, pred in predictions.items()
-                if not pred.get('calibrated', False)
+                model_name
+                for model_name, pred in predictions.items()
+                if not pred.get("calibrated", False)
             ]
             prediction_methods = {
-                model_name: pred.get('metadata', {}).get('prediction_method', 'unknown')
+                model_name: pred.get("metadata", {}).get("prediction_method", "unknown")
                 for model_name, pred in predictions.items()
             }
-            calibration_coverage = len(calibrated_models) / len(predictions) if predictions else 0.0
+            calibration_coverage = (
+                len(calibrated_models) / len(predictions) if predictions else 0.0
+            )
 
             # Log se há mistura de modelos calibrados e não-calibrados
             if calibrated_models and non_calibrated_models:
@@ -657,7 +666,7 @@ class EnsembleSpecialist(BaseSpecialist):
                     "Ensemble com mistura de modelos calibrados e nao-calibrados pode afetar interpretabilidade",
                     calibrated_models=calibrated_models,
                     non_calibrated_models=non_calibrated_models,
-                    calibration_coverage=calibration_coverage
+                    calibration_coverage=calibration_coverage,
                 )
 
             # Agregar feature importances ponderadas (se houver dados de explainability)
@@ -667,45 +676,51 @@ class EnsembleSpecialist(BaseSpecialist):
                     weight = self.ensemble_weights.get(model_name, 0.0)
 
                     # Processar feature importances se disponíveis
-                    if 'feature_importances' in expl:
-                        for feature_name, importance in expl['feature_importances'].items():
+                    if "feature_importances" in expl:
+                        for feature_name, importance in expl[
+                            "feature_importances"
+                        ].items():
                             if feature_name not in aggregated_importances:
                                 aggregated_importances[feature_name] = 0.0
                             aggregated_importances[feature_name] += importance * weight
 
             # Criar estrutura de explainability agregada
             ensemble_explainability = {
-                'ensemble': {
-                    'aggregated_feature_importances': aggregated_importances,
-                    'models_contributing': [model_name for model_name, _ in explainability_data],
-                    'individual_explainabilities': {
+                "ensemble": {
+                    "aggregated_feature_importances": aggregated_importances,
+                    "models_contributing": [
+                        model_name for model_name, _ in explainability_data
+                    ],
+                    "individual_explainabilities": {
                         model_name: {
-                            'feature_importances': expl.get('feature_importances', {}),
-                            'method': expl.get('method', 'unknown')
+                            "feature_importances": expl.get("feature_importances", {}),
+                            "method": expl.get("method", "unknown"),
                         }
                         for model_name, expl in explainability_data
                     },
-                    'calibration_info': {
-                        'calibrated_models': calibrated_models,
-                        'non_calibrated_models': non_calibrated_models,
-                        'calibration_coverage': calibration_coverage,
-                        'prediction_methods': prediction_methods
-                    }
+                    "calibration_info": {
+                        "calibrated_models": calibrated_models,
+                        "non_calibrated_models": non_calibrated_models,
+                        "calibration_coverage": calibration_coverage,
+                        "prediction_methods": prediction_methods,
+                    },
                 }
             }
 
             # Adicionar ao resultado agregado
-            if 'explainability' not in aggregated_result:
-                aggregated_result['explainability'] = {}
+            if "explainability" not in aggregated_result:
+                aggregated_result["explainability"] = {}
 
-            aggregated_result['explainability'].update(ensemble_explainability)
+            aggregated_result["explainability"].update(ensemble_explainability)
 
             # Anotar metadata adicional
-            if 'metadata' not in aggregated_result:
-                aggregated_result['metadata'] = {}
+            if "metadata" not in aggregated_result:
+                aggregated_result["metadata"] = {}
 
-            aggregated_result['metadata']['ensemble_explainability_source'] = 'aggregated_from_base_models'
-            aggregated_result['metadata']['ensemble_explainability_models'] = [
+            aggregated_result["metadata"][
+                "ensemble_explainability_source"
+            ] = "aggregated_from_base_models"
+            aggregated_result["metadata"]["ensemble_explainability_models"] = [
                 model_name for model_name, _ in explainability_data
             ]
 
@@ -714,14 +729,12 @@ class EnsembleSpecialist(BaseSpecialist):
                 num_models_with_explainability=len(explainability_data),
                 num_features=len(aggregated_importances),
                 calibrated_models_count=len(calibrated_models),
-                calibration_coverage=calibration_coverage
+                calibration_coverage=calibration_coverage,
             )
 
         except Exception as e:
             logger.error(
-                "Erro ao adicionar ensemble explainability",
-                error=str(e),
-                exc_info=True
+                "Erro ao adicionar ensemble explainability", error=str(e), exc_info=True
             )
 
     def _calculate_prediction_variance(self, predictions: Dict[str, dict]) -> float:
@@ -738,8 +751,7 @@ class EnsembleSpecialist(BaseSpecialist):
             return 0.0
 
         confidence_scores = [
-            pred.get('confidence_score', 0.5)
-            for pred in predictions.values()
+            pred.get("confidence_score", 0.5) for pred in predictions.values()
         ]
 
         if len(confidence_scores) < 2:
@@ -762,16 +774,16 @@ class EnsembleSpecialist(BaseSpecialist):
         with tracer.start_as_current_span("ensemble.combine_predictions") as span:
             span.set_attribute("aggregation_method", method)
 
-            if method == 'weighted_average':
+            if method == "weighted_average":
                 result = self._weighted_average_aggregation(predictions)
-            elif method == 'voting':
+            elif method == "voting":
                 result = self._voting_aggregation(predictions)
-            elif method == 'stacking':
+            elif method == "stacking":
                 result = self._stacking_aggregation(predictions)
             else:
                 logger.warning(
                     "Método de agregação desconhecido, usando weighted_average",
-                    method=method
+                    method=method,
                 )
                 result = self._weighted_average_aggregation(predictions)
 
@@ -779,34 +791,40 @@ class EnsembleSpecialist(BaseSpecialist):
             if result is not None:
                 # Coletar métodos de predição de cada modelo
                 base_models_prediction_methods = {
-                    model_name: pred.get('metadata', {}).get('prediction_method', 'unknown')
+                    model_name: pred.get("metadata", {}).get(
+                        "prediction_method", "unknown"
+                    )
                     for model_name, pred in predictions.items()
                 }
 
                 # Contar modelos calibrados
                 calibrated_count = sum(
-                    1 for pred in predictions.values()
-                    if pred.get('calibrated', False)
+                    1 for pred in predictions.values() if pred.get("calibrated", False)
                 )
                 total_models = len(predictions)
-                calibration_coverage = calibrated_count / total_models if total_models > 0 else 0.0
+                calibration_coverage = (
+                    calibrated_count / total_models if total_models > 0 else 0.0
+                )
 
                 # Inicializar metadata se não existir
-                if 'metadata' not in result:
-                    result['metadata'] = {}
+                if "metadata" not in result:
+                    result["metadata"] = {}
 
                 # Adicionar metadata de calibração agregada
-                result['metadata']['base_models_prediction_methods'] = base_models_prediction_methods
-                result['metadata']['calibrated_models_count'] = calibrated_count
-                result['metadata']['ensemble_calibrated'] = calibrated_count > total_models / 2
-                result['metadata']['calibration_coverage'] = calibration_coverage
-                result['metadata']['aggregation_method'] = method
+                result["metadata"][
+                    "base_models_prediction_methods"
+                ] = base_models_prediction_methods
+                result["metadata"]["calibrated_models_count"] = calibrated_count
+                result["metadata"]["ensemble_calibrated"] = (
+                    calibrated_count > total_models / 2
+                )
+                result["metadata"]["calibration_coverage"] = calibration_coverage
+                result["metadata"]["aggregation_method"] = method
 
                 # Registrar métricas de calibração
                 self.metrics.observe_ensemble_calibration_coverage(calibration_coverage)
                 self.metrics.increment_ensemble_probabilistic_prediction(
-                    method,
-                    calibrated_count > total_models / 2
+                    method, calibrated_count > total_models / 2
                 )
 
             return result
@@ -828,8 +846,8 @@ class EnsembleSpecialist(BaseSpecialist):
 
         for model_name, pred in predictions.items():
             weight = self.ensemble_weights.get(model_name, 0.0)
-            weighted_confidence += pred.get('confidence_score', 0.5) * weight
-            weighted_risk += pred.get('risk_score', 0.5) * weight
+            weighted_confidence += pred.get("confidence_score", 0.5) * weight
+            weighted_risk += pred.get("risk_score", 0.5) * weight
             total_weight += weight
 
         # Normalizar se pesos não somam 1.0
@@ -839,8 +857,7 @@ class EnsembleSpecialist(BaseSpecialist):
 
         # Validar complementaridade quando todos modelos usam predict_proba
         calibrated_models = sum(
-            1 for pred in predictions.values()
-            if pred.get('calibrated', False)
+            1 for pred in predictions.values() if pred.get("calibrated", False)
         )
         num_models = len(predictions)
 
@@ -854,7 +871,7 @@ class EnsembleSpecialist(BaseSpecialist):
                     weighted_risk=weighted_risk,
                     sum=score_sum,
                     calibrated_models=calibrated_models,
-                    num_models=num_models
+                    num_models=num_models,
                 )
 
         # Logging estruturado após agregação
@@ -864,38 +881,38 @@ class EnsembleSpecialist(BaseSpecialist):
             weighted_risk=weighted_risk,
             num_models=num_models,
             calibrated_models=calibrated_models,
-            aggregation_method='weighted_average'
+            aggregation_method="weighted_average",
         )
 
         # Determinar recomendação baseada em confidence agregado
         if weighted_confidence >= self.config.ensemble_approve_threshold:
-            recommendation = 'approve'
+            recommendation = "approve"
         elif weighted_confidence >= self.config.ensemble_review_threshold:
-            recommendation = 'review_required'
+            recommendation = "review_required"
         else:
-            recommendation = 'reject'
+            recommendation = "reject"
 
         # Agregar reasoning factors (união de todos)
         all_reasoning_factors = []
         for pred in predictions.values():
-            all_reasoning_factors.extend(pred.get('reasoning_factors', []))
+            all_reasoning_factors.extend(pred.get("reasoning_factors", []))
 
         # Remover duplicatas mantendo ordem
         unique_reasoning = []
         seen = set()
         for factor in all_reasoning_factors:
-            factor_key = factor.get('factor', '')
+            factor_key = factor.get("factor", "")
             if factor_key not in seen:
                 seen.add(factor_key)
                 unique_reasoning.append(factor)
 
         return {
-            'confidence_score': float(weighted_confidence),
-            'risk_score': float(weighted_risk),
-            'recommendation': recommendation,
-            'reasoning_summary': f'Avaliação baseada em ensemble de {len(predictions)} modelos',
-            'reasoning_factors': unique_reasoning[:10],  # Limitar a 10 fatores
-            'mitigations': []
+            "confidence_score": float(weighted_confidence),
+            "risk_score": float(weighted_risk),
+            "recommendation": recommendation,
+            "reasoning_summary": f"Avaliação baseada em ensemble de {len(predictions)} modelos",
+            "reasoning_factors": unique_reasoning[:10],  # Limitar a 10 fatores
+            "mitigations": [],
         }
 
     def _voting_aggregation(self, predictions: Dict[str, dict]) -> dict:
@@ -911,7 +928,7 @@ class EnsembleSpecialist(BaseSpecialist):
         # Contar votos para cada recomendação
         votes = {}
         for model_name, pred in predictions.items():
-            recommendation = pred.get('recommendation', 'review_required')
+            recommendation = pred.get("recommendation", "review_required")
             weight = self.ensemble_weights.get(model_name, 1.0)
             votes[recommendation] = votes.get(recommendation, 0.0) + weight
 
@@ -920,19 +937,22 @@ class EnsembleSpecialist(BaseSpecialist):
 
         # Calcular confidence baseado na força da maioria
         total_votes = sum(votes.values())
-        majority_strength = votes[winning_recommendation] / total_votes if total_votes > 0 else 0.5
+        majority_strength = (
+            votes[winning_recommendation] / total_votes if total_votes > 0 else 0.5
+        )
 
         # Pegar predição de um modelo que votou na recomendação vencedora
         winning_pred = next(
-            pred for pred in predictions.values()
-            if pred.get('recommendation') == winning_recommendation
+            pred
+            for pred in predictions.values()
+            if pred.get("recommendation") == winning_recommendation
         )
 
         result = winning_pred.copy()
-        result['confidence_score'] = float(majority_strength)
-        result['reasoning_summary'] = (
-            f'Votação: {winning_recommendation} '
-            f'({votes[winning_recommendation]:.1f}/{total_votes:.1f} votos)'
+        result["confidence_score"] = float(majority_strength)
+        result["reasoning_summary"] = (
+            f"Votação: {winning_recommendation} "
+            f"({votes[winning_recommendation]:.1f}/{total_votes:.1f} votos)"
         )
 
         return result
@@ -957,32 +977,34 @@ class EnsembleSpecialist(BaseSpecialist):
             for model_name in sorted(self.models.keys()):
                 if model_name in predictions:
                     pred = predictions[model_name]
-                    base_predictions.extend([
-                        pred.get('confidence_score', 0.5),
-                        pred.get('risk_score', 0.5)
-                    ])
+                    base_predictions.extend(
+                        [pred.get("confidence_score", 0.5), pred.get("risk_score", 0.5)]
+                    )
 
             # Executar meta-modelo
             meta_features = np.array(base_predictions).reshape(1, -1)
 
             # Coletar informações sobre modelos base calibrados
             base_models_calibrated = [
-                model_name for model_name, pred in predictions.items()
-                if pred.get('calibrated', False)
+                model_name
+                for model_name, pred in predictions.items()
+                if pred.get("calibrated", False)
             ]
 
             # Tentar usar predict_proba para modelos de classificação
-            meta_model_method = 'unknown'
+            meta_model_method = "unknown"
             meta_model_calibrated = False
 
             try:
-                if hasattr(self.meta_model, 'predict_proba'):
+                if hasattr(self.meta_model, "predict_proba"):
                     # Usar predict_proba para obter probabilidades
                     probas = self.meta_model.predict_proba(meta_features)[0]
                     # Assumir que a segunda coluna é a probabilidade da classe positiva
-                    confidence = float(probas[1]) if len(probas) > 1 else float(probas[0])
+                    confidence = (
+                        float(probas[1]) if len(probas) > 1 else float(probas[0])
+                    )
                     risk = 1.0 - confidence
-                    meta_model_method = 'predict_proba'
+                    meta_model_method = "predict_proba"
                     meta_model_calibrated = True
 
                     logger.info(
@@ -990,16 +1012,16 @@ class EnsembleSpecialist(BaseSpecialist):
                         meta_model_method=meta_model_method,
                         confidence=confidence,
                         num_base_predictions=len(predictions),
-                        base_models_calibrated_count=len(base_models_calibrated)
+                        base_models_calibrated_count=len(base_models_calibrated),
                     )
 
-                elif hasattr(self.meta_model, 'decision_function'):
+                elif hasattr(self.meta_model, "decision_function"):
                     # Usar decision_function e escalar para [0,1]
                     decision_score = self.meta_model.decision_function(meta_features)[0]
                     # Aplicar sigmoid para converter para probabilidade
                     confidence = float(1.0 / (1.0 + np.exp(-decision_score)))
                     risk = 1.0 - confidence
-                    meta_model_method = 'decision_function'
+                    meta_model_method = "decision_function"
                     meta_model_calibrated = False
 
                     logger.warning(
@@ -1007,19 +1029,23 @@ class EnsembleSpecialist(BaseSpecialist):
                         meta_model_method=meta_model_method,
                         decision_score=decision_score,
                         confidence=confidence,
-                        num_base_predictions=len(predictions)
+                        num_base_predictions=len(predictions),
                     )
 
                 else:
                     # Fallback para predict
                     meta_prediction = self.meta_model.predict(meta_features)[0]
-                    meta_model_method = 'predict'
+                    meta_model_method = "predict"
                     meta_model_calibrated = False
 
                     # Converter predição do meta-modelo para formato padrão
                     if isinstance(meta_prediction, (list, np.ndarray)):
                         confidence = float(meta_prediction[0])
-                        risk = float(meta_prediction[1]) if len(meta_prediction) > 1 else 1.0 - confidence
+                        risk = (
+                            float(meta_prediction[1])
+                            if len(meta_prediction) > 1
+                            else 1.0 - confidence
+                        )
                     else:
                         confidence = float(meta_prediction)
                         risk = 1.0 - confidence
@@ -1028,47 +1054,45 @@ class EnsembleSpecialist(BaseSpecialist):
                         "Meta-model used predict fallback for stacking",
                         meta_model_method=meta_model_method,
                         confidence=confidence,
-                        num_base_predictions=len(predictions)
+                        num_base_predictions=len(predictions),
                     )
 
             except Exception as e:
                 logger.error(
-                    "Erro ao executar meta-modelo, usando fallback",
-                    error=str(e)
+                    "Erro ao executar meta-modelo, usando fallback", error=str(e)
                 )
                 # Fallback para predict simples
                 meta_prediction = self.meta_model.predict(meta_features)[0]
                 confidence = float(meta_prediction)
                 risk = 1.0 - confidence
-                meta_model_method = 'predict_fallback'
+                meta_model_method = "predict_fallback"
                 meta_model_calibrated = False
 
             # Determinar recomendação
             if confidence >= self.config.ensemble_approve_threshold:
-                recommendation = 'approve'
+                recommendation = "approve"
             elif confidence >= self.config.ensemble_review_threshold:
-                recommendation = 'review_required'
+                recommendation = "review_required"
             else:
-                recommendation = 'reject'
+                recommendation = "reject"
 
             return {
-                'confidence_score': confidence,
-                'risk_score': risk,
-                'calibrated': meta_model_calibrated,
-                'recommendation': recommendation,
-                'reasoning_summary': f'Stacking: meta-modelo combinou {len(predictions)} predições base',
-                'reasoning_factors': [],
-                'mitigations': [],
-                'metadata': {
-                    'meta_model_method': meta_model_method,
-                    'meta_model_calibrated': meta_model_calibrated,
-                    'base_models_calibrated': base_models_calibrated
-                }
+                "confidence_score": confidence,
+                "risk_score": risk,
+                "calibrated": meta_model_calibrated,
+                "recommendation": recommendation,
+                "reasoning_summary": f"Stacking: meta-modelo combinou {len(predictions)} predições base",
+                "reasoning_factors": [],
+                "mitigations": [],
+                "metadata": {
+                    "meta_model_method": meta_model_method,
+                    "meta_model_calibrated": meta_model_calibrated,
+                    "base_models_calibrated": base_models_calibrated,
+                },
             }
 
         except Exception as e:
             logger.error(
-                "Erro no stacking, usando weighted_average como fallback",
-                error=str(e)
+                "Erro no stacking, usando weighted_average como fallback", error=str(e)
             )
             return self._weighted_average_aggregation(predictions)

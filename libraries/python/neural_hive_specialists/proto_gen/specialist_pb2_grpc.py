@@ -9,29 +9,31 @@ from . import specialist_pb2 as specialist__pb2
 
 _logger = structlog.get_logger(__name__)
 
-GRPC_GENERATED_VERSION = '1.68.1'
+GRPC_GENERATED_VERSION = "1.68.1"
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
 try:
     from grpc._utilities import first_version_is_lower
-    _version_not_supported = first_version_is_lower(GRPC_VERSION, GRPC_GENERATED_VERSION)
+
+    _version_not_supported = first_version_is_lower(
+        GRPC_VERSION, GRPC_GENERATED_VERSION
+    )
 except ImportError:
     _version_not_supported = True
 
 if _version_not_supported:
     raise RuntimeError(
-        f'The grpc package installed is at version {GRPC_VERSION},'
-        + f' but the generated code in specialist_pb2_grpc.py depends on'
-        + f' grpcio>={GRPC_GENERATED_VERSION}.'
-        + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
-        + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
+        f"The grpc package installed is at version {GRPC_VERSION},"
+        + f" but the generated code in specialist_pb2_grpc.py depends on"
+        + f" grpcio>={GRPC_GENERATED_VERSION}."
+        + f" Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}"
+        + f" or downgrade your generated code using grpcio-tools<={GRPC_VERSION}."
     )
 
 
 class SpecialistServiceStub(object):
-    """Serviço principal do especialista
-    """
+    """Serviço principal do especialista"""
 
     def __init__(self, channel):
         """Constructor.
@@ -40,20 +42,23 @@ class SpecialistServiceStub(object):
             channel: A grpc.Channel.
         """
         self.EvaluatePlan = channel.unary_unary(
-                '/neural_hive.specialist.SpecialistService/EvaluatePlan',
-                request_serializer=specialist__pb2.EvaluatePlanRequest.SerializeToString,
-                response_deserializer=specialist__pb2.EvaluatePlanResponse.FromString,
-                _registered_method=True)
+            "/neural_hive.specialist.SpecialistService/EvaluatePlan",
+            request_serializer=specialist__pb2.EvaluatePlanRequest.SerializeToString,
+            response_deserializer=specialist__pb2.EvaluatePlanResponse.FromString,
+            _registered_method=True,
+        )
         self.HealthCheck = channel.unary_unary(
-                '/neural_hive.specialist.SpecialistService/HealthCheck',
-                request_serializer=specialist__pb2.HealthCheckRequest.SerializeToString,
-                response_deserializer=specialist__pb2.HealthCheckResponse.FromString,
-                _registered_method=True)
+            "/neural_hive.specialist.SpecialistService/HealthCheck",
+            request_serializer=specialist__pb2.HealthCheckRequest.SerializeToString,
+            response_deserializer=specialist__pb2.HealthCheckResponse.FromString,
+            _registered_method=True,
+        )
         self.GetCapabilities = channel.unary_unary(
-                '/neural_hive.specialist.SpecialistService/GetCapabilities',
-                request_serializer=specialist__pb2.GetCapabilitiesRequest.SerializeToString,
-                response_deserializer=specialist__pb2.GetCapabilitiesResponse.FromString,
-                _registered_method=True)
+            "/neural_hive.specialist.SpecialistService/GetCapabilities",
+            request_serializer=specialist__pb2.GetCapabilitiesRequest.SerializeToString,
+            response_deserializer=specialist__pb2.GetCapabilitiesResponse.FromString,
+            _registered_method=True,
+        )
 
 
 class SpecialistServiceServicer(object):
@@ -84,12 +89,12 @@ class SpecialistServiceServicer(object):
         Returns:
             EvaluatePlanResponse protobuf message
         """
-        if self._specialist is not None and hasattr(self._specialist, 'evaluate_plan'):
+        if self._specialist is not None and hasattr(self._specialist, "evaluate_plan"):
             try:
                 _logger.info(
                     "EvaluatePlan delegating to specialist",
                     plan_id=request.plan_id,
-                    intent_id=request.intent_id
+                    intent_id=request.intent_id,
                 )
                 result = self._specialist.evaluate_plan(request)
                 return self._build_evaluate_plan_response(result)
@@ -97,12 +102,14 @@ class SpecialistServiceServicer(object):
                 _logger.error("EvaluatePlan failed", error=str(e), exc_info=True)
                 context.abort(grpc.StatusCode.INTERNAL, str(e))
 
-        _logger.warning("EvaluatePlan: no specialist configured, returning empty response")
+        _logger.warning(
+            "EvaluatePlan: no specialist configured, returning empty response"
+        )
         return specialist__pb2.EvaluatePlanResponse(
             opinion_id="",
             specialist_type="unimplemented",
             specialist_version="0.0.0",
-            processing_time_ms=0
+            processing_time_ms=0,
         )
 
     def HealthCheck(self, request, context):
@@ -115,7 +122,7 @@ class SpecialistServiceServicer(object):
         Returns:
             HealthCheckResponse protobuf message
         """
-        if self._specialist is not None and hasattr(self._specialist, 'health_check'):
+        if self._specialist is not None and hasattr(self._specialist, "health_check"):
             try:
                 _logger.debug("HealthCheck delegating to specialist")
                 health_result = self._specialist.health_check()
@@ -124,13 +131,13 @@ class SpecialistServiceServicer(object):
                 _logger.error("HealthCheck failed", error=str(e))
                 return specialist__pb2.HealthCheckResponse(
                     status=specialist__pb2.HealthCheckResponse.NOT_SERVING,
-                    details={"error": str(e)}
+                    details={"error": str(e)},
                 )
 
         _logger.debug("HealthCheck: no specialist configured, returning SERVING")
         return specialist__pb2.HealthCheckResponse(
             status=specialist__pb2.HealthCheckResponse.SERVING,
-            details={"message": "default servicer - no specialist configured"}
+            details={"message": "default servicer - no specialist configured"},
         )
 
     def GetCapabilities(self, request, context):
@@ -143,7 +150,9 @@ class SpecialistServiceServicer(object):
         Returns:
             GetCapabilitiesResponse protobuf message
         """
-        if self._specialist is not None and hasattr(self._specialist, 'get_capabilities'):
+        if self._specialist is not None and hasattr(
+            self._specialist, "get_capabilities"
+        ):
             try:
                 _logger.debug("GetCapabilities delegating to specialist")
                 capabilities = self._specialist.get_capabilities()
@@ -157,7 +166,7 @@ class SpecialistServiceServicer(object):
             specialist_type="unimplemented",
             version="0.0.0",
             supported_domains=[],
-            supported_plan_versions=[]
+            supported_plan_versions=[],
         )
 
     def _build_evaluate_plan_response(self, result):
@@ -166,64 +175,64 @@ class SpecialistServiceServicer(object):
         from datetime import datetime, timezone
         from google.protobuf.timestamp_pb2 import Timestamp
 
-        opinion_data = result.get('opinion', {})
+        opinion_data = result.get("opinion", {})
 
         # Build reasoning factors
         reasoning_factors = [
             specialist__pb2.ReasoningFactor(
-                factor_name=f.get('factor_name', ''),
-                weight=f.get('weight', 0.0),
-                score=f.get('score', 0.0),
-                description=f.get('description', '')
+                factor_name=f.get("factor_name", ""),
+                weight=f.get("weight", 0.0),
+                score=f.get("score", 0.0),
+                description=f.get("description", ""),
             )
-            for f in opinion_data.get('reasoning_factors', [])
+            for f in opinion_data.get("reasoning_factors", [])
         ]
 
         # Build mitigations
         mitigations = [
             specialist__pb2.MitigationSuggestion(
-                mitigation_id=m.get('mitigation_id', ''),
-                description=m.get('description', ''),
-                priority=m.get('priority', 'medium'),
-                estimated_impact=m.get('estimated_impact', 0.0),
-                required_actions=m.get('required_actions', [])
+                mitigation_id=m.get("mitigation_id", ""),
+                description=m.get("description", ""),
+                priority=m.get("priority", "medium"),
+                estimated_impact=m.get("estimated_impact", 0.0),
+                required_actions=m.get("required_actions", []),
             )
-            for m in opinion_data.get('mitigations', [])
+            for m in opinion_data.get("mitigations", [])
         ]
 
         # Build explainability if present
         explainability = None
-        if 'explainability' in opinion_data:
-            exp_data = opinion_data['explainability']
+        if "explainability" in opinion_data:
+            exp_data = opinion_data["explainability"]
             feature_importances = [
                 specialist__pb2.FeatureImportance(
-                    feature_name=f.get('feature_name', ''),
-                    importance=f.get('importance', 0.0),
-                    contribution=f.get('contribution', 'neutral')
+                    feature_name=f.get("feature_name", ""),
+                    importance=f.get("importance", 0.0),
+                    contribution=f.get("contribution", "neutral"),
                 )
-                for f in exp_data.get('feature_importances', [])
+                for f in exp_data.get("feature_importances", [])
             ]
             explainability = specialist__pb2.ExplainabilityMetadata(
-                method=exp_data.get('method', 'heuristic'),
+                method=exp_data.get("method", "heuristic"),
                 feature_importances=feature_importances,
-                model_version=exp_data.get('model_version', ''),
-                model_type=exp_data.get('model_type', '')
+                model_version=exp_data.get("model_version", ""),
+                model_type=exp_data.get("model_type", ""),
             )
 
         # Convert metadata to map<string, string>
-        metadata_dict = opinion_data.get('metadata', {})
+        metadata_dict = opinion_data.get("metadata", {})
         metadata_str = {str(k): str(v) for k, v in metadata_dict.items()}
 
         opinion = specialist__pb2.SpecialistOpinion(
-            confidence_score=opinion_data.get('confidence_score', 0.0),
-            risk_score=opinion_data.get('risk_score', 0.0),
-            recommendation=opinion_data.get('recommendation', 'review_required'),
-            reasoning_summary=opinion_data.get('reasoning_summary', ''),
+            confidence_score=opinion_data.get("confidence_score", 0.0),
+            risk_score=opinion_data.get("risk_score", 0.0),
+            recommendation=opinion_data.get("recommendation", "review_required"),
+            reasoning_summary=opinion_data.get("reasoning_summary", ""),
             reasoning_factors=reasoning_factors,
-            explainability_token=opinion_data.get('explainability_token', ''),
+            explainability_token=opinion_data.get("explainability_token", ""),
             explainability=explainability,
             mitigations=mitigations,
-            metadata=metadata_str
+            metadata=metadata_str,
         )
 
         # Build timestamp
@@ -232,12 +241,12 @@ class SpecialistServiceServicer(object):
         timestamp.FromDatetime(now_utc)
 
         return specialist__pb2.EvaluatePlanResponse(
-            opinion_id=result.get('opinion_id', ''),
-            specialist_type=result.get('specialist_type', ''),
-            specialist_version=result.get('specialist_version', '1.0.0'),
+            opinion_id=result.get("opinion_id", ""),
+            specialist_type=result.get("specialist_type", ""),
+            specialist_version=result.get("specialist_version", "1.0.0"),
             opinion=opinion,
-            processing_time_ms=result.get('processing_time_ms', 0),
-            evaluated_at=timestamp
+            processing_time_ms=result.get("processing_time_ms", 0),
+            evaluated_at=timestamp,
         )
 
     def _build_health_check_response(self, health_result):
@@ -245,19 +254,19 @@ class SpecialistServiceServicer(object):
         import json
 
         status_map = {
-            'SERVING': specialist__pb2.HealthCheckResponse.SERVING,
-            'NOT_SERVING': specialist__pb2.HealthCheckResponse.NOT_SERVING,
-            'UNKNOWN': specialist__pb2.HealthCheckResponse.UNKNOWN,
-            'SERVICE_UNKNOWN': specialist__pb2.HealthCheckResponse.SERVICE_UNKNOWN
+            "SERVING": specialist__pb2.HealthCheckResponse.SERVING,
+            "NOT_SERVING": specialist__pb2.HealthCheckResponse.NOT_SERVING,
+            "UNKNOWN": specialist__pb2.HealthCheckResponse.UNKNOWN,
+            "SERVICE_UNKNOWN": specialist__pb2.HealthCheckResponse.SERVICE_UNKNOWN,
         }
 
         status = status_map.get(
-            health_result.get('status', 'UNKNOWN'),
-            specialist__pb2.HealthCheckResponse.UNKNOWN
+            health_result.get("status", "UNKNOWN"),
+            specialist__pb2.HealthCheckResponse.UNKNOWN,
         )
 
         # Convert details values to strings
-        raw_details = health_result.get('details', {})
+        raw_details = health_result.get("details", {})
         details = {}
         for key, value in raw_details.items():
             if isinstance(value, (dict, list)):
@@ -265,26 +274,23 @@ class SpecialistServiceServicer(object):
             else:
                 details[key] = str(value)
 
-        return specialist__pb2.HealthCheckResponse(
-            status=status,
-            details=details
-        )
+        return specialist__pb2.HealthCheckResponse(status=status, details=details)
 
     def _build_get_capabilities_response(self, capabilities):
         """Build GetCapabilitiesResponse from dict result."""
         from datetime import datetime
         from google.protobuf.timestamp_pb2 import Timestamp
 
-        metrics_data = capabilities.get('metrics', {})
+        metrics_data = capabilities.get("metrics", {})
         metrics = None
 
         if metrics_data:
             last_update = None
-            last_model_update_str = metrics_data.get('last_model_update')
+            last_model_update_str = metrics_data.get("last_model_update")
 
             if last_model_update_str:
                 try:
-                    normalized_str = last_model_update_str.replace('Z', '+00:00')
+                    normalized_str = last_model_update_str.replace("Z", "+00:00")
                     dt = datetime.fromisoformat(normalized_str)
                     last_update = Timestamp()
                     last_update.FromDatetime(dt)
@@ -293,72 +299,80 @@ class SpecialistServiceServicer(object):
 
             if last_update:
                 metrics = specialist__pb2.CapabilityMetrics(
-                    average_processing_time_ms=metrics_data.get('average_processing_time_ms', 0.0),
-                    accuracy_score=metrics_data.get('accuracy_score', 0.0),
-                    total_evaluations=metrics_data.get('total_evaluations', 0),
-                    last_model_update=last_update
+                    average_processing_time_ms=metrics_data.get(
+                        "average_processing_time_ms", 0.0
+                    ),
+                    accuracy_score=metrics_data.get("accuracy_score", 0.0),
+                    total_evaluations=metrics_data.get("total_evaluations", 0),
+                    last_model_update=last_update,
                 )
             else:
                 metrics = specialist__pb2.CapabilityMetrics(
-                    average_processing_time_ms=metrics_data.get('average_processing_time_ms', 0.0),
-                    accuracy_score=metrics_data.get('accuracy_score', 0.0),
-                    total_evaluations=metrics_data.get('total_evaluations', 0)
+                    average_processing_time_ms=metrics_data.get(
+                        "average_processing_time_ms", 0.0
+                    ),
+                    accuracy_score=metrics_data.get("accuracy_score", 0.0),
+                    total_evaluations=metrics_data.get("total_evaluations", 0),
                 )
 
         return specialist__pb2.GetCapabilitiesResponse(
-            specialist_type=capabilities.get('specialist_type', ''),
-            version=capabilities.get('version', ''),
-            supported_domains=capabilities.get('supported_domains', []),
-            supported_plan_versions=capabilities.get('supported_plan_versions', []),
+            specialist_type=capabilities.get("specialist_type", ""),
+            version=capabilities.get("version", ""),
+            supported_domains=capabilities.get("supported_domains", []),
+            supported_plan_versions=capabilities.get("supported_plan_versions", []),
             metrics=metrics,
-            configuration=capabilities.get('configuration', {})
+            configuration=capabilities.get("configuration", {}),
         )
 
 
 def add_SpecialistServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'EvaluatePlan': grpc.unary_unary_rpc_method_handler(
-                    servicer.EvaluatePlan,
-                    request_deserializer=specialist__pb2.EvaluatePlanRequest.FromString,
-                    response_serializer=specialist__pb2.EvaluatePlanResponse.SerializeToString,
-            ),
-            'HealthCheck': grpc.unary_unary_rpc_method_handler(
-                    servicer.HealthCheck,
-                    request_deserializer=specialist__pb2.HealthCheckRequest.FromString,
-                    response_serializer=specialist__pb2.HealthCheckResponse.SerializeToString,
-            ),
-            'GetCapabilities': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetCapabilities,
-                    request_deserializer=specialist__pb2.GetCapabilitiesRequest.FromString,
-                    response_serializer=specialist__pb2.GetCapabilitiesResponse.SerializeToString,
-            ),
+        "EvaluatePlan": grpc.unary_unary_rpc_method_handler(
+            servicer.EvaluatePlan,
+            request_deserializer=specialist__pb2.EvaluatePlanRequest.FromString,
+            response_serializer=specialist__pb2.EvaluatePlanResponse.SerializeToString,
+        ),
+        "HealthCheck": grpc.unary_unary_rpc_method_handler(
+            servicer.HealthCheck,
+            request_deserializer=specialist__pb2.HealthCheckRequest.FromString,
+            response_serializer=specialist__pb2.HealthCheckResponse.SerializeToString,
+        ),
+        "GetCapabilities": grpc.unary_unary_rpc_method_handler(
+            servicer.GetCapabilities,
+            request_deserializer=specialist__pb2.GetCapabilitiesRequest.FromString,
+            response_serializer=specialist__pb2.GetCapabilitiesResponse.SerializeToString,
+        ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'neural_hive.specialist.SpecialistService', rpc_method_handlers)
+        "neural_hive.specialist.SpecialistService", rpc_method_handlers
+    )
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('neural_hive.specialist.SpecialistService', rpc_method_handlers)
+    server.add_registered_method_handlers(
+        "neural_hive.specialist.SpecialistService", rpc_method_handlers
+    )
 
 
- # This class is part of an EXPERIMENTAL API.
+# This class is part of an EXPERIMENTAL API.
 class SpecialistService(object):
-    """Serviço principal do especialista
-    """
+    """Serviço principal do especialista"""
 
     @staticmethod
-    def EvaluatePlan(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
+    def EvaluatePlan(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/neural_hive.specialist.SpecialistService/EvaluatePlan',
+            "/neural_hive.specialist.SpecialistService/EvaluatePlan",
             specialist__pb2.EvaluatePlanRequest.SerializeToString,
             specialist__pb2.EvaluatePlanResponse.FromString,
             options,
@@ -369,23 +383,26 @@ class SpecialistService(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True)
+            _registered_method=True,
+        )
 
     @staticmethod
-    def HealthCheck(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
+    def HealthCheck(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/neural_hive.specialist.SpecialistService/HealthCheck',
+            "/neural_hive.specialist.SpecialistService/HealthCheck",
             specialist__pb2.HealthCheckRequest.SerializeToString,
             specialist__pb2.HealthCheckResponse.FromString,
             options,
@@ -396,23 +413,26 @@ class SpecialistService(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True)
+            _registered_method=True,
+        )
 
     @staticmethod
-    def GetCapabilities(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
+    def GetCapabilities(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/neural_hive.specialist.SpecialistService/GetCapabilities',
+            "/neural_hive.specialist.SpecialistService/GetCapabilities",
             specialist__pb2.GetCapabilitiesRequest.SerializeToString,
             specialist__pb2.GetCapabilitiesResponse.FromString,
             options,
@@ -423,4 +443,5 @@ class SpecialistService(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True)
+            _registered_method=True,
+        )

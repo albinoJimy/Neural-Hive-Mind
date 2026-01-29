@@ -20,6 +20,7 @@ logger = structlog.get_logger(__name__)
 
 class HealthStatus(str, Enum):
     """Status de saúde de um componente."""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -35,7 +36,7 @@ class ComponentHealth:
         status: HealthStatus,
         message: Optional[str] = None,
         details: Optional[Dict[str, Any]] = None,
-        latency_ms: Optional[float] = None
+        latency_ms: Optional[float] = None,
     ):
         self.component_name = component_name
         self.status = status
@@ -47,12 +48,12 @@ class ComponentHealth:
     def to_dict(self) -> Dict[str, Any]:
         """Converte para dicionário."""
         return {
-            'component': self.component_name,
-            'status': self.status.value,
-            'message': self.message,
-            'details': self.details,
-            'latency_ms': self.latency_ms,
-            'checked_at': self.checked_at.isoformat()
+            "component": self.component_name,
+            "status": self.status.value,
+            "message": self.message,
+            "details": self.details,
+            "latency_ms": self.latency_ms,
+            "checked_at": self.checked_at.isoformat(),
         }
 
 
@@ -76,8 +77,7 @@ class SpecialistHealthChecker:
         self._cache_ttl_seconds = 30
 
         logger.info(
-            "SpecialistHealthChecker initialized",
-            specialist_type=specialist_type
+            "SpecialistHealthChecker initialized", specialist_type=specialist_type
         )
 
     async def check_all_health(self) -> Dict[str, Any]:
@@ -102,7 +102,7 @@ class SpecialistHealthChecker:
                 self._check_feature_extraction_health(),
                 self._check_circuit_breakers_health(),
                 self._check_ledger_health(),
-                return_exceptions=True
+                return_exceptions=True,
             )
 
             # Processar resultados
@@ -110,11 +110,13 @@ class SpecialistHealthChecker:
             for result in results:
                 if isinstance(result, Exception):
                     logger.error("Health check failed", error=str(result))
-                    components.append(ComponentHealth(
-                        component_name="unknown",
-                        status=HealthStatus.UNHEALTHY,
-                        message=str(result)
-                    ))
+                    components.append(
+                        ComponentHealth(
+                            component_name="unknown",
+                            status=HealthStatus.UNHEALTHY,
+                            message=str(result),
+                        )
+                    )
                 elif isinstance(result, ComponentHealth):
                     components.append(result)
 
@@ -122,11 +124,11 @@ class SpecialistHealthChecker:
             overall_status = self._determine_overall_status(components)
 
             health_report = {
-                'specialist_type': self.specialist_type,
-                'overall_status': overall_status.value,
-                'checked_at': datetime.utcnow().isoformat(),
-                'components': [comp.to_dict() for comp in components],
-                'summary': self._generate_summary(components)
+                "specialist_type": self.specialist_type,
+                "overall_status": overall_status.value,
+                "checked_at": datetime.utcnow().isoformat(),
+                "components": [comp.to_dict() for comp in components],
+                "summary": self._generate_summary(components),
             }
 
             # Atualizar cache
@@ -136,7 +138,7 @@ class SpecialistHealthChecker:
             logger.info(
                 "Health check completed",
                 overall_status=overall_status.value,
-                components_count=len(components)
+                components_count=len(components),
             )
 
             return health_report
@@ -144,10 +146,10 @@ class SpecialistHealthChecker:
         except Exception as e:
             logger.error("Failed to check health", error=str(e), exc_info=True)
             return {
-                'specialist_type': self.specialist_type,
-                'overall_status': HealthStatus.UNHEALTHY.value,
-                'checked_at': datetime.utcnow().isoformat(),
-                'error': str(e)
+                "specialist_type": self.specialist_type,
+                "overall_status": HealthStatus.UNHEALTHY.value,
+                "checked_at": datetime.utcnow().isoformat(),
+                "error": str(e),
             }
 
     async def _check_mongodb_health(self) -> ComponentHealth:
@@ -156,21 +158,20 @@ class SpecialistHealthChecker:
 
         try:
             client = MongoClient(
-                self.config.get('mongodb_uri'),
-                serverSelectionTimeoutMS=5000
+                self.config.get("mongodb_uri"), serverSelectionTimeoutMS=5000
             )
 
             # Ping MongoDB
-            client.admin.command('ping')
+            client.admin.command("ping")
 
             # Verificar database
-            db = client[self.config.get('mongodb_database', 'neural_hive')]
+            db = client[self.config.get("mongodb_database", "neural_hive")]
             collections = db.list_collection_names()
 
             latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
 
             # Verificar tamanho do ledger
-            ledger_size = db['cognitive_ledger'].count_documents({})
+            ledger_size = db["cognitive_ledger"].count_documents({})
 
             status = HealthStatus.HEALTHY
             message = "MongoDB operational"
@@ -181,24 +182,24 @@ class SpecialistHealthChecker:
                 message = "MongoDB slow response"
 
             return ComponentHealth(
-                component_name='mongodb',
+                component_name="mongodb",
                 status=status,
                 message=message,
                 details={
-                    'collections_count': len(collections),
-                    'ledger_documents': ledger_size
+                    "collections_count": len(collections),
+                    "ledger_documents": ledger_size,
                 },
-                latency_ms=latency_ms
+                latency_ms=latency_ms,
             )
 
         except PyMongoError as e:
             latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
 
             return ComponentHealth(
-                component_name='mongodb',
+                component_name="mongodb",
                 status=HealthStatus.UNHEALTHY,
                 message=f"MongoDB error: {str(e)}",
-                latency_ms=latency_ms
+                latency_ms=latency_ms,
             )
 
     async def _check_mlflow_health(self) -> ComponentHealth:
@@ -206,13 +207,13 @@ class SpecialistHealthChecker:
         start_time = datetime.utcnow()
 
         try:
-            mlflow_uri = self.config.get('mlflow_tracking_uri')
+            mlflow_uri = self.config.get("mlflow_tracking_uri")
 
             if not mlflow_uri:
                 return ComponentHealth(
-                    component_name='mlflow',
+                    component_name="mlflow",
                     status=HealthStatus.UNKNOWN,
-                    message="MLflow not configured"
+                    message="MLflow not configured",
                 )
 
             # Configurar MLflow
@@ -225,13 +226,15 @@ class SpecialistHealthChecker:
             latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
 
             # Verificar modelo registrado
-            model_name = self.config.get('mlflow_model_name')
+            model_name = self.config.get("mlflow_model_name")
             model_status = "not_configured"
 
             if model_name:
                 try:
                     registered_model = client.get_registered_model(model_name)
-                    latest_versions = client.get_latest_versions(model_name, stages=["Production"])
+                    latest_versions = client.get_latest_versions(
+                        model_name, stages=["Production"]
+                    )
 
                     model_status = "registered"
                     if latest_versions:
@@ -248,25 +251,25 @@ class SpecialistHealthChecker:
                 message = "MLflow operational but model not found"
 
             return ComponentHealth(
-                component_name='mlflow',
+                component_name="mlflow",
                 status=status,
                 message=message,
                 details={
-                    'experiments_count': len(experiments),
-                    'model_name': model_name,
-                    'model_status': model_status
+                    "experiments_count": len(experiments),
+                    "model_name": model_name,
+                    "model_status": model_status,
                 },
-                latency_ms=latency_ms
+                latency_ms=latency_ms,
             )
 
         except Exception as e:
             latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
 
             return ComponentHealth(
-                component_name='mlflow',
+                component_name="mlflow",
                 status=HealthStatus.UNHEALTHY,
                 message=f"MLflow error: {str(e)}",
-                latency_ms=latency_ms
+                latency_ms=latency_ms,
             )
 
     async def _check_feature_extraction_health(self) -> ComponentHealth:
@@ -275,17 +278,17 @@ class SpecialistHealthChecker:
 
         try:
             # Verificar se feature extraction está habilitado
-            enabled = self.config.get('enable_feature_extraction', True)
+            enabled = self.config.get("enable_feature_extraction", True)
 
             if not enabled:
                 return ComponentHealth(
-                    component_name='feature_extraction',
+                    component_name="feature_extraction",
                     status=HealthStatus.UNKNOWN,
-                    message="Feature extraction disabled"
+                    message="Feature extraction disabled",
                 )
 
             # Verificar ontologias carregadas
-            ontology_path = self.config.get('ontology_path')
+            ontology_path = self.config.get("ontology_path")
 
             status = HealthStatus.HEALTHY
             message = "Feature extraction operational"
@@ -293,35 +296,38 @@ class SpecialistHealthChecker:
 
             if ontology_path:
                 import os
+
                 if os.path.exists(ontology_path):
-                    details['ontology_loaded'] = True
+                    details["ontology_loaded"] = True
                 else:
                     status = HealthStatus.DEGRADED
                     message = "Ontology file not found"
-                    details['ontology_loaded'] = False
+                    details["ontology_loaded"] = False
 
             # Verificar embeddings model
-            embeddings_model = self.config.get('embeddings_model', 'paraphrase-multilingual-MiniLM-L12-v2')
-            details['embeddings_model'] = embeddings_model
+            embeddings_model = self.config.get(
+                "embeddings_model", "paraphrase-multilingual-MiniLM-L12-v2"
+            )
+            details["embeddings_model"] = embeddings_model
 
             latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
 
             return ComponentHealth(
-                component_name='feature_extraction',
+                component_name="feature_extraction",
                 status=status,
                 message=message,
                 details=details,
-                latency_ms=latency_ms
+                latency_ms=latency_ms,
             )
 
         except Exception as e:
             latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
 
             return ComponentHealth(
-                component_name='feature_extraction',
+                component_name="feature_extraction",
                 status=HealthStatus.UNHEALTHY,
                 message=f"Feature extraction error: {str(e)}",
-                latency_ms=latency_ms
+                latency_ms=latency_ms,
             )
 
     async def _check_circuit_breakers_health(self) -> ComponentHealth:
@@ -329,46 +335,46 @@ class SpecialistHealthChecker:
         start_time = datetime.utcnow()
 
         try:
-            enabled = self.config.get('enable_circuit_breaker', True)
+            enabled = self.config.get("enable_circuit_breaker", True)
 
             if not enabled:
                 return ComponentHealth(
-                    component_name='circuit_breakers',
+                    component_name="circuit_breakers",
                     status=HealthStatus.UNKNOWN,
-                    message="Circuit breakers disabled"
+                    message="Circuit breakers disabled",
                 )
 
             # Por enquanto, apenas verificar configuração
             # Em produção, verificaria o estado atual dos breakers
-            failure_threshold = self.config.get('circuit_breaker_failure_threshold', 5)
-            recovery_timeout = self.config.get('circuit_breaker_recovery_timeout', 60)
+            failure_threshold = self.config.get("circuit_breaker_failure_threshold", 5)
+            recovery_timeout = self.config.get("circuit_breaker_recovery_timeout", 60)
 
             status = HealthStatus.HEALTHY
             message = "Circuit breakers operational"
 
             details = {
-                'failure_threshold': failure_threshold,
-                'recovery_timeout_seconds': recovery_timeout
+                "failure_threshold": failure_threshold,
+                "recovery_timeout_seconds": recovery_timeout,
             }
 
             latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
 
             return ComponentHealth(
-                component_name='circuit_breakers',
+                component_name="circuit_breakers",
                 status=status,
                 message=message,
                 details=details,
-                latency_ms=latency_ms
+                latency_ms=latency_ms,
             )
 
         except Exception as e:
             latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
 
             return ComponentHealth(
-                component_name='circuit_breakers',
+                component_name="circuit_breakers",
                 status=HealthStatus.UNHEALTHY,
                 message=f"Circuit breakers error: {str(e)}",
-                latency_ms=latency_ms
+                latency_ms=latency_ms,
             )
 
     async def _check_ledger_health(self) -> ComponentHealth:
@@ -377,28 +383,33 @@ class SpecialistHealthChecker:
 
         try:
             client = MongoClient(
-                self.config.get('mongodb_uri'),
-                serverSelectionTimeoutMS=5000
+                self.config.get("mongodb_uri"), serverSelectionTimeoutMS=5000
             )
 
-            db = client[self.config.get('mongodb_database', 'neural_hive')]
-            collection = db['cognitive_ledger']
+            db = client[self.config.get("mongodb_database", "neural_hive")]
+            collection = db["cognitive_ledger"]
 
             # Verificar documentos recentes
             cutoff_time = datetime.utcnow() - timedelta(hours=24)
-            recent_count = collection.count_documents({
-                'evaluated_at': {'$gte': cutoff_time},
-                'specialist_type': self.specialist_type
-            })
+            recent_count = collection.count_documents(
+                {
+                    "evaluated_at": {"$gte": cutoff_time},
+                    "specialist_type": self.specialist_type,
+                }
+            )
 
             # Verificar documentos bufferizados
-            buffered_count = collection.count_documents({
-                'evaluated_at': {'$gte': cutoff_time},
-                'specialist_type': self.specialist_type,
-                'buffered': True
-            })
+            buffered_count = collection.count_documents(
+                {
+                    "evaluated_at": {"$gte": cutoff_time},
+                    "specialist_type": self.specialist_type,
+                    "buffered": True,
+                }
+            )
 
-            buffered_rate = (buffered_count / recent_count * 100) if recent_count > 0 else 0.0
+            buffered_rate = (
+                (buffered_count / recent_count * 100) if recent_count > 0 else 0.0
+            )
 
             status = HealthStatus.HEALTHY
             message = "Ledger operational"
@@ -411,28 +422,30 @@ class SpecialistHealthChecker:
             latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
 
             return ComponentHealth(
-                component_name='ledger',
+                component_name="ledger",
                 status=status,
                 message=message,
                 details={
-                    'recent_opinions_24h': recent_count,
-                    'buffered_count': buffered_count,
-                    'buffered_rate_pct': buffered_rate
+                    "recent_opinions_24h": recent_count,
+                    "buffered_count": buffered_count,
+                    "buffered_rate_pct": buffered_rate,
                 },
-                latency_ms=latency_ms
+                latency_ms=latency_ms,
             )
 
         except Exception as e:
             latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
 
             return ComponentHealth(
-                component_name='ledger',
+                component_name="ledger",
                 status=HealthStatus.UNHEALTHY,
                 message=f"Ledger error: {str(e)}",
-                latency_ms=latency_ms
+                latency_ms=latency_ms,
             )
 
-    def _determine_overall_status(self, components: List[ComponentHealth]) -> HealthStatus:
+    def _determine_overall_status(
+        self, components: List[ComponentHealth]
+    ) -> HealthStatus:
         """
         Determina status geral baseado nos componentes.
 
@@ -446,7 +459,7 @@ class SpecialistHealthChecker:
             return HealthStatus.UNKNOWN
 
         # Se algum componente crítico está UNHEALTHY, sistema é UNHEALTHY
-        critical_components = {'mongodb', 'ledger'}
+        critical_components = {"mongodb", "ledger"}
 
         for comp in components:
             if comp.component_name in critical_components:
@@ -477,16 +490,22 @@ class SpecialistHealthChecker:
         """
         healthy_count = sum(1 for c in components if c.status == HealthStatus.HEALTHY)
         degraded_count = sum(1 for c in components if c.status == HealthStatus.DEGRADED)
-        unhealthy_count = sum(1 for c in components if c.status == HealthStatus.UNHEALTHY)
+        unhealthy_count = sum(
+            1 for c in components if c.status == HealthStatus.UNHEALTHY
+        )
 
-        avg_latency = sum(c.latency_ms for c in components if c.latency_ms) / len(components) if components else 0.0
+        avg_latency = (
+            sum(c.latency_ms for c in components if c.latency_ms) / len(components)
+            if components
+            else 0.0
+        )
 
         return {
-            'total_components': len(components),
-            'healthy_components': healthy_count,
-            'degraded_components': degraded_count,
-            'unhealthy_components': unhealthy_count,
-            'avg_latency_ms': avg_latency
+            "total_components": len(components),
+            "healthy_components": healthy_count,
+            "degraded_components": degraded_count,
+            "unhealthy_components": unhealthy_count,
+            "avg_latency_ms": avg_latency,
         }
 
     def _is_cache_valid(self) -> bool:

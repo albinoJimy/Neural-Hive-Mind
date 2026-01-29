@@ -23,11 +23,21 @@ def checker():
 async def test_check_all_health_aggregates_status(checker, monkeypatch):
     healthy = ComponentHealth("mongodb", HealthStatus.HEALTHY)
     degraded = ComponentHealth("redis", HealthStatus.DEGRADED)
-    monkeypatch.setattr(checker, "_check_mongodb_health", AsyncMock(return_value=healthy))
-    monkeypatch.setattr(checker, "_check_mlflow_health", AsyncMock(return_value=healthy))
-    monkeypatch.setattr(checker, "_check_feature_extraction_health", AsyncMock(return_value=degraded))
-    monkeypatch.setattr(checker, "_check_circuit_breakers_health", AsyncMock(return_value=healthy))
-    monkeypatch.setattr(checker, "_check_ledger_health", AsyncMock(return_value=healthy))
+    monkeypatch.setattr(
+        checker, "_check_mongodb_health", AsyncMock(return_value=healthy)
+    )
+    monkeypatch.setattr(
+        checker, "_check_mlflow_health", AsyncMock(return_value=healthy)
+    )
+    monkeypatch.setattr(
+        checker, "_check_feature_extraction_health", AsyncMock(return_value=degraded)
+    )
+    monkeypatch.setattr(
+        checker, "_check_circuit_breakers_health", AsyncMock(return_value=healthy)
+    )
+    monkeypatch.setattr(
+        checker, "_check_ledger_health", AsyncMock(return_value=healthy)
+    )
 
     report = await checker.check_all_health()
 
@@ -50,7 +60,13 @@ async def test_check_all_health_uses_cache(checker, monkeypatch):
 
 @pytest.mark.unit
 def test_component_health_to_dict_includes_fields():
-    comp = ComponentHealth("mlflow", HealthStatus.HEALTHY, message="ok", details={"version": "1.0"}, latency_ms=12.3)
+    comp = ComponentHealth(
+        "mlflow",
+        HealthStatus.HEALTHY,
+        message="ok",
+        details={"version": "1.0"},
+        latency_ms=12.3,
+    )
     data = comp.to_dict()
     assert data["component"] == "mlflow"
     assert data["status"] == "healthy"

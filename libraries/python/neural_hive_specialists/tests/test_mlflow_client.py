@@ -18,16 +18,18 @@ class TestMLflowClient:
     @pytest.fixture
     def mlflow_client(self, mock_config):
         """Cria cliente MLflow para testes."""
-        with patch('neural_hive_specialists.mlflow_client.mlflow'):
+        with patch("neural_hive_specialists.mlflow_client.mlflow"):
             client = MLflowClient(mock_config)
             return client
 
-    def test_get_last_model_update_returns_iso_string_when_available(self, mlflow_client):
+    def test_get_last_model_update_returns_iso_string_when_available(
+        self, mlflow_client
+    ):
         """Testa que retorna ISO-8601 string quando timestamp disponível."""
         # Mock metadata com timestamp
         mock_metadata = {
-            'version': '1',
-            'last_updated_timestamp': 1705315800000  # 2024-01-15T10:30:00
+            "version": "1",
+            "last_updated_timestamp": 1705315800000,  # 2024-01-15T10:30:00
         }
 
         mlflow_client.get_model_metadata = Mock(return_value=mock_metadata)
@@ -39,7 +41,9 @@ class TestMLflowClient:
         # Verificar formato ISO-8601
         datetime.fromisoformat(result)  # Não deve lançar exceção
 
-    def test_get_last_model_update_returns_none_when_metadata_empty(self, mlflow_client):
+    def test_get_last_model_update_returns_none_when_metadata_empty(
+        self, mlflow_client
+    ):
         """Testa que retorna None quando metadata está vazio."""
         mlflow_client.get_model_metadata = Mock(return_value={})
 
@@ -47,12 +51,11 @@ class TestMLflowClient:
 
         assert result is None
 
-    def test_get_last_model_update_returns_none_when_timestamp_missing(self, mlflow_client):
+    def test_get_last_model_update_returns_none_when_timestamp_missing(
+        self, mlflow_client
+    ):
         """Testa que retorna None quando timestamp não está presente."""
-        mock_metadata = {
-            'version': '1',
-            'description': 'Test model'
-        }
+        mock_metadata = {"version": "1", "description": "Test model"}
 
         mlflow_client.get_model_metadata = Mock(return_value=mock_metadata)
 
@@ -66,7 +69,7 @@ class TestMLflowClient:
             side_effect=Exception("Connection error")
         )
 
-        with patch('neural_hive_specialists.mlflow_client.logger') as mock_logger:
+        with patch("neural_hive_specialists.mlflow_client.logger") as mock_logger:
             result = mlflow_client.get_last_model_update()
 
             assert result is None
@@ -76,13 +79,13 @@ class TestMLflowClient:
     def test_get_last_model_update_handles_invalid_timestamp(self, mlflow_client):
         """Testa que retorna None quando timestamp é inválido."""
         mock_metadata = {
-            'version': '1',
-            'last_updated_timestamp': 'invalid'  # String ao invés de número
+            "version": "1",
+            "last_updated_timestamp": "invalid",  # String ao invés de número
         }
 
         mlflow_client.get_model_metadata = Mock(return_value=mock_metadata)
 
-        with patch('neural_hive_specialists.mlflow_client.logger') as mock_logger:
+        with patch("neural_hive_specialists.mlflow_client.logger") as mock_logger:
             result = mlflow_client.get_last_model_update()
 
             # Deve retornar None ao invés de lançar exceção
@@ -96,11 +99,11 @@ class TestMLflowClient:
 
         hints = get_type_hints(MLflowClient.get_last_model_update)
         # Verificar que retorno é Optional[str]
-        assert 'return' in hints
+        assert "return" in hints
         # O tipo deve ser Union[str, None] ou Optional[str]
-        return_type = str(hints['return'])
-        assert 'str' in return_type
-        assert ('None' in return_type or 'Optional' in return_type)
+        return_type = str(hints["return"])
+        assert "str" in return_type
+        assert "None" in return_type or "Optional" in return_type
 
 
 @pytest.mark.unit
@@ -110,7 +113,7 @@ class TestLoadModel:
     @pytest.fixture
     def mlflow_client(self, mock_config):
         """Cria cliente MLflow para testes."""
-        with patch('neural_hive_specialists.mlflow_client.mlflow') as mock_mlflow:
+        with patch("neural_hive_specialists.mlflow_client.mlflow") as mock_mlflow:
             client = MLflowClient(mock_config)
             client._mlflow = mock_mlflow
             return client
@@ -143,10 +146,12 @@ class TestLoadModel:
         """Testa que modelo é recarregado após TTL expirar."""
         mock_model1 = Mock(name="model1")
         mock_model2 = Mock(name="model2")
-        mlflow_client._mlflow.pyfunc.load_model = Mock(side_effect=[mock_model1, mock_model2])
+        mlflow_client._mlflow.pyfunc.load_model = Mock(
+            side_effect=[mock_model1, mock_model2]
+        )
 
         # Mock time.time para simular TTL expirado
-        with patch('time.time', side_effect=[0, 0, 3700]):  # TTL = 3600s
+        with patch("time.time", side_effect=[0, 0, 3700]):  # TTL = 3600s
             # Primeiro carregamento
             model1 = mlflow_client.load_model("test_model", "Production")
             # Segundo carregamento com TTL expirado
@@ -163,7 +168,7 @@ class TestLoadModel:
             side_effect=[Exception("Transient error"), mock_model]
         )
 
-        with patch('neural_hive_specialists.mlflow_client.logger'):
+        with patch("neural_hive_specialists.mlflow_client.logger"):
             model = mlflow_client.load_model("test_model", "Production")
 
             assert model == mock_model
@@ -187,7 +192,7 @@ class TestLoadModelWithFallback:
     @pytest.fixture
     def mlflow_client(self, config, mock_metrics):
         """Cria cliente MLflow com métricas para testes."""
-        with patch('neural_hive_specialists.mlflow_client.mlflow') as mock_mlflow:
+        with patch("neural_hive_specialists.mlflow_client.mlflow") as mock_mlflow:
             client = MLflowClient(config, metrics=mock_metrics)
             client._mlflow = mock_mlflow
             return client
@@ -201,13 +206,16 @@ class TestLoadModelWithFallback:
 
         assert model == mock_model
 
-    def test_load_with_fallback_returns_cached_on_circuit_breaker_error(self, mlflow_client):
+    def test_load_with_fallback_returns_cached_on_circuit_breaker_error(
+        self, mlflow_client
+    ):
         """Testa que cache é retornado quando circuit breaker está aberto."""
         mock_cached_model = Mock(name="cached")
         mlflow_client._model_cache = {"test_model:Production": mock_cached_model}
         mlflow_client._cache_timestamps = {"test_model:Production": 12345}
 
         from circuitbreaker import CircuitBreakerError
+
         mlflow_client.load_model = Mock(side_effect=CircuitBreakerError("Circuit open"))
 
         model = mlflow_client.load_model_with_fallback("test_model", "Production")
@@ -218,26 +226,32 @@ class TestLoadModelWithFallback:
     def test_load_with_fallback_returns_none_without_cache(self, mlflow_client):
         """Testa que None é retornado quando não há cache disponível."""
         from circuitbreaker import CircuitBreakerError
+
         mlflow_client.load_model = Mock(side_effect=CircuitBreakerError("Circuit open"))
 
         model = mlflow_client.load_model_with_fallback("test_model", "Production")
 
         assert model is None
 
-    def test_load_with_fallback_updates_metrics_on_cache_use(self, mlflow_client, mock_metrics):
+    def test_load_with_fallback_updates_metrics_on_cache_use(
+        self, mlflow_client, mock_metrics
+    ):
         """Verifica que métricas são atualizadas ao usar cache expirado."""
         mock_cached_model = Mock()
         mlflow_client._model_cache = {"test_model:Production": mock_cached_model}
         mlflow_client._cache_timestamps = {"test_model:Production": 12345}
 
         from circuitbreaker import CircuitBreakerError
+
         mlflow_client.load_model = Mock(side_effect=CircuitBreakerError("Circuit open"))
 
         mlflow_client.load_model_with_fallback("test_model", "Production")
 
         # Métricas devem ser atualizadas
         if mock_metrics:
-            assert mock_metrics.increment_cache_hits.called or True  # Depende da implementação
+            assert (
+                mock_metrics.increment_cache_hits.called or True
+            )  # Depende da implementação
 
 
 @pytest.mark.unit
@@ -251,23 +265,23 @@ class TestCircuitBreaker:
         mock_config.circuit_breaker_failure_threshold = 2
         mock_config.circuit_breaker_recovery_timeout = 1
 
-        with patch('neural_hive_specialists.mlflow_client.mlflow'):
+        with patch("neural_hive_specialists.mlflow_client.mlflow"):
             client = MLflowClient(mock_config, metrics=mock_metrics)
             return client
 
     def test_circuit_breaker_state_transitions(self, mlflow_client):
         """Testa transições de estado do circuit breaker."""
-        assert mlflow_client._circuit_breaker_state == 'closed'
+        assert mlflow_client._circuit_breaker_state == "closed"
 
         # Simular falhas para abrir circuit breaker
-        mlflow_client._circuit_breaker_state = 'open'
-        assert mlflow_client._circuit_breaker_state == 'open'
+        mlflow_client._circuit_breaker_state = "open"
+        assert mlflow_client._circuit_breaker_state == "open"
 
     def test_metrics_updated_on_circuit_state_change(self, mlflow_client, mock_metrics):
         """Verifica que métricas são invocadas na mudança de estado."""
         # Verificar que métricas foram inicializadas com estado 'closed'
         if mock_metrics:
-            mock_metrics.set_circuit_breaker_state.assert_any_call('mlflow', 'closed')
+            mock_metrics.set_circuit_breaker_state.assert_any_call("mlflow", "closed")
 
 
 @pytest.mark.unit
@@ -277,7 +291,7 @@ class TestCacheManagement:
     @pytest.fixture
     def mlflow_client(self, mock_config):
         """Cria cliente para testes de cache."""
-        with patch('neural_hive_specialists.mlflow_client.mlflow'):
+        with patch("neural_hive_specialists.mlflow_client.mlflow"):
             return MLflowClient(mock_config)
 
     def test_is_cache_valid_true(self, mlflow_client):
@@ -285,7 +299,7 @@ class TestCacheManagement:
         cache_key = "test_model:Production"
         mlflow_client._cache_timestamps = {cache_key: 1000}
 
-        with patch('time.time', return_value=1100):  # 100s depois, TTL=3600
+        with patch("time.time", return_value=1100):  # 100s depois, TTL=3600
             is_valid = mlflow_client._is_cache_valid(cache_key)
 
         assert is_valid is True
@@ -295,7 +309,7 @@ class TestCacheManagement:
         cache_key = "test_model:Production"
         mlflow_client._cache_timestamps = {cache_key: 1000}
 
-        with patch('time.time', return_value=5000):  # 4000s depois, TTL=3600
+        with patch("time.time", return_value=5000):  # 4000s depois, TTL=3600
             is_valid = mlflow_client._is_cache_valid(cache_key)
 
         assert is_valid is False
@@ -320,7 +334,7 @@ class TestGetModelMetadata:
     @pytest.fixture
     def mlflow_client(self, mock_config):
         """Cria cliente MLflow para testes."""
-        with patch('neural_hive_specialists.mlflow_client.mlflow') as mock_mlflow:
+        with patch("neural_hive_specialists.mlflow_client.mlflow") as mock_mlflow:
             client = MLflowClient(mock_config)
             client._mlflow = mock_mlflow
             client._tracking_client = Mock()
@@ -338,8 +352,8 @@ class TestGetModelMetadata:
 
         metadata = mlflow_client.get_model_metadata("test_model", "Production")
 
-        assert metadata['version'] == "1"
-        assert metadata['last_updated_timestamp'] == 1705315800000
+        assert metadata["version"] == "1"
+        assert metadata["last_updated_timestamp"] == 1705315800000
 
     def test_get_metadata_stage_filtering(self, mlflow_client):
         """Verifica que filtragem por stage funciona."""
@@ -357,7 +371,7 @@ class TestGetModelMetadata:
             side_effect=Exception("MLflow error")
         )
 
-        with patch('neural_hive_specialists.mlflow_client.logger'):
+        with patch("neural_hive_specialists.mlflow_client.logger"):
             metadata = mlflow_client.get_model_metadata("test_model", "Production")
 
             assert metadata == {}
@@ -370,7 +384,7 @@ class TestIsConnected:
     @pytest.fixture
     def mlflow_client(self, mock_config):
         """Cria cliente MLflow para testes."""
-        with patch('neural_hive_specialists.mlflow_client.mlflow'):
+        with patch("neural_hive_specialists.mlflow_client.mlflow"):
             client = MLflowClient(mock_config)
             client._tracking_client = Mock()
             return client

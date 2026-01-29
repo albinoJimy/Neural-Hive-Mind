@@ -31,7 +31,7 @@ class OpinionCache:
         redis_ssl_enabled: bool = False,
         cache_ttl_seconds: int = 3600,
         key_prefix: str = "opinion:",
-        specialist_type: str = "unknown"
+        specialist_type: str = "unknown",
     ):
         """
         Inicializa OpinionCache.
@@ -53,16 +53,16 @@ class OpinionCache:
         # Inicializar RedisCluster
         try:
             nodes = []
-            for node in redis_cluster_nodes.split(','):
-                host, port = node.strip().split(':')
-                nodes.append({'host': host, 'port': int(port)})
+            for node in redis_cluster_nodes.split(","):
+                host, port = node.strip().split(":")
+                nodes.append({"host": host, "port": int(port)})
 
             self.redis_client = RedisCluster(
                 startup_nodes=nodes,
                 password=redis_password,
                 ssl=redis_ssl_enabled,
                 decode_responses=True,
-                skip_full_coverage_check=True  # Para ambientes de desenvolvimento
+                skip_full_coverage_check=True,  # Para ambientes de desenvolvimento
             )
 
             # Testar conexão
@@ -73,13 +73,13 @@ class OpinionCache:
                 "Opinion cache initialized",
                 specialist_type=specialist_type,
                 nodes=len(nodes),
-                ttl_seconds=cache_ttl_seconds
+                ttl_seconds=cache_ttl_seconds,
             )
         except Exception as e:
             logger.warning(
                 "Failed to initialize opinion cache - continuing without cache",
                 specialist_type=specialist_type,
-                error=str(e)
+                error=str(e),
             )
             self.redis_client = None
             self._connected = False
@@ -89,7 +89,7 @@ class OpinionCache:
         plan_bytes: bytes,
         specialist_type: str,
         specialist_version: str,
-        tenant_id: Optional[str] = None
+        tenant_id: Optional[str] = None,
     ) -> str:
         """
         Gera chave de cache determinística baseada no plano, versão e tenant.
@@ -111,7 +111,7 @@ class OpinionCache:
             Chave de cache no formato: {prefix}{tenant_id}:{specialist_type}:{version}:{hash}
         """
         # Usar tenant padrão se não fornecido
-        tenant = tenant_id or 'default'
+        tenant = tenant_id or "default"
 
         # Calcular hash SHA-256 completo do plano (64 caracteres hexadecimais)
         plan_hash = hashlib.sha256(plan_bytes).hexdigest()
@@ -125,7 +125,7 @@ class OpinionCache:
             specialist_type=specialist_type,
             version=specialist_version,
             plan_hash=plan_hash[:16],  # Log apenas primeiros 16 chars
-            cache_key_prefix=cache_key[:50]  # Log apenas prefixo
+            cache_key_prefix=cache_key[:50],  # Log apenas prefixo
         )
 
         return cache_key
@@ -151,31 +151,23 @@ class OpinionCache:
             if cached_json:
                 opinion = json.loads(cached_json)
                 logger.debug(
-                    "Cache hit",
-                    cache_key=cache_key,
-                    duration_ms=int(duration * 1000)
+                    "Cache hit", cache_key=cache_key, duration_ms=int(duration * 1000)
                 )
                 return opinion
             else:
                 logger.debug(
-                    "Cache miss",
-                    cache_key=cache_key,
-                    duration_ms=int(duration * 1000)
+                    "Cache miss", cache_key=cache_key, duration_ms=int(duration * 1000)
                 )
                 return None
 
         except (RedisError, RedisConnectionError) as e:
             logger.warning(
-                "Redis error during cache get",
-                cache_key=cache_key,
-                error=str(e)
+                "Redis error during cache get", cache_key=cache_key, error=str(e)
             )
             return None
         except json.JSONDecodeError as e:
             logger.error(
-                "Failed to decode cached opinion",
-                cache_key=cache_key,
-                error=str(e)
+                "Failed to decode cached opinion", cache_key=cache_key, error=str(e)
             )
             # Invalidar cache corrompido
             self.invalidate_cache(cache_key)
@@ -185,15 +177,12 @@ class OpinionCache:
                 "Unexpected error during cache get",
                 cache_key=cache_key,
                 error=str(e),
-                exc_info=True
+                exc_info=True,
             )
             return None
 
     def set_cached_opinion(
-        self,
-        cache_key: str,
-        opinion: Dict[str, Any],
-        ttl_seconds: Optional[int] = None
+        self, cache_key: str, opinion: Dict[str, Any], ttl_seconds: Optional[int] = None
     ) -> bool:
         """
         Salva parecer no cache com TTL.
@@ -217,11 +206,7 @@ class OpinionCache:
             opinion_json = json.dumps(opinion, default=str)
 
             # Salvar com TTL
-            self.redis_client.setex(
-                cache_key,
-                ttl,
-                opinion_json
-            )
+            self.redis_client.setex(cache_key, ttl, opinion_json)
 
             duration = time.time() - start_time
 
@@ -230,16 +215,14 @@ class OpinionCache:
                 cache_key=cache_key,
                 ttl_seconds=ttl,
                 size_bytes=len(opinion_json),
-                duration_ms=int(duration * 1000)
+                duration_ms=int(duration * 1000),
             )
 
             return True
 
         except (RedisError, RedisConnectionError) as e:
             logger.warning(
-                "Redis error during cache set",
-                cache_key=cache_key,
-                error=str(e)
+                "Redis error during cache set", cache_key=cache_key, error=str(e)
             )
             return False
         except Exception as e:
@@ -247,7 +230,7 @@ class OpinionCache:
                 "Unexpected error during cache set",
                 cache_key=cache_key,
                 error=str(e),
-                exc_info=True
+                exc_info=True,
             )
             return False
 
@@ -266,17 +249,11 @@ class OpinionCache:
 
         try:
             deleted = self.redis_client.delete(cache_key)
-            logger.debug(
-                "Cache invalidated",
-                cache_key=cache_key,
-                deleted=deleted > 0
-            )
+            logger.debug("Cache invalidated", cache_key=cache_key, deleted=deleted > 0)
             return deleted > 0
         except Exception as e:
             logger.warning(
-                "Failed to invalidate cache",
-                cache_key=cache_key,
-                error=str(e)
+                "Failed to invalidate cache", cache_key=cache_key, error=str(e)
             )
             return False
 
@@ -305,11 +282,11 @@ class OpinionCache:
                 self._connected = False
                 logger.info(
                     "Opinion cache connection closed",
-                    specialist_type=self.specialist_type
+                    specialist_type=self.specialist_type,
                 )
         except Exception as e:
             logger.warning(
                 "Error closing opinion cache",
                 specialist_type=self.specialist_type,
-                error=str(e)
+                error=str(e),
             )

@@ -52,5 +52,5 @@ class CachedSpecialist(BaseSpecialist):
             "CachedSpecialist initialized",
             specialist_type=self.specialist_type,
             cache_enabled=config.opinion_cache_enabled,
-            cache_ttl_seconds=config.opinion_cache_ttl_seconds
+            cache_ttl_seconds=config.opinion_cache_ttl_seconds,
         )

@@ -23,7 +23,7 @@ class DriftDetector:
         config: Dict[str, Any],
         evidently_monitor: EvidentlyMonitor,
         drift_alerter: DriftAlerter,
-        ledger_client: Any
+        ledger_client: Any,
     ):
         """
         Inicializa detector de drift.
@@ -39,9 +39,9 @@ class DriftDetector:
         self.drift_alerter = drift_alerter
         self.ledger_client = ledger_client
 
-        self.window_hours = config.get('drift_detection_window_hours', 24)
-        self.threshold_psi = config.get('drift_threshold_psi', 0.2)
-        self.check_interval_minutes = config.get('drift_check_interval_minutes', 60)
+        self.window_hours = config.get("drift_detection_window_hours", 24)
+        self.threshold_psi = config.get("drift_threshold_psi", 0.2)
+        self.check_interval_minutes = config.get("drift_check_interval_minutes", 60)
 
         self._running = False
         self._task: Optional[asyncio.Task] = None
@@ -49,7 +49,7 @@ class DriftDetector:
         logger.info(
             "DriftDetector initialized",
             window_hours=self.window_hours,
-            threshold_psi=self.threshold_psi
+            threshold_psi=self.threshold_psi,
         )
 
     async def start_monitoring(self):
@@ -87,9 +87,7 @@ class DriftDetector:
                 break
             except Exception as e:
                 logger.error(
-                    "Error in drift monitoring loop",
-                    error=str(e),
-                    exc_info=True
+                    "Error in drift monitoring loop", error=str(e), exc_info=True
                 )
                 await asyncio.sleep(60)  # Retry após 1 minuto
 
@@ -110,22 +108,22 @@ class DriftDetector:
             await self._persist_drift_result(drift_result)
 
             # Verificar se drift excede threshold
-            if drift_result['drift_detected']:
-                drift_score = drift_result['drift_score']
+            if drift_result["drift_detected"]:
+                drift_score = drift_result["drift_score"]
 
                 if drift_score > self.threshold_psi:
                     logger.warning(
                         "Drift threshold exceeded",
                         drift_score=drift_score,
                         threshold=self.threshold_psi,
-                        drifted_features=drift_result['drifted_features']
+                        drifted_features=drift_result["drifted_features"],
                     )
 
                     # Disparar alerta
                     await self.drift_alerter.send_alert(
                         drift_score=drift_score,
-                        drifted_features=drift_result['drifted_features'],
-                        report=drift_result['report']
+                        drifted_features=drift_result["drifted_features"],
+                        report=drift_result["report"],
                     )
 
             # Limpar dados atuais após verificação
@@ -135,34 +133,32 @@ class DriftDetector:
 
         except Exception as e:
             logger.error("Drift check failed", error=str(e), exc_info=True)
-            return {
-                'drift_detected': False,
-                'drift_score': 0.0,
-                'error': str(e)
-            }
+            return {"drift_detected": False, "drift_score": 0.0, "error": str(e)}
 
     async def _persist_drift_result(self, drift_result: Dict[str, Any]):
         """Persiste resultado de drift no ledger."""
         try:
             document = {
-                'type': 'drift_detection',
-                'timestamp': datetime.utcnow(),
-                'drift_detected': drift_result['drift_detected'],
-                'drift_score': drift_result['drift_score'],
-                'drifted_features': drift_result['drifted_features'],
-                'threshold_psi': self.threshold_psi,
-                'window_hours': self.window_hours,
-                'report_summary': {
-                    'num_drifted_features': len(drift_result['drifted_features']),
-                    'timestamp': drift_result.get('timestamp')
-                }
+                "type": "drift_detection",
+                "timestamp": datetime.utcnow(),
+                "drift_detected": drift_result["drift_detected"],
+                "drift_score": drift_result["drift_score"],
+                "drifted_features": drift_result["drifted_features"],
+                "threshold_psi": self.threshold_psi,
+                "window_hours": self.window_hours,
+                "report_summary": {
+                    "num_drifted_features": len(drift_result["drifted_features"]),
+                    "timestamp": drift_result.get("timestamp"),
+                },
             }
 
             # Salvar no MongoDB
-            collection = self.ledger_client.db['drift_monitoring']
+            collection = self.ledger_client.db["drift_monitoring"]
             await collection.insert_one(document)
 
-            logger.debug("Drift result persisted", drift_detected=drift_result['drift_detected'])
+            logger.debug(
+                "Drift result persisted", drift_detected=drift_result["drift_detected"]
+            )
 
         except Exception as e:
             logger.error("Failed to persist drift result", error=str(e))

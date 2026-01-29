@@ -35,10 +35,10 @@ def _patch_sklearn_compatibility(model: Any) -> Any:
     try:
         # Get the underlying sklearn model from pyfunc wrapper if needed
         sklearn_model = None
-        if hasattr(model, '_model_impl'):
+        if hasattr(model, "_model_impl"):
             # MLflow pyfunc wrapper
-            sklearn_model = getattr(model._model_impl, 'sklearn_model', None)
-        elif hasattr(model, 'predict'):
+            sklearn_model = getattr(model._model_impl, "sklearn_model", None)
+        elif hasattr(model, "predict"):
             # Direct sklearn model
             sklearn_model = model
 
@@ -46,8 +46,12 @@ def _patch_sklearn_compatibility(model: Any) -> Any:
             return model
 
         # Patch DecisionTreeClassifier and related tree-based models
-        tree_classes = ('DecisionTreeClassifier', 'DecisionTreeRegressor',
-                       'ExtraTreeClassifier', 'ExtraTreeRegressor')
+        tree_classes = (
+            "DecisionTreeClassifier",
+            "DecisionTreeRegressor",
+            "ExtraTreeClassifier",
+            "ExtraTreeRegressor",
+        )
 
         # Check if model has tree estimators (e.g., RandomForest, GradientBoosting)
         models_to_patch = []
@@ -57,18 +61,20 @@ def _patch_sklearn_compatibility(model: Any) -> Any:
             models_to_patch.append(sklearn_model)
 
         # Ensemble with estimators_
-        if hasattr(sklearn_model, 'estimators_'):
+        if hasattr(sklearn_model, "estimators_"):
             for estimator in sklearn_model.estimators_:
-                if hasattr(estimator, 'tree_'):
+                if hasattr(estimator, "tree_"):
                     models_to_patch.append(estimator)
                 # Handle nested estimators (e.g., BaggingClassifier)
-                if hasattr(estimator, 'estimators_'):
+                if hasattr(estimator, "estimators_"):
                     models_to_patch.extend(estimator.estimators_)
 
         # Patch missing monotonic_cst attribute
         patched_count = 0
         for tree_model in models_to_patch:
-            if hasattr(tree_model, 'tree_') and not hasattr(tree_model, 'monotonic_cst'):
+            if hasattr(tree_model, "tree_") and not hasattr(
+                tree_model, "monotonic_cst"
+            ):
                 # Add missing attribute with default value (no constraints)
                 tree_model.monotonic_cst = None
                 patched_count += 1
@@ -77,14 +83,14 @@ def _patch_sklearn_compatibility(model: Any) -> Any:
             logger.info(
                 "Patched sklearn model for version compatibility",
                 patched_estimators=patched_count,
-                model_type=type(sklearn_model).__name__
+                model_type=type(sklearn_model).__name__,
             )
 
     except Exception as e:
         logger.warning(
             "Failed to patch sklearn model compatibility",
             error=str(e),
-            error_type=type(e).__name__
+            error_type=type(e).__name__,
         )
 
     return model
@@ -100,13 +106,13 @@ class MLflowClient:
         self._enabled = False
         self._experiment_id = None
         self._metrics = metrics
-        self._circuit_breaker_state = 'closed'
+        self._circuit_breaker_state = "closed"
         self._was_open = False
         self.used_expired_cache_recently = False
 
         # Initialize circuit breaker state in metrics
         if metrics:
-            metrics.set_circuit_breaker_state('mlflow', 'closed')
+            metrics.set_circuit_breaker_state("mlflow", "closed")
 
         # Initialize circuit breakers conditionally
         self._load_model_breaker = None
@@ -116,13 +122,13 @@ class MLflowClient:
                 failure_threshold=config.circuit_breaker_failure_threshold,
                 recovery_timeout=config.circuit_breaker_recovery_timeout,
                 expected_exception=Exception,
-                name='mlflow_load_model'
+                name="mlflow_load_model",
             )
             self._experiment_breaker = CircuitBreaker(
                 failure_threshold=config.circuit_breaker_failure_threshold,
                 recovery_timeout=config.circuit_breaker_recovery_timeout,
                 expected_exception=Exception,
-                name='mlflow_get_or_create_experiment'
+                name="mlflow_get_or_create_experiment",
             )
 
         # Get tracer if available
@@ -135,23 +141,28 @@ class MLflowClient:
     def client(self) -> MLflowTrackingClient:
         """Lazy initialization do cliente MLflow."""
         if self._client is None:
-            self._client = MLflowTrackingClient(tracking_uri=self.config.mlflow_tracking_uri)
+            self._client = MLflowTrackingClient(
+                tracking_uri=self.config.mlflow_tracking_uri
+            )
         return self._client
 
     def _get_or_create_experiment(self, experiment_name: str) -> str:
         """Obtém ou cria um experimento MLflow com circuit breaker e retry."""
         if self.config.enable_circuit_breaker and self._experiment_breaker:
-            return self._experiment_breaker.call(self._get_or_create_experiment_impl, experiment_name)
+            return self._experiment_breaker.call(
+                self._get_or_create_experiment_impl, experiment_name
+            )
         else:
             return self._get_or_create_experiment_impl(experiment_name)
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        reraise=True
+        reraise=True,
     )
     def _get_or_create_experiment_impl(self, experiment_name: str) -> str:
         """Implementação interna de _get_or_create_experiment com timeout."""
+
         def _create_experiment():
             try:
                 experiment = self.client.get_experiment_by_name(experiment_name)
@@ -163,16 +174,18 @@ class MLflowClient:
                 logger.info(
                     "Created new MLflow experiment",
                     experiment_name=experiment_name,
-                    experiment_id=experiment_id
+                    experiment_id=experiment_id,
                 )
                 return experiment_id
             except Exception as e:
                 if self._metrics:
-                    self._metrics.increment_circuit_breaker_failure('mlflow', type(e).__name__)
+                    self._metrics.increment_circuit_breaker_failure(
+                        "mlflow", type(e).__name__
+                    )
                 logger.error(
                     "Failed to get or create experiment",
                     experiment_name=experiment_name,
-                    error=str(e)
+                    error=str(e),
                 )
                 raise
 
@@ -185,34 +198,42 @@ class MLflowClient:
                 # Check if recovering from open state
                 if self._was_open:
                     if self._metrics:
-                        self._metrics.increment_circuit_breaker_success_after_halfopen('mlflow')
-                    self._circuit_breaker_state = 'closed'
+                        self._metrics.increment_circuit_breaker_success_after_halfopen(
+                            "mlflow"
+                        )
+                    self._circuit_breaker_state = "closed"
                     if self._metrics:
-                        self._metrics.set_circuit_breaker_state('mlflow', 'closed')
+                        self._metrics.set_circuit_breaker_state("mlflow", "closed")
                     self._was_open = False
-                    logger.info("Circuit breaker recovered to closed state", client='mlflow')
+                    logger.info(
+                        "Circuit breaker recovered to closed state", client="mlflow"
+                    )
 
                 return result
             except FuturesTimeoutError:
                 if self._metrics:
-                    self._metrics.increment_circuit_breaker_failure('mlflow', 'TimeoutError')
+                    self._metrics.increment_circuit_breaker_failure(
+                        "mlflow", "TimeoutError"
+                    )
                 logger.warning(
                     "MLflow experiment creation timed out after 5 seconds",
-                    experiment_name=experiment_name
+                    experiment_name=experiment_name,
                 )
                 raise TimeoutError("MLflow operation timed out")
 
     def _on_circuit_breaker_state_change(self, old_state: str, new_state: str):
         """Callback para mudanças de estado do circuit breaker."""
         if self._metrics:
-            self._metrics.set_circuit_breaker_state('mlflow', new_state)
-            self._metrics.increment_circuit_breaker_transition('mlflow', old_state, new_state)
+            self._metrics.set_circuit_breaker_state("mlflow", new_state)
+            self._metrics.increment_circuit_breaker_transition(
+                "mlflow", old_state, new_state
+            )
 
         logger.info(
             "Circuit breaker state changed",
-            client='mlflow',
+            client="mlflow",
             old_state=old_state,
-            new_state=new_state
+            new_state=new_state,
         )
 
     def _is_cache_valid(self, cache_key: str) -> bool:
@@ -221,10 +242,10 @@ class MLflowClient:
             return False
 
         cached_entry = self._model_cache[cache_key]
-        if 'timestamp' not in cached_entry:
+        if "timestamp" not in cached_entry:
             return True  # Cache antigo sem timestamp
 
-        elapsed = time.time() - cached_entry['timestamp']
+        elapsed = time.time() - cached_entry["timestamp"]
         return elapsed < self.config.mlflow_cache_ttl_seconds
 
     def load_model(self, model_name: str, stage: str = "Production") -> Any:
@@ -239,14 +260,16 @@ class MLflowClient:
             Modelo carregado (sklearn, pytorch, etc.)
         """
         if self.config.enable_circuit_breaker and self._load_model_breaker:
-            return self._load_model_breaker.call(self.load_model_impl, model_name, stage)
+            return self._load_model_breaker.call(
+                self.load_model_impl, model_name, stage
+            )
         else:
             return self.load_model_impl(model_name, stage)
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        reraise=True
+        reraise=True,
     )
     def load_model_impl(self, model_name: str, stage: str = "Production") -> Any:
         """
@@ -269,23 +292,31 @@ class MLflowClient:
             try:
                 # Verificar cache válido
                 if self._is_cache_valid(cache_key):
-                    logger.debug("Loading model from cache", model_name=model_name, stage=stage)
-                    model = self._model_cache[cache_key]['model']
+                    logger.debug(
+                        "Loading model from cache", model_name=model_name, stage=stage
+                    )
+                    model = self._model_cache[cache_key]["model"]
 
                     # Check if recovering from open state
                     if self._was_open:
                         if self._metrics:
-                            self._metrics.increment_circuit_breaker_success_after_halfopen('mlflow')
-                        self._circuit_breaker_state = 'closed'
+                            self._metrics.increment_circuit_breaker_success_after_halfopen(
+                                "mlflow"
+                            )
+                        self._circuit_breaker_state = "closed"
                         if self._metrics:
-                            self._metrics.set_circuit_breaker_state('mlflow', 'closed')
+                            self._metrics.set_circuit_breaker_state("mlflow", "closed")
                         self._was_open = False
-                        logger.info("Circuit breaker recovered to closed state", client='mlflow')
+                        logger.info(
+                            "Circuit breaker recovered to closed state", client="mlflow"
+                        )
 
                     span.set_status(Status(StatusCode.OK))
                     return model
 
-                logger.info("Loading model from MLflow", model_name=model_name, stage=stage)
+                logger.info(
+                    "Loading model from MLflow", model_name=model_name, stage=stage
+                )
 
                 # Buscar versão do modelo no stage especificado
                 model_uri = f"models:/{model_name}/{stage}"
@@ -299,17 +330,24 @@ class MLflowClient:
                     # and other common model serialization compatibility problems)
                     error_msg = str(model_compat_err).lower()
                     compatibility_indicators = [
-                        'monotonic', 'constraint', 'attribute', 'deprecated',
-                        'unsupported', 'pickle', 'serialization'
+                        "monotonic",
+                        "constraint",
+                        "attribute",
+                        "deprecated",
+                        "unsupported",
+                        "pickle",
+                        "serialization",
                     ]
 
-                    if any(indicator in error_msg for indicator in compatibility_indicators):
+                    if any(
+                        indicator in error_msg for indicator in compatibility_indicators
+                    ):
                         logger.warning(
                             "Model has sklearn/pickle compatibility issues - attempting fallback loading",
                             model_name=model_name,
                             stage=stage,
                             error=str(model_compat_err),
-                            error_type=type(model_compat_err).__name__
+                            error_type=type(model_compat_err).__name__,
                         )
 
                         # Attempt 1: Try loading via sklearn directly with custom unpickler
@@ -318,22 +356,26 @@ class MLflowClient:
                             import io
 
                             # Download model artifacts
-                            artifacts_path = mlflow.artifacts.download_artifacts(artifact_uri=model_uri)
+                            artifacts_path = mlflow.artifacts.download_artifacts(
+                                artifact_uri=model_uri
+                            )
 
                             # Try common model file patterns
                             model_file_patterns = [
                                 f"{artifacts_path}/model.pkl",
                                 f"{artifacts_path}/model/model.pkl",
                                 f"{artifacts_path}/sklearn-model",
-                                f"{artifacts_path}/model.joblib"
+                                f"{artifacts_path}/model.joblib",
                             ]
 
                             loaded = False
                             for model_file in model_file_patterns:
                                 import os
+
                                 if os.path.exists(model_file):
                                     try:
                                         import joblib
+
                                         model = joblib.load(model_file)
                                         # Patch sklearn compatibility issues
                                         model = _patch_sklearn_compatibility(model)
@@ -341,14 +383,14 @@ class MLflowClient:
                                         logger.info(
                                             "Model loaded via joblib fallback",
                                             model_name=model_name,
-                                            model_file=model_file
+                                            model_file=model_file,
                                         )
                                         break
                                     except Exception as joblib_err:
                                         logger.debug(
                                             "Joblib load failed for path",
                                             path=model_file,
-                                            error=str(joblib_err)
+                                            error=str(joblib_err),
                                         )
 
                             if not loaded:
@@ -356,7 +398,7 @@ class MLflowClient:
                                 logger.error(
                                     "All model loading fallbacks failed",
                                     model_name=model_name,
-                                    stage=stage
+                                    stage=stage,
                                 )
                                 raise model_compat_err
 
@@ -369,33 +411,39 @@ class MLflowClient:
 
                 # Cachear modelo com timestamp
                 self._model_cache[cache_key] = {
-                    'model': model,
-                    'timestamp': time.time()
+                    "model": model,
+                    "timestamp": time.time(),
                 }
 
                 # Obter metadados do modelo
                 metadata = self.get_model_metadata(model_name, stage)
                 if metadata:
-                    span.set_attribute("mlflow.model.version", metadata.get('version', 'unknown'))
-                    span.set_attribute("mlflow.model.run_id", metadata.get('run_id', ''))
+                    span.set_attribute(
+                        "mlflow.model.version", metadata.get("version", "unknown")
+                    )
+                    span.set_attribute(
+                        "mlflow.model.run_id", metadata.get("run_id", "")
+                    )
 
                 # Check if recovering from open state
                 if self._was_open:
                     if self._metrics:
-                        self._metrics.increment_circuit_breaker_success_after_halfopen('mlflow')
-                    self._circuit_breaker_state = 'closed'
+                        self._metrics.increment_circuit_breaker_success_after_halfopen(
+                            "mlflow"
+                        )
+                    self._circuit_breaker_state = "closed"
                     if self._metrics:
-                        self._metrics.set_circuit_breaker_state('mlflow', 'closed')
+                        self._metrics.set_circuit_breaker_state("mlflow", "closed")
                     self._was_open = False
-                    logger.info("Circuit breaker recovered to closed state", client='mlflow')
+                    logger.info(
+                        "Circuit breaker recovered to closed state", client="mlflow"
+                    )
 
                 # Fresh model loaded, clear expired cache flag
                 self.used_expired_cache_recently = False
 
                 logger.info(
-                    "Model loaded successfully",
-                    model_name=model_name,
-                    stage=stage
+                    "Model loaded successfully", model_name=model_name, stage=stage
                 )
 
                 span.set_status(Status(StatusCode.OK))
@@ -406,22 +454,19 @@ class MLflowClient:
                 span.set_status(Status(StatusCode.ERROR, str(e)))
 
                 if self._metrics:
-                    self._metrics.increment_circuit_breaker_failure('mlflow', type(e).__name__)
+                    self._metrics.increment_circuit_breaker_failure(
+                        "mlflow", type(e).__name__
+                    )
 
                 logger.error(
                     "Failed to load model from MLflow",
                     model_name=model_name,
                     stage=stage,
-                    error=str(e)
+                    error=str(e),
                 )
                 raise
 
-    def log_evaluation(
-        self,
-        opinion: Dict[str, Any],
-        plan_id: str,
-        intent_id: str
-    ):
+    def log_evaluation(self, opinion: Dict[str, Any], plan_id: str, intent_id: str):
         """
         Registra avaliação no MLflow.
 
@@ -437,7 +482,9 @@ class MLflowClient:
         with self.tracer.start_as_current_span("mlflow.log_evaluation") as span:
             span.set_attribute("mlflow.plan.id", plan_id)
             span.set_attribute("mlflow.intent.id", intent_id)
-            span.set_attribute("mlflow.confidence.score", opinion.get('confidence_score', 0.0))
+            span.set_attribute(
+                "mlflow.confidence.score", opinion.get("confidence_score", 0.0)
+            )
 
             try:
                 # Ensure mlflow global API points to the same tracking server
@@ -450,16 +497,16 @@ class MLflowClient:
                     mlflow.log_param("specialist_type", self.config.specialist_type)
 
                     # Log metrics
-                    mlflow.log_metric("confidence_score", opinion['confidence_score'])
-                    mlflow.log_metric("risk_score", opinion['risk_score'])
+                    mlflow.log_metric("confidence_score", opinion["confidence_score"])
+                    mlflow.log_metric("risk_score", opinion["risk_score"])
 
                     # Log tags
-                    mlflow.set_tag("recommendation", opinion['recommendation'])
+                    mlflow.set_tag("recommendation", opinion["recommendation"])
 
                     logger.debug(
                         "Evaluation logged to MLflow",
                         plan_id=plan_id,
-                        confidence_score=opinion['confidence_score']
+                        confidence_score=opinion["confidence_score"],
                     )
 
                 span.set_status(Status(StatusCode.OK))
@@ -469,9 +516,7 @@ class MLflowClient:
                 span.set_status(Status(StatusCode.ERROR, str(e)))
 
                 logger.warning(
-                    "Failed to log evaluation to MLflow",
-                    plan_id=plan_id,
-                    error=str(e)
+                    "Failed to log evaluation to MLflow", plan_id=plan_id, error=str(e)
                 )
 
     def get_model_metadata(self, model_name: str, stage: str) -> Dict[str, Any]:
@@ -497,12 +542,12 @@ class MLflowClient:
                 for version in versions:
                     if version.current_stage == stage:
                         metadata = {
-                            'version': version.version,
-                            'creation_timestamp': version.creation_timestamp,
-                            'last_updated_timestamp': version.last_updated_timestamp,
-                            'description': version.description,
-                            'tags': version.tags,
-                            'run_id': version.run_id
+                            "version": version.version,
+                            "creation_timestamp": version.creation_timestamp,
+                            "last_updated_timestamp": version.last_updated_timestamp,
+                            "description": version.description,
+                            "tags": version.tags,
+                            "run_id": version.run_id,
                         }
                         span.set_status(Status(StatusCode.OK))
                         return metadata
@@ -510,7 +555,7 @@ class MLflowClient:
                 logger.warning(
                     "No model version found for stage",
                     model_name=model_name,
-                    stage=stage
+                    stage=stage,
                 )
                 span.set_status(Status(StatusCode.OK))
                 return {}
@@ -523,7 +568,7 @@ class MLflowClient:
                     "Failed to get model metadata",
                     model_name=model_name,
                     stage=stage,
-                    error=str(e)
+                    error=str(e),
                 )
                 return {}
 
@@ -536,25 +581,23 @@ class MLflowClient:
         """
         try:
             metadata = self.get_model_metadata(
-                self.config.mlflow_model_name,
-                self.config.mlflow_model_stage
+                self.config.mlflow_model_name, self.config.mlflow_model_stage
             )
 
-            if metadata and 'last_updated_timestamp' in metadata:
-                timestamp_ms = metadata['last_updated_timestamp']
+            if metadata and "last_updated_timestamp" in metadata:
+                timestamp_ms = metadata["last_updated_timestamp"]
                 dt = datetime.fromtimestamp(timestamp_ms / 1000.0)
                 return dt.isoformat()
 
             return None
 
         except Exception as e:
-            logger.warning(
-                "Failed to get last model update",
-                error=str(e)
-            )
+            logger.warning("Failed to get last model update", error=str(e))
             return None
 
-    def load_model_with_fallback(self, model_name: str, stage: str = "Production") -> Any:
+    def load_model_with_fallback(
+        self, model_name: str, stage: str = "Production"
+    ) -> Any:
         """
         Carrega modelo com fallback para cache expirado.
 
@@ -569,38 +612,46 @@ class MLflowClient:
             return self.load_model(model_name, stage)
         except CircuitBreakerError:
             # Update circuit breaker state
-            self._circuit_breaker_state = 'open'
+            self._circuit_breaker_state = "open"
             if self._metrics:
-                self._metrics.set_circuit_breaker_state('mlflow', 'open')
-                self._metrics.increment_circuit_breaker_failure('mlflow', 'CircuitBreakerError')
+                self._metrics.set_circuit_breaker_state("mlflow", "open")
+                self._metrics.increment_circuit_breaker_failure(
+                    "mlflow", "CircuitBreakerError"
+                )
             self._was_open = True
 
             logger.warning(
                 "Circuit breaker open, falling back to cached model",
                 model_name=model_name,
-                stage=stage
+                stage=stage,
             )
 
             # Usar cache mesmo se expirado
             cache_key = f"{model_name}:{stage}"
             if cache_key in self._model_cache:
                 if self._metrics:
-                    self._metrics.increment_fallback_invocation('mlflow', 'cached_model')
+                    self._metrics.increment_fallback_invocation(
+                        "mlflow", "cached_model"
+                    )
 
                 # Mark that we used expired cache
                 self.used_expired_cache_recently = True
 
-                logger.info("Using expired cached model", model_name=model_name, stage=stage)
-                return self._model_cache[cache_key].get('model')
+                logger.info(
+                    "Using expired cached model", model_name=model_name, stage=stage
+                )
+                return self._model_cache[cache_key].get("model")
 
-            logger.error("No cached model available", model_name=model_name, stage=stage)
+            logger.error(
+                "No cached model available", model_name=model_name, stage=stage
+            )
             return None
         except Exception as e:
             logger.error(
                 "Failed to load model with fallback",
                 model_name=model_name,
                 stage=stage,
-                error=str(e)
+                error=str(e),
             )
             return None
 
@@ -610,7 +661,10 @@ class MLflowClient:
         Define _enabled=True se conectividade for bem-sucedida.
         """
         try:
-            logger.info("Tentando inicializar conexão com MLflow", tracking_uri=self.config.mlflow_tracking_uri)
+            logger.info(
+                "Tentando inicializar conexão com MLflow",
+                tracking_uri=self.config.mlflow_tracking_uri,
+            )
 
             # Tentar buscar experimentos para verificar conectividade
             self.client.search_experiments(max_results=1)
@@ -619,19 +673,21 @@ class MLflowClient:
             self._enabled = True
 
             # Set experiment_id after successful connectivity
-            self._experiment_id = self._get_or_create_experiment(self.config.mlflow_experiment_name)
+            self._experiment_id = self._get_or_create_experiment(
+                self.config.mlflow_experiment_name
+            )
 
             logger.info(
                 "MLflow client habilitado com sucesso",
                 tracking_uri=self.config.mlflow_tracking_uri,
                 experiment_name=self.config.mlflow_experiment_name,
-                experiment_id=self._experiment_id
+                experiment_id=self._experiment_id,
             )
         except Exception as e:
             logger.warning(
                 "MLflow client desabilitado - não disponível no ambiente",
                 tracking_uri=self.config.mlflow_tracking_uri,
-                error=str(e)
+                error=str(e),
             )
             self._enabled = False
 

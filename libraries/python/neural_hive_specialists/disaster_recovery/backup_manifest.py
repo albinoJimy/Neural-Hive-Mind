@@ -17,24 +17,14 @@ logger = structlog.get_logger()
 class ComponentMetadata(BaseModel):
     """Metadados de componente individual do backup."""
 
-    included: bool = Field(
-        description="Se componente foi incluído no backup"
-    )
-    size_bytes: int = Field(
-        default=0,
-        description="Tamanho do componente em bytes"
-    )
+    included: bool = Field(description="Se componente foi incluído no backup")
+    size_bytes: int = Field(default=0, description="Tamanho do componente em bytes")
     checksum: Optional[str] = Field(
-        default=None,
-        description="SHA-256 checksum do componente"
+        default=None, description="SHA-256 checksum do componente"
     )
-    file_count: int = Field(
-        default=0,
-        description="Número de arquivos no componente"
-    )
+    file_count: int = Field(default=0, description="Número de arquivos no componente")
     metadata: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Metadados específicos do componente"
+        default_factory=dict, description="Metadados específicos do componente"
     )
 
 
@@ -55,51 +45,42 @@ class BackupManifest(BaseModel):
     - metadata: Metadados adicionais
     """
 
-    backup_id: str = Field(
-        description="UUID único do backup"
-    )
+    backup_id: str = Field(description="UUID único do backup")
     specialist_type: str = Field(
         description="Tipo do especialista (technical, business, etc.)"
     )
     tenant_id: Optional[str] = Field(
-        default=None,
-        description="Tenant ID (se multi-tenancy habilitado)"
+        default=None, description="Tenant ID (se multi-tenancy habilitado)"
     )
-    backup_timestamp: datetime = Field(
-        description="Timestamp do backup (UTC)"
-    )
+    backup_timestamp: datetime = Field(description="Timestamp do backup (UTC)")
     backup_version: str = Field(
-        default='1.0.0',
-        description="Versão do schema de backup"
+        default="1.0.0", description="Versão do schema de backup"
     )
 
     # Componentes do backup
     components: Dict[str, ComponentMetadata] = Field(
         default_factory=dict,
-        description="Componentes incluídos no backup (model, config, ledger, cache, features, metrics)"
+        description="Componentes incluídos no backup (model, config, ledger, cache, features, metrics)",
     )
 
     # Checksums gerais
     checksums: Dict[str, str] = Field(
-        default_factory=dict,
-        description="SHA-256 checksums de cada componente"
+        default_factory=dict, description="SHA-256 checksums de cada componente"
     )
 
     total_size_bytes: int = Field(
-        default=0,
-        description="Tamanho total do backup em bytes"
+        default=0, description="Tamanho total do backup em bytes"
     )
     compression_level: int = Field(
-        default=6,
-        description="Nível de compressão gzip usado (1-9)"
+        default=6, description="Nível de compressão gzip usado (1-9)"
     )
     created_by: str = Field(
-        default='neural-hive-disaster-recovery',
-        description="Identificador de quem criou o backup"
+        default="neural-hive-disaster-recovery",
+        description="Identificador de quem criou o backup",
     )
     metadata: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Metadados adicionais (ambiente, versão, etc.)"
+        description="Metadados adicionais (ambiente, versão, etc.)",
     )
 
     def to_json(self) -> str:
@@ -112,7 +93,7 @@ class BackupManifest(BaseModel):
         return self.model_dump_json(indent=2)
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'BackupManifest':
+    def from_json(cls, json_str: str) -> "BackupManifest":
         """
         Deserializa manifest de JSON.
 
@@ -125,7 +106,7 @@ class BackupManifest(BaseModel):
         return cls.model_validate_json(json_str)
 
     @classmethod
-    def from_file(cls, file_path: str) -> 'BackupManifest':
+    def from_file(cls, file_path: str) -> "BackupManifest":
         """
         Carrega manifest de arquivo JSON.
 
@@ -135,7 +116,7 @@ class BackupManifest(BaseModel):
         Returns:
             Instância de BackupManifest
         """
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             return cls.from_json(f.read())
 
     def save_to_file(self, file_path: str) -> None:
@@ -147,14 +128,10 @@ class BackupManifest(BaseModel):
         """
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-        with open(file_path, 'w') as f:
+        with open(file_path, "w") as f:
             f.write(self.to_json())
 
-        logger.info(
-            "Manifest salvo",
-            file_path=file_path,
-            backup_id=self.backup_id
-        )
+        logger.info("Manifest salvo", file_path=file_path, backup_id=self.backup_id)
 
     def validate_checksums(self, backup_dir: str) -> bool:
         """
@@ -169,7 +146,7 @@ class BackupManifest(BaseModel):
         logger.info(
             "Validando checksums do backup",
             backup_id=self.backup_id,
-            backup_dir=backup_dir
+            backup_dir=backup_dir,
         )
 
         for component_name, component_meta in self.components.items():
@@ -183,7 +160,7 @@ class BackupManifest(BaseModel):
                 logger.error(
                     "Componente não encontrado",
                     component=component_name,
-                    path=full_path
+                    path=full_path,
                 )
                 return False
 
@@ -197,18 +174,14 @@ class BackupManifest(BaseModel):
                         "Checksum inválido",
                         component=component_name,
                         expected=expected_checksum,
-                        calculated=calculated_checksum
+                        calculated=calculated_checksum,
                     )
                     return False
 
-                logger.debug(
-                    "Checksum válido",
-                    component=component_name
-                )
+                logger.debug("Checksum válido", component=component_name)
 
         logger.info(
-            "Todos os checksums validados com sucesso",
-            backup_id=self.backup_id
+            "Todos os checksums validados com sucesso", backup_id=self.backup_id
         )
 
         return True
@@ -251,7 +224,7 @@ class BackupManifest(BaseModel):
 
             return sha256_hash.hexdigest()
         else:
-            return ''
+            return ""
 
     def _calculate_file_checksum(self, file_path: str) -> str:
         """
@@ -283,15 +256,15 @@ class BackupManifest(BaseModel):
         ]
 
         return {
-            'backup_id': self.backup_id,
-            'specialist_type': self.specialist_type,
-            'tenant_id': self.tenant_id,
-            'timestamp': self.backup_timestamp.isoformat(),
-            'version': self.backup_version,
-            'total_size_mb': round(self.total_size_bytes / (1024 * 1024), 2),
-            'compression_level': self.compression_level,
-            'components_included': included_components,
-            'component_count': len(included_components)
+            "backup_id": self.backup_id,
+            "specialist_type": self.specialist_type,
+            "tenant_id": self.tenant_id,
+            "timestamp": self.backup_timestamp.isoformat(),
+            "version": self.backup_version,
+            "total_size_mb": round(self.total_size_bytes / (1024 * 1024), 2),
+            "compression_level": self.compression_level,
+            "components_included": included_components,
+            "component_count": len(included_components),
         }
 
     def add_component(
@@ -299,7 +272,7 @@ class BackupManifest(BaseModel):
         name: str,
         component_dir: str,
         included: bool = True,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         Adiciona componente ao manifest.
@@ -314,14 +287,11 @@ class BackupManifest(BaseModel):
             logger.warning(
                 "Diretório de componente não encontrado",
                 component=name,
-                path=component_dir
+                path=component_dir,
             )
 
             self.components[name] = ComponentMetadata(
-                included=False,
-                size_bytes=0,
-                file_count=0,
-                metadata=metadata or {}
+                included=False, size_bytes=0, file_count=0, metadata=metadata or {}
             )
             return
 
@@ -346,7 +316,7 @@ class BackupManifest(BaseModel):
             size_bytes=size_bytes,
             checksum=checksum,
             file_count=file_count,
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
         self.checksums[name] = checksum
@@ -357,5 +327,5 @@ class BackupManifest(BaseModel):
             component=name,
             size_bytes=size_bytes,
             file_count=file_count,
-            checksum=checksum[:16] + '...'
+            checksum=checksum[:16] + "...",
         )

@@ -21,6 +21,7 @@ from neural_hive_specialists.schemas import (
 # Specialist Concreto para Testes
 # ============================================================================
 
+
 class TestSpecialist(BaseSpecialist):
     """Implementação concreta de BaseSpecialist para testes."""
 
@@ -30,8 +31,7 @@ class TestSpecialist(BaseSpecialist):
     def _load_model(self):
         if self.mlflow_client:
             return self.mlflow_client.load_model_with_fallback(
-                self.config.mlflow_model_name,
-                self.config.mlflow_model_stage
+                self.config.mlflow_model_name, self.config.mlflow_model_stage
             )
         return None
 
@@ -47,11 +47,11 @@ class TestSpecialist(BaseSpecialist):
                     "factor": "Test factor",
                     "weight": 0.5,
                     "score": 0.9,
-                    "contribution": "positive"
+                    "contribution": "positive",
                 }
             ],
             "suggested_mitigations": [],
-            "metadata": {}
+            "metadata": {},
         }
 
 
@@ -59,16 +59,17 @@ class TestSpecialist(BaseSpecialist):
 # TestBaseSpecialistInitialization
 # ============================================================================
 
+
 @pytest.mark.unit
 class TestBaseSpecialistInitialization:
     """Testes de inicialização do BaseSpecialist."""
 
     def test_initialization_success(self, mock_config, mocker):
         """Verifica inicialização correta com todos os componentes."""
-        mocker.patch('neural_hive_specialists.base_specialist.MLflowClient')
-        mocker.patch('neural_hive_specialists.base_specialist.LedgerClient')
-        mocker.patch('neural_hive_specialists.base_specialist.ExplainabilityGenerator')
-        mocker.patch('neural_hive_specialists.base_specialist.SpecialistMetrics')
+        mocker.patch("neural_hive_specialists.base_specialist.MLflowClient")
+        mocker.patch("neural_hive_specialists.base_specialist.LedgerClient")
+        mocker.patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator")
+        mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
 
         specialist = TestSpecialist(mock_config)
 
@@ -78,10 +79,13 @@ class TestBaseSpecialistInitialization:
 
     def test_initialization_without_mlflow(self, mock_config, mocker):
         """Testa fallback quando MLflow indisponível."""
-        mocker.patch('neural_hive_specialists.base_specialist.MLflowClient', side_effect=Exception("MLflow unavailable"))
-        mocker.patch('neural_hive_specialists.base_specialist.LedgerClient')
-        mocker.patch('neural_hive_specialists.base_specialist.ExplainabilityGenerator')
-        mocker.patch('neural_hive_specialists.base_specialist.SpecialistMetrics')
+        mocker.patch(
+            "neural_hive_specialists.base_specialist.MLflowClient",
+            side_effect=Exception("MLflow unavailable"),
+        )
+        mocker.patch("neural_hive_specialists.base_specialist.LedgerClient")
+        mocker.patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator")
+        mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
 
         specialist = TestSpecialist(mock_config)
 
@@ -89,12 +93,14 @@ class TestBaseSpecialistInitialization:
 
     def test_initialization_loads_model(self, mock_config, mocker):
         """Verifica que _load_model() é chamado durante inicialização."""
-        mocker.patch('neural_hive_specialists.base_specialist.MLflowClient')
-        mocker.patch('neural_hive_specialists.base_specialist.LedgerClient')
-        mocker.patch('neural_hive_specialists.base_specialist.ExplainabilityGenerator')
-        mocker.patch('neural_hive_specialists.base_specialist.SpecialistMetrics')
+        mocker.patch("neural_hive_specialists.base_specialist.MLflowClient")
+        mocker.patch("neural_hive_specialists.base_specialist.LedgerClient")
+        mocker.patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator")
+        mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
 
-        with patch.object(TestSpecialist, '_load_model', return_value=Mock()) as mock_load:
+        with patch.object(
+            TestSpecialist, "_load_model", return_value=Mock()
+        ) as mock_load:
             specialist = TestSpecialist(mock_config)
             mock_load.assert_called_once()
 
@@ -103,26 +109,27 @@ class TestBaseSpecialistInitialization:
 # TestDeserializePlan
 # ============================================================================
 
+
 @pytest.mark.unit
 class TestDeserializePlan:
     """Testes de deserialização de plano cognitivo."""
 
     @pytest.fixture
     def specialist(self, mock_config, mocker):
-        mocker.patch('neural_hive_specialists.base_specialist.MLflowClient')
-        mocker.patch('neural_hive_specialists.base_specialist.LedgerClient')
-        mocker.patch('neural_hive_specialists.base_specialist.ExplainabilityGenerator')
-        mocker.patch('neural_hive_specialists.base_specialist.SpecialistMetrics')
+        mocker.patch("neural_hive_specialists.base_specialist.MLflowClient")
+        mocker.patch("neural_hive_specialists.base_specialist.LedgerClient")
+        mocker.patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator")
+        mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
         return TestSpecialist(mock_config)
 
     def test_deserialize_valid_plan(self, specialist, sample_cognitive_plan):
         """Deserializa plano válido com sucesso."""
-        plan_json = json.dumps(sample_cognitive_plan).encode('utf-8')
+        plan_json = json.dumps(sample_cognitive_plan).encode("utf-8")
         result = specialist._deserialize_plan(plan_json)
 
-        assert result['plan_id'] == sample_cognitive_plan["plan_id"]
-        assert result['version'] == "1.0.0"
-        assert len(result['tasks']) == 2
+        assert result["plan_id"] == sample_cognitive_plan["plan_id"]
+        assert result["version"] == "1.0.0"
+        assert len(result["tasks"]) == 2
 
     def test_deserialize_invalid_json(self, specialist):
         """Levanta ValueError para JSON malformado."""
@@ -137,15 +144,17 @@ class TestDeserializePlan:
             "plan_id": "test-plan",
             # Faltando version, intent_id, tasks, etc.
         }
-        plan_json = json.dumps(incomplete_plan).encode('utf-8')
+        plan_json = json.dumps(incomplete_plan).encode("utf-8")
 
         with pytest.raises(ValueError):
             specialist._deserialize_plan(plan_json)
 
-    def test_deserialize_invalid_version_format(self, specialist, sample_cognitive_plan):
+    def test_deserialize_invalid_version_format(
+        self, specialist, sample_cognitive_plan
+    ):
         """Levanta PlanVersionIncompatibleError para versão não-semver."""
         sample_cognitive_plan["version"] = "1.0"  # Não é semver completo
-        plan_json = json.dumps(sample_cognitive_plan).encode('utf-8')
+        plan_json = json.dumps(sample_cognitive_plan).encode("utf-8")
 
         with pytest.raises(PlanVersionIncompatibleError):
             specialist._deserialize_plan(plan_json)
@@ -153,7 +162,7 @@ class TestDeserializePlan:
     def test_deserialize_incompatible_version(self, specialist, sample_cognitive_plan):
         """Levanta PlanVersionIncompatibleError para versão não suportada."""
         sample_cognitive_plan["version"] = "2.0.0"  # Versão não suportada
-        plan_json = json.dumps(sample_cognitive_plan).encode('utf-8')
+        plan_json = json.dumps(sample_cognitive_plan).encode("utf-8")
 
         with pytest.raises(PlanVersionIncompatibleError):
             specialist._deserialize_plan(plan_json)
@@ -161,7 +170,7 @@ class TestDeserializePlan:
     def test_deserialize_duplicate_task_ids(self, specialist, sample_cognitive_plan):
         """Levanta PlanValidationError para IDs duplicados."""
         sample_cognitive_plan["tasks"][1]["task_id"] = "task-1"  # Duplicado
-        plan_json = json.dumps(sample_cognitive_plan).encode('utf-8')
+        plan_json = json.dumps(sample_cognitive_plan).encode("utf-8")
 
         with pytest.raises(ValueError, match="duplicados"):
             specialist._deserialize_plan(plan_json)
@@ -169,7 +178,7 @@ class TestDeserializePlan:
     def test_deserialize_missing_dependency(self, specialist, sample_cognitive_plan):
         """Levanta PlanValidationError para dependência inexistente."""
         sample_cognitive_plan["tasks"][1]["dependencies"] = ["task-999"]
-        plan_json = json.dumps(sample_cognitive_plan).encode('utf-8')
+        plan_json = json.dumps(sample_cognitive_plan).encode("utf-8")
 
         with pytest.raises(ValueError, match="inexistente"):
             specialist._deserialize_plan(plan_json)
@@ -179,7 +188,7 @@ class TestDeserializePlan:
         # Criar ciclo: task-1 -> task-2 -> task-1
         sample_cognitive_plan["tasks"][0]["dependencies"] = ["task-2"]
         sample_cognitive_plan["tasks"][1]["dependencies"] = ["task-1"]
-        plan_json = json.dumps(sample_cognitive_plan).encode('utf-8')
+        plan_json = json.dumps(sample_cognitive_plan).encode("utf-8")
 
         with pytest.raises(ValueError, match="circular"):
             specialist._deserialize_plan(plan_json)
@@ -187,7 +196,7 @@ class TestDeserializePlan:
     def test_deserialize_self_reference(self, specialist, sample_cognitive_plan):
         """Levanta erro para tarefa que depende de si mesma."""
         sample_cognitive_plan["tasks"][0]["dependencies"] = ["task-1"]
-        plan_json = json.dumps(sample_cognitive_plan).encode('utf-8')
+        plan_json = json.dumps(sample_cognitive_plan).encode("utf-8")
 
         with pytest.raises(ValueError, match="si mesma"):
             specialist._deserialize_plan(plan_json)
@@ -197,14 +206,17 @@ class TestDeserializePlan:
 # TestEvaluatePlan
 # ============================================================================
 
+
 @pytest.mark.unit
 class TestEvaluatePlan:
     """Testes do método evaluate_plan."""
 
     @pytest.fixture
-    def specialist(self, mock_config, mock_ledger_client, mock_explainability_gen, mocker):
-        mocker.patch('neural_hive_specialists.base_specialist.MLflowClient')
-        mocker.patch('neural_hive_specialists.base_specialist.SpecialistMetrics')
+    def specialist(
+        self, mock_config, mock_ledger_client, mock_explainability_gen, mocker
+    ):
+        mocker.patch("neural_hive_specialists.base_specialist.MLflowClient")
+        mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
 
         spec = TestSpecialist(mock_config)
         spec.ledger_client = mock_ledger_client
@@ -214,13 +226,13 @@ class TestEvaluatePlan:
     def test_evaluate_plan_success(self, specialist, sample_cognitive_plan):
         """Fluxo completo de avaliação bem-sucedida."""
         req = Mock(
-            plan_id=sample_cognitive_plan['plan_id'],
-            intent_id=sample_cognitive_plan['intent_id'],
-            correlation_id=sample_cognitive_plan['correlation_id'],
-            trace_id=sample_cognitive_plan['trace_id'],
-            span_id=sample_cognitive_plan['span_id'],
-            cognitive_plan=json.dumps(sample_cognitive_plan).encode('utf-8'),
-            context={}
+            plan_id=sample_cognitive_plan["plan_id"],
+            intent_id=sample_cognitive_plan["intent_id"],
+            correlation_id=sample_cognitive_plan["correlation_id"],
+            trace_id=sample_cognitive_plan["trace_id"],
+            span_id=sample_cognitive_plan["span_id"],
+            cognitive_plan=json.dumps(sample_cognitive_plan).encode("utf-8"),
+            context={},
         )
 
         result = specialist.evaluate_plan(req)
@@ -231,19 +243,21 @@ class TestEvaluatePlan:
         assert result["opinion"]["recommendation"] == "approve"
         assert result["opinion"]["confidence_score"] == 0.85
 
-    def test_evaluate_plan_calls_internal_method(self, specialist, sample_cognitive_plan):
+    def test_evaluate_plan_calls_internal_method(
+        self, specialist, sample_cognitive_plan
+    ):
         """Verifica que _evaluate_plan_internal() é chamado."""
         req = Mock(
-            plan_id=sample_cognitive_plan['plan_id'],
-            intent_id=sample_cognitive_plan['intent_id'],
-            correlation_id=sample_cognitive_plan['correlation_id'],
-            trace_id=sample_cognitive_plan['trace_id'],
-            span_id=sample_cognitive_plan['span_id'],
-            cognitive_plan=json.dumps(sample_cognitive_plan).encode('utf-8'),
-            context={}
+            plan_id=sample_cognitive_plan["plan_id"],
+            intent_id=sample_cognitive_plan["intent_id"],
+            correlation_id=sample_cognitive_plan["correlation_id"],
+            trace_id=sample_cognitive_plan["trace_id"],
+            span_id=sample_cognitive_plan["span_id"],
+            cognitive_plan=json.dumps(sample_cognitive_plan).encode("utf-8"),
+            context={},
         )
 
-        with patch.object(specialist, '_evaluate_plan_internal') as mock_internal:
+        with patch.object(specialist, "_evaluate_plan_internal") as mock_internal:
             mock_internal.return_value = {
                 "recommendation": "approve",
                 "confidence_score": 0.85,
@@ -252,69 +266,79 @@ class TestEvaluatePlan:
                 "reasoning_summary": "Test reasoning",
                 "reasoning_factors": [],
                 "suggested_mitigations": [],
-                "metadata": {}
+                "metadata": {},
             }
             specialist.evaluate_plan(req)
             mock_internal.assert_called_once()
 
-    def test_evaluate_plan_generates_explainability(self, specialist, sample_cognitive_plan, mock_explainability_gen):
+    def test_evaluate_plan_generates_explainability(
+        self, specialist, sample_cognitive_plan, mock_explainability_gen
+    ):
         """Verifica geração de token de explicabilidade."""
         req = Mock(
-            plan_id=sample_cognitive_plan['plan_id'],
-            intent_id=sample_cognitive_plan['intent_id'],
-            correlation_id=sample_cognitive_plan['correlation_id'],
-            trace_id=sample_cognitive_plan['trace_id'],
-            span_id=sample_cognitive_plan['span_id'],
-            cognitive_plan=json.dumps(sample_cognitive_plan).encode('utf-8'),
-            context={}
+            plan_id=sample_cognitive_plan["plan_id"],
+            intent_id=sample_cognitive_plan["intent_id"],
+            correlation_id=sample_cognitive_plan["correlation_id"],
+            trace_id=sample_cognitive_plan["trace_id"],
+            span_id=sample_cognitive_plan["span_id"],
+            cognitive_plan=json.dumps(sample_cognitive_plan).encode("utf-8"),
+            context={},
         )
 
         specialist.evaluate_plan(req)
 
         mock_explainability_gen.generate.assert_called_once()
 
-    def test_evaluate_plan_persists_to_ledger(self, specialist, sample_cognitive_plan, mock_ledger_client):
+    def test_evaluate_plan_persists_to_ledger(
+        self, specialist, sample_cognitive_plan, mock_ledger_client
+    ):
         """Verifica persistência no ledger."""
         req = Mock(
-            plan_id=sample_cognitive_plan['plan_id'],
-            intent_id=sample_cognitive_plan['intent_id'],
-            correlation_id=sample_cognitive_plan['correlation_id'],
-            trace_id=sample_cognitive_plan['trace_id'],
-            span_id=sample_cognitive_plan['span_id'],
-            cognitive_plan=json.dumps(sample_cognitive_plan).encode('utf-8'),
-            context={}
+            plan_id=sample_cognitive_plan["plan_id"],
+            intent_id=sample_cognitive_plan["intent_id"],
+            correlation_id=sample_cognitive_plan["correlation_id"],
+            trace_id=sample_cognitive_plan["trace_id"],
+            span_id=sample_cognitive_plan["span_id"],
+            cognitive_plan=json.dumps(sample_cognitive_plan).encode("utf-8"),
+            context={},
         )
 
         specialist.evaluate_plan(req)
 
         mock_ledger_client.save_opinion_with_fallback.assert_called_once()
 
-    def test_evaluate_plan_records_metrics(self, specialist, sample_cognitive_plan, mocker):
+    def test_evaluate_plan_records_metrics(
+        self, specialist, sample_cognitive_plan, mocker
+    ):
         """Verifica que métricas são registradas."""
         req = Mock(
-            plan_id=sample_cognitive_plan['plan_id'],
-            intent_id=sample_cognitive_plan['intent_id'],
-            correlation_id=sample_cognitive_plan['correlation_id'],
-            trace_id=sample_cognitive_plan['trace_id'],
-            span_id=sample_cognitive_plan['span_id'],
-            cognitive_plan=json.dumps(sample_cognitive_plan).encode('utf-8'),
-            context={}
+            plan_id=sample_cognitive_plan["plan_id"],
+            intent_id=sample_cognitive_plan["intent_id"],
+            correlation_id=sample_cognitive_plan["correlation_id"],
+            trace_id=sample_cognitive_plan["trace_id"],
+            span_id=sample_cognitive_plan["span_id"],
+            cognitive_plan=json.dumps(sample_cognitive_plan).encode("utf-8"),
+            context={},
         )
 
-        with patch.object(specialist.metrics, 'observe_evaluation_duration') as mock_record:
+        with patch.object(
+            specialist.metrics, "observe_evaluation_duration"
+        ) as mock_record:
             specialist.evaluate_plan(req)
             mock_record.assert_called_once()
 
-    def test_evaluate_plan_propagates_trace_context(self, specialist, sample_cognitive_plan):
+    def test_evaluate_plan_propagates_trace_context(
+        self, specialist, sample_cognitive_plan
+    ):
         """Verifica propagação de trace_id/span_id."""
         req = Mock(
-            plan_id=sample_cognitive_plan['plan_id'],
-            intent_id=sample_cognitive_plan['intent_id'],
-            correlation_id=sample_cognitive_plan['correlation_id'],
-            trace_id=sample_cognitive_plan['trace_id'],
-            span_id=sample_cognitive_plan['span_id'],
-            cognitive_plan=json.dumps(sample_cognitive_plan).encode('utf-8'),
-            context={}
+            plan_id=sample_cognitive_plan["plan_id"],
+            intent_id=sample_cognitive_plan["intent_id"],
+            correlation_id=sample_cognitive_plan["correlation_id"],
+            trace_id=sample_cognitive_plan["trace_id"],
+            span_id=sample_cognitive_plan["span_id"],
+            cognitive_plan=json.dumps(sample_cognitive_plan).encode("utf-8"),
+            context={},
         )
 
         result = specialist.evaluate_plan(req)
@@ -332,22 +356,24 @@ class TestEvaluatePlan:
             trace_id="test-trace",
             span_id="test-span",
             cognitive_plan=b"{ invalid }",
-            context={}
+            context={},
         )
 
         with pytest.raises(ValueError):
             specialist.evaluate_plan(req)
 
-    def test_evaluate_plan_measures_processing_time(self, specialist, sample_cognitive_plan):
+    def test_evaluate_plan_measures_processing_time(
+        self, specialist, sample_cognitive_plan
+    ):
         """Verifica medição de tempo de processamento."""
         req = Mock(
-            plan_id=sample_cognitive_plan['plan_id'],
-            intent_id=sample_cognitive_plan['intent_id'],
-            correlation_id=sample_cognitive_plan['correlation_id'],
-            trace_id=sample_cognitive_plan['trace_id'],
-            span_id=sample_cognitive_plan['span_id'],
-            cognitive_plan=json.dumps(sample_cognitive_plan).encode('utf-8'),
-            context={}
+            plan_id=sample_cognitive_plan["plan_id"],
+            intent_id=sample_cognitive_plan["intent_id"],
+            correlation_id=sample_cognitive_plan["correlation_id"],
+            trace_id=sample_cognitive_plan["trace_id"],
+            span_id=sample_cognitive_plan["span_id"],
+            cognitive_plan=json.dumps(sample_cognitive_plan).encode("utf-8"),
+            context={},
         )
 
         result = specialist.evaluate_plan(req)
@@ -360,16 +386,17 @@ class TestEvaluatePlan:
 # TestValidateEvaluationResult
 # ============================================================================
 
+
 @pytest.mark.unit
 class TestValidateEvaluationResult:
     """Testes de validação do resultado de avaliação."""
 
     @pytest.fixture
     def specialist(self, mock_config, mocker):
-        mocker.patch('neural_hive_specialists.base_specialist.MLflowClient')
-        mocker.patch('neural_hive_specialists.base_specialist.LedgerClient')
-        mocker.patch('neural_hive_specialists.base_specialist.ExplainabilityGenerator')
-        mocker.patch('neural_hive_specialists.base_specialist.SpecialistMetrics')
+        mocker.patch("neural_hive_specialists.base_specialist.MLflowClient")
+        mocker.patch("neural_hive_specialists.base_specialist.LedgerClient")
+        mocker.patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator")
+        mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
         return TestSpecialist(mock_config)
 
     def test_validate_valid_result(self, specialist, sample_evaluation_result):
@@ -396,7 +423,7 @@ class TestValidateEvaluationResult:
             "estimated_effort_hours": 8.5,
             "reasoning_factors": [],
             "suggested_mitigations": [],
-            "metadata": {}
+            "metadata": {},
         }
 
         with pytest.raises(ValueError, match="confidence_score"):
@@ -411,7 +438,7 @@ class TestValidateEvaluationResult:
             "estimated_effort_hours": 8.5,
             "reasoning_factors": [],
             "suggested_mitigations": [],
-            "metadata": {}
+            "metadata": {},
         }
 
         with pytest.raises(ValueError, match="risk_score"):
@@ -426,7 +453,7 @@ class TestValidateEvaluationResult:
             "estimated_effort_hours": 8.5,
             "reasoning_factors": [],
             "suggested_mitigations": [],
-            "metadata": {}
+            "metadata": {},
         }
 
         # Depende da implementação - pode ou não validar valores específicos
@@ -440,15 +467,16 @@ class TestValidateEvaluationResult:
 # TestHealthCheck
 # ============================================================================
 
+
 @pytest.mark.unit
 class TestHealthCheck:
     """Testes de health check."""
 
     @pytest.fixture
     def specialist(self, mock_config, mock_ledger_client, mocker):
-        mocker.patch('neural_hive_specialists.base_specialist.MLflowClient')
-        mocker.patch('neural_hive_specialists.base_specialist.ExplainabilityGenerator')
-        mocker.patch('neural_hive_specialists.base_specialist.SpecialistMetrics')
+        mocker.patch("neural_hive_specialists.base_specialist.MLflowClient")
+        mocker.patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator")
+        mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
 
         spec = TestSpecialist(mock_config)
         spec.ledger_client = mock_ledger_client
@@ -461,10 +489,10 @@ class TestHealthCheck:
 
         result = specialist.health_check()
 
-        assert result['status'] == "SERVING"
-        details = result['details']
-        assert details["model_loaded"] == 'True'
-        assert details["ledger_connected"] == 'True'
+        assert result["status"] == "SERVING"
+        details = result["details"]
+        assert details["model_loaded"] == "True"
+        assert details["ledger_connected"] == "True"
 
     def test_health_check_model_not_loaded(self, specialist):
         """Retorna NOT_SERVING sem modelo."""
@@ -472,9 +500,9 @@ class TestHealthCheck:
 
         result = specialist.health_check()
 
-        assert result['status'] == "NOT_SERVING"
-        details = result['details']
-        assert details["model_loaded"] == 'False'
+        assert result["status"] == "NOT_SERVING"
+        details = result["details"]
+        assert details["model_loaded"] == "False"
 
     def test_health_check_ledger_disconnected(self, specialist):
         """Retorna NOT_SERVING sem ledger."""
@@ -482,14 +510,15 @@ class TestHealthCheck:
 
         result = specialist.health_check()
 
-        assert result['status'] == "NOT_SERVING"
-        details = result['details']
-        assert details["ledger_connected"] == 'False'
+        assert result["status"] == "NOT_SERVING"
+        details = result["details"]
+        assert details["ledger_connected"] == "False"
 
 
 # ============================================================================
 # TestGetCapabilities
 # ============================================================================
+
 
 @pytest.mark.unit
 class TestGetCapabilities:
@@ -497,10 +526,10 @@ class TestGetCapabilities:
 
     @pytest.fixture
     def specialist(self, mock_config, mocker):
-        mocker.patch('neural_hive_specialists.base_specialist.MLflowClient')
-        mocker.patch('neural_hive_specialists.base_specialist.LedgerClient')
-        mocker.patch('neural_hive_specialists.base_specialist.ExplainabilityGenerator')
-        mocker.patch('neural_hive_specialists.base_specialist.SpecialistMetrics')
+        mocker.patch("neural_hive_specialists.base_specialist.MLflowClient")
+        mocker.patch("neural_hive_specialists.base_specialist.LedgerClient")
+        mocker.patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator")
+        mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
         return TestSpecialist(mock_config)
 
     def test_get_capabilities_returns_metadata(self, specialist):

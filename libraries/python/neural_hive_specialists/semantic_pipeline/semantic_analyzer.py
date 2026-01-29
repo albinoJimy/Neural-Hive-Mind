@@ -26,7 +26,7 @@ class SemanticAnalyzer:
         "access control and permissions",
         "security token and credential management",
         "protection against injection attacks",
-        "secure API endpoints and interfaces"
+        "secure API endpoints and interfaces",
     ]
 
     ARCHITECTURE_CONCEPTS = [
@@ -36,7 +36,7 @@ class SemanticAnalyzer:
         "controller and repository patterns",
         "interface segregation and dependency injection",
         "factory and strategy design patterns",
-        "modular components with low coupling"
+        "modular components with low coupling",
     ]
 
     PERFORMANCE_CONCEPTS = [
@@ -46,7 +46,7 @@ class SemanticAnalyzer:
         "lazy loading and resource pooling",
         "batch processing and queuing",
         "memory buffering and efficient algorithms",
-        "load balancing and scalability"
+        "load balancing and scalability",
     ]
 
     CODE_QUALITY_CONCEPTS = [
@@ -55,7 +55,7 @@ class SemanticAnalyzer:
         "error handling and exception management",
         "structured logging and monitoring",
         "code readability and maintainability",
-        "refactoring and technical debt reduction"
+        "refactoring and technical debt reduction",
     ]
 
     def __init__(self, config: Dict[str, Any]):
@@ -67,12 +67,11 @@ class SemanticAnalyzer:
         """
         self.config = config
         self.embeddings_model_name = config.get(
-            'embeddings_model',
-            'paraphrase-multilingual-MiniLM-L12-v2'
+            "embeddings_model", "paraphrase-multilingual-MiniLM-L12-v2"
         )
 
         # Threshold de similaridade semântica (0.0-1.0)
-        self.similarity_threshold = config.get('semantic_similarity_threshold', 0.4)
+        self.similarity_threshold = config.get("semantic_similarity_threshold", 0.4)
 
         # Lazy loading do modelo
         self._model: Optional[SentenceTransformer] = None
@@ -83,14 +82,16 @@ class SemanticAnalyzer:
         logger.info(
             "SemanticAnalyzer initialized",
             model=self.embeddings_model_name,
-            threshold=self.similarity_threshold
+            threshold=self.similarity_threshold,
         )
 
     @property
     def model(self) -> SentenceTransformer:
         """Lazy initialization do modelo de embeddings."""
         if self._model is None:
-            logger.info("Loading sentence-transformers model", model=self.embeddings_model_name)
+            logger.info(
+                "Loading sentence-transformers model", model=self.embeddings_model_name
+            )
             self._model = SentenceTransformer(self.embeddings_model_name)
         return self._model
 
@@ -109,16 +110,22 @@ class SemanticAnalyzer:
 
         try:
             # Extrair descrições de tarefas
-            task_descriptions = [task.get('description', '') for task in tasks if task.get('description')]
+            task_descriptions = [
+                task.get("description", "") for task in tasks if task.get("description")
+            ]
 
             if not task_descriptions:
                 return 0.5
 
             # Obter embeddings de conceitos de segurança (cached)
-            security_embeddings = self._get_concept_embeddings(self.SECURITY_CONCEPTS, 'security')
+            security_embeddings = self._get_concept_embeddings(
+                self.SECURITY_CONCEPTS, "security"
+            )
 
             # Obter embeddings das descrições
-            task_embeddings = self.model.encode(task_descriptions, convert_to_numpy=True)
+            task_embeddings = self.model.encode(
+                task_descriptions, convert_to_numpy=True
+            )
 
             # Calcular similaridade máxima de cada tarefa com conceitos de segurança
             similarities = cosine_similarity(task_embeddings, security_embeddings)
@@ -137,13 +144,15 @@ class SemanticAnalyzer:
                 num_tasks=len(task_descriptions),
                 relevant_tasks=int(relevant_tasks),
                 avg_similarity=float(np.mean(max_similarities)),
-                security_score=security_score
+                security_score=security_score,
             )
 
             return float(max(0.0, min(1.0, security_score)))
 
         except Exception as e:
-            logger.error("Failed to analyze security semantically", error=str(e), exc_info=True)
+            logger.error(
+                "Failed to analyze security semantically", error=str(e), exc_info=True
+            )
             return 0.5
 
     def analyze_architecture(self, tasks: List[Dict[str, Any]]) -> float:
@@ -160,13 +169,19 @@ class SemanticAnalyzer:
             return 0.5
 
         try:
-            task_descriptions = [task.get('description', '') for task in tasks if task.get('description')]
+            task_descriptions = [
+                task.get("description", "") for task in tasks if task.get("description")
+            ]
 
             if not task_descriptions:
                 return 0.5
 
-            architecture_embeddings = self._get_concept_embeddings(self.ARCHITECTURE_CONCEPTS, 'architecture')
-            task_embeddings = self.model.encode(task_descriptions, convert_to_numpy=True)
+            architecture_embeddings = self._get_concept_embeddings(
+                self.ARCHITECTURE_CONCEPTS, "architecture"
+            )
+            task_embeddings = self.model.encode(
+                task_descriptions, convert_to_numpy=True
+            )
 
             similarities = cosine_similarity(task_embeddings, architecture_embeddings)
             max_similarities = np.max(similarities, axis=1)
@@ -179,13 +194,17 @@ class SemanticAnalyzer:
                 num_tasks=len(task_descriptions),
                 relevant_tasks=int(relevant_tasks),
                 avg_similarity=float(np.mean(max_similarities)),
-                architecture_score=architecture_score
+                architecture_score=architecture_score,
             )
 
             return float(max(0.0, min(1.0, architecture_score)))
 
         except Exception as e:
-            logger.error("Failed to analyze architecture semantically", error=str(e), exc_info=True)
+            logger.error(
+                "Failed to analyze architecture semantically",
+                error=str(e),
+                exc_info=True,
+            )
             return 0.5
 
     def analyze_performance(self, tasks: List[Dict[str, Any]]) -> float:
@@ -202,13 +221,19 @@ class SemanticAnalyzer:
             return 0.5
 
         try:
-            task_descriptions = [task.get('description', '') for task in tasks if task.get('description')]
+            task_descriptions = [
+                task.get("description", "") for task in tasks if task.get("description")
+            ]
 
             if not task_descriptions:
                 return 0.5
 
-            performance_embeddings = self._get_concept_embeddings(self.PERFORMANCE_CONCEPTS, 'performance')
-            task_embeddings = self.model.encode(task_descriptions, convert_to_numpy=True)
+            performance_embeddings = self._get_concept_embeddings(
+                self.PERFORMANCE_CONCEPTS, "performance"
+            )
+            task_embeddings = self.model.encode(
+                task_descriptions, convert_to_numpy=True
+            )
 
             similarities = cosine_similarity(task_embeddings, performance_embeddings)
             max_similarities = np.max(similarities, axis=1)
@@ -221,13 +246,17 @@ class SemanticAnalyzer:
                 num_tasks=len(task_descriptions),
                 relevant_tasks=int(relevant_tasks),
                 avg_similarity=float(np.mean(max_similarities)),
-                performance_score=performance_score
+                performance_score=performance_score,
             )
 
             return float(max(0.0, min(1.0, performance_score)))
 
         except Exception as e:
-            logger.error("Failed to analyze performance semantically", error=str(e), exc_info=True)
+            logger.error(
+                "Failed to analyze performance semantically",
+                error=str(e),
+                exc_info=True,
+            )
             return 0.5
 
     def analyze_code_quality(self, tasks: List[Dict[str, Any]]) -> float:
@@ -244,13 +273,19 @@ class SemanticAnalyzer:
             return 0.5
 
         try:
-            task_descriptions = [task.get('description', '') for task in tasks if task.get('description')]
+            task_descriptions = [
+                task.get("description", "") for task in tasks if task.get("description")
+            ]
 
             if not task_descriptions:
                 return 0.5
 
-            quality_embeddings = self._get_concept_embeddings(self.CODE_QUALITY_CONCEPTS, 'code_quality')
-            task_embeddings = self.model.encode(task_descriptions, convert_to_numpy=True)
+            quality_embeddings = self._get_concept_embeddings(
+                self.CODE_QUALITY_CONCEPTS, "code_quality"
+            )
+            task_embeddings = self.model.encode(
+                task_descriptions, convert_to_numpy=True
+            )
 
             similarities = cosine_similarity(task_embeddings, quality_embeddings)
             max_similarities = np.max(similarities, axis=1)
@@ -263,16 +298,22 @@ class SemanticAnalyzer:
                 num_tasks=len(task_descriptions),
                 relevant_tasks=int(relevant_tasks),
                 avg_similarity=float(np.mean(max_similarities)),
-                quality_score=quality_score
+                quality_score=quality_score,
             )
 
             return float(max(0.0, min(1.0, quality_score)))
 
         except Exception as e:
-            logger.error("Failed to analyze code quality semantically", error=str(e), exc_info=True)
+            logger.error(
+                "Failed to analyze code quality semantically",
+                error=str(e),
+                exc_info=True,
+            )
             return 0.5
 
-    def _get_concept_embeddings(self, concepts: List[str], cache_key: str) -> np.ndarray:
+    def _get_concept_embeddings(
+        self, concepts: List[str], cache_key: str
+    ) -> np.ndarray:
         """
         Obtém embeddings de conceitos (com cache).
 
@@ -286,14 +327,14 @@ class SemanticAnalyzer:
         if cache_key not in self._concept_embeddings_cache:
             embeddings = self.model.encode(concepts, convert_to_numpy=True)
             self._concept_embeddings_cache[cache_key] = embeddings
-            logger.debug(f"Cached {cache_key} concept embeddings", num_concepts=len(concepts))
+            logger.debug(
+                f"Cached {cache_key} concept embeddings", num_concepts=len(concepts)
+            )
 
         return self._concept_embeddings_cache[cache_key]
 
     def compute_task_similarity(
-        self,
-        task_description: str,
-        reference_concepts: List[str]
+        self, task_description: str, reference_concepts: List[str]
     ) -> float:
         """
         Computa similaridade de uma tarefa com conceitos de referência.

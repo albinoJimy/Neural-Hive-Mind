@@ -5,9 +5,4 @@ from .ontology_mapper import OntologyMapper
 from .graph_analyzer import GraphAnalyzer
 from .embeddings_generator import EmbeddingsGenerator
 
-__all__ = [
-    'FeatureExtractor',
-    'OntologyMapper',
-    'GraphAnalyzer',
-    'EmbeddingsGenerator'
-]
+__all__ = ["FeatureExtractor", "OntologyMapper", "GraphAnalyzer", "EmbeddingsGenerator"]

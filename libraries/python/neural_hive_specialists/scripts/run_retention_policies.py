@@ -24,41 +24,69 @@ def load_config():
 
     class SimpleConfig:
         """Configuração simplificada para script de retenção."""
+
         def __init__(self):
             # MongoDB
-            self.mongodb_uri = os.getenv('MONGODB_URI')
+            self.mongodb_uri = os.getenv("MONGODB_URI")
             if not self.mongodb_uri:
                 raise ValueError("MONGODB_URI é obrigatório")
 
-            self.mongodb_database = os.getenv('MONGODB_DATABASE', 'neural_hive')
+            self.mongodb_database = os.getenv("MONGODB_DATABASE", "neural_hive")
 
             # Compliance flags
-            self.enable_pii_detection = os.getenv('ENABLE_PII_DETECTION', 'true').lower() == 'true'
-            self.enable_field_encryption = os.getenv('ENABLE_FIELD_ENCRYPTION', 'true').lower() == 'true'
-            self.enable_audit_logging = os.getenv('ENABLE_AUDIT_LOGGING', 'true').lower() == 'true'
+            self.enable_pii_detection = (
+                os.getenv("ENABLE_PII_DETECTION", "true").lower() == "true"
+            )
+            self.enable_field_encryption = (
+                os.getenv("ENABLE_FIELD_ENCRYPTION", "true").lower() == "true"
+            )
+            self.enable_audit_logging = (
+                os.getenv("ENABLE_AUDIT_LOGGING", "true").lower() == "true"
+            )
 
             # Encryption
-            self.encryption_key_path = os.getenv('ENCRYPTION_KEY_PATH')
+            self.encryption_key_path = os.getenv("ENCRYPTION_KEY_PATH")
 
             # Retention
-            self.enable_automated_retention = os.getenv('ENABLE_AUTOMATED_RETENTION', 'true').lower() == 'true'
-            self.default_retention_days = int(os.getenv('DEFAULT_RETENTION_DAYS', '365'))
+            self.enable_automated_retention = (
+                os.getenv("ENABLE_AUTOMATED_RETENTION", "true").lower() == "true"
+            )
+            self.default_retention_days = int(
+                os.getenv("DEFAULT_RETENTION_DAYS", "365")
+            )
 
             # PII detection (valores padrão)
-            self.pii_detection_languages = ['pt', 'en']
+            self.pii_detection_languages = ["pt", "en"]
             self.pii_entities_to_detect = [
-                'PERSON', 'EMAIL_ADDRESS', 'PHONE_NUMBER', 'CREDIT_CARD',
-                'IBAN_CODE', 'IP_ADDRESS', 'US_SSN', 'CPF'
+                "PERSON",
+                "EMAIL_ADDRESS",
+                "PHONE_NUMBER",
+                "CREDIT_CARD",
+                "IBAN_CODE",
+                "IP_ADDRESS",
+                "US_SSN",
+                "CPF",
             ]
-            self.pii_anonymization_strategy = os.getenv('PII_ANONYMIZATION_STRATEGY', 'replace')
+            self.pii_anonymization_strategy = os.getenv(
+                "PII_ANONYMIZATION_STRATEGY", "replace"
+            )
 
             # Fields to encrypt (padrão)
-            self.fields_to_encrypt = ['correlation_id', 'trace_id', 'span_id', 'intent_id']
-            self.encryption_algorithm = os.getenv('ENCRYPTION_ALGORITHM', 'fernet')
+            self.fields_to_encrypt = [
+                "correlation_id",
+                "trace_id",
+                "span_id",
+                "intent_id",
+            ]
+            self.encryption_algorithm = os.getenv("ENCRYPTION_ALGORITHM", "fernet")
 
             # Audit log
-            self.audit_log_collection = os.getenv('AUDIT_LOG_COLLECTION', 'compliance_audit_log')
-            self.audit_log_retention_days = int(os.getenv('AUDIT_LOG_RETENTION_DAYS', '730'))
+            self.audit_log_collection = os.getenv(
+                "AUDIT_LOG_COLLECTION", "compliance_audit_log"
+            )
+            self.audit_log_retention_days = int(
+                os.getenv("AUDIT_LOG_RETENTION_DAYS", "730")
+            )
 
     try:
         config = SimpleConfig()
@@ -88,6 +116,7 @@ def initialize_compliance_components(config):
     if config.enable_pii_detection:
         try:
             from neural_hive_specialists.compliance import PIIDetector
+
             pii_detector = PIIDetector(config)
             print("✅ PIIDetector inicializado")
         except Exception as e:
@@ -97,6 +126,7 @@ def initialize_compliance_components(config):
     if config.enable_field_encryption:
         try:
             from neural_hive_specialists.compliance import FieldEncryptor
+
             field_encryptor = FieldEncryptor(config)
             print("✅ FieldEncryptor inicializado")
         except Exception as e:
@@ -124,9 +154,9 @@ def apply_retention_policies(config, dry_run=False, policy_name=None):
 
     # Construir configuração do RetentionManager
     retention_config = {
-        'mongodb_uri': config.mongodb_uri,
-        'mongodb_database': config.mongodb_database,
-        'retention_policies': []  # Usar políticas padrão
+        "mongodb_uri": config.mongodb_uri,
+        "mongodb_database": config.mongodb_database,
+        "retention_policies": [],  # Usar políticas padrão
     }
 
     # Inicializar RetentionManager
@@ -134,7 +164,7 @@ def apply_retention_policies(config, dry_run=False, policy_name=None):
         retention_manager = RetentionManager(
             config=retention_config,
             pii_detector=pii_detector,
-            field_encryptor=field_encryptor
+            field_encryptor=field_encryptor,
         )
         print("✅ RetentionManager inicializado")
     except Exception as e:
@@ -149,10 +179,10 @@ def apply_retention_policies(config, dry_run=False, policy_name=None):
         print("⚠️  Modo DRY RUN: nenhum dado será modificado\n")
         # Em modo dry run, apenas simular
         stats = {
-            'documents_processed': 0,
-            'documents_masked': 0,
-            'documents_deleted': 0,
-            'errors': 0
+            "documents_processed": 0,
+            "documents_masked": 0,
+            "documents_deleted": 0,
+            "errors": 0,
         }
         print("   (Implementar lógica de dry run aqui)")
         return stats
@@ -176,6 +206,7 @@ def apply_retention_policies(config, dry_run=False, policy_name=None):
         except Exception as e:
             print(f"\n❌ ERRO ao aplicar políticas: {e}", file=sys.stderr)
             import traceback
+
             traceback.print_exc()
             sys.exit(1)
 
@@ -183,7 +214,7 @@ def apply_retention_policies(config, dry_run=False, policy_name=None):
 def main():
     """Função principal."""
     parser = argparse.ArgumentParser(
-        description='Executa políticas de retenção do Neural Hive',
+        description="Executa políticas de retenção do Neural Hive",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemplos:
@@ -209,32 +240,25 @@ Variáveis de ambiente necessárias:
 Agendamento (Kubernetes CronJob):
   Veja: k8s/cronjobs/retention-policy-job.yaml
   Schedule recomendado: diariamente às 2h UTC (0 2 * * *)
-        """
+        """,
     )
 
     parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Simular execução sem modificar dados'
+        "--dry-run", action="store_true", help="Simular execução sem modificar dados"
     )
 
     parser.add_argument(
-        '--policy-name',
-        type=str,
-        help='Executar apenas política específica'
+        "--policy-name", type=str, help="Executar apenas política específica"
     )
 
-    parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Logging detalhado'
-    )
+    parser.add_argument("--verbose", action="store_true", help="Logging detalhado")
 
     args = parser.parse_args()
 
     # Configurar logging
     if args.verbose:
         import structlog
+
         structlog.configure(
             wrapper_class=structlog.make_filtering_bound_logger(10)  # DEBUG level
         )
@@ -245,15 +269,13 @@ Agendamento (Kubernetes CronJob):
 
     # Aplicar políticas
     stats = apply_retention_policies(
-        config,
-        dry_run=args.dry_run,
-        policy_name=args.policy_name
+        config, dry_run=args.dry_run, policy_name=args.policy_name
     )
 
     # Exit code baseado em erros
-    exit_code = 0 if stats.get('errors', 0) == 0 else 1
+    exit_code = 0 if stats.get("errors", 0) == 0 else 1
     sys.exit(exit_code)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

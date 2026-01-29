@@ -23,7 +23,7 @@ from .ledger import (
     Opinion,
     ReasoningFactor,
     Mitigation,
-    SchemaVersionManager
+    SchemaVersionManager,
 )
 
 logger = structlog.get_logger(__name__)
@@ -56,33 +56,30 @@ OPINION_JSON_SCHEMAS = {
             "evaluated_at",
             "processing_time_ms",
             "buffered",
-            "content_hash"
+            "content_hash",
         ],
         "properties": {
             "schema_version": {
                 "type": "string",
                 "pattern": "^\\d+\\.\\d+\\.\\d+$",
-                "description": "Versão do schema em formato semver"
+                "description": "Versão do schema em formato semver",
             },
             "opinion_id": {
                 "type": "string",
-                "description": "ID único da opinião (UUID)"
+                "description": "ID único da opinião (UUID)",
             },
             "plan_id": {
                 "type": "string",
-                "description": "ID do plano cognitivo avaliado"
+                "description": "ID do plano cognitivo avaliado",
             },
-            "intent_id": {
-                "type": "string",
-                "description": "ID da intenção original"
-            },
+            "intent_id": {"type": "string", "description": "ID da intenção original"},
             "specialist_type": {
                 "type": "string",
-                "description": "Tipo do especialista (technical, business, etc.)"
+                "description": "Tipo do especialista (technical, business, etc.)",
             },
             "specialist_version": {
                 "type": "string",
-                "description": "Versão do especialista"
+                "description": "Versão do especialista",
             },
             "opinion": {
                 "type": "object",
@@ -90,14 +87,18 @@ OPINION_JSON_SCHEMAS = {
                     "confidence_score",
                     "risk_score",
                     "recommendation",
-                    "reasoning_summary"
+                    "reasoning_summary",
                 ],
                 "properties": {
-                    "confidence_score": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    "confidence_score": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "maximum": 1.0,
+                    },
                     "risk_score": {"type": "number", "minimum": 0.0, "maximum": 1.0},
                     "recommendation": {
                         "type": "string",
-                        "enum": ["approve", "reject", "review_required", "conditional"]
+                        "enum": ["approve", "reject", "review_required", "conditional"],
                     },
                     "reasoning_summary": {"type": "string"},
                     "reasoning_factors": {
@@ -109,9 +110,9 @@ OPINION_JSON_SCHEMAS = {
                                 "factor_name": {"type": "string"},
                                 "weight": {"type": "number"},
                                 "score": {"type": "number"},
-                                "details": {"type": "string"}
-                            }
-                        }
+                                "details": {"type": "string"},
+                            },
+                        },
                     },
                     "explainability_token": {"type": "string"},
                     "explainability": {"type": "object"},
@@ -125,14 +126,14 @@ OPINION_JSON_SCHEMAS = {
                                 "description": {"type": "string"},
                                 "priority": {
                                     "type": "string",
-                                    "enum": ["low", "medium", "high", "critical"]
+                                    "enum": ["low", "medium", "high", "critical"],
                                 },
-                                "estimated_effort": {"type": "string"}
-                            }
-                        }
+                                "estimated_effort": {"type": "string"},
+                            },
+                        },
                     },
-                    "metadata": {"type": "object"}
-                }
+                    "metadata": {"type": "object"},
+                },
             },
             "correlation_id": {"type": "string"},
             "trace_id": {"type": ["string", "null"]},
@@ -140,30 +141,30 @@ OPINION_JSON_SCHEMAS = {
             "evaluated_at": {
                 "type": "string",
                 "format": "date-time",
-                "description": "Timestamp UTC de avaliação"
+                "description": "Timestamp UTC de avaliação",
             },
             "processing_time_ms": {
                 "type": "integer",
                 "minimum": 0,
-                "description": "Tempo de processamento em milissegundos"
+                "description": "Tempo de processamento em milissegundos",
             },
             "buffered": {
                 "type": "boolean",
-                "description": "Se a opinião foi bufferizada"
+                "description": "Se a opinião foi bufferizada",
             },
             "content_hash": {
                 "type": "string",
-                "description": "Hash SHA-256 do conteúdo"
+                "description": "Hash SHA-256 do conteúdo",
             },
             "digital_signature": {
                 "type": ["string", "null"],
-                "description": "Assinatura digital RSA (opcional)"
+                "description": "Assinatura digital RSA (opcional)",
             },
             "signature_algorithm": {
                 "type": ["string", "null"],
-                "description": "Algoritmo de assinatura (ex: RSA-SHA256)"
-            }
-        }
+                "description": "Algoritmo de assinatura (ex: RSA-SHA256)",
+            },
+        },
     }
 }
 
@@ -179,8 +180,16 @@ OPINION_AVRO_SCHEMAS = {
             {"name": "opinion_id", "type": "string", "doc": "ID único da opinião"},
             {"name": "plan_id", "type": "string", "doc": "ID do plano cognitivo"},
             {"name": "intent_id", "type": "string", "doc": "ID da intenção original"},
-            {"name": "specialist_type", "type": "string", "doc": "Tipo do especialista"},
-            {"name": "specialist_version", "type": "string", "doc": "Versão do especialista"},
+            {
+                "name": "specialist_type",
+                "type": "string",
+                "doc": "Tipo do especialista",
+            },
+            {
+                "name": "specialist_version",
+                "type": "string",
+                "doc": "Versão do especialista",
+            },
             {
                 "name": "opinion",
                 "type": {
@@ -202,10 +211,14 @@ OPINION_AVRO_SCHEMAS = {
                                         {"name": "factor_name", "type": "string"},
                                         {"name": "weight", "type": "double"},
                                         {"name": "score", "type": "double"},
-                                        {"name": "details", "type": ["null", "string"], "default": None}
-                                    ]
-                                }
-                            }
+                                        {
+                                            "name": "details",
+                                            "type": ["null", "string"],
+                                            "default": None,
+                                        },
+                                    ],
+                                },
+                            },
                         },
                         {"name": "explainability_token", "type": "string"},
                         {"name": "explainability", "type": "string"},
@@ -220,14 +233,18 @@ OPINION_AVRO_SCHEMAS = {
                                         {"name": "mitigation_type", "type": "string"},
                                         {"name": "description", "type": "string"},
                                         {"name": "priority", "type": "string"},
-                                        {"name": "estimated_effort", "type": ["null", "string"], "default": None}
-                                    ]
-                                }
-                            }
+                                        {
+                                            "name": "estimated_effort",
+                                            "type": ["null", "string"],
+                                            "default": None,
+                                        },
+                                    ],
+                                },
+                            },
                         },
-                        {"name": "metadata", "type": "string"}
-                    ]
-                }
+                        {"name": "metadata", "type": "string"},
+                    ],
+                },
             },
             {"name": "correlation_id", "type": "string"},
             {"name": "trace_id", "type": ["null", "string"], "default": None},
@@ -237,13 +254,19 @@ OPINION_AVRO_SCHEMAS = {
             {"name": "buffered", "type": "boolean"},
             {"name": "content_hash", "type": "string"},
             {"name": "digital_signature", "type": ["null", "string"], "default": None},
-            {"name": "signature_algorithm", "type": ["null", "string"], "default": None}
-        ]
+            {
+                "name": "signature_algorithm",
+                "type": ["null", "string"],
+                "default": None,
+            },
+        ],
     }
 }
 
 
-def get_opinion_json_schema(version: str = OPINION_SCHEMA_VERSION) -> Optional[Dict[str, Any]]:
+def get_opinion_json_schema(
+    version: str = OPINION_SCHEMA_VERSION,
+) -> Optional[Dict[str, Any]]:
     """
     Retorna o JSON Schema para uma versão específica de OpinionDocumentV2.
 
@@ -256,7 +279,9 @@ def get_opinion_json_schema(version: str = OPINION_SCHEMA_VERSION) -> Optional[D
     return OPINION_JSON_SCHEMAS.get(version)
 
 
-def get_opinion_avro_schema(version: str = OPINION_SCHEMA_VERSION) -> Optional[Dict[str, Any]]:
+def get_opinion_avro_schema(
+    version: str = OPINION_SCHEMA_VERSION,
+) -> Optional[Dict[str, Any]]:
     """
     Retorna o Avro Schema para uma versão específica de OpinionDocumentV2.
 
@@ -271,16 +296,19 @@ def get_opinion_avro_schema(version: str = OPINION_SCHEMA_VERSION) -> Optional[D
 
 class PlanValidationError(ValueError):
     """Exceção base para erros de validação de plano cognitivo."""
+
     pass
 
 
 class PlanVersionIncompatibleError(PlanValidationError):
     """Levantada quando a versão do plano não é suportada pelo especialista."""
+
     pass
 
 
 class TaskDependencyError(PlanValidationError):
     """Levantada quando dependências de tarefas são inválidas (referências faltando, ciclos, etc)."""
+
     pass
 
 
@@ -290,19 +318,33 @@ class TaskSchema(BaseModel):
 
     Valida estrutura da tarefa incluindo dependências, capacidades e metadados.
     """
-    model_config = ConfigDict(extra='allow')
+
+    model_config = ConfigDict(extra="allow")
 
     task_id: str = Field(..., description="Identificador único da tarefa")
-    task_type: str = Field(..., description="Tipo da tarefa (ex: 'analysis', 'transformation')")
+    task_type: str = Field(
+        ..., description="Tipo da tarefa (ex: 'analysis', 'transformation')"
+    )
     name: Optional[str] = Field(None, description="Nome legível da tarefa")
     description: str = Field(..., description="Descrição da tarefa")
-    dependencies: List[str] = Field(default_factory=list, description="Lista de IDs de tarefas das quais esta tarefa depende")
-    estimated_duration_ms: Optional[int] = Field(None, description="Tempo estimado de execução em milissegundos")
-    required_capabilities: List[str] = Field(default_factory=list, description="Capacidades de especialista requeridas")
-    parameters: Dict[str, Any] = Field(default_factory=dict, description="Parâmetros específicos da tarefa")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais da tarefa")
+    dependencies: List[str] = Field(
+        default_factory=list,
+        description="Lista de IDs de tarefas das quais esta tarefa depende",
+    )
+    estimated_duration_ms: Optional[int] = Field(
+        None, description="Tempo estimado de execução em milissegundos"
+    )
+    required_capabilities: List[str] = Field(
+        default_factory=list, description="Capacidades de especialista requeridas"
+    )
+    parameters: Dict[str, Any] = Field(
+        default_factory=dict, description="Parâmetros específicos da tarefa"
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict, description="Metadados adicionais da tarefa"
+    )
 
-    @field_validator('task_id', 'task_type', 'description')
+    @field_validator("task_id", "task_type", "description")
     @classmethod
     def validate_non_empty_strings(cls, v: str, info) -> str:
         """Garante que campos de string obrigatórios não estejam vazios."""
@@ -310,7 +352,7 @@ class TaskSchema(BaseModel):
             raise ValueError(f"{info.field_name} deve ser uma string não vazia")
         return v.strip()
 
-    @field_validator('estimated_duration_ms')
+    @field_validator("estimated_duration_ms")
     @classmethod
     def validate_duration(cls, v: Optional[int]) -> Optional[int]:
         """Garante que duração não seja negativa se fornecida."""
@@ -318,7 +360,7 @@ class TaskSchema(BaseModel):
             raise ValueError("estimated_duration_ms deve ser >= 0")
         return v
 
-    @field_validator('dependencies')
+    @field_validator("dependencies")
     @classmethod
     def validate_no_self_reference(cls, v: List[str], info) -> List[str]:
         """Garante que tarefa não dependa de si mesma."""
@@ -334,25 +376,44 @@ class CognitivePlanSchema(BaseModel):
     Valida estrutura do plano, dependências de tarefas, ordem de execução e compatibilidade de versão.
     Realiza detecção de ciclos em DAG para garantir grafo de execução válido.
     """
-    model_config = ConfigDict(extra='allow')
+
+    model_config = ConfigDict(extra="allow")
 
     plan_id: str = Field(..., description="Identificador único do plano")
-    version: str = Field(..., description="Versão do plano em formato semver (ex: '1.0.0')")
+    version: str = Field(
+        ..., description="Versão do plano em formato semver (ex: '1.0.0')"
+    )
     intent_id: str = Field(..., description="Identificador da intenção original")
-    correlation_id: Optional[str] = Field(None, description="ID de correlação para rastreamento distribuído")
+    correlation_id: Optional[str] = Field(
+        None, description="ID de correlação para rastreamento distribuído"
+    )
     trace_id: Optional[str] = Field(None, description="ID de trace OpenTelemetry")
     span_id: Optional[str] = Field(None, description="ID de span OpenTelemetry")
     tasks: List[TaskSchema] = Field(..., description="Lista de tarefas no plano")
-    execution_order: Optional[List[str]] = Field(None, description="Ordem explícita de execução das tarefas")
+    execution_order: Optional[List[str]] = Field(
+        None, description="Ordem explícita de execução das tarefas"
+    )
     original_domain: str = Field(..., description="Domínio original da intenção")
-    original_priority: str = Field(..., description="Nível de prioridade: low, normal, high, critical")
-    original_security_level: Optional[str] = Field(None, description="Classificação de nível de segurança")
-    risk_score: Optional[float] = Field(None, description="Pontuação de avaliação de risco (0.0-1.0)")
-    risk_band: Optional[str] = Field(None, description="Classificação de faixa de risco")
-    complexity_score: Optional[float] = Field(None, description="Pontuação de avaliação de complexidade")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais do plano")
+    original_priority: str = Field(
+        ..., description="Nível de prioridade: low, normal, high, critical"
+    )
+    original_security_level: Optional[str] = Field(
+        None, description="Classificação de nível de segurança"
+    )
+    risk_score: Optional[float] = Field(
+        None, description="Pontuação de avaliação de risco (0.0-1.0)"
+    )
+    risk_band: Optional[str] = Field(
+        None, description="Classificação de faixa de risco"
+    )
+    complexity_score: Optional[float] = Field(
+        None, description="Pontuação de avaliação de complexidade"
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict, description="Metadados adicionais do plano"
+    )
 
-    @field_validator('plan_id', 'intent_id', 'original_domain')
+    @field_validator("plan_id", "intent_id", "original_domain")
     @classmethod
     def validate_non_empty_strings(cls, v: str, info) -> str:
         """Garante que campos de string obrigatórios não estejam vazios."""
@@ -360,18 +421,18 @@ class CognitivePlanSchema(BaseModel):
             raise ValueError(f"{info.field_name} deve ser uma string não vazia")
         return v.strip()
 
-    @field_validator('version')
+    @field_validator("version")
     @classmethod
     def validate_semver_format(cls, v: str) -> str:
         """Valida que a versão segue formato semver (major.minor.patch)."""
-        semver_pattern = r'^\d+\.\d+\.\d+$'
+        semver_pattern = r"^\d+\.\d+\.\d+$"
         if not re.match(semver_pattern, v):
             raise ValueError(
                 f"version deve estar em formato semver (ex: '1.0.0'), recebido: {v}"
             )
         return v
 
-    @field_validator('tasks')
+    @field_validator("tasks")
     @classmethod
     def validate_has_tasks(cls, v: List[TaskSchema]) -> List[TaskSchema]:
         """Garante que o plano tem pelo menos uma tarefa."""
@@ -379,18 +440,18 @@ class CognitivePlanSchema(BaseModel):
             raise ValueError("Plano deve conter pelo menos uma tarefa")
         return v
 
-    @field_validator('original_priority')
+    @field_validator("original_priority")
     @classmethod
     def validate_priority(cls, v: str) -> str:
         """Garante que prioridade é um dos valores válidos."""
-        valid_priorities = {'low', 'normal', 'high', 'critical'}
+        valid_priorities = {"low", "normal", "high", "critical"}
         if v.lower() not in valid_priorities:
             raise ValueError(
                 f"original_priority deve ser um de {valid_priorities}, recebido: {v}"
             )
         return v.lower()
 
-    @field_validator('risk_score')
+    @field_validator("risk_score")
     @classmethod
     def validate_risk_score(cls, v: Optional[float]) -> Optional[float]:
         """Garante que pontuação de risco está entre 0.0 e 1.0 se fornecida."""
@@ -398,7 +459,7 @@ class CognitivePlanSchema(BaseModel):
             raise ValueError(f"risk_score deve estar entre 0.0 e 1.0, recebido: {v}")
         return v
 
-    @field_validator('complexity_score')
+    @field_validator("complexity_score")
     @classmethod
     def validate_complexity_score(cls, v: Optional[float]) -> Optional[float]:
         """Garante que pontuação de complexidade não é negativa se fornecida."""
@@ -406,8 +467,8 @@ class CognitivePlanSchema(BaseModel):
             raise ValueError(f"complexity_score deve ser >= 0.0, recebido: {v}")
         return v
 
-    @model_validator(mode='after')
-    def validate_task_dependencies(self) -> 'CognitivePlanSchema':
+    @model_validator(mode="after")
+    def validate_task_dependencies(self) -> "CognitivePlanSchema":
         """
         Valida dependências de tarefas:
         - Todos os IDs de tarefa devem ser únicos
@@ -423,11 +484,13 @@ class CognitivePlanSchema(BaseModel):
 
         # Valida unicidade de task_id
         all_task_ids = [task.task_id for task in self.tasks]
-        duplicates = [task_id for task_id, count in collections.Counter(all_task_ids).items() if count > 1]
+        duplicates = [
+            task_id
+            for task_id, count in collections.Counter(all_task_ids).items()
+            if count > 1
+        ]
         if duplicates:
-            raise TaskDependencyError(
-                f"IDs de tarefa duplicados: {duplicates}"
-            )
+            raise TaskDependencyError(f"IDs de tarefa duplicados: {duplicates}")
 
         # Valida dependências de cada tarefa
         for task in self.tasks:
@@ -483,12 +546,14 @@ class CognitivePlanSchema(BaseModel):
             logger.debug(
                 "Grafo de dependências de tarefas validado (networkx)",
                 num_tasks=len(self.tasks),
-                num_edges=G.number_of_edges()
+                num_edges=G.number_of_edges(),
             )
 
         except ImportError:
             # Fallback para detecção de ciclos baseada em DFS
-            logger.debug("NetworkX não disponível, usando detecção de ciclos alternativa")
+            logger.debug(
+                "NetworkX não disponível, usando detecção de ciclos alternativa"
+            )
             self._detect_cycles_dfs()
 
     def _detect_cycles_dfs(self) -> None:
@@ -538,12 +603,11 @@ class CognitivePlanSchema(BaseModel):
                 dfs(task_id, [])
 
         logger.debug(
-            "Grafo de dependências de tarefas validado (DFS)",
-            num_tasks=len(self.tasks)
+            "Grafo de dependências de tarefas validado (DFS)", num_tasks=len(self.tasks)
         )
 
-    @model_validator(mode='after')
-    def validate_execution_order(self) -> 'CognitivePlanSchema':
+    @model_validator(mode="after")
+    def validate_execution_order(self) -> "CognitivePlanSchema":
         """
         Valida execution_order se fornecido:
         - Sem IDs duplicados em execution_order
@@ -554,11 +618,13 @@ class CognitivePlanSchema(BaseModel):
             return self
 
         # Verifica duplicatas em execution_order
-        duplicates = [task_id for task_id, count in collections.Counter(self.execution_order).items() if count > 1]
+        duplicates = [
+            task_id
+            for task_id, count in collections.Counter(self.execution_order).items()
+            if count > 1
+        ]
         if duplicates:
-            raise ValueError(
-                f"execution_order contém IDs duplicados: {duplicates}"
-            )
+            raise ValueError(f"execution_order contém IDs duplicados: {duplicates}")
 
         task_ids = {task.task_id for task in self.tasks}
         execution_ids = set(self.execution_order)
@@ -582,6 +648,7 @@ class CognitivePlanSchema(BaseModel):
 
 # Funções auxiliares para validação de versão
 
+
 def parse_semver(version: str) -> Tuple[int, int, int]:
     """
     Analisa string de versão semver em tupla (major, minor, patch).
@@ -595,7 +662,7 @@ def parse_semver(version: str) -> Tuple[int, int, int]:
     Raises:
         ValueError: Se o formato da versão for inválido
     """
-    parts = version.split('.')
+    parts = version.split(".")
     if len(parts) != 3:
         raise ValueError(f"Formato semver inválido: {version}")
 
@@ -620,7 +687,9 @@ def validate_plan_version(plan_version: str, supported_versions: List[str]) -> b
     return plan_version in supported_versions
 
 
-def is_version_compatible(plan_version: str, supported_versions: List[str]) -> Tuple[bool, str]:
+def is_version_compatible(
+    plan_version: str, supported_versions: List[str]
+) -> Tuple[bool, str]:
     """
     Verifica se a versão do plano é compatível com as versões suportadas pelo especialista.
 
@@ -654,9 +723,7 @@ def is_version_compatible(plan_version: str, supported_versions: List[str]) -> T
             parse_semver(sv)
         except ValueError as e:
             logger.warning(
-                "Formato de versão suportada inválido",
-                version=sv,
-                error=str(e)
+                "Formato de versão suportada inválido", version=sv, error=str(e)
             )
             return (False, f"Formato de versão suportada inválido '{sv}': {e}")
 
@@ -667,5 +734,5 @@ def is_version_compatible(plan_version: str, supported_versions: List[str]) -> T
     # Não compatível
     return (
         False,
-        f"Versão do plano '{plan_version}' não está nas versões suportadas: {supported_versions}"
+        f"Versão do plano '{plan_version}' não está nas versões suportadas: {supported_versions}",
     )

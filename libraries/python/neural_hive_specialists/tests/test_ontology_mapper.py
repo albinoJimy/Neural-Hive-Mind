@@ -30,14 +30,14 @@ def test_indicator_embeddings_precomputed():
     """Valida que embeddings de indicadores são pré-computados no __init__()."""
     mapper = OntologyMapper(embeddings_generator=DummyEmbeddingsGenerator())
     assert len(mapper._indicator_embeddings_cache) > 0
-    assert 'service' in mapper._indicator_embeddings_cache
+    assert "service" in mapper._indicator_embeddings_cache
 
 
 def test_semantic_similarity_threshold_configurable():
     """Valida que threshold é configurável."""
     mapper = OntologyMapper(
         embeddings_generator=DummyEmbeddingsGenerator(),
-        semantic_similarity_threshold=0.5
+        semantic_similarity_threshold=0.5,
     )
     assert mapper.semantic_similarity_threshold == 0.5
 
@@ -58,13 +58,13 @@ def test_calculate_semantic_matches_batch():
     mock_embeddings_gen.get_embeddings = counting_wrapper
 
     mapper._indicator_embeddings_cache = {
-        'indicator1': np.array([1.0, 1.0, 1.0]),
-        'indicator2': np.array([2.0, 2.0, 2.0])
+        "indicator1": np.array([1.0, 1.0, 1.0]),
+        "indicator2": np.array([2.0, 2.0, 2.0]),
     }
 
     mapper._calculate_semantic_matches(
-        task_descriptions=['task1', 'task2', 'task3'],
-        indicators=['indicator1', 'indicator2']
+        task_descriptions=["task1", "task2", "task3"],
+        indicators=["indicator1", "indicator2"],
     )
 
     assert call_count == 1
@@ -75,6 +75,7 @@ def test_semantic_match_average_rule():
     Garante que a contagem de matches usa a média das similaridades.
     Um indicador alto e outro baixo deve ainda considerar a média final.
     """
+
     class CustomGen(DummyEmbeddingsGenerator):
         def get_embeddings(self, descriptions):
             # Primeiro elemento para tarefa 1 terá norma alta, tarefa 2 baixa
@@ -91,19 +92,16 @@ def test_semantic_match_average_rule():
             return embeddings
 
     gen = CustomGen()
-    mapper = OntologyMapper(
-        embeddings_generator=gen,
-        semantic_similarity_threshold=0.5
-    )
+    mapper = OntologyMapper(embeddings_generator=gen, semantic_similarity_threshold=0.5)
 
     mapper._indicator_embeddings_cache = {
-        'indicator_high': np.array([10.0, 0.0, 0.0]),
-        'indicator_low': np.array([0.0, 10.0, 0.0])
+        "indicator_high": np.array([10.0, 0.0, 0.0]),
+        "indicator_low": np.array([0.0, 10.0, 0.0]),
     }
 
     matches = mapper._calculate_semantic_matches(
         task_descriptions=["high_match", "low_match"],
-        indicators=["indicator_high", "indicator_low"]
+        indicators=["indicator_high", "indicator_low"],
     )
 
     # high_match -> média ~0.5 (um alto, um baixo) => conta
@@ -116,20 +114,23 @@ def test_get_unified_domain():
     mapper = OntologyMapper()
 
     # Testes de mapeamento válido
-    assert mapper.get_unified_domain('security-analysis') == UnifiedDomain.SECURITY
-    assert mapper.get_unified_domain('architecture-review') == UnifiedDomain.TECHNICAL
-    assert mapper.get_unified_domain('performance-optimization') == UnifiedDomain.OPERATIONAL
-    assert mapper.get_unified_domain('code-quality') == UnifiedDomain.TECHNICAL
+    assert mapper.get_unified_domain("security-analysis") == UnifiedDomain.SECURITY
+    assert mapper.get_unified_domain("architecture-review") == UnifiedDomain.TECHNICAL
+    assert (
+        mapper.get_unified_domain("performance-optimization")
+        == UnifiedDomain.OPERATIONAL
+    )
+    assert mapper.get_unified_domain("code-quality") == UnifiedDomain.TECHNICAL
 
     # Teste de domínio inválido
-    assert mapper.get_unified_domain('invalid-domain') is None
+    assert mapper.get_unified_domain("invalid-domain") is None
 
 
 def test_map_domain_to_unified_domain_returns_unified_domain():
     """Valida que map_domain_to_unified_domain retorna UnifiedDomain diretamente."""
     mapper = OntologyMapper()
 
-    result = mapper.map_domain_to_unified_domain('security-analysis')
+    result = mapper.map_domain_to_unified_domain("security-analysis")
     assert result is not None
     assert isinstance(result, UnifiedDomain)
     assert result == UnifiedDomain.SECURITY
@@ -140,26 +141,28 @@ def test_map_domain_to_unified_domain_all_domains():
     mapper = OntologyMapper()
 
     domain_mappings = {
-        'security-analysis': UnifiedDomain.SECURITY,
-        'architecture-review': UnifiedDomain.TECHNICAL,
-        'performance-optimization': UnifiedDomain.OPERATIONAL,
-        'code-quality': UnifiedDomain.TECHNICAL
+        "security-analysis": UnifiedDomain.SECURITY,
+        "architecture-review": UnifiedDomain.TECHNICAL,
+        "performance-optimization": UnifiedDomain.OPERATIONAL,
+        "code-quality": UnifiedDomain.TECHNICAL,
     }
 
     for domain, expected_unified in domain_mappings.items():
         result = mapper.map_domain_to_unified_domain(domain)
         assert result is not None, f"Domain {domain} not found"
-        assert isinstance(result, UnifiedDomain), \
-            f"Domain {domain} should return UnifiedDomain, got {type(result)}"
-        assert result == expected_unified, \
-            f"Domain {domain} expected {expected_unified}, got {result}"
+        assert isinstance(
+            result, UnifiedDomain
+        ), f"Domain {domain} should return UnifiedDomain, got {type(result)}"
+        assert (
+            result == expected_unified
+        ), f"Domain {domain} expected {expected_unified}, got {result}"
 
 
 def test_map_domain_to_unified_domain_unknown_returns_none():
     """Valida que domínio desconhecido retorna None."""
     mapper = OntologyMapper()
 
-    result = mapper.map_domain_to_unified_domain('unknown-domain')
+    result = mapper.map_domain_to_unified_domain("unknown-domain")
     assert result is None
 
 
@@ -167,19 +170,19 @@ def test_get_taxonomy_entry_returns_full_dict():
     """Valida que get_taxonomy_entry retorna dicionário completo com metadados."""
     mapper = OntologyMapper()
 
-    result = mapper.get_taxonomy_entry('security-analysis')
+    result = mapper.get_taxonomy_entry("security-analysis")
     assert result is not None
     assert isinstance(result, dict)
-    assert 'id' in result
-    assert result['id'] == 'SEC'
-    assert 'unified_domain' in result
-    assert result['unified_domain'] == UnifiedDomain.SECURITY
-    assert 'risk_weight' in result
+    assert "id" in result
+    assert result["id"] == "SEC"
+    assert "unified_domain" in result
+    assert result["unified_domain"] == UnifiedDomain.SECURITY
+    assert "risk_weight" in result
 
 
 def test_get_taxonomy_entry_unknown_returns_none():
     """Valida que get_taxonomy_entry retorna None para domínio desconhecido."""
     mapper = OntologyMapper()
 
-    result = mapper.get_taxonomy_entry('unknown-domain')
+    result = mapper.get_taxonomy_entry("unknown-domain")
     assert result is None

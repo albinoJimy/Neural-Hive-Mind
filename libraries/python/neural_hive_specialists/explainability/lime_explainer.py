@@ -26,19 +26,13 @@ class LIMEExplainer:
             config: Configuração com num_samples, timeout_seconds, etc.
         """
         self.config = config
-        self.num_samples = config.get('lime_num_samples', 1000)
-        self.timeout_seconds = config.get('lime_timeout_seconds', 5.0)
+        self.num_samples = config.get("lime_num_samples", 1000)
+        self.timeout_seconds = config.get("lime_timeout_seconds", 5.0)
 
-        logger.info(
-            "LIMEExplainer initialized",
-            num_samples=self.num_samples
-        )
+        logger.info("LIMEExplainer initialized", num_samples=self.num_samples)
 
     def explain(
-        self,
-        model: Any,
-        features: Dict[str, Any],
-        feature_names: List[str]
+        self, model: Any, features: Dict[str, Any], feature_names: List[str]
     ) -> Dict[str, Any]:
         """
         Gera explicação LIME para predição do modelo.
@@ -53,7 +47,7 @@ class LIMEExplainer:
         """
         if model is None:
             logger.warning("No model provided for LIME")
-            return {'method': 'lime', 'feature_importances': [], 'error': 'No model'}
+            return {"method": "lime", "feature_importances": [], "error": "No model"}
 
         try:
             # Importar LIME
@@ -62,10 +56,7 @@ class LIMEExplainer:
             # Executar com timeout
             with ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(
-                    self._compute_lime,
-                    model,
-                    features,
-                    feature_names
+                    self._compute_lime, model, features, feature_names
                 )
                 try:
                     result = future.result(timeout=self.timeout_seconds)
@@ -73,26 +64,27 @@ class LIMEExplainer:
                 except FuturesTimeoutError:
                     logger.warning(
                         "LIME computation timed out",
-                        timeout_seconds=self.timeout_seconds
+                        timeout_seconds=self.timeout_seconds,
                     )
                     return {
-                        'method': 'lime',
-                        'feature_importances': [],
-                        'error': 'timeout'
+                        "method": "lime",
+                        "feature_importances": [],
+                        "error": "timeout",
                     }
 
         except ImportError:
             logger.error("LIME library not installed. Install with: pip install lime")
-            return {'method': 'lime', 'feature_importances': [], 'error': 'lime_not_installed'}
+            return {
+                "method": "lime",
+                "feature_importances": [],
+                "error": "lime_not_installed",
+            }
         except Exception as e:
             logger.error("LIME explanation failed", error=str(e), exc_info=True)
-            return {'method': 'lime', 'feature_importances': [], 'error': str(e)}
+            return {"method": "lime", "feature_importances": [], "error": str(e)}
 
     def _compute_lime(
-        self,
-        model: Any,
-        features: Dict[str, Any],
-        feature_names: List[str]
+        self, model: Any, features: Dict[str, Any], feature_names: List[str]
     ) -> Dict[str, Any]:
         """
         Computa valores LIME (método auxiliar para timeout).
@@ -120,8 +112,8 @@ class LIMEExplainer:
         explainer = lime_tabular.LimeTabularExplainer(
             training_data=training_data,
             feature_names=feature_names,
-            mode='regression',  # ou 'classification' dependendo do modelo
-            discretize_continuous=True
+            mode="regression",  # ou 'classification' dependendo do modelo
+            discretize_continuous=True,
         )
 
         # Gerar explicação
@@ -129,7 +121,7 @@ class LIMEExplainer:
             data_row=feature_vector[0],
             predict_fn=model.predict,
             num_features=len(feature_names),
-            num_samples=self.num_samples
+            num_samples=self.num_samples,
         )
 
         # Extrair importâncias
@@ -138,41 +130,48 @@ class LIMEExplainer:
             # feature_idx pode ser string "feature_name <= value" ou índice
             if isinstance(feature_idx, str):
                 # Extrair nome da feature
-                feature_name = feature_idx.split('<=')[0].split('>')[0].strip()
+                feature_name = feature_idx.split("<=")[0].split(">")[0].strip()
             else:
-                feature_name = feature_names[feature_idx] if feature_idx < len(feature_names) else f"feature_{feature_idx}"
+                feature_name = (
+                    feature_names[feature_idx]
+                    if feature_idx < len(feature_names)
+                    else f"feature_{feature_idx}"
+                )
 
-            feature_importances.append({
-                'feature_name': feature_name,
-                'lime_weight': float(weight),
-                'feature_value': float(features.get(feature_name, 0.0)),
-                'contribution': 'positive' if weight > 0 else ('negative' if weight < 0 else 'neutral'),
-                'importance': abs(weight)
-            })
+            feature_importances.append(
+                {
+                    "feature_name": feature_name,
+                    "lime_weight": float(weight),
+                    "feature_value": float(features.get(feature_name, 0.0)),
+                    "contribution": "positive"
+                    if weight > 0
+                    else ("negative" if weight < 0 else "neutral"),
+                    "importance": abs(weight),
+                }
+            )
 
         # Ordenar por importância absoluta
-        feature_importances.sort(key=lambda x: x['importance'], reverse=True)
+        feature_importances.sort(key=lambda x: x["importance"], reverse=True)
 
         computation_time = time.time() - start_time
 
         logger.info(
             "LIME values computed",
             num_features=len(feature_importances),
-            computation_time_ms=int(computation_time * 1000)
+            computation_time_ms=int(computation_time * 1000),
         )
 
         return {
-            'method': 'lime',
-            'feature_importances': feature_importances,
-            'computation_time_ms': int(computation_time * 1000),
-            'intercept': float(explanation.intercept[0]) if hasattr(explanation, 'intercept') else 0.0
+            "method": "lime",
+            "feature_importances": feature_importances,
+            "computation_time_ms": int(computation_time * 1000),
+            "intercept": float(explanation.intercept[0])
+            if hasattr(explanation, "intercept")
+            else 0.0,
         }
 
     def _generate_training_data(
-        self,
-        features: Dict[str, Any],
-        feature_names: List[str],
-        num_samples: int = 100
+        self, features: Dict[str, Any], feature_names: List[str], num_samples: int = 100
     ) -> np.ndarray:
         """
         Gera training data sintético para LIME.
@@ -198,7 +197,7 @@ class LIMEExplainer:
                 perturbed_value = value + np.random.normal(0, noise_std)
 
                 # Garantir valores não-negativos para features que devem ser positivas
-                if 'num_' in name or 'count' in name or 'size' in name:
+                if "num_" in name or "count" in name or "size" in name:
                     perturbed_value = max(0, perturbed_value)
 
                 sample.append(perturbed_value)
@@ -212,7 +211,7 @@ class LIMEExplainer:
         lime_result: Dict[str, Any],
         top_n: int = 5,
         positive_only: bool = False,
-        negative_only: bool = False
+        negative_only: bool = False,
     ) -> List[Dict[str, Any]]:
         """
         Retorna top N features mais importantes.
@@ -226,11 +225,11 @@ class LIMEExplainer:
         Returns:
             Lista de features mais importantes
         """
-        importances = lime_result.get('feature_importances', [])
+        importances = lime_result.get("feature_importances", [])
 
         if positive_only:
-            importances = [f for f in importances if f['contribution'] == 'positive']
+            importances = [f for f in importances if f["contribution"] == "positive"]
         elif negative_only:
-            importances = [f for f in importances if f['contribution'] == 'negative']
+            importances = [f for f in importances if f["contribution"] == "negative"]
 
         return importances[:top_n]

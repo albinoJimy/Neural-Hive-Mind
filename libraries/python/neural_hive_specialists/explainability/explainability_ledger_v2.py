@@ -20,97 +20,70 @@ class ExplainabilityRecordSchema(BaseModel):
     """Schema Pydantic para registro de explicabilidade v2."""
 
     explainability_token: str = Field(
-        ...,
-        description="Token único SHA-256 da explicação"
+        ..., description="Token único SHA-256 da explicação"
     )
     schema_version: str = Field(
-        default="2.0.0",
-        description="Versão do schema do ledger"
+        default="2.0.0", description="Versão do schema do ledger"
     )
-    plan_id: str = Field(
-        ...,
-        description="ID do plano cognitivo"
-    )
+    plan_id: str = Field(..., description="ID do plano cognitivo")
     specialist_type: str = Field(
-        ...,
-        description="Tipo do especialista (business, technical, etc.)"
+        ..., description="Tipo do especialista (business, technical, etc.)"
     )
     explanation_method: str = Field(
-        ...,
-        description="Método de explicabilidade (shap, lime, heuristic)"
+        ..., description="Método de explicabilidade (shap, lime, heuristic)"
     )
 
     # Input features completas
     input_features: Dict[str, float] = Field(
-        ...,
-        description="Features estruturadas usadas na predição"
+        ..., description="Features estruturadas usadas na predição"
     )
-    feature_names: List[str] = Field(
-        ...,
-        description="Nomes ordenados das features"
-    )
+    feature_names: List[str] = Field(..., description="Nomes ordenados das features")
 
     # Model metadata
-    model_version: str = Field(
-        ...,
-        description="Versão do modelo MLflow"
-    )
+    model_version: str = Field(..., description="Versão do modelo MLflow")
     model_type: str = Field(
-        ...,
-        description="Tipo do modelo (RandomForest, XGBoost, etc.)"
+        ..., description="Tipo do modelo (RandomForest, XGBoost, etc.)"
     )
 
     # Importance vectors (suporta ambos feature_importances e importance_vectors)
     feature_importances: List[Dict[str, Any]] = Field(
-        ...,
-        description="Lista de importâncias por feature com valores SHAP/LIME"
+        ..., description="Lista de importâncias por feature com valores SHAP/LIME"
     )
 
     # Narrativa legível
     human_readable_summary: str = Field(
-        ...,
-        description="Resumo executivo em português"
+        ..., description="Resumo executivo em português"
     )
     detailed_narrative: str = Field(
-        ...,
-        description="Narrativa completa com top features"
+        ..., description="Narrativa completa com top features"
     )
 
     # Metadata adicional
     prediction: Dict[str, float] = Field(
-        ...,
-        description="Predição do modelo (confidence_score, risk_score)"
+        ..., description="Predição do modelo (confidence_score, risk_score)"
     )
     computation_time_ms: int = Field(
-        ...,
-        description="Tempo de computação da explicação"
+        ..., description="Tempo de computação da explicação"
     )
 
     # Reprodutibilidade
     background_dataset_hash: Optional[str] = Field(
-        None,
-        description="Hash SHA-256 do background dataset (SHAP)"
+        None, description="Hash SHA-256 do background dataset (SHAP)"
     )
     random_seed: Optional[int] = Field(
-        None,
-        description="Seed para reprodutibilidade (LIME)"
+        None, description="Seed para reprodutibilidade (LIME)"
     )
-    num_samples: Optional[int] = Field(
-        None,
-        description="Número de amostras (LIME)"
-    )
+    num_samples: Optional[int] = Field(None, description="Número de amostras (LIME)")
 
     # Timestamps
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
-        description="Timestamp de criação"
+        default_factory=datetime.utcnow, description="Timestamp de criação"
     )
     correlation_id: Optional[str] = Field(
-        None,
-        description="ID de correlação para rastreamento distribuído"
+        None, description="ID de correlação para rastreamento distribuído"
     )
 
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     @classmethod
     def accept_importance_vectors_alias(cls, data: Any) -> Any:
         """
@@ -121,8 +94,8 @@ class ExplainabilityRecordSchema(BaseModel):
         """
         if isinstance(data, dict):
             # Se importance_vectors está presente mas feature_importances não
-            if 'importance_vectors' in data and 'feature_importances' not in data:
-                data['feature_importances'] = data.pop('importance_vectors')
+            if "importance_vectors" in data and "feature_importances" not in data:
+                data["feature_importances"] = data.pop("importance_vectors")
         return data
 
 
@@ -147,8 +120,7 @@ class ExplainabilityLedgerV2:
         """Lazy initialization do cliente MongoDB."""
         if self._mongo_client is None:
             self._mongo_client = MongoClient(
-                self.config.mongodb_uri,
-                serverSelectionTimeoutMS=5000
+                self.config.mongodb_uri, serverSelectionTimeoutMS=5000
             )
         return self._mongo_client
 
@@ -156,7 +128,7 @@ class ExplainabilityLedgerV2:
         """Cria índices otimizados na collection."""
         try:
             db = self.mongo_client[self.config.mongodb_database]
-            collection = db['explainability_ledger_v2']
+            collection = db["explainability_ledger_v2"]
 
             # Índices
             indexes = [
@@ -166,7 +138,7 @@ class ExplainabilityLedgerV2:
                 IndexModel([("model_version", ASCENDING)]),
                 IndexModel([("explanation_method", ASCENDING)]),
                 IndexModel([("created_at", ASCENDING)]),
-                IndexModel([("correlation_id", ASCENDING)])
+                IndexModel([("correlation_id", ASCENDING)]),
             ]
 
             collection.create_indexes(indexes)
@@ -175,15 +147,14 @@ class ExplainabilityLedgerV2:
 
         except Exception as e:
             logger.warning(
-                "Failed to create indexes for explainability ledger v2",
-                error=str(e)
+                "Failed to create indexes for explainability ledger v2", error=str(e)
             )
 
     def persist(
         self,
         explainability_data: Dict[str, Any],
         specialist_type: str,
-        correlation_id: Optional[str] = None
+        correlation_id: Optional[str] = None,
     ) -> str:
         """
         Persiste explicação completa no ledger.
@@ -203,43 +174,43 @@ class ExplainabilityLedgerV2:
             # Criar registro versionado
             record = ExplainabilityRecordSchema(
                 explainability_token=token,
-                plan_id=explainability_data['plan_id'],
+                plan_id=explainability_data["plan_id"],
                 specialist_type=specialist_type,
-                explanation_method=explainability_data['explanation_method'],
-                input_features=explainability_data['input_features'],
-                feature_names=explainability_data['feature_names'],
-                model_version=explainability_data['model_version'],
-                model_type=explainability_data['model_type'],
-                feature_importances=explainability_data['feature_importances'],
-                human_readable_summary=explainability_data['human_readable_summary'],
-                detailed_narrative=explainability_data['detailed_narrative'],
-                prediction=explainability_data['prediction'],
-                computation_time_ms=explainability_data['computation_time_ms'],
-                background_dataset_hash=explainability_data.get('background_dataset_hash'),
-                random_seed=explainability_data.get('random_seed'),
-                num_samples=explainability_data.get('num_samples'),
-                correlation_id=correlation_id
+                explanation_method=explainability_data["explanation_method"],
+                input_features=explainability_data["input_features"],
+                feature_names=explainability_data["feature_names"],
+                model_version=explainability_data["model_version"],
+                model_type=explainability_data["model_type"],
+                feature_importances=explainability_data["feature_importances"],
+                human_readable_summary=explainability_data["human_readable_summary"],
+                detailed_narrative=explainability_data["detailed_narrative"],
+                prediction=explainability_data["prediction"],
+                computation_time_ms=explainability_data["computation_time_ms"],
+                background_dataset_hash=explainability_data.get(
+                    "background_dataset_hash"
+                ),
+                random_seed=explainability_data.get("random_seed"),
+                num_samples=explainability_data.get("num_samples"),
+                correlation_id=correlation_id,
             )
 
             # Persistir
             db = self.mongo_client[self.config.mongodb_database]
-            collection = db['explainability_ledger_v2']
+            collection = db["explainability_ledger_v2"]
 
             collection.insert_one(record.model_dump(by_alias=True))
 
             logger.info(
                 "Explainability record persisted",
                 token=token,
-                method=explainability_data['explanation_method']
+                method=explainability_data["explanation_method"],
             )
 
             return token
 
         except Exception as e:
             logger.error(
-                "Failed to persist explainability record",
-                error=str(e),
-                exc_info=True
+                "Failed to persist explainability record", error=str(e), exc_info=True
             )
             raise
 
@@ -254,15 +225,18 @@ class ExplainabilityLedgerV2:
             Token SHA-256
         """
         # Criar string determinística dos inputs
-        input_str = json.dumps({
-            'plan_id': explainability_data['plan_id'],
-            'input_features': explainability_data['input_features'],
-            'model_version': explainability_data['model_version'],
-            'timestamp': datetime.utcnow().isoformat()
-        }, sort_keys=True)
+        input_str = json.dumps(
+            {
+                "plan_id": explainability_data["plan_id"],
+                "input_features": explainability_data["input_features"],
+                "model_version": explainability_data["model_version"],
+                "timestamp": datetime.utcnow().isoformat(),
+            },
+            sort_keys=True,
+        )
 
         # Gerar hash SHA-256
-        token = hashlib.sha256(input_str.encode('utf-8')).hexdigest()
+        token = hashlib.sha256(input_str.encode("utf-8")).hexdigest()
 
         return token
 
@@ -278,21 +252,19 @@ class ExplainabilityLedgerV2:
         """
         try:
             db = self.mongo_client[self.config.mongodb_database]
-            collection = db['explainability_ledger_v2']
+            collection = db["explainability_ledger_v2"]
 
-            document = collection.find_one({'explainability_token': token})
+            document = collection.find_one({"explainability_token": token})
 
             if document:
-                document.pop('_id', None)
+                document.pop("_id", None)
                 return document
 
             return None
 
         except Exception as e:
             logger.error(
-                "Failed to retrieve explainability record",
-                token=token,
-                error=str(e)
+                "Failed to retrieve explainability record", token=token, error=str(e)
             )
             return None
 
@@ -308,29 +280,25 @@ class ExplainabilityLedgerV2:
         """
         try:
             db = self.mongo_client[self.config.mongodb_database]
-            collection = db['explainability_ledger_v2']
+            collection = db["explainability_ledger_v2"]
 
-            cursor = collection.find({'plan_id': plan_id}).sort('created_at', -1)
+            cursor = collection.find({"plan_id": plan_id}).sort("created_at", -1)
             documents = list(cursor)
 
             # Remover _id
             for doc in documents:
-                doc.pop('_id', None)
+                doc.pop("_id", None)
 
             return documents
 
         except Exception as e:
             logger.error(
-                "Failed to query explanations by plan",
-                plan_id=plan_id,
-                error=str(e)
+                "Failed to query explanations by plan", plan_id=plan_id, error=str(e)
             )
             return []
 
     def query_by_specialist(
-        self,
-        specialist_type: str,
-        limit: int = 100
+        self, specialist_type: str, limit: int = 100
     ) -> List[Dict[str, Any]]:
         """
         Recupera explicações por tipo de especialista.
@@ -344,16 +312,18 @@ class ExplainabilityLedgerV2:
         """
         try:
             db = self.mongo_client[self.config.mongodb_database]
-            collection = db['explainability_ledger_v2']
+            collection = db["explainability_ledger_v2"]
 
-            cursor = collection.find({'specialist_type': specialist_type}) \
-                               .sort('created_at', -1) \
-                               .limit(limit)
+            cursor = (
+                collection.find({"specialist_type": specialist_type})
+                .sort("created_at", -1)
+                .limit(limit)
+            )
 
             documents = list(cursor)
 
             for doc in documents:
-                doc.pop('_id', None)
+                doc.pop("_id", None)
 
             return documents
 
@@ -361,7 +331,7 @@ class ExplainabilityLedgerV2:
             logger.error(
                 "Failed to query explanations by specialist",
                 specialist_type=specialist_type,
-                error=str(e)
+                error=str(e),
             )
             return []
 

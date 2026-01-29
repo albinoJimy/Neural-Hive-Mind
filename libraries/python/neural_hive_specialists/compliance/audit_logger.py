@@ -61,13 +61,13 @@ class AuditLogger:
             logger.info(
                 "AuditLogger inicializado com sucesso",
                 collection=config.audit_log_collection,
-                retention_days=config.audit_log_retention_days
+                retention_days=config.audit_log_retention_days,
             )
 
         except Exception as e:
             logger.error(
                 "Falha ao inicializar AuditLogger - audit logging desabilitado",
-                error=str(e)
+                error=str(e),
             )
             self.enabled = False
 
@@ -78,26 +78,25 @@ class AuditLogger:
         self._collection = db[self.config.audit_log_collection]
 
         # Criar índices otimizados
-        self._collection.create_index([('timestamp', DESCENDING)])
-        self._collection.create_index([('event_type', ASCENDING), ('timestamp', DESCENDING)])
-        self._collection.create_index([('specialist_type', ASCENDING), ('timestamp', DESCENDING)])
-        self._collection.create_index([('correlation_id', ASCENDING)])
+        self._collection.create_index([("timestamp", DESCENDING)])
+        self._collection.create_index(
+            [("event_type", ASCENDING), ("timestamp", DESCENDING)]
+        )
+        self._collection.create_index(
+            [("specialist_type", ASCENDING), ("timestamp", DESCENDING)]
+        )
+        self._collection.create_index([("correlation_id", ASCENDING)])
 
         # TTL index para retenção automática
         ttl_seconds = self.config.audit_log_retention_days * 24 * 3600
         self._collection.create_index(
-            [('timestamp', ASCENDING)],
-            expireAfterSeconds=ttl_seconds
+            [("timestamp", ASCENDING)], expireAfterSeconds=ttl_seconds
         )
 
         logger.info("Índices de audit log criados/verificados")
 
     def log_config_change(
-        self,
-        changed_by: str,
-        old_config: Dict,
-        new_config: Dict,
-        reason: str
+        self, changed_by: str, old_config: Dict, new_config: Dict, reason: str
     ):
         """
         Registra mudança de configuração.
@@ -115,17 +114,17 @@ class AuditLogger:
         changes = self._calculate_config_diff(old_config, new_config)
 
         event_data = {
-            'old_config': old_config,
-            'new_config': new_config,
-            'changes': changes,
-            'reason': reason
+            "old_config": old_config,
+            "new_config": new_config,
+            "changes": changes,
+            "reason": reason,
         }
 
         self._log_event(
-            event_type='config_change',
+            event_type="config_change",
             event_data=event_data,
             actor=changed_by,
-            severity='warning'
+            severity="warning",
         )
 
     def log_data_access(
@@ -134,7 +133,7 @@ class AuditLogger:
         resource_type: str,
         resource_id: str,
         action: str,
-        metadata: Optional[Dict] = None
+        metadata: Optional[Dict] = None,
     ):
         """
         Registra acesso a dados sensíveis.
@@ -150,20 +149,20 @@ class AuditLogger:
             return
 
         event_data = {
-            'resource_type': resource_type,
-            'resource_id': resource_id,
-            'action': action
+            "resource_type": resource_type,
+            "resource_id": resource_id,
+            "action": action,
         }
 
         if metadata:
             event_data.update(metadata)
 
         self._log_event(
-            event_type='data_access',
+            event_type="data_access",
             event_data=event_data,
             actor=accessed_by,
-            severity='info',
-            correlation_id=metadata.get('correlation_id') if metadata else None
+            severity="info",
+            correlation_id=metadata.get("correlation_id") if metadata else None,
         )
 
     def log_retention_action(
@@ -171,7 +170,7 @@ class AuditLogger:
         action_type: str,
         affected_documents: int,
         policy_name: str,
-        metadata: Optional[Dict] = None
+        metadata: Optional[Dict] = None,
     ):
         """
         Registra ação de política de retenção.
@@ -186,28 +185,25 @@ class AuditLogger:
             return
 
         event_data = {
-            'action_type': action_type,
-            'affected_documents': affected_documents,
-            'policy_name': policy_name
+            "action_type": action_type,
+            "affected_documents": affected_documents,
+            "policy_name": policy_name,
         }
 
         if metadata:
             event_data.update(metadata)
 
-        severity = 'warning' if affected_documents > 0 else 'info'
+        severity = "warning" if affected_documents > 0 else "info"
 
         self._log_event(
-            event_type='retention_action',
+            event_type="retention_action",
             event_data=event_data,
-            actor='system:retention_manager',
-            severity=severity
+            actor="system:retention_manager",
+            severity=severity,
         )
 
     def log_pii_detection(
-        self,
-        plan_id: str,
-        entities_detected: List[Dict],
-        anonymization_applied: bool
+        self, plan_id: str, entities_detected: List[Dict], anonymization_applied: bool
     ):
         """
         Registra detecção de PII.
@@ -223,26 +219,28 @@ class AuditLogger:
         # Sanitizar entidades (não logar dados sensíveis)
         sanitized_entities = []
         for entity in entities_detected:
-            sanitized_entities.append({
-                'entity_type': entity.get('entity_type'),
-                'score': entity.get('score'),
-                'field': entity.get('field')
-            })
+            sanitized_entities.append(
+                {
+                    "entity_type": entity.get("entity_type"),
+                    "score": entity.get("score"),
+                    "field": entity.get("field"),
+                }
+            )
 
         event_data = {
-            'plan_id': plan_id,
-            'entities_count': len(entities_detected),
-            'entities': sanitized_entities,
-            'anonymization_applied': anonymization_applied
+            "plan_id": plan_id,
+            "entities_count": len(entities_detected),
+            "entities": sanitized_entities,
+            "anonymization_applied": anonymization_applied,
         }
 
-        severity = 'warning' if len(entities_detected) > 0 else 'info'
+        severity = "warning" if len(entities_detected) > 0 else "info"
 
         self._log_event(
-            event_type='pii_detection',
+            event_type="pii_detection",
             event_data=event_data,
-            actor=f'system:pii_detector',
-            severity=severity
+            actor=f"system:pii_detector",
+            severity=severity,
         )
 
     def log_encryption_operation(
@@ -250,7 +248,7 @@ class AuditLogger:
         operation: str,
         field_name: str,
         success: bool,
-        error: Optional[str] = None
+        error: Optional[str] = None,
     ):
         """
         Registra operação de criptografia.
@@ -265,27 +263,25 @@ class AuditLogger:
             return
 
         event_data = {
-            'operation': operation,
-            'field_name': field_name,
-            'success': success
+            "operation": operation,
+            "field_name": field_name,
+            "success": success,
         }
 
         if error:
-            event_data['error'] = error
+            event_data["error"] = error
 
-        severity = 'info' if success else 'warning'
+        severity = "info" if success else "warning"
 
         self._log_event(
-            event_type='encryption_operation',
+            event_type="encryption_operation",
             event_data=event_data,
-            actor=f'system:field_encryptor',
-            severity=severity
+            actor=f"system:field_encryptor",
+            severity=severity,
         )
 
     def query_audit_logs(
-        self,
-        filters: Optional[Dict] = None,
-        limit: int = 100
+        self, filters: Optional[Dict] = None, limit: int = 100
     ) -> List[Dict]:
         """
         Consulta audit logs com filtros.
@@ -304,26 +300,24 @@ class AuditLogger:
             query = {}
 
             if filters:
-                if 'event_type' in filters:
-                    query['event_type'] = filters['event_type']
+                if "event_type" in filters:
+                    query["event_type"] = filters["event_type"]
 
-                if 'specialist_type' in filters:
-                    query['specialist_type'] = filters['specialist_type']
+                if "specialist_type" in filters:
+                    query["specialist_type"] = filters["specialist_type"]
 
-                if 'start_date' in filters or 'end_date' in filters:
-                    query['timestamp'] = {}
-                    if 'start_date' in filters:
-                        query['timestamp']['$gte'] = filters['start_date']
-                    if 'end_date' in filters:
-                        query['timestamp']['$lte'] = filters['end_date']
+                if "start_date" in filters or "end_date" in filters:
+                    query["timestamp"] = {}
+                    if "start_date" in filters:
+                        query["timestamp"]["$gte"] = filters["start_date"]
+                    if "end_date" in filters:
+                        query["timestamp"]["$lte"] = filters["end_date"]
 
-                if 'actor' in filters:
-                    query['actor'] = filters['actor']
+                if "actor" in filters:
+                    query["actor"] = filters["actor"]
 
             results = list(
-                self._collection.find(query)
-                .sort('timestamp', DESCENDING)
-                .limit(limit)
+                self._collection.find(query).sort("timestamp", DESCENDING).limit(limit)
             )
 
             return results
@@ -333,9 +327,7 @@ class AuditLogger:
             return []
 
     def get_audit_summary(
-        self,
-        start_date: datetime,
-        end_date: datetime
+        self, start_date: datetime, end_date: datetime
     ) -> Dict[str, Any]:
         """
         Retorna resumo de auditoria para período.
@@ -352,28 +344,19 @@ class AuditLogger:
 
         try:
             pipeline = [
-                {
-                    '$match': {
-                        'timestamp': {'$gte': start_date, '$lte': end_date}
-                    }
-                },
-                {
-                    '$group': {
-                        '_id': '$event_type',
-                        'count': {'$sum': 1}
-                    }
-                }
+                {"$match": {"timestamp": {"$gte": start_date, "$lte": end_date}}},
+                {"$group": {"_id": "$event_type", "count": {"$sum": 1}}},
             ]
 
             results = list(self._collection.aggregate(pipeline))
 
             summary = {
-                'period': {
-                    'start': start_date.isoformat(),
-                    'end': end_date.isoformat()
+                "period": {
+                    "start": start_date.isoformat(),
+                    "end": end_date.isoformat(),
                 },
-                'events_by_type': {r['_id']: r['count'] for r in results},
-                'total_events': sum(r['count'] for r in results)
+                "events_by_type": {r["_id"]: r["count"] for r in results},
+                "total_events": sum(r["count"] for r in results),
             }
 
             return summary
@@ -387,8 +370,8 @@ class AuditLogger:
         event_type: str,
         event_data: Dict,
         actor: str,
-        severity: str = 'info',
-        correlation_id: Optional[str] = None
+        severity: str = "info",
+        correlation_id: Optional[str] = None,
     ):
         """
         Registra evento de audit no MongoDB.
@@ -405,18 +388,18 @@ class AuditLogger:
 
         try:
             document = {
-                'audit_id': str(uuid.uuid4()),
-                'timestamp': datetime.utcnow(),
-                'specialist_type': self.specialist_type,
-                'event_type': event_type,
-                'event_data': event_data,
-                'actor': actor,
-                'severity': severity,
-                'metadata': {}
+                "audit_id": str(uuid.uuid4()),
+                "timestamp": datetime.utcnow(),
+                "specialist_type": self.specialist_type,
+                "event_type": event_type,
+                "event_data": event_data,
+                "actor": actor,
+                "severity": severity,
+                "metadata": {},
             }
 
             if correlation_id:
-                document['correlation_id'] = correlation_id
+                document["correlation_id"] = correlation_id
 
             self._collection.insert_one(document)
 
@@ -424,7 +407,7 @@ class AuditLogger:
                 "Evento de audit registrado",
                 event_type=event_type,
                 severity=severity,
-                audit_id=document['audit_id']
+                audit_id=document["audit_id"],
             )
 
         except PyMongoError as e:
@@ -432,7 +415,7 @@ class AuditLogger:
             logger.error(
                 "Falha ao registrar evento de audit",
                 event_type=event_type,
-                error=str(e)
+                error=str(e),
             )
 
     @staticmethod
@@ -453,14 +436,20 @@ class AuditLogger:
 
             if old_value != new_value:
                 # Sanitizar valores sensíveis
-                if 'secret' in key.lower() or 'password' in key.lower() or 'key' in key.lower():
-                    old_value = '***'
-                    new_value = '***'
+                if (
+                    "secret" in key.lower()
+                    or "password" in key.lower()
+                    or "key" in key.lower()
+                ):
+                    old_value = "***"
+                    new_value = "***"
 
-                changes.append({
-                    'field': key,
-                    'old_value': str(old_value),
-                    'new_value': str(new_value)
-                })
+                changes.append(
+                    {
+                        "field": key,
+                        "old_value": str(old_value),
+                        "new_value": str(new_value),
+                    }
+                )
 
         return changes

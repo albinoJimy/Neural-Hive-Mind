@@ -60,7 +60,7 @@ class StorageClient(ABC):
         pass
 
     @abstractmethod
-    def list_backups(self, prefix: str = '') -> List[Dict]:
+    def list_backups(self, prefix: str = "") -> List[Dict]:
         """
         Lista backups disponíveis.
 
@@ -143,9 +143,9 @@ class S3StorageClient(StorageClient):
         self,
         bucket: str,
         region: str,
-        prefix: str = '',
+        prefix: str = "",
         aws_access_key: Optional[str] = None,
-        aws_secret_key: Optional[str] = None
+        aws_secret_key: Optional[str] = None,
     ):
         """
         Inicializa cliente S3.
@@ -167,34 +167,27 @@ class S3StorageClient(StorageClient):
 
         self.bucket = bucket
         self.region = region
-        self.prefix = prefix.rstrip('/')
+        self.prefix = prefix.rstrip("/")
 
         # Configurar retry logic
         config = Config(
-            region_name=region,
-            retries={
-                'max_attempts': 3,
-                'mode': 'adaptive'
-            }
+            region_name=region, retries={"max_attempts": 3, "mode": "adaptive"}
         )
 
         # Criar cliente boto3
         if aws_access_key and aws_secret_key:
             self.s3_client = boto3.client(
-                's3',
+                "s3",
                 aws_access_key_id=aws_access_key,
                 aws_secret_access_key=aws_secret_key,
-                config=config
+                config=config,
             )
         else:
             # Usar IAM role
-            self.s3_client = boto3.client('s3', config=config)
+            self.s3_client = boto3.client("s3", config=config)
 
         logger.info(
-            "S3StorageClient inicializado",
-            bucket=bucket,
-            region=region,
-            prefix=prefix
+            "S3StorageClient inicializado", bucket=bucket, region=region, prefix=prefix
         )
 
     def _get_full_key(self, remote_key: str) -> str:
@@ -221,10 +214,11 @@ class S3StorageClient(StorageClient):
                 "Iniciando upload S3",
                 local_path=local_path,
                 remote_key=full_key,
-                size_bytes=file_size
+                size_bytes=file_size,
             )
 
             import time
+
             start_time = time.time()
 
             # Upload com server-side encryption
@@ -233,12 +227,12 @@ class S3StorageClient(StorageClient):
                 self.bucket,
                 full_key,
                 ExtraArgs={
-                    'ServerSideEncryption': 'AES256',
-                    'Metadata': {
-                        'uploaded_at': datetime.utcnow().isoformat(),
-                        'source': 'neural-hive-disaster-recovery'
-                    }
-                }
+                    "ServerSideEncryption": "AES256",
+                    "Metadata": {
+                        "uploaded_at": datetime.utcnow().isoformat(),
+                        "source": "neural-hive-disaster-recovery",
+                    },
+                },
             )
 
             duration = time.time() - start_time
@@ -247,7 +241,7 @@ class S3StorageClient(StorageClient):
                 "Upload S3 concluído com sucesso",
                 remote_key=full_key,
                 size_bytes=file_size,
-                duration_seconds=round(duration, 2)
+                duration_seconds=round(duration, 2),
             )
 
             return True
@@ -257,7 +251,7 @@ class S3StorageClient(StorageClient):
                 "Erro no upload S3",
                 remote_key=full_key,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return False
 
@@ -267,22 +261,17 @@ class S3StorageClient(StorageClient):
 
         try:
             logger.info(
-                "Iniciando download S3",
-                remote_key=full_key,
-                local_path=local_path
+                "Iniciando download S3", remote_key=full_key, local_path=local_path
             )
 
             import time
+
             start_time = time.time()
 
             # Criar diretório se não existir
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
-            self.s3_client.download_file(
-                self.bucket,
-                full_key,
-                local_path
-            )
+            self.s3_client.download_file(self.bucket, full_key, local_path)
 
             duration = time.time() - start_time
             file_size = os.path.getsize(local_path)
@@ -291,7 +280,7 @@ class S3StorageClient(StorageClient):
                 "Download S3 concluído com sucesso",
                 remote_key=full_key,
                 size_bytes=file_size,
-                duration_seconds=round(duration, 2)
+                duration_seconds=round(duration, 2),
             )
 
             return True
@@ -301,53 +290,45 @@ class S3StorageClient(StorageClient):
                 "Erro no download S3",
                 remote_key=full_key,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return False
 
-    def list_backups(self, prefix: str = '') -> List[Dict]:
+    def list_backups(self, prefix: str = "") -> List[Dict]:
         """Lista backups no S3."""
         full_prefix = self._get_full_key(prefix) if prefix else self.prefix
 
         try:
-            logger.debug(
-                "Listando backups S3",
-                bucket=self.bucket,
-                prefix=full_prefix
-            )
+            logger.debug("Listando backups S3", bucket=self.bucket, prefix=full_prefix)
 
             response = self.s3_client.list_objects_v2(
-                Bucket=self.bucket,
-                Prefix=full_prefix
+                Bucket=self.bucket, Prefix=full_prefix
             )
 
-            if 'Contents' not in response:
+            if "Contents" not in response:
                 return []
 
             backups = []
-            for obj in response['Contents']:
-                backups.append({
-                    'key': obj['Key'],
-                    'size': obj['Size'],
-                    'timestamp': obj['LastModified'],
-                    'etag': obj['ETag']
-                })
+            for obj in response["Contents"]:
+                backups.append(
+                    {
+                        "key": obj["Key"],
+                        "size": obj["Size"],
+                        "timestamp": obj["LastModified"],
+                        "etag": obj["ETag"],
+                    }
+                )
 
             # Ordenar por timestamp (mais recente primeiro)
-            backups.sort(key=lambda x: x['timestamp'], reverse=True)
+            backups.sort(key=lambda x: x["timestamp"], reverse=True)
 
-            logger.info(
-                "Backups S3 listados",
-                count=len(backups)
-            )
+            logger.info("Backups S3 listados", count=len(backups))
 
             return backups
 
         except Exception as e:
             logger.error(
-                "Erro ao listar backups S3",
-                error=str(e),
-                error_type=type(e).__name__
+                "Erro ao listar backups S3", error=str(e), error_type=type(e).__name__
             )
             return []
 
@@ -356,20 +337,11 @@ class S3StorageClient(StorageClient):
         full_key = self._get_full_key(remote_key)
 
         try:
-            logger.info(
-                "Deletando backup S3",
-                remote_key=full_key
-            )
+            logger.info("Deletando backup S3", remote_key=full_key)
 
-            self.s3_client.delete_object(
-                Bucket=self.bucket,
-                Key=full_key
-            )
+            self.s3_client.delete_object(Bucket=self.bucket, Key=full_key)
 
-            logger.info(
-                "Backup S3 deletado com sucesso",
-                remote_key=full_key
-            )
+            logger.info("Backup S3 deletado com sucesso", remote_key=full_key)
 
             return True
 
@@ -378,7 +350,7 @@ class S3StorageClient(StorageClient):
                 "Erro ao deletar backup S3",
                 remote_key=full_key,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return False
 
@@ -387,16 +359,13 @@ class S3StorageClient(StorageClient):
         full_key = self._get_full_key(remote_key)
 
         try:
-            response = self.s3_client.head_object(
-                Bucket=self.bucket,
-                Key=full_key
-            )
+            response = self.s3_client.head_object(Bucket=self.bucket, Key=full_key)
 
             return {
-                'size': response['ContentLength'],
-                'etag': response['ETag'],
-                'last_modified': response['LastModified'],
-                'metadata': response.get('Metadata', {})
+                "size": response["ContentLength"],
+                "etag": response["ETag"],
+                "last_modified": response["LastModified"],
+                "metadata": response.get("Metadata", {}),
             }
 
         except Exception as e:
@@ -404,7 +373,7 @@ class S3StorageClient(StorageClient):
                 "Erro ao obter metadados S3",
                 remote_key=full_key,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return {}
 
@@ -423,8 +392,8 @@ class GCSStorageClient(StorageClient):
         self,
         bucket: str,
         project: str,
-        prefix: str = '',
-        credentials_path: Optional[str] = None
+        prefix: str = "",
+        credentials_path: Optional[str] = None,
     ):
         """
         Inicializa cliente GCS.
@@ -445,17 +414,14 @@ class GCSStorageClient(StorageClient):
 
         self.bucket_name = bucket
         self.project = project
-        self.prefix = prefix.rstrip('/')
+        self.prefix = prefix.rstrip("/")
 
         # Criar cliente GCS
         if credentials_path:
             credentials = service_account.Credentials.from_service_account_file(
                 credentials_path
             )
-            self.client = storage.Client(
-                project=project,
-                credentials=credentials
-            )
+            self.client = storage.Client(project=project, credentials=credentials)
         else:
             # Usar credenciais padrão (ADC)
             self.client = storage.Client(project=project)
@@ -466,7 +432,7 @@ class GCSStorageClient(StorageClient):
             "GCSStorageClient inicializado",
             bucket=bucket,
             project=project,
-            prefix=prefix
+            prefix=prefix,
         )
 
     def _get_full_key(self, remote_key: str) -> str:
@@ -493,16 +459,17 @@ class GCSStorageClient(StorageClient):
                 "Iniciando upload GCS",
                 local_path=local_path,
                 remote_key=full_key,
-                size_bytes=file_size
+                size_bytes=file_size,
             )
 
             import time
+
             start_time = time.time()
 
             blob = self.bucket.blob(full_key)
             blob.metadata = {
-                'uploaded_at': datetime.utcnow().isoformat(),
-                'source': 'neural-hive-disaster-recovery'
+                "uploaded_at": datetime.utcnow().isoformat(),
+                "source": "neural-hive-disaster-recovery",
             }
 
             blob.upload_from_filename(local_path)
@@ -513,7 +480,7 @@ class GCSStorageClient(StorageClient):
                 "Upload GCS concluído com sucesso",
                 remote_key=full_key,
                 size_bytes=file_size,
-                duration_seconds=round(duration, 2)
+                duration_seconds=round(duration, 2),
             )
 
             return True
@@ -523,7 +490,7 @@ class GCSStorageClient(StorageClient):
                 "Erro no upload GCS",
                 remote_key=full_key,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return False
 
@@ -533,12 +500,11 @@ class GCSStorageClient(StorageClient):
 
         try:
             logger.info(
-                "Iniciando download GCS",
-                remote_key=full_key,
-                local_path=local_path
+                "Iniciando download GCS", remote_key=full_key, local_path=local_path
             )
 
             import time
+
             start_time = time.time()
 
             # Criar diretório se não existir
@@ -554,7 +520,7 @@ class GCSStorageClient(StorageClient):
                 "Download GCS concluído com sucesso",
                 remote_key=full_key,
                 size_bytes=file_size,
-                duration_seconds=round(duration, 2)
+                duration_seconds=round(duration, 2),
             )
 
             return True
@@ -564,50 +530,42 @@ class GCSStorageClient(StorageClient):
                 "Erro no download GCS",
                 remote_key=full_key,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return False
 
-    def list_backups(self, prefix: str = '') -> List[Dict]:
+    def list_backups(self, prefix: str = "") -> List[Dict]:
         """Lista backups no GCS."""
         full_prefix = self._get_full_key(prefix) if prefix else self.prefix
 
         try:
             logger.debug(
-                "Listando backups GCS",
-                bucket=self.bucket_name,
-                prefix=full_prefix
+                "Listando backups GCS", bucket=self.bucket_name, prefix=full_prefix
             )
 
-            blobs = self.client.list_blobs(
-                self.bucket_name,
-                prefix=full_prefix
-            )
+            blobs = self.client.list_blobs(self.bucket_name, prefix=full_prefix)
 
             backups = []
             for blob in blobs:
-                backups.append({
-                    'key': blob.name,
-                    'size': blob.size,
-                    'timestamp': blob.updated,
-                    'md5_hash': blob.md5_hash
-                })
+                backups.append(
+                    {
+                        "key": blob.name,
+                        "size": blob.size,
+                        "timestamp": blob.updated,
+                        "md5_hash": blob.md5_hash,
+                    }
+                )
 
             # Ordenar por timestamp (mais recente primeiro)
-            backups.sort(key=lambda x: x['timestamp'], reverse=True)
+            backups.sort(key=lambda x: x["timestamp"], reverse=True)
 
-            logger.info(
-                "Backups GCS listados",
-                count=len(backups)
-            )
+            logger.info("Backups GCS listados", count=len(backups))
 
             return backups
 
         except Exception as e:
             logger.error(
-                "Erro ao listar backups GCS",
-                error=str(e),
-                error_type=type(e).__name__
+                "Erro ao listar backups GCS", error=str(e), error_type=type(e).__name__
             )
             return []
 
@@ -616,18 +574,12 @@ class GCSStorageClient(StorageClient):
         full_key = self._get_full_key(remote_key)
 
         try:
-            logger.info(
-                "Deletando backup GCS",
-                remote_key=full_key
-            )
+            logger.info("Deletando backup GCS", remote_key=full_key)
 
             blob = self.bucket.blob(full_key)
             blob.delete()
 
-            logger.info(
-                "Backup GCS deletado com sucesso",
-                remote_key=full_key
-            )
+            logger.info("Backup GCS deletado com sucesso", remote_key=full_key)
 
             return True
 
@@ -636,7 +588,7 @@ class GCSStorageClient(StorageClient):
                 "Erro ao deletar backup GCS",
                 remote_key=full_key,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return False
 
@@ -649,10 +601,10 @@ class GCSStorageClient(StorageClient):
             blob.reload()
 
             return {
-                'size': blob.size,
-                'md5_hash': blob.md5_hash,
-                'last_modified': blob.updated,
-                'metadata': blob.metadata or {}
+                "size": blob.size,
+                "md5_hash": blob.md5_hash,
+                "last_modified": blob.updated,
+                "metadata": blob.metadata or {},
             }
 
         except Exception as e:
@@ -660,7 +612,7 @@ class GCSStorageClient(StorageClient):
                 "Erro ao obter metadados GCS",
                 remote_key=full_key,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return {}
 
@@ -684,10 +636,7 @@ class LocalStorageClient(StorageClient):
         self.base_path = base_path
         os.makedirs(base_path, exist_ok=True)
 
-        logger.info(
-            "LocalStorageClient inicializado",
-            base_path=base_path
-        )
+        logger.info("LocalStorageClient inicializado", base_path=base_path)
 
     def _get_full_path(self, remote_key: str) -> str:
         """Retorna path completo local."""
@@ -701,7 +650,7 @@ class LocalStorageClient(StorageClient):
             logger.info(
                 "Copiando backup para storage local",
                 source=local_path,
-                destination=full_path
+                destination=full_path,
             )
 
             # Criar diretório se não existir
@@ -714,7 +663,7 @@ class LocalStorageClient(StorageClient):
             logger.info(
                 "Backup copiado com sucesso",
                 destination=full_path,
-                size_bytes=file_size
+                size_bytes=file_size,
             )
 
             return True
@@ -724,7 +673,7 @@ class LocalStorageClient(StorageClient):
                 "Erro ao copiar backup",
                 destination=full_path,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return False
 
@@ -734,16 +683,13 @@ class LocalStorageClient(StorageClient):
 
         try:
             if not os.path.exists(full_path):
-                logger.error(
-                    "Backup não encontrado",
-                    backup_path=full_path
-                )
+                logger.error("Backup não encontrado", backup_path=full_path)
                 return False
 
             logger.info(
                 "Copiando backup do storage local",
                 source=full_path,
-                destination=local_path
+                destination=local_path,
             )
 
             # Criar diretório se não existir
@@ -756,7 +702,7 @@ class LocalStorageClient(StorageClient):
             logger.info(
                 "Backup copiado com sucesso",
                 destination=local_path,
-                size_bytes=file_size
+                size_bytes=file_size,
             )
 
             return True
@@ -766,19 +712,16 @@ class LocalStorageClient(StorageClient):
                 "Erro ao copiar backup",
                 source=full_path,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return False
 
-    def list_backups(self, prefix: str = '') -> List[Dict]:
+    def list_backups(self, prefix: str = "") -> List[Dict]:
         """Lista backups no storage local."""
         try:
             search_path = self._get_full_path(prefix) if prefix else self.base_path
 
-            logger.debug(
-                "Listando backups locais",
-                path=search_path
-            )
+            logger.debug("Listando backups locais", path=search_path)
 
             backups = []
 
@@ -790,19 +733,18 @@ class LocalStorageClient(StorageClient):
 
                         stat = os.stat(file_path)
 
-                        backups.append({
-                            'key': rel_path,
-                            'size': stat.st_size,
-                            'timestamp': datetime.fromtimestamp(stat.st_mtime)
-                        })
+                        backups.append(
+                            {
+                                "key": rel_path,
+                                "size": stat.st_size,
+                                "timestamp": datetime.fromtimestamp(stat.st_mtime),
+                            }
+                        )
 
             # Ordenar por timestamp (mais recente primeiro)
-            backups.sort(key=lambda x: x['timestamp'], reverse=True)
+            backups.sort(key=lambda x: x["timestamp"], reverse=True)
 
-            logger.info(
-                "Backups locais listados",
-                count=len(backups)
-            )
+            logger.info("Backups locais listados", count=len(backups))
 
             return backups
 
@@ -810,7 +752,7 @@ class LocalStorageClient(StorageClient):
             logger.error(
                 "Erro ao listar backups locais",
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return []
 
@@ -820,23 +762,14 @@ class LocalStorageClient(StorageClient):
 
         try:
             if not os.path.exists(full_path):
-                logger.warning(
-                    "Backup não encontrado para deletar",
-                    path=full_path
-                )
+                logger.warning("Backup não encontrado para deletar", path=full_path)
                 return False
 
-            logger.info(
-                "Deletando backup local",
-                path=full_path
-            )
+            logger.info("Deletando backup local", path=full_path)
 
             os.remove(full_path)
 
-            logger.info(
-                "Backup local deletado com sucesso",
-                path=full_path
-            )
+            logger.info("Backup local deletado com sucesso", path=full_path)
 
             return True
 
@@ -845,7 +778,7 @@ class LocalStorageClient(StorageClient):
                 "Erro ao deletar backup local",
                 path=full_path,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return False
 
@@ -860,9 +793,9 @@ class LocalStorageClient(StorageClient):
             stat = os.stat(full_path)
 
             return {
-                'size': stat.st_size,
-                'last_modified': datetime.fromtimestamp(stat.st_mtime),
-                'checksum': self._calculate_file_checksum(full_path)
+                "size": stat.st_size,
+                "last_modified": datetime.fromtimestamp(stat.st_mtime),
+                "checksum": self._calculate_file_checksum(full_path),
             }
 
         except Exception as e:
@@ -870,6 +803,6 @@ class LocalStorageClient(StorageClient):
                 "Erro ao obter metadados locais",
                 path=full_path,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return {}

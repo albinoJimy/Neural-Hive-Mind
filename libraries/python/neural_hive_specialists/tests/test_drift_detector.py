@@ -133,7 +133,12 @@ async def test_drift_triggers_retraining_for_anomaly_model(mock_mongodb_collecti
             drifted_features = drift_event.get("drifted_features", [])
             drifted_set = set(drifted_features)
 
-            anomaly_features = {"anomaly_score", "risk_weight", "retry_count", "capabilities"}
+            anomaly_features = {
+                "anomaly_score",
+                "risk_weight",
+                "retry_count",
+                "capabilities",
+            }
 
             if drifted_set & anomaly_features:
                 return "anomaly"
@@ -165,7 +170,12 @@ async def test_drift_triggers_retraining_for_scheduling_model():
             drifted_features = drift_event.get("drifted_features", [])
             drifted_set = set(drifted_features)
 
-            scheduling_features = {"duration_ms", "queue_time_ms", "wait_time", "estimated_duration"}
+            scheduling_features = {
+                "duration_ms",
+                "queue_time_ms",
+                "wait_time",
+                "estimated_duration",
+            }
             load_features = {"request_rate", "throughput", "concurrency", "load"}
             anomaly_features = {"anomaly_score", "risk_weight", "retry_count"}
 
@@ -247,7 +257,9 @@ async def test_retraining_improves_model_metrics():
     }
 
     # Verifica melhoria
-    f1_improvement = (new_metrics["f1_score"] - old_metrics["f1_score"]) / old_metrics["f1_score"]
+    f1_improvement = (new_metrics["f1_score"] - old_metrics["f1_score"]) / old_metrics[
+        "f1_score"
+    ]
 
     assert f1_improvement > 0.1, f"Melhoria de F1 ({f1_improvement:.2%}) menor que 10%"
     assert new_metrics["f1_score"] > 0.65, "F1 apos retreinamento abaixo de 0.65"

@@ -27,14 +27,18 @@ def load_config() -> Dict[str, Any]:
     try:
         config = {
             # ClickHouse
-            'clickhouse_uri': os.getenv('CLICKHOUSE_URI'),
-            'clickhouse_database': os.getenv('CLICKHOUSE_DATABASE', 'neural_hive'),
-
+            "clickhouse_uri": os.getenv("CLICKHOUSE_URI"),
+            "clickhouse_database": os.getenv("CLICKHOUSE_DATABASE", "neural_hive"),
             # Anomaly Detection
-            'anomaly_contamination': float(os.getenv('ANOMALY_CONTAMINATION', '0.1')),
-            'anomaly_n_estimators': int(os.getenv('ANOMALY_N_ESTIMATORS', '100')),
-            'anomaly_model_path': os.getenv('ANOMALY_MODEL_PATH', '/data/models/anomaly_detector_{specialist_type}.pkl'),
-            'anomaly_training_window_days': int(os.getenv('ANOMALY_TRAINING_WINDOW_DAYS', '30')),
+            "anomaly_contamination": float(os.getenv("ANOMALY_CONTAMINATION", "0.1")),
+            "anomaly_n_estimators": int(os.getenv("ANOMALY_N_ESTIMATORS", "100")),
+            "anomaly_model_path": os.getenv(
+                "ANOMALY_MODEL_PATH",
+                "/data/models/anomaly_detector_{specialist_type}.pkl",
+            ),
+            "anomaly_training_window_days": int(
+                os.getenv("ANOMALY_TRAINING_WINDOW_DAYS", "30")
+            ),
         }
 
         return config
@@ -48,7 +52,7 @@ def fetch_historical_metrics_from_clickhouse(
     clickhouse_uri: str,
     clickhouse_database: str,
     window_days: int,
-    specialist_type: Optional[str] = None
+    specialist_type: Optional[str] = None,
 ) -> List[Dict[str, float]]:
     """
     Busca métricas históricas do ClickHouse.
@@ -91,29 +95,23 @@ def fetch_historical_metrics_from_clickhouse(
 
         query += " ORDER BY timestamp ASC"
 
-        params = {
-            'cutoff_date': cutoff_date,
-            'specialist_type': specialist_type
-        }
+        params = {"cutoff_date": cutoff_date, "specialist_type": specialist_type}
 
-        results = client.execute(
-            query.format(database=clickhouse_database),
-            params
-        )
+        results = client.execute(query.format(database=clickhouse_database), params)
 
         metrics_list = []
         for row in results:
             metrics = {
-                'specialist_type': row[0],
-                'consensus_agreement_rate': row[1],
-                'false_positive_rate': row[2],
-                'false_negative_rate': row[3],
-                'avg_confidence_score': row[4],
-                'avg_risk_score': row[5],
-                'avg_processing_time_ms': row[6],
-                'evaluation_count': row[7],
-                'precision': row[8],
-                'recall': row[9]
+                "specialist_type": row[0],
+                "consensus_agreement_rate": row[1],
+                "false_positive_rate": row[2],
+                "false_negative_rate": row[3],
+                "avg_confidence_score": row[4],
+                "avg_risk_score": row[5],
+                "avg_processing_time_ms": row[6],
+                "evaluation_count": row[7],
+                "precision": row[8],
+                "recall": row[9],
             }
             metrics_list.append(metrics)
 
@@ -122,7 +120,10 @@ def fetch_historical_metrics_from_clickhouse(
         return metrics_list
 
     except ImportError:
-        print("❌ clickhouse-driver não instalado. Instale com: pip install clickhouse-driver", file=sys.stderr)
+        print(
+            "❌ clickhouse-driver não instalado. Instale com: pip install clickhouse-driver",
+            file=sys.stderr,
+        )
         sys.exit(1)
     except Exception as e:
         print(f"❌ ERRO ao buscar métricas do ClickHouse: {e}", file=sys.stderr)
@@ -148,25 +149,32 @@ def generate_synthetic_metrics(num_samples: int = 500) -> List[Dict[str, float]]
     for _ in range(num_samples):
         # Métricas "normais"
         metrics = {
-            'consensus_agreement_rate': np.random.normal(0.85, 0.05),
-            'false_positive_rate': np.random.normal(0.10, 0.03),
-            'false_negative_rate': np.random.normal(0.08, 0.03),
-            'avg_confidence_score': np.random.normal(0.82, 0.08),
-            'avg_risk_score': np.random.normal(0.15, 0.05),
-            'avg_processing_time_ms': np.random.normal(120, 30),
-            'evaluation_count': np.random.randint(50, 200),
-            'precision': np.random.normal(0.88, 0.05),
-            'recall': np.random.normal(0.86, 0.05)
+            "consensus_agreement_rate": np.random.normal(0.85, 0.05),
+            "false_positive_rate": np.random.normal(0.10, 0.03),
+            "false_negative_rate": np.random.normal(0.08, 0.03),
+            "avg_confidence_score": np.random.normal(0.82, 0.08),
+            "avg_risk_score": np.random.normal(0.15, 0.05),
+            "avg_processing_time_ms": np.random.normal(120, 30),
+            "evaluation_count": np.random.randint(50, 200),
+            "precision": np.random.normal(0.88, 0.05),
+            "recall": np.random.normal(0.86, 0.05),
         }
 
         # Clampar valores
         for key in metrics:
-            if key in ['consensus_agreement_rate', 'false_positive_rate', 'false_negative_rate',
-                      'avg_confidence_score', 'avg_risk_score', 'precision', 'recall']:
+            if key in [
+                "consensus_agreement_rate",
+                "false_positive_rate",
+                "false_negative_rate",
+                "avg_confidence_score",
+                "avg_risk_score",
+                "precision",
+                "recall",
+            ]:
                 metrics[key] = max(0.0, min(1.0, metrics[key]))
-            elif key == 'avg_processing_time_ms':
+            elif key == "avg_processing_time_ms":
                 metrics[key] = max(0, metrics[key])
-            elif key == 'evaluation_count':
+            elif key == "evaluation_count":
                 metrics[key] = max(1, metrics[key])
 
         metrics_list.append(metrics)
@@ -178,7 +186,7 @@ def train_anomaly_detector(
     config: Dict[str, Any],
     metrics_history: List[Dict[str, float]],
     specialist_type: str,
-    validate: bool = False
+    validate: bool = False,
 ) -> bool:
     """
     Treina modelo de anomaly detection.
@@ -202,8 +210,7 @@ def train_anomaly_detector(
     detector = AnomalyDetector(config=config)
 
     success = detector.train_on_historical_data(
-        metrics_history=metrics_history,
-        specialist_type=specialist_type
+        metrics_history=metrics_history, specialist_type=specialist_type
     )
 
     if not success:
@@ -224,15 +231,19 @@ def train_anomaly_detector(
 
         for sample in val_samples:
             result = detector.detect_anomalies(sample)
-            if result.get('is_anomaly'):
+            if result.get("is_anomaly"):
                 anomaly_count += 1
 
         anomaly_percentage = (anomaly_count / val_size) * 100
 
-        print(f"📊 Validação: {anomaly_count}/{val_size} amostras detectadas como anomalias ({anomaly_percentage:.1f}%)")
+        print(
+            f"📊 Validação: {anomaly_count}/{val_size} amostras detectadas como anomalias ({anomaly_percentage:.1f}%)"
+        )
 
-        if abs(anomaly_percentage - (config['anomaly_contamination'] * 100)) > 10:
-            print(f"⚠️  Taxa de anomalias diferente do contamination configurado ({config['anomaly_contamination'] * 100}%)")
+        if abs(anomaly_percentage - (config["anomaly_contamination"] * 100)) > 10:
+            print(
+                f"⚠️  Taxa de anomalias diferente do contamination configurado ({config['anomaly_contamination'] * 100}%)"
+            )
 
     return True
 
@@ -240,49 +251,41 @@ def train_anomaly_detector(
 def main():
     """Função principal."""
     parser = argparse.ArgumentParser(
-        description='Treina modelo de anomaly detection do Neural Hive'
+        description="Treina modelo de anomaly detection do Neural Hive"
     )
     parser.add_argument(
-        '--window-days',
+        "--window-days",
         type=int,
         default=30,
-        help='Janela de dados históricos (em dias, default: 30)'
+        help="Janela de dados históricos (em dias, default: 30)",
     )
     parser.add_argument(
-        '--specialist-type',
+        "--specialist-type",
         type=str,
-        help='Treinar para especialista específico (default: todos)'
+        help="Treinar para especialista específico (default: todos)",
     )
     parser.add_argument(
-        '--contamination',
+        "--contamination",
         type=float,
-        help='Contamination parameter (0.0-0.5, default: 0.1)'
+        help="Contamination parameter (0.0-0.5, default: 0.1)",
     )
     parser.add_argument(
-        '--n-estimators',
-        type=int,
-        help='Número de árvores (default: 100)'
+        "--n-estimators", type=int, help="Número de árvores (default: 100)"
     )
     parser.add_argument(
-        '--output-dir',
+        "--output-dir",
         type=str,
-        default='/data/models',
-        help='Diretório de saída para modelos'
+        default="/data/models",
+        help="Diretório de saída para modelos",
+    )
+    parser.add_argument("--clickhouse-uri", type=str, help="URI do ClickHouse")
+    parser.add_argument(
+        "--validate", action="store_true", help="Executar validação após treinamento"
     )
     parser.add_argument(
-        '--clickhouse-uri',
-        type=str,
-        help='URI do ClickHouse'
-    )
-    parser.add_argument(
-        '--validate',
-        action='store_true',
-        help='Executar validação após treinamento'
-    )
-    parser.add_argument(
-        '--use-synthetic',
-        action='store_true',
-        help='Usar métricas sintéticas (para demonstração)'
+        "--use-synthetic",
+        action="store_true",
+        help="Usar métricas sintéticas (para demonstração)",
     )
 
     args = parser.parse_args()
@@ -295,26 +298,28 @@ def main():
 
     # Override com argumentos CLI
     if args.contamination:
-        config['anomaly_contamination'] = args.contamination
+        config["anomaly_contamination"] = args.contamination
 
     if args.n_estimators:
-        config['anomaly_n_estimators'] = args.n_estimators
+        config["anomaly_n_estimators"] = args.n_estimators
 
     if args.clickhouse_uri:
-        config['clickhouse_uri'] = args.clickhouse_uri
+        config["clickhouse_uri"] = args.clickhouse_uri
 
     if args.output_dir:
-        config['anomaly_model_path'] = f"{args.output_dir}/anomaly_detector_{{specialist_type}}.pkl"
+        config[
+            "anomaly_model_path"
+        ] = f"{args.output_dir}/anomaly_detector_{{specialist_type}}.pkl"
 
     # Buscar métricas históricas
-    if args.use_synthetic or not config.get('clickhouse_uri'):
+    if args.use_synthetic or not config.get("clickhouse_uri"):
         metrics_history = generate_synthetic_metrics(num_samples=500)
     else:
         metrics_history = fetch_historical_metrics_from_clickhouse(
-            clickhouse_uri=config['clickhouse_uri'],
-            clickhouse_database=config['clickhouse_database'],
+            clickhouse_uri=config["clickhouse_uri"],
+            clickhouse_database=config["clickhouse_database"],
             window_days=args.window_days,
-            specialist_type=args.specialist_type
+            specialist_type=args.specialist_type,
         )
 
     if not metrics_history:
@@ -325,15 +330,25 @@ def main():
     if args.specialist_type:
         specialist_types = [args.specialist_type]
     else:
-        specialist_types = ['technical', 'business', 'behavior', 'evolution', 'architecture']
+        specialist_types = [
+            "technical",
+            "business",
+            "behavior",
+            "evolution",
+            "architecture",
+        ]
 
     # Treinar modelo para cada especialista
     success_count = 0
 
     for specialist_type in specialist_types:
         # Filtrar métricas do especialista (se usando ClickHouse)
-        if not args.use_synthetic and 'specialist_type' in metrics_history[0]:
-            specialist_metrics = [m for m in metrics_history if m.get('specialist_type') == specialist_type]
+        if not args.use_synthetic and "specialist_type" in metrics_history[0]:
+            specialist_metrics = [
+                m
+                for m in metrics_history
+                if m.get("specialist_type") == specialist_type
+            ]
         else:
             specialist_metrics = metrics_history
 
@@ -345,13 +360,15 @@ def main():
             config=config,
             metrics_history=specialist_metrics,
             specialist_type=specialist_type,
-            validate=args.validate
+            validate=args.validate,
         )
 
         if success:
             success_count += 1
 
-    print(f"\n✅ Treinamento concluído: {success_count}/{len(specialist_types)} especialistas")
+    print(
+        f"\n✅ Treinamento concluído: {success_count}/{len(specialist_types)} especialistas"
+    )
 
     if success_count == len(specialist_types):
         print("\n🎉 Todos os modelos treinados com sucesso!")
@@ -364,5 +381,5 @@ def main():
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

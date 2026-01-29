@@ -3,7 +3,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from neural_hive_specialists.observability.business_metrics_collector import BusinessMetricsCollector
+from neural_hive_specialists.observability.business_metrics_collector import (
+    BusinessMetricsCollector,
+)
 
 
 def _base_config():

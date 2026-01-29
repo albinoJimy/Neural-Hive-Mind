@@ -10,8 +10,8 @@ from .retraining_trigger import RetrainingTrigger
 from .feedback_api import create_feedback_router
 
 __all__ = [
-    'FeedbackCollector',
-    'FeedbackDocument',
-    'RetrainingTrigger',
-    'create_feedback_router'
+    "FeedbackCollector",
+    "FeedbackDocument",
+    "RetrainingTrigger",
+    "create_feedback_router",
 ]

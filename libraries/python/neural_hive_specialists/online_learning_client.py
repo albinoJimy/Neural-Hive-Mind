@@ -19,6 +19,7 @@ logger = structlog.get_logger(__name__)
 
 class OnlineLearningClientError(Exception):
     """Exceção base para erros do cliente de online learning."""
+
     pass
 
 
@@ -43,7 +44,7 @@ class OnlineLearningClient:
         online_learning_enabled: bool = True,
         cache_ttl_seconds: int = 300,
         mongodb_uri: Optional[str] = None,
-        checkpoint_path: Optional[str] = None
+        checkpoint_path: Optional[str] = None,
     ):
         """
         Inicializa OnlineLearningClient.
@@ -58,10 +59,11 @@ class OnlineLearningClient:
         self.specialist_type = specialist_type
         self.online_learning_enabled = online_learning_enabled
         self.cache_ttl_seconds = cache_ttl_seconds
-        self.mongodb_uri = mongodb_uri or os.getenv('MONGODB_URI', 'mongodb://localhost:27017')
+        self.mongodb_uri = mongodb_uri or os.getenv(
+            "MONGODB_URI", "mongodb://localhost:27017"
+        )
         self.checkpoint_path = checkpoint_path or os.getenv(
-            'ONLINE_CHECKPOINT_PATH',
-            '/data/online_learning/checkpoints'
+            "ONLINE_CHECKPOINT_PATH", "/data/online_learning/checkpoints"
         )
 
         # Cache local de modelo
@@ -70,9 +72,7 @@ class OnlineLearningClient:
 
         # Circuit breaker
         self._breaker = pybreaker.CircuitBreaker(
-            fail_max=3,
-            reset_timeout=60,
-            name=f"online_learning_{specialist_type}"
+            fail_max=3, reset_timeout=60, name=f"online_learning_{specialist_type}"
         )
 
         # Estatísticas
@@ -84,7 +84,7 @@ class OnlineLearningClient:
             "online_learning_client_initialized",
             specialist_type=specialist_type,
             enabled=online_learning_enabled,
-            cache_ttl=cache_ttl_seconds
+            cache_ttl=cache_ttl_seconds,
         )
 
     def _is_cache_valid(self) -> bool:
@@ -108,9 +108,9 @@ class OnlineLearningClient:
         try:
             # Buscar checkpoint mais recente
             import glob
+
             pattern = os.path.join(
-                self.checkpoint_path,
-                f"{self.specialist_type}_*.pkl"
+                self.checkpoint_path, f"{self.specialist_type}_*.pkl"
             )
             checkpoints = sorted(glob.glob(pattern), reverse=True)
 
@@ -118,19 +118,20 @@ class OnlineLearningClient:
                 logger.debug(
                     "no_checkpoint_found",
                     specialist_type=self.specialist_type,
-                    pattern=pattern
+                    pattern=pattern,
                 )
                 return None
 
             # Carregar checkpoint mais recente
             import joblib
+
             checkpoint = joblib.load(checkpoints[0])
 
             logger.info(
                 "online_model_loaded",
                 specialist_type=self.specialist_type,
                 checkpoint=checkpoints[0],
-                version=checkpoint.get('model_version')
+                version=checkpoint.get("model_version"),
             )
 
             return checkpoint
@@ -139,7 +140,7 @@ class OnlineLearningClient:
             logger.warning(
                 "failed_to_load_online_model",
                 specialist_type=self.specialist_type,
-                error=str(e)
+                error=str(e),
             )
             return None
 
@@ -171,10 +172,7 @@ class OnlineLearningClient:
             return model
 
         except pybreaker.CircuitBreakerError:
-            logger.warning(
-                "circuit_breaker_open",
-                specialist_type=self.specialist_type
-            )
+            logger.warning("circuit_breaker_open", specialist_type=self.specialist_type)
             return self._cached_model  # Retornar cache stale se disponível
 
     def predict_with_ensemble(
@@ -182,7 +180,7 @@ class OnlineLearningClient:
         features: np.ndarray,
         batch_model: Any,
         batch_weight: float = 0.7,
-        online_weight: float = 0.3
+        online_weight: float = 0.3,
     ) -> Dict[str, Any]:
         """
         Executa predição combinando batch e online models.
@@ -216,7 +214,7 @@ class OnlineLearningClient:
             logger.error(
                 "batch_prediction_failed",
                 specialist_type=self.specialist_type,
-                error=str(e)
+                error=str(e),
             )
             raise OnlineLearningClientError(f"Predição batch falhou: {str(e)}") from e
 
@@ -232,8 +230,8 @@ class OnlineLearningClient:
                     online_start = time.perf_counter()
 
                     # Normalizar features usando scaler do modelo online
-                    scaler = online_model.get('scaler')
-                    model = online_model.get('model')
+                    scaler = online_model.get("scaler")
+                    model = online_model.get("model")
 
                     if scaler is not None and model is not None:
                         features_scaled = scaler.transform(features)
@@ -244,23 +242,24 @@ class OnlineLearningClient:
                     logger.warning(
                         "online_prediction_failed",
                         specialist_type=self.specialist_type,
-                        error=str(e)
+                        error=str(e),
                     )
 
         # Combinar predições
         if online_probas is not None:
             # Ensemble
             combined_probas = (
-                batch_weight * batch_probas +
-                online_weight * online_probas
+                batch_weight * batch_probas + online_weight * online_probas
             )
-            combined_probas = combined_probas / combined_probas.sum(axis=1, keepdims=True)
-            model_used = 'ensemble'
+            combined_probas = combined_probas / combined_probas.sum(
+                axis=1, keepdims=True
+            )
+            model_used = "ensemble"
             self._ensemble_count += 1
         else:
             # Fallback para batch
             combined_probas = batch_probas
-            model_used = 'batch'
+            model_used = "batch"
             self._fallback_count += 1
 
         # Extrair predição e confiança
@@ -268,13 +267,13 @@ class OnlineLearningClient:
         confidence = np.max(combined_probas, axis=1)
 
         result = {
-            'probabilities': combined_probas.tolist(),
-            'prediction': prediction.tolist(),
-            'confidence': confidence.tolist(),
-            'model_used': model_used,
-            'batch_latency_ms': batch_latency,
-            'online_latency_ms': online_latency,
-            'total_latency_ms': batch_latency + online_latency
+            "probabilities": combined_probas.tolist(),
+            "prediction": prediction.tolist(),
+            "confidence": confidence.tolist(),
+            "model_used": model_used,
+            "batch_latency_ms": batch_latency,
+            "online_latency_ms": online_latency,
+            "total_latency_ms": batch_latency + online_latency,
         }
 
         logger.debug(
@@ -282,7 +281,7 @@ class OnlineLearningClient:
             specialist_type=self.specialist_type,
             model_used=model_used,
             confidence=float(np.mean(confidence)),
-            total_latency_ms=result['total_latency_ms']
+            total_latency_ms=result["total_latency_ms"],
         )
 
         return result
@@ -293,7 +292,7 @@ class OnlineLearningClient:
         features: np.ndarray,
         prediction: str,
         confidence: float,
-        model_used: str
+        model_used: str,
     ):
         """
         Reporta predição para monitoramento e futuro treinamento.
@@ -309,17 +308,17 @@ class OnlineLearningClient:
             from pymongo import MongoClient
 
             client = MongoClient(self.mongodb_uri)
-            db = client['neural_hive']
-            collection = db['online_predictions']
+            db = client["neural_hive"]
+            collection = db["online_predictions"]
 
             doc = {
-                'plan_id': plan_id,
-                'specialist_type': self.specialist_type,
-                'prediction': prediction,
-                'confidence': confidence,
-                'model_used': model_used,
-                'timestamp': datetime.utcnow(),
-                'online_learning_enabled': self.online_learning_enabled
+                "plan_id": plan_id,
+                "specialist_type": self.specialist_type,
+                "prediction": prediction,
+                "confidence": confidence,
+                "model_used": model_used,
+                "timestamp": datetime.utcnow(),
+                "online_learning_enabled": self.online_learning_enabled,
             }
 
             collection.insert_one(doc)
@@ -329,7 +328,7 @@ class OnlineLearningClient:
             logger.warning(
                 "failed_to_report_prediction",
                 specialist_type=self.specialist_type,
-                error=str(e)
+                error=str(e),
             )
 
     def get_statistics(self) -> Dict[str, Any]:
@@ -340,17 +339,18 @@ class OnlineLearningClient:
             Dict com estatísticas
         """
         return {
-            'specialist_type': self.specialist_type,
-            'online_learning_enabled': self.online_learning_enabled,
-            'total_predictions': self._prediction_count,
-            'ensemble_predictions': self._ensemble_count,
-            'fallback_predictions': self._fallback_count,
-            'ensemble_rate': (
+            "specialist_type": self.specialist_type,
+            "online_learning_enabled": self.online_learning_enabled,
+            "total_predictions": self._prediction_count,
+            "ensemble_predictions": self._ensemble_count,
+            "fallback_predictions": self._fallback_count,
+            "ensemble_rate": (
                 self._ensemble_count / self._prediction_count
-                if self._prediction_count > 0 else 0.0
+                if self._prediction_count > 0
+                else 0.0
             ),
-            'cache_valid': self._is_cache_valid(),
-            'circuit_breaker_state': self._breaker.current_state
+            "cache_valid": self._is_cache_valid(),
+            "circuit_breaker_state": self._breaker.current_state,
         }
 
     def invalidate_cache(self):
@@ -358,8 +358,7 @@ class OnlineLearningClient:
         self._cached_model = None
         self._cache_timestamp = None
         logger.info(
-            "online_model_cache_invalidated",
-            specialist_type=self.specialist_type
+            "online_model_cache_invalidated", specialist_type=self.specialist_type
         )
 
     def is_online_model_available(self) -> bool:
@@ -375,4 +374,4 @@ class OnlineLearningClient:
         model = self.get_online_model()
         if model is None:
             return None
-        return model.get('model_version')
+        return model.get("model_version")

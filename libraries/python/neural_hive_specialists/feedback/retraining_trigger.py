@@ -26,11 +26,19 @@ from ..mlflow_client import MLflowClient
 # Importar ModelAuditLogger para auditoria do ciclo de vida de modelos
 try:
     _orchestrator_path = os.path.join(
-        os.path.dirname(__file__), '..', '..', '..', '..', '..',
-        'services', 'orchestrator-dynamic', 'src'
+        os.path.dirname(__file__),
+        "..",
+        "..",
+        "..",
+        "..",
+        "..",
+        "services",
+        "orchestrator-dynamic",
+        "src",
     )
     sys.path.insert(0, _orchestrator_path)
     from ml.model_audit_logger import ModelAuditLogger, AuditEventContext
+
     _MODEL_AUDIT_LOGGER_AVAILABLE = True
 except ImportError:
     _MODEL_AUDIT_LOGGER_AVAILABLE = False
@@ -49,54 +57,40 @@ class RetrainingTriggerRecord(BaseModel):
 
     trigger_id: str = Field(
         default_factory=lambda: f"trigger-{uuid.uuid4().hex[:12]}",
-        description="ID único do trigger"
+        description="ID único do trigger",
     )
-    specialist_type: str = Field(
-        ...,
-        description="Tipo do especialista"
-    )
+    specialist_type: str = Field(..., description="Tipo do especialista")
     triggered_at: datetime = Field(
-        default_factory=datetime.utcnow,
-        description="Timestamp do trigger"
+        default_factory=datetime.utcnow, description="Timestamp do trigger"
     )
     feedback_count: int = Field(
-        ...,
-        description="Quantidade de feedbacks que disparou trigger"
+        ..., description="Quantidade de feedbacks que disparou trigger"
     )
     feedback_window_days: int = Field(
-        ...,
-        description="Janela de tempo considerada (dias)"
+        ..., description="Janela de tempo considerada (dias)"
     )
     mlflow_run_id: Optional[str] = Field(
-        default=None,
-        description="ID do run MLflow iniciado"
+        default=None, description="ID do run MLflow iniciado"
     )
     mlflow_experiment_id: Optional[str] = Field(
-        default=None,
-        description="ID do experimento MLflow"
+        default=None, description="ID do experimento MLflow"
     )
     status: str = Field(
-        default='pending',
-        description="Status do trigger (pending, running, completed, failed)"
+        default="pending",
+        description="Status do trigger (pending, running, completed, failed)",
     )
     error_message: Optional[str] = Field(
-        default=None,
-        description="Mensagem de erro se falhou"
+        default=None, description="Mensagem de erro se falhou"
     )
     completed_at: Optional[datetime] = Field(
-        default=None,
-        description="Timestamp de conclusão"
+        default=None, description="Timestamp de conclusão"
     )
     metadata: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Metadados (model_version, dataset_size, etc.)"
+        description="Metadados (model_version, dataset_size, etc.)",
     )
 
-    model_config = ConfigDict(
-        json_encoders={
-            datetime: lambda v: v.isoformat()
-        }
-    )
+    model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat()})
 
 
 class RetrainingTrigger:
@@ -115,8 +109,8 @@ class RetrainingTrigger:
         config: SpecialistConfig,
         feedback_collector: FeedbackCollector,
         mlflow_client: Optional[MLflowClient] = None,
-        metrics: 'SpecialistMetrics' = None,
-        audit_logger: 'ModelAuditLogger' = None
+        metrics: "SpecialistMetrics" = None,
+        audit_logger: "ModelAuditLogger" = None,
     ):
         """
         Inicializa RetrainingTrigger.
@@ -137,7 +131,7 @@ class RetrainingTrigger:
         # Conectar ao MongoDB para triggers
         self._client = MongoClient(config.mongodb_uri)
         self._db = self._client[config.mongodb_database]
-        self._triggers_collection = self._db['retraining_triggers']
+        self._triggers_collection = self._db["retraining_triggers"]
 
         # Criar índices
         self._create_indexes()
@@ -150,20 +144,19 @@ class RetrainingTrigger:
             "RetrainingTrigger initialized",
             threshold=config.retraining_feedback_threshold,
             window_days=config.retraining_feedback_window_days,
-            enabled=config.enable_retraining_trigger
+            enabled=config.enable_retraining_trigger,
         )
 
     def _create_indexes(self):
         """Cria índices para queries de triggers."""
         try:
             # Índice composto para verificar cooldown
-            self._triggers_collection.create_index([
-                ('specialist_type', 1),
-                ('triggered_at', -1)
-            ])
+            self._triggers_collection.create_index(
+                [("specialist_type", 1), ("triggered_at", -1)]
+            )
 
             # Índice para trigger_id único
-            self._triggers_collection.create_index([('trigger_id', 1)], unique=True)
+            self._triggers_collection.create_index([("trigger_id", 1)], unique=True)
 
             logger.debug("Retraining trigger indexes created")
         except Exception as e:
@@ -186,21 +179,23 @@ class RetrainingTrigger:
             # Buscar último trigger bem-sucedido
             last_trigger = self._triggers_collection.find_one(
                 {
-                    'specialist_type': specialist_type,
-                    'status': {'$in': ['completed', 'running']},
-                    'triggered_at': {'$gte': cutoff_time}
+                    "specialist_type": specialist_type,
+                    "status": {"$in": ["completed", "running"]},
+                    "triggered_at": {"$gte": cutoff_time},
                 },
-                sort=[('triggered_at', DESCENDING)]
+                sort=[("triggered_at", DESCENDING)],
             )
 
             if last_trigger:
-                time_since_trigger = (datetime.utcnow() - last_trigger['triggered_at']).total_seconds() / 3600
+                time_since_trigger = (
+                    datetime.utcnow() - last_trigger["triggered_at"]
+                ).total_seconds() / 3600
                 logger.info(
                     "Cooldown active - recent trigger found",
                     specialist_type=specialist_type,
-                    last_trigger_id=last_trigger['trigger_id'],
+                    last_trigger_id=last_trigger["trigger_id"],
                     hours_ago=round(time_since_trigger, 1),
-                    cooldown_hours=cooldown_hours
+                    cooldown_hours=cooldown_hours,
                 )
                 return True
 
@@ -208,9 +203,7 @@ class RetrainingTrigger:
 
         except Exception as e:
             logger.error(
-                "Error checking cooldown",
-                specialist_type=specialist_type,
-                error=str(e)
+                "Error checking cooldown", specialist_type=specialist_type, error=str(e)
             )
             # Em caso de erro, assumir que cooldown está ativo (seguro)
             return True
@@ -228,7 +221,7 @@ class RetrainingTrigger:
         # Contar feedbacks recentes
         feedback_count = self.feedback_collector.count_recent_feedback(
             specialist_type=specialist_type,
-            window_days=self.config.retraining_feedback_window_days
+            window_days=self.config.retraining_feedback_window_days,
         )
 
         # Verificar threshold
@@ -244,15 +237,13 @@ class RetrainingTrigger:
             feedback_count=feedback_count,
             threshold=self.config.retraining_feedback_threshold,
             window_days=self.config.retraining_feedback_window_days,
-            should_trigger=should_trigger
+            should_trigger=should_trigger,
         )
 
         return should_trigger, feedback_count
 
     def _start_mlflow_run(
-        self,
-        specialist_type: str,
-        feedback_count: int
+        self, specialist_type: str, feedback_count: int
     ) -> Tuple[str, str]:
         """
         Inicia run MLflow via mlflow.projects.run().
@@ -278,20 +269,24 @@ class RetrainingTrigger:
 
             # Parâmetros para o pipeline
             parameters = {
-                'specialist_type': specialist_type,
-                'feedback_count': str(feedback_count),
-                'window_days': str(self.config.retraining_feedback_window_days),
-                'min_feedback_quality': str(self.config.retraining_min_feedback_quality),
-                'model_type': self.config.training_model_types[0],  # Usar primeiro tipo
-                'hyperparameter_tuning': 'true' if self.config.training_hyperparameter_tuning else 'false',
-                'promote_if_better': 'true'
+                "specialist_type": specialist_type,
+                "feedback_count": str(feedback_count),
+                "window_days": str(self.config.retraining_feedback_window_days),
+                "min_feedback_quality": str(
+                    self.config.retraining_min_feedback_quality
+                ),
+                "model_type": self.config.training_model_types[0],  # Usar primeiro tipo
+                "hyperparameter_tuning": "true"
+                if self.config.training_hyperparameter_tuning
+                else "false",
+                "promote_if_better": "true",
             }
 
             logger.info(
                 "Starting MLflow training run",
                 experiment_name=experiment_name,
                 experiment_id=experiment_id,
-                parameters=parameters
+                parameters=parameters,
             )
 
             # Disparar pipeline MLflow
@@ -300,7 +295,7 @@ class RetrainingTrigger:
             run = mlflow.projects.run(
                 uri=self.config.retraining_mlflow_project_uri,
                 parameters=parameters,
-                synchronous=False  # Executar em background
+                synchronous=False,  # Executar em background
             )
 
             run_id = run.run_id
@@ -309,7 +304,7 @@ class RetrainingTrigger:
                 "MLflow training run started successfully",
                 run_id=run_id,
                 experiment_id=experiment_id,
-                specialist_type=specialist_type
+                specialist_type=specialist_type,
             )
 
             return run_id, experiment_id
@@ -318,15 +313,11 @@ class RetrainingTrigger:
             logger.error(
                 "Failed to start MLflow run",
                 specialist_type=specialist_type,
-                error=str(e)
+                error=str(e),
             )
             raise
 
-    def trigger_retraining(
-        self,
-        specialist_type: str,
-        feedback_count: int
-    ) -> str:
+    def trigger_retraining(self, specialist_type: str, feedback_count: int) -> str:
         """
         Dispara re-treinamento e persiste registro.
 
@@ -342,7 +333,7 @@ class RetrainingTrigger:
             specialist_type=specialist_type,
             feedback_count=feedback_count,
             feedback_window_days=self.config.retraining_feedback_window_days,
-            status='pending'
+            status="pending",
         )
 
         # Persistir registro inicial
@@ -351,38 +342,38 @@ class RetrainingTrigger:
             logger.info(
                 "Trigger record created",
                 trigger_id=trigger_record.trigger_id,
-                specialist_type=specialist_type
+                specialist_type=specialist_type,
             )
         except Exception as e:
             logger.error(
                 "Failed to persist trigger record",
                 trigger_id=trigger_record.trigger_id,
-                error=str(e)
+                error=str(e),
             )
             raise
 
         # Iniciar run MLflow
         try:
             run_id, experiment_id = self._start_mlflow_run(
-                specialist_type=specialist_type,
-                feedback_count=feedback_count
+                specialist_type=specialist_type, feedback_count=feedback_count
             )
 
             # Atualizar registro com run_id
             self.update_trigger_status(
                 trigger_id=trigger_record.trigger_id,
-                status='running',
+                status="running",
                 metadata={
-                    'mlflow_run_id': run_id,
-                    'mlflow_experiment_id': experiment_id,
-                    'started_at': datetime.utcnow().isoformat()
-                }
+                    "mlflow_run_id": run_id,
+                    "mlflow_experiment_id": experiment_id,
+                    "started_at": datetime.utcnow().isoformat(),
+                },
             )
 
             # Emitir métricas de trigger bem-sucedido
             if self.metrics:
                 import time
-                self.metrics.increment_retraining_trigger('success')
+
+                self.metrics.increment_retraining_trigger("success")
                 self.metrics.set_retraining_last_trigger_timestamp(time.time())
 
             # Audit log: retraining_triggered
@@ -390,21 +381,21 @@ class RetrainingTrigger:
                 try:
                     # Obter nome do modelo baseado no tipo de especialista
                     model_name = f"{specialist_type}_model"
-                    environment = getattr(self.config, 'environment', 'production')
+                    environment = getattr(self.config, "environment", "production")
 
                     context = AuditEventContext(
-                        user_id='retraining_trigger',
-                        reason=f'Threshold de feedback atingido: {feedback_count}/{self.config.retraining_feedback_threshold}',
+                        user_id="retraining_trigger",
+                        reason=f"Threshold de feedback atingido: {feedback_count}/{self.config.retraining_feedback_threshold}",
                         environment=environment,
-                        triggered_by='automatic',
+                        triggered_by="automatic",
                         metadata={
-                            'feedback_count': feedback_count,
-                            'feedback_threshold': self.config.retraining_feedback_threshold,
-                            'feedback_window_days': self.config.retraining_feedback_window_days,
-                            'trigger_id': trigger_record.trigger_id,
-                            'mlflow_run_id': run_id,
-                            'mlflow_experiment_id': experiment_id
-                        }
+                            "feedback_count": feedback_count,
+                            "feedback_threshold": self.config.retraining_feedback_threshold,
+                            "feedback_window_days": self.config.retraining_feedback_window_days,
+                            "trigger_id": trigger_record.trigger_id,
+                            "mlflow_run_id": run_id,
+                            "mlflow_experiment_id": experiment_id,
+                        },
                     )
 
                     # Executar logging assíncrono de forma síncrona
@@ -417,28 +408,28 @@ class RetrainingTrigger:
                     loop.run_until_complete(
                         self.audit_logger.log_retraining_triggered(
                             model_name=model_name,
-                            model_version='pending',  # Versão será definida durante treinamento
+                            model_version="pending",  # Versão será definida durante treinamento
                             context=context,
                             trigger_info={
-                                'trigger_reason': f'feedback_threshold_reached:{feedback_count}',
-                                'threshold': self.config.retraining_feedback_threshold,
-                                'window_days': self.config.retraining_feedback_window_days,
-                                'min_feedback_quality': self.config.retraining_min_feedback_quality
-                            }
+                                "trigger_reason": f"feedback_threshold_reached:{feedback_count}",
+                                "threshold": self.config.retraining_feedback_threshold,
+                                "window_days": self.config.retraining_feedback_window_days,
+                                "min_feedback_quality": self.config.retraining_min_feedback_quality,
+                            },
                         )
                     )
 
                     logger.info(
-                        'audit_log_retraining_triggered',
+                        "audit_log_retraining_triggered",
                         specialist_type=specialist_type,
-                        trigger_id=trigger_record.trigger_id
+                        trigger_id=trigger_record.trigger_id,
                     )
 
                 except Exception as audit_error:
                     logger.warning(
-                        'audit_logging_retraining_triggered_failed',
+                        "audit_logging_retraining_triggered_failed",
                         error=str(audit_error),
-                        trigger_id=trigger_record.trigger_id
+                        trigger_id=trigger_record.trigger_id,
                     )
 
             logger.info(
@@ -446,7 +437,7 @@ class RetrainingTrigger:
                 trigger_id=trigger_record.trigger_id,
                 run_id=run_id,
                 specialist_type=specialist_type,
-                feedback_count=feedback_count
+                feedback_count=feedback_count,
             )
 
             return trigger_record.trigger_id
@@ -455,22 +446,19 @@ class RetrainingTrigger:
             # Atualizar registro com erro
             self.update_trigger_status(
                 trigger_id=trigger_record.trigger_id,
-                status='failed',
+                status="failed",
                 metadata={
-                    'error_message': str(e),
-                    'failed_at': datetime.utcnow().isoformat()
-                }
+                    "error_message": str(e),
+                    "failed_at": datetime.utcnow().isoformat(),
+                },
             )
             # Emitir métrica de trigger falhado
             if self.metrics:
-                self.metrics.increment_retraining_trigger('failed')
+                self.metrics.increment_retraining_trigger("failed")
             raise
 
     def update_trigger_status(
-        self,
-        trigger_id: str,
-        status: str,
-        metadata: Optional[Dict[str, Any]] = None
+        self, trigger_id: str, status: str, metadata: Optional[Dict[str, Any]] = None
     ):
         """
         Atualiza status de um trigger.
@@ -481,42 +469,29 @@ class RetrainingTrigger:
             metadata: Metadados adicionais
         """
         try:
-            update_doc = {
-                '$set': {
-                    'status': status
-                }
-            }
+            update_doc = {"$set": {"status": status}}
 
             if metadata:
-                update_doc['$set']['metadata'] = metadata
+                update_doc["$set"]["metadata"] = metadata
 
-            if status in ['completed', 'failed']:
-                update_doc['$set']['completed_at'] = datetime.utcnow()
+            if status in ["completed", "failed"]:
+                update_doc["$set"]["completed_at"] = datetime.utcnow()
 
-            self._triggers_collection.update_one(
-                {'trigger_id': trigger_id},
-                update_doc
-            )
+            self._triggers_collection.update_one({"trigger_id": trigger_id}, update_doc)
 
             logger.info(
                 "Trigger status updated",
                 trigger_id=trigger_id,
                 status=status,
-                metadata=metadata
+                metadata=metadata,
             )
 
         except Exception as e:
             logger.error(
-                "Failed to update trigger status",
-                trigger_id=trigger_id,
-                error=str(e)
+                "Failed to update trigger status", trigger_id=trigger_id, error=str(e)
             )
 
-    def get_recent_triggers(
-        self,
-        specialist_type: str,
-        limit: int = 10
-    ) -> list:
+    def get_recent_triggers(self, specialist_type: str, limit: int = 10) -> list:
         """
         Consulta triggers recentes.
 
@@ -528,13 +503,15 @@ class RetrainingTrigger:
             Lista de triggers recentes
         """
         try:
-            results = self._triggers_collection.find(
-                {'specialist_type': specialist_type}
-            ).sort('triggered_at', DESCENDING).limit(limit)
+            results = (
+                self._triggers_collection.find({"specialist_type": specialist_type})
+                .sort("triggered_at", DESCENDING)
+                .limit(limit)
+            )
 
             triggers = []
             for doc in results:
-                doc.pop('_id', None)
+                doc.pop("_id", None)
                 triggers.append(RetrainingTriggerRecord(**doc))
 
             return triggers
@@ -543,14 +520,12 @@ class RetrainingTrigger:
             logger.error(
                 "Error retrieving recent triggers",
                 specialist_type=specialist_type,
-                error=str(e)
+                error=str(e),
             )
             return []
 
     def check_and_trigger(
-        self,
-        specialist_type: str,
-        force: bool = False
+        self, specialist_type: str, force: bool = False
     ) -> Optional[str]:
         """
         Verifica threshold e dispara re-treinamento se necessário.
@@ -563,9 +538,7 @@ class RetrainingTrigger:
             trigger_id se disparado, None caso contrário
         """
         logger.info(
-            "Checking retraining trigger",
-            specialist_type=specialist_type,
-            force=force
+            "Checking retraining trigger", specialist_type=specialist_type, force=force
         )
 
         # Verificar se está habilitado
@@ -581,30 +554,28 @@ class RetrainingTrigger:
                 "Threshold not met - no trigger",
                 specialist_type=specialist_type,
                 feedback_count=feedback_count,
-                threshold=self.config.retraining_feedback_threshold
+                threshold=self.config.retraining_feedback_threshold,
             )
             return None
 
         # Verificar cooldown (a menos que force=True)
         if not force and self._check_cooldown(specialist_type):
             logger.info(
-                "Cooldown active - skipping trigger",
-                specialist_type=specialist_type
+                "Cooldown active - skipping trigger", specialist_type=specialist_type
             )
             return None
 
         # Disparar re-treinamento
         try:
             trigger_id = self.trigger_retraining(
-                specialist_type=specialist_type,
-                feedback_count=feedback_count
+                specialist_type=specialist_type, feedback_count=feedback_count
             )
 
             logger.info(
                 "Retraining triggered",
                 trigger_id=trigger_id,
                 specialist_type=specialist_type,
-                feedback_count=feedback_count
+                feedback_count=feedback_count,
             )
 
             return trigger_id
@@ -613,7 +584,7 @@ class RetrainingTrigger:
             logger.error(
                 "Failed to trigger retraining",
                 specialist_type=specialist_type,
-                error=str(e)
+                error=str(e),
             )
             return None
 
@@ -629,92 +600,101 @@ class RetrainingTrigger:
         """
         try:
             # Buscar trigger
-            trigger = self._triggers_collection.find_one({'trigger_id': trigger_id})
+            trigger = self._triggers_collection.find_one({"trigger_id": trigger_id})
             if not trigger:
                 logger.warning("Trigger not found", trigger_id=trigger_id)
                 return None
 
-            if trigger['status'] != 'running':
-                logger.debug("Trigger not in running state", trigger_id=trigger_id, status=trigger['status'])
+            if trigger["status"] != "running":
+                logger.debug(
+                    "Trigger not in running state",
+                    trigger_id=trigger_id,
+                    status=trigger["status"],
+                )
                 return None
 
-            mlflow_run_id = trigger.get('metadata', {}).get('mlflow_run_id')
+            mlflow_run_id = trigger.get("metadata", {}).get("mlflow_run_id")
             if not mlflow_run_id:
                 logger.warning("Trigger without MLflow run ID", trigger_id=trigger_id)
                 return None
 
             # Verificar status no MLflow
             from mlflow.tracking import MlflowClient
+
             client = MlflowClient(tracking_uri=self.config.mlflow_tracking_uri)
             run = client.get_run(mlflow_run_id)
             run_status = run.info.status
 
             new_status = None
 
-            if run_status == 'FINISHED':
+            if run_status == "FINISHED":
                 # Run completado
                 end_time = datetime.fromtimestamp(run.info.end_time / 1000)
                 start_time = datetime.fromtimestamp(run.info.start_time / 1000)
                 duration = (end_time - start_time).total_seconds()
 
                 metadata = {
-                    'duration_seconds': duration,
-                    'mlflow_status': run_status,
-                    'completed_at': datetime.utcnow().isoformat()
+                    "duration_seconds": duration,
+                    "mlflow_status": run_status,
+                    "completed_at": datetime.utcnow().isoformat(),
                 }
 
                 # Extrair métricas se disponíveis
                 metrics = run.data.metrics
-                if 'precision' in metrics:
-                    metadata['model_precision'] = metrics['precision']
-                if 'recall' in metrics:
-                    metadata['model_recall'] = metrics['recall']
-                if 'f1' in metrics:
-                    metadata['model_f1'] = metrics['f1']
+                if "precision" in metrics:
+                    metadata["model_precision"] = metrics["precision"]
+                if "recall" in metrics:
+                    metadata["model_recall"] = metrics["recall"]
+                if "f1" in metrics:
+                    metadata["model_f1"] = metrics["f1"]
 
-                self.update_trigger_status(trigger_id, 'completed', metadata)
-                new_status = 'completed'
+                self.update_trigger_status(trigger_id, "completed", metadata)
+                new_status = "completed"
 
                 # Emitir métricas
                 if self.metrics:
                     self.metrics.observe_retraining_run_duration(duration)
-                    if 'precision' in metrics:
-                        self.metrics.set_retraining_model_performance('precision', metrics['precision'])
-                    if 'recall' in metrics:
-                        self.metrics.set_retraining_model_performance('recall', metrics['recall'])
-                    if 'f1' in metrics:
-                        self.metrics.set_retraining_model_performance('f1', metrics['f1'])
+                    if "precision" in metrics:
+                        self.metrics.set_retraining_model_performance(
+                            "precision", metrics["precision"]
+                        )
+                    if "recall" in metrics:
+                        self.metrics.set_retraining_model_performance(
+                            "recall", metrics["recall"]
+                        )
+                    if "f1" in metrics:
+                        self.metrics.set_retraining_model_performance(
+                            "f1", metrics["f1"]
+                        )
 
                 logger.info(
                     "Retraining run completed",
                     trigger_id=trigger_id,
                     mlflow_run_id=mlflow_run_id,
-                    duration_seconds=duration
+                    duration_seconds=duration,
                 )
 
-            elif run_status in ['FAILED', 'KILLED']:
+            elif run_status in ["FAILED", "KILLED"]:
                 # Run falhou ou foi cancelado
                 metadata = {
-                    'mlflow_status': run_status,
-                    'error_message': f'Run MLflow terminou com status: {run_status}'
+                    "mlflow_status": run_status,
+                    "error_message": f"Run MLflow terminou com status: {run_status}",
                 }
-                self.update_trigger_status(trigger_id, 'failed', metadata)
-                new_status = 'failed'
+                self.update_trigger_status(trigger_id, "failed", metadata)
+                new_status = "failed"
 
                 logger.error(
                     "Retraining run failed",
                     trigger_id=trigger_id,
                     mlflow_run_id=mlflow_run_id,
-                    status=run_status
+                    status=run_status,
                 )
 
             return new_status
 
         except Exception as e:
             logger.error(
-                "Error monitoring run status",
-                trigger_id=trigger_id,
-                error=str(e)
+                "Error monitoring run status", trigger_id=trigger_id, error=str(e)
             )
             return None
 

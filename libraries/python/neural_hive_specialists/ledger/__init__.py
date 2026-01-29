@@ -5,7 +5,7 @@ from .opinion_schema_v2 import (
     Opinion,
     ReasoningFactor,
     Mitigation,
-    SchemaVersionManager
+    SchemaVersionManager,
 )
 from .digital_signer import DigitalSigner
 from .query_api import LedgerQueryAPI
@@ -13,13 +13,13 @@ from .retention_manager import RetentionManager
 from .backup_manager import BackupManager
 
 __all__ = [
-    'OpinionDocumentV2',
-    'Opinion',
-    'ReasoningFactor',
-    'Mitigation',
-    'SchemaVersionManager',
-    'DigitalSigner',
-    'LedgerQueryAPI',
-    'RetentionManager',
-    'BackupManager'
+    "OpinionDocumentV2",
+    "Opinion",
+    "ReasoningFactor",
+    "Mitigation",
+    "SchemaVersionManager",
+    "DigitalSigner",
+    "LedgerQueryAPI",
+    "RetentionManager",
+    "BackupManager",
 ]

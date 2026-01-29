@@ -14,7 +14,8 @@ Schema Version: 1.0.0
 # O pickle deserializa buscando 'probabilistic_wrapper' no sys.modules.
 import sys
 from . import probabilistic_wrapper as _pw_module
-sys.modules['probabilistic_wrapper'] = _pw_module
+
+sys.modules["probabilistic_wrapper"] = _pw_module
 
 from .base_specialist import BaseSpecialist
 from .cached_specialist import CachedSpecialist
@@ -34,7 +35,7 @@ from .schemas import (
     PlanValidationError,
     PlanVersionIncompatibleError,
     TaskDependencyError,
-    SCHEMA_VERSION
+    SCHEMA_VERSION,
 )
 
 __version__ = "1.0.9"

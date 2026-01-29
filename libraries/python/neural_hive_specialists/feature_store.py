@@ -20,6 +20,7 @@ class NumpyEncoder(json.JSONEncoder):
 
     def default(self, obj):
         import numpy as np
+
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         if isinstance(obj, np.integer):
@@ -43,7 +44,7 @@ class FeatureStore:
         redis_cluster_nodes: str,
         redis_password: Optional[str] = None,
         redis_ssl_enabled: bool = False,
-        cache_ttl_seconds: int = 3600
+        cache_ttl_seconds: int = 3600,
     ):
         """
         Inicializa Feature Store.
@@ -62,10 +63,10 @@ class FeatureStore:
         try:
             self.mongo_client = MongoClient(mongodb_uri)
             self.db = self.mongo_client[mongodb_database]
-            self.features_collection = self.db['plan_features']
+            self.features_collection = self.db["plan_features"]
 
             # Criar índice em plan_id para busca rápida
-            self.features_collection.create_index('plan_id', unique=True)
+            self.features_collection.create_index("plan_id", unique=True)
 
             logger.info("MongoDB feature store initialized", database=mongodb_database)
         except Exception as e:
@@ -75,15 +76,15 @@ class FeatureStore:
         # Inicializar Redis
         try:
             nodes = []
-            for node in redis_cluster_nodes.split(','):
-                host, port = node.strip().split(':')
-                nodes.append({'host': host, 'port': int(port)})
+            for node in redis_cluster_nodes.split(","):
+                host, port = node.strip().split(":")
+                nodes.append({"host": host, "port": int(port)})
 
             self.redis_client = RedisCluster(
                 startup_nodes=nodes,
                 password=redis_password,
                 ssl=redis_ssl_enabled,
-                decode_responses=True
+                decode_responses=True,
             )
 
             # Testar conexão
@@ -111,15 +112,13 @@ class FeatureStore:
 
             # Salvar no MongoDB
             document = {
-                'plan_id': plan_id,
-                'features': features_json,
-                'timestamp': time.time()
+                "plan_id": plan_id,
+                "features": features_json,
+                "timestamp": time.time(),
             }
 
             self.features_collection.replace_one(
-                {'plan_id': plan_id},
-                document,
-                upsert=True
+                {"plan_id": plan_id}, document, upsert=True
             )
 
             logger.debug("Features saved to MongoDB", plan_id=plan_id)
@@ -128,9 +127,7 @@ class FeatureStore:
             if self.redis_client:
                 cache_key = f"features:{plan_id}"
                 self.redis_client.setex(
-                    cache_key,
-                    self.cache_ttl_seconds,
-                    features_json
+                    cache_key, self.cache_ttl_seconds, features_json
                 )
                 logger.debug("Features cached in Redis", plan_id=plan_id)
 
@@ -163,14 +160,16 @@ class FeatureStore:
                     return json.loads(cached)
 
             except Exception as e:
-                logger.warning("Failed to retrieve from Redis cache", plan_id=plan_id, error=str(e))
+                logger.warning(
+                    "Failed to retrieve from Redis cache", plan_id=plan_id, error=str(e)
+                )
 
         # Fallback para MongoDB
         try:
-            document = self.features_collection.find_one({'plan_id': plan_id})
+            document = self.features_collection.find_one({"plan_id": plan_id})
 
             if document:
-                features = json.loads(document['features'])
+                features = json.loads(document["features"])
                 logger.debug("Features retrieved from MongoDB", plan_id=plan_id)
 
                 # Re-popular cache Redis
@@ -178,9 +177,7 @@ class FeatureStore:
                     try:
                         cache_key = f"features:{plan_id}"
                         self.redis_client.setex(
-                            cache_key,
-                            self.cache_ttl_seconds,
-                            document['features']
+                            cache_key, self.cache_ttl_seconds, document["features"]
                         )
                     except:
                         pass
@@ -191,7 +188,11 @@ class FeatureStore:
             return None
 
         except Exception as e:
-            logger.error("Failed to retrieve features from MongoDB", plan_id=plan_id, error=str(e))
+            logger.error(
+                "Failed to retrieve features from MongoDB",
+                plan_id=plan_id,
+                error=str(e),
+            )
             return None
 
     def delete_features(self, plan_id: str) -> bool:
@@ -206,7 +207,7 @@ class FeatureStore:
         """
         try:
             # Remover do MongoDB
-            self.features_collection.delete_one({'plan_id': plan_id})
+            self.features_collection.delete_one({"plan_id": plan_id})
 
             # Remover do Redis
             if self.redis_client:

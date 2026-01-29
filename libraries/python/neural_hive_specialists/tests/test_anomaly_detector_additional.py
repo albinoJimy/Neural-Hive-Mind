@@ -16,7 +16,9 @@ def _base_config(tmp_path):
 
 @pytest.mark.unit
 def test_detect_anomalies_disabled(tmp_path):
-    detector = AnomalyDetector({**_base_config(tmp_path), "enable_anomaly_detection": False})
+    detector = AnomalyDetector(
+        {**_base_config(tmp_path), "enable_anomaly_detection": False}
+    )
 
     result = detector.detect_anomalies({"consensus_agreement_rate": 0.9})
 

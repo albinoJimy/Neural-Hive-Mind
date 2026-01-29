@@ -30,11 +30,11 @@ class BackupManager:
             config: Configuração com mongodb_uri, backup_path, backup_retention_days
         """
         self.config = config
-        self.mongodb_uri = config.get('mongodb_uri')
-        self.mongodb_database = config.get('mongodb_database', 'neural_hive')
-        self.backup_path = config.get('backup_path', '/var/backups/neural-hive')
-        self.backup_retention_days = config.get('backup_retention_days', 30)
-        self.enable_compression = config.get('enable_backup_compression', True)
+        self.mongodb_uri = config.get("mongodb_uri")
+        self.mongodb_database = config.get("mongodb_database", "neural_hive")
+        self.backup_path = config.get("backup_path", "/var/backups/neural-hive")
+        self.backup_retention_days = config.get("backup_retention_days", 30)
+        self.enable_compression = config.get("enable_backup_compression", True)
         self._mongo_client: Optional[MongoClient] = None
 
         # Criar diretório de backup
@@ -44,7 +44,7 @@ class BackupManager:
             "BackupManager initialized",
             backup_path=self.backup_path,
             retention_days=self.backup_retention_days,
-            compression=self.enable_compression
+            compression=self.enable_compression,
         )
 
     @property
@@ -52,8 +52,7 @@ class BackupManager:
         """Lazy initialization do cliente MongoDB."""
         if self._mongo_client is None:
             self._mongo_client = MongoClient(
-                self.mongodb_uri,
-                serverSelectionTimeoutMS=5000
+                self.mongodb_uri, serverSelectionTimeoutMS=5000
             )
         return self._mongo_client
 
@@ -61,7 +60,7 @@ class BackupManager:
     def collection(self):
         """Retorna collection de opiniões."""
         db = self.mongo_client[self.mongodb_database]
-        return db['cognitive_ledger']
+        return db["cognitive_ledger"]
 
     def create_full_backup(self) -> Optional[str]:
         """
@@ -71,7 +70,7 @@ class BackupManager:
             Caminho do arquivo de backup ou None se erro
         """
         try:
-            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
             backup_name = f"ledger_full_{timestamp}.json"
 
             if self.enable_compression:
@@ -86,26 +85,26 @@ class BackupManager:
 
             # Remover _id do MongoDB
             for doc in documents:
-                doc.pop('_id', None)
+                doc.pop("_id", None)
 
             # Serializar para JSON
             backup_data = {
-                'backup_type': 'full',
-                'created_at': datetime.utcnow().isoformat(),
-                'database': self.mongodb_database,
-                'collection': 'cognitive_ledger',
-                'documents_count': len(documents),
-                'documents': documents
+                "backup_type": "full",
+                "created_at": datetime.utcnow().isoformat(),
+                "database": self.mongodb_database,
+                "collection": "cognitive_ledger",
+                "documents_count": len(documents),
+                "documents": documents,
             }
 
             json_data = json.dumps(backup_data, indent=2, default=str)
 
             # Escrever arquivo (com ou sem compressão)
             if self.enable_compression:
-                with gzip.open(backup_file_path, 'wt', encoding='utf-8') as f:
+                with gzip.open(backup_file_path, "wt", encoding="utf-8") as f:
                     f.write(json_data)
             else:
-                with open(backup_file_path, 'w', encoding='utf-8') as f:
+                with open(backup_file_path, "w", encoding="utf-8") as f:
                     f.write(json_data)
 
             # Calcular checksum
@@ -118,7 +117,7 @@ class BackupManager:
                 "Full backup created successfully",
                 backup_file=backup_name,
                 documents_count=len(documents),
-                checksum=checksum
+                checksum=checksum,
             )
 
             return backup_file_path
@@ -127,10 +126,7 @@ class BackupManager:
             logger.error("Failed to create full backup", error=str(e), exc_info=True)
             return None
 
-    def create_incremental_backup(
-        self,
-        since_hours: int = 24
-    ) -> Optional[str]:
+    def create_incremental_backup(self, since_hours: int = 24) -> Optional[str]:
         """
         Cria backup incremental (documentos recentes).
 
@@ -141,7 +137,7 @@ class BackupManager:
             Caminho do arquivo de backup ou None se erro
         """
         try:
-            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
             backup_name = f"ledger_incremental_{timestamp}.json"
 
             if self.enable_compression:
@@ -154,37 +150,37 @@ class BackupManager:
             logger.info(
                 "Starting incremental backup",
                 backup_file=backup_name,
-                since_hours=since_hours
+                since_hours=since_hours,
             )
 
             # Exportar documentos recentes
-            documents = list(self.collection.find({
-                'created_at': {'$gte': cutoff_time}
-            }))
+            documents = list(
+                self.collection.find({"created_at": {"$gte": cutoff_time}})
+            )
 
             # Remover _id
             for doc in documents:
-                doc.pop('_id', None)
+                doc.pop("_id", None)
 
             # Serializar
             backup_data = {
-                'backup_type': 'incremental',
-                'created_at': datetime.utcnow().isoformat(),
-                'database': self.mongodb_database,
-                'collection': 'cognitive_ledger',
-                'since_timestamp': cutoff_time.isoformat(),
-                'documents_count': len(documents),
-                'documents': documents
+                "backup_type": "incremental",
+                "created_at": datetime.utcnow().isoformat(),
+                "database": self.mongodb_database,
+                "collection": "cognitive_ledger",
+                "since_timestamp": cutoff_time.isoformat(),
+                "documents_count": len(documents),
+                "documents": documents,
             }
 
             json_data = json.dumps(backup_data, indent=2, default=str)
 
             # Escrever arquivo
             if self.enable_compression:
-                with gzip.open(backup_file_path, 'wt', encoding='utf-8') as f:
+                with gzip.open(backup_file_path, "wt", encoding="utf-8") as f:
                     f.write(json_data)
             else:
-                with open(backup_file_path, 'w', encoding='utf-8') as f:
+                with open(backup_file_path, "w", encoding="utf-8") as f:
                     f.write(json_data)
 
             # Checksum
@@ -197,19 +193,19 @@ class BackupManager:
                 "Incremental backup created successfully",
                 backup_file=backup_name,
                 documents_count=len(documents),
-                checksum=checksum
+                checksum=checksum,
             )
 
             return backup_file_path
 
         except Exception as e:
-            logger.error("Failed to create incremental backup", error=str(e), exc_info=True)
+            logger.error(
+                "Failed to create incremental backup", error=str(e), exc_info=True
+            )
             return None
 
     def restore_from_backup(
-        self,
-        backup_file_path: str,
-        verify_checksum: bool = True
+        self, backup_file_path: str, verify_checksum: bool = True
     ) -> bool:
         """
         Restaura ledger a partir de backup.
@@ -222,10 +218,7 @@ class BackupManager:
             True se restauração bem-sucedida
         """
         try:
-            logger.warning(
-                "Starting backup restoration",
-                backup_file=backup_file_path
-            )
+            logger.warning("Starting backup restoration", backup_file=backup_file_path)
 
             # Verificar checksum se solicitado
             if verify_checksum:
@@ -234,14 +227,14 @@ class BackupManager:
                     return False
 
             # Ler arquivo de backup
-            if backup_file_path.endswith('.gz'):
-                with gzip.open(backup_file_path, 'rt', encoding='utf-8') as f:
+            if backup_file_path.endswith(".gz"):
+                with gzip.open(backup_file_path, "rt", encoding="utf-8") as f:
                     backup_data = json.load(f)
             else:
-                with open(backup_file_path, 'r', encoding='utf-8') as f:
+                with open(backup_file_path, "r", encoding="utf-8") as f:
                     backup_data = json.load(f)
 
-            documents = backup_data.get('documents', [])
+            documents = backup_data.get("documents", [])
 
             if not documents:
                 logger.warning("No documents found in backup")
@@ -253,7 +246,7 @@ class BackupManager:
             logger.warning(
                 "Backup restored successfully",
                 backup_file=backup_file_path,
-                documents_restored=len(result.inserted_ids)
+                documents_restored=len(result.inserted_ids),
             )
 
             return True
@@ -263,7 +256,7 @@ class BackupManager:
                 "Failed to restore from backup",
                 backup_file=backup_file_path,
                 error=str(e),
-                exc_info=True
+                exc_info=True,
             )
             return False
 
@@ -290,20 +283,20 @@ class BackupManager:
                     deleted_count += 1
 
                     # Deletar metadata associado
-                    metadata_file = backup_file.with_suffix('.meta')
+                    metadata_file = backup_file.with_suffix(".meta")
                     if metadata_file.exists():
                         metadata_file.unlink()
 
                     logger.info(
                         "Old backup deleted",
                         backup_file=backup_file.name,
-                        age_days=(datetime.utcnow() - mtime).days
+                        age_days=(datetime.utcnow() - mtime).days,
                     )
 
             logger.info(
                 "Old backups cleaned up",
                 deleted_count=deleted_count,
-                retention_days=self.backup_retention_days
+                retention_days=self.backup_retention_days,
             )
 
             return deleted_count
@@ -324,20 +317,20 @@ class BackupManager:
             backup_dir = Path(self.backup_path)
 
             for backup_file in sorted(backup_dir.glob("ledger_*.json*")):
-                metadata_file = backup_file.with_suffix('.meta')
+                metadata_file = backup_file.with_suffix(".meta")
 
                 if metadata_file.exists():
-                    with open(metadata_file, 'r') as f:
+                    with open(metadata_file, "r") as f:
                         metadata = json.load(f)
                 else:
                     # Metadata não encontrado, criar básico
                     metadata = {
-                        'file_name': backup_file.name,
-                        'file_path': str(backup_file),
-                        'created_at': datetime.fromtimestamp(
+                        "file_name": backup_file.name,
+                        "file_path": str(backup_file),
+                        "created_at": datetime.fromtimestamp(
                             backup_file.stat().st_mtime
                         ).isoformat(),
-                        'file_size_mb': backup_file.stat().st_size / (1024 * 1024)
+                        "file_size_mb": backup_file.stat().st_size / (1024 * 1024),
                     }
 
                 backups.append(metadata)
@@ -369,10 +362,7 @@ class BackupManager:
         return sha256_hash.hexdigest()
 
     def _save_backup_metadata(
-        self,
-        backup_file_path: str,
-        checksum: str,
-        documents_count: int
+        self, backup_file_path: str, checksum: str, documents_count: int
     ):
         """
         Salva metadata do backup.
@@ -382,22 +372,22 @@ class BackupManager:
             checksum: Checksum SHA-256
             documents_count: Número de documentos
         """
-        metadata_file_path = backup_file_path.rsplit('.', 1)[0] + '.meta'
+        metadata_file_path = backup_file_path.rsplit(".", 1)[0] + ".meta"
 
         file_size = os.path.getsize(backup_file_path)
 
         metadata = {
-            'file_name': os.path.basename(backup_file_path),
-            'file_path': backup_file_path,
-            'created_at': datetime.utcnow().isoformat(),
-            'checksum': checksum,
-            'documents_count': documents_count,
-            'file_size_bytes': file_size,
-            'file_size_mb': file_size / (1024 * 1024),
-            'compression_enabled': self.enable_compression
+            "file_name": os.path.basename(backup_file_path),
+            "file_path": backup_file_path,
+            "created_at": datetime.utcnow().isoformat(),
+            "checksum": checksum,
+            "documents_count": documents_count,
+            "file_size_bytes": file_size,
+            "file_size_mb": file_size / (1024 * 1024),
+            "compression_enabled": self.enable_compression,
         }
 
-        with open(metadata_file_path, 'w') as f:
+        with open(metadata_file_path, "w") as f:
             json.dump(metadata, f, indent=2)
 
     def _verify_backup_integrity(self, backup_file_path: str) -> bool:
@@ -411,16 +401,16 @@ class BackupManager:
             True se íntegro
         """
         try:
-            metadata_file_path = backup_file_path.rsplit('.', 1)[0] + '.meta'
+            metadata_file_path = backup_file_path.rsplit(".", 1)[0] + ".meta"
 
             if not os.path.exists(metadata_file_path):
                 logger.warning("Metadata file not found, skipping integrity check")
                 return True
 
-            with open(metadata_file_path, 'r') as f:
+            with open(metadata_file_path, "r") as f:
                 metadata = json.load(f)
 
-            expected_checksum = metadata.get('checksum')
+            expected_checksum = metadata.get("checksum")
 
             if not expected_checksum:
                 logger.warning("No checksum in metadata")
@@ -432,7 +422,7 @@ class BackupManager:
                 logger.error(
                     "Backup integrity check failed",
                     expected=expected_checksum,
-                    actual=actual_checksum
+                    actual=actual_checksum,
                 )
                 return False
 

@@ -24,12 +24,12 @@ class EmbeddingsGenerator:
 
     def __init__(
         self,
-        model_name: str = 'paraphrase-multilingual-MiniLM-L12-v2',
+        model_name: str = "paraphrase-multilingual-MiniLM-L12-v2",
         cache_size: int = 1000,
         batch_size: int = 32,
         metrics: Optional["SpecialistMetrics"] = None,
         cache_ttl_seconds: Optional[int] = None,
-        cache_enabled: bool = True
+        cache_enabled: bool = True,
     ):
         """
         Inicializa gerador de embeddings.
@@ -50,21 +50,24 @@ class EmbeddingsGenerator:
         self.metrics = metrics
         self.cache_ttl_seconds = cache_ttl_seconds
         self.cache_enabled = cache_enabled
-        self._embedding_cache: "OrderedDict[str, Tuple[np.ndarray, float]]" = OrderedDict()
-        self._cache_stats: Dict[str, int] = {'hits': 0, 'misses': 0}
+        self._embedding_cache: "OrderedDict[str, Tuple[np.ndarray, float]]" = (
+            OrderedDict()
+        )
+        self._cache_stats: Dict[str, int] = {"hits": 0, "misses": 0}
         self._load_model()
         logger.info(
             "Embeddings cache initialized",
             cache_enabled=self.cache_enabled,
             cache_size=self.cache_size,
             cache_ttl_seconds=self.cache_ttl_seconds,
-            batch_size=self.batch_size
+            batch_size=self.batch_size,
         )
 
     def _load_model(self):
         """Carrega modelo de embeddings e determina dimensão dinamicamente."""
         try:
             from sentence_transformers import SentenceTransformer
+
             logger.info("Loading embeddings model", model_name=self.model_name)
             self.model = SentenceTransformer(self.model_name)
 
@@ -74,7 +77,7 @@ class EmbeddingsGenerator:
             logger.info(
                 "Embeddings model loaded successfully",
                 model_name=self.model_name,
-                embedding_dim=self.embedding_dim
+                embedding_dim=self.embedding_dim,
             )
         except ImportError:
             logger.warning(
@@ -87,7 +90,7 @@ class EmbeddingsGenerator:
             logger.error(
                 "Failed to load embeddings model",
                 error=str(e),
-                model_name=self.model_name
+                model_name=self.model_name,
             )
             self.model = None
             self.embedding_dim = 384  # Dimensão padrão como fallback
@@ -95,7 +98,7 @@ class EmbeddingsGenerator:
     def _hash_description(self, description: str) -> str:
         """Normaliza e calcula hash da descrição para uso como chave de cache."""
         normalized = description.strip().lower()
-        description_hash = hashlib.md5(normalized.encode('utf-8')).hexdigest()
+        description_hash = hashlib.md5(normalized.encode("utf-8")).hexdigest()
         logger.debug("Description hashed", hash_prefix=description_hash[:8])
         return description_hash
 
@@ -122,45 +125,47 @@ class EmbeddingsGenerator:
             logger.warning(
                 "Embedding cache evicted entry due to size limit",
                 evicted_hash_prefix=evicted_hash[:8],
-                cache_size=self.cache_size
+                cache_size=self.cache_size,
             )
 
     def _record_cache_hit(self, duration: float):
         """Atualiza contadores e métricas para cache hit."""
-        self._cache_stats['hits'] += 1
+        self._cache_stats["hits"] += 1
         if self.metrics:
             self.metrics.increment_embedding_cache_hit()
-            self.metrics.observe_embedding_generation_duration(duration, 'hit')
+            self.metrics.observe_embedding_generation_duration(duration, "hit")
 
     def _record_cache_miss(self, duration: Optional[float] = None):
         """Atualiza contadores e métricas para cache miss."""
-        self._cache_stats['misses'] += 1
+        self._cache_stats["misses"] += 1
         if self.metrics:
             self.metrics.increment_embedding_cache_miss()
             if duration is not None:
-                self.metrics.observe_embedding_generation_duration(duration, 'miss')
+                self.metrics.observe_embedding_generation_duration(duration, "miss")
 
     def _log_cache_stats_if_needed(self):
         """Loga estatísticas de cache periodicamente para observabilidade."""
-        operations = self._cache_stats['hits'] + self._cache_stats['misses']
+        operations = self._cache_stats["hits"] + self._cache_stats["misses"]
         if operations and operations % 100 == 0:
-            hit_ratio = self._cache_stats['hits'] / operations
+            hit_ratio = self._cache_stats["hits"] / operations
             logger.info(
                 "Embedding cache stats",
                 operations=operations,
-                hits=self._cache_stats['hits'],
-                misses=self._cache_stats['misses'],
-                hit_ratio=hit_ratio
+                hits=self._cache_stats["hits"],
+                misses=self._cache_stats["misses"],
+                hit_ratio=hit_ratio,
             )
 
-    def _get_embeddings_for_descriptions(self, descriptions: List[str]) -> List[np.ndarray]:
+    def _get_embeddings_for_descriptions(
+        self, descriptions: List[str]
+    ) -> List[np.ndarray]:
         """
         Retorna embeddings preservando ordem, utilizando cache e batch único para misses.
         """
         if self.model is None:
             logger.warning(
                 "Model not available, returning zero embeddings",
-                embedding_dim=self.embedding_dim
+                embedding_dim=self.embedding_dim,
             )
             return [np.zeros(self.embedding_dim) for _ in descriptions]
 
@@ -195,14 +200,14 @@ class EmbeddingsGenerator:
                 encoded = self.model.encode(
                     descriptions_to_encode,
                     convert_to_numpy=True,
-                    batch_size=self.batch_size
+                    batch_size=self.batch_size,
                 )
             except Exception as e:
                 logger.error("Failed to generate embeddings", error=str(e))
                 encoded = np.zeros((len(descriptions_to_encode), self.embedding_dim))
             duration = time.time() - encode_start
             if self.metrics:
-                self.metrics.observe_embedding_generation_duration(duration, 'miss')
+                self.metrics.observe_embedding_generation_duration(duration, "miss")
 
             for i, embedding in enumerate(encoded):
                 original_idx = indices_to_encode[i]
@@ -220,7 +225,7 @@ class EmbeddingsGenerator:
                 "Embeddings generated for uncached descriptions",
                 generated=len(descriptions_to_encode),
                 duration_ms=int(duration * 1000),
-                batch_size=self.batch_size
+                batch_size=self.batch_size,
             )
 
         # Preencher faltantes com zeros (casos de erro)
@@ -253,7 +258,7 @@ class EmbeddingsGenerator:
             dim = self.embedding_dim or 0
             return np.zeros((0, dim))
 
-        descriptions = [task.get('description', '') for task in tasks]
+        descriptions = [task.get("description", "") for task in tasks]
         embeddings = self._get_embeddings_for_descriptions(descriptions)
         stacked = np.array(embeddings)
         logger.debug("Task embeddings generated", shape=stacked.shape)
@@ -296,15 +301,18 @@ class EmbeddingsGenerator:
 
         try:
             embeddings = self._get_embeddings_for_descriptions([text1, text2])
-            similarity = float(np.dot(embeddings[0], embeddings[1]) / (
-                np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1])
-            ))
+            similarity = float(
+                np.dot(embeddings[0], embeddings[1])
+                / (np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1]))
+            )
             return similarity
         except Exception as e:
             logger.error("Failed to calculate similarity", error=str(e))
             return 0.0
 
-    def generate_embeddings_batch(self, plans: List[Dict[str, Any]]) -> List[np.ndarray]:
+    def generate_embeddings_batch(
+        self, plans: List[Dict[str, Any]]
+    ) -> List[np.ndarray]:
         """
         Gera embeddings em lote para múltiplos planos em uma única chamada ao modelo.
         """
@@ -312,23 +320,25 @@ class EmbeddingsGenerator:
         plan_task_counts: List[int] = []
 
         for plan in plans:
-            tasks = plan.get('tasks', [])
+            tasks = plan.get("tasks", [])
             plan_task_counts.append(len(tasks))
-            flattened_descriptions.extend([task.get('description', '') for task in tasks])
+            flattened_descriptions.extend(
+                [task.get("description", "") for task in tasks]
+            )
 
         embeddings = self._get_embeddings_for_descriptions(flattened_descriptions)
 
         results: List[np.ndarray] = []
         cursor = 0
         for task_count in plan_task_counts:
-            slice_embeddings = embeddings[cursor:cursor + task_count]
+            slice_embeddings = embeddings[cursor : cursor + task_count]
             results.append(np.array(slice_embeddings))
             cursor += task_count
 
         logger.debug(
             "Batch embeddings generated",
             num_plans=len(plans),
-            total_tasks=len(flattened_descriptions)
+            total_tasks=len(flattened_descriptions),
         )
         return results
 
@@ -344,50 +354,50 @@ class EmbeddingsGenerator:
         """
         if embeddings is None or len(embeddings) == 0:
             return {
-                'mean_norm': 0.0,
-                'std_norm': 0.0,
-                'max_norm': 0.0,
-                'min_norm': 0.0,
-                'avg_diversity': 0.0
+                "mean_norm": 0.0,
+                "std_norm": 0.0,
+                "max_norm": 0.0,
+                "min_norm": 0.0,
+                "avg_diversity": 0.0,
             }
 
         features = {
-            'mean_norm': float(np.mean(np.linalg.norm(embeddings, axis=1))),
-            'std_norm': float(np.std(np.linalg.norm(embeddings, axis=1))),
-            'max_norm': float(np.max(np.linalg.norm(embeddings, axis=1))),
-            'min_norm': float(np.min(np.linalg.norm(embeddings, axis=1))),
+            "mean_norm": float(np.mean(np.linalg.norm(embeddings, axis=1))),
+            "std_norm": float(np.std(np.linalg.norm(embeddings, axis=1))),
+            "max_norm": float(np.max(np.linalg.norm(embeddings, axis=1))),
+            "min_norm": float(np.min(np.linalg.norm(embeddings, axis=1))),
         }
 
         # Diversidade (distância média entre embeddings)
         if len(embeddings) > 1:
             pairwise_distances = []
             for i in range(len(embeddings)):
-                for j in range(i+1, len(embeddings)):
+                for j in range(i + 1, len(embeddings)):
                     dist = np.linalg.norm(embeddings[i] - embeddings[j])
                     pairwise_distances.append(dist)
-            features['avg_diversity'] = float(np.mean(pairwise_distances))
+            features["avg_diversity"] = float(np.mean(pairwise_distances))
         else:
-            features['avg_diversity'] = 0.0
+            features["avg_diversity"] = 0.0
 
         return features
 
     def get_cache_stats(self) -> Dict[str, Any]:
         """Retorna estatísticas de cache."""
-        hits = self._cache_stats['hits']
-        misses = self._cache_stats['misses']
+        hits = self._cache_stats["hits"]
+        misses = self._cache_stats["misses"]
         total = hits + misses
         hit_ratio = hits / total if total > 0 else 0.0
         return {
-            'cache_size': len(self._embedding_cache),
-            'cache_max_size': self.cache_size,
-            'total_hits': hits,
-            'total_misses': misses,
-            'hit_ratio': hit_ratio
+            "cache_size": len(self._embedding_cache),
+            "cache_max_size": self.cache_size,
+            "total_hits": hits,
+            "total_misses": misses,
+            "hit_ratio": hit_ratio,
         }
 
     def clear_cache(self):
         """Limpa cache de embeddings e estatísticas."""
         self._embedding_cache.clear()
-        self._cache_stats = {'hits': 0, 'misses': 0}
+        self._cache_stats = {"hits": 0, "misses": 0}
         if self.metrics:
             self.metrics.set_embedding_cache_size(0)

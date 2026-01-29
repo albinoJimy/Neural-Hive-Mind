@@ -24,7 +24,7 @@ class FeatureCache:
         redis_password: Optional[str] = None,
         redis_ssl_enabled: bool = False,
         cache_ttl_seconds: int = 3600,  # 1 hora
-        specialist_type: str = "unknown"
+        specialist_type: str = "unknown",
     ):
         """
         Inicializa FeatureCache.
@@ -43,8 +43,8 @@ class FeatureCache:
         try:
             # Configurar Redis Cluster
             nodes = [
-                {'host': node.split(':')[0], 'port': int(node.split(':')[1])}
-                for node in redis_cluster_nodes.split(',')
+                {"host": node.split(":")[0], "port": int(node.split(":")[1])}
+                for node in redis_cluster_nodes.split(",")
             ]
 
             self.redis = RedisCluster(
@@ -52,7 +52,7 @@ class FeatureCache:
                 password=redis_password,
                 ssl=redis_ssl_enabled,
                 decode_responses=True,
-                skip_full_coverage_check=True
+                skip_full_coverage_check=True,
             )
 
             # Testar conexão
@@ -63,13 +63,13 @@ class FeatureCache:
                 "FeatureCache initialized",
                 specialist_type=specialist_type,
                 ttl_seconds=cache_ttl_seconds,
-                num_nodes=len(nodes)
+                num_nodes=len(nodes),
             )
         except RedisError as e:
             logger.warning(
                 "FeatureCache failed to connect to Redis",
                 error=str(e),
-                specialist_type=specialist_type
+                specialist_type=specialist_type,
             )
             self.redis = None
             self._connected = False
@@ -100,7 +100,7 @@ class FeatureCache:
                 logger.debug(
                     "feature_cache_hit",
                     plan_hash=plan_hash[:16] + "...",
-                    num_features=len(features.get('aggregated_features', {}))
+                    num_features=len(features.get("aggregated_features", {})),
                 )
                 return features
             else:
@@ -110,14 +110,14 @@ class FeatureCache:
             logger.warning(
                 "feature_cache_get_error",
                 plan_hash=plan_hash[:16] + "...",
-                error=str(e)
+                error=str(e),
             )
             return None
         except json.JSONDecodeError as e:
             logger.warning(
                 "feature_cache_decode_error",
                 plan_hash=plan_hash[:16] + "...",
-                error=str(e)
+                error=str(e),
             )
             return None
 
@@ -140,43 +140,43 @@ class FeatureCache:
         try:
             # Serializar features (excluir arrays numpy grandes)
             cacheable_features = {
-                'metadata_features': features.get('metadata_features', {}),
-                'ontology_features': self._serialize_ontology_features(
-                    features.get('ontology_features', {})
+                "metadata_features": features.get("metadata_features", {}),
+                "ontology_features": self._serialize_ontology_features(
+                    features.get("ontology_features", {})
                 ),
-                'graph_features': features.get('graph_features', {}),
-                'aggregated_features': features.get('aggregated_features', {}),
+                "graph_features": features.get("graph_features", {}),
+                "aggregated_features": features.get("aggregated_features", {}),
                 # Não cachear embeddings (muito grandes e variam)
             }
 
             self.redis.setex(
-                cache_key,
-                self.cache_ttl_seconds,
-                json.dumps(cacheable_features)
+                cache_key, self.cache_ttl_seconds, json.dumps(cacheable_features)
             )
 
             logger.debug(
                 "feature_cache_set",
                 plan_hash=plan_hash[:16] + "...",
-                ttl_seconds=self.cache_ttl_seconds
+                ttl_seconds=self.cache_ttl_seconds,
             )
             return True
         except RedisError as e:
             logger.warning(
                 "feature_cache_set_error",
                 plan_hash=plan_hash[:16] + "...",
-                error=str(e)
+                error=str(e),
             )
             return False
         except (TypeError, ValueError) as e:
             logger.warning(
                 "feature_cache_serialization_error",
                 plan_hash=plan_hash[:16] + "...",
-                error=str(e)
+                error=str(e),
             )
             return False
 
-    def _serialize_ontology_features(self, ontology_features: Dict[str, Any]) -> Dict[str, Any]:
+    def _serialize_ontology_features(
+        self, ontology_features: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Serializa features de ontologia, convertendo objetos não-serializáveis.
 
@@ -188,9 +188,9 @@ class FeatureCache:
         """
         serialized = {}
         for key, value in ontology_features.items():
-            if hasattr(value, 'value'):  # Enum
+            if hasattr(value, "value"):  # Enum
                 serialized[key] = value.value
-            elif hasattr(value, '__dict__'):  # Objeto
+            elif hasattr(value, "__dict__"):  # Objeto
                 serialized[key] = str(value)
             else:
                 serialized[key] = value
@@ -229,7 +229,7 @@ class FeatureCache:
             logger.warning(
                 "feature_cache_delete_error",
                 plan_hash=plan_hash[:16] + "...",
-                error=str(e)
+                error=str(e),
             )
             return False
 
@@ -259,13 +259,13 @@ class FeatureCache:
             logger.info(
                 "feature_cache_cleared",
                 specialist_type=self.specialist_type,
-                keys_removed=count
+                keys_removed=count,
             )
             return count
         except RedisError as e:
             logger.warning(
                 "feature_cache_clear_error",
                 specialist_type=self.specialist_type,
-                error=str(e)
+                error=str(e),
             )
             return count

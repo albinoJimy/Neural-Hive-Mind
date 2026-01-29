@@ -35,42 +35,39 @@ class NarrativeGenerator:
         """
         return {
             # Metadata features
-            'num_tasks': "o plano contém {value:.0f} tarefas",
-            'priority_score': "a prioridade é {level}",
-            'total_duration_ms': "a duração total estimada é {formatted_time}",
-            'avg_duration_ms': "cada tarefa leva em média {formatted_time}",
-            'risk_score': "o score de risco detectado é {level}",
-            'complexity_score': "a complexidade avaliada é {level}",
-
+            "num_tasks": "o plano contém {value:.0f} tarefas",
+            "priority_score": "a prioridade é {level}",
+            "total_duration_ms": "a duração total estimada é {formatted_time}",
+            "avg_duration_ms": "cada tarefa leva em média {formatted_time}",
+            "risk_score": "o score de risco detectado é {level}",
+            "complexity_score": "a complexidade avaliada é {level}",
             # Ontology features
-            'domain_risk_weight': "o domínio apresenta risco {level}",
-            'avg_task_complexity_factor': "as tarefas têm complexidade {level}",
-            'num_patterns_detected': "{value:.0f} padrões arquiteturais foram identificados",
-            'num_anti_patterns_detected': "{value:.0f} anti-padrões foram detectados",
-            'avg_pattern_quality': "a qualidade dos padrões é {level}",
-            'total_anti_pattern_penalty': "penalidades de anti-padrões totalizam {value:.2f}",
-
+            "domain_risk_weight": "o domínio apresenta risco {level}",
+            "avg_task_complexity_factor": "as tarefas têm complexidade {level}",
+            "num_patterns_detected": "{value:.0f} padrões arquiteturais foram identificados",
+            "num_anti_patterns_detected": "{value:.0f} anti-padrões foram detectados",
+            "avg_pattern_quality": "a qualidade dos padrões é {level}",
+            "total_anti_pattern_penalty": "penalidades de anti-padrões totalizam {value:.2f}",
             # Graph features
-            'num_nodes': "o grafo possui {value:.0f} nós",
-            'num_edges': "há {value:.0f} dependências entre tarefas",
-            'density': "a densidade do grafo é {level}",
-            'avg_coupling': "o acoplamento médio é {level}",
-            'max_parallelism': "até {value:.0f} tarefas podem executar em paralelo",
-            'critical_path_length': "o caminho crítico tem {value:.0f} passos",
-            'num_bottlenecks': "{value:.0f} gargalos foram identificados",
-            'graph_complexity_score': "a complexidade do grafo é {level}",
-
+            "num_nodes": "o grafo possui {value:.0f} nós",
+            "num_edges": "há {value:.0f} dependências entre tarefas",
+            "density": "a densidade do grafo é {level}",
+            "avg_coupling": "o acoplamento médio é {level}",
+            "max_parallelism": "até {value:.0f} tarefas podem executar em paralelo",
+            "critical_path_length": "o caminho crítico tem {value:.0f} passos",
+            "num_bottlenecks": "{value:.0f} gargalos foram identificados",
+            "graph_complexity_score": "a complexidade do grafo é {level}",
             # Embedding features
-            'mean_norm': "a norma média dos embeddings é {value:.2f}",
-            'avg_diversity': "a diversidade semântica entre tarefas é {level}"
+            "mean_norm": "a norma média dos embeddings é {value:.2f}",
+            "avg_diversity": "a diversidade semântica entre tarefas é {level}",
         }
 
     def generate_narrative(
         self,
         feature_importances: List[Dict[str, Any]],
         top_n: int = 5,
-        explanation_type: str = 'shap',
-        reasoning_links: Dict[str, Dict[str, Any]] = None
+        explanation_type: str = "shap",
+        reasoning_links: Dict[str, Dict[str, Any]] = None,
     ) -> str:
         """
         Gera narrativa explicativa baseada em importâncias.
@@ -90,18 +87,22 @@ class NarrativeGenerator:
             return "Não foi possível gerar explicação detalhada."
 
         # Separar contribuições positivas e negativas
-        positive_features = [f for f in feature_importances if f['contribution'] == 'positive']
-        negative_features = [f for f in feature_importances if f['contribution'] == 'negative']
+        positive_features = [
+            f for f in feature_importances if f["contribution"] == "positive"
+        ]
+        negative_features = [
+            f for f in feature_importances if f["contribution"] == "negative"
+        ]
 
         # Pegar top features de cada tipo
-        top_positive = positive_features[:min(top_n, len(positive_features))]
-        top_negative = negative_features[:min(top_n, len(negative_features))]
+        top_positive = positive_features[: min(top_n, len(positive_features))]
+        top_negative = negative_features[: min(top_n, len(negative_features))]
 
         # Construir narrativa
         narrative_parts = []
 
         # Introdução
-        weight_key = 'shap_value' if explanation_type == 'shap' else 'lime_weight'
+        weight_key = "shap_value" if explanation_type == "shap" else "lime_weight"
         narrative_parts.append(
             f"A decisão foi baseada principalmente nos seguintes fatores:"
         )
@@ -110,18 +111,22 @@ class NarrativeGenerator:
         if top_positive:
             narrative_parts.append("\n\n**Fatores que aumentaram a confiança:**")
             for i, feature in enumerate(top_positive, 1):
-                description = self._describe_feature(feature, weight_key, reasoning_links)
+                description = self._describe_feature(
+                    feature, weight_key, reasoning_links
+                )
                 narrative_parts.append(f"\n{i}. {description}")
 
         # Fatores negativos
         if top_negative:
             narrative_parts.append("\n\n**Fatores que reduziram a confiança:**")
             for i, feature in enumerate(top_negative, 1):
-                description = self._describe_feature(feature, weight_key, reasoning_links)
+                description = self._describe_feature(
+                    feature, weight_key, reasoning_links
+                )
                 narrative_parts.append(f"\n{i}. {description}")
 
         # Conclusão
-        total_importance = sum(f['importance'] for f in feature_importances[:top_n])
+        total_importance = sum(f["importance"] for f in feature_importances[:top_n])
         confidence_level = self._interpret_confidence(total_importance)
         narrative_parts.append(
             f"\n\nGrau de confiança da explicação: {confidence_level}."
@@ -133,7 +138,7 @@ class NarrativeGenerator:
         self,
         feature: Dict[str, Any],
         weight_key: str,
-        reasoning_links: Dict[str, Dict[str, Any]] = None
+        reasoning_links: Dict[str, Dict[str, Any]] = None,
     ) -> str:
         """
         Gera descrição textual de uma feature.
@@ -149,8 +154,8 @@ class NarrativeGenerator:
         if reasoning_links is None:
             reasoning_links = {}
 
-        feature_name = feature['feature_name']
-        feature_value = feature.get('feature_value', 0.0)
+        feature_name = feature["feature_name"]
+        feature_value = feature.get("feature_value", 0.0)
         weight = feature.get(weight_key, 0.0)
 
         # Obter template
@@ -167,7 +172,7 @@ class NarrativeGenerator:
             value=feature_value,
             level=level,
             formatted_time=formatted_time,
-            name=feature_name
+            name=feature_name,
         )
 
         # Adicionar impacto
@@ -179,15 +184,17 @@ class NarrativeGenerator:
         else:
             impact_text = "leve impacto"
 
-        contribution = "positiva" if feature['contribution'] == 'positive' else "negativa"
+        contribution = (
+            "positiva" if feature["contribution"] == "positive" else "negativa"
+        )
 
         base_description = f"**{description.capitalize()}** (contribuição {contribution}, {impact_text})"
 
         # Adicionar link para reasoning_factor se disponível
         if feature_name in reasoning_links:
             link = reasoning_links[feature_name]
-            factor_name = link['factor_name']
-            factor_score = link['factor_score']
+            factor_name = link["factor_name"]
+            factor_score = link["factor_score"]
             base_description += f" — vinculado ao fator de raciocínio '{factor_name}' (score: {factor_score:.2f})"
 
         return base_description
@@ -204,7 +211,11 @@ class NarrativeGenerator:
             Descrição qualitativa
         """
         # Features com range 0-1 (scores, weights)
-        if 'score' in feature_name or 'weight' in feature_name or 'density' in feature_name:
+        if (
+            "score" in feature_name
+            or "weight" in feature_name
+            or "density" in feature_name
+        ):
             if value >= 0.8:
                 return "muito alta"
             elif value >= 0.6:
@@ -217,7 +228,7 @@ class NarrativeGenerator:
                 return "muito baixa"
 
         # Features de contagem/quantidade
-        if 'num_' in feature_name or 'count' in feature_name:
+        if "num_" in feature_name or "count" in feature_name:
             if value >= 10:
                 return "elevado"
             elif value >= 5:
@@ -226,7 +237,7 @@ class NarrativeGenerator:
                 return "baixo"
 
         # Complexidade e acoplamento
-        if 'complexity' in feature_name or 'coupling' in feature_name:
+        if "complexity" in feature_name or "coupling" in feature_name:
             if value >= 2.0:
                 return "muito alta"
             elif value >= 1.5:
@@ -250,7 +261,7 @@ class NarrativeGenerator:
         Returns:
             String formatada ou vazia
         """
-        if '_duration_ms' not in feature_name:
+        if "_duration_ms" not in feature_name:
             return ""
 
         # Converter milissegundos para formato legível
@@ -284,9 +295,7 @@ class NarrativeGenerator:
             return "limitado"
 
     def generate_summary(
-        self,
-        feature_importances: List[Dict[str, Any]],
-        explanation_type: str = 'shap'
+        self, feature_importances: List[Dict[str, Any]], explanation_type: str = "shap"
     ) -> str:
         """
         Gera resumo executivo de uma linha.
@@ -303,24 +312,24 @@ class NarrativeGenerator:
 
         # Pegar feature mais importante
         top_feature = feature_importances[0]
-        feature_name = top_feature['feature_name']
+        feature_name = top_feature["feature_name"]
 
         # Determinar se é positivo ou negativo
-        contribution = top_feature['contribution']
+        contribution = top_feature["contribution"]
 
         # Gerar descrição curta
         template = self.feature_templates.get(feature_name, "{name}")
-        value = top_feature.get('feature_value', 0.0)
+        value = top_feature.get("feature_value", 0.0)
         level = self._get_qualitative_level(feature_name, value)
 
         description = template.format(
             value=value,
             level=level,
             formatted_time=self._format_time_if_needed(feature_name, value),
-            name=feature_name
+            name=feature_name,
         )
 
-        if contribution == 'positive':
+        if contribution == "positive":
             return f"Decisão influenciada principalmente porque {description}."
         else:
             return f"Decisão afetada negativamente porque {description}."

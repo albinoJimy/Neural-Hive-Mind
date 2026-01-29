@@ -28,18 +28,20 @@ class SHAPExplainer:
         self.config = config
         self.background_data: Optional[pd.DataFrame] = None
         self.feature_names: List[str] = []
-        self.timeout_seconds = config.get('shap_timeout_seconds', 5.0)
+        self.timeout_seconds = config.get("shap_timeout_seconds", 5.0)
 
         self._load_background_dataset()
 
         logger.info(
             "SHAPExplainer initialized",
-            background_samples=len(self.background_data) if self.background_data is not None else 0
+            background_samples=len(self.background_data)
+            if self.background_data is not None
+            else 0,
         )
 
     def _load_background_dataset(self):
         """Carrega dataset de background para SHAP."""
-        background_path = self.config.get('shap_background_dataset_path')
+        background_path = self.config.get("shap_background_dataset_path")
 
         if background_path:
             try:
@@ -49,23 +51,20 @@ class SHAPExplainer:
                 logger.info(
                     "Background dataset loaded",
                     path=background_path,
-                    shape=self.background_data.shape
+                    shape=self.background_data.shape,
                 )
             except Exception as e:
                 logger.error(
                     "Failed to load background dataset",
                     path=background_path,
-                    error=str(e)
+                    error=str(e),
                 )
                 self.background_data = None
         else:
             logger.warning("No background dataset configured for SHAP")
 
     def explain(
-        self,
-        model: Any,
-        features: Dict[str, Any],
-        feature_names: List[str]
+        self, model: Any, features: Dict[str, Any], feature_names: List[str]
     ) -> Dict[str, Any]:
         """
         Gera explicação SHAP para predição do modelo.
@@ -80,7 +79,7 @@ class SHAPExplainer:
         """
         if model is None:
             logger.warning("No model provided for SHAP")
-            return {'method': 'shap', 'feature_importances': [], 'error': 'No model'}
+            return {"method": "shap", "feature_importances": [], "error": "No model"}
 
         try:
             # Importar SHAP
@@ -89,10 +88,7 @@ class SHAPExplainer:
             # Executar com timeout
             with ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(
-                    self._compute_shap,
-                    model,
-                    features,
-                    feature_names
+                    self._compute_shap, model, features, feature_names
                 )
                 try:
                     result = future.result(timeout=self.timeout_seconds)
@@ -100,26 +96,27 @@ class SHAPExplainer:
                 except FuturesTimeoutError:
                     logger.warning(
                         "SHAP computation timed out",
-                        timeout_seconds=self.timeout_seconds
+                        timeout_seconds=self.timeout_seconds,
                     )
                     return {
-                        'method': 'shap',
-                        'feature_importances': [],
-                        'error': 'timeout'
+                        "method": "shap",
+                        "feature_importances": [],
+                        "error": "timeout",
                     }
 
         except ImportError:
             logger.error("SHAP library not installed. Install with: pip install shap")
-            return {'method': 'shap', 'feature_importances': [], 'error': 'shap_not_installed'}
+            return {
+                "method": "shap",
+                "feature_importances": [],
+                "error": "shap_not_installed",
+            }
         except Exception as e:
             logger.error("SHAP explanation failed", error=str(e), exc_info=True)
-            return {'method': 'shap', 'feature_importances': [], 'error': str(e)}
+            return {"method": "shap", "feature_importances": [], "error": str(e)}
 
     def _compute_shap(
-        self,
-        model: Any,
-        features: Dict[str, Any],
-        feature_names: List[str]
+        self, model: Any, features: Dict[str, Any], feature_names: List[str]
     ) -> Dict[str, Any]:
         """
         Computa valores SHAP (método auxiliar para timeout).
@@ -143,16 +140,25 @@ class SHAPExplainer:
         # Determinar tipo de explainer
         model_type = type(model).__name__.lower()
 
-        if 'randomforest' in model_type or 'gradientboosting' in model_type or 'xgb' in model_type:
+        if (
+            "randomforest" in model_type
+            or "gradientboosting" in model_type
+            or "xgb" in model_type
+        ):
             # TreeExplainer para modelos tree-based
             if self.background_data is not None and len(self.background_data) > 0:
-                explainer = shap.TreeExplainer(model, self.background_data.sample(min(100, len(self.background_data))))
+                explainer = shap.TreeExplainer(
+                    model,
+                    self.background_data.sample(min(100, len(self.background_data))),
+                )
             else:
                 explainer = shap.TreeExplainer(model)
         else:
             # KernelExplainer para outros modelos
             if self.background_data is not None and len(self.background_data) > 0:
-                background_sample = self.background_data.sample(min(50, len(self.background_data)))
+                background_sample = self.background_data.sample(
+                    min(50, len(self.background_data))
+                )
                 explainer = shap.KernelExplainer(model.predict, background_sample)
             else:
                 # Usar features atuais como background (fallback)
@@ -193,30 +199,34 @@ class SHAPExplainer:
             else:
                 feature_value = float(feature_value)
 
-            feature_importances.append({
-                'feature_name': feature_name,
-                'shap_value': shap_value,
-                'feature_value': feature_value,
-                'contribution': 'positive' if shap_value > 0 else ('negative' if shap_value < 0 else 'neutral'),
-                'importance': abs(shap_value)
-            })
+            feature_importances.append(
+                {
+                    "feature_name": feature_name,
+                    "shap_value": shap_value,
+                    "feature_value": feature_value,
+                    "contribution": "positive"
+                    if shap_value > 0
+                    else ("negative" if shap_value < 0 else "neutral"),
+                    "importance": abs(shap_value),
+                }
+            )
 
         # Ordenar por importância absoluta
-        feature_importances.sort(key=lambda x: x['importance'], reverse=True)
+        feature_importances.sort(key=lambda x: x["importance"], reverse=True)
 
         computation_time = time.time() - start_time
 
         logger.info(
             "SHAP values computed",
             num_features=len(feature_importances),
-            computation_time_ms=int(computation_time * 1000)
+            computation_time_ms=int(computation_time * 1000),
         )
 
         return {
-            'method': 'shap',
-            'base_value': base_value,
-            'feature_importances': feature_importances,
-            'computation_time_ms': int(computation_time * 1000)
+            "method": "shap",
+            "base_value": base_value,
+            "feature_importances": feature_importances,
+            "computation_time_ms": int(computation_time * 1000),
         }
 
     def get_top_features(
@@ -224,7 +234,7 @@ class SHAPExplainer:
         shap_result: Dict[str, Any],
         top_n: int = 5,
         positive_only: bool = False,
-        negative_only: bool = False
+        negative_only: bool = False,
     ) -> List[Dict[str, Any]]:
         """
         Retorna top N features mais importantes.
@@ -238,11 +248,11 @@ class SHAPExplainer:
         Returns:
             Lista de features mais importantes
         """
-        importances = shap_result.get('feature_importances', [])
+        importances = shap_result.get("feature_importances", [])
 
         if positive_only:
-            importances = [f for f in importances if f['contribution'] == 'positive']
+            importances = [f for f in importances if f["contribution"] == "positive"]
         elif negative_only:
-            importances = [f for f in importances if f['contribution'] == 'negative']
+            importances = [f for f in importances if f["contribution"] == "negative"]
 
         return importances[:top_n]

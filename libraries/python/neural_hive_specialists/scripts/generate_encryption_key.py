@@ -16,9 +16,13 @@ def generate_key():
     """Gera chave Fernet."""
     try:
         from cryptography.fernet import Fernet
+
         return Fernet.generate_key()
     except ImportError:
-        print("ERRO: cryptography não instalado. Instale com: pip install cryptography>=41.0.0", file=sys.stderr)
+        print(
+            "ERRO: cryptography não instalado. Instale com: pip install cryptography>=41.0.0",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
 
@@ -35,7 +39,10 @@ def save_key(key: bytes, path: str, force: bool = False):
 
     # Verificar se arquivo já existe
     if file_path.exists() and not force:
-        print(f"ERRO: Arquivo {path} já existe. Use --force para sobrescrever.", file=sys.stderr)
+        print(
+            f"ERRO: Arquivo {path} já existe. Use --force para sobrescrever.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Criar diretório pai se não existir
@@ -43,7 +50,7 @@ def save_key(key: bytes, path: str, force: bool = False):
 
     # Salvar chave
     try:
-        with open(file_path, 'wb') as f:
+        with open(file_path, "wb") as f:
             f.write(key)
 
         # Definir permissões 0600 (apenas owner pode ler/escrever)
@@ -60,7 +67,7 @@ def save_key(key: bytes, path: str, force: bool = False):
 def main():
     """Função principal."""
     parser = argparse.ArgumentParser(
-        description='Gera chave de criptografia Fernet para Neural Hive Compliance Layer',
+        description="Gera chave de criptografia Fernet para Neural Hive Compliance Layer",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemplos:
@@ -87,25 +94,23 @@ Segurança:
   ⚠️  Se a chave for perdida, dados criptografados não poderão ser recuperados.
   ⚠️  Não commit a chave no git. Adicione ao .gitignore:
       echo "*.key" >> .gitignore
-        """
+        """,
     )
 
     parser.add_argument(
-        '--output-path',
+        "--output-path",
         type=str,
-        help='Caminho para salvar chave (default: ./encryption.key)'
+        help="Caminho para salvar chave (default: ./encryption.key)",
     )
 
     parser.add_argument(
-        '--print-key',
-        action='store_true',
-        help='Exibir chave no stdout (útil para variável de ambiente)'
+        "--print-key",
+        action="store_true",
+        help="Exibir chave no stdout (útil para variável de ambiente)",
     )
 
     parser.add_argument(
-        '--force',
-        action='store_true',
-        help='Sobrescrever arquivo existente'
+        "--force", action="store_true", help="Sobrescrever arquivo existente"
     )
 
     args = parser.parse_args()
@@ -113,7 +118,7 @@ Segurança:
     # Validar argumentos
     if not args.output_path and not args.print_key:
         # Default: salvar em ./encryption.key
-        args.output_path = './encryption.key'
+        args.output_path = "./encryption.key"
 
     if args.output_path and args.print_key:
         print("ERRO: Use --output-path OU --print-key, não ambos.", file=sys.stderr)
@@ -125,7 +130,7 @@ Segurança:
 
     if args.print_key:
         # Exibir chave no stdout (apenas a chave, sem mensagens)
-        print(key.decode('utf-8'))
+        print(key.decode("utf-8"))
         print("\n💡 Para usar como variável de ambiente:", file=sys.stderr)
         print(f"   export ENCRYPTION_KEY='{key.decode('utf-8')}'", file=sys.stderr)
     else:
@@ -139,5 +144,5 @@ Segurança:
         print("   - Sem a chave, dados criptografados não podem ser recuperados")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

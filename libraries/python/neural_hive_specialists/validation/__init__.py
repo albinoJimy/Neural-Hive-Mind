@@ -11,6 +11,6 @@ from .description_validator import (
 )
 
 __all__ = [
-    'DescriptionQualityValidator',
-    'get_validator',
+    "DescriptionQualityValidator",
+    "get_validator",
 ]

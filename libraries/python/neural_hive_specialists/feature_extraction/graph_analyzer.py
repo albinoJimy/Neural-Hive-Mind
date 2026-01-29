@@ -32,23 +32,25 @@ class GraphAnalyzer:
 
         # Adicionar nós
         for task in tasks:
-            task_id = task['task_id']
+            task_id = task["task_id"]
             G.add_node(
                 task_id,
-                task_type=task.get('task_type'),
-                duration_ms=task.get('estimated_duration_ms', 0),
-                description=task.get('description', '')
+                task_type=task.get("task_type"),
+                duration_ms=task.get("estimated_duration_ms", 0),
+                description=task.get("description", ""),
             )
 
         # Adicionar arestas (dependências)
         for task in tasks:
-            task_id = task['task_id']
-            for dep_id in task.get('dependencies', []):
+            task_id = task["task_id"]
+            for dep_id in task.get("dependencies", []):
                 # Aresta de dependência para tarefa
                 G.add_edge(dep_id, task_id)
 
         self.graph = G
-        logger.debug("Graph built", nodes=G.number_of_nodes(), edges=G.number_of_edges())
+        logger.debug(
+            "Graph built", nodes=G.number_of_nodes(), edges=G.number_of_edges()
+        )
         return G
 
     def extract_graph_features(self) -> Dict[str, Any]:
@@ -65,46 +67,54 @@ class GraphAnalyzer:
         features = {}
 
         # Métricas básicas
-        features['num_nodes'] = G.number_of_nodes()
-        features['num_edges'] = G.number_of_edges()
-        features['density'] = nx.density(G)
+        features["num_nodes"] = G.number_of_nodes()
+        features["num_edges"] = G.number_of_edges()
+        features["density"] = nx.density(G)
 
         # Métricas de centralidade
         if G.number_of_nodes() > 0:
             in_degree_centrality = nx.in_degree_centrality(G)
             out_degree_centrality = nx.out_degree_centrality(G)
 
-            features['avg_in_degree'] = sum(in_degree_centrality.values()) / len(in_degree_centrality)
-            features['max_in_degree'] = max(in_degree_centrality.values())
-            features['avg_out_degree'] = sum(out_degree_centrality.values()) / len(out_degree_centrality)
-            features['max_out_degree'] = max(out_degree_centrality.values())
+            features["avg_in_degree"] = sum(in_degree_centrality.values()) / len(
+                in_degree_centrality
+            )
+            features["max_in_degree"] = max(in_degree_centrality.values())
+            features["avg_out_degree"] = sum(out_degree_centrality.values()) / len(
+                out_degree_centrality
+            )
+            features["max_out_degree"] = max(out_degree_centrality.values())
 
         # Caminho crítico (longest path)
         try:
             critical_path_length = nx.dag_longest_path_length(G)
-            features['critical_path_length'] = critical_path_length
+            features["critical_path_length"] = critical_path_length
         except:
-            features['critical_path_length'] = 0
+            features["critical_path_length"] = 0
 
         # Paralelização potencial (largura máxima)
-        features['max_parallelism'] = self._calculate_max_parallelism(G)
+        features["max_parallelism"] = self._calculate_max_parallelism(G)
 
         # Complexidade (número de níveis) - apenas para DAGs
         # Verificar se há ciclos primeiro
         try:
             if nx.is_directed_acyclic_graph(G):
-                features['num_levels'] = len(list(nx.topological_generations(G)))
+                features["num_levels"] = len(list(nx.topological_generations(G)))
             else:
-                logger.warning("Graph contains cycles, cannot compute topological levels")
-                features['num_levels'] = 0
-                features['has_cycles'] = True
+                logger.warning(
+                    "Graph contains cycles, cannot compute topological levels"
+                )
+                features["num_levels"] = 0
+                features["has_cycles"] = True
         except Exception as e:
             logger.error("Failed to compute num_levels", error=str(e))
-            features['num_levels'] = 0
+            features["num_levels"] = 0
 
         # Acoplamento (média de dependências)
         total_deps = sum(dict(G.in_degree()).values())
-        features['avg_coupling'] = total_deps / G.number_of_nodes() if G.number_of_nodes() > 0 else 0
+        features["avg_coupling"] = (
+            total_deps / G.number_of_nodes() if G.number_of_nodes() > 0 else 0
+        )
 
         logger.debug("Graph features extracted", features=features)
         return features
@@ -144,7 +154,9 @@ class GraphAnalyzer:
         bottlenecks = [node for node, score in betweenness.items() if score > 0.5]
 
         if bottlenecks:
-            logger.warning("Bottlenecks identified", count=len(bottlenecks), task_ids=bottlenecks)
+            logger.warning(
+                "Bottlenecks identified", count=len(bottlenecks), task_ids=bottlenecks
+            )
 
         return bottlenecks
 
@@ -158,12 +170,14 @@ class GraphAnalyzer:
         features = self.extract_graph_features()
 
         # Normalizar métricas
-        density_score = min(1.0, features['density'] * 2)  # Densidade alta = complexo
-        coupling_score = min(1.0, features['avg_coupling'] / 3)  # Acoplamento alto = complexo
-        levels_score = min(1.0, features['num_levels'] / 10)  # Muitos níveis = complexo
+        density_score = min(1.0, features["density"] * 2)  # Densidade alta = complexo
+        coupling_score = min(
+            1.0, features["avg_coupling"] / 3
+        )  # Acoplamento alto = complexo
+        levels_score = min(1.0, features["num_levels"] / 10)  # Muitos níveis = complexo
 
         # Média ponderada
-        complexity = (density_score * 0.3 + coupling_score * 0.4 + levels_score * 0.3)
+        complexity = density_score * 0.3 + coupling_score * 0.4 + levels_score * 0.3
 
         logger.debug("Complexity calculated", complexity=complexity)
         return complexity

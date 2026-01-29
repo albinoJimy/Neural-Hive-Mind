@@ -13,9 +13,4 @@ from .field_encryptor import FieldEncryptor
 from .audit_logger import AuditLogger
 from .pii_detector import PIIDetector
 
-__all__ = [
-    'ComplianceLayer',
-    'FieldEncryptor',
-    'AuditLogger',
-    'PIIDetector'
-]
+__all__ = ["ComplianceLayer", "FieldEncryptor", "AuditLogger", "PIIDetector"]

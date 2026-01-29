@@ -36,39 +36,40 @@ class DigitalSigner:
         logger.info(
             "DigitalSigner initialized",
             has_private_key=self.private_key is not None,
-            has_public_key=self.public_key is not None
+            has_public_key=self.public_key is not None,
         )
 
     def _load_keys(self):
         """Carrega chaves privada e pública."""
-        private_key_path = self.config.get('private_key_path')
-        public_key_path = self.config.get('public_key_path')
+        private_key_path = self.config.get("private_key_path")
+        public_key_path = self.config.get("public_key_path")
 
         # Carregar chave privada
         if private_key_path:
             try:
-                with open(private_key_path, 'rb') as key_file:
+                with open(private_key_path, "rb") as key_file:
                     self.private_key = serialization.load_pem_private_key(
-                        key_file.read(),
-                        password=None,
-                        backend=default_backend()
+                        key_file.read(), password=None, backend=default_backend()
                     )
                 logger.info("Private key loaded", path=private_key_path)
             except Exception as e:
-                logger.error("Failed to load private key", path=private_key_path, error=str(e))
+                logger.error(
+                    "Failed to load private key", path=private_key_path, error=str(e)
+                )
                 self.private_key = None
 
         # Carregar chave pública
         if public_key_path:
             try:
-                with open(public_key_path, 'rb') as key_file:
+                with open(public_key_path, "rb") as key_file:
                     self.public_key = serialization.load_pem_public_key(
-                        key_file.read(),
-                        backend=default_backend()
+                        key_file.read(), backend=default_backend()
                     )
                 logger.info("Public key loaded", path=public_key_path)
             except Exception as e:
-                logger.error("Failed to load public key", path=public_key_path, error=str(e))
+                logger.error(
+                    "Failed to load public key", path=public_key_path, error=str(e)
+                )
                 self.public_key = None
 
     def generate_keys(self, key_size: int = 2048) -> Tuple[bytes, bytes]:
@@ -85,16 +86,14 @@ class DigitalSigner:
 
         # Gerar chave privada
         private_key = rsa.generate_private_key(
-            public_exponent=65537,
-            key_size=key_size,
-            backend=default_backend()
+            public_exponent=65537, key_size=key_size, backend=default_backend()
         )
 
         # Serializar chave privada
         private_pem = private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.PKCS8,
-            encryption_algorithm=serialization.NoEncryption()
+            encryption_algorithm=serialization.NoEncryption(),
         )
 
         # Obter chave pública
@@ -103,7 +102,7 @@ class DigitalSigner:
         # Serializar chave pública
         public_pem = public_key.public_bytes(
             encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
         )
 
         self.private_key = private_key
@@ -124,11 +123,15 @@ class DigitalSigner:
             Hash SHA-256 em hexadecimal
         """
         # Criar string determinística do documento (sem campos de segurança)
-        content = {k: v for k, v in document.items()
-                   if k not in ['content_hash', 'digital_signature', 'signature_algorithm', '_id']}
+        content = {
+            k: v
+            for k, v in document.items()
+            if k
+            not in ["content_hash", "digital_signature", "signature_algorithm", "_id"]
+        }
 
         content_str = json.dumps(content, sort_keys=True, default=str)
-        content_hash = hashlib.sha256(content_str.encode('utf-8')).hexdigest()
+        content_hash = hashlib.sha256(content_str.encode("utf-8")).hexdigest()
 
         return content_hash
 
@@ -149,29 +152,29 @@ class DigitalSigner:
         try:
             # Computar hash do conteúdo
             content_hash = self.compute_content_hash(document)
-            document['content_hash'] = content_hash
+            document["content_hash"] = content_hash
 
             # Assinar hash
             signature = self.private_key.sign(
-                content_hash.encode('utf-8'),
+                content_hash.encode("utf-8"),
                 padding.PSS(
                     mgf=padding.MGF1(hashes.SHA256()),
-                    salt_length=padding.PSS.MAX_LENGTH
+                    salt_length=padding.PSS.MAX_LENGTH,
                 ),
-                hashes.SHA256()
+                hashes.SHA256(),
             )
 
             # Converter para base64
-            signature_b64 = base64.b64encode(signature).decode('utf-8')
+            signature_b64 = base64.b64encode(signature).decode("utf-8")
 
             # Adicionar assinatura ao documento
-            document['digital_signature'] = signature_b64
-            document['signature_algorithm'] = 'RSA-SHA256-PSS'
+            document["digital_signature"] = signature_b64
+            document["signature_algorithm"] = "RSA-SHA256-PSS"
 
             logger.debug(
                 "Document signed",
-                opinion_id=document.get('opinion_id'),
-                hash=content_hash[:16] + "..."
+                opinion_id=document.get("opinion_id"),
+                hash=content_hash[:16] + "...",
             )
 
             return document
@@ -194,7 +197,7 @@ class DigitalSigner:
             logger.warning("No public key available for verification")
             return False
 
-        if 'digital_signature' not in document:
+        if "digital_signature" not in document:
             logger.warning("Document has no digital signature")
             return False
 
@@ -203,23 +206,22 @@ class DigitalSigner:
             expected_hash = self.compute_content_hash(document)
 
             # Obter assinatura
-            signature_b64 = document['digital_signature']
+            signature_b64 = document["digital_signature"]
             signature = base64.b64decode(signature_b64)
 
             # Verificar assinatura
             self.public_key.verify(
                 signature,
-                expected_hash.encode('utf-8'),
+                expected_hash.encode("utf-8"),
                 padding.PSS(
                     mgf=padding.MGF1(hashes.SHA256()),
-                    salt_length=padding.PSS.MAX_LENGTH
+                    salt_length=padding.PSS.MAX_LENGTH,
                 ),
-                hashes.SHA256()
+                hashes.SHA256(),
             )
 
             logger.debug(
-                "Signature verified successfully",
-                opinion_id=document.get('opinion_id')
+                "Signature verified successfully", opinion_id=document.get("opinion_id")
             )
 
             return True
@@ -227,8 +229,8 @@ class DigitalSigner:
         except Exception as e:
             logger.error(
                 "Signature verification failed",
-                opinion_id=document.get('opinion_id'),
-                error=str(e)
+                opinion_id=document.get("opinion_id"),
+                error=str(e),
             )
             return False
 
@@ -242,29 +244,29 @@ class DigitalSigner:
         Returns:
             True se adulteração detectada, False se íntegro
         """
-        if 'content_hash' not in document:
+        if "content_hash" not in document:
             logger.warning("Document has no content hash")
             return True
 
         # Recomputar hash
         current_hash = self.compute_content_hash(document)
-        stored_hash = document['content_hash']
+        stored_hash = document["content_hash"]
 
         if current_hash != stored_hash:
             logger.warning(
                 "Tampering detected: hash mismatch",
-                opinion_id=document.get('opinion_id'),
+                opinion_id=document.get("opinion_id"),
                 expected=stored_hash[:16],
-                actual=current_hash[:16]
+                actual=current_hash[:16],
             )
             return True
 
         # Verificar assinatura se presente
-        if 'digital_signature' in document:
+        if "digital_signature" in document:
             if not self.verify_signature(document):
                 logger.warning(
                     "Tampering detected: invalid signature",
-                    opinion_id=document.get('opinion_id')
+                    opinion_id=document.get("opinion_id"),
                 )
                 return True
 

@@ -15,7 +15,7 @@ logger = structlog.get_logger(__name__)
 class GPUInferenceWrapper:
     """Wrapper para inferência acelerada por GPU."""
 
-    def __init__(self, model: Any, device: str = 'auto'):
+    def __init__(self, model: Any, device: str = "auto"):
         """
         Inicializa wrapper GPU.
 
@@ -25,37 +25,35 @@ class GPUInferenceWrapper:
         """
         self.model = model
         self.device = self._detect_device(device)
-        self.use_gpu = self.device == 'cuda'
+        self.use_gpu = self.device == "cuda"
         self.cp = None  # CuPy module
 
         if self.use_gpu:
             try:
                 import cupy as cp
+
                 self.cp = cp
                 # Verificar se GPU está acessível
                 cp.cuda.Device(0).compute_capability
                 logger.info(
                     "GPU acceleration enabled",
                     device=self.device,
-                    gpu_name=cp.cuda.runtime.getDeviceProperties(0)['name'].decode()
+                    gpu_name=cp.cuda.runtime.getDeviceProperties(0)["name"].decode(),
                 )
             except ImportError:
                 logger.warning("CuPy not installed, falling back to CPU")
                 self.use_gpu = False
-                self.device = 'cpu'
+                self.device = "cpu"
             except Exception as e:
-                logger.warning(
-                    "GPU not available, falling back to CPU",
-                    error=str(e)
-                )
+                logger.warning("GPU not available, falling back to CPU", error=str(e))
                 self.use_gpu = False
-                self.device = 'cpu'
+                self.device = "cpu"
 
         logger.info(
             "GPUInferenceWrapper initialized",
             device=self.device,
             use_gpu=self.use_gpu,
-            model_type=type(model).__name__
+            model_type=type(model).__name__,
         )
 
     def _detect_device(self, device: str) -> str:
@@ -68,14 +66,15 @@ class GPUInferenceWrapper:
         Returns:
             Dispositivo selecionado
         """
-        if device == 'auto':
+        if device == "auto":
             try:
                 import cupy as cp
+
                 # Testar se GPU está acessível
                 cp.cuda.Device(0).compute_capability
-                return 'cuda'
+                return "cuda"
             except Exception:
-                return 'cpu'
+                return "cpu"
         return device
 
     def predict(self, X: np.ndarray) -> np.ndarray:
@@ -92,7 +91,7 @@ class GPUInferenceWrapper:
             Predições (numpy array)
         """
         # Converter para numpy se necessário
-        if hasattr(X, 'values'):  # pandas DataFrame
+        if hasattr(X, "values"):  # pandas DataFrame
             X = X.values
 
         if self.use_gpu and self.cp is not None:
@@ -101,11 +100,11 @@ class GPUInferenceWrapper:
                 X_gpu = self.cp.asarray(X)
 
                 # Verificar se modelo suporta CuPy arrays
-                if hasattr(self.model, 'predict'):
+                if hasattr(self.model, "predict"):
                     # Tentar predição direta com GPU
                     try:
                         predictions_gpu = self.model.predict(X_gpu)
-                        if hasattr(predictions_gpu, 'get'):  # CuPy array
+                        if hasattr(predictions_gpu, "get"):  # CuPy array
                             return predictions_gpu.get()
                         return np.asarray(predictions_gpu)
                     except TypeError:
@@ -115,8 +114,7 @@ class GPUInferenceWrapper:
 
             except Exception as e:
                 logger.warning(
-                    "GPU inference failed, falling back to CPU",
-                    error=str(e)
+                    "GPU inference failed, falling back to CPU", error=str(e)
                 )
                 return self.model.predict(X)
         else:
@@ -133,10 +131,10 @@ class GPUInferenceWrapper:
             Probabilidades (numpy array)
         """
         # Converter para numpy se necessário
-        if hasattr(X, 'values'):  # pandas DataFrame
+        if hasattr(X, "values"):  # pandas DataFrame
             X = X.values
 
-        if not hasattr(self.model, 'predict_proba'):
+        if not hasattr(self.model, "predict_proba"):
             raise AttributeError(
                 f"Model {type(self.model).__name__} does not support predict_proba"
             )
@@ -147,7 +145,7 @@ class GPUInferenceWrapper:
 
                 try:
                     proba_gpu = self.model.predict_proba(X_gpu)
-                    if hasattr(proba_gpu, 'get'):  # CuPy array
+                    if hasattr(proba_gpu, "get"):  # CuPy array
                         return proba_gpu.get()
                     return np.asarray(proba_gpu)
                 except TypeError:
@@ -157,8 +155,7 @@ class GPUInferenceWrapper:
 
             except Exception as e:
                 logger.warning(
-                    "GPU predict_proba failed, falling back to CPU",
-                    error=str(e)
+                    "GPU predict_proba failed, falling back to CPU", error=str(e)
                 )
                 return self.model.predict_proba(X)
         else:
@@ -172,19 +169,21 @@ class GPUInferenceWrapper:
             Dicionário com informações do dispositivo
         """
         info = {
-            'device': self.device,
-            'use_gpu': self.use_gpu,
-            'model_type': type(self.model).__name__
+            "device": self.device,
+            "use_gpu": self.use_gpu,
+            "model_type": type(self.model).__name__,
         }
 
         if self.use_gpu and self.cp is not None:
             try:
                 props = self.cp.cuda.runtime.getDeviceProperties(0)
-                info.update({
-                    'gpu_name': props['name'].decode(),
-                    'gpu_memory_total_mb': props['totalGlobalMem'] // (1024 * 1024),
-                    'gpu_compute_capability': f"{props['major']}.{props['minor']}"
-                })
+                info.update(
+                    {
+                        "gpu_name": props["name"].decode(),
+                        "gpu_memory_total_mb": props["totalGlobalMem"] // (1024 * 1024),
+                        "gpu_compute_capability": f"{props['major']}.{props['minor']}",
+                    }
+                )
             except Exception:
                 pass
 

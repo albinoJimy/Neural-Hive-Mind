@@ -6,8 +6,8 @@ from .anomaly_detector import AnomalyDetector
 from .health_checks import SpecialistHealthChecker
 
 __all__ = [
-    'AggregatedMetricsCollector',
-    'BusinessMetricsCollector',
-    'AnomalyDetector',
-    'SpecialistHealthChecker'
+    "AggregatedMetricsCollector",
+    "BusinessMetricsCollector",
+    "AnomalyDetector",
+    "SpecialistHealthChecker",
 ]

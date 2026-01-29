@@ -24,7 +24,9 @@ def _mock_evidently(monkeypatch, drift_result=True, drift_share=0.35):
                         "result": {
                             "dataset_drift": drift_result,
                             "drift_share": drift_share,
-                            "drift_by_columns": {"feature_a": {"drift_detected": drift_result}},
+                            "drift_by_columns": {
+                                "feature_a": {"drift_detected": drift_result}
+                            },
                         },
                     }
                 ]
@@ -53,7 +55,9 @@ def _mock_evidently(monkeypatch, drift_result=True, drift_share=0.35):
 def test_detect_drift_with_mocked_evidently(monkeypatch):
     _mock_evidently(monkeypatch)
     monitor = EvidentlyMonitor({"drift_reference_dataset_path": None})
-    monitor.reference_data = pd.DataFrame({"feature_a": [1, 2, 3], "timestamp": [1, 2, 3]})
+    monitor.reference_data = pd.DataFrame(
+        {"feature_a": [1, 2, 3], "timestamp": [1, 2, 3]}
+    )
     monitor.log_features({"feature_a": 10})
 
     result = monitor.detect_drift()
@@ -67,7 +71,9 @@ def test_detect_drift_with_mocked_evidently(monkeypatch):
 def test_generate_html_report(monkeypatch, tmp_path):
     _mock_evidently(monkeypatch)
     monitor = EvidentlyMonitor({"drift_reference_dataset_path": None})
-    monitor.reference_data = pd.DataFrame({"feature_a": [1, 2, 3], "timestamp": [1, 2, 3]})
+    monitor.reference_data = pd.DataFrame(
+        {"feature_a": [1, 2, 3], "timestamp": [1, 2, 3]}
+    )
     monitor.log_features({"feature_a": 5})
 
     output_path = tmp_path / "report.html"

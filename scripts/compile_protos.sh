@@ -68,4 +68,4 @@ case "$service" in
     echo "Serviço desconhecido: $service" >&2
     exit 1
     ;;
-fi
+esac

@@ -6,8 +6,8 @@ from .narrative_generator import NarrativeGenerator
 from .explainability_ledger_v2 import ExplainabilityLedgerV2
 
 __all__ = [
-    'SHAPExplainer',
-    'LIMEExplainer',
-    'NarrativeGenerator',
-    'ExplainabilityLedgerV2'
+    "SHAPExplainer",
+    "LIMEExplainer",
+    "NarrativeGenerator",
+    "ExplainabilityLedgerV2",
 ]

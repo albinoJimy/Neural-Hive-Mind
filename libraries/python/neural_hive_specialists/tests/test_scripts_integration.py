@@ -38,7 +38,9 @@ def test_monitor_retraining_runs_script_invocation(monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    module_path = "libraries/python/neural_hive_specialists/scripts/monitor_retraining_runs.py"
+    module_path = (
+        "libraries/python/neural_hive_specialists/scripts/monitor_retraining_runs.py"
+    )
     result = subprocess.run(
         ["python", module_path, "--help"],
         capture_output=True,

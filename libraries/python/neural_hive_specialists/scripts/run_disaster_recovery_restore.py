@@ -27,14 +27,16 @@ from datetime import datetime
 import structlog
 
 # Adicionar path do library ao sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from neural_hive_specialists.config import SpecialistConfig
-from neural_hive_specialists.disaster_recovery.disaster_recovery_manager import DisasterRecoveryManager
+from neural_hive_specialists.disaster_recovery.disaster_recovery_manager import (
+    DisasterRecoveryManager,
+)
 from neural_hive_specialists.disaster_recovery.storage_client import (
     S3StorageClient,
     GCSStorageClient,
-    LocalStorageClient
+    LocalStorageClient,
 )
 
 logger = structlog.get_logger()
@@ -52,27 +54,27 @@ def create_storage_client(config: SpecialistConfig):
     """
     provider = config.backup_storage_provider
 
-    if provider == 's3':
+    if provider == "s3":
         return S3StorageClient(
             bucket=config.backup_s3_bucket,
             region=config.backup_s3_region,
-            prefix=config.backup_prefix or '',
+            prefix=config.backup_prefix or "",
             aws_access_key=config.aws_access_key_id,
-            aws_secret_key=config.aws_secret_access_key
+            aws_secret_key=config.aws_secret_access_key,
         )
-    elif provider == 'gcs':
+    elif provider == "gcs":
         if not config.backup_gcs_bucket or not config.backup_gcs_project:
-            raise ValueError("backup_gcs_bucket e backup_gcs_project são obrigatórios quando provider=gcs")
+            raise ValueError(
+                "backup_gcs_bucket e backup_gcs_project são obrigatórios quando provider=gcs"
+            )
         return GCSStorageClient(
             bucket=config.backup_gcs_bucket,
             project=config.backup_gcs_project,
-            prefix=config.backup_prefix or '',
-            credentials_path=config.gcp_credentials_path
+            prefix=config.backup_prefix or "",
+            credentials_path=config.gcp_credentials_path,
         )
-    elif provider == 'local':
-        return LocalStorageClient(
-            base_path=config.backup_local_path or '/tmp/backups'
-        )
+    elif provider == "local":
+        return LocalStorageClient(base_path=config.backup_local_path or "/tmp/backups")
     else:
         raise ValueError(f"Storage provider não suportado: {provider}")
 
@@ -93,7 +95,7 @@ def list_backups(dr_manager: DisasterRecoveryManager) -> int:
     backups = dr_manager.list_available_backups()
 
     # Filtrar apenas .tar.gz
-    backup_files = [b for b in backups if b['key'].endswith('.tar.gz')]
+    backup_files = [b for b in backups if b["key"].endswith(".tar.gz")]
 
     if not backup_files:
         print("Nenhum backup encontrado.")
@@ -105,11 +107,11 @@ def list_backups(dr_manager: DisasterRecoveryManager) -> int:
     print("-" * 100)
 
     for i, backup in enumerate(backup_files, 1):
-        size_mb = backup.get('size', 0) / (1024 * 1024)
-        timestamp = backup.get('timestamp', 'unknown')
+        size_mb = backup.get("size", 0) / (1024 * 1024)
+        timestamp = backup.get("timestamp", "unknown")
 
         if isinstance(timestamp, datetime):
-            timestamp_str = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            timestamp_str = timestamp.strftime("%Y-%m-%d %H:%M:%S")
         else:
             timestamp_str = str(timestamp)
 
@@ -141,87 +143,69 @@ def confirm_restore(backup_id: str) -> bool:
     print("  3. Restaurar componentes")
     print("  4. Executar smoke tests")
     print()
-    print("Tem certeza que deseja continuar? (yes/no): ", end='')
+    print("Tem certeza que deseja continuar? (yes/no): ", end="")
 
     response = input().strip().lower()
-    return response in ['yes', 'y', 'sim', 's']
+    return response in ["yes", "y", "sim", "s"]
 
 
 def main():
     """Função principal do script."""
     parser = argparse.ArgumentParser(
-        description='Restore de backups de disaster recovery',
+        description="Restore de backups de disaster recovery",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__
+        epilog=__doc__,
     )
 
     # Ações
     action_group = parser.add_mutually_exclusive_group(required=True)
     action_group.add_argument(
-        '--list',
-        action='store_true',
-        help='Listar backups disponíveis'
+        "--list", action="store_true", help="Listar backups disponíveis"
     )
     action_group.add_argument(
-        '--latest',
-        action='store_true',
-        help='Restaurar backup mais recente'
+        "--latest", action="store_true", help="Restaurar backup mais recente"
     )
     action_group.add_argument(
-        '--backup-id',
-        type=str,
-        help='ID ou nome do arquivo de backup específico'
+        "--backup-id", type=str, help="ID ou nome do arquivo de backup específico"
     )
     action_group.add_argument(
-        '--timestamp',
-        type=str,
-        help='Timestamp do backup (formato: YYYYMMDD-HHMMSS)'
+        "--timestamp", type=str, help="Timestamp do backup (formato: YYYYMMDD-HHMMSS)"
     )
 
     # Parâmetros obrigatórios
     parser.add_argument(
-        '--specialist-type',
+        "--specialist-type",
         type=str,
         required=True,
-        choices=['business', 'technical', 'behavior', 'evolution', 'architecture'],
-        help='Tipo de especialista'
+        choices=["business", "technical", "behavior", "evolution", "architecture"],
+        help="Tipo de especialista",
     )
 
     # Parâmetros opcionais
     parser.add_argument(
-        '--tenant-id',
-        type=str,
-        help='ID do tenant (para multi-tenancy)'
+        "--tenant-id", type=str, help="ID do tenant (para multi-tenancy)"
     )
 
     parser.add_argument(
-        '--target-dir',
-        type=str,
-        help='Diretório de destino para restore (opcional)'
+        "--target-dir", type=str, help="Diretório de destino para restore (opcional)"
     )
 
     parser.add_argument(
-        '--skip-validation',
-        action='store_true',
-        help='Pular validação de checksums (não recomendado)'
+        "--skip-validation",
+        action="store_true",
+        help="Pular validação de checksums (não recomendado)",
     )
 
     parser.add_argument(
-        '--skip-smoke-tests',
-        action='store_true',
-        help='Pular smoke tests após restore'
+        "--skip-smoke-tests", action="store_true", help="Pular smoke tests após restore"
     )
 
     parser.add_argument(
-        '--force',
-        action='store_true',
-        help='Não solicitar confirmação'
+        "--force", action="store_true", help="Não solicitar confirmação"
     )
 
     parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Modo verbose (log detalhado)'
+        "--verbose", action="store_true", help="Modo verbose (log detalhado)"
     )
 
     args = parser.parse_args()
@@ -229,6 +213,7 @@ def main():
     # Configurar logging
     if args.verbose:
         import logging
+
         logging.basicConfig(level=logging.DEBUG)
         structlog.configure(
             wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG)
@@ -252,9 +237,7 @@ def main():
 
         # Criar DR manager
         dr_manager = DisasterRecoveryManager(
-            config=config,
-            specialist=specialist,
-            storage_client=storage_client
+            config=config, specialist=specialist, storage_client=storage_client
         )
 
         # Executar ação
@@ -267,13 +250,13 @@ def main():
         if args.latest:
             # Pegar mais recente
             backups = dr_manager.list_available_backups()
-            backup_files = [b for b in backups if b['key'].endswith('.tar.gz')]
+            backup_files = [b for b in backups if b["key"].endswith(".tar.gz")]
 
             if not backup_files:
                 print("ERRO: Nenhum backup disponível", file=sys.stderr)
                 return 1
 
-            backup_id = backup_files[0]['key']
+            backup_id = backup_files[0]["key"]
             print(f"Backup mais recente: {backup_id}")
 
         elif args.backup_id:
@@ -284,12 +267,15 @@ def main():
             backups = dr_manager.list_available_backups()
 
             for b in backups:
-                if args.timestamp in b['key']:
-                    backup_id = b['key']
+                if args.timestamp in b["key"]:
+                    backup_id = b["key"]
                     break
 
             if not backup_id:
-                print(f"ERRO: Backup com timestamp {args.timestamp} não encontrado", file=sys.stderr)
+                print(
+                    f"ERRO: Backup com timestamp {args.timestamp} não encontrado",
+                    file=sys.stderr,
+                )
                 return 1
 
         if not backup_id:
@@ -311,7 +297,7 @@ def main():
             backup_id=backup_id,
             target_dir=args.target_dir,
             skip_validation=args.skip_validation,
-            skip_smoke_tests=args.skip_smoke_tests
+            skip_smoke_tests=args.skip_smoke_tests,
         )
 
         # Exibir resultado
@@ -322,11 +308,14 @@ def main():
         print(json.dumps(result, indent=2, default=str))
         print()
 
-        if result['status'] == 'success':
+        if result["status"] == "success":
             print("✓ Restore concluído com sucesso!")
             return 0
         else:
-            print(f"✗ Restore falhou: {result.get('error', 'Erro desconhecido')}", file=sys.stderr)
+            print(
+                f"✗ Restore falhou: {result.get('error', 'Erro desconhecido')}",
+                file=sys.stderr,
+            )
             return 1
 
     except Exception as e:
@@ -335,5 +324,5 @@ def main():
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

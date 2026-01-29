@@ -14,19 +14,19 @@ class MockSpecialist(BaseSpecialist):
     """Especialista mock para testes."""
 
     def _get_specialist_type(self) -> str:
-        return 'test'
+        return "test"
 
     def _load_model(self):
-        return Mock(name='MockModel')
+        return Mock(name="MockModel")
 
     def _evaluate_plan_internal(self, cognitive_plan, context):
         return {
-            'confidence_score': 0.85,
-            'risk_score': 0.15,
-            'recommendation': 'approve',
-            'reasoning_summary': 'Test evaluation',
-            'reasoning_factors': [],
-            'metadata': {}
+            "confidence_score": 0.85,
+            "risk_score": 0.15,
+            "recommendation": "approve",
+            "reasoning_summary": "Test evaluation",
+            "reasoning_factors": [],
+            "metadata": {},
         }
 
 
@@ -34,28 +34,28 @@ class MockSpecialist(BaseSpecialist):
 def specialist_config():
     """Configuração mock para testes."""
     return SpecialistConfig(
-        specialist_type='test',
-        service_name='test-specialist',
-        mlflow_tracking_uri='http://localhost:5000',
-        mlflow_experiment_name='test',
-        mlflow_model_name='test-model',
-        mongodb_uri='mongodb://localhost:27017',
-        redis_cluster_nodes='localhost:6379',
-        neo4j_uri='bolt://localhost:7687',
-        neo4j_password='test',
+        specialist_type="test",
+        service_name="test-specialist",
+        mlflow_tracking_uri="http://localhost:5000",
+        mlflow_experiment_name="test",
+        mlflow_model_name="test-model",
+        mongodb_uri="mongodb://localhost:27017",
+        redis_cluster_nodes="localhost:6379",
+        neo4j_uri="bolt://localhost:7687",
+        neo4j_password="test",
         warmup_enabled=True,
         warmup_on_startup=True,
         opinion_cache_enabled=False,
-        enable_drift_monitoring=False
+        enable_drift_monitoring=False,
     )
 
 
 @pytest.fixture
 def specialist(specialist_config):
     """Especialista mock para testes."""
-    with patch('neural_hive_specialists.base_specialist.MLflowClient'):
-        with patch('neural_hive_specialists.base_specialist.LedgerClient'):
-            with patch('neural_hive_specialists.base_specialist.FeatureStore'):
+    with patch("neural_hive_specialists.base_specialist.MLflowClient"):
+        with patch("neural_hive_specialists.base_specialist.LedgerClient"):
+            with patch("neural_hive_specialists.base_specialist.FeatureStore"):
                 return MockSpecialist(specialist_config)
 
 
@@ -68,39 +68,39 @@ class TestWarmupSuccess:
 
         result = specialist.warmup()
 
-        assert result['status'] == 'success'
+        assert result["status"] == "success"
         assert specialist.model is not None
-        assert result['model_loaded'] is True
+        assert result["model_loaded"] is True
 
     def test_warmup_with_model_already_loaded(self, specialist):
         """Testa warmup quando modelo já está carregado."""
-        specialist.model = Mock(name='PreloadedModel')
+        specialist.model = Mock(name="PreloadedModel")
 
         result = specialist.warmup()
 
-        assert result['status'] == 'success'
-        assert result['model_loaded'] is True
+        assert result["status"] == "success"
+        assert result["model_loaded"] is True
 
     def test_warmup_executes_dummy_evaluation(self, specialist):
         """Testa que warmup executa avaliação dummy."""
-        specialist.evaluate_plan = Mock(return_value={'opinion_id': 'warmup-opinion'})
+        specialist.evaluate_plan = Mock(return_value={"opinion_id": "warmup-opinion"})
 
         result = specialist.warmup()
 
-        assert result['status'] == 'success'
+        assert result["status"] == "success"
         specialist.evaluate_plan.assert_called_once()
 
         # Verificar que request dummy foi criado
         call_args = specialist.evaluate_plan.call_args[0][0]
-        assert call_args.plan_id == 'warmup-dummy'
-        assert call_args.intent_id == 'warmup-intent'
+        assert call_args.plan_id == "warmup-dummy"
+        assert call_args.intent_id == "warmup-intent"
 
     def test_warmup_returns_duration(self, specialist):
         """Testa que warmup retorna duração."""
         result = specialist.warmup()
 
-        assert 'duration_seconds' in result
-        assert result['duration_seconds'] > 0
+        assert "duration_seconds" in result
+        assert result["duration_seconds"] > 0
 
     def test_warmup_checks_cache_readiness(self, specialist):
         """Testa que warmup verifica se cache está pronto."""
@@ -109,7 +109,7 @@ class TestWarmupSuccess:
 
         result = specialist.warmup()
 
-        assert result['cache_ready'] is True
+        assert result["cache_ready"] is True
 
     def test_warmup_without_cache(self, specialist):
         """Testa warmup sem cache configurado."""
@@ -117,8 +117,8 @@ class TestWarmupSuccess:
 
         result = specialist.warmup()
 
-        assert result['status'] == 'success'
-        assert result['cache_ready'] is False
+        assert result["status"] == "success"
+        assert result["cache_ready"] is False
 
 
 class TestWarmupFailure:
@@ -131,10 +131,10 @@ class TestWarmupFailure:
 
         result = specialist.warmup()
 
-        assert result['status'] == 'error'
-        assert 'error' in result
-        assert 'Model load failed' in result['error']
-        assert 'duration_seconds' in result
+        assert result["status"] == "error"
+        assert "error" in result
+        assert "Model load failed" in result["error"]
+        assert "duration_seconds" in result
 
     def test_warmup_handles_evaluation_failure(self, specialist):
         """Testa tratamento de falha na avaliação dummy."""
@@ -142,9 +142,9 @@ class TestWarmupFailure:
 
         result = specialist.warmup()
 
-        assert result['status'] == 'error'
-        assert 'error' in result
-        assert 'Evaluation failed' in result['error']
+        assert result["status"] == "error"
+        assert "error" in result
+        assert "Evaluation failed" in result["error"]
 
 
 class TestWarmupMetrics:
@@ -160,7 +160,7 @@ class TestWarmupMetrics:
         call_args = specialist.metrics.observe_warmup_duration.call_args[0]
 
         assert call_args[0] > 0  # duration
-        assert call_args[1] == 'success'  # status
+        assert call_args[1] == "success"  # status
 
     def test_warmup_records_error_metrics(self, specialist):
         """Testa que métricas de erro são registradas."""
@@ -172,7 +172,7 @@ class TestWarmupMetrics:
         specialist.metrics.observe_warmup_duration.assert_called_once()
         call_args = specialist.metrics.observe_warmup_duration.call_args[0]
 
-        assert call_args[1] == 'error'  # status
+        assert call_args[1] == "error"  # status
 
 
 class TestDummyPlanCreation:
@@ -182,25 +182,25 @@ class TestDummyPlanCreation:
         """Testa estrutura do plano dummy."""
         dummy_plan = specialist._create_dummy_plan()
 
-        assert 'version' in dummy_plan
-        assert 'plan_id' in dummy_plan
-        assert 'intent_id' in dummy_plan
-        assert 'original_domain' in dummy_plan
-        assert 'original_priority' in dummy_plan
-        assert 'tasks' in dummy_plan
-        assert len(dummy_plan['tasks']) > 0
+        assert "version" in dummy_plan
+        assert "plan_id" in dummy_plan
+        assert "intent_id" in dummy_plan
+        assert "original_domain" in dummy_plan
+        assert "original_priority" in dummy_plan
+        assert "tasks" in dummy_plan
+        assert len(dummy_plan["tasks"]) > 0
 
     def test_create_dummy_plan_valid_task(self, specialist):
         """Testa que task dummy é válida."""
         dummy_plan = specialist._create_dummy_plan()
-        task = dummy_plan['tasks'][0]
+        task = dummy_plan["tasks"][0]
 
-        assert 'task_id' in task
-        assert 'name' in task
-        assert 'task_type' in task
-        assert 'description' in task
-        assert 'estimated_duration_ms' in task
-        assert 'dependencies' in task
+        assert "task_id" in task
+        assert "name" in task
+        assert "task_type" in task
+        assert "description" in task
+        assert "estimated_duration_ms" in task
+        assert "dependencies" in task
 
     def test_create_dummy_plan_is_serializable(self, specialist):
         """Testa que plano dummy é serializável."""
@@ -227,9 +227,9 @@ class TestWarmupIntegration:
         result = specialist.warmup()
 
         # Verificar resultado
-        assert result['status'] == 'success'
-        assert result['model_loaded'] is True
-        assert result['duration_seconds'] > 0
+        assert result["status"] == "success"
+        assert result["model_loaded"] is True
+        assert result["duration_seconds"] > 0
 
         # Verificar que modelo foi carregado
         assert specialist.model is not None
@@ -240,6 +240,6 @@ class TestWarmupIntegration:
         result2 = specialist.warmup()
         result3 = specialist.warmup()
 
-        assert result1['status'] == 'success'
-        assert result2['status'] == 'success'
-        assert result3['status'] == 'success'
+        assert result1["status"] == "success"
+        assert result2["status"] == "success"
+        assert result3["status"] == "success"
