@@ -347,13 +347,13 @@ parse_junit_results() {
     return 1
   fi
   local summary
-  summary=$(python - <<'PY'
+  summary=$(python - "$junit_file" <<'PY'
 import sys
 import xml.etree.ElementTree as ET
 try:
     tree = ET.parse(sys.argv[1])
 except ET.ParseError as exc:
-    print(f"0 0 0")
+    print("0 0 0")
     sys.exit(1)
 root = tree.getroot()
 tests = 0
@@ -369,7 +369,7 @@ if tests == 0 and root.tag == 'testsuite':
     errors = int(root.attrib.get('errors', 0))
 print(tests, failures + errors, tests - (failures + errors))
 PY
-"$junit_file")
+)
   local total failed passed
   read -r total failed passed <<< "$summary"
   total=${total:-0}
