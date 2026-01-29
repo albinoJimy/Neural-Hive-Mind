@@ -44,8 +44,8 @@ jobs:
   # ============================================================================
   detect-changes:
     name: Detectar Mudancas
-    # Usar self-hosted runner no cluster K8s
-    runs-on: [self-hosted, linux, kubernetes, neural-hive]
+    # Usar GitHub-hosted runner para maior disponibilidade
+    runs-on: ubuntu-latest
     outputs:
       services_matrix: ${{ steps.set-matrix.outputs.matrix }}
       services_list: ${{ steps.set-matrix.outputs.list }}
@@ -130,7 +130,7 @@ jobs:
   # ============================================================================
   build-and-push:
     name: Build ${{ matrix.service }}
-    runs-on: [self-hosted, linux, kubernetes, neural-hive]
+    runs-on: ubuntu-latest
     needs: detect-changes
     if: needs.detect-changes.outputs.has_changes == 'true'
     
@@ -229,7 +229,7 @@ jobs:
   # ============================================================================
   summary:
     name: Resumo do Build
-    runs-on: [self-hosted, linux, kubernetes, neural-hive]
+    runs-on: ubuntu-latest
     needs: [detect-changes, build-and-push]
     if: always()
 
