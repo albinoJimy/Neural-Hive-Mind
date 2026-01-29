@@ -113,9 +113,9 @@ jobs:
 
       - name: Verificar formatação com black
         working-directory: libraries/python/neural_hive_specialists
-        run: black --check . --exclude='(__pycache__|build|\.egg-info|mlruns|\.pytest_cache|MagicMock|\.benchmarks)'
+        run: black --check . --exclude='(__pycache__|build|\.egg-info|mlruns|\.pytest_cache|MagicMock|\.benchmarks|proto_gen)'
 
       - name: Executar mypy (type checking)
         working-directory: libraries/python/neural_hive_specialists
         continue-on-error: true
-        run: mypy . --ignore-missing-imports --exclude='(__pycache__|build|\.egg-info|mlruns|\.pytest_cache|MagicMock|\.benchmarks)'
+        run: mypy . --ignore-missing-imports --exclude='(__pycache__|build|\.egg-info|mlruns|\.pytest_cache|MagicMock|\.benchmarks|proto_gen)'
