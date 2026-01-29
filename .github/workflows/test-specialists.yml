@@ -53,9 +53,10 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Instalar dependências
-        working-directory: libraries/python/neural_hive_specialists
         run: |
           pip install --upgrade pip
+          pip install -e libraries/python/neural_hive_domain
+          cd libraries/python/neural_hive_specialists
           pip install -r requirements-dev.txt
           pip install -e ".[explainability]"
 

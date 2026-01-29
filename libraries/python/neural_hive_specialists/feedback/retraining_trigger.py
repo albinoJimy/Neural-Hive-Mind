@@ -10,8 +10,11 @@ import asyncio
 import os
 import sys
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, TYPE_CHECKING
 import structlog
+
+if TYPE_CHECKING:
+    from ..metrics import SpecialistMetrics
 from pydantic import BaseModel, Field, ConfigDict
 from pymongo import MongoClient, DESCENDING
 import mlflow

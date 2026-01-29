@@ -743,7 +743,17 @@
       "Bash(__NEW_LINE_9256a441b8b35247__ curl -s -X PUT -H \"Authorization: token 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\" -H \"Accept: application/vnd.github+json\" \"https://api.github.com/repos/albinoJimy/Neural-Hive-Mind/actions/secrets/GHCR_TOKEN\" -d \"{\"\"encrypted_value\"\":\"\"$ENCRYPTED\"\",\"\"key_id\"\":\"\"$KEY_ID\"\"}\")",
       "Bash(gh run view:*)",
       "Bash(# Verificar se já existe o GHCR_TOKEN que podemos usar kubectl get secret -n github-runner)",
-      "Bash(# Verificar se existe pod dind funcionando kubectl get pods -n github-runner -o wide && kubectl exec deploy/github-runner -n github-runner -c dind -- docker images)"
+      "Bash(# Verificar se existe pod dind funcionando kubectl get pods -n github-runner -o wide && kubectl exec deploy/github-runner -n github-runner -c dind -- docker images)",
+      "Bash(gh:*)",
+      "Bash(# Listar todos os tópicos de intentions kubectl exec -n kafka neural-hive-kafka-broker-0 -- /opt/kafka/bin/kafka-topics.sh \\\\ --bootstrap-server localhost:9092 \\\\ --list)",
+      "Bash(# Verificar offset do tópico intentions.infrastructure kubectl exec -n kafka neural-hive-kafka-broker-0 -- /opt/kafka/bin/kafka-consumer-groups.sh \\\\ --bootstrap-server localhost:9092 \\\\ --describe \\\\ --group semantic-translation-engine)",
+      "Bash(# Criar um pod temporário para testar o STE kubectl run curl-test-ste --rm -i --restart=Never --image=curlimages/curl:latest -n neural-hive -- curl -s http://semantic-translation-engine:8000/health)",
+      "Bash(poetry run pytest:*)",
+      "Bash(pyenv versions:*)",
+      "Bash(conda info:*)",
+      "Bash(/home/jimy/NHM/Neural-Hive-Mind/scripts/build.sh:*)",
+      "Bash(INTENT_ID=\"60907ace-7d64-441d-9dd1-d35819c7d9d9\")",
+      "Bash(__NEW_LINE_eff4861e6489fe5f__ ls -lh /tmp/consensus-engine-context.tar.gz)"
     ],
     "deny": [],
     "ask": []
