@@ -53,7 +53,7 @@ jobs:
           python-version: "3.11"
 
       - name: Cache pip dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-ml-${{ hashFiles('tests/requirements-test.txt', 'services/orchestrator-dynamic/requirements.txt') }}
@@ -64,7 +64,13 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r tests/requirements-test.txt
-          pip install -r services/orchestrator-dynamic/requirements.txt
+          # Instalar bibliotecas locais primeiro
+          pip install -e libraries/neural_hive_integration
+          pip install -e libraries/security
+          pip install -e libraries/python/neural_hive_ml
+          pip install -e libraries/python/neural_hive_resilience
+          # Instalar requirements filtrando paths absolutos do Docker
+          grep -v '^/libraries' services/orchestrator-dynamic/requirements.txt | pip install -r /dev/stdin
           pip install scikit-learn pandas numpy mlflow pytest-asyncio motor
 
       - name: Verify MongoDB connection
