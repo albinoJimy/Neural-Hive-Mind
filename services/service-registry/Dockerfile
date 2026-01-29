@@ -30,9 +30,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install grpc_health_probe
+# Install grpc_health_probe with retry logic
 RUN GRPC_HEALTH_PROBE_VERSION=v0.4.19 && \
-    curl -L https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 \
+    curl -fsSL --retry 5 --retry-delay 5 --connect-timeout 30 --max-time 120 \
+    https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 \
     -o /bin/grpc_health_probe && \
     chmod +x /bin/grpc_health_probe
 
