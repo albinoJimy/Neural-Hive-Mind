@@ -45,7 +45,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Cache pip dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('libraries/python/neural_hive_specialists/requirements.txt', 'libraries/python/neural_hive_specialists/requirements-dev.txt') }}
@@ -108,13 +108,13 @@ jobs:
 
       - name: Executar flake8
         working-directory: libraries/python/neural_hive_specialists
-        run: flake8 neural_hive_specialists/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=__pycache__,build,*.egg-info,mlruns,.pytest_cache,MagicMock,.benchmarks
 
       - name: Verificar formatação com black
         working-directory: libraries/python/neural_hive_specialists
-        run: black --check neural_hive_specialists/
+        run: black --check . --exclude='(__pycache__|build|\.egg-info|mlruns|\.pytest_cache|MagicMock|\.benchmarks)'
 
       - name: Executar mypy (type checking)
         working-directory: libraries/python/neural_hive_specialists
         continue-on-error: true
-        run: mypy neural_hive_specialists/ --ignore-missing-imports
+        run: mypy . --ignore-missing-imports --exclude='(__pycache__|build|\.egg-info|mlruns|\.pytest_cache|MagicMock|\.benchmarks)'
