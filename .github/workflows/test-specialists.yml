@@ -55,7 +55,11 @@ jobs:
       - name: Instalar dependências
         run: |
           pip install --upgrade pip
+          # Instalar bibliotecas locais na ordem correta de dependências
           pip install -e libraries/python/neural_hive_domain
+          pip install -e libraries/python/neural_hive_observability
+          pip install -e libraries/python/neural_hive_resilience
+          # Instalar specialists com dependências de dev e explainability
           cd libraries/python/neural_hive_specialists
           pip install -r requirements-dev.txt
           pip install -e ".[explainability]"

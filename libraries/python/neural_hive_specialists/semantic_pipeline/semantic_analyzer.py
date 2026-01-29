@@ -16,22 +16,29 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-def _get_sentence_transformer(model_name: str = 'all-MiniLM-L6-v2'):
+
+def _get_sentence_transformer(model_name: str = "all-MiniLM-L6-v2"):
     """Lazy load do SentenceTransformer."""
     try:
         from sentence_transformers import SentenceTransformer
+
         return SentenceTransformer(model_name)
     except ImportError:
-        logger.warning("sentence-transformers não instalado, SemanticAnalyzer não disponível")
+        logger.warning(
+            "sentence-transformers não instalado, SemanticAnalyzer não disponível"
+        )
         return None
 
+
 _cosine_similarity_func = None
+
 
 def cosine_similarity(X, Y=None):
     """Lazy load wrapper do cosine_similarity."""
     global _cosine_similarity_func
     if _cosine_similarity_func is None:
         from sklearn.metrics.pairwise import cosine_similarity as _cs
+
         _cosine_similarity_func = _cs
     return _cosine_similarity_func(X, Y)
 
