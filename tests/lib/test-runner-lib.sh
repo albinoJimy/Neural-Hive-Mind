@@ -430,7 +430,11 @@ run_parallel_tests() {
 aggregate_test_results() {
   local tests_array="[]"
   if [[ -f "$TEST_RESULT_FILE" && -s "$TEST_RESULT_FILE" ]]; then
-    tests_array=$(jq -s '.' "$TEST_RESULT_FILE")
+    tests_array=$(jq -s '.' "$TEST_RESULT_FILE" 2>/dev/null || echo "[]")
+    # Garantir que tests_array é um array válido
+    if ! jq -e 'type == "array"' <<< "$tests_array" >/dev/null 2>&1; then
+      tests_array="[]"
+    fi
   fi
   TEST_REPORT_JSON=$(jq -n \
     --argjson total_runs "$TEST_TOTAL_COUNT" \
@@ -452,7 +456,7 @@ generate_markdown_summary() {
   local summary
   summary=$(jq -r '.summary' <<< "$TEST_REPORT_JSON")
   local detail_lines
-  detail_lines=$(jq -r '.tests[] | "- [" + .status + "] " + .name + ": " + .details' <<< "$TEST_REPORT_JSON")
+  detail_lines=$(jq -r '(.tests // [])[] | "- [" + .status + "] " + .name + ": " + .details' <<< "$TEST_REPORT_JSON")
   cat <<EOF > "$destination"
 # Neural Hive-Mind Test Results
 
