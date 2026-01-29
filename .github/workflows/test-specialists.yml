@@ -59,6 +59,7 @@ jobs:
           cd libraries/python/neural_hive_specialists
           pip install -r requirements-dev.txt
           pip install -e ".[explainability]"
+          pip install sentence-transformers==3.3.1
 
       - name: Gerar protobufs
         run: make proto-gen
