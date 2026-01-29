@@ -55,6 +55,8 @@ jobs:
       - name: Instalar dependências
         run: |
           pip install --upgrade pip
+          # Pin protobuf first to avoid version conflicts with opentelemetry
+          pip install "protobuf==5.28.1"
           # Instalar bibliotecas locais na ordem correta de dependências
           pip install -e libraries/python/neural_hive_domain
           pip install -e libraries/python/neural_hive_observability
