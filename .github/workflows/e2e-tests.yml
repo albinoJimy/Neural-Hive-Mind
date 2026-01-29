@@ -117,13 +117,11 @@ jobs:
           - 4566:4566
         env:
           SERVICES: s3
-          DEFAULT_REGION: us-east-1
-          EDGE_PORT: 4566
         options: >-
-          --health-cmd="curl -s http://localhost:4566/_localstack/health | grep -q '\"s3\": \"running\"'"
-          --health-interval=10s
+          --health-cmd="curl -sf http://localhost:4566/_localstack/health || exit 1"
+          --health-interval=5s
           --health-timeout=10s
-          --health-retries=10
+          --health-retries=20
 
     steps:
       - name: Checkout code
