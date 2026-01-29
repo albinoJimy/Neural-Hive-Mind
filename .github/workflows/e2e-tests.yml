@@ -142,10 +142,10 @@ jobs:
         run: |
           pip install -r tests/requirements-test.txt
 
-          # Instalar bibliotecas locais necessárias para testes E2E
+          # Instalar bibliotecas locais na ordem correta de dependências
+          pip install -e libraries/python/neural_hive_resilience
           pip install -e libraries/security
           pip install -e libraries/neural_hive_integration
-          pip install -e libraries/python/neural_hive_resilience || true
 
           # Dependência adicional para testes E2E
           pip install aiohttp
