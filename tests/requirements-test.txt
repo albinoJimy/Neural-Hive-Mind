@@ -20,6 +20,7 @@ psycopg2-binary==2.9.9
 
 # HTTP/gRPC
 httpx==0.28.1
+aiohttp==3.11.11
 grpcio==1.68.1
 grpcio-tools==1.68.1
 protobuf==5.29.2
