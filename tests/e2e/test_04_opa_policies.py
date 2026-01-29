@@ -298,15 +298,15 @@ async def test_opa_security_compliance_dashboard(port_forward_manager):
     async with aiohttp.ClientSession() as session:
         # Buscar dashboard por tag
         async with session.get(
-            f\"{grafana_url}/api/search?tag=security\",
-            auth=aiohttp.BasicAuth(\"admin\", \"admin\")
+            f"{grafana_url}/api/search?tag=security",
+            auth=aiohttp.BasicAuth("admin", "admin")
         ) as response:
             assert response.status == 200
             dashboards = await response.json()
-            
+
             # Verificar que dashboard de security existe
             security_dashboard = next(
-                (d for d in dashboards if \"security\" in d.get(\"title\", \"\").lower()),
+                (d for d in dashboards if "security" in d.get("title", "").lower()),
                 None
             )
-            assert security_dashboard is not None, \"Dashboard de security não encontrado\"
+            assert security_dashboard is not None, "Dashboard de security não encontrado"
