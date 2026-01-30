@@ -295,6 +295,12 @@ config:
     allowedOrigins: ["*"]
     allowedHosts: ["*"]
 
+  # Security
+  security:
+    # Permitir endpoints HTTP em staging (comunicação interna do cluster)
+    # Em produção deve ser sempre false
+    allowInsecureHttpEndpoints: false
+
 # Secrets
 secrets:
   jwtSecretKey: "change-in-production"

@@ -47,6 +47,10 @@ config:
   logLevel: "INFO"
   debug: false
 
+  # Permitir HTTP para comunicação interna do cluster em staging
+  security:
+    allowInsecureHttpEndpoints: true
+
   # Staging Kafka endpoints
   kafka:
     bootstrapServers: "neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092"

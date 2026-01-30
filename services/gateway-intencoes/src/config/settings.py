@@ -118,6 +118,10 @@ class Settings(BaseSettings):
     mtls_validation_enabled: bool = Field(default=False)
     api_key_auth_enabled: bool = Field(default=False)
     request_signature_validation_enabled: bool = Field(default=False)
+    allow_insecure_http_endpoints: bool = Field(
+        default=False,
+        description="Permitir endpoints HTTP em staging (para comunicação interna do cluster)"
+    )
 
     # Segurança (mantido para compatibilidade)
     jwt_secret_key: str = Field(default="your-secret-key")
@@ -188,7 +192,12 @@ class Settings(BaseSettings):
         """
         Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
         Endpoints verificados: Schema Registry, OTEL Collector.
+        Pode ser desabilitado com allow_insecure_http_endpoints=True para staging.
         """
+        # Permitir HTTP se flag está habilitada (staging com comunicação interna)
+        if self.allow_insecure_http_endpoints:
+            return self
+
         is_prod_staging = self.environment.lower() in ('production', 'staging', 'prod')
         if not is_prod_staging:
             return self
@@ -204,7 +213,8 @@ class Settings(BaseSettings):
             endpoint_list = ', '.join(f'{name}={url}' for name, url in http_endpoints)
             raise ValueError(
                 f"Endpoints HTTP inseguros detectados em ambiente {self.environment}: {endpoint_list}. "
-                "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+                "Use HTTPS em producao/staging para garantir seguranca de dados em transito. "
+                "Ou defina ALLOW_INSECURE_HTTP_ENDPOINTS=true para comunicacao interna do cluster."
             )
 
         return self

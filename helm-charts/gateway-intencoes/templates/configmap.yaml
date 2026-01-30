@@ -96,3 +96,6 @@ data:
   rate_limit_fail_open: {{ .Values.config.rateLimit.failOpen | default "true" | quote }}
   rate_limit_tenant_overrides: {{ .Values.config.rateLimit.tenantOverrides | default "{}" | quote }}
   rate_limit_user_overrides: {{ .Values.config.rateLimit.userOverrides | default "{}" | quote }}
+
+  # Security Configuration
+  allow_insecure_http_endpoints: {{ .Values.config.security.allowInsecureHttpEndpoints | default "false" | quote }}

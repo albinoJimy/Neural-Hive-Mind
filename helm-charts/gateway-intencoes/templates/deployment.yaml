@@ -105,6 +105,9 @@ Construir lista de env vars para o deployment
 {{- $envVars = append $envVars (dict "name" "RATE_LIMIT_TENANT_OVERRIDES" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "rate_limit_tenant_overrides"))) }}
 {{- $envVars = append $envVars (dict "name" "RATE_LIMIT_USER_OVERRIDES" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "rate_limit_user_overrides"))) }}
 
+{{/* Security Configuration */}}
+{{- $envVars = append $envVars (dict "name" "ALLOW_INSECURE_HTTP_ENDPOINTS" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "allow_insecure_http_endpoints"))) }}
+
 {{/* Kubernetes Downward API */}}
 {{- $envVars = append $envVars (dict "name" "POD_UID" "valueFrom" (dict "fieldRef" (dict "fieldPath" "metadata.uid"))) }}
 {{- $envVars = append $envVars (dict "name" "POD_NAME" "valueFrom" (dict "fieldRef" (dict "fieldPath" "metadata.name"))) }}
