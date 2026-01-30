@@ -256,6 +256,17 @@ class RedisClient:
             await self.redis.close()
             logger.info("Conexões Redis Cluster fechadas")
 
+    async def ping(self) -> bool:
+        """Verificar se Redis está acessível via ping"""
+        try:
+            if self.redis:
+                await self.redis.ping()
+                return True
+            return False
+        except Exception as e:
+            logger.warning(f"Redis ping falhou: {e}")
+            return False
+
     async def health_check(self) -> Dict[str, Any]:
         """Verificar saúde do Redis (cluster ou standalone)"""
         try:
