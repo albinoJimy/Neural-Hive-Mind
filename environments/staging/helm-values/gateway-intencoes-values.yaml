@@ -101,9 +101,11 @@ ingress:
       hosts:
         - gateway-staging.neural-hive.local
 
-# Moderate node selection for staging
-nodeSelector:
-  neural-hive-mind.org/workload-type: "compute-intensive"
+# Node selection - staging pode usar qualquer node
+nodeSelector: {}
+
+# Desabilitar topology constraints para staging
+topologySpreadConstraints: []
 
 tolerations: []
 
@@ -158,6 +160,14 @@ readinessProbe:
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 3
+
+# Persistence - usar StorageClass disponível no cluster
+persistence:
+  models:
+    enabled: true
+    storageClass: "longhorn"
+    accessMode: ReadWriteOnce
+    size: 2Gi
 
 # Observability for staging
 observability:
