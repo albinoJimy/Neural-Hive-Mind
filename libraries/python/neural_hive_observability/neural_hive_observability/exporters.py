@@ -338,17 +338,19 @@ class ResilientOTLPSpanExporter(SpanExporter):
             return result
 
         except TypeError as e:
-            # Bug específico do OpenTelemetry 1.39.1 com formatação de strings
+            # Bug de formatação de strings em versões antigas do OpenTelemetry (<1.30.0)
+            # Causa: caracteres como % em atributos são interpretados como placeholders
             duration = time.monotonic() - start_time
             self._failure_count += 1
 
             self._record_failure_metrics("TypeError", duration)
 
             logger.error(
-                f"TypeError durante export de spans (bug OpenTelemetry 1.39.1): {e}. "
+                f"TypeError durante export de spans (bug formatação OpenTelemetry): {e}. "
                 f"Spans: {span_count}, Endpoint: {self._endpoint}, "
                 f"Service: {self._service_name}. "
-                f"Total de falhas: {self._failure_count}"
+                f"Total de falhas: {self._failure_count}. "
+                f"Solução: atualizar opentelemetry-sdk para >= 1.30.0"
             )
 
             return SpanExportResult.FAILURE

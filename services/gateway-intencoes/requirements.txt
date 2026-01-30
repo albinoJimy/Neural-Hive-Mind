@@ -31,11 +31,12 @@ avro-python3==1.10.2
 fastavro==1.9.7
 
 # Observabilidade
-opentelemetry-api==1.29.0
-opentelemetry-sdk==1.29.0
-opentelemetry-instrumentation-fastapi==0.50b0
-opentelemetry-instrumentation-kafka-python==0.50b0
-opentelemetry-exporter-otlp==1.29.0
+# Atualizado para >= 1.30.0 para corrigir bug de formatação de string no exporter
+opentelemetry-api>=1.30.0
+opentelemetry-sdk>=1.30.0
+opentelemetry-instrumentation-fastapi>=0.51b0
+opentelemetry-instrumentation-kafka-python>=0.51b0
+opentelemetry-exporter-otlp>=1.30.0
 prometheus-client==0.21.1
 structlog==24.4.0
 
