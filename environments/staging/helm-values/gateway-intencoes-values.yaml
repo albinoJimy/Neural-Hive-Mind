@@ -1,6 +1,11 @@
 # Staging Environment Values for Gateway de Intenções
 # Override values for staging environment
 
+# Configurações globais para staging
+global:
+  cluster: "neural-hive-staging"
+  environment: "staging"
+
 # Image pull authentication
 imagePullSecrets:
   - name: ghcr-secret

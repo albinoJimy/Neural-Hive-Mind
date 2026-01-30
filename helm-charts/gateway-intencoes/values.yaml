@@ -21,6 +21,11 @@ image:
 imagePullSecrets:
   - name: ghcr-secret
 
+# Configurações globais (usadas por templates comuns)
+global:
+  cluster: "neural-hive-main"
+  environment: "production"
+
 replicaCount: 3
 
 nameOverride: ""
