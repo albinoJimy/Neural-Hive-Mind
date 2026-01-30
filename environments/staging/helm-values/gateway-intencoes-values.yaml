@@ -49,8 +49,9 @@ config:
 
   # Security configuration
   security:
-    # Schema Registry agora usa TLS
-    allowInsecureHttpEndpoints: false
+    # OTEL Collector não tem TLS - permitir HTTP para comunicação interna
+    # Schema Registry usa TLS via secret schema-registry-tls-secret
+    allowInsecureHttpEndpoints: true
 
   # Staging Kafka endpoints - namespace correto é 'kafka'
   kafka:
@@ -193,9 +194,10 @@ persistence:
 
 # Observability for staging
 # OTEL Collector não tem TLS configurado - usar HTTP
+# Nota: usar otel-collector-neural-hive-otel-collector que tem endpoint de health check (porta 8888)
 observability:
   otelEnabled: true
-  otelEndpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+  otelEndpoint: "http://otel-collector-neural-hive-otel-collector.observability.svc.cluster.local:4317"
   jaeger:
     enabled: true
     endpoint: "http://jaeger-collector.monitoring.svc.cluster.local:14268/api/traces"
