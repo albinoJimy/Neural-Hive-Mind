@@ -34,9 +34,12 @@ try:
     # v1.3.1+ usa HealthManager, v1.2.x usa HealthChecker
     try:
         from neural_hive_observability.health import HealthManager, RedisHealthCheck, CustomHealthCheck, HealthStatus
+        HEALTH_MANAGER_NEEDS_CONFIG = False
     except ImportError:
-        # Fallback para versão 1.2.x da biblioteca
+        # Fallback para versão 1.2.x da biblioteca - HealthChecker requer config
         from neural_hive_observability.health import HealthChecker as HealthManager, HealthStatus
+        from neural_hive_observability.config import ObservabilityConfig
+        HEALTH_MANAGER_NEEDS_CONFIG = True
         # Criar stubs simples para RedisHealthCheck e CustomHealthCheck
         from neural_hive_observability.health import HealthCheck, HealthCheckResult
         import asyncio
@@ -90,6 +93,7 @@ try:
 except ImportError as e:
     OBSERVABILITY_AVAILABLE = False
     OTEL_HEALTH_CHECK_AVAILABLE = False
+    HEALTH_MANAGER_NEEDS_CONFIG = False
     # Stubs temporários para desenvolvimento local sem neural_hive_observability
     class HealthManager:
         def __init__(self):
@@ -330,7 +334,19 @@ async def lifespan(app: FastAPI):
 
         # Initialize standardized health checks
         logger.info("Configurando health checks padronizados")
-        health_manager = HealthManager()
+        if HEALTH_MANAGER_NEEDS_CONFIG:
+            # Versão 1.2.x - HealthChecker requer ObservabilityConfig
+            obs_config = ObservabilityConfig(
+                service_name="gateway-intencoes",
+                service_version="1.0.7",
+                neural_hive_component="gateway",
+                neural_hive_layer="experiencia",
+                environment=settings.environment
+            )
+            health_manager = HealthManager(obs_config)
+        else:
+            # Versão 1.3.1+ - HealthManager sem argumentos
+            health_manager = HealthManager()
 
         # Add Redis health check
         if redis_client:
