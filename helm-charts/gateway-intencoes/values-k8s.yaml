@@ -85,7 +85,7 @@ config:
 
   kafka:
     bootstrapServers: "neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092"
-    schemaRegistryUrl: "http://schema-registry.neural-hive-kafka.svc.cluster.local:8081"
+    schemaRegistryUrl: "https://schema-registry.neural-hive-kafka.svc.cluster.local:8081"
     tls:
       enabled: false
     sasl:

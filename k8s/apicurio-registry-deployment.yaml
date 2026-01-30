@@ -32,14 +32,24 @@ spec:
       - name: apicurio-registry
         image: apicurio/apicurio-registry-kafkasql:2.5.11.Final
         ports:
-        - containerPort: 8080
-          name: http
+        - containerPort: 8443
+          name: https
           protocol: TCP
         env:
         - name: REGISTRY_KAFKASQL_BOOTSTRAP_SERVERS
           value: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
         - name: ENABLE_CCOMPAT_LEGACY_ID_MODE
           value: "true"
+        # TLS Configuration for Quarkus
+        - name: QUARKUS_HTTP_SSL_CERTIFICATE_FILES
+          value: "/etc/tls/tls.crt"
+        - name: QUARKUS_HTTP_SSL_CERTIFICATE_KEY_FILES
+          value: "/etc/tls/tls.key"
+        - name: QUARKUS_HTTP_SSL_PORT
+          value: "8443"
+        - name: QUARKUS_HTTP_INSECURE_REQUESTS
+          value: "disabled"
+        # OpenTelemetry
         - name: QUARKUS_OTEL_ENABLED
           value: "true"
         - name: QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT
@@ -50,6 +60,10 @@ spec:
           value: "true"
         - name: QUARKUS_MICROMETER_BINDER_HTTP_SERVER_ENABLED
           value: "true"
+        volumeMounts:
+        - name: tls-certs
+          mountPath: /etc/tls
+          readOnly: true
         resources:
           requests:
             memory: "256Mi"
@@ -60,14 +74,16 @@ spec:
         livenessProbe:
           httpGet:
             path: /health/live
-            port: 8080
+            port: 8443
+            scheme: HTTPS
           initialDelaySeconds: 30
           periodSeconds: 30
           timeoutSeconds: 10
         readinessProbe:
           httpGet:
             path: /health/ready
-            port: 8080
+            port: 8443
+            scheme: HTTPS
           initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 5
@@ -81,8 +97,8 @@ spec:
         - /bin/sh
         - -c
         - |
-          # Instalar dependências mínimas
-          pip install --quiet --no-cache-dir requests
+          # Instalar dependencias minimas
+          pip install --quiet --no-cache-dir requests urllib3
 
           # Criar servidor HTTP de health check
           cat > /tmp/health_server.py << 'PYTHON_EOF'
@@ -92,6 +108,10 @@ spec:
           import requests
           import threading
           import time
+          import urllib3
+
+          # Disable SSL verification for localhost (self-signed cert)
+          urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
           # Estado global do health check
           health_state = {
@@ -102,16 +122,16 @@ spec:
           }
 
           CRITICAL_SCHEMAS = ["plans.ready-value", "execution.tickets-value"]
-          REGISTRY_URL = "http://localhost:8080"
+          REGISTRY_URL = "https://localhost:8443"
 
           def check_schemas():
-              """Verifica schemas críticos periodicamente"""
+              """Verifica schemas criticos periodicamente"""
               global health_state
               while True:
                   try:
-                      # Verificar se registry está pronto
+                      # Verificar se registry esta pronto
                       try:
-                          resp = requests.get(f"{REGISTRY_URL}/health/ready", timeout=5)
+                          resp = requests.get(f"{REGISTRY_URL}/health/ready", timeout=5, verify=False)
                           health_state["registry_ready"] = resp.status_code == 200
                       except:
                           health_state["registry_ready"] = False
@@ -119,13 +139,14 @@ spec:
                           time.sleep(30)
                           continue
 
-                      # Verificar schemas críticos
+                      # Verificar schemas criticos
                       missing = []
                       for subject in CRITICAL_SCHEMAS:
                           try:
                               resp = requests.get(
                                   f"{REGISTRY_URL}/apis/ccompat/v6/subjects/{subject}/versions/latest",
-                                  timeout=5
+                                  timeout=5,
+                                  verify=False
                               )
                               if resp.status_code != 200:
                                   missing.append(subject)
@@ -146,7 +167,7 @@ spec:
 
           class HealthHandler(http.server.BaseHTTPRequestHandler):
               def log_message(self, format, *args):
-                  pass  # Silenciar logs de requisição
+                  pass  # Silenciar logs de requisicao
 
               def do_GET(self):
                   if self.path == "/health/schemas":
@@ -180,7 +201,7 @@ spec:
                       self.end_headers()
 
           if __name__ == "__main__":
-              # Iniciar thread de verificação de schemas
+              # Iniciar thread de verificacao de schemas
               checker_thread = threading.Thread(target=check_schemas, daemon=True)
               checker_thread.start()
 
@@ -215,6 +236,10 @@ spec:
           limits:
             memory: "128Mi"
             cpu: "100m"
+      volumes:
+      - name: tls-certs
+        secret:
+          secretName: schema-registry-tls-secret
 ---
 apiVersion: v1
 kind: Service
@@ -224,13 +249,17 @@ metadata:
   labels:
     app: apicurio-registry
     component: kafka
+  annotations:
+    service.beta.kubernetes.io/tls-enabled: "true"
 spec:
   selector:
     app: apicurio-registry
+  # Allow traffic even when pod is not fully ready (sidecar may be not ready)
+  publishNotReadyAddresses: true
   ports:
-  - name: http
+  - name: https
     port: 8081
-    targetPort: 8080
+    targetPort: 8443
     protocol: TCP
   - name: health
     port: 8090
@@ -258,11 +287,13 @@ spec:
     matchNames:
     - kafka
   endpoints:
-  - port: http
+  - port: https
     path: /q/metrics
     interval: 30s
     scrapeTimeout: 10s
-    scheme: http
+    scheme: https
+    tlsConfig:
+      insecureSkipVerify: true
     relabelings:
     - sourceLabels: [__meta_kubernetes_pod_name]
       targetLabel: pod
@@ -277,7 +308,7 @@ spec:
       regex: "(apicurio|registry|http_server|jvm).*"
       action: keep
 ---
-# Probe para monitorar o endpoint de health check de schemas críticos
+# Probe para monitorar o endpoint de health check de schemas criticos
 # Usado pelo alerta SchemaCriticalMissing
 apiVersion: monitoring.coreos.com/v1
 kind: Probe

@@ -77,6 +77,13 @@ Construir lista de env vars para o deployment
 {{- $envVars = append $envVars (dict "name" "SCHEMA_REGISTRY_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" (include "gateway-intencoes.secretName" .) "key" "schema-registry-password"))) }}
 {{- end }}
 
+{{/* Schema Registry TLS Configuration */}}
+{{- $envVars = append $envVars (dict "name" "SCHEMA_REGISTRY_TLS_ENABLED" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "schema_registry_tls_enabled"))) }}
+{{- $envVars = append $envVars (dict "name" "SCHEMA_REGISTRY_TLS_VERIFY" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "schema_registry_tls_verify"))) }}
+{{- if .Values.config.kafka.schemaRegistry.tls.enabled }}
+{{- $envVars = append $envVars (dict "name" "SCHEMA_REGISTRY_SSL_CA_LOCATION" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "schema_registry_ssl_ca_location"))) }}
+{{- end }}
+
 {{/* JWT and ASR/NLU */}}
 {{- $envVars = append $envVars (dict "name" "JWT_SECRET_KEY" "valueFrom" (dict "secretKeyRef" (dict "name" (include "gateway-intencoes.secretName" .) "key" "jwt-secret-key"))) }}
 {{- $envVars = append $envVars (dict "name" "ASR_MODEL_NAME" "value" .Values.config.asr.modelName) }}
@@ -128,6 +135,9 @@ Construir volume mounts
 {{- if .Values.secrets.kafka.tls.clientKey }}
 {{- $volumeMounts = append $volumeMounts (dict "name" "kafka-client-key" "mountPath" "/etc/ssl/certs/kafka-client.key" "subPath" "kafka-client.key" "readOnly" true) }}
 {{- end }}
+{{- if .Values.config.kafka.schemaRegistry.tls.enabled }}
+{{- $volumeMounts = append $volumeMounts (dict "name" "schema-registry-ca-cert" "mountPath" "/etc/ssl/certs/schema-registry-ca.crt" "subPath" "ca.crt" "readOnly" true) }}
+{{- end }}
 
 {{/*
 Construir volumes
@@ -149,6 +159,9 @@ Construir volumes
 {{- end }}
 {{- if .Values.secrets.kafka.tls.clientKey }}
 {{- $volumes = append $volumes (dict "name" "kafka-client-key" "secret" (dict "secretName" (include "gateway-intencoes.secretName" .) "items" (list (dict "key" "kafka-client-key" "path" "kafka-client.key")))) }}
+{{- end }}
+{{- if .Values.config.kafka.schemaRegistry.tls.enabled }}
+{{- $volumes = append $volumes (dict "name" "schema-registry-ca-cert" "secret" (dict "secretName" .Values.config.kafka.schemaRegistry.tls.caSecretName "items" (list (dict "key" "ca.crt" "path" "ca.crt")))) }}
 {{- end }}
 
 {{/*

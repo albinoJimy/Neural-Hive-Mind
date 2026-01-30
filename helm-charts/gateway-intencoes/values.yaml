@@ -190,8 +190,9 @@ config:
   # Kafka
   kafka:
     bootstrapServers: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
-    schemaRegistryUrl: "http://schema-registry.kafka.svc.cluster.local:8081"
-    # TLS/SSL configuration
+    # Schema Registry URL - use HTTPS when TLS is enabled
+    schemaRegistryUrl: "https://schema-registry.kafka.svc.cluster.local:8081"
+    # TLS/SSL configuration for Kafka
     tls:
       enabled: false
       caVerifyMode: "none"  # none, optional, required
@@ -210,6 +211,14 @@ config:
       batchSize: 16384     # bytes
       lingerMs: 10         # milliseconds
       compressionType: "snappy"  # none, gzip, snappy, lz4, zstd
+    # Schema Registry TLS configuration
+    schemaRegistry:
+      tls:
+        enabled: true
+        # Secret containing the CA certificate for Schema Registry
+        caSecretName: "schema-registry-tls-secret"
+        # Verify hostname in certificate
+        verifyHostname: true
 
   # Redis Cache
   redis:

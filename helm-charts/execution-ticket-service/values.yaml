@@ -89,7 +89,7 @@ config:
     bootstrapServers: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
     consumerGroupId: execution-ticket-service
     ticketsTopic: execution.tickets
-    schemaRegistryUrl: http://schema-registry.kafka.svc.cluster.local:8081
+    schemaRegistryUrl: https://schema-registry.kafka.svc.cluster.local:8081
     securityProtocol: PLAINTEXT
     saslMechanism: SCRAM-SHA-512
     saslUsername: ""

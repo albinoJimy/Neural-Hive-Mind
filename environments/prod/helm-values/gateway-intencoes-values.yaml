@@ -39,7 +39,8 @@ config:
   # Production Kafka endpoints
   kafka:
     bootstrapServers: "neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092"
-    schemaRegistryUrl: "http://schema-registry.neural-hive-kafka.svc.cluster.local:8081"
+    # Schema Registry com TLS habilitado
+    schemaRegistryUrl: "https://schema-registry.neural-hive-kafka.svc.cluster.local:8081"
     # Production should have TLS enabled
     tls:
       enabled: true
@@ -49,6 +50,12 @@ config:
     sasl:
       enabled: true
       mechanism: "SCRAM-SHA-512"
+    # Schema Registry TLS configuration
+    schemaRegistry:
+      tls:
+        enabled: true
+        caSecretName: "schema-registry-tls-secret"
+        verifyHostname: true
 
   # ASR Pipeline
   asr:

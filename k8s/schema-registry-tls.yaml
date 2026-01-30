@@ -1,0 +1,39 @@
+# TLS Configuration for Schema Registry
+# Uses cert-manager to automatically manage certificates
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: schema-registry-tls
+  namespace: kafka
+  labels:
+    app: schema-registry
+    component: kafka
+    neural-hive.io/component: tls
+spec:
+  secretName: schema-registry-tls-secret
+  duration: 8760h # 1 year
+  renewBefore: 720h # 30 days before expiry
+  subject:
+    organizations:
+      - Neural Hive Mind
+  commonName: schema-registry.kafka.svc.cluster.local
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 2048
+  usages:
+    - server auth
+    - client auth
+    - digital signature
+    - key encipherment
+  dnsNames:
+    - schema-registry
+    - schema-registry.kafka
+    - schema-registry.kafka.svc
+    - schema-registry.kafka.svc.cluster.local
+  issuerRef:
+    name: selfsigned-cluster-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io

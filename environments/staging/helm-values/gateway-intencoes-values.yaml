@@ -47,14 +47,23 @@ config:
   logLevel: "INFO"
   debug: false
 
-  # Schema Registry não tem TLS configurado - permitir HTTP interno
+  # Security configuration
   security:
-    allowInsecureHttpEndpoints: true
+    # Schema Registry agora usa TLS
+    allowInsecureHttpEndpoints: false
 
   # Staging Kafka endpoints - namespace correto é 'kafka'
   kafka:
     bootstrapServers: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
-    schemaRegistryUrl: "http://schema-registry.kafka.svc.cluster.local:8081"
+    # Schema Registry com TLS habilitado
+    schemaRegistryUrl: "https://schema-registry.kafka.svc.cluster.local:8081"
+    # TLS settings for Schema Registry client
+    schemaRegistry:
+      tls:
+        enabled: true
+        # CA certificate mounted from the same cert-manager issuer
+        caSecretName: "schema-registry-tls-secret"
+        verifyHostname: true
 
   # ASR Pipeline
   asr:

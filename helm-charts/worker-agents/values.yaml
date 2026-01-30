@@ -59,7 +59,7 @@ config:
     ticketsTopic: execution.tickets
     resultsTopic: execution.results
     consumerGroupId: worker-agents
-    schemaRegistryUrl: http://schema-registry.kafka.svc.cluster.local:8081
+    schemaRegistryUrl: https://schema-registry.kafka.svc.cluster.local:8081
     securityProtocol: PLAINTEXT
     saslMechanism: SCRAM-SHA-512
     saslUsername: ""

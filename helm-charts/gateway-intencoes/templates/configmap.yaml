@@ -10,6 +10,15 @@ data:
   kafka_bootstrap_servers: {{ .Values.config.kafka.bootstrapServers | quote }}
   schema_registry_url: {{ .Values.config.kafka.schemaRegistryUrl | quote }}
 
+  # Schema Registry TLS Configuration
+  schema_registry_tls_enabled: {{ .Values.config.kafka.schemaRegistry.tls.enabled | default "true" | quote }}
+  schema_registry_tls_verify: {{ .Values.config.kafka.schemaRegistry.tls.verifyHostname | default "true" | quote }}
+  {{- if .Values.config.kafka.schemaRegistry.tls.enabled }}
+  schema_registry_ssl_ca_location: "/etc/ssl/certs/schema-registry-ca.crt"
+  {{- else }}
+  schema_registry_ssl_ca_location: ""
+  {{- end }}
+
   # Kafka Security Configuration
   kafka_security_protocol: {{ if .Values.config.kafka.tls.enabled }}{{ if .Values.config.kafka.sasl.enabled }}"SASL_SSL"{{ else }}"SSL"{{ end }}{{ else }}{{ if .Values.config.kafka.sasl.enabled }}"SASL_PLAINTEXT"{{ else }}"PLAINTEXT"{{ end }}{{ end }}
   kafka_sasl_mechanism: {{ .Values.config.kafka.sasl.mechanism | quote }}

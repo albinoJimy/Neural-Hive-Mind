@@ -15,8 +15,10 @@ class Settings(BaseSettings):
     schema_registry_url: str = Field(default="https://schema-registry.neural-hive-kafka.svc.cluster.local:8081")
 
     # Schema Registry TLS
+    schema_registry_tls_enabled: bool = Field(default=True, description="Habilitar TLS para conexão com Schema Registry")
     schema_registry_tls_verify: bool = Field(default=True, description="Verificar certificado TLS do Schema Registry")
-    schema_registry_ca_bundle: Optional[str] = Field(default=None, description="Caminho para CA bundle do Schema Registry")
+    schema_registry_ssl_ca_location: Optional[str] = Field(default="/etc/ssl/certs/schema-registry-ca.crt", description="Caminho para CA do Schema Registry")
+    schema_registry_ca_bundle: Optional[str] = Field(default=None, description="Caminho para CA bundle do Schema Registry (legado)")
 
     # Kafka Security
     kafka_security_protocol: str = Field(default="PLAINTEXT")  # PLAINTEXT, SASL_SSL, SSL

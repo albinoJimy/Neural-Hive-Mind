@@ -85,7 +85,7 @@ config:
     sslCaLocation: ""
     sslCertificateLocation: ""
     sslKeyLocation: ""
-    schemaRegistryUrl: http://schema-registry.kafka.svc.cluster.local:8081
+    schemaRegistryUrl: https://schema-registry.kafka.svc.cluster.local:8081
     schemasBasePath: /app/schemas
 
   postgres:

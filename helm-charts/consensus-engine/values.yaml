@@ -60,7 +60,7 @@ config:
     consensusTopicProduce: "plans.consensus"
     securityProtocol: "SASL_SSL"
     saslMechanism: "SCRAM-SHA-512"
-    schemaRegistryUrl: "http://schema-registry.kafka.svc.cluster.local:8081/apis/ccompat/v6"
+    schemaRegistryUrl: "https://schema-registry.kafka.svc.cluster.local:8081/apis/ccompat/v6"
 
   specialists:
     businessEndpoint: "specialist-business.neural-hive.svc.cluster.local:50051"
