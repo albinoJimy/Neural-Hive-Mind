@@ -44,8 +44,7 @@ jobs:
   # ============================================================================
   detect-changes:
     name: Detectar Mudancas
-    # Usar GitHub-hosted runner para maior disponibilidade
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       services_matrix: ${{ steps.set-matrix.outputs.matrix }}
       services_list: ${{ steps.set-matrix.outputs.list }}
@@ -130,7 +129,7 @@ jobs:
   # ============================================================================
   build-and-push:
     name: Build ${{ matrix.service }}
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: detect-changes
     if: needs.detect-changes.outputs.has_changes == 'true'
     
@@ -207,7 +206,7 @@ jobs:
   # ============================================================================
   summary:
     name: Resumo do Build
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [detect-changes, build-and-push]
     if: always()
 
