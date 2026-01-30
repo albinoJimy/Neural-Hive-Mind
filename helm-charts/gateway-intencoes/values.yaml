@@ -26,6 +26,20 @@ global:
   cluster: "neural-hive-main"
   environment: "production"
 
+# Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Deployment strategy
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
 replicaCount: 3
 
 nameOverride: ""
@@ -326,25 +340,15 @@ serviceMonitor:
 networkPolicy:
   enabled: true
   ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              name: istio-system
-        - namespaceSelector:
-            matchLabels:
-              name: monitoring
-        - namespaceSelector:
-            matchLabels:
-              neural-hive-mind.org/kafka-access: "enabled"
+    ingressNamespace: "istio-system"
+    ingressPodLabels:
+      istio: ingressgateway
   egress:
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              name: neural-hive-kafka
-    - to: []  # DNS
-      ports:
-        - protocol: UDP
-          port: 53
+    kafkaNamespace: "neural-hive-kafka"
+    kafkaPodLabels:
+      app.kubernetes.io/name: kafka
+    jaegerNamespace: "monitoring"
+    allowMLModelDownload: true
 
 # Pod Disruption Budget
 podDisruptionBudget:
@@ -386,6 +390,7 @@ observability:
       labels:
         neural-hive-mind.org/monitoring: "enabled"
   jaeger:
+    enabled: true
     endpoint: "http://jaeger-collector.monitoring.svc.cluster.local:14268/api/traces"
   tracing:
     enabled: true
