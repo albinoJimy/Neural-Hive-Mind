@@ -23,23 +23,23 @@ image:
   # Permite validar mudanças rapidamente sem necessidade de bump de versão
   pullPolicy: Always
 
-# Staging-specific replica and autoscaling
-replicaCount: 2
+# Réplica única para staging (cluster com recursos limitados)
+replicaCount: 1
 autoscaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 5
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
 
-# Moderate resource requirements for staging
+# Recursos reduzidos para staging (cluster com recursos limitados)
 resources:
   limits:
-    cpu: 1500m
-    memory: 3Gi
+    cpu: 500m
+    memory: 1Gi
   requests:
-    cpu: 750m
-    memory: 1.5Gi
+    cpu: 100m
+    memory: 256Mi
 
 # Staging-specific configuration
 config:
