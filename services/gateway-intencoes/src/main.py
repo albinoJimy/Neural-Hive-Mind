@@ -351,13 +351,13 @@ async def lifespan(app: FastAPI):
 
         # Add Redis health check
         if redis_client:
-            health_manager.add_check(
+            health_manager.register_check(
                 RedisHealthCheck("redis", lambda: redis_client.ping() if redis_client else False)
             )
 
         # Add ASR pipeline health check
         if asr_pipeline:
-            health_manager.add_check(
+            health_manager.register_check(
                 CustomHealthCheck(
                     "asr_pipeline",
                     lambda: asr_pipeline.is_ready() if asr_pipeline else False,
@@ -367,7 +367,7 @@ async def lifespan(app: FastAPI):
 
         # Add NLU pipeline health check
         if nlu_pipeline:
-            health_manager.add_check(
+            health_manager.register_check(
                 CustomHealthCheck(
                     "nlu_pipeline",
                     lambda: nlu_pipeline.is_ready() if nlu_pipeline else False,
@@ -377,7 +377,7 @@ async def lifespan(app: FastAPI):
 
         # Add Kafka producer health check
         if kafka_producer:
-            health_manager.add_check(
+            health_manager.register_check(
                 CustomHealthCheck(
                     "kafka_producer",
                     lambda: kafka_producer.is_ready() if kafka_producer else False,
@@ -387,7 +387,7 @@ async def lifespan(app: FastAPI):
 
         # Add OAuth2 validator health check
         if oauth2_validator:
-            health_manager.add_check(
+            health_manager.register_check(
                 CustomHealthCheck(
                     "oauth2_validator",
                     lambda: True,  # OAuth2 validator doesn't have is_ready method
@@ -404,7 +404,7 @@ async def lifespan(app: FastAPI):
                 timeout_seconds=5.0,
                 verify_trace_export=True
             )
-            health_manager.add_check(otel_health_check)
+            health_manager.register_check(otel_health_check)
             logger.info("otel_pipeline_health_check_registered", otel_endpoint=settings.otel_endpoint)
 
         logger.info("Gateway de Intenções iniciado com sucesso - Redis e OAuth2 ativos")
