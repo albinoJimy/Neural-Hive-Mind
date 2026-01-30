@@ -7,9 +7,9 @@ replicaCount: 2
 enableServiceLinks: false
 
 image:
-  repository: 37.60.241.150:30500/code-forge
+  repository: ghcr.io/albinojimy/neural-hive-mind/code-forge
   tag: "1.2.1"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 deployment:
   strategy:

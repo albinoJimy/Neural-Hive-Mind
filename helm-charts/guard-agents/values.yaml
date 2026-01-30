@@ -2,9 +2,9 @@ component: "guard-agents"
 layer: "resilience"
 
 image:
-  repository: 37.60.241.150:30500/guard-agents
+  repository: ghcr.io/albinojimy/neural-hive-mind/guard-agents
   tag: "1.2.0"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 replicaCount: 2
 

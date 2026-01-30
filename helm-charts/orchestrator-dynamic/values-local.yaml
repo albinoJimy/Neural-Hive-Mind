@@ -14,8 +14,8 @@ replicaCount: 1
 # (SERVICE_REGISTRY_PORT sendo setado como tcp://... em vez de int)
 enableServiceLinks: false
 image:
-  pullPolicy: IfNotPresent
-  repository: 37.60.241.150:30500/orchestrator-dynamic
+  pullPolicy: Always
+  repository: ghcr.io/albinojimy/neural-hive-mind/orchestrator-dynamic
   tag: latest
 # Custom command for local development
 customCommand:

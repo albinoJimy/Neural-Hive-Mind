@@ -9,9 +9,9 @@ serviceAccount:
   name: ""
 
 image:
-  repository: 37.60.241.150:30500/optimizer-agents
+  repository: ghcr.io/albinojimy/neural-hive-mind/optimizer-agents
   tag: "1.2.1"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 replicaCount: 2
 

@@ -12,9 +12,9 @@ autoscaling:
   targetMemoryUtilizationPercentage: 80
 
 image:
-  repository: 077878370245.dkr.ecr.us-east-1.amazonaws.com/dev/consensus-engine
+  repository: ghcr.io/albinojimy/neural-hive-mind/consensus-engine
   tag: "1.2.0"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 service:
   type: ClusterIP

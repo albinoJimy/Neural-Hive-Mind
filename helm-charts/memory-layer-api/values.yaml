@@ -3,7 +3,7 @@ component: "memory-layer-api"
 layer: "conhecimento-dados"
 
 image:
-  repository: 37.60.241.150:30500/memory-layer-api
+  repository: ghcr.io/albinojimy/neural-hive-mind/memory-layer-api
   pullPolicy: Always
   tag: "1.2.1"
 

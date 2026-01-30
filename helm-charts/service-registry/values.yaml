@@ -2,9 +2,9 @@ component: "service-registry"
 layer: "infrastructure"
 
 image:
-  repository: 37.60.241.150:30500/service-registry
+  repository: ghcr.io/albinojimy/neural-hive-mind/service-registry
   tag: "1.2.0"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 replicaCount: 2
 

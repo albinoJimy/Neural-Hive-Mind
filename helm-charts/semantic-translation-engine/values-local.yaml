@@ -11,7 +11,7 @@ deployment:
 # Reduced replica count for local development
 replicaCount: 1
 image:
-  repository: 37.60.241.150:30500/semantic-translation-engine
+  repository: ghcr.io/albinojimy/neural-hive-mind/semantic-translation-engine
   tag: "1.2.4"
   pullPolicy: Always
 # Reduced resources for local development (~50% of production)

@@ -8,7 +8,7 @@ deployment:
 replicaCount: 1
 
 image:
-  repository: 37.60.241.150:30500/explainability-api
+  repository: ghcr.io/albinojimy/neural-hive-mind/explainability-api
   tag: "latest"
   pullPolicy: Always
 

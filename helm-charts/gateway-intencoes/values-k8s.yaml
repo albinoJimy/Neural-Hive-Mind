@@ -4,8 +4,8 @@
 replicaCount: 1
 
 image:
-  repository: neural-hive/gateway-intencoes
-  pullPolicy: IfNotPresent
+  repository: ghcr.io/albinojimy/neural-hive-mind/gateway-intencoes
+  pullPolicy: Always
   tag: "latest"
 
 nameOverride: ""

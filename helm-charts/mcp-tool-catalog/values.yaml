@@ -7,8 +7,8 @@ replicaCount: 2
 enableServiceLinks: false
 
 image:
-  repository: 37.60.241.150:30500/mcp-tool-catalog
-  pullPolicy: IfNotPresent
+  repository: ghcr.io/albinojimy/neural-hive-mind/mcp-tool-catalog
+  pullPolicy: Always
   tag: "1.2.1"
 
 deployment:

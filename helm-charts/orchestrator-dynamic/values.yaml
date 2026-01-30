@@ -3,9 +3,9 @@ component: "orchestrator-dynamic"
 layer: "orchestration"
 
 image:
-  repository: 37.60.241.150:30500/orchestrator-dynamic
+  repository: ghcr.io/albinojimy/neural-hive-mind/orchestrator-dynamic
   tag: "1.2.0"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 imagePullSecrets: []
 
@@ -512,7 +512,7 @@ opa:
   image:
     repository: openpolicyagent/opa
     tag: 0.60.0-rootless
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
 
   resources:
     requests:

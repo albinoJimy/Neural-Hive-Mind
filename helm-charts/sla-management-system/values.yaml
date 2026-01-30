@@ -5,9 +5,9 @@ fullnameOverride: ""
 
 # Image configuration
 image:
-  repository: 37.60.241.150:30500/sla-management-system
+  repository: ghcr.io/albinojimy/neural-hive-mind/sla-management-system
   tag: "1.2.0"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 imagePullSecrets: []
 

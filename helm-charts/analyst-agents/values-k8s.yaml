@@ -1,0 +1,99 @@
+# Kubernetes values for analyst-agents
+# Neural Hive-Mind - Production/Kubernetes deployment
+# Override values for Kubernetes environments
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/albinojimy/neural-hive-mind/analyst-agents
+  pullPolicy: Always
+  tag: "latest"
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+ingress:
+  enabled: false
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+
+serviceAccount:
+  create: false
+  name: default
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podSecurityContext:
+  fsGroup: 1001
+  runAsGroup: 1001
+  runAsUser: 1001
+  runAsNonRoot: true
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+config:
+  environment: "production"
+  logLevel: "INFO"
+  debug: false
+
+serviceMonitor:
+  enabled: false
+
+# Observabilidade - OpenTelemetry habilitado em Kubernetes
+observability:
+  otelEnabled: true
+  otelEndpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+  prometheus:
+    enabled: false
+    serviceMonitor:
+      enabled: false
+  tracing:
+    enabled: true
+
+networkPolicy:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false
+
+istio:
+  enabled: false

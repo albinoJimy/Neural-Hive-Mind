@@ -11,8 +11,8 @@ deployment:
 # Reduced replica count for local development
 replicaCount: 1
 image:
-  repository: 37.60.241.150:30500/consensus-engine
-  pullPolicy: IfNotPresent
+  repository: ghcr.io/albinojimy/neural-hive-mind/consensus-engine
+  pullPolicy: Always
   tag: "latest"
 # Custom command for local development (single worker)
 customCommand:

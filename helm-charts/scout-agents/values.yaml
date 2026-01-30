@@ -2,9 +2,9 @@ component: "scout-agents"
 layer: "exploration"
 
 image:
-  repository: 37.60.241.150:30500/scout-agents
+  repository: ghcr.io/albinojimy/neural-hive-mind/scout-agents
   tag: "1.2.0"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   pullSecrets: []
 
 replicaCount: 2

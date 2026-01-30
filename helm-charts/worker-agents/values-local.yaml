@@ -12,9 +12,9 @@ deployment:
 replicaCount: 1
 
 image:
-  repository: 37.60.241.150:30500/worker-agents
+  repository: ghcr.io/albinojimy/neural-hive-mind/worker-agents
   tag: "1.3.3"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 # Reduced resources for local development (~50% of production)
 resources:

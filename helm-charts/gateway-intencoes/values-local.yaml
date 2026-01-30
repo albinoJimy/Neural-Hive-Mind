@@ -7,7 +7,7 @@ deployment:
       maxUnavailable: 0
 
 image:
-  repository: 37.60.241.150:30500/gateway-intencoes
+  repository: ghcr.io/albinojimy/neural-hive-mind/gateway-intencoes
   pullPolicy: Always
   tag: "1.1.2"
 replicaCount: 1

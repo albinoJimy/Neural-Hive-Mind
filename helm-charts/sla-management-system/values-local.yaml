@@ -1,7 +1,7 @@
 # Local environment values for sla-management-system
 
 image:
-  repository: 37.60.241.150:30500/sla-management-system
+  repository: ghcr.io/albinojimy/neural-hive-mind/sla-management-system
   tag: "latest"
   pullPolicy: Always
 

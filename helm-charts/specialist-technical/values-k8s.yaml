@@ -4,9 +4,9 @@
 replicaCount: 1
 
 image:
-  repository: 37.60.241.150:30500/specialist-technical
+  repository: ghcr.io/albinojimy/neural-hive-mind/specialist-technical
   tag: latest
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 resources:
   requests:

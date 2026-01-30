@@ -2,9 +2,9 @@ component: "worker-agents"
 layer: "execution"
 
 image:
-  repository: 37.60.241.150:30500/worker-agents
+  repository: ghcr.io/albinojimy/neural-hive-mind/worker-agents
   tag: "1.3.4"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 replicaCount: 3
 

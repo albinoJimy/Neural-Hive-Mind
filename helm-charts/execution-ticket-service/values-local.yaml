@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 # Reduced resources for local development (~50% of production)
 resources:

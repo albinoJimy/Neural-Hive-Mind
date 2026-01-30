@@ -1,6 +1,6 @@
 # Local values for queen-agent
 image:
-  repository: 37.60.241.150:30500/queen-agent
+  repository: ghcr.io/albinojimy/neural-hive-mind/queen-agent
   tag: "1.2.8"
   pullPolicy: Always
 

@@ -8,7 +8,7 @@ deployment:
 replicaCount: 1
 
 image:
-  repository: 37.60.241.150:30500/analyst-agents
+  repository: ghcr.io/albinojimy/neural-hive-mind/analyst-agents
   tag: "latest"
   pullPolicy: Always
 

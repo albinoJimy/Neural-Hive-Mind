@@ -1,7 +1,7 @@
 # Configurações do Gateway de Intenções
 image:
-  repository: 37.60.241.150:30500/gateway-intencoes
-  pullPolicy: IfNotPresent
+  repository: ghcr.io/albinojimy/neural-hive-mind/gateway-intencoes
+  pullPolicy: Always
   tag: "1.1.2"
 
 replicaCount: 3

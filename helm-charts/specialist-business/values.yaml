@@ -34,9 +34,9 @@ secrets:
   redisPassword: ""
 
 image:
-  repository: 077878370245.dkr.ecr.us-east-1.amazonaws.com/dev/specialist-business
+  repository: ghcr.io/albinojimy/neural-hive-mind/specialist-business
   tag: "1.0.7"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 deployment:
   strategy:

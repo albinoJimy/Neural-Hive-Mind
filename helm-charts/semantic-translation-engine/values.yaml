@@ -5,9 +5,9 @@ fullnameOverride: ""
 
 # Configuração de imagem
 image:
-  repository: 077878370245.dkr.ecr.us-east-1.amazonaws.com/dev/semantic-translation-engine
+  repository: ghcr.io/albinojimy/neural-hive-mind/semantic-translation-engine
   tag: "1.2.0"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 # Deployment
 replicaCount: 2

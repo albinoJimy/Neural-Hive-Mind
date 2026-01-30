@@ -14,7 +14,7 @@ serviceAccount:
   name: ""
 
 image:
-  repository: 37.60.241.150:30500/execution-ticket-service
+  repository: ghcr.io/albinojimy/neural-hive-mind/execution-ticket-service
   tag: "1.2.3"
   pullPolicy: Always
 

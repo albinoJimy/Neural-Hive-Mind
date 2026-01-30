@@ -11,9 +11,9 @@ deployment:
 # Reduced replica count for local development
 replicaCount: 1
 image:
-  repository: 37.60.241.150:30500/specialist-business
+  repository: ghcr.io/albinojimy/neural-hive-mind/specialist-business
   tag: latest
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 # Reduced resources for local development (~50% of production)
 resources:
   requests:
