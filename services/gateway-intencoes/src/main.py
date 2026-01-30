@@ -31,12 +31,13 @@ from middleware.rate_limiter import RateLimiter, set_rate_limiter, close_rate_li
 try:
     from neural_hive_observability import trace_intent, get_metrics, get_context_manager
     from neural_hive_observability.tracing import get_current_trace_id, get_current_span_id
-    # v1.3.1+ usa HealthManager, v1.2.x usa HealthChecker
+    # HealthManager é alias para HealthChecker que sempre requer ObservabilityConfig
     try:
         from neural_hive_observability.health import HealthManager, RedisHealthCheck, CustomHealthCheck, HealthStatus
-        HEALTH_MANAGER_NEEDS_CONFIG = False
+        from neural_hive_observability.config import ObservabilityConfig
+        HEALTH_MANAGER_NEEDS_CONFIG = True
     except ImportError:
-        # Fallback para versão 1.2.x da biblioteca - HealthChecker requer config
+        # Fallback para versão antiga sem HealthManager exportado diretamente
         from neural_hive_observability.health import HealthChecker as HealthManager, HealthStatus
         from neural_hive_observability.config import ObservabilityConfig
         HEALTH_MANAGER_NEEDS_CONFIG = True
