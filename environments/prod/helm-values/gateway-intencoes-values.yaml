@@ -1,6 +1,17 @@
 # Production Environment Values for Gateway de Intenções
 # Override values for production environment
 
+# Image pull authentication
+imagePullSecrets:
+  - name: ghcr-secret
+
+# Image configuration
+image:
+  # Pull policy otimizada para produção
+  # IfNotPresent: Reduz latência e custos de rede, adequado para tags fixas e versionadas
+  # A imagem só é baixada se não existir localmente, garantindo consistência com a tag especificada
+  pullPolicy: IfNotPresent
+
 # Production-specific replica and autoscaling
 replicaCount: 3
 autoscaling:

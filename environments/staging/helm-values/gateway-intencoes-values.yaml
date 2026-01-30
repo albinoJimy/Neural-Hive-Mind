@@ -1,6 +1,18 @@
 # Staging Environment Values for Gateway de Intenções
 # Override values for staging environment
 
+# Image pull authentication
+imagePullSecrets:
+  - name: ghcr-secret
+
+# Image configuration
+image:
+  # Pull policy para ambiente de testes
+  # Always: Garante que sempre baixa a versão mais recente da imagem do registry
+  # Essencial para staging onde a mesma tag pode ser atualizada durante testes iterativos
+  # Permite validar mudanças rapidamente sem necessidade de bump de versão
+  pullPolicy: Always
+
 # Staging-specific replica and autoscaling
 replicaCount: 2
 autoscaling:

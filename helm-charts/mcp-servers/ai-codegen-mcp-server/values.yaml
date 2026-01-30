@@ -6,7 +6,7 @@ layer: "tools"
 replicaCount: 2
 
 image:
-  repository: 37.60.241.150:30500/ai-codegen-mcp-server
+  repository: ghcr.io/albinojimy/neural-hive-mind/ai-codegen-mcp-server
   tag: "1.0.0"
   pullPolicy: IfNotPresent
 

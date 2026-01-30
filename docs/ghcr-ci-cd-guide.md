@@ -92,18 +92,38 @@ Acesse: Settings > Secrets and variables > Actions
 
 ### 3. Configurar Secret no Cluster
 
+O secret deve ser criado em **cada namespace** que executa deployments:
+
 ```bash
-# Usando o script
+# Lista de namespaces comuns
+NAMESPACES=("gateway" "neural-hive" "neural-hive-specialists" "mlflow")
+
+for NS in "${NAMESPACES[@]}"; do
+  kubectl create secret docker-registry ghcr-secret \
+    --docker-server=ghcr.io \
+    --docker-username=<GITHUB_USERNAME> \
+    --docker-password=<GITHUB_TOKEN> \
+    -n $NS --dry-run=client -o yaml | kubectl apply -f -
+done
+```
+
+**Ou usando o script:**
+
+```bash
 ./scripts/ghcr/setup-ghcr-secret.sh \
   -u <GITHUB_USERNAME> \
-  -t <GITHUB_TOKEN>
+  -t <GITHUB_TOKEN> \
+  -n gateway,neural-hive,neural-hive-specialists,mlflow
+```
 
-# Ou manualmente
-kubectl create secret docker-registry ghcr-secret \
-  --docker-server=ghcr.io \
-  --docker-username=<GITHUB_USERNAME> \
-  --docker-password=<GITHUB_TOKEN> \
-  -n neural-hive
+**Verificação:**
+
+```bash
+# Verificar em todos namespaces
+kubectl get secret ghcr-secret --all-namespaces
+
+# Verificar deployment específico
+kubectl get deployment gateway-intencoes -n gateway -o yaml | grep -A2 imagePullSecrets
 ```
 
 ### 4. Migrar Deployments (Opcional)

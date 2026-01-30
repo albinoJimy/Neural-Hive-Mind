@@ -24,7 +24,7 @@ on:
         type: string
         default: ''
       version_tag:
-        description: 'Tag da versao (ex: 1.0.8, latest)'
+        description: 'Tag semântica da versão (ex: v1.2.3, v2.0.0-beta.1). Formato: v?MAJOR.MINOR.PATCH[-prerelease][+build]'
         required: false
         type: string
         default: 'latest'
@@ -55,6 +55,31 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Validar formato semver
+        if: github.event_name == 'workflow_dispatch' && inputs.version_tag != '' && inputs.version_tag != 'latest'
+        run: |
+          VERSION_TAG="${{ inputs.version_tag }}"
+          # Regex para semver: v?MAJOR.MINOR.PATCH[-prerelease][+build]
+          SEMVER_REGEX="^v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$"
+
+          if [[ ! "$VERSION_TAG" =~ $SEMVER_REGEX ]]; then
+            echo "❌ Erro: version_tag '$VERSION_TAG' não é um formato semver válido"
+            echo ""
+            echo "Formatos válidos:"
+            echo "  - v1.2.3"
+            echo "  - 1.2.3"
+            echo "  - v2.0.0-alpha.1"
+            echo "  - v1.0.0-beta.2+build.123"
+            echo ""
+            echo "Formatos inválidos:"
+            echo "  - v1.2 (falta PATCH)"
+            echo "  - latest-v1 (formato incorreto)"
+            echo "  - 1.2.3.4 (muitos dígitos)"
+            exit 1
+          fi
+
+          echo "✅ version_tag '$VERSION_TAG' validado com sucesso"
 
       - name: Detectar servicos modificados
         id: set-matrix
@@ -147,6 +172,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Aviso sobre política de push em PRs
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "## ⚠️ Aviso: Pull Request - Build sem Push" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Este build foi disparado por um **Pull Request**." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### O que acontecerá:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Build da imagem será executado normalmente" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Testes e validações serão realizados" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ **Imagem NÃO será enviada para o registry GHCR**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Por quê?" >> $GITHUB_STEP_SUMMARY
+          echo "Por segurança, apenas código revisado e aprovado é publicado no registry." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Como fazer push após aprovação do PR:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "# Opção 1: Merge do PR (recomendado)" >> $GITHUB_STEP_SUMMARY
+          echo "# O merge automático dispara build com push" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Opção 2: Workflow manual" >> $GITHUB_STEP_SUMMARY
+          echo "gh workflow run build-and-push-ghcr.yml \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --ref ${{ github.head_ref }} \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -f services=\"${{ matrix.service }}\" \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -f version_tag=\"v1.x.x\"" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
       - name: Set lowercase owner
         id: owner
         run: echo "lowercase=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
@@ -185,6 +238,9 @@ jobs:
             type=raw,value=latest
             type=sha,prefix=
             type=ref,event=branch
+            type=raw,value=${{ inputs.version_tag }},enable=${{ github.event_name == 'workflow_dispatch' && inputs.version_tag != '' && inputs.version_tag != 'latest' }}
+            type=semver,pattern={{version}},value=${{ inputs.version_tag }},enable=${{ github.event_name == 'workflow_dispatch' && startsWith(inputs.version_tag, 'v') }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.version_tag }},enable=${{ github.event_name == 'workflow_dispatch' && startsWith(inputs.version_tag, 'v') }}
 
       - name: Build e Push
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
@@ -192,6 +248,17 @@ jobs:
         with:
           context: .
           file: services/${{ matrix.service }}/Dockerfile
+          # ============================================================================
+          # POLÍTICA DE SEGURANÇA - PUSH PARA REGISTRY
+          # ============================================================================
+          # Pull Requests: Build é executado para validação, mas NÃO faz push para o registry.
+          #                Isso previne que código não revisado seja publicado.
+          #
+          # Push em branches: Build E push são executados automaticamente.
+          #
+          # Workflow manual: Build E push são executados com controle total de versão.
+          #                  Use workflow_dispatch para forçar build/push de PRs após revisão.
+          # ============================================================================
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -218,17 +285,26 @@ jobs:
           echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Version Tag:** ${{ inputs.version_tag || 'auto (latest/sha)' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           if [[ "${{ needs.detect-changes.outputs.has_changes }}" == "true" ]]; then
             echo "### Servicos Buildados" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "| Servico | Imagem |" >> $GITHUB_STEP_SUMMARY
             echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
-            
+
+            # Determinar tag para exibição
+            VERSION_TAG="${{ inputs.version_tag }}"
+            if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "$VERSION_TAG" && "$VERSION_TAG" != "latest" ]]; then
+              DISPLAY_TAG="$VERSION_TAG"
+            else
+              DISPLAY_TAG="latest"
+            fi
+
             IFS=',' read -ra SERVICES <<< "${{ needs.detect-changes.outputs.services_list }}"
             for svc in "${SERVICES[@]}"; do
-              echo "| $svc | ghcr.io/${{ env.IMAGE_PREFIX }}/$svc |" >> $GITHUB_STEP_SUMMARY
+              echo "| $svc | ghcr.io/${{ env.IMAGE_PREFIX }}/$svc:$DISPLAY_TAG |" >> $GITHUB_STEP_SUMMARY
             done
           else
             echo "Nenhum servico foi buildado (sem mudancas detectadas)" >> $GITHUB_STEP_SUMMARY
@@ -252,6 +328,26 @@ jobs:
           echo "  -n neural-hive" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "### ⚠️ Política de Push" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Status:** Build executado, mas imagens **NÃO foram enviadas** para o registry." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Para publicar as imagens após aprovação do PR:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Faça merge do PR (dispara build automático com push)" >> $GITHUB_STEP_SUMMARY
+            echo "2. Ou use workflow_dispatch manualmente (veja documentação)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ Imagens Publicadas" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Registry:** ghcr.io/${{ env.IMAGE_PREFIX }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Tags geradas:** latest, SHA, branch" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "${{ inputs.version_tag }}" && "${{ inputs.version_tag }}" != "latest" ]]; then
+              echo "**Versão semântica:** ${{ inputs.version_tag }}" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
       - name: Notificar sucesso
         if: needs.build-and-push.result == 'success'
         run: |
@@ -262,3 +358,46 @@ jobs:
         run: |
           echo "Build failed - check logs for details"
           exit 1
+
+  # ============================================================================
+  # Job 4: Disparar Deployment Automático
+  # ============================================================================
+  # Este job só executa em pushes diretos ou workflow_dispatch, NÃO em PRs.
+  # PRs fazem build para validação mas não disparam deployment.
+  # O workflow deploy-after-build.yml é disparado via workflow_run event.
+  trigger-deployment:
+    name: Disparar Deployment
+    runs-on: self-hosted
+    needs: [detect-changes, build-and-push, summary]
+    if: github.event_name != 'pull_request' && needs.build-and-push.result == 'success'
+
+    steps:
+      - name: Informar sobre deployment automático
+        run: |
+          echo "## 🚀 Deployment Automático" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "O workflow **deploy-after-build.yml** será disparado automaticamente." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Configuração | Valor |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch** | ${{ github.ref_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Serviços** | ${{ needs.detect-changes.outputs.services_list }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Determinar ambiente baseado na branch
+          BRANCH="${{ github.ref_name }}"
+          case "$BRANCH" in
+            main|master)
+              ENV="production"
+              ;;
+            develop)
+              ENV="staging"
+              ;;
+            *)
+              ENV="development"
+              ;;
+          esac
+          echo "| **Ambiente alvo** | $ENV |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Acompanhe o progresso em: **Actions > Deploy After Build**" >> $GITHUB_STEP_SUMMARY

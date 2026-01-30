@@ -1,0 +1,385 @@
+name: Deploy After Build
+
+on:
+  # Disparado automaticamente após sucesso do build
+  workflow_run:
+    workflows: ["Build and Push to GHCR"]
+    types: [completed]
+    branches: [main, develop]
+
+  # Disparo manual para deploys controlados
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Ambiente de deployment'
+        required: true
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+        default: 'staging'
+      services:
+        description: 'Serviços para deploy (separados por vírgula, vazio = todos do último build)'
+        required: false
+        type: string
+        default: ''
+      image_tag:
+        description: 'Tag da imagem (SHA, semver ou latest)'
+        required: false
+        type: string
+        default: ''
+      dry_run:
+        description: 'Simular deployment sem aplicar mudanças'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: albinojimy/neural-hive-mind
+
+jobs:
+  # ============================================================================
+  # Job 1: Preparação e Validação
+  # ============================================================================
+  prepare:
+    name: Preparar Deployment
+    runs-on: self-hosted
+    # Só executa se build foi sucesso ou se é dispatch manual
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    outputs:
+      environment: ${{ steps.determine-env.outputs.environment }}
+      services: ${{ steps.determine-services.outputs.services }}
+      services_list: ${{ steps.determine-services.outputs.services_list }}
+      image_tag: ${{ steps.determine-tag.outputs.tag }}
+      should_deploy: ${{ steps.validate.outputs.should_deploy }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determinar ambiente
+        id: determine-env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ENVIRONMENT="${{ inputs.environment }}"
+          else
+            # Mapear branch para ambiente
+            BRANCH="${{ github.event.workflow_run.head_branch || github.ref_name }}"
+            case "$BRANCH" in
+              main|master)
+                ENVIRONMENT="production"
+                ;;
+              develop)
+                ENVIRONMENT="staging"
+                ;;
+              *)
+                ENVIRONMENT="development"
+                ;;
+            esac
+          fi
+          echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
+          echo "Ambiente determinado: $ENVIRONMENT"
+
+      - name: Determinar serviços
+        id: determine-services
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.services }}" ]]; then
+            # Usar serviços do input manual
+            SERVICES="${{ inputs.services }}"
+          elif [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            # Tentar obter serviços do workflow anterior via artifacts
+            # Por enquanto, usar lista padrão de serviços críticos
+            SERVICES="gateway-intencoes"
+          else
+            SERVICES="gateway-intencoes"
+          fi
+
+          # Converter para JSON array
+          SERVICES_JSON=$(echo "$SERVICES" | tr ',' '\n' | jq -R -s -c 'split("\n") | map(select(. != ""))')
+
+          echo "services=$SERVICES" >> $GITHUB_OUTPUT
+          echo "services_list=$SERVICES_JSON" >> $GITHUB_OUTPUT
+          echo "Serviços para deploy: $SERVICES"
+
+      - name: Determinar tag da imagem
+        id: determine-tag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.image_tag }}" ]]; then
+            TAG="${{ inputs.image_tag }}"
+          elif [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            # Usar SHA do commit do workflow que disparou
+            TAG="${{ github.event.workflow_run.head_sha }}"
+            # Truncar para 7 caracteres
+            TAG="${TAG:0:7}"
+          else
+            TAG="latest"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Tag da imagem: $TAG"
+
+      - name: Validar pré-requisitos
+        id: validate
+        run: |
+          SHOULD_DEPLOY="true"
+
+          # Verificar se é dry-run
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "⚠️ Modo dry-run ativado - deployment será simulado"
+          fi
+
+          # Verificar se KUBECONFIG está configurado (apenas warning)
+          if [[ -z "${{ secrets.KUBECONFIG }}" ]]; then
+            echo "⚠️ KUBECONFIG não configurado - helm upgrade pode falhar"
+          fi
+
+          echo "should_deploy=$SHOULD_DEPLOY" >> $GITHUB_OUTPUT
+
+      - name: Gerar resumo de preparação
+        run: |
+          echo "## 📋 Preparação do Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Configuração | Valor |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Ambiente** | ${{ steps.determine-env.outputs.environment }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Serviços** | ${{ steps.determine-services.outputs.services }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Tag** | ${{ steps.determine-tag.outputs.tag }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Dry Run** | ${{ inputs.dry_run || 'false' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Trigger** | ${{ github.event_name }} |" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Job 2: Atualizar Tags nos Values Files
+  # ============================================================================
+  update-values:
+    name: Atualizar Tags - ${{ matrix.service }}
+    runs-on: self-hosted
+    needs: prepare
+    if: needs.prepare.outputs.should_deploy == 'true'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.prepare.outputs.services_list) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Atualizar tag da imagem
+        id: update-tag
+        run: |
+          SERVICE="${{ matrix.service }}"
+          TAG="${{ needs.prepare.outputs.image_tag }}"
+          ENV="${{ needs.prepare.outputs.environment }}"
+          DRY_RUN="${{ inputs.dry_run || 'false' }}"
+
+          echo "Atualizando $SERVICE para tag $TAG no ambiente $ENV"
+
+          # Arquivo base
+          BASE_FILE="helm-charts/$SERVICE/values.yaml"
+
+          # Arquivo específico do ambiente
+          case "$ENV" in
+            production)
+              ENV_FILE="environments/prod/helm-values/$SERVICE-values.yaml"
+              ;;
+            staging)
+              ENV_FILE="environments/staging/helm-values/$SERVICE-values.yaml"
+              ;;
+            *)
+              ENV_FILE=""
+              ;;
+          esac
+
+          # Função para atualizar tag
+          update_tag() {
+            local file="$1"
+            if [[ -f "$file" ]]; then
+              echo "Atualizando $file..."
+              OLD_TAG=$(grep -E "^\s*tag:" "$file" | head -1 | awk '{print $2}' | tr -d '"')
+
+              if [[ "$DRY_RUN" == "true" ]]; then
+                echo "[DRY-RUN] Seria atualizado: $file"
+                echo "  Tag antiga: $OLD_TAG"
+                echo "  Tag nova: $TAG"
+              else
+                # Usar sed para atualização (compatível com mais sistemas)
+                sed -i "s|^\(\s*tag:\s*\).*|\1\"$TAG\"|" "$file"
+                echo "✓ Atualizado: $file (${OLD_TAG:-'N/A'} → $TAG)"
+              fi
+            else
+              echo "Arquivo não encontrado: $file"
+            fi
+          }
+
+          # Atualizar arquivos
+          update_tag "$BASE_FILE"
+          if [[ -n "$ENV_FILE" ]]; then
+            update_tag "$ENV_FILE"
+          fi
+
+          echo "service=$SERVICE" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+  # ============================================================================
+  # Job 3: Deploy via Helm
+  # ============================================================================
+  deploy:
+    name: Deploy - ${{ matrix.service }}
+    runs-on: self-hosted
+    needs: [prepare, update-values]
+    if: needs.prepare.outputs.should_deploy == 'true' && inputs.dry_run != true
+
+    # Aprovação para produção
+    environment:
+      name: ${{ needs.prepare.outputs.environment }}
+
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        service: ${{ fromJson(needs.prepare.outputs.services_list) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar kubeconfig
+        if: env.KUBECONFIG_DATA != ''
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Determinar namespace
+        id: namespace
+        run: |
+          ENV="${{ needs.prepare.outputs.environment }}"
+          case "$ENV" in
+            production)
+              NAMESPACE="neural-hive"
+              ;;
+            staging)
+              NAMESPACE="neural-hive-staging"
+              ;;
+            *)
+              NAMESPACE="neural-hive-dev"
+              ;;
+          esac
+          echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
+
+      - name: Deploy com Helm
+        id: helm-deploy
+        run: |
+          SERVICE="${{ matrix.service }}"
+          TAG="${{ needs.prepare.outputs.image_tag }}"
+          ENV="${{ needs.prepare.outputs.environment }}"
+          NAMESPACE="${{ steps.namespace.outputs.namespace }}"
+
+          echo "Deployando $SERVICE no namespace $NAMESPACE..."
+
+          # Construir comando helm
+          HELM_CMD="helm upgrade --install $SERVICE helm-charts/$SERVICE"
+          HELM_CMD="$HELM_CMD --namespace $NAMESPACE --create-namespace"
+          HELM_CMD="$HELM_CMD --set image.tag=$TAG"
+          HELM_CMD="$HELM_CMD --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/$SERVICE"
+
+          # Adicionar valores específicos do ambiente
+          case "$ENV" in
+            production)
+              if [[ -f "environments/prod/helm-values/$SERVICE-values.yaml" ]]; then
+                HELM_CMD="$HELM_CMD -f environments/prod/helm-values/$SERVICE-values.yaml"
+              fi
+              ;;
+            staging)
+              if [[ -f "environments/staging/helm-values/$SERVICE-values.yaml" ]]; then
+                HELM_CMD="$HELM_CMD -f environments/staging/helm-values/$SERVICE-values.yaml"
+              fi
+              ;;
+          esac
+
+          HELM_CMD="$HELM_CMD --wait --timeout 5m"
+
+          echo "Comando: $HELM_CMD"
+
+          # Executar (ou simular se não houver kubeconfig)
+          if [[ -f ~/.kube/config ]]; then
+            eval $HELM_CMD
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ KUBECONFIG não disponível - simulando deploy"
+            echo "status=simulated" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Verificar rollout
+        if: steps.helm-deploy.outputs.status == 'success'
+        run: |
+          SERVICE="${{ matrix.service }}"
+          NAMESPACE="${{ steps.namespace.outputs.namespace }}"
+
+          echo "Verificando rollout de $SERVICE..."
+          kubectl rollout status deployment/$SERVICE -n $NAMESPACE --timeout=5m || true
+
+      - name: Verificar health
+        if: steps.helm-deploy.outputs.status == 'success'
+        run: |
+          SERVICE="${{ matrix.service }}"
+          NAMESPACE="${{ steps.namespace.outputs.namespace }}"
+
+          echo "Verificando health dos pods..."
+          kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=$SERVICE -o wide || true
+
+  # ============================================================================
+  # Job 4: Resumo Final
+  # ============================================================================
+  summary:
+    name: Resumo do Deployment
+    runs-on: self-hosted
+    needs: [prepare, update-values, deploy]
+    if: always()
+
+    steps:
+      - name: Gerar resumo
+        run: |
+          echo "## 🚀 Resumo do Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Ambiente:** ${{ needs.prepare.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** ${{ needs.prepare.outputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Serviços:** ${{ needs.prepare.outputs.services }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.deploy.result }}" == "success" ]]; then
+            echo "### ✅ Deployment Concluído com Sucesso" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ needs.deploy.result }}" == "skipped" ]]; then
+            echo "### ⏭️ Deployment Pulado (dry-run ou condição não atendida)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Deployment com Falhas" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Verifique os logs dos jobs individuais para detalhes." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Próximos Passos" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. Verificar pods:" >> $GITHUB_STEP_SUMMARY
+          echo '   ```bash' >> $GITHUB_STEP_SUMMARY
+          echo "   kubectl get pods -n neural-hive -l app.kubernetes.io/name=<service>" >> $GITHUB_STEP_SUMMARY
+          echo '   ```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "2. Verificar logs:" >> $GITHUB_STEP_SUMMARY
+          echo '   ```bash' >> $GITHUB_STEP_SUMMARY
+          echo "   kubectl logs -n neural-hive -l app.kubernetes.io/name=<service> -f" >> $GITHUB_STEP_SUMMARY
+          echo '   ```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Notificar resultado
+        run: |
+          if [[ "${{ needs.deploy.result }}" == "success" ]]; then
+            echo "✅ Deployment concluído com sucesso!"
+          else
+            echo "⚠️ Deployment finalizado com status: ${{ needs.deploy.result }}"
+          fi

@@ -5,8 +5,13 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/albinojimy/neural-hive-mind/gateway-intencoes
+  # Pull policy para tag 'latest'
+  # Always: Obrigatório para tags mutáveis como 'latest' para garantir versão mais recente
+  # Kubernetes não detecta mudanças em tags mutáveis, então Always força verificação no registry
   pullPolicy: Always
   tag: "latest"
+imagePullSecrets:
+  - name: ghcr-secret
 
 nameOverride: ""
 fullnameOverride: ""

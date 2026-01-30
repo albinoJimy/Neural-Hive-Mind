@@ -338,6 +338,62 @@ Use o deploy CLI para aplicar manifests com versão/tag corretas; tags vêm do `
 
 Ver também: `QUICK_START_EKS.md` para guia completo de deployment no EKS (atualizado para os CLIs).
 
+### Configurar Autenticação GHCR
+
+Todos os deployments requerem autenticação para pull de imagens do GitHub Container Registry:
+
+#### 1. Criar Personal Access Token (PAT)
+
+1. Acesse https://github.com/settings/tokens
+2. Clique em "Generate new token (classic)"
+3. Selecione os escopos:
+   - `read:packages` - para pull de imagens
+   - `write:packages` - (opcional) para push de imagens
+4. Copie o token gerado
+
+#### 2. Criar Secret no Cluster
+
+Para cada namespace que executa deployments:
+
+```bash
+# Namespace gateway (deployment K8s standalone)
+kubectl create secret docker-registry ghcr-secret \
+  --docker-server=ghcr.io \
+  --docker-username=<GITHUB_USERNAME> \
+  --docker-password=<GITHUB_TOKEN> \
+  -n gateway
+
+# Namespace neural-hive (deployments Helm)
+kubectl create secret docker-registry ghcr-secret \
+  --docker-server=ghcr.io \
+  --docker-username=<GITHUB_USERNAME> \
+  --docker-password=<GITHUB_TOKEN> \
+  -n neural-hive
+
+# Outros namespaces conforme necessário
+kubectl create secret docker-registry ghcr-secret \
+  --docker-server=ghcr.io \
+  --docker-username=<GITHUB_USERNAME> \
+  --docker-password=<GITHUB_TOKEN> \
+  -n <NAMESPACE>
+```
+
+#### 3. Verificar Configuração
+
+```bash
+# Verificar se secret existe
+kubectl get secret ghcr-secret -n gateway
+kubectl get secret ghcr-secret -n neural-hive
+
+# Testar pull de imagem
+kubectl run test-pull --rm -it --restart=Never \
+  --image=ghcr.io/albinojimy/neural-hive-mind/gateway-intencoes:latest \
+  --overrides='{"spec":{"imagePullSecrets":[{"name":"ghcr-secret"}]}}' \
+  -n gateway -- echo "Pull OK"
+```
+
+**Nota:** O secret `ghcr-secret` deve ser criado em cada namespace antes do primeiro deployment. Para automação, consulte `docs/ghcr-ci-cd-guide.md`.
+
 ## Gerenciamento de Dependências
 
 ### Estrutura de Requirements

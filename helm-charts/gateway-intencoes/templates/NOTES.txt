@@ -58,6 +58,35 @@ Environment: {{ .Values.config.environment }}
 
 ═══════════════════════════════════════════════════════════════
 
+🐳 CONFIGURAÇÃO DE IMAGEM
+
+Repository: {{ .Values.image.repository }}
+Tag: {{ .Values.image.tag }}
+Pull Policy: {{ .Values.image.pullPolicy }}
+
+{{- $pullPolicy := .Values.image.pullPolicy }}
+{{- $tag := .Values.image.tag }}
+{{- if and (eq $pullPolicy "IfNotPresent") (or (eq $tag "latest") (hasSuffix "-SNAPSHOT" $tag)) }}
+
+⚠️  AVISO: Inconsistência detectada!
+   Pull Policy 'IfNotPresent' com tag mutável '{{ $tag }}'
+
+   Recomendação:
+   - Para tag 'latest' ou tags mutáveis, use pullPolicy: Always
+   - Para tags fixas/versionadas, use pullPolicy: IfNotPresent
+{{- end }}
+
+{{- if and (eq $pullPolicy "Always") (regexMatch "^[0-9]+\\.[0-9]+\\.[0-9]+$" $tag) }}
+
+ℹ️  INFORMAÇÃO: Pull Policy 'Always' com tag versionada '{{ $tag }}'
+
+   Consideração:
+   - Tags semânticas são imutáveis, pullPolicy: IfNotPresent pode otimizar performance
+   - Mantenha 'Always' apenas se houver necessidade de forçar re-download
+{{- end }}
+
+═══════════════════════════════════════════════════════════════
+
 🚀 PRÓXIMOS PASSOS
 
 1. Testar endpoint de health:

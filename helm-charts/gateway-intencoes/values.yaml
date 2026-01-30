@@ -1,8 +1,25 @@
 # Configurações do Gateway de Intenções
+#
+# Estratégia de Image Pull Policy por Ambiente:
+# ┌─────────────┬──────────────┬─────────────────┬────────────────────────────────────────┐
+# │ Ambiente    │ Pull Policy  │ Tag Strategy    │ Justificativa                          │
+# ├─────────────┼──────────────┼─────────────────┼────────────────────────────────────────┤
+# │ Production  │ IfNotPresent │ Semver (1.1.2)  │ Otimização: reduz latência e custos    │
+# │ Staging     │ Always       │ Semver/latest   │ Testes: garante versão mais recente    │
+# │ Development │ Always       │ latest/branch   │ Iteração rápida com builds frequentes  │
+# │ K8s Direct  │ IfNotPresent │ Semver (1.1.2)  │ Deployment direto com tag fixa         │
+# └─────────────┴──────────────┴─────────────────┴────────────────────────────────────────┘
+#
+# Regra Geral:
+# - Tags fixas/versionadas (1.x.x, v1.x.x) → IfNotPresent
+# - Tags mutáveis (latest, main, develop) → Always
+#
 image:
   repository: ghcr.io/albinojimy/neural-hive-mind/gateway-intencoes
   pullPolicy: Always
   tag: "1.1.2"
+imagePullSecrets:
+  - name: ghcr-secret
 
 replicaCount: 3
 

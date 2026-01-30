@@ -66,9 +66,15 @@ spec:
         app: gateway-intencoes
         component: gateway
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
       - name: gateway
         image: ghcr.io/albinojimy/neural-hive-mind/gateway-intencoes:1.1.2
+        # Pull policy para tag fixa versionada
+        # IfNotPresent: Otimiza performance evitando downloads desnecessários
+        # Tag semântica (1.1.2) é imutável, garantindo consistência sem verificação constante do registry
+        # Para atualizar, modifique a tag da imagem (não apenas republique a mesma tag)
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8000
