@@ -55,7 +55,7 @@ def extract_context_from_headers(headers: Dict[str, str]):
 class ContextManager:
     """Gerenciador de contexto distribuído."""
 
-    def __init__(self, config: Optional[ObservabilityConfig] = None):
+    def __init__(self, config: ObservabilityConfig):
         """
         Inicializa context manager.
 
@@ -63,56 +63,25 @@ class ContextManager:
             config: Configuração de observabilidade (obrigatório)
 
         Raises:
-            ValueError: Se config for None ou service_name for inválido
-            TypeError: Se config não for uma instância de ObservabilityConfig
+            ValueError: Se config for None ou inválido
+            TypeError: Se config não for ObservabilityConfig
         """
-        # Logging diagnóstico do estado recebido
-        logger.debug(f"ContextManager.__init__ chamado com config={config}, type={type(config)}")
-
-        # Validação robusta do config
         if config is None:
-            logger.error(
-                "ContextManager.__init__ recebeu config=None. "
-                "Isso indica que init_observability() não foi chamado ou falhou. "
-                "Verifique os logs de inicialização do serviço."
-            )
-            raise ValueError(
-                "config não pode ser None para ContextManager. "
-                "Certifique-se de que init_observability() foi chamado antes de criar ContextManager."
-            )
+            raise ValueError("config é obrigatório para ContextManager")
 
-        # Validação de tipo
-        logger.debug(f"Validando tipo de config: {type(config).__name__}")
         if not isinstance(config, ObservabilityConfig):
-            logger.error(
-                f"ContextManager.__init__ recebeu config de tipo inválido: {type(config).__name__}. "
-                f"Esperado: ObservabilityConfig. Recebido: {config}"
-            )
             raise TypeError(
-                f"config deve ser uma instância de ObservabilityConfig, recebido {type(config).__name__}. "
-                "Use init_observability() para criar a configuração corretamente."
+                f"config deve ser ObservabilityConfig, recebido {type(config).__name__}"
             )
 
-        # Validação de service_name
-        service_name = getattr(config, 'service_name', None)
-        logger.debug(f"Validando service_name: {service_name}")
-        if not service_name or (isinstance(service_name, str) and not service_name.strip()):
-            logger.error(
-                f"ContextManager.__init__ recebeu config com service_name inválido: '{service_name}'. "
-                f"Config completo: {config}"
-            )
-            raise ValueError(
-                "config.service_name não pode ser None ou vazio. "
-                "Verifique se init_observability() foi chamado com service_name válido."
-            )
-
+        # A validação detalhada é feita no __post_init__ do ObservabilityConfig
         self.config = config
         self._local = threading.local()
 
-        # Logging de sucesso
         logger.debug(
-            f"ContextManager inicializado com sucesso para service_name={self.config.service_name}, "
-            f"component={getattr(self.config, 'neural_hive_component', 'N/A')}"
+            "context_manager_initialized",
+            service_name=self.config.service_name,
+            component=self.config.neural_hive_component
         )
 
     @contextmanager

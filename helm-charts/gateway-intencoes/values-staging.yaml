@@ -1,0 +1,164 @@
+# Staging values for gateway-intencoes
+# Neural Hive-Mind - Staging environment configuration
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/albinojimy/neural-hive-mind/gateway-intencoes
+  pullPolicy: Always
+  tag: "latest"
+
+imagePullSecrets:
+  - name: ghcr-secret
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+ingress:
+  enabled: false
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+
+serviceAccount:
+  create: false
+  name: default
+
+initContainers:
+  modelDownloader:
+    enabled: false
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podSecurityContext:
+  fsGroup: 1001
+  runAsGroup: 1001
+  runAsUser: 1001
+  runAsNonRoot: true
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+config:
+  environment: "staging"
+  logLevel: "INFO"
+  debug: false
+
+  kafka:
+    bootstrapServers: "neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092"
+    schemaRegistryUrl: "http://schema-registry.neural-hive-kafka.svc.cluster.local:8081"
+    tls:
+      enabled: false
+    sasl:
+      enabled: false
+
+  redis:
+    clusterNodes: "neural-hive-cache.redis-cluster.svc.cluster.local:6379"
+    defaultTtl: 600
+    maxConnections: 100
+    ssl:
+      enabled: false
+
+  keycloak:
+    url: ""
+    realm: ""
+    clientId: ""
+    tokenValidationEnabled: false
+
+  asr:
+    modelName: "base"
+    device: "cpu"
+
+  nlu:
+    languageModel: "pt_core_news_sm"
+    confidenceThreshold: 0.75
+
+  limits:
+    maxAudioSizeMb: 10
+    maxTextLength: 10000
+
+  cors:
+    allowedOrigins: ["*"]
+    allowedHosts: ["*"]
+
+secrets:
+  jwtSecretKey: "neural-hive-staging-secret-key"
+  kafka:
+    username: ""
+    password: ""
+  redis:
+    password: ""
+  keycloak:
+    clientSecret: ""
+
+serviceMonitor:
+  enabled: false
+
+# IMPORTANTE: Staging usa HTTP sem TLS para OTEL Collector
+# Não usar https:// aqui - o collector não tem TLS habilitado
+observability:
+  otelEnabled: true
+  # HTTP (não HTTPS) - o OTEL Collector em staging não usa TLS
+  otelEndpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+  prometheus:
+    enabled: false
+    serviceMonitor:
+      enabled: false
+  jaeger:
+    endpoint: "http://jaeger-collector.monitoring.svc.cluster.local:14268/api/traces"
+  tracing:
+    enabled: true
+
+networkPolicy:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false
+
+istio:
+  enabled: false
+
+volumes:
+  - name: model-cache
+    emptyDir: {}
+
+volumeMounts:
+  - name: model-cache
+    mountPath: /app/models

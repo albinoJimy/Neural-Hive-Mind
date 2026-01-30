@@ -220,217 +220,46 @@ rate_limiter: Optional[RateLimiter] = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Gerenciamento do ciclo de vida da aplicação"""
+    """Gerenciamento do ciclo de vida da aplicação usando ApplicationBootstrapper."""
     global asr_pipeline, nlu_pipeline, kafka_producer, redis_client, oauth2_validator, health_manager, rate_limiter
 
-    logger.info("Iniciando Gateway de Intenções com camada de memória")
+    from bootstrap import ApplicationBootstrapper
+
+    logger.info("gateway_startup_started")
 
     try:
-        # Inicializar Redis Cache
-        logger.info("Conectando ao Redis Cluster")
-        redis_client = await get_redis_client()
+        # Usar ApplicationBootstrapper para inicialização organizada
+        bootstrapper = ApplicationBootstrapper(settings)
+        app_context = await bootstrapper.bootstrap()
 
-        # Inicializar OAuth2 Validator
-        logger.info("Inicializando validador OAuth2")
-        oauth2_validator = await get_oauth2_validator()
+        if not app_context.initialized:
+            error_msg = f"Falha na inicialização: {app_context.errors}"
+            logger.error("gateway_startup_failed", errors=app_context.errors)
+            raise RuntimeError(error_msg)
 
-        # Inicializar Rate Limiter
-        import json
-        logger.info("Inicializando Rate Limiter")
-        rate_limiter = RateLimiter(
-            redis_client=redis_client,
-            enabled=settings.rate_limit_enabled,
-            default_limit=settings.rate_limit_requests_per_minute,
-            burst_size=settings.rate_limit_burst_size,
-            fail_open=settings.rate_limit_fail_open
-        )
+        # Atribuir componentes ao escopo global
+        redis_client = app_context.redis_client
+        oauth2_validator = app_context.oauth2_validator
+        rate_limiter = app_context.rate_limiter
+        asr_pipeline = app_context.asr_pipeline
+        nlu_pipeline = app_context.nlu_pipeline
+        kafka_producer = app_context.kafka_producer
+        health_manager = app_context.health_manager
 
-        # Carregar configuracoes de rate limit por tenant/user
-        try:
-            tenant_overrides = json.loads(settings.rate_limit_tenant_overrides)
-            for tenant_id, limit in tenant_overrides.items():
-                rate_limiter.set_tenant_limit(tenant_id, limit)
-        except json.JSONDecodeError as e:
-            logger.warning(f"Erro ao parsear rate_limit_tenant_overrides: {e}")
-
-        try:
-            user_overrides = json.loads(settings.rate_limit_user_overrides)
-            for user_id, limit in user_overrides.items():
-                rate_limiter.set_user_limit(user_id, limit)
-        except json.JSONDecodeError as e:
-            logger.warning(f"Erro ao parsear rate_limit_user_overrides: {e}")
-
-        set_rate_limiter(rate_limiter)
-        logger.info(
-            "rate_limiter_initialized",
-            enabled=settings.rate_limit_enabled,
-            default_limit=settings.rate_limit_requests_per_minute,
-            fail_open=settings.rate_limit_fail_open
-        )
-
-        # Inicializar pipelines de processamento
-        logger.info("Carregando pipeline ASR")
-        asr_pipeline = ASRPipeline(
-            model_name=settings.asr_model_name,
-            device=settings.asr_device
-        )
-        await asr_pipeline.initialize()
-
-        logger.info("Carregando pipeline NLU")
-        nlu_pipeline = NLUPipeline(
-            language_model=settings.nlu_language_model,
-            confidence_threshold=settings.nlu_confidence_threshold
-        )
-        await nlu_pipeline.initialize()
-
-        # IMPORTANTE: Ordem de inicialização é crítica:
-        # 1. Redis, OAuth2, Rate Limiter (infraestrutura base)
-        # 2. ASR/NLU pipelines (processamento)
-        # 3. Observabilidade (DEVE vir antes do Kafka)
-        # 4. Kafka producer (depende de observabilidade para instrumentação)
-        # 5. Health checks (validação final)
-
-        # Inicializar observabilidade ANTES do Kafka producer
-        # para garantir que instrument_kafka_producer() tenha acesso ao config global
-        if settings.otel_enabled and OBSERVABILITY_AVAILABLE:
-            from neural_hive_observability import init_observability
-
-            # Inicializar stack completo de observabilidade
-            init_observability(
-                service_name="gateway-intencoes",
-                service_version="1.0.7",
-                neural_hive_component="gateway",
-                neural_hive_layer="experiencia",
-                neural_hive_domain="captura-intencoes",
-                environment=settings.environment,
-                otel_endpoint=settings.otel_endpoint,
-                prometheus_port=settings.prometheus_port,
-            )
-
-            # FastAPIInstrumentor movido para após criação do app (não pode ser chamado no lifespan)
-            logger.info(
-                "Observabilidade inicializada com sucesso",
-                service_name="gateway-intencoes",
-                neural_hive_component="gateway",
-                neural_hive_layer="experiencia",
-                otel_endpoint=settings.otel_endpoint
-            )
-        else:
-            if settings.otel_enabled and not OBSERVABILITY_AVAILABLE:
-                logger.warning("OpenTelemetry solicitado mas biblioteca neural_hive_observability não disponível - usando stubs")
-            else:
-                logger.info("OpenTelemetry desabilitado - usando stubs para dev local")
-
-        # Inicializar producer Kafka (após observabilidade para instrumentação correta)
-        logger.info(
-            "Conectando ao Kafka",
-            otel_enabled=settings.otel_enabled,
-            observability_available=OBSERVABILITY_AVAILABLE
-        )
-        kafka_producer = KafkaIntentProducer(
-            bootstrap_servers=settings.kafka_bootstrap_servers,
-            schema_registry_url=settings.schema_registry_url
-        )
-        await kafka_producer.initialize()
-
-        # Initialize standardized health checks
-        logger.info("Configurando health checks padronizados")
-        if HEALTH_MANAGER_NEEDS_CONFIG:
-            # Versão 1.2.x - HealthChecker requer ObservabilityConfig
-            obs_config = ObservabilityConfig(
-                service_name="gateway-intencoes",
-                service_version="1.0.7",
-                neural_hive_component="gateway",
-                neural_hive_layer="experiencia",
-                environment=settings.environment
-            )
-            health_manager = HealthManager(obs_config)
-        else:
-            # Versão 1.3.1+ - HealthManager sem argumentos
-            health_manager = HealthManager()
-
-        # Add Redis health check
-        # Nota: redis_client.ping é async, passar diretamente (não usar lambda)
-        # RedisHealthCheck suporta funções async via asyncio.iscoroutinefunction()
-        if redis_client:
-            health_manager.register_check(
-                RedisHealthCheck("redis", redis_client.ping)
-            )
-
-        # Add ASR pipeline health check
-        if asr_pipeline:
-            health_manager.register_check(
-                CustomHealthCheck(
-                    "asr_pipeline",
-                    lambda: asr_pipeline.is_ready() if asr_pipeline else False,
-                    "ASR Pipeline"
-                )
-            )
-
-        # Add NLU pipeline health check
-        if nlu_pipeline:
-            health_manager.register_check(
-                CustomHealthCheck(
-                    "nlu_pipeline",
-                    lambda: nlu_pipeline.is_ready() if nlu_pipeline else False,
-                    "NLU Pipeline"
-                )
-            )
-
-        # Add Kafka producer health check
-        if kafka_producer:
-            health_manager.register_check(
-                CustomHealthCheck(
-                    "kafka_producer",
-                    lambda: kafka_producer.is_ready() if kafka_producer else False,
-                    "Kafka Producer"
-                )
-            )
-
-        # Add OAuth2 validator health check
-        if oauth2_validator:
-            health_manager.register_check(
-                CustomHealthCheck(
-                    "oauth2_validator",
-                    lambda: True,  # OAuth2 validator doesn't have is_ready method
-                    "OAuth2 Validator"
-                )
-            )
-
-        # Add OTEL pipeline health check
-        if settings.otel_enabled and OTEL_HEALTH_CHECK_AVAILABLE:
-            otel_health_check = OTELPipelineHealthCheck(
-                otel_endpoint=settings.otel_endpoint,
-                service_name="gateway-intencoes",
-                name="otel_pipeline",
-                timeout_seconds=5.0,
-                verify_trace_export=True
-            )
-            health_manager.register_check(otel_health_check)
-            logger.info("otel_pipeline_health_check_registered", otel_endpoint=settings.otel_endpoint)
-
-        logger.info("Gateway de Intenções iniciado com sucesso - Redis e OAuth2 ativos")
+        logger.info("gateway_startup_completed")
 
         yield
 
     except Exception as e:
-        logger.error("Erro durante inicialização", error=str(e), exc_info=True)
+        logger.error("gateway_startup_error", error=str(e), exc_info=True)
         raise
+
     finally:
-        # Cleanup
-        logger.info("Finalizando Gateway de Intenções")
-        if kafka_producer:
-            await kafka_producer.close()
-        if asr_pipeline:
-            await asr_pipeline.close()
-        if nlu_pipeline:
-            await nlu_pipeline.close()
-        if redis_client:
-            await close_redis_client()
-        if oauth2_validator:
-            await close_oauth2_validator()
-        if rate_limiter:
-            close_rate_limiter()
+        # Cleanup organizado
+        logger.info("gateway_shutdown_started")
+        if 'bootstrapper' in locals() and 'app_context' in locals():
+            await bootstrapper.shutdown(app_context)
+        logger.info("gateway_shutdown_completed")
 
 # Criar aplicação FastAPI
 app = FastAPI(
@@ -834,8 +663,6 @@ async def _process_text_intention_with_context(
     start_time: datetime
 ) -> Dict[str, Any]:
     """Processar intenção de texto com contexto de correlação."""
-    import sys
-    print(f"[KAFKA-DEBUG] _process_text_intention_with_context INICIADO - intent_id={intent_id}", file=sys.stderr, flush=True)
     try:
         # Log início do processamento
         logger.info(
@@ -908,14 +735,12 @@ async def _process_text_intention_with_context(
         import sys
         if nlu_result.confidence >= effective_threshold_high:
             # Alta ou média confiança - processar normalmente
-            print(f"[KAFKA-DEBUG] Enviando para Kafka - HIGH confidence: {nlu_result.confidence}", file=sys.stderr, flush=True)
             await kafka_producer.send_intent(
                 intent_envelope,
                 confidence_status=nlu_result.confidence_status,
                 requires_validation=nlu_result.requires_manual_validation,
                 adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled
             )
-            print(f"[KAFKA-DEBUG] Enviado com sucesso - HIGH", file=sys.stderr, flush=True)
             status_message = "processed"
             processing_notes = []
 
@@ -924,14 +749,12 @@ async def _process_text_intention_with_context(
 
         elif nlu_result.confidence >= effective_threshold_low:
             # Confiança baixa mas aceitável - processar com flag de baixa confiança
-            print(f"[KAFKA-DEBUG] Enviando para Kafka - LOW confidence: {nlu_result.confidence}", file=sys.stderr, flush=True)
             await kafka_producer.send_intent(
                 intent_envelope,
                 confidence_status="low",
                 requires_validation=True,
                 adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled
             )
-            print(f"[KAFKA-DEBUG] Enviado com sucesso - LOW", file=sys.stderr, flush=True)
             status_message = "processed_low_confidence"
             processing_notes = ["Processado com confiança baixa - recomenda-se validação"]
 
@@ -943,7 +766,6 @@ async def _process_text_intention_with_context(
             )
         else:  # confidence < effective_threshold_low
             # Confiança muito baixa - rotear para validação
-            print(f"[KAFKA-DEBUG] Enviando para Kafka - VALIDATION: {nlu_result.confidence}", file=sys.stderr, flush=True)
             await kafka_producer.send_intent(
                 intent_envelope,
                 topic_override="intentions.validation",
@@ -951,7 +773,6 @@ async def _process_text_intention_with_context(
                 requires_validation=True,
                 adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled
             )
-            print(f"[KAFKA-DEBUG] Enviado com sucesso - VALIDATION", file=sys.stderr, flush=True)
             status_message = "routed_to_validation"
             processing_notes = ["Confiança muito baixa - requer validação manual"]
 
@@ -1072,13 +893,10 @@ async def _process_text_intention_with_context(
     except Exception as e:
         error_str = str(e)
         import sys, traceback
-        print(f"[KAFKA-DEBUG] ❌ EXCEÇÃO em _process_text_intention_with_context: {error_str}", file=sys.stderr, flush=True)
-        print(f"[KAFKA-DEBUG] Tipo: {type(e).__name__}", file=sys.stderr, flush=True)
         traceback.print_exc(file=sys.stderr)
 
         # Check if it's a record too large error
         if "RECORD_TOO_LARGE" in error_str or "message size" in error_str.lower() or "rejeitada por exceder limite" in error_str:
-            print(f"[KAFKA-DEBUG] Detectado erro RECORD_TOO_LARGE", file=sys.stderr, flush=True)
             logger.error(
                 "Intenção rejeitada por tamanho excessivo",
                 intent_id=intent_id,
@@ -1099,7 +917,6 @@ async def _process_text_intention_with_context(
                 detail="Envelope de intenção excede limite de tamanho permitido (4MB). Considere reduzir o conteúdo da solicitação."
             )
 
-        print(f"[KAFKA-DEBUG] Erro genérico processando intenção", file=sys.stderr, flush=True)
         logger.error(
             "Erro processando intenção de texto",
             intent_id=intent_id,
