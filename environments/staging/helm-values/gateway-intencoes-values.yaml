@@ -47,14 +47,14 @@ config:
   logLevel: "INFO"
   debug: false
 
-  # Permitir HTTP para comunicação interna do cluster em staging
+  # Usar HTTPS mesmo em staging (ambiente suporta TLS)
   security:
-    allowInsecureHttpEndpoints: true
+    allowInsecureHttpEndpoints: false
 
-  # Staging Kafka endpoints
+  # Staging Kafka endpoints - usar HTTPS
   kafka:
     bootstrapServers: "neural-hive-kafka-bootstrap.neural-hive-kafka.svc.cluster.local:9092"
-    schemaRegistryUrl: "http://schema-registry.neural-hive-kafka.svc.cluster.local:8081"
+    schemaRegistryUrl: "https://schema-registry.neural-hive-kafka.svc.cluster.local:8081"
 
   # ASR Pipeline
   asr:
@@ -111,7 +111,8 @@ ingress:
         - gateway-staging.neural-hive.local
 
 # Node selection - staging pode usar qualquer node
-nodeSelector: {}
+# Usar null para remover completamente o nodeSelector da base
+nodeSelector: null
 
 # Desabilitar topology constraints para staging
 topologySpreadConstraints: []
@@ -147,9 +148,12 @@ serviceMonitor:
   labels:
     neural-hive-mind.org/monitoring: "enabled"
 
-# Staging secrets (should be rotated regularly)
+# Staging secrets
 secrets:
   jwtSecretKey: "staging-secret-key-change-me"
+  # Redis em staging não requer autenticação
+  redis:
+    password: ""
 
 # Health checks
 livenessProbe:
@@ -178,10 +182,13 @@ persistence:
     accessMode: ReadWriteOnce
     size: 2Gi
 
-# Observability for staging
+# Observability for staging - usar HTTPS
 observability:
+  otelEnabled: true
+  otelEndpoint: "https://opentelemetry-collector.observability.svc.cluster.local:4317"
   jaeger:
-    endpoint: "http://jaeger-collector.monitoring.svc.cluster.local:14268/api/traces"
+    enabled: true
+    endpoint: "https://jaeger-collector.monitoring.svc.cluster.local:14268/api/traces"
   prometheus:
     enabled: true
     serviceMonitor:

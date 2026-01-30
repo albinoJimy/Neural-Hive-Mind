@@ -302,9 +302,7 @@ async def lifespan(app: FastAPI):
                 prometheus_port=settings.prometheus_port,
             )
 
-            from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-            FastAPIInstrumentor.instrument_app(app)
-
+            # FastAPIInstrumentor movido para após criação do app (não pode ser chamado no lifespan)
             logger.info(
                 "Observabilidade inicializada com sucesso",
                 service_name="gateway-intencoes",
@@ -445,6 +443,11 @@ auth_middleware = create_auth_middleware(
     exclude_paths=["/health", "/ready", "/metrics", "/docs", "/openapi.json"]
 )
 app.add_middleware(auth_middleware)
+
+# Instrumentação OpenTelemetry (deve ser feita após criação do app, antes de iniciar)
+if settings.otel_enabled and OBSERVABILITY_AVAILABLE:
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    FastAPIInstrumentor.instrument_app(app)
 
 # Dependências
 async def get_user_context_from_request(request: Request) -> Dict[str, Any]:
