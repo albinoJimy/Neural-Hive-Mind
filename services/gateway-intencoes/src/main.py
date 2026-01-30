@@ -350,9 +350,11 @@ async def lifespan(app: FastAPI):
             health_manager = HealthManager()
 
         # Add Redis health check
+        # Nota: redis_client.ping é async, passar diretamente (não usar lambda)
+        # RedisHealthCheck suporta funções async via asyncio.iscoroutinefunction()
         if redis_client:
             health_manager.register_check(
-                RedisHealthCheck("redis", lambda: redis_client.ping() if redis_client else False)
+                RedisHealthCheck("redis", redis_client.ping)
             )
 
         # Add ASR pipeline health check

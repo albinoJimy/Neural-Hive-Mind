@@ -191,13 +191,14 @@ persistence:
     accessMode: ReadWriteOnce
     size: 2Gi
 
-# Observability for staging - usar HTTPS
+# Observability for staging
+# OTEL Collector não tem TLS configurado - usar HTTP
 observability:
   otelEnabled: true
-  otelEndpoint: "https://opentelemetry-collector.observability.svc.cluster.local:4317"
+  otelEndpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
   jaeger:
     enabled: true
-    endpoint: "https://jaeger-collector.monitoring.svc.cluster.local:14268/api/traces"
+    endpoint: "http://jaeger-collector.monitoring.svc.cluster.local:14268/api/traces"
   prometheus:
     enabled: true
     serviceMonitor:
