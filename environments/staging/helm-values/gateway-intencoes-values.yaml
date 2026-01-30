@@ -6,6 +6,11 @@ global:
   cluster: "neural-hive-staging"
   environment: "staging"
 
+# Desabilitar init container que falha por permissões
+initContainers:
+  modelDownloader:
+    enabled: false
+
 # Image pull authentication
 imagePullSecrets:
   - name: ghcr-secret
