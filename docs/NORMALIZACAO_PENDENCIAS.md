@@ -97,7 +97,7 @@ Dois deployments ainda usam o registry local antigo (`37.60.241.150:30500`) ao i
 ### 2.1 Bug Identificado na Imagem GHCR do worker-agents
 
 **Data:** 2026-01-31
-**Status:** BLOQUEADO
+**Status:** ✅ CORRIGIDO
 
 Ao tentar migrar `worker-agents` para GHCR, foi identificado um bug na imagem:
 
@@ -105,22 +105,39 @@ Ao tentar migrar `worker-agents` para GHCR, foi identificado um bug na imagem:
 ModuleNotFoundError: No module named 'neural_hive_resilience'
 ```
 
-**Causa:** A imagem `ghcr.io/albinojimy/neural-hive-mind/worker-agents:latest` não inclui a dependência `neural_hive_resilience`.
+**Causa Raiz Identificada:** A flag `--chown=worker-agent:worker-agent` estava faltando no comando COPY do Dockerfile (linha 36). Os pacotes eram copiados com ownership `root:root`, mas o container rodava como usuário `worker-agent`, impedindo a leitura dos módulos.
 
-**Ação necessária:** Corrigir o Dockerfile ou requirements do worker-agents para incluir o módulo faltante antes de migrar.
+**Correção Aplicada:** Adicionado `--chown=worker-agent:worker-agent` ao COPY em `services/worker-agents/Dockerfile`:
 
-**Arquivo a verificar:** `services/worker-agents/requirements.txt` ou `Dockerfile`
+```dockerfile
+# Antes (QUEBRADO):
+COPY --from=builder /root/.local /home/worker-agent/.local
+
+# Depois (CORRIGIDO):
+COPY --from=builder --chown=worker-agent:worker-agent /root/.local /home/worker-agent/.local
+```
+
+### 2.2 Outros Dockerfiles com Mesmo Bug
+
+Durante a análise, identificamos e corrigimos o mesmo problema em outros serviços:
+
+| Serviço | Status | Arquivo |
+|---------|--------|---------|
+| worker-agents | ✅ Corrigido | `services/worker-agents/Dockerfile` |
+| approval-service | ✅ Corrigido | `services/approval-service/Dockerfile` |
+| semantic-translation-engine | ✅ Corrigido | `services/semantic-translation-engine/Dockerfile` |
+| self-healing-engine | ⚠️ Funciona (usa chown -R como fallback) | `services/self-healing-engine/Dockerfile` |
+| sla-management-system | ⚠️ Funciona (usa chown -R como fallback) | `services/sla-management-system/Dockerfile` |
 
 ### Solução Recomendada
 
 ```bash
-# 1. PRIMEIRO: Corrigir dependência no worker-agents
-# Adicionar neural_hive_resilience ao requirements.txt
-
-# 2. Rebuildar imagem
+# 1. Rebuildar imagens corrigidas
 gh workflow run build-and-push-ghcr.yml -f services="worker-agents"
+gh workflow run build-and-push-ghcr.yml -f services="approval-service"
+gh workflow run build-and-push-ghcr.yml -f services="semantic-translation-engine"
 
-# 3. Então migrar
+# 2. Então migrar worker-agents para GHCR
 kubectl set image deployment/worker-agents \
   worker-agents=ghcr.io/albinojimy/neural-hive-mind/worker-agents:latest \
   -n neural-hive-execution
@@ -217,15 +234,21 @@ Atualizar documentação para usar namespaces corretos.
 - [x] Commit do template Helm com `revisionHistoryLimit`
 - [x] Tentativa de migração worker-agents para GHCR (bloqueado - bug identificado)
 - [x] Análise do namespace fluxo-a (aparenta estar inativo)
+- [x] **Análise profunda do bug `neural_hive_resilience`** - Causa raiz: falta de `--chown` no COPY do Dockerfile
+- [x] **Correção de 3 Dockerfiles** com bug de permissões:
+  - `services/worker-agents/Dockerfile`
+  - `services/approval-service/Dockerfile`
+  - `services/semantic-translation-engine/Dockerfile`
 
 ## Próximos Passos
 
-1. [ ] **BLOQUEADO** - Corrigir dependência `neural_hive_resilience` no worker-agents
-2. [ ] Após correção, migrar worker-agents de registry legado para GHCR
-3. [ ] Decidir com o time sobre namespace `fluxo-a` (remover ou atualizar)
-4. [ ] Decidir estratégia de tagging (SHA vs Semver automático)
-5. [ ] Atualizar documentação de testes
-6. [ ] Fazer helm upgrade para aplicar labels padrão
+1. [x] ~~**BLOQUEADO** - Corrigir dependência `neural_hive_resilience` no worker-agents~~ **CORRIGIDO**
+2. [ ] Rebuildar imagens corrigidas via CI/CD
+3. [ ] Após rebuild, migrar worker-agents de registry legado para GHCR
+4. [ ] Decidir com o time sobre namespace `fluxo-a` (remover ou atualizar)
+5. [ ] Decidir estratégia de tagging (SHA vs Semver automático)
+6. [ ] Atualizar documentação de testes
+7. [ ] Fazer helm upgrade para aplicar labels padrão
 
 ---
 

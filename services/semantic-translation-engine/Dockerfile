@@ -42,9 +42,9 @@ RUN useradd -m -u 1000 -s /bin/bash app
 
 WORKDIR /app
 
-# Copy Python dependencies from builder - ensure all packages are available
-COPY --from=builder /root/.local /home/app/.local
-COPY --from=builder /usr/local/lib/python3.11/site-packages /home/app/.local/lib/python3.11/site-packages
+# Copy Python dependencies from builder - ensure all packages are available (--chown required for non-root user)
+COPY --from=builder --chown=app:app /root/.local /home/app/.local
+COPY --from=builder --chown=app:app /usr/local/lib/python3.11/site-packages /home/app/.local/lib/python3.11/site-packages
 
 # Copy shared libraries
 COPY --chown=app:app libraries/python/neural_hive_risk_scoring /app/libraries/neural_hive_risk_scoring

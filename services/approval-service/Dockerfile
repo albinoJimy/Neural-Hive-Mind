@@ -39,8 +39,8 @@ RUN useradd -m -u 1000 -s /bin/bash app
 
 WORKDIR /app
 
-# Copy Python dependencies from builder
-COPY --from=builder /root/.local /home/app/.local
+# Copy Python dependencies from builder (--chown required for non-root user)
+COPY --from=builder --chown=app:app /root/.local /home/app/.local
 
 # Copy application code
 COPY --chown=app:app services/approval-service/src/ ./src/

@@ -32,8 +32,8 @@ RUN groupadd -r worker-agent && useradd -r -g worker-agent worker-agent
 # Set working directory
 WORKDIR /app
 
-# Copy installed dependencies from builder
-COPY --from=builder /root/.local /home/worker-agent/.local
+# Copy installed dependencies from builder (--chown required for non-root user)
+COPY --from=builder --chown=worker-agent:worker-agent /root/.local /home/worker-agent/.local
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
 # Copy neural_hive_observability library
