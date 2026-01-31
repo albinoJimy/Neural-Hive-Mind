@@ -46,7 +46,8 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # CR_PAT é necessário para criar novos pacotes, GITHUB_TOKEN para atualizar existentes
+          password: ${{ secrets.CR_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Determinar imagens a buildar
         id: images
