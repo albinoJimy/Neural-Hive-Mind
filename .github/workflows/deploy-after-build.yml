@@ -84,6 +84,16 @@ jobs:
           echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
           echo "Ambiente determinado: $ENVIRONMENT"
 
+      - name: Baixar artifact do build
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: build-info
+          path: build-info/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+        continue-on-error: true
+
       - name: Determinar serviços
         id: determine-services
         run: |
@@ -91,9 +101,14 @@ jobs:
             # Usar serviços do input manual
             SERVICES="${{ inputs.services }}"
           elif [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            # Tentar obter serviços do workflow anterior via artifacts
-            # Por enquanto, usar lista padrão de serviços críticos
-            SERVICES="gateway-intencoes"
+            # Obter serviços do artifact do build
+            if [[ -f "build-info/services.txt" ]]; then
+              SERVICES=$(cat build-info/services.txt)
+              echo "Serviços obtidos do artifact: $SERVICES"
+            else
+              echo "⚠️ Artifact não encontrado, usando fallback"
+              SERVICES="gateway-intencoes"
+            fi
           else
             SERVICES="gateway-intencoes"
           fi
@@ -111,10 +126,22 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.image_tag }}" ]]; then
             TAG="${{ inputs.image_tag }}"
           elif [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            # Usar SHA do commit do workflow que disparou
-            TAG="${{ github.event.workflow_run.head_sha }}"
-            # Truncar para 7 caracteres
-            TAG="${TAG:0:7}"
+            # Verificar se tem version tag no artifact
+            if [[ -f "build-info/version-tag.txt" ]]; then
+              VERSION_TAG=$(cat build-info/version-tag.txt)
+              if [[ -n "$VERSION_TAG" && "$VERSION_TAG" != "latest" ]]; then
+                TAG="$VERSION_TAG"
+                echo "Usando version tag do build: $TAG"
+              else
+                # Usar SHA do commit
+                TAG="${{ github.event.workflow_run.head_sha }}"
+                TAG="${TAG:0:7}"
+              fi
+            else
+              # Fallback: usar SHA do commit do workflow que disparou
+              TAG="${{ github.event.workflow_run.head_sha }}"
+              TAG="${TAG:0:7}"
+            fi
           else
             TAG="latest"
           fi

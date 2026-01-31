@@ -359,6 +359,22 @@ jobs:
           echo "Build failed - check logs for details"
           exit 1
 
+      - name: Salvar lista de serviços buildados
+        if: needs.detect-changes.outputs.has_changes == 'true'
+        run: |
+          mkdir -p build-info
+          echo "${{ needs.detect-changes.outputs.services_list }}" > build-info/services.txt
+          echo "${{ github.sha }}" > build-info/commit-sha.txt
+          echo "${{ inputs.version_tag || '' }}" > build-info/version-tag.txt
+
+      - name: Upload artifact com informações do build
+        if: needs.detect-changes.outputs.has_changes == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-info
+          path: build-info/
+          retention-days: 1
+
   # ============================================================================
   # Job 4: Disparar Deployment Automático
   # ============================================================================
