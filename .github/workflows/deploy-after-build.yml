@@ -35,6 +35,10 @@ on:
         type: boolean
         default: false
 
+permissions:
+  actions: read
+  contents: read
+
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: albinojimy/neural-hive-mind
@@ -86,13 +90,57 @@ jobs:
 
       - name: Baixar artifact do build
         if: github.event_name == 'workflow_run'
-        uses: actions/download-artifact@v4
-        with:
-          name: build-info
-          path: build-info/
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
+        uses: actions/github-script@v7
         continue-on-error: true
+        with:
+          script: |
+            const fs = require('fs');
+            const runId = context.payload.workflow_run.id;
+
+            console.log(`Buscando artifacts do run ${runId}...`);
+
+            // Listar artifacts do workflow run
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: runId
+            });
+
+            const buildInfo = artifacts.data.artifacts.find(a => a.name === 'build-info');
+
+            if (!buildInfo) {
+              console.log('Artifact build-info não encontrado');
+              return;
+            }
+
+            console.log(`Baixando artifact ${buildInfo.name} (${buildInfo.id})...`);
+
+            // Baixar o artifact
+            const download = await github.rest.actions.downloadArtifact({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              artifact_id: buildInfo.id,
+              archive_format: 'zip'
+            });
+
+            // Salvar o zip
+            fs.mkdirSync('build-info', { recursive: true });
+            fs.writeFileSync('build-info.zip', Buffer.from(download.data));
+
+            console.log('Artifact baixado com sucesso');
+
+      - name: Extrair artifact
+        if: github.event_name == 'workflow_run'
+        continue-on-error: true
+        run: |
+          if [[ -f "build-info.zip" ]]; then
+            unzip -o build-info.zip -d build-info/
+            echo "Conteúdo do artifact:"
+            ls -la build-info/
+            cat build-info/services.txt || true
+          else
+            echo "Arquivo build-info.zip não encontrado"
+          fi
 
       - name: Determinar serviços
         id: determine-services
