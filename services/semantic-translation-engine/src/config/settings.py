@@ -19,6 +19,14 @@ class Settings(BaseSettings):
     service_name: str = Field(default='semantic-translation-engine', description='Service name')
     service_version: str = Field(default='1.0.0', description='Service version')
 
+    # Security configuration
+    # Permitir endpoints HTTP inseguros em comunicação interna do cluster
+    # Isso é seguro quando o cluster usa mTLS (ex: Istio) para comunicação entre pods
+    allow_insecure_http_endpoints: bool = Field(
+        default=False,
+        description='Allow HTTP endpoints in production (use only with mTLS-enabled clusters)'
+    )
+
     # Kafka Consumer configuration
     kafka_bootstrap_servers: str = Field(..., description='Kafka bootstrap servers')
     kafka_consumer_group_id: str = Field(
@@ -242,9 +250,17 @@ class Settings(BaseSettings):
         """
         Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
         Endpoints verificados: OTEL Collector.
+
+        Pode ser desabilitado com allow_insecure_http_endpoints=true para
+        clusters com mTLS habilitado (ex: Istio) onde a comunicação interna
+        já é encriptada na camada de service mesh.
         """
         is_prod_staging = self.environment.lower() in ('production', 'staging', 'prod')
         if not is_prod_staging:
+            return self
+
+        # Se permitido explicitamente (ex: mTLS no cluster), pula validação
+        if self.allow_insecure_http_endpoints:
             return self
 
         # Endpoints criticos que devem usar HTTPS em producao
@@ -256,7 +272,8 @@ class Settings(BaseSettings):
             endpoint_list = ', '.join(f'{name}={url}' for name, url in http_endpoints)
             raise ValueError(
                 f"Endpoints HTTP inseguros detectados em ambiente {self.environment}: {endpoint_list}. "
-                "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+                "Use HTTPS em producao/staging para garantir seguranca de dados em transito. "
+                "Se o cluster usa mTLS (Istio), defina ALLOW_INSECURE_HTTP_ENDPOINTS=true."
             )
 
         return self

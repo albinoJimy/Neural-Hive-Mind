@@ -8,6 +8,8 @@ metadata:
 data:
   ENVIRONMENT: {{ .Values.config.environment | quote }}
   LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  # Permitir HTTP em comunicação interna do cluster (quando mTLS está habilitado)
+  ALLOW_INSECURE_HTTP_ENDPOINTS: {{ .Values.config.allowInsecureHttpEndpoints | default "false" | quote }}
 
   # Kafka Configuration
   KAFKA_BOOTSTRAP_SERVERS: {{ .Values.config.kafka.bootstrapServers | quote }}

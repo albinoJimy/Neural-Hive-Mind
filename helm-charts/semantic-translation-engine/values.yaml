@@ -6,7 +6,7 @@ fullnameOverride: ""
 # Configuração de imagem
 image:
   repository: ghcr.io/albinojimy/neural-hive-mind/semantic-translation-engine
-  tag: "1.2.0"
+  tag: "v2.0.0"
   pullPolicy: Always
 
 imagePullSecrets:
@@ -68,6 +68,9 @@ service:
 config:
   environment: production
   logLevel: INFO
+  # Permitir endpoints HTTP inseguros em comunicação interna do cluster
+  # Isso é seguro quando o cluster usa mTLS (Istio) para comunicação entre pods
+  allowInsecureHttpEndpoints: true
 
   # Kafka
   kafka:
