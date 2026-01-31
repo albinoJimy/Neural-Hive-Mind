@@ -21,6 +21,7 @@ spec:
   {{- if not $values.autoscaling.enabled }}
   replicas: {{ $values.replicaCount }}
   {{- end }}
+  revisionHistoryLimit: {{ $values.revisionHistoryLimit | default 3 }}
   selector:
     matchLabels:
       {{- if kindIs "string" $context.selectorLabels }}
