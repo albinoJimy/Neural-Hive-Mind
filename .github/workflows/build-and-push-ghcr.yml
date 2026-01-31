@@ -407,6 +407,10 @@ jobs:
     needs: [detect-changes, build-and-push, summary]
     if: github.event_name != 'pull_request' && needs.build-and-push.result == 'success' && needs.detect-changes.outputs.has_changes == 'true'
 
+    permissions:
+      actions: write
+      contents: read
+
     steps:
       - name: Determinar ambiente
         id: env
