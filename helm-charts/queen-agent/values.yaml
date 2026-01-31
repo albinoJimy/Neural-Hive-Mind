@@ -87,7 +87,7 @@ config:
   redis:
     clusterNodes: neural-hive-cache.redis-cluster.svc.cluster.local:6379
     # Password injected via Secret (REDIS_PASSWORD env var)
-    sslEnabled: true
+    sslEnabled: false
     pheromonePrefix: "pheromone:strategic:"
     cacheTtlSeconds: 300
 

@@ -106,7 +106,7 @@ config:
   redis:
     clusterNodes: "neural-hive-cache.redis-cluster.svc.cluster.local:6379"
     clusterEnabled: true
-    sslEnabled: true
+    sslEnabled: false
     defaultTtl: 600
     cacheEnabled: true
 

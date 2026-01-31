@@ -105,7 +105,7 @@ config:
 
   redis:
     clusterNodes: "neural-hive-cache.redis-cluster.svc.cluster.local:6379"
-    sslEnabled: true
+    sslEnabled: false
     pheromoneTtl: 3600
     pheromoneDecayRate: 0.1
 
