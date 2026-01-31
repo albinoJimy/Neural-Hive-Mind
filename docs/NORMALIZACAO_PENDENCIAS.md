@@ -167,19 +167,34 @@ O namespace `fluxo-a` contém uma versão muito antiga do gateway (1.0.9) enquan
 - **Usa registry legado**
 - **Versão muito antiga**
 
-### Recomendação
+### Análise Detalhada (2026-01-31)
 
-1. **Verificar se ainda é necessário** - perguntar ao time
-2. **Se necessário**: Atualizar para versão atual
-3. **Se não necessário**: Remover namespace
+| Atributo | Valor |
+|----------|-------|
+| Idade do namespace | 71 dias |
+| Pod restart | 2d16h atrás (provável reinício do node) |
+| Imagem | `37.60.241.150:30500/gateway-intencoes:1.0.9` |
+| Ingress/Istio | Nenhum configurado |
+| Tráfego detectado | Apenas health checks do kubelet |
+| Service exposto | ClusterIP apenas (não acessível externamente) |
+
+### Recomendação: **REMOVER**
+
+O namespace aparenta estar abandonado:
+- Sem ingress = sem tráfego externo
+- Sem VirtualService = sem mesh traffic
+- Logs mostram apenas probes de saúde
+- Versão muito antiga (1.0.9 vs produção)
 
 ```bash
-# Verificar recursos antes de remover
-kubectl get all -n fluxo-a
+# Backup antes de remover (opcional)
+kubectl get all -n fluxo-a -o yaml > /tmp/fluxo-a-backup.yaml
 
-# Remover (após confirmação)
+# Remover namespace
 kubectl delete namespace fluxo-a
 ```
+
+**AGUARDANDO CONFIRMAÇÃO DO TIME**
 
 ---
 
@@ -250,7 +265,10 @@ Atualizar documentação para usar namespaces corretos.
 6. [x] ~~Atualizar documentação de testes~~ **CORRIGIDO** - namespaces atualizados em PLANO_TESTE_MANUAL_FLUXOS_A_C.md
 7. [~] Fazer helm upgrade para aplicar labels padrão
    - ✅ consensus-engine atualizado (rev 2)
-   - ⚠️ gateway-intencoes: erro de template (nil pointer em config.kafka.schemaRegistry.tls)
+   - ⚠️ gateway-intencoes: **Requer refatoração do chart**
+     - Múltiplos nil pointers: `schemaRegistry.tls`, `observability.jaeger`, `observability.neuralHive`, `config.rateLimit`, `config.security`
+     - O chart foi criado com valores obrigatórios que a release atual não possui
+     - Solução: Refatorar templates para usar checks de nil ou atualizar values da release
    - ⚠️ Deployments manuais (approval-service, opa, worker-agents em neural-hive): não gerenciados por Helm
 
 ---
