@@ -773,7 +773,10 @@
       "Bash(name: selfsigned-cluster-issuer)",
       "Bash(selfSigned: {})",
       "Bash(helm get manifest:*)",
-      "Bash(GATEWAY_POD=gateway-intencoes-b5945d8b4-z5h4t)"
+      "Bash(GATEWAY_POD=gateway-intencoes-b5945d8b4-z5h4t)",
+      "Bash(__NEW_LINE_f13f0ae912137994__ gh workflow run deploy-after-build.yml --ref main -f environment=\"staging\" -f services=\"consensus-engine\" -f image_tag=\"v1.0.12\")",
+      "Bash(__NEW_LINE_286b1445e492724d__ gh workflow run deploy-after-build.yml --ref main -f environment=\"staging\" -f services=\"consensus-engine\" -f image_tag=\"v1.0.12\")",
+      "Bash(__NEW_LINE_7c92b1ba930541ff__ gh workflow run deploy-after-build.yml --ref main -f environment=\"staging\" -f services=\"consensus-engine\" -f image_tag=\"v1.0.12\")"
     ],
     "deny": [],
     "ask": []
