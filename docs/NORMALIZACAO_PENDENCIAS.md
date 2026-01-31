@@ -77,16 +77,18 @@ Exemplo de implementação:
 
 ## 2. Registry Legado em Uso
 
-### Problema
+### Status: ✅ RESOLVIDO
 
-Dois deployments ainda usam o registry local antigo (`37.60.241.150:30500`) ao invés do GHCR.
+~~Dois deployments usavam o registry local antigo (`37.60.241.150:30500`)~~
 
-### Serviços Afetados
+### Ações Executadas
 
-| Namespace | Serviço | Imagem Atual | Status |
-|-----------|---------|--------------|--------|
-| fluxo-a | gateway-intencoes | `37.60.241.150:30500/gateway-intencoes:1.0.9` | ⚠️ Namespace obsoleto |
-| neural-hive-execution | worker-agents | `ghcr.io/albinojimy/neural-hive-mind/worker-agents:2056771` | ✅ **MIGRADO** |
+| Namespace | Serviço | Ação | Status |
+|-----------|---------|------|--------|
+| fluxo-a | gateway-intencoes | Namespace removido (abandonado) | ✅ |
+| neural-hive-execution | worker-agents | Migrado para GHCR (tag: 2056771) | ✅ |
+
+**Nenhum serviço usa mais o registry legado.**
 
 ### Riscos
 
@@ -260,7 +262,9 @@ Atualizar documentação para usar namespaces corretos.
 1. [x] ~~**BLOQUEADO** - Corrigir dependência `neural_hive_resilience` no worker-agents~~ **CORRIGIDO**
 2. [x] ~~Rebuildar imagens corrigidas via CI/CD~~ **BUILD #21545285452 SUCESSO**
 3. [x] ~~Após rebuild, migrar worker-agents de registry legado para GHCR~~ **MIGRADO (tag: 2056771)**
-4. [ ] Decidir com o time sobre namespace `fluxo-a` (remover ou atualizar)
+4. [x] ~~Decidir com o time sobre namespace `fluxo-a` (remover ou atualizar)~~ **REMOVIDO**
+   - Backup salvo em `/tmp/fluxo-a-backup-20260131.yaml`
+   - Namespace deletado (estava abandonado, sem tráfego)
 5. [x] ~~Decidir estratégia de tagging (SHA vs Semver automático)~~ **IMPLEMENTADO**
    - CI/CD agora extrai versão do values.yaml automaticamente
    - Tags criadas em push para main: latest, SHA, branch, e versão do values.yaml
@@ -283,7 +287,7 @@ Atualizar documentação para usar namespaces corretos.
 | Pods terminados | 0 | ✅ |
 | revisionHistoryLimit configurado | 100% | ✅ |
 | Namespaces com labels | 5/5 | ✅ |
-| Imagens em registry legado | 1 | ⚠️ (apenas gateway-intencoes em fluxo-a) |
+| Imagens em registry legado | 0 | ✅ (fluxo-a removido) |
 | Deployments com `latest` | 10 | ⚠️ |
 | Labels completos em deployments | 75% | ⚠️ |
 | worker-agents migrado para GHCR | Sim | ✅ |
