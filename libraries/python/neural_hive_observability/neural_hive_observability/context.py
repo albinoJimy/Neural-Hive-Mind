@@ -199,7 +199,7 @@ class ContextManager:
         if self.config and hasattr(self.config, 'service_name'):
             service_name = getattr(self.config, 'service_name', None)
             if service_name:
-                new_headers["X-Neural-Hive-Source"] = service_name
+                new_headers["x-neural-hive-source"] = service_name
 
         if self.config and hasattr(self.config, 'neural_hive_component'):
             component = getattr(self.config, 'neural_hive_component', None)

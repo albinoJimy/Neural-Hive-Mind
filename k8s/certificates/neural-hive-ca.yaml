@@ -1,0 +1,40 @@
+---
+# Neural Hive Internal CA - Root Certificate Authority
+# Este certificado CA assinará todos os certificados internos do cluster
+# Substitui certificados auto-assinados por uma cadeia de confiança gerenciada
+
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: neural-hive-ca
+  namespace: cert-manager
+  labels:
+    neural-hive.io/component: ca
+    neural-hive.io/managed-by: cert-manager
+    neural-hive.io/tier: infrastructure
+  annotations:
+    description: "Root CA para certificados internos do Neural Hive-Mind"
+spec:
+  isCA: true
+  commonName: Neural Hive Internal CA
+  subject:
+    organizations:
+      - Neural Hive Mind
+    organizationalUnits:
+      - Infrastructure
+  secretName: neural-hive-ca-secret
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    encoding: PKCS8
+  issuerRef:
+    name: selfsigned-cluster-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+  duration: 87600h  # 10 anos
+  renewBefore: 720h # 30 dias antes
+  usages:
+    - cert sign
+    - crl sign
+    - digital signature
+    - key encipherment

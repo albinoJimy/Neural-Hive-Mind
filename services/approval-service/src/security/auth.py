@@ -185,6 +185,16 @@ async def get_current_user(
     Raises:
         HTTPException: Se nao autenticado
     """
+    # Auth bypass for testing when REQUIRE_AUTH is disabled
+    if getattr(settings, 'require_auth', True) == False:
+        return {
+            'user_id': 'test-admin',
+            'email': 'admin@test.com',
+            'name': 'Test Admin',
+            'preferred_username': 'admin',
+            'roles': ['neural-hive-admin', 'user'],
+        }
+
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

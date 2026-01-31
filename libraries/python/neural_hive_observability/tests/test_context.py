@@ -94,8 +94,8 @@ class TestContextManagerDefensiveProgramming:
         # Não deve lançar exceção
         headers = context_manager.inject_http_headers({})
 
-        assert "X-Neural-Hive-Source" in headers
-        assert headers["X-Neural-Hive-Source"] == "test-service"
+        assert "x-neural-hive-source" in headers
+        assert headers["x-neural-hive-source"] == "test-service"
         assert "X-Neural-Hive-Component" in headers
         assert headers["X-Neural-Hive-Component"] == "test-component"
 
@@ -147,7 +147,7 @@ class TestContextManagerDefensiveProgramming:
         result = context_manager.inject_kafka_headers(original_headers)
 
         # Headers devem ser injetados
-        assert b"X-Neural-Hive-Source" in result or "X-Neural-Hive-Source" in result
+        assert b"x-neural-hive-source" in result or "x-neural-hive-source" in result
 
 
 class TestContextManagerIntegration:

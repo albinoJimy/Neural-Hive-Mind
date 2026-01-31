@@ -1,0 +1,22 @@
+---
+# Neural Hive CA ClusterIssuer
+# Cluster-wide issuer para certificados internos assinados pela CA Neural Hive
+# Permite que qualquer namespace solicite certificados confiáveis internamente
+
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: neural-hive-ca-issuer
+  labels:
+    neural-hive.io/component: ca-issuer
+    neural-hive.io/managed-by: cert-manager
+    neural-hive.io/tier: infrastructure
+  annotations:
+    description: "ClusterIssuer para emitir certificados usando a Neural Hive Internal CA"
+spec:
+  ca:
+    secretName: neural-hive-ca-secret
+    # O secret deve conter:
+    # - tls.crt: Certificado da CA (para validação)
+    # - tls.key: Chave privada da CA (para assinar novos certificados)
+    # Este secret é criado automaticamente pelo Certificate 'neural-hive-ca'

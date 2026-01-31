@@ -1,0 +1,52 @@
+---
+# Schema Registry TLS Certificate - Assinado pela Neural Hive Internal CA
+# Substitui certificado auto-assinado por certificado confiável assinado pela CA interna
+# Isso permite que todos os serviços confiem no Schema Registry sem ignorar verificação SSL
+
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: schema-registry-tls
+  namespace: kafka
+  labels:
+    app: schema-registry
+    component: kafka
+    neural-hive.io/component: tls
+    neural-hive.io/managed-by: cert-manager
+  annotations:
+    description: "Certificado TLS para Schema Registry - assinado pela Neural Hive Internal CA"
+spec:
+  secretName: schema-registry-tls-secret
+  duration: 8760h        # 1 ano
+  renewBefore: 720h      # 30 dias antes da expiração
+  subject:
+    organizations:
+      - Neural Hive Mind
+    organizationalUnits:
+      - Data Platform
+  commonName: schema-registry.kafka.svc.cluster.local
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 2048
+  usages:
+    - server auth
+    - client auth
+    - digital signature
+    - key encipherment
+  dnsNames:
+    # Todos os nomes que o Schema Registry pode ter
+    - schema-registry
+    - schema-registry.kafka
+    - schema-registry.kafka.svc
+    - schema-registry.kafka.svc.cluster.local
+    # Acesso cross-namespace
+    - schema-registry.kafka.svc.cluster.local
+  ipAddresses: []
+  issuerRef:
+    name: neural-hive-ca-issuer    # ← USA A NOVA CA INTERNA!
+    kind: ClusterIssuer
+    group: cert-manager.io
+  # Quando renovar, também atualizar o ca.crt no secret
+  # Isso mantém a cadeia de confiança atualizada

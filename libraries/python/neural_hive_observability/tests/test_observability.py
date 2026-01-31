@@ -398,7 +398,7 @@ class TestContextManager:
         assert injected_headers["Content-Type"] == "application/json"
 
         # Headers Neural Hive devem ser adicionados
-        assert "X-Neural-Hive-Source" in injected_headers
+        assert "x-neural-hive-source" in injected_headers
         assert "X-Neural-Hive-Component" in injected_headers
 
 

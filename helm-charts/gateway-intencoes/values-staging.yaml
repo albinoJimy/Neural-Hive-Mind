@@ -158,7 +158,17 @@ istio:
 volumes:
   - name: model-cache
     emptyDir: {}
+  - name: neural-hive-ca
+    configMap:
+      name: neural-hive-ca-bundle
+      items:
+        - key: ca.crt
+          path: neural-hive-ca.crt
 
 volumeMounts:
   - name: model-cache
     mountPath: /app/models
+  - name: neural-hive-ca
+    mountPath: /etc/ssl/certs/neural-hive-ca.crt
+    subPath: neural-hive-ca.crt
+    readOnly: true

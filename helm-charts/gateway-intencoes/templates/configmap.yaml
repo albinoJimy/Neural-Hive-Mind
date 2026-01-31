@@ -14,7 +14,7 @@ data:
   schema_registry_tls_enabled: {{ .Values.config.kafka.schemaRegistry.tls.enabled | default "true" | quote }}
   schema_registry_tls_verify: {{ .Values.config.kafka.schemaRegistry.tls.verifyHostname | default "true" | quote }}
   {{- if .Values.config.kafka.schemaRegistry.tls.enabled }}
-  schema_registry_ssl_ca_location: "/etc/ssl/certs/schema-registry-ca.crt"
+  schema_registry_ssl_ca_location: "/etc/ssl/certs/neural-hive-ca.crt"
   {{- else }}
   schema_registry_ssl_ca_location: ""
   {{- end }}
