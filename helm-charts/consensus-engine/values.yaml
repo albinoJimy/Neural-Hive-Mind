@@ -280,8 +280,8 @@ readinessProbe:
     path: /ready
     port: 8000
   initialDelaySeconds: 0
-  periodSeconds: 5
-  timeoutSeconds: 3
+  periodSeconds: 10
+  timeoutSeconds: 10
   failureThreshold: 3
 
 labels:
