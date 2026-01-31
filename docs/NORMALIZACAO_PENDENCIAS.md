@@ -83,10 +83,10 @@ Dois deployments ainda usam o registry local antigo (`37.60.241.150:30500`) ao i
 
 ### Serviços Afetados
 
-| Namespace | Serviço | Imagem Atual | Imagem Recomendada |
-|-----------|---------|--------------|-------------------|
-| fluxo-a | gateway-intencoes | `37.60.241.150:30500/gateway-intencoes:1.0.9` | `ghcr.io/albinojimy/neural-hive-mind/gateway-intencoes:17a5a4d` |
-| neural-hive-execution | worker-agents | `37.60.241.150:30500/worker-agents:1.3.13` | **BLOQUEADO** - ver seção 2.1 |
+| Namespace | Serviço | Imagem Atual | Status |
+|-----------|---------|--------------|--------|
+| fluxo-a | gateway-intencoes | `37.60.241.150:30500/gateway-intencoes:1.0.9` | ⚠️ Namespace obsoleto |
+| neural-hive-execution | worker-agents | `ghcr.io/albinojimy/neural-hive-mind/worker-agents:2056771` | ✅ **MIGRADO** |
 
 ### Riscos
 
@@ -243,8 +243,8 @@ Atualizar documentação para usar namespaces corretos.
 ## Próximos Passos
 
 1. [x] ~~**BLOQUEADO** - Corrigir dependência `neural_hive_resilience` no worker-agents~~ **CORRIGIDO**
-2. [ ] Rebuildar imagens corrigidas via CI/CD
-3. [ ] Após rebuild, migrar worker-agents de registry legado para GHCR
+2. [x] ~~Rebuildar imagens corrigidas via CI/CD~~ **BUILD #21545285452 SUCESSO**
+3. [x] ~~Após rebuild, migrar worker-agents de registry legado para GHCR~~ **MIGRADO (tag: 2056771)**
 4. [ ] Decidir com o time sobre namespace `fluxo-a` (remover ou atualizar)
 5. [ ] Decidir estratégia de tagging (SHA vs Semver automático)
 6. [ ] Atualizar documentação de testes
@@ -260,6 +260,7 @@ Atualizar documentação para usar namespaces corretos.
 | Pods terminados | 0 | ✅ |
 | revisionHistoryLimit configurado | 100% | ✅ |
 | Namespaces com labels | 5/5 | ✅ |
-| Imagens em registry legado | 2 | ⚠️ |
+| Imagens em registry legado | 1 | ⚠️ (apenas gateway-intencoes em fluxo-a) |
 | Deployments com `latest` | 10 | ⚠️ |
 | Labels completos em deployments | 75% | ⚠️ |
+| worker-agents migrado para GHCR | Sim | ✅ |
