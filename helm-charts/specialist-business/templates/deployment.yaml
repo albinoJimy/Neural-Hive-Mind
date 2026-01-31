@@ -45,7 +45,7 @@ Construir lista de env vars para o deployment
 {{- $envVars = append $envVars (dict "name" "ENABLE_FEEDBACK_COLLECTION" "value" (default "true" .Values.config.feedback.enabled | toString)) }}
 {{- $envVars = append $envVars (dict "name" "FEEDBACK_API_ENABLED" "value" (default "true" .Values.config.feedback.apiEnabled | toString)) }}
 {{- $envVars = append $envVars (dict "name" "FEEDBACK_REQUIRE_AUTHENTICATION" "value" (default "true" .Values.config.feedback.requireAuthentication | toString)) }}
-{{- $envVars = append $envVars (dict "name" "FEEDBACK_ALLOWED_ROLES" "value" (default "admin,specialist_reviewer,human_expert" (join "," .Values.config.feedback.allowedRoles))) }}
+{{- $envVars = append $envVars (dict "name" "FEEDBACK_ALLOWED_ROLES" "value" (toJson (default (list "admin" "specialist_reviewer" "human_expert") .Values.config.feedback.allowedRoles))) }}
 {{- $envVars = append $envVars (dict "name" "FEEDBACK_MONGODB_COLLECTION" "value" (default "specialist_feedback" .Values.config.feedback.mongodbCollection)) }}
 
 {{/* Performance Optimization Configuration */}}
