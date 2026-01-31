@@ -269,7 +269,7 @@ config:
 
   observability:
     otelEnabled: true  # Habilitar OpenTelemetry (true em prod/staging, false para dev local via Helm values)
-    otelExporterEndpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
+    otelExporterEndpoint: http://otel-collector-neural-hive-otel-collector.observability.svc.cluster.local:4317
     prometheusPort: 9090
     tracingSamplingRate: 1.0  # 100% em dev, 50% em staging, 10% em prod (via environment values)
 

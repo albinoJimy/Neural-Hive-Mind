@@ -61,7 +61,7 @@ config:
   # Tracing OpenTelemetry
   tracing:
     enabled: true
-    collectorEndpoint: "opentelemetry-collector.observability.svc.cluster.local:4317"
+    collectorEndpoint: "otel-collector-neural-hive-otel-collector.observability.svc.cluster.local:4317"
 
   # Access Logging
   accessLog:

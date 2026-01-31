@@ -119,7 +119,7 @@ config:
   # - inference.source (ml_model, semantic_pipeline, heuristics)
   # - features.count, extraction.time_ms, processing.time_ms
   otel:
-    endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+    endpoint: "http://otel-collector-neural-hive-otel-collector.observability.svc.cluster.local:4317"
 
   grpc:
     port: 50051

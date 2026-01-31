@@ -172,7 +172,7 @@ config:
 
   # Observabilidade
   otel:
-    endpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+    endpoint: "http://otel-collector-neural-hive-otel-collector.observability.svc.cluster.local:4317"
   prometheus:
     port: 8080
   jaeger:

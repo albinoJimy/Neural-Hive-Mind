@@ -131,7 +131,7 @@ secrets:
 # Observabilidade
 observability:
   otelEnabled: true
-  otelEndpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+  otelEndpoint: "http://otel-collector-neural-hive-otel-collector.observability.svc.cluster.local:4317"
   prometheus:
     enabled: true
     serviceMonitor:

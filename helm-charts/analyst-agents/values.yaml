@@ -117,7 +117,7 @@ config:
 
   # Observability
   observability:
-    otelEndpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
+    otelEndpoint: http://otel-collector-neural-hive-otel-collector.observability.svc.cluster.local:4317
     prometheusPort: 9090
     httpPort: 8000
     logLevel: INFO

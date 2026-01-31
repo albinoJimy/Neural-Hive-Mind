@@ -384,7 +384,7 @@ istio:
 # otelEnabled controla a inicialização do OpenTelemetry no startup da aplicação
 observability:
   otelEnabled: true  # Habilitar OpenTelemetry em produção
-  otelEndpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317"
+  otelEndpoint: "http://otel-collector-neural-hive-otel-collector.observability.svc.cluster.local:4317"
   # Neural Hive Metadata - identificação do serviço no ecossistema
   neuralHive:
     serviceName: "gateway-intencoes"
