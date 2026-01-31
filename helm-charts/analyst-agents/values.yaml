@@ -13,6 +13,9 @@ image:
   tag: "1.2.1"
   pullPolicy: Always
 
+imagePullSecrets:
+  - name: ghcr-secret
+
 replicaCount: 2
 
 # Disable Kubernetes service links to prevent env var collisions with pydantic settings

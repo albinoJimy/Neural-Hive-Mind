@@ -9,6 +9,9 @@ image:
   tag: "1.2.0"
   pullPolicy: Always
 
+imagePullSecrets:
+  - name: ghcr-secret
+
 # Deployment
 replicaCount: 2
 

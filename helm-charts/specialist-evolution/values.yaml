@@ -38,6 +38,9 @@ image:
   tag: "1.0.7"
   pullPolicy: Always
 
+imagePullSecrets:
+  - name: ghcr-secret
+
 deployment:
   strategy:
     type: RollingUpdate

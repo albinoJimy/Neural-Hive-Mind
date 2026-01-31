@@ -18,6 +18,9 @@ image:
   tag: "1.2.3"
   pullPolicy: Always
 
+imagePullSecrets:
+  - name: ghcr-secret
+
 deployment:
   strategy:
     type: RollingUpdate
