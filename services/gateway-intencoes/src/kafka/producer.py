@@ -241,7 +241,7 @@ class KafkaIntentProducer:
         if not self.is_ready():
             raise RuntimeError("Producer Kafka não inicializado")
 
-        topic = topic_override or f"intentions.{intent_envelope.intent.domain.value}"
+        topic = topic_override or f"intentions.{intent_envelope.intent.domain.value.lower()}"
         partition_key = intent_envelope.get_partition_key()
         idempotency_key = intent_envelope.get_idempotency_key()
 
@@ -410,7 +410,7 @@ class KafkaIntentProducer:
     async def send_to_dlq(self, intent_envelope: IntentEnvelope, error_reason: str, original_message_size: int = 0):
         """Enviar mensagem com falha para Dead Letter Queue"""
         try:
-            dlq_topic = f"dlq.intentions.{intent_envelope.intent.domain.value}"
+            dlq_topic = f"dlq.intentions.{intent_envelope.intent.domain.value.lower()}"
 
             # Criar envelope de erro para DLQ
             dlq_envelope = {

@@ -48,6 +48,11 @@ class DomainMapper:
         'behavior': UnifiedDomain.BEHAVIOR,
         'operational': UnifiedDomain.OPERATIONAL,
         'compliance': UnifiedDomain.COMPLIANCE,
+        # WORKAROUND: 'general' aparece em algumas mensagens Avro devido a
+        # inconsistência na deserialização. Mapeado para BUSINESS como fallback.
+        # TODO: Investigar causa raiz do domínio 'general' na deserialização Avro
+        'general': UnifiedDomain.BUSINESS,
+        'unknown': UnifiedDomain.BUSINESS,
     }
 
     # Mapping from ontology domain names to UnifiedDomain
