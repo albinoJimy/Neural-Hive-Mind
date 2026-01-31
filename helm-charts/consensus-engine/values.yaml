@@ -84,8 +84,8 @@ config:
       # architecture: 30000
 
   queenAgent:
-    grpcHost: "queen-agent.queen-agent.svc.cluster.local"
-    grpcPort: 50051
+    grpcHost: "queen-agent.neural-hive.svc.cluster.local"
+    grpcPort: 50053
 
   spiffe:
     enabled: false

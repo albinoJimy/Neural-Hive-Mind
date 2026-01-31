@@ -37,23 +37,23 @@ class Settings(BaseSettings):
 
     # gRPC Clients (Especialistas)
     specialist_business_endpoint: str = Field(
-        default='specialist-business.specialist-business.svc.cluster.local:50051',
+        default='specialist-business.neural-hive.svc.cluster.local:50051',
         description='Endpoint do Business Specialist'
     )
     specialist_technical_endpoint: str = Field(
-        default='specialist-technical.specialist-technical.svc.cluster.local:50051',
+        default='specialist-technical.neural-hive.svc.cluster.local:50051',
         description='Endpoint do Technical Specialist'
     )
     specialist_behavior_endpoint: str = Field(
-        default='specialist-behavior.specialist-behavior.svc.cluster.local:50051',
+        default='specialist-behavior.neural-hive.svc.cluster.local:50051',
         description='Endpoint do Behavior Specialist'
     )
     specialist_evolution_endpoint: str = Field(
-        default='specialist-evolution.specialist-evolution.svc.cluster.local:50051',
+        default='specialist-evolution.neural-hive.svc.cluster.local:50051',
         description='Endpoint do Evolution Specialist'
     )
     specialist_architecture_endpoint: str = Field(
-        default='specialist-architecture.specialist-architecture.svc.cluster.local:50051',
+        default='specialist-architecture.neural-hive.svc.cluster.local:50051',
         description='Endpoint do Architecture Specialist'
     )
     grpc_timeout_ms: int = Field(
@@ -102,18 +102,18 @@ class Settings(BaseSettings):
 
     # gRPC Client (Queen Agent)
     queen_agent_grpc_host: str = Field(
-        default='queen-agent.queen-agent.svc.cluster.local',
+        default='queen-agent.neural-hive.svc.cluster.local',
         description='Host do Queen Agent gRPC'
     )
     queen_agent_grpc_port: int = Field(
-        default=50051,
+        default=50053,
         description='Porta do Queen Agent gRPC',
         gt=0
     )
 
     # gRPC Client (Analyst Agent)
     analyst_agent_grpc_host: str = Field(
-        default='analyst-agents.analyst-agents.svc.cluster.local',
+        default='analyst-agents.neural-hive.svc.cluster.local',
         description='Host do Analyst Agent gRPC'
     )
     analyst_agent_grpc_port: int = Field(
