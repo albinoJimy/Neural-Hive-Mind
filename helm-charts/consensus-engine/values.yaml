@@ -50,7 +50,7 @@ resources:
     memory: 1280Mi
 
 config:
-  environment: production
+  environment: staging  # Use 'production' only when SPIFFE mTLS is configured
   logLevel: DEBUG
 
   kafka:
