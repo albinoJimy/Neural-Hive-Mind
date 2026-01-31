@@ -279,7 +279,9 @@ async def readiness():
                 logger.warning('otel_pipeline_health_check_error', error=str(e))
                 checks['otel_pipeline'] = False
 
-        all_ready = all(checks.values())
+        # OTEL pipeline is not critical for readiness - service can function without tracing
+        critical_checks = {k: v for k, v in checks.items() if k != 'otel_pipeline'}
+        all_ready = all(critical_checks.values())
 
         if not all_ready:
             return JSONResponse(
