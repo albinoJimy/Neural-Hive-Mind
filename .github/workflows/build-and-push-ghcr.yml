@@ -439,31 +439,24 @@ jobs:
           fi
 
       - name: Disparar Deploy workflow
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.CR_PAT }}
-          script: |
-            const services = '${{ needs.detect-changes.outputs.services_list }}';
-            const environment = '${{ steps.env.outputs.environment }}';
-            const imageTag = '${{ steps.tag.outputs.tag }}'.substring(0, 7);
+        env:
+          GH_TOKEN: ${{ secrets.CR_PAT }}
+        run: |
+          SERVICES="${{ needs.detect-changes.outputs.services_list }}"
+          ENVIRONMENT="${{ steps.env.outputs.environment }}"
+          IMAGE_TAG=$(echo "${{ steps.tag.outputs.tag }}" | cut -c1-7)
 
-            console.log(`Disparando deploy para: ${services}`);
-            console.log(`Ambiente: ${environment}`);
-            console.log(`Tag: ${imageTag}`);
+          echo "Disparando deploy para: $SERVICES"
+          echo "Ambiente: $ENVIRONMENT"
+          echo "Tag: $IMAGE_TAG"
 
-            await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'deploy-after-build.yml',
-              ref: '${{ github.ref_name }}',
-              inputs: {
-                environment: environment,
-                services: services,
-                image_tag: imageTag
-              }
-            });
+          gh workflow run deploy-after-build.yml \
+            --ref "${{ github.ref_name }}" \
+            -f environment="$ENVIRONMENT" \
+            -f services="$SERVICES" \
+            -f image_tag="$IMAGE_TAG"
 
-            console.log('✅ Deploy workflow disparado com sucesso!');
+          echo "✅ Deploy workflow disparado com sucesso!"
 
       - name: Gerar resumo
         run: |
