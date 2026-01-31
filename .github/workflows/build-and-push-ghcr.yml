@@ -441,6 +441,7 @@ jobs:
       - name: Disparar Deploy workflow
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.CR_PAT }}
           script: |
             const services = '${{ needs.detect-changes.outputs.services_list }}';
             const environment = '${{ steps.env.outputs.environment }}';
