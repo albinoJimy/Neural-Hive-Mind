@@ -27,7 +27,7 @@ env:
 jobs:
   build-base-images:
     name: Build Imagens Base
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: read
       packages: write
