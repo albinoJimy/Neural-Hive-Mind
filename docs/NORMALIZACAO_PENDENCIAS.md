@@ -77,7 +77,7 @@ Exemplo de implementação:
 
 ## 2. Registry Legado em Uso
 
-### Status: ✅ RESOLVIDO (exceto approval-service e keycloak-postgresql)
+### Status: ✅ RESOLVIDO (todos os serviços customizados migrados)
 
 ### Ações Executadas
 
@@ -86,8 +86,10 @@ Exemplo de implementação:
 | fluxo-a | gateway-intencoes | Namespace removido (abandonado) | ✅ |
 | neural-hive-execution | worker-agents | Migrado para GHCR (tag: 2056771) | ✅ |
 | neural-hive | consensus-engine | Migrado para GHCR (tag: 9ed8d2d) | ✅ |
-| approval | approval-service | Pendente migração | ⚠️ |
-| keycloak | keycloak-postgresql | Bitnami image (mantida no legado) | ⚠️ |
+| approval | approval-service | Migrado para GHCR (tag: 150cb8e) | ✅ |
+| keycloak | keycloak-postgresql | Bitnami image (mantida no legado) | ℹ️ |
+
+**Nota sobre keycloak-postgresql:** Esta é uma imagem oficial Bitnami, não um serviço customizado. Pode ser migrada para Docker Hub oficial (`bitnami/postgresql`) se desejado, mas não é crítico.
 
 ### 2.3 Análise Profunda: Migração do consensus-engine
 
@@ -119,15 +121,37 @@ DNS resolution failed for queen-agent.queen-agent.svc.cluster.local:50051
 
 **Helm Upgrade:** Release atualizada (rev 7) com todos os endpoints corretos
 
-### Pendências de Migração
+### 2.4 Migração do approval-service
 
-**approval-service**: Última dependência no registry legado (exceto Bitnami)
-- Namespace: `approval`
-- Imagem atual: `37.60.241.150:30500/approval-service:1.0.1`
+**Data:** 2026-01-31
+**Status:** ✅ CONCLUÍDA
 
-**keycloak-postgresql**: Imagem Bitnami (pode permanecer no legado)
+**Ação:** Build via CI/CD e migração para GHCR
+- **Build:** #21546624097 (sucesso)
+- **Tag:** 150cb8e
+- **Secret:** `ghcr-secret` copiado para namespace `approval`
+
+**Comandos executados:**
+```bash
+# Copiar secret de autenticação
+kubectl get secret ghcr-secret -n neural-hive -o yaml | \
+  sed 's/namespace: neural-hive/namespace: approval/' | \
+  kubectl apply -f -
+
+# Adicionar imagePullSecrets e atualizar imagem
+kubectl patch deployment approval-service -n approval \
+  -p '{"spec":{"template":{"spec":{"imagePullSecrets":[{"name":"ghcr-secret"}]}}}}'
+kubectl set image deployment/approval-service \
+  approval-service=ghcr.io/albinojimy/neural-hive-mind/approval-service:150cb8e \
+  -n approval
+```
+
+### Único serviço restante no registry legado
+
+**keycloak-postgresql**: Imagem Bitnami (baixa prioridade)
 - Namespace: `keycloak`
 - Imagem: `37.60.241.150:30500/bitnami/postgresql:latest`
+- Recomendação: Pode migrar para `docker.io/bitnami/postgresql:latest` se desejado
 
 ### Riscos
 
@@ -326,11 +350,12 @@ Atualizar documentação para usar namespaces corretos.
 | Pods terminados | 0 | ✅ |
 | revisionHistoryLimit configurado | 100% | ✅ |
 | Namespaces com labels | 5/5 | ✅ |
-| Imagens em registry legado | 2 | ⚠️ (approval-service, keycloak-postgresql) |
+| Imagens em registry legado | 1 | ℹ️ (apenas keycloak-postgresql - Bitnami) |
 | Deployments com `latest` | 10 | ⚠️ |
 | Labels completos em deployments | 75% | ⚠️ |
 | worker-agents migrado para GHCR | Sim | ✅ |
 | consensus-engine migrado para GHCR | Sim | ✅ |
+| approval-service migrado para GHCR | Sim | ✅ |
 
 ---
 
