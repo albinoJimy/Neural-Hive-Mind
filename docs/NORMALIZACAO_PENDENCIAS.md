@@ -87,9 +87,9 @@ Exemplo de implementação:
 | neural-hive-execution | worker-agents | Migrado para GHCR (tag: 2056771) | ✅ |
 | neural-hive | consensus-engine | Migrado para GHCR (tag: 9ed8d2d) | ✅ |
 | approval | approval-service | Migrado para GHCR (tag: 150cb8e) | ✅ |
-| keycloak | keycloak-postgresql | Bitnami image (mantida no legado) | ℹ️ |
+| keycloak | keycloak-postgresql | Migrado para Docker Hub oficial | ✅ |
 
-**Nota sobre keycloak-postgresql:** Esta é uma imagem oficial Bitnami, não um serviço customizado. Pode ser migrada para Docker Hub oficial (`bitnami/postgresql`) se desejado, mas não é crítico.
+**Nota:** Todos os serviços foram migrados do registry legado. O keycloak-postgresql agora usa `docker.io/bitnami/postgresql:latest` (Docker Hub oficial).
 
 ### 2.3 Análise Profunda: Migração do consensus-engine
 
@@ -146,12 +146,16 @@ kubectl set image deployment/approval-service \
   -n approval
 ```
 
-### Único serviço restante no registry legado
+### 2.5 Eliminação completa do registry legado
 
-**keycloak-postgresql**: Imagem Bitnami (baixa prioridade)
-- Namespace: `keycloak`
-- Imagem: `37.60.241.150:30500/bitnami/postgresql:latest`
-- Recomendação: Pode migrar para `docker.io/bitnami/postgresql:latest` se desejado
+**Data:** 2026-01-31
+**Status:** ✅ CONCLUÍDO
+
+O último serviço (`keycloak-postgresql`) foi migrado para Docker Hub oficial:
+- **Antes:** `37.60.241.150:30500/bitnami/postgresql:latest`
+- **Depois:** `docker.io/bitnami/postgresql:latest`
+
+**Nenhum pod no cluster usa mais o registry legado (37.60.241.150).**
 
 ### Riscos
 
@@ -350,7 +354,7 @@ Atualizar documentação para usar namespaces corretos.
 | Pods terminados | 0 | ✅ |
 | revisionHistoryLimit configurado | 100% | ✅ |
 | Namespaces com labels | 5/5 | ✅ |
-| Imagens em registry legado | 1 | ℹ️ (apenas keycloak-postgresql - Bitnami) |
+| Imagens em registry legado | 0 | ✅ (eliminado completamente) |
 | Deployments com `latest` | 10 | ⚠️ |
 | Labels completos em deployments | 75% | ⚠️ |
 | worker-agents migrado para GHCR | Sim | ✅ |
