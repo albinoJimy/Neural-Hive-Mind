@@ -228,6 +228,27 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract version from values.yaml
+        if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
+        id: version
+        run: |
+          VALUES_FILE="helm-charts/${{ matrix.service }}/values.yaml"
+          if [[ -f "$VALUES_FILE" ]]; then
+            # Extrair tag do values.yaml (formato: tag: "1.2.3" ou tag: 1.2.3)
+            VERSION=$(grep -E "^\s*tag:" "$VALUES_FILE" | head -1 | awk '{print $2}' | tr -d '"' | tr -d "'")
+            if [[ -n "$VERSION" && "$VERSION" != "latest" ]]; then
+              echo "version=$VERSION" >> $GITHUB_OUTPUT
+              echo "has_version=true" >> $GITHUB_OUTPUT
+              echo "📦 Versão extraída do values.yaml: $VERSION"
+            else
+              echo "has_version=false" >> $GITHUB_OUTPUT
+              echo "ℹ️ Nenhuma versão semver encontrada no values.yaml"
+            fi
+          else
+            echo "has_version=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ Arquivo values.yaml não encontrado"
+          fi
+
       - name: Extract metadata
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
         id: meta
@@ -238,6 +259,7 @@ jobs:
             type=raw,value=latest
             type=sha,prefix=
             type=ref,event=branch
+            type=raw,value=${{ steps.version.outputs.version }},enable=${{ steps.version.outputs.has_version == 'true' && github.ref == 'refs/heads/main' }}
             type=raw,value=${{ inputs.version_tag }},enable=${{ github.event_name == 'workflow_dispatch' && inputs.version_tag != '' && inputs.version_tag != 'latest' }}
             type=semver,pattern={{version}},value=${{ inputs.version_tag }},enable=${{ github.event_name == 'workflow_dispatch' && startsWith(inputs.version_tag, 'v') }}
             type=semver,pattern={{major}}.{{minor}},value=${{ inputs.version_tag }},enable=${{ github.event_name == 'workflow_dispatch' && startsWith(inputs.version_tag, 'v') }}

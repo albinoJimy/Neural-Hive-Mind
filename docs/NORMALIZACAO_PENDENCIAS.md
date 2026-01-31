@@ -261,7 +261,9 @@ Atualizar documentação para usar namespaces corretos.
 2. [x] ~~Rebuildar imagens corrigidas via CI/CD~~ **BUILD #21545285452 SUCESSO**
 3. [x] ~~Após rebuild, migrar worker-agents de registry legado para GHCR~~ **MIGRADO (tag: 2056771)**
 4. [ ] Decidir com o time sobre namespace `fluxo-a` (remover ou atualizar)
-5. [ ] Decidir estratégia de tagging (SHA vs Semver automático)
+5. [x] ~~Decidir estratégia de tagging (SHA vs Semver automático)~~ **IMPLEMENTADO**
+   - CI/CD agora extrai versão do values.yaml automaticamente
+   - Tags criadas em push para main: latest, SHA, branch, e versão do values.yaml
 6. [x] ~~Atualizar documentação de testes~~ **CORRIGIDO** - namespaces atualizados em PLANO_TESTE_MANUAL_FLUXOS_A_C.md
 7. [~] Fazer helm upgrade para aplicar labels padrão
    - ✅ consensus-engine atualizado (rev 2)
