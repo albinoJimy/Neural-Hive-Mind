@@ -194,6 +194,10 @@ networkPolicy:
     ports:
     - protocol: TCP
       port: 4317
+    - protocol: TCP
+      port: 4318
+    - protocol: TCP
+      port: 8888
 
 istio:
   enabled: true
