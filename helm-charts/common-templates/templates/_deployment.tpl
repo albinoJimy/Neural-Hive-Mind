@@ -48,7 +48,7 @@ spec:
         {{- if $values.istio.enabled }}
         sidecar.istio.io/inject: "true"
         {{- end }}
-        {{- if $values.observability.prometheus.enabled }}
+        {{- if and $values.observability $values.observability.prometheus $values.observability.prometheus.enabled }}
         prometheus.io/scrape: "true"
         prometheus.io/port: {{ $values.service.ports.metrics.port | default "8080" | quote }}
         prometheus.io/path: "/metrics"

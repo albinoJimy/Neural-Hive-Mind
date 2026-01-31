@@ -16,7 +16,7 @@ metadata:
     {{- else }}
     {{- toYaml $context.labels | nindent 4 }}
     {{- end }}
-    {{- if $values.observability.prometheus.enabled }}
+    {{- if and $values.observability $values.observability.prometheus $values.observability.prometheus.enabled }}
     component: metrics
     neural.hive/metrics: "enabled"
     {{- end }}
