@@ -79,9 +79,8 @@ class ContextManager:
         self._local = threading.local()
 
         logger.debug(
-            "context_manager_initialized",
-            service_name=self.config.service_name,
-            component=self.config.neural_hive_component
+            f"ContextManager inicializado para service_name={self.config.service_name}, "
+            f"component={self.config.neural_hive_component}"
         )
 
     @contextmanager
