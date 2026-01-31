@@ -1,13 +1,7 @@
 name: Deploy After Build
 
 on:
-  # Disparado automaticamente após sucesso do build
-  workflow_run:
-    workflows: ["Build and Push to GHCR"]
-    types: [completed]
-    branches: [main, develop]
-
-  # Disparo manual para deploys controlados
+  # Disparo via workflow_dispatch (chamado pelo build ou manualmente)
   workflow_dispatch:
     inputs:
       environment:
@@ -20,15 +14,13 @@ on:
           - production
         default: 'staging'
       services:
-        description: 'Serviços para deploy (separados por vírgula, vazio = todos do último build)'
-        required: false
+        description: 'Serviços para deploy (separados por vírgula)'
+        required: true
         type: string
-        default: ''
       image_tag:
         description: 'Tag da imagem (SHA, semver ou latest)'
-        required: false
+        required: true
         type: string
-        default: ''
       dry_run:
         description: 'Simular deployment sem aplicar mudanças'
         required: false
@@ -36,7 +28,6 @@ on:
         default: false
 
 permissions:
-  actions: read
   contents: read
 
 env:
@@ -50,151 +41,28 @@ jobs:
   prepare:
     name: Preparar Deployment
     runs-on: self-hosted
-    # Só executa se build foi sucesso ou se é dispatch manual
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     outputs:
-      environment: ${{ steps.determine-env.outputs.environment }}
-      services: ${{ steps.determine-services.outputs.services }}
-      services_list: ${{ steps.determine-services.outputs.services_list }}
-      image_tag: ${{ steps.determine-tag.outputs.tag }}
+      environment: ${{ inputs.environment }}
+      services: ${{ inputs.services }}
+      services_list: ${{ steps.parse-services.outputs.services_list }}
+      image_tag: ${{ inputs.image_tag }}
       should_deploy: ${{ steps.validate.outputs.should_deploy }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Determinar ambiente
-        id: determine-env
+      - name: Parsear lista de serviços
+        id: parse-services
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            ENVIRONMENT="${{ inputs.environment }}"
-          else
-            # Mapear branch para ambiente
-            BRANCH="${{ github.event.workflow_run.head_branch || github.ref_name }}"
-            case "$BRANCH" in
-              main|master)
-                ENVIRONMENT="production"
-                ;;
-              develop)
-                ENVIRONMENT="staging"
-                ;;
-              *)
-                ENVIRONMENT="development"
-                ;;
-            esac
-          fi
-          echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
-          echo "Ambiente determinado: $ENVIRONMENT"
-
-      - name: Baixar artifact do build
-        if: github.event_name == 'workflow_run'
-        uses: actions/github-script@v7
-        continue-on-error: true
-        with:
-          script: |
-            const fs = require('fs');
-            const runId = context.payload.workflow_run.id;
-
-            console.log(`Buscando artifacts do run ${runId}...`);
-
-            // Listar artifacts do workflow run
-            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              run_id: runId
-            });
-
-            const buildInfo = artifacts.data.artifacts.find(a => a.name === 'build-info');
-
-            if (!buildInfo) {
-              console.log('Artifact build-info não encontrado');
-              return;
-            }
-
-            console.log(`Baixando artifact ${buildInfo.name} (${buildInfo.id})...`);
-
-            // Baixar o artifact
-            const download = await github.rest.actions.downloadArtifact({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              artifact_id: buildInfo.id,
-              archive_format: 'zip'
-            });
-
-            // Salvar o zip
-            fs.mkdirSync('build-info', { recursive: true });
-            fs.writeFileSync('build-info.zip', Buffer.from(download.data));
-
-            console.log('Artifact baixado com sucesso');
-
-      - name: Extrair artifact
-        if: github.event_name == 'workflow_run'
-        continue-on-error: true
-        run: |
-          if [[ -f "build-info.zip" ]]; then
-            unzip -o build-info.zip -d build-info/
-            echo "Conteúdo do artifact:"
-            ls -la build-info/
-            cat build-info/services.txt || true
-          else
-            echo "Arquivo build-info.zip não encontrado"
-          fi
-
-      - name: Determinar serviços
-        id: determine-services
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.services }}" ]]; then
-            # Usar serviços do input manual
-            SERVICES="${{ inputs.services }}"
-          elif [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            # Obter serviços do artifact do build
-            if [[ -f "build-info/services.txt" ]]; then
-              SERVICES=$(cat build-info/services.txt)
-              echo "Serviços obtidos do artifact: $SERVICES"
-            else
-              echo "⚠️ Artifact não encontrado, usando fallback"
-              SERVICES="gateway-intencoes"
-            fi
-          else
-            SERVICES="gateway-intencoes"
-          fi
+          SERVICES="${{ inputs.services }}"
+          echo "Serviços recebidos: $SERVICES"
 
           # Converter para JSON array
           SERVICES_JSON=$(echo "$SERVICES" | tr ',' '\n' | jq -R -s -c 'split("\n") | map(select(. != ""))')
 
-          echo "services=$SERVICES" >> $GITHUB_OUTPUT
           echo "services_list=$SERVICES_JSON" >> $GITHUB_OUTPUT
-          echo "Serviços para deploy: $SERVICES"
-
-      - name: Determinar tag da imagem
-        id: determine-tag
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.image_tag }}" ]]; then
-            TAG="${{ inputs.image_tag }}"
-          elif [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            # Verificar se tem version tag no artifact
-            if [[ -f "build-info/version-tag.txt" ]]; then
-              VERSION_TAG=$(cat build-info/version-tag.txt)
-              if [[ -n "$VERSION_TAG" && "$VERSION_TAG" != "latest" ]]; then
-                TAG="$VERSION_TAG"
-                echo "Usando version tag do build: $TAG"
-              else
-                # Usar SHA do commit
-                TAG="${{ github.event.workflow_run.head_sha }}"
-                TAG="${TAG:0:7}"
-              fi
-            else
-              # Fallback: usar SHA do commit do workflow que disparou
-              TAG="${{ github.event.workflow_run.head_sha }}"
-              TAG="${TAG:0:7}"
-            fi
-          else
-            TAG="latest"
-          fi
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "Tag da imagem: $TAG"
+          echo "Lista JSON: $SERVICES_JSON"
 
       - name: Validar pré-requisitos
         id: validate
@@ -204,11 +72,13 @@ jobs:
           # Verificar se é dry-run
           if [[ "${{ inputs.dry_run }}" == "true" ]]; then
             echo "⚠️ Modo dry-run ativado - deployment será simulado"
+            SHOULD_DEPLOY="false"
           fi
 
-          # Verificar se KUBECONFIG está configurado (apenas warning)
-          if [[ -z "${{ secrets.KUBECONFIG }}" ]]; then
-            echo "⚠️ KUBECONFIG não configurado - helm upgrade pode falhar"
+          # Verificar se há serviços para deploy
+          if [[ -z "${{ inputs.services }}" ]]; then
+            echo "❌ Nenhum serviço especificado!"
+            SHOULD_DEPLOY="false"
           fi
 
           echo "should_deploy=$SHOULD_DEPLOY" >> $GITHUB_OUTPUT
@@ -219,11 +89,10 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Configuração | Valor |" >> $GITHUB_STEP_SUMMARY
           echo "|--------------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Ambiente** | ${{ steps.determine-env.outputs.environment }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Serviços** | ${{ steps.determine-services.outputs.services }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Tag** | ${{ steps.determine-tag.outputs.tag }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Ambiente** | ${{ inputs.environment }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Serviços** | ${{ inputs.services }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Tag** | ${{ inputs.image_tag }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Dry Run** | ${{ inputs.dry_run || 'false' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Trigger** | ${{ github.event_name }} |" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
   # Job 2: Atualizar Tags nos Values Files

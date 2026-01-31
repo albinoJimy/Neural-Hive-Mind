@@ -400,42 +400,73 @@ jobs:
   # ============================================================================
   # Job 4: Disparar Deployment Automático
   # ============================================================================
-  # Este job só executa em pushes diretos ou workflow_dispatch, NÃO em PRs.
-  # PRs fazem build para validação mas não disparam deployment.
-  # O workflow deploy-after-build.yml é disparado via workflow_run event.
   trigger-deployment:
     name: Disparar Deployment
     runs-on: self-hosted
     needs: [detect-changes, build-and-push, summary]
-    if: github.event_name != 'pull_request' && needs.build-and-push.result == 'success'
+    if: github.event_name != 'pull_request' && needs.build-and-push.result == 'success' && needs.detect-changes.outputs.has_changes == 'true'
 
     steps:
-      - name: Informar sobre deployment automático
+      - name: Determinar ambiente
+        id: env
         run: |
-          echo "## 🚀 Deployment Automático" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "O workflow **deploy-after-build.yml** será disparado automaticamente." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Configuração | Valor |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Branch** | ${{ github.ref_name }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Commit** | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Serviços** | ${{ needs.detect-changes.outputs.services_list }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Determinar ambiente baseado na branch
           BRANCH="${{ github.ref_name }}"
           case "$BRANCH" in
             main|master)
-              ENV="production"
+              echo "environment=staging" >> $GITHUB_OUTPUT
               ;;
             develop)
-              ENV="staging"
+              echo "environment=staging" >> $GITHUB_OUTPUT
               ;;
             *)
-              ENV="development"
+              echo "environment=development" >> $GITHUB_OUTPUT
               ;;
           esac
-          echo "| **Ambiente alvo** | $ENV |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Determinar tag da imagem
+        id: tag
+        run: |
+          VERSION_TAG="${{ inputs.version_tag }}"
+          if [[ -n "$VERSION_TAG" && "$VERSION_TAG" != "latest" ]]; then
+            echo "tag=$VERSION_TAG" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Disparar Deploy workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const services = '${{ needs.detect-changes.outputs.services_list }}';
+            const environment = '${{ steps.env.outputs.environment }}';
+            const imageTag = '${{ steps.tag.outputs.tag }}'.substring(0, 7);
+
+            console.log(`Disparando deploy para: ${services}`);
+            console.log(`Ambiente: ${environment}`);
+            console.log(`Tag: ${imageTag}`);
+
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'deploy-after-build.yml',
+              ref: '${{ github.ref_name }}',
+              inputs: {
+                environment: environment,
+                services: services,
+                image_tag: imageTag
+              }
+            });
+
+            console.log('✅ Deploy workflow disparado com sucesso!');
+
+      - name: Gerar resumo
+        run: |
+          echo "## 🚀 Deployment Automático Disparado" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Acompanhe o progresso em: **Actions > Deploy After Build**" >> $GITHUB_STEP_SUMMARY
+          echo "| Configuração | Valor |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Serviços** | ${{ needs.detect-changes.outputs.services_list }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Ambiente** | ${{ steps.env.outputs.environment }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Tag** | ${{ steps.tag.outputs.tag }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Acompanhe: **Actions > Deploy After Build**" >> $GITHUB_STEP_SUMMARY
