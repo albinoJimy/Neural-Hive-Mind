@@ -86,7 +86,7 @@ Dois deployments ainda usam o registry local antigo (`37.60.241.150:30500`) ao i
 | Namespace | Serviço | Imagem Atual | Imagem Recomendada |
 |-----------|---------|--------------|-------------------|
 | fluxo-a | gateway-intencoes | `37.60.241.150:30500/gateway-intencoes:1.0.9` | `ghcr.io/albinojimy/neural-hive-mind/gateway-intencoes:17a5a4d` |
-| neural-hive-execution | worker-agents | `37.60.241.150:30500/worker-agents:1.3.13` | `ghcr.io/albinojimy/neural-hive-mind/worker-agents:latest` |
+| neural-hive-execution | worker-agents | `37.60.241.150:30500/worker-agents:1.3.13` | **BLOQUEADO** - ver seção 2.1 |
 
 ### Riscos
 
@@ -94,17 +94,36 @@ Dois deployments ainda usam o registry local antigo (`37.60.241.150:30500`) ao i
 2. **Segurança**: Imagens não verificadas/assinadas
 3. **Consistência**: Diferentes fontes de imagens no cluster
 
+### 2.1 Bug Identificado na Imagem GHCR do worker-agents
+
+**Data:** 2026-01-31
+**Status:** BLOQUEADO
+
+Ao tentar migrar `worker-agents` para GHCR, foi identificado um bug na imagem:
+
+```
+ModuleNotFoundError: No module named 'neural_hive_resilience'
+```
+
+**Causa:** A imagem `ghcr.io/albinojimy/neural-hive-mind/worker-agents:latest` não inclui a dependência `neural_hive_resilience`.
+
+**Ação necessária:** Corrigir o Dockerfile ou requirements do worker-agents para incluir o módulo faltante antes de migrar.
+
+**Arquivo a verificar:** `services/worker-agents/requirements.txt` ou `Dockerfile`
+
 ### Solução Recomendada
 
 ```bash
-# Migrar worker-agents para GHCR
+# 1. PRIMEIRO: Corrigir dependência no worker-agents
+# Adicionar neural_hive_resilience ao requirements.txt
+
+# 2. Rebuildar imagem
+gh workflow run build-and-push-ghcr.yml -f services="worker-agents"
+
+# 3. Então migrar
 kubectl set image deployment/worker-agents \
   worker-agents=ghcr.io/albinojimy/neural-hive-mind/worker-agents:latest \
   -n neural-hive-execution
-
-# Avaliar desativação do namespace fluxo-a
-# (usa versão muito antiga - 1.0.9 vs 17a5a4d)
-kubectl delete namespace fluxo-a  # Após confirmação
 ```
 
 ---
@@ -114,6 +133,22 @@ kubectl delete namespace fluxo-a  # Após confirmação
 ### Problema
 
 O namespace `fluxo-a` contém uma versão muito antiga do gateway (1.0.9) enquanto produção usa `17a5a4d`.
+
+### Análise Realizada (2026-01-31)
+
+| Atributo | Valor |
+|----------|-------|
+| Data de criação | 2025-11-19 (72 dias) |
+| Pods ativos | 1 (gateway-intencoes) |
+| Última atividade | Sem eventos recentes |
+| Imagem | `37.60.241.150:30500/gateway-intencoes:1.0.9` |
+| Versão vs Produção | 1.0.9 vs 17a5a4d (muito desatualizado) |
+
+### Status
+
+- **Namespace aparenta estar inativo/abandonado**
+- **Usa registry legado**
+- **Versão muito antiga**
 
 ### Recomendação
 
@@ -177,17 +212,20 @@ Atualizar documentação para usar namespaces corretos.
 
 - [x] Limpeza de 260 ReplicaSets órfãos
 - [x] Remoção de 3 pods terminados
-- [x] Adição de `revisionHistoryLimit: 3` em todos os deployments
-- [x] Normalização de labels nos namespaces
+- [x] Adição de `revisionHistoryLimit: 3` em todos os deployments (30 deployments)
+- [x] Normalização de labels nos namespaces (5 namespaces)
 - [x] Commit do template Helm com `revisionHistoryLimit`
+- [x] Tentativa de migração worker-agents para GHCR (bloqueado - bug identificado)
+- [x] Análise do namespace fluxo-a (aparenta estar inativo)
 
 ## Próximos Passos
 
-1. [ ] Decidir estratégia de tagging (SHA vs Semver automático)
-2. [ ] Migrar worker-agents de registry legado para GHCR
-3. [ ] Avaliar e remover namespace `fluxo-a`
-4. [ ] Atualizar documentação de testes
-5. [ ] Fazer helm upgrade para aplicar labels padrão
+1. [ ] **BLOQUEADO** - Corrigir dependência `neural_hive_resilience` no worker-agents
+2. [ ] Após correção, migrar worker-agents de registry legado para GHCR
+3. [ ] Decidir com o time sobre namespace `fluxo-a` (remover ou atualizar)
+4. [ ] Decidir estratégia de tagging (SHA vs Semver automático)
+5. [ ] Atualizar documentação de testes
+6. [ ] Fazer helm upgrade para aplicar labels padrão
 
 ---
 
