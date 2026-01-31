@@ -18,8 +18,8 @@ metadata:
     {{- toYaml $context.labels | nindent 4 }}
     {{- end }}
 spec:
-  {{- if not $values.autoscaling.enabled }}
-  replicas: {{ $values.replicaCount }}
+  {{- if not (and $values.autoscaling $values.autoscaling.enabled) }}
+  replicas: {{ $values.replicaCount | default 1 }}
   {{- end }}
   revisionHistoryLimit: {{ $values.revisionHistoryLimit | default 3 }}
   selector:
@@ -29,12 +29,21 @@ spec:
       {{- else }}
       {{- toYaml $context.selectorLabels | nindent 6 }}
       {{- end }}
+  {{- $strategyType := "RollingUpdate" }}
+  {{- if and $values.deployment $values.deployment.strategy $values.deployment.strategy.type }}
+  {{- $strategyType = $values.deployment.strategy.type }}
+  {{- end }}
   strategy:
-    type: {{ $values.deployment.strategy.type | default "RollingUpdate" }}
-    {{- if eq ($values.deployment.strategy.type | default "RollingUpdate") "RollingUpdate" }}
+    type: {{ $strategyType }}
+    {{- if eq $strategyType "RollingUpdate" }}
     rollingUpdate:
+      {{- if and $values.deployment $values.deployment.strategy $values.deployment.strategy.rollingUpdate }}
       maxSurge: {{ $values.deployment.strategy.rollingUpdate.maxSurge | default 1 }}
       maxUnavailable: {{ $values.deployment.strategy.rollingUpdate.maxUnavailable | default 0 }}
+      {{- else }}
+      maxSurge: 1
+      maxUnavailable: 0
+      {{- end }}
     {{- end }}
   template:
     metadata:
@@ -45,7 +54,7 @@ spec:
         {{- if $config.checksumSecret }}
         checksum/secret: {{ $config.checksumSecret }}
         {{- end }}
-        {{- if $values.istio.enabled }}
+        {{- if and $values.istio $values.istio.enabled }}
         sidecar.istio.io/inject: "true"
         {{- end }}
         {{- if and $values.observability $values.observability.prometheus $values.observability.prometheus.enabled }}
