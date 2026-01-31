@@ -358,6 +358,23 @@ jobs:
           esac
           echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
 
+      - name: Adicionar repositório de dependências Helm
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami 2>/dev/null || true
+          helm repo add neural-hive file://./helm-charts/common-templates 2>/dev/null || true
+          helm repo update 2>/dev/null || true
+
+      - name: Atualizar dependências do chart
+        run: |
+          SERVICE="${{ matrix.service }}"
+          CHART_PATH="helm-charts/$SERVICE"
+
+          if [[ -f "$CHART_PATH/Chart.yaml" ]]; then
+            echo "Atualizando dependências de $SERVICE..."
+            helm dependency update "$CHART_PATH" 2>/dev/null || true
+            helm dependency build "$CHART_PATH" 2>/dev/null || true
+          fi
+
       - name: Deploy com Helm
         id: helm-deploy
         run: |
@@ -366,36 +383,78 @@ jobs:
           ENV="${{ needs.prepare.outputs.environment }}"
           NAMESPACE="${{ steps.namespace.outputs.namespace }}"
 
-          echo "Deployando $SERVICE no namespace $NAMESPACE..."
+          echo "============================================"
+          echo "🚀 Deployando $SERVICE"
+          echo "   Namespace: $NAMESPACE"
+          echo "   Tag: $TAG"
+          echo "   Ambiente: $ENV"
+          echo "============================================"
 
-          # Construir comando helm
-          HELM_CMD="helm upgrade --install $SERVICE helm-charts/$SERVICE"
-          HELM_CMD="$HELM_CMD --namespace $NAMESPACE --create-namespace"
-          HELM_CMD="$HELM_CMD --set image.tag=$TAG"
-          HELM_CMD="$HELM_CMD --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/$SERVICE"
+          # Verificar se chart existe
+          CHART_PATH="helm-charts/$SERVICE"
+          if [[ ! -d "$CHART_PATH" ]]; then
+            echo "❌ Chart não encontrado: $CHART_PATH"
+            echo "status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
 
-          # Adicionar valores específicos do ambiente
+          # Arquivo de valores do ambiente
+          VALUES_FILE=""
           case "$ENV" in
             production)
-              if [[ -f "environments/prod/helm-values/$SERVICE-values.yaml" ]]; then
-                HELM_CMD="$HELM_CMD -f environments/prod/helm-values/$SERVICE-values.yaml"
-              fi
+              VALUES_FILE="environments/prod/helm-values/$SERVICE-values.yaml"
               ;;
             staging)
-              if [[ -f "environments/staging/helm-values/$SERVICE-values.yaml" ]]; then
-                HELM_CMD="$HELM_CMD -f environments/staging/helm-values/$SERVICE-values.yaml"
-              fi
+              VALUES_FILE="environments/staging/helm-values/$SERVICE-values.yaml"
+              ;;
+            development)
+              VALUES_FILE="environments/dev/helm-values/$SERVICE-values.yaml"
               ;;
           esac
 
-          HELM_CMD="$HELM_CMD --wait --timeout 5m"
+          # Construir comando helm
+          HELM_ARGS=(
+            "upgrade" "--install" "$SERVICE" "$CHART_PATH"
+            "--namespace" "$NAMESPACE"
+            "--create-namespace"
+            "--set" "image.tag=$TAG"
+            "--set" "image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/$SERVICE"
+            "--atomic"
+            "--cleanup-on-fail"
+            "--wait"
+            "--timeout" "10m"
+          )
 
-          echo "Comando: $HELM_CMD"
+          # Adicionar valores do ambiente se existir
+          if [[ -n "$VALUES_FILE" && -f "$VALUES_FILE" ]]; then
+            echo "📄 Usando valores: $VALUES_FILE"
+            HELM_ARGS+=("-f" "$VALUES_FILE")
+          fi
 
-          # Executar (ou simular se não houver kubeconfig)
+          echo ""
+          echo "Comando: helm ${HELM_ARGS[*]}"
+          echo ""
+
+          # Executar
           if [[ -f ~/.kube/config ]]; then
-            eval $HELM_CMD
-            echo "status=success" >> $GITHUB_OUTPUT
+            if helm "${HELM_ARGS[@]}"; then
+              echo "✅ Deploy de $SERVICE concluído com sucesso!"
+              echo "status=success" >> $GITHUB_OUTPUT
+            else
+              echo "❌ Falha no deploy de $SERVICE"
+              echo "status=failed" >> $GITHUB_OUTPUT
+
+              # Mostrar status do release para debug
+              echo ""
+              echo "📊 Status do release:"
+              helm status "$SERVICE" -n "$NAMESPACE" 2>/dev/null || true
+
+              echo ""
+              echo "📋 Histórico do release:"
+              helm history "$SERVICE" -n "$NAMESPACE" 2>/dev/null || true
+
+              exit 1
+            fi
           else
             echo "⚠️ KUBECONFIG não disponível - simulando deploy"
             echo "status=simulated" >> $GITHUB_OUTPUT
