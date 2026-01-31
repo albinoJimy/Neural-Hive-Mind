@@ -77,9 +77,7 @@ Exemplo de implementação:
 
 ## 2. Registry Legado em Uso
 
-### Status: ✅ RESOLVIDO
-
-~~Dois deployments usavam o registry local antigo (`37.60.241.150:30500`)~~
+### Status: ✅ RESOLVIDO (exceto approval-service e keycloak-postgresql)
 
 ### Ações Executadas
 
@@ -87,8 +85,49 @@ Exemplo de implementação:
 |-----------|---------|------|--------|
 | fluxo-a | gateway-intencoes | Namespace removido (abandonado) | ✅ |
 | neural-hive-execution | worker-agents | Migrado para GHCR (tag: 2056771) | ✅ |
+| neural-hive | consensus-engine | Migrado para GHCR (tag: 9ed8d2d) | ✅ |
+| approval | approval-service | Pendente migração | ⚠️ |
+| keycloak | keycloak-postgresql | Bitnami image (mantida no legado) | ⚠️ |
 
-**Nenhum serviço usa mais o registry legado.**
+### 2.3 Análise Profunda: Migração do consensus-engine
+
+**Data:** 2026-01-31
+**Status:** ✅ RESOLVIDO
+
+**Sintoma Inicial:** Pod não ficava ready após migração para GHCR com erros de DNS:
+```
+DNS resolution failed for queen-agent.queen-agent.svc.cluster.local:50051
+```
+
+**Causa Raiz Identificada:** Múltiplos namespaces incorretos na configuração Helm:
+
+| Serviço | Configuração Incorreta | Configuração Correta |
+|---------|----------------------|---------------------|
+| queen-agent | `queen-agent.queen-agent.svc:50051` | `queen-agent.neural-hive.svc:50053` |
+| analyst-agents | `analyst-agents.analyst-agents.svc:50051` | `analyst-agents.neural-hive.svc:50051` |
+| specialists | `specialist-*.semantic-translation.svc:50051` | `specialist-*.neural-hive.svc:50051` |
+
+**Arquivos Corrigidos:**
+1. `helm-charts/consensus-engine/values.yaml` - Corrigido queen-agent host e porta
+2. `services/consensus-engine/src/config/settings.py` - Corrigidos defaults de todos os endpoints:
+   - queen_agent_grpc_host
+   - queen_agent_grpc_port (50051 → 50053)
+   - analyst_agent_grpc_host
+   - Todos os specialist_*_endpoint
+
+**Commit:** `9ed8d2d` - "fix: corrigir namespaces incorretos no consensus-engine"
+
+**Helm Upgrade:** Release atualizada (rev 7) com todos os endpoints corretos
+
+### Pendências de Migração
+
+**approval-service**: Última dependência no registry legado (exceto Bitnami)
+- Namespace: `approval`
+- Imagem atual: `37.60.241.150:30500/approval-service:1.0.1`
+
+**keycloak-postgresql**: Imagem Bitnami (pode permanecer no legado)
+- Namespace: `keycloak`
+- Imagem: `37.60.241.150:30500/bitnami/postgresql:latest`
 
 ### Riscos
 
@@ -287,7 +326,41 @@ Atualizar documentação para usar namespaces corretos.
 | Pods terminados | 0 | ✅ |
 | revisionHistoryLimit configurado | 100% | ✅ |
 | Namespaces com labels | 5/5 | ✅ |
-| Imagens em registry legado | 0 | ✅ (fluxo-a removido) |
+| Imagens em registry legado | 2 | ⚠️ (approval-service, keycloak-postgresql) |
 | Deployments com `latest` | 10 | ⚠️ |
 | Labels completos em deployments | 75% | ⚠️ |
 | worker-agents migrado para GHCR | Sim | ✅ |
+| consensus-engine migrado para GHCR | Sim | ✅ |
+
+---
+
+## 6. Namespaces Incorretos em Código
+
+### Status: ✅ PARCIALMENTE CORRIGIDO
+
+### Problema Identificado (2026-01-31)
+
+Durante a análise da migração do consensus-engine, identificamos um padrão de namespaces incorretos hardcoded em vários arquivos do projeto. Os defaults usavam o nome do serviço como namespace (ex: `service-name.service-name.svc.cluster.local`) em vez do namespace correto (`service-name.neural-hive.svc.cluster.local`).
+
+### Arquivos Corrigidos
+
+| Arquivo | Correção |
+|---------|----------|
+| `services/consensus-engine/src/config/settings.py` | ✅ 7 endpoints corrigidos |
+| `helm-charts/consensus-engine/values.yaml` | ✅ queen-agent corrigido |
+
+### Arquivos Pendentes de Correção
+
+Identificados arquivos com namespaces potencialmente incorretos (para análise futura):
+
+| Arquivo | Problema |
+|---------|----------|
+| `tests/e2e/specialists/connectivity-internal-test.py` | specialist-*.specialist-* |
+| `tests/e2e/conftest.py` | mongodb-cluster.mongodb-cluster |
+| `services/sla-management-system/src/config/settings.py` | redis-cluster.redis-cluster |
+| `libraries/neural_hive_integration/.../sla_management_client.py` | redis-cluster.redis-cluster |
+
+**Nota:** Os namespaces corretos são:
+- MongoDB: `mongodb.mongodb-cluster.svc.cluster.local`
+- Redis: `neural-hive-cache.redis-cluster.svc.cluster.local`
+- Specialists: `specialist-*.neural-hive.svc.cluster.local`
