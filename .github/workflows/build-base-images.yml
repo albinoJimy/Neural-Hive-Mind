@@ -18,6 +18,8 @@ on:
     paths:
       - 'base-images/**'
       - 'libraries/python/neural_hive_observability/**'
+      - 'libraries/python/neural_hive_domain/**'
+      - 'libraries/python/neural_hive_specialists/**'
       - '.github/workflows/build-base-images.yml'
 
 env:
@@ -57,6 +59,8 @@ jobs:
               "python-observability-base"
               "python-grpc-base"
               "python-mlops-base"
+              "python-nlp-base"
+              "python-specialist-base"
             )
           fi
 
@@ -147,6 +151,50 @@ jobs:
           docker push ${IMAGE}:${VERSION}
           docker push ${IMAGE}:latest
 
+      # ===== python-nlp-base (depende de python-grpc-base) =====
+      - name: Build python-nlp-base
+        if: contains(steps.images.outputs.images, 'python-nlp-base')
+        env:
+          OWNER_LC: ${{ github.repository_owner }}
+          VERSION_INPUT: ${{ inputs.version }}
+        run: |
+          OWNER_LOWER=$(echo "${OWNER_LC}" | tr '[:upper:]' '[:lower:]')
+          VERSION="${VERSION_INPUT:-1.0.7}"
+          IMAGE="${{ env.GHCR_REGISTRY }}/${OWNER_LOWER}/neural-hive-mind/python-nlp-base"
+
+          docker build \
+            --build-arg REGISTRY=${{ env.GHCR_REGISTRY }}/${OWNER_LOWER} \
+            --build-arg VERSION=${VERSION} \
+            -t ${IMAGE}:${VERSION} \
+            -t ${IMAGE}:latest \
+            -f base-images/python-nlp-base/Dockerfile \
+            .
+
+          docker push ${IMAGE}:${VERSION}
+          docker push ${IMAGE}:latest
+
+      # ===== python-specialist-base (depende de python-nlp-base) =====
+      - name: Build python-specialist-base
+        if: contains(steps.images.outputs.images, 'python-specialist-base')
+        env:
+          OWNER_LC: ${{ github.repository_owner }}
+          VERSION_INPUT: ${{ inputs.version }}
+        run: |
+          OWNER_LOWER=$(echo "${OWNER_LC}" | tr '[:upper:]' '[:lower:]')
+          VERSION="${VERSION_INPUT:-1.0.7}"
+          IMAGE="${{ env.GHCR_REGISTRY }}/${OWNER_LOWER}/neural-hive-mind/python-specialist-base"
+
+          docker build \
+            --build-arg REGISTRY=${{ env.GHCR_REGISTRY }}/${OWNER_LOWER} \
+            --build-arg VERSION=${VERSION} \
+            -t ${IMAGE}:${VERSION} \
+            -t ${IMAGE}:latest \
+            -f base-images/python-specialist-base/Dockerfile \
+            .
+
+          docker push ${IMAGE}:${VERSION}
+          docker push ${IMAGE}:latest
+
       - name: Resumo
         run: |
           echo "## Build Base Images Summary" >> $GITHUB_STEP_SUMMARY
@@ -158,3 +206,5 @@ jobs:
           echo "| python-observability-base | 1.2.6, latest |" >> $GITHUB_STEP_SUMMARY
           echo "| python-grpc-base | ${{ inputs.version || '1.0.7' }}, latest |" >> $GITHUB_STEP_SUMMARY
           echo "| python-mlops-base | ${{ inputs.version || '1.0.7' }}, latest |" >> $GITHUB_STEP_SUMMARY
+          echo "| python-nlp-base | ${{ inputs.version || '1.0.7' }}, latest |" >> $GITHUB_STEP_SUMMARY
+          echo "| python-specialist-base | ${{ inputs.version || '1.0.7' }}, latest |" >> $GITHUB_STEP_SUMMARY
