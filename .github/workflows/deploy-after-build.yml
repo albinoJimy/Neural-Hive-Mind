@@ -313,7 +313,7 @@ jobs:
               ;;
           esac
 
-          HELM_CMD="$HELM_CMD --force --wait --timeout 5m"
+          HELM_CMD="$HELM_CMD --wait --timeout 5m"
 
           echo "Comando: $HELM_CMD"
 
