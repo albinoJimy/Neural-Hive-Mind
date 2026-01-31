@@ -338,19 +338,42 @@ class ResilientOTLPSpanExporter(SpanExporter):
             return result
 
         except TypeError as e:
-            # Bug de formatação de strings em versões antigas do OpenTelemetry (<1.30.0)
-            # Causa: caracteres como % em atributos são interpretados como placeholders
+            # Bug de formatação de strings - capturar mais detalhes para debugging
             duration = time.monotonic() - start_time
             self._failure_count += 1
 
             self._record_failure_metrics("TypeError", duration)
 
+            # Logar detalhes dos spans para debugging
+            import traceback
+            tb = traceback.format_exc()
+
+            # Tentar extrair atributos dos spans para identificar o problema
+            span_details = []
+            for span in spans[:3]:  # Limitar a 3 spans para não sobrecarregar logs
+                try:
+                    attrs = {}
+                    for key, value in span.attributes.items():
+                        # Verificar se o valor contém % que pode causar problemas
+                        str_value = str(value) if value is not None else "None"
+                        if "%" in str_value:
+                            attrs[key] = f"CONTAINS_PERCENT: {str_value[:50]}"
+                        else:
+                            attrs[key] = str_value[:50]
+                    span_details.append({
+                        "name": span.name,
+                        "suspect_attrs": {k: v for k, v in attrs.items() if "CONTAINS_PERCENT" in str(v)}
+                    })
+                except Exception:
+                    span_details.append({"name": "error_reading_span"})
+
             logger.error(
-                f"TypeError durante export de spans (bug formatação OpenTelemetry): {e}. "
+                f"TypeError durante export de spans: {e}. "
                 f"Spans: {span_count}, Endpoint: {self._endpoint}, "
                 f"Service: {self._service_name}. "
                 f"Total de falhas: {self._failure_count}. "
-                f"Solução: atualizar opentelemetry-sdk para >= 1.30.0"
+                f"Span details: {span_details}. "
+                f"Traceback: {tb[-500:]}"
             )
 
             return SpanExportResult.FAILURE

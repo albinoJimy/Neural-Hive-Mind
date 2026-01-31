@@ -44,13 +44,18 @@ COPY services/gateway-intencoes/requirements.txt .
 # Copiar biblioteca interna neural_hive_domain
 COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
 
+# Copiar biblioteca neural_hive_observability atualizada (sobrescreve versão da imagem base)
+# Necessário para incluir correções de headers OTEL gRPC lowercase
+COPY libraries/python/neural_hive_observability /tmp/neural_hive_observability
+
 # Instalar dependências Python em uma única camada para otimizar build
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --upgrade pip==24.0 && \
     pip install --no-cache-dir /tmp/neural_hive_domain && \
+    pip install --no-cache-dir --force-reinstall /tmp/neural_hive_observability && \
     pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir --no-deps openai-whisper && \
-    rm -rf /tmp/neural_hive_domain
+    rm -rf /tmp/neural_hive_domain /tmp/neural_hive_observability
 
 # Baixar modelos spaCy para todos os idiomas suportados (pt, en, es)
 RUN --mount=type=cache,target=/root/.cache/pip \
