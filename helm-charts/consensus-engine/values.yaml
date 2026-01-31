@@ -111,7 +111,7 @@ config:
 
   openTelemetry:
     enabled: true  # Habilitar OpenTelemetry (true em prod, false para dev local via Helm values)
-    endpoint: "http://otel-collector-opentelemetry-collector.observability.svc.cluster.local:4317"
+    endpoint: "http://otel-collector-neural-hive-otel-collector.observability.svc.cluster.local:4317"
     samplingRate: 1.0  # 100% em dev, 50% em staging, 10% em prod (via environment values)
 
   consensus:
@@ -134,7 +134,7 @@ config:
 # Observability config (required by common-templates)
 observability:
   otelEnabled: true
-  otelEndpoint: "http://otel-collector-opentelemetry-collector.observability.svc.cluster.local:4317"
+  otelEndpoint: "http://otel-collector-neural-hive-otel-collector.observability.svc.cluster.local:4317"
   prometheus:
     enabled: true
     serviceMonitor:
