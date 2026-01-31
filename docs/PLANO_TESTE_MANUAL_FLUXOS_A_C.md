@@ -130,25 +130,25 @@ jq --version
 
 ```bash
 # Gateway de Intenções
-kubectl get pods -n gateway-intencoes -o wide
+kubectl get pods -n neural-hive -o wide
 
 # Semantic Translation Engine
-kubectl get pods -n semantic-translation -o wide
+kubectl get pods -n neural-hive -o wide
 
 # Consensus Engine
-kubectl get pods -n consensus-engine -o wide
+kubectl get pods -n neural-hive -o wide
 
 # Orchestrator Dynamic
-kubectl get pods -n orchestrator-dynamic -o wide
+kubectl get pods -n neural-hive -o wide
 
 # Kafka
 kubectl get pods -n kafka -o wide
 
 # MongoDB
-kubectl get pods -n mongodb -o wide
+kubectl get pods -n mongodb-cluster -o wide
 
 # Redis
-kubectl get pods -n redis -o wide
+kubectl get pods -n redis-cluster -o wide
 
 # Observabilidade
 kubectl get pods -n observability -o wide
@@ -316,13 +316,13 @@ Copie e preencha esta tabela durante a execução do teste:
 
 ```bash
 # Anotar nomes dos pods para uso nos comandos
-export GATEWAY_POD=$(kubectl get pods -n gateway-intencoes -l app=gateway-intencoes -o jsonpath='{.items[0].metadata.name}')
-export STE_POD=$(kubectl get pods -n semantic-translation -l app=semantic-translation-engine -o jsonpath='{.items[0].metadata.name}')
-export CONSENSUS_POD=$(kubectl get pods -n consensus-engine -l app=consensus-engine -o jsonpath='{.items[0].metadata.name}')
-export ORCHESTRATOR_POD=$(kubectl get pods -n orchestrator-dynamic -l app=orchestrator-dynamic -o jsonpath='{.items[0].metadata.name}')
+export GATEWAY_POD=$(kubectl get pods -n neural-hive -l app=gateway-intencoes -o jsonpath='{.items[0].metadata.name}')
+export STE_POD=$(kubectl get pods -n neural-hive -l app=semantic-translation-engine -o jsonpath='{.items[0].metadata.name}')
+export CONSENSUS_POD=$(kubectl get pods -n neural-hive -l app=consensus-engine -o jsonpath='{.items[0].metadata.name}')
+export ORCHESTRATOR_POD=$(kubectl get pods -n neural-hive -l app=orchestrator-dynamic -o jsonpath='{.items[0].metadata.name}')
 export KAFKA_POD=$(kubectl get pods -n kafka -l app=kafka -o jsonpath='{.items[0].metadata.name}')
-export MONGO_POD=$(kubectl get pods -n mongodb -l app=mongodb -o jsonpath='{.items[0].metadata.name}')
-export REDIS_POD=$(kubectl get pods -n redis -l app=redis -o jsonpath='{.items[0].metadata.name}')
+export MONGO_POD=$(kubectl get pods -n mongodb-cluster -l app=mongodb -o jsonpath='{.items[0].metadata.name}')
+export REDIS_POD=$(kubectl get pods -n redis-cluster -l app=redis -o jsonpath='{.items[0].metadata.name}')
 
 # Pods adicionais para C3-C6 (Phase 2)
 export SERVICE_REGISTRY_POD=$(kubectl get pods -n neural-hive -l app=service-registry -o jsonpath='{.items[0].metadata.name}')
@@ -351,7 +351,7 @@ echo "Worker: $WORKER_POD"
 #### Comando
 
 ```bash
-kubectl exec -n gateway-intencoes $GATEWAY_POD -- curl -s http://localhost:8000/health | jq .
+kubectl exec -n neural-hive $GATEWAY_POD -- curl -s http://localhost:8000/health | jq .
 ```
 
 #### Output Esperado
@@ -386,13 +386,13 @@ Se falhar, verificar:
 
 ```bash
 # Logs do Gateway
-kubectl logs -n gateway-intencoes $GATEWAY_POD --tail=50
+kubectl logs -n neural-hive $GATEWAY_POD --tail=50
 
 # Verificar conectividade Redis
-kubectl exec -n gateway-intencoes $GATEWAY_POD -- nc -zv redis-service.redis.svc.cluster.local 6379
+kubectl exec -n neural-hive $GATEWAY_POD -- nc -zv redis-service.redis.svc.cluster.local 6379
 
 # Verificar conectividade Kafka
-kubectl exec -n gateway-intencoes $GATEWAY_POD -- nc -zv kafka-bootstrap.kafka.svc.cluster.local 9092
+kubectl exec -n neural-hive $GATEWAY_POD -- nc -zv kafka-bootstrap.kafka.svc.cluster.local 9092
 ```
 
 ### 3.2 Enviar Intenção (Payload 1 - TECHNICAL)
@@ -400,13 +400,13 @@ kubectl exec -n gateway-intencoes $GATEWAY_POD -- nc -zv kafka-bootstrap.kafka.s
 #### Copiar Payload para o Pod
 
 ```bash
-kubectl cp /tmp/intent-technical.json gateway-intencoes/$GATEWAY_POD:/tmp/intent.json
+kubectl cp /tmp/intent-technical.json neural-hive/$GATEWAY_POD:/tmp/intent.json
 ```
 
 #### Enviar POST
 
 ```bash
-kubectl exec -n gateway-intencoes $GATEWAY_POD -- curl -s -X POST \
+kubectl exec -n neural-hive $GATEWAY_POD -- curl -s -X POST \
   -H "Content-Type: application/json" \
   -H "X-Request-ID: manual-test-$(date +%s)" \
   -d @/tmp/intent.json \
@@ -469,7 +469,7 @@ confidence: __________________________
 #### Comando
 
 ```bash
-kubectl logs -n gateway-intencoes $GATEWAY_POD --tail=50 | grep -E "intent_id|Kafka|published|Processando"
+kubectl logs -n neural-hive $GATEWAY_POD --tail=50 | grep -E "intent_id|Kafka|published|Processando"
 ```
 
 #### Output Esperado
@@ -545,7 +545,7 @@ kubectl exec -n kafka $KAFKA_POD -- kafka-console-consumer.sh \
 #### Verificar Existência do Cache
 
 ```bash
-kubectl exec -n redis $REDIS_POD -- redis-cli GET "intent:<intent_id>"
+kubectl exec -n redis-cluster $REDIS_POD -- redis-cli GET "intent:<intent_id>"
 ```
 
 > Substitua `<intent_id>` pelo valor anotado.
@@ -557,7 +557,7 @@ JSON do IntentEnvelope cacheado.
 #### Verificar TTL
 
 ```bash
-kubectl exec -n redis $REDIS_POD -- redis-cli TTL "intent:<intent_id>"
+kubectl exec -n redis-cluster $REDIS_POD -- redis-cli TTL "intent:<intent_id>"
 ```
 
 #### Output Esperado
@@ -668,7 +668,7 @@ curl -s 'http://localhost:9090/api/v1/query?query=neural_hive_nlu_confidence_sco
 #### Comando
 
 ```bash
-kubectl logs -n semantic-translation $STE_POD --tail=100 | grep -E "Consumindo|Intent|plan_id|intent_id"
+kubectl logs -n neural-hive $STE_POD --tail=100 | grep -E "Consumindo|Intent|plan_id|intent_id"
 ```
 
 #### Output Esperado
@@ -701,7 +701,7 @@ plan_id: __________________________
 #### Comando
 
 ```bash
-kubectl logs -n semantic-translation $STE_POD --tail=100 | grep -E "DAG|Risk|Explainability|task"
+kubectl logs -n neural-hive $STE_POD --tail=100 | grep -E "DAG|Risk|Explainability|task"
 ```
 
 #### Output Esperado
@@ -780,7 +780,7 @@ kubectl exec -n kafka $KAFKA_POD -- kafka-console-consumer.sh \
 #### Comando
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "db.cognitive_ledger.findOne({plan_id: '<plan_id>'})" neural_hive
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "db.cognitive_ledger.findOne({plan_id: '<plan_id>'})" neural_hive
 ```
 
 > Substitua `<plan_id>` pelo valor anotado.
@@ -847,7 +847,7 @@ kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "db.cognitive_ledge
 #### Comando
 
 ```bash
-kubectl logs -n semantic-translation $STE_POD --tail=100 | grep -E "Neo4j|similar|graph"
+kubectl logs -n neural-hive $STE_POD --tail=100 | grep -E "Neo4j|similar|graph"
 ```
 
 #### Output Esperado
@@ -951,7 +951,7 @@ curl -s 'http://localhost:9090/api/v1/query?query=histogram_quantile(0.95,rate(n
 #### Comando
 
 ```bash
-kubectl logs -n consensus-engine $CONSENSUS_POD --tail=100 | grep -E "gRPC|specialist|EvaluatePlan|Chamando"
+kubectl logs -n neural-hive $CONSENSUS_POD --tail=100 | grep -E "gRPC|specialist|EvaluatePlan|Chamando"
 ```
 
 #### Output Esperado
@@ -984,9 +984,9 @@ INFO  5/5 specialists responderam
 
 ```bash
 # Identificar pod do specialist-business
-SPECIALIST_BUSINESS_POD=$(kubectl get pods -n semantic-translation -l app=specialist-business -o jsonpath='{.items[0].metadata.name}')
+SPECIALIST_BUSINESS_POD=$(kubectl get pods -n neural-hive -l app=specialist-business -o jsonpath='{.items[0].metadata.name}')
 
-kubectl logs -n semantic-translation $SPECIALIST_BUSINESS_POD --tail=50 | grep -E "EvaluatePlan|opinion_id|confidence|recommendation"
+kubectl logs -n neural-hive $SPECIALIST_BUSINESS_POD --tail=50 | grep -E "EvaluatePlan|opinion_id|confidence|recommendation"
 ```
 
 #### Output Esperado
@@ -1030,9 +1030,9 @@ recommendation: __________________________
 #### Comando
 
 ```bash
-SPECIALIST_TECHNICAL_POD=$(kubectl get pods -n semantic-translation -l app=specialist-technical -o jsonpath='{.items[0].metadata.name}')
+SPECIALIST_TECHNICAL_POD=$(kubectl get pods -n neural-hive -l app=specialist-technical -o jsonpath='{.items[0].metadata.name}')
 
-kubectl logs -n semantic-translation $SPECIALIST_TECHNICAL_POD --tail=50 | grep -E "EvaluatePlan|opinion_id|confidence|recommendation"
+kubectl logs -n neural-hive $SPECIALIST_TECHNICAL_POD --tail=50 | grep -E "EvaluatePlan|opinion_id|confidence|recommendation"
 ```
 
 #### Output Esperado
@@ -1062,9 +1062,9 @@ recommendation: __________________________
 #### Comando
 
 ```bash
-SPECIALIST_BEHAVIOR_POD=$(kubectl get pods -n semantic-translation -l app=specialist-behavior -o jsonpath='{.items[0].metadata.name}')
+SPECIALIST_BEHAVIOR_POD=$(kubectl get pods -n neural-hive -l app=specialist-behavior -o jsonpath='{.items[0].metadata.name}')
 
-kubectl logs -n semantic-translation $SPECIALIST_BEHAVIOR_POD --tail=50 | grep -E "EvaluatePlan|opinion_id|confidence|recommendation"
+kubectl logs -n neural-hive $SPECIALIST_BEHAVIOR_POD --tail=50 | grep -E "EvaluatePlan|opinion_id|confidence|recommendation"
 ```
 
 #### Output Esperado
@@ -1088,9 +1088,9 @@ opinion_id (behavior): __________________________
 #### Comando
 
 ```bash
-SPECIALIST_EVOLUTION_POD=$(kubectl get pods -n semantic-translation -l app=specialist-evolution -o jsonpath='{.items[0].metadata.name}')
+SPECIALIST_EVOLUTION_POD=$(kubectl get pods -n neural-hive -l app=specialist-evolution -o jsonpath='{.items[0].metadata.name}')
 
-kubectl logs -n semantic-translation $SPECIALIST_EVOLUTION_POD --tail=50 | grep -E "EvaluatePlan|opinion_id|confidence|recommendation"
+kubectl logs -n neural-hive $SPECIALIST_EVOLUTION_POD --tail=50 | grep -E "EvaluatePlan|opinion_id|confidence|recommendation"
 ```
 
 #### Output Esperado
@@ -1114,9 +1114,9 @@ opinion_id (evolution): __________________________
 #### Comando
 
 ```bash
-SPECIALIST_ARCHITECTURE_POD=$(kubectl get pods -n semantic-translation -l app=specialist-architecture -o jsonpath='{.items[0].metadata.name}')
+SPECIALIST_ARCHITECTURE_POD=$(kubectl get pods -n neural-hive -l app=specialist-architecture -o jsonpath='{.items[0].metadata.name}')
 
-kubectl logs -n semantic-translation $SPECIALIST_ARCHITECTURE_POD --tail=50 | grep -E "EvaluatePlan|opinion_id|confidence|recommendation"
+kubectl logs -n neural-hive $SPECIALIST_ARCHITECTURE_POD --tail=50 | grep -E "EvaluatePlan|opinion_id|confidence|recommendation"
 ```
 
 #### Output Esperado
@@ -1140,7 +1140,7 @@ opinion_id (architecture): __________________________
 #### Contar Opiniões
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "db.cognitive_ledger.find({plan_id: '<plan_id>', specialist_type: {\$exists: true}}).count()" neural_hive
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "db.cognitive_ledger.find({plan_id: '<plan_id>', specialist_type: {\$exists: true}}).count()" neural_hive
 ```
 
 **Output Esperado:** `5`
@@ -1148,7 +1148,7 @@ kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "db.cognitive_ledge
 #### Buscar Opinion Específica (Business)
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "db.cognitive_ledger.findOne({plan_id: '<plan_id>', specialist_type: 'business'})" neural_hive
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "db.cognitive_ledger.findOne({plan_id: '<plan_id>', specialist_type: 'business'})" neural_hive
 ```
 
 #### Output Esperado (Estrutura)
@@ -1283,7 +1283,7 @@ curl -s 'http://localhost:9090/api/v1/query?query=neural_hive_specialist_opinion
 #### Comando
 
 ```bash
-kubectl logs -n consensus-engine $CONSENSUS_POD --tail=100 | grep -E "Consumindo|plan_id|Agregando|topic"
+kubectl logs -n neural-hive $CONSENSUS_POD --tail=100 | grep -E "Consumindo|plan_id|Agregando|topic"
 ```
 
 #### Output Esperado
@@ -1307,7 +1307,7 @@ INFO  Iniciando agregação de opiniões...
 #### Comando
 
 ```bash
-kubectl logs -n consensus-engine $CONSENSUS_POD --tail=100 | grep -E "Agregando|bayesian|Opiniões|divergence|consensus"
+kubectl logs -n neural-hive $CONSENSUS_POD --tail=100 | grep -E "Agregando|bayesian|Opiniões|divergence|consensus"
 ```
 
 #### Output Esperado
@@ -1345,7 +1345,7 @@ INFO    consensus_method=bayesian
 #### Comando
 
 ```bash
-kubectl logs -n consensus-engine $CONSENSUS_POD --tail=100 | grep -E "Decisão|decision_id|final_decision|approve|reject"
+kubectl logs -n neural-hive $CONSENSUS_POD --tail=100 | grep -E "Decisão|decision_id|final_decision|approve|reject"
 ```
 
 #### Output Esperado
@@ -1448,7 +1448,7 @@ kubectl exec -n kafka $KAFKA_POD -- kafka-console-consumer.sh \
 #### Comando
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "db.consensus_decisions.findOne({decision_id: '<decision_id>'})" neural_hive
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "db.consensus_decisions.findOne({decision_id: '<decision_id>'})" neural_hive
 ```
 
 > Substitua `<decision_id>` pelo valor anotado.
@@ -1528,7 +1528,7 @@ kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "db.consensus_decis
 #### Listar Keys de Feromônios
 
 ```bash
-kubectl exec -n redis $REDIS_POD -- redis-cli KEYS 'pheromone:*'
+kubectl exec -n redis-cluster $REDIS_POD -- redis-cli KEYS 'pheromone:*'
 ```
 
 #### Output Esperado
@@ -1544,7 +1544,7 @@ kubectl exec -n redis $REDIS_POD -- redis-cli KEYS 'pheromone:*'
 #### Verificar Feromônio Específico
 
 ```bash
-kubectl exec -n redis $REDIS_POD -- redis-cli HGETALL 'pheromone:business:technical:SUCCESS'
+kubectl exec -n redis-cluster $REDIS_POD -- redis-cli HGETALL 'pheromone:business:technical:SUCCESS'
 ```
 
 #### Output Esperado
@@ -1669,7 +1669,7 @@ curl -s 'http://localhost:9090/api/v1/query?query=neural_hive_pheromone_strength
 #### Comando
 
 ```bash
-kubectl logs -n orchestrator-dynamic $ORCHESTRATOR_POD --tail=100 | grep -E "Consumindo|decision_id|ticket|topic"
+kubectl logs -n neural-hive $ORCHESTRATOR_POD --tail=100 | grep -E "Consumindo|decision_id|ticket|topic"
 ```
 
 #### Output Esperado
@@ -1693,7 +1693,7 @@ INFO  Iniciando geração de execution tickets...
 #### Comando
 
 ```bash
-kubectl logs -n orchestrator-dynamic $ORCHESTRATOR_POD --tail=100 | grep -E "Gerando|Ticket|ticket_id|task_type|priority"
+kubectl logs -n neural-hive $ORCHESTRATOR_POD --tail=100 | grep -E "Gerando|Ticket|ticket_id|task_type|priority"
 ```
 
 #### Output Esperado
@@ -1789,7 +1789,7 @@ kubectl exec -n kafka $KAFKA_POD -- kafka-console-consumer.sh \
 #### Contar Tickets
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "db.execution_tickets.find({plan_id: '<plan_id>'}).count()" neural_hive
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "db.execution_tickets.find({plan_id: '<plan_id>'}).count()" neural_hive
 ```
 
 **Output Esperado:** Número igual ao total de tickets gerados (ex: `5`)
@@ -1797,7 +1797,7 @@ kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "db.execution_ticke
 #### Buscar Ticket Específico
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "db.execution_tickets.findOne({ticket_id: '<ticket_id>'})" neural_hive
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "db.execution_tickets.findOne({ticket_id: '<ticket_id>'})" neural_hive
 ```
 
 #### Output Esperado (Estrutura)
@@ -1858,7 +1858,7 @@ kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "db.execution_ticke
 #### Comando
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "db.execution_tickets.find({plan_id: '<plan_id>'}, {ticket_id: 1, task_id: 1, task_type: 1, dependencies: 1, priority: 1}).sort({created_at: 1}).toArray()" neural_hive
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "db.execution_tickets.find({plan_id: '<plan_id>'}, {ticket_id: 1, task_id: 1, task_type: 1, dependencies: 1, priority: 1}).sort({created_at: 1}).toArray()" neural_hive
 ```
 
 #### Output Esperado (Exemplo)
@@ -2076,7 +2076,7 @@ Match: ✅ (worker possui todas as capabilities requeridas)
 #### Comando - Listar Capabilities Requeridas pelos Tickets
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "
 db.execution_tickets.distinct('required_capabilities', {plan_id: '<plan_id>'})
 " neural_hive
 ```
@@ -2103,7 +2103,7 @@ kubectl exec -n neural-hive $SERVICE_REGISTRY_POD -- curl -s http://localhost:80
 #### Comando
 
 ```bash
-kubectl logs -n orchestrator-dynamic $ORCHESTRATOR_POD --tail=100 | grep -E "discover|worker|registry|capabilities"
+kubectl logs -n neural-hive $ORCHESTRATOR_POD --tail=100 | grep -E "discover|worker|registry|capabilities"
 ```
 
 #### Output Esperado
@@ -2184,7 +2184,7 @@ curl -s 'http://localhost:9090/api/v1/query?query=neural_hive_flow_c_worker_disc
 #### Comando
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "
 db.execution_tickets.find(
   {plan_id: '<plan_id>', assigned_worker: {\$exists: true}},
   {ticket_id: 1, assigned_worker: 1, status: 1, assigned_at: 1}
@@ -2258,7 +2258,7 @@ Ticket 4 → Worker B
 #### Comando - Contar Tickets por Worker
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "
 db.execution_tickets.aggregate([
   {\$match: {plan_id: '<plan_id>'}},
   {\$group: {_id: '\$assigned_worker', count: {\$sum: 1}}}
@@ -2290,7 +2290,7 @@ db.execution_tickets.aggregate([
 #### Comando
 
 ```bash
-kubectl logs -n orchestrator-dynamic $ORCHESTRATOR_POD --tail=100 | grep -E "assign|dispatch|worker|ticket"
+kubectl logs -n neural-hive $ORCHESTRATOR_POD --tail=100 | grep -E "assign|dispatch|worker|ticket"
 ```
 
 #### Output Esperado
@@ -2396,7 +2396,7 @@ curl -s 'http://localhost:9090/api/v1/query?query=histogram_quantile(0.95,rate(n
 #### Comando - Agregação por Status
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "
 db.execution_tickets.aggregate([
   {\$match: {plan_id: '<plan_id>'}},
   {\$group: {_id: '\$status', count: {\$sum: 1}}}
@@ -2443,7 +2443,7 @@ tickets_failed: __________________________
 #### Comando
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "
 db.execution_tickets.findOne(
   {plan_id: '<plan_id>', status: 'COMPLETED'},
   {ticket_id: 1, status: 1, result: 1, completed_at: 1, duration_ms: 1}
@@ -2500,7 +2500,7 @@ db.execution_tickets.findOne(
 #### Comando
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "
 db.execution_tickets.find(
   {plan_id: '<plan_id>', status: 'FAILED'},
   {ticket_id: 1, status: 1, error: 1, retry_count: 1, failed_at: 1}
@@ -2553,7 +2553,7 @@ SLA padrão:
 #### Comando - Verificar Violações de SLA
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "
 db.execution_tickets.find({
   plan_id: '<plan_id>',
   \$or: [
@@ -2581,7 +2581,7 @@ db.execution_tickets.find({
 #### Comando
 
 ```bash
-kubectl logs -n orchestrator-dynamic $ORCHESTRATOR_POD --tail=100 | grep -E "polling|monitor|status|completed|progress"
+kubectl logs -n neural-hive $ORCHESTRATOR_POD --tail=100 | grep -E "polling|monitor|status|completed|progress"
 ```
 
 #### Output Esperado
@@ -2767,7 +2767,7 @@ O buffer Redis é usado como fallback quando Kafka está indisponível:
 #### Comando - Verificar Tamanho do Buffer
 
 ```bash
-kubectl exec -n redis $REDIS_POD -- redis-cli LLEN telemetry:flow-c:buffer
+kubectl exec -n redis-cluster $REDIS_POD -- redis-cli LLEN telemetry:flow-c:buffer
 ```
 
 #### Output Esperado (Operação Normal)
@@ -2785,7 +2785,7 @@ kubectl exec -n redis $REDIS_POD -- redis-cli LLEN telemetry:flow-c:buffer
 #### Comando - Verificar Eventos no Buffer (se > 0)
 
 ```bash
-kubectl exec -n redis $REDIS_POD -- redis-cli LRANGE telemetry:flow-c:buffer 0 5
+kubectl exec -n redis-cluster $REDIS_POD -- redis-cli LRANGE telemetry:flow-c:buffer 0 5
 ```
 
 #### Critérios de Sucesso
@@ -2801,7 +2801,7 @@ kubectl exec -n redis $REDIS_POD -- redis-cli LRANGE telemetry:flow-c:buffer 0 5
 #### Comando
 
 ```bash
-kubectl logs -n orchestrator-dynamic $ORCHESTRATOR_POD --tail=100 | grep -E "telemetry|publish|kafka|buffer"
+kubectl logs -n neural-hive $ORCHESTRATOR_POD --tail=100 | grep -E "telemetry|publish|kafka|buffer"
 ```
 
 #### Output Esperado
@@ -2901,7 +2901,7 @@ curl -s 'http://localhost:9090/api/v1/query?query=neural_hive_flow_c_telemetry_p
 #### Query Agregada por Tipo
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "
 db.cognitive_ledger.aggregate([
   {\$match: {intent_id: '<intent_id>'}},
   {\$group: {_id: '\$type', count: {\$sum: 1}}}
@@ -2922,13 +2922,13 @@ db.cognitive_ledger.aggregate([
 #### Verificar Decisão
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "db.consensus_decisions.findOne({intent_id: '<intent_id>'}, {decision_id: 1, final_decision: 1})" neural_hive
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "db.consensus_decisions.findOne({intent_id: '<intent_id>'}, {decision_id: 1, final_decision: 1})" neural_hive
 ```
 
 #### Verificar Tickets
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "db.execution_tickets.find({intent_id: '<intent_id>'}).count()" neural_hive
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "db.execution_tickets.find({intent_id: '<intent_id>'}).count()" neural_hive
 ```
 
 #### Validação de Correlação
@@ -3035,7 +3035,7 @@ As taxas devem ser consistentes (sem perdas no pipeline):
 #### Contagem Total de Keys
 
 ```bash
-kubectl exec -n redis $REDIS_POD -- redis-cli --scan --pattern 'pheromone:*' | wc -l
+kubectl exec -n redis-cluster $REDIS_POD -- redis-cli --scan --pattern 'pheromone:*' | wc -l
 ```
 
 **Output Esperado:** >= 5 (um por specialist)
@@ -3043,7 +3043,7 @@ kubectl exec -n redis $REDIS_POD -- redis-cli --scan --pattern 'pheromone:*' | w
 #### Verificar Força de Feromônio Específico
 
 ```bash
-kubectl exec -n redis $REDIS_POD -- redis-cli HGET 'pheromone:business:technical:SUCCESS' strength
+kubectl exec -n redis-cluster $REDIS_POD -- redis-cli HGET 'pheromone:business:technical:SUCCESS' strength
 ```
 
 **Output Esperado:** Valor entre 0.0 e 1.0
@@ -3053,7 +3053,7 @@ kubectl exec -n redis $REDIS_POD -- redis-cli HGET 'pheromone:business:technical
 ```bash
 for specialist in business technical behavior evolution architecture; do
   echo "=== Pheromone: $specialist ==="
-  kubectl exec -n redis $REDIS_POD -- redis-cli HGETALL "pheromone:$specialist:technical:SUCCESS"
+  kubectl exec -n redis-cluster $REDIS_POD -- redis-cli HGETALL "pheromone:$specialist:technical:SUCCESS"
 done
 ```
 
@@ -3072,13 +3072,13 @@ done
 1. Obter timestamp inicial (intent criado):
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "db.cognitive_ledger.findOne({intent_id: '<intent_id>'}, {created_at: 1})" neural_hive
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "db.cognitive_ledger.findOne({intent_id: '<intent_id>'}, {created_at: 1})" neural_hive
 ```
 
 2. Obter timestamp final (último ticket gerado):
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "db.execution_tickets.find({intent_id: '<intent_id>'}).sort({created_at: -1}).limit(1).toArray()" neural_hive
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "db.execution_tickets.find({intent_id: '<intent_id>'}).sort({created_at: -1}).limit(1).toArray()" neural_hive
 ```
 
 3. Calcular diferença:
@@ -3131,9 +3131,9 @@ Validar roteamento para domínio BUSINESS e análise focada em ROI/impacto de ne
 #### Enviar Intenção
 
 ```bash
-kubectl cp /tmp/intent-business.json gateway-intencoes/$GATEWAY_POD:/tmp/intent.json
+kubectl cp /tmp/intent-business.json neural-hive/$GATEWAY_POD:/tmp/intent.json
 
-kubectl exec -n gateway-intencoes $GATEWAY_POD -- curl -s -X POST \
+kubectl exec -n neural-hive $GATEWAY_POD -- curl -s -X POST \
   -H "Content-Type: application/json" \
   -H "X-Request-ID: manual-test-business-$(date +%s)" \
   -d @/tmp/intent.json \
@@ -3170,9 +3170,9 @@ Validar roteamento para domínio INFRASTRUCTURE e análise de escalabilidade.
 #### Enviar Intenção
 
 ```bash
-kubectl cp /tmp/intent-infrastructure.json gateway-intencoes/$GATEWAY_POD:/tmp/intent.json
+kubectl cp /tmp/intent-infrastructure.json neural-hive/$GATEWAY_POD:/tmp/intent.json
 
-kubectl exec -n gateway-intencoes $GATEWAY_POD -- curl -s -X POST \
+kubectl exec -n neural-hive $GATEWAY_POD -- curl -s -X POST \
   -H "Content-Type: application/json" \
   -H "X-Request-ID: manual-test-infra-$(date +%s)" \
   -d @/tmp/intent.json \
@@ -3228,9 +3228,9 @@ EOF
 #### Enviar Intenção Ambígua
 
 ```bash
-kubectl cp /tmp/intent-ambiguous.json gateway-intencoes/$GATEWAY_POD:/tmp/intent.json
+kubectl cp /tmp/intent-ambiguous.json neural-hive/$GATEWAY_POD:/tmp/intent.json
 
-kubectl exec -n gateway-intencoes $GATEWAY_POD -- curl -s -X POST \
+kubectl exec -n neural-hive $GATEWAY_POD -- curl -s -X POST \
   -H "Content-Type: application/json" \
   -d @/tmp/intent.json \
   http://localhost:8000/intentions | jq .
@@ -3245,7 +3245,7 @@ kubectl exec -n gateway-intencoes $GATEWAY_POD -- curl -s -X POST \
 #### Verificar Logs de Baixa Confidence
 
 ```bash
-kubectl logs -n gateway-intencoes $GATEWAY_POD --tail=50 | grep -E "low confidence|validation-required|ambiguous"
+kubectl logs -n neural-hive $GATEWAY_POD --tail=50 | grep -E "low confidence|validation-required|ambiguous"
 ```
 
 #### Resultado
@@ -3264,14 +3264,14 @@ Validar comportamento quando um specialist não responde a tempo.
 
 ```bash
 # Salvar ConfigMap original
-kubectl get configmap -n consensus-engine consensus-config -o yaml > /tmp/consensus-config-backup.yaml
+kubectl get configmap -n neural-hive consensus-config -o yaml > /tmp/consensus-config-backup.yaml
 
 # Editar temporariamente (reduzir GRPC_TIMEOUT_MS de 5000 para 100)
-kubectl patch configmap -n consensus-engine consensus-config --type merge -p '{"data":{"GRPC_TIMEOUT_MS":"100"}}'
+kubectl patch configmap -n neural-hive consensus-config --type merge -p '{"data":{"GRPC_TIMEOUT_MS":"100"}}'
 
 # Reiniciar pod para aplicar
-kubectl rollout restart deployment -n consensus-engine consensus-engine
-kubectl rollout status deployment -n consensus-engine consensus-engine
+kubectl rollout restart deployment -n neural-hive consensus-engine
+kubectl rollout status deployment -n neural-hive consensus-engine
 ```
 
 #### Executar Teste
@@ -3288,7 +3288,7 @@ Repetir envio de intenção (Payload 1).
 #### Verificar Logs de Timeout
 
 ```bash
-kubectl logs -n consensus-engine $CONSENSUS_POD --tail=100 | grep -E "timeout|fallback|deadline exceeded"
+kubectl logs -n neural-hive $CONSENSUS_POD --tail=100 | grep -E "timeout|fallback|deadline exceeded"
 ```
 
 #### Verificar Métricas de Timeout
@@ -3304,8 +3304,8 @@ curl -s 'http://localhost:9090/api/v1/query?query=neural_hive_specialist_timeout
 kubectl apply -f /tmp/consensus-config-backup.yaml
 
 # Reiniciar pod
-kubectl rollout restart deployment -n consensus-engine consensus-engine
-kubectl rollout status deployment -n consensus-engine consensus-engine
+kubectl rollout restart deployment -n neural-hive consensus-engine
+kubectl rollout status deployment -n neural-hive consensus-engine
 ```
 
 #### Resultado
@@ -3351,16 +3351,16 @@ kubectl get events -A --sort-by='.lastTimestamp' | grep -i "error\|failed\|warni
 
 ```bash
 # Gateway
-kubectl logs -n gateway-intencoes $GATEWAY_POD --tail=100 | grep -i "error\|exception\|failed\|panic"
+kubectl logs -n neural-hive $GATEWAY_POD --tail=100 | grep -i "error\|exception\|failed\|panic"
 
 # STE
-kubectl logs -n semantic-translation $STE_POD --tail=100 | grep -i "error\|exception\|failed\|panic"
+kubectl logs -n neural-hive $STE_POD --tail=100 | grep -i "error\|exception\|failed\|panic"
 
 # Consensus
-kubectl logs -n consensus-engine $CONSENSUS_POD --tail=100 | grep -i "error\|exception\|failed\|panic"
+kubectl logs -n neural-hive $CONSENSUS_POD --tail=100 | grep -i "error\|exception\|failed\|panic"
 
 # Orchestrator
-kubectl logs -n orchestrator-dynamic $ORCHESTRATOR_POD --tail=100 | grep -i "error\|exception\|failed\|panic"
+kubectl logs -n neural-hive $ORCHESTRATOR_POD --tail=100 | grep -i "error\|exception\|failed\|panic"
 ```
 
 #### Verificar Conectividade Kafka
@@ -3383,42 +3383,42 @@ kubectl exec -n kafka $KAFKA_POD -- kafka-topics.sh --bootstrap-server localhost
 
 ```bash
 # Ping
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "db.adminCommand('ping')" neural_hive
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "db.adminCommand('ping')" neural_hive
 
 # Status do replica set
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "rs.status()" neural_hive
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "rs.status()" neural_hive
 
 # Listar collections
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "db.getCollectionNames()" neural_hive
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "db.getCollectionNames()" neural_hive
 
 # Contar documentos
-kubectl exec -n mongodb $MONGO_POD -- mongosh --quiet --eval "db.cognitive_ledger.countDocuments({})" neural_hive
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongosh --quiet --eval "db.cognitive_ledger.countDocuments({})" neural_hive
 ```
 
 #### Verificar Conectividade Redis
 
 ```bash
 # Ping
-kubectl exec -n redis $REDIS_POD -- redis-cli ping
+kubectl exec -n redis-cluster $REDIS_POD -- redis-cli ping
 
 # Info
-kubectl exec -n redis $REDIS_POD -- redis-cli info server
+kubectl exec -n redis-cluster $REDIS_POD -- redis-cli info server
 
 # Listar todas as keys (cuidado em produção)
-kubectl exec -n redis $REDIS_POD -- redis-cli --scan --pattern '*' | head -20
+kubectl exec -n redis-cluster $REDIS_POD -- redis-cli --scan --pattern '*' | head -20
 
 # Memória usada
-kubectl exec -n redis $REDIS_POD -- redis-cli info memory | grep used_memory_human
+kubectl exec -n redis-cluster $REDIS_POD -- redis-cli info memory | grep used_memory_human
 ```
 
 #### Verificar gRPC dos Specialists
 
 ```bash
 # Testar conectividade gRPC (requer grpcurl instalado no pod)
-kubectl exec -n consensus-engine $CONSENSUS_POD -- grpcurl -plaintext specialist-business.semantic-translation.svc.cluster.local:50051 list
+kubectl exec -n neural-hive $CONSENSUS_POD -- grpcurl -plaintext specialist-business.semantic-translation.svc.cluster.local:50051 list
 
 # Verificar endpoints de serviço
-kubectl get endpoints -n semantic-translation | grep specialist
+kubectl get endpoints -n neural-hive | grep specialist
 ```
 
 ### 10.3 Procedimento de Rollback
@@ -3429,10 +3429,10 @@ Se o teste falhar criticamente, siga este procedimento:
 
 ```bash
 # Salvar logs de todos os componentes
-kubectl logs -n gateway-intencoes $GATEWAY_POD --tail=500 > /tmp/gateway-logs.txt
-kubectl logs -n semantic-translation $STE_POD --tail=500 > /tmp/ste-logs.txt
-kubectl logs -n consensus-engine $CONSENSUS_POD --tail=500 > /tmp/consensus-logs.txt
-kubectl logs -n orchestrator-dynamic $ORCHESTRATOR_POD --tail=500 > /tmp/orchestrator-logs.txt
+kubectl logs -n neural-hive $GATEWAY_POD --tail=500 > /tmp/gateway-logs.txt
+kubectl logs -n neural-hive $STE_POD --tail=500 > /tmp/ste-logs.txt
+kubectl logs -n neural-hive $CONSENSUS_POD --tail=500 > /tmp/consensus-logs.txt
+kubectl logs -n neural-hive $ORCHESTRATOR_POD --tail=500 > /tmp/orchestrator-logs.txt
 
 echo "Logs salvos em /tmp/*-logs.txt"
 ```
@@ -3440,7 +3440,7 @@ echo "Logs salvos em /tmp/*-logs.txt"
 #### 2. Capturar Estado do MongoDB
 
 ```bash
-kubectl exec -n mongodb $MONGO_POD -- mongodump --db neural_hive --out /tmp/mongo-backup
+kubectl exec -n mongodb-cluster $MONGO_POD -- mongodump --db neural_hive --out /tmp/mongo-backup
 
 kubectl cp mongodb/$MONGO_POD:/tmp/mongo-backup /tmp/mongo-backup-local
 ```
@@ -3448,10 +3448,10 @@ kubectl cp mongodb/$MONGO_POD:/tmp/mongo-backup /tmp/mongo-backup-local
 #### 3. Capturar Estado do Redis
 
 ```bash
-kubectl exec -n redis $REDIS_POD -- redis-cli BGSAVE
+kubectl exec -n redis-cluster $REDIS_POD -- redis-cli BGSAVE
 
 # Aguardar conclusão
-kubectl exec -n redis $REDIS_POD -- redis-cli LASTSAVE
+kubectl exec -n redis-cluster $REDIS_POD -- redis-cli LASTSAVE
 ```
 
 #### 4. Reiniciar Pods Problemáticos
@@ -3482,7 +3482,7 @@ kubectl top pods -A | grep -E "gateway|semantic|consensus|orchestrator"
 #### Verificar Limites e Requests
 
 ```bash
-kubectl describe pods -n gateway-intencoes $GATEWAY_POD | grep -A5 "Limits:\|Requests:"
+kubectl describe pods -n neural-hive $GATEWAY_POD | grep -A5 "Limits:\|Requests:"
 ```
 
 #### Verificar PVCs
