@@ -60,11 +60,12 @@ def init_tracing(config: ObservabilityConfig) -> None:
 
     # Configurar exporter OTLP com wrapper resiliente
     try:
-        # Sanitizar valores de headers para evitar bug do OpenTelemetry 1.39.1
-        # O bug causa TypeError durante formatação de strings com caracteres especiais
+        # Headers para OTLP gRPC devem ser lowercase sem caracteres especiais
+        # gRPC HTTP/2 não aceita headers como "X-Header-Name"
+        # Usar formato compatível: "x-header-name" ou sem prefixo
         sanitized_headers = {
-            "X-Neural-Hive-Source": _sanitize_header_value(config.service_name),
-            "X-Neural-Hive-Component": _sanitize_header_value(config.neural_hive_component),
+            "x-neural-hive-source": _sanitize_header_value(config.service_name),
+            "x-neural-hive-component": _sanitize_header_value(config.neural_hive_component),
         }
 
         # Usar wrapper resiliente que captura exceções durante export
