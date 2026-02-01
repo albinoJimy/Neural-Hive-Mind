@@ -169,8 +169,25 @@ jobs:
         service: ${{ fromJson(needs.detect-changes.outputs.services_matrix) }}
 
     steps:
+      - name: Clean workspace before checkout
+        run: |
+          echo "Cleaning workspace to avoid stale files..."
+          rm -rf services/consensus-engine/src 2>/dev/null || true
+          rm -rf .git 2>/dev/null || true
+
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          clean: true
+          fetch-depth: 0
+
+      - name: Verify source code checkout
+        run: |
+          echo "=== Verificando checkout do código fonte ==="
+          echo "Git HEAD: $(git rev-parse HEAD)"
+          echo "=== consensus_orchestrator.py compliance_checks ==="
+          grep -A20 "compliance_checks=" services/consensus-engine/src/services/consensus_orchestrator.py | head -25
+          echo "=== Verificação concluída ==="
 
       - name: Aviso sobre política de push em PRs
         if: github.event_name == 'pull_request'
