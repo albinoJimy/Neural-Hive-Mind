@@ -41,30 +41,8 @@ ARG CACHE_BUST=1
 # Usar ARG em RUN força invalidação do cache a partir deste ponto
 RUN echo "Cache bust: ${CACHE_BUST}"
 
-# DEBUG: Show what's in /app BEFORE copying src
-RUN echo "=== DEBUG: Contents of /app BEFORE src copy ===" && \
-    ls -la /app/ && \
-    echo "=== Checking if /app/src already exists ===" && \
-    (ls -la /app/src/ 2>/dev/null || echo "/app/src does not exist yet (expected)")
-
 # Copiar código da aplicação
 COPY --chown=consensus:consensus services/consensus-engine/src /app/src
-
-# CRITICAL DEBUG: Verify file contents INSIDE the build
-# This will show EXACTLY what was copied into the container
-RUN echo "=== DEBUG: Verifying copied files INSIDE container ===" && \
-    echo "Cache bust value: ${CACHE_BUST}" && \
-    echo "=== First 20 lines of consensus_orchestrator.py ===" && \
-    head -20 /app/src/services/consensus_orchestrator.py && \
-    echo "=== Checking for neural_hive_domain import ===" && \
-    grep -n "neural_hive_domain" /app/src/services/consensus_orchestrator.py || echo "WARNING: neural_hive_domain NOT FOUND!" && \
-    echo "=== Checking for neural_hive_observability import ===" && \
-    grep -n "neural_hive_observability" /app/src/services/consensus_orchestrator.py || echo "WARNING: neural_hive_observability NOT FOUND!" && \
-    echo "=== MD5 checksum ===" && \
-    md5sum /app/src/services/consensus_orchestrator.py && \
-    echo "=== Checking for adaptive_thresholds_used (FIX indicator) ===" && \
-    grep -n "adaptive_thresholds_used" /app/src/services/consensus_orchestrator.py || echo "ERROR: FIX NOT FOUND - adaptive_thresholds_used missing!" && \
-    echo "=== DEBUG COMPLETE ==="
 
 # Garantir diretórios de schemas
 RUN mkdir -p /app/schemas/cognitive-plan /app/schemas/consolidated-decision && \
