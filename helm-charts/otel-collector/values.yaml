@@ -315,12 +315,12 @@ collector:
         send_timestamps: true
         metric_expiration: 180m
         enable_open_metrics: true
-      jaeger:
-        endpoint: jaeger-collector.observability.svc.cluster.local:14250
+      otlp/jaeger:
+        endpoint: neural-hive-jaeger.observability.svc.cluster.local:4317
         tls:
           insecure: true
       otlp/traces:
-        endpoint: jaeger-collector.observability.svc.cluster.local:4317
+        endpoint: neural-hive-jaeger.observability.svc.cluster.local:4317
         tls:
           insecure: true
         headers:
@@ -337,8 +337,8 @@ collector:
       pipelines:
         traces:
           receivers: [otlp, jaeger]
-          processors: [memory_limiter, resource, attributes/neural_hive, tail_sampling, batch]
-          exporters: [jaeger, otlp/traces]
+          processors: [memory_limiter, resource, attributes/neural_hive, batch]
+          exporters: [otlp/jaeger, debug]
         metrics:
           receivers: [otlp, prometheus]
           processors: [memory_limiter, resource, attributes/neural_hive, batch]
@@ -352,7 +352,7 @@ collector:
           level: "info"
         metrics:
           level: detailed
-          address: 0.0.0.0:8888
+          address: 0.0.0.0:8889  # Porta diferente do exporter Prometheus (8888) para evitar conflito
 
 # Configurações de monitoramento
 monitoring:
