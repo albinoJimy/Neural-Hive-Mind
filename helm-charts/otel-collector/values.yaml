@@ -186,42 +186,12 @@ collector:
     extensions:
       health_check:
         endpoint: 0.0.0.0:13133
-        check_collector_pipeline:
-          enabled: true
-          interval: "5m"
-          exporter_failure_threshold: 5
       pprof:
         endpoint: 0.0.0.0:1777
-        block_profile_fraction: 0
-        mutex_profile_fraction: 0
       zpages:
         endpoint: 0.0.0.0:55679
       memory_ballast:
-        size_mib: 683
-      resourcedetection:
-        detectors: [env, system, k8snode, kubernetes]
-        timeout: 2s
-        override: false
-        k8snode:
-          auth_type: "serviceAccount"
-        kubernetes:
-          auth_type: "serviceAccount"
-          node_from_env_var: "K8S_NODE_NAME"
-          extract:
-            metadata:
-              - k8s.pod.name
-              - k8s.pod.uid
-              - k8s.deployment.name
-              - k8s.namespace.name
-              - k8s.node.name
-              - k8s.pod.start_time
-            annotations:
-              - service_name: "neural.hive/service-name"
-              - version: "neural.hive/version"
-              - domain: "neural.hive/domain"
-            labels:
-              - service_version: "app.kubernetes.io/version"
-              - team: "app.kubernetes.io/managed-by"
+        size_mib: 512
 
     receivers:
       otlp:
@@ -230,129 +200,59 @@ collector:
             endpoint: 0.0.0.0:4317
           http:
             endpoint: 0.0.0.0:4318
-      prometheus:
-        config:
-          global:
-            scrape_interval: 15s
-            evaluation_interval: 15s
-          scrape_configs:
-          - job_name: 'neural-hive-services'
-            kubernetes_sd_configs:
-            - role: pod
-              namespaces:
-                names:
-                - default
-                - neural-hive
-                - gateway
-            relabel_configs:
-            - source_labels: [__meta_kubernetes_pod_annotation_neural_hive_metrics]
-              action: keep
-              regex: enabled
-            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
-              action: replace
-              target_label: __metrics_path__
-              regex: (.+)
-            - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
-              action: replace
-              regex: ([^:]+)(?::\d+)?;(\d+)
-              replacement: $1:$2
-              target_label: __address__
-            - action: labelmap
-              regex: __meta_kubernetes_pod_label_(.+)
       jaeger:
         protocols:
           grpc:
             endpoint: 0.0.0.0:14250
           thrift_http:
             endpoint: 0.0.0.0:14268
-      otlp/logs:
-        protocols:
-          grpc:
-            endpoint: 0.0.0.0:4317
-          http:
-            endpoint: 0.0.0.0:4318
+      zipkin:
+        endpoint: 0.0.0.0:9411
 
     processors:
       memory_limiter:
         check_interval: 1s
-        limit_mib: 1536
+        limit_mib: 1024
       batch:
         send_batch_size: 1024
         timeout: 10s
-        send_batch_max_size: 2048
       resource:
         attributes:
         - key: deployment.environment
           value: production
           action: upsert
-        - key: service.namespace
-          from_attribute: k8s.namespace.name
-          action: insert
-        - key: neural.hive.cluster
-          value: main
-          action: upsert
-      attributes/neural_hive:
-        actions:
-        - key: neural.hive.intent.id
-          from_attribute: http.request.header.x-neural-hive-intent-id
-          action: upsert
-        - key: neural.hive.plan.id
-          from_attribute: http.request.header.x-neural-hive-plan-id
-          action: upsert
-        - key: neural.hive.domain
-          from_attribute: http.request.header.x-neural-hive-domain
-          action: upsert
-        - key: neural.hive.user.id
-          from_attribute: http.request.header.x-neural-hive-user-id
-          action: upsert
-      tail_sampling: {}
 
     exporters:
-      prometheus:
-        endpoint: "0.0.0.0:8888"
-        const_labels:
-          cluster: neural-hive-main
-        send_timestamps: true
-        metric_expiration: 180m
-        enable_open_metrics: true
       otlp/jaeger:
         endpoint: neural-hive-jaeger.observability.svc.cluster.local:4317
         tls:
           insecure: true
-      otlp/traces:
-        endpoint: neural-hive-jaeger.observability.svc.cluster.local:4317
-        tls:
-          insecure: true
-        headers:
-          X-Neural-Hive-Source: "otel-collector"
       debug:
-        verbosity: normal
-      logging:
-        loglevel: info
-        sampling_initial: 5
-        sampling_thereafter: 200
+        verbosity: basic
+      prometheus:
+        endpoint: "0.0.0.0:8888"
 
     service:
-      extensions: [health_check, pprof, zpages, memory_ballast, resourcedetection]
+      extensions: [health_check, pprof, zpages, memory_ballast]
       pipelines:
         traces:
-          receivers: [otlp, jaeger]
-          processors: [memory_limiter, resource, attributes/neural_hive, batch]
+          receivers: [otlp, jaeger, zipkin]
+          processors: [memory_limiter, resource, batch]
           exporters: [otlp/jaeger, debug]
         metrics:
-          receivers: [otlp, prometheus]
-          processors: [memory_limiter, resource, attributes/neural_hive, batch]
+          receivers: [otlp]
+          processors: [memory_limiter, resource, batch]
           exporters: [prometheus]
         logs:
-          receivers: [otlp/logs]
-          processors: [memory_limiter, resource, attributes/neural_hive, batch]
-          exporters: [logging]
+          receivers: [otlp]
+          processors: [memory_limiter, resource, batch]
+          exporters: [debug]
       telemetry:
         logs:
           level: "info"
         metrics:
           level: detailed
-          address: 0.0.0.0:8889  # Porta diferente do exporter Prometheus (8888) para evitar conflito
+          address: 0.0.0.0:8889
 
 # Configurações de monitoramento
 monitoring:
@@ -401,25 +301,13 @@ networkPolicy:
 
 # Configuração do subchart opentelemetry-collector
 opentelemetry-collector:
-  mode: deployment
+  enabled: false  # Desabilitado - usando configuração própria
 
 # Configurações de ambiente específicas
 environments:
   development:
     replicaCount: 1
-    collector:
-      config:
-        processors:
-          tail_sampling: {}
   staging:
     replicaCount: 1
-    collector:
-      config:
-        processors:
-          tail_sampling: {}
   production:
     replicaCount: 2
-    collector:
-      config:
-        processors:
-          tail_sampling: {}
