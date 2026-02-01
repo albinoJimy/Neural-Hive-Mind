@@ -36,7 +36,10 @@ COPY --chown=consensus:consensus libraries/python/neural_hive_specialists/proto_
 RUN echo '"""neural_hive_specialists stub for consensus-engine - only proto_gen needed"""' > /app/neural_hive_specialists/__init__.py && \
     chown consensus:consensus /app/neural_hive_specialists/__init__.py
 
-# Copiar código da aplicação
+# ARG para invalidar cache (passado pelo CI/CD)
+ARG CACHE_BUST=1
+
+# Copiar código da aplicação (CACHE_BUST força rebuild quando código muda)
 COPY --chown=consensus:consensus services/consensus-engine/src /app/src
 
 # Garantir diretórios de schemas

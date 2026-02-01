@@ -288,6 +288,7 @@ jobs:
           build-args: |
             REGISTRY=ghcr.io/${{ steps.owner.outputs.lowercase }}
             VERSION=${{ inputs.version_tag || 'latest' }}
+            CACHE_BUST=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
