@@ -1,4 +1,5 @@
 # Gateway de Intenções - Neural Hive-Mind
+# Rebuild: 2026-02-01 - fix lowercase topic names
 ARG REGISTRY=ghcr.io/albinojimy
 FROM ${REGISTRY}/neural-hive-mind/python-observability-base:1.2.6
 
