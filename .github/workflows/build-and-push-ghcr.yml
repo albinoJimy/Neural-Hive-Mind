@@ -251,6 +251,13 @@ jobs:
           # Criar novo builder para evitar cache stale
           buildkitd-flags: --debug
 
+      - name: Clear buildx builder cache
+        if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
+        run: |
+          echo "Clearing buildx builder cache AFTER setup..."
+          docker buildx prune -af --force 2>/dev/null || true
+          echo "Buildx cache cleared"
+
       - name: Login no GHCR
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
         uses: docker/login-action@v3
