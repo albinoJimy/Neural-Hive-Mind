@@ -61,8 +61,8 @@ config:
     # Para migração futura, atualizar ambos os tópicos e coordenar com STE/Gateway
     plansTopicConsume: "plans.ready"
     consensusTopicProduce: "plans.consensus"
-    securityProtocol: "SASL_SSL"
-    saslMechanism: "SCRAM-SHA-512"
+    securityProtocol: "PLAINTEXT"
+    saslMechanism: ""
     schemaRegistryUrl: "https://schema-registry.kafka.svc.cluster.local:8081/apis/ccompat/v6"
 
   specialists:
