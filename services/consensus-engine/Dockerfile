@@ -38,8 +38,10 @@ RUN echo '"""neural_hive_specialists stub for consensus-engine - only proto_gen 
 
 # ARG para invalidar cache (passado pelo CI/CD)
 ARG CACHE_BUST=1
+# Usar ARG em RUN força invalidação do cache a partir deste ponto
+RUN echo "Cache bust: ${CACHE_BUST}"
 
-# Copiar código da aplicação (CACHE_BUST força rebuild quando código muda)
+# Copiar código da aplicação
 COPY --chown=consensus:consensus services/consensus-engine/src /app/src
 
 # Garantir diretórios de schemas
