@@ -233,9 +233,21 @@ jobs:
             echo "Dockerfile nao encontrado: $DOCKERFILE_PATH"
           fi
 
+      - name: Clear Docker build cache
+        if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
+        run: |
+          echo "Clearing Docker build cache..."
+          docker builder prune -af 2>/dev/null || true
+          docker system prune -f 2>/dev/null || true
+          echo "Docker cache cleared"
+
       - name: Set up Docker Buildx
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
         uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:master
+            network=host
 
       - name: Login no GHCR
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
@@ -307,9 +319,11 @@ jobs:
             VERSION=${{ inputs.version_tag || 'latest' }}
             CACHE_BUST=${{ github.sha }}
           # TEMP: Desabilitar cache para forçar rebuild limpo
-          # Problema: cache GHA estava servindo layers com código antigo
+          # Problema: cache GHA e buildx local estavam servindo layers antigos
           # TODO: Reativar após confirmar fix do erro "too many values to unpack"
           no-cache: true
+          pull: true
+          provenance: false
           # cache-from: type=gha
           # cache-to: type=gha,mode=max
 
