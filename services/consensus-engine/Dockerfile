@@ -73,3 +73,4 @@ LABEL maintainer="Neural Hive-Mind Team <team@neural-hive-mind.org>" \
 # Using 1 worker to avoid race conditions in startup (MongoDB indexes, Kafka consumer group)
 # For production with multiple replicas, use 1 worker per pod and scale horizontally
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Force rebuild Sun Feb  1 15:44:17 WAT 2026
