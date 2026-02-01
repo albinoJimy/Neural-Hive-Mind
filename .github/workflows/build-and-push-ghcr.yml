@@ -245,9 +245,8 @@ jobs:
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
         uses: docker/setup-buildx-action@v3
         with:
-          driver-opts: |
-            image=moby/buildkit:master
-            network=host
+          # Use docker driver instead of docker-container to avoid file sync issues
+          driver: docker
 
       - name: Login no GHCR
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
@@ -293,6 +292,18 @@ jobs:
             type=raw,value=${{ inputs.version_tag }},enable=${{ github.event_name == 'workflow_dispatch' && inputs.version_tag != '' && inputs.version_tag != 'latest' }}
             type=semver,pattern={{version}},value=${{ inputs.version_tag }},enable=${{ github.event_name == 'workflow_dispatch' && startsWith(inputs.version_tag, 'v') }}
             type=semver,pattern={{major}}.{{minor}},value=${{ inputs.version_tag }},enable=${{ github.event_name == 'workflow_dispatch' && startsWith(inputs.version_tag, 'v') }}
+
+      - name: Verify files before Docker build
+        if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
+        run: |
+          echo "=== Files in services/${{ matrix.service }}/src/services/ ==="
+          ls -la services/${{ matrix.service }}/src/services/ 2>/dev/null || echo "Directory not found"
+          echo ""
+          echo "=== FULL consensus_orchestrator.py content (first 250 lines) ==="
+          head -250 services/${{ matrix.service }}/src/services/consensus_orchestrator.py 2>/dev/null || echo "File not found"
+          echo ""
+          echo "=== Git status of src directory ==="
+          git status services/${{ matrix.service }}/src/
 
       - name: Build e Push
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
