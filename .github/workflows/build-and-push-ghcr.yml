@@ -245,8 +245,11 @@ jobs:
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
         uses: docker/setup-buildx-action@v3
         with:
-          # Use docker driver instead of docker-container to avoid file sync issues
-          driver: docker
+          # IMPORTANTE: Usar docker-container (padrão) porque Dockerfile usa --mount=type=cache
+          # O driver 'docker' NÃO suporta --mount=type=cache e causa comportamento incorreto
+          driver: docker-container
+          # Criar novo builder para evitar cache stale
+          buildkitd-flags: --debug
 
       - name: Login no GHCR
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
@@ -296,14 +299,17 @@ jobs:
       - name: Verify files before Docker build
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
         run: |
+          echo "=== PWD and workspace path ==="
+          pwd
+          echo ""
           echo "=== Files in services/${{ matrix.service }}/src/services/ ==="
           ls -la services/${{ matrix.service }}/src/services/ 2>/dev/null || echo "Directory not found"
           echo ""
-          echo "=== FULL consensus_orchestrator.py content (first 250 lines) ==="
-          head -250 services/${{ matrix.service }}/src/services/consensus_orchestrator.py 2>/dev/null || echo "File not found"
+          echo "=== consensus_orchestrator.py IMPORTS (critical check) ==="
+          head -20 services/${{ matrix.service }}/src/services/consensus_orchestrator.py 2>/dev/null || echo "File not found"
           echo ""
-          echo "=== Git status of src directory ==="
-          git status services/${{ matrix.service }}/src/
+          echo "=== MD5 checksum of file ==="
+          md5sum services/${{ matrix.service }}/src/services/consensus_orchestrator.py 2>/dev/null || echo "Cannot compute checksum"
 
       - name: Build e Push
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
