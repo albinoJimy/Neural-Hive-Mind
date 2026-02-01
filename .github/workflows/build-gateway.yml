@@ -93,6 +93,7 @@ jobs:
 
   build-and-push:
     needs: [lint-and-test, security-scan]
+    if: always() && !cancelled()
     runs-on: ubuntu-latest
     permissions:
       contents: read
