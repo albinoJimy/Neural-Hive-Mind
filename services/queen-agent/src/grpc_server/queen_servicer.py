@@ -6,7 +6,16 @@ from typing import TYPE_CHECKING
 from datetime import datetime
 
 from neural_hive_observability.context import set_baggage
-from neural_hive_observability.grpc_instrumentation import extract_grpc_context
+from neural_hive_observability.grpc_instrumentation import extract_grpc_context as _extract_grpc_context
+
+
+def extract_grpc_context(servicer_context):
+    """Wrapper defensivo para extract_grpc_context que lida com diferentes tipos de contexto"""
+    try:
+        return _extract_grpc_context(servicer_context)
+    except AttributeError:
+        # Se servicer_context não tiver invocation_metadata, retornar valores vazios
+        return {}, None
 
 from ..proto import queen_agent_pb2, queen_agent_pb2_grpc
 from ..models import ExceptionApproval, ExceptionType, RiskAssessment

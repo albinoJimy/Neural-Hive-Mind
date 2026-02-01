@@ -319,12 +319,12 @@ def instrument_grpc_channel(
     return channel
 
 
-def extract_grpc_context(servicer_context: grpc.ServicerContext) -> Tuple[Dict[str, str], Optional[Any]]:
+def extract_grpc_context(servicer_context) -> Tuple[Dict[str, str], Optional[Any]]:
     """
     Extrai contexto e baggage de metadados gRPC.
 
     Args:
-        servicer_context: Contexto do serviço gRPC
+        servicer_context: Contexto do serviço gRPC ou dict com metadata
 
     Returns:
         Tuple contendo:
@@ -333,9 +333,20 @@ def extract_grpc_context(servicer_context: grpc.ServicerContext) -> Tuple[Dict[s
               retornado por context.attach, ou None se o attach falhar)
     """
     metadata = {}
-    for key, value in servicer_context.invocation_metadata() or []:
-        if key and value:
-            metadata[key.lower()] = value
+
+    # Suportar dict diretamente (para casos onde o contexto já foi extraído)
+    if isinstance(servicer_context, dict):
+        metadata = {k.lower(): v for k, v in servicer_context.items() if k and v}
+    elif hasattr(servicer_context, 'invocation_metadata'):
+        # ServicerContext padrão do gRPC
+        try:
+            for key, value in servicer_context.invocation_metadata() or []:
+                if key and value:
+                    metadata[key.lower()] = value
+        except Exception:
+            # Fallback se invocation_metadata falhar
+            pass
+    # Se não for nenhum dos dois, metadata fica vazio
 
     ctx = extract(metadata)
     token = None

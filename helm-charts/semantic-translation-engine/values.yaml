@@ -82,8 +82,8 @@ config:
       - "intentions.infrastructure"
       - "intentions.security"
     plansTopic: "plans.ready"
-    securityProtocol: "SASL_SSL"
-    saslMechanism: "SCRAM-SHA-512"
+    securityProtocol: "PLAINTEXT"
+    saslMechanism: ""
 
   # Schema Registry
   schemaRegistry:
@@ -91,7 +91,7 @@ config:
 
   # Neo4j
   neo4j:
-    uri: "bolt://neo4j-bolt.neo4j-cluster.svc.cluster.local:7687"
+    uri: "bolt://neo4j.neo4j-cluster.svc.cluster.local:7687"
     user: "neo4j"
     database: "neo4j"
     queryTimeoutMs: 50
@@ -108,7 +108,7 @@ config:
   # Redis
   redis:
     clusterNodes: "neural-hive-cache.redis-cluster.svc.cluster.local:6379"
-    clusterEnabled: true
+    clusterEnabled: false
     sslEnabled: false
     defaultTtl: 600
     cacheEnabled: true
