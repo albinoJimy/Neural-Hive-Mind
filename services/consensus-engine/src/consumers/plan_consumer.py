@@ -40,6 +40,22 @@ class PlanConsumer:
             'enable.auto.commit': self.config.kafka_enable_auto_commit,
         }
 
+        # Configuração de segurança SASL (se não for PLAINTEXT)
+        if self.config.kafka_security_protocol != 'PLAINTEXT':
+            consumer_config['security.protocol'] = self.config.kafka_security_protocol
+            if self.config.kafka_sasl_mechanism:
+                consumer_config['sasl.mechanism'] = self.config.kafka_sasl_mechanism
+            if self.config.kafka_sasl_username:
+                consumer_config['sasl.username'] = self.config.kafka_sasl_username
+            if self.config.kafka_sasl_password:
+                consumer_config['sasl.password'] = self.config.kafka_sasl_password
+
+            logger.info(
+                'Configuração de segurança SASL aplicada ao consumer',
+                security_protocol=self.config.kafka_security_protocol,
+                sasl_mechanism=self.config.kafka_sasl_mechanism
+            )
+
         self.consumer = Consumer(consumer_config)
         self.consumer.subscribe([self.config.kafka_plans_topic])
 

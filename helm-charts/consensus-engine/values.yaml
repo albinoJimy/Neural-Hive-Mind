@@ -144,6 +144,7 @@ observability:
       path: /metrics
 
 secrets:
+  kafkaSaslUsername: ""
   kafkaSaslPassword: ""
   mongodbPassword: ""
   redisPassword: ""

@@ -82,8 +82,8 @@ config:
       - "intentions.infrastructure"
       - "intentions.security"
     plansTopic: "plans.ready"
-    securityProtocol: "PLAINTEXT"
-    saslMechanism: ""
+    securityProtocol: "SASL_SSL"
+    saslMechanism: "SCRAM-SHA-512"
 
   # Schema Registry
   schemaRegistry:

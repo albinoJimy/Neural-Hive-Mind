@@ -36,6 +36,22 @@ class DecisionProducer:
         if hasattr(self.config, 'kafka_transactional_id') and self.config.kafka_transactional_id:
             producer_config['transactional.id'] = self.config.kafka_transactional_id
 
+        # Configuração de segurança SASL (se não for PLAINTEXT)
+        if self.config.kafka_security_protocol != 'PLAINTEXT':
+            producer_config['security.protocol'] = self.config.kafka_security_protocol
+            if self.config.kafka_sasl_mechanism:
+                producer_config['sasl.mechanism'] = self.config.kafka_sasl_mechanism
+            if self.config.kafka_sasl_username:
+                producer_config['sasl.username'] = self.config.kafka_sasl_username
+            if self.config.kafka_sasl_password:
+                producer_config['sasl.password'] = self.config.kafka_sasl_password
+
+            logger.info(
+                'Configuração de segurança SASL aplicada ao producer',
+                security_protocol=self.config.kafka_security_protocol,
+                sasl_mechanism=self.config.kafka_sasl_mechanism
+            )
+
         self.producer = Producer(producer_config)
 
         # Configurar Schema Registry para serialização Avro (opcional)
