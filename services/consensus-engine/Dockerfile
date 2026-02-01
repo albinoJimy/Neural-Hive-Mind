@@ -62,6 +62,8 @@ RUN echo "=== DEBUG: Verifying copied files INSIDE container ===" && \
     grep -n "neural_hive_observability" /app/src/services/consensus_orchestrator.py || echo "WARNING: neural_hive_observability NOT FOUND!" && \
     echo "=== MD5 checksum ===" && \
     md5sum /app/src/services/consensus_orchestrator.py && \
+    echo "=== Checking for adaptive_thresholds_used (FIX indicator) ===" && \
+    grep -n "adaptive_thresholds_used" /app/src/services/consensus_orchestrator.py || echo "ERROR: FIX NOT FOUND - adaptive_thresholds_used missing!" && \
     echo "=== DEBUG COMPLETE ==="
 
 # Garantir diretórios de schemas
@@ -89,7 +91,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 
 # Labels
 LABEL maintainer="Neural Hive-Mind Team <team@neural-hive-mind.org>" \
-      version="1.0.11" \
+      version="1.0.12" \
       component="consensus-aggregator" \
       layer="cognitiva" \
       description="Mecanismo de Consenso Multi-Agente - Neural Hive-Mind"
