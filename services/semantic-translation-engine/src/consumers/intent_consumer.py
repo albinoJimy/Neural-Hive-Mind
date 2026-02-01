@@ -333,7 +333,8 @@ class IntentConsumer:
         Deserializa mensagem Kafka para IntentEnvelope
 
         Suporta deserialização Avro (via Schema Registry) e JSON fallback.
-        Detecta o formato através do header 'content-type'.
+        Usa auto-detecção robusta: tenta Avro primeiro se configurado,
+        depois JSON como fallback.
 
         Args:
             msg: Mensagem Kafka
@@ -341,42 +342,92 @@ class IntentConsumer:
         Returns:
             Dict do IntentEnvelope
         """
-        try:
-            # Extrair content-type dos headers
-            headers = msg.headers() or []
-            content_type = None
-            for key, value in headers:
-                if key == 'content-type':
-                    content_type = value.decode('utf-8') if value else None
-                    break
+        # Extrair content-type dos headers (para logging)
+        headers = msg.headers() or []
+        content_type = None
+        for key, value in headers:
+            if key == 'content-type':
+                content_type = value.decode('utf-8') if value else None
+                break
 
-            # Deserializar baseado no content-type
-            if content_type == 'application/avro' and self.avro_deserializer:
-                # Deserializar usando Avro
+        raw_value = msg.value()
+
+        # Estratégia 1: Se content-type indica Avro E temos deserializer
+        if content_type == 'application/avro' and self.avro_deserializer:
+            try:
                 serialization_context = SerializationContext(msg.topic(), MessageField.VALUE)
-                data = self.avro_deserializer(msg.value(), serialization_context)
-
+                data = self.avro_deserializer(raw_value, serialization_context)
                 logger.debug(
-                    'Mensagem deserializada (Avro)',
+                    'Mensagem deserializada (Avro via header)',
                     intent_id=data.get('id'),
                     domain=data.get('intent', {}).get('domain')
                 )
-            else:
-                # Fallback para JSON
-                data = json.loads(msg.value().decode('utf-8'))
+                return data
+            except Exception as e:
+                logger.warning(
+                    'Falha ao deserializar Avro apesar do header, tentando JSON',
+                    error=str(e),
+                    content_type=content_type
+                )
 
+        # Estratégia 2: Se content-type indica JSON
+        if content_type == 'application/json':
+            try:
+                data = json.loads(raw_value.decode('utf-8'))
                 logger.debug(
-                    'Mensagem deserializada (JSON fallback)',
+                    'Mensagem deserializada (JSON via header)',
+                    intent_id=data.get('id'),
+                    domain=data.get('intent', {}).get('domain')
+                )
+                return data
+            except Exception as e:
+                logger.warning(
+                    'Falha ao deserializar JSON apesar do header',
+                    error=str(e),
+                    content_type=content_type
+                )
+
+        # Estratégia 3: Auto-detecção - tentar Avro primeiro se configurado
+        if self.avro_deserializer:
+            try:
+                serialization_context = SerializationContext(msg.topic(), MessageField.VALUE)
+                data = self.avro_deserializer(raw_value, serialization_context)
+                logger.debug(
+                    'Mensagem deserializada (Avro auto-detectado)',
                     intent_id=data.get('id'),
                     domain=data.get('intent', {}).get('domain'),
                     content_type=content_type
                 )
+                return data
+            except Exception as avro_error:
+                logger.debug(
+                    'Auto-detecção: Avro falhou, tentando JSON',
+                    avro_error=str(avro_error)
+                )
 
+        # Estratégia 4: Fallback final para JSON
+        try:
+            data = json.loads(raw_value.decode('utf-8'))
+            logger.debug(
+                'Mensagem deserializada (JSON fallback)',
+                intent_id=data.get('id'),
+                domain=data.get('intent', {}).get('domain'),
+                content_type=content_type
+            )
             return data
-
-        except Exception as e:
-            logger.error('Erro ao deserializar mensagem', error=str(e))
-            raise
+        except Exception as json_error:
+            logger.error(
+                'Falha em todas as estratégias de deserialização',
+                json_error=str(json_error),
+                content_type=content_type,
+                raw_value_preview=raw_value[:100] if raw_value else None,
+                avro_deserializer_configured=self.avro_deserializer is not None
+            )
+            raise ValueError(
+                f"Não foi possível deserializar mensagem. "
+                f"content-type={content_type}, "
+                f"avro_configured={self.avro_deserializer is not None}"
+            )
 
     def _extract_trace_context(self, headers: list) -> Dict[str, str]:
         """

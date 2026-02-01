@@ -85,9 +85,9 @@ config:
     securityProtocol: "PLAINTEXT"
     saslMechanism: ""
 
-  # Schema Registry
+  # Schema Registry (Apicurio com API de compatibilidade Confluent)
   schemaRegistry:
-    url: "http://schema-registry.kafka.svc.cluster.local:8081"
+    url: "http://schema-registry.kafka.svc.cluster.local:8080/apis/ccompat/v7"
 
   # Neo4j
   neo4j:
