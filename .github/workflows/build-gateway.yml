@@ -15,7 +15,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: neural-hive-mind/gateway-intencoes
+  IMAGE_NAME: albinojimy/neural-hive-mind/gateway-intencoes
 
 jobs:
   lint-and-test:
