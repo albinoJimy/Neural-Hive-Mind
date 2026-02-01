@@ -188,6 +188,8 @@ class ConsensusOrchestrator:
                 is_unanimous,
                 violations
             ),
+            # FIX: compliance_checks deve conter apenas Dict[str, bool] para compatibilidade
+            # com schema Avro (map<string, boolean>). Valores complexos movidos para metadata.
             compliance_checks={
                 # Base thresholds (compatibilidade legado)
                 'confidence_threshold': aggregated_confidence >= self.config.min_confidence_score,
@@ -195,20 +197,9 @@ class ConsensusOrchestrator:
                 # Campos explícitos de base
                 'base_confidence_threshold_passed': aggregated_confidence >= self.config.min_confidence_score,
                 'base_divergence_threshold_passed': divergence <= self.config.max_divergence_threshold,
-                'base_thresholds': {
-                    'min_confidence': self.config.min_confidence_score,
-                    'max_divergence': self.config.max_divergence_threshold
-                },
                 # Campos adaptativos (refletem thresholds efetivamente aplicados pelo ComplianceFallback)
                 'adaptive_confidence_threshold_passed': aggregated_confidence >= adaptive_thresholds['min_confidence'],
                 'adaptive_divergence_threshold_passed': divergence <= adaptive_thresholds['max_divergence'],
-                'adaptive_thresholds': {
-                    'min_confidence': adaptive_thresholds['min_confidence'],
-                    'max_divergence': adaptive_thresholds['max_divergence'],
-                    'health_status': adaptive_thresholds['health_status'],
-                    'degraded_count': adaptive_thresholds['degraded_count'],
-                    'adjustment_reason': adaptive_thresholds['adjustment_reason'],
-                },
                 'risk_acceptable': aggregated_risk < self.config.critical_risk_threshold,
                 'adaptive_thresholds_used': True
             },
@@ -219,7 +210,15 @@ class ConsensusOrchestrator:
                 'num_specialists': str(len(specialist_opinions)),
                 'vote_distribution': str(vote_distribution),
                 # FIX BUG-002: Usar 'original_domain' (campo correto do schema Avro)
-                'domain': cognitive_plan.get('original_domain', 'BUSINESS')
+                'domain': cognitive_plan.get('original_domain', 'BUSINESS'),
+                # Thresholds detalhados (movidos de compliance_checks para compatibilidade Avro)
+                'base_min_confidence': str(self.config.min_confidence_score),
+                'base_max_divergence': str(self.config.max_divergence_threshold),
+                'adaptive_min_confidence': str(adaptive_thresholds['min_confidence']),
+                'adaptive_max_divergence': str(adaptive_thresholds['max_divergence']),
+                'adaptive_health_status': str(adaptive_thresholds['health_status']),
+                'adaptive_degraded_count': str(adaptive_thresholds['degraded_count']),
+                'adaptive_adjustment_reason': str(adaptive_thresholds['adjustment_reason'])
             }
         )
 
