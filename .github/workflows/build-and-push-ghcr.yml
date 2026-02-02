@@ -44,7 +44,7 @@ jobs:
   # ============================================================================
   detect-changes:
     name: Detectar Mudancas
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     outputs:
       services_matrix: ${{ steps.set-matrix.outputs.matrix }}
       services_list: ${{ steps.set-matrix.outputs.list }}
@@ -154,7 +154,7 @@ jobs:
   # ============================================================================
   build-and-push:
     name: Build ${{ matrix.service }}
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: detect-changes
     if: needs.detect-changes.outputs.has_changes == 'true'
     
@@ -356,7 +356,7 @@ jobs:
   # ============================================================================
   summary:
     name: Resumo do Build
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: [detect-changes, build-and-push]
     if: always()
 
@@ -463,7 +463,7 @@ jobs:
   # ============================================================================
   trigger-deployment:
     name: Disparar Deployment
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: [detect-changes, build-and-push, summary]
     if: github.event_name != 'pull_request' && needs.build-and-push.result == 'success' && needs.detect-changes.outputs.has_changes == 'true'
 

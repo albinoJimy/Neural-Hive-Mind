@@ -1,0 +1,23 @@
+apiVersion: v2
+name: approval-service
+description: Approval Service for Neural Hive-Mind - manages approval workflows and DLQ processing
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+keywords:
+  - neural-hive-mind
+  - approval
+  - dlq
+  - kafka
+  - workflow
+
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: team@neural-hive-mind.org
+
+dependencies:
+  - name: common-templates
+    version: "0.1.0"
+    repository: "file://../common-templates"
+    alias: common

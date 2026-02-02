@@ -1,0 +1,223 @@
+# Metadata for common templates
+component: "approval-service"
+layer: "orquestracao"
+
+replicaCount: 2
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+image:
+  repository: ghcr.io/albinojimy/neural-hive-mind/approval-service
+  tag: "1.0.0"
+  pullPolicy: Always
+
+imagePullSecrets:
+  - name: ghcr-secret
+
+service:
+  type: ClusterIP
+  annotations: {}
+  ports:
+    http:
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+    metrics:
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+config:
+  environment: dev
+  logLevel: DEBUG
+
+  kafka:
+    bootstrapServers: "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
+    consumerGroupId: "approval-service"
+    approvalTopicConsume: "approval.requests"
+    approvalTopicProduce: "approval.responses"
+    dlqTopic: "approval.dlq"
+    securityProtocol: "PLAINTEXT"
+    saslMechanism: ""
+    schemaRegistryUrl: "https://schema-registry.kafka.svc.cluster.local:8081/apis/ccompat/v6"
+
+  redis:
+    clusterNodes: "neural-hive-cache.redis-cluster.svc.cluster.local:6379"
+    sslEnabled: false
+
+  mongodb:
+    uri: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017"
+    database: "neural_hive"
+    collection: "approvals"
+
+  openTelemetry:
+    enabled: true
+    endpoint: "http://otel-collector-neural-hive-otel-collector.observability.svc.cluster.local:4317"
+    samplingRate: 1.0
+
+  dlq:
+    maxRetries: 3
+    retryDelayMs: 5000
+    enabled: true
+
+  features:
+    enableAvro: true
+    enableDlq: true
+    enableTracing: true
+
+# Observability config (required by common-templates)
+observability:
+  otelEnabled: true
+  otelEndpoint: "http://otel-collector-neural-hive-otel-collector.observability.svc.cluster.local:4317"
+  prometheus:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+      scrapeTimeout: 10s
+      path: /metrics
+
+secrets:
+  kafkaSaslUsername: ""
+  kafkaSaslPassword: ""
+  mongodbPassword: ""
+  redisPassword: ""
+
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+networkPolicy:
+  enabled: true
+  ingress:
+  - namespace: observability
+    ports: [8080]
+  - namespace: istio-system
+    ports: [8000]
+  egress:
+  - namespaceSelector: {}
+    ports:
+    - protocol: UDP
+      port: 53
+  - namespaceSelector:
+      matchLabels: kafka
+    ports:
+    - protocol: TCP
+      port: 9092
+  - namespaceSelector:
+      matchLabels: mongodb-cluster
+    ports:
+    - protocol: TCP
+      port: 27017
+  - namespaceSelector:
+      matchLabels: redis-cluster
+    ports:
+    - protocol: TCP
+      port: 6379
+  - namespaceSelector:
+      matchLabels: observability
+    ports:
+    - protocol: TCP
+      port: 4317
+    - protocol: TCP
+      port: 4318
+
+istio:
+  enabled: true
+  mtls:
+    mode: STRICT
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/metrics"
+
+podLabels:
+  app.kubernetes.io/component: approval-service
+  neural-hive.io/layer: orquestracao
+  neural-hive.io/domain: approval
+
+serviceAccount:
+  create: true
+  name: ""
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+tolerations: []
+
+nodeSelector: {}
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - approval-service
+          topologyKey: topology.kubernetes.io/zone
+
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 12
+  successThreshold: 1
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+labels:
+  app.kubernetes.io/name: approval-service
+  app.kubernetes.io/component: approval-service
+  neural-hive.io/layer: orquestracao
+  neural-hive.io/domain: approval

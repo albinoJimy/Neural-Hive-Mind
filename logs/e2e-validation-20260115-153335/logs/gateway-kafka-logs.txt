@@ -1,9 +1,0 @@
-[KAFKA-DEBUG] _process_text_intention_with_context INICIADO - intent_id=ff149b49-6e30-4c68-bf41-96862f6d7ad2
-[KAFKA-DEBUG] Enviando para Kafka - HIGH confidence: 0.95
-[KAFKA-DEBUG] Enviado com sucesso - HIGH
-INFO:     127.0.0.1:47626 - "POST /intentions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:59396 - "POST /intentions/text HTTP/1.1" 405 Method Not Allowed
-[KAFKA-DEBUG] _process_text_intention_with_context INICIADO - intent_id=348470f3-0d61-4d2a-b277-a194379e6827
-[KAFKA-DEBUG] Enviando para Kafka - HIGH confidence: 0.95
-[KAFKA-DEBUG] Enviado com sucesso - HIGH
-INFO:     127.0.0.1:37500 - "POST /intentions HTTP/1.1" 200 OK

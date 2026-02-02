@@ -1,6 +1,0 @@
-2025-11-10 14:37:16 [info     ] Starting Business Specialist
-2025-11-10 14:37:16 [info     ] Configuration loaded           environment=dev log_level=DEBUG specialist_type=business
-2025-11-10 14:37:16 [info     ] Initializing specialist        specialist_type=business supported_plan_versions=['1.0.0'] version=1.0.0
-2025-11-10 14:37:16 [info     ] Metrics initialized            specialist_type=business
-2025-11-10 14:37:16 [debug    ] Circuit breaker state updated  client_name=mlflow specialist_type=business state=closed
-2025-11-10 14:37:16 [info     ] Tentando inicializar conexão com MLflow tracking_uri=http://mlflow.mlflow.svc.cluster.local:5000

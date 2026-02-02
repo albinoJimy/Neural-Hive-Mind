@@ -1,3 +1,0 @@
-NAME                                   READY   STATUS    RESTARTS       AGE     IP             NODE                           NOMINATED NODE   READINESS GATES
-specialist-business-5d774d6f95-wzcvp   0/1     Running   85 (39s ago)   7h31m   10.244.0.213   vmi2092350.contaboserver.net   <none>           <none>
-specialist-business-798884ffd5-cph4b   1/1     Running   0              7h31m   10.244.0.214   vmi2092350.contaboserver.net   <none>           <none>

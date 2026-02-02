@@ -137,19 +137,19 @@ jobs:
       - name: Check performance thresholds
         run: |
           python -c "
-import json
-with open('libraries/python/neural_hive_specialists/benchmark_results.json') as f:
-    results = json.load(f)
-    for benchmark in results['benchmarks']:
-        if 'shap' in benchmark['name'].lower():
-            if benchmark['stats']['mean'] > 5.0:  # 5 segundos
-                print(f\"SHAP benchmark {benchmark['name']} too slow: {benchmark['stats']['mean']:.2f}s\")
-                exit(1)
-        if 'lime' in benchmark['name'].lower():
-            if benchmark['stats']['mean'] > 5.0:  # 5 segundos
-                print(f\"LIME benchmark {benchmark['name']} too slow: {benchmark['stats']['mean']:.2f}s\")
-                exit(1)
-print('All benchmarks passed performance thresholds')
+          import json
+          with open('libraries/python/neural_hive_specialists/benchmark_results.json') as f:
+              results = json.load(f)
+              for benchmark in results['benchmarks']:
+                  if 'shap' in benchmark['name'].lower():
+                      if benchmark['stats']['mean'] > 5.0:
+                          print(f'SHAP benchmark {benchmark[\"name\"]} too slow: {benchmark[\"stats\"][\"mean\"]:.2f}s')
+                          exit(1)
+                  if 'lime' in benchmark['name'].lower():
+                      if benchmark['stats']['mean'] > 5.0:
+                          print(f'LIME benchmark {benchmark[\"name\"]} too slow: {benchmark[\"stats\"][\"mean\"]:.2f}s')
+                          exit(1)
+          print('All benchmarks passed performance thresholds')
           "
 
   quality-gate:

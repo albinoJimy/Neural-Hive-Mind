@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "approval-service.configMapName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "approval-service.labels" . | nindent 4 }}
+data:
+  # Environment
+  ENVIRONMENT: {{ .Values.config.environment | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  
+  # Kafka Configuration
+  KAFKA_BOOTSTRAP_SERVERS: {{ .Values.config.kafka.bootstrapServers | quote }}
+  KAFKA_CONSUMER_GROUP_ID: {{ .Values.config.kafka.consumerGroupId | quote }}
+  KAFKA_APPROVAL_TOPIC_CONSUME: {{ .Values.config.kafka.approvalTopicConsume | quote }}
+  KAFKA_APPROVAL_TOPIC_PRODUCE: {{ .Values.config.kafka.approvalTopicProduce | quote }}
+  KAFKA_DLQ_TOPIC: {{ .Values.config.kafka.dlqTopic | quote }}
+  KAFKA_SECURITY_PROTOCOL: {{ .Values.config.kafka.securityProtocol | quote }}
+  KAFKA_SASL_MECHANISM: {{ .Values.config.kafka.saslMechanism | quote }}
+  SCHEMA_REGISTRY_URL: {{ .Values.config.kafka.schemaRegistryUrl | quote }}
+  
+  # Redis Configuration
+  REDIS_CLUSTER_NODES: {{ .Values.config.redis.clusterNodes | quote }}
+  REDIS_SSL_ENABLED: {{ .Values.config.redis.sslEnabled | quote }}
+  
+  # MongoDB Configuration
+  MONGODB_URI: {{ .Values.config.mongodb.uri | quote }}
+  MONGODB_DATABASE: {{ .Values.config.mongodb.database | quote }}
+  MONGODB_COLLECTION: {{ .Values.config.mongodb.collection | quote }}
+  
+  # OpenTelemetry Configuration
+  OTEL_ENABLED: {{ .Values.config.openTelemetry.enabled | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.openTelemetry.endpoint | quote }}
+  OTEL_TRACES_SAMPLER_ARG: {{ .Values.config.openTelemetry.samplingRate | quote }}
+  OTEL_SERVICE_NAME: "approval-service"
+  
+  # DLQ Configuration
+  DLQ_MAX_RETRIES: {{ .Values.config.dlq.maxRetries | quote }}
+  DLQ_RETRY_DELAY_MS: {{ .Values.config.dlq.retryDelayMs | quote }}
+  DLQ_ENABLED: {{ .Values.config.dlq.enabled | quote }}
+  
+  # Feature Flags
+  FEATURE_ENABLE_AVRO: {{ .Values.config.features.enableAvro | quote }}
+  FEATURE_ENABLE_DLQ: {{ .Values.config.features.enableDlq | quote }}
+  FEATURE_ENABLE_TRACING: {{ .Values.config.features.enableTracing | quote }}

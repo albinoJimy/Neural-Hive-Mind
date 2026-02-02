@@ -1,4 +1,0 @@
-LAST SEEN   TYPE      REASON      OBJECT                                     MESSAGE
-10m         Warning   Unhealthy   pod/specialist-business-5d774d6f95-wzcvp   Readiness probe failed: Get "http://10.244.0.213:8000/ready": dial tcp 10.244.0.213:8000: connect: connection refused
-5m32s       Warning   BackOff     pod/specialist-business-5d774d6f95-wzcvp   Back-off restarting failed container specialist-business in pod specialist-business-5d774d6f95-wzcvp_specialist-business(892b45d1-03a9-4527-aa6a-4b7221737fba)
-40s         Normal    Pulled      pod/specialist-business-5d774d6f95-wzcvp   Container image "neural-hive-mind/specialist-business:1.0.7" already present on machine
