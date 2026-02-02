@@ -78,7 +78,7 @@ class SPIFFEAuthInterceptor(aio.ServerInterceptor):
                 f"spiffe://{settings.SPIFFE_TRUST_DOMAIN}/ns/neural-hive-execution/sa/worker-agents"
             ],
             "DiscoverAgents": [
-                f"spiffe://{settings.SPIFFE_TRUST_DOMAIN}/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
+                f"spiffe://{settings.SPIFFE_TRUST_DOMAIN}/ns/neural-hive/sa/orchestrator-dynamic",
                 f"spiffe://{settings.SPIFFE_TRUST_DOMAIN}/ns/neural-hive-execution/sa/worker-agents"
             ],
             "Health": ["*"],  # Allow all for health checks
