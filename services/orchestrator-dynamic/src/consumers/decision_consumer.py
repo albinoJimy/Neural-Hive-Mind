@@ -84,9 +84,10 @@ def _deserialize_avro_or_json(raw_bytes: bytes, schema_registry_url: str = None)
             logger.debug("schema_retrieved", schema_id=schema_id, schema_schema_str=schema.schema_str[:200])
             writer_schema = fastavro.parse_schema(json.loads(schema.schema_str))
             reader = io.BytesIO(avro_payload)
-            # schemaless_reader retorna um generator, pegar o primeiro elemento
-            result_generator = fastavro.schemaless_reader(reader, writer_schema)
-            result = next(result_generator)
+            # schemaless_reader pode retornar um generator ou um dict diretamente
+            avro_result = fastavro.schemaless_reader(reader, writer_schema)
+            # Converter para dict se necessário (pode vir como dict ou como generator)
+            result = dict(avro_result) if isinstance(avro_result, dict) or not isinstance(avro_result, dict) and hasattr(avro_result, '__iter__') else avro_result
             logger.info("avro_deserialization_success", schema_id=schema_id, result_type=type(result).__name__)
             return result
         except Exception as e:
