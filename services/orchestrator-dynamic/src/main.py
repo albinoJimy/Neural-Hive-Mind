@@ -251,6 +251,30 @@ async def lifespan(app: FastAPI):
                 )
         else:
             logger.info("OpenTelemetry desabilitado via OTEL_ENABLED=false")
+            # Criar ObservabilityConfig manualmente para evitar AttributeError no Kafka producer/consumer
+            # Mesmo quando OTEL está desabilitado, precisamos de um config válido para instrumentação
+            try:
+                from neural_hive_observability.config import ObservabilityConfig
+                from neural_hive_observability import set_config
+
+                obs_config = ObservabilityConfig(
+                    service_name=getattr(config, 'service_name', "orchestrator-dynamic"),
+                    service_version=config.service_version,
+                    neural_hive_component="orchestrator",
+                    neural_hive_layer="orchestration",
+                    environment=config.environment,
+                )
+                set_config(obs_config)
+                logger.info(
+                    "ObservabilityConfig criado manualmente (sem OTEL)",
+                    service_name=obs_config.service_name,
+                    environment=obs_config.environment
+                )
+            except Exception as e:
+                logger.warning(
+                    "Falha ao criar ObservabilityConfig manual, componentes Kafka podem ter problemas",
+                    error=str(e)
+                )
 
         # Buscar segredos/credenciais com fallback para configuração
         mongodb_uri = config.mongodb_uri
