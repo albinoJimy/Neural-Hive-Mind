@@ -27,6 +27,11 @@ on:
         type: boolean
         default: false
 
+# Evita múltiplos deploys simultâneos para o mesmo ambiente
+concurrency:
+  group: deploy-after-build-${{ inputs.environment || 'staging' }}
+  cancel-in-progress: false  # NÃO cancela deploys em andamento
+
 permissions:
   contents: read
 
@@ -40,7 +45,7 @@ jobs:
   # ============================================================================
   prepare:
     name: Preparar Deployment
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     outputs:
       environment: ${{ inputs.environment }}
       services: ${{ inputs.services }}
@@ -99,7 +104,7 @@ jobs:
   # ============================================================================
   update-values:
     name: Atualizar Tags - ${{ matrix.service }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: prepare
     if: needs.prepare.outputs.should_deploy == 'true'
 
@@ -173,7 +178,7 @@ jobs:
   # ============================================================================
   deploy:
     name: Deploy - ${{ matrix.service }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: [prepare, update-values]
     if: needs.prepare.outputs.should_deploy == 'true' && inputs.dry_run != true
 
@@ -213,19 +218,11 @@ jobs:
       - name: Determinar namespace
         id: namespace
         run: |
-          ENV="${{ needs.prepare.outputs.environment }}"
-          case "$ENV" in
-            production)
-              NAMESPACE="neural-hive"
-              ;;
-            staging)
-              NAMESPACE="neural-hive-staging"
-              ;;
-            *)
-              NAMESPACE="neural-hive-dev"
-              ;;
-          esac
+          # TEMPORÁRIO: Todos os ambientes usam namespace neural-hive
+          # onde já temos todos os serviços deployados
+          NAMESPACE="neural-hive"
           echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
+          echo "ℹ️ Usando namespace fixo: $NAMESPACE (todos ambientes)"
 
       - name: Adicionar repositório de dependências Helm
         run: |
@@ -352,7 +349,7 @@ jobs:
   # ============================================================================
   summary:
     name: Resumo do Deployment
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: [prepare, update-values, deploy]
     if: always()
 

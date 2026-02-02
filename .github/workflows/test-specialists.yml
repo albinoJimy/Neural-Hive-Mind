@@ -1,15 +1,17 @@
 name: Test Neural Hive Specialists
 
+# TEMPORARIAMENTE DESATIVADO - Testes de specialists serão executados apenas manualmente
+# Para reativar, descomentar os triggers abaixo
 on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: ["**"]
-  workflow_dispatch:
+  workflow_dispatch:  # Apenas manual por enquanto
+  # push:
+  #   branches: [main, develop]
+  # pull_request:
+  #   branches: ["**"]
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -115,7 +117,7 @@ jobs:
           MINIMUM_ORANGE: 85
 
   lint:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     steps:
       - name: Checkout código
         uses: actions/checkout@v4

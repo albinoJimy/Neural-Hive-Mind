@@ -34,6 +34,12 @@ on:
         type: boolean
         default: false
 
+# Evita múltiplos runs para o mesmo commit/branch
+# cancel-in-progress cancela runs anteriores quando um novo é iniciado
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ${{ github.repository_owner }}/neural-hive-mind
@@ -44,7 +50,7 @@ jobs:
   # ============================================================================
   detect-changes:
     name: Detectar Mudancas
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     outputs:
       services_matrix: ${{ steps.set-matrix.outputs.matrix }}
       services_list: ${{ steps.set-matrix.outputs.list }}
@@ -154,7 +160,7 @@ jobs:
   # ============================================================================
   build-and-push:
     name: Build ${{ matrix.service }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: detect-changes
     if: needs.detect-changes.outputs.has_changes == 'true'
     
@@ -356,7 +362,7 @@ jobs:
   # ============================================================================
   summary:
     name: Resumo do Build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: [detect-changes, build-and-push]
     if: always()
 
@@ -463,7 +469,7 @@ jobs:
   # ============================================================================
   trigger-deployment:
     name: Disparar Deployment
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: [detect-changes, build-and-push, summary]
     if: github.event_name != 'pull_request' && needs.build-and-push.result == 'success' && needs.detect-changes.outputs.has_changes == 'true'
 

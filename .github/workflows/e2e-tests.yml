@@ -1,19 +1,22 @@
 name: E2E Tests
 
+# TEMPORARIAMENTE DESATIVADO - Workflow muito longo (180min) e requer infraestrutura completa
+# Para reativar, remover o 'if: false' dos jobs ou descomentar os triggers abaixo
 on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
-  schedule:
-    - cron: "0 2 * * *"
+  workflow_dispatch:  # Apenas manual por enquanto
+  # push:
+  #   branches: [main, develop]
+  # pull_request:
+  #   branches: [main]
+  # schedule:
+  #   - cron: "0 2 * * *"
 
 jobs:
   # =============================================================================
   # ML Integration Tests - Required Gate Before Deploy
   # =============================================================================
   ml-integration-gate:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     timeout-minutes: 30
 
     services:
@@ -106,7 +109,7 @@ jobs:
   # (120-170 min documentado em tests/e2e/README.md)
   # =============================================================================
   e2e-tests:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     timeout-minutes: 180
     needs: ml-integration-gate  # Requires ML tests to pass first
 

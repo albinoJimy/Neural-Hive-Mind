@@ -32,6 +32,11 @@ on:
         type: boolean
         default: false
 
+# Evita múltiplos deploys simultâneos para o mesmo ambiente
+concurrency:
+  group: deploy-${{ github.workflow }}-${{ inputs.environment || 'auto' }}
+  cancel-in-progress: false  # NÃO cancela deploys em andamento
+
 env:
   GHCR_PREFIX: ghcr.io/${{ github.repository_owner }}/neural-hive-mind
 
@@ -41,7 +46,7 @@ jobs:
   # ============================================================================
   prepare:
     name: Preparar Deploy
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
@@ -127,7 +132,7 @@ jobs:
   # ============================================================================
   deploy:
     name: Deploy ${{ matrix.service }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: prepare
     environment: ${{ needs.prepare.outputs.environment }}
     
@@ -249,7 +254,7 @@ jobs:
   # ============================================================================
   summary:
     name: Resumo do Deploy
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: [prepare, deploy]
     if: always()
 
