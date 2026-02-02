@@ -65,6 +65,7 @@ class MongoDBClient:
         await self.ledger_collection.create_index('intent_id')
         await self.ledger_collection.create_index('timestamp')
         await self.ledger_collection.create_index('hash')
+        await self.ledger_collection.create_index('plan_data.saga_state')
 
         logger.debug('MongoDB indexes created')
 
@@ -211,7 +212,9 @@ class MongoDBClient:
         approval_status: str,
         approved_by: str,
         approved_at: datetime,
-        rejection_reason: Optional[str] = None
+        rejection_reason: Optional[str] = None,
+        saga_state: Optional[str] = None,
+        saga_failure_reason: Optional[str] = None
     ) -> bool:
         """
         Atualiza status de aprovação de um plano no ledger.
@@ -222,6 +225,8 @@ class MongoDBClient:
             approved_by: ID do aprovador
             approved_at: Timestamp da decisão
             rejection_reason: Motivo da rejeição (opcional)
+            saga_state: Estado da saga ('executing', 'completed', 'compensated', 'failed')
+            saga_failure_reason: Razão da falha da saga (quando saga_state='failed')
 
         Returns:
             True se atualizado com sucesso
@@ -236,6 +241,12 @@ class MongoDBClient:
 
         if rejection_reason:
             update_fields['plan_data.rejection_reason'] = rejection_reason
+
+        if saga_state:
+            update_fields['plan_data.saga_state'] = saga_state
+
+        if saga_failure_reason:
+            update_fields['plan_data.saga_failure_reason'] = saga_failure_reason
 
         try:
             result = await self.ledger_collection.update_one(
@@ -262,6 +273,187 @@ class MongoDBClient:
         except Exception as e:
             logger.error(
                 'Erro ao atualizar status de aprovação no ledger',
+                plan_id=plan_id,
+                error=str(e)
+            )
+            raise
+
+    async def revert_plan_approval_status(
+        self,
+        plan_id: str,
+        saga_state: str,
+        compensation_reason: str
+    ) -> bool:
+        """
+        Reverte status de aprovação de um plano para 'pending'.
+
+        Usado pela saga de aprovação quando a publicação no Kafka falha
+        após retries e a compensação precisa ser executada.
+
+        Args:
+            plan_id: ID do plano
+            saga_state: Estado da saga ('compensated' ou 'failed')
+            compensation_reason: Razão da compensação
+
+        Returns:
+            True se revertido com sucesso
+        """
+        update_fields = {
+            'plan_data.approval_status': 'pending',
+            'plan_data.approved_by': None,
+            'plan_data.approved_at': None,
+            'plan_data.status': 'pending',
+            'plan_data.saga_state': saga_state,
+            'plan_data.compensation_metadata': {
+                'compensated_at': datetime.utcnow(),
+                'compensation_reason': compensation_reason
+            },
+            'updated_at': datetime.utcnow()
+        }
+
+        try:
+            result = await self.ledger_collection.update_one(
+                {'plan_id': plan_id},
+                {'$set': update_fields}
+            )
+
+            if result.modified_count > 0:
+                logger.info(
+                    'Status de aprovação revertido (compensação)',
+                    plan_id=plan_id,
+                    saga_state=saga_state,
+                    compensation_reason=compensation_reason[:100]
+                )
+                return True
+            else:
+                logger.warning(
+                    'Nenhum documento atualizado na reversão',
+                    plan_id=plan_id,
+                    matched_count=result.matched_count
+                )
+                return False
+
+        except Exception as e:
+            logger.error(
+                'Erro ao reverter status de aprovação',
+                plan_id=plan_id,
+                error=str(e)
+            )
+            raise
+
+    async def update_plan_saga_state(
+        self,
+        plan_id: str,
+        saga_state: str,
+        saga_failure_reason: Optional[str] = None
+    ) -> bool:
+        """
+        Atualiza apenas o saga_state de um plano no ledger.
+
+        Usado para marcar saga como 'failed' quando compensação falha,
+        sem modificar outros campos de aprovação.
+
+        Args:
+            plan_id: ID do plano
+            saga_state: Novo estado da saga ('executing', 'completed', 'compensated', 'failed')
+            saga_failure_reason: Razão da falha (quando saga_state='failed')
+
+        Returns:
+            True se atualizado com sucesso
+        """
+        update_fields = {
+            'plan_data.saga_state': saga_state,
+            'updated_at': datetime.utcnow()
+        }
+
+        if saga_failure_reason:
+            update_fields['plan_data.saga_failure_reason'] = saga_failure_reason
+
+        try:
+            result = await self.ledger_collection.update_one(
+                {'plan_id': plan_id},
+                {'$set': update_fields}
+            )
+
+            if result.modified_count > 0:
+                logger.info(
+                    'Saga state atualizado no ledger',
+                    plan_id=plan_id,
+                    saga_state=saga_state
+                )
+                return True
+            else:
+                logger.warning(
+                    'Nenhum documento atualizado (saga_state)',
+                    plan_id=plan_id,
+                    matched_count=result.matched_count
+                )
+                return False
+
+        except Exception as e:
+            logger.error(
+                'Erro ao atualizar saga_state',
+                plan_id=plan_id,
+                error=str(e)
+            )
+            raise
+
+    async def update_plan_dlq_status(
+        self,
+        plan_id: str,
+        status: str,
+        failure_reason: str,
+        retry_count: int,
+        last_failure_at: datetime
+    ) -> bool:
+        """
+        Atualiza status de DLQ de um plano no ledger.
+
+        Usado quando DLQ reprocessor marca um plano como permanentemente falhado.
+
+        Args:
+            plan_id: ID do plano
+            status: Status DLQ ('permanently_failed')
+            failure_reason: Razão da falha
+            retry_count: Número de tentativas realizadas
+            last_failure_at: Timestamp da última falha
+
+        Returns:
+            True se atualizado com sucesso
+        """
+        update_fields = {
+            'plan_data.dlq_status': status,
+            'plan_data.dlq_failure_reason': failure_reason,
+            'plan_data.dlq_retry_count': retry_count,
+            'plan_data.dlq_last_failure_at': last_failure_at,
+            'updated_at': datetime.utcnow()
+        }
+
+        try:
+            result = await self.ledger_collection.update_one(
+                {'plan_id': plan_id},
+                {'$set': update_fields}
+            )
+
+            if result.modified_count > 0:
+                logger.info(
+                    'DLQ status atualizado no ledger',
+                    plan_id=plan_id,
+                    dlq_status=status,
+                    retry_count=retry_count
+                )
+                return True
+            else:
+                logger.warning(
+                    'Nenhum documento atualizado (dlq_status)',
+                    plan_id=plan_id,
+                    matched_count=result.matched_count
+                )
+                return False
+
+        except Exception as e:
+            logger.error(
+                'Erro ao atualizar DLQ status',
                 plan_id=plan_id,
                 error=str(e)
             )

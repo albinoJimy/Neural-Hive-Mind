@@ -61,6 +61,29 @@ class Settings(BaseSettings):
         default='cognitive-plans-rejection-notifications',
         description='Topic for rejection notifications to downstream consumers'
     )
+    kafka_approval_dlq_topic: str = Field(
+        default='cognitive-plans-approval-dlq',
+        description='Topic for approval republication failures (Dead Letter Queue)'
+    )
+
+    # DLQ Consumer configuration
+    dlq_consumer_enabled: bool = Field(
+        default=True,
+        description='Enable DLQ consumer for reprocessing failed approvals'
+    )
+    dlq_polling_interval_seconds: int = Field(
+        default=300,  # 5 minutos
+        description='Interval between DLQ polling cycles (seconds)'
+    )
+    dlq_max_retry_count: int = Field(
+        default=10,
+        description='Maximum retry count before permanently failing DLQ entry'
+    )
+    dlq_backoff_base_minutes: int = Field(
+        default=2,
+        description='Base for exponential backoff calculation (minutes)'
+    )
+
     kafka_enable_idempotence: bool = Field(default=True, description='Enable idempotence')
     kafka_transactional_id: Optional[str] = Field(None, description='Transactional ID')
 
@@ -206,6 +229,20 @@ class Settings(BaseSettings):
         """Validate max depth is reasonable"""
         if not 1 <= v <= 5:
             raise ValueError('Task splitting max depth must be between 1 and 5')
+        return v
+
+    @validator('dlq_polling_interval_seconds')
+    def validate_dlq_polling_interval(cls, v):
+        """Validate DLQ polling interval is reasonable"""
+        if not 60 <= v <= 3600:  # 1 min a 1 hora
+            raise ValueError('DLQ polling interval must be between 60 and 3600 seconds')
+        return v
+
+    @validator('dlq_max_retry_count')
+    def validate_dlq_max_retries(cls, v):
+        """Validate max retry count is reasonable"""
+        if not 1 <= v <= 20:
+            raise ValueError('DLQ max retry count must be between 1 and 20')
         return v
 
     @validator('kafka_topics', pre=True)

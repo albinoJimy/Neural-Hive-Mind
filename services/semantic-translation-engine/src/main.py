@@ -28,6 +28,9 @@ from src.consumers.approval_response_consumer import ApprovalResponseConsumer
 from src.producers.plan_producer import KafkaPlanProducer
 from src.producers.approval_producer import KafkaApprovalProducer
 from src.producers.rejection_notifier import RejectionNotifier
+from src.producers.approval_dlq_producer import ApprovalDLQProducer
+from src.consumers.approval_dlq_consumer import ApprovalDLQConsumer
+from src.services.dlq_reprocessor import DLQReprocessor
 from src.clients.neo4j_client import Neo4jClient
 from src.clients.mongodb_client import MongoDBClient
 from src.clients.redis_client import RedisClient
@@ -244,6 +247,61 @@ async def lifespan(app: FastAPI):
             topic=settings.kafka_rejection_notifications_topic
         )
 
+        # Initialize Approval DLQ Producer
+        approval_dlq_producer = ApprovalDLQProducer(settings)
+        await approval_dlq_producer.initialize()
+        state['approval_dlq_producer'] = approval_dlq_producer
+        logger.info(
+            'Approval DLQ Producer inicializado',
+            topic=settings.kafka_approval_dlq_topic
+        )
+
+        # Initialize DLQ Reprocessor and Consumer
+        if settings.dlq_consumer_enabled:
+            try:
+                # Inicializar métricas primeiro para uso no reprocessor
+                from src.observability.metrics import NeuralHiveMetrics
+                dlq_metrics = NeuralHiveMetrics(
+                    service_name=settings.service_name,
+                    component='dlq-reprocessor',
+                    layer='cognitiva'
+                )
+
+                dlq_reprocessor = DLQReprocessor(
+                    mongodb_client=mongodb_client,
+                    metrics=dlq_metrics,
+                    settings=settings,
+                    dlq_producer=approval_dlq_producer
+                )
+                await dlq_reprocessor.initialize()
+                state['dlq_reprocessor'] = dlq_reprocessor
+                logger.info('DLQ Reprocessor inicializado com DLQ producer')
+
+                # Initialize DLQ Consumer
+                logger.info('Inicializando DLQ Consumer...')
+                dlq_consumer = ApprovalDLQConsumer(settings, metrics=dlq_metrics)
+                await dlq_consumer.initialize()
+                dlq_consumer = instrument_kafka_consumer(dlq_consumer)
+                state['dlq_consumer'] = dlq_consumer
+                logger.info(
+                    'DLQ Consumer inicializado com sucesso',
+                    topic=settings.kafka_approval_dlq_topic,
+                    polling_interval_seconds=settings.dlq_polling_interval_seconds
+                )
+            except RuntimeError as e:
+                logger.error(
+                    'Erro ao inicializar DLQ Consumer',
+                    error=str(e),
+                    error_type=type(e).__name__
+                )
+                # DLQ consumer é opcional - não bloqueia startup
+                state['dlq_consumer'] = None
+                state['dlq_reprocessor'] = None
+        else:
+            logger.info('DLQ Consumer desabilitado via configuração')
+            state['dlq_consumer'] = None
+            state['dlq_reprocessor'] = None
+
         # Initialize services
         logger.info("Initializing processing services...")
 
@@ -327,10 +385,11 @@ async def lifespan(app: FastAPI):
             mongodb_client=mongodb_client,
             plan_producer=plan_producer,
             metrics=metrics,
-            rejection_notifier=rejection_notifier
+            rejection_notifier=rejection_notifier,
+            dlq_producer=approval_dlq_producer
         )
         state['approval_processor'] = approval_processor
-        logger.info('Approval Processor inicializado com rejection notifier')
+        logger.info('Approval Processor inicializado com rejection notifier e DLQ producer')
 
         # Initialize Approval Response Consumer
         try:
@@ -427,6 +486,30 @@ async def lifespan(app: FastAPI):
             state['approval_consumer_task'] = approval_consumer_task
             logger.info('Approval Response Consumer iniciado em background')
 
+        # Start consuming DLQ in background
+        if state.get('dlq_consumer') and state.get('dlq_reprocessor'):
+            async def consume_dlq_with_error_handling():
+                """Wrapper para capturar exceções do DLQ consumer"""
+                try:
+                    await state['dlq_consumer'].start_consuming(
+                        state['dlq_reprocessor'].reprocess_dlq_entry
+                    )
+                except Exception as e:
+                    logger.error(
+                        'DLQ consumer task failed',
+                        error=str(e),
+                        error_type=type(e).__name__
+                    )
+                    import traceback
+                    logger.error(f'DLQ consumer traceback: {traceback.format_exc()}')
+                    if 'dlq_consumer' in state:
+                        state['dlq_consumer'].running = False
+                    state['dlq_consumer_error'] = str(e)
+
+            dlq_consumer_task = asyncio.create_task(consume_dlq_with_error_handling())
+            state['dlq_consumer_task'] = dlq_consumer_task
+            logger.info('DLQ Consumer iniciado em background')
+
         logger.info("Semantic Translation Engine started successfully")
 
         yield  # Application is running
@@ -449,6 +532,15 @@ async def lifespan(app: FastAPI):
 
         if 'rejection_notifier' in state:
             await state['rejection_notifier'].close()
+
+        if 'approval_dlq_producer' in state:
+            await state['approval_dlq_producer'].close()
+
+        if 'dlq_consumer' in state and state['dlq_consumer']:
+            await state['dlq_consumer'].close()
+
+        if 'dlq_reprocessor' in state and state['dlq_reprocessor']:
+            await state['dlq_reprocessor'].close()
 
         if 'neo4j' in state:
             await state['neo4j'].close()
@@ -581,12 +673,32 @@ async def readiness_check():
             # Approval consumer é opcional - marcar como ready se não configurado
             checks['approval_response_consumer'] = True
 
+        # Check DLQ Consumer (opcional)
+        settings = get_settings()
+        if 'dlq_consumer' in state and state['dlq_consumer']:
+            try:
+                is_healthy, reason = state['dlq_consumer'].is_healthy(
+                    max_poll_age_seconds=settings.dlq_polling_interval_seconds * 2
+                )
+                checks['dlq_consumer'] = is_healthy
+                if not is_healthy:
+                    logger.warning("DLQ consumer não saudável", reason=reason)
+            except Exception as e:
+                logger.error(
+                    "Falha ao verificar DLQ consumer",
+                    error=str(e),
+                    error_type=type(e).__name__
+                )
+                checks['dlq_consumer'] = False
+        else:
+            # DLQ consumer é opcional - marcar como ready se não configurado ou desabilitado
+            checks['dlq_consumer'] = True
+
         # Check NLP Processor
         if 'nlp_processor' in state:
             checks['nlp_processor'] = state['nlp_processor'].is_ready()
         else:
             # NLP é opcional, marcar como ready se não estiver habilitado
-            settings = get_settings()
             checks['nlp_processor'] = not settings.nlp_enabled
 
         # Check OTEL pipeline health

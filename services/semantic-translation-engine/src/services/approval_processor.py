@@ -5,16 +5,22 @@ Responsável por processar decisões de aprovação do Approval Service,
 atualizar o ledger e publicar planos aprovados para execução.
 """
 
+import logging
 import structlog
 import time
 from datetime import datetime
 from typing import Dict, Optional, Any, Union
 
+from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log, RetryError
+
 from src.clients.mongodb_client import MongoDBClient
 from src.producers.plan_producer import KafkaPlanProducer
 from src.producers.rejection_notifier import RejectionNotifier
+from src.producers.approval_dlq_producer import ApprovalDLQProducer
 from src.models.cognitive_plan import CognitivePlan, ApprovalStatus, PlanStatus
+from src.models.approval_dlq import ApprovalDLQEntry
 from src.observability.metrics import NeuralHiveMetrics
+from src.sagas.approval_saga import ApprovalSaga
 
 logger = structlog.get_logger()
 
@@ -91,12 +97,132 @@ class ApprovalProcessor:
         mongodb_client: MongoDBClient,
         plan_producer: KafkaPlanProducer,
         metrics: NeuralHiveMetrics,
-        rejection_notifier: Optional[RejectionNotifier] = None
+        rejection_notifier: Optional[RejectionNotifier] = None,
+        dlq_producer: Optional[ApprovalDLQProducer] = None
     ):
         self.mongodb_client = mongodb_client
         self.plan_producer = plan_producer
         self.metrics = metrics
         self.rejection_notifier = rejection_notifier
+        self.dlq_producer = dlq_producer
+        self._logger = logging.getLogger(__name__)
+
+        # Inicializar saga para transações distribuídas
+        self.approval_saga = ApprovalSaga(
+            mongodb_client=mongodb_client,
+            plan_producer=plan_producer,
+            dlq_producer=dlq_producer,
+            metrics=metrics
+        )
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING)
+    )
+    async def _publish_approved_plan_with_retry(
+        self,
+        cognitive_plan: CognitivePlan,
+        plan_id: str,
+        intent_id: str
+    ) -> None:
+        """
+        Publica plano aprovado no Kafka com retry para falhas transientes.
+
+        Configurado para 3 tentativas com backoff exponencial (2-10 segundos).
+        Loga automaticamente warnings antes de cada retry via before_sleep_log.
+
+        Args:
+            cognitive_plan: Plano cognitivo a ser publicado
+            plan_id: ID do plano para logging
+            intent_id: ID do intent para logging
+        """
+        logger.info(
+            'Tentando republicar plano aprovado',
+            plan_id=plan_id,
+            intent_id=intent_id
+        )
+
+        await self.plan_producer.send_plan(cognitive_plan)
+
+        logger.info(
+            'Plano republicado com sucesso',
+            plan_id=plan_id,
+            intent_id=intent_id
+        )
+
+    async def _send_to_dlq(
+        self,
+        plan_id: str,
+        intent_id: str,
+        failure_reason: str,
+        approval_response: Dict,
+        trace_context: Dict,
+        approved_by: Optional[str] = None,
+        risk_band: Optional[str] = None,
+        is_destructive: Optional[bool] = None
+    ) -> None:
+        """
+        Envia plano aprovado que falhou na republicação para Dead Letter Queue.
+
+        Args:
+            plan_id: ID do plano
+            intent_id: ID do intent
+            failure_reason: Razão da falha
+            approval_response: Resposta de aprovação original
+            trace_context: Contexto de rastreamento
+            approved_by: Quem aprovou
+            risk_band: Risk band do plano
+            is_destructive: Se o plano é destrutivo
+        """
+        if not self.dlq_producer:
+            logger.warning(
+                'DLQ producer não configurado - mensagem não será enviada para DLQ',
+                plan_id=plan_id,
+                intent_id=intent_id
+            )
+            return
+
+        try:
+            dlq_entry = ApprovalDLQEntry(
+                plan_id=plan_id,
+                intent_id=intent_id,
+                failure_reason=failure_reason,
+                retry_count=3,  # Sempre 3 após esgotamento dos retries
+                original_approval_response=approval_response,
+                correlation_id=trace_context.get('correlation_id'),
+                trace_id=trace_context.get('trace_id'),
+                span_id=trace_context.get('span_id'),
+                approved_by=approved_by,
+                risk_band=risk_band,
+                is_destructive=is_destructive
+            )
+
+            await self.dlq_producer.send_dlq_entry(dlq_entry)
+
+            logger.info(
+                'Plano aprovado enviado para DLQ após falha na republicação',
+                plan_id=plan_id,
+                intent_id=intent_id,
+                failure_reason=failure_reason,
+                correlation_id=trace_context.get('correlation_id')
+            )
+
+            # Registrar métrica
+            self.metrics.increment_approval_dlq_messages(
+                reason='republish_failed',
+                risk_band=risk_band or 'unknown',
+                is_destructive=is_destructive or False
+            )
+
+        except Exception as e:
+            logger.error(
+                'Falha ao enviar plano para DLQ de aprovação',
+                plan_id=plan_id,
+                intent_id=intent_id,
+                error=str(e)
+            )
+            # Não propagar erro - DLQ é best-effort
 
     async def process_approval_response(
         self,
@@ -154,15 +280,44 @@ class ApprovalProcessor:
             return
 
         # Verificar se plano já foi processado (idempotência)
-        current_approval_status = ledger_entry.get('plan_data', {}).get('approval_status')
-        if current_approval_status in ['approved', 'rejected']:
+        # Regras:
+        # - Se rejected: sempre ignorar (decisão final)
+        # - Se approved E saga_state='completed': ignorar (saga finalizou com sucesso)
+        # - Se approved mas saga_state é missing/executing/compensated/failed: prosseguir
+        #   (permite reprocessamento após crash ou falha)
+        plan_data = ledger_entry.get('plan_data', {})
+        current_approval_status = plan_data.get('approval_status')
+        current_saga_state = plan_data.get('saga_state')
+
+        if current_approval_status == 'rejected':
             logger.warning(
-                'Plano já processado anteriormente - ignorando duplicata',
+                'Plano já foi rejeitado anteriormente - ignorando duplicata',
                 plan_id=plan_id,
                 current_status=current_approval_status,
                 new_decision=decision
             )
             return
+
+        if current_approval_status == 'approved' and current_saga_state == 'completed':
+            logger.warning(
+                'Plano já foi aprovado e saga completada - ignorando duplicata',
+                plan_id=plan_id,
+                current_status=current_approval_status,
+                saga_state=current_saga_state,
+                new_decision=decision
+            )
+            return
+
+        # Se approved mas saga não completou (missing, executing, compensated, failed),
+        # prosseguir para reprocessamento - permite recuperação após crash
+        if current_approval_status == 'approved' and current_saga_state in [None, 'executing', 'compensated', 'failed']:
+            logger.info(
+                'Reprocessando plano aprovado com saga incompleta',
+                plan_id=plan_id,
+                current_status=current_approval_status,
+                saga_state=current_saga_state,
+                new_decision=decision
+            )
 
         # Calcular tempo desde request de aprovação
         plan_created_at = ledger_entry.get('timestamp')
@@ -170,8 +325,7 @@ class ApprovalProcessor:
         if plan_created_at:
             time_to_decision = (approved_at - plan_created_at).total_seconds()
 
-        # Extrair informações de risco do plano original
-        plan_data = ledger_entry.get('plan_data', {})
+        # Extrair informações de risco do plano original (plan_data já definido acima)
         risk_band = plan_data.get('risk_band', 'unknown')
         is_destructive = plan_data.get('is_destructive', False)
 
@@ -226,35 +380,21 @@ class ApprovalProcessor:
         time_to_decision: Optional[float]
     ) -> None:
         """
-        Processa plano aprovado: atualiza ledger e publica para execução.
+        Processa plano aprovado usando Saga Pattern para consistência transacional.
+
+        A saga garante que se a publicação no Kafka falhar após retries,
+        o status do plano no MongoDB será revertido para 'pending'.
         """
         logger.info(
-            'Processando plano aprovado',
+            'Processando plano aprovado via saga',
             plan_id=plan_id,
             approved_by=approved_by
         )
-
-        # Atualizar status no ledger
-        updated = await self.mongodb_client.update_plan_approval_status(
-            plan_id=plan_id,
-            approval_status='approved',
-            approved_by=approved_by,
-            approved_at=approved_at
-        )
-
-        if not updated:
-            logger.error(
-                'Falha ao atualizar status de aprovação no ledger',
-                plan_id=plan_id
-            )
-            self.metrics.increment_approval_ledger_error('update_failed')
-            raise RuntimeError(f"Falha ao atualizar ledger para plan_id={plan_id}")
 
         # Reconstruir CognitivePlan para publicação
         plan_dict = cognitive_plan_dict or plan_data
 
         # Normalizar timestamps em milissegundos para datetime UTC
-        # Campos de data podem vir em formato numérico (millis) de Avro/JSON
         if 'created_at' in plan_dict:
             plan_dict['created_at'] = normalize_timestamp_millis(plan_dict['created_at']) or datetime.utcnow()
         if 'valid_until' in plan_dict:
@@ -285,11 +425,20 @@ class ApprovalProcessor:
             self.metrics.increment_approval_ledger_error('plan_reconstruction_failed')
             raise
 
-        # Publicar no tópico de execução
-        await self.plan_producer.send_plan(cognitive_plan)
+        # Executar saga de aprovação (atualiza ledger + publica Kafka com compensação)
+        await self.approval_saga.execute(
+            plan_id=plan_id,
+            intent_id=intent_id,
+            approved_by=approved_by,
+            approved_at=approved_at,
+            cognitive_plan=cognitive_plan,
+            trace_context=trace_context,
+            risk_band=risk_band,
+            is_destructive=is_destructive
+        )
 
         logger.info(
-            'Plano aprovado publicado para execução',
+            'Plano aprovado publicado para execução via saga',
             plan_id=plan_id,
             intent_id=intent_id,
             approved_by=approved_by,

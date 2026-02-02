@@ -1,0 +1,87 @@
+{
+  "type": "record",
+  "name": "ApprovalDLQEntry",
+  "namespace": "com.neuralhive.schemas",
+  "doc": "Entrada da Dead Letter Queue para planos aprovados que falharam na republicação",
+  "fields": [
+    {
+      "name": "plan_id",
+      "type": "string",
+      "doc": "ID do plano que falhou"
+    },
+    {
+      "name": "intent_id",
+      "type": "string",
+      "doc": "ID do intent original"
+    },
+    {
+      "name": "failure_reason",
+      "type": "string",
+      "doc": "Mensagem de erro da última falha"
+    },
+    {
+      "name": "retry_count",
+      "type": "int",
+      "default": 3,
+      "doc": "Número de tentativas realizadas"
+    },
+    {
+      "name": "original_approval_response",
+      "type": {
+        "type": "map",
+        "values": ["null", "string", "int", "long", "boolean", "float", "double", {
+          "type": "map",
+          "values": ["null", "string", "int", "long", "boolean", "float", "double"]
+        }]
+      },
+      "doc": "Resposta de aprovação original completa"
+    },
+    {
+      "name": "failed_at",
+      "type": "long",
+      "doc": "Timestamp da falha final em milissegundos"
+    },
+    {
+      "name": "correlation_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID para rastreabilidade"
+    },
+    {
+      "name": "trace_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "OpenTelemetry trace ID"
+    },
+    {
+      "name": "span_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "OpenTelemetry span ID"
+    },
+    {
+      "name": "approved_by",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Quem aprovou o plano"
+    },
+    {
+      "name": "risk_band",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Risk band do plano"
+    },
+    {
+      "name": "is_destructive",
+      "type": ["null", "boolean"],
+      "default": null,
+      "doc": "Se o plano é destrutivo"
+    },
+    {
+      "name": "schema_version",
+      "type": "int",
+      "default": 1,
+      "doc": "Versão do schema"
+    }
+  ]
+}

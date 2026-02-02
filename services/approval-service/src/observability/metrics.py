@@ -43,6 +43,25 @@ approval_requests_max_pending_age_seconds = Gauge(
     ['risk_band']
 )
 
+# Republication Metrics
+approval_republish_total = Counter(
+    'approval_republish_total',
+    'Total de republicacoes de planos aprovados',
+    ['outcome', 'force']  # outcome: 'success', 'failure'; force: 'true', 'false'
+)
+
+approval_republish_failures_total = Counter(
+    'approval_republish_failures_total',
+    'Total de falhas em republicacao de planos',
+    ['failure_reason']  # failure_reason: 'not_found', 'not_approved', 'no_cognitive_plan', 'kafka_error'
+)
+
+approval_republish_duration_seconds = Histogram(
+    'approval_republish_duration_seconds',
+    'Duracao da operacao de republicacao',
+    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0]
+)
+
 # Histograms
 approval_processing_duration_seconds = Histogram(
     'approval_processing_duration_seconds',
@@ -172,6 +191,39 @@ class NeuralHiveMetrics:
             decision=decision,
             risk_band=risk_band
         ).observe(time_seconds)
+
+    def increment_republish_total(self, outcome: str, force: bool):
+        """
+        Incrementa contador de republicacoes
+
+        Args:
+            outcome: Resultado (success/failure)
+            force: Se foi republicacao forcada
+        """
+        approval_republish_total.labels(
+            outcome=outcome,
+            force=str(force).lower()
+        ).inc()
+
+    def increment_republish_failures(self, failure_reason: str):
+        """
+        Incrementa contador de falhas de republicacao
+
+        Args:
+            failure_reason: Motivo da falha (not_found, not_approved, no_cognitive_plan, kafka_error)
+        """
+        approval_republish_failures_total.labels(
+            failure_reason=failure_reason
+        ).inc()
+
+    def observe_republish_duration(self, duration: float):
+        """
+        Observa duracao da operacao de republicacao
+
+        Args:
+            duration: Duracao em segundos
+        """
+        approval_republish_duration_seconds.observe(duration)
 
     def update_pending_gauge(self):
         """

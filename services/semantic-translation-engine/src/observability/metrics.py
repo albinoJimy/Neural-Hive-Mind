@@ -168,6 +168,100 @@ approval_ledger_update_errors_total = Counter(
     ['error_type']
 )
 
+# Métricas de Dead Letter Queue de Aprovação
+approval_dlq_messages_total = Counter(
+    'neural_hive_approval_dlq_messages_total',
+    'Total de mensagens enviadas para DLQ de aprovação',
+    ['reason', 'risk_band', 'is_destructive']
+)
+
+approval_dlq_size_gauge = Gauge(
+    'neural_hive_approval_dlq_size',
+    'Tamanho estimado da DLQ de aprovação (mensagens não processadas)'
+)
+
+# Métricas de Saga de Aprovação
+approval_saga_compensations_total = Counter(
+    'neural_hive_approval_saga_compensations_total',
+    'Total de compensações de saga executadas',
+    ['reason', 'risk_band']
+)
+
+approval_saga_duration_seconds = Histogram(
+    'neural_hive_approval_saga_duration_seconds',
+    'Duração da execução da saga de aprovação',
+    ['outcome'],  # 'completed', 'compensated', 'failed'
+    buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0]
+)
+
+approval_saga_state_gauge = Gauge(
+    'neural_hive_approval_saga_state',
+    'Estado atual das sagas de aprovação',
+    ['state']  # 'executing', 'completed', 'compensated', 'failed'
+)
+
+approval_saga_compensation_failures_total = Counter(
+    'neural_hive_approval_saga_compensation_failures_total',
+    'Total de falhas em compensação de saga (ledger não revertido)',
+    ['risk_band']
+)
+
+# Métricas de Republicação de Planos Aprovados
+approval_republish_total = Counter(
+    'neural_hive_approval_republish_total',
+    'Total de republicações de planos aprovados',
+    ['source', 'risk_band', 'outcome']  # source: 'manual', 'automatic'; outcome: 'success', 'failure'
+)
+
+approval_republish_failures_total = Counter(
+    'neural_hive_approval_republish_failures_total',
+    'Total de falhas em republicação de planos',
+    ['source', 'failure_reason']  # failure_reason: 'kafka_error', 'validation_error', 'not_found', 'not_approved'
+)
+
+approval_republish_duration_seconds = Histogram(
+    'neural_hive_approval_republish_duration_seconds',
+    'Duração da operação de republicação',
+    ['source'],
+    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0]
+)
+
+approval_pending_republish_gauge = Gauge(
+    'neural_hive_approval_pending_republish',
+    'Número de planos aguardando republicação manual'
+)
+
+# Métricas de DLQ Consumer
+approval_dlq_reprocessed_total = Counter(
+    'neural_hive_approval_dlq_reprocessed_total',
+    'Total de mensagens DLQ reprocessadas',
+    ['status', 'risk_band']
+)
+
+approval_dlq_reprocess_failures_total = Counter(
+    'neural_hive_approval_dlq_reprocess_failures_total',
+    'Falhas no reprocessamento de mensagens DLQ',
+    ['error_type', 'risk_band']
+)
+
+approval_dlq_skipped_total = Counter(
+    'neural_hive_approval_dlq_skipped_total',
+    'Mensagens DLQ skipped (backoff não expirado)',
+    ['risk_band']
+)
+
+approval_dlq_permanently_failed_total = Counter(
+    'neural_hive_approval_dlq_permanently_failed_total',
+    'Mensagens DLQ que excederam max retry count',
+    ['risk_band']
+)
+
+approval_dlq_consumer_poll_duration_seconds = Histogram(
+    'neural_hive_approval_dlq_consumer_poll_duration_seconds',
+    'Duração do ciclo de polling da DLQ',
+    buckets=[1, 5, 10, 30, 60, 120, 300]
+)
+
 # Métricas de Task Splitting
 tasks_split_total = Counter(
     'neural_hive_tasks_split_total',
@@ -330,6 +424,96 @@ class NeuralHiveMetrics:
     def increment_approval_ledger_error(self, error_type: str):
         """Registra erro ao atualizar ledger com decisão de aprovação"""
         approval_ledger_update_errors_total.labels(error_type=error_type).inc()
+
+    def increment_approval_dlq_messages(
+        self,
+        reason: str,
+        risk_band: str,
+        is_destructive: bool
+    ):
+        """Registra mensagem enviada para DLQ de aprovação"""
+        approval_dlq_messages_total.labels(
+            reason=reason,
+            risk_band=risk_band,
+            is_destructive=str(is_destructive).lower()
+        ).inc()
+
+    def set_approval_dlq_size(self, size: int):
+        """Atualiza tamanho da DLQ de aprovação"""
+        approval_dlq_size_gauge.set(size)
+
+    def record_saga_compensation(self, reason: str, risk_band: str):
+        """Registra compensação de saga executada"""
+        approval_saga_compensations_total.labels(
+            reason=reason,
+            risk_band=risk_band
+        ).inc()
+
+    def observe_saga_duration(self, duration: float, outcome: str):
+        """Registra duração da execução da saga"""
+        approval_saga_duration_seconds.labels(outcome=outcome).observe(duration)
+
+    def set_saga_state(self, state: str, count: int):
+        """Atualiza gauge de estado de sagas"""
+        approval_saga_state_gauge.labels(state=state).set(count)
+
+    def increment_saga_compensation_failure(self, risk_band: str):
+        """Registra falha em compensação de saga (ledger não revertido)"""
+        approval_saga_compensation_failures_total.labels(risk_band=risk_band).inc()
+
+    def record_republish(
+        self,
+        source: str,
+        risk_band: str,
+        outcome: str
+    ):
+        """Registra republicação de plano aprovado"""
+        approval_republish_total.labels(
+            source=source,
+            risk_band=risk_band,
+            outcome=outcome
+        ).inc()
+
+    def record_republish_failure(self, source: str, failure_reason: str):
+        """Registra falha em republicação"""
+        approval_republish_failures_total.labels(
+            source=source,
+            failure_reason=failure_reason
+        ).inc()
+
+    def observe_republish_duration(self, duration: float, source: str):
+        """Registra duração da operação de republicação"""
+        approval_republish_duration_seconds.labels(source=source).observe(duration)
+
+    def set_pending_republish_count(self, count: int):
+        """Atualiza gauge de planos aguardando republicação"""
+        approval_pending_republish_gauge.set(count)
+
+    def increment_dlq_reprocessed(self, status: str, risk_band: str):
+        """Incrementa contador de mensagens DLQ reprocessadas"""
+        approval_dlq_reprocessed_total.labels(
+            status=status,
+            risk_band=risk_band
+        ).inc()
+
+    def increment_dlq_reprocess_failure(self, error_type: str, risk_band: str):
+        """Incrementa contador de falhas de reprocessamento"""
+        approval_dlq_reprocess_failures_total.labels(
+            error_type=error_type,
+            risk_band=risk_band
+        ).inc()
+
+    def increment_dlq_skipped(self, risk_band: str):
+        """Incrementa contador de mensagens skipped"""
+        approval_dlq_skipped_total.labels(risk_band=risk_band).inc()
+
+    def increment_dlq_permanently_failed(self, risk_band: str):
+        """Incrementa contador de falhas permanentes"""
+        approval_dlq_permanently_failed_total.labels(risk_band=risk_band).inc()
+
+    def observe_dlq_poll_duration(self, duration: float):
+        """Registra duração do ciclo de polling"""
+        approval_dlq_consumer_poll_duration_seconds.observe(duration)
 
 
 def register_metrics():

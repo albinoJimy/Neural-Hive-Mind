@@ -16,6 +16,8 @@ from src.models.approval import (
     ApprovalStats,
     ApproveRequestBody,
     RejectRequestBody,
+    RepublishRequestBody,
+    ApprovalResponse,
     RiskBand
 )
 from src.security.auth import get_current_admin_user
@@ -310,4 +312,91 @@ async def reject_plan(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erro ao rejeitar plano: {str(e)}"
+        )
+
+
+@router.post("/{plan_id}/republish", response_model=ApprovalResponse)
+async def republish_approved_plan(
+    plan_id: str,
+    body: Optional[RepublishRequestBody] = None,
+    user: dict = Depends(get_current_admin_user),
+    service: ApprovalService = Depends(get_approval_service)
+):
+    """
+    Republica um plano cognitivo ja aprovado no Kafka
+
+    Requer autenticacao JWT e role neural-hive-admin.
+
+    Util para reprocessamento de planos que falharam na republicacao
+    original ou para correcao de inconsistencias no fluxo de aprovacao.
+
+    Args:
+        plan_id: ID do plano cognitivo
+        body: Parametros opcionais (force, comments)
+        user: Usuario admin autenticado
+        service: Servico de aprovacao
+
+    Returns:
+        ApprovalResponse publicado no Kafka
+
+    Raises:
+        404: Se plan_id nao encontrado
+        400: Se plano nao esta aprovado (sem force=true)
+        500: Se erro ao publicar no Kafka
+
+    Example:
+        ```json
+        POST /api/v1/approvals/plan-123/republish
+        {
+            "force": false,
+            "comments": "Republicando apos falha no Kafka"
+        }
+        ```
+    """
+    force = body.force if body else False
+    comments = body.comments if body else None
+
+    logger.info(
+        'Republicando plano aprovado',
+        plan_id=plan_id,
+        user_id=user['user_id'],
+        force=force,
+        has_comments=bool(comments)
+    )
+
+    try:
+        response = await service.republish_approved_plan(
+            plan_id=plan_id,
+            user_id=user['user_id'],
+            force=force,
+            comments=comments
+        )
+        return response
+
+    except ValueError as e:
+        error_msg = str(e)
+        if 'nao encontrado' in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=error_msg
+            )
+        elif 'nao esta aprovado' in error_msg or 'nao possui cognitive_plan' in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_msg
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_msg
+            )
+    except Exception as e:
+        logger.error(
+            'Erro ao republicar plano',
+            error=str(e),
+            plan_id=plan_id
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao republicar plano: {str(e)}"
         )

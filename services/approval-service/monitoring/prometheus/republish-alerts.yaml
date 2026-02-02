@@ -1,0 +1,112 @@
+groups:
+  - name: approval_republish_alerts
+    interval: 30s
+    rules:
+      # Alerta para alta taxa de falhas em republicacao
+      - alert: ApprovalRepublishHighFailureRate
+        expr: |
+          (
+            sum(rate(approval_republish_total{outcome="failure"}[5m]))
+            /
+            (sum(rate(approval_republish_total[5m])) > 0)
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: approval-service
+          component: republish
+        annotations:
+          summary: "Alta taxa de falhas em republicacao de planos"
+          description: "Taxa de falhas em republicacao esta acima de 10% nos ultimos 5 minutos. Taxa atual: {{ $value | humanizePercentage }}"
+          runbook_url: "https://docs.neuralhive.io/runbooks/approval-republish-failures"
+
+      # Alerta para erros de Kafka na republicacao
+      - alert: ApprovalRepublishKafkaErrors
+        expr: |
+          sum(increase(approval_republish_failures_total{failure_reason="kafka_error"}[10m])) > 5
+        for: 2m
+        labels:
+          severity: critical
+          service: approval-service
+          component: republish
+          subsystem: kafka
+        annotations:
+          summary: "Multiplos erros de Kafka em republicacao"
+          description: "Mais de 5 erros de Kafka em republicacao nos ultimos 10 minutos. Isso pode indicar problemas de conectividade ou indisponibilidade do broker."
+          runbook_url: "https://docs.neuralhive.io/runbooks/approval-republish-kafka-errors"
+
+      # Alerta para latencia alta em republicacao
+      - alert: ApprovalRepublishHighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(approval_republish_duration_seconds_bucket[5m])) by (le)) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: approval-service
+          component: republish
+        annotations:
+          summary: "Latencia alta em operacoes de republicacao"
+          description: "P95 da latencia de republicacao esta acima de 2 segundos. Valor atual: {{ $value | humanizeDuration }}"
+          runbook_url: "https://docs.neuralhive.io/runbooks/approval-republish-latency"
+
+      # Alerta para planos nao aprovados republicados forcadamente
+      - alert: ApprovalRepublishForcedPending
+        expr: |
+          sum(increase(approval_republish_total{force="true"}[1h])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: approval-service
+          component: republish
+        annotations:
+          summary: "Alto numero de republicacoes forcadas"
+          description: "Mais de 10 republicacoes forcadas na ultima hora. Isso pode indicar inconsistencias no fluxo de aprovacao que precisam ser investigadas."
+          runbook_url: "https://docs.neuralhive.io/runbooks/approval-republish-forced"
+
+      # Alerta para planos sem cognitive_plan
+      - alert: ApprovalRepublishMissingCognitivePlan
+        expr: |
+          sum(increase(approval_republish_failures_total{failure_reason="no_cognitive_plan"}[1h])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: approval-service
+          component: republish
+          subsystem: data_integrity
+        annotations:
+          summary: "Planos aprovados sem cognitive_plan detectados"
+          description: "Existem planos marcados como aprovados mas sem cognitive_plan associado. Isso indica corrupcao de dados que precisa ser investigada imediatamente."
+          runbook_url: "https://docs.neuralhive.io/runbooks/approval-data-integrity"
+
+      # Alerta para saga com alta taxa de compensacao
+      - alert: ApprovalSagaHighCompensationRate
+        expr: |
+          (
+            sum(rate(neural_hive_approval_saga_compensations_total[10m]))
+            /
+            (sum(rate(neural_hive_approval_saga_duration_seconds_count[10m])) > 0)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: semantic-translation-engine
+          component: approval_saga
+        annotations:
+          summary: "Alta taxa de compensacao em sagas de aprovacao"
+          description: "Taxa de compensacao de sagas esta acima de 5% nos ultimos 10 minutos. Isso indica falhas frequentes na publicacao para Kafka."
+          runbook_url: "https://docs.neuralhive.io/runbooks/approval-saga-compensation"
+
+      # Alerta para republish no STE (automatico)
+      - alert: ApprovalAutoRepublishFailures
+        expr: |
+          sum(increase(neural_hive_approval_republish_failures_total{source="automatic"}[15m])) > 3
+        for: 2m
+        labels:
+          severity: critical
+          service: semantic-translation-engine
+          component: approval_processor
+          subsystem: republish
+        annotations:
+          summary: "Falhas em republicacao automatica no STE"
+          description: "Mais de 3 falhas em republicacao automatica nos ultimos 15 minutos. O processador de aprovacoes pode estar com problemas."
+          runbook_url: "https://docs.neuralhive.io/runbooks/ste-republish-failures"

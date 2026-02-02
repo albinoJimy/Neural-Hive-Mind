@@ -14,6 +14,7 @@ from src.models.approval import (
     ApprovalDecision,
     ApprovalStats,
     ApprovalStatus,
+    ApprovalResponse,
     RiskBand
 )
 from src.api.routers.approvals import (
@@ -21,7 +22,8 @@ from src.api.routers.approvals import (
     get_approval_stats,
     get_approval,
     approve_plan,
-    reject_plan
+    reject_plan,
+    republish_approved_plan
 )
 
 
@@ -379,6 +381,181 @@ class TestGetApprovalStats:
 
         with pytest.raises(HTTPException) as exc_info:
             await get_approval_stats(
+                user=admin_user,
+                service=mock_service
+            )
+
+        assert exc_info.value.status_code == 500
+
+
+class TestRepublishApprovedPlan:
+    """Testes para endpoint POST /{plan_id}/republish"""
+
+    @pytest.mark.asyncio
+    async def test_republish_success(self, admin_user):
+        """Teste republicacao bem-sucedida"""
+        mock_service = MagicMock()
+        response = ApprovalResponse(
+            plan_id='plan-001',
+            intent_id='intent-001',
+            decision='approved',
+            approved_by='original-admin',
+            approved_at=datetime.utcnow(),
+            cognitive_plan={'plan_id': 'plan-001'}
+        )
+        mock_service.republish_approved_plan = AsyncMock(return_value=response)
+
+        from src.models.approval import RepublishRequestBody
+        body = RepublishRequestBody(force=False, comments='Reprocessando')
+
+        result = await republish_approved_plan(
+            plan_id='plan-001',
+            body=body,
+            user=admin_user,
+            service=mock_service
+        )
+
+        assert result.plan_id == 'plan-001'
+        assert result.decision == 'approved'
+        mock_service.republish_approved_plan.assert_called_once_with(
+            plan_id='plan-001',
+            user_id='user-001',
+            force=False,
+            comments='Reprocessando'
+        )
+
+    @pytest.mark.asyncio
+    async def test_republish_without_body(self, admin_user):
+        """Teste republicacao sem body (force=False, comments=None)"""
+        mock_service = MagicMock()
+        response = ApprovalResponse(
+            plan_id='plan-001',
+            intent_id='intent-001',
+            decision='approved',
+            approved_by='original-admin',
+            approved_at=datetime.utcnow(),
+            cognitive_plan={'plan_id': 'plan-001'}
+        )
+        mock_service.republish_approved_plan = AsyncMock(return_value=response)
+
+        result = await republish_approved_plan(
+            plan_id='plan-001',
+            body=None,
+            user=admin_user,
+            service=mock_service
+        )
+
+        assert result.plan_id == 'plan-001'
+        mock_service.republish_approved_plan.assert_called_once_with(
+            plan_id='plan-001',
+            user_id='user-001',
+            force=False,
+            comments=None
+        )
+
+    @pytest.mark.asyncio
+    async def test_republish_with_force(self, admin_user):
+        """Teste republicacao forcada"""
+        mock_service = MagicMock()
+        response = ApprovalResponse(
+            plan_id='plan-001',
+            intent_id='intent-001',
+            decision='approved',
+            approved_by='admin',
+            approved_at=datetime.utcnow(),
+            cognitive_plan={'plan_id': 'plan-001'}
+        )
+        mock_service.republish_approved_plan = AsyncMock(return_value=response)
+
+        from src.models.approval import RepublishRequestBody
+        body = RepublishRequestBody(force=True, comments='Forcando republicacao')
+
+        result = await republish_approved_plan(
+            plan_id='plan-001',
+            body=body,
+            user=admin_user,
+            service=mock_service
+        )
+
+        mock_service.republish_approved_plan.assert_called_once_with(
+            plan_id='plan-001',
+            user_id='user-001',
+            force=True,
+            comments='Forcando republicacao'
+        )
+
+    @pytest.mark.asyncio
+    async def test_republish_not_found(self, admin_user):
+        """Teste plano nao encontrado"""
+        mock_service = MagicMock()
+        mock_service.republish_approved_plan = AsyncMock(
+            side_effect=ValueError('Plano nao encontrado: plan-999')
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            await republish_approved_plan(
+                plan_id='plan-999',
+                body=None,
+                user=admin_user,
+                service=mock_service
+            )
+
+        assert exc_info.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_republish_not_approved(self, admin_user):
+        """Teste plano nao aprovado sem force"""
+        mock_service = MagicMock()
+        mock_service.republish_approved_plan = AsyncMock(
+            side_effect=ValueError(
+                'Plano nao esta aprovado. Status atual: pending. '
+                'Use force=true para republicar mesmo assim.'
+            )
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            await republish_approved_plan(
+                plan_id='plan-001',
+                body=None,
+                user=admin_user,
+                service=mock_service
+            )
+
+        assert exc_info.value.status_code == 400
+        assert 'nao esta aprovado' in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_republish_missing_cognitive_plan(self, admin_user):
+        """Teste plano sem cognitive_plan"""
+        mock_service = MagicMock()
+        mock_service.republish_approved_plan = AsyncMock(
+            side_effect=ValueError(
+                'Plano nao possui cognitive_plan para republicar: plan-001'
+            )
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            await republish_approved_plan(
+                plan_id='plan-001',
+                body=None,
+                user=admin_user,
+                service=mock_service
+            )
+
+        assert exc_info.value.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_republish_kafka_error(self, admin_user):
+        """Teste erro ao publicar no Kafka"""
+        mock_service = MagicMock()
+        mock_service.republish_approved_plan = AsyncMock(
+            side_effect=Exception("Kafka connection failed")
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            await republish_approved_plan(
+                plan_id='plan-001',
+                body=None,
                 user=admin_user,
                 service=mock_service
             )

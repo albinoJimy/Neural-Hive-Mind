@@ -445,6 +445,104 @@ class ApprovalService:
 
         return decision
 
+    async def republish_approved_plan(
+        self,
+        plan_id: str,
+        user_id: str,
+        force: bool = False,
+        comments: Optional[str] = None
+    ) -> ApprovalResponse:
+        """
+        Republica um plano cognitivo ja aprovado no Kafka
+
+        Util para reprocessamento de planos que falharam na republicacao
+        original ou para correcao de inconsistencias.
+
+        Args:
+            plan_id: ID do plano
+            user_id: ID do usuario que esta republicando
+            force: Se True, bypassa validacoes adicionais
+            comments: Comentarios sobre a republicacao
+
+        Returns:
+            ApprovalResponse publicado no Kafka
+
+        Raises:
+            ValueError: Se plano nao encontrado ou nao esta aprovado
+        """
+        start_time = datetime.utcnow()
+
+        # Busca plano
+        approval = await self.mongodb_client.get_approval_by_plan_id(plan_id)
+        if not approval:
+            self.metrics.increment_republish_failures('not_found')
+            raise ValueError(f'Plano nao encontrado: {plan_id}')
+
+        # Valida que plano esta aprovado
+        if approval.status != ApprovalStatus.APPROVED:
+            if not force:
+                self.metrics.increment_republish_failures('not_approved')
+                raise ValueError(
+                    f'Plano nao esta aprovado. Status atual: {approval.status}. '
+                    f'Use force=true para republicar mesmo assim.'
+                )
+            logger.warning(
+                'Republicacao forcada de plano nao aprovado',
+                plan_id=plan_id,
+                status=approval.status,
+                user_id=user_id
+            )
+
+        # Valida que cognitive_plan existe
+        if not approval.cognitive_plan:
+            self.metrics.increment_republish_failures('no_cognitive_plan')
+            raise ValueError(
+                f'Plano nao possui cognitive_plan para republicar: {plan_id}'
+            )
+
+        # Cria ApprovalResponse para republicacao
+        response = ApprovalResponse(
+            plan_id=plan_id,
+            intent_id=approval.intent_id,
+            decision='approved',
+            approved_by=approval.approved_by or user_id,
+            approved_at=approval.approved_at or datetime.utcnow(),
+            cognitive_plan=approval.cognitive_plan
+        )
+
+        # Publica no Kafka
+        try:
+            await self.response_producer.send_approval_response(response)
+        except Exception as e:
+            self.metrics.increment_republish_failures('kafka_error')
+            self.metrics.increment_republish_total('failure', force)
+            logger.error(
+                'Erro ao publicar republicacao no Kafka',
+                plan_id=plan_id,
+                error=str(e)
+            )
+            raise
+
+        # Emite metricas de sucesso
+        duration = (datetime.utcnow() - start_time).total_seconds()
+        self.metrics.increment_republish_total('success', force)
+        self.metrics.observe_republish_duration(duration)
+        self.metrics.increment_api_requests('republish', '200')
+
+        logger.info(
+            'Plano republicado com sucesso',
+            plan_id=plan_id,
+            intent_id=approval.intent_id,
+            republished_by=user_id,
+            original_approved_by=approval.approved_by,
+            force=force,
+            comments=comments,
+            duration_seconds=duration,
+            risk_band=getattr(approval, 'risk_band', 'unknown')
+        )
+
+        return response
+
     async def get_pending_approvals(
         self,
         limit: int = 50,

@@ -133,6 +133,18 @@ class RejectRequestBody(BaseModel):
     comments: Optional[str] = Field(None, description='Comentarios opcionais')
 
 
+class RepublishRequestBody(BaseModel):
+    """Body do request de republicacao"""
+    force: bool = Field(
+        default=False,
+        description='Forcar republicacao mesmo se houver inconsistencias'
+    )
+    comments: Optional[str] = Field(
+        None,
+        description='Comentarios sobre a republicacao'
+    )
+
+
 class PendingApprovalsQuery(BaseModel):
     """Query params para listar aprovacoes pendentes"""
     limit: int = Field(default=50, ge=1, le=100, description='Limite de resultados')
