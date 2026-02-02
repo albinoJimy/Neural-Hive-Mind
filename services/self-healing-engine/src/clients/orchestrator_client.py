@@ -96,7 +96,7 @@ class OrchestratorClient:
 
     def __init__(
         self,
-        host: str = 'orchestrator-dynamic.neural-hive-orchestration.svc.cluster.local',
+        host: str = 'orchestrator-dynamic.neural-hive.svc.cluster.local',
         port: int = 50052,
         use_tls: bool = True,
         timeout_seconds: int = 10,

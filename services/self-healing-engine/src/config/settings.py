@@ -44,13 +44,13 @@ class Settings(BaseSettings):
     otel_service_name: str = "self-healing-engine"
 
     # Execution Ticket Service Config
-    execution_ticket_service_url: str = "http://execution-ticket-service.neural-hive-orchestration:8000"
+    execution_ticket_service_url: str = "http://execution-ticket-service.neural-hive.svc.cluster.local:8000"
     execution_ticket_service_timeout: int = 30
     execution_ticket_circuit_breaker_threshold: int = 5
     execution_ticket_circuit_breaker_reset_seconds: int = 60
 
     # Orchestrator Dynamic gRPC Config
-    orchestrator_grpc_host: str = "orchestrator-dynamic.neural-hive-orchestration.svc.cluster.local"
+    orchestrator_grpc_host: str = "orchestrator-dynamic.neural-hive.svc.cluster.local"
     orchestrator_grpc_port: int = 50052
     orchestrator_grpc_use_tls: bool = True
     orchestrator_grpc_timeout_seconds: int = 10

@@ -35,7 +35,7 @@ class QueenAgentClient:
 
     def __init__(
         self,
-        base_url: str = "http://queen-agent.neural-hive-orchestration:8000",
+        base_url: str = "http://queen-agent.neural-hive.svc.cluster.local:8000",
         timeout: int = 30,
     ):
         self.base_url = base_url

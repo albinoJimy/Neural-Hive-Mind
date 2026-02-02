@@ -1,0 +1,143 @@
+name: Test Neural Hive Specialists
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd="echo 'db.runCommand({ping:1}).ok' | mongosh --quiet localhost/test || exit 1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="/bin/sh -c 'redis-cli ping || exit 1'"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('libraries/python/neural_hive_specialists/requirements.txt', 'libraries/python/neural_hive_specialists/requirements-dev.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Instalar dependências
+        run: |
+          pip install --upgrade pip
+          # Pin protobuf first to avoid version conflicts with opentelemetry
+          pip install "protobuf==5.28.1"
+          # Instalar bibliotecas locais na ordem correta de dependências
+          pip install -e libraries/python/neural_hive_domain
+          pip install -e libraries/python/neural_hive_observability
+          pip install -e libraries/python/neural_hive_resilience
+          # Instalar specialists com dependências de dev e explainability
+          cd libraries/python/neural_hive_specialists
+          pip install -r requirements-dev.txt
+          pip install -e ".[explainability]"
+
+      - name: Gerar protobufs
+        run: make proto-gen
+
+      - name: Create results directory
+        run: mkdir -p tests/results/coverage
+
+      - name: Run specialists test suite
+        working-directory: libraries/python/neural_hive_specialists
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+          REDIS_URL: redis://localhost:6379
+        run: |
+          pytest tests/ \
+            -v \
+            --tb=short \
+            -m "not slow and not benchmark and not integration" \
+            --cov=. \
+            --cov-report=xml:../../../tests/results/coverage/coverage.xml \
+            --cov-report=html:../../../tests/results/coverage/ \
+            --junit-xml=../../../tests/results/specialists-junit.xml \
+            --ignore=tests/benchmarks
+
+      - name: Upload coverage para Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./tests/results/coverage/coverage.xml
+          flags: specialists-python${{ matrix.python-version }}
+          name: neural-hive-specialists-py${{ matrix.python-version }}
+          fail_ci_if_error: false
+
+      - name: Upload HTML coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-py${{ matrix.python-version }}
+          path: tests/results/coverage/
+
+      - name: Prepare coverage data for PR comment
+        run: cp tests/results/coverage/coverage.xml coverage.xml
+
+      - name: Comentar PR com cobertura
+        if: github.event_name == 'pull_request'
+        uses: py-cov-action/python-coverage-comment-action@v3
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+          MINIMUM_GREEN: 90
+          MINIMUM_ORANGE: 85
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependências de linting
+        run: |
+          pip install flake8 black==23.12.0 mypy
+
+      - name: Executar flake8
+        working-directory: libraries/python/neural_hive_specialists
+        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=__pycache__,build,*.egg-info,mlruns,.pytest_cache,MagicMock,.benchmarks
+
+      - name: Verificar formatação com black
+        working-directory: libraries/python/neural_hive_specialists
+        run: black --check . --exclude='(__pycache__|build|\.egg-info|mlruns|\.pytest_cache|MagicMock|\.benchmarks|proto_gen)'
+
+      - name: Executar mypy (type checking)
+        working-directory: libraries/python/neural_hive_specialists
+        continue-on-error: true
+        run: mypy . --ignore-missing-imports --exclude='(__pycache__|build|\.egg-info|mlruns|\.pytest_cache|MagicMock|\.benchmarks|proto_gen)'

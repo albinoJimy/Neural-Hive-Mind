@@ -35,7 +35,7 @@ class ExecutionTicketClient:
 
     def __init__(
         self,
-        base_url: str = "http://execution-ticket-service.neural-hive-orchestration:8000",
+        base_url: str = "http://execution-ticket-service.neural-hive.svc.cluster.local:8000",
         timeout: int = 30,
     ):
         self.base_url = base_url

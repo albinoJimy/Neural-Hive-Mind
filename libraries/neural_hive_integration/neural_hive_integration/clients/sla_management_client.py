@@ -38,7 +38,7 @@ class SLAManagementClient:
 
     def __init__(
         self,
-        base_url: str = "http://sla-management-system.neural-hive-orchestration.svc.cluster.local:8000",
+        base_url: str = "http://sla-management-system.neural-hive.svc.cluster.local:8000",
         redis_url: str = "redis://redis-cluster.redis-cluster.svc.cluster.local:6379",
         cache_ttl: int = 300,  # 5 minutes
         timeout: int = 30,

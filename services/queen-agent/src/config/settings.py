@@ -66,7 +66,7 @@ class Settings(BaseSettings):
     PROMETHEUS_QUERY_TIMEOUT_SECONDS: int = 30
 
     # Orchestrator Integration (Strategic Commands gRPC)
-    ORCHESTRATOR_GRPC_HOST: str = 'orchestrator-dynamic.neural-hive-orchestration.svc.cluster.local'
+    ORCHESTRATOR_GRPC_HOST: str = 'orchestrator-dynamic.neural-hive.svc.cluster.local'
     ORCHESTRATOR_GRPC_PORT: int = 50053
     ORCHESTRATOR_GRPC_TIMEOUT: int = 10
 

@@ -324,7 +324,7 @@ class OrchestratorSettings(BaseSettings):
         description='Habilitar integração com SLA Management System'
     )
     sla_management_host: str = Field(
-        default='sla-management-system.neural-hive-orchestration.svc.cluster.local',
+        default='sla-management-system.neural-hive.svc.cluster.local',
         description='Host do SLA Management System'
     )
     sla_management_port: int = Field(
@@ -617,7 +617,7 @@ class OrchestratorSettings(BaseSettings):
     # OPA Policy Engine
     opa_enabled: bool = Field(default=True, description='Habilitar validação de políticas OPA')
     opa_host: str = Field(
-        default='opa.neural-hive-orchestration.svc.cluster.local',
+        default='opa.neural-hive.svc.cluster.local',
         description='Host do OPA server'
     )
     opa_port: int = Field(default=8181, description='Porta do OPA server')

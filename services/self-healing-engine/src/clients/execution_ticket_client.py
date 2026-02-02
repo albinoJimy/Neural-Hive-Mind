@@ -57,7 +57,7 @@ class SelfHealingTicketClient:
 
     def __init__(
         self,
-        base_url: str = 'http://execution-ticket-service.neural-hive-orchestration:8000',
+        base_url: str = 'http://execution-ticket-service.neural-hive.svc.cluster.local:8000',
         timeout: int = 30,
         circuit_breaker_threshold: int = 5,
         circuit_breaker_reset_seconds: int = 60,
