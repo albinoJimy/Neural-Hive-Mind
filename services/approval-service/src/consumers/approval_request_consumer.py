@@ -9,7 +9,7 @@ import json
 import asyncio
 import structlog
 from datetime import datetime
-from typing import Optional, Callable, Awaitable
+from typing import Optional, Callable, Awaitable, Any
 from confluent_kafka import Consumer, KafkaError, Message
 from confluent_kafka.serialization import SerializationContext, MessageField
 from confluent_kafka.schema_registry import SchemaRegistryClient
@@ -106,7 +106,7 @@ class ApprovalRequestConsumer:
 
     async def start_consuming(
         self,
-        process_callback: Callable[[ApprovalRequest], Awaitable[None]]
+        process_callback: Callable[[ApprovalRequest], Awaitable[Any]]
     ):
         """
         Inicia consumo de mensagens de aprovacao

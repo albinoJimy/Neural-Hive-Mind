@@ -5,11 +5,22 @@ Converte Settings do approval-service para SpecialistConfig
 esperado pela biblioteca neural_hive_specialists.
 """
 
-from neural_hive_specialists.config import SpecialistConfig
+from typing import Any, TYPE_CHECKING
 from src.config.settings import Settings
 
+# Import condicional - neural_hive_specialists pode nao estar disponivel
+try:
+    from neural_hive_specialists.config import SpecialistConfig
+    HAS_SPECIALIST_CONFIG = True
+except ImportError:
+    SpecialistConfig = None  # type: ignore
+    HAS_SPECIALIST_CONFIG = False
 
-def create_feedback_collector_config(settings: Settings) -> SpecialistConfig:
+if TYPE_CHECKING:
+    from neural_hive_specialists.config import SpecialistConfig
+
+
+def create_feedback_collector_config(settings: Settings) -> Any:
     """
     Cria SpecialistConfig a partir de Settings do approval service.
 
@@ -21,8 +32,18 @@ def create_feedback_collector_config(settings: Settings) -> SpecialistConfig:
         settings: Settings do approval service
 
     Returns:
-        SpecialistConfig configurado para feedback collection
+        SpecialistConfig configurado para feedback collection, ou None se
+        neural_hive_specialists nao estiver disponivel
+
+    Raises:
+        ImportError: Se neural_hive_specialists nao estiver instalado
     """
+    if not HAS_SPECIALIST_CONFIG or SpecialistConfig is None:
+        raise ImportError(
+            "neural_hive_specialists nao esta instalado. "
+            "Instale com: pip install neural-hive-specialists"
+        )
+
     # Criar config com campos necessarios para FeedbackCollector
     # Campos nao usados pelo FeedbackCollector recebem placeholders
     config_dict = {

@@ -1,0 +1,300 @@
+# Neural-Hive-Mind - Ingress Resources
+# Centraliza todos os Ingress para servicos externos
+#
+# Servicos expostos:
+# - Gateway de Intencoes (API principal)
+# - Keycloak (Autenticacao)
+# - MLflow (Dashboard ML)
+# - Vault (Secrets UI)
+# - Approval Service (Aprovacao humana)
+#
+# Requisitos:
+# - Ingress Controller (nginx ou istio)
+# - cert-manager (para TLS automatico)
+# - DNS configurado para *.neural-hive.local (dev) ou *.neural-hive.io (prod)
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ingress-config
+  labels:
+    name: ingress-config
+    neuralhive/component: networking
+---
+# ============================================================================
+# GATEWAY DE INTENCOES - API Principal
+# ============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gateway-intencoes-ingress
+  namespace: fluxo-a
+  labels:
+    app: gateway-intencoes
+    neuralhive/layer: application
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    # Rate limiting
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-connections: "50"
+    # CORS habilitado no servico FastAPI
+    nginx.ingress.kubernetes.io/enable-cors: "false"
+    # Websocket support (para streaming de audio)
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: api.neural-hive.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: gateway-intencoes
+            port:
+              number: 80
+  - host: gateway.neural-hive.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: gateway-intencoes
+            port:
+              number: 80
+---
+# ============================================================================
+# KEYCLOAK - Autenticacao OAuth2/OIDC
+# ============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keycloak-ingress
+  namespace: keycloak
+  labels:
+    app: keycloak
+    neuralhive/layer: security
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "4"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    # Keycloak precisa de headers grandes para tokens
+    nginx.ingress.kubernetes.io/large-client-header-buffers: "4 32k"
+    # Sticky sessions para admin console
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "KEYCLOAK_SESSION"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: auth.neural-hive.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: keycloak
+            port:
+              number: 8080
+  - host: keycloak.neural-hive.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: keycloak
+            port:
+              number: 8080
+---
+# ============================================================================
+# MLFLOW - Dashboard de Machine Learning
+# ============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mlflow-ingress
+  namespace: mlflow
+  labels:
+    app: mlflow
+    neuralhive/layer: ml-platform
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "500m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    # Upload de artefatos pode ser grande
+    nginx.ingress.kubernetes.io/client-body-buffer-size: "100m"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: mlflow.neural-hive.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: mlflow
+            port:
+              number: 5000
+---
+# ============================================================================
+# VAULT - Secrets Management UI
+# ============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vault-ingress
+  namespace: vault
+  labels:
+    app: vault
+    neuralhive/layer: security
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    # Vault UI precisa de websockets para alguns recursos
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: vault.neural-hive.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: vault
+            port:
+              number: 8200
+---
+# ============================================================================
+# APPROVAL SERVICE - API de Aprovacao Humana
+# ============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: approval-service-ingress
+  namespace: approval
+  labels:
+    app: approval-service
+    neuralhive/layer: governance
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/limit-rps: "50"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: approval.neural-hive.local
+    http:
+      paths:
+      - path: /api/v1/approvals(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: approval-service
+            port:
+              number: 8080
+      - path: /health
+        pathType: Exact
+        backend:
+          service:
+            name: approval-service
+            port:
+              number: 8080
+      - path: /ready
+        pathType: Exact
+        backend:
+          service:
+            name: approval-service
+            port:
+              number: 8080
+---
+# ============================================================================
+# GRAFANA - Observability Dashboard (se nao estiver no namespace monitoring)
+# ============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-ingress
+  namespace: observability
+  labels:
+    app: grafana
+    neuralhive/layer: observability
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: grafana.neural-hive.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: grafana
+            port:
+              number: 3000
+---
+# ============================================================================
+# CONFIGMAP - DNS Local Helper
+# ============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ingress-hosts-config
+  namespace: ingress-config
+  labels:
+    neuralhive/component: networking
+data:
+  hosts-entry: |
+    # Adicionar ao /etc/hosts (substitua <INGRESS_IP> pelo IP do Ingress Controller)
+    # 
+    # Para obter o IP do Ingress:
+    #   kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+    #
+    # Ou para clusters locais (minikube/kind):
+    #   minikube ip
+    #   kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}'
+    #
+    # Cole no /etc/hosts:
+    <INGRESS_IP> api.neural-hive.local
+    <INGRESS_IP> gateway.neural-hive.local
+    <INGRESS_IP> auth.neural-hive.local
+    <INGRESS_IP> keycloak.neural-hive.local
+    <INGRESS_IP> mlflow.neural-hive.local
+    <INGRESS_IP> vault.neural-hive.local
+    <INGRESS_IP> approval.neural-hive.local
+    <INGRESS_IP> grafana.neural-hive.local
+  
+  verify-script: |
+    #!/bin/bash
+    # Script para verificar se os Ingress estao funcionando
+    
+    HOSTS=(
+      "api.neural-hive.local"
+      "auth.neural-hive.local"
+      "mlflow.neural-hive.local"
+      "vault.neural-hive.local"
+      "approval.neural-hive.local"
+      "grafana.neural-hive.local"
+    )
+    
+    echo "Verificando Ingress endpoints..."
+    for host in "${HOSTS[@]}"; do
+      status=$(curl -s -o /dev/null -w "%{http_code}" "http://${host}/health" 2>/dev/null || echo "000")
+      if [ "$status" = "200" ] || [ "$status" = "401" ] || [ "$status" = "302" ]; then
+        echo "✅ $host - OK ($status)"
+      else
+        echo "❌ $host - FALHA ($status)"
+      fi
+    done

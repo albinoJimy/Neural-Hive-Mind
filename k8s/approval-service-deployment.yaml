@@ -196,14 +196,35 @@ spec:
     ports:
     - protocol: TCP
       port: 8080
+  # Permitir acesso do Ingress Controller (nginx/traefik)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8080
+  # Permitir acesso do Istio Ingress Gateway
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: istio-system
+    ports:
+    - protocol: TCP
+      port: 8080
   # Permitir scrape do Prometheus
   - from:
     - namespaceSelector:
         matchLabels:
           name: observability
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
     ports:
     - protocol: TCP
       port: 8000
+    - protocol: TCP
+      port: 8080
   egress:
   # Kafka
   - to:

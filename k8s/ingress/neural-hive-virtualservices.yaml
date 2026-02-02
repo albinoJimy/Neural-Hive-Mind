@@ -1,0 +1,217 @@
+# Neural-Hive-Mind - Istio VirtualServices
+# Alternativa ao Ingress para clusters com Istio Service Mesh
+#
+# Requisitos:
+# - Istio instalado
+# - Gateway 'neural-hive-gateway' no namespace istio-system
+# - DNS configurado
+---
+# ============================================================================
+# GATEWAY ISTIO COMPARTILHADO
+# ============================================================================
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: neural-hive-gateway
+  namespace: istio-system
+  labels:
+    neuralhive/component: networking
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "*.neural-hive.local"
+    - "*.neural-hive.io"
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    hosts:
+    - "*.neural-hive.local"
+    - "*.neural-hive.io"
+    tls:
+      mode: SIMPLE
+      credentialName: neural-hive-tls
+---
+# ============================================================================
+# GATEWAY DE INTENCOES
+# ============================================================================
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: gateway-intencoes-vs
+  namespace: fluxo-a
+  labels:
+    app: gateway-intencoes
+spec:
+  hosts:
+  - api.neural-hive.local
+  - gateway.neural-hive.local
+  gateways:
+  - istio-system/neural-hive-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: gateway-intencoes.fluxo-a.svc.cluster.local
+        port:
+          number: 80
+    timeout: 300s
+    retries:
+      attempts: 3
+      perTryTimeout: 100s
+      retryOn: connect-failure,refused-stream,unavailable,cancelled
+---
+# ============================================================================
+# KEYCLOAK
+# ============================================================================
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: keycloak-vs
+  namespace: keycloak
+  labels:
+    app: keycloak
+spec:
+  hosts:
+  - auth.neural-hive.local
+  - keycloak.neural-hive.local
+  gateways:
+  - istio-system/neural-hive-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: keycloak.keycloak.svc.cluster.local
+        port:
+          number: 8080
+    timeout: 60s
+---
+# ============================================================================
+# MLFLOW
+# ============================================================================
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: mlflow-vs
+  namespace: mlflow
+  labels:
+    app: mlflow
+spec:
+  hosts:
+  - mlflow.neural-hive.local
+  gateways:
+  - istio-system/neural-hive-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: mlflow.mlflow.svc.cluster.local
+        port:
+          number: 5000
+    timeout: 600s
+---
+# ============================================================================
+# VAULT
+# ============================================================================
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: vault-vs
+  namespace: vault
+  labels:
+    app: vault
+spec:
+  hosts:
+  - vault.neural-hive.local
+  gateways:
+  - istio-system/neural-hive-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: vault.vault.svc.cluster.local
+        port:
+          number: 8200
+    timeout: 60s
+---
+# ============================================================================
+# APPROVAL SERVICE
+# ============================================================================
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: approval-service-vs
+  namespace: approval
+  labels:
+    app: approval-service
+spec:
+  hosts:
+  - approval.neural-hive.local
+  gateways:
+  - istio-system/neural-hive-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /api/v1/approvals
+    route:
+    - destination:
+        host: approval-service.approval.svc.cluster.local
+        port:
+          number: 8080
+    timeout: 60s
+    retries:
+      attempts: 3
+      perTryTimeout: 20s
+      retryOn: connect-failure,refused-stream,unavailable
+  - match:
+    - uri:
+        exact: /health
+    - uri:
+        exact: /ready
+    - uri:
+        exact: /metrics
+    route:
+    - destination:
+        host: approval-service.approval.svc.cluster.local
+        port:
+          number: 8080
+---
+# ============================================================================
+# GRAFANA
+# ============================================================================
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: grafana-vs
+  namespace: observability
+  labels:
+    app: grafana
+spec:
+  hosts:
+  - grafana.neural-hive.local
+  gateways:
+  - istio-system/neural-hive-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: grafana.observability.svc.cluster.local
+        port:
+          number: 3000
+    timeout: 300s
