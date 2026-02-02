@@ -39,37 +39,78 @@ def _deserialize_avro_or_json(raw_bytes: bytes, schema_registry_url: str = None)
     - Bytes 1-4: Schema ID (big-endian int)
     - Bytes 5+: Avro payload
     """
+    # Log bytes brutos para debug (primeiros 100 bytes)
+    logger.debug(
+        "avro_deserialization_attempt",
+        raw_bytes_hex=raw_bytes[:100].hex() if len(raw_bytes) >= 100 else raw_bytes.hex(),
+        bytes_length=len(raw_bytes),
+        first_bytes=list(raw_bytes[:20])
+    )
+
     if len(raw_bytes) < 5:
         # Too short for Avro wire format, try JSON
-        return json.loads(raw_bytes.decode('utf-8'))
+        logger.debug("message_too_short_for_avro", trying_json=True)
+        try:
+            return json.loads(raw_bytes.decode('utf-8'))
+        except json.JSONDecodeError as e:
+            logger.error("json_deserialization_failed", error=str(e), raw_bytes_preview=raw_bytes[:100])
+            raise ValueError(f"Failed to deserialize as JSON: {e}") from e
 
     magic_byte = raw_bytes[0]
     if magic_byte != 0:
         # Not Avro wire format, try JSON
-        return json.loads(raw_bytes.decode('utf-8'))
+        logger.debug("invalid_magic_byte", magic_byte=magic_byte, trying_json=True)
+        try:
+            return json.loads(raw_bytes.decode('utf-8'))
+        except json.JSONDecodeError as e:
+            logger.error("json_deserialization_failed", error=str(e), raw_bytes_preview=raw_bytes[:100])
+            raise ValueError(f"Failed to deserialize as JSON: {e}") from e
 
     # Extract schema ID and Avro payload
     schema_id = int.from_bytes(raw_bytes[1:5], byteorder='big')
     avro_payload = raw_bytes[5:]
 
+    logger.debug(
+        "avro_wire_format_detected",
+        schema_id=schema_id,
+        payload_size=len(avro_payload),
+        payload_hex=avro_payload[:50].hex() if len(avro_payload) >= 50 else avro_payload.hex()
+    )
+
     if AVRO_AVAILABLE:
         try:
+            client = SchemaRegistryClient({'url': schema_registry_url})
+            schema = client.get_schema(schema_id)
+            logger.debug("schema_retrieved", schema_id=schema_id, schema_schema_str=schema.schema_str[:200])
+            writer_schema = fastavro.parse_schema(json.loads(schema.schema_str))
             reader = io.BytesIO(avro_payload)
-            records = list(fastavro.reader(reader))
-            if records:
-                return records[0]
+            # schemaless_reader retorna um generator, pegar o primeiro elemento
+            result_generator = fastavro.schemaless_reader(reader, writer_schema)
+            result = next(result_generator)
+            logger.info("avro_deserialization_success", schema_id=schema_id, result_type=type(result).__name__)
+            return result
         except Exception as e:
-            # Fallback: try with schema from registry
-            if schema_registry_url:
-                try:
-                    client = SchemaRegistryClient({'url': schema_registry_url})
-                    schema = client.get_schema(schema_id)
-                    parsed_schema = fastavro.parse_schema(json.loads(schema.schema_str))
-                    reader = io.BytesIO(avro_payload)
-                    return fastavro.schemaless_reader(reader, parsed_schema)
-                except Exception as registry_error:
-                    logger.warning("schema_registry_fallback_failed", error=str(registry_error))
-            raise e
+            logger.error(
+                "avro_deserialization_failed",
+                schema_id=schema_id,
+                error=str(e),
+                error_type=type(e).__name__,
+                payload_preview=avro_payload[:100].hex()
+            )
+            # Tentar JSON como fallback
+            try:
+                json_result = json.loads(avro_payload.decode('utf-8'))
+                logger.warning("avro_failed_json_success", schema_id=schema_id)
+                return json_result
+            except (json.JSONDecodeError, UnicodeDecodeError) as json_err:
+                logger.error(
+                    "json_fallback_also_failed",
+                    json_error=str(json_err),
+                    avro_error=str(e)
+                )
+                raise ValueError(
+                    f"Failed to deserialize Avro message: {e}. JSON fallback also failed: {json_err}"
+                ) from e
 
     raise ValueError("Avro deserialization not available")
 
