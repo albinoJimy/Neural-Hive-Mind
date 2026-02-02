@@ -187,14 +187,6 @@ class KafkaProducerClient:
                     'Falha ao instrumentar Kafka producer, continuando sem tracing',
                     error=str(e)
                 )
-                else:
-                    self.producer = instrument_kafka_producer(self.producer, obs_config)
-                    logger.info('Kafka producer instrumentado com OpenTelemetry')
-            except Exception as e:
-                logger.warning(
-                    'Falha ao instrumentar Kafka producer, continuando sem tracing',
-                    error=str(e)
-                )
 
             try:
                 self.schema_registry_client = SchemaRegistryClient({'url': self.config.kafka_schema_registry_url})
