@@ -92,7 +92,11 @@ class Settings(BaseSettings):
     keycloak_realm: str = Field(default='neural-hive', description='Realm do Keycloak')
     keycloak_client_id: str = Field(default='approval-service', description='Client ID')
     admin_role_name: str = Field(default='neural-hive-admin', description='Nome da role admin')
-    require_auth: bool = Field(default=True, description='Require JWT authentication')
+    require_auth: bool = Field(
+        default=True,
+        description='Require JWT authentication',
+        validation_alias='APPROVAL_SERVICE_REQUIRE_AUTH'
+    )
 
     # Observability configuration
     otel_endpoint: str = Field(

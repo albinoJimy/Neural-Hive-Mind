@@ -124,7 +124,7 @@ class AppState:
     """Gerencia estado global da aplicação."""
 
     def __init__(self):
-        self.temporal_client = None
+        self.temporal_client: Optional[TemporalClientWrapper] = None
         self.kafka_consumer: Optional[DecisionConsumer] = None
         self.flow_c_consumer: Optional[FlowCConsumer] = None
         self.temporal_worker: Optional[TemporalWorkerManager] = None
@@ -135,22 +135,22 @@ class AppState:
         self.kafka_producer: Optional[KafkaProducerClient] = None
         self.execution_ticket_client: Optional[ExecutionTicketClient] = None
         self.self_healing_client: Optional[SelfHealingClient] = None
-        self.redis_client = None
-        self.vault_client = None
-        self.drift_detector = None
-        self.ml_training_jobs = {}  # Dict para rastrear jobs de treinamento
+        self.redis_client: Optional[Any] = None
+        self.vault_client: Optional[Any] = None
+        self.drift_detector: Optional[Any] = None
+        self.ml_training_jobs: Dict[str, Any] = {}  # Dict para rastrear jobs de treinamento
         self.vault_renewal_task: Optional[asyncio.Task] = None
-        self.optimizer_client = None
+        self.optimizer_client: Optional[OptimizerGrpcClient] = None
         # Modelos preditivos centralizados
-        self.scheduling_predictor = None
-        self.load_predictor = None
-        self.anomaly_detector = None
-        self.model_registry = None
-        self.spiffe_manager = None
+        self.scheduling_predictor: Optional[Any] = None
+        self.load_predictor: Optional[Any] = None
+        self.anomaly_detector: Optional[Any] = None
+        self.model_registry: Optional[Any] = None
+        self.spiffe_manager: Optional[Any] = None
         # gRPC Server para comandos estratégicos da Queen Agent
-        self.grpc_server = None
-        self.opa_client = None
-        self.intelligent_scheduler = None
+        self.grpc_server: Optional[Any] = None
+        self.opa_client: Optional[Any] = None
+        self.intelligent_scheduler: Optional[Any] = None
         self.audit_logger: Optional[ModelAuditLogger] = None
 
 
@@ -349,7 +349,7 @@ async def lifespan(app: FastAPI):
             logger.info('MongoDB conectado com sucesso')
 
             # Registrar callback para rotação de credenciais MongoDB
-            if vault_client and mongodb_credentials and mongodb_credentials.get('ttl', 0) > 0:
+            if vault_client and mongodb_credentials and int(mongodb_credentials.get('ttl', 0)) > 0:
                 async def _mongodb_credential_update_callback(new_creds: Dict[str, Any]):
                     """Callback para recriar cliente MongoDB com novas credenciais."""
                     try:
@@ -2682,7 +2682,7 @@ async def get_workflow_status(workflow_id: str):
 
         try:
             # Obter handle do workflow
-            handle = app_state.temporal_client.get_workflow_handle(workflow_id)
+            handle = await app_state.temporal_client.get_workflow_handle(workflow_id)
 
             # Describe workflow para obter status
             description = await handle.describe()
@@ -2950,7 +2950,7 @@ async def query_workflow(workflow_id: str, request: WorkflowQueryRequest):
 
         try:
             # Obter handle do workflow
-            handle = app_state.temporal_client.get_workflow_handle(workflow_id)
+            handle = await app_state.temporal_client.get_workflow_handle(workflow_id)
 
             # Executar query
             if request.query_name == 'get_tickets':

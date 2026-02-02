@@ -20,7 +20,7 @@ class TemporalWorkerManager:
     def __init__(
         self,
         config,
-        temporal_client: Client,
+        temporal_client,  # Client ou TemporalClientWrapper
         kafka_producer=None,
         mongodb_client=None,
         registry_client=None,

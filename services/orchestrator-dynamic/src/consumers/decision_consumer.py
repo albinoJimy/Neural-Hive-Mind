@@ -127,7 +127,7 @@ class DecisionConsumer:
     def __init__(
         self,
         config,
-        temporal_client: Client,
+        temporal_client,  # Client ou TemporalClientWrapper
         mongodb_client,
         redis_client=None,
         metrics=None,
