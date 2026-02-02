@@ -14,7 +14,7 @@ on:
 
 jobs:
   unit-tests:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -57,7 +57,7 @@ jobs:
           fail_ci_if_error: false
 
   integration-tests:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: unit-tests
 
     services:
@@ -104,7 +104,7 @@ jobs:
           fail_ci_if_error: false
 
   performance-tests:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: integration-tests
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
@@ -136,7 +136,7 @@ jobs:
           path: services/mcp-tool-catalog/benchmark.json
 
   e2e-tests:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: integration-tests
     if: github.event_name == 'push'
 
@@ -168,7 +168,7 @@ jobs:
           ./tests/e2e/test_mcp_hybrid_execution.sh --verbose
 
   lint:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     steps:
       - name: Checkout codigo
         uses: actions/checkout@v4

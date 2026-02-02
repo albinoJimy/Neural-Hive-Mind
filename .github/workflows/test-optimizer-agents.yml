@@ -20,7 +20,7 @@ env:
 jobs:
   compile-protos:
     name: Compile Protocol Buffers
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -57,7 +57,7 @@ jobs:
 
   unit-tests:
     name: Unit Tests (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     timeout-minutes: 15
     needs: compile-protos
     strategy:
@@ -113,7 +113,7 @@ jobs:
 
   integration-tests:
     name: gRPC Integration Tests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     timeout-minutes: 20
     needs: unit-tests
     services:
@@ -186,7 +186,7 @@ jobs:
 
   quality-gate:
     name: Quality Gate
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: [unit-tests, integration-tests]
     steps:
       - uses: actions/checkout@v4

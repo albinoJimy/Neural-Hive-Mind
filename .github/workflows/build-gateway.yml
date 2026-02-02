@@ -19,7 +19,7 @@ env:
 
 jobs:
   lint-and-test:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     steps:
     - uses: actions/checkout@v4
 
@@ -73,7 +73,7 @@ jobs:
         file: services/gateway-intencoes/coverage.xml
 
   security-scan:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     steps:
     - uses: actions/checkout@v4
 
@@ -94,7 +94,7 @@ jobs:
   build-and-push:
     needs: [lint-and-test, security-scan]
     if: always() && !cancelled()
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     permissions:
       contents: read
       packages: write
@@ -138,7 +138,7 @@ jobs:
   deploy-dev:
     if: github.ref == 'refs/heads/develop'
     needs: build-and-push
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     environment: development
     steps:
     - uses: actions/checkout@v4
@@ -160,7 +160,7 @@ jobs:
   deploy-prod:
     if: github.ref == 'refs/heads/main'
     needs: build-and-push
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     environment: production
     steps:
     - uses: actions/checkout@v4

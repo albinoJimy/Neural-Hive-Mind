@@ -21,7 +21,7 @@ env:
 jobs:
   terraform-validate:
     name: Terraform Validation
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
 
     steps:
       - name: Checkout
@@ -80,7 +80,7 @@ jobs:
 
   tflint:
     name: TFLint
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
 
     steps:
       - name: Checkout
@@ -121,7 +121,7 @@ jobs:
 
   checkov-security:
     name: Checkov Security Scan
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
 
     steps:
       - name: Checkout
@@ -144,7 +144,7 @@ jobs:
 
   helm-lint:
     name: Helm Lint
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
 
     steps:
       - name: Checkout
@@ -174,7 +174,7 @@ jobs:
 
   opa-test:
     name: OPA Policy Testing
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
 
     steps:
       - name: Checkout
@@ -216,7 +216,7 @@ jobs:
 
   yaml-lint:
     name: YAML Lint
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
 
     steps:
       - name: Checkout
@@ -239,7 +239,7 @@ jobs:
 
   validate-image-tags:
     name: Validate Image Tags
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
 
     steps:
       - name: Checkout
@@ -372,7 +372,7 @@ jobs:
   # ===========================================================================
   validate-kafka-topics:
     name: Validate Kafka Topics Configuration
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
 
     steps:
       - name: Checkout
@@ -485,7 +485,7 @@ jobs:
   # ===========================================================================
   validate-clickhouse-schema:
     name: Validate ClickHouse Schema
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
 
     steps:
       - name: Checkout
@@ -562,7 +562,7 @@ jobs:
   # ===========================================================================
   validate-observability-config:
     name: Validate Observability Configuration
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
 
     steps:
       - name: Checkout
@@ -704,7 +704,7 @@ jobs:
   # ===========================================================================
   validate-observability-library:
     name: Validate Observability Library
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
 
     steps:
       - name: Checkout
@@ -755,7 +755,7 @@ jobs:
 
   summary:
     name: Validation Summary
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: [terraform-validate, tflint, checkov-security, helm-lint, opa-test, yaml-lint, validate-image-tags, validate-kafka-topics, validate-clickhouse-schema, validate-observability-config, validate-observability-library]
     if: always()
 

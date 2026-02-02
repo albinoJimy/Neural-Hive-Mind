@@ -33,7 +33,7 @@ on:
 
 jobs:
   online-learning-action:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     environment: production
 
     steps:
@@ -146,7 +146,7 @@ jobs:
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
   test-online-learning:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     if: github.event.inputs.action == 'update'
 
     steps:

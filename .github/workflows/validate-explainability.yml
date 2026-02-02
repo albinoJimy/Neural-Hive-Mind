@@ -18,7 +18,7 @@ on:
 jobs:
   validate-background-dataset:
     name: Validate SHAP Background Dataset
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     if: contains(github.event.head_commit.modified, 'data/shap_background')
 
     steps:
@@ -55,7 +55,7 @@ jobs:
 
   test-explainability-integration:
     name: Test SHAP/LIME Integration
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
 
     steps:
       - name: Checkout code
@@ -100,7 +100,7 @@ jobs:
 
   benchmark-shap-lime-performance:
     name: Benchmark SHAP/LIME Performance
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
 
     steps:
       - name: Checkout code
@@ -154,7 +154,7 @@ jobs:
 
   quality-gate:
     name: Explainability Quality Gate
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: [test-explainability-integration]
 
     steps:

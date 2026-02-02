@@ -44,7 +44,7 @@ env:
 jobs:
   validate:
     name: Validate Configuration
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     outputs:
       terraform-changes: ${{ steps.changes.outputs.terraform }}
       helm-changes: ${{ steps.changes.outputs.helm }}
@@ -116,7 +116,7 @@ jobs:
 
   plan:
     name: Terraform Plan
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: validate
     if: needs.validate.outputs.terraform-changes == 'true'
 
@@ -163,7 +163,7 @@ jobs:
 
   deploy-terraform:
     name: Deploy Infrastructure
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: [ validate, plan ]
     if: github.ref == 'refs/heads/main' && !inputs.rollback
 
@@ -210,7 +210,7 @@ jobs:
 
   deploy-helm:
     name: Deploy Helm Charts
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: [ validate, deploy-terraform ]
     if: always() && !failure() && !inputs.rollback
 
@@ -286,7 +286,7 @@ jobs:
 
   deploy-monitoring:
     name: Deploy Monitoring Configs
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: [ validate, deploy-helm ]
     if: always() && !failure() && !inputs.rollback
 
@@ -347,7 +347,7 @@ jobs:
 
   test-deployment:
     name: Test Deployment
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: [ deploy-monitoring ]
     if: always() && !failure()
 
@@ -402,7 +402,7 @@ jobs:
 
   rollback:
     name: Rollback Deployment
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     if: inputs.rollback
 
     strategy:
@@ -442,7 +442,7 @@ jobs:
 
   notify:
     name: Notify Deployment Status
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: [ test-deployment, rollback ]
     if: always()
 

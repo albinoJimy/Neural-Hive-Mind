@@ -29,7 +29,7 @@ jobs:
   # Validação de arquivos Terraform
   terraform-validate:
     name: Terraform Validation
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     defaults:
       run:
         working-directory: ./infrastructure/terraform/modules/observability-stack
@@ -61,7 +61,7 @@ jobs:
   # Validação de Helm Charts
   helm-validate:
     name: Helm Charts Validation
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
 
     strategy:
       matrix:
@@ -115,7 +115,7 @@ jobs:
   # Validação de Dashboards Grafana
   grafana-dashboards-validate:
     name: Grafana Dashboards Validation
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
 
     steps:
     - name: Checkout code
@@ -163,7 +163,7 @@ jobs:
   # Validação de Alertas Prometheus
   prometheus-alerts-validate:
     name: Prometheus Alerts Validation
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
 
     steps:
     - name: Checkout code
@@ -196,7 +196,7 @@ jobs:
   # Validação da Biblioteca Python
   python-library-validate:
     name: Python Library Validation
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     defaults:
       run:
         working-directory: ./libraries/python/neural_hive_observability
@@ -272,7 +272,7 @@ jobs:
   # Teste de Integração (simulado)
   integration-test:
     name: Integration Test (Simulated)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: [terraform-validate, helm-validate]
 
     steps:
@@ -323,7 +323,7 @@ jobs:
   # Verificação de Segurança
   security-scan:
     name: Security Scan
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
 
     steps:
     - name: Checkout code
@@ -354,7 +354,7 @@ jobs:
   # Geração de Relatório
   generate-report:
     name: Generate Validation Report
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: [
       terraform-validate,
       helm-validate,
@@ -424,7 +424,7 @@ jobs:
   # Notificação de Status
   notify:
     name: Notify Status
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, neural-hive]
     needs: [generate-report]
     if: always()
 
