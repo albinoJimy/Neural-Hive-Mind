@@ -255,7 +255,7 @@ async def lifespan(app: FastAPI):
             # Mesmo quando OTEL está desabilitado, precisamos de um config válido para instrumentação
             try:
                 from neural_hive_observability.config import ObservabilityConfig
-                from neural_hive_observability import set_config
+                import neural_hive_observability as obs_module
 
                 obs_config = ObservabilityConfig(
                     service_name=getattr(config, 'service_name', "orchestrator-dynamic"),
@@ -264,7 +264,8 @@ async def lifespan(app: FastAPI):
                     neural_hive_layer="orchestration",
                     environment=config.environment,
                 )
-                set_config(obs_config)
+                # Atribuir config diretamente ao módulo (sem função set_config)
+                obs_module._config = obs_config
                 logger.info(
                     "ObservabilityConfig criado manualmente (sem OTEL)",
                     service_name=obs_config.service_name,
