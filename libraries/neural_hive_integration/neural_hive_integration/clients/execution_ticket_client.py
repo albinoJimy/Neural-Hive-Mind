@@ -2,6 +2,7 @@
 Execution Ticket Service client for ticket lifecycle management.
 """
 
+import os
 import httpx
 import structlog
 from typing import Dict, Any, List, Optional
@@ -12,6 +13,12 @@ from datetime import datetime
 
 logger = structlog.get_logger()
 tracer = trace.get_tracer(__name__)
+
+# Default URL - can be overridden via EXECUTION_TICKET_SERVICE_URL env var
+DEFAULT_EXECUTION_TICKET_URL = os.getenv(
+    "EXECUTION_TICKET_SERVICE_URL",
+    "http://execution-ticket-service.neural-hive.svc.cluster.local:8000"
+)
 
 
 class ExecutionTicket(BaseModel):
@@ -35,7 +42,7 @@ class ExecutionTicketClient:
 
     def __init__(
         self,
-        base_url: str = "http://execution-ticket-service.neural-hive.svc.cluster.local:8000",
+        base_url: str = DEFAULT_EXECUTION_TICKET_URL,
         timeout: int = 30,
     ):
         self.base_url = base_url
