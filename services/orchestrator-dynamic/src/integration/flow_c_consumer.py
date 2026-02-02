@@ -21,7 +21,8 @@ from neural_hive_observability import (
     get_tracer,
     trace_plan,
     instrument_kafka_consumer,
-    instrument_kafka_producer
+    instrument_kafka_producer,
+    get_config
 )
 from neural_hive_observability.context import extract_context_from_headers, set_baggage
 
@@ -239,9 +240,25 @@ class FlowCConsumer:
             })
 
         # Initialize producer for incidents
-        self.producer = instrument_kafka_producer(
-            AIOKafkaProducer(**producer_config)
-        )
+        try:
+            obs_config = get_config()
+            if obs_config is None:
+                logger.warning(
+                    "Config de observabilidade não inicializado - pulando instrumentação do Kafka. "
+                    "Verifique se init_observability() foi chamado antes de flow_c_consumer.initialize()"
+                )
+                self.producer = AIOKafkaProducer(**producer_config)
+            else:
+                self.producer = instrument_kafka_producer(
+                    AIOKafkaProducer(**producer_config),
+                    obs_config
+                )
+        except Exception as e:
+            logger.warning(
+                'Falha ao instrumentar Kafka producer, continuando sem tracing',
+                error=str(e)
+            )
+            self.producer = AIOKafkaProducer(**producer_config)
         await self.producer.start()
 
         # Initialize orchestrator

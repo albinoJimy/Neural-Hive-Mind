@@ -171,8 +171,17 @@ class KafkaProducerClient:
 
             # Instrumentar producer para injetar headers de tracing (traceparent W3C)
             try:
-                self.producer = instrument_kafka_producer(self.producer)
-                logger.info('Kafka producer instrumentado com OpenTelemetry')
+                from neural_hive_observability import get_config
+                obs_config = get_config()
+
+                if obs_config is None:
+                    logger.warning(
+                        "Config de observabilidade não inicializado - pulando instrumentação do Kafka. "
+                        "Verifique se init_observability() foi chamado antes de kafka_producer.initialize()"
+                    )
+                else:
+                    self.producer = instrument_kafka_producer(self.producer, obs_config)
+                    logger.info('Kafka producer instrumentado com OpenTelemetry')
             except Exception as e:
                 logger.warning(
                     'Falha ao instrumentar Kafka producer, continuando sem tracing',
