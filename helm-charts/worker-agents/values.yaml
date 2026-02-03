@@ -56,6 +56,10 @@ config:
     - VALIDATE
     - EXECUTE
     - COMPENSATE
+    # Task types do Fluxo C (Semantic Translation Engine)
+    - query
+    - validate
+    - transform
   maxConcurrentTasks: 5
   # Backpressure Control
   maxConcurrentTickets: 10  # Limite de tickets em processamento simultâneo
@@ -68,7 +72,8 @@ config:
     resultsTopic: execution.results
     consumerGroupId: worker-agents
     # Apicurio Registry com API de compatibilidade Confluent
-    schemaRegistryUrl: http://schema-registry.kafka.svc.cluster.local:8080/apis/ccompat/v7
+    # TEMPORARIO: Desabilitado para forçar fallback JSON (mensagens antigas em JSON)
+    schemaRegistryUrl: ""
     securityProtocol: PLAINTEXT
     saslMechanism: SCRAM-SHA-512
     saslUsername: ""
@@ -89,7 +94,7 @@ config:
     heartbeatIntervalSeconds: 30
 
   executionTicketService:
-    url: http://execution-ticket-service.neural-hive-orchestration.svc.cluster.local:8080
+    url: http://execution-ticket-service.neural-hive.svc.cluster.local:8000
 
   temporal:
     enabled: false
@@ -167,7 +172,7 @@ config:
       cleanupJobs: true
 
   vault:
-    enabled: true  # Zero-trust security enabled
+    enabled: false  # Desabilitado - Vault não instalado no cluster
     address: http://vault.vault.svc.cluster.local:8200
     namespace: ""
     authMethod: kubernetes
@@ -180,7 +185,7 @@ config:
     failOpen: false  # Fail-closed por padrao em producao
 
   spiffe:
-    enabled: true  # Zero-trust authentication habilitado
+    enabled: false  # Desabilitado - SPIRE agent não instalado nos nós
     socketPath: unix:///run/spire/sockets/agent.sock
     trustDomain: neural-hive.local
     jwtAudience: service-registry.neural-hive.local

@@ -125,10 +125,15 @@ class KafkaTicketConsumer:
                         message.topic(), MessageField.VALUE
                     )
 
-                    if self.avro_deserializer:
-                        ticket = self.avro_deserializer(message.value(), context)
+                    # Auto-detect format: Avro (magic byte 0x00) vs JSON (starts with '{')
+                    raw_value = message.value()
+                    is_avro_format = raw_value and len(raw_value) > 5 and raw_value[0] == 0x00
+
+                    if is_avro_format and self.avro_deserializer:
+                        ticket = self.avro_deserializer(raw_value, context)
                     else:
-                        ticket = json.loads(message.value().decode('utf-8'))
+                        # Fallback to JSON for legacy messages or when Schema Registry unavailable
+                        ticket = json.loads(raw_value.decode('utf-8'))
 
                     # Validar campos obrigatórios
                     required_fields = ['ticket_id', 'task_id', 'task_type', 'status', 'dependencies']
