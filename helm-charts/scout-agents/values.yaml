@@ -1,6 +1,11 @@
 component: "scout-agents"
 layer: "exploration"
 
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
 image:
   repository: ghcr.io/albinojimy/neural-hive-mind/scout-agents
   tag: "1.2.0"
@@ -8,7 +13,6 @@ image:
 
 imagePullSecrets:
   - name: ghcr-secret
-  pullSecrets: []
 
 replicaCount: 2
 

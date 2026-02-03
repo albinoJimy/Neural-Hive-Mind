@@ -173,18 +173,18 @@ data:
     - name: 'neural-hive-default'
       slack_configs:
       - channel: '#neural-hive-alerts'
-        title: 'Neural Hive-Mind: {{ .GroupLabels.alertname }}'
+        title: 'Neural Hive-Mind: {{ "{{ .GroupLabels.alertname }}" }}'
         text: |
-          *Ambiente:* {{ .CommonLabels.environment | default "unknown" }}
-          *Cluster:* {{ .CommonLabels.cluster | default "unknown" }}
-          {{ range .Alerts }}
-          *Alerta:* {{ .Annotations.summary }}
-          *Descrição:* {{ .Annotations.description }}
-          *Severidade:* {{ .Labels.severity | default "unknown" }}
-          *Componente:* {{ .Labels.neural_hive_component | default "unknown" }}
-          *Camada:* {{ .Labels.neural_hive_layer | default "unknown" }}
-          {{ if .Annotations.runbook_url }}*Runbook:* {{ .Annotations.runbook_url }}{{ end }}
-          {{ end }}
+          *Ambiente:* {{ "{{ .CommonLabels.environment | default \"unknown\" }}" }}
+          *Cluster:* {{ "{{ .CommonLabels.cluster | default \"unknown\" }}" }}
+          {{ "{{ range .Alerts }}" }}
+          *Alerta:* {{ "{{ .Annotations.summary }}" }}
+          *Descrição:* {{ "{{ .Annotations.description }}" }}
+          *Severidade:* {{ "{{ .Labels.severity | default \"unknown\" }}" }}
+          *Componente:* {{ "{{ .Labels.neural_hive_component | default \"unknown\" }}" }}
+          *Camada:* {{ "{{ .Labels.neural_hive_layer | default \"unknown\" }}" }}
+          {{ "{{ if .Annotations.runbook_url }}" }}*Runbook:* {{ "{{ .Annotations.runbook_url }}" }}{{ "{{ end }}" }}
+          {{ "{{ end }}" }}
         actions:
         - type: button
           text: 'Ver no Grafana'
@@ -199,28 +199,28 @@ data:
         text: |
           *⚠️ ALERTA CRÍTICO DETECTADO ⚠️*
 
-          *Alerta:* {{ .GroupLabels.alertname }}
-          *Ambiente:* {{ .CommonLabels.environment }}
-          *Componente:* {{ .GroupLabels.neural_hive_component }}
-          *Camada:* {{ .GroupLabels.neural_hive_layer }}
+          *Alerta:* {{ "{{ .GroupLabels.alertname }}" }}
+          *Ambiente:* {{ "{{ .CommonLabels.environment }}" }}
+          *Componente:* {{ "{{ .GroupLabels.neural_hive_component }}" }}
+          *Camada:* {{ "{{ .GroupLabels.neural_hive_layer }}" }}
 
-          {{ range .Alerts }}
-          *Descrição:* {{ .Annotations.description }}
-          *Valor Atual:* {{ .Annotations.current_value | default "N/A" }}
-          *Threshold:* {{ .Annotations.threshold | default "N/A" }}
-          {{ if .Annotations.runbook_url }}*Runbook:* {{ .Annotations.runbook_url }}{{ end }}
+          {{ "{{ range .Alerts }}" }}
+          *Descrição:* {{ "{{ .Annotations.description }}" }}
+          *Valor Atual:* {{ "{{ .Annotations.current_value | default \"N/A\" }}" }}
+          *Threshold:* {{ "{{ .Annotations.threshold | default \"N/A\" }}" }}
+          {{ "{{ if .Annotations.runbook_url }}" }}*Runbook:* {{ "{{ .Annotations.runbook_url }}" }}{{ "{{ end }}" }}
 
           *Labels:*
-          {{ range .Labels.SortedPairs }}• {{ .Name }}: {{ .Value }}
-          {{ end }}
-          {{ end }}
+          {{ "{{ range .Labels.SortedPairs }}" }}• {{ "{{ .Name }}" }}: {{ "{{ .Value }}" }}
+          {{ "{{ end }}" }}
+          {{ "{{ end }}" }}
         actions:
         - type: button
           text: '📊 Ver Grafana'
           url: 'https://grafana.{{ .Values.global.domain }}'
         - type: button
           text: '📖 Ver Runbook'
-          url: '{{ .CommonAnnotations.runbook_url }}'
+          url: '{{ "{{ .CommonAnnotations.runbook_url }}" }}'
         - type: button
           text: '🔍 Ver Prometheus'
           url: 'https://prometheus.{{ .Values.global.domain }}'
@@ -232,21 +232,21 @@ data:
         color: 'warning'
         title: '📊 Violação de SLO - Neural Hive-Mind'
         text: |
-          *SLO Violado:* {{ .GroupLabels.slo }}
-          *Ambiente:* {{ .CommonLabels.environment }}
+          *SLO Violado:* {{ "{{ .GroupLabels.slo }}" }}
+          *Ambiente:* {{ "{{ .CommonLabels.environment }}" }}
 
-          {{ range .Alerts }}
-          *Métrica:* {{ .Annotations.summary }}
-          *Valor Atual:* {{ .Annotations.current_value }}
-          *SLO Target:* {{ .Annotations.slo_target }}
-          *Error Budget Burn Rate:* {{ .Annotations.burn_rate | default "N/A" }}
-          *Error Budget Restante:* {{ .Annotations.error_budget_remaining | default "N/A" }}
+          {{ "{{ range .Alerts }}" }}
+          *Métrica:* {{ "{{ .Annotations.summary }}" }}
+          *Valor Atual:* {{ "{{ .Annotations.current_value }}" }}
+          *SLO Target:* {{ "{{ .Annotations.slo_target }}" }}
+          *Error Budget Burn Rate:* {{ "{{ .Annotations.burn_rate | default \"N/A\" }}" }}
+          *Error Budget Restante:* {{ "{{ .Annotations.error_budget_remaining | default \"N/A\" }}" }}
 
           *Impact Assessment:*
-          • Componente: {{ .Labels.neural_hive_component }}
-          • Camada: {{ .Labels.neural_hive_layer }}
-          {{ if .Labels.neural_hive_domain }}• Domínio: {{ .Labels.neural_hive_domain }}{{ end }}
-          {{ end }}
+          • Componente: {{ "{{ .Labels.neural_hive_component }}" }}
+          • Camada: {{ "{{ .Labels.neural_hive_layer }}" }}
+          {{ "{{ if .Labels.neural_hive_domain }}" }}• Domínio: {{ "{{ .Labels.neural_hive_domain }}" }}{{ "{{ end }}" }}
+          {{ "{{ end }}" }}
         actions:
         - type: button
           text: '📊 SLO Dashboard'
@@ -258,48 +258,48 @@ data:
       - channel: '#neural-hive-experiencia'
         title: '🎯 Camada Experiência'
         text: |
-          *Componente:* {{ .GroupLabels.neural_hive_component | default "unknown" }}
-          {{ range .Alerts }}*Alerta:* {{ .Annotations.summary }}{{ end }}
+          *Componente:* {{ "{{ .GroupLabels.neural_hive_component | default \"unknown\" }}" }}
+          {{ "{{ range .Alerts }}" }}*Alerta:* {{ "{{ .Annotations.summary }}" }}{{ "{{ end }}" }}
 
     - name: 'neural-hive-cognicao'
       slack_configs:
       - channel: '#neural-hive-cognicao'
         title: '🧠 Camada Cognição'
         text: |
-          *Componente:* {{ .GroupLabels.neural_hive_component | default "unknown" }}
-          {{ range .Alerts }}*Alerta:* {{ .Annotations.summary }}{{ end }}
+          *Componente:* {{ "{{ .GroupLabels.neural_hive_component | default \"unknown\" }}" }}
+          {{ "{{ range .Alerts }}" }}*Alerta:* {{ "{{ .Annotations.summary }}" }}{{ "{{ end }}" }}
 
     - name: 'neural-hive-orquestracao'
       slack_configs:
       - channel: '#neural-hive-orquestracao'
         title: '🎼 Camada Orquestração'
         text: |
-          *Componente:* {{ .GroupLabels.neural_hive_component | default "unknown" }}
-          {{ range .Alerts }}*Alerta:* {{ .Annotations.summary }}{{ end }}
+          *Componente:* {{ "{{ .GroupLabels.neural_hive_component | default \"unknown\" }}" }}
+          {{ "{{ range .Alerts }}" }}*Alerta:* {{ "{{ .Annotations.summary }}" }}{{ "{{ end }}" }}
 
     - name: 'neural-hive-execucao'
       slack_configs:
       - channel: '#neural-hive-execucao'
         title: '⚡ Camada Execução'
         text: |
-          *Componente:* {{ .GroupLabels.neural_hive_component | default "unknown" }}
-          {{ range .Alerts }}*Alerta:* {{ .Annotations.summary }}{{ end }}
+          *Componente:* {{ "{{ .GroupLabels.neural_hive_component | default \"unknown\" }}" }}
+          {{ "{{ range .Alerts }}" }}*Alerta:* {{ "{{ .Annotations.summary }}" }}{{ "{{ end }}" }}
 
     - name: 'neural-hive-resiliencia'
       slack_configs:
       - channel: '#neural-hive-resiliencia'
         title: '🛡️ Camada Resiliência'
         text: |
-          *Componente:* {{ .GroupLabels.neural_hive_component | default "unknown" }}
-          {{ range .Alerts }}*Alerta:* {{ .Annotations.summary }}{{ end }}
+          *Componente:* {{ "{{ .GroupLabels.neural_hive_component | default \"unknown\" }}" }}
+          {{ "{{ range .Alerts }}" }}*Alerta:* {{ "{{ .Annotations.summary }}" }}{{ "{{ end }}" }}
 
     - name: 'neural-hive-observabilidade'
       slack_configs:
       - channel: '#neural-hive-observabilidade'
         title: '👁️ Camada Observabilidade'
         text: |
-          *Componente:* {{ .GroupLabels.neural_hive_component | default "unknown" }}
-          {{ range .Alerts }}*Alerta:* {{ .Annotations.summary }}{{ end }}
+          *Componente:* {{ "{{ .GroupLabels.neural_hive_component | default \"unknown\" }}" }}
+          {{ "{{ range .Alerts }}" }}*Alerta:* {{ "{{ .Annotations.summary }}" }}{{ "{{ end }}" }}
 
     - name: 'neural-hive-security'
       slack_configs:
@@ -309,12 +309,12 @@ data:
         text: |
           *⚠️ ALERTA DE SEGURANÇA DETECTADO ⚠️*
 
-          {{ range .Alerts }}
-          *Alerta:* {{ .Annotations.summary }}
-          *Descrição:* {{ .Annotations.description }}
-          *Severidade:* {{ .Labels.severity }}
-          {{ if .Annotations.remediation }}*Remediação:* {{ .Annotations.remediation }}{{ end }}
-          {{ end }}
+          {{ "{{ range .Alerts }}" }}
+          *Alerta:* {{ "{{ .Annotations.summary }}" }}
+          *Descrição:* {{ "{{ .Annotations.description }}" }}
+          *Severidade:* {{ "{{ .Labels.severity }}" }}
+          {{ "{{ if .Annotations.remediation }}" }}*Remediação:* {{ "{{ .Annotations.remediation }}" }}{{ "{{ end }}" }}
+          {{ "{{ end }}" }}
 
     # Inhibit rules - evitar spam de alertas
     inhibit_rules:

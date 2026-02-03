@@ -1,6 +1,11 @@
 component: "worker-agents"
 layer: "execution"
 
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
 image:
   repository: ghcr.io/albinojimy/neural-hive-mind/worker-agents
   tag: "1.3.4"

@@ -5,10 +5,10 @@ layer: "conhecimento-dados"
 image:
   repository: ghcr.io/albinojimy/neural-hive-mind/memory-layer-api
   pullPolicy: Always
+  tag: "1.2.1"
 
 imagePullSecrets:
   - name: ghcr-secret
-  tag: "1.2.1"
 
 replicaCount: 1
 

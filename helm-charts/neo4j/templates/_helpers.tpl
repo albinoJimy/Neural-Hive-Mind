@@ -1,14 +1,14 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "neo4j.name" -}}
+{{- define "nhm-neo4j.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Create a default fully qualified app name.
 */}}
-{{- define "neo4j.fullname" -}}
+{{- define "nhm-neo4j.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -20,16 +20,16 @@ Create a default fully qualified app name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "neo4j.chart" -}}
+{{- define "nhm-neo4j.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "neo4j.labels" -}}
-helm.sh/chart: {{ include "neo4j.chart" . }}
-{{ include "neo4j.selectorLabels" . }}
+{{- define "nhm-neo4j.labels" -}}
+helm.sh/chart: {{ include "nhm-neo4j.chart" . }}
+{{ include "nhm-neo4j.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -42,17 +42,17 @@ neural-hive.io/component: semantic-graph
 {{/*
 Selector labels
 */}}
-{{- define "neo4j.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "neo4j.name" . }}
+{{- define "nhm-neo4j.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "nhm-neo4j.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "neo4j.serviceAccountName" -}}
+{{- define "nhm-neo4j.serviceAccountName" -}}
 {{- if .Values.rbac.create }}
-{{- default (include "neo4j.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "nhm-neo4j.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
