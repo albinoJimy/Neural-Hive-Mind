@@ -177,9 +177,14 @@ jobs:
     steps:
       - name: Clean workspace before checkout
         run: |
-          echo "Cleaning workspace to avoid stale files..."
-          rm -rf services/consensus-engine/src 2>/dev/null || true
-          rm -rf .git 2>/dev/null || true
+          echo "Cleaning workspace to avoid stale files and Docker artifacts..."
+          # Usar sudo para remover arquivos criados por Docker com permissões de root
+          sudo rm -rf $GITHUB_WORKSPACE/* 2>/dev/null || true
+          sudo rm -rf $GITHUB_WORKSPACE/.* 2>/dev/null || true
+          # Fallback para arquivos específicos conhecidos
+          sudo rm -rf checkov-results.sarif 2>/dev/null || true
+          sudo rm -rf services/consensus-engine/src 2>/dev/null || true
+          echo "Workspace cleaned"
 
       - name: Checkout
         uses: actions/checkout@v4
