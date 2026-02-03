@@ -9,7 +9,7 @@ from neural_hive_observability.health_checks.clickhouse import ClickHouseSchemaH
 from neural_hive_observability.config import ObservabilityConfig
 
 from .config import get_settings
-from .clients import MongoDBClient, RedisClient, Neo4jClient, ClickHouseClient, ElasticsearchClient, PrometheusClient, QueenAgentGRPCClient
+from .clients import MongoDBClient, RedisClient, Neo4jClient, ClickHouseClient, ElasticsearchClient, PrometheusClient, QueenAgentGRPCClient, ServiceRegistryClient
 from .services import AnalyticsEngine, QueryEngine, InsightGenerator, CausalAnalyzer, EmbeddingService
 from .consumers import TelemetryConsumer, ConsensusConsumer, ExecutionConsumer, PheromoneConsumer
 from .producers import InsightProducer
@@ -33,6 +33,7 @@ class AppState:
         self.elasticsearch_client = None
         self.prometheus_client = None
         self.queen_agent_client = None
+        self.service_registry_client = None
 
         # Serviços
         self.analytics_engine = None
@@ -152,6 +153,26 @@ async def lifespan(app: FastAPI):
             port=settings.QUEEN_AGENT_GRPC_PORT
         )
         await app_state.queen_agent_client.initialize()
+
+        # Service Registry Client - registro dinamico de agentes
+        app_state.service_registry_client = ServiceRegistryClient(
+            host=settings.SERVICE_REGISTRY_GRPC_HOST,
+            port=settings.SERVICE_REGISTRY_GRPC_PORT
+        )
+        await app_state.service_registry_client.initialize()
+
+        # Registrar agente no Service Registry
+        agent_id = await app_state.service_registry_client.register_agent({
+            'host': settings.FASTAPI_HOST,
+            'port': settings.FASTAPI_PORT,
+            'version': settings.SERVICE_VERSION,
+            'namespace': getattr(settings, 'NAMESPACE', 'neural-hive'),
+            'cluster': getattr(settings, 'CLUSTER', 'default')
+        })
+        if agent_id:
+            logger.info('analyst_agent_registered_in_service_registry', agent_id=agent_id)
+        else:
+            logger.warning('analyst_agent_registration_failed')
 
         logger.info('database_clients_initialized')
 
@@ -325,6 +346,10 @@ async def lifespan(app: FastAPI):
     # Fechar serviços
     if app_state.embedding_service:
         await app_state.embedding_service.close()
+
+    # Deregistrar e fechar Service Registry client
+    if app_state.service_registry_client:
+        await app_state.service_registry_client.close()
 
     # Fechar clientes
     if app_state.queen_agent_client:
