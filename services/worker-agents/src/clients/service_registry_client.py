@@ -283,6 +283,30 @@ class ServiceRegistryClient:
 
             return True
 
+        except grpc.RpcError as e:
+            if e.code() == grpc.StatusCode.NOT_FOUND and 'não encontrado' in e.details():
+                self.logger.warning(
+                    'agent_not_found_in_registry',
+                    agent_id=self.agent_id,
+                    message='Agent expired, attempting re-registration'
+                )
+                self._registered = False
+                try:
+                    await self.register()
+                    self.logger.info(
+                        'agent_re_registered',
+                        new_agent_id=self.agent_id
+                    )
+                    return True
+                except Exception as reg_error:
+                    self.logger.error(
+                        're_registration_failed',
+                        error=str(reg_error)
+                    )
+                    return False
+            else:
+                self.logger.error('heartbeat_failed', error=str(e))
+                return False
         except Exception as e:
             self.logger.error('heartbeat_failed', error=str(e))
             return False

@@ -62,7 +62,8 @@ config:
     ticketsTopic: execution.tickets
     resultsTopic: execution.results
     consumerGroupId: worker-agents
-    schemaRegistryUrl: https://schema-registry.kafka.svc.cluster.local:8081
+    # Apicurio Registry com API de compatibilidade Confluent
+    schemaRegistryUrl: http://schema-registry.kafka.svc.cluster.local:8080/apis/ccompat/v7
     securityProtocol: PLAINTEXT
     saslMechanism: SCRAM-SHA-512
     saslUsername: ""
