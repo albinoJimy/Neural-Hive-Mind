@@ -11,7 +11,7 @@ spacy>=3.7.0
 grpcio==1.68.1
 grpcio-tools==1.68.1  # Version 1.75.1+ suporta protobuf==5.29.2 5.x / protoc 6.x (baseline nos serviços)
 grpcio-health-checking==1.68.1
-protobuf==5.28.1  # Must match grpcio-tools 1.68.1 protoc output version
+protobuf==5.29.2  # Versao consolidada em todos os servicos
 
 # MLflow
 mlflow==2.19.0

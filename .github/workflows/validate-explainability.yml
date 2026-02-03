@@ -68,8 +68,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd libraries/python/neural_hive_specialists
           pip install --upgrade pip
+          # Instalar bibliotecas locais na ordem correta de dependencias
+          pip install -e libraries/python/neural_hive_domain
+          pip install -e libraries/python/neural_hive_observability
+          pip install -e libraries/python/neural_hive_resilience
+          # Instalar specialists com dependencias
+          cd libraries/python/neural_hive_specialists
           pip install -r requirements-dev.txt
           pip install -e ".[explainability]"
 
@@ -113,8 +118,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd libraries/python/neural_hive_specialists
           pip install --upgrade pip
+          # Instalar bibliotecas locais na ordem correta de dependencias
+          pip install -e libraries/python/neural_hive_domain
+          pip install -e libraries/python/neural_hive_observability
+          pip install -e libraries/python/neural_hive_resilience
+          # Instalar specialists com dependencias
+          cd libraries/python/neural_hive_specialists
           pip install -r requirements-dev.txt
           pip install -e ".[explainability]"
           pip install pytest-benchmark

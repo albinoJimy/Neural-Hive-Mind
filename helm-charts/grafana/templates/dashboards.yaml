@@ -353,7 +353,7 @@ data:
             "expr": "increase(deployment_generation{namespace=~\"$namespace\"}[5m]) > 0",
             "iconColor": "green",
             "tags": ["deployment"],
-            "textFormat": "Deployment: {{service}}",
+            "textFormat": "Deployment: {{ "{{service}}" }}",
             "titleFormat": "Deployment"
           },
           {
@@ -363,7 +363,7 @@ data:
             "expr": "ALERTS{alertstate=\"firing\", namespace=~\"$namespace\"}",
             "iconColor": "red",
             "tags": ["alert"],
-            "textFormat": "Alert: {{alertname}} - {{summary}}",
+            "textFormat": "Alert: {{ "{{alertname}}" }} - {{ "{{summary}}" }}",
             "titleFormat": "Alert Firing"
           }
         ]
