@@ -1,1 +1,2 @@
-{{- include "neural-hive.service" . }}
+{{- $ctx := include "approval-service.context" . | fromYaml }}
+{{- include "neural-hive.service" (dict "values" .Values "context" $ctx) }}
