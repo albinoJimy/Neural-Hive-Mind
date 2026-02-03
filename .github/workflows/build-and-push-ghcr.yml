@@ -40,6 +40,12 @@ concurrency:
   group: build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Permissões padrão para todo o workflow
+permissions:
+  contents: read
+  packages: write
+  actions: read
+
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ${{ github.repository_owner }}/neural-hive-mind
