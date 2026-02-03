@@ -20,34 +20,51 @@ from .config import ObservabilityConfig
 logger = logging.getLogger(__name__)
 
 
-def extract_context_from_headers(headers: Dict[str, str]):
+def extract_context_from_headers(headers):
     """
     Extrai contexto OpenTelemetry de headers e define no contexto atual.
 
-    Função duplicada de tracing.py para evitar import circular.
+    Suporta tanto dict quanto lista de tuplas (formato AIOKafkaConsumer).
 
     Args:
-        headers: Headers com contexto
+        headers: Headers com contexto (dict ou list[tuple])
 
     Returns:
         Token de contexto para ser usado em detach() pelo chamador, ou None
     """
     from opentelemetry.propagate import extract as otel_extract
 
+    # Converter lista de tuplas para dict se necessário
+    headers_dict = headers
+    if headers and isinstance(headers, list):
+        headers_dict = {}
+        for key, value in headers:
+            if isinstance(value, bytes):
+                value = value.decode('utf-8')
+            headers_dict[key] = value
+
     token = None
     try:
-        ctx = otel_extract(headers)
-        token = attach(ctx)
-    except Exception:
+        if headers_dict:
+            ctx = otel_extract(headers_dict)
+            token = attach(ctx)
+    except Exception as e:
+        logger.debug(f"Failed to extract OTEL context from headers: {e}")
         token = None
 
     # Extrair e definir baggage items
-    if "x-neural-hive-intent-id" in headers:
-        set_baggage("neural.hive.intent.id", headers["x-neural-hive-intent-id"])
-    if "x-neural-hive-plan-id" in headers:
-        set_baggage("neural.hive.plan.id", headers["x-neural-hive-plan-id"])
-    if "x-neural-hive-user-id" in headers:
-        set_baggage("neural.hive.user.id", headers["x-neural-hive-user-id"])
+    if headers_dict:
+        if "x-neural-hive-intent-id" in headers_dict:
+            set_baggage("neural.hive.intent.id", headers_dict["x-neural-hive-intent-id"])
+        if "x-neural-hive-plan-id" in headers_dict:
+            set_baggage("neural.hive.plan.id", headers_dict["x-neural-hive-plan-id"])
+        if "x-neural-hive-user-id" in headers_dict:
+            set_baggage("neural.hive.user.id", headers_dict["x-neural-hive-user-id"])
+        # Also support case-insensitive variants
+        if "traceparent" in headers_dict:
+            set_baggage("traceparent", headers_dict["traceparent"])
+        if "baggage" in headers_dict:
+            set_baggage("baggage", headers_dict["baggage"])
 
     return token
 

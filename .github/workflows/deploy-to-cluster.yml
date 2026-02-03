@@ -38,7 +38,9 @@ concurrency:
   cancel-in-progress: false  # NÃO cancela deploys em andamento
 
 env:
-  GHCR_PREFIX: ghcr.io/${{ github.repository_owner }}/neural-hive-mind
+  # NOTA: GHCR_PREFIX não pode ser usado diretamente aqui porque repository_owner
+  # pode ter maiúsculas. O prefixo é calculado no job prepare e passado como output.
+  GHCR_PREFIX_TEMPLATE: ghcr.io/OWNER/neural-hive-mind
 
 jobs:
   # ============================================================================
@@ -50,12 +52,13 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
-    
+
     outputs:
       services_matrix: ${{ steps.set-services.outputs.matrix }}
       environment: ${{ steps.set-env.outputs.environment }}
       namespace: ${{ steps.set-env.outputs.namespace }}
       image_tag: ${{ steps.set-env.outputs.image_tag }}
+      ghcr_prefix: ${{ steps.set-env.outputs.ghcr_prefix }}
 
     steps:
       - name: Checkout
@@ -82,20 +85,27 @@ jobs:
               NAMESPACE="neural-hive"
               ;;
             staging)
-              NAMESPACE="neural-hive-staging"
+              # Temporário: usando neural-hive enquanto há apenas um cluster de desenvolvimento
+              NAMESPACE="neural-hive"
               ;;
             *)
               NAMESPACE="neural-hive-dev"
               ;;
           esac
 
+          # Forçar lowercase no repository owner para nome de imagem válido
+          OWNER_LOWERCASE=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          GHCR_PREFIX="ghcr.io/${OWNER_LOWERCASE}/neural-hive-mind"
+
           echo "environment=$ENV" >> $GITHUB_OUTPUT
           echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
           echo "image_tag=${TAG:-latest}" >> $GITHUB_OUTPUT
+          echo "ghcr_prefix=$GHCR_PREFIX" >> $GITHUB_OUTPUT
 
           echo "Ambiente: $ENV"
           echo "Namespace: $NAMESPACE"
           echo "Tag: ${TAG:-latest}"
+          echo "GHCR Prefix: $GHCR_PREFIX"
 
       - name: Definir servicos
         id: set-services
@@ -167,14 +177,41 @@ jobs:
         run: |
           NAMESPACE="${{ needs.prepare.outputs.namespace }}"
           SERVICE="${{ matrix.service }}"
-          
+
           if kubectl get deployment "$SERVICE" -n "$NAMESPACE" &> /dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
             echo "Deployment $SERVICE encontrado"
           else
             echo "exists=false" >> $GITHUB_OUTPUT
-            echo "Deployment $SERVICE NAO encontrado - pulando"
+            echo "Deployment $SERVICE NAO encontrado"
+            # Verificar se existe helm chart para criar
+            if [[ -d "helm-charts/$SERVICE" ]]; then
+              echo "has_chart=true" >> $GITHUB_OUTPUT
+              echo "Helm chart encontrado em helm-charts/$SERVICE"
+            else
+              echo "has_chart=false" >> $GITHUB_OUTPUT
+              echo "Sem helm chart - pulando"
+            fi
           fi
+
+      - name: Criar deployment via Helm
+        if: steps.check-deployment.outputs.exists == 'false' && steps.check-deployment.outputs.has_chart == 'true' && inputs.dry_run != true
+        run: |
+          NAMESPACE="${{ needs.prepare.outputs.namespace }}"
+          SERVICE="${{ matrix.service }}"
+          TAG="${{ needs.prepare.outputs.image_tag }}"
+
+          echo "Criando $SERVICE via Helm no namespace $NAMESPACE"
+
+          helm upgrade --install "$SERVICE" "helm-charts/$SERVICE" \
+            --namespace "$NAMESPACE" \
+            --create-namespace \
+            --set image.tag="$TAG" \
+            --set image.repository="${{ needs.prepare.outputs.ghcr_prefix }}/$SERVICE" \
+            --atomic \
+            --cleanup-on-fail \
+            --wait \
+            --timeout 10m
 
       - name: Garantir imagePullSecrets
         if: steps.check-deployment.outputs.exists == 'true'
@@ -199,7 +236,7 @@ jobs:
           NAMESPACE="${{ needs.prepare.outputs.namespace }}"
           SERVICE="${{ matrix.service }}"
           TAG="${{ needs.prepare.outputs.image_tag }}"
-          NEW_IMAGE="${{ env.GHCR_PREFIX }}/${SERVICE}:${TAG}"
+          NEW_IMAGE="${{ needs.prepare.outputs.ghcr_prefix }}/${SERVICE}:${TAG}"
           
           echo "Atualizando $SERVICE para $NEW_IMAGE"
           
@@ -218,7 +255,7 @@ jobs:
           NAMESPACE="${{ needs.prepare.outputs.namespace }}"
           SERVICE="${{ matrix.service }}"
           TAG="${{ needs.prepare.outputs.image_tag }}"
-          NEW_IMAGE="${{ env.GHCR_PREFIX }}/${SERVICE}:${TAG}"
+          NEW_IMAGE="${{ needs.prepare.outputs.ghcr_prefix }}/${SERVICE}:${TAG}"
           
           echo "[DRY-RUN] Atualizaria $SERVICE para $NEW_IMAGE"
           
@@ -279,7 +316,9 @@ jobs:
           fi
 
       - name: Notificar Slack (opcional)
-        if: always() && secrets.SLACK_WEBHOOK_URL != ''
+        if: always() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
           STATUS="success"
           if [[ "${{ needs.deploy.result }}" != "success" ]]; then

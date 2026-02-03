@@ -129,7 +129,7 @@ class MongoDBClient:
             {'$set': document},
             upsert=True
         )
-        logger.debug(f"Ticket audit saved", ticket_id=ticket.ticket_id)
+        logger.debug(f"Ticket audit saved", extra={"ticket_id": ticket.ticket_id})
 
     async def log_status_change(
         self,
@@ -150,7 +150,7 @@ class MongoDBClient:
         }
 
         await self.audit_collection.insert_one(log_entry)
-        logger.debug(f"Status change logged", ticket_id=ticket_id, status=f"{old_status}->{new_status}")
+        logger.debug(f"Status change logged", extra={"ticket_id": ticket_id, "status": f"{old_status}->{new_status}"})
 
     async def get_ticket_history(self, ticket_id: str) -> List[dict]:
         """Obtém histórico completo de um ticket."""

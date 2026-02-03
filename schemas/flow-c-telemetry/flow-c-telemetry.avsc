@@ -1,0 +1,168 @@
+{
+  "type": "record",
+  "name": "FlowCTelemetryEvent",
+  "namespace": "io.neuralhive.telemetry",
+  "doc": "Telemetry event emitted by Flow C Orchestrator for tracking execution progress and correlating distributed spans",
+  "fields": [
+    {
+      "name": "event_type",
+      "type": {
+        "type": "enum",
+        "name": "FlowCEventType",
+        "symbols": [
+          "FLOW_C_STARTED",
+          "STEP_STARTED",
+          "STEP_COMPLETED",
+          "STEP_FAILED",
+          "TICKET_ASSIGNED",
+          "TICKET_COMPLETED",
+          "TICKET_FAILED",
+          "FLOW_C_COMPLETED",
+          "SLA_VIOLATION"
+        ]
+      },
+      "doc": "Type of telemetry event"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event timestamp (epoch millis)"
+    },
+    {
+      "name": "intent_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Original user intent identifier"
+    },
+    {
+      "name": "plan_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Cognitive plan identifier"
+    },
+    {
+      "name": "decision_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Consolidated decision identifier"
+    },
+    {
+      "name": "workflow_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Temporal workflow identifier"
+    },
+    {
+      "name": "correlation_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for cross-service tracing"
+    },
+    {
+      "name": "trace_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "OpenTelemetry trace ID (32 hex characters)"
+    },
+    {
+      "name": "span_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "OpenTelemetry span ID (16 hex characters)"
+    },
+    {
+      "name": "step",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Flow C step (C1-C6) for step events"
+    },
+    {
+      "name": "ticket_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Execution ticket identifier for ticket events"
+    },
+    {
+      "name": "task_type",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Task type (BUILD, DEPLOY, TEST, VALIDATE, EXECUTE, COMPENSATE)"
+    },
+    {
+      "name": "worker_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Worker agent identifier for assignment/execution events"
+    },
+    {
+      "name": "duration_ms",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "Step or ticket execution duration in milliseconds"
+    },
+    {
+      "name": "status",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Event status (completed, failed, etc.)"
+    },
+    {
+      "name": "success",
+      "type": ["null", "boolean"],
+      "default": null,
+      "doc": "Whether the operation succeeded"
+    },
+    {
+      "name": "sla_compliant",
+      "type": ["null", "boolean"],
+      "default": null,
+      "doc": "Whether SLA was met"
+    },
+    {
+      "name": "ticket_ids",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "default": [],
+      "doc": "List of ticket IDs for flow-level events"
+    },
+    {
+      "name": "error",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Error message if operation failed"
+    },
+    {
+      "name": "error_type",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Error type/class for categorization"
+    },
+    {
+      "name": "result",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Ticket execution result data (key-value pairs)"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": ["null", "string", "int", "long", "boolean"]
+      },
+      "default": {},
+      "doc": "Additional metadata for context and analysis"
+    },
+    {
+      "name": "schema_version",
+      "type": "int",
+      "default": 1,
+      "doc": "Schema version for evolution tracking"
+    }
+  ]
+}

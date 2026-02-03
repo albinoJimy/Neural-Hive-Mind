@@ -181,6 +181,108 @@ class FlowCTelemetryPublisher:
             except Exception as e:
                 self.logger.error("background_flush_error", error=str(e))
 
+    @tracer.start_as_current_span("telemetry.publish_flow_started")
+    async def publish_flow_started(
+        self,
+        intent_id: str,
+        plan_id: str,
+        decision_id: str,
+        correlation_id: str,
+    ) -> None:
+        """Publish FLOW_C_STARTED event."""
+        span = trace.get_current_span()
+        trace_id = format(span.get_span_context().trace_id, '032x')
+        span_id = format(span.get_span_context().span_id, '016x')
+
+        event = {
+            "event_type": "FLOW_C_STARTED",
+            "timestamp": datetime.utcnow().isoformat(),
+            "intent_id": intent_id,
+            "plan_id": plan_id,
+            "decision_id": decision_id,
+            "correlation_id": correlation_id,
+            "trace_id": trace_id,
+            "span_id": span_id,
+        }
+
+        try:
+            await self.producer.send_and_wait(self.topic, value=event)
+            telemetry_published.labels(step="C0").inc()
+            self.logger.info("flow_started_published", intent_id=intent_id, plan_id=plan_id)
+        except Exception as e:
+            self.logger.error("flow_started_publish_failed", error=str(e))
+            await self._buffer_event(event)
+
+    @tracer.start_as_current_span("telemetry.publish_ticket_assigned")
+    async def publish_ticket_assigned(
+        self,
+        ticket_id: str,
+        task_type: str,
+        worker_id: str,
+        intent_id: str,
+        plan_id: str,
+    ) -> None:
+        """Publish TICKET_ASSIGNED event."""
+        span = trace.get_current_span()
+        trace_id = format(span.get_span_context().trace_id, '032x')
+        span_id = format(span.get_span_context().span_id, '016x')
+
+        event = {
+            "event_type": "TICKET_ASSIGNED",
+            "timestamp": datetime.utcnow().isoformat(),
+            "ticket_id": ticket_id,
+            "task_type": task_type,
+            "worker_id": worker_id,
+            "intent_id": intent_id,
+            "plan_id": plan_id,
+            "trace_id": trace_id,
+            "span_id": span_id,
+        }
+
+        try:
+            await self.producer.send_and_wait(self.topic, value=event)
+            telemetry_published.labels(step="C4").inc()
+            self.logger.info("ticket_assigned_published", ticket_id=ticket_id, worker_id=worker_id)
+        except Exception as e:
+            self.logger.error("ticket_assigned_publish_failed", error=str(e))
+            await self._buffer_event(event)
+
+    @tracer.start_as_current_span("telemetry.publish_ticket_completed")
+    async def publish_ticket_completed(
+        self,
+        ticket_id: str,
+        task_type: str,
+        worker_id: str,
+        intent_id: str,
+        plan_id: str,
+        result: dict,
+    ) -> None:
+        """Publish TICKET_COMPLETED event."""
+        span = trace.get_current_span()
+        trace_id = format(span.get_span_context().trace_id, '032x')
+        span_id = format(span.get_span_context().span_id, '016x')
+
+        event = {
+            "event_type": "TICKET_COMPLETED",
+            "timestamp": datetime.utcnow().isoformat(),
+            "ticket_id": ticket_id,
+            "task_type": task_type,
+            "worker_id": worker_id,
+            "intent_id": intent_id,
+            "plan_id": plan_id,
+            "result": result,
+            "trace_id": trace_id,
+            "span_id": span_id,
+        }
+
+        try:
+            await self.producer.send_and_wait(self.topic, value=event)
+            telemetry_published.labels(step="C5").inc()
+            self.logger.info("ticket_completed_published", ticket_id=ticket_id, worker_id=worker_id)
+        except Exception as e:
+            self.logger.error("ticket_completed_publish_failed", error=str(e))
+            await self._buffer_event(event)
+
     @tracer.start_as_current_span("telemetry.publish_event")
     async def publish_event(
         self,

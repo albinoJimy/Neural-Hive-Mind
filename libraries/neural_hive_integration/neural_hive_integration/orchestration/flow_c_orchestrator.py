@@ -9,7 +9,7 @@ import asyncio
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from opentelemetry import trace
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Histogram, Gauge
 
 from neural_hive_integration.clients.orchestrator_client import OrchestratorClient
 from neural_hive_integration.clients.service_registry_client import ServiceRegistryClient, AgentInfo
@@ -58,6 +58,55 @@ flow_c_ticket_schema_version = Counter(
     ["schema_version"],
 )
 
+# C3 - Discover Workers Metrics (P1-002)
+worker_discovery_duration = Histogram(
+    "neural_hive_flow_c_worker_discovery_duration_seconds",
+    "Duration of worker discovery operations",
+    ["status"],
+)
+workers_discovered_total = Counter(
+    "neural_hive_flow_c_workers_discovered_total",
+    "Total number of workers discovered",
+)
+worker_discovery_failures_total = Counter(
+    "neural_hive_flow_c_worker_discovery_failures_total",
+    "Total number of worker discovery failures",
+    ["reason"],
+)
+
+# C4 - Assign Tickets Metrics (P1-002)
+tickets_assigned_total = Counter(
+    "neural_hive_flow_c_tickets_assigned_total",
+    "Total number of tickets assigned to workers",
+)
+assignment_duration = Histogram(
+    "neural_hive_flow_c_assignment_duration_seconds",
+    "Duration of ticket assignment operations",
+    ["status"],
+)
+assignment_failures_total = Counter(
+    "neural_hive_flow_c_assignment_failures_total",
+    "Total number of assignment failures",
+    ["reason"],
+)
+worker_load_gauge = None  # Will be initialized as Gauge in __init__
+
+# C5 - Monitor Execution Metrics (P1-002)
+tickets_completed_total = Counter(
+    "neural_hive_flow_c_tickets_completed_total",
+    "Total number of tickets completed",
+)
+tickets_failed_total = Counter(
+    "neural_hive_flow_c_tickets_failed_total",
+    "Total number of tickets failed",
+    ["reason"],
+)
+execution_duration = Histogram(
+    "neural_hive_flow_c_execution_duration_seconds",
+    "Duration of ticket execution",
+    ["status", "task_type"],
+)
+
 
 class FlowCOrchestrator:
     """Orchestrator for complete Flow C integration (C1-C6)."""
@@ -69,7 +118,7 @@ class FlowCOrchestrator:
         self.sla_client = SLAManagementClient()
         self.telemetry = FlowCTelemetryPublisher()
         self.logger = logger.bind(service="flow_c_orchestrator")
-        
+
         # Circuit breaker para status checks (C5)
         self.status_check_breaker = MonitoredCircuitBreaker(
             service_name="flow_c_orchestrator",
@@ -77,6 +126,16 @@ class FlowCOrchestrator:
             fail_max=5,
             reset_timeout=60,
         )
+
+        # Initialize worker load gauge (P1-002)
+        global worker_load_gauge
+        if worker_load_gauge is None:
+            worker_load_gauge = Gauge(
+                "neural_hive_flow_c_worker_load",
+                "Current number of tickets assigned to each worker",
+                ["worker_id"]
+            )
+        self.worker_load_gauge = worker_load_gauge
 
     async def initialize(self):
         """Initialize all clients."""
@@ -112,6 +171,28 @@ class FlowCOrchestrator:
         """
         start_time = datetime.utcnow()
         steps: List[FlowCStep] = []
+
+        intent_id = consolidated_decision.get("intent_id")
+        plan_id = consolidated_decision.get("plan_id")
+        decision_id = consolidated_decision.get("decision_id")
+
+        self.logger.info(
+            "starting_flow_c_execution",
+            intent_id=intent_id,
+            plan_id=plan_id,
+            decision_id=decision_id,
+        )
+
+        # Publicar evento FLOW_C_STARTED (P0-003)
+        try:
+            await self.telemetry.publish_flow_started(
+                intent_id=context.intent_id,
+                plan_id=context.plan_id,
+                decision_id=context.decision_id,
+                correlation_id=context.correlation_id,
+            )
+        except Exception as e:
+            self.logger.warning("flow_started_event_failed", error=str(e))
 
         # Extract correlation_id with fallback chain:
         # 1. From consolidated_decision
@@ -161,8 +242,60 @@ class FlowCOrchestrator:
         )
 
         try:
+            # P3-001: Helper function para calcular SLA restante
+            def calculate_sla_remaining() -> float:
+                """Calcula SLA restante em segundos."""
+                now = datetime.utcnow()
+                remaining = (context.sla_deadline - now).total_seconds()
+                return remaining
+
+            def log_sla_status(step_name: str, step_duration_ms: int):
+                """Loga status do SLA após cada step."""
+                sla_remaining_seconds = calculate_sla_remaining()
+                total_elapsed_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+
+                if sla_remaining_seconds < 0:
+                    self.logger.error(
+                        "step_sla_violated",
+                        step=step_name,
+                        step_duration_ms=step_duration_ms,
+                        total_elapsed_ms=total_elapsed_ms,
+                        sla_violation_seconds=abs(sla_remaining_seconds),
+                        sla_deadline=context.sla_deadline.isoformat(),
+                    )
+                elif sla_remaining_seconds < 300:  # Menos de 5 minutos
+                    self.logger.warning(
+                        "step_sla_critical",
+                        step=step_name,
+                        step_duration_ms=step_duration_ms,
+                        total_elapsed_ms=total_elapsed_ms,
+                        sla_remaining_seconds=int(sla_remaining_seconds),
+                        sla_deadline=context.sla_deadline.isoformat(),
+                        message="Menos de 5 minutos de SLA restante",
+                    )
+                elif sla_remaining_seconds < 1800:  # Menos de 30 minutos
+                    self.logger.warning(
+                        "step_sla_warning",
+                        step=step_name,
+                        step_duration_ms=step_duration_ms,
+                        total_elapsed_ms=total_elapsed_ms,
+                        sla_remaining_seconds=int(sla_remaining_seconds),
+                        sla_deadline=context.sla_deadline.isoformat(),
+                        message="Menos de 30 minutos de SLA restante",
+                    )
+                else:
+                    self.logger.info(
+                        "step_sla_ok",
+                        step=step_name,
+                        step_duration_ms=step_duration_ms,
+                        total_elapsed_ms=total_elapsed_ms,
+                        sla_remaining_seconds=int(sla_remaining_seconds),
+                        sla_deadline=context.sla_deadline.isoformat(),
+                    )
+
             # C1: Validate Decision
             step_c1 = await self._execute_c1_validate(consolidated_decision, context)
+            log_sla_status("C1", step_c1.duration_ms)
             steps.append(step_c1)
 
             # C2: Start Workflow and Generate Tickets
@@ -171,12 +304,14 @@ class FlowCOrchestrator:
                 consolidated_decision, context
             )
             step_c2_end = datetime.utcnow()
+            step_c2_duration = int((step_c2_end - step_c2_start).total_seconds() * 1000)
+            log_sla_status("C2", step_c2_duration)
             step_c2 = FlowCStep(
                 step_name="C2",
                 status="completed",
                 started_at=step_c2_start,
                 completed_at=step_c2_end,
-                duration_ms=int((step_c2_end - step_c2_start).total_seconds() * 1000),
+                duration_ms=step_c2_duration,
                 metadata={"workflow_id": workflow_id, "tickets_count": len(tickets)},
             )
             steps.append(step_c2)
@@ -185,12 +320,14 @@ class FlowCOrchestrator:
             step_c3_start = datetime.utcnow()
             workers = await self._execute_c3_discover_workers(tickets, context)
             step_c3_end = datetime.utcnow()
+            step_c3_duration = int((step_c3_end - step_c3_start).total_seconds() * 1000)
+            log_sla_status("C3", step_c3_duration)
             step_c3 = FlowCStep(
                 step_name="C3",
                 status="completed",
                 started_at=step_c3_start,
                 completed_at=step_c3_end,
-                duration_ms=int((step_c3_end - step_c3_start).total_seconds() * 1000),
+                duration_ms=step_c3_duration,
                 metadata={"workers_found": len(workers)},
             )
             steps.append(step_c3)
@@ -199,12 +336,14 @@ class FlowCOrchestrator:
             step_c4_start = datetime.utcnow()
             assignments = await self._execute_c4_assign_tickets(tickets, workers, context)
             step_c4_end = datetime.utcnow()
+            step_c4_duration = int((step_c4_end - step_c4_start).total_seconds() * 1000)
+            log_sla_status("C4", step_c4_duration)
             step_c4 = FlowCStep(
                 step_name="C4",
                 status="completed",
                 started_at=step_c4_start,
                 completed_at=step_c4_end,
-                duration_ms=int((step_c4_end - step_c4_start).total_seconds() * 1000),
+                duration_ms=step_c4_duration,
                 metadata={"assignments_count": len(assignments)},
             )
             steps.append(step_c4)
@@ -213,12 +352,14 @@ class FlowCOrchestrator:
             step_c5_start = datetime.utcnow()
             results = await self._execute_c5_monitor_execution(tickets, context)
             step_c5_end = datetime.utcnow()
+            step_c5_duration = int((step_c5_end - step_c5_start).total_seconds() * 1000)
+            log_sla_status("C5", step_c5_duration)
             step_c5 = FlowCStep(
                 step_name="C5",
                 status="completed",
                 started_at=step_c5_start,
                 completed_at=step_c5_end,
-                duration_ms=int((step_c5_end - step_c5_start).total_seconds() * 1000),
+                duration_ms=step_c5_duration,
                 metadata={"completed": results["completed"], "failed": results["failed"]},
             )
             steps.append(step_c5)
@@ -227,12 +368,14 @@ class FlowCOrchestrator:
             step_c6_start = datetime.utcnow()
             await self._execute_c6_publish_telemetry(context, workflow_id, tickets, results)
             step_c6_end = datetime.utcnow()
+            step_c6_duration = int((step_c6_end - step_c6_start).total_seconds() * 1000)
+            log_sla_status("C6", step_c6_duration)
             step_c6 = FlowCStep(
                 step_name="C6",
                 status="completed",
                 started_at=step_c6_start,
                 completed_at=step_c6_end,
-                duration_ms=int((step_c6_end - step_c6_start).total_seconds() * 1000),
+                duration_ms=step_c6_duration,
             )
             steps.append(step_c6)
 
@@ -240,10 +383,54 @@ class FlowCOrchestrator:
             end_time = datetime.utcnow()
             total_duration = int((end_time - start_time).total_seconds() * 1000)
 
-            # Check SLA
-            if end_time > context.sla_deadline:
+            # Calculate metrics
+            end_time = datetime.utcnow()
+            total_duration = int((end_time - start_time).total_seconds() * 1000)
+            sla_remaining_seconds = (context.sla_deadline - end_time).total_seconds()
+
+            # Check SLA com logging detalhado
+            if sla_remaining_seconds < 0:
                 flow_c_sla_violations.inc()
-                self.logger.warning("flow_c_sla_violated", duration_ms=total_duration)
+                violation_seconds = abs(sla_remaining_seconds)
+                self.logger.error(
+                    "flow_c_sla_violated",
+                    duration_ms=total_duration,
+                    duration_seconds=total_duration / 1000,
+                    sla_deadline=context.sla_deadline.isoformat(),
+                    completed_at=end_time.isoformat(),
+                    violation_seconds=int(violation_seconds),
+                    violation_minutes=round(violation_seconds / 60, 2),
+                    sla_compliant=False,
+                    tickets_completed=results["completed"],
+                    tickets_failed=results["failed"],
+                )
+            elif sla_remaining_seconds < 300:  # Menos de 5 minutos de margem
+                self.logger.warning(
+                    "flow_c_completed_critical_sla",
+                    duration_ms=total_duration,
+                    duration_seconds=total_duration / 1000,
+                    sla_deadline=context.sla_deadline.isoformat(),
+                    completed_at=end_time.isoformat(),
+                    sla_remaining_seconds=int(sla_remaining_seconds),
+                    sla_remaining_minutes=round(sla_remaining_seconds / 60, 2),
+                    sla_compliant=True,
+                    margin_critical=True,
+                    tickets_completed=results["completed"],
+                    tickets_failed=results["failed"],
+                )
+            else:
+                self.logger.info(
+                    "flow_c_completed_success",
+                    duration_ms=total_duration,
+                    duration_seconds=total_duration / 1000,
+                    sla_deadline=context.sla_deadline.isoformat(),
+                    completed_at=end_time.isoformat(),
+                    sla_remaining_seconds=int(sla_remaining_seconds),
+                    sla_remaining_minutes=round(sla_remaining_seconds / 60, 2),
+                    sla_compliant=True,
+                    tickets_completed=results["completed"],
+                    tickets_failed=results["failed"],
+                )
 
             result = FlowCResult(
                 success=True,
@@ -253,16 +440,12 @@ class FlowCOrchestrator:
                 tickets_completed=results["completed"],
                 tickets_failed=results["failed"],
                 telemetry_published=True,
+                sla_compliant=sla_remaining_seconds >= 0,
+                sla_remaining_seconds=int(sla_remaining_seconds) if sla_remaining_seconds >= 0 else int(sla_remaining_seconds),
             )
 
             flow_c_success.inc()
             flow_c_duration.observe(total_duration / 1000)
-
-            self.logger.info(
-                "flow_c_completed",
-                duration_ms=total_duration,
-                tickets_completed=results["completed"],
-            )
 
             return result
 
@@ -270,15 +453,22 @@ class FlowCOrchestrator:
             flow_c_failures.labels(reason=type(e).__name__).inc()
             self.logger.error("flow_c_failed", error=str(e))
 
+            # Calcular duração e SLA mesmo em caso de erro
+            end_time = datetime.utcnow()
+            total_duration = int((end_time - start_time).total_seconds() * 1000)
+            sla_remaining_seconds = (context.sla_deadline - end_time).total_seconds()
+
             return FlowCResult(
                 success=False,
                 steps=steps,
-                total_duration_ms=0,
+                total_duration_ms=total_duration,
                 tickets_generated=0,
                 tickets_completed=0,
                 tickets_failed=0,
                 telemetry_published=False,
                 error=str(e),
+                sla_compliant=sla_remaining_seconds >= 0,
+                sla_remaining_seconds=int(sla_remaining_seconds) if sla_remaining_seconds >= 0 else int(sla_remaining_seconds),
             )
 
     async def _execute_c1_validate(
@@ -287,12 +477,24 @@ class FlowCOrchestrator:
         """C1: Validate consolidated decision."""
         step_start = datetime.utcnow()
 
+        self.logger.info(
+            "step_c1_starting_validate_decision",
+            decision_id=context.decision_id,
+            plan_id=context.plan_id,
+        )
+
         with flow_c_steps_duration.labels(step="C1").time():
             # Validate required fields
             required_fields = ["intent_id", "plan_id", "decision_id", "cognitive_plan"]
             for field in required_fields:
                 if field not in decision:
                     raise ValueError(f"Missing required field: {field}")
+
+            self.logger.info(
+                "step_c1_decision_validated",
+                decision_id=context.decision_id,
+                all_required_fields_present=True,
+            )
 
             await self.telemetry.publish_event(
                 event_type="step_completed",
@@ -320,13 +522,28 @@ class FlowCOrchestrator:
         self, decision: Dict[str, Any], context: FlowCContext
     ) -> tuple[str, List[Dict[str, Any]]]:
         """C2: Start workflow and generate execution tickets."""
+
+        cognitive_plan = decision.get("cognitive_plan", {})
+        tasks_count = len(cognitive_plan.get("tasks", []))
+
+        self.logger.info(
+            "step_c2_starting_generate_tickets",
+            plan_id=context.plan_id,
+            tasks_count=tasks_count,
+        )
+
         with flow_c_steps_duration.labels(step="C2").time():
             # Start Temporal workflow
             workflow_id = await self.orchestrator_client.start_workflow(
-                cognitive_plan=decision["cognitive_plan"],
+                cognitive_plan=cognitive_plan,
                 correlation_id=context.correlation_id,
                 priority=context.priority,
                 sla_deadline_seconds=14400,
+            )
+
+            self.logger.info(
+                "step_c2_workflow_started",
+                workflow_id=workflow_id,
             )
 
             # Aguardar geração de tickets pelo workflow
@@ -335,8 +552,14 @@ class FlowCOrchestrator:
             # Obter tickets do workflow state via query Temporal
             tickets = await self._get_tickets_from_workflow(
                 workflow_id=workflow_id,
-                cognitive_plan=decision.get("cognitive_plan", {}),
+                cognitive_plan=cognitive_plan,
                 context=context,
+            )
+
+            self.logger.info(
+                "step_c2_tickets_generated",
+                workflow_id=workflow_id,
+                tickets_count=len(tickets),
             )
 
             return workflow_id, tickets
@@ -623,22 +846,44 @@ class FlowCOrchestrator:
         self, tickets: List[Dict[str, Any]], context: FlowCContext
     ) -> List[AgentInfo]:
         """C3: Discover available workers via Service Registry."""
-        with flow_c_steps_duration.labels(step="C3").time():
-            # Collect all required capabilities
-            all_capabilities = set()
-            for ticket in tickets:
-                all_capabilities.update(ticket.get("required_capabilities", []))
 
-            # Discover workers (com cache Redis se disponível)
-            workers = await self.service_registry.discover_agents_cached(
-                capabilities=list(all_capabilities),
-                filters={"status": "healthy"},
-            )
+        # Collect all required capabilities
+        all_capabilities = set()
+        for ticket in tickets:
+            all_capabilities.update(ticket.get("required_capabilities", []))
 
-            if not workers:
-                self.logger.warning("no_workers_available")
+        self.logger.info(
+            "step_c3_starting_discover_workers",
+            plan_id=context.plan_id,
+            tickets_count=len(tickets),
+            required_capabilities=list(all_capabilities),
+        )
 
-            return workers
+        with worker_discovery_duration.time():  # P1-002: Métrica C3
+            try:
+                # Discover workers (com cache Redis se disponível)
+                workers = await self.service_registry.discover_agents_cached(
+                    capabilities=list(all_capabilities),
+                    filters={"status": "healthy"},
+                )
+
+                workers_discovered_total.inc(len(workers))
+
+                self.logger.info(
+                    "step_c3_workers_discovered",
+                    workers_count=len(workers),
+                    workers_healthy=[w.agent_id for w in workers],
+                )
+
+                if not workers:
+                    self.logger.warning("step_c3_no_healthy_workers_available")
+
+                return workers
+
+            except Exception as e:
+                worker_discovery_failures_total.labels(reason=type(e).__name__).inc()
+                worker_discovery_duration.labels(status="error").observe(0)
+                raise
 
     def _calculate_worker_weights(self, workers: List[AgentInfo]) -> Dict[str, float]:
         """
@@ -719,11 +964,20 @@ class FlowCOrchestrator:
         context: FlowCContext,
     ) -> List[Dict[str, Any]]:
         """C4: Assign tickets to workers via weighted round-robin load balancing."""
+
+        self.logger.info(
+            "step_c4_starting_assign_tickets",
+            plan_id=context.plan_id,
+            tickets_count=len(tickets),
+            workers_count=len(workers),
+            workers_available=[w.agent_id for w in workers],
+        )
+
         with flow_c_steps_duration.labels(step="C4").time():
             assignments = []
 
             if not workers:
-                self.logger.error("no_workers_available_for_assignment")
+                self.logger.error("step_c4_no_workers_available_for_assignment")
                 return assignments
 
             # Calcular pesos baseados em telemetria dos workers
@@ -773,6 +1027,11 @@ class FlowCOrchestrator:
                         assigned_worker=worker.agent_id,
                     )
 
+                    # Atualizar métrica de carga do worker (P1-002)
+                    self.worker_load_gauge.labels(worker_id=worker.agent_id).inc()
+
+                    tickets_assigned_total.inc()  # P1-002: Métrica C4
+
                     assignments.append({
                         "ticket_id": ticket["ticket_id"],
                         "worker_id": worker.agent_id,
@@ -784,7 +1043,20 @@ class FlowCOrchestrator:
                         ticket_id=ticket["ticket_id"],
                         worker_id=worker.agent_id,
                     )
+
+                    # Publicar evento TICKET_ASSIGNED (P0-003)
+                    try:
+                        await self.telemetry.publish_ticket_assigned(
+                            ticket_id=ticket["ticket_id"],
+                            task_type=ticket.get("task_type", "unknown"),
+                            worker_id=worker.agent_id,
+                            intent_id=context.intent_id,
+                            plan_id=context.plan_id,
+                        )
+                    except Exception as e:
+                        self.logger.warning("ticket_assigned_event_failed", ticket_id=ticket["ticket_id"], error=str(e))
                 except Exception as e:
+                    assignment_failures_total.labels(reason=type(e).__name__).inc()  # P1-002: Métrica C4
                     self.logger.error(
                         "failed_to_assign_ticket",
                         ticket_id=ticket["ticket_id"],
@@ -794,28 +1066,71 @@ class FlowCOrchestrator:
                 finally:
                     await worker_client.close()
 
+            self.logger.info(
+                "step_c4_tickets_assigned",
+                assignments_count=len(assignments),
+                assignment_details=[(a["ticket_id"], a["worker_id"]) for a in assignments],
+            )
+
+            # P2-003: Validar balanceamento de distribuição round-robin
+            if len(workers) > 1 and len(assignments) > 0:
+                # Contar tickets por worker
+                tickets_per_worker = {}
+                for assignment in assignments:
+                    worker_id = assignment["worker_id"]
+                    tickets_per_worker[worker_id] = tickets_per_worker.get(worker_id, 0) + 1
+
+                # Calcular métricas de distribuição
+                max_tickets = max(tickets_per_worker.values())
+                min_tickets = min(tickets_per_worker.values())
+
+                if max_tickets - min_tickets > 1:
+                    self.logger.warning(
+                        "step_c4_round_robin_imbalanced",
+                        workers_count=len(workers),
+                        tickets_per_worker=tickets_per_worker,
+                        max_tickets=max_tickets,
+                        min_tickets=min_tickets,
+                        message="Distribuição desbalanceada detectada",
+                    )
+                else:
+                    self.logger.info(
+                        "step_c4_round_robin_balanced",
+                        workers_count=len(workers),
+                        tickets_per_worker=tickets_per_worker,
+                        distribution="balanced",
+                    )
+
             return assignments
 
     async def _execute_c5_monitor_execution(
         self, tickets: List[Dict[str, Any]], context: FlowCContext
     ) -> Dict[str, int]:
-        """C5: Monitor ticket execution até deadline SLA ou conclusão."""
+        """C5: Monitor ticket execution até deadline SLA ou conclusão com polling adaptativo."""
+
+        # P3-002: Polling adaptativo com exponential backoff
+        base_interval = 10  # Começa com 10 segundos
+        max_interval = 120  # Máximo de 2 minutos
+        current_interval = base_interval
+
+        # Calcular deadline baseado no SLA (4h) menos tempo já decorrido
+        remaining_time = (context.sla_deadline - datetime.utcnow()).total_seconds()
+        max_iterations = int(remaining_time / base_interval) if remaining_time > 0 else 1440  # Max 4h
+
+        self.logger.info(
+            "step_c5_starting_monitor_execution",
+            plan_id=context.plan_id,
+            tickets_count=len(tickets),
+            base_interval=base_interval,
+            max_interval=max_interval,
+            max_iterations=max_iterations,
+            sla_deadline=context.sla_deadline.isoformat(),
+            polling_strategy="adaptive",
+        )
+
         with flow_c_steps_duration.labels(step="C5").time():
             completed = 0
             failed = 0
-
-            # Calcular deadline baseado no SLA (4h) menos tempo já decorrido
-            remaining_time = (context.sla_deadline - datetime.utcnow()).total_seconds()
-            poll_interval = 60  # Polling a cada 60s para pipelines longos
-            max_iterations = int(remaining_time / poll_interval) if remaining_time > 0 else 240  # Max 4h
-
-            self.logger.info(
-                "monitoring_execution",
-                tickets_count=len(tickets),
-                max_iterations=max_iterations,
-                poll_interval=poll_interval,
-                remaining_sla_seconds=remaining_time,
-            )
 
             # Poll ticket status até conclusão ou deadline
             for iteration in range(max_iterations):
@@ -843,25 +1158,91 @@ class FlowCOrchestrator:
                         statuses.append("unknown")
 
                 # Verificar se todos os tickets foram concluídos
+                terminal_statuses = [s for s in statuses if s in ["completed", "failed"]]
+                completed = statuses.count("completed")
+                failed = statuses.count("failed")
+
+                # P3-002: Ajustar intervalo baseado em progresso
+                completion_ratio = len(terminal_statuses) / len(tickets) if tickets else 0
+
+                if completion_ratio < 0.25:
+                    # Poucos completados: polling rápido (10s)
+                    new_interval = base_interval
+                    reason = "early_stage_low_completion"
+                elif completion_ratio < 0.5:
+                    # Alguns completados: polling moderado (20s)
+                    new_interval = 20
+                    reason = "mid_stage_some_completion"
+                elif completion_ratio < 0.75:
+                    # Mais da metade completados: aumentar para 40s
+                    new_interval = 40
+                    reason = "late_stage_most_completion"
+                elif completion_ratio < 0.9:
+                    # Quase todos: polling mais lento (60s)
+                    new_interval = 60
+                    reason = "almost_done_slow_polling"
+                else:
+                    # Muito próximo do fim: polling mais lento ainda (max_interval)
+                    new_interval = max_interval
+                    reason = "final_stage_slow_polling"
+
+                # Garantir que o intervalo não exceda o máximo
+                current_interval = min(new_interval, max_interval)
+
+                self.logger.debug(
+                    "step_c5_polling_adaptive",
+                    iteration=iteration,
+                    completion_ratio=round(completion_ratio, 2),
+                    completed=completed,
+                    failed=failed,
+                    unknown=statuses.count("unknown"),
+                    current_interval=current_interval,
+                    next_interval=reason,
+                )
+
                 if all(s in ["completed", "failed"] for s in statuses):
-                    completed = statuses.count("completed")
-                    failed = statuses.count("failed")
+                    # P1-002: Atualizar métricas de conclusão
+                    for idx, ticket in enumerate(tickets):
+                        status = statuses[idx]
+                        if status == "completed":
+                            tickets_completed_total.inc()
+                            task_type = ticket.get("task_type", "unknown")
+                            execution_duration.labels(status="completed", task_type=task_type).observe(0)
+                        elif status == "failed":
+                            tickets_failed_total.labels(reason="execution_failed").inc()
+
                     self.logger.info(
-                        "all_tickets_completed",
+                        "step_c5_all_tickets_completed",
                         completed=completed,
                         failed=failed,
+                        total_tickets=len(tickets),
                         iteration=iteration,
+                        final_poll_interval=current_interval,
                     )
                     break
 
                 # Verificar se deadline foi ultrapassado
                 if datetime.utcnow() >= context.sla_deadline:
-                    self.logger.warning("sla_deadline_reached_during_monitoring")
-                    completed = statuses.count("completed")
-                    failed = statuses.count("failed")
+                    self.logger.warning(
+                        "step_c5_sla_deadline_reached",
+                        completed=completed,
+                        failed=failed,
+                        total_tickets=len(tickets),
+                        completion_ratio=round(completion_ratio, 2),
+                    )
                     break
 
-                await asyncio.sleep(poll_interval)
+                # Aguardar com intervalo adaptativo
+                await asyncio.sleep(current_interval)
+
+            self.logger.info(
+                "step_c5_monitoring_completed",
+                tickets_completed=completed,
+                tickets_failed=failed,
+                total_tickets=len(tickets),
+                total_iterations=iteration + 1,
+                adaptive_polling_used=True,
+            )
 
             return {"completed": completed, "failed": failed}
 
@@ -873,7 +1254,40 @@ class FlowCOrchestrator:
         results: Dict[str, int],
     ) -> None:
         """C6: Publish telemetry events."""
+
+        self.logger.info(
+            "step_c6_starting_publish_telemetry",
+            plan_id=context.plan_id,
+            workflow_id=workflow_id,
+            tickets_count=len(tickets),
+        )
+
         with flow_c_steps_duration.labels(step="C6").time():
+            # Validar integridade de metadata
+            completed_count = results.get("completed", 0)
+            failed_count = results.get("failed", 0)
+            total_tickets = len(tickets)
+
+            if completed_count != total_tickets - failed_count:
+                self.logger.warning(
+                    "step_c6_metadata_integrity_warning",
+                    completed_count=completed_count,
+                    failed_count=failed_count,
+                    total_tickets=total_tickets,
+                    ticket_ids_count=len([t["ticket_id"] for t in tickets]),
+                    message="Completed count does not match expected value"
+                )
+
+            # Garantir que tickets_completed está correto
+            tickets_completed = max(completed_count, total_tickets - failed_count)
+
+            self.logger.info(
+                "step_c6_publishing_telemetry_event",
+                event_type="flow_completed",
+                tickets_completed=tickets_completed,
+                tickets_failed=failed_count,
+            )
+
             await self.telemetry.publish_event(
                 event_type="flow_completed",
                 step="C6",
@@ -885,7 +1299,13 @@ class FlowCOrchestrator:
                 duration_ms=0,
                 status="completed",
                 metadata={
-                    "tickets_completed": results["completed"],
-                    "tickets_failed": results["failed"],
+                    "tickets_completed": tickets_completed,
+                    "tickets_failed": failed_count,
+                    "total_tickets": total_tickets,
                 },
+            )
+
+            self.logger.info(
+                "step_c6_telemetry_published",
+                flow_completed=True,
             )

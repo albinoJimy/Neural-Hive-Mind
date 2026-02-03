@@ -119,7 +119,7 @@ class PostgresClient:
             session.add(orm_ticket)
             await session.commit()
             await session.refresh(orm_ticket)
-            logger.info(f"Ticket created", ticket_id=ticket.ticket_id)
+            logger.info(f"Ticket created", extra={"ticket_id": ticket.ticket_id})
             return orm_ticket
 
     async def get_ticket_by_id(self, ticket_id: str) -> Optional[TicketORM]:

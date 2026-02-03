@@ -95,3 +95,6 @@ class FlowCResult(BaseModel):
     tickets_failed: int
     telemetry_published: bool
     error: Optional[str] = None
+    # P3-001: SLA tracking fields
+    sla_compliant: Optional[bool] = None
+    sla_remaining_seconds: Optional[int] = None

@@ -197,6 +197,10 @@ class FlowCConsumer:
             bootstrap_servers=self.kafka_servers,
             input_topic=self.input_topic,
             group_id=self.group_id,
+            # P3-003: Log da configuração de timeout para debugging
+            max_poll_interval_ms="21600000 (6h)",
+            session_timeout_ms="3600000 (1h)",
+            note="Configuração otimizada para execuções longas do Flow C (4+ horas)",
         )
 
         # Construir config do consumer
@@ -207,6 +211,10 @@ class FlowCConsumer:
             'group_id': self.group_id,
             'auto_offset_reset': 'earliest',
             'enable_auto_commit': False,
+            # P3-003: Aumentar max.poll.interval.ms para acomodar execuções longas do Flow C
+            # Flow C pode levar até 4+ horas, então definimos 6 horas de margem
+            'max_poll_interval_ms': 21600000,  # 6 horas em milissegundos
+            'session_timeout_ms': 3600000,  # 1 hora de sessão
             # Não definir value_deserializer - recebemos bytes crus
         }
 
