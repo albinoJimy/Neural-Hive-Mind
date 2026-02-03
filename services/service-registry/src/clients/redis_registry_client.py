@@ -33,10 +33,28 @@ class RedisRegistryClient:
     async def initialize(self) -> None:
         """Inicializa conexão com Redis"""
         try:
-            host, port = self.cluster_nodes[0].split(":")
+            if not self.cluster_nodes:
+                raise ValueError("cluster_nodes não pode estar vazio")
+
+            # Parse endpoint no formato host:port
+            endpoint = self.cluster_nodes[0]
+            parts = endpoint.rsplit(":", 1)  # rsplit para suportar IPv6 (ex: [::1]:6379)
+
+            if len(parts) != 2:
+                raise ValueError(
+                    f"Formato de endpoint inválido: '{endpoint}'. "
+                    f"Esperado 'host:port' (ex: 'redis:6379' ou 'redis.svc:6379')"
+                )
+
+            host, port_str = parts
+            try:
+                port = int(port_str)
+            except ValueError:
+                raise ValueError(f"Porta inválida no endpoint '{endpoint}': '{port_str}' não é um número")
+
             self.client = redis.Redis(
                 host=host,
-                port=int(port),
+                port=port,
                 password=self.password if self.password else None,
                 decode_responses=True,
                 socket_timeout=self.timeout,
@@ -45,7 +63,7 @@ class RedisRegistryClient:
 
             # Test connection
             await self.client.ping()
-            logger.info("redis_registry_client_initialized", nodes=self.cluster_nodes)
+            logger.info("redis_registry_client_initialized", nodes=self.cluster_nodes, host=host, port=port)
 
         except Exception as e:
             logger.error("redis_registry_client_initialization_failed", error=str(e))

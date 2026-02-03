@@ -13,7 +13,8 @@
 {{- $env = append $env (dict "name" "HEALTH_CHECK_INTERVAL_SECONDS" "value" (printf "%d" (int .Values.config.healthCheck.intervalSeconds))) }}
 {{- $env = append $env (dict "name" "HEARTBEAT_TIMEOUT_SECONDS" "value" (printf "%d" (int .Values.config.heartbeat.timeoutSeconds))) }}
 {{- $env = append $env (dict "name" "REDIS_CLUSTER_NODES" "value" (.Values.config.redis.clusterNodes | toJson)) }}
-{{- $env = append $env (dict "name" "REDIS_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" (printf "%s-secret" (include "service-registry.fullname" .)) "key" "redis-password"))) }}
+{{- $redisSecretName := .Values.config.redis.existingSecret | default (printf "%s-secret" (include "service-registry.fullname" .)) }}
+{{- $env = append $env (dict "name" "REDIS_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" $redisSecretName "key" "redis-password"))) }}
 {{- $env = append $env (dict "name" "OTEL_EXPORTER_ENDPOINT" "value" .Values.config.otel.exporterEndpoint) }}
 
 {{/* SPIFFE environment variables */}}

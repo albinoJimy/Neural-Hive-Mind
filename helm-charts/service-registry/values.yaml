@@ -9,28 +9,28 @@ image:
 imagePullSecrets:
   - name: ghcr-secret
 
-replicaCount: 2
+replicaCount: 1
 
 deployment:
   strategy:
     type: RollingUpdate
     rollingUpdate:
       maxSurge: 1
-      maxUnavailable: 0
+      maxUnavailable: 1
 
 autoscaling:
   enabled: true
-  minReplicas: 2
+  minReplicas: 1
   maxReplicas: 6
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
 
 resources:
   # Registry brokers gRPC for every worker/orchestrator handshake; steady usage ~200m CPU / 600Mi.
-  # Requests now 400m/768Mi to cover spikes, with tighter 1.2 CPU / 2Gi caps compared to the prior 2 vCPU ceiling.
+  # Requests reduzidos temporariamente devido a limitação de recursos do cluster.
   requests:
-    cpu: 400m
-    memory: 768Mi
+    cpu: 100m
+    memory: 256Mi
   limits:
     cpu: 1200m
     memory: 2Gi
@@ -51,12 +51,14 @@ service:
 config:
   serviceName: service-registry
   serviceVersion: 1.0.0
-  environment: production
+  environment: development
   logLevel: INFO
   etcd:
+    # NOTA: Apesar do nome "etcd", agora usa Redis como backend (migrado em v1.2.0)
+    # Formato: host:port (sem protocolo http://)
     endpoints:
-      - http://etcd:2379
-    prefix: /neural-hive/agents
+      - neural-hive-cache.redis-cluster.svc.cluster.local:6379
+    prefix: neural-hive:agents
     timeoutSeconds: 5
   healthCheck:
     intervalSeconds: 60
@@ -64,8 +66,15 @@ config:
     timeoutSeconds: 120
   redis:
     clusterNodes:
-      - redis:6379
-    password: ""  # Obrigatorio em producao (validacao automatica). Use External Secrets.
+      - neural-hive-cache.redis-cluster.svc.cluster.local:6379
+    # Senha do Redis - OBRIGATORIO em producao (validacao automatica)
+    # Opcoes:
+    # 1. External Secrets (recomendado): Defina existingSecret abaixo
+    # 2. Manual: Configure password aqui (NAO recomendado para producao)
+    password: ""
+    # Nome do secret existente que contem a chave 'redis-password'
+    # Se definido, o chart NAO criara o Secret (usa o existente)
+    existingSecret: ""  # Ex: "service-registry-secret" criado por ExternalSecret
   otel:
     exporterEndpoint: http://otel-collector:4317
 
@@ -82,7 +91,7 @@ config:
     failOpen: false  # Fail-closed por padrao em producao
 
   spiffe:
-    enabled: true  # Zero-trust authentication habilitado
+    enabled: false  # Desabilitado temporariamente - SPIRE agent não instalado nos nós
     enableX509: true
     verifyPeer: true  # Validar SPIFFE ID dos clientes
     socketPath: unix:///run/spire/sockets/agent.sock
@@ -176,19 +185,21 @@ readinessProbe:
 
 affinity:
   podAntiAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchExpressions:
-            - key: app.kubernetes.io/name
-              operator: In
-              values:
-                - service-registry
-        topologyKey: topology.kubernetes.io/zone
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - service-registry
+          topologyKey: topology.kubernetes.io/zone
 
 topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: topology.kubernetes.io/zone
-    whenUnsatisfiable: DoNotSchedule
+    whenUnsatisfiable: ScheduleAnyway
     labelSelector:
       matchLabels:
         app.kubernetes.io/name: service-registry
@@ -197,3 +208,6 @@ serviceAccount:
   create: true
   name: service-registry
   automountServiceAccountToken: true
+
+# Remover nodeSelector para permitir scheduling em qualquer nó
+nodeSelector: {}

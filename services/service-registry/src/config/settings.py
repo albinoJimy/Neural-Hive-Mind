@@ -1,5 +1,6 @@
 from functools import lru_cache
-from typing import List, Optional
+from typing import List, Optional, Union
+import json
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -52,6 +53,29 @@ class Settings(BaseSettings):
         default=None,
         description="Senha do Redis. Obrigatorio em producao (validacao automatica)."
     )
+
+    @field_validator('ETCD_ENDPOINTS', 'REDIS_CLUSTER_NODES', mode='before')
+    @classmethod
+    def parse_list_from_json_string(cls, v: Union[str, List[str]]) -> List[str]:
+        """
+        Parseia listas que vem como JSON string de variaveis de ambiente.
+
+        Helm passa listas como JSON: '["redis:6379"]'
+        Pydantic precisa converter para lista Python: ["redis:6379"]
+        """
+        if isinstance(v, str):
+            v = v.strip()
+            # Se parece com JSON array, faz parse
+            if v.startswith('[') and v.endswith(']'):
+                try:
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        return parsed
+                except json.JSONDecodeError:
+                    pass
+            # Se nao e JSON, assume string unica
+            return [v] if v else []
+        return v if v else []
 
     @field_validator('REDIS_PASSWORD')
     @classmethod
