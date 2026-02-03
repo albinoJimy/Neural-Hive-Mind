@@ -7,7 +7,6 @@ dois modelos ML em produção de forma controlada e estatisticamente válida.
 
 import os
 import sys
-from typing import Dict, Any
 
 # Adicionar caminho da biblioteca
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'libraries', 'python'))

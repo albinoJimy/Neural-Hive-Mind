@@ -1,0 +1,41 @@
+[flake8]
+# Flake8 configuration for Neural Hive Mind
+
+# Max line length
+max-line-length = 127
+
+# Exclude directories from linting
+exclude =
+    .git,
+    __pycache__,
+    build,
+    dist,
+    *.egg-info,
+    .eggs,
+    .tox,
+    .mypy_cache,
+    .pytest_cache,
+    mlruns,
+    .benchmarks,
+    venv,
+    .venv,
+    # Arquivos de exemplo e temporarios
+    examples,
+    .tmp,
+    # Arquivos auto-gerados pelo protobuf
+    *_pb2.py,
+    *_pb2_grpc.py,
+    proto_stubs
+
+# Ignore specific errors globally
+ignore =
+    # E402: module level import not at top of file (common in examples with sys.path)
+    E402,
+    # W503: line break before binary operator (conflicts with black)
+    W503
+
+# Per-file ignores for specific patterns
+per-file-ignores =
+    # Tests can have longer lines and unused imports
+    **/tests/*.py: E501, F401
+    **/test_*.py: E501, F401
