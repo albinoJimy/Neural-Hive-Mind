@@ -11,6 +11,27 @@ featureFlags:
   enableLoki: false
   enableTempo: false
 
+# Datasources opcionais (desabilitados por padrao)
+aws:
+  enabled: false
+  region: "us-west-2"
+
+elasticsearch:
+  enabled: false
+  host: "elasticsearch"
+  port: 9200
+
+influxdb:
+  enabled: false
+  host: "influxdb"
+  port: 8086
+
+postgresql:
+  enabled: false
+  host: "postgresql"
+  port: 5432
+  database: "grafana"
+
 # Configuração de datasources
 datasources:
   prometheus:
@@ -497,24 +518,24 @@ grafana:
     successThreshold: 1
 
   # Ingress configuration
+  # Formato compativel com Grafana chart 7.0.3
   ingress:
     enabled: true
-    className: "nginx"
+    ingressClassName: "nginx"
     annotations:
       kubernetes.io/ingress.class: nginx
       cert-manager.io/cluster-issuer: letsencrypt-prod
       nginx.ingress.kubernetes.io/ssl-redirect: "true"
       nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
       nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    path: /
+    pathType: Prefix
     hosts:
-    - host: "grafana.neural-hive.local"
-      paths:
-      - path: /
-        pathType: Prefix
-    tls:
-    - secretName: grafana-tls
-      hosts:
       - "grafana.neural-hive.local"
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - "grafana.neural-hive.local"
 
   # Monitoring
   serviceMonitor:
@@ -528,6 +549,20 @@ grafana:
 # Configurações de alerting
 alerting:
   enabled: true
+
+  # Configuracao de notificacoes
+  slack:
+    webhookUrl: ""  # Preencher com URL do webhook Slack
+    channel: "#neural-hive-alerts"
+
+  teams:
+    webhookUrl: ""  # Preencher com URL do webhook Microsoft Teams
+
+  pagerduty:
+    integrationKey: ""  # Preencher com chave de integracao PagerDuty
+
+  email:
+    addresses: []  # Lista de emails para alertas
 
   # Rules específicas para Grafana
   rules:
