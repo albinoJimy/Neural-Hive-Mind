@@ -210,10 +210,16 @@ jobs:
         with:
           version: 'v3.14.0'
 
-      - name: Instalar kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: 'v1.29.0'
+      - name: Verificar kubectl
+        run: |
+          # Executor self-hosted ja deve ter kubectl instalado
+          if command -v kubectl &> /dev/null; then
+            echo "kubectl encontrado: $(kubectl version --client --short 2>/dev/null || kubectl version --client)"
+          else
+            echo "ERRO: kubectl nao encontrado no executor self-hosted"
+            echo "Instale kubectl no runner: sudo apt-get install -y kubectl"
+            exit 1
+          fi
 
       - name: Determinar namespace
         id: namespace
