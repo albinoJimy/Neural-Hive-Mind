@@ -199,7 +199,7 @@ class FlowCConsumer:
             group_id=self.group_id,
             # P3-003: Log da configuração de timeout para debugging
             max_poll_interval_ms="21600000 (6h)",
-            session_timeout_ms="3600000 (1h)",
+            session_timeout_ms="30000 (30s)",
             note="Configuração otimizada para execuções longas do Flow C (4+ horas)",
         )
 
@@ -214,7 +214,7 @@ class FlowCConsumer:
             # P3-003: Aumentar max.poll.interval.ms para acomodar execuções longas do Flow C
             # Flow C pode levar até 4+ horas, então definimos 6 horas de margem
             'max_poll_interval_ms': 21600000,  # 6 horas em milissegundos
-            'session_timeout_ms': 3600000,  # 1 hora de sessão
+            'session_timeout_ms': 30000,  # 30 segundos - broker max é geralmente 30-60s
             # Não definir value_deserializer - recebemos bytes crus
         }
 
