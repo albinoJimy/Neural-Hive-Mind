@@ -61,6 +61,8 @@ jobs:
       services_matrix: ${{ steps.set-matrix.outputs.matrix }}
       services_list: ${{ steps.set-matrix.outputs.list }}
       has_changes: ${{ steps.set-matrix.outputs.has_changes }}
+      total_services: ${{ steps.set-matrix.outputs.total_count }}
+      build_count: ${{ steps.set-matrix.outputs.build_count }}
 
     steps:
       - name: Checkout
@@ -119,6 +121,44 @@ jobs:
             "approval-service"
           )
 
+          # Mapeamento de dependencias: servicos que usam cada library
+          # Formato: library_nome: servico1,servico2,...
+          declare -A LIBRARY_DEPENDENTS
+          LIBRARY_DEPENDENTS[
+            "neural_hive_core"]="analyst-agents,worker-agents,orchestrator-dynamic,queen-agent,guard-agents,scout-agents,optimizer-agents,consensus-engine,semantic-translation-engine,self-healing-engine"
+          LIBRARY_DEPENDENTS["neural_hive_observability"]="analyst-agents,worker-agents,orchestrator-dynamic,queen-agent,guard-agents,scout-agents,optimizer-agents,consensus-engine,gateway-intencoes,service-registry,memory-layer-api,execution-ticket-service,sla-management-system,approval-service"
+          LIBRARY_DEPENDENTS["neural_hive_analyst"]="analyst-agents"
+          LIBRARY_DEPENDENTS["neural_hive_worker"]="worker-agents"
+          LIBRARY_DEPENDENTS["neural_hive_guard"]="guard-agents"
+          LIBRARY_DEPENDENTS["neural_hive_scout"]="scout-agents"
+          LIBRARY_DEPENDENTS["neural_hive_optimizer"]="optimizer-agents"
+          LIBRARY_DEPENDENTS["neural_hive_conversation"]="gateway-intencoes,semantic-translation-engine"
+          LIBRARY_DEPENDENTS["neural_hive_memory"]="memory-layer-api,analyst-agents,worker-agents,queen-agent"
+          LIBRARY_DEPENDENTS["neural_hive_execution"]="execution-ticket-service,orchestrator-dynamic,worker-agents,analyst-agents"
+          LIBRARY_DEPENDENTS["neural_hive_sla"]="sla-management-system"
+          LIBRARY_DEPENDENTS["neural_hive_approval"]="approval-service"
+
+          # Mapeamento de schemas: servicos que usam cada schema
+          declare -A SCHEMA_DEPENDENTS
+          SCHEMA_DEPENDENTS["conversation"]="gateway-intencoes,semantic-translation-engine,analyst-agents"
+          SCHEMA_DEPENDENTS["memory"]="memory-layer-api,analyst-agents,worker-agents,queen-agent"
+          SCHEMA_DEPENDENTS["execution"]="execution-ticket-service,orchestrator-dynamic,worker-agents"
+          SCHEMA_DEPENDENTS["consensus"]="consensus-engine,orchestrator-dynamic,queen-agent"
+          SCHEMA_DEPENDENTS["service_registry"]="service-registry,orchestrator-dynamic"
+
+          # Função para adicionar servicos de uma lista separada por virgula
+          add_services_from_list() {
+            local svc_list="$1"
+            IFS=',' read -ra SVCS <<< "$svc_list"
+            for svc in "${SVCS[@]}"; do
+              svc=$(echo "$svc" | xargs)  # trim whitespace
+              # Adicionar apenas se ja não esta na lista
+              if [[ ! " ${SERVICES[@]} " =~ " ${svc} " ]]; then
+                SERVICES+=("$svc")
+              fi
+            done
+          }
+
           # Se workflow_dispatch com servicos especificos
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.services }}" ]]; then
             IFS=',' read -ra SERVICES <<< "${{ inputs.services }}"
@@ -128,16 +168,42 @@ jobs:
           else
             # Detectar modificados via git diff
             SERVICES=()
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null)
+
+            # 1. Detectar servicos com codigo alterado
             for svc in "${ALL_SERVICES[@]}"; do
-              if git diff --name-only HEAD~1 HEAD 2>/dev/null | grep -q "services/${svc}/"; then
+              if echo "$CHANGED_FILES" | grep -q "services/${svc}/"; then
                 SERVICES+=("$svc")
               fi
             done
-            
-            # Se libraries ou schemas modificados, rebuildar todos
-            if git diff --name-only HEAD~1 HEAD 2>/dev/null | grep -qE "^(libraries|schemas)/"; then
-              echo "Libraries ou schemas modificados - rebuildando todos os servicos"
-              SERVICES=("${ALL_SERVICES[@]}")
+
+            # 2. Detectar libraries alteradas e adicionar apenas dependentes
+            if echo "$CHANGED_FILES" | grep -q "^libraries/"; then
+              echo "Libraries modificadas - detectando servicos dependentes..."
+              for lib_path in $(echo "$CHANGED_FILES" | grep "^libraries/" | cut -d'/' -f2 | cut -d'/' -f1 | sort -u); do
+                # Normalizar nome da library (remover subdiretorios se houver)
+                lib_name=$(echo "$lib_path" | sed 's/neural_hive_/neural_hive_/')
+                if [[ -n "${LIBRARY_DEPENDENTS[$lib_name]}" ]]; then
+                  echo "  Library $lib_name alterada: ${LIBRARY_DEPENDENTS[$lib_name]}"
+                  add_services_from_list "${LIBRARY_DEPENDENTS[$lib_name]}"
+                else
+                  # Se library nao mapeada, rebuild todos (fallback seguro)
+                  echo "  Library $lib_name nao mapeada - rebuildando todos"
+                  SERVICES=("${ALL_SERVICES[@]}")
+                  break
+                fi
+              done
+            fi
+
+            # 3. Detectar schemas alterados e adicionar apenas dependentes
+            if echo "$CHANGED_FILES" | grep -q "^schemas/" && [[ ${#SERVICES[@]} -lt ${#ALL_SERVICES[@]} ]]; then
+              echo "Schemas modificados - detectando servicos dependentes..."
+              for schema_path in $(echo "$CHANGED_FILES" | grep "^schemas/" | cut -d'/' -f2 | sort -u); do
+                if [[ -n "${SCHEMA_DEPENDENTS[$schema_path]}" ]]; then
+                  echo "  Schema $schema_path alterado: ${SCHEMA_DEPENDENTS[$schema_path]}"
+                  add_services_from_list "${SCHEMA_DEPENDENTS[$schema_path]}"
+                fi
+              done
             fi
           fi
 
@@ -157,9 +223,18 @@ jobs:
           echo "matrix=${MATRIX_JSON}" >> $GITHUB_OUTPUT
           echo "list=${LIST}" >> $GITHUB_OUTPUT
           echo "has_changes=true" >> $GITHUB_OUTPUT
+          echo "total_count=${#ALL_SERVICES[@]}" >> $GITHUB_OUTPUT
+          echo "build_count=${#SERVICES[@]}" >> $GITHUB_OUTPUT
 
-          echo "Servicos a buildar: ${#SERVICES[@]}"
+          echo "Servicos a buildar: ${#SERVICES[@]} de ${#ALL_SERVICES[@]} total"
           echo "${MATRIX_JSON}" | jq .
+
+          # Economia de build
+          if [[ ${#SERVICES[@]} -lt ${#ALL_SERVICES[@]} ]]; then
+            SAVED=$(( ${#ALL_SERVICES[@]} - ${#SERVICES[@]} ))
+            PERCENT=$(( SAVED * 100 / ${#ALL_SERVICES[@]} ))
+            echo "Economia: $SAVED servicos ($PERCENT% menos builds)"
+          fi
 
   # ============================================================================
   # Job 2: Build e Push das imagens
@@ -250,14 +325,6 @@ jobs:
             echo "Dockerfile nao encontrado: $DOCKERFILE_PATH"
           fi
 
-      - name: Clear Docker build cache
-        if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
-        run: |
-          echo "Clearing Docker build cache..."
-          docker builder prune -af 2>/dev/null || true
-          docker system prune -f 2>/dev/null || true
-          echo "Docker cache cleared"
-
       - name: Set up Docker Buildx
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
         uses: docker/setup-buildx-action@v3
@@ -265,15 +332,7 @@ jobs:
           # IMPORTANTE: Usar docker-container (padrão) porque Dockerfile usa --mount=type=cache
           # O driver 'docker' NÃO suporta --mount=type=cache e causa comportamento incorreto
           driver: docker-container
-          # Criar novo builder para evitar cache stale
           buildkitd-flags: --debug
-
-      - name: Clear buildx builder cache
-        if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
-        run: |
-          echo "Clearing buildx builder cache AFTER setup..."
-          docker buildx prune -af --force 2>/dev/null || true
-          echo "Buildx cache cleared"
 
       - name: Login no GHCR
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
@@ -359,14 +418,11 @@ jobs:
             REGISTRY=ghcr.io/${{ steps.owner.outputs.lowercase }}
             VERSION=${{ inputs.version_tag || 'latest' }}
             CACHE_BUST=${{ github.sha }}
-          # TEMP: Desabilitar cache para forçar rebuild limpo
-          # Problema: cache GHA e buildx local estavam servindo layers antigos
-          # TODO: Reativar após confirmar fix do erro "too many values to unpack"
-          no-cache: true
+          # Cache do GitHub Actions habilitado para builds incrementais
           pull: true
           provenance: false
-          # cache-from: type=gha
-          # cache-to: type=gha,mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   # ============================================================================
   # Job 3: Resumo e notificacao
@@ -387,6 +443,19 @@ jobs:
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "**Version Tag:** ${{ inputs.version_tag || 'auto (latest/sha)' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Mostrar economia de build
+          TOTAL_COUNT="${{ needs.detect-changes.outputs.total_services }}"
+          BUILD_COUNT="${{ needs.detect-changes.outputs.build_count }}"
+          if [[ -n "$TOTAL_COUNT" && -n "$BUILD_COUNT" && "$BUILD_COUNT" -lt "$TOTAL_COUNT" ]]; then
+            SAVED=$(( TOTAL_COUNT - BUILD_COUNT ))
+            PERCENT=$(( SAVED * 100 / TOTAL_COUNT ))
+            echo "### 🚀 Build Incremental - Economia de $PERCENT%" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Builds evitados:** $SAVED de $TOTAL_COUNT servicos" >> $GITHUB_STEP_SUMMARY
+            echo "**Tempo estimado economizado:** ~$(( SAVED * 2 ))min" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
 
           if [[ "${{ needs.detect-changes.outputs.has_changes }}" == "true" ]]; then
             echo "### Servicos Buildados" >> $GITHUB_STEP_SUMMARY
