@@ -394,6 +394,14 @@ jobs:
           echo "=== MD5 checksum of file ==="
           md5sum services/${{ matrix.service }}/src/services/consensus_orchestrator.py 2>/dev/null || echo "Cannot compute checksum"
 
+      - name: Re-login no GHCR (antes do build)
+        if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.CR_PAT || secrets.GITHUB_TOKEN }}
+
       - name: Build e Push
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
         uses: docker/build-push-action@v5
