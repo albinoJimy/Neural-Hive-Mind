@@ -426,11 +426,11 @@ jobs:
             REGISTRY=ghcr.io/${{ steps.owner.outputs.lowercase }}
             VERSION=${{ inputs.version_tag || 'latest' }}
             CACHE_BUST=${{ github.sha }}
-          # Cache do GitHub Actions habilitado para builds incrementais
+          # Cache do GitHub Actions - mode=min para evitar timeout no upload
           pull: true
           provenance: false
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
 
   # ============================================================================
   # Job 3: Resumo e notificacao
