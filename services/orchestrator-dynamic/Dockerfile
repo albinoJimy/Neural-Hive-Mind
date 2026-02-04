@@ -16,7 +16,10 @@ WORKDIR /build
 COPY services/orchestrator-dynamic/requirements.txt .
 # Bibliotecas internas referenciadas via caminhos relativos nos requirements
 COPY libraries /libraries
-RUN pip install --no-cache-dir --user -r requirements.txt
+# Aumentar timeout para 15min e usar cache mount do BuildKit
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --user -r requirements.txt \
+    --default-timeout=900 --retries 3
 
 # Stage 2: Runtime - usar mesma base para manter neural_hive_observability
 ARG REGISTRY=ghcr.io/albinojimy
