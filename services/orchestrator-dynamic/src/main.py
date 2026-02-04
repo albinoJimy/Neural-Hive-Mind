@@ -35,7 +35,7 @@ from src.integration.flow_c_consumer import FlowCConsumer
 from src.workflows.orchestration_workflow import OrchestrationWorkflow
 from src.ml.model_audit_logger import ModelAuditLogger
 from src.api.model_audit import create_model_audit_router
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from uuid import uuid4
 from datetime import datetime
 
@@ -1102,6 +1102,149 @@ async def cache_tickets_by_workflow(workflow_id: str, tickets: list, ttl: int = 
     except (TypeError, ValueError) as e:
         logger.warning("workflow_tickets_cache_encode_error", workflow_id=workflow_id, error=str(e))
         return False
+
+
+async def get_tickets_from_mongodb_fallback(workflow_id: str) -> Optional[list]:
+    """
+    Fallback para buscar tickets do MongoDB quando query Temporal falha.
+
+    Extrai plan_id do workflow_id e busca tickets associados no MongoDB.
+    Fail-open: retorna lista vazia em caso de erro (não bloqueia workflow).
+
+    Args:
+        workflow_id: ID do workflow Temporal (formato: orchestrator-{plan_id})
+
+    Returns:
+        Lista de tickets ou None se não encontrado
+
+    Example:
+        workflow_id = "orchestrator-plan-123" -> plan_id = "plan-123"
+    """
+    from src.observability.metrics import get_metrics
+
+    metrics = get_metrics()
+
+    if not app_state.mongodb_client:
+        logger.warning(
+            'mongodb_fallback_unavailable',
+            workflow_id=workflow_id,
+            message='MongoDB client not available for fallback'
+        )
+        metrics.record_mongodb_fallback(source='temporal_validation_error', status='error')
+        return None
+
+    try:
+        # Extrair plan_id do workflow_id
+        # Formato esperado: orchestrator-{plan_id} ou {temporal_workflow_id_prefix}{plan_id}
+        plan_id = workflow_id
+        if 'orchestrator-' in workflow_id:
+            plan_id = workflow_id.split('orchestrator-')[-1]
+        elif 'flow_c' in workflow_id:
+            # Tentar extrair plan_id de formatos alternativos
+            parts = workflow_id.split('-')
+            if len(parts) > 1:
+                plan_id = parts[-1]
+
+        logger.info(
+            'mongodb_fallback_attempt',
+            workflow_id=workflow_id,
+            extracted_plan_id=plan_id
+        )
+
+        # Buscar tickets no MongoDB associados ao plan_id
+        tickets_cursor = app_state.mongodb_client.execution_tickets.find(
+            {'plan_id': plan_id},
+            {
+                '_id': 0,
+                'ticket_id': 1,
+                'plan_id': 1,
+                'task_id': 1,
+                'task_type': 1,
+                'status': 1,
+                'worker_id': 1,
+                'sla': 1,
+                'created_at': 1,
+                'estimated_duration_ms': 1,
+                'metadata': 1
+            }
+        ).sort('created_at', -1)
+
+        tickets = await tickets_cursor.to_list(length=100)
+
+        logger.info(
+            'mongodb_fallback_result',
+            workflow_id=workflow_id,
+            plan_id=plan_id,
+            tickets_count=len(tickets)
+        )
+
+        if tickets:
+            metrics.record_mongodb_fallback(
+                source='temporal_validation_error',
+                status='success',
+                tickets_count=len(tickets)
+            )
+            return tickets
+
+        # Tentar buscar por workflow_id diretamente se plan_id não funcionou
+        if plan_id != workflow_id:
+            tickets_cursor = app_state.mongodb_client.execution_tickets.find(
+                {'workflow_id': workflow_id},
+                {
+                    '_id': 0,
+                    'ticket_id': 1,
+                    'plan_id': 1,
+                    'task_id': 1,
+                    'task_type': 1,
+                    'status': 1,
+                    'worker_id': 1,
+                    'sla': 1,
+                    'created_at': 1,
+                    'estimated_duration_ms': 1,
+                    'metadata': 1
+                }
+            ).sort('created_at', -1)
+
+            tickets = await tickets_cursor.to_list(length=100)
+
+            logger.info(
+                'mongodb_fallback_result_by_workflow_id',
+                workflow_id=workflow_id,
+                tickets_count=len(tickets)
+            )
+
+            if tickets:
+                metrics.record_mongodb_fallback(
+                    source='temporal_validation_error',
+                    status='success',
+                    tickets_count=len(tickets)
+                )
+                return tickets
+
+        logger.warning(
+            'mongodb_fallback_no_tickets',
+            workflow_id=workflow_id,
+            plan_id=plan_id,
+            message='No tickets found in MongoDB'
+        )
+        metrics.record_mongodb_fallback(
+            source='temporal_validation_error',
+            status='not_found'
+        )
+        return None
+
+    except Exception as e:
+        logger.error(
+            'mongodb_fallback_error',
+            workflow_id=workflow_id,
+            error=str(e),
+            exc_info=True
+        )
+        metrics.record_mongodb_fallback(
+            source='temporal_validation_error',
+            status='error'
+        )
+        return None
 
 
 async def get_cached_flow_c_status() -> Optional[Dict[str, Any]]:
@@ -2899,7 +3042,9 @@ async def query_workflow(workflow_id: str, request: WorkflowQueryRequest):
         HTTPException 500: Erro ao executar query
     """
     from opentelemetry import trace as otel_trace
+    from src.observability.metrics import get_metrics
 
+    metrics = get_metrics()
     tracer = otel_trace.get_tracer(__name__)
 
     with tracer.start_as_current_span(
@@ -2954,15 +3099,94 @@ async def query_workflow(workflow_id: str, request: WorkflowQueryRequest):
 
             # Executar query
             if request.query_name == 'get_tickets':
-                result = await handle.query("get_tickets")
-                # Normalizar resultado para dict
-                if isinstance(result, list):
-                    query_result = {"tickets": result}
-                else:
-                    query_result = {"tickets": result} if result else {"tickets": []}
+                logger.debug(
+                    'executing_get_tickets_query',
+                    workflow_id=workflow_id,
+                    query_name=request.query_name
+                )
 
-                # Cachear resultado (fail-open)
-                await cache_tickets_by_workflow(workflow_id, query_result.get("tickets", []))
+                try:
+                    result = await handle.query("get_tickets")
+                    # Normalizar resultado para dict
+                    if isinstance(result, list):
+                        query_result = {"tickets": result}
+                    else:
+                        query_result = {"tickets": result} if result else {"tickets": []}
+
+                    # Cachear resultado (fail-open)
+                    await cache_tickets_by_workflow(workflow_id, query_result.get("tickets", []))
+
+                    logger.info(
+                        'workflow_query_success',
+                        workflow_id=workflow_id,
+                        query_name=request.query_name,
+                        tickets_count=len(query_result.get("tickets", []))
+                    )
+                    metrics.record_workflow_query(query_name='get_tickets', status='success')
+                    span.set_attribute("query.success", True)
+                    span.set_attribute("query.fallback", False)
+
+                    return JSONResponse(
+                        status_code=200,
+                        content=WorkflowQueryResponse(
+                            workflow_id=workflow_id,
+                            query_name=request.query_name,
+                            result=query_result
+                        ).model_dump()
+                    )
+
+                except (ValidationError, ValueError, AttributeError, TypeError) as validation_err:
+                    # ValidationError específico - tentar fallback para MongoDB
+                    logger.warning(
+                        'workflow_query_validation_error',
+                        workflow_id=workflow_id,
+                        query_name=request.query_name,
+                        error_type=type(validation_err).__name__,
+                        error=str(validation_err),
+                        fallback='mongodb'
+                    )
+                    metrics.record_workflow_query(query_name='get_tickets', status='validation_error')
+                    span.set_attribute("query.validation_error", True)
+
+                    # FALLBACK: Buscar tickets do MongoDB
+                    fallback_tickets = await get_tickets_from_mongodb_fallback(workflow_id)
+
+                    if fallback_tickets:
+                        logger.info(
+                            'workflow_query_fallback_success',
+                            workflow_id=workflow_id,
+                            query_name=request.query_name,
+                            tickets_count=len(fallback_tickets),
+                            source='mongodb'
+                        )
+                        span.set_attribute("query.success", True)
+                        span.set_attribute("query.fallback", True)
+
+                        return JSONResponse(
+                            status_code=200,
+                            content=WorkflowQueryResponse(
+                                workflow_id=workflow_id,
+                                query_name=request.query_name,
+                                result={
+                                    "tickets": fallback_tickets,
+                                    "cached": False,
+                                    "fallback": True,
+                                    "source": "mongodb"
+                                }
+                            ).model_dump()
+                        )
+                    else:
+                        # Fallback também falhou
+                        logger.error(
+                            'workflow_query_fallback_failed',
+                            workflow_id=workflow_id,
+                            query_name=request.query_name,
+                            error='MongoDB fallback returned no tickets'
+                        )
+                        raise HTTPException(
+                            status_code=404,
+                            detail=f'Workflow {workflow_id} not found or no tickets available'
+                        )
 
             elif request.query_name == 'get_status':
                 result = await handle.query("get_status")
@@ -2979,6 +3203,7 @@ async def query_workflow(workflow_id: str, request: WorkflowQueryRequest):
                 query_name=request.query_name
             )
             span.set_attribute("query.success", True)
+            span.set_attribute("query.fallback", False)
 
             return JSONResponse(
                 status_code=200,
@@ -3004,6 +3229,21 @@ async def query_workflow(workflow_id: str, request: WorkflowQueryRequest):
                 raise HTTPException(
                     status_code=404,
                     detail=f'Workflow {workflow_id} not found'
+                )
+
+            # Verificar se é erro de ValidationError específico
+            if 'validation' in error_str.lower() or 'ValidationError' in error_str or 'ValidationError' in type(e).__name__:
+                logger.error(
+                    'workflow_query_validation_error',
+                    workflow_id=workflow_id,
+                    query_name=request.query_name,
+                    error_type=type(e).__name__,
+                    error=error_str,
+                    exc_info=True
+                )
+                raise HTTPException(
+                    status_code=422,
+                    detail=f'Validation error querying workflow {workflow_id}: {error_str}'
                 )
 
             logger.error(

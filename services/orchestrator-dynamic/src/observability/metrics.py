@@ -119,6 +119,20 @@ class OrchestratorMetrics:
             buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10]
         )
 
+        # Métricas de Query Temporal
+        self.workflow_query_total = Counter(
+            'orchestration_workflow_query_total',
+            'Total de queries de workflow executadas',
+            ['query_name', 'status']  # status: success, validation_error, fallback
+        )
+
+        # Métricas de Fallback MongoDB
+        self.mongodb_fallback_total = Counter(
+            'orchestration_mongodb_fallback_total',
+            'Total de usos de fallback MongoDB para tickets',
+            ['source', 'status']  # source: temporal_validation_error, status: success, not_found
+        )
+
         # Métricas de SLA
         self.sla_violations_total = Counter(
             'orchestration_sla_violations_total',
@@ -2222,6 +2236,39 @@ class OrchestratorMetrics:
             'mongodb_persistence_fail_open_metric_recorded',
             collection=collection
         )
+
+    def record_mongodb_fallback(self, source: str, status: str, tickets_count: int = 0):
+        """
+        Registra uso de fallback MongoDB para queries de workflow.
+
+        Args:
+            source: Fonte que disparou o fallback (temporal_validation_error, direct_query)
+            status: Status do fallback (success, not_found, error)
+            tickets_count: Número de tickets encontrados (opcional)
+        """
+        self.mongodb_fallback_total.labels(
+            source=source,
+            status=status
+        ).inc()
+        logger.info(
+            'mongodb_fallback_metric_recorded',
+            source=source,
+            status=status,
+            tickets_count=tickets_count
+        )
+
+    def record_workflow_query(self, query_name: str, status: str):
+        """
+        Registra execução de query de workflow.
+
+        Args:
+            query_name: Nome da query executada (get_tickets, get_status)
+            status: Status da query (success, validation_error, error)
+        """
+        self.workflow_query_total.labels(
+            query_name=query_name,
+            status=status
+        ).inc()
 
     # Authorization Audit Helper Methods
 
