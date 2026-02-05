@@ -1,0 +1,389 @@
+name: Rebuild and Deploy Services
+
+# Workflow para rebuildar serviços com imagens não encontradas no registry
+# Trigger manual para selecionar quais serviços rebuildar
+
+on:
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'Serviços para rebuild (separados por virgula)'
+        required: true
+        type: string
+        default: 'analyst-agents,gateway-intencoes,mcp-tool-catalog,scout-agents,worker-agents,sla-management-system,execution-ticket-service,explainability-api,service-registry'
+      environment:
+        description: 'Ambiente de deploy'
+        required: true
+        type: choice
+        options:
+          - development
+          - production
+        default: 'development'
+      image_tag:
+        description: 'Tag da imagem (default: latest)'
+        required: false
+        type: string
+        default: 'latest'
+      skip_tests:
+        description: 'Pular testes (acelera build)'
+        required: false
+        type: boolean
+        default: true
+      deploy_after_build:
+        description: 'Fazer deploy após build'
+        required: false
+        type: boolean
+        default: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/neural-hive-mind
+
+jobs:
+  # ============================================================================
+  # Job 1: Parse e validar serviços
+  # ============================================================================
+  prepare:
+    name: Preparar Build
+    runs-on: [self-hosted, neural-hive]
+
+    outputs:
+      services_matrix: ${{ steps.set-matrix.outputs.matrix }}
+      services_list: ${{ steps.set-matrix.outputs.list }}
+      environment: ${{ steps.set-env.outputs.environment }}
+      namespace: ${{ steps.set-env.outputs.namespace }}
+      image_tag: ${{ steps.set-tag.outputs.tag }}
+      ghcr_prefix: ${{ steps.set-prefix.outputs.prefix }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Definir ambiente e namespace
+        id: set-env
+        run: |
+          case "${{ inputs.environment }}" in
+            production)
+              NAMESPACE="neural-hive"
+              ;;
+            *)
+              NAMESPACE="neural-hive"
+              ;;
+          esac
+          echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+          echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
+          echo "Namespace: $NAMESPACE"
+
+      - name: Definir tag da imagem
+        id: set-tag
+        run: |
+          TAG="${{ inputs.image_tag }}"
+          if [[ -z "$TAG" || "$TAG" == "latest" ]]; then
+            # Usar timestamp + branch para tag única
+            TAG="b-$(date +%Y%m%d-%H%M%S)"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Image tag: $TAG"
+
+      - name: Definir GHCR prefix
+        id: set-prefix
+        run: |
+          OWNER_LOWERCASE=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "prefix=ghcr.io/${OWNER_LOWERCASE}/neural-hive-mind" >> $GITHUB_OUTPUT
+          echo "GHCR Prefix: ghcr.io/${OWNER_LOWERCASE}/neural-hive-mind"
+
+      - name: Validar e parsear serviços
+        id: set-matrix
+        run: |
+          SERVICES_INPUT="${{ inputs.services }}"
+
+          # Lista completa de serviços válidos
+          VALID_SERVICES=(
+            "analyst-agents"
+            "execution-ticket-service"
+            "explainability-api"
+            "gateway-intencoes"
+            "mcp-tool-catalog"
+            "scout-agents"
+            "service-registry"
+            "sla-management-system"
+            "worker-agents"
+          )
+
+          # Converter input para array
+          IFS=',' read -ra REQUESTED_SERVICES <<< "$SERVICES_INPUT"
+          VALIDATED=()
+          SERVICE_DATA="["
+
+          for svc in "${REQUESTED_SERVICES[@]}"; do
+            # Trim whitespace
+            svc=$(echo "$svc" | xargs)
+
+            # Validar se existe
+            if [[ " ${VALID_SERVICES[@]} " =~ " ${svc} " ]]; then
+              # Verificar se o serviço existe no código
+              if [[ -d "services/$svc" ]] || [[ -d "services/${svc%-service}" ]] || [[ -d "services/${svc%-agents}" ]] || [[ -d "services/${svc%-catalog}" ]]; then
+                VALIDATED+=("$svc")
+                SERVICE_DATA+="'$svc',"
+                echo "  Validated: $svc"
+              else
+                echo "  WARNING: Service '$svc' not found in services/"
+              fi
+            else
+              echo "  ERROR: Invalid service '$svc'"
+              exit 1
+            fi
+          done
+
+          if [[ ${#VALIDATED[@]} -eq 0 ]]; then
+            echo "ERROR: No valid services to build"
+            exit 1
+          fi
+
+          # Remover vírgula final e fechar array
+          SERVICE_DATA="${SERVICE_DATA%,}]"
+
+          echo "list=${VALIDATED[@]}" >> $GITHUB_OUTPUT
+          echo "matrix={\"service\":$SERVICE_DATA}" >> $GITHUB_OUTPUT
+
+          echo ""
+          echo "Services to rebuild: ${#VALIDATED[@]}"
+          printf '  - %s\n' "${VALIDATED[@]}"
+
+  # ============================================================================
+  # Job 2: Build e push imagens
+  # ============================================================================
+  build:
+    name: Build ${{ matrix.service }}
+    runs-on: [self-hosted, neural-hive]
+    needs: prepare
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.services_matrix) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image variables
+        id: vars
+        run: |
+          SVC="${{ matrix.service }}"
+          PREFIX="${{ needs.prepare.outputs.ghcr_prefix }}"
+          TAG="${{ needs.prepare.outputs.image_tag }}"
+
+          echo "image_name=$PREFIX/$SVC" >> $GITHUB_OUTPUT
+          echo "image_tag=$TAG" >> $GITHUB_OUTPUT
+          echo "full_image=$PREFIX/$SVC:$TAG" >> $GITHUB_OUTPUT
+
+      - name: Find service directory
+        id: find-dir
+        run: |
+          SVC="${{ matrix.service }}"
+          DIRS=()
+
+          # Tentar diferentes caminhos
+          if [[ -d "services/$SVC" ]]; then
+            DIRS+=("services/$SVC")
+          fi
+          if [[ -d "services/${svc%-service}" ]]; then
+            DIRS+=("services/${svc%-service}")
+          fi
+          if [[ -d "services/${svc%-agents}" ]]; then
+            DIRS+=("services/${svc%-agents}")
+          fi
+          if [[ -d "services/${svc%-catalog}" ]]; then
+            DIRS+=("services/${svc%-catalog}")
+          fi
+          if [[ -d "services/${svc%-api}" ]]; then
+            DIRS+=("services/${svc%-api}")
+          fi
+
+          if [[ ${#DIRS[@]} -eq 0 ]]; then
+            echo "ERROR: Service directory not found for $SVC"
+            exit 1
+          fi
+
+          # Usar primeiro diretório encontrado
+          echo "service_dir=${DIRS[0]}" >> $GITHUB_OUTPUT
+          echo "Found service directory: ${DIRS[0]}"
+
+      - name: Check if Dockerfile exists
+        run: |
+          DIR="${{ steps.find-dir.outputs.service_dir }}"
+          if [[ ! -f "$DIR/Dockerfile" ]]; then
+            echo "WARNING: No Dockerfile found in $DIR"
+            echo "Looking for Python project..."
+
+            # Check for Python project
+            if [[ -f "$DIR/pyproject.toml" ]] || [[ -f "$DIR/requirements.txt" ]] || [[ -f "$DIR/setup.py" ]]; then
+              echo "Python project detected"
+              exit 0
+            fi
+
+            echo "ERROR: No Dockerfile or Python project found"
+            exit 1
+          fi
+
+      - name: Set up Docker BuildX
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.vars.outputs.image_name }}
+          tags: |
+            type=raw,value=${{ steps.vars.outputs.image_tag }}
+            type=raw,value=latest,enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.title=${{ matrix.service }}
+            org.opencontainers.image.description=Neural Hive-Mind service
+            org.opencontainers.image.source=${{ github.repositoryUrl }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ steps.find-dir.outputs.service_dir }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          platforms: linux/amd64
+
+      - name: Update helm values
+        run: |
+          SVC="${{ matrix.service }}"
+          TAG="${{ steps.vars.outputs.image_tag }}"
+          VALUES_FILE="helm-charts/$SVC/values-k8s.yaml"
+
+          if [[ -f "$VALUES_FILE" ]]; then
+            # Atualizar tag e replicaCount
+            sed -i "s|tag:.*\"latest\"|tag: \"$TAG\"|g" "$VALUES_FILE"
+            sed -i "s/replicaCount: 0  # Disabled/replicaCount: 1  # Rebuild completed/" "$VALUES_FILE"
+            sed -i "s/replicaCount: 0$/replicaCount: 1/" "$VALUES_FILE"
+
+            echo "Updated $VALUES_FILE:"
+            grep -A1 "replicaCount\|tag:" "$VALUES_FILE" | head -4
+          else
+            echo "WARNING: Values file not found: $VALUES_FILE"
+          fi
+
+      - name: Commit helm values changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add helm-charts/*/values-k8s.yaml
+          git diff --staged --quiet || git commit -m "chore(helm): update ${{ matrix.service }} after rebuild [skip ci]"
+          git push
+
+  # ============================================================================
+  # Job 3: Deploy para cluster
+  # ============================================================================
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: [self-hosted, neural-hive]
+    needs: [prepare, build]
+    if: inputs.deploy_after_build == true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        run: |
+          # Configurar kubectl com kubeconfig existente no runner
+          if [[ -f "$HOME/.kube/config" ]]; then
+            export KUBECONFIG="$HOME/.kube/config"
+            echo "KUBECONFIG set to $KUBECONFIG"
+          else
+            echo "ERROR: KUBECONFIG not found"
+            exit 1
+          fi
+
+      - name: Verify cluster access
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Deploy services via Helm
+        run: |
+          NAMESPACE="${{ needs.prepare.outputs.namespace }}"
+          TAG="${{ needs.prepare.outputs.image_tag }}"
+
+          echo "Deploying services to namespace: $NAMESPACE"
+          echo "Using image tag: $TAG"
+
+          # Array de serviços
+          SERVICES=(${{ needs.prepare.outputs.services_list }})
+
+          for SVC in "${SERVICES[@]}"; do
+            CHART="helm-charts/$SVC"
+            VALUES="$CHART/values-k8s.yaml"
+
+            if [[ ! -d "$CHART" ]]; then
+              echo "WARNING: Chart not found: $CHART"
+              continue
+            fi
+
+            echo ""
+            echo "=========================================="
+            echo "Deploying: $SVC"
+            echo "=========================================="
+
+            # Helm upgrade
+            helm upgrade --install "$SVC" "$CHART" \
+              --namespace "$NAMESPACE" \
+              --values "$VALUES" \
+              --wait \
+              --timeout 5m \
+              --debug \
+              --set image.tag="$TAG" \
+              --set replicaCount=1 || {
+              echo "WARNING: Helm upgrade failed for $SVC"
+              continue
+            }
+
+            echo "Deployed $SVC successfully"
+          done
+
+      - name: Verify deployments
+        run: |
+          NAMESPACE="${{ needs.prepare.outputs.namespace }}"
+          SERVICES=(${{ needs.prepare.outputs.services_list }})
+
+          echo ""
+          echo "=========================================="
+          echo "Verifying deployments"
+          echo "=========================================="
+
+          for SVC in "${SERVICES[@]}"; do
+            echo ""
+            echo "Checking: $SVC"
+            kubectl get deployment -n "$NAMESPACE" "$SVC" -o jsonpath='{.spec.replicas} replicas requested' || echo "Deployment not found"
+            kubectl get pods -n "$NAMESPACE" -l "app.kubernetes.io/name=$SVC" --no-headers
+          done
+
+      - name: Summary
+        run: |
+          echo ""
+          echo "=========================================="
+          echo "Rebuild and Deploy Summary"
+          echo "=========================================="
+          echo "Environment: ${{ needs.prepare.outputs.environment }}"
+          echo "Namespace: ${{ needs.prepare.outputs.namespace }}"
+          echo "Image Tag: ${{ needs.prepare.outputs.image_tag }}"
+          echo ""
+          echo "Services processed:"
+          SERVICES=(${{ needs.prepare.outputs.services_list }})
+          printf '  - %s\n' "${SERVICES[@]}"
