@@ -21,6 +21,16 @@ class WorkerAgentSettings(BaseSettings):
     supported_task_types: List[str] = Field(
         default_factory=lambda: ['BUILD', 'DEPLOY', 'TEST', 'VALIDATE', 'EXECUTE']
     )
+    # Service Registry capabilities (must match STE required_capabilities)
+    # Includes: read, write, compute, analyze, transform, test, security, scan, compliance
+    capabilities: List[str] = Field(
+        default_factory=lambda: [
+            'python', 'terraform', 'kubernetes',  # Original capabilities
+            'read', 'write', 'compute',            # STE DAG capabilities
+            'analyze', 'transform', 'test',         # Additional capabilities
+            'security', 'scan', 'compliance'        # Security capabilities
+        ]
+    )
     max_concurrent_tasks: int = 5
     task_timeout_multiplier: float = 1.5
 
