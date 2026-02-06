@@ -124,7 +124,12 @@ class KafkaIntentProducer:
 
             # Schema Registry client (opcional para dev local)
             if self.schema_registry_url and self.schema_registry_url.strip():
-                self.schema_registry_client = SchemaRegistryClient({'url': self.schema_registry_url})
+                sr_conf = {'url': self.schema_registry_url}
+                # Configurar SSL verify based on settings
+                if self.settings.schema_registry_tls_enabled and not self.settings.schema_registry_tls_verify:
+                    # Quando TLS está habilitado mas verify=False, usar ca.location vazio para desabilitar verificação
+                    sr_conf['ssl.ca.location'] = ''
+                self.schema_registry_client = SchemaRegistryClient(sr_conf)
 
                 # Carregar schema Avro
                 with open('/app/schemas/intent-envelope.avsc', 'r') as f:
