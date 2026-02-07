@@ -6,7 +6,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 
 setup(
     name="neural-hive-specialists",
-    version="1.0.9",
+    version="1.0.10",
     description="Biblioteca compartilhada para especialistas neurais do Neural Hive-Mind",
     author="Neural Hive-Mind Team",
     package_dir={"neural_hive_specialists": "."},

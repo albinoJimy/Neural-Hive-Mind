@@ -9,6 +9,15 @@ Versão: 1.0.9
 Schema Version: 1.0.0
 """
 
+# IMPORTANT: Apply sklearn compatibility patch BEFORE any imports
+# This fixes cross-version sklearn compatibility issues (1.3.x -> 1.5.x)
+# particularly the monotonic_cst attribute error.
+try:
+    from .sklearn_compat import apply_sklearn_compatibility_patch
+    apply_sklearn_compatibility_patch()
+except Exception:
+    pass  # Patch failures should not prevent module loading
+
 # Registrar módulo probabilistic_wrapper no sys.modules para compatibilidade
 # com modelos MLflow que foram treinados com import direto do módulo.
 # O pickle deserializa buscando 'probabilistic_wrapper' no sys.modules.
@@ -38,7 +47,7 @@ from .schemas import (
     SCHEMA_VERSION,
 )
 
-__version__ = "1.0.9"
+__version__ = "1.0.10"
 
 __all__ = [
     "BaseSpecialist",
