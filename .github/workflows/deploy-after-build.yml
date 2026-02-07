@@ -188,7 +188,7 @@ jobs:
 
     strategy:
       fail-fast: false
-      max-parallel: 3
+      max-parallel: 2  # Reduce API load to avoid rate limiting
       matrix:
         service: ${{ fromJson(needs.prepare.outputs.services_list) }}
 
@@ -291,10 +291,9 @@ jobs:
             "--create-namespace"
             "--set" "image.tag=$TAG"
             "--set" "image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/$SERVICE"
-            "--atomic"
-            "--cleanup-on-fail"
+            # Removed --atomic to avoid rollback issues during rate limiting
             "--wait"
-            "--timeout" "10m"
+            "--timeout" "15m"
           )
 
           # Adicionar valores do ambiente se existir
