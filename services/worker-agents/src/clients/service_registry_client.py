@@ -215,7 +215,7 @@ class ServiceRegistryClient:
         try:
             request = service_registry_pb2.RegisterRequest(
                 agent_type=service_registry_pb2.WORKER,
-                capabilities=self.config.supported_task_types,
+                capabilities=self.config.capabilities,
                 metadata={
                     'agent_id': self.config.agent_id,
                     'http_port': str(self.config.http_port),
@@ -238,7 +238,7 @@ class ServiceRegistryClient:
             self.logger.info(
                 'worker_agent_registered',
                 agent_id=self.agent_id,
-                capabilities=self.config.supported_task_types,
+                capabilities=self.config.capabilities,
                 namespace=self.config.namespace,
                 cluster=self.config.cluster
             )
