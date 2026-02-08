@@ -683,7 +683,7 @@ class FlowCOrchestrator:
             ticket_data = {
                 "plan_id": context.plan_id,
                 "task_type": task.get("type", "code_generation"),
-                "required_capabilities": task.get("capabilities", ["python", "fastapi"]),
+                "required_capabilities": task.get("required_capabilities", task.get("capabilities", ["python", "read", "write", "compute", "code"])),
                 "payload": {
                     "template_id": task.get("template_id", "default_template"),
                     "parameters": task.get("parameters", {}),

@@ -33,7 +33,7 @@ spec:
           MLFLOW_URI = "http://mlflow.mlflow.svc.cluster.local:5000"
           SPECIALIST_TYPE = "business"
 
-          print(f"=== Retraining {SPECIALIST_TYPE} model ===")
+          print(f"=== Retraining {SPECIALIST_TYPE} model with balanced data ===")
 
           # Connect to MongoDB
           client = pymongo.MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
@@ -48,36 +48,36 @@ spec:
           # Get opinions with feedback
           opinion_ids = [f["opinion_id"] for f in feedbacks]
           opinions = list(opinions_col.find({"opinion_id": {"$in": opinion_ids}}))
-          print(f"Found {len(opinions)} matching opinions")
+          opinions_dict = {o["opinion_id"]: o for o in opinions}
+          print(f"Found {len(opinions_dict)} matching opinions")
 
           # Build training dataset from feedbacks
           training_data = []
           for fb in feedbacks:
               opinion_id = fb["opinion_id"]
-              opinion = next((o for o in opinions if o["opinion_id"] == opinion_id), None)
+              opinion = opinions_dict.get(opinion_id)
               if not opinion:
                   continue
 
               opinion_data = opinion.get("opinion", {})
               conf = opinion_data.get("confidence_score", 0.5)
               risk = opinion_data.get("risk_score", 0.5)
+              rec = opinion_data.get("recommendation", "review_required")
 
               # Features
-              rec = opinion_data.get("recommendation", "review_required")
               features = {
                   "confidence_score": conf,
                   "risk_score": risk,
                   "opinion_rec_approve": 1 if rec == "approve" else 0,
                   "opinion_rec_reject": 1 if rec == "reject" else 0,
                   "opinion_rec_review": 1 if rec == "review_required" else 0,
+                  "opinion_rec_conditional": 1 if rec == "conditional" else 0,
+                  "human_rating": fb.get("human_rating", 0.5),
               }
 
               # Label from human feedback (1=approve, 0=other)
               human_rec = fb.get("human_recommendation", "review_required")
-              label = 1 if human_rec == "approve" else 0
-
-              # Also include confidence rating as a feature
-              features["human_rating"] = fb.get("human_rating", 0.5)
+              label = 1 if human_rec == "approve" else (2 if human_rec == "reject" else 0)
 
               training_data.append({**features, "label": label})
 
@@ -85,57 +85,29 @@ spec:
 
           # Check class distribution
           df = pd.DataFrame(training_data)
-          pos_count = (df["label"] == 1).sum()
-          neg_count = (df["label"] == 0).sum()
-          print(f"Label distribution: approve={pos_count}, other={neg_count}")
+          label_dist = df["label"].value_counts().sort_index()
+          print(f"Label distribution: {dict(label_dist)}")
 
-          # If no positive samples, create a balanced dataset by using the model's original recommendation
-          if pos_count < 10:
-              print(f"WARNING: Only {pos_count} positive samples. Augmenting with model recommendations...")
-              # Add samples where model recommendation was approve with high confidence
-              for fb in feedbacks:
-                  if pos_count >= 50:
-                      break
-                  opinion_id = fb["opinion_id"]
-                  opinion = next((o for o in opinions if o["opinion_id"] == opinion_id), None)
-                  if not opinion:
-                      continue
+          # Map labels: 0=review, 1=approve, 2=reject
+          label_names = {0: "review", 1: "approve", 2: "reject"}
 
-                  opinion_data = opinion.get("opinion", {})
-                  conf = opinion_data.get("confidence_score", 0.5)
-                  risk = opinion_data.get("risk_score", 0.5)
-                  rec = opinion_data.get("recommendation", "review_required")
+          # For binary classification: approve vs not-approve
+          df_y_binary = (df["label"] == 1).astype(int)
+          print(f"Binary distribution: approve={df_y_binary.sum()}, not_approve={len(df_y_binary) - df_y_binary.sum()}")
 
-                  # Add as positive sample if model was confident and recommended approve
-                  if rec == "approve" and conf > 0.6:
-                      features = {
-                          "confidence_score": conf,
-                          "risk_score": risk,
-                          "opinion_rec_approve": 1,
-                          "opinion_rec_reject": 0,
-                          "opinion_rec_review": 0,
-                          "human_rating": conf,
-                          "label": 1
-                      }
-                      training_data.append(features)
-                      pos_count += 1
-
-              df = pd.DataFrame(training_data)
-              print(f"After augmentation: {len(df)} samples, positive: {(df['label']==1).sum()}")
-
-          if len(df) < 50:
+          if len(df) < 100:
               print("ERROR: Not enough training data!")
               sys.exit(1)
 
-          # Features and labels
-          X = df[["confidence_score", "risk_score", "opinion_rec_approve", "opinion_rec_reject", "opinion_rec_review", "human_rating"]]
-          y = df["label"]
+          # Features
+          X = df[["confidence_score", "risk_score", "opinion_rec_approve", "opinion_rec_reject", "opinion_rec_review", "opinion_rec_conditional", "human_rating"]]
+          y = df_y_binary
 
           # Split data
           X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
           print(f"Train size: {len(X_train)}, Test size: {len(X_test)}")
-          print(f"Positive class ratio in train: {y_train.mean():.2f}")
+          print(f"Positive ratio in train: {y_train.mean():.2f}")
 
           # Configure MLflow
           mlflow.set_tracking_uri(MLFLOW_URI)
@@ -150,6 +122,7 @@ spec:
               mlflow.log_param("test_samples", len(X_test))
               mlflow.log_param("feedback_count", len(feedbacks))
               mlflow.log_param("model_type", "random_forest")
+              mlflow.log_param("positive_ratio", float(y_train.mean()))
 
               # Train model
               print("Training Random Forest...")
@@ -164,10 +137,7 @@ spec:
 
               # Predictions
               y_pred = model.predict(X_test)
-
-              # Check number of classes
-              n_classes = len(model.classes_)
-              print(f"Model has {n_classes} classes: {model.classes_}")
+              y_proba = model.predict_proba(X_test)[:, 1]
 
               # Metrics
               accuracy = accuracy_score(y_test, y_pred)
@@ -191,17 +161,17 @@ spec:
               mlflow.log_metric("recall", recall)
               mlflow.log_metric("f1", f1)
 
-              # Log model
-              mlflow.sklearn.log_model(model, "model", registered_model_name=f"{SPECIALIST_TYPE}_model")
-
               # Feature importances
               importances = dict(zip(X.columns, model.feature_importances_.tolist()))
               mlflow.log_dict(importances, "feature_importances.json")
               print(f"\\nFeature Importances: {importances}")
 
+              # Log model (without registration to avoid 404)
+              mlflow.sklearn.log_model(model, "model")
+
               print(f"\\n=== Training Complete ===")
-              print(f"Model registered as: {SPECIALIST_TYPE}_model")
               print(f"Run ID: {mlflow.active_run().info.run_id}")
+              print(f"Model artifacts saved in MLflow")
 
           print("\\n=== SUCCESS ===")
         env:

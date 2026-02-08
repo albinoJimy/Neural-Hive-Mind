@@ -1,0 +1,87 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: correlation-analysis
+  namespace: neural-hive
+spec:
+  template:
+    spec:
+      containers:
+      - name: analyzer
+        image: python:3.11-slim
+        command: ["sh", "-c"]
+        args:
+        - |
+          pip install pymongo pandas numpy scipy -q &&
+          python3 << 'PYEOF'
+          import pymongo
+          import numpy as np
+          import pandas as pd
+          from scipy.stats import pointbiserialr
+
+          MONGO_URI = "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+          client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+          db = client.neural_hive
+          opinions_col = db.specialist_opinions
+          feedback_col = db.specialist_feedback
+          plans_col = db.cognitive_ledger
+
+          print("=== Correlation Analysis ===")
+          print()
+
+          feedbacks = list(feedback_col.find({"specialist_type": "business"}))
+          print("Feedbacks: %d" % len(feedbacks))
+
+          opinion_ids = [f["opinion_id"] for f in feedbacks]
+          opinions = list(opinions_col.find({"opinion_id": {"$in": opinion_ids}}))
+          opinions_dict = {o["opinion_id"]: o for o in opinions}
+
+          plan_ids = [o.get("plan_id") for o in opinions if o.get("plan_id")]
+          plans = list(plans_col.find({"plan_id": {"$in": plan_ids}}))
+          plans_dict = {p["plan_id"]: p for p in plans}
+
+          data = []
+          for fb in feedbacks:
+              opinion_id = fb["opinion_id"]
+              opinion = opinions_dict.get(opinion_id)
+              if not opinion:
+                  continue
+
+              opinion_data = opinion.get("opinion", {})
+              plan_id = opinion.get("plan_id")
+              plan = plans_dict.get(plan_id, {})
+
+              row = {
+                  "label": 1 if fb.get("human_recommendation") == "approve" else 0,
+                  "confidence": opinion_data.get("confidence_score", 0.5),
+                  "risk": opinion_data.get("risk_score", 0.5),
+                  "plan_complexity": plan.get("complexity_score", 0.5),
+                  "plan_risk": plan.get("risk_score", 0.5),
+                  "num_tasks": len(plan.get("tasks", [])),
+                  "is_high_priority": 1 if plan.get("original_priority") in ["high", "critical"] else 0,
+              }
+              data.append(row)
+
+          df = pd.DataFrame(data)
+          print("Dataset: %d (approve: %d)" % (len(df), df["label"].sum()))
+
+          # Correlation
+          print()
+          print("=== Correlation with Label ===")
+          for col in ["confidence", "risk", "plan_complexity", "plan_risk", "num_tasks", "is_high_priority"]:
+              corr, pval = pointbiserialr(df[col], df["label"])
+              print("  %s: %+.4f (p=%.4f)" % (col, corr, pval))
+
+          # Distribution
+          print()
+          print("=== Distribution by Label ===")
+          for col in ["confidence", "risk", "plan_complexity", "plan_risk"]:
+              approve_mean = df[df["label"] == 1][col].mean()
+              reject_mean = df[df["label"] == 0][col].mean()
+              diff = approve_mean - reject_mean
+              print("  %s: approve=%.3f, reject=%.3f, diff=%+.3f" % (col, approve_mean, reject_mean, diff))
+          PYEOF
+        env:
+        - name: MONGODB_URI
+          value: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+      restartPolicy: Never

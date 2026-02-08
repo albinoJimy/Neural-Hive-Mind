@@ -1,0 +1,42 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: check-feedback-distribution
+  namespace: neural-hive
+spec:
+  template:
+    spec:
+      containers:
+      - name: checker
+        image: python:3.11-slim
+        command: ["python3", "-c"]
+        args:
+        - |
+          import subprocess, sys
+          subprocess.check_call([sys.executable, "-m", "pip", "install", "pymongo", "-q"])
+
+          from pymongo import MongoClient
+          client = MongoClient("mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin", serverSelectionTimeoutMS=5000)
+          db = client.neural_hive
+          fb = db.specialist_feedback
+
+          print("=== Global Feedback Distribution ===")
+          total = fb.count_documents({})
+          print(f"Total: {total}")
+
+          # By recommendation
+          by_rec = list(fb.aggregate([{"$group": {"_id": "$human_recommendation", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}]))
+          print("\nBy recommendation:")
+          for x in by_rec:
+              pct = (x["count"] / total * 100) if total > 0 else 0
+              print(f"  {x['_id']}: {x['count']} ({pct:.1f}%)")
+
+          # By specialist
+          by_spec = list(fb.aggregate([{"$group": {"_id": "$specialist_type", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}]))
+          print("\nBy specialist:")
+          for x in by_spec:
+              print(f"  {x['_id']}: {x['count']}")
+        env:
+        - name: MONGODB_URI
+          value: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+      restartPolicy: Never
