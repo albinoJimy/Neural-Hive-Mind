@@ -213,6 +213,14 @@ class ServiceRegistryClient:
     async def register(self) -> str:
         """Registrar Worker Agent no Service Registry"""
         try:
+            # Telemetria inicial para garantir status HEALTHY
+            initial_telemetry = service_registry_pb2.AgentTelemetry(
+                success_rate=1.0,  # Worker inicia com sucesso total
+                avg_duration_ms=0,
+                total_executions=0,
+                failed_executions=0
+            )
+
             request = service_registry_pb2.RegisterRequest(
                 agent_type=service_registry_pb2.WORKER,
                 capabilities=self.config.capabilities,
@@ -224,7 +232,8 @@ class ServiceRegistryClient:
                 },
                 namespace=self.config.namespace,
                 cluster=self.config.cluster,
-                version=self.config.service_version
+                version=self.config.service_version,
+                telemetry=initial_telemetry
             )
 
             # Obter metadata com JWT-SVID
