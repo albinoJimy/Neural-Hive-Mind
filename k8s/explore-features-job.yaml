@@ -1,0 +1,70 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: explore-features
+  namespace: neural-hive
+spec:
+  template:
+    spec:
+      containers:
+      - name: explorer
+        image: python:3.11-slim
+        command: ["python3", "-c"]
+        args:
+        - |
+          import sys, subprocess
+          subprocess.check_call([sys.executable, "-m", "pip", "install", "pymongo", "-q"])
+
+          from pymongo import MongoClient
+          from collections import Counter
+          import json
+
+          MONGO_URI = "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+          client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+          db = client.neural_hive
+          opinions_col = db.specialist_opinions
+          feedback_col = db.specialist_feedback
+
+          print("=== Exploring Available Features ===\\n")
+
+          # Get sample opinions
+          opinions = list(opinions_col.find({}).limit(10))
+          print(f"Sample opinions: {len(opinions)}")
+
+          if opinions:
+              # Get all unique keys from opinions
+              all_keys = set()
+              for op in opinions:
+                  all_keys.update(op.keys())
+                  # Also check nested structures
+                  if "opinion" in op:
+                      all_keys.update(op["opinion"].keys())
+                  if "plan_context" in op:
+                      all_keys.update(op["plan_context"].keys())
+
+              print(f"\\nAvailable keys in opinions:")
+              for key in sorted(all_keys):
+                  print(f"  - {key}")
+
+              # Detailed sample
+              print(f"\\n=== Sample Opinion Structure ===")
+              sample = opinions[0]
+              print(json.dumps(sample, indent=2, default=str)[:2000])
+
+          # Check plans collection
+          print(f"\\n=== Checking Plans Collection ===")
+          collections = db.list_collection_names()
+          print(f"Collections: {collections}")
+
+          if "plans" in collections or "cognitive_ledger" in collections:
+              plans_col = db.get_collection("plans") if "plans" in collections else db.get_collection("cognitive_ledger")
+              plan_count = plans_col.count_documents({})
+              print(f"Plans count: {plan_count}")
+
+              if plan_count > 0:
+                  sample_plan = plans_col.find_one({})
+                  print(f"\\nSample plan keys: {list(sample_plan.keys()) if sample_plan else 'None'}")
+        env:
+        - name: MONGODB_URI
+          value: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+      restartPolicy: Never

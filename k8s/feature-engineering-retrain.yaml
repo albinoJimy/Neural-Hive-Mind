@@ -1,0 +1,268 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: feature-engineering-retrain
+  namespace: neural-hive
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      containers:
+      - name: trainer
+        image: python:3.11-slim
+        command: ["python3", "-c"]
+        args:
+        - |
+          import sys, subprocess
+          from datetime import datetime
+          from collections import defaultdict
+
+          subprocess.check_call([sys.executable, "-m", "pip", "install", "pymongo", "scikit-learn", "pandas", "numpy", "mlflow", "-q"])
+
+          import pymongo
+          import numpy as np
+          import pandas as pd
+          from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+          from sklearn.model_selection import train_test_split, cross_val_score
+          from sklearn.metrics import classification_report, roc_auc_score
+          from sklearn.preprocessing import StandardScaler
+          import mlflow
+          import mlflow.sklearn
+
+          MONGO_URI = "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+          MLFLOW_URI = "http://mlflow.mlflow.svc.cluster.local:5000"
+          SPECIALIST_TYPE = "business"
+
+          print(f"=== Feature Engineering + Retraining {SPECIALIST_TYPE} ===")
+
+          client = pymongo.MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+          db = client.neural_hive
+          opinions_col = db.specialist_opinions
+          feedback_col = db.specialist_feedback
+          plans_col = db.cognitive_ledger
+
+          # Get feedbacks
+          feedbacks = list(feedback_col.find({"specialist_type": SPECIALIST_TYPE}))
+          print(f"Feedbacks: {len(feedbacks)}")
+
+          # Get opinions and build lookup
+          opinion_ids = [f["opinion_id"] for f in feedbacks]
+          opinions = list(opinions_col.find({"opinion_id": {"$in": opinion_ids}}))
+          opinions_dict = {o["opinion_id"]: o for o in opinions}
+
+          # Get plans and build lookup
+          plan_ids = [o.get("plan_id") for o in opinions if o.get("plan_id")]
+          plans = list(plans_col.find({"plan_id": {"$in": plan_ids}}))
+          plans_dict = {p["plan_id"]: p for p in plans}
+          print(f"Plans found: {len(plans_dict)}")
+
+          # Extract reasoning factors
+          reasoning_factors_data = {}
+          for op in opinions:
+              oid = op["opinion_id"]
+              factors = op.get("opinion", {}).get("reasoning_factors", [])
+              for f in factors:
+                  reasoning_factors_data[(oid, f["factor_name"])] = {
+                      "weight": f.get("weight", 0),
+                      "score": f.get("score", 0)
+                  }
+
+          # Build enhanced dataset with engineered features
+          training_data = []
+          for fb in feedbacks:
+              opinion_id = fb["opinion_id"]
+              opinion = opinions_dict.get(opinion_id)
+              if not opinion:
+                  continue
+
+              opinion_data = opinion.get("opinion", {})
+              plan_id = opinion.get("plan_id")
+              plan = plans_dict.get(plan_id, {})
+
+              # ===== BASE FEATURES =====
+              conf = opinion_data.get("confidence_score", 0.5)
+              risk = opinion_data.get("risk_score", 0.5)
+              rec = opinion_data.get("recommendation", "review_required")
+
+              # ===== REASONING FACTORS (extracted scores) =====
+              # Get individual factor scores
+              factor_scores = {}
+              for factor_name in ["ml_confidence", "ml_risk", "semantic_quality_analysis",
+                                   "complexity_evaluation", "kpi_alignment", "cost_effectiveness"]:
+                  key = (opinion_id, factor_name)
+                  if key in reasoning_factors_data:
+                      factor_scores[f"{factor_name}_score"] = reasoning_factors_data[key]["score"]
+                      factor_scores[f"{factor_name}_weight"] = reasoning_factors_data[key]["weight"]
+                  else:
+                      factor_scores[f"{factor_name}_score"] = 0.5
+                      factor_scores[f"{factor_name}_weight"] = 0.0
+
+              # ===== PLAN FEATURES =====
+              complexity_score = plan.get("complexity_score", 0.5)
+              plan_risk_score = plan.get("risk_score", 0.5)
+              estimated_duration = plan.get("estimated_total_duration_ms", 0)
+              original_domain = plan.get("original_domain", "UNKNOWN")
+              original_priority = plan.get("original_priority", "normal")
+
+              # Task-related features
+              tasks = plan.get("tasks", [])
+              num_tasks = len(tasks)
+              task_types = set()
+              for t in tasks:
+                  tt = t.get("task_type", "unknown")
+                  task_types.add(tt)
+
+              # ===== DERIVED FEATURES =====
+              # High complexity flag
+              is_complex = 1 if complexity_score > 0.6 else 0
+
+              # High risk flag
+              is_high_risk = 1 if plan_risk_score > 0.6 else 0
+
+              # Domain encoding (one-hot style)
+              is_security = 1 if original_domain == "SECURITY" else 0
+              is_performance = 1 if original_domain == "PERFORMANCE" else 0
+              is_feature = 1 if original_domain == "FEATURE" else 0
+              is_bugfix = 1 if original_domain == "BUGFIX" else 0
+
+              # Priority encoding
+              is_high_priority = 1 if original_priority == "high" or original_priority == "critical" else 0
+
+              # Duration category
+              is_long_running = 1 if estimated_duration > 5000 else 0
+
+              # Model recommendation encoding
+              model_rec_approve = 1 if rec == "approve" else 0
+              model_rec_reject = 1 if rec == "reject" else 0
+              model_rec_review = 1 if rec == "review_required" else 0
+
+              # ===== COMBINED FEATURES =====
+              features = {
+                  # Base
+                  "confidence_score": conf,
+                  "risk_score": risk,
+                  # Model rec
+                  "model_rec_approve": model_rec_approve,
+                  "model_rec_reject": model_rec_reject,
+                  "model_rec_review": model_rec_review,
+                  # Plan features
+                  "plan_complexity": complexity_score,
+                  "plan_risk": plan_risk_score,
+                  "num_tasks": num_tasks,
+                  "estimated_duration_log": np.log1p(estimated_duration),
+                  # Domain flags
+                  "is_security": is_security,
+                  "is_performance": is_performance,
+                  "is_feature": is_feature,
+                  "is_bugfix": is_bugfix,
+                  # Flags
+                  "is_complex": is_complex,
+                  "is_high_risk": is_high_risk,
+                  "is_high_priority": is_high_priority,
+                  "is_long_running": is_long_running,
+                  # Reasoning factor scores
+                  "ml_conf_score": factor_scores.get("ml_confidence_score", 0.5),
+                  "ml_risk_score": factor_scores.get("ml_risk_score", 0.5),
+                  "semantic_quality": factor_scores.get("semantic_quality_analysis_score", 0.5),
+                  "complexity_eval": factor_scores.get("complexity_evaluation_score", 0.5),
+                  "kpi_align": factor_scores.get("kpi_alignment_score", 0.5),
+              }
+
+              # Label from human feedback
+              human_rec = fb.get("human_recommendation", "review_required")
+              label = 1 if human_rec == "approve" else 0
+
+              training_data.append({**features, "label": label})
+
+          df = pd.DataFrame(training_data)
+          print(f"Dataset size: {len(df)}")
+          print(f"Features: {len(df.columns) - 1}")
+
+          # Feature columns
+          feature_cols = [c for c in df.columns if c != "label"]
+          X = df[feature_cols]
+          y = df["label"]
+
+          print(f"Positive ratio: {y.mean():.3f}")
+
+          # Split
+          X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+          print(f"Train: {len(X_train)}, Test: {len(X_test)}")
+
+          # Scale features
+          scaler = StandardScaler()
+          X_train_scaled = scaler.fit_transform(X_train)
+          X_test_scaled = scaler.transform(X_test)
+
+          # MLflow
+          mlflow.set_tracking_uri(MLFLOW_URI)
+          mlflow.set_experiment(f"specialist-{SPECIALIST_TYPE}-retraining")
+
+          with mlflow.start_run(run_name=f"{SPECIALIST_TYPE}_feat_eng_{datetime.now().strftime('%Y%m%d_%H%M%S')}"):
+              print(f"Run ID: {mlflow.active_run().info.run_id}")
+
+              mlflow.log_param("specialist_type", SPECIALIST_TYPE)
+              mlflow.log_param("samples", len(X_train))
+              mlflow.log_param("features", len(feature_cols))
+              mlflow.log_param("model", "random_forest")
+              mlflow.log_param("feature_engineering", True)
+
+              # Train
+              print("Training Random Forest with engineered features...")
+              model = RandomForestClassifier(
+                  n_estimators=150,
+                  max_depth=12,
+                  min_samples_split=5,
+                  random_state=42,
+                  class_weight="balanced"
+              )
+              model.fit(X_train_scaled, y_train)
+
+              # Predictions
+              y_pred = model.predict(X_test_scaled)
+              y_proba = model.predict_proba(X_test_scaled)[:, 1]
+
+              # Metrics
+              from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+              accuracy = accuracy_score(y_test, y_pred)
+              precision = precision_score(y_test, y_pred, zero_division=0)
+              recall = recall_score(y_test, y_pred, zero_division=0)
+              f1 = f1_score(y_test, y_pred, zero_division=0)
+              auc = roc_auc_score(y_test, y_proba)
+
+              print(f"\\n=== Test Metrics ===")
+              print(f"Accuracy:  {accuracy:.3f}")
+              print(f"Precision: {precision:.3f}")
+              print(f"Recall:    {recall:.3f}")
+              print(f"F1 Score:  {f1:.3f}")
+              print(f"AUC-ROC:   {auc:.3f}")
+
+              print(f"\\nClassification Report:")
+              print(classification_report(y_test, y_pred, zero_division=0))
+
+              # Log metrics
+              mlflow.log_metric("accuracy", accuracy)
+              mlflow.log_metric("precision", precision)
+              mlflow.log_metric("recall", recall)
+              mlflow.log_metric("f1", f1)
+              mlflow.log_metric("auc_roc", auc)
+
+              # Feature importances
+              importances = dict(zip(feature_cols, model.feature_importances_.tolist()))
+              sorted_imp = sorted(importances.items(), key=lambda x: x[1], reverse=True)
+              print(f"\\n=== Top 10 Feature Importances ===")
+              for feat, imp in sorted_imp[:10]:
+                  print(f"  {feat}: {imp:.4f}")
+              mlflow.log_dict(dict(sorted_imp), "feature_importances.json")
+
+              # Save model
+              mlflow.sklearn.log_model(model, "model")
+              print(f"\\nModel saved to MLflow")
+
+          print("\\n=== SUCCESS ===")
+        env:
+        - name: MONGODB_URI
+          value: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+        - name: MLFLOW_TRACKING_URI
+          value: "http://mlflow.mlflow.svc.cluster.local:5000"
+      restartPolicy: Never

@@ -1,0 +1,83 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: explore-features-detailed
+  namespace: neural-hive
+spec:
+  template:
+    spec:
+      containers:
+      - name: explorer
+        image: python:3.11-slim
+        command: ["python3", "-c"]
+        args:
+        - |
+          import sys, subprocess
+          subprocess.check_call([sys.executable, "-m", "pip", "install", "pymongo", "-q"])
+
+          from pymongo import MongoClient
+          import json
+
+          MONGO_URI = "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+          client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+          db = client.neural_hive
+          opinions_col = db.specialist_opinions
+          plans_col = db.cognitive_ledger
+
+          print("=== Detailed Feature Analysis ===\\n")
+
+          # 1. Analyze reasoning_factors
+          print("=== Reasoning Factors ===")
+          opinion = opinions_col.find_one({"opinion.reasoning_factors": {"$exists": True}})
+          if opinion and "opinion" in opinion:
+              factors = opinion["opinion"].get("reasoning_factors", [])
+              print(f"Number of factors: {len(factors)}")
+              for f in factors:
+                  print(f"  - {f['factor_name']}: weight={f['weight']}, score={f.get('score', 'N/A')}")
+
+          # 2. Analyze plan_data structure
+          print(f"\\n=== Plan Data Structure ===")
+          plan = plans_col.find_one({})
+          if plan and "plan_data" in plan:
+              plan_data = plan["plan_data"]
+              print(f"Plan keys: {list(plan_data.keys())}")
+
+              # Show sample plan_data
+              print(f"\\nSample plan_data:")
+              print(json.dumps(plan_data, indent=2, default=str)[:3000])
+
+          # 3. Count reasoning factors by specialist
+          print(f"\\n=== Reasoning Factors by Specialist ===")
+          pipeline = [
+              {"$group": {"_id": "$specialist_type", "count": {"$sum": 1}}},
+              {"$sort": {"count": -1}}
+          ]
+          by_spec = list(opinions_col.aggregate(pipeline))
+          for s in by_spec:
+              print(f"  {s['_id']}: {s['count']} opinions")
+
+          # 4. Analyze reasoning factors distribution
+          print(f"\\n=== Reasoning Factors Distribution ===")
+          pipeline = [
+              {"$unwind": "$opinion.reasoning_factors"},
+              {"$group": {"_id": "$opinion.reasoning_factors.factor_name", "count": {"$sum": 1}}},
+              {"$sort": {"count": -1}}
+          ]
+          factors_dist = list(opinions_col.aggregate(pipeline))
+          for f in factors_dist:
+              print(f"  {f['_id']}: {f['count']}")
+
+          # 5. Analyze plan features
+          print(f"\\n=== Plan Features ===")
+          if "plan_features" in db.list_collection_names():
+              pf_col = db.plan_features
+              pf_count = pf_col.count_documents({})
+              print(f"Plan features count: {pf_count}")
+
+              if pf_count > 0:
+                  sample_pf = pf_col.find_one({})
+                  print(f"Sample plan features keys: {list(sample_pf.keys()) if sample_pf else 'None'}")
+        env:
+        - name: MONGODB_URI
+          value: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+      restartPolicy: Never
