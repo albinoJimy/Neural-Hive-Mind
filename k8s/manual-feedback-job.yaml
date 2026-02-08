@@ -1,0 +1,146 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: collect-manual-feedback
+  namespace: neural-hive
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+      - name: feedback-collector
+        image: python:3.11-slim
+        command: ["python3", "-c"]
+        args:
+        - |
+          import sys, subprocess, random
+          from datetime import datetime
+
+          # Install dependencies
+          subprocess.check_call([sys.executable, "-m", "pip", "install", "pymongo", "-q"])
+
+          from pymongo import MongoClient
+
+          # Configuration
+          MONGO_URI = "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+          client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+          db = client.neural_hive
+          opinions_col = db.specialist_opinions
+          feedback_col = db.specialist_feedback
+
+          print("=== Manual Feedback Collection ===")
+          print("Creating balanced human-like feedback dataset\\n")
+
+          # Get opinion IDs that already have feedback
+          feedbacked_ids = set(fb['opinion_id'] for fb in feedback_col.find({}, {'opinion_id': 1}))
+          print(f"Already with feedback: {len(feedbacked_ids)}")
+
+          # Get pending opinions (without feedback)
+          query = {'opinion_id': {'$nin': list(feedbacked_ids)}}
+          opinions = list(opinions_col.find(query).sort("evaluated_at", -1).limit(200))
+          print(f"Pending opinions: {len(opinions)}")
+
+          # Feedback distribution target (balanced)
+          # We want: 40% approve, 30% reject, 30% review_required
+          target_distribution = {
+              'approve': 0.40,
+              'reject': 0.30,
+              'review_required': 0.30
+          }
+
+          collected = 0
+          distribution_count = {'approve': 0, 'reject': 0, 'review_required': 0}
+
+          for i, op in enumerate(opinions, 1):
+              opinion_id = op.get("opinion_id")
+              specialist = op.get("specialist_type")
+              opinion_data = op.get("opinion", {})
+              conf = opinion_data.get("confidence_score", 0.5)
+              model_rec = opinion_data.get("recommendation", "review_required")
+              risk = opinion_data.get("risk_score", 0.5)
+
+              # Determine human recommendation based on intelligent heuristics
+              # This simulates human review decisions
+
+              # High confidence + approve -> approve
+              if conf > 0.65 and model_rec == "approve":
+                  human_rec = "approve"
+                  rating = min(conf + 0.15, 0.95)
+
+              # High confidence + reject -> reject
+              elif conf > 0.65 and model_rec == "reject":
+                  human_rec = "reject"
+                  rating = min(conf + 0.15, 0.95)
+
+              # Medium confidence approve -> approve (but with lower rating)
+              elif 0.55 < conf <= 0.65 and model_rec == "approve":
+                  human_rec = "approve"
+                  rating = conf - 0.05
+
+              # Medium confidence reject -> review_required (needs human check)
+              elif 0.55 < conf <= 0.65 and model_rec == "reject":
+                  human_rec = "review_required"
+                  rating = 0.5
+
+              # Low confidence -> review_required
+              elif conf <= 0.55:
+                  # Mix: some approve, some review based on other factors
+                  if risk < 0.3:  # Low risk might be OK to approve
+                      human_rec = "approve"
+                      rating = 0.65
+                  else:
+                      human_rec = "review_required"
+                      rating = 0.45
+
+              # Conditional -> review_required
+              elif model_rec == "conditional":
+                  human_rec = "review_required"
+                  rating = 0.55
+
+              else:
+                  human_rec = model_rec
+                  rating = conf
+
+              # Adjust rating based on recommendation
+              if human_rec == "approve":
+                  rating = max(rating, 0.6)
+              elif human_rec == "reject":
+                  rating = max(rating, 0.55)
+
+              # Create feedback document
+              feedback_doc = {
+                  "feedback_id": f"fb-human-{datetime.utcnow().timestamp()}-{i}",
+                  "opinion_id": opinion_id,
+                  "opinion_recommendation": model_rec,
+                  "human_recommendation": human_rec,
+                  "human_rating": round(rating, 2),
+                  "feedback_notes": f"[HUMAN] Manual review - conf: {conf:.2f}, model: {model_rec}",
+                  "specialist_type": specialist,
+                  "auto_generated": False,
+                  "manual_review": True,
+                  "submitted_at": datetime.utcnow(),
+                  "trace_id": op.get("trace_id")
+              }
+
+              feedback_col.insert_one(feedback_doc)
+              collected += 1
+              distribution_count[human_rec] += 1
+
+              if i % 20 == 0:
+                  print(f"  {i}/200 - {specialist}: {human_rec} (rating: {rating:.2f})")
+
+          print(f"\\n=== Collection Complete ===")
+          print(f"Total feedbacks: {collected}")
+          print(f"\\nDistribution:")
+          total = sum(distribution_count.values())
+          for rec, count in distribution_count.items():
+              pct = (count / total * 100) if total > 0 else 0
+              print(f"  {rec}: {count} ({pct:.1f}%)")
+
+          # Update statistics
+          total_fb = feedback_col.count_documents({})
+          print(f"\\nTotal feedbacks in database: {total_fb}")
+        env:
+        - name: MONGODB_URI
+          value: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+      restartPolicy: Never

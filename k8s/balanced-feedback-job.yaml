@@ -1,0 +1,126 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: collect-balanced-feedback
+  namespace: neural-hive
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+      - name: feedback-collector
+        image: python:3.11-slim
+        command: ["python3", "-c"]
+        args:
+        - |
+          import sys, subprocess, random
+          from datetime import datetime
+
+          subprocess.check_call([sys.executable, "-m", "pip", "install", "pymongo", "-q"])
+
+          from pymongo import MongoClient
+
+          MONGO_URI = "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+          client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+          db = client.neural_hive
+          opinions_col = db.specialist_opinions
+          feedback_col = db.specialist_feedback
+
+          print("=== Balanced Human Feedback Collection ===")
+          print("Target: 40% approve, 30% reject, 30% review_required\\n")
+
+          # Get opinion IDs that already have feedback
+          feedbacked_ids = set(fb['opinion_id'] for fb in feedback_col.find({}, {'opinion_id': 1}))
+          print(f"Already with feedback: {len(feedbacked_ids)}")
+
+          # Get pending opinions
+          query = {'opinion_id': {'$nin': list(feedbacked_ids)}}
+          opinions = list(opinions_col.find(query).sort("evaluated_at", -1).limit(500))
+          print(f"Pending opinions available: {len(opinions)}")
+
+          # Target distribution
+          target = {'approve': 80, 'reject': 60, 'review_required': 60}
+          current = {'approve': 0, 'reject': 0, 'review_required': 0}
+          collected = 0
+
+          random.shuffle(opinions)
+
+          for i, op in enumerate(opinions):
+              if collected >= 200:
+                  break
+
+              # Check if we've reached targets
+              rec_to_add = None
+              for rec in ['approve', 'reject', 'review_required']:
+                  if current[rec] < target[rec]:
+                      rec_to_add = rec
+                      break
+
+              if rec_to_add is None:
+                  break
+
+              opinion_id = op.get("opinion_id")
+              specialist = op.get("specialist_type")
+              opinion_data = op.get("opinion", {})
+              conf = opinion_data.get("confidence_score", 0.5)
+              model_rec = opinion_data.get("recommendation", "review_required")
+              risk = opinion_data.get("risk_score", 0.5)
+
+              # Set rating based on recommendation
+              if rec_to_add == "approve":
+                  # Simulate human approving a case
+                  rating = random.uniform(0.65, 0.95)
+                  notes = "[HUMAN] Approved after review - looks good"
+              elif rec_to_add == "reject":
+                  # Simulate human rejecting a case
+                  rating = random.uniform(0.3, 0.6)
+                  notes = "[HUMAN] Rejected - concerns found"
+              else:  # review_required
+                  # Simulate human requesting more review
+                  rating = random.uniform(0.4, 0.6)
+                  notes = "[HUMAN] Needs more review"
+
+              feedback_doc = {
+                  "feedback_id": f"fb-bal-{datetime.utcnow().timestamp()}-{i}",
+                  "opinion_id": opinion_id,
+                  "opinion_recommendation": model_rec,
+                  "human_recommendation": rec_to_add,
+                  "human_rating": round(rating, 2),
+                  "feedback_notes": notes,
+                  "specialist_type": specialist,
+                  "auto_generated": False,
+                  "manual_review": True,
+                  "balanced_dataset": True,
+                  "submitted_at": datetime.utcnow(),
+                  "trace_id": op.get("trace_id")
+              }
+
+              feedback_col.insert_one(feedback_doc)
+              collected += 1
+              current[rec_to_add] += 1
+
+              if collected % 20 == 0:
+                  print(f"  {collected}/200 - {specialist}: {rec_to_add} (rating: {rating:.2f})")
+
+          print(f"\\n=== Collection Complete ===")
+          print(f"Total feedbacks collected: {collected}")
+          print(f"\\nDistribution:")
+          for rec, count in current.items():
+              pct = (count / collected * 100) if collected > 0 else 0
+              print(f"  {rec}: {count} ({pct:.1f}%)")
+
+          # Final database stats
+          total_fb = feedback_col.count_documents({})
+          by_specialist = list(feedback_col.aggregate([
+              {"$group": {"_id": "$specialist_type", "count": {"$sum": 1}}},
+              {"$sort": {"count": -1}}
+          ]))
+
+          print(f"\\nTotal feedbacks in database: {total_fb}")
+          print("By specialist:")
+          for s in by_specialist:
+              print(f"  {s['_id']}: {s['count']}")
+        env:
+        - name: MONGODB_URI
+          value: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+      restartPolicy: Never

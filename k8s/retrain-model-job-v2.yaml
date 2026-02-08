@@ -1,0 +1,169 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: retrain-business-model-v2
+  namespace: neural-hive
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      containers:
+      - name: trainer
+        image: python:3.11-slim
+        command: ["python3", "-c"]
+        args:
+        - |
+          import sys, subprocess, os
+          from datetime import datetime
+
+          subprocess.check_call([sys.executable, "-m", "pip", "install", "pymongo", "scikit-learn", "pandas", "numpy", "mlflow", "-q"])
+
+          import pymongo
+          import numpy as np
+          import pandas as pd
+          from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+          from sklearn.model_selection import train_test_split, cross_val_score
+          from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score, classification_report, roc_auc_score
+          import mlflow
+          import mlflow.sklearn
+
+          MONGO_URI = "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+          MLFLOW_URI = "http://mlflow.mlflow.svc.cluster.local:5000"
+          SPECIALIST_TYPE = "business"
+
+          print(f"=== Retraining {SPECIALIST_TYPE} model (V2 - no data leakage) ===")
+
+          client = pymongo.MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+          db = client.neural_hive
+          opinions_col = db.specialist_opinions
+          feedback_col = db.specialist_feedback
+
+          # Get feedbacks
+          feedbacks = list(feedback_col.find({"specialist_type": SPECIALIST_TYPE}))
+          print(f"Feedbacks: {len(feedbacks)}")
+
+          # Get opinions
+          opinion_ids = [f["opinion_id"] for f in feedbacks]
+          opinions = list(opinions_col.find({"opinion_id": {"$in": opinion_ids}}))
+          opinions_dict = {o["opinion_id"]: o for o in opinions}
+
+          # Build training dataset WITHOUT human_rating (data leakage)
+          training_data = []
+          for fb in feedbacks:
+              opinion_id = fb["opinion_id"]
+              opinion = opinions_dict.get(opinion_id)
+              if not opinion:
+                  continue
+
+              opinion_data = opinion.get("opinion", {})
+              conf = opinion_data.get("confidence_score", 0.5)
+              risk = opinion_data.get("risk_score", 0.5)
+              rec = opinion_data.get("recommendation", "review_required")
+
+              # Features from the original model (no human feedback)
+              features = {
+                  "confidence_score": conf,
+                  "risk_score": risk,
+                  "opinion_rec_approve": 1 if rec == "approve" else 0,
+                  "opinion_rec_reject": 1 if rec == "reject" else 0,
+                  "opinion_rec_review": 1 if rec == "review_required" else 0,
+                  "opinion_rec_conditional": 1 if rec == "conditional" else 0,
+              }
+
+              # Label from human feedback
+              human_rec = fb.get("human_recommendation", "review_required")
+              label = 1 if human_rec == "approve" else 0
+
+              training_data.append({**features, "label": label})
+
+          df = pd.DataFrame(training_data)
+          print(f"Dataset size: {len(df)}")
+
+          # Features (NO human_rating)
+          feature_cols = ["confidence_score", "risk_score", "opinion_rec_approve",
+                          "opinion_rec_reject", "opinion_rec_review", "opinion_rec_conditional"]
+          X = df[feature_cols]
+          y = df["label"]
+
+          print(f"Positive ratio: {y.mean():.3f}")
+
+          if len(df) < 100:
+              print("ERROR: Not enough data!")
+              sys.exit(1)
+
+          # Split
+          X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+          print(f"Train: {len(X_train)}, Test: {len(X_test)}")
+
+          # MLflow
+          mlflow.set_tracking_uri(MLFLOW_URI)
+          mlflow.set_experiment(f"specialist-{SPECIALIST_TYPE}-retraining")
+
+          with mlflow.start_run(run_name=f"{SPECIALIST_TYPE}_v2_{datetime.now().strftime('%Y%m%d_%H%M%S')}"):
+              print(f"Run ID: {mlflow.active_run().info.run_id}")
+
+              mlflow.log_param("specialist_type", SPECIALIST_TYPE)
+              mlflow.log_param("samples", len(X_train))
+              mlflow.log_param("model", "gradient_boosting")
+              mlflow.log_param("positive_ratio", float(y.mean()))
+
+              # Try Gradient Boosting for better performance
+              print("Training Gradient Boosting...")
+              model = GradientBoostingClassifier(
+                  n_estimators=100,
+                  max_depth=5,
+                  learning_rate=0.1,
+                  random_state=42
+              )
+              model.fit(X_train, y_train)
+
+              # Predictions
+              y_pred = model.predict(X_test)
+              y_proba = model.predict_proba(X_test)[:, 1]
+
+              # Cross-validation
+              cv_scores = cross_val_score(model, X_train, y_train, cv=5, scoring='f1')
+              print(f"CV F1 scores: {cv_scores}")
+              print(f"Mean CV F1: {cv_scores.mean():.3f}")
+
+              # Metrics
+              accuracy = accuracy_score(y_test, y_pred)
+              precision = precision_score(y_test, y_pred, zero_division=0)
+              recall = recall_score(y_test, y_pred, zero_division=0)
+              f1 = f1_score(y_test, y_pred, zero_division=0)
+              auc = roc_auc_score(y_test, y_proba)
+
+              print(f"\\n=== Test Metrics ===")
+              print(f"Accuracy:  {accuracy:.3f}")
+              print(f"Precision: {precision:.3f}")
+              print(f"Recall:    {recall:.3f}")
+              print(f"F1 Score:  {f1:.3f}")
+              print(f"AUC-ROC:   {auc:.3f}")
+
+              print(f"\\nClassification Report:")
+              print(classification_report(y_test, y_pred, zero_division=0))
+
+              # Log metrics
+              mlflow.log_metric("accuracy", accuracy)
+              mlflow.log_metric("precision", precision)
+              mlflow.log_metric("recall", recall)
+              mlflow.log_metric("f1", f1)
+              mlflow.log_metric("auc_roc", auc)
+              mlflow.log_metric("cv_f1_mean", cv_scores.mean())
+
+              # Feature importances
+              importances = dict(zip(X.columns, model.feature_importances_.tolist()))
+              mlflow.log_dict(importances, "feature_importances.json")
+              print(f"\\nFeature Importances: {importances}")
+
+              # Save model
+              mlflow.sklearn.log_model(model, "model")
+              print(f"\\nModel saved to MLflow")
+
+          print("\\n=== SUCCESS ===")
+        env:
+        - name: MONGODB_URI
+          value: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+        - name: MLFLOW_TRACKING_URI
+          value: "http://mlflow.mlflow.svc.cluster.local:5000"
+      restartPolicy: Never
