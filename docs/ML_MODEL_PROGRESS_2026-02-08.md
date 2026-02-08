@@ -53,8 +53,26 @@ Todos os 5 especialistas têm modelos ML implantados e fazendo predições corre
 **Status:**
 - ✅ Pipeline de treinamento implementado
 - ✅ Sistema de feedback implementado
-- ❌ Approval-service não implantado
-- ❌ Sem feedback humano coletado (0 registros)
+- ✅ **Serviço de coleta implantado** (feedback-collection-service)
+- ⏳ Coleta de feedback em andamento
+
+## Serviço de Coleta de Feedback
+
+**Implantado:** 2026-02-08
+
+| Endpoint | Método | Descrição |
+|----------|--------|-----------|
+| `/health` | GET | Health check |
+| `/api/v1/feedback/stats` | GET | Estatísticas |
+| `/api/v1/opinions/pending` | GET | Listar pendentes |
+| `/api/v1/feedback` | POST | Submeter feedback |
+
+**Acesso Externo:** `http://37.60.241.150:30080`
+
+**Estatísticas (2026-02-08 14:45):**
+- Opiniões totais: 4490
+- Com feedback: **1**
+- Pendentes: 4489
 
 ## Plano de Ação
 
