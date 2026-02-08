@@ -15,6 +15,8 @@ from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
 from .config import SpecialistConfig
+# Import sklearn compatibility patch
+from .sklearn_compat import patch_model_after_loading
 
 logger = structlog.get_logger()
 
@@ -23,8 +25,7 @@ def _patch_sklearn_compatibility(model: Any) -> Any:
     """
     Patch sklearn models for cross-version compatibility.
 
-    Handles common compatibility issues between sklearn versions,
-    particularly the monotonic_cst attribute added in sklearn 1.4+.
+    Uses the enhanced sklearn_compat module to handle sklearn version issues.
 
     Args:
         model: Loaded model (pyfunc wrapper or raw sklearn model)
@@ -32,68 +33,7 @@ def _patch_sklearn_compatibility(model: Any) -> Any:
     Returns:
         Patched model
     """
-    try:
-        # Get the underlying sklearn model from pyfunc wrapper if needed
-        sklearn_model = None
-        if hasattr(model, "_model_impl"):
-            # MLflow pyfunc wrapper
-            sklearn_model = getattr(model._model_impl, "sklearn_model", None)
-        elif hasattr(model, "predict"):
-            # Direct sklearn model
-            sklearn_model = model
-
-        if sklearn_model is None:
-            return model
-
-        # Patch DecisionTreeClassifier and related tree-based models
-        tree_classes = (
-            "DecisionTreeClassifier",
-            "DecisionTreeRegressor",
-            "ExtraTreeClassifier",
-            "ExtraTreeRegressor",
-        )
-
-        # Check if model has tree estimators (e.g., RandomForest, GradientBoosting)
-        models_to_patch = []
-
-        # Single tree model
-        if type(sklearn_model).__name__ in tree_classes:
-            models_to_patch.append(sklearn_model)
-
-        # Ensemble with estimators_
-        if hasattr(sklearn_model, "estimators_"):
-            for estimator in sklearn_model.estimators_:
-                if hasattr(estimator, "tree_"):
-                    models_to_patch.append(estimator)
-                # Handle nested estimators (e.g., BaggingClassifier)
-                if hasattr(estimator, "estimators_"):
-                    models_to_patch.extend(estimator.estimators_)
-
-        # Patch missing monotonic_cst attribute
-        patched_count = 0
-        for tree_model in models_to_patch:
-            if hasattr(tree_model, "tree_") and not hasattr(
-                tree_model, "monotonic_cst"
-            ):
-                # Add missing attribute with default value (no constraints)
-                tree_model.monotonic_cst = None
-                patched_count += 1
-
-        if patched_count > 0:
-            logger.info(
-                "Patched sklearn model for version compatibility",
-                patched_estimators=patched_count,
-                model_type=type(sklearn_model).__name__,
-            )
-
-    except Exception as e:
-        logger.warning(
-            "Failed to patch sklearn model compatibility",
-            error=str(e),
-            error_type=type(e).__name__,
-        )
-
-    return model
+    return patch_model_after_loading(model)
 
 
 class MLflowClient:
