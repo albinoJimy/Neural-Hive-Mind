@@ -1,0 +1,52 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: check-retraining-status
+  namespace: neural-hive
+spec:
+  template:
+    spec:
+      containers:
+      - name: checker
+        image: python:3.11-slim
+        command: ["python3", "-c"]
+        args:
+        - |
+          import sys, subprocess
+          subprocess.check_call([sys.executable, "-m", "pip", "install", "pymongo", "-q"])
+          from pymongo import MongoClient
+
+          uri = "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+          client = MongoClient(uri, serverSelectionTimeoutMS=5000)
+          db = client.neural_hive
+          feedback_col = db.specialist_feedback
+
+          # Contar feedbacks por especialista
+          pipeline = [{"$group": {"_id": "$specialist_type", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}]
+          results = list(feedback_col.aggregate(pipeline))
+
+          print("=== Feedbacks por Especialista ===")
+          total = 0
+          for r in results:
+              specialist = r["_id"]
+              count = r["count"]
+              print(f"  {specialist}: {count}")
+              total += count
+
+          print(f"\nTotal: {total} feedbacks coletados")
+
+          # Verificar threshold de retreinamento
+          threshold = 100
+          print(f"\n=== Status de Retreinamento (threshold={threshold}) ===")
+          ready_count = 0
+          for r in results:
+              specialist = r["_id"]
+              count = r["count"]
+              if count >= threshold:
+                  print(f"  READY {specialist}: {count} >= {threshold}")
+                  ready_count += 1
+              else:
+                  print(f"  WAIT  {specialist}: {count}/{threshold}")
+
+          print(f"\n{ready_count}/{len(results)} especialistas prontos para retreinamento")
+      restartPolicy: Never

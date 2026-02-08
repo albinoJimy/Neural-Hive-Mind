@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: specialist-retraining
+  namespace: neural-hive
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      containers:
+      - name: mlflow-run
+        image: python:3.11-slim
+        command: ["bash", "-c"]
+        args:
+        - |
+          set -e
+          echo "=== Installing MLflow and dependencies ==="
+          pip install mlflow pymongo scikit-learn pandas numpy structlog -q
+
+          echo "=== Running MLflow training for business specialist ==="
+          export MLFLOW_TRACKING_URI=http://mlflow.mlflow.svc.cluster.local:5000
+          export MONGODB_URI=mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin
+
+          # Clone or copy the training pipeline
+          cd /tmp
+          # Note: In production, this would be a ConfigMap or PVC
+          # For now, we'll install the neural_hive_specialists package
+
+          pip install neural-hive-specialists -q 2>/dev/null || echo "Package not available in PyPI"
+
+          echo "=== Feedback statistics ==="
+          python3 -c "
+          from pymongo import MongoClient
+          client = MongoClient('$MONGODB_URI', serverSelectionTimeoutMS=5000)
+          db = client.neural_hive
+          fb = db.specialist_feedback
+          total = fb.count_documents({})
+          by_type = list(fb.aggregate([{'\\\$group': {'_id': '\\\$specialist_type', 'count': {'\\\$sum': 1}}}, {'\\\$sort': {'count': -1}}]))
+          print(f'Total feedbacks: {total}')
+          for x in by_type:
+              print(f'  {x[\"_id\"]}: {x[\"count\"]}')
+          "
+
+          echo "=== Starting training pipeline ==="
+          # Run MLflow project - this would require the training pipeline to be accessible
+          # For now, we'll show what would be executed:
+          echo "Would execute: mlflow projects run . -P specialist_type=business -P feedback_count=201"
+          echo ""
+          echo "Note: Full training requires training pipeline code to be available in the cluster"
+          echo "Consider creating a Docker image with the training code or using a ConfigMap/PVC"
+
+        env:
+        - name: MLFLOW_TRACKING_URI
+          value: "http://mlflow.mlflow.svc.cluster.local:5000"
+        - name: MONGODB_URI
+          value: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+      restartPolicy: Never
