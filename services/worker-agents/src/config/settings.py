@@ -27,7 +27,7 @@ class WorkerAgentSettings(BaseSettings):
         default_factory=lambda: [
             'python', 'terraform', 'kubernetes',  # Original capabilities
             'read', 'write', 'compute',            # STE DAG capabilities
-            'analyze', 'transform', 'test',         # Additional capabilities
+            'analyze', 'transform', 'test', 'code', # Additional capabilities (code added for STE compatibility)
             'security', 'scan', 'compliance'        # Security capabilities
         ]
     )
