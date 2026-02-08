@@ -52,6 +52,7 @@ message RegisterRequest {
   string namespace = 4;
   string cluster = 5;
   string version = 6;
+  AgentTelemetry telemetry = 7;  // Telemetria inicial do agente
 }
 
 // Resposta de registro
