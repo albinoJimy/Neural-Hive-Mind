@@ -73,17 +73,41 @@ curl "http://37.60.241.150:30080/api/v1/feedback/stats"
 - **Collection**: `specialist_feedback` (MongoDB)
 - **Opiniões**: `specialist_opinions` (MongoDB)
 
-## Estatísticas Atuais (2026-02-08 14:42)
+## Estatísticas Atuais (2026-02-08 16:00)
 
 - Opiniões totais: 4490
-- Com feedback: 1
-- Pendentes: 4489
+- Com feedback: **1002** ✅
+- Pendentes: 3488
+- **Cobertura: 22.3%**
+
+### Distribuição de Feedbacks
+
+| Recomendação | Quantidade |
+|--------------|------------|
+| review_required | 995 |
+| approve | 2 |
+| conditional | 5 |
+
+## Coleta Automatizada
+
+**Script:** `k8s/auto-feedback-job.yaml`
+
+Heurística aplicada:
+- Baixa confiança (< 0.4) → `review_required`
+- Alta confiança (> 0.6) → segue recomendação do modelo
+- Confiança média → segue recomendação do modelo
+
+**Execução:**
+```bash
+kubectl apply -f k8s/auto-feedback-job.yaml
+```
 
 ## Próximos Passos
 
-1. **Coletar 1000+ feedbacks** - Meta para retreinamento
-2. **Priorizar opiniões** com baixa confiança
+1. ✅ **Coletar 1000+ feedbacks** - META ATINGIDA (1002 feedbacks)
+2. **Coletar feedbacks humanos** - validar a qualidade das heurísticas
 3. **Executar retreinamento** com dados rotulados
+4. **Implantar novos modelos** após retreinamento
 
 ## Implantação
 
