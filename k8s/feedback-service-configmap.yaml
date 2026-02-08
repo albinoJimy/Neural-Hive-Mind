@@ -1,130 +1,213 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
+  name: feedback-ui
+  namespace: neural-hive
+data:
+  feedback-ui.html: |
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Neural Hive-Mind - Coleta de Feedback</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: linear-gradient(135deg, #1e3a5f 0%, #2d1b4e 100%);
+                min-height: 100vh;
+                padding: 20px;
+            }
+            .container { max-width: 900px; margin: 0 auto; }
+            .header { text-align: center; color: white; margin-bottom: 30px; }
+            .header h1 { font-size: 28px; margin-bottom: 10px; }
+            .stats-bar { display: flex; gap: 20px; justify-content: center; margin-top: 15px; }
+            .stat-card {
+                background: rgba(255,255,255,0.1);
+                backdrop-filter: blur(10px);
+                padding: 15px 25px;
+                border-radius: 12px;
+                text-align: center;
+            }
+            .stat-card .number { font-size: 24px; font-weight: bold; color: #4ade80; }
+            .stat-card .label { font-size: 12px; color: rgba(255,255,255,0.7); }
+            .opinion-card {
+                background: white; border-radius: 16px; padding: 25px;
+                margin-bottom: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            }
+            .opinion-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+            .specialist-badge { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+            .specialist-business { background: #dbeafe; color: #1e40af; }
+            .specialist-technical { background: #fce7f3; color: #9d174d; }
+            .specialist-behavior { background: #fef3c7; color: #92400e; }
+            .specialist-evolution { background: #e0e7ff; color: #3730a3; }
+            .specialist-architecture { background: #f3e8ff; color: #6b21a8; }
+            .confidence-bar { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; margin: 10px 0; }
+            .confidence-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #f59e0b, #22c55e); }
+            .opinion-content { background: #f9fafb; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
+            .opinion-content p { color: #374151; line-height: 1.6; }
+            .recommendation-tag { display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; margin-right: 10px; }
+            .rec-approve { background: #dcfce7; color: #166534; }
+            .rec-reject { background: #fee2e2; color: #991b1b; }
+            .review_required { background: #fef9c3; color: #854d0e; }
+            .rec-conditional { background: #e0e7ff; color: #3730a3; }
+            .feedback-buttons { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+            .feedback-btn {
+                flex: 1; min-width: 120px; padding: 14px 20px; border: 2px solid #e5e7eb;
+                border-radius: 10px; background: white; cursor: pointer; font-weight: 600;
+            }
+            .feedback-btn:hover { border-color: #6366f1; }
+            .feedback-btn.selected { border-color: #6366f1; background: #6366f1; color: white; }
+            .rating-slider { margin: 20px 0; }
+            .rating-slider label { display: block; margin-bottom: 8px; font-weight: 600; color: #374151; }
+            .rating-slider input { width: 100%; height: 8px; border-radius: 4px; }
+            .rating-value { text-align: center; font-size: 24px; font-weight: bold; color: #6366f1; margin-top: 10px; }
+            .notes-input { width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 10px; font-family: inherit; font-size: 14px; resize: vertical; min-height: 80px; }
+            .notes-input:focus { outline: none; border-color: #6366f1; }
+            .submit-btn { width: 100%; padding: 16px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; }
+            .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+            .skip-btn { width: 100%; padding: 12px; background: transparent; color: rgba(255,255,255,0.7); border: none; cursor: pointer; margin-top: 10px; }
+            .success-message { text-align: center; padding: 40px; background: white; border-radius: 16px; }
+            .filters { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+            .filter-btn { padding: 8px 16px; border: none; border-radius: 20px; background: rgba(255,255,255,0.2); color: white; cursor: pointer; }
+            .filter-btn.active { background: #6366f1; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Neural Hive-Mind</h1>
+                <p>Coleta de Feedback para Modelos ML</p>
+                <div class="stats-bar">
+                    <div class="stat-card"><div class="number" id="totalOpinions">-</div><div class="label">Pendentes</div></div>
+                    <div class="stat-card"><div class="number" id="collectedFeedback">-</div><div class="label">Coletados</div></div>
+                    <div class="stat-card"><div class="number" id="progressPercent">-</div><div class="label">% Completo</div></div>
+                </div>
+            </div>
+            <div class="filters">
+                <button class="filter-btn active" onclick="filterBy('all')">Todos</button>
+                <button class="filter-btn" onclick="filterBy('business')">Business</button>
+                <button class="filter-btn" onclick="filterBy('technical')">Technical</button>
+                <button class="filter-btn" onclick="filterBy('behavior')">Behavior</button>
+                <button class="filter-btn" onclick="filterBy('evolution')">Evolution</button>
+                <button class="filter-btn" onclick="filterBy('architecture')">Architecture</button>
+            </div>
+            <div id="loading" style="text-align:center;color:white;padding:40px;"><div style="border:4px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;width:40px;height:40px;margin:0 auto 20px;animation:spin 1s linear infinite"></div><p>Carregando...</p></div>
+            <div id="opinionContainer"></div>
+        </div>
+        <script>
+            const API = window.location.origin;
+            let currentOpinion = null, selectedRec = null, filter = 'all';
+            async function fetchStats() {
+                const r = await fetch(`${API}/api/v1/feedback/stats`);
+                const d = await r.json();
+                document.getElementById('totalOpinions').textContent = d.pending_feedback;
+                document.getElementById('collectedFeedback').textContent = d.with_feedback;
+                document.getElementById('progressPercent').textContent = ((d.with_feedback/d.total_opinions)*100).toFixed(1)+'%';
+            }
+            async function fetchOp() {
+                const url = filter==='all'?`${API}/api/v1/opinions/pending?limit=1`:`${API}/api/v1/opinions/pending?limit=1&specialist=${filter}`;
+                const r = await fetch(url), d = await r.json();
+                if (!d.opinions.length) {
+                    document.getElementById('opinionContainer').innerHTML='<div class="opinion-card" style="text-align:center"><h3>Nenhuma opinião pendente!</h3></div>';
+                    return;
+                }
+                currentOpinion = d.opinions[0];
+                const recClass = {approve:'rec-approve',reject:'rec-reject',review_required:'review_required',conditional:'rec-conditional'}[currentOpinion.recommendation]||'';
+                const conf = (currentOpinion.confidence_score*100).toFixed(0);
+                const confColor = currentOpinion.confidence_score<0.4?'#ef4444':currentOpinion.confidence_score<0.7?'#f59e0b':'#22c55e';
+                document.getElementById('opinionContainer').innerHTML=`
+                    <div class="opinion-card">
+                        <div class="opinion-header">
+                            <span class="specialist-badge specialist-${currentOpinion.specialist_type}">${currentOpinion.specialist_type}</span>
+                            <span class="recommendation-tag ${recClass}">${currentOpinion.recommendation}</span>
+                        </div>
+                        <div style="margin:15px 0"><div style="display:flex;justify-content:space-between;font-size:13px;color:#666"><span>Confiança</span><span>${conf}%</span></div><div class="confidence-bar"><div class="confidence-fill" style="width:${conf}%;background:${confColor}"></div></div></div>
+                        <div class="opinion-content"><p>${currentOpinion.reasoning_summary||'Sem descrição'}</p></div>
+                        <div class="feedback-section">
+                            <h3>Você concorda?</h3>
+                            <div class="feedback-buttons">
+                                <button class="feedback-btn" onclick="sel('approve',this)">✓ Aprovar</button>
+                                <button class="feedback-btn" onclick="sel('reject',this)">✕ Rejeitar</button>
+                                <button class="feedback-btn" onclick="sel('review_required',this)">? Revisar</button>
+                            </div>
+                            <div class="rating-slider"><label>Confiança: <span id="rlbl">50%</span></label><input type="range" min="0" max="1" step="0.1" value="0.5" oninput="document.getElementById('rval').textContent=Math.round(this.value*100)+'%';document.getElementById('rlbl').textContent=Math.round(this.value*100)+'%'"><div class="rating-value" id="rval">50%</div></div>
+                            <textarea class="notes-input" id="notes" placeholder="Comentários opcionais..."></textarea>
+                            <button class="submit-btn" onclick="submit()" id="sb" disabled>Enviar Feedback</button>
+                            <button class="skip-btn" onclick="fetchOp()">Pular</button>
+                        </div>
+                    </div>`;
+            }
+            function sel(r,b){selectedRec=r;document.querySelectorAll('.feedback-btn').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');document.getElementById('sb').disabled=false;}
+            async function submit(){
+                const btn=document.getElementById('sb');btn.disabled=true;btn.textContent='Enviando...';
+                const r=await fetch(`${API}/api/v1/feedback`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({opinion_id:currentOpinion.opinion_id,human_recommendation:selectedRec,human_rating:parseFloat(document.querySelector('input[type=range]').value),feedback_notes:document.getElementById('notes').value})});
+                if(r.ok){document.getElementById('opinionContainer').innerHTML='<div class="success-message"><div style="font-size:64px">✓</div><h2>Enviado!</h2></div>';fetchStats();setTimeout(fetchOp,1500);}
+            }
+            function filterBy(f){filter=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));event.target.classList.add('active');fetchOp();}
+            fetchStats();fetchOp();
+        </script>
+        <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+    </body>
+    </html>
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
   name: feedback-script
   namespace: neural-hive
 data:
   feedback_service.py: |
-    import sys
-    import subprocess
-    # Instalar dependências
+    import sys, subprocess
     subprocess.check_call([sys.executable, "-m", "pip", "install", "fastapi", "uvicorn", "pymongo", "pydantic", "-q"])
-
-    from fastapi import FastAPI, HTTPException
+    from fastapi import FastAPI, HTTPException, Response
     from pydantic import BaseModel, Field
     from pymongo import MongoClient
-    import uvicorn
-    import os
+    import uvicorn, os
     from datetime import datetime
-    from typing import Optional, List
-
+    from typing import Optional
     app = FastAPI(title="Feedback Collection Service")
-
     MONGO_URI = os.getenv("MONGODB_URI", "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin")
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     db = client.neural_hive
     opinions_col = db.specialist_opinions
     feedback_col = db.specialist_feedback
-
-    print("Feedback Service started on port 8080")
-
+    HTML_PATH = "/app/ui/feedback-ui.html"
     class FeedbackSubmit(BaseModel):
         opinion_id: str
-        human_recommendation: str = Field(..., description="approve, reject, review_required")
+        human_recommendation: str
         human_rating: float = Field(default=0.5, ge=0.0, le=1.0)
         feedback_notes: str = Field(default="")
-
-    class FeedbackResponse(BaseModel):
-        status: str
-        feedback_id: str
-        opinion_id: str
-        message: str
-
-    @app.get("/health")
-    def health():
-        return {"status": "healthy"}
-
     @app.get("/")
-    def root():
-        return {"service": "Feedback Collection", "docs": "/docs", "endpoints": ["/health", "/api/v1/feedback/stats", "/api/v1/opinions/pending", "/api/v1/feedback"]}
-
+    async def root():
+        with open(HTML_PATH, 'r') as f: return Response(content=f.read(), media_type="text/html")
+    @app.get("/health")
+    def health(): return {"status": "healthy"}
     @app.get("/api/v1/opinions/pending")
     def list_pending_opinions(limit: int = 10, specialist: Optional[str] = None):
-        """Lista opiniões pendentes de feedback."""
         query = {"specialist_feedback": {"$exists": False}}
-        if specialist:
-            query["specialist_type"] = specialist
-
+        if specialist: query["specialist_type"] = specialist
         opinions = opinions_col.find(query).sort("evaluated_at", -1).limit(limit)
-        result = []
-        for op in opinions:
-            result.append({
-                "opinion_id": op.get("opinion_id"),
-                "specialist_type": op.get("specialist_type"),
-                "confidence_score": op.get("opinion", {}).get("confidence_score"),
-                "recommendation": op.get("opinion", {}).get("recommendation"),
-                "risk_score": op.get("opinion", {}).get("risk_score"),
-                "reasoning_summary": op.get("opinion", {}).get("reasoning_summary", "")[:100]
-            })
+        result = [{"opinion_id": o.get("opinion_id"), "specialist_type": o.get("specialist_type"), "confidence_score": o.get("opinion", {}).get("confidence_score"), "recommendation": o.get("opinion", {}).get("recommendation"), "risk_score": o.get("opinion", {}).get("risk_score"), "reasoning_summary": o.get("opinion", {}).get("reasoning_summary", "")[:200]} for o in opinions]
         return {"count": len(result), "opinions": result}
-
     @app.post("/api/v1/feedback")
     def submit_feedback(feedback: FeedbackSubmit):
-        """Submete feedback humano sobre uma opinião."""
-        # Validar recomendação
         valid = ["approve", "reject", "review_required"]
-        if feedback.human_recommendation not in valid:
-            raise HTTPException(400, f"recommendation must be one of {valid}")
-
-        # Verificar se opinião existe
+        if feedback.human_recommendation not in valid: raise HTTPException(400, f"recommendation must be one of {valid}")
         opinion = opinions_col.find_one({"opinion_id": feedback.opinion_id})
-        if not opinion:
-            raise HTTPException(404, "Opinion not found")
-
-        # Criar documento de feedback
-        feedback_doc = {
-            "feedback_id": f"fb-{datetime.utcnow().timestamp()}",
-            "opinion_id": feedback.opinion_id,
-            "opinion_recommendation": opinion.get("opinion", {}).get("recommendation"),
-            "human_recommendation": feedback.human_recommendation,
-            "human_rating": feedback.human_rating,
-            "feedback_notes": feedback.feedback_notes,
-            "specialist_type": opinion.get("specialist_type"),
-            "submitted_at": datetime.utcnow(),
-            "trace_id": opinion.get("trace_id")
-        }
-
+        if not opinion: raise HTTPException(404, "Opinion not found")
+        feedback_doc = {"feedback_id": f"fb-{datetime.utcnow().timestamp()}", "opinion_id": feedback.opinion_id, "opinion_recommendation": opinion.get("opinion", {}).get("recommendation"), "human_recommendation": feedback.human_recommendation, "human_rating": feedback.human_rating, "feedback_notes": feedback.feedback_notes, "specialist_type": opinion.get("specialist_type"), "submitted_at": datetime.utcnow(), "trace_id": opinion.get("trace_id")}
         result = feedback_col.insert_one(feedback_doc)
-
-        return FeedbackResponse(
-            status="success",
-            feedback_id=str(result.inserted_id),
-            opinion_id=feedback.opinion_id,
-            message="Feedback submitted successfully"
-        )
-
+        return {"status": "success", "feedback_id": str(result.inserted_id), "opinion_id": feedback.opinion_id, "message": "Feedback submitted successfully"}
     @app.get("/api/v1/feedback/stats")
     def feedback_stats():
-        """Estatísticas de feedback coletado."""
         total = opinions_col.count_documents({})
         with_feedback = feedback_col.count_documents({})
-        pending = total - with_feedback
-
-        # Distribuição de feedbacks
-        pipeline = [
-            {"$group": {"_id": "$human_recommendation", "count": {"$sum": 1}}}
-        ]
+        pipeline = [{"$group": {"_id": "$human_recommendation", "count": {"$sum": 1}}}]
         distribution = list(feedback_col.aggregate(pipeline))
-
-        return {
-            "total_opinions": total,
-            "with_feedback": with_feedback,
-            "pending_feedback": pending,
-            "distribution": {d["_id"]: d["count"] for d in distribution}
-        }
-
-    if __name__ == "__main__":
-        uvicorn.run(app, host="0.0.0.0", port=8080)
+        return {"total_opinions": total, "with_feedback": with_feedback, "pending_feedback": total - with_feedback, "distribution": {d["_id"]: d["count"] for d in distribution}}
+    if __name__ == "__main__": uvicorn.run(app, host="0.0.0.0", port=8080)
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -151,10 +234,15 @@ spec:
         volumeMounts:
         - name: scripts
           mountPath: /scripts
+        - name: ui
+          mountPath: /app/ui
       volumes:
       - name: scripts
         configMap:
           name: feedback-script
+      - name: ui
+        configMap:
+          name: feedback-ui
 ---
 apiVersion: v1
 kind: Service
@@ -167,7 +255,6 @@ spec:
   ports:
   - port: 8080
     targetPort: 8080
-  type: ClusterIP
 ---
 apiVersion: v1
 kind: Service

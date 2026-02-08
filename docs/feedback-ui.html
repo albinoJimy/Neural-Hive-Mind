@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Hive-Mind - Coleta de Feedback</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d1b4e 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        .stat-card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            padding: 15px 25px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .stat-card .number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4ade80;
+        }
+        .stat-card .label {
+            font-size: 12px;
+            color: rgba(255,255,255,0.7);
+        }
+
+        .opinion-card {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .opinion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .specialist-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .specialist-business { background: #dbeafe; color: #1e40af; }
+        .specialist-technical { background: #fce7f3; color: #9d174d; }
+        .specialist-behavior { background: #fef3c7; color: #92400e; }
+        .specialist-evolution { background: #e0e7ff; color: #3730a3; }
+        .specialist-architecture { background: #f3e8ff; color: #6b21a8; }
+
+        .confidence-bar {
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ef4444, #f59e0b, #22c55e);
+            transition: width 0.3s;
+        }
+
+        .opinion-content {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        .opinion-content p {
+            color: #374151;
+            line-height: 1.6;
+        }
+
+        .recommendation-tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+        .rec-approve { background: #dcfce7; color: #166534; }
+        .rec-reject { background: #fee2e2; color: #991b1b; }
+        .review_required { background: #fef9c3; color: #854d0e; }
+        .rec-conditional { background: #e0e7ff; color: #3730a3; }
+
+        .feedback-section {
+            margin-top: 20px;
+        }
+        .feedback-section h3 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #374151;
+        }
+
+        .feedback-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .feedback-btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 14px 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .feedback-btn:hover {
+            border-color: #6366f1;
+            transform: translateY(-2px);
+        }
+        .feedback-btn.selected {
+            border-color: #6366f1;
+            background: #6366f1;
+            color: white;
+        }
+
+        .rating-slider {
+            margin: 20px 0;
+        }
+        .rating-slider label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+        .rating-slider input {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #e5e7eb;
+            outline: none;
+        }
+        .rating-value {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #6366f1;
+            margin-top: 10px;
+        }
+
+        .notes-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 80px;
+        }
+        .notes-input:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .submit-btn:hover {
+            transform: translateY(-2px);
+        }
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .skip-btn {
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            color: rgba(255,255,255,0.7);
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .skip-btn:hover {
+            color: white;
+        }
+
+        .success-message {
+            text-align: center;
+            padding: 40px;
+            background: white;
+            border-radius: 16px;
+        }
+        .success-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .filter-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .filter-btn.active {
+            background: #6366f1;
+        }
+        .filter-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .opinion-card {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            padding: 40px;
+        }
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Neural Hive-Mind</h1>
+            <p>Coleta de Feedback para Modelos ML</p>
+            <div class="stats-bar">
+                <div class="stat-card">
+                    <div class="number" id="totalOpinions">-</div>
+                    <div class="label">Opiniões Pendentes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number" id="collectedFeedback">-</div>
+                    <div class="label">Feedbacks Coletados</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number" id="progressPercent">-</div>
+                    <div class="label">% Completo</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="filters">
+            <button class="filter-btn active" onclick="filterBySpecialist('all')">Todos</button>
+            <button class="filter-btn" onclick="filterBySpecialist('business')">Business</button>
+            <button class="filter-btn" onclick="filterBySpecialist('technical')">Technical</button>
+            <button class="filter-btn" onclick="filterBySpecialist('behavior')">Behavior</button>
+            <button class="filter-btn" onclick="filterBySpecialist('evolution')">Evolution</button>
+            <button class="filter-btn" onclick="filterBySpecialist('architecture')">Architecture</button>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Carregando opiniões...</p>
+        </div>
+
+        <div id="opinionContainer"></div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === ''
+            ? 'http://37.60.241.150:30080'
+            : '';
+        let currentOpinion = null;
+        let selectedRecommendation = null;
+        let currentSpecialistFilter = 'all';
+
+        async function fetchStats() {
+            const res = await fetch(`${API_BASE}/api/v1/feedback/stats`);
+            const data = await res.json();
+            document.getElementById('totalOpinions').textContent = data.pending_feedback;
+            document.getElementById('collectedFeedback').textContent = data.with_feedback;
+            const percent = ((data.with_feedback / data.total_opinions) * 100).toFixed(1);
+            document.getElementById('progressPercent').textContent = percent + '%';
+        }
+
+        async function fetchOpinion() {
+            const url = currentSpecialistFilter === 'all'
+                ? `${API_BASE}/api/v1/opinions/pending?limit=1`
+                : `${API_BASE}/api/v1/opinions/pending?limit=1&specialist=${currentSpecialistFilter}`;
+
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (data.opinions.length === 0) {
+                document.getElementById('opinionContainer').innerHTML = `
+                    <div class="opinion-card" style="text-align:center">
+                        <h3>Nenhuma opinião pendente!</h3>
+                        <p style="color:#666; margin-top:10px;">
+                            Todas as opiniões deste tipo já foram revisadas.
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+
+            currentOpinion = data.opinions[0];
+            renderOpinion(currentOpinion);
+        }
+
+        function renderOpinion(opinion) {
+            const recClass = {
+                'approve': 'rec-approve',
+                'reject': 'rec-reject',
+                'review_required': 'review_required',
+                'conditional': 'rec-conditional'
+            }[opinion.recommendation] || '';
+
+            const confidencePercent = (opinion.confidence_score * 100).toFixed(0);
+            const confidenceColor = opinion.confidence_score < 0.4 ? '#ef4444'
+                                  : opinion.confidence_score < 0.7 ? '#f59e0b'
+                                  : '#22c55e';
+
+            document.getElementById('opinionContainer').innerHTML = `
+                <div class="opinion-card">
+                    <div class="opinion-header">
+                        <span class="specialist-badge specialist-${opinion.specialist_type}">
+                            ${opinion.specialist_type}
+                        </span>
+                        <span class="recommendation-tag ${recClass}">
+                            ${opinion.recommendation}
+                        </span>
+                    </div>
+
+                    <div style="margin: 15px 0;">
+                        <div style="display:flex; justify-content:space-between; font-size:13px; color:#666;">
+                            <span>Confiança do Modelo</span>
+                            <span>${confidencePercent}%</span>
+                        </div>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width:${confidencePercent}%; background:${confidenceColor}"></div>
+                        </div>
+                    </div>
+
+                    <div class="opinion-content">
+                        <p>${opinion.reasoning_summary || 'Sem descrição disponível'}</p>
+                    </div>
+
+                    <div class="feedback-section">
+                        <h3>Você concorda com esta recomendação?</h3>
+                        <div class="feedback-buttons">
+                            <button class="feedback-btn" onclick="selectFeedback('approve', this)">✓ Aprovar</button>
+                            <button class="feedback-btn" onclick="selectFeedback('reject', this)">✕ Rejeitar</button>
+                            <button class="feedback-btn" onclick="selectFeedback('review_required', this)">? Revisar</button>
+                        </div>
+
+                        <div class="rating-slider">
+                            <label>Quão confirme você está? ${(parseFloat(document.getElementById('ratingValue')?.textContent||'0.5')*100).toFixed(0)}%</label>
+                            <input type="range" id="ratingInput" min="0" max="1" step="0.1" value="0.5" oninput="updateRating(this.value)">
+                            <div class="rating-value" id="ratingValue">50%</div>
+                        </div>
+
+                        <textarea class="notes-input" id="notesInput" placeholder="Comentários opcionais sobre o feedback..."></textarea>
+
+                        <button class="submit-btn" onclick="submitFeedback()" id="submitBtn" disabled>
+                            Enviar Feedback
+                        </button>
+                        <button class="skip-btn" onclick="skipOpinion()">Pular esta opinião</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function selectFeedback(rec, btn) {
+            selectedRecommendation = rec;
+            document.querySelectorAll('.feedback-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            document.getElementById('submitBtn').disabled = false;
+        }
+
+        function updateRating(value) {
+            document.getElementById('ratingValue').textContent = Math.round(value * 100) + '%';
+            document.querySelector('.rating-slider label').textContent =
+                'Quão confirme você está? ' + Math.round(value * 100) + '%';
+        }
+
+        async function submitFeedback() {
+            if (!selectedRecommendation) return;
+
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.textContent = 'Enviando...';
+
+            const rating = parseFloat(document.getElementById('ratingInput').value);
+            const notes = document.getElementById('notesInput').value;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/feedback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        opinion_id: currentOpinion.opinion_id,
+                        human_recommendation: selectedRecommendation,
+                        human_rating: rating,
+                        feedback_notes: notes
+                    })
+                });
+
+                if (res.ok) {
+                    document.getElementById('opinionContainer').innerHTML = `
+                        <div class="success-message">
+                            <div class="success-icon">✓</div>
+                            <h2>Feedback Enviado!</h2>
+                            <p style="color:#666">Obrigado por contribuir com a melhoria dos modelos.</p>
+                        </div>
+                    `;
+                    await fetchStats();
+                    setTimeout(fetchOpinion, 1500);
+                }
+            } catch (err) {
+                btn.disabled = false;
+                btn.textContent = 'Tentar Novamente';
+            }
+        }
+
+        function skipOpinion() {
+            fetchOpinion();
+        }
+
+        function filterBySpecialist(specialist) {
+            currentSpecialistFilter = specialist;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            fetchOpinion();
+        }
+
+        // Initialize
+        fetchStats();
+        fetchOpinion();
+    </script>
+</body>
+</html>

@@ -4,6 +4,18 @@
 
 ✅ **Implantado e Funcional** (2026-02-08)
 
+## Interface Web
+
+Uma interface web amigável está disponível para facilitar a coleta de feedback:
+
+**URL:** `http://37.60.241.150:30080`
+
+A interface permite:
+- Visualizar opiniões pendentes de forma organizada
+- Filtrar por tipo de especialista
+- Submeter feedback com poucos cliques
+- Acompanhar estatísticas de progresso
+
 ## Descrição
 
 Serviço HTTP para coleta de feedback humano sobre opiniões dos especialistas ML. O feedback coletado será usado para retreinar os modelos com dados reais rotulados.
@@ -12,6 +24,7 @@ Serviço HTTP para coleta de feedback humano sobre opiniões dos especialistas M
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
+| GET | `/` | Interface web de coleta |
 | GET | `/health` | Health check |
 | GET | `/api/v1/feedback/stats` | Estatísticas de feedback coletado |
 | GET | `/api/v1/opinions/pending` | Lista opiniões pendentes de feedback |
