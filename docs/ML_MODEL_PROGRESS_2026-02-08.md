@@ -43,14 +43,44 @@ Todos os 5 especialistas têm modelos ML implantados e fazendo predições corre
 
 **Additional (6)**: max_norm, max_out_degree, min_norm, has_bottlenecks, has_risk_score, avg_out_degree
 
+## Pipeline de Retreinamento
+
+**Código Existente:**
+- `ml_pipelines/training/real_data_collector.py` - Coleta dados do ledger
+- `ml_pipelines/training/train_specialist_model.py` - Treina modelos
+- `libraries/python/neural_hive_specialists/feedback/` - API de feedback
+
+**Status:**
+- ✅ Pipeline de treinamento implementado
+- ✅ Sistema de feedback implementado
+- ❌ Approval-service não implantado
+- ❌ Sem feedback humano coletado (0 registros)
+
+## Plano de Ação
+
+### Fase 1: Coleta de Feedback Humano
+1. Implantar approval-service com interface de revisão
+2. Priorizar opiniões com confiança < 0.6 para rotulação humana
+3. Meta: 1000+ opiniões com feedback humano
+
+### Fase 2: Retreinamento
+1. Executar `train_specialist_model.py` com dados rotulados
+2. Validar melhoria de confiança vs baseline sintético
+3. Promover modelos melhorados para Production
+
+### Fase 3: Pipeline Contínuo
+1. Implementar retreinamento automático (diário/semanal)
+2. Monitorar drift de desempenho
+3. Alertar quando modelos degradarem
+
 ## Próximos Passos
 
 ### Alta Prioridade
-1. ⚠️ **Retreinar TODOS os Modelos com Dados Reais** - Confiança atual ~0.5 devido a dados sintéticos
-2. ⚠️ **Coletar Dados de Treinamento Reais** - Capturar opiniões de interações reais
+1. ⚠️ **Implantar Approval-Service** para coleta de feedback humano
+2. ⚠️ **Priorizar Opiniões para Rotulação** (baixa confiança)
+3. ⚠️ **Coletar 1000+ Feedbacks** antes do retreinamento
 
 ### Média Prioridade
-3. Implementar pipeline de coleta de dados
 4. Implementar pipeline de retreinamento periódico
 5. Adicionar monitoramento de performance dos modelos
 
