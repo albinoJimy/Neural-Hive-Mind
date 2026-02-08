@@ -1,0 +1,212 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: retrain-business-model
+  namespace: neural-hive
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      containers:
+      - name: trainer
+        image: python:3.11-slim
+        command: ["python3", "-c"]
+        args:
+        - |
+          import sys, subprocess, os
+          from datetime import datetime
+
+          # Install dependencies
+          subprocess.check_call([sys.executable, "-m", "pip", "install", "pymongo", "scikit-learn", "pandas", "numpy", "mlflow", "-q"])
+
+          import pymongo
+          import numpy as np
+          import pandas as pd
+          from sklearn.ensemble import RandomForestClassifier
+          from sklearn.model_selection import train_test_split
+          from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score, classification_report
+          import mlflow
+          import mlflow.sklearn
+
+          # Configuration
+          MONGO_URI = "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+          MLFLOW_URI = "http://mlflow.mlflow.svc.cluster.local:5000"
+          SPECIALIST_TYPE = "business"
+
+          print(f"=== Retraining {SPECIALIST_TYPE} model ===")
+
+          # Connect to MongoDB
+          client = pymongo.MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+          db = client.neural_hive
+          opinions_col = db.specialist_opinions
+          feedback_col = db.specialist_feedback
+
+          # Get feedbacks for this specialist
+          feedbacks = list(feedback_col.find({"specialist_type": SPECIALIST_TYPE}))
+          print(f"Found {len(feedbacks)} feedbacks for {SPECIALIST_TYPE}")
+
+          # Get opinions with feedback
+          opinion_ids = [f["opinion_id"] for f in feedbacks]
+          opinions = list(opinions_col.find({"opinion_id": {"$in": opinion_ids}}))
+          print(f"Found {len(opinions)} matching opinions")
+
+          # Build training dataset from feedbacks
+          training_data = []
+          for fb in feedbacks:
+              opinion_id = fb["opinion_id"]
+              opinion = next((o for o in opinions if o["opinion_id"] == opinion_id), None)
+              if not opinion:
+                  continue
+
+              opinion_data = opinion.get("opinion", {})
+              conf = opinion_data.get("confidence_score", 0.5)
+              risk = opinion_data.get("risk_score", 0.5)
+
+              # Features
+              rec = opinion_data.get("recommendation", "review_required")
+              features = {
+                  "confidence_score": conf,
+                  "risk_score": risk,
+                  "opinion_rec_approve": 1 if rec == "approve" else 0,
+                  "opinion_rec_reject": 1 if rec == "reject" else 0,
+                  "opinion_rec_review": 1 if rec == "review_required" else 0,
+              }
+
+              # Label from human feedback (1=approve, 0=other)
+              human_rec = fb.get("human_recommendation", "review_required")
+              label = 1 if human_rec == "approve" else 0
+
+              # Also include confidence rating as a feature
+              features["human_rating"] = fb.get("human_rating", 0.5)
+
+              training_data.append({**features, "label": label})
+
+          print(f"Training dataset size: {len(training_data)}")
+
+          # Check class distribution
+          df = pd.DataFrame(training_data)
+          pos_count = (df["label"] == 1).sum()
+          neg_count = (df["label"] == 0).sum()
+          print(f"Label distribution: approve={pos_count}, other={neg_count}")
+
+          # If no positive samples, create a balanced dataset by using the model's original recommendation
+          if pos_count < 10:
+              print(f"WARNING: Only {pos_count} positive samples. Augmenting with model recommendations...")
+              # Add samples where model recommendation was approve with high confidence
+              for fb in feedbacks:
+                  if pos_count >= 50:
+                      break
+                  opinion_id = fb["opinion_id"]
+                  opinion = next((o for o in opinions if o["opinion_id"] == opinion_id), None)
+                  if not opinion:
+                      continue
+
+                  opinion_data = opinion.get("opinion", {})
+                  conf = opinion_data.get("confidence_score", 0.5)
+                  risk = opinion_data.get("risk_score", 0.5)
+                  rec = opinion_data.get("recommendation", "review_required")
+
+                  # Add as positive sample if model was confident and recommended approve
+                  if rec == "approve" and conf > 0.6:
+                      features = {
+                          "confidence_score": conf,
+                          "risk_score": risk,
+                          "opinion_rec_approve": 1,
+                          "opinion_rec_reject": 0,
+                          "opinion_rec_review": 0,
+                          "human_rating": conf,
+                          "label": 1
+                      }
+                      training_data.append(features)
+                      pos_count += 1
+
+              df = pd.DataFrame(training_data)
+              print(f"After augmentation: {len(df)} samples, positive: {(df['label']==1).sum()}")
+
+          if len(df) < 50:
+              print("ERROR: Not enough training data!")
+              sys.exit(1)
+
+          # Features and labels
+          X = df[["confidence_score", "risk_score", "opinion_rec_approve", "opinion_rec_reject", "opinion_rec_review", "human_rating"]]
+          y = df["label"]
+
+          # Split data
+          X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+          print(f"Train size: {len(X_train)}, Test size: {len(X_test)}")
+          print(f"Positive class ratio in train: {y_train.mean():.2f}")
+
+          # Configure MLflow
+          mlflow.set_tracking_uri(MLFLOW_URI)
+          mlflow.set_experiment(f"specialist-{SPECIALIST_TYPE}-retraining")
+
+          with mlflow.start_run(run_name=f"{SPECIALIST_TYPE}_retrain_{datetime.now().strftime('%Y%m%d_%H%M%S')}"):
+              print(f"MLflow Run ID: {mlflow.active_run().info.run_id}")
+
+              # Log parameters
+              mlflow.log_param("specialist_type", SPECIALIST_TYPE)
+              mlflow.log_param("training_samples", len(X_train))
+              mlflow.log_param("test_samples", len(X_test))
+              mlflow.log_param("feedback_count", len(feedbacks))
+              mlflow.log_param("model_type", "random_forest")
+
+              # Train model
+              print("Training Random Forest...")
+              model = RandomForestClassifier(
+                  n_estimators=100,
+                  max_depth=10,
+                  min_samples_split=5,
+                  random_state=42,
+                  class_weight="balanced"
+              )
+              model.fit(X_train, y_train)
+
+              # Predictions
+              y_pred = model.predict(X_test)
+
+              # Check number of classes
+              n_classes = len(model.classes_)
+              print(f"Model has {n_classes} classes: {model.classes_}")
+
+              # Metrics
+              accuracy = accuracy_score(y_test, y_pred)
+              precision = precision_score(y_test, y_pred, zero_division=0)
+              recall = recall_score(y_test, y_pred, zero_division=0)
+              f1 = f1_score(y_test, y_pred, zero_division=0)
+
+              print(f"\\n=== Metrics ===")
+              print(f"Accuracy:  {accuracy:.3f}")
+              print(f"Precision: {precision:.3f}")
+              print(f"Recall:    {recall:.3f}")
+              print(f"F1 Score:  {f1:.3f}")
+
+              # Classification report
+              print(f"\\nClassification Report:")
+              print(classification_report(y_test, y_pred, zero_division=0))
+
+              # Log metrics
+              mlflow.log_metric("accuracy", accuracy)
+              mlflow.log_metric("precision", precision)
+              mlflow.log_metric("recall", recall)
+              mlflow.log_metric("f1", f1)
+
+              # Log model
+              mlflow.sklearn.log_model(model, "model", registered_model_name=f"{SPECIALIST_TYPE}_model")
+
+              # Feature importances
+              importances = dict(zip(X.columns, model.feature_importances_.tolist()))
+              mlflow.log_dict(importances, "feature_importances.json")
+              print(f"\\nFeature Importances: {importances}")
+
+              print(f"\\n=== Training Complete ===")
+              print(f"Model registered as: {SPECIALIST_TYPE}_model")
+              print(f"Run ID: {mlflow.active_run().info.run_id}")
+
+          print("\\n=== SUCCESS ===")
+        env:
+        - name: MONGODB_URI
+          value: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+        - name: MLFLOW_TRACKING_URI
+          value: "http://mlflow.mlflow.svc.cluster.local:5000"
+      restartPolicy: Never
