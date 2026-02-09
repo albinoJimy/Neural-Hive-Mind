@@ -518,7 +518,7 @@ async def startup():
         app_state['integration_registry'] = integration_registry
         from neural_hive_integration import AgentInfo
         await integration_registry.register_agent(AgentInfo(
-            agent_id=config.agent_id,
+            agent_id=agent_id,  # Usar agent_id retornado pelo Service Registry
             agent_type="worker",
             capabilities=config.capabilities if hasattr(config, 'capabilities') else ["python", "terraform", "kubernetes"],
             endpoint=f"http://{config.agent_id}.neural-hive-execution:8000",
