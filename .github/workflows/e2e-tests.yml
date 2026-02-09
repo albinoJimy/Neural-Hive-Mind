@@ -16,7 +16,7 @@ jobs:
   # ML Integration Tests - Required Gate Before Deploy
   # =============================================================================
   ml-integration-gate:
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
 
     services:
@@ -109,7 +109,7 @@ jobs:
   # (120-170 min documentado em tests/e2e/README.md)
   # =============================================================================
   e2e-tests:
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     timeout-minutes: 180
     needs: ml-integration-gate  # Requires ML tests to pass first
 

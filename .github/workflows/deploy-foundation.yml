@@ -41,7 +41,7 @@ env:
 jobs:
   determine-environment:
     name: Determine Environment
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     outputs:
       environment: ${{ steps.env.outputs.environment }}
       deploy_dev: ${{ steps.env.outputs.deploy_dev }}
@@ -64,7 +64,7 @@ jobs:
 
   deploy-dev:
     name: Deploy to Development
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     needs: determine-environment
     if: needs.determine-environment.outputs.deploy_dev == 'true'
     environment:
@@ -152,7 +152,7 @@ jobs:
 
   notify-deployment:
     name: Notify Deployment Status
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     needs: [determine-environment, deploy-dev]
     if: always()
 

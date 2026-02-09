@@ -21,7 +21,7 @@ env:
 jobs:
   terraform-plan:
     name: Terraform Plan
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     outputs:
       plan-cache-key: ${{ steps.cache.outputs.cache-hit }}
     steps:
@@ -75,7 +75,7 @@ jobs:
 
   helm-lint:
     name: Helm Lint Kafka Topics
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
@@ -101,7 +101,7 @@ jobs:
 
   security-scan:
     name: Security Scan Terraform
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
@@ -124,7 +124,7 @@ jobs:
     name: Deploy to Development
     if: github.ref == 'refs/heads/develop'
     needs: [terraform-plan, helm-lint, security-scan]
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     environment: development
     steps:
       - name: Checkout código
@@ -199,7 +199,7 @@ jobs:
     name: Deploy to Production
     if: github.ref == 'refs/heads/main'
     needs: [terraform-plan, helm-lint, security-scan]
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     environment: production
     steps:
       - name: Checkout código
@@ -301,7 +301,7 @@ jobs:
     name: Notify Deployment Status
     needs: [terraform-apply-dev, terraform-apply-prod]
     if: always()
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     steps:
       - name: Notify Success
         if: ${{ needs.terraform-apply-dev.result == 'success' || needs.terraform-apply-prod.result == 'success' }}

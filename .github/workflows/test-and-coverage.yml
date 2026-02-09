@@ -21,7 +21,7 @@ env:
 jobs:
   unit-tests:
     name: Unit tests (Python ${{ matrix.python-version }})
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -63,7 +63,7 @@ jobs:
 
   integration-tests:
     name: Integration tests (Python ${{ matrix.python-version }})
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: unit-tests
     strategy:
@@ -139,7 +139,7 @@ jobs:
 
   service-tests:
     name: Service tests (Python ${{ matrix.python-version }})
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: integration-tests
     strategy:
@@ -182,7 +182,7 @@ jobs:
 
   lint:
     name: Lint and type-check
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -208,7 +208,7 @@ jobs:
 
   code-forge-tests:
     name: Code Forge Tests
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: unit-tests
     steps:
@@ -263,7 +263,7 @@ jobs:
 
   mcp-tool-catalog-tests:
     name: MCP Tool Catalog Tests
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: unit-tests
     steps:
@@ -318,7 +318,7 @@ jobs:
 
   worker-agents-integration:
     name: Worker Agents Integration Tests
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: unit-tests
     services:
@@ -387,7 +387,7 @@ jobs:
 
   config-validation-tests:
     name: Security Config Validation
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
       fail-fast: false
@@ -416,7 +416,7 @@ jobs:
 
   quality-gate:
     name: Coverage quality gate
-    runs-on: [self-hosted, neural-hive]
+    runs-on: ubuntu-latest
     needs: [unit-tests, integration-tests, service-tests, config-validation-tests, code-forge-tests, mcp-tool-catalog-tests]
     steps:
       - uses: actions/checkout@v4
