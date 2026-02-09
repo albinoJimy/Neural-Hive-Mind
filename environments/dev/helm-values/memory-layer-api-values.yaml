@@ -48,7 +48,7 @@ config:
 
   # ClickHouse
   clickhouse:
-    host: "clickhouse-http.clickhouse-cluster.svc.cluster.local"
+    host: "clickhouse.clickhouse.svc.cluster.local"
     port: 8123
     user: "default"
     database: "neural_hive"
@@ -97,7 +97,7 @@ secrets:
 
   # ClickHouse
   clickhouse:
-    password: "dev-password"
+    password: ""
 
 serviceMonitor:
   enabled: true
