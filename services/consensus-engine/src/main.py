@@ -114,10 +114,14 @@ async def startup_event():
         await state.queen_agent_client.initialize()
         logger.info('Queen Agent gRPC client inicializado')
 
-        # gRPC Analyst Agent
-        state.analyst_agent_client = AnalystAgentGRPCClient(settings)
-        await state.analyst_agent_client.initialize()
-        logger.info('Analyst Agent gRPC client inicializado')
+        # gRPC Analyst Agent (OPTIONAL - don't fail startup if unavailable)
+        try:
+            state.analyst_agent_client = AnalystAgentGRPCClient(settings)
+            await state.analyst_agent_client.initialize()
+            logger.info('Analyst Agent gRPC client inicializado')
+        except Exception as e:
+            logger.warning('Analyst Agent não disponível - continuando sem este serviço (opcional)', error=str(e))
+            state.analyst_agent_client = None
 
         # Inicializar fila de decisões
         state.decision_queue = asyncio.Queue()
@@ -257,10 +261,16 @@ async def readiness():
             queen_health = await state.queen_agent_client.health_check()
             checks['queen_agent'] = queen_health.get('status') == 'SERVING'
 
-        # Verificar Analyst Agent
+        # Verificar Analyst Agent (OPTIONAL - don't fail readiness if unavailable)
         if state.analyst_agent_client:
-            analyst_health = await state.analyst_agent_client.health_check()
-            checks['analyst_agent'] = analyst_health.get('status') == 'SERVING'
+            try:
+                analyst_health = await state.analyst_agent_client.health_check()
+                checks['analyst_agent'] = analyst_health.get('status') == 'SERVING'
+            except Exception as e:
+                logger.warning('analyst_agent_health_check_failed', error=str(e))
+                checks['analyst_agent'] = False
+        else:
+            checks['analyst_agent'] = None  # Not configured
 
         # Verificar OTEL pipeline health
         if state.health_checker:
@@ -279,8 +289,9 @@ async def readiness():
                 logger.warning('otel_pipeline_health_check_error', error=str(e))
                 checks['otel_pipeline'] = False
 
-        # OTEL pipeline is not critical for readiness - service can function without tracing
-        critical_checks = {k: v for k, v in checks.items() if k != 'otel_pipeline'}
+        # OTEL pipeline and analyst_agent are not critical for readiness
+        non_critical_checks = {'otel_pipeline', 'analyst_agent'}
+        critical_checks = {k: v for k, v in checks.items() if k not in non_critical_checks and v is not None}
         all_ready = all(critical_checks.values())
 
         if not all_ready:
