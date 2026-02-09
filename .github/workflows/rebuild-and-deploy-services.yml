@@ -100,13 +100,18 @@ jobs:
           # Lista completa de serviços válidos
           VALID_SERVICES=(
             "analyst-agents"
+            "code-forge"
             "consensus-engine"
             "execution-ticket-service"
             "explainability-api"
             "gateway-intencoes"
+            "guard-agents"
             "mcp-tool-catalog"
+            "memory-layer-api"
             "orchestrator-dynamic"
+            "optimizer-agents"
             "scout-agents"
+            "self-healing-engine"
             "service-registry"
             "sla-management-system"
             "worker-agents"
