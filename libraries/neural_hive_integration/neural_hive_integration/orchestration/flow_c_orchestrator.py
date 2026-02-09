@@ -863,9 +863,10 @@ class FlowCOrchestrator:
         with worker_discovery_duration.labels(status="success").time():  # P1-002: Métrica C3
             try:
                 # Discover workers (com cache Redis se disponível)
+                # Nota: O match_agents já filtra apenas agentes HEALTHY, então não precisamos do filtro status
                 workers = await self.service_registry.discover_agents_cached(
                     capabilities=list(all_capabilities),
-                    filters={"status": "healthy"},
+                    filters={"agent_type": "worker"},
                 )
 
                 workers_discovered_total.inc(len(workers))
