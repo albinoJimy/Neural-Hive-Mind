@@ -100,10 +100,12 @@ jobs:
           # Lista completa de serviços válidos
           VALID_SERVICES=(
             "analyst-agents"
+            "consensus-engine"
             "execution-ticket-service"
             "explainability-api"
             "gateway-intencoes"
             "mcp-tool-catalog"
+            "orchestrator-dynamic"
             "scout-agents"
             "service-registry"
             "sla-management-system"
