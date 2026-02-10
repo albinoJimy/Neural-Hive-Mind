@@ -49,3 +49,7 @@ htmlcov/
 tests/results/
 tests/logs/
 **/tests/logs/
+
+# Claude local settings (may contain sensitive data)
+.claude/settings.local.json
+.claude/settings.*.json
