@@ -139,6 +139,10 @@ class Settings(BaseSettings):
     environment: str = Field(default="production")
     log_level: str = Field(default="INFO")
     debug: bool = Field(default=False)
+    allow_insecure_http_endpoints: bool = Field(
+        default=False,
+        description="Allow insecure HTTP endpoints in production (for internal cluster communication)"
+    )
 
     # Sub-settings
     prometheus: PrometheusSettings = Field(default_factory=PrometheusSettings)
@@ -161,7 +165,12 @@ class Settings(BaseSettings):
         """
         Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
         Endpoints verificados: Prometheus, Alertmanager.
+        Pode ser desabilitado com allow_insecure_http_endpoints=True para staging.
         """
+        # Permitir HTTP se flag está habilitada (staging com comunicação interna)
+        if self.allow_insecure_http_endpoints:
+            return self
+
         is_prod_staging = self.environment.lower() in ('production', 'staging', 'prod')
         if not is_prod_staging:
             return self

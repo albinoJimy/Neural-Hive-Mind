@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     service_version: str = "1.0.0"
     environment: str = "development"
     log_level: str = "INFO"
+    allow_insecure_http_endpoints: bool = Field(
+        default=False,
+        description="Allow insecure HTTP endpoints in production (for internal cluster communication)"
+    )
 
     # Kafka Config
     kafka_bootstrap_servers: str = "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
@@ -210,7 +214,12 @@ class Settings(BaseSettings):
         """
         Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
         Endpoints verificados: Prometheus, Alertmanager, OTEL, MLflow, Keycloak.
+        Pode ser desabilitado com allow_insecure_http_endpoints=True para staging.
         """
+        # Permitir HTTP se flag está habilitada (staging com comunicação interna)
+        if self.allow_insecure_http_endpoints:
+            return self
+
         is_prod_staging = self.environment.lower() in ('production', 'staging', 'prod')
         if not is_prod_staging:
             return self

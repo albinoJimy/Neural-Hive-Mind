@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     log_level: str = Field(default='INFO', description="Log level")
     service_name: str = Field(default='memory-layer-api', description="Service name")
     service_version: str = Field(default='1.0.0', description="Service version")
+    allow_insecure_http_endpoints: bool = Field(
+        default=False,
+        description="Allow insecure HTTP endpoints in production (for internal cluster communication)"
+    )
 
     # Redis (Curto Prazo)
     redis_cluster_nodes: str = Field(
@@ -169,7 +173,12 @@ class Settings(BaseSettings):
         """
         Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
         Endpoints verificados: Schema Registry, OTEL Collector.
+        Pode ser desabilitado com allow_insecure_http_endpoints=True para staging.
         """
+        # Permitir HTTP se flag está habilitada (staging com comunicação interna)
+        if self.allow_insecure_http_endpoints:
+            return self
+
         is_prod_staging = self.environment.lower() in ('production', 'staging', 'prod')
         if not is_prod_staging:
             return self
