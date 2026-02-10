@@ -2,12 +2,12 @@
 # Neural Hive-Mind - Production/Kubernetes deployment
 # Override values for Kubernetes environments
 
-replicaCount: 0  # Disabled: image not found in registry
+replicaCount: 1  # Rebuild completed: image not found in registry
 
 image:
   repository: ghcr.io/albinojimy/neural-hive-mind/explainability-api
   pullPolicy: Always
-  tag: "latest"
+  tag: "b-20260210-001124"
 
 nameOverride: ""
 fullnameOverride: ""
