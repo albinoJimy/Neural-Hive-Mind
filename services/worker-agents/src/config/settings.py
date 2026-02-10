@@ -67,7 +67,7 @@ class WorkerAgentSettings(BaseSettings):
     kafka_ssl_certificate_location: Optional[str] = None
     kafka_ssl_key_location: Optional[str] = None
     kafka_schema_registry_url: str = Field(
-        default='https://schema-registry.neural-hive-kafka.svc.cluster.local:8081',
+        default='https://schema-registry.kafka.svc.cluster.local:8081',
         description='URL do Schema Registry'
     )
 
@@ -179,7 +179,7 @@ class WorkerAgentSettings(BaseSettings):
     # Temporal (opcional)
     temporal_host: str = 'temporal-frontend.temporal.svc.cluster.local'
     temporal_port: int = 7233
-    temporal_namespace: str = 'neural-hive-mind'
+    temporal_namespace: str = 'default'
     temporal_task_queue: str = 'worker-tasks'
     enable_temporal_activities: bool = False
 
@@ -311,7 +311,7 @@ class WorkerAgentSettings(BaseSettings):
 
     # Redis (para deduplicação de tickets)
     redis_url: Optional[str] = Field(default=None, description='URL completa do Redis (se fornecida, ignora host/port)')
-    redis_host: str = Field(default='redis.neural-hive-cache.svc.cluster.local', description='Host do Redis')
+    redis_host: str = Field(default='neural-hive-cache.redis-cluster.svc.cluster.local', description='Host do Redis')
     redis_port: int = Field(default=6379, description='Porta do Redis')
     redis_password: Optional[str] = Field(default=None, description='Senha do Redis')
     redis_ssl_enabled: bool = Field(default=False, description='Habilitar SSL para conexão Redis')

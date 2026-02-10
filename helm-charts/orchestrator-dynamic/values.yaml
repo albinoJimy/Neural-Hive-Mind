@@ -69,7 +69,7 @@ config:
     enabled: true  # Set to false if Temporal is not deployed
     host: temporal-frontend.temporal.svc.cluster.local  # Can include port (host:port format)
     port: 7233  # Ignored if host includes port
-    namespace: neural-hive-mind
+    namespace: default
     taskQueue: orchestration-tasks
     tlsEnabled: false
 
@@ -121,7 +121,7 @@ config:
       failOpenWorkflowResults: true
 
   redis:
-    clusterNodes: redis-cluster.redis-cluster.svc.cluster.local:6379
+    clusterNodes: neural-hive-cache.redis-cluster.svc.cluster.local:6379
     sslEnabled: false
 
   scheduler:

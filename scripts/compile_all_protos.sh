@@ -69,3 +69,9 @@ check_proto_files "Optimizer Agents" "services/optimizer-agents/src/proto" "opti
 
 echo ""
 echo -e "${GREEN}🎉 Compilação de protos concluída!${NC}"
+
+# Fix imports in generated gRPC files
+echo ""
+echo -e "${YELLOW}🔧 Corrigindo imports em arquivos gRPC gerados...${NC}"
+python3 scripts/fix_proto_imports.py
+echo -e "${GREEN}✅ Imports corrigidos!${NC}"

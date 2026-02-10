@@ -55,10 +55,10 @@ cachetools==5.5.0
 
 # Bibliotecas internas - caminhos absolutos para build Docker
 # O Dockerfile copia 'libraries' para '/libraries' antes do pip install
+# neural_hive_ml é instalada como editable no Dockerfile (antes deste requirements)
 # Para desenvolvimento local, use: pip install -e ../../libraries/neural_hive_integration etc.
 /libraries/neural_hive_integration
 /libraries/security
-/libraries/python/neural_hive_ml
 /libraries/python/neural_hive_resilience
 
 # ML and Data Science

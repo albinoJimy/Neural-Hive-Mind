@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import queen_agent_pb2 as queen__agent__pb2
+from . import queen_agent_pb2 as queen__agent__pb2
 
 
 class QueenAgentStub(object):

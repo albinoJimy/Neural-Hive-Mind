@@ -12,11 +12,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Criar diretório de trabalho
 WORKDIR /build
 
-# Copiar requirements e instalar dependências
-COPY services/orchestrator-dynamic/requirements.txt .
-# Bibliotecas internas referenciadas via caminhos relativos nos requirements
+# Copiar bibliotecas internas e instalar neural_hive_ml como editable
 COPY libraries /libraries
-# Aumentar timeout para 15min e usar cache mount do BuildKit
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --user -e /libraries/python/neural_hive_ml
+
+# Copiar requirements e instalar dependências restantes
+COPY services/orchestrator-dynamic/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --user -r requirements.txt \
     --default-timeout=900 --retries 3

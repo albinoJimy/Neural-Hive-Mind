@@ -30,7 +30,7 @@ class OrchestratorSettings(BaseSettings):
         description='Host do Temporal Server (pode incluir porta no formato host:port)'
     )
     temporal_port: int = Field(default=7233, description='Porta do Temporal Server (ignorada se host incluir porta)')
-    temporal_namespace: str = Field(default='neural-hive-mind', description='Namespace Temporal')
+    temporal_namespace: str = Field(default='default', description='Namespace Temporal')
     temporal_task_queue: str = Field(default='orchestration-tasks', description='Fila de tarefas Temporal')
     temporal_workflow_id_prefix: str = Field(default='orch-', description='Prefixo para workflow IDs')
     temporal_tls_enabled: bool = Field(default=False, description='Habilitar TLS para Temporal')
@@ -54,7 +54,7 @@ class OrchestratorSettings(BaseSettings):
     kafka_enable_idempotence: bool = Field(default=True, description='Habilitar idempotência')
     kafka_transactional_id: Optional[str] = Field(default=None, description='ID transacional')
     kafka_schema_registry_url: str = Field(
-        default='https://schema-registry.neural-hive-kafka.svc.cluster.local:8081',
+        default='https://schema-registry.kafka.svc.cluster.local:8081',
         description='URL do Schema Registry para serialização Avro'
     )
     schema_registry_tls_verify: bool = Field(default=True, description='Verificar certificado TLS do Schema Registry')

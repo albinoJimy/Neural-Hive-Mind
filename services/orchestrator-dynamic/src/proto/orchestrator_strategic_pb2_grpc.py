@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import orchestrator_strategic_pb2 as orchestrator__strategic__pb2
+from . import orchestrator_strategic_pb2 as orchestrator__strategic__pb2
 
 
 class OrchestratorStrategicStub(object):
