@@ -7,7 +7,7 @@ replicaCount: 1
 image:
   repository: ghcr.io/albinojimy/neural-hive-mind/orchestrator-dynamic
   pullPolicy: Always
-  tag: "latest"
+  tag: "b-20260210-150856"
 
 nameOverride: ""
 fullnameOverride: ""
