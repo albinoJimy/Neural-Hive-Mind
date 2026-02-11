@@ -49,7 +49,7 @@ jobs:
           # Detectar se estamos próximo ou esgotamos o limite
           # Usar variável de ambiente ou heurística
 
-          RUNNER_TYPE="${{ runner-type }}"
+          RUNNER_TYPE="${{ inputs.runner-type }}"
 
           # Fallback para self-hosted quando esgotar
           # Em produção, verificar API de rate limit do GitHub
