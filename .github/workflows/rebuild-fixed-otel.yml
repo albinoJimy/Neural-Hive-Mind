@@ -3,11 +3,6 @@ name: Rebuild Services with Fixed OTEL
 on:
   workflow_dispatch:
     inputs:
-      services:
-        description: 'Serviços para rebuild (separados por virgula)'
-        required: true
-        type: string
-        default: 'memory-layer-api,mcp-tool-catalog'
       image_tag:
         description: 'Tag da imagem'
         required: false
@@ -25,7 +20,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: ${{fromJson('["' + replace(inputs.services, ',', '","') + '"]')}}
+        service:
+          - memory-layer-api
+          - mcp-tool-catalog
 
     steps:
       - name: Checkout
