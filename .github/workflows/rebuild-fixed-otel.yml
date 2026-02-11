@@ -46,7 +46,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.repository_owner }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          password: ${{ secrets.CR_PAT }}
 
       - name: Extract metadata
         id: meta
