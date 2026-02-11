@@ -40,12 +40,18 @@ env:
   IMAGE_PREFIX: albinojimy/neural-hive-mind
 
 jobs:
+  select-runner:
+    name: Select Runner with Auto Fallback
+    uses: ./.github/workflows/_runner-select.yml
+    secrets: inherit
+
   # ============================================================================
   # Job 1: Preparação e Validação
   # ============================================================================
   prepare:
     name: Preparar Deployment
-    runs-on: ubuntu-latest
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     outputs:
       environment: ${{ inputs.environment }}
       services: ${{ inputs.services }}
@@ -104,8 +110,8 @@ jobs:
   # ============================================================================
   update-values:
     name: Atualizar Tags - ${{ matrix.service }}
-    runs-on: ubuntu-latest
-    needs: prepare
+    needs: [select-runner, prepare]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: needs.prepare.outputs.should_deploy == 'true'
 
     strategy:
@@ -178,8 +184,8 @@ jobs:
   # ============================================================================
   deploy:
     name: Deploy - ${{ matrix.service }}
-    runs-on: ubuntu-latest
-    needs: [prepare, update-values]
+    needs: [select-runner, prepare, update-values]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: needs.prepare.outputs.should_deploy == 'true' && inputs.dry_run != true
 
     # Aprovação para produção
@@ -354,8 +360,8 @@ jobs:
   # ============================================================================
   summary:
     name: Resumo do Deployment
-    runs-on: ubuntu-latest
-    needs: [prepare, update-values, deploy]
+    needs: [select-runner, prepare, update-values, deploy]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: always()
 
     steps:

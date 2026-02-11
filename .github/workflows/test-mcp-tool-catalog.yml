@@ -13,8 +13,14 @@ on:
   workflow_dispatch:
 
 jobs:
+  select-runner:
+    name: Select Runner with Auto Fallback
+    uses: ./.github/workflows/_runner-select.yml
+    secrets: inherit
+
   unit-tests:
-    runs-on: [self-hosted, neural-hive]
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -57,8 +63,8 @@ jobs:
           fail_ci_if_error: false
 
   integration-tests:
-    runs-on: [self-hosted, neural-hive]
-    needs: unit-tests
+    needs: [select-runner, unit-tests]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
 
     services:
       mongodb:
@@ -104,8 +110,8 @@ jobs:
           fail_ci_if_error: false
 
   performance-tests:
-    runs-on: [self-hosted, neural-hive]
-    needs: integration-tests
+    needs: [select-runner, integration-tests]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
@@ -136,8 +142,8 @@ jobs:
           path: services/mcp-tool-catalog/benchmark.json
 
   e2e-tests:
-    runs-on: [self-hosted, neural-hive]
-    needs: integration-tests
+    needs: [select-runner, integration-tests]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: github.event_name == 'push'
 
     steps:
@@ -168,7 +174,8 @@ jobs:
           ./tests/e2e/test_mcp_hybrid_execution.sh --verbose
 
   lint:
-    runs-on: [self-hosted, neural-hive]
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     steps:
       - name: Checkout codigo
         uses: actions/checkout@v4

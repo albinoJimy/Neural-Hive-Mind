@@ -32,8 +32,14 @@ on:
     - cron: '0 */6 * * *'
 
 jobs:
+  select-runner:
+    name: Select Runner with Auto Fallback
+    uses: ./.github/workflows/_runner-select.yml
+    secrets: inherit
+
   online-learning-action:
-    runs-on: [self-hosted, neural-hive]
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     environment: production
 
     steps:
@@ -146,7 +152,8 @@ jobs:
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
   test-online-learning:
-    runs-on: [self-hosted, neural-hive]
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: github.event.inputs.action == 'update'
 
     steps:

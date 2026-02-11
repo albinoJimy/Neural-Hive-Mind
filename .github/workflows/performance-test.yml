@@ -26,9 +26,15 @@ env:
   K8S_NAMESPACE: neural-hive-orchestration
 
 jobs:
+  select-runner:
+    name: Select Runner with Auto Fallback
+    uses: ./.github/workflows/_runner-select.yml
+    secrets: inherit
+
   performance-test:
     name: Teste de Carga Fluxo C
-    runs-on: [self-hosted, neural-hive]
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     timeout-minutes: 180  # 3 horas maximo
 
     steps:
@@ -120,8 +126,8 @@ jobs:
 
   analyze-results:
     name: Analisar Resultados
-    needs: performance-test
-    runs-on: [self-hosted, neural-hive]
+    needs: [select-runner, performance-test]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: always()
 
     steps:

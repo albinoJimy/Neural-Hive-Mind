@@ -51,12 +51,18 @@ env:
   IMAGE_PREFIX: ${{ github.repository_owner }}/neural-hive-mind
 
 jobs:
+  select-runner:
+    name: Select Runner with Auto Fallback
+    uses: ./.github/workflows/_runner-select.yml
+    secrets: inherit
+
   # ============================================================================
   # Job 1: Detectar servicos modificados
   # ============================================================================
   detect-changes:
     name: Detectar Mudancas
-    runs-on: ubuntu-latest
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     outputs:
       services_matrix: ${{ steps.set-matrix.outputs.matrix }}
       services_list: ${{ steps.set-matrix.outputs.list }}
@@ -241,8 +247,8 @@ jobs:
   # ============================================================================
   build-and-push:
     name: Build ${{ matrix.service }}
-    runs-on: ubuntu-latest
-    needs: detect-changes
+    needs: [select-runner, detect-changes]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: needs.detect-changes.outputs.has_changes == 'true'
     
     permissions:
@@ -437,8 +443,8 @@ jobs:
   # ============================================================================
   summary:
     name: Resumo do Build
-    runs-on: ubuntu-latest
-    needs: [detect-changes, build-and-push]
+    needs: [select-runner, detect-changes, build-and-push]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: always()
 
     steps:
@@ -557,8 +563,8 @@ jobs:
   # ============================================================================
   trigger-deployment:
     name: Disparar Deployment
-    runs-on: ubuntu-latest
-    needs: [detect-changes, build-and-push, summary]
+    needs: [select-runner, detect-changes, build-and-push, summary]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: github.event_name != 'pull_request' && needs.build-and-push.result == 'success' && needs.detect-changes.outputs.has_changes == 'true'
 
     permissions:

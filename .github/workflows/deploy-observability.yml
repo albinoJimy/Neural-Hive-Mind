@@ -42,9 +42,15 @@ env:
   KUBECTL_VERSION: "1.28.0"
 
 jobs:
+  select-runner:
+    name: Select Runner with Auto Fallback
+    uses: ./.github/workflows/_runner-select.yml
+    secrets: inherit
+
   validate:
     name: Validate Configuration
-    runs-on: ubuntu-latest
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     outputs:
       terraform-changes: ${{ steps.changes.outputs.terraform }}
       helm-changes: ${{ steps.changes.outputs.helm }}
@@ -116,8 +122,8 @@ jobs:
 
   plan:
     name: Terraform Plan
-    runs-on: ubuntu-latest
-    needs: validate
+    needs: [select-runner, validate]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: needs.validate.outputs.terraform-changes == 'true'
 
     strategy:
@@ -163,8 +169,8 @@ jobs:
 
   deploy-terraform:
     name: Deploy Infrastructure
-    runs-on: ubuntu-latest
-    needs: [ validate, plan ]
+    needs: [select-runner, validate, plan]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: github.ref == 'refs/heads/main' && !inputs.rollback
 
     strategy:
@@ -210,8 +216,8 @@ jobs:
 
   deploy-helm:
     name: Deploy Helm Charts
-    runs-on: ubuntu-latest
-    needs: [ validate, deploy-terraform ]
+    needs: [select-runner, validate, deploy-terraform]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: always() && !failure() && !inputs.rollback
 
     strategy:
@@ -286,8 +292,8 @@ jobs:
 
   deploy-monitoring:
     name: Deploy Monitoring Configs
-    runs-on: ubuntu-latest
-    needs: [ validate, deploy-helm ]
+    needs: [select-runner, validate, deploy-helm]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: always() && !failure() && !inputs.rollback
 
     strategy:
@@ -347,8 +353,8 @@ jobs:
 
   test-deployment:
     name: Test Deployment
-    runs-on: ubuntu-latest
-    needs: [ deploy-monitoring ]
+    needs: [select-runner, deploy-monitoring]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: always() && !failure()
 
     strategy:
@@ -402,7 +408,8 @@ jobs:
 
   rollback:
     name: Rollback Deployment
-    runs-on: ubuntu-latest
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: inputs.rollback
 
     strategy:
@@ -442,8 +449,8 @@ jobs:
 
   notify:
     name: Notify Deployment Status
-    runs-on: ubuntu-latest
-    needs: [ test-deployment, rollback ]
+    needs: [select-runner, test-deployment, rollback]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: always()
 
     steps:

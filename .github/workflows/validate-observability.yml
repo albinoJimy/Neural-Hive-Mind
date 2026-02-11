@@ -26,10 +26,16 @@ env:
   PYTHON_VERSION: 3.11
 
 jobs:
+  select-runner:
+    name: Select Runner with Auto Fallback
+    uses: ./.github/workflows/_runner-select.yml
+    secrets: inherit
+
   # Validação de arquivos Terraform
   terraform-validate:
     name: Terraform Validation
-    runs-on: [self-hosted, neural-hive]
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     defaults:
       run:
         working-directory: ./infrastructure/terraform/modules/observability-stack
@@ -61,7 +67,8 @@ jobs:
   # Validação de Helm Charts
   helm-validate:
     name: Helm Charts Validation
-    runs-on: [self-hosted, neural-hive]
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
 
     strategy:
       matrix:
@@ -115,7 +122,8 @@ jobs:
   # Validação de Dashboards Grafana
   grafana-dashboards-validate:
     name: Grafana Dashboards Validation
-    runs-on: [self-hosted, neural-hive]
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
 
     steps:
     - name: Checkout code
@@ -163,7 +171,8 @@ jobs:
   # Validação de Alertas Prometheus
   prometheus-alerts-validate:
     name: Prometheus Alerts Validation
-    runs-on: [self-hosted, neural-hive]
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
 
     steps:
     - name: Checkout code
@@ -196,7 +205,8 @@ jobs:
   # Validação da Biblioteca Python
   python-library-validate:
     name: Python Library Validation
-    runs-on: [self-hosted, neural-hive]
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     defaults:
       run:
         working-directory: ./libraries/python/neural_hive_observability
@@ -272,8 +282,8 @@ jobs:
   # Teste de Integração (simulado)
   integration-test:
     name: Integration Test (Simulated)
-    runs-on: [self-hosted, neural-hive]
-    needs: [terraform-validate, helm-validate]
+    needs: [select-runner, terraform-validate, helm-validate]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
 
     steps:
     - name: Checkout code
@@ -323,7 +333,8 @@ jobs:
   # Verificação de Segurança
   security-scan:
     name: Security Scan
-    runs-on: [self-hosted, neural-hive]
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
 
     steps:
     - name: Checkout code
@@ -354,8 +365,8 @@ jobs:
   # Geração de Relatório
   generate-report:
     name: Generate Validation Report
-    runs-on: [self-hosted, neural-hive]
     needs: [
+      select-runner,
       terraform-validate,
       helm-validate,
       grafana-dashboards-validate,
@@ -364,6 +375,7 @@ jobs:
       integration-test,
       security-scan
     ]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: always()
 
     steps:
@@ -424,8 +436,8 @@ jobs:
   # Notificação de Status
   notify:
     name: Notify Status
-    runs-on: [self-hosted, neural-hive]
-    needs: [generate-report]
+    needs: [select-runner, generate-report]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: always()
 
     steps:

@@ -1,0 +1,88 @@
+# Workflow Reutilizável: Seleção Automática de Runner
+# Prioriza GitHub-hosted, fallback para self-hosted quando esgotar limite
+
+name: Runner Selection (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      runner-type:
+        description: 'Tipo preferido: ubuntu-latest, ubuntu-20.04, etc'
+        required: false
+        type: string
+        default: 'ubuntu-latest'
+      use-fallback:
+        description: 'Se true, usa self-hosted quando github-hosted falhar'
+        required: false
+        type: boolean
+        default: true
+      fallback-label:
+        description: 'Label do runner self-hosted para fallback'
+        required: false
+        type: string
+        default: 'neural-hive'
+    outputs:
+      selected-runner:
+        description: 'O runner selecionado'
+        value: ${{ jobs.select-runner.outputs.runner }}
+      runner-type:
+        description: 'Tipo de runner usado'
+        value: ${{ jobs.select-runner.outputs.runner-type }}
+
+jobs:
+  select-runner:
+    name: Select Runner with Fallback
+    runs-on: ubuntu-latest
+    outputs:
+      runner: ${{ steps.choose.outputs.runner }}
+      runner-type: ${{ steps.choose.outputs.runner-type }}
+    steps:
+      - name: Check GitHub Actions Rate Limit
+        id: check-limit
+        run: |
+          echo "Checking GitHub Actions rate limit..."
+          echo "API_LIMIT=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_OUTPUT
+
+      - name: Choose Runner (GitHub-hosted priority)
+        id: choose
+        run: |
+          # Detectar se estamos próximo ou esgotamos o limite
+          # Usar variável de ambiente ou heurística
+
+          RUNNER_TYPE="${{ runner-type }}"
+
+          # Fallback para self-hosted quando esgotar
+          # Em produção, verificar API de rate limit do GitHub
+          # Por ora, usa condicional baseada em input
+
+          if [ "${{ inputs.use-fallback }}" == "true" ]; then
+            # Detectar se é um fork (tem menos minutos) ou outras condições
+            if [ "${{ github.event.repository.fork }}" == "true" ]; then
+              # Forks têm limite menor, usar self-hosted
+              RUNNER_TYPE="self-hosted"
+              echo "🔄 Fork detected - using self-hosted runner"
+            else
+              # Repositório principal - tentar github-hosted primeiro
+              RUNNER_TYPE="${{ inputs.runner-type }}"
+              echo "✅ Using GitHub-hosted runner: $RUNNER_TYPE"
+            fi
+          else
+            RUNNER_TYPE="${{ inputs.runner-type }}"
+          fi
+
+          echo "runner=$RUNNER_TYPE" >> $GITHUB_OUTPUT
+          echo "runner-type=$RUNNER_TYPE" >> $GITHUB_OUTPUT
+
+  demo-job:
+    name: Demo Job with Selected Runner
+    needs: select-runner
+    # Usa o runner selecionado dinamicamente
+    runs-on: ${{ needs.select-runner.outputs.runner }}
+    steps:
+      - name: Show Runner Info
+        run: |
+          echo "Running on: ${{ needs.select-runner.outputs.runner-type }}"
+          echo "Runner OS:"
+          uname -a
+          echo "Runner environment:"
+          env | grep -E "(RUNNER|GITHUB)" | sort

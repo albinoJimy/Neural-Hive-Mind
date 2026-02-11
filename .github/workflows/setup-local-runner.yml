@@ -1,0 +1,104 @@
+name: Setup Local Self-Hosted Runner
+
+on:
+  workflow_dispatch:  # Permite execução manual via UI
+    inputs:
+      ssh_host:
+        description: 'IP/Hostname da máquina local'
+        required: true
+        type: string
+      ssh_user:
+        description: 'Usuário SSH'
+        required: true
+        type: string
+      runner_name:
+        description: 'Nome do runner (default: local-neural-hive-runner)'
+        required: false
+        type: string
+        default: 'local-neural-hive-runner'
+
+jobs:
+  setup-runner:
+    name: Setup Local Runner
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Runner via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ inputs.ssh_host }}
+          username: ${{ inputs.ssh_user }}
+          key: ${{ secrets.SSH_KEY }}
+          script_stop: true
+          script: |
+            set -e
+
+            echo "🚀 Configurando GitHub Actions Runner na máquina local..."
+            echo ""
+
+            # Instalar Docker se não existe
+            if ! command -v docker &> /dev/null; then
+              echo "📦 Instalando Docker..."
+              curl -fsSL https://get.docker.com | sh
+              sudo usermod -aG docker $USER
+              echo "   ✅ Docker instalado"
+              echo "   ⚠️  Faça logout e login novamente para aplicar grupo docker"
+            else
+              echo "   ✅ Docker já instalado"
+            fi
+
+            # Criar diretório do runner
+            RUNNER_DIR="$HOME/actions-runner"
+            mkdir -p "$RUNNER_DIR"
+            cd "$RUNNER_DIR"
+
+            # Baixar runner se não existe
+            if [ ! -f "./config.sh" ]; then
+              echo "📥 Baixando GitHub Actions Runner v2.319.1..."
+              curl -o actions-runner-linux.tar.gz -LH \
+                https://github.com/actions/runner/releases/download/v2.319.1/actions-runner-linux-x64-2.319.1.tar.gz
+              tar xzf ./actions-runner-linux.tar.gz
+              rm ./actions-runner-linux.tar.gz
+              echo "   ✅ Runner baixado"
+            else
+              echo "   ✅ Runner já baixado"
+            fi
+
+            # Configurar runner
+            RUNNER_NAME="${{ inputs.runner_name }}"
+            REPO_URL="https://github.com/jimysoares76/Neural-Hive-Mind"
+            LABELS="neural-hive"
+
+            echo ""
+            echo "🔧 Configurando runner..."
+            echo "   Nome: $RUNNER_NAME"
+            echo "   Labels: $LABELS"
+
+            ./config.sh \
+              --url "$REPO_URL" \
+              --token "$GITHUB_TOKEN" \
+              --labels "$LABELS" \
+              --name "$RUNNER_NAME" \
+              --work "$RUNNER_DIR/_work" \
+              --replace
+
+            echo ""
+            echo "🎯 Instalando como serviço..."
+
+            # Instalar serviço
+            sudo ./svc.sh install > /dev/null 2>&1
+            sudo ./svc.sh start
+
+            echo ""
+            echo "✅ Runner configurado e iniciado!"
+            echo ""
+            echo "Para verificar:"
+            echo "  1. Vá para: https://github.com/jimysoares76/Neural-Hive-Mind/settings/actions/runners"
+            echo "  2. Procure por: $RUNNER_NAME"
+            echo ""
+            echo "Status do serviço:"
+            sudo ./svc.sh status
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -10,8 +10,14 @@ on:
       - 'libraries/**/setup.py'
 
 jobs:
+  select-runner:
+    name: Select Runner with Auto Fallback
+    uses: ./.github/workflows/_runner-select.yml
+    secrets: inherit
+
   audit:
-    runs-on: [self-hosted, neural-hive]
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     steps:
       - uses: actions/checkout@v4
 

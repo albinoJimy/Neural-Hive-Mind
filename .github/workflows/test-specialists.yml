@@ -1,17 +1,35 @@
 name: Test Neural Hive Specialists
 
-# TEMPORARIAMENTE DESATIVADO - Testes de specialists serão executados apenas manualmente
-# Para reativar, descomentar os triggers abaixo
 on:
-  workflow_dispatch:  # Apenas manual por enquanto
-  # push:
-  #   branches: [main, develop]
-  # pull_request:
-  #   branches: ["**"]
+  workflow_dispatch:  # Execução manual
+  push:
+    branches: [main, develop]
+    paths:
+      - 'libraries/python/neural_hive_specialists/**'
+      - 'tests/specialists/**'
+      - '.github/workflows/test-specialists.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'libraries/python/neural_hive_specialists/**'
+      - 'tests/specialists/**'
 
 jobs:
+  # ============================================================
+  # NOVO: Job de seleção de runner com fallback
+  # ============================================================
+  select-runner:
+    name: Select Runner with Auto Fallback
+    uses: ./.github/workflows/_runner-select.yml
+    secrets: inherit
+
+  # ============================================================
+  # MODIFICADO: Adiciona 'needs' e usa runner selecionado
+  # ============================================================
   test:
-    runs-on: [self-hosted, neural-hive]
+    name: Test Specialists (Python ${{ matrix.python-version }})
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -26,7 +44,6 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
-
       redis:
         image: redis:7-alpine
         ports:
@@ -59,11 +76,11 @@ jobs:
           pip install --upgrade pip
           # Pin protobuf first to avoid version conflicts with opentelemetry
           pip install "protobuf==5.29.2"
-          # Instalar bibliotecas locais na ordem correta de dependências
+          # Install local libraries in correct dependency order
           pip install -e libraries/python/neural_hive_domain
           pip install -e libraries/python/neural_hive_observability
           pip install -e libraries/python/neural_hive_resilience
-          # Instalar specialists com dependências de dev e explainability
+          # Install specialists with dev and explainability dependencies
           cd libraries/python/neural_hive_specialists
           pip install -r requirements-dev.txt
           pip install -e ".[explainability]"
@@ -117,7 +134,9 @@ jobs:
           MINIMUM_ORANGE: 85
 
   lint:
-    runs-on: [self-hosted, neural-hive]
+    name: Lint Specialists
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
@@ -133,7 +152,8 @@ jobs:
 
       - name: Executar flake8
         working-directory: libraries/python/neural_hive_specialists
-        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=__pycache__,build,*.egg-info,mlruns,.pytest_cache,MagicMock,.benchmarks
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=__pycache__,build,*.egg-info,mlruns,.pytest_cache,MagicMock,.benchmarks,proto_gen
 
       - name: Verificar formatação com black
         working-directory: libraries/python/neural_hive_specialists

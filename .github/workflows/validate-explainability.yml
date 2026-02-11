@@ -16,9 +16,15 @@ on:
       - develop
 
 jobs:
+  select-runner:
+    name: Select Runner with Auto Fallback
+    uses: ./.github/workflows/_runner-select.yml
+    secrets: inherit
+
   validate-background-dataset:
     name: Validate SHAP Background Dataset
-    runs-on: [self-hosted, neural-hive]
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: contains(github.event.head_commit.modified, 'data/shap_background')
 
     steps:
@@ -55,7 +61,8 @@ jobs:
 
   test-explainability-integration:
     name: Test SHAP/LIME Integration
-    runs-on: [self-hosted, neural-hive]
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
 
     steps:
       - name: Checkout code
@@ -105,7 +112,8 @@ jobs:
 
   benchmark-shap-lime-performance:
     name: Benchmark SHAP/LIME Performance
-    runs-on: [self-hosted, neural-hive]
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
 
     steps:
       - name: Checkout code
@@ -164,8 +172,8 @@ jobs:
 
   quality-gate:
     name: Explainability Quality Gate
-    runs-on: [self-hosted, neural-hive]
-    needs: [test-explainability-integration]
+    needs: [select-runner, test-explainability-integration]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
 
     steps:
       - name: Checkout code

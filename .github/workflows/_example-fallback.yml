@@ -1,0 +1,42 @@
+# EXEMPLO: Workflow com Fallback Automático
+# Usa runner selection com fallback automático para self-hosted
+#
+# COMO USAR:
+# 1. Substitua 'runs-on' por 'needs: select-runner' + 'uses: ./workflows/_runner-select.yml'
+# 2. Referencie o runner via: ${{ needs.select-runner.outputs.selected-runner }}
+
+name: Example with Auto Fallback
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  # Job que seleciona o runner (GitHub-hosted ou Self-hosted)
+  select-runner:
+    name: Select Runner
+    uses: ./.github/workflows/_runner-select.yml
+    secrets: inherit  # Passa todos os secrets necessários
+
+  # Job principal que usa o runner selecionado
+  build:
+    name: Build with Auto Fallback
+    needs: select-runner
+    # Aqui a mágica: o runs-on vem dinamicamente do job anterior
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
+    steps:
+      - name: Show which runner
+        run: |
+          echo "🎯 Running on: ${{ needs.select-runner.outputs.runner-type }}"
+          echo "🏷️  Runner: ${{ needs.select-runner.outputs.selected-runner }}"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Example step
+        run: |
+          echo "Seu comando de build/test aqui"
+          echo "GitHub Actions vai:"
+          echo "  1. Tentar ubuntu-latest primeiro"
+          echo "  2. Se rate limit, usar self-hosted automaticamente"

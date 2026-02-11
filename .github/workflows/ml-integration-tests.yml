@@ -28,8 +28,14 @@ on:
   workflow_dispatch:  # Allow manual triggering
 
 jobs:
+  select-runner:
+    name: Select Runner with Auto Fallback
+    uses: ./.github/workflows/_runner-select.yml
+    secrets: inherit
+
   ml-integration-tests:
-    runs-on: [self-hosted, neural-hive]
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     timeout-minutes: 30
 
     services:

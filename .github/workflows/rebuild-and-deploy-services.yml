@@ -45,7 +45,8 @@ jobs:
   # ============================================================================
   prepare:
     name: Preparar Build
-    runs-on: ubuntu-latest
+    needs: select-runner
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
 
     outputs:
       services_matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -162,8 +163,8 @@ jobs:
   # ============================================================================
   build:
     name: Build ${{ matrix.service }}
-    runs-on: ubuntu-latest
-    needs: prepare
+    needs: [select-runner, prepare]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
 
     strategy:
       fail-fast: false
@@ -300,8 +301,8 @@ jobs:
   # ============================================================================
   deploy:
     name: Deploy to ${{ inputs.environment }}
-    runs-on: ubuntu-latest
-    needs: [prepare, build]
+    needs: [select-runner, prepare, build]
+    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     if: inputs.deploy_after_build == true
 
     steps:
