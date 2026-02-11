@@ -25,15 +25,15 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    # OpenTelemetry 1.30.0+ corrige bugs de formatação de string que causavam
-    # TypeError: not all arguments converted during string formatting
-    "opentelemetry-api>=1.30.0",
-    "opentelemetry-sdk>=1.30.0",
-    "opentelemetry-exporter-otlp-proto-grpc>=1.30.0",
-    "opentelemetry-exporter-otlp-proto-common>=1.30.0",
-    "opentelemetry-proto>=1.30.0",
-    "opentelemetry-instrumentation>=0.51b0",
-    "opentelemetry-instrumentation-grpc>=0.51b0",
+    # OpenTelemetry - pinned to compatible versions to avoid ImportError
+    # Using 1.28.x for core packages with 0.49b0 instrumentation for compatibility
+    "opentelemetry-api==1.28.0",
+    "opentelemetry-sdk==1.28.0",
+    "opentelemetry-exporter-otlp-proto-grpc==1.28.0",
+    "opentelemetry-exporter-otlp-proto-common==1.28.0",
+    "opentelemetry-proto==1.28.0",
+    "opentelemetry-instrumentation==0.49b0",
+    "opentelemetry-instrumentation-grpc==0.49b0",
     "grpcio>=1.68.1",
     "prometheus-client>=0.21.1",
     "structlog>=24.4.0",
