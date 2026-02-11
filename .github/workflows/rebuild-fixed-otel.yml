@@ -13,6 +13,12 @@ env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ${{ github.repository_owner }}/neural-hive-mind
 
+# Permissões necessárias para push ao GHCR
+permissions:
+  contents: read
+  packages: write
+  actions: read
+
 jobs:
   build:
     name: Build ${{ matrix.service }}
@@ -32,11 +38,12 @@ jobs:
         id: vars
         run: |
           SVC="${{ matrix.service }}"
+          REG="${{ env.REGISTRY }}"
           PREFIX="${{ env.IMAGE_PREFIX }}"
           TAG="${{ inputs.image_tag }}"
-          echo "image_name=$PREFIX/$SVC" >> $GITHUB_OUTPUT
+          echo "image_name=$REG/$PREFIX/$SVC" >> $GITHUB_OUTPUT
           echo "image_tag=$TAG" >> $GITHUB_OUTPUT
-          echo "full_image=$PREFIX/$SVC:$TAG" >> $GITHUB_OUTPUT
+          echo "full_image=$REG/$PREFIX/$SVC:$TAG" >> $GITHUB_OUTPUT
 
       - name: Set up Docker BuildX
         uses: docker/setup-buildx-action@v3
