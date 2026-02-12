@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neural-hive-observability"
-version = "1.3.1"
+version = "1.3.2"
 description = "Biblioteca de observabilidade padronizada para Neural Hive-Mind"
 readme = {text = "Biblioteca Python que facilita instrumentação OpenTelemetry consistente entre serviços do Neural Hive-Mind com tracing, métricas e logging estruturado.", content-type = "text/plain"}
 requires-python = ">=3.8"

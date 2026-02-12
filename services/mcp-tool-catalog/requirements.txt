@@ -7,10 +7,11 @@ pydantic-settings==2.6.1  # 2.7.x has _lenient_issubclass bug
 # Logging and observability
 structlog==24.4.0
 prometheus-client==0.21.1
-opentelemetry-api==1.29.0
-opentelemetry-sdk==1.29.0
-opentelemetry-instrumentation-fastapi==0.50b0
-opentelemetry-exporter-otlp==1.29.0
+opentelemetry-api==1.28.0
+opentelemetry-sdk==1.28.0
+opentelemetry-instrumentation-fastapi==0.49b0
+opentelemetry-exporter-otlp==1.28.0
+opentelemetry-instrumentation==0.49b0
 
 # Neural Hive Observability (installed from local path in Dockerfile)
 # neural-hive-observability is installed from local path

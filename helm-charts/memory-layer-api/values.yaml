@@ -5,7 +5,7 @@ layer: "conhecimento-dados"
 image:
   repository: ghcr.io/albinojimy/neural-hive-mind/memory-layer-api
   pullPolicy: Always
-  tag: "1.2.1"
+  tag: "1.2.8"
 
 imagePullSecrets:
   - name: ghcr-secret
@@ -172,7 +172,7 @@ config:
 
   # Observabilidade
   otel:
-    endpoint: "http://otel-collector-neural-hive-otel-collector.observability.svc.cluster.local:4317"
+    endpoint: "https://otel-collector-neural-hive-otel-collector.observability.svc.cluster.local:4317"
   prometheus:
     port: 8080
   jaeger:

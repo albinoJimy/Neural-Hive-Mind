@@ -62,7 +62,7 @@ class Settings(BaseSettings):
 
     # ClickHouse (Histórico)
     clickhouse_host: str = Field(
-        default='clickhouse-http.clickhouse-cluster.svc.cluster.local',
+        default='clickhouse-neural-hive-clickhouse.clickhouse-operator.svc.cluster.local',
         description="ClickHouse host"
     )
     clickhouse_port: int = Field(default=8123, description="ClickHouse HTTP port")

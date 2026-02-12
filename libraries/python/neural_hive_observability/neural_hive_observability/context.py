@@ -570,5 +570,9 @@ __all__ = [
     "extract_context_from_headers",  # Alias para compatibilidade
     "set_baggage_value",
     "set_baggage",  # Re-exported from opentelemetry
+    "get_baggage",  # Alias for get_all_baggage
     "inject_context_to_metadata",
 ]
+
+# Alias para compatibilidade - get_baggage é o mesmo que get_all_baggage
+get_baggage = get_all_baggage

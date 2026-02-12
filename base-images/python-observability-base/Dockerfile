@@ -8,7 +8,7 @@
 FROM python:3.11-slim
 
 # Build arguments
-ARG VERSION=1.2.6
+ARG VERSION=1.2.7
 ARG BUILD_DATE
 
 # Labels
@@ -36,7 +36,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     rm -rf /tmp/neural_hive_observability
 
 # Verify installation including critical functions
-RUN python -c "from neural_hive_observability import init_observability, get_metrics, get_logger, instrument_grpc_channel, inject_context_to_metadata; from neural_hive_observability.context import extract_context_from_headers, set_baggage; print('✓ neural_hive_observability installed successfully with all required functions')"
+RUN python -c "from neural_hive_observability import init_observability, get_metrics, get_logger, instrument_grpc_channel, inject_context_to_metadata; from neural_hive_observability.context import extract_context_from_headers, set_baggage, get_baggage; print('✓ neural_hive_observability installed successfully with all required functions')"
 
 # Print installed packages for debugging
 RUN pip list | grep -E "opentelemetry|prometheus|grpcio|pydantic|structlog"
