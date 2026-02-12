@@ -1,13 +1,36 @@
 """Configurações compartilhadas para os testes"""
+import sys
+import os
+from unittest.mock import MagicMock
+from enum import Enum
+
+# Mock UnifiedDomain Enum before importing
+class MockUnifiedDomain(str, Enum):
+    """Mock de UnifiedDomain para testes"""
+    BUSINESS = "business"
+    TECHNICAL = "technical"
+    SECURITY = "security"
+    INFRASTRUCTURE = "infrastructure"
+    UNKNOWN = "unknown"
+
+# Mock external dependencies BEFORE importing our modules
+sys.modules['whisper'] = MagicMock()
+sys.modules['spacy'] = MagicMock()
+sys.modules['thinc'] = MagicMock()
+sys.modules['neural_hive_domain'] = MagicMock()
+sys.modules['neural_hive_domain'].UnifiedDomain = MockUnifiedDomain
+sys.modules['neural_hive_observability'] = MagicMock()
+sys.modules['neural_hive_security'] = MagicMock()
+sys.modules['neural_hive_integration'] = MagicMock()
+
+# Add src to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
 import asyncio
 import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock
 from typing import Dict, Any
-
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from models.intent_envelope import IntentEnvelope, IntentRequest
 from pipelines.asr_pipeline import ASRPipeline, ASRResult
