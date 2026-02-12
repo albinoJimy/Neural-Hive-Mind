@@ -11,15 +11,21 @@ Suporta execução de queries em:
 import asyncio
 import json
 import time
+from contextlib import nullcontext
 from typing import Any, Dict, Optional, List
 from neural_hive_observability import get_tracer
 from .base_executor import BaseTaskExecutor
 
 
 class QueryExecutor(BaseTaskExecutor):
-    """Executor para task_type=QUERY com suporte a múltiplas fontes de dados."""
+    """Executor para task_type=QUERY com suporte a múltiplas fontes de dados.
+
+    Nota: O task_type é case-insensitive no registry. Tickets com task_type 'query',
+    'QUERY', 'Query', etc. serão corretamente roteados para este executor.
+    """
 
     def get_task_type(self) -> str:
+        # Retorna uppercase - registry normaliza para uppercase na busca
         return 'QUERY'
 
     def __init__(
@@ -69,11 +75,13 @@ class QueryExecutor(BaseTaskExecutor):
         query_type = parameters.get('query_type', 'mongodb')
 
         tracer = get_tracer()
-        with tracer.start_as_current_span('task_execution') as span:
-            span.set_attribute('neural.hive.task_id', ticket_id)
-            span.set_attribute('neural.hive.task_type', self.get_task_type())
-            span.set_attribute('neural.hive.executor', self.__class__.__name__)
-            span.set_attribute('neural.hive.query_type', query_type)
+        span_context = tracer.start_as_current_span('task_execution') if tracer else nullcontext()
+        with span_context as span:
+            if span:
+                span.set_attribute('neural.hive.task_id', ticket_id)
+                span.set_attribute('neural.hive.task_type', self.get_task_type())
+                span.set_attribute('neural.hive.executor', self.__class__.__name__)
+                span.set_attribute('neural.hive.query_type', query_type)
 
             self.log_execution(
                 ticket_id,
@@ -108,8 +116,9 @@ class QueryExecutor(BaseTaskExecutor):
                     status = 'success' if result.get('success') else 'failed'
                     self.metrics.query_executed_total.labels(status=status, query_type=query_type).inc()
 
-                span.set_attribute('neural.hive.execution_status', 'success' if result.get('success') else 'failed')
-                span.set_attribute('neural.hive.duration_seconds', elapsed_seconds)
+                if span:
+                    span.set_attribute('neural.hive.execution_status', 'success' if result.get('success') else 'failed')
+                    span.set_attribute('neural.hive.duration_seconds', elapsed_seconds)
 
                 return result
 
@@ -176,8 +185,9 @@ class QueryExecutor(BaseTaskExecutor):
             documents = await cursor.to_list(length=limit or 1000)
             serialized_docs = [self._serialize_doc(doc) for doc in documents]
 
-            span.set_attribute('neural.hive.mongodb_collection', collection_name)
-            span.set_attribute('neural.hive.document_count', len(serialized_docs))
+            if span:
+                span.set_attribute('neural.hive.mongodb_collection', collection_name)
+                span.set_attribute('neural.hive.document_count', len(serialized_docs))
 
             self.log_execution(
                 ticket_id,
@@ -248,8 +258,9 @@ class QueryExecutor(BaseTaskExecutor):
             # Converter resultados para JSON serializável
             serialized_results = self._serialize_neo4j_results(results)
 
-            span.set_attribute('neural.hive.neo4j_query', cypher_query[:100] if len(cypher_query) > 100 else cypher_query)
-            span.set_attribute('neural.hive.result_count', len(serialized_results))
+            if span:
+                span.set_attribute('neural.hive.neo4j_query', cypher_query[:100] if len(cypher_query) > 100 else cypher_query)
+                span.set_attribute('neural.hive.result_count', len(serialized_results))
 
             self.log_execution(
                 ticket_id,
@@ -365,8 +376,9 @@ class QueryExecutor(BaseTaskExecutor):
                     if len(messages) == 0:
                         await asyncio.sleep(0.1)
 
-                span.set_attribute('neural.hive.kafka_topic', topic)
-                span.set_attribute('neural.hive.message_count', len(messages))
+                if span:
+                    span.set_attribute('neural.hive.kafka_topic', topic)
+                    span.set_attribute('neural.hive.message_count', len(messages))
 
                 self.log_execution(
                     ticket_id,
@@ -440,7 +452,8 @@ class QueryExecutor(BaseTaskExecutor):
                     'exists': value is not None
                 }
 
-                span.set_attribute('neural.hive.redis_key', key)
+                if span:
+                    span.set_attribute('neural.hive.redis_key', key)
 
                 self.log_execution(
                     ticket_id,
@@ -494,8 +507,9 @@ class QueryExecutor(BaseTaskExecutor):
                 if values:
                     result['values'] = values
 
-                span.set_attribute('neural.hive.redis_pattern', pattern)
-                span.set_attribute('neural.hive.redis_key_count', len(keys))
+                if span:
+                    span.set_attribute('neural.hive.redis_pattern', pattern)
+                    span.set_attribute('neural.hive.redis_key_count', len(keys))
 
                 self.log_execution(
                     ticket_id,
@@ -529,8 +543,9 @@ class QueryExecutor(BaseTaskExecutor):
                     'pattern': pattern
                 }
 
-                span.set_attribute('neural.hive.redis_pattern', pattern)
-                span.set_attribute('neural.hive.redis_key_count', len(keys))
+                if span:
+                    span.set_attribute('neural.hive.redis_pattern', pattern)
+                    span.set_attribute('neural.hive.redis_key_count', len(keys))
 
                 self.log_execution(
                     ticket_id,
