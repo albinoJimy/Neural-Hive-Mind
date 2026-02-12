@@ -70,6 +70,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Download build-info artifact
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: build-info
+          path: build-info
+          run-id: ${{ github.event.workflow_run.id }}
+
       - name: Definir ambiente
         id: set-env
         run: |
@@ -134,9 +142,16 @@ jobs:
           )
 
           if [[ -n "${{ inputs.services }}" ]]; then
+            # Usar servicos explicitamente informados
             IFS=',' read -ra SERVICES <<< "${{ inputs.services }}"
+          elif [[ -f "build-info/services.txt" ]]; then
+            # Usar servicos do build-info (apenas os que foram buildados)
+            IFS=',' read -ra SERVICES <<< "$(cat build-info/services.txt)"
+            echo "Usando servicos do build-info: ${SERVICES[*]}"
           else
+            # Fallback: todos os servicos
             SERVICES=("${ALL_SERVICES[@]}")
+            echo "Nenhum build-info encontrado, usando todos os servicos"
           fi
 
           MATRIX_JSON=$(printf '%s\n' "${SERVICES[@]}" | jq -R -s -c 'split("\n") | map(select(. != ""))')
@@ -236,20 +251,41 @@ jobs:
             --type='json' \
             -p='[{"op": "add", "path": "/spec/template/spec/imagePullSecrets", "value": [{"name": "ghcr-secret"}]}]' 2>/dev/null || true
 
+      - name: Verificar se imagem existe no registry
+        id: check-image
+        if: steps.check-deployment.outputs.exists == 'true'
+        run: |
+          NAMESPACE="${{ needs.prepare.outputs.namespace }}"
+          SERVICE="${{ matrix.service }}"
+          TAG="${{ needs.prepare.outputs.image_tag }}"
+          IMAGE="${{ needs.prepare.outputs.ghcr_prefix }}/${SERVICE}:${TAG}"
+
+          echo "Verificando imagem: $IMAGE"
+
+          # Tentar pull da imagem para verificar se existe
+          if docker pull "$IMAGE" &>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Imagem encontrada"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "AVISO: Imagem $IMAGE nao encontrada no registry"
+            echo "Este serviço nao foi buildado neste commit - pulando deploy"
+          fi
+
       - name: Atualizar imagem
-        if: steps.check-deployment.outputs.exists == 'true' && inputs.dry_run != true
+        if: steps.check-deployment.outputs.exists == 'true' && steps.check-image.outputs.exists == 'true' && inputs.dry_run != true
         run: |
           NAMESPACE="${{ needs.prepare.outputs.namespace }}"
           SERVICE="${{ matrix.service }}"
           TAG="${{ needs.prepare.outputs.image_tag }}"
           NEW_IMAGE="${{ needs.prepare.outputs.ghcr_prefix }}/${SERVICE}:${TAG}"
-          
+
           echo "Atualizando $SERVICE para $NEW_IMAGE"
-          
+
           kubectl set image deployment/"$SERVICE" \
             "$SERVICE"="$NEW_IMAGE" \
             -n "$NAMESPACE" --record
-          
+
           # Aguardar rollout
           kubectl rollout status deployment/"$SERVICE" \
             -n "$NAMESPACE" \
@@ -262,17 +298,28 @@ jobs:
           SERVICE="${{ matrix.service }}"
           TAG="${{ needs.prepare.outputs.image_tag }}"
           NEW_IMAGE="${{ needs.prepare.outputs.ghcr_prefix }}/${SERVICE}:${TAG}"
-          
+
           echo "[DRY-RUN] Atualizaria $SERVICE para $NEW_IMAGE"
-          
+
           CURRENT=$(kubectl get deployment "$SERVICE" -n "$NAMESPACE" \
             -o jsonpath='{.spec.template.spec.containers[0].image}')
-          
+
           echo "Atual: $CURRENT"
           echo "Nova:  $NEW_IMAGE"
 
+      - name: AVISO - Imagem nao encontrada
+        if: steps.check-image.outputs.exists == 'false'
+        run: |
+          echo "## ⚠️ Deploy Pulado" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Serviço:** ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** ${{ needs.prepare.outputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Motivo:** Imagem nao encontrada no registry" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Este serviço não foi modificado no commit atual."
+
       - name: Verificar health
-        if: steps.check-deployment.outputs.exists == 'true' && inputs.dry_run != true
+        if: steps.check-deployment.outputs.exists == 'true' && steps.check-image.outputs.exists == 'true' && inputs.dry_run != true
         run: |
           NAMESPACE="${{ needs.prepare.outputs.namespace }}"
           SERVICE="${{ matrix.service }}"
