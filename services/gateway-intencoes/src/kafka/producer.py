@@ -44,6 +44,15 @@ class KafkaIntentProducer:
         self._transactional_id = self._generate_stable_transactional_id()
         self._cluster_metadata = None
         self._instrumented = False
+        # Otimização: Producer não-transacional para intents de baixa prioridade
+        # Gateado behind enable_fast_producer setting - disabled by default for exactly-once
+        self._fast_producer: Optional[Producer] = None
+        self._fast_producer_ready = False
+        self._enable_fast_producer = self.settings.kafka_enable_fast_producer if hasattr(self.settings, 'kafka_enable_fast_producer') else False
+        # Per-topic allowlist for fast producer (empty = all topics blocked by default)
+        self._fast_producer_allowed_topics = set(
+            self.settings.kafka_fast_producer_topics.split(",") if hasattr(self.settings, 'kafka_fast_producer_topics') and self.settings.kafka_fast_producer_topics else []
+        )
 
     def _generate_stable_transactional_id(self) -> str:
         """Generate stable transactional ID per process/pod
@@ -180,6 +189,29 @@ class KafkaIntentProducer:
 
             self._ready = True
 
+            # Otimização: Criar fast producer para intents não-críticas (fire-and-forget)
+            # APENAS se enable_fast_producer=True - default to FALSE para exactly-once
+            if self._enable_fast_producer:
+                try:
+                    fast_producer_config = producer_config.copy()
+                    fast_producer_config.update({
+                        'acks': 1,  # Espera apenas líder (não todos os replicas)
+                        'linger.ms': 5,  # Batch menor para envio mais rápido
+                        'enable.idempotence': False,  # Desabilitar idempotence para performance
+                        'transactional.id': None  # Sem transação para fire-and-forget
+                    })
+                    self._fast_producer = Producer(fast_producer_config)
+                    self._fast_producer_ready = True
+                    logger.info(
+                        "Fast producer (non-transactional) inicializado",
+                        enabled_topics=list(self._fast_producer_allowed_topics) if self._fast_producer_allowed_topics else "all"
+                    )
+                except Exception as e:
+                    logger.warning(f"Não foi possível criar fast producer: {e}")
+                    self._fast_producer_ready = False
+            else:
+                logger.info("Fast producer desabilitado (enable_fast_producer=False) - usando apenas producer transacional para exactly-once")
+
             logger.info("Producer Kafka inicializado com sucesso")
 
         except Exception as e:
@@ -241,9 +273,20 @@ class KafkaIntentProducer:
         topic_override: Optional[str] = None,
         confidence_status: Optional[str] = None,
         requires_validation: Optional[bool] = None,
-        adaptive_threshold_used: Optional[bool] = None
+        adaptive_threshold_used: Optional[bool] = None,
+        use_fast_producer: bool = False
     ):
-        """Enviar intenção para Kafka com exactly-once e metadata de confiança"""
+        """Enviar intenção para Kafka com exactly-once e metadata de confiança
+
+        Args:
+            use_fast_producer: Se True, usa producer não-transacional para latência menor.
+                             APENAS usado quando enable_fast_producer=True E topic na allowlist.
+                             Default para producer transacional (exactly-once) para garantir reliability.
+
+        Nota: fast-producer path está gateado behind enable_fast_producer setting e
+              per-topic allowlist. Intents de validação/DLQ usam producer transacional
+              por padrão para garantir reliability requirements.
+        """
         logger.info(
             "🚀 send_intent CHAMADO",
             intent_id=intent_envelope.id,
@@ -254,6 +297,39 @@ class KafkaIntentProducer:
 
         if not self.is_ready():
             raise RuntimeError("Producer Kafka não inicializado")
+
+        # Otimização: Escolher producer baseado em prioridade da intent
+        # Default: SEMPRE transactional (exactly-once) para garantir reliability
+        producer_to_use = self.producer
+        use_transaction = True
+
+        # Fast producer APENAS se: enable_fast_producer=True AND fast_producer_ready AND
+        # (topic na allowlist OR allowlist vazia=blocked)
+        can_use_fast = (
+            self._enable_fast_producer and
+            self._fast_producer_ready and
+            use_fast_producer and
+            (not self._fast_producer_allowed_topics or topic in self._fast_producer_allowed_topics)
+        )
+
+        if can_use_fast:
+            producer_to_use = self._fast_producer
+            use_transaction = False
+            logger.debug(f"Usando fast producer (não-transacional) para intent_id={intent_envelope.id}, topic={topic}")
+        elif use_fast_producer:
+            # Fast producer solicitado mas não disponível ou não permitido para este topic
+            reasons = []
+            if not self._enable_fast_producer:
+                reasons.append("enable_fast_producer=False")
+            if not self._fast_producer_ready:
+                reasons.append("fast_producer_not_ready")
+            if self._fast_producer_allowed_topics and topic not in self._fast_producer_allowed_topics:
+                reasons.append(f"topic_{topic}_not_in_allowlist")
+            logger.warning(
+                f"Fast producer solicitado mas não disponível/permitido: {', '.join(reasons)}. "
+                f"Usando producer transacional (exactly-once)"
+            )
+            logger.warning(f"Fast producer solicitado mas não disponível, usando producer padrão")
 
         topic = topic_override or f"intentions.{intent_envelope.intent.domain.value.lower()}"
         partition_key = intent_envelope.get_partition_key()
@@ -270,9 +346,10 @@ class KafkaIntentProducer:
         domain_str = intent_envelope.intent.domain.value
 
         try:
-            # Iniciar transação
-            self.producer.begin_transaction()
-            logger.debug(f"Transação iniciada para intent_id={intent_envelope.id}, topic={topic}")
+            # Iniciar transação (apenas para producer transacional)
+            if use_transaction:
+                producer_to_use.begin_transaction()
+                logger.debug(f"Transação iniciada para intent_id={intent_envelope.id}, topic={topic}")
 
             # Serializar (Avro ou JSON)
             if self.avro_serializer:
@@ -322,7 +399,8 @@ class KafkaIntentProducer:
                 'confidence-score': str(intent_envelope.confidence).encode('utf-8'),
                 'confidence-status': (confidence_status or 'unknown').encode('utf-8'),
                 'requires-validation': str(requires_validation if requires_validation is not None else False).encode('utf-8'),
-                'adaptive-threshold-used': str(adaptive_threshold_used if adaptive_threshold_used is not None else False).encode('utf-8')
+                'adaptive-threshold-used': str(adaptive_threshold_used if adaptive_threshold_used is not None else False).encode('utf-8'),
+                'fast-producer': str(not use_transaction).encode('utf-8')
             }
             if (
                 self.settings.otel_enabled
@@ -342,7 +420,7 @@ class KafkaIntentProducer:
                 headers = list(headers.items())
 
             # Produzir mensagem
-            future = self.producer.produce(
+            future = producer_to_use.produce(
                 topic=topic,
                 key=partition_key.encode('utf-8'),
                 value=serialized_value,
@@ -351,12 +429,13 @@ class KafkaIntentProducer:
             )
 
             # Flush para garantir envio
-            self.producer.flush(timeout=10.0)
+            producer_to_use.flush(timeout=10.0)
             logger.debug(f"Flush realizado para intent_id={intent_envelope.id}")
 
-            # Commit da transação
-            self.producer.commit_transaction()
-            logger.debug(f"Transação commitada para intent_id={intent_envelope.id}")
+            # Commit da transação (apenas para producer transacional)
+            if use_transaction:
+                producer_to_use.commit_transaction()
+                logger.debug(f"Transação commitada para intent_id={intent_envelope.id}")
 
             logger.info(
                 "Intenção enviada para Kafka",
@@ -395,9 +474,10 @@ class KafkaIntentProducer:
                     error=error_str
                 )
 
-            # Abort da transação em caso de erro
+            # Abort da transação em caso de erro (apenas para producer transacional)
             try:
-                self.producer.abort_transaction()
+                if use_transaction:
+                    producer_to_use.abort_transaction()
             except:
                 pass
             raise
@@ -415,15 +495,26 @@ class KafkaIntentProducer:
             )
 
     async def close(self):
-        """Fechar producer"""
+        """Fechar producer (ambos: transacional e fast)"""
+        # Fechar producer principal
         if self.producer:
             try:
                 self.producer.flush(timeout=30.0)
                 self.producer = None
                 self._ready = False
-                logger.info("Producer Kafka fechado")
+                logger.info("Producer Kafka principal fechado")
             except Exception as e:
-                logger.error("Erro fechando producer", error=str(e))
+                logger.error("Erro fechando producer principal", error=str(e))
+
+        # Fechar fast producer
+        if self._fast_producer:
+            try:
+                self._fast_producer.flush(timeout=30.0)
+                self._fast_producer = None
+                self._fast_producer_ready = False
+                logger.info("Fast producer fechado")
+            except Exception as e:
+                logger.error("Erro fechando fast producer", error=str(e))
 
     async def send_to_dlq(self, intent_envelope: IntentEnvelope, error_reason: str, original_message_size: int = 0):
         """Enviar mensagem com falha para Dead Letter Queue"""
@@ -449,14 +540,17 @@ class KafkaIntentProducer:
                 'content-type': 'application/json'.encode('utf-8')
             }
 
-            # Enviar para DLQ (sem transação para evitar conflitos)
+            # Enviar para DLQ - usar SEMPRE producer transacional para reliability
+            # DLQ contém mensagens com falha que devem ser preservadas
+            dlq_producer = self.producer
+
             # Otimização: Usar orjson se disponível
             if USE_ORJSON:
                 dlq_value = orjson.dumps(dlq_envelope)
             else:
                 dlq_value = json.dumps(dlq_envelope, ensure_ascii=False).encode('utf-8')
 
-            self.producer.produce(
+            dlq_producer.produce(
                 topic=dlq_topic,
                 key=intent_envelope.id.encode('utf-8'),
                 value=dlq_value,
@@ -464,7 +558,7 @@ class KafkaIntentProducer:
             )
 
             # Flush para garantir entrega da DLQ
-            self.producer.flush(timeout=5.0)
+            dlq_producer.flush(timeout=5.0)
 
             logger.info(
                 "Mensagem enviada para DLQ",

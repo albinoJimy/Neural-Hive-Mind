@@ -735,11 +735,14 @@ async def _process_text_intention_with_context(
         import sys
         if nlu_result.confidence >= effective_threshold_high:
             # Alta ou média confiança - processar normalmente
+            # Usar SEMPRE producer transacional (exactly-once) por padrão
+            # Fast producer apenas se enable_fast_producer=True e topic na allowlist
             await kafka_producer.send_intent(
                 intent_envelope,
                 confidence_status=nlu_result.confidence_status,
                 requires_validation=nlu_result.requires_manual_validation,
-                adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled
+                adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled,
+                use_fast_producer=False  # Default: transacional para exactly-once
             )
             status_message = "processed"
             processing_notes = []
@@ -749,11 +752,13 @@ async def _process_text_intention_with_context(
 
         elif nlu_result.confidence >= effective_threshold_low:
             # Confiança baixa mas aceitável - processar com flag de baixa confiança
+            # Usar SEMPRE producer transacional (exactly-once) por padrão
             await kafka_producer.send_intent(
                 intent_envelope,
                 confidence_status="low",
                 requires_validation=True,
-                adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled
+                adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled,
+                use_fast_producer=False  # Default: transacional para exactly-once
             )
             status_message = "processed_low_confidence"
             processing_notes = ["Processado com confiança baixa - recomenda-se validação"]
@@ -766,12 +771,14 @@ async def _process_text_intention_with_context(
             )
         else:  # confidence < effective_threshold_low
             # Confiança muito baixa - rotear para validação
+            # Usar SEMPRE producer transacional - validation deve ser reliable
             await kafka_producer.send_intent(
                 intent_envelope,
                 topic_override="intentions.validation",
                 confidence_status="low",
                 requires_validation=True,
-                adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled
+                adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled,
+                use_fast_producer=False  # Transacional para exactly-once em validation
             )
             status_message = "routed_to_validation"
             processing_notes = ["Confiança muito baixa - requer validação manual"]
@@ -1057,11 +1064,13 @@ async def process_voice_intention(
         # Determinar roteamento baseado em confiança (mesma lógica do texto)
         if intent_envelope.confidence >= effective_threshold_high:
             # Alta ou média confiança - processar normalmente
+            # Usar SEMPRE producer transacional (exactly-once) por padrão
             await kafka_producer.send_intent(
                 intent_envelope,
                 confidence_status=nlu_result.confidence_status,
                 requires_validation=nlu_result.requires_manual_validation,
-                adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled
+                adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled,
+                use_fast_producer=False  # Default: transacional para exactly-once
             )
             status_message = "processed"
             processing_notes = []
@@ -1071,11 +1080,13 @@ async def process_voice_intention(
 
         elif intent_envelope.confidence >= effective_threshold_low:
             # Confiança baixa mas aceitável - processar com flag de baixa confiança
+            # Usar SEMPRE producer transacional (exactly-once) por padrão
             await kafka_producer.send_intent(
                 intent_envelope,
                 confidence_status="low",
                 requires_validation=True,
-                adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled
+                adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled,
+                use_fast_producer=False  # Default: transacional para exactly-once
             )
             status_message = "processed_low_confidence"
             processing_notes = ["Processado com confiança baixa - recomenda-se validação"]
@@ -1090,12 +1101,14 @@ async def process_voice_intention(
             )
         else:  # confidence < effective_threshold_low
             # Confiança muito baixa - rotear para validação
+            # Usar SEMPRE producer transacional - validation deve ser reliable
             await kafka_producer.send_intent(
                 intent_envelope,
                 topic_override="intentions.validation",
                 confidence_status="low",
                 requires_validation=True,
-                adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled
+                adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled,
+                use_fast_producer=False  # Transacional para exactly-once em validation
             )
             status_message = "routed_to_validation"
             processing_notes = ["Confiança muito baixa - requer validação manual"]

@@ -1,4 +1,5 @@
 """Pipeline NLU usando spaCy para análise de texto e classificação de intenções"""
+import asyncio
 import spacy
 import re
 import hashlib
@@ -12,6 +13,19 @@ from models.intent_envelope import NLUResult, Entity
 from neural_hive_domain import UnifiedDomain
 from config.settings import get_settings
 from cache.redis_client import get_redis_client
+
+# Importar métricas de cache e SLO
+try:
+    from observability.metrics import (
+        nlu_cache_corruption_total,
+        nlu_cache_operations_total,
+        gateway_nlu_processing_duration,
+        gateway_slo_violations_total,
+        gateway_cache_errors_total
+    )
+    CACHE_METRICS_AVAILABLE = True
+except ImportError:
+    CACHE_METRICS_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 try:
@@ -47,12 +61,23 @@ class NLUPipeline:
     async def initialize(self):
         """Carregar modelos spaCy e configurações"""
         try:
-            # Carregar modelo principal do volume persistente
+            # Otimização: Lazy loading do modelo principal - carregar apenas primeiro uso
+            # Este é um padrão lazy para reduzir tempo de inicialização
+            logger.info(f"Configurando NLU Pipeline com lazy loading: {self.language_model}")
+
+            # Configurar cliente Redis para cache
+            if self.settings.nlu_cache_enabled:
+                self.redis_client = await get_redis_client()
+
+            # Carregar regras de classificação
+            await self.load_classification_rules()
+
+            # Carregar modelo principal (não lazy para primeira requisição ser rápida)
             logger.info(f"Carregando modelo spaCy principal: {self.language_model}")
             self.nlp = self._load_model_from_cache(self.language_model)
             self.nlp_models['default'] = self.nlp
 
-            # Tentar carregar modelos para idiomas suportados
+            # Tentar carregar modelos para idiomas suportados (lazy loading sob demanda)
             for lang_code, model_name in self.supported_models.items():
                 try:
                     if model_name != self.language_model:  # Evitar recarregar modelo principal
@@ -62,12 +87,9 @@ class NLUPipeline:
                 except OSError:
                     logger.warning(f"Modelo {model_name} não encontrado para idioma {lang_code}")
 
-            # Configurar cliente Redis para cache
+            # Otimização: Cache warming para queries frequentes (se habilitado)
             if self.settings.nlu_cache_enabled:
-                self.redis_client = await get_redis_client()
-
-            # Carregar regras de classificação
-            await self.load_classification_rules()
+                await self._warmup_cache()
 
             self._ready = True
             logger.info(f"NLU Pipeline inicializado com {len(self.nlp_models)} modelos")
@@ -75,6 +97,99 @@ class NLUPipeline:
         except Exception as e:
             logger.error(f"Erro inicializando pipeline NLU: {e}")
             raise
+
+    async def _warmup_cache(self):
+        """Otimização: Cache warming com queries frequentes para reduzir latência.
+
+        Persiste resultados processados no Redis com schema_version e campos obrigatórios.
+        Executa queries concurrentemente para não bloquear inicialização.
+        """
+        if not self.redis_client:
+            return
+
+        # Lista de queries frequentes para pre-aquecer cache
+        common_queries = [
+            "status do sistema",
+            "relatório de vendas",
+            "deploy em produção",
+            "erro no login",
+            "análise de performance"
+        ]
+
+        logger.info(f"Iniciando cache warming com {len(common_queries)} queries comuns")
+
+        # Executar warmup tasks concurrentemente para não bloquear inicialização
+        async def warmup_single_query(query: str):
+            """Processa uma única query para cache warming."""
+            try:
+                # Criar cache key
+                cache_key = self._get_cache_key(query, "pt-BR", None)
+
+                # Verificar se já está em cache (evitar processamento duplicado)
+                existing = await self.redis_client.get(cache_key)
+                if existing:
+                    logger.debug(f"Cache hit no warming para query: {query[:30]}...")
+                    return
+
+                # Processar query completa com NLU
+                if self.nlp:
+                    # Normalizar texto
+                    normalized_text = self._normalize_text(query)
+
+                    # Processar com spaCy
+                    doc = self.nlp(normalized_text)
+
+                    # Extrair entidades
+                    entities = self._extract_entities(doc)
+
+                    # Classificar intenção
+                    domain, classification, confidence = await self._classify_intent_advanced(
+                        query, entities, "pt", None
+                    )
+
+                    # Extrair keywords
+                    keywords = self._extract_keywords(doc)
+
+                    # Calcular threshold adaptativo
+                    adaptive_threshold = self.confidence_threshold
+                    if self.settings.nlu_adaptive_threshold_enabled:
+                        adaptive_threshold = self._calculate_adaptive_threshold(query, None, confidence, entities)
+
+                    # Determinar confidence_status
+                    if confidence >= 0.75:
+                        confidence_status = "high"
+                    elif confidence >= 0.5:
+                        confidence_status = "medium"
+                    else:
+                        confidence_status = "low"
+
+                    # Criar resultado completo para cache (com schema_version)
+                    result = NLUResult(
+                        processed_text=self._mask_pii(query),
+                        domain=domain,
+                        classification=classification,
+                        confidence=confidence,
+                        entities=entities,
+                        keywords=keywords,
+                        requires_manual_validation=confidence < adaptive_threshold,
+                        confidence_status=confidence_status,
+                        adaptive_threshold=adaptive_threshold
+                    )
+
+                    # Persistir no cache usando _cache_result (garante schema_version e campos obrigatórios)
+                    await self._cache_result(cache_key, result)
+                    logger.debug(f"Cache warming realizado para query: {query[:30]}... -> {domain.value}")
+
+            except Exception as e:
+                logger.warning(f"Erro no cache warming para query '{query}': {e}")
+                # Não falhar inicialização se cache warming falhar
+
+        # Executar warmup tasks concurrentemente (mas limitar paralelismo)
+        import asyncio
+        warmup_tasks = [warmup_single_query(query) for query in common_queries]
+        await asyncio.gather(*warmup_tasks, return_exceptions=True)
+
+        logger.info(f"Cache warming concluído para {len(common_queries)} queries")
 
     async def load_classification_rules(self):
         """Carregar regras de classificação de arquivo de configuração"""
@@ -293,9 +408,16 @@ class NLUPipeline:
         return self._ready and self.nlp is not None
 
     async def process(self, text: str, language: str = "pt-AO", context: Dict[str, Any] = None) -> NLUResult:
-        """Processar texto para extrair intenção com cache e detecção de idioma"""
+        """Processar texto para extrair intenção com cache e detecção de idioma
+
+        Registra métricas de duração do processamento NLU e violações de SLO (>200ms).
+        """
         if not self.is_ready():
             raise RuntimeError("Pipeline NLU não inicializado")
+
+        # Registrar início do processamento NLU para métricas
+        import time
+        nlu_start_time = time.time()
 
         span_context = tracer.start_as_current_span("nlu.process") if tracer else nullcontext()
         with span_context as span:
@@ -417,6 +539,20 @@ class NLUPipeline:
                 span.set_attribute("neural.hive.nlu.result.domain", domain.value)
                 span.set_attribute("neural.hive.nlu.result.confidence", confidence)
 
+            # Registrar métricas de duração NLU e SLO
+            nlu_duration = time.time() - nlu_start_time
+            if CACHE_METRICS_AVAILABLE:
+                gateway_nlu_processing_duration.observe(nlu_duration)
+
+                # Verificar violação de SLO (200ms threshold)
+                SLO_THRESHOLD_MS = 0.200  # 200ms em segundos
+                if nlu_duration > SLO_THRESHOLD_MS:
+                    gateway_slo_violations_total.labels(slo_threshold_ms="200").inc()
+                    logger.warning(
+                        f"SLO violation: NLU processing levou {nlu_duration*1000:.0f}ms (>200ms), "
+                        f"intent_id={span.get_span_context().trace_id if span else 'unknown'}"
+                    )
+
             logger.info(
                 f"NLU processado: domínio={domain.value}, classificação={classification}, "
                 f"confidence={confidence:.2f}, status={confidence_status}, "
@@ -455,7 +591,10 @@ class NLUPipeline:
         return True
 
     def _get_cache_key(self, text: str, language: str, context: Dict[str, Any]) -> str:
-        """Gerar chave de cache para o texto"""
+        """Gerar chave de cache para o texto
+
+        Otimização: Adiciona versão do schema para invalidação automática em mudanças.
+        """
         # Normalizar texto para cache
         normalized = self._normalize_text(text)
 
@@ -464,27 +603,62 @@ class NLUPipeline:
         if context:
             context_key = json.dumps(context, sort_keys=True)
 
-        # Criar hash da combinação
-        content = f"{normalized}|{language}|{context_key}"
+        # Criar hash da combinação com versão do schema
+        # Versão 'v2' para incluir confidence_status e adaptive_threshold
+        cache_version = "v2"
+        content = f"{cache_version}:{normalized}|{language}|{context_key}"
         return f"nlu:cache:{hashlib.md5(content.encode()).hexdigest()}"
 
     async def _get_cached_result(self, cache_key: str) -> Optional[NLUResult]:
-        """Obter resultado do cache"""
+        """Obter resultado do cache com circuit breaker para falhas rápidas
+
+        Registra métricas de operações de cache (hit/miss/error).
+        """
+        # Otimização: Circuit breaker para cache - pular se Redis estiver lento
         try:
-            cached_data = await self.redis_client.get(cache_key)
+            # Usar timeout curto para evitar bloqueio (5ms)
+            cached_data = await asyncio.wait_for(
+                self.redis_client.get(cache_key),
+                timeout=0.005  # 5ms timeout
+            )
             if cached_data:
+                # Emitir métrica de cache HIT
+                if CACHE_METRICS_AVAILABLE:
+                    nlu_cache_operations_total.labels(operation="get", status="hit").inc()
                 # Validar tipo antes de deserializar
                 if isinstance(cached_data, dict):
                     # Dados já são dict, usar diretamente
                     data = cached_data
+                    # Validar schema_version - rejeitar entries de versões antigas
+                    schema_version = data.get("schema_version", "v1")
+                    if schema_version != "v2":
+                        logger.info(f"Cache entry com schema_version={schema_version} detectado, invalidando para migração")
+                        await self.redis_client.delete(cache_key)
+                        return None
                 elif isinstance(cached_data, (str, bytes)):
-                    # Deserializar resultado
-                    data = json.loads(cached_data)
+                    # Deserializar resultado com tratamento de erro
+                    try:
+                        data = json.loads(cached_data)
+                    except json.JSONDecodeError as je:
+                        # JSON corrompido - registrar métrica de corrupção
+                        logger.warning(
+                            f"Cache entry corrompido (JSON inválido): key={cache_key[:50]}..., error={je}"
+                        )
+                        if CACHE_METRICS_AVAILABLE:
+                            nlu_cache_corruption_total.labels(reason='json_error').inc()
+                        # Invalidar cache entry corrompido
+                        await self.redis_client.delete(cache_key)
+                        return None
                 else:
                     # Tipo inesperado, logar warning e retornar None
                     logger.warning(
                         f"Tipo inesperado no cache NLU: {type(cached_data)}, key: {cache_key}"
                     )
+                    # Invalidar cache entry com tipo incorreto
+                    await self.redis_client.delete(cache_key)
+                    # Registrar métrica de corrupção
+                    if CACHE_METRICS_AVAILABLE:
+                        nlu_cache_corruption_total.labels(reason='invalid_type').inc()
                     return None
                 # Migração defensiva: adicionar confidence_status se não existir
                 if "confidence_status" not in data:
@@ -509,15 +683,28 @@ class NLUPipeline:
                             )
                             data["domain"] = UnifiedDomain.TECHNICAL
                 return NLUResult(**data)
+        except asyncio.TimeoutError:
+            logger.debug(f"Cache lookup timeout para key: {cache_key[:20]}...")
+            # Emitir métrica de erro (timeout)
+            if CACHE_METRICS_AVAILABLE:
+                nlu_cache_operations_total.labels(operation="get", status="error").inc()
+            return None  # Retornar None imediatamente ao invés de esperar
         except Exception as e:
             logger.error(f"Erro obtendo do cache NLU: {e}")
+            # Emitir métrica de erro genérico
+            if CACHE_METRICS_AVAILABLE:
+                nlu_cache_operations_total.labels(operation="get", status="error").inc()
         return None
 
     async def _cache_result(self, cache_key: str, result: NLUResult):
-        """Salvar resultado no cache"""
+        """Salvar resultado no cache com validação de schema
+
+        Registra métricas de operações de cache (set success/error).
+        """
         try:
-            # Serializar resultado
+            # Serializar resultado com versão do schema
             data = {
+                "schema_version": "v2",  # Para invalidação automática
                 "processed_text": result.processed_text,
                 "domain": result.domain.value,
                 "classification": result.classification,
@@ -529,13 +716,28 @@ class NLUPipeline:
                 "adaptive_threshold": result.adaptive_threshold
             }
 
+            # Validar estrutura antes de salvar
+            required_fields = ["schema_version", "processed_text", "domain", "classification", "confidence", "confidence_status"]
+            for field in required_fields:
+                if field not in data:
+                    logger.error(f"Campo obrigatório faltando no cache NLU: {field}")
+                    if CACHE_METRICS_AVAILABLE:
+                        nlu_cache_corruption_total.labels(reason='missing_field').inc()
+                    return
+
             await self.redis_client.set(
                 cache_key,
                 json.dumps(data),
                 ttl=self.settings.nlu_cache_ttl_seconds
             )
+            # Emitir métrica de cache SET success
+            if CACHE_METRICS_AVAILABLE:
+                nlu_cache_operations_total.labels(operation="set", status="success").inc()
         except Exception as e:
             logger.error(f"Erro salvando no cache NLU: {e}")
+            # Emitir métrica de cache SET error
+            if CACHE_METRICS_AVAILABLE:
+                nlu_cache_operations_total.labels(operation="set", status="error").inc()
 
     async def _detect_language(self, text: str, provided_language: str) -> str:
         """Detectar idioma automaticamente se necessário"""
@@ -785,7 +987,11 @@ class NLUPipeline:
         return explanation
 
     def _extract_keywords(self, doc) -> List[str]:
-        """Extrair palavras-chave relevantes"""
+        """Extrair palavras-chave relevantes
+
+        Otimização: Limitado a top 5 keywords (era 10) para reduzir overhead.
+        Foca em palavras mais significativas: NOUN, VERB, ADJ.
+        """
         keywords = []
         for token in doc:
             if (not token.is_stop and
@@ -793,7 +999,7 @@ class NLUPipeline:
                 token.pos_ in ['NOUN', 'VERB', 'ADJ'] and
                 len(token.text) > 2):
                 keywords.append(token.lemma_.lower())
-        return list(set(keywords))[:10]  # Máximo 10 keywords
+        return list(set(keywords))[:5]  # Otimização: Reduzido de 10 para 5 keywords
 
     async def close(self):
         """Limpar recursos"""

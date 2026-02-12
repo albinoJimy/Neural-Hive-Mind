@@ -18,6 +18,13 @@ from prometheus_client import Counter, Histogram, Gauge
 
 from config.settings import get_settings
 
+# Importar gateway_cache_errors_total se disponível
+try:
+    from observability.metrics import gateway_cache_errors_total
+    GATEWAY_CACHE_METRICS_AVAILABLE = True
+except ImportError:
+    GATEWAY_CACHE_METRICS_AVAILABLE = False
+
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -430,7 +437,10 @@ class RedisClient:
             raise e
 
     async def get(self, key: str, intent_type: str = "unknown") -> Optional[Any]:
-        """Obter valor do cache com deserialização automática"""
+        """Obter valor do cache com deserialização automática
+
+        Otimização: Adiciona validação de tipo e limpa entries corrompidos.
+        """
         start_time = asyncio.get_event_loop().time()
 
         async def _get_operation():
@@ -449,11 +459,20 @@ class RedisClient:
                     operation="get", status="hit", intent_type=intent_type
                 ).inc()
 
-                # Deserializar JSON
+                # Deserializar JSON com validação de tipo
                 try:
                     return json.loads(value)
-                except json.JSONDecodeError:
-                    return value
+                except json.JSONDecodeError as e:
+                    # Cache entry corrompido - registrar e limpar
+                    logger.warning(
+                        f"Cache entry corrompido (JSON inválido): key={key[:50]}..., error={e}"
+                    )
+                    # Emitir métrica de corrupção
+                    if GATEWAY_CACHE_METRICS_AVAILABLE:
+                        gateway_cache_errors_total.labels(error_type="corruption").inc()
+                    # Invalidar entry corrompido para não afetar futuras requisições
+                    await self.delete(key, intent_type="cleanup")
+                    return None
             else:
                 self.miss_count += 1
                 redis_operations_total.labels(
@@ -467,6 +486,10 @@ class RedisClient:
             redis_operations_total.labels(
                 operation="get", status="error", intent_type=intent_type
             ).inc()
+            # Emitir métrica de erro de cache do Gateway
+            if GATEWAY_CACHE_METRICS_AVAILABLE:
+                error_type = "timeout" if isinstance(e, TimeoutError) else "connection"
+                gateway_cache_errors_total.labels(error_type=error_type).inc()
             logger.error(f"Erro ao obter chave {key}: {e}")
             return None
         finally:
@@ -513,6 +536,10 @@ class RedisClient:
             redis_operations_total.labels(
                 operation="set", status="error", intent_type=intent_type
             ).inc()
+            # Emitir métrica de erro de cache do Gateway
+            if GATEWAY_CACHE_METRICS_AVAILABLE:
+                error_type = "timeout" if isinstance(e, TimeoutError) else "connection"
+                gateway_cache_errors_total.labels(error_type=error_type).inc()
             logger.error(f"Erro ao definir chave {key}: {e}")
             return False
 
@@ -541,6 +568,10 @@ class RedisClient:
             redis_operations_total.labels(
                 operation="delete", status="error", intent_type=intent_type
             ).inc()
+            # Emitir métrica de erro de cache do Gateway
+            if GATEWAY_CACHE_METRICS_AVAILABLE:
+                error_type = "timeout" if isinstance(e, TimeoutError) else "connection"
+                gateway_cache_errors_total.labels(error_type=error_type).inc()
             logger.error(f"Erro ao deletar chave {key}: {e}")
             return False
 

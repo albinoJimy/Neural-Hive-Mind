@@ -36,6 +36,18 @@ class Settings(BaseSettings):
     kafka_acks: str = Field(default="all")  # 0, 1, all (use 'all' for exactly-once, '1' for lower latency)
     kafka_enable_idempotence: bool = Field(default=True)  # Habilitar idempotência para exactly-once
     kafka_max_in_flight: int = Field(default=5)  # Máximo de requisições em voo por conexão
+
+    # Fast Producer Control (exactly-once vs latency)
+    kafka_enable_fast_producer: bool = Field(
+        default=False,
+        description="Habilitar producer não-transacional para menor latência (desabilitado por padrão para exactly-once). "
+                    "Só habilitar se latência é mais prioritária que exactly-once semantics."
+    )
+    kafka_fast_producer_topics: str = Field(
+        default="",
+        description="Allowlist de tópicos (separados por vírgula) permitidos para fast producer. "
+                    "Vazio = nenhum tópico permitido. Usar apenas para tópicos não-críticos."
+    )
     
     # ASR Pipeline
     # Modelos disponíveis: tiny (39MB), base (142MB), small (466MB), medium (1.5GB), large (2.9GB)
