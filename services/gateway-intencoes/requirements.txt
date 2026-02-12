@@ -25,6 +25,7 @@ nltk==3.8.1
 pydantic[email]==2.10.4
 pydantic-settings==2.6.1  # 2.7.x has _lenient_issubclass bug
 jsonschema==4.20.0
+orjson==3.10.7  # Otimização: serialização JSON 3-5x mais rápida que json padrão
 
 # Esquemas Avro
 avro-python3==1.10.2

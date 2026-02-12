@@ -483,6 +483,44 @@ class WorkerAgentMetrics:
             buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300]
         )
 
+        # Query Executor
+        self.query_executed_total = Counter(
+            'worker_agent_query_executed_total',
+            'Total de queries executadas',
+            ['status', 'query_type']
+        )
+
+        self.query_duration_seconds = Histogram(
+            'worker_agent_query_duration_seconds',
+            'Duração de execução de queries',
+            ['query_type'],
+            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30, 60]
+        )
+
+        self.query_mongodb_duration_seconds = Histogram(
+            'worker_agent_query_mongodb_duration_seconds',
+            'Duração de queries MongoDB',
+            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30, 60]
+        )
+
+        self.query_neo4j_duration_seconds = Histogram(
+            'worker_agent_query_neo4j_duration_seconds',
+            'Duração de queries Neo4j',
+            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30, 60]
+        )
+
+        self.query_kafka_duration_seconds = Histogram(
+            'worker_agent_query_kafka_duration_seconds',
+            'Duração de queries Kafka',
+            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30, 60]
+        )
+
+        self.query_redis_duration_seconds = Histogram(
+            'worker_agent_query_redis_duration_seconds',
+            'Duração de queries Redis',
+            buckets=[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 2, 5]
+        )
+
         # Discovery
         self.discovery_requests_total = Counter(
             'worker_agent_discovery_requests_total',

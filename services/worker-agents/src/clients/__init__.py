@@ -78,6 +78,7 @@ from .local_runtime_client import (
     LocalExecutionRequest,
     LocalExecutionResult,
 )
+from .neo4j_client import Neo4jClient
 
 __all__ = [
     'ServiceRegistryClient',
@@ -150,4 +151,6 @@ __all__ = [
     'CommandNotAllowedError',
     'LocalExecutionRequest',
     'LocalExecutionResult',
+    # Neo4j Client
+    'Neo4jClient',
 ]

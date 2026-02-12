@@ -19,7 +19,7 @@ class WorkerAgentSettings(BaseSettings):
 
     # Capabilities
     supported_task_types: List[str] = Field(
-        default_factory=lambda: ['BUILD', 'DEPLOY', 'TEST', 'VALIDATE', 'EXECUTE']
+        default_factory=lambda: ['BUILD', 'DEPLOY', 'TEST', 'VALIDATE', 'EXECUTE', 'QUERY']
     )
     # Service Registry capabilities (must match STE required_capabilities)
     # Includes: read, write, compute, analyze, transform, test, security, scan, compliance
@@ -339,6 +339,16 @@ class WorkerAgentSettings(BaseSettings):
     dlq_publish_max_retries: int = Field(default=3, description='Número máximo de retries para publicar no DLQ')
     dlq_publish_retry_backoff_base_seconds: float = Field(default=1.0, description='Base do backoff exponencial (segundos)')
     dlq_publish_retry_backoff_max_seconds: float = Field(default=30.0, description='Máximo do backoff exponencial (segundos)')
+
+    # Neo4j (para queries de grafo - opcional)
+    neo4j_enabled: bool = Field(default=False, description='Habilitar Neo4j para queries')
+    neo4j_uri: str = Field(default='bolt://neo4j.neural-hive-data.svc.cluster.local:7687', description='URI de conexão Neo4j')
+    neo4j_user: str = Field(default='neo4j', description='Usuário Neo4j')
+    neo4j_password: Optional[str] = Field(default=None, description='Senha Neo4j')
+    neo4j_database: str = Field(default='neo4j', description='Nome do banco Neo4j')
+    neo4j_max_pool_size: int = Field(default=50, description='Tamanho máximo do pool de conexões Neo4j')
+    neo4j_connection_timeout: int = Field(default=30, description='Timeout de conexão Neo4j (segundos)')
+    neo4j_encrypted: bool = Field(default=False, description='Usar conexão criptografada Neo4j')
 
     def get_metadata(self) -> Dict[str, str]:
         '''Retorna metadata para registro no Service Registry'''

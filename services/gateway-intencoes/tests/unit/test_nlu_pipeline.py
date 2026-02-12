@@ -376,3 +376,118 @@ class TestNLUPipeline:
         security_text = "segurança vulnerabilidade autenticação criptografia"
         domain, _, _ = await nlu_pipeline._classify_intent_advanced(security_text, [], "pt", {})
         assert domain == UnifiedDomain.SECURITY
+
+    @pytest.mark.asyncio
+    async def test_cache_with_dict_type(self, nlu_pipeline):
+        """Teste de cache retornando dict (tipo já deserializado)"""
+        nlu_pipeline._ready = True
+
+        # Mock Redis client retornando dict
+        mock_redis = MagicMock()
+        cached_dict = {
+            "processed_text": "test text",
+            "domain": "TECHNICAL",
+            "classification": "implementation",
+            "confidence": 0.85,
+            "entities": [],
+            "keywords": ["test"],
+            "requires_manual_validation": False,
+            "confidence_status": "high",
+            "adaptive_threshold": 0.5
+        }
+        mock_redis.get = AsyncMock(return_value=cached_dict)
+        nlu_pipeline.redis_client = mock_redis
+
+        result = await nlu_pipeline._get_cached_result("test_key")
+
+        assert result is not None
+        assert result.domain == UnifiedDomain.TECHNICAL
+        assert result.confidence == 0.85
+
+    @pytest.mark.asyncio
+    async def test_cache_with_string_type(self, nlu_pipeline):
+        """Teste de cache retornando string (JSON)"""
+        nlu_pipeline._ready = True
+
+        # Mock Redis client retornando string JSON
+        import json
+
+        mock_redis = MagicMock()
+        cached_json = json.dumps({
+            "processed_text": "test text",
+            "domain": "BUSINESS",
+            "classification": "request",
+            "confidence": 0.75,
+            "entities": [],
+            "keywords": ["business"],
+            "requires_manual_validation": False,
+            "confidence_status": "medium",
+            "adaptive_threshold": 0.5
+        })
+        mock_redis.get = AsyncMock(return_value=cached_json)
+        nlu_pipeline.redis_client = mock_redis
+
+        result = await nlu_pipeline._get_cached_result("test_key")
+
+        assert result is not None
+        assert result.domain == UnifiedDomain.BUSINESS
+        assert result.confidence == 0.75
+
+    @pytest.mark.asyncio
+    async def test_cache_with_invalid_type(self, nlu_pipeline):
+        """Teste de cache retornando tipo inválido (não dict, str ou bytes)"""
+        nlu_pipeline._ready = True
+
+        # Mock Redis client retornando tipo inválido (ex: int)
+        mock_redis = MagicMock()
+        mock_redis.get = AsyncMock(return_value=12345)  # Tipo inválido
+        nlu_pipeline.redis_client = mock_redis
+
+        result = await nlu_pipeline._get_cached_result("test_key")
+
+        # Deve retornar None para tipo inválido
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_cache_with_bytes_type(self, nlu_pipeline):
+        """Teste de cache retornando bytes"""
+        nlu_pipeline._ready = True
+
+        # Mock Redis client retornando bytes
+        import json
+
+        mock_redis = MagicMock()
+        cached_data = json.dumps({
+            "processed_text": "test text",
+            "domain": "SECURITY",
+            "classification": "security_check",
+            "confidence": 0.90,
+            "entities": [],
+            "keywords": ["security"],
+            "requires_manual_validation": False,
+            "confidence_status": "high",
+            "adaptive_threshold": 0.5
+        })
+        mock_redis.get = AsyncMock(return_value=cached_data.encode('utf-8'))
+        nlu_pipeline.redis_client = mock_redis
+
+        result = await nlu_pipeline._get_cached_result("test_key")
+
+        assert result is not None
+        assert result.domain == UnifiedDomain.SECURITY
+        assert result.confidence == 0.90
+
+    @pytest.mark.asyncio
+    async def test_cache_with_none_value(self, nlu_pipeline):
+        """Teste de cache retornando None (cache miss)"""
+        nlu_pipeline._ready = True
+
+        # Mock Redis client retornando None
+        mock_redis = MagicMock()
+        mock_redis.get = AsyncMock(return_value=None)
+        nlu_pipeline.redis_client = mock_redis
+
+        result = await nlu_pipeline._get_cached_result("test_key")
+
+        # Deve retornar None para cache miss
+        assert result is None

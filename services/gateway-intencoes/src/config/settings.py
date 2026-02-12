@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     kafka_batch_size: int = Field(default=16384)  # bytes
     kafka_linger_ms: int = Field(default=10)  # milliseconds
     kafka_compression_type: str = Field(default="snappy")  # none, gzip, snappy, lz4, zstd
+    kafka_acks: str = Field(default="all")  # 0, 1, all (use 'all' for exactly-once, '1' for lower latency)
+    kafka_enable_idempotence: bool = Field(default=True)  # Habilitar idempotência para exactly-once
+    kafka_max_in_flight: int = Field(default=5)  # Máximo de requisições em voo por conexão
     
     # ASR Pipeline
     # Modelos disponíveis: tiny (39MB), base (142MB), small (466MB), medium (1.5GB), large (2.9GB)

@@ -92,15 +92,15 @@ nc -zv localhost 9092
 
 # 4. Publicar mensagem de teste usando kcat (se disponível)
 echo '{"test":"message","timestamp":'$(date +%s)'}' | \
-  kcat -P -b localhost:9092 -t intentions-business
+  kcat -P -b localhost:9092 -t intentions.business
 
 # OU usando kafka-console-producer localmente
 echo '{"test":"message","timestamp":'$(date +%s)'}' | \
-  kafka-console-producer.sh --bootstrap-server localhost:9092 --topic intentions-business
+  kafka-console-producer.sh --bootstrap-server localhost:9092 --topic intentions.business
 
 # 5. Consumir para validar
 kafka-console-consumer.sh --bootstrap-server localhost:9092 \
-  --topic intentions-business --from-beginning --max-messages 1
+  --topic intentions.business --from-beginning --max-messages 1
 
 # 6. Limpar port-forward
 kill $PF_PID
@@ -165,7 +165,7 @@ PF_PID=$!
 sleep 3
 
 # Publicar mensagem de teste
-python3 /tmp/kafka_producer.py localhost:9092 intentions-business \
+python3 /tmp/kafka_producer.py localhost:9092 intentions.business \
   '{"test":"message","timestamp":'$(date +%s)'}'
 
 # Limpar
@@ -181,7 +181,7 @@ PF_PID=$!
 sleep 3
 
 kafka-console-consumer.sh --bootstrap-server localhost:9092 \
-  --topic intentions-business --from-beginning --max-messages 5
+  --topic intentions.business --from-beginning --max-messages 5
 
 kill $PF_PID
 ```
@@ -393,13 +393,13 @@ kubectl set resources deployment specialist-technical -n specialist-technical \
 kubectl get kafkatopic -n kafka
 
 # Resultado esperado:
-# intentions-business         Ready
-# intentions-infrastructure   Ready
-# intentions-security         Ready
-# intentions-technical        Ready
-# intentions-validation       Ready
-# plans-ready                 Ready  ← NOVO
-# plans-consensus             Ready  ← NOVO
+# intentions.business         Ready
+# intentions.infrastructure   Ready
+# intentions.security         Ready
+# intentions.technical        Ready
+# intentions.validation       Ready
+# plans.ready                 Ready  ← NOVO
+# plans.consensus             Ready  ← NOVO
 ```
 
 ### 2. Verificar Todos os Pods
@@ -448,7 +448,7 @@ echo "{
   },
   \"confidence\":0.95,
   \"timestamp\":$(date +%s)000
-}" | kafka-console-producer.sh --bootstrap-server localhost:9092 --topic intentions-business
+}" | kafka-console-producer.sh --bootstrap-server localhost:9092 --topic intentions.business
 
 echo "Intent ID: $INTENT_ID"
 

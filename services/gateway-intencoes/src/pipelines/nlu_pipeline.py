@@ -39,6 +39,11 @@ class NLUPipeline:
         }
         self.last_adaptive_threshold = None  # Último threshold adaptativo calculado
 
+        # Otimização: Pré-compilar regex patterns e converter keywords para sets
+        self.compiled_patterns = {}  # {domain_name: [compiled_patterns]}
+        self.keyword_sets = {}  # {domain_name: set(keywords)}
+        self.subcategory_keyword_sets = {}  # {domain_name: {subcat_name: set(keywords)}}
+
     async def initialize(self):
         """Carregar modelos spaCy e configurações"""
         try:
@@ -89,9 +94,38 @@ class NLUPipeline:
             else:
                 logger.info(f"Arquivo de regras {rules_path} não encontrado, usando regras padrão")
 
+            # Otimização: Pré-compilar patterns e criar keyword sets
+            self._prepare_optimized_structures()
+
         except Exception as e:
             logger.error(f"Erro carregando regras de classificação: {e}")
             self.classification_rules = self._get_default_classification_rules()
+            self._prepare_optimized_structures()
+
+    def _prepare_optimized_structures(self):
+        """
+        Pré-compilar regex patterns e converter keywords para sets.
+        Otimização para reduzir overhead em hot path de classificação.
+        """
+        domains_config = self.classification_rules.get("domains", {})
+
+        for domain_name, domain_config in domains_config.items():
+            # Compilar regex patterns para cada domínio
+            patterns = domain_config.get("patterns", [])
+            self.compiled_patterns[domain_name] = [re.compile(p) for p in patterns]
+
+            # Converter keywords para set para busca O(1)
+            keywords = domain_config.get("keywords", [])
+            self.keyword_sets[domain_name] = set(keywords)
+
+            # Converter subcategory keywords para sets
+            subcategories = domain_config.get("subcategories", {})
+            self.subcategory_keyword_sets[domain_name] = {
+                subcat_name: set(subcat_keywords)
+                for subcat_name, subcat_keywords in subcategories.items()
+            }
+
+        logger.debug(f"Estruturas otimizadas preparadas para {len(self.compiled_patterns)} domínios")
 
     def _merge_classification_rules(self, custom_rules: Dict[str, Any]):
         """Mesclar regras customizadas com regras padrão"""
@@ -439,8 +473,19 @@ class NLUPipeline:
         try:
             cached_data = await self.redis_client.get(cache_key)
             if cached_data:
-                # Deserializar resultado
-                data = json.loads(cached_data)
+                # Validar tipo antes de deserializar
+                if isinstance(cached_data, dict):
+                    # Dados já são dict, usar diretamente
+                    data = cached_data
+                elif isinstance(cached_data, (str, bytes)):
+                    # Deserializar resultado
+                    data = json.loads(cached_data)
+                else:
+                    # Tipo inesperado, logar warning e retornar None
+                    logger.warning(
+                        f"Tipo inesperado no cache NLU: {type(cached_data)}, key: {cache_key}"
+                    )
+                    return None
                 # Migração defensiva: adicionar confidence_status se não existir
                 if "confidence_status" not in data:
                     confidence = data.get("confidence", 0.0)
@@ -557,6 +602,7 @@ class NLUPipeline:
     async def _classify_intent_advanced(self, text: str, entities: List[Entity], language: str, context: Dict[str, Any]) -> tuple:
         """Classificar domínio e tipo de intenção usando regras configuráveis"""
         text_lower = text.lower()
+        text_words = set(text_lower.split())  # Otimização: Converter para set uma vez
         domains_config = self.classification_rules.get("domains", {})
         confidence_boosters = self.classification_rules.get("confidence_boosters", {})
 
@@ -568,23 +614,23 @@ class NLUPipeline:
             score = 0
             found_subcategories = []
 
-            # Score baseado em keywords
-            keywords = domain_config.get("keywords", [])
-            keyword_matches = sum(1 for keyword in keywords if keyword in text_lower)
+            # Otimização: Usar keyword set para busca O(1) em vez de loop O(n)
+            keyword_set = self.keyword_sets.get(domain_name, set())
+            keyword_matches = len(text_words & keyword_set)  # Interseção de sets
             score += keyword_matches * 2  # Peso maior para keywords
 
-            # Score baseado em patterns regex
-            patterns = domain_config.get("patterns", [])
-            pattern_matches = sum(1 for pattern in patterns if re.search(pattern, text_lower))
+            # Otimização: Usar patterns pré-compilados
+            compiled = self.compiled_patterns.get(domain_name, [])
+            pattern_matches = sum(1 for pattern in compiled if pattern.search(text_lower))
             score += pattern_matches * 3  # Peso ainda maior para patterns
 
-            # Verificar subcategorias
-            subcategories = domain_config.get("subcategories", {})
-            for subcat_name, subcat_keywords in subcategories.items():
-                subcat_score = sum(1 for keyword in subcat_keywords if keyword in text_lower)
-                if subcat_score > 0:
-                    found_subcategories.append((subcat_name, subcat_score))
-                    score += subcat_score
+            # Verificar subcategories usando keyword sets
+            subcategory_sets = self.subcategory_keyword_sets.get(domain_name, {})
+            for subcat_name, subcat_keyword_set in subcategory_sets.items():
+                subcat_matches = len(text_words & subcat_keyword_set)
+                if subcat_matches > 0:
+                    found_subcategories.append((subcat_name, subcat_matches))
+                    score += subcat_matches
 
             domain_scores[domain_name] = score
             subcategory_scores[domain_name] = found_subcategories
@@ -692,6 +738,7 @@ class NLUPipeline:
     def explain_classification(self, text: str, result: NLUResult) -> Dict[str, Any]:
         """Explicar por que um texto foi classificado em determinado domínio"""
         text_lower = text.lower()
+        text_words = set(text_lower.split())
         domain_name = result.domain.name
         domains_config = self.classification_rules.get("domains", {})
 
@@ -708,19 +755,17 @@ class NLUPipeline:
         }
 
         if domain_name in domains_config:
-            domain_config = domains_config[domain_name]
-
-            # Identificar keywords que fizeram match
-            keywords = domain_config.get("keywords", [])
-            for keyword in keywords:
+            # Otimização: Usar keyword set para matching
+            keyword_set = self.keyword_sets.get(domain_name, set())
+            for keyword in keyword_set:
                 if keyword in text_lower:
                     explanation["reasoning"]["matched_keywords"].append(keyword)
 
-            # Identificar patterns que fizeram match
-            patterns = domain_config.get("patterns", [])
-            for pattern in patterns:
-                if re.search(pattern, text_lower):
-                    explanation["reasoning"]["matched_patterns"].append(pattern)
+            # Otimização: Usar patterns pré-compilados
+            compiled = self.compiled_patterns.get(domain_name, [])
+            for pattern in compiled:
+                if pattern.search(text_lower):
+                    explanation["reasoning"]["matched_patterns"].append(pattern.pattern)
 
         # Analisar influência das entidades
         for entity in result.entities:

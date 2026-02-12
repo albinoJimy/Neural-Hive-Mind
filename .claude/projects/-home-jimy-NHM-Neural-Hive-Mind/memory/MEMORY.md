@@ -76,7 +76,36 @@ All required environment variables configured (NEO4J, MONGODB, KAFKA, OPA, etc.)
 - **LOW:** Prometheus/Jaeger not accessible via port-forward for local debugging
 - **INFO:** Aggregated confidence sometimes below threshold (0.136 vs 0.75) - fallback working correctly
 
-### Recommendations
+## Recent Test Executions (2026-02-12)
+
+### Status: review_required - PROBLEMAS IDENTIFICADOS
+
+**Test Execution Summary:**
+- Date: 2026-02-12
+- Result: **PASS** com problemas identificados (Pipeline funcional)
+- FLUXO A: ✅ Gateway operacional (233ms, acima do SLO de 200ms)
+- FLUXO B: ✅ STE/Specialists/Consensus operacional (ML degradado: 50%)
+- FLUXO C: ⚠️ Pipeline completo (falha: executor query não implementado)
+
+**Problemas Identificados:**
+1. **Gateway Processing Time > SLO**: 233ms vs 200ms (+16.9% excesso)
+2. **ML Degradation**: Todos os 5 especialistas com confiança ~50% (dados sintéticos)
+3. **Worker Executor Missing**: Task_type `query` não possui executor implementado
+4. **NLU Cache Error**: Erro de serialização (não-crítico, fallback OK)
+5. **Topic Naming**: Inconsistência entre `intentions-security` (real) e `intentions.technical` (doc)
+
+**Análise Detalhada:** docs/ANALISE_PROFUNDA_PROBLEMAS_2026-02-12.md
+
+**Recomendações:**
+1. [ALTA] Implementar QueryExecutor no Worker Agent (bloqueio funcional)
+2. [MEDIA] Retreinar modelos ML com dados reais (não sintéticos)
+3. [MEDIA] Otimizar NLU pipeline para redução de processing time
+4. [BAIXA] Corrigir NLU cache serialization
+5. [BAIXA] Padronizar nomenclatura de tópicos Kafka
+
+---
+
+### Legacy Recommendations (2026-02-08)
 1. Consider increasing `consumer_poll_timeout_seconds` from 1.0 to 5.0 seconds
 2. Configure NodePort/LoadBalancer for Prometheus/Jaeger external access
 3. Document consumer group reset procedure for troubleshooting

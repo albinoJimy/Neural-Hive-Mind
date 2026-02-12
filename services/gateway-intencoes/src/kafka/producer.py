@@ -13,6 +13,14 @@ import structlog
 from models.intent_envelope import IntentEnvelope
 from observability.metrics import message_size_histogram, message_size_gauge, record_too_large_counter
 from config.settings import get_settings
+
+# Otimização: Usar orjson se disponível para serialização JSON mais rápida
+try:
+    import orjson
+    USE_ORJSON = True
+except ImportError:
+    USE_ORJSON = False
+    orjson = None
 try:
     from neural_hive_observability.tracing import inject_context_to_headers
 except ImportError:
@@ -100,12 +108,13 @@ class KafkaIntentProducer:
         """Inicializar producer e schema registry"""
         try:
             # Configuração básica do producer com exactly-once
+            # Nota: Quando usando transações, enable.idempotence=True e acks='all' são obrigatórios
             producer_config = {
                 'bootstrap.servers': self.bootstrap_servers,
-                'enable.idempotence': True,
-                'acks': 'all',
+                'enable.idempotence': self.settings.kafka_enable_idempotence,
+                'acks': self.settings.kafka_acks,
                 'retries': 2147483647,  # MAX_INT
-                'max.in.flight.requests.per.connection': 5,
+                'max.in.flight.requests.per.connection': self.settings.kafka_max_in_flight,
                 'transactional.id': self._transactional_id,
                 'compression.type': self.settings.kafka_compression_type,
                 'batch.size': self.settings.kafka_batch_size,
@@ -273,8 +282,12 @@ class KafkaIntentProducer:
                 content_type = 'application/avro'
             else:
                 # Fallback para JSON quando Schema Registry não disponível
+                # Otimização: Usar orjson se disponível (3-5x mais rápido que json padrão)
                 avro_data = intent_envelope.to_avro_dict()
-                serialized_value = json.dumps(avro_data, ensure_ascii=False).encode('utf-8')
+                if USE_ORJSON:
+                    serialized_value = orjson.dumps(avro_data)
+                else:
+                    serialized_value = json.dumps(avro_data, ensure_ascii=False).encode('utf-8')
                 content_type = 'application/json'
 
             # Measure message size and emit metrics
@@ -437,10 +450,16 @@ class KafkaIntentProducer:
             }
 
             # Enviar para DLQ (sem transação para evitar conflitos)
+            # Otimização: Usar orjson se disponível
+            if USE_ORJSON:
+                dlq_value = orjson.dumps(dlq_envelope)
+            else:
+                dlq_value = json.dumps(dlq_envelope, ensure_ascii=False).encode('utf-8')
+
             self.producer.produce(
                 topic=dlq_topic,
                 key=intent_envelope.id.encode('utf-8'),
-                value=json.dumps(dlq_envelope, ensure_ascii=False).encode('utf-8'),
+                value=dlq_value,
                 headers=dlq_headers
             )
 

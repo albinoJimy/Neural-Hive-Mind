@@ -554,6 +554,12 @@ class DatasetGenerator:
         Extrai features numéricas do cognitive plan usando FeatureExtractor.
         Garante schema consistente com feature_definitions.py.
 
+        Features Avançadas (Passo 5.2 - Feature Engineering):
+        - Task complexity features: depth, branching factor, critical path
+        - Dependency features: cyclic dependencies, weak dependencies
+        - Temporal features: estimated duration variance, parallelization potential
+        - Resource features: capability diversity, workload distribution
+
         Args:
             cognitive_plan: Cognitive plan para extração
 
@@ -582,6 +588,61 @@ class DatasetGenerator:
                         plan_id=cognitive_plan.get('plan_id')
                     )
 
+            # === PASSO 5.2: Enhanced Feature Engineering ===
+
+            # Feature Engineering 1: Task Complexity Features
+            tasks = cognitive_plan.get('tasks', [])
+            if tasks:
+                # Calculate task depth (longest dependency chain)
+                task_depth = self._calculate_task_depth(tasks)
+                features['task_depth_max'] = float(task_depth)
+
+                # Calculate branching factor (avg number of dependents)
+                branching = self._calculate_branching_factor(tasks)
+                features['branching_factor_avg'] = float(branching)
+
+                # Calculate critical path length
+                critical_path = self._calculate_critical_path(tasks)
+                features['critical_path_length'] = float(critical_path)
+
+            # Feature Engineering 2: Dependency Features
+            features['has_cyclic_dependencies'] = float(
+                1.0 if self._has_cyclic_dependencies(tasks) else 0.0
+            )
+            features['weak_dependency_ratio'] = float(
+                self._calculate_weak_dependency_ratio(tasks)
+            )
+
+            # Feature Engineering 3: Temporal Features
+            if tasks:
+                durations = [t.get('estimated_duration', 0) for t in tasks if t.get('estimated_duration')]
+                if durations:
+                    features['duration_variance'] = float(np.var(durations) / 1000)  # Normalize to ms
+                    features['duration_coefficient_of_variation'] = float(
+                        np.std(durations) / np.mean(durations) if np.mean(durations) > 0 else 0.0
+                    )
+
+                # Parallelization potential (ratio of independent tasks)
+                features['parallelization_potential'] = float(
+                    self._calculate_parallelization_potential(tasks)
+                )
+
+            # Feature Engineering 4: Resource/Capability Features
+            features['capability_diversity'] = float(
+                self._calculate_capability_diversity(tasks)
+            )
+            features['workload_distribution_score'] = float(
+                self._calculate_workload_distribution(tasks)
+            )
+
+            # Feature Engineering 5: Risk-Adjusted Features
+            risk_score = cognitive_plan.get('risk_score', 0.5)
+            complexity_score = cognitive_plan.get('complexity_score', 0.5)
+            features['risk_complexity_product'] = float(risk_score * complexity_score)
+            features['risk_adjusted_duration_estimate'] = float(
+                cognitive_plan.get('estimated_duration', 0) * (1 + risk_score)
+            )
+
             # Validar que temos features suficientes
             num_populated = sum(1 for v in features.values() if v != 0.0)
             if num_populated < len(expected_feature_names) * 0.5:  # Pelo menos 50% populadas
@@ -597,6 +658,152 @@ class DatasetGenerator:
         except Exception as e:
             logger.error("feature_extraction_failed", error=str(e), exc_info=True)
             return None
+
+    def _calculate_task_depth(self, tasks: List[Dict]) -> int:
+        """Calcula profundidade máxima do DAG de tarefas."""
+        if not tasks:
+            return 0
+
+        # Build adjacency list for dependencies
+        task_map = {t['task_id']: t for t in tasks if 'task_id' in t}
+        depth_map = {tid: 0 for tid in task_map}
+
+        # Calculate depth using DFS
+        def get_depth(task_id):
+            if depth_map[task_id] > 0:
+                return depth_map[task_id]
+
+            task = task_map.get(task_id, {})
+            deps = task.get('depends_on', [])
+            if not deps:
+                depth_map[task_id] = 1
+                return 1
+
+            max_child_depth = 0
+            for dep_id in deps:
+                if dep_id in task_map:
+                    max_child_depth = max(max_child_depth, get_depth(dep_id))
+
+            depth_map[task_id] = max_child_depth + 1
+            return depth_map[task_id]
+
+        return max(get_depth(tid) for tid in task_map) if task_map else 0
+
+    def _calculate_branching_factor(self, tasks: List[Dict]) -> float:
+        """Calcula fator de ramificação médio."""
+        if not tasks:
+            return 0.0
+
+        # Count dependents for each task
+        dependent_counts = {}
+        for task in tasks:
+            task_id = task.get('task_id')
+            if task_id:
+                dependent_counts[task_id] = 0
+
+        for task in tasks:
+            for dep_id in task.get('depends_on', []):
+                if dep_id in dependent_counts:
+                    dependent_counts[dep_id] += 1
+
+        if not dependent_counts:
+            return 0.0
+
+        return sum(dependent_counts.values()) / len(dependent_counts)
+
+    def _calculate_critical_path(self, tasks: List[Dict]) -> int:
+        """Calcula tamanho do caminho crítico."""
+        if not tasks:
+            return 0
+
+        task_map = {t['task_id']: t for t in tasks if 'task_id' in t}
+
+        def longest_path(task_id):
+            task = task_map.get(task_id, {})
+            duration = task.get('estimated_duration', 0)
+            deps = task.get('depends_on', [])
+
+            if not deps:
+                return duration
+
+            max_dep_path = 0
+            for dep_id in deps:
+                if dep_id in task_map:
+                    max_dep_path = max(max_dep_path, longest_path(dep_id))
+
+            return duration + max_dep_path
+
+        return max((longest_path(tid) for tid in task_map), default=0)
+
+    def _has_cyclic_dependencies(self, tasks: List[Dict]) -> bool:
+        """Detecta dependências cíclicas."""
+        try:
+            from neural_hive_specialists.feature_extraction.graph_analyzer import GraphAnalyzer
+            import networkx as nx
+
+            analyzer = GraphAnalyzer()
+            graph = analyzer.build_graph(tasks)
+            return not nx.is_directed_acyclic_graph(graph)
+        except Exception:
+            return False
+
+    def _calculate_weak_dependency_ratio(self, tasks: List[Dict]) -> float:
+        """Calcula razão de dependências fracas (soft deps)."""
+        if not tasks:
+            return 0.0
+
+        total_deps = 0
+        weak_deps = 0
+
+        for task in tasks:
+            deps = task.get('depends_on', [])
+            total_deps += len(deps)
+
+            # Count "weak" dependencies (e.g., optional, suggested)
+            for dep in deps:
+                if isinstance(dep, dict):
+                    if dep.get('type', 'strong') == 'weak':
+                        weak_deps += 1
+
+        return weak_deps / total_deps if total_deps > 0 else 0.0
+
+    def _calculate_parallelization_potential(self, tasks: List[Dict]) -> float:
+        """Calcula potencial de paralelização."""
+        if not tasks:
+            return 0.0
+
+        # Tasks with no dependencies can run in parallel
+        independent_tasks = sum(1 for t in tasks if not t.get('depends_on'))
+        return independent_tasks / len(tasks) if tasks else 0.0
+
+    def _calculate_capability_diversity(self, tasks: List[Dict]) -> float:
+        """Calcula diversidade de capabilities necessárias."""
+        if not tasks:
+            return 0.0
+
+        all_capabilities = set()
+        for task in tasks:
+            caps = task.get('required_capabilities', [])
+            if isinstance(caps, list):
+                all_capabilities.update(caps)
+
+        # Normalize by task count (more diverse capabilities per task = higher)
+        return len(all_capabilities) / len(tasks) if tasks else 0.0
+
+    def _calculate_workload_distribution(self, tasks: List[Dict]) -> float:
+        """Calcula score de distribuição de workload."""
+        if not tasks:
+            return 0.0
+
+        durations = [t.get('estimated_duration', 0) for t in tasks]
+        if not durations or sum(durations) == 0:
+            return 0.0
+
+        # Calculate Gini coefficient for workload distribution
+        sorted_durations = sorted(durations)
+        n = len(sorted_durations)
+        cumsum = np.cumsum(sorted_durations)
+        return (n + 1 - 2 * sum((n + 1 - i) * v for i, v in enumerate(cumsum)) / cumsum[-1]) / n
 
     def extract_label_numeric(self, specialist_opinion: Dict[str, Any]) -> int:
         """

@@ -6,6 +6,12 @@ Consulta MongoDB por eventos de drift e executa retreinamento quando:
 - drift_detected = True
 - drift_score > threshold configurado
 
+Integração A/B Testing (Passo 5.7):
+- Após retreinamento bem-sucedido, cria teste A/B automático
+- Inicia com 10% de tráfego para novo modelo
+- Monitora métricas e expande tráfego automaticamente
+- Promove para 100% se métricas positivas
+
 Uso:
     python drift_triggered_retraining.py [--check-once] [--dry-run]
 """
@@ -21,6 +27,16 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 
 from motor.motor_asyncio import AsyncIOMotorClient
+
+# Importar A/B testing (Passo 5.7)
+try:
+    sys.path.insert(0, str(Path(__file__).parent))
+    from ab_testing import ABTestManager, ABTestConfig, start_ab_test
+    AB_TESTING_AVAILABLE = True
+except ImportError:
+    AB_TESTING_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning("ab_testing_module_not_available")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -39,6 +55,12 @@ class DriftTriggeredRetrainer:
         self.drift_threshold = float(os.getenv('DRIFT_THRESHOLD', '0.2'))
         self.check_interval_minutes = int(os.getenv('DRIFT_CHECK_INTERVAL_MINUTES', '60'))
         self.training_script_path = Path(__file__).parent / 'train_predictive_models.py'
+
+        # A/B Testing Configuration (Passo 5.7)
+        self.ab_testing_enabled = os.getenv('AB_TESTING_ENABLED', 'true').lower() == 'true'
+        self.ab_manager: Optional[ABTestManager] = None
+        if AB_TESTING_AVAILABLE and self.ab_testing_enabled:
+            self.ab_manager = ABTestManager()
 
         self.mongo_client: Optional[AsyncIOMotorClient] = None
         self.db = None
@@ -84,6 +106,11 @@ class DriftTriggeredRetrainer:
         """
         Dispara retreinamento para modelo especifico.
 
+        Integração A/B Testing (Passo 5.7):
+        - Após retreinamento bem-sucedido, inicia teste A/B automático
+        - Começa com 10% de tráfego para novo modelo
+        - Expande gradualmente baseado em métricas
+
         Args:
             drift_event: Evento de drift que disparou retreinamento
             model_type: Tipo de modelo a retreinar
@@ -99,6 +126,8 @@ class DriftTriggeredRetrainer:
         if self.args.dry_run:
             logger.info(f"[DRY-RUN] Comando: python {self.training_script_path} "
                        f"--model-type {model_type} --promote-if-better")
+            if self.ab_testing_enabled:
+                logger.info(f"[DRY-RUN] Criaria teste A/B com 10% de tráfego inicial")
             return True
 
         try:
@@ -125,6 +154,10 @@ class DriftTriggeredRetrainer:
 
                 # Registra evento de retreinamento
                 await self._log_retraining_event(drift_event, model_type, success=True)
+
+                # === PASSO 5.7: Iniciar A/B Testing automático ===
+                if self.ab_testing_enabled and self.ab_manager:
+                    await self._start_ab_test_after_retraining(model_type, drift_event)
 
                 return True
             else:
@@ -154,6 +187,221 @@ class DriftTriggeredRetrainer:
                 }
             }
         )
+
+    async def _start_ab_test_after_retraining(
+        self,
+        model_type: str,
+        drift_event: Dict[str, Any]
+    ):
+        """
+        Inicia teste A/B após retreinamento bem-sucedido (Passo 5.7).
+
+        Cria teste A/B com:
+        - 10% de tráfego inicial para novo modelo
+        - Threshold de sucesso: 2% de melhoria
+        - Mínimo de 1000 amostras por modelo
+        - 72 horas de duração mínima
+
+        Args:
+            model_type: Tipo de modelo retreinado
+            drift_event: Evento de drift que disparou retreinamento
+        """
+        if not self.ab_manager:
+            return
+
+        try:
+            # Mapear model_type para specialist_type
+            specialist_type = self._map_model_to_specialist(model_type)
+
+            # Gerar nova versão do modelo (timestamp)
+            new_version = f"v{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+
+            # Criar configuração de teste A/B
+            config = ABTestConfig(
+                specialist_type=specialist_type,
+                new_model_version=new_version,
+                baseline_model_version='Production',
+                traffic_percentage=10.0,  # Começa com 10%
+                min_samples=1000,
+                duration_hours=72,
+                success_threshold=0.02,  # 2% de melhoria
+                confidence_threshold=0.70
+            )
+
+            # Criar teste
+            test_id = self.ab_manager.create_test(config)
+
+            logger.info(
+                "ab_test_created_after_retraining",
+                test_id=test_id,
+                specialist_type=specialist_type,
+                new_version=new_version,
+                initial_traffic_percentage=10.0,
+                drift_score=drift_event.get('drift_score')
+            )
+
+            # Registrar evento de criação de teste A/B
+            await self._log_ab_test_event(
+                test_id=test_id,
+                specialist_type=specialist_type,
+                new_version=new_version,
+                triggered_by_drift=drift_event.get('_id')
+            )
+
+            # Iniciar monitoramento automático de expansão
+            asyncio.create_task(
+                self._monitor_and_expand_ab_test(test_id, specialist_type)
+            )
+
+        except Exception as e:
+            logger.error(f"Erro ao criar teste A/B: {e}")
+
+    async def _monitor_and_expand_ab_test(
+        self,
+        test_id: str,
+        specialist_type: str
+    ):
+        """
+        Monitora teste A/B e expande tráfego automaticamente (Passo 5.7).
+
+        Estratégia de Expansão:
+        - 10% -> 25%: após 24h se métricas estáveis
+        - 25% -> 50%: após 48h se métricas positivas
+        - 50% -> 100%: após 72h se teste passou
+        - Rollback para 0% se métricas negativas
+
+        Args:
+            test_id: ID do teste A/B
+            specialist_type: Tipo do especialista
+        """
+        if not self.ab_manager:
+            return
+
+        expansion_schedule = [
+            {'hours': 24, 'traffic': 25.0, 'condition': 'stable'},
+            {'hours': 48, 'traffic': 50.0, 'condition': 'positive'},
+            {'hours': 72, 'traffic': 100.0, 'condition': 'passed'}
+        ]
+
+        try:
+            start_time = datetime.utcnow()
+
+            for step in expansion_schedule:
+                # Aguardar até horário da expansão
+                target_time = start_time + timedelta(hours=step['hours'])
+                wait_seconds = (target_time - datetime.utcnow()).total_seconds()
+
+                if wait_seconds > 0:
+                    await asyncio.sleep(wait_seconds)
+
+                # Verificar status do teste
+                result = self.ab_manager.check_test_completion(test_id)
+
+                # Rollback se falhou
+                if result.get('status') == 'failed':
+                    logger.warning(
+                        "ab_test_failed_rolling_back",
+                        test_id=test_id,
+                        reason=result.get('recommendation')
+                    )
+                    self.ab_manager.expand_traffic(test_id, 0.0)
+                    await self._log_ab_test_expansion(
+                        test_id, 0.0, 'rollback_failed'
+                    )
+                    return
+
+                # Expandir tráfego se condição atendida
+                if step['condition'] == 'passed' and result.get('passed'):
+                    self.ab_manager.expand_traffic(test_id, step['traffic'])
+                    await self._log_ab_test_expansion(
+                        test_id, step['traffic'], 'test_passed'
+                    )
+                    logger.info(
+                        "ab_test_expanded_to_full_traffic",
+                        test_id=test_id,
+                        traffic_percentage=100.0
+                    )
+                    return
+                elif step['condition'] in ['stable', 'positive']:
+                    # Verificar métricas intermediárias
+                    metrics = result.get('metrics', {})
+                    new_model = metrics.get('new_model', {})
+                    baseline_model = metrics.get('baseline_model', {})
+
+                    # Expandir se novo modelo não é pior
+                    if new_model.get('confidence_mean', 0) >= baseline_model.get('confidence_mean', 0) * 0.95:
+                        self.ab_manager.expand_traffic(test_id, step['traffic'])
+                        await self._log_ab_test_expansion(
+                            test_id, step['traffic'], step['condition']
+                        )
+                        logger.info(
+                            "ab_test_traffic_expanded",
+                            test_id=test_id,
+                            new_traffic_percentage=step['traffic'],
+                            condition=step['condition']
+                        )
+                    else:
+                        logger.warning(
+                            "ab_test_metrics_degraded_not_expanding",
+                            test_id=test_id,
+                            new_confidence=new_model.get('confidence_mean'),
+                            baseline_confidence=baseline_model.get('confidence_mean')
+                        )
+
+        except Exception as e:
+            logger.error(f"Erro no monitoramento de teste A/B: {e}")
+
+    def _map_model_to_specialist(self, model_type: str) -> str:
+        """Mapeia tipo de modelo para specialist_type."""
+        mapping = {
+            'anomaly': 'behavior',
+            'load': 'technical',
+            'scheduling': 'evolution',
+            'business': 'business',
+            'architecture': 'architecture'
+        }
+        return mapping.get(model_type, model_type)
+
+    async def _log_ab_test_event(
+        self,
+        test_id: str,
+        specialist_type: str,
+        new_version: str,
+        triggered_by_drift: Any
+    ):
+        """Registra evento de criação de teste A/B no MongoDB."""
+        try:
+            document = {
+                'type': 'ab_test_created',
+                'timestamp': datetime.utcnow(),
+                'test_id': test_id,
+                'specialist_type': specialist_type,
+                'new_model_version': new_version,
+                'triggered_by_drift_event': triggered_by_drift,
+                'initial_traffic_percentage': 10.0
+            }
+            await self.db.ml_retraining_events.insert_one(document)
+        except Exception as e:
+            logger.error(f"Erro ao registrar evento A/B test: {e}")
+
+    async def _log_ab_test_expansion(
+        self,
+        test_id: str,
+        new_traffic: float,
+        reason: str
+    ):
+        """Registra expansão de tráfego de teste A/B."""
+        try:
+            document = {
+                'type': 'ab_test_traffic_expanded',
+                'timestamp': datetime.utcnow(),
+                'test_id': test_id,
+                'new_traffic_percentage': new_traffic,
+                'expansion_reason': reason
+            }
+            await self.db.ml_retraining_events.insert_one(document)
+        except Exception as e:
+            logger.error(f"Erro ao registrar expansão A/B test: {e}")
 
     async def _log_retraining_event(
         self,
