@@ -30,7 +30,8 @@ from .executors import (
     TestExecutor,
     ValidateExecutor,
     ExecuteExecutor,
-    CompensateExecutor
+    CompensateExecutor,
+    QueryExecutor
 )
 from .api import create_http_server
 from .observability import init_metrics
@@ -298,6 +299,51 @@ async def startup():
             )
             redis_client = None
 
+        # Inicializar MongoDB client para persistência de DLQ e queries
+        mongodb_client = None
+        if getattr(config, 'mongodb_enabled', True):
+            try:
+                logger.info('Inicializando MongoDB Client para persistência de DLQ e queries')
+                mongodb_client = MongoDBClient(config)
+                await mongodb_client.initialize()
+                app_state['mongodb_client'] = mongodb_client
+                logger.info('MongoDB Client inicializado com sucesso')
+            except ImportError:
+                logger.warning('MongoDB habilitado mas motor não instalado')
+            except Exception as mongo_error:
+                logger.warning(
+                    'MongoDB Client init falhou, continuando sem persistência DLQ',
+                    error=str(mongo_error)
+                )
+                mongodb_client = None
+
+        # Inicializar Neo4j client para queries de grafo (opcional)
+        neo4j_client = None
+        if getattr(config, 'neo4j_enabled', False):
+            try:
+                logger.info('Inicializando Neo4j Client para queries')
+                from .clients.neo4j_client import Neo4jClient
+                neo4j_client = Neo4jClient(
+                    uri=config.neo4j_uri,
+                    user=config.neo4j_user,
+                    password=config.neo4j_password,
+                    database=getattr(config, 'neo4j_database', 'neo4j'),
+                    max_connection_pool_size=getattr(config, 'neo4j_max_pool_size', 50),
+                    connection_timeout=getattr(config, 'neo4j_connection_timeout', 30),
+                    encrypted=getattr(config, 'neo4j_encrypted', False)
+                )
+                await neo4j_client.initialize()
+                app_state['neo4j_client'] = neo4j_client
+                logger.info('Neo4j Client inicializado com sucesso')
+            except ImportError:
+                logger.warning('Neo4j habilitado mas neo4j não instalado')
+            except Exception as neo4j_error:
+                logger.warning(
+                    'Neo4j Client init falhou, continuando sem Neo4j',
+                    error=str(neo4j_error)
+                )
+                neo4j_client = None
+
         # Criar componentes de execução
         dependency_coordinator = DependencyCoordinator(config, ticket_client, metrics=metrics)
         app_state['dependency_coordinator'] = dependency_coordinator
@@ -432,6 +478,15 @@ async def startup():
             flux_client=flux_client,
             k8s_jobs_client=k8s_jobs_client
         ))
+        executor_registry.register_executor(QueryExecutor(
+            config,
+            vault_client=vault_client,
+            code_forge_client=code_forge_client,
+            metrics=metrics,
+            mongodb_client=mongodb_client,
+            redis_client=redis_client,
+            neo4j_client=neo4j_client
+        ))
         executor_registry.validate_configuration()
         app_state['executor_registry'] = executor_registry
 
@@ -453,25 +508,7 @@ async def startup():
         kafka_consumer = instrument_kafka_consumer(kafka_consumer)
         app_state['kafka_consumer'] = kafka_consumer
 
-        # Inicializar MongoDB client para persistência de DLQ (Comment 2)
-        mongodb_client = None
-        if getattr(config, 'mongodb_enabled', True):
-            try:
-                logger.info('Inicializando MongoDB Client para persistência de DLQ')
-                mongodb_client = MongoDBClient(config)
-                await mongodb_client.initialize()
-                app_state['mongodb_client'] = mongodb_client
-                logger.info('MongoDB Client inicializado com sucesso')
-            except ImportError:
-                logger.warning('MongoDB habilitado mas motor não instalado')
-            except Exception as mongo_error:
-                logger.warning(
-                    'MongoDB Client init falhou, continuando sem persistência DLQ',
-                    error=str(mongo_error)
-                )
-                mongodb_client = None
-
-        # Inicializar DLQ Alert Manager para alertas SRE (Comment 2)
+        # Inicializar DLQ Alert Manager para alertas SRE
         dlq_alert_manager = None
         if getattr(config, 'dlq_alert_enabled', True):
             try:
@@ -487,7 +524,7 @@ async def startup():
                 )
                 dlq_alert_manager = None
 
-        # Inicializar DLQ consumer com MongoDB e AlertManager reais (Comment 2)
+        # Inicializar DLQ consumer com MongoDB e AlertManager reais
         if getattr(config, 'kafka_dlq_enabled', True):
             try:
                 dlq_consumer = KafkaDLQConsumer(
@@ -645,6 +682,15 @@ async def shutdown():
                 logger.info('MongoDB Client fechado com sucesso')
             except Exception as mongo_close_error:
                 logger.warning('Erro ao fechar MongoDB Client', error=str(mongo_close_error))
+
+        # Fechar Neo4j client
+        if 'neo4j_client' in app_state and app_state['neo4j_client']:
+            try:
+                logger.info('Fechando Neo4j Client')
+                await app_state['neo4j_client'].close()
+                logger.info('Neo4j Client fechado com sucesso')
+            except Exception as neo4j_close_error:
+                logger.warning('Erro ao fechar Neo4j Client', error=str(neo4j_close_error))
 
         # Fechar DLQ Alert Manager (Comment 2)
         if 'dlq_alert_manager' in app_state and app_state['dlq_alert_manager']:
