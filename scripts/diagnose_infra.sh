@@ -159,7 +159,7 @@ diagnose_schema_registry() {
         done
     else
         echo -e "${RED}   ✗ Nenhum pod Schema Registry encontrado${NC}"
-        echo -e "${YELLOW}   💡 Deploy: kubectl apply -f k8s/schema-registry-deployment.yaml${NC}"
+        echo -e "${YELLOW}   💡 Deploy: kubectl apply -f k8s/apicurio-registry-deployment.yaml${NC}"
     fi
     echo ""
 
