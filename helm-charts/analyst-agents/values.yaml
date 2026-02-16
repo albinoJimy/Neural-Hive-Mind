@@ -72,7 +72,7 @@ config:
     insightsTtl: 3600
 
   neo4j:
-    uri: bolt://neo4j.neo4j.svc.cluster.local:7687
+    uri: bolt://neo4j.neo4j-cluster.svc.cluster.local:7687
     user: neo4j
     password: ""
     database: neo4j
