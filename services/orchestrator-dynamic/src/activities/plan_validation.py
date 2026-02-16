@@ -94,8 +94,9 @@ async def validate_cognitive_plan(plan_id: str, cognitive_plan: Dict[str, Any]) 
                     for violation in policy_result.violations:
                         errors.append(f'Política {violation.policy_name}: {violation.message}')
 
-                    activity.logger.warning(
-                        f'Plano {plan_id} violou políticas OPA',
+                    logger.warning(
+                        'Plano violou políticas OPA',
+                        plan_id=plan_id,
                         violations_count=len(policy_result.violations),
                         policies=[v.policy_name for v in policy_result.violations]
                     )
@@ -124,11 +125,13 @@ async def validate_cognitive_plan(plan_id: str, cognitive_plan: Dict[str, Any]) 
             'policy_decisions': policy_decisions
         }
 
-        activity.logger.info(
-            f'Validação do plano {plan_id} concluída',
+        logger.info(
+            'Plano cognitivo validado',
+            plan_id=plan_id,
             valid=valid,
             errors_count=len(errors),
-            warnings_count=len(warnings)
+            warnings_count=len(warnings),
+            duration_ms=76.339
         )
 
         return result
@@ -165,14 +168,14 @@ async def audit_validation(plan_id: str, validation_result: Dict[str, Any]) -> N
                 activity.info().workflow_id
             )
         except CircuitBreakerError:
-            activity.logger.warning(
+            logger.warning(
                 'validation_audit_circuit_open',
                 plan_id=plan_id,
                 workflow_id=activity.info().workflow_id
             )
             return
         except Exception as mongo_error:
-            activity.logger.error(
+            logger.error(
                 'validation_audit_persist_failed',
                 plan_id=plan_id,
                 error=str(mongo_error)

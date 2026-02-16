@@ -76,7 +76,7 @@ async def check_workflow_sla_proactive(
 
     # Verificar se monitoramento SLA está habilitado
     if not config.sla_management_enabled:
-        activity.logger.info(
+        logger.info(
             'SLA monitoring desabilitado, pulando verificação proativa',
             checkpoint=checkpoint
         )
@@ -91,7 +91,7 @@ async def check_workflow_sla_proactive(
             from src.clients.redis_client import get_redis_client
             redis_client = await get_redis_client(config)
         except Exception as redis_error:
-            activity.logger.warning(
+            logger.warning(
                 f'Redis indisponível para cache, continuando sem cache: {redis_error}'
             )
 
@@ -108,7 +108,7 @@ async def check_workflow_sla_proactive(
 
         # Log de warning se deadline se aproximando
         if deadline_approaching:
-            activity.logger.warning(
+            logger.warning(
                 'Verificação proativa: deadline se aproximando',
                 checkpoint=checkpoint,
                 workflow_id=workflow_id,
@@ -136,14 +136,14 @@ async def check_workflow_sla_proactive(
                 budget_critical = is_critical
 
                 if budget_critical and budget_data:
-                    activity.logger.warning(
+                    logger.warning(
                         'Verificação proativa: budget crítico detectado',
                         checkpoint=checkpoint,
                         budget_remaining=budget_data.get('error_budget_remaining'),
                         status=budget_data.get('status')
                     )
             except Exception as budget_error:
-                activity.logger.warning(
+                logger.warning(
                     f'Erro ao verificar budget no checkpoint {checkpoint}: {budget_error}'
                 )
 
@@ -165,7 +165,7 @@ async def check_workflow_sla_proactive(
             if budget_data:
                 response['budget_data'] = budget_data
 
-        activity.logger.info(
+        logger.info(
             'Verificação proativa de SLA concluída',
             checkpoint=checkpoint,
             workflow_id=workflow_id,
@@ -177,7 +177,7 @@ async def check_workflow_sla_proactive(
 
     except Exception as e:
         # Fail-open: Log erro mas não bloqueia workflow
-        activity.logger.warning(
+        logger.warning(
             f'Erro na verificação proativa de SLA (fail-open): {e}',
             checkpoint=checkpoint,
             workflow_id=workflow_id,
@@ -200,7 +200,7 @@ async def check_workflow_sla_proactive(
             try:
                 await sla_monitor.close()
             except Exception as close_error:
-                activity.logger.warning(f'Erro ao fechar SLAMonitor: {close_error}')
+                logger.warning(f'Erro ao fechar SLAMonitor: {close_error}')
 
 
 def _default_response(checkpoint: str) -> Dict[str, Any]:

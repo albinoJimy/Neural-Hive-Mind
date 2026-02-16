@@ -131,7 +131,7 @@ async def compensate_ticket(
     task_type = ticket.get('task_type', 'UNKNOWN')
     original_params = ticket.get('parameters', {})
 
-    activity.logger.info(
+    logger.info(
         f'compensation.creating_ticket ticket_id={ticket_id} task_type={task_type} reason={reason}'
     )
 
@@ -174,7 +174,7 @@ async def compensate_ticket(
             try:
                 _metrics.record_compensation(reason=reason)
             except Exception as metric_err:
-                activity.logger.warning(
+                logger.warning(
                     f'compensation.metric_failed error={metric_err}'
                 )
 
@@ -182,11 +182,11 @@ async def compensate_ticket(
         if _mongodb_client:
             try:
                 await _mongodb_client.save_ticket(compensation_ticket)
-                activity.logger.info(
+                logger.info(
                     f'compensation.ticket_persisted ticket_id={compensation_ticket_id}'
                 )
             except Exception as mongo_err:
-                activity.logger.warning(
+                logger.warning(
                     f'compensation.mongodb_persist_failed ticket_id={compensation_ticket_id} error={mongo_err}'
                 )
 
@@ -195,31 +195,31 @@ async def compensate_ticket(
             try:
                 publish_result = await _kafka_producer.publish_ticket(compensation_ticket)
                 if publish_result:
-                    activity.logger.info(
+                    logger.info(
                         f'compensation.ticket_published ticket_id={compensation_ticket_id}'
                     )
                 else:
-                    activity.logger.warning(
+                    logger.warning(
                         f'compensation.kafka_publish_failed ticket_id={compensation_ticket_id}'
                     )
             except Exception as kafka_err:
-                activity.logger.error(
+                logger.error(
                     f'compensation.kafka_error ticket_id={compensation_ticket_id} error={kafka_err}'
                 )
                 # Fail-open: ticket foi persistido no MongoDB
         else:
-            activity.logger.warning(
+            logger.warning(
                 f'compensation.kafka_producer_unavailable ticket_id={compensation_ticket_id}'
             )
 
-        activity.logger.info(
+        logger.info(
             f'compensation.ticket_created original_ticket_id={ticket_id} compensation_ticket_id={compensation_ticket_id} action={compensation_data.get("action")}'
         )
 
         return compensation_ticket_id
 
     except Exception as e:
-        activity.logger.error(
+        logger.error(
             f'compensation.failed ticket_id={ticket_id} error={e}',
             exc_info=True
         )
@@ -244,7 +244,7 @@ async def build_compensation_order(
     Returns:
         Lista de tickets ordenada para compensacao (ordem reversa de execucao)
     """
-    activity.logger.info(
+    logger.info(
         f'compensation.building_order failed_count={len(failed_tickets)} total_count={len(all_tickets)}'
     )
 
@@ -334,14 +334,14 @@ async def build_compensation_order(
                 if status in ['COMPLETED', 'FAILED', 'RUNNING', 'COMPENSATING']:
                     result.append(ticket_data)
 
-        activity.logger.info(
+        logger.info(
             f'compensation.order_built total_to_compensate={len(result)} order={[t.get("ticket_id", "?")[:8] for t in result]}'
         )
 
         return result
 
     except Exception as e:
-        activity.logger.error(
+        logger.error(
             f'compensation.build_order_failed error={e}',
             exc_info=True
         )
@@ -366,7 +366,7 @@ async def update_ticket_compensation_status(
     """
     global _mongodb_client
 
-    activity.logger.info(
+    logger.info(
         f'compensation.updating_original_ticket ticket_id={ticket_id} compensation_ticket_id={compensation_ticket_id}'
     )
 
@@ -377,18 +377,18 @@ async def update_ticket_compensation_status(
                 compensation_ticket_id=compensation_ticket_id,
                 status='COMPENSATING'
             )
-            activity.logger.info(
+            logger.info(
                 f'compensation.original_ticket_updated ticket_id={ticket_id}'
             )
             return True
         else:
-            activity.logger.warning(
+            logger.warning(
                 f'compensation.mongodb_unavailable ticket_id={ticket_id}'
             )
             return False
 
     except Exception as e:
-        activity.logger.error(
+        logger.error(
             f'compensation.update_failed ticket_id={ticket_id} error={e}'
         )
         return False

@@ -65,7 +65,7 @@ async def generate_execution_tickets(
     Returns:
         Lista de tickets ordenada topologicamente
     """
-    activity.logger.info(f'Gerando execution tickets para plano {cognitive_plan["plan_id"]}')
+    logger.info(f'Gerando execution tickets para plano {cognitive_plan["plan_id"]}')
 
     try:
         tasks = cognitive_plan.get('tasks', [])
@@ -114,7 +114,7 @@ async def generate_execution_tickets(
             deadline = int((datetime.now().timestamp() + timeout_ms / 1000) * 1000)
 
             # Log detalhado do cálculo de timeout para auditoria e debugging
-            activity.logger.info(
+            logger.info(
                 'sla_timeout_calculated',
                 ticket_id=ticket_id,
                 task_id=task_id,
@@ -130,7 +130,7 @@ async def generate_execution_tickets(
 
             # Validação: garantir que timeout nunca seja menor que o mínimo configurado
             if timeout_ms < min_timeout_ms:
-                activity.logger.error(
+                logger.error(
                     'sla_timeout_below_minimum',
                     ticket_id=ticket_id,
                     timeout_ms=timeout_ms,
@@ -215,7 +215,7 @@ async def generate_execution_tickets(
                 if ticket:
                     ordered_tickets.append(ticket)
 
-        activity.logger.info(
+        logger.info(
             f'Gerados {len(ordered_tickets)} execution tickets',
             plan_id=plan_id,
             risk_band=risk_band
@@ -224,7 +224,7 @@ async def generate_execution_tickets(
         return ordered_tickets
 
     except Exception as e:
-        activity.logger.error(f'Erro ao gerar execution tickets: {e}', exc_info=True)
+        logger.error(f'Erro ao gerar execution tickets: {e}', exc_info=True)
         raise
 
 
@@ -241,7 +241,7 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
         Ticket atualizado com allocation_metadata
     """
     ticket_id = ticket.get('ticket_id', 'unknown')
-    activity.logger.info(f'Alocando recursos para ticket {ticket_id}')
+    logger.info(f'Alocando recursos para ticket {ticket_id}')
 
     try:
         # Validar políticas OPA antes de alocar recursos
@@ -253,7 +253,7 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 if not policy_result.valid:
                     # Rejeitar alocação se políticas forem violadas
                     violation_msgs = [f'{v.policy_name}/{v.rule}: {v.message}' for v in policy_result.violations]
-                    activity.logger.error(
+                    logger.error(
                         f'Ticket {ticket_id} rejeitado por políticas OPA',
                         violations=violation_msgs
                     )
@@ -262,7 +262,7 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 # Logar warnings mas não bloquear
                 if policy_result.warnings:
                     warning_msgs = [f'{w.policy_name}/{w.rule}: {w.message}' for w in policy_result.warnings]
-                    activity.logger.warning(
+                    logger.warning(
                         f'Ticket {ticket_id} tem warnings de políticas',
                         warnings=warning_msgs
                     )
@@ -276,7 +276,7 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 ticket['metadata']['policy_decisions'] = policy_result.policy_decisions
                 ticket['metadata']['policy_validated_at'] = policy_result.evaluated_at.isoformat()
 
-                activity.logger.info(
+                logger.info(
                     f'Ticket {ticket_id} validado por políticas OPA',
                     feature_flags=feature_flags
                 )
@@ -286,7 +286,7 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 raise
             except Exception as e:
                 # Erro na validação OPA
-                activity.logger.error(f'Erro ao validar políticas OPA: {e}', exc_info=True)
+                logger.error(f'Erro ao validar políticas OPA: {e}', exc_info=True)
                 if not _config.opa_fail_open:
                     raise RuntimeError(f'Falha na validação de políticas: {str(e)}')
 
@@ -298,12 +298,12 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 # Extrair predicted_duration_ms para usar em allocation_metadata
                 predictions = ticket.get('predictions', {})
                 predicted_duration_ms = predictions.get('duration_ms')
-                activity.logger.info(
+                logger.info(
                     f'ML predictions adicionadas ao ticket {ticket_id}',
                     predictions=ticket.get('predictions')
                 )
             except Exception as e:
-                activity.logger.warning(
+                logger.warning(
                     f'ML prediction falhou para ticket {ticket_id}, continuando sem predições: {e}'
                 )
 
@@ -312,7 +312,7 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
 
         # Tentar usar Intelligent Scheduler se disponível e habilitado
         if _intelligent_scheduler and use_intelligent_scheduler:
-            activity.logger.info(
+            logger.info(
                 f'Usando Intelligent Scheduler para ticket {ticket_id}',
                 scheduler_enabled=True
             )
@@ -352,7 +352,7 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
 
                         if not policy_result.valid:
                             violation_msgs = [f'{v.policy_name}/{v.rule}: {v.message}' for v in policy_result.violations]
-                            activity.logger.error(
+                            logger.error(
                                 f'Alocação rejeitada por políticas OPA para ticket {ticket_id}',
                                 violations=violation_msgs,
                                 agent_id=agent_info.get('agent_id')
@@ -361,7 +361,7 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
 
                         if policy_result.warnings:
                             warning_msgs = [f'{w.policy_name}/{w.rule}: {w.message}' for w in policy_result.warnings]
-                            activity.logger.warning(
+                            logger.warning(
                                 f'Alocação com warnings de políticas OPA para ticket {ticket_id}',
                                 warnings=warning_msgs,
                                 agent_id=agent_info.get('agent_id')
@@ -378,7 +378,7 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
                             ticket['metadata']['policy_decisions'] = policy_result.policy_decisions
                         ticket['metadata']['policy_validated_at'] = policy_result.evaluated_at.isoformat()
 
-                        activity.logger.info(
+                        logger.info(
                             f'Validação OPA de alocação concluída para ticket {ticket_id}',
                             agent_id=agent_info.get('agent_id'),
                             agent_type=agent_info.get('agent_type')
@@ -386,14 +386,14 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
                     except RuntimeError:
                         raise
                     except Exception as e:
-                        activity.logger.warning(
+                        logger.warning(
                             f'Erro ao validar alocação via OPA para ticket {ticket_id}: {e}',
                             agent_id=agent_info.get('agent_id')
                         )
                         if not _config.opa_fail_open:
                             raise RuntimeError(f'Falha na validação de alocação: {str(e)}')
 
-                activity.logger.info(
+                logger.info(
                     f'Recursos alocados via Intelligent Scheduler para ticket {ticket_id}',
                     allocation_method=ticket.get('allocation_metadata', {}).get('allocation_method'),
                     priority_score=ticket.get('allocation_metadata', {}).get('priority_score'),
@@ -403,14 +403,14 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 return ticket
 
             except Exception as e:
-                activity.logger.warning(
+                logger.warning(
                     f'Falha no Intelligent Scheduler, usando fallback: {e}',
                     ticket_id=ticket_id
                 )
                 # Fallback para alocação stub
 
         # Fallback: alocação stub (scheduler não disponível ou falhou)
-        activity.logger.info(
+        logger.info(
             f'Usando alocação stub para ticket {ticket_id}',
             reason='scheduler_unavailable_or_failed'
         )
@@ -442,7 +442,7 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
         ticket['allocation_metadata']['predicted_load_pct'] = 0.5
         ticket['allocation_metadata']['ml_enriched'] = False
 
-        activity.logger.info(
+        logger.info(
             f'Recursos alocados (stub) para ticket {ticket_id}',
             priority_score=priority_score
         )
@@ -450,7 +450,7 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
         return ticket
 
     except Exception as e:
-        activity.logger.error(
+        logger.error(
             f'Erro ao alocar recursos para ticket {ticket_id}: {e}',
             exc_info=True
         )
@@ -484,7 +484,7 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
             'Verifique se set_activity_dependencies() foi chamado no worker.'
         )
 
-    activity.logger.info(
+    logger.info(
         'publishing_ticket_to_kafka',
         ticket_id=ticket_id,
         plan_id=ticket.get('plan_id'),
@@ -498,7 +498,7 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
             rejection_reason = rejection_metadata.get('rejection_reason', 'unknown')
             rejection_message = rejection_metadata.get('rejection_message', 'Ticket rejeitado sem motivo especificado')
 
-            activity.logger.error(
+            logger.error(
                 'ticket_rejected_not_published',
                 ticket_id=ticket_id,
                 rejection_reason=rejection_reason,
@@ -511,12 +511,12 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 try:
                     ticket['status'] = 'rejected'
                     await _mongodb_client.save_execution_ticket(ticket)
-                    activity.logger.info(
+                    logger.info(
                         f'Ticket rejeitado {ticket_id} persistido no MongoDB para auditoria',
                         plan_id=ticket.get('plan_id')
                     )
                 except Exception as db_error:
-                    activity.logger.warning(
+                    logger.warning(
                         f'Erro ao persistir ticket rejeitado no MongoDB: {db_error}',
                         ticket_id=ticket_id
                     )
@@ -545,7 +545,7 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 compute_and_record_ml_error(ticket, metrics)
             except Exception as e:
                 # Fail-open: não bloqueia publicação
-                activity.logger.warning(
+                logger.warning(
                     'ml_error_tracking_failed_in_publish',
                     ticket_id=ticket_id,
                     error=str(e)
@@ -558,7 +558,7 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
         # Publicar ticket no Kafka usando o producer real
         kafka_result = await _kafka_producer.publish_ticket(ticket)
 
-        activity.logger.info(
+        logger.info(
             f'Ticket {ticket_id} publicado no Kafka. Será processado pelo Execution Ticket Service',
             plan_id=ticket['plan_id'],
             topic=kafka_result['topic'],
@@ -570,14 +570,14 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
         # Persistir ticket no MongoDB para auditoria
         try:
             await _mongodb_client.save_execution_ticket(ticket)
-            activity.logger.info(
+            logger.info(
                 'ticket_persisted_successfully',
                 ticket_id=ticket_id,
                 plan_id=ticket['plan_id']
             )
         except CircuitBreakerError:
             # Circuit breaker aberto - problema sistêmico, sempre propagar
-            activity.logger.error(
+            logger.error(
                 'execution_ticket_persist_circuit_open',
                 ticket_id=ticket_id,
                 plan_id=ticket.get('plan_id'),
@@ -591,7 +591,7 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
 
         except PyMongoError as db_error:
             # Erro de MongoDB - verificar política de fail-open
-            activity.logger.error(
+            logger.error(
                 'execution_ticket_persist_failed',
                 ticket_id=ticket_id,
                 plan_id=ticket.get('plan_id'),
@@ -602,7 +602,7 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
 
             # Verificar política de fail-open configurável
             if _config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS:
-                activity.logger.warning(
+                logger.warning(
                     'execution_ticket_persist_fail_open_activated',
                     ticket_id=ticket_id,
                     plan_id=ticket.get('plan_id')
@@ -624,7 +624,7 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
 
         except Exception as e:
             # Erro inesperado - logar e verificar política
-            activity.logger.error(
+            logger.error(
                 'execution_ticket_persist_unexpected_error',
                 ticket_id=ticket_id,
                 plan_id=ticket.get('plan_id'),
@@ -635,7 +635,7 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
             )
 
             if _config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS:
-                activity.logger.warning(
+                logger.warning(
                     'execution_ticket_persist_fail_open_activated',
                     ticket_id=ticket_id,
                     plan_id=ticket.get('plan_id'),
@@ -668,7 +668,7 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
 
     except RuntimeError as e:
         # Erro de configuração - não retry
-        activity.logger.error(
+        logger.error(
             f'Erro de configuração ao publicar ticket {ticket_id}: {e}',
             exc_info=True
         )
@@ -676,7 +676,7 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
 
     except Exception as e:
         # Erro na publicação - permite retry pelo Temporal
-        activity.logger.error(
+        logger.error(
             f'Erro ao publicar ticket {ticket_id} (plan_id={ticket.get("plan_id")}): {e}'
         )
         raise
