@@ -20,11 +20,11 @@ autoscaling:
 
 resources:
   requests:
-    cpu: 300m      # Policy enforcement is lightweight
-    memory: 512Mi
+    cpu: 100m  # Reduced from 300m - actual usage ~15m
+    memory: 256Mi  # Reduced from 512Mi
   limits:
-    cpu: 1000m
-    memory: 1536Mi
+    cpu: 400m  # Reduced from 1000m
+    memory: 768Mi  # Reduced from 1536Mi
 
 config:
   serviceName: guard-agents

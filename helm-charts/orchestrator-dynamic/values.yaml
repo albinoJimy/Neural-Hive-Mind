@@ -27,15 +27,14 @@ autoscaling:
   targetMemoryUtilizationPercentage: 80
 
 resources:
-  # Temporal + Kafka coordination peaks at ~1 vCPU when replaying workflows,
-  # but steady state averages 250-300m CPU and <900Mi RAM.
-  # Requests drop to 400m/1Gi and burst caps are reduced to 1.6 CPU / 3Gi.
+  # 2026-02-16: Reduced from 400m to 150m based on actual usage ~15-27m (not 250-300m as previously thought)
+  # Temporal + Kafka coordination peaks, HPA will scale if needed
   requests:
-    cpu: 400m
-    memory: 1Gi
+    cpu: 150m  # Reduced from 400m - actual usage ~15-27m
+    memory: 512Mi  # Reduced from 1Gi
   limits:
-    cpu: 1600m
-    memory: 3Gi
+    cpu: 600m  # Reduced from 1600m
+    memory: 1536Mi  # Reduced from 3Gi
 
 service:
   type: ClusterIP

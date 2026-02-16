@@ -36,14 +36,14 @@ autoscaling:
   targetMemoryUtilizationPercentage: 80
 
 resources:
-  # Workers pull Temporal/Kafka tasks but idle frequently; profiling shows 250-300m CPU steady state.
-  # Right-size to 400m CPU / 640Mi requests with burst cap 1.5 CPU / 1.5Gi for parallel job spikes.
+  # 2026-02-16: Reduced from 400m to 150m based on actual usage ~21m (not 250-300m as previously thought)
+  # Workers pull Temporal/Kafka tasks but idle frequently
   requests:
-    cpu: 400m
-    memory: 640Mi
+    cpu: 150m  # Reduced from 400m - actual usage ~21m
+    memory: 320Mi  # Reduced from 640Mi
   limits:
-    cpu: 1500m
-    memory: 1536Mi
+    cpu: 500m  # Reduced from 1500m
+    memory: 768Mi  # Reduced from 1536Mi
 
 config:
   serviceName: worker-agents

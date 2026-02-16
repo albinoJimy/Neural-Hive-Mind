@@ -39,15 +39,14 @@ service:
       protocol: TCP
 
 resources:
-  # Git clone + template rendering bursts demand but average utilization stays <600m CPU.
-  # Keep higher request (800m) than other services to accommodate build phases while trimming
-  # previous 2 vCPU / 4Gi upper bound down to 2.2 vCPU / 3.5Gi.
+  # 2026-02-16: Reduced from 800m to 200m based on actual usage ~50m (not <600m as previously thought)
+  # Git clone + template rendering bursts demand, HPA will scale if needed
   requests:
-    cpu: 800m
-    memory: 1536Mi
+    cpu: 200m  # Reduced from 800m - actual usage ~50m
+    memory: 512Mi  # Reduced from 1536Mi
   limits:
-    cpu: 2200m
-    memory: 3584Mi
+    cpu: 800m  # Reduced from 2200m
+    memory: 1536Mi  # Reduced from 3584Mi
 
 autoscaling:
   enabled: true

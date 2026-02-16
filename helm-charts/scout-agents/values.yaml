@@ -88,11 +88,11 @@ config:
 
 resources:
   requests:
-    cpu: 400m      # Solution exploration
-    memory: 768Mi
+    cpu: 100m  # Reduced from 400m - actual usage ~25m
+    memory: 256Mi  # Reduced from 768Mi
   limits:
-    cpu: 1500m
-    memory: 2Gi
+    cpu: 400m  # Reduced from 1500m
+    memory: 512Mi  # Reduced from 2Gi
 
 autoscaling:
   enabled: true

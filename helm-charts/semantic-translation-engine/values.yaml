@@ -30,15 +30,15 @@ strategy:
 
 # Recursos
 resources:
-  # Kafka deserialização + Neo4j lookups consomem ~350m CPU e ~850Mi RAM em carga média.
-  # Ajustamos requests para 450m/1Gi e mantemos burst em 1.5 CPU / 3Gi para ingestões em lote
-  # sem replicar o antigo padrão 500m→2 CPU / 1Gi→4Gi que desperdiçava capacidade.
+  # NOTA: Medição real mostra uso ~17m steady state. Picos podem atingir 150-200m.
+  # Reduzido de 450m para 150m para liberar capacidade de agendamento.
+  # HPA fará scale-up se necessário (autoscaling enabled).
   requests:
-    cpu: 450m
-    memory: 1Gi
+    cpu: 150m  # Reduced from 450m - actual usage ~17m
+    memory: 512Mi  # Reduced from 1Gi
   limits:
-    cpu: 1500m
-    memory: 3Gi
+    cpu: 800m  # Reduced from 1500m
+    memory: 2Gi  # Reduced from 3Gi
 
 # Observability configuration for common templates
 observability:

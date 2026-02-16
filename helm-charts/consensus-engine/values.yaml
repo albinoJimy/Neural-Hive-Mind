@@ -39,15 +39,14 @@ service:
 resources:
   # Optimized after Phase 4 (migrated to python-grpc-base, removed neural_hive_specialists bloat)
   # Image reduced from ~1.5GB to ~480MB (68% reduction)
-  # Bayesian aggregation saturates brief CPU bursts when reconciling 5 specialists + pheromone metrics
-  # Profiling showed average usage <300m CPU / 400Mi (down from 650Mi), so we right-size requests to 400m/512Mi
-  # while still allowing 1.5 CPU / 1.25Gi for reconciliation spikes without starving Kafka consumers
+  # 2026-02-16: Further reduced from 400m to 150m based on actual usage ~12m steady state
+  # Bayesian aggregation has brief CPU bursts, HPA will scale if needed
   requests:
-    cpu: 400m
-    memory: 512Mi
+    cpu: 150m  # Reduced from 400m - actual usage ~12m
+    memory: 256Mi  # Reduced from 512Mi
   limits:
-    cpu: 1500m
-    memory: 1280Mi
+    cpu: 500m  # Reduced from 1500m
+    memory: 768Mi  # Reduced from 1280Mi
 
 config:
   environment: dev  # Use 'staging' or 'production' only when SPIFFE mTLS is configured

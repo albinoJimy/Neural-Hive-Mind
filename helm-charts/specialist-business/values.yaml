@@ -53,19 +53,18 @@ deployment:
 # - Se houver OOMKill ou uso sustentado >80-85% do limit de 1Gi, aumentar resources.limits.memory em +256Mi neste arquivo (ex: 1.25Gi, 1.5Gi) e redeploy.
 # - Se "Startup probe failed" ocorrer de forma recorrente sem erro funcional, elevar startupProbe.failureThreshold para 20 ou 30 mantendo o restante igual.
 resources:
-  # Optimized after Phase 1-4 dependency cleanup (removed ~1.75GB unused ML libs: shap, lime, evidently, presidio, sentence-transformers)
-  # New baseline: python-specialist-base (~1.2GB) + application code (~100MB) + runtime overhead (~200MB) = ~1.5GB image, ~400-500MB runtime
-  # Production defaults based on optimized images: ~300-400MB memory, ~200-300m CPU during inference
-  # Ratios: 3.3x CPU burst capacity, 2x memory headroom for peak loads
+  # 2026-02-16: Reduced from 300m to 100m based on actual usage ~15m steady state
+  # Original optimization removed ~1.75GB unused ML libs (shap, lime, evidently, presidio, sentence-transformers)
+  # New baseline: python-specialist-base (~1.2GB) + application code (~100MB) + runtime overhead (~200MB)
   # Para clusters pequenos/dev, considere reduzir para:
-  #   requests: cpu: 200m, memory: 384Mi
-  #   limits: cpu: 800m, memory: 768Mi
+  #   requests: cpu: 100m, memory: 256Mi
+  #   limits: cpu: 400m, memory: 512Mi
   requests:
-    cpu: 300m
-    memory: 512Mi
+    cpu: 100m  # Reduced from 300m - actual usage ~15m
+    memory: 256Mi  # Reduced from 512Mi
   limits:
-    cpu: 1
-    memory: 1Gi
+    cpu: 400m  # Reduced from 1
+    memory: 512Mi  # Reduced from 1Gi
 
 service:
   type: ClusterIP

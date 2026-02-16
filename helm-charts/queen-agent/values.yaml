@@ -41,11 +41,11 @@ podAnnotations:
 
 resources:
   requests:
-    cpu: 300m
-    memory: 512Mi
+    cpu: 100m  # Reduced from 300m - actual usage ~20m
+    memory: 256Mi  # Reduced from 512Mi
   limits:
-    cpu: 1000m
-    memory: 1Gi
+    cpu: 400m  # Reduced from 1000m
+    memory: 512Mi  # Reduced from 1Gi
 
 config:
   serviceName: queen-agent
