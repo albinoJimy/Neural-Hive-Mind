@@ -1010,36 +1010,55 @@ class OrchestratorSettings(BaseSettings):
         extra='ignore',  # Ignorar variáveis de ambiente extras
     )
 
+    def _is_kubernetes_internal_service(self, url: str) -> bool:
+        """
+        Verifica se a URL é um serviço interno do Kubernetes.
+
+        Serviços internos (*.svc.cluster.local ou *.svc.*) são permitidos em HTTP
+        mesmo em produção, pois a comunicação entre pods já é segura no cluster.
+        """
+        return '.svc.cluster.local' in url or '.svc.' in url
+
     @model_validator(mode='after')
     def validate_https_in_production(self) -> 'OrchestratorSettings':
         """
         Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
         Endpoints verificados: Schema Registry, MLflow, OTEL, Vault, Prometheus Pushgateway.
+
+        NOTA: Endpoints internos do Kubernetes (*.svc.cluster.local) são permitidos em HTTP
+        pois a comunicação entre pods já é segura por padrão no cluster.
         """
         is_prod_staging = self.environment.lower() in ('production', 'staging', 'prod')
         if not is_prod_staging:
             return self
 
-        # Endpoints criticos que devem usar HTTPS em producao
+        # Endpoints criticos que devem usar HTTPS em producao (exceto serviços internos K8s)
         http_endpoints = []
         if self.kafka_schema_registry_url.startswith('http://'):
-            http_endpoints.append(('kafka_schema_registry_url', self.kafka_schema_registry_url))
+            if not self._is_kubernetes_internal_service(self.kafka_schema_registry_url):
+                http_endpoints.append(('kafka_schema_registry_url', self.kafka_schema_registry_url))
         if self.mlflow_tracking_uri.startswith('http://'):
-            http_endpoints.append(('mlflow_tracking_uri', self.mlflow_tracking_uri))
+            if not self._is_kubernetes_internal_service(self.mlflow_tracking_uri):
+                http_endpoints.append(('mlflow_tracking_uri', self.mlflow_tracking_uri))
         if self.otel_exporter_endpoint.startswith('http://'):
-            http_endpoints.append(('otel_exporter_endpoint', self.otel_exporter_endpoint))
+            if not self._is_kubernetes_internal_service(self.otel_exporter_endpoint):
+                http_endpoints.append(('otel_exporter_endpoint', self.otel_exporter_endpoint))
         if self.vault_enabled and self.vault_address.startswith('http://'):
-            http_endpoints.append(('vault_address', self.vault_address))
+            if not self._is_kubernetes_internal_service(self.vault_address):
+                http_endpoints.append(('vault_address', self.vault_address))
         if self.prometheus_pushgateway_url.startswith('http://'):
-            http_endpoints.append(('prometheus_pushgateway_url', self.prometheus_pushgateway_url))
+            if not self._is_kubernetes_internal_service(self.prometheus_pushgateway_url):
+                http_endpoints.append(('prometheus_pushgateway_url', self.prometheus_pushgateway_url))
         if self.self_healing_engine_url.startswith('http://'):
-            http_endpoints.append(('self_healing_engine_url', self.self_healing_engine_url))
+            if not self._is_kubernetes_internal_service(self.self_healing_engine_url):
+                http_endpoints.append(('self_healing_engine_url', self.self_healing_engine_url))
 
         if http_endpoints:
             endpoint_list = ', '.join(f'{name}={url}' for name, url in http_endpoints)
             raise ValueError(
                 f"Endpoints HTTP inseguros detectados em ambiente {self.environment}: {endpoint_list}. "
-                "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+                "Use HTTPS em producao/staging para garantir seguranca de dados em transito. "
+                "Servicos internos do Kubernetes (*.svc.cluster.local) sao permitidos em HTTP."
             )
 
         # Validar que shadow mode está habilitado se canary está habilitado
