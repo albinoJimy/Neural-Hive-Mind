@@ -113,6 +113,7 @@ async def generate_execution_tickets(
             timeout_ms = max(min_timeout_ms, int(estimated_duration_ms * buffer_multiplier))
             deadline = int((datetime.now().timestamp() + timeout_ms / 1000) * 1000)
 
+# CACHE_BUST_1771283833
             # Log detalhado do cálculo de timeout para auditoria e debugging
             logger.info(
                 'sla_timeout_calculated',
