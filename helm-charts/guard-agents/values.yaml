@@ -20,11 +20,11 @@ autoscaling:
 
 resources:
   requests:
-    cpu: 100m  # Reduced from 300m - actual usage ~15m
-    memory: 256Mi  # Reduced from 512Mi
+    cpu: 250m
+    memory: 512Mi
   limits:
-    cpu: 400m  # Reduced from 1000m
-    memory: 768Mi  # Reduced from 1536Mi
+    cpu: 1000m
+    memory: 2Gi
 
 config:
   serviceName: guard-agents
@@ -44,7 +44,7 @@ config:
     consumerGroupId: guard-agents
 
   serviceRegistry:
-    host: service-registry.neural-hive-registry.svc.cluster.local
+    host: service-registry.neural-hive.svc.cluster.local
     port: 50051
     heartbeatIntervalSeconds: 30
     capabilities:
@@ -57,8 +57,8 @@ config:
       - guardrail-enforcement
 
   mongodb:
-    # Password injected via Secret (MONGODB_PASSWORD env var)
-    uri: mongodb://root@mongodb.mongodb-cluster.svc.cluster.local:27017
+    # Password incluída para compatibilidade (production deveria usar Secret)
+    uri: mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017
     database: neural_hive
     incidentsCollection: security_incidents
     remediationCollection: remediation_actions

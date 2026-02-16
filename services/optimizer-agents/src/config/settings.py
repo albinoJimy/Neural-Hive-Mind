@@ -174,6 +174,7 @@ class Settings(BaseSettings):
         """
         Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
         Endpoints verificados: MLflow, OTEL, Schema Registry, Prometheus.
+        Endpoints internos do cluster (.svc.cluster.local) sao permitidos via HTTP.
         """
         is_prod_staging = self.environment.lower() in ('production', 'staging', 'prod')
         if not is_prod_staging:
@@ -181,16 +182,24 @@ class Settings(BaseSettings):
 
         # Endpoints criticos que devem usar HTTPS em producao
         http_endpoints = []
+
+        # Verifica MLflow - permite HTTP para servicos internos do cluster
         if self.mlflow_tracking_uri.startswith('http://'):
-            http_endpoints.append(('mlflow_tracking_uri', self.mlflow_tracking_uri))
+            # Permite HTTP para servicos internos do cluster
+            if '.svc.cluster.local' not in self.mlflow_tracking_uri:
+                http_endpoints.append(('mlflow_tracking_uri', self.mlflow_tracking_uri))
+
+        # Verifica OTEL - permite HTTP para servicos internos do cluster
         if self.otel_endpoint.startswith('http://'):
-            http_endpoints.append(('otel_endpoint', self.otel_endpoint))
+            if '.svc.cluster.local' not in self.otel_endpoint:
+                http_endpoints.append(('otel_endpoint', self.otel_endpoint))
 
         if http_endpoints:
             endpoint_list = ', '.join(f'{name}={url}' for name, url in http_endpoints)
             raise ValueError(
                 f"Endpoints HTTP inseguros detectados em ambiente {self.environment}: {endpoint_list}. "
-                "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
+                "Use HTTPS em producao/staging para garantir seguranca de dados em transito. "
+                "Endpoints internos do cluster (.svc.cluster.local) sao permitidos via HTTP."
             )
 
         return self

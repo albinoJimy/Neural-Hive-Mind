@@ -20,7 +20,7 @@ spec:
               kubernetes.io/metadata.name: observability
       ports:
         - protocol: TCP
-          port: {{ .Values.service.ports.metrics }}
+          port: {{ .Values.service.ports.metrics.port }}
     # Allow Istio sidecar
     - from:
         - namespaceSelector:
@@ -28,15 +28,15 @@ spec:
               kubernetes.io/metadata.name: istio-system
       ports:
         - protocol: TCP
-          port: {{ .Values.service.ports.http }}
+          port: {{ .Values.service.ports.http.port }}
         - protocol: TCP
-          port: {{ .Values.service.ports.grpc }}
+          port: {{ .Values.service.ports.grpc.port }}
     # Allow internal gRPC communication
     - from:
         - podSelector: {}
       ports:
         - protocol: TCP
-          port: {{ .Values.service.ports.grpc }}
+          port: {{ .Values.service.ports.grpc.port }}
   egress:
     # Allow DNS
     - to:
@@ -72,7 +72,7 @@ spec:
               kubernetes.io/metadata.name: redis-cluster
       ports:
         - protocol: TCP
-          port: {{ .Values.config.redis.port }}
+          port: {{ .Values.config.redis.port | default 6379 }}
     # Allow Kafka
     - to:
         - namespaceSelector:

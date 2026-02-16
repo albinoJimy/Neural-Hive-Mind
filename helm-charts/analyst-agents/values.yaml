@@ -46,11 +46,11 @@ autoscaling:
 
 resources:
   requests:
-    cpu: 100m  # Reduced from 500m - actual usage ~20m
-    memory: 256Mi  # Reduced from 512Mi
+    cpu: 500m
+    memory: 512Mi
   limits:
-    cpu: 500m  # Reduced from 2000m - actual usage never exceeds 100m
-    memory: 1Gi  # Reduced from 2Gi
+    cpu: 2000m
+    memory: 2Gi
 
 config:
   serviceName: analyst-agents
