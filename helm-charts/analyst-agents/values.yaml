@@ -74,7 +74,7 @@ config:
   neo4j:
     uri: bolt://neo4j.neo4j-cluster.svc.cluster.local:7687
     user: neo4j
-    password: ""
+    password: local_dev_password
     database: neo4j
 
   clickhouse:
