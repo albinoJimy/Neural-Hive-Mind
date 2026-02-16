@@ -79,3 +79,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Comando de inicialização (FastAPI + Temporal Worker em processos separados)
 # Usando uvicorn para FastAPI e worker em background
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
+
+# CI/CD Cache Buster - 1771283618
+# Force rebuild to include logger fixes
+
