@@ -434,8 +434,9 @@ jobs:
             CACHE_BUST=${{ github.sha }}
           # Cache re-enabled with proper invalidation via CACHE_BUST arg
           # The cache-bust argument changes every commit, forcing layer rebuild
-          cache-from: type=ghcr,ref=ghcr.io/${{ steps.owner.outputs.lowercase }}/neural-hive-mind/${{ matrix.service }}:buildcache
-          cache-to: type=ghcr,ref=ghcr.io/${{ steps.owner.outputs.lowercase }}/neural-hive-mind/${{ matrix.service }}:buildcache,mode=max
+          # Note: type=registry for GHCR (not type=ghcr)
+          cache-from: type=registry,ref=ghcr.io/${{ steps.owner.outputs.lowercase }}/neural-hive-mind/${{ matrix.service }}:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ steps.owner.outputs.lowercase }}/neural-hive-mind/${{ matrix.service }}:buildcache,mode=max
           pull: true
           provenance: false
 

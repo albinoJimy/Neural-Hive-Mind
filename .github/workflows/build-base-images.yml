@@ -95,17 +95,15 @@ jobs:
           IMAGE="${{ env.GHCR_REGISTRY }}/${OWNER_LOWER}/neural-hive-mind/python-ml-base"
 
           echo "=== Building python-ml-base ==="
-          docker build \
+          docker buildx build \
             --build-arg VERSION=${VERSION} \
-            --cache-from=${IMAGE}:latest \
-            --cache-to=${IMAGE}:buildcache \
+            --cache-from=type=registry,ref=${IMAGE}:buildcache \
+            --cache-to=type=registry,ref=${IMAGE}:buildcache,mode=max \
+            --push \
             -t ${IMAGE}:${VERSION} \
             -t ${IMAGE}:latest \
             -f base-images/python-ml-base/Dockerfile \
             .
-
-          docker push ${IMAGE}:${VERSION}
-          docker push ${IMAGE}:latest
 
       # ===== python-observability-base =====
       - name: Build python-observability-base
@@ -117,17 +115,15 @@ jobs:
           IMAGE="${{ env.GHCR_REGISTRY }}/${OWNER_LOWER}/neural-hive-mind/python-observability-base"
 
           echo "=== Building python-observability-base ==="
-          docker build \
+          docker buildx build \
             --build-arg VERSION=1.2.6 \
-            --cache-from=${IMAGE}:latest \
-            --cache-to=${IMAGE}:buildcache \
+            --cache-from=type=registry,ref=${IMAGE}:buildcache \
+            --cache-to=type=registry,ref=${IMAGE}:buildcache,mode=max \
+            --push \
             -t ${IMAGE}:1.2.6 \
             -t ${IMAGE}:latest \
             -f base-images/python-observability-base/Dockerfile \
             .
-
-          docker push ${IMAGE}:1.2.6
-          docker push ${IMAGE}:latest
 
       # ===== python-grpc-base (depende de python-ml-base) =====
       - name: Build python-grpc-base
@@ -145,18 +141,16 @@ jobs:
           echo "Verifying base image availability..."
           docker pull ${ML_BASE}:latest || echo "Warning: Could not pull base image"
 
-          docker build \
+          docker buildx build \
             --build-arg REGISTRY=${{ env.GHCR_REGISTRY }}/${OWNER_LOWER} \
             --build-arg VERSION=${VERSION} \
-            --cache-from=${IMAGE}:latest \
-            --cache-to=${IMAGE}:buildcache \
+            --cache-from=type=registry,ref=${IMAGE}:buildcache \
+            --cache-to=type=registry,ref=${IMAGE}:buildcache,mode=max \
+            --push \
             -t ${IMAGE}:${VERSION} \
             -t ${IMAGE}:latest \
             -f base-images/python-grpc-base/Dockerfile \
             .
-
-          docker push ${IMAGE}:${VERSION}
-          docker push ${IMAGE}:latest
 
       # ===== python-mlops-base (depende de python-grpc-base) =====
       - name: Build python-mlops-base
@@ -174,18 +168,16 @@ jobs:
           echo "Verifying base image availability..."
           docker pull ${GRPC_BASE}:latest || echo "Warning: Could not pull base image"
 
-          docker build \
+          docker buildx build \
             --build-arg REGISTRY=${{ env.GHCR_REGISTRY }}/${OWNER_LOWER} \
             --build-arg VERSION=${VERSION} \
-            --cache-from=${IMAGE}:latest \
-            --cache-to=${IMAGE}:buildcache \
+            --cache-from=type=registry,ref=${IMAGE}:buildcache \
+            --cache-to=type=registry,ref=${IMAGE}:buildcache,mode=max \
+            --push \
             -t ${IMAGE}:${VERSION} \
             -t ${IMAGE}:latest \
             -f base-images/python-mlops-base/Dockerfile \
             .
-
-          docker push ${IMAGE}:${VERSION}
-          docker push ${IMAGE}:latest
 
       # ===== python-nlp-base (depende de python-grpc-base) =====
       - name: Build python-nlp-base
@@ -203,18 +195,16 @@ jobs:
           echo "Verifying base image availability..."
           docker pull ${GRPC_BASE}:latest || echo "Warning: Could not pull base image"
 
-          docker build \
+          docker buildx build \
             --build-arg REGISTRY=${{ env.GHCR_REGISTRY }}/${OWNER_LOWER} \
             --build-arg VERSION=${VERSION} \
-            --cache-from=${IMAGE}:latest \
-            --cache-to=${IMAGE}:buildcache \
+            --cache-from=type=registry,ref=${IMAGE}:buildcache \
+            --cache-to=type=registry,ref=${IMAGE}:buildcache,mode=max \
+            --push \
             -t ${IMAGE}:${VERSION} \
             -t ${IMAGE}:latest \
             -f base-images/python-nlp-base/Dockerfile \
             .
-
-          docker push ${IMAGE}:${VERSION}
-          docker push ${IMAGE}:latest
 
       # ===== python-specialist-base (depende de python-nlp-base) =====
       - name: Build python-specialist-base
@@ -232,18 +222,16 @@ jobs:
           echo "Verifying base image availability..."
           docker pull ${NLP_BASE}:latest || echo "Warning: Could not pull base image"
 
-          docker build \
+          docker buildx build \
             --build-arg REGISTRY=${{ env.GHCR_REGISTRY }}/${OWNER_LOWER} \
             --build-arg VERSION=${VERSION} \
-            --cache-from=${IMAGE}:latest \
-            --cache-to=${IMAGE}:buildcache \
+            --cache-from=type=registry,ref=${IMAGE}:buildcache \
+            --cache-to=type=registry,ref=${IMAGE}:buildcache,mode=max \
+            --push \
             -t ${IMAGE}:${VERSION} \
             -t ${IMAGE}:latest \
             -f base-images/python-specialist-base/Dockerfile \
             .
-
-          docker push ${IMAGE}:${VERSION}
-          docker push ${IMAGE}:latest
 
       - name: Resumo
         run: |
