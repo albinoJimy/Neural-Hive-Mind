@@ -5,6 +5,7 @@ Integra com Service Registry para discovery de agentes e balanceamento de carga.
 """
 
 import asyncio
+import os
 import structlog
 from typing import Dict, List, Optional, Set
 
@@ -49,6 +50,13 @@ class ResourceAllocator:
         self.affinity_tracker = affinity_tracker
         self.logger = logger.bind(component='resource_allocator')
 
+        # Obter namespace do ambiente (POD_NAMESPACE injetada pelo Kubernetes)
+        # Fallback para NEURAL_HIVE_NAMESPACE ou 'neural-hive' como padrão
+        self.default_namespace = os.environ.get(
+            'POD_NAMESPACE',
+            os.environ.get('NEURAL_HIVE_NAMESPACE', 'neural-hive')
+        )
+
     async def discover_workers(self, ticket: Dict) -> List[Dict]:
         """
         Descobre workers disponíveis para um ticket.
@@ -61,8 +69,16 @@ class ResourceAllocator:
         """
         ticket_id = ticket.get('ticket_id', 'unknown')
         required_capabilities = ticket.get('required_capabilities', [])
-        namespace = ticket.get('namespace', 'default')
-        security_level = ticket.get('security_level', 'standard')
+
+        # Usar namespace do ticket se disponível, senão usar namespace do ambiente
+        # Evita usar 'default' que não corresponde ao namespace real dos workers
+        ticket_namespace = ticket.get('namespace')
+        if not ticket_namespace or ticket_namespace == 'default':
+            namespace = self.default_namespace
+        else:
+            namespace = ticket_namespace
+
+        security_level = ticket.get('security_level', 'INTERNAL')
 
         self.logger.info(
             'discovering_workers',
@@ -84,8 +100,7 @@ class ResourceAllocator:
             # O timeout é gerenciado pela camada do IntelligentScheduler
             workers = await self.registry_client.discover_agents(
                 capabilities=required_capabilities,
-                filters=filters,
-                max_results=self.config.service_registry_max_results
+                filters=filters
             )
 
             self.logger.info(

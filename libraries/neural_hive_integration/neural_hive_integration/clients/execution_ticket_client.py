@@ -72,7 +72,7 @@ class ExecutionTicketClient:
         )
 
         response = await self.client.post(
-            f"{self.base_url}/api/v1/tickets",
+            f"{self.base_url}/api/v1/tickets/",
             json=ticket_data,
         )
         response.raise_for_status()
@@ -154,7 +154,7 @@ class ExecutionTicketClient:
             List of tickets
         """
         response = await self.client.get(
-            f"{self.base_url}/api/v1/tickets",
+            f"{self.base_url}/api/v1/tickets/",
             params={"plan_id": plan_id},
         )
         response.raise_for_status()
