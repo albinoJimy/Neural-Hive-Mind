@@ -71,12 +71,26 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download build-info artifact
-        if: github.event_name == 'workflow_run'
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.triggering_workflow.name == 'Build and Push to GHCR'
         uses: actions/download-artifact@v4
         with:
           name: build-info
           path: build-info
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ github.event.workflow_run.triggering_workflow.id }}
+        continue-on-error: true
+
+      - name: Fallback: Verificar se artifact foi baixado
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.triggering_workflow.name == 'Build and Push to GHCR'
+        id: check-artifact
+        run: |
+          if [[ -f "build-info/services.txt" ]]; then
+            echo "has_artifact=true" >> $GITHUB_OUTPUT
+            echo "✅ Artifact baixado com sucesso"
+            cat build-info/services.txt
+          else
+            echo "has_artifact=false" >> $GITHUB_OUTPUT
+            echo "⚠️  Artifact não encontrado - usar fallback para todos os serviços"
+          fi
 
       - name: Definir ambiente
         id: set-env
