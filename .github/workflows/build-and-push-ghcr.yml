@@ -432,7 +432,10 @@ jobs:
             REGISTRY=ghcr.io/${{ steps.owner.outputs.lowercase }}
             VERSION=${{ inputs.version_tag || 'latest' }}
             CACHE_BUST=${{ github.sha }}
-          # Cache DISABLED due to stale layer issues
+          # Cache re-enabled with proper invalidation via CACHE_BUST arg
+          # The cache-bust argument changes every commit, forcing layer rebuild
+          cache-from: type=ghcr,ref=ghcr.io/${{ steps.owner.outputs.lowercase }}/neural-hive-mind/${{ matrix.service }}:buildcache
+          cache-to: type=ghcr,ref=ghcr.io/${{ steps.owner.outputs.lowercase }}/neural-hive-mind/${{ matrix.service }}:buildcache,mode=max
           pull: true
           provenance: false
 

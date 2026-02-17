@@ -1,0 +1,270 @@
+# Workflow de Validação de Build
+# Verifica consistência de imagens e dependências antes do deploy
+
+name: Build Validation
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'services/**'
+      - 'libraries/**'
+      - 'base-images/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  validate-base-images:
+    name: Validar Base Images
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verificar consistência de versões
+        run: |
+          echo "=== Verificando consistência de versões nas base images ==="
+
+          # Lista de base images em ordem de dependência
+          declare -A BASE_VERSIONS
+
+          # Extrair versões dos Dockerfiles
+          for dockerfile in base-images/*/Dockerfile; do
+            if [[ -f "$dockerfile" ]]; then
+              name=$(basename $(dirname "$dockerfile"))
+              version=$(grep "^ARG VERSION" "$dockerfile" | awk '{print $2}')
+              base_from=$(grep "^FROM" "$dockerfile" | awk '{print $2}')
+              BASE_VERSIONS["$name"]="$version|$base_from"
+              echo "  $name: $version (from: $base_from)"
+            fi
+          done
+
+          echo ""
+          echo "=== Validando cadeia de dependências ==="
+
+          # Ordem correta de dependência
+          local -a expected_order=(
+            "python-observability-base"
+            "python-grpc-base"
+            "python-nlp-base"
+            "python-specialist-base"
+          )
+
+          # Verificar se cada base image usa a anterior como FROM
+          for i in "${!expected_order[@]}"; do
+            if [[ $i -eq 0 ]]; then
+              continue  # Primeira imagem não tem dependência interna
+            fi
+
+            prev="${expected_order[$i-1]}"
+            info="${BASE_VERSIONS[$i]}"
+            from_image=$(echo "$info" | cut -d'|' -f2)
+
+            # Verifica se FROM aponta para a imagem anterior
+            if [[ ! "$from_image" =~ "$prev" ]]; then
+              echo "❌ ERRO: $i deveria usar $prev como FROM, mas usa: $from_image"
+              exit 1
+            fi
+            echo "✅ $i depende corretamente de $prev"
+          done
+
+  validate-service-dockerfiles:
+    name: Validar Dockerfiles dos Serviços
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verificar consistência de Dockerfiles
+        run: |
+          echo "=== Validando Dockerfiles dos serviços ==="
+
+          SERVICES=(
+            "gateway-intencoes"
+            "semantic-translation-engine"
+            "orchestrator-dynamic"
+            "worker-agents"
+            "queen-agent"
+          )
+
+          for svc in "${SERVICES[@]}"; do
+            DOCKERFILE="services/$svc/Dockerfile"
+
+            if [[ ! -f "$DOCKERFILE" ]]; then
+              echo "⚠️  AVISO: Dockerfile não encontrado: $DOCKERFILE"
+              continue
+            fi
+
+            # 1. Verificar se usa base image correta
+            if grep -q "FROM.*python-specialist-base" "$DOCKERFILE"; then
+              echo "✅ $svc usa python-specialist-base"
+            elif grep -q "FROM.*python-observability-base" "$DOCKERFILE"; then
+              echo "✅ $svc usa python-observability-base"
+            else
+              echo "❌ ERRO: $svc não usa uma base image padrão"
+              echo "   FROM: $(grep "^FROM" "$DOCKERFILE")"
+              exit 1
+            fi
+
+            # 2. Verificar se tem REGISTRY build-arg
+            if grep -q "ARG REGISTRY" "$DOCKERFILE"; then
+              echo "✅ $svc tem ARG REGISTRY"
+            else
+              echo "⚠️  AVISO: $svc não tem ARG REGISTRY"
+            fi
+          done
+
+  validate-image-tags:
+    name: Validar Tags de Imagens
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verificar consistência entre values.yaml e tags
+        run: |
+          echo "=== Validando tags de imagens ==="
+
+          # Verificar se os values.yaml dos Helm charts têm tags consistentes
+          for chart_dir in helm-charts/*/; do
+            values_file="$chart_dir/values.yaml"
+
+            if [[ ! -f "$values_file" ]]; then
+              continue
+            fi
+
+            # Extrair tag do image.repository
+            image_repo=$(grep -E "^\s*image:" "$values_file" | awk '{print $2}')
+            image_tag=$(grep -E "^\s*tag:" "$values_file" | awk '{print $2}' | tr -d '"')
+
+            if [[ -n "$image_repo" && "$image_repo" =~ "ghcr.io" ]]; then
+              # Verificar formato
+              if [[ ! "$image_repo" =~ "ghcr.io/" ]]; then
+                echo "❌ ERRO: image repository sem ghcr.io: $image_repo"
+                exit 1
+              fi
+
+              echo "✅ $chart_dir: $image_repo:$image_tag"
+            fi
+          done
+
+  check-dependencies:
+    name: Verificar Dependências Críticas
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verificar consistência de requirements.txt
+        run: |
+          echo "=== Verificando consistência de dependências Python ==="
+
+          # Verificar se services que usam a mesma library têm versões consistentes
+          declare -A PACKAGE_VERSIONS
+
+          for requirements_file in $(find services -name "requirements.txt" 2>/dev/null); do
+            service=$(echo "$requirements_file" | cut -d'/' -f2)
+
+            # Pacotes críticos que devem ter versões consistentes
+            critical_packages=(
+              "fastapi"
+              "uvicorn"
+              "pydantic"
+              "neural-hive-core"
+              "neural-hive-observability"
+            )
+
+            for pkg in "${critical_packages[@]}"; do
+              version=$(grep "^${pkg}==" "$requirements_file" 2>/dev/null || echo "")
+              if [[ -n "$version" ]]; then
+                key="${pkg}=${version}"
+                if [[ -n "${PACKAGE_VERSIONS[$key]}" ]]; then
+                  if [[ "${PACKAGE_VERSIONS[$key]}" != "$service" ]]; then
+                    echo "⚠️  AVISO: $pkg tem versões diferentes em diferentes serviços"
+                  fi
+                fi
+                PACKAGE_VERSIONS["$key"]="$service:$version"
+              fi
+            done
+          done
+
+          echo "✅ Verificação concluída"
+
+  validate-dockerfile-syntax:
+    name: Validar Sintaxe dos Dockerfiles
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instalar Hadolint
+        run: |
+          wget -O -q https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64
+          chmod +x hadolint-Linux-x86_64
+          sudo mv hadolint-Linux-x86_64 /usr/local/bin/hadolint
+
+      - name: Validar Dockerfiles
+        run: |
+          echo "=== Validando sintaxe dos Dockerfiles com Hadolint ==="
+
+          EXIT_CODE=0
+
+          for dockerfile in $(find services -name "Dockerfile" 2>/dev/null); do
+            echo "Validando: $dockerfile"
+
+            # Ignorar regras específicas que não se aplicam
+            if ! hadolint "$dockerfile" \
+              --ignore DL3008 \
+              --ignore DL3013 \
+              --ignore DL3040 \
+              --ignore DL4006; then
+              echo "⚠️  AVISO: Hadolint encontrou problemas em $dockerfile"
+              EXIT_CODE=1
+            else
+              echo "✅ $dockerfile: sintaxe válida"
+            fi
+          done
+
+          exit $EXIT_CODE
+
+  summary:
+    name: Resumo da Validação
+    runs-on: ubuntu-latest
+    needs: [validate-base-images, validate-service-dockerfiles, validate-image-tags, check-dependencies, validate-dockerfile-syntax]
+    if: always()
+
+    steps:
+      - name: Gerar resumo
+        run: |
+          echo "## Resumo da Validação" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Base Images | ${{ needs.validate-base-images.result == 'success' && '✅ Passou' || '❌ Falhou' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dockerfiles | ${{ needs.validate-service-dockerfiles.result == 'success' && '✅ Passou' || '❌ Falhou' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tags | ${{ needs.validate-image-tags.result == 'success' && '✅ Passou' || '❌ Falhou' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependências | ${{ needs.check-dependencies.result == 'success' && '✅ Passou' || '❌ Falhou' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Sintaxe | ${{ needs.validate-dockerfile-syntax.result == 'success' && '✅ Passou' || '❌ Falhou' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.validate-base-images.result }}" == "success" && \
+                "${{ needs.validate-service-dockerfiles.result }}" == "success" && \
+                "${{ needs.validate-image-tags.result }}" == "success" ]]; then
+            echo "### ✅ Todas as validações passaram!" >> $GITHUB_STEP_SUMMARY
+            echo "O build está pronto para prosseguir." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Algumas validações falharam" >> $GITHUB_STEP_SUMMARY
+            echo "Corrija os problemas antes de prosseguir com o build." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

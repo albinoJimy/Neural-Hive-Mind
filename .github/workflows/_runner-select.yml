@@ -46,28 +46,30 @@ jobs:
       - name: Choose Runner (GitHub-hosted priority)
         id: choose
         run: |
-          # Detectar se estamos próximo ou esgotamos o limite
-          # Usar variável de ambiente ou heurística
+          # CORREÇÃO: Lógica melhorada para seleção de runner
+          # Prioridade: GitHub-hosted para repo principal > self-hosted para forks
 
           RUNNER_TYPE="${{ inputs.runner-type }}"
 
-          # Fallback para self-hosted quando esgotar
-          # Em produção, verificar API de rate limit do GitHub
-          # Por ora, usa condicional baseada em input
-
-          if [ "${{ inputs.use-fallback }}" == "true" ]; then
-            # Detectar se é um fork (tem menos minutos) ou outras condições
-            if [ "${{ github.event.repository.fork }}" == "true" ]; then
-              # Forks têm limite menor, usar self-hosted
-              RUNNER_TYPE="self-hosted"
-              echo "🔄 Fork detected - using self-hosted runner"
-            else
-              # Repositório principal - tentar github-hosted primeiro
-              RUNNER_TYPE="${{ inputs.runner-type }}"
-              echo "✅ Using GitHub-hosted runner: $RUNNER_TYPE"
-            fi
-          else
+          # 1. Verificar se é um fork
+          if [ "${{ github.event.repository.fork }}" == "true" ]; then
+            # Forks devem usar self-hosted (limite menor de minutos)
+            RUNNER_TYPE="${{ inputs.fallback-label }}"
+            echo "🔄 Fork detected - using self-hosted runner"
+          # 2. Verificar se o repo principal está no fork da organização
+          elif [ "${{ github.repository }}" != "${{ github.event.repository.fork }}" ]; then
+            # Não é um fork do repo principal - usar GitHub-hosted
             RUNNER_TYPE="${{ inputs.runner-type }}"
+            echo "✅ Using GitHub-hosted runner: $RUNNER_TYPE"
+          # 3. Verificar se use-fallback está explicitamente true
+          elif [ "${{ inputs.use-fallback }}" == "true" ]; then
+            # Forçar self-hosted apenas quando solicitado
+            RUNNER_TYPE="${{ inputs.fallback-label }}"
+            echo "⚙️ Fallback enabled - using self-hosted runner"
+          else
+            # Padrão: GitHub-hosted para repo principal
+            RUNNER_TYPE="${{ inputs.runner-type }}"
+            echo "✅ Using GitHub-hosted runner: $RUNNER_TYPE"
           fi
 
           echo "runner=$RUNNER_TYPE" >> $GITHUB_OUTPUT

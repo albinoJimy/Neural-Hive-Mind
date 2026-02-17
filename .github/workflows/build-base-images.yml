@@ -74,6 +74,15 @@ jobs:
           echo "images=${IMAGES[*]}" >> $GITHUB_OUTPUT
           echo "Imagens a buildar: ${IMAGES[*]}"
 
+      # ============================================================================
+      # NOTA: Ordem de build é CRITICAL devido a dependências
+      # ============================================================================
+      # python-ml-base (base, sem dependências internas)
+      # python-observability-base (base, sem dependências internas)
+      # python-grpc-base → depende de python-ml-base
+      # python-nlp-base → depende de python-grpc-base
+      # python-specialist-base → depende de python-nlp-base
+
       # ===== python-ml-base =====
       - name: Build python-ml-base
         if: contains(steps.images.outputs.images, 'python-ml-base')
@@ -85,8 +94,11 @@ jobs:
           VERSION="${VERSION_INPUT:-1.0.7}"
           IMAGE="${{ env.GHCR_REGISTRY }}/${OWNER_LOWER}/neural-hive-mind/python-ml-base"
 
+          echo "=== Building python-ml-base ==="
           docker build \
             --build-arg VERSION=${VERSION} \
+            --cache-from=${IMAGE}:latest \
+            --cache-to=${IMAGE}:buildcache \
             -t ${IMAGE}:${VERSION} \
             -t ${IMAGE}:latest \
             -f base-images/python-ml-base/Dockerfile \
@@ -104,8 +116,11 @@ jobs:
           OWNER_LOWER=$(echo "${OWNER_LC}" | tr '[:upper:]' '[:lower:]')
           IMAGE="${{ env.GHCR_REGISTRY }}/${OWNER_LOWER}/neural-hive-mind/python-observability-base"
 
+          echo "=== Building python-observability-base ==="
           docker build \
             --build-arg VERSION=1.2.6 \
+            --cache-from=${IMAGE}:latest \
+            --cache-to=${IMAGE}:buildcache \
             -t ${IMAGE}:1.2.6 \
             -t ${IMAGE}:latest \
             -f base-images/python-observability-base/Dockerfile \
@@ -124,10 +139,17 @@ jobs:
           OWNER_LOWER=$(echo "${OWNER_LC}" | tr '[:upper:]' '[:lower:]')
           VERSION="${VERSION_INPUT:-1.0.7}"
           IMAGE="${{ env.GHCR_REGISTRY }}/${OWNER_LOWER}/neural-hive-mind/python-grpc-base"
+          ML_BASE="${{ env.GHCR_REGISTRY }}/${OWNER_LOWER}/neural-hive-mind/python-ml-base"
+
+          echo "=== Building python-grpc-base (depends on: python-ml-base) ==="
+          echo "Verifying base image availability..."
+          docker pull ${ML_BASE}:latest || echo "Warning: Could not pull base image"
 
           docker build \
             --build-arg REGISTRY=${{ env.GHCR_REGISTRY }}/${OWNER_LOWER} \
             --build-arg VERSION=${VERSION} \
+            --cache-from=${IMAGE}:latest \
+            --cache-to=${IMAGE}:buildcache \
             -t ${IMAGE}:${VERSION} \
             -t ${IMAGE}:latest \
             -f base-images/python-grpc-base/Dockerfile \
@@ -146,10 +168,17 @@ jobs:
           OWNER_LOWER=$(echo "${OWNER_LC}" | tr '[:upper:]' '[:lower:]')
           VERSION="${VERSION_INPUT:-1.0.7}"
           IMAGE="${{ env.GHCR_REGISTRY }}/${OWNER_LOWER}/neural-hive-mind/python-mlops-base"
+          GRPC_BASE="${{ env.GHCR_REGISTRY }}/${OWNER_LOWER}/neural-hive-mind/python-grpc-base"
+
+          echo "=== Building python-mlops-base (depends on: python-grpc-base) ==="
+          echo "Verifying base image availability..."
+          docker pull ${GRPC_BASE}:latest || echo "Warning: Could not pull base image"
 
           docker build \
             --build-arg REGISTRY=${{ env.GHCR_REGISTRY }}/${OWNER_LOWER} \
             --build-arg VERSION=${VERSION} \
+            --cache-from=${IMAGE}:latest \
+            --cache-to=${IMAGE}:buildcache \
             -t ${IMAGE}:${VERSION} \
             -t ${IMAGE}:latest \
             -f base-images/python-mlops-base/Dockerfile \
@@ -168,10 +197,17 @@ jobs:
           OWNER_LOWER=$(echo "${OWNER_LC}" | tr '[:upper:]' '[:lower:]')
           VERSION="${VERSION_INPUT:-1.0.7}"
           IMAGE="${{ env.GHCR_REGISTRY }}/${OWNER_LOWER}/neural-hive-mind/python-nlp-base"
+          GRPC_BASE="${{ env.GHCR_REGISTRY }}/${OWNER_LOWER}/neural-hive-mind/python-grpc-base"
+
+          echo "=== Building python-nlp-base (depends on: python-grpc-base) ==="
+          echo "Verifying base image availability..."
+          docker pull ${GRPC_BASE}:latest || echo "Warning: Could not pull base image"
 
           docker build \
             --build-arg REGISTRY=${{ env.GHCR_REGISTRY }}/${OWNER_LOWER} \
             --build-arg VERSION=${VERSION} \
+            --cache-from=${IMAGE}:latest \
+            --cache-to=${IMAGE}:buildcache \
             -t ${IMAGE}:${VERSION} \
             -t ${IMAGE}:latest \
             -f base-images/python-nlp-base/Dockerfile \
@@ -190,10 +226,17 @@ jobs:
           OWNER_LOWER=$(echo "${OWNER_LC}" | tr '[:upper:]' '[:lower:]')
           VERSION="${VERSION_INPUT:-1.0.7}"
           IMAGE="${{ env.GHCR_REGISTRY }}/${OWNER_LOWER}/neural-hive-mind/python-specialist-base"
+          NLP_BASE="${{ env.GHCR_REGISTRY }}/${OWNER_LOWER}/neural-hive-mind/python-nlp-base"
+
+          echo "=== Building python-specialist-base (depends on: python-nlp-base) ==="
+          echo "Verifying base image availability..."
+          docker pull ${NLP_BASE}:latest || echo "Warning: Could not pull base image"
 
           docker build \
             --build-arg REGISTRY=${{ env.GHCR_REGISTRY }}/${OWNER_LOWER} \
             --build-arg VERSION=${VERSION} \
+            --cache-from=${IMAGE}:latest \
+            --cache-to=${IMAGE}:buildcache \
             -t ${IMAGE}:${VERSION} \
             -t ${IMAGE}:latest \
             -f base-images/python-specialist-base/Dockerfile \
