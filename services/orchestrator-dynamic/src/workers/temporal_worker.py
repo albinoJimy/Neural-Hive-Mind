@@ -373,6 +373,9 @@ class TemporalWorkerManager:
 
         # Injetar dependências em ticket_generation (requer Kafka e MongoDB)
         if self.kafka_producer and self.mongodb_client:
+            # Extrair scheduling_optimizer do intelligent_scheduler se disponível
+            scheduling_optimizer = getattr(self.intelligent_scheduler, 'scheduling_optimizer', None)
+
             set_generation_deps(
                 self.kafka_producer,
                 self.mongodb_client,
@@ -380,7 +383,8 @@ class TemporalWorkerManager:
                 self.intelligent_scheduler,
                 self.policy_validator,
                 self.config,
-                self.ml_predictor
+                self.ml_predictor,
+                scheduling_optimizer
             )
 
             logger.info(
@@ -390,7 +394,8 @@ class TemporalWorkerManager:
                 registry_enabled=self.registry_client is not None,
                 scheduler_enabled=self.intelligent_scheduler is not None,
                 opa_enabled=self.policy_validator is not None,
-                ml_predictor_enabled=self.ml_predictor is not None
+                ml_predictor_enabled=self.ml_predictor is not None,
+                scheduling_optimizer_enabled=scheduling_optimizer is not None
             )
         else:
             logger.warning('Kafka Producer ou MongoDB Client não fornecidos - ticket_generation activities podem falhar')
