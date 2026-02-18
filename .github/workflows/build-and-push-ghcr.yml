@@ -143,6 +143,7 @@ jobs:
           LIBRARY_DEPENDENTS["neural_hive_execution"]="execution-ticket-service,orchestrator-dynamic,worker-agents,analyst-agents"
           LIBRARY_DEPENDENTS["neural_hive_sla"]="sla-management-system"
           LIBRARY_DEPENDENTS["neural_hive_approval"]="approval-service"
+          LIBRARY_DEPENDENTS["neural_hive_integration"]="orchestrator-dynamic,worker-agents,analyst-agents,guard-agents,scout-agents,optimizer-agents,queen-agent,self-healing-engine,mcp-tool-catalog,code-forge,gateway-intencoes,service-registry"
 
           # Mapeamento de schemas: servicos que usam cada schema
           declare -A SCHEMA_DEPENDENTS

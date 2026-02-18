@@ -21,20 +21,99 @@ DEFAULT_EXECUTION_TICKET_URL = os.getenv(
 )
 
 
+class SLA(BaseModel):
+    """SLA configuration for the ticket."""
+    deadline: int
+    timeout_ms: int
+    max_retries: int
+
+
+class QoS(BaseModel):
+    """Quality of Service settings."""
+    delivery_mode: str
+    consistency: str
+    durability: str
+
+
+class AllocationMetadata(BaseModel):
+    """Resource allocation metadata."""
+    agent_id: str
+    agent_type: str
+    agent_score: float
+    composite_score: float
+    ml_enriched: bool
+    predicted_load_pct: float
+    predicted_queue_ms: int
+    priority_score: float
+    workers_evaluated: int
+    allocated_at: int
+    allocation_method: str
+    predicted_duration_ms: Optional[int] = None
+
+
+class RejectionMetadata(BaseModel):
+    """Ticket rejection information."""
+    allocation_method: str
+    namespace: str
+    rejected_at: int
+    rejection_reason: str
+    rejection_message: str
+    required_capabilities: List[str]
+
+
+class Predictions(BaseModel):
+    """ML predictions for ticket execution."""
+    anomaly: Optional[Dict[str, Any]] = None
+    duration_confidence: float
+    duration_ms: float
+    resource_estimate: Optional[Dict[str, float]] = None
+
+
 class ExecutionTicket(BaseModel):
-    """Execution ticket data structure."""
+    """Execution ticket data structure - matches execution-ticket-service API schema."""
     ticket_id: str
     plan_id: str
+    intent_id: str
+    decision_id: str
+    correlation_id: str
+    trace_id: Optional[str] = None
+    span_id: Optional[str] = None
+    task_id: str
     task_type: str
+    description: str
+    dependencies: List[str]
+    status: str
+    priority: str  # "NORMAL", "HIGH", "LOW"
+    risk_band: str
+    sla: SLA
+    qos: QoS
+    parameters: Dict[str, Any]
     required_capabilities: List[str]
-    payload: Dict[str, Any]
-    sla_deadline: str
-    priority: int = Field(ge=1, le=10)
-    status: str = "pending"
-    assigned_worker: Optional[str] = None
-    result: Optional[Dict[str, Any]] = None
-    created_at: str
-    updated_at: str
+    security_level: str
+    created_at: int  # Unix timestamp
+    started_at: Optional[int] = None
+    completed_at: Optional[int] = None
+    estimated_duration_ms: int
+    actual_duration_ms: Optional[int] = None
+    retry_count: int
+    error_message: Optional[str] = None
+    compensation_ticket_id: Optional[str] = None
+    metadata: Dict[str, Any]
+    predictions: Optional[Predictions] = None
+    allocation_metadata: Optional[AllocationMetadata] = None
+    rejection_metadata: Optional[RejectionMetadata] = None
+    schema_version: int
+
+    # Computed property for backward compatibility
+    @property
+    def sla_deadline(self) -> int:
+        """Return SLA deadline for backward compatibility."""
+        return self.sla.deadline
+
+    @property
+    def payload(self) -> Dict[str, Any]:
+        """Return parameters for backward compatibility."""
+        return self.parameters
 
 
 class ExecutionTicketClient:
@@ -106,17 +185,21 @@ class ExecutionTicketClient:
         self,
         ticket_id: str,
         status: str,
-        result: Optional[Dict[str, Any]] = None,
-        assigned_worker: Optional[str] = None,
+        started_at: Optional[int] = None,
+        completed_at: Optional[int] = None,
+        actual_duration_ms: Optional[int] = None,
+        error_message: Optional[str] = None,
     ) -> ExecutionTicket:
         """
-        Update ticket status and result.
+        Update ticket status and execution metadata.
 
         Args:
             ticket_id: Ticket identifier
-            status: New status (pending, in_progress, completed, failed)
-            result: Execution result
-            assigned_worker: Worker ID if assigned
+            status: New status (PENDING, RUNNING, COMPLETED, FAILED, REJECTED)
+            started_at: Unix timestamp when execution started
+            completed_at: Unix timestamp when execution completed
+            actual_duration_ms: Actual execution duration in milliseconds
+            error_message: Error message if execution failed
 
         Returns:
             Updated ticket
@@ -127,11 +210,15 @@ class ExecutionTicketClient:
             status=status,
         )
 
-        payload = {"status": status}
-        if result:
-            payload["result"] = result
-        if assigned_worker:
-            payload["assigned_worker"] = assigned_worker
+        payload: Dict[str, Any] = {"status": status}
+        if started_at is not None:
+            payload["started_at"] = started_at
+        if completed_at is not None:
+            payload["completed_at"] = completed_at
+        if actual_duration_ms is not None:
+            payload["actual_duration_ms"] = actual_duration_ms
+        if error_message is not None:
+            payload["error_message"] = error_message
 
         response = await self.client.patch(
             f"{self.base_url}/api/v1/tickets/{ticket_id}",
