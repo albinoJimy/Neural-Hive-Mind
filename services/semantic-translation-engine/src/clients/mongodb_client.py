@@ -123,10 +123,18 @@ class MongoDBClient:
         # Calculate hash for integrity
         plan_hash = self._calculate_hash(plan_dict)
 
+        # Create ledger entry with flattened fields for Orchestrator compatibility
+        # Os campos execution_order, risk_score, risk_band devem estar na raiz
+        # para que o Orchestrator possa validar o plano corretamente
         ledger_entry = {
             'plan_id': cognitive_plan.plan_id,
             'intent_id': cognitive_plan.intent_id,
             'version': cognitive_plan.version,
+            # Campos obrigatórios na raiz (Fluxo C - Orchestrator)
+            'execution_order': cognitive_plan.execution_order,
+            'risk_score': cognitive_plan.risk_score,
+            'risk_band': cognitive_plan.risk_band.value if hasattr(cognitive_plan.risk_band, 'value') else cognitive_plan.risk_band,
+            # Dados completos do plano aninhados (para integridade e histórico)
             'plan_data': plan_dict,
             'hash': plan_hash,
             'timestamp': datetime.utcnow(),
