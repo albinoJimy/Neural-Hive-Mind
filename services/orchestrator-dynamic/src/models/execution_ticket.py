@@ -33,7 +33,7 @@ def _get_enum_value(val) -> str:
 
 class TaskType(str, Enum):
     """Tipos de tarefa.
-    
+
     Inclui tipos legados (lowercase) para compatibilidade com mensagens antigas.
     Novos tickets devem usar os tipos em UPPERCASE.
     """
@@ -44,7 +44,8 @@ class TaskType(str, Enum):
     VALIDATE = 'VALIDATE'
     EXECUTE = 'EXECUTE'
     COMPENSATE = 'COMPENSATE'
-    
+    QUERY = 'QUERY'
+
     # Tipos legados (lowercase) - para compatibilidade com mensagens antigas
     query = 'query'
     transform = 'transform'

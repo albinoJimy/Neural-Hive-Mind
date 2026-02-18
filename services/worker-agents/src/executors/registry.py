@@ -20,7 +20,7 @@ class TaskExecutorRegistry:
 
     def register_executor(self, executor: BaseTaskExecutor):
         '''Registrar executor por task_type'''
-        task_type = executor.get_task_type()
+        task_type = executor.get_task_type().upper()
         self.executors[task_type] = executor
 
         self.logger.info(
@@ -33,8 +33,8 @@ class TaskExecutorRegistry:
             self.metrics.executors_registered_total.labels(task_type=task_type).inc()
 
     def get_executor(self, task_type: str) -> BaseTaskExecutor:
-        '''Obter executor por task_type'''
-        executor = self.executors.get(task_type)
+        '''Obter executor por task_type (normaliza para uppercase)'''
+        executor = self.executors.get(task_type.upper())
 
         if not executor:
             raise ExecutorNotFoundError(f'No executor found for task_type: {task_type}')

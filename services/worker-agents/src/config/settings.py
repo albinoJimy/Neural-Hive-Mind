@@ -19,7 +19,7 @@ class WorkerAgentSettings(BaseSettings):
 
     # Capabilities
     supported_task_types: List[str] = Field(
-        default_factory=lambda: ['BUILD', 'DEPLOY', 'TEST', 'VALIDATE', 'EXECUTE', 'QUERY']
+        default_factory=lambda: ['BUILD', 'DEPLOY', 'TEST', 'VALIDATE', 'EXECUTE', 'COMPENSATE', 'QUERY']
     )
     # Service Registry capabilities (must match STE required_capabilities)
     # Includes: read, write, compute, analyze, transform, test, security, scan, compliance

@@ -52,7 +52,7 @@ class BaseTaskExecutor(ABC):
         if missing_fields:
             raise ValidationError(f'Missing required fields: {missing_fields}')
 
-        if ticket.get('task_type') != self.get_task_type():
+        if (ticket.get('task_type') or '').upper() != self.get_task_type().upper():
             raise ValidationError(
                 f"Task type mismatch: expected {self.get_task_type()}, got {ticket.get('task_type')}"
             )

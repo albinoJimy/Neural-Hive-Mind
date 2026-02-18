@@ -52,7 +52,7 @@
       "type": {
         "type": "enum",
         "name": "TaskType",
-        "symbols": ["BUILD", "DEPLOY", "TEST", "VALIDATE", "EXECUTE", "COMPENSATE"]
+        "symbols": ["BUILD", "DEPLOY", "TEST", "VALIDATE", "EXECUTE", "COMPENSATE", "QUERY"]
       },
       "doc": "Tipo da tarefa a ser executada"
     },
