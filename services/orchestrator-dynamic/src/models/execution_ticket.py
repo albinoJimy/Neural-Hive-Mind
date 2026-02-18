@@ -45,9 +45,11 @@ class TaskType(str, Enum):
     EXECUTE = 'EXECUTE'
     COMPENSATE = 'COMPENSATE'
     QUERY = 'QUERY'
+    TRANSFORM = 'TRANSFORM'
 
     # Tipos legados (lowercase) - para compatibilidade com mensagens antigas
     query = 'query'
+    transform = 'transform'
     transform = 'transform'
     validate_legacy = 'validate'  # lowercase version
     analyze = 'analyze'

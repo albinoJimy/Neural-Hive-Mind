@@ -31,7 +31,8 @@ from .executors import (
     ValidateExecutor,
     ExecuteExecutor,
     CompensateExecutor,
-    QueryExecutor
+    QueryExecutor,
+    TransformExecutor
 )
 from .api import create_http_server
 from .observability import init_metrics
@@ -486,6 +487,14 @@ async def startup():
             mongodb_client=mongodb_client,
             redis_client=redis_client,
             neo4j_client=neo4j_client
+        ))
+        executor_registry.register_executor(TransformExecutor(
+            config,
+            vault_client=vault_client,
+            code_forge_client=code_forge_client,
+            metrics=metrics,
+            mongodb_client=mongodb_client,
+            redis_client=redis_client
         ))
         executor_registry.validate_configuration()
         app_state['executor_registry'] = executor_registry

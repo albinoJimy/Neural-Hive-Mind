@@ -7,6 +7,7 @@ from .validate_executor import ValidateExecutor
 from .execute_executor import ExecuteExecutor
 from .compensate_executor import CompensateExecutor
 from .query_executor import QueryExecutor
+from .transform_executor import TransformExecutor
 
 __all__ = [
     'BaseTaskExecutor',
@@ -17,5 +18,6 @@ __all__ = [
     'ValidateExecutor',
     'ExecuteExecutor',
     'CompensateExecutor',
-    'QueryExecutor'
+    'QueryExecutor',
+    'TransformExecutor'
 ]

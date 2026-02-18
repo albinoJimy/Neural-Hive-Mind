@@ -13,6 +13,7 @@ class TaskType(str, Enum):
     EXECUTE = 'EXECUTE'
     COMPENSATE = 'COMPENSATE'
     QUERY = 'QUERY'
+    TRANSFORM = 'TRANSFORM'
 
 
 class TicketStatus(str, Enum):
