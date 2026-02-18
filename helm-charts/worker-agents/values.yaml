@@ -55,10 +55,8 @@ config:
     - VALIDATE
     - EXECUTE
     - COMPENSATE
-    # Task types do Fluxo C (Semantic Translation Engine)
-    - query
-    - validate
-    - transform
+    - QUERY
+    - TRANSFORM
   maxConcurrentTasks: 5
   # Backpressure Control
   maxConcurrentTickets: 10  # Limite de tickets em processamento simultâneo
