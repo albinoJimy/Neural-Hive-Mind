@@ -12,13 +12,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Criar diretório de trabalho
 WORKDIR /build
 
-# Cache buster para forçar rebuild quando neural_hive_integration mudar
-# CACHE-BUSTER: df2d992
-ARG LIBRARY_VERSION=03339c8
-RUN echo "Library version: ${LIBRARY_VERSION}"
-
 # Copiar bibliotecas internas e instalar neural_hive_ml como editable
+# CACHE-BUSTER: 249812b
 COPY libraries /libraries
+ARG LIBRARY_VERSION=249812b
+RUN echo "Library version: ${LIBRARY_VERSION}"
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --user -e /libraries/python/neural_hive_ml
 
