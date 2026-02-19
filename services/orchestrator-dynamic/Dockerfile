@@ -12,6 +12,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Criar diretório de trabalho
 WORKDIR /build
 
+# Cache buster para forçar rebuild quando neural_hive_integration mudar
+ARG LIBRARY_VERSION=03339c8
+
 # Copiar bibliotecas internas e instalar neural_hive_ml como editable
 COPY libraries /libraries
 RUN --mount=type=cache,target=/root/.cache/pip \
