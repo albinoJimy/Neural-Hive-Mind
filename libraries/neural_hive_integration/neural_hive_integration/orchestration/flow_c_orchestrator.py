@@ -22,6 +22,7 @@ from neural_hive_integration.telemetry.flow_c_telemetry import FlowCTelemetryPub
 from neural_hive_resilience.circuit_breaker import MonitoredCircuitBreaker, CircuitBreakerError
 from aiokafka import AIOKafkaProducer
 import os
+import json
 
 logger = structlog.get_logger()
 tracer = trace.get_tracer(__name__)
