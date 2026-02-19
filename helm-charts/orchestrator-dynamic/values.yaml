@@ -534,7 +534,7 @@ opa:
 secrets:
   postgresUser: temporal
   postgresPassword: "<sealed-secret-ref>"
-  mongodbUri: "<sealed-secret-ref>"
+  mongodbUri: "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive_orchestration?authSource=admin"
   redisPassword: "<sealed-secret-ref>"  # Obrigatorio em producao (validacao automatica)
   kafkaSaslUsername: ""
   kafkaSaslPassword: ""
