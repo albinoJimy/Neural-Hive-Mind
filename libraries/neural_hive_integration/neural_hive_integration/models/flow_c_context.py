@@ -98,3 +98,5 @@ class FlowCResult(BaseModel):
     # P3-001: SLA tracking fields
     sla_compliant: Optional[bool] = None
     sla_remaining_seconds: Optional[int] = None
+    # Aproval: Indica se está aguardando aprovação humana
+    awaiting_approval: Optional[bool] = None

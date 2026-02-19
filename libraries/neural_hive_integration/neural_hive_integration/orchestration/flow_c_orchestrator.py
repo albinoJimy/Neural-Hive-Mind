@@ -20,6 +20,8 @@ from neural_hive_integration.clients.sla_management_client import SLAManagementC
 from neural_hive_integration.models.flow_c_context import FlowCContext, FlowCStep, FlowCResult
 from neural_hive_integration.telemetry.flow_c_telemetry import FlowCTelemetryPublisher
 from neural_hive_resilience.circuit_breaker import MonitoredCircuitBreaker, CircuitBreakerError
+from aiokafka import AIOKafkaProducer
+import os
 
 logger = structlog.get_logger()
 tracer = trace.get_tracer(__name__)
@@ -118,6 +120,15 @@ class FlowCOrchestrator:
         self.sla_client = SLAManagementClient()
         self.telemetry = FlowCTelemetryPublisher()
         self.logger = logger.bind(service="flow_c_orchestrator")
+        self.approval_producer: AIOKafkaProducer = None
+        self.kafka_bootstrap_servers = os.getenv(
+            'KAFKA_BOOTSTRAP_SERVERS',
+            'neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092'
+        )
+        self.approval_requests_topic = os.getenv(
+            'APPROVAL_REQUESTS_TOPIC',
+            'cognitive-plans-approval-requests'
+        )
 
         # Circuit breaker para status checks (C5)
         self.status_check_breaker = MonitoredCircuitBreaker(
@@ -142,6 +153,19 @@ class FlowCOrchestrator:
         await self.sla_client.initialize()
         await self.telemetry.initialize()
 
+        # Initialize Kafka producer for approval requests
+        producer_config = {
+            'bootstrap_servers': self.kafka_bootstrap_servers,
+            'value_serializer': lambda v: json.dumps(v).encode('utf-8'),
+        }
+        self.approval_producer = AIOKafkaProducer(**producer_config)
+        await self.approval_producer.start()
+        self.logger.info(
+            "approval_producer_initialized",
+            topic=self.approval_requests_topic,
+            bootstrap_servers=self.kafka_bootstrap_servers
+        )
+
     async def close(self):
         """Close all clients."""
         await self.orchestrator_client.close()
@@ -149,6 +173,52 @@ class FlowCOrchestrator:
         await self.ticket_client.close()
         await self.sla_client.close()
         await self.telemetry.close()
+        if self.approval_producer:
+            await self.approval_producer.stop()
+            self.logger.info("approval_producer_closed")
+
+    async def _publish_approval_request(self, consolidated_decision: Dict[str, Any]) -> None:
+        """
+        Publica o plano no tópico de approval requests quando review_required.
+
+        Args:
+            consolidated_decision: Decisão consolidada do Consensus Engine
+        """
+        plan_id = consolidated_decision.get("plan_id")
+        intent_id = consolidated_decision.get("intent_id")
+        cognitive_plan = consolidated_decision.get("cognitive_plan", {})
+
+        # Construir ApprovalRequest
+        approval_request = {
+            "plan_id": plan_id,
+            "intent_id": intent_id,
+            "risk_score": consolidated_decision.get("aggregated_risk", 0.5),
+            "risk_band": cognitive_plan.get("risk_band", "medium"),
+            "is_destructive": cognitive_plan.get("is_destructive", False),
+            "destructive_tasks": cognitive_plan.get("destructive_tasks", []),
+            "risk_matrix": consolidated_decision.get("risk_matrix"),
+            "cognitive_plan": cognitive_plan,
+            "requested_at": datetime.utcnow().isoformat(),
+            "status": "pending"
+        }
+
+        self.logger.info(
+            "publishing_approval_request",
+            plan_id=plan_id,
+            intent_id=intent_id,
+            topic=self.approval_requests_topic
+        )
+
+        await self.approval_producer.send_and_wait(
+            self.approval_requests_topic,
+            value=approval_request
+        )
+
+        self.logger.info(
+            "approval_request_published",
+            plan_id=plan_id,
+            topic=self.approval_requests_topic
+        )
 
     @tracer.start_as_current_span("flow_c.execute")
     async def execute_flow_c(self, consolidated_decision: Dict[str, Any]) -> FlowCResult:
@@ -156,6 +226,7 @@ class FlowCOrchestrator:
         Execute complete Flow C (C1-C6).
 
         Flow:
+        C0: Check if human approval required (review_required)
         C1: Validate consolidated decision
         C2: Start Temporal workflow and generate tickets
         C3: Discover available workers
@@ -175,13 +246,53 @@ class FlowCOrchestrator:
         intent_id = consolidated_decision.get("intent_id")
         plan_id = consolidated_decision.get("plan_id")
         decision_id = consolidated_decision.get("decision_id")
+        final_decision = consolidated_decision.get("final_decision", "")
 
         self.logger.info(
             "starting_flow_c_execution",
             intent_id=intent_id,
             plan_id=plan_id,
             decision_id=decision_id,
+            final_decision=final_decision,
         )
+
+        # C0: Verificar se requer aprovação humana
+        if final_decision == "review_required":
+            self.logger.info(
+                "decision_requires_human_approval",
+                plan_id=plan_id,
+                decision_id=decision_id,
+                final_decision=final_decision,
+                action="Publishing to approval requests topic and awaiting approval"
+            )
+
+            # Publicar no tópico de approval requests
+            await self._publish_approval_request(consolidated_decision)
+
+            # Retornar resultado indicando que aguarda aprovação
+            end_time = datetime.utcnow()
+            total_duration = int((end_time - start_time).total_seconds() * 1000)
+
+            self.logger.info(
+                "flow_c_awaiting_human_approval",
+                plan_id=plan_id,
+                decision_id=decision_id,
+                duration_ms=total_duration,
+                note="Plan submitted for human approval - not executing tickets"
+            )
+
+            return FlowCResult(
+                success=True,
+                steps=[],
+                total_duration_ms=total_duration,
+                tickets_generated=0,
+                tickets_completed=0,
+                tickets_failed=0,
+                telemetry_published=False,
+                sla_compliant=True,
+                sla_remaining_seconds=14400,  # 4 horas
+                awaiting_approval=True  # Novo campo
+            )
 
         # Extract correlation_id with fallback chain FIRST (before context is used)
         # 1. From consolidated_decision
