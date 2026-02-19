@@ -1423,3 +1423,84 @@ class FlowCOrchestrator:
                 "step_c6_telemetry_published",
                 flow_completed=True,
             )
+
+    async def resume_flow_c_after_approval(
+        self, approval_response: Dict[str, Any]
+    ) -> FlowCResult:
+        """
+        Resume Flow C execution after human approval.
+
+        Called when an approval decision is received from the Approval Service.
+
+        Args:
+            approval_response: Approval response from Kafka containing:
+                - plan_id: The approved plan ID
+                - intent_id: Original intent ID
+                - decision: "approved" or "rejected"
+                - approved_by: User who approved
+                - approved_at: Timestamp of approval
+                - cognitive_plan: The original cognitive plan
+
+        Returns:
+            FlowCResult with execution status
+        """
+        plan_id = approval_response.get("plan_id")
+        intent_id = approval_response.get("intent_id")
+        decision = approval_response.get("decision", "rejected")
+        approved_by = approval_response.get("approved_by")
+        cognitive_plan = approval_response.get("cognitive_plan", {})
+
+        self.logger.info(
+            "resuming_flow_c_after_approval",
+            plan_id=plan_id,
+            intent_id=intent_id,
+            decision=decision,
+            approved_by=approved_by,
+        )
+
+        # Se rejeitado, retornar resultado sem executar tickets
+        if decision != "approved":
+            self.logger.warning(
+                "plan_rejected_not_executing",
+                plan_id=plan_id,
+                decision=decision,
+            )
+            return FlowCResult(
+                success=False,
+                steps=[],
+                total_duration_ms=0,
+                tickets_generated=0,
+                tickets_completed=0,
+                tickets_failed=0,
+                telemetry_published=False,
+                error=f"Plan rejected by {approved_by}: {approval_response.get('rejection_reason', 'No reason provided')}",
+                awaiting_approval=False,
+            )
+
+        # Reconstruir consolidated_decision a partir do approval_response
+        # Precisamos dos campos mínimos para executar Flow C
+        consolidated_decision = {
+            "intent_id": intent_id,
+            "plan_id": plan_id,
+            "decision_id": f"approval-{plan_id[:8]}",  # Gerar ID fictício para rastreamento
+            "final_decision": "approved",  # Agora pode prosseguir
+            "cognitive_plan": cognitive_plan,
+            "aggregated_risk": approval_response.get("risk_score", 0.5),
+            "risk_band": cognitive_plan.get("risk_band", "medium"),
+            "correlation_id": cognitive_plan.get("correlation_id"),
+            "priority": cognitive_plan.get("priority", 5),
+            "approved_by": approved_by,
+            "approved_at": approval_response.get("approved_at"),
+            "resuming_from_approval": True,  # Flag para indicar retomada
+        }
+
+        self.logger.info(
+            "executing_flow_c_for_approved_plan",
+            plan_id=plan_id,
+            intent_id=intent_id,
+        )
+
+        # Executar Flow C normal (C1-C6)
+        # Nota: execute_flow_c vai pular o check de review_required pois
+        # final_decision agora é "approved"
+        return await self.execute_flow_c(consolidated_decision)

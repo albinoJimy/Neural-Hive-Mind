@@ -435,3 +435,167 @@ class FlowCConsumer:
                         "json_error": str(json_err),
                     }
         return {"raw_decision": str(value)}
+
+
+class FlowCApprovalResponseConsumer:
+    """
+    Kafka consumer for Flow C approval responses.
+
+    Consumes approval decisions from cognitive-plans-approval-responses
+    and resumes Flow C execution for approved plans.
+    """
+
+    def __init__(
+        self,
+        config=None,
+        kafka_bootstrap_servers: Optional[str] = None,
+        approval_responses_topic: Optional[str] = None,
+        group_id: Optional[str] = None,
+    ):
+        """
+        Initialize FlowCApprovalResponseConsumer.
+
+        Args:
+            config: OrchestratorSettings object
+            kafka_bootstrap_servers: Override for bootstrap servers
+            approval_responses_topic: Override for approval responses topic
+            group_id: Override for consumer group ID
+        """
+        if config:
+            self.kafka_servers = kafka_bootstrap_servers or config.kafka_bootstrap_servers
+            self.approval_responses_topic = (
+                approval_responses_topic or
+                os.getenv('APPROVAL_RESPONSES_TOPIC', 'cognitive-plans-approval-responses')
+            )
+            self.group_id = group_id or f"{config.kafka_consumer_group_id}-approval-responses"
+            self.config = config
+        else:
+            self.kafka_servers = kafka_bootstrap_servers or os.getenv(
+                'KAFKA_BOOTSTRAP_SERVERS',
+                'neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092'
+            )
+            self.approval_responses_topic = (
+                approval_responses_topic or
+                os.getenv('APPROVAL_RESPONSES_TOPIC', 'cognitive-plans-approval-responses')
+            )
+            self.group_id = group_id or "orchestrator-approval-responses"
+            self.config = None
+
+        self.consumer: AIOKafkaConsumer = None
+        self.orchestrator: FlowCOrchestrator = None
+        self.running = False
+        self.logger = logger.bind(service="approval_response_consumer")
+
+    async def start(self):
+        """Initialize and start consumer."""
+        self.logger.info(
+            "starting_approval_response_consumer",
+            bootstrap_servers=self.kafka_servers,
+            topic=self.approval_responses_topic,
+            group_id=self.group_id,
+        )
+
+        # Consumer config
+        consumer_config = {
+            'bootstrap_servers': self.kafka_servers,
+            'group_id': self.group_id,
+            'auto_offset_reset': 'earliest',
+            'enable_auto_commit': False,
+            'max_poll_interval_ms': 3600000,  # 1 hora
+            'session_timeout_ms': 30000,
+            'value_deserializer': lambda v: json.loads(v.decode('utf-8')),
+        }
+
+        # Add SASL if configured
+        if self.config and self.config.kafka_security_protocol != 'PLAINTEXT':
+            consumer_config.update({
+                'security_protocol': self.config.kafka_security_protocol,
+                'sasl_mechanism': 'PLAIN',
+                'sasl_plain_username': self.config.kafka_sasl_username,
+                'sasl_plain_password': self.config.kafka_sasl_password,
+            })
+
+        self.consumer = AIOKafkaConsumer(
+            self.approval_responses_topic,
+            **consumer_config
+        )
+        await self.consumer.start()
+
+        # Initialize orchestrator
+        self.orchestrator = FlowCOrchestrator()
+        await self.orchestrator.initialize()
+
+        self.running = True
+        self.logger.info("approval_response_consumer_started")
+
+    async def stop(self):
+        """Stop consumer gracefully."""
+        self.logger.info("stopping_approval_response_consumer")
+        self.running = False
+
+        if self.consumer:
+            await self.consumer.stop()
+        if self.orchestrator:
+            await self.orchestrator.close()
+
+        self.logger.info("approval_response_consumer_stopped")
+
+    async def consume(self):
+        """Main consumption loop."""
+        while self.running:
+            try:
+                # Fetch messages
+                data = await self.consumer.getmany(timeout_ms=1000, max_records=10)
+
+                for tp, messages in data.items():
+                    for message in messages:
+                        await self._process_approval_response(message)
+
+                        # Commit offset after successful processing
+                        await self.consumer.commit()
+
+            except Exception as e:
+                self.logger.error("approval_response_consumption_error", error=str(e))
+                await asyncio.sleep(5)
+
+    async def _process_approval_response(self, message):
+        """
+        Process approval response message.
+
+        Resumes Flow C execution for approved plans.
+        """
+        try:
+            approval_response = message.value
+
+            plan_id = approval_response.get("plan_id")
+            intent_id = approval_response.get("intent_id")
+            decision = approval_response.get("decision", "pending")
+
+            self.logger.info(
+                "received_approval_response",
+                plan_id=plan_id,
+                intent_id=intent_id,
+                decision=decision,
+                approved_by=approval_response.get("approved_by"),
+            )
+
+            # Resume Flow C execution
+            result = await self.orchestrator.resume_flow_c_after_approval(
+                approval_response
+            )
+
+            self.logger.info(
+                "flow_c_resumed_after_approval",
+                plan_id=plan_id,
+                success=result.success,
+                tickets_generated=result.tickets_generated,
+                tickets_completed=result.tickets_completed,
+                duration_ms=result.total_duration_ms,
+            )
+
+        except Exception as e:
+            self.logger.error(
+                "approval_response_processing_error",
+                error=str(e),
+                plan_id=approval_response.get("plan_id") if approval_response else None,
+            )

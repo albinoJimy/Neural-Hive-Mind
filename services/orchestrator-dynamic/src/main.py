@@ -31,7 +31,7 @@ from src.clients.redis_client import (
     redis_get_safe,
     redis_setex_safe
 )
-from src.integration.flow_c_consumer import FlowCConsumer
+from src.integration.flow_c_consumer import FlowCConsumer, FlowCApprovalResponseConsumer
 from src.workflows.orchestration_workflow import OrchestrationWorkflow
 from src.ml.model_audit_logger import ModelAuditLogger
 from src.api.model_audit import create_model_audit_router
@@ -127,10 +127,12 @@ class AppState:
         self.temporal_client: Optional[TemporalClientWrapper] = None
         self.kafka_consumer: Optional[DecisionConsumer] = None
         self.flow_c_consumer: Optional[FlowCConsumer] = None
+        self.approval_response_consumer: Optional[FlowCApprovalResponseConsumer] = None
         self.temporal_worker: Optional[TemporalWorkerManager] = None
         self.worker_task: Optional[asyncio.Task] = None
         self.consumer_task: Optional[asyncio.Task] = None
         self.flow_c_task: Optional[asyncio.Task] = None
+        self.approval_response_task: Optional[asyncio.Task] = None
         self.mongodb_client: Optional[MongoDBClient] = None
         self.kafka_producer: Optional[KafkaProducerClient] = None
         self.execution_ticket_client: Optional[ExecutionTicketClient] = None
@@ -784,6 +786,17 @@ async def lifespan(app: FastAPI):
         app_state.flow_c_task = asyncio.create_task(app_state.flow_c_consumer.consume())
         logger.info('Flow C Consumer iniciado em background')
 
+        # Inicializar Approval Response Consumer
+        logger.info('Inicializando Approval Response Consumer')
+        app_state.approval_response_consumer = FlowCApprovalResponseConsumer(config=config)
+        await app_state.approval_response_consumer.start()
+
+        # Iniciar Approval Response Consumer em background
+        app_state.approval_response_task = asyncio.create_task(
+            app_state.approval_response_consumer.consume()
+        )
+        logger.info('Approval Response Consumer iniciado em background')
+
         # Inicializar Drift Detector se ML habilitado
         if getattr(config, 'ml_predictions_enabled', False) and getattr(config, 'ml_drift_detection_enabled', True):
             try:
@@ -871,6 +884,11 @@ async def lifespan(app: FastAPI):
             logger.info('Parando Flow C Consumer')
             await app_state.flow_c_consumer.stop()
 
+        # Parar Approval Response Consumer
+        if app_state.approval_response_consumer:
+            logger.info('Parando Approval Response Consumer')
+            await app_state.approval_response_consumer.stop()
+
         # Parar Kafka Consumer
         if app_state.kafka_consumer:
             logger.info('Parando Kafka Consumer')
@@ -886,6 +904,13 @@ async def lifespan(app: FastAPI):
             app_state.flow_c_task.cancel()
             try:
                 await app_state.flow_c_task
+            except asyncio.CancelledError:
+                pass
+
+        if app_state.approval_response_task:
+            app_state.approval_response_task.cancel()
+            try:
+                await app_state.approval_response_task
             except asyncio.CancelledError:
                 pass
 
