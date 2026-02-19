@@ -503,7 +503,8 @@ class FlowCApprovalResponseConsumer:
             'enable_auto_commit': False,
             'max_poll_interval_ms': 3600000,  # 1 hora
             'session_timeout_ms': 30000,
-            'value_deserializer': lambda v: json.loads(v.decode('utf-8')),
+            # Não usar value_deserializer - receber bytes crus para
+            # evitar erro de codec snappy (mensagens do Approval Service)
         }
 
         # Add SASL if configured
@@ -565,7 +566,12 @@ class FlowCApprovalResponseConsumer:
         Resumes Flow C execution for approved plans.
         """
         try:
-            approval_response = message.value
+            # Deserializar mensagem (bytes crus devido a compressão snappy)
+            raw_value = message.value
+            if isinstance(raw_value, bytes):
+                approval_response = json.loads(raw_value.decode('utf-8'))
+            else:
+                approval_response = raw_value
 
             plan_id = approval_response.get("plan_id")
             intent_id = approval_response.get("intent_id")
@@ -597,5 +603,5 @@ class FlowCApprovalResponseConsumer:
             self.logger.error(
                 "approval_response_processing_error",
                 error=str(e),
-                plan_id=approval_response.get("plan_id") if approval_response else None,
+                plan_id=approval_response.get("plan_id") if 'approval_response' in locals() else None,
             )
