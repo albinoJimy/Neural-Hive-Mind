@@ -1,7 +1,7 @@
 # Cluster Fixes - 2026-02-19
 
 ## Summary
-Fixed 3 CrashLoopBackOff issues in the Neural Hive-Mind cluster.
+Fixed 3 CrashLoopBackOff issues and 1 dependency injection problem in the Neural Hive-Mind cluster.
 
 ## Issues Fixed
 
@@ -41,6 +41,22 @@ readinessProbe: null
 - Removed spire-agent container from deployment
 - Removed spire-agent volumes from deployment spec
 - Rollback to stable revision without spire-agent
+
+### 4. orchestrator-dynamic - MongoDB Secret
+**Problem:** `RuntimeError: Config não foi injetado nas activities` - Worker Temporal não conseguia executar activities
+**Root Cause:** Secret `orchestrator-dynamic-secrets` continha placeholder `<sealed-secret-ref>` na URI do MongoDB porque a integração Vault está desabilitada
+
+**Fixes Applied:**
+```bash
+# Patch do Secret com URI correta do MongoDB
+kubectl patch secret orchestrator-dynamic-secrets -n neural-hive \
+  -p '{"data":{"MONGODB_URI":"bW9uZ29kYjovL3Jvb3Q6bG9jYWxfZGV2X3Bhc3N3b3JkQG1vbmdvZGIubW9uZ29kYi1jbHVzdGVyLnN2Yy5jbHVzdGVyLmxvY2FsOjI3MDE3"}}'
+
+# Restart do deployment
+kubectl rollout restart deployment orchestrator-dynamic -n neural-hive
+```
+
+**Resultado:** Dependências injetadas corretamente (kafka_enabled=True, mongodb_enabled=True, etc.)
 
 ## Configuration Files Updated
 
