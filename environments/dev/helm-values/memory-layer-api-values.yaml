@@ -48,7 +48,7 @@ config:
 
   # ClickHouse
   clickhouse:
-    host: "clickhouse.clickhouse.svc.cluster.local"
+    host: "clickhouse-neural-hive-clickhouse.clickhouse-operator.svc.cluster.local"
     port: 8123
     user: "default"
     database: "neural_hive"

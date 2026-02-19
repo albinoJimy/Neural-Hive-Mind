@@ -17,6 +17,6 @@ config:
     failOpen: false
 
   spiffe:
-    enabled: true
+    enabled: false  # Desabilitado - servidor SPIRE não está rodando no cluster
 
 environment: prod
