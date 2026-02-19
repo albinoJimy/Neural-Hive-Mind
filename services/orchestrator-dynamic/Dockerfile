@@ -14,6 +14,7 @@ WORKDIR /build
 
 # Cache buster para forçar rebuild quando neural_hive_integration mudar
 ARG LIBRARY_VERSION=03339c8
+RUN echo "Library version: ${LIBRARY_VERSION}"
 
 # Copiar bibliotecas internas e instalar neural_hive_ml como editable
 COPY libraries /libraries
