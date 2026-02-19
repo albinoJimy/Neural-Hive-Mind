@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /build
 
 # Cache buster para forçar rebuild quando neural_hive_integration mudar
+# CACHE-BUSTER: df2d992
 ARG LIBRARY_VERSION=03339c8
 RUN echo "Library version: ${LIBRARY_VERSION}"
 
