@@ -37,6 +37,13 @@ except ImportError:
 
 from neural_hive_integration.orchestration.flow_c_orchestrator import FlowCOrchestrator
 
+# Snappy decompression support
+try:
+    import snappy
+    HAS_SNAPPY = True
+except ImportError:
+    HAS_SNAPPY = False
+
 logger = structlog.get_logger()
 tracer = get_tracer()
 
@@ -505,6 +512,9 @@ class FlowCApprovalResponseConsumer:
             'session_timeout_ms': 30000,
             # Não usar value_deserializer - receber bytes crus para
             # evitar erro de codec snappy (mensagens do Approval Service)
+            # Importante: não definir compression_type para permitir detectar automaticamente
+            # mas tratar decompressão manualmente se necessário
+            'check_crcs': False,  # Otimização
         }
 
         # Add SASL if configured
