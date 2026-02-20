@@ -271,20 +271,25 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Middleware de CORS
+# Middleware de CORS - deve ser o PRIMEIRO middleware adicionado
+# em produção, considere limitar allow_origins para domínios específicos
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
+    allow_origins=["*"],  # Em produção, usar domínios específicos
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["Content-Length", "Content-Type", "X-Request-ID"],
+    max_age=600,
 )
 
-# Middleware de hosts confiáveis
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=settings.allowed_hosts
-)
+# Middleware de hosts confiáveis - desabilitado em dev/staging para permitir localhost
+# Em produção, usar uma lista de hosts específicos
+if settings.environment == "production":
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=settings.allowed_hosts
+    )
 
 # Middleware de autenticação OAuth2
 auth_middleware = create_auth_middleware(
