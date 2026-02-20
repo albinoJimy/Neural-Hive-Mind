@@ -81,10 +81,7 @@ class OrchestrationWorkflow:
 
         tracer = get_tracer()
         workflow.logger.info(
-            f'Iniciando workflow de orquestração',
-            workflow_id=workflow_id,
-            plan_id=plan_id,
-            intent_id=intent_id
+            f'Iniciando workflow de orquestração: workflow_id={workflow_id}, plan_id={plan_id}, intent_id={intent_id}'
         )
 
         with tracer.start_as_current_span(
@@ -114,8 +111,7 @@ class OrchestrationWorkflow:
 
                 if not validation_result['valid']:
                     workflow.logger.error(
-                        'Plano cognitivo inválido',
-                        errors=validation_result['errors']
+                        f'Plano cognitivo inválido: errors={validation_result["errors"]}'
                     )
                     raise workflow.ApplicationError(
                         f'Plano cognitivo inválido: {validation_result["errors"]}',
@@ -166,12 +162,8 @@ class OrchestrationWorkflow:
                     )
 
                     if sla_check_result.get('deadline_approaching'):
-                        warning_msg = f'SLA proativo: deadline se aproximando, restam {sla_check_result.get("remaining_seconds")}s'
-                        workflow.logger.warning(
-                            warning_msg,
-                            remaining_seconds=sla_check_result.get('remaining_seconds'),
-                            critical_tickets=sla_check_result.get('critical_tickets')
-                        )
+                        warning_msg = f'SLA proativo: deadline se aproximando, restam {sla_check_result.get("remaining_seconds")}s, critical_tickets={sla_check_result.get("critical_tickets")}'
+                        workflow.logger.warning(warning_msg)
                         self._sla_warnings.append({
                             'checkpoint': 'post_ticket_generation',
                             'warning': warning_msg,
@@ -193,9 +185,7 @@ class OrchestrationWorkflow:
                         )
 
                     workflow.logger.warning(
-                        'sla_proactive_check_failed_continuing',
-                        checkpoint='post_ticket_generation',
-                        error=error_msg
+                        f'sla_proactive_check_failed_continuing: checkpoint=post_ticket_generation, error={error_msg}'
                     )
 
                 # === C3: Alocar Recursos ===
@@ -239,9 +229,7 @@ class OrchestrationWorkflow:
                     if publish_result.get('rejected'):
                         rejected_tickets.append(publish_result)
                         workflow.logger.warning(
-                            'ticket_rejected_by_scheduler',
-                            ticket_id=publish_result.get('ticket_id'),
-                            rejection_reason=publish_result.get('rejection_reason')
+                            f'ticket_rejected_by_scheduler: ticket_id={publish_result.get("ticket_id")}, rejection_reason={publish_result.get("rejection_reason")}'
                         )
                     else:
                         published_tickets.append(publish_result)
@@ -271,12 +259,8 @@ class OrchestrationWorkflow:
                     )
 
                     if sla_check_result.get('deadline_approaching'):
-                        warning_msg = f'SLA proativo: deadline se aproximando, restam {sla_check_result.get("remaining_seconds")}s'
-                        workflow.logger.warning(
-                            warning_msg,
-                            remaining_seconds=sla_check_result.get('remaining_seconds'),
-                            critical_tickets=sla_check_result.get('critical_tickets')
-                        )
+                        warning_msg = f'SLA proativo: deadline se aproximando, restam {sla_check_result.get("remaining_seconds")}s, critical_tickets={sla_check_result.get("critical_tickets")}'
+                        workflow.logger.warning(warning_msg)
                         self._sla_warnings.append({
                             'checkpoint': 'post_ticket_publishing',
                             'warning': warning_msg,
@@ -437,7 +421,7 @@ class OrchestrationWorkflow:
             ticket_id: ID do ticket concluído
             result: Resultado da execução do ticket
         """
-        workflow.logger.info(f'Ticket {ticket_id} concluído', result=result)
+        workflow.logger.info(f'Ticket {ticket_id} concluído: result={result}')
 
     @workflow.signal
     async def cancel_workflow(self):
