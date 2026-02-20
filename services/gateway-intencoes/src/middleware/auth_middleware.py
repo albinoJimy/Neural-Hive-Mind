@@ -22,6 +22,7 @@ security = HTTPBearer(auto_error=False)
 
 class AuthenticationError(Exception):
     """Erro de autenticação customizado"""
+
     def __init__(self, message: str, status_code: int = status.HTTP_401_UNAUTHORIZED):
         self.message = message
         self.status_code = status_code
@@ -31,7 +32,9 @@ class AuthenticationError(Exception):
 class AuthMiddleware(BaseHTTPMiddleware):
     """Middleware de autenticação híbrida OAuth2 + mTLS"""
 
-    def __init__(self, app, exclude_paths: Optional[List[str]] = None, rate_limiter=None):
+    def __init__(
+        self, app, exclude_paths: Optional[List[str]] = None, rate_limiter=None
+    ):
         super().__init__(app)
         self.settings = get_settings()
         self.rate_limiter = rate_limiter  # Injetar rate limiter
@@ -41,7 +44,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/metrics",
             "/docs",
             "/openapi.json",
-            "/auth/callback"
+            "/auth/callback",
         ]
 
     async def dispatch(self, request: Request, call_next):
@@ -86,14 +89,19 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 return response
 
         except AuthenticationError as e:
-            logger.warning(f"Falha na autenticação para {request.url.path}: {e.message}")
+            logger.warning(
+                f"Falha na autenticação para {request.url.path}: {e.message}"
+            )
             return self._create_auth_error_response(e, request)
 
         except Exception as e:
             logger.error(f"Erro interno na autenticação: {e}")
             return self._create_auth_error_response(
-                AuthenticationError("Erro interno de autenticação", status.HTTP_500_INTERNAL_SERVER_ERROR),
-                request
+                AuthenticationError(
+                    "Erro interno de autenticação",
+                    status.HTTP_500_INTERNAL_SERVER_ERROR,
+                ),
+                request,
             )
 
     def _should_skip_auth(self, path: str) -> bool:
@@ -118,13 +126,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
             validator = await get_oauth2_validator()
 
             # Determinar scopes obrigatórios baseados no endpoint
-            required_scopes = self._get_required_scopes(request.url.path, request.method)
+            required_scopes = self._get_required_scopes(
+                request.url.path, request.method
+            )
 
             # Validar token completo
             payload = await validator.validate_token(
                 token=token,
                 required_scopes=required_scopes,
-                client_id=self.settings.keycloak_client_id
+                client_id=self.settings.keycloak_client_id,
             )
 
             # Extrair contexto do usuário
@@ -138,7 +148,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
         except TokenValidationError as e:
             raise AuthenticationError(f"Token inválido: {e}")
 
-    async def _validate_mtls_certificate(self, request: Request) -> Optional[Dict[str, Any]]:
+    async def _validate_mtls_certificate(
+        self, request: Request
+    ) -> Optional[Dict[str, Any]]:
         """Validar certificado mTLS (opcional)"""
         try:
             # Extrair informações do certificado cliente
@@ -161,7 +173,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 "subject": cert_subject,
                 "issuer": cert_issuer,
                 "fingerprint": cert_fingerprint,
-                "source": "istio-gateway"
+                "source": "istio-gateway",
             }
 
             logger.debug(f"Certificado mTLS validado: {cert_subject}")
@@ -180,14 +192,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 "GET": ["read:intentions"],
                 "POST": ["write:intentions"],
                 "PUT": ["write:intentions"],
-                "DELETE": ["delete:intentions"]
+                "DELETE": ["delete:intentions"],
             },
-            "/api/v1/admin": {
-                "*": ["admin:access"]
-            },
-            "/api/v1/internal": {
-                "*": ["internal:access"]
-            }
+            "/api/v1/admin": {"*": ["admin:access"]},
+            "/api/v1/internal": {"*": ["internal:access"]},
         }
 
         # Verificar mapeamentos específicos
@@ -201,7 +209,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         return []
 
-    async def _validate_endpoint_access(self, request: Request, user_context: Dict[str, Any]):
+    async def _validate_endpoint_access(
+        self, request: Request, user_context: Dict[str, Any]
+    ):
         """Validar acesso específico por endpoint"""
         path = request.url.path
         method = request.method
@@ -222,29 +232,27 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         if user_id and self.rate_limiter:
             rate_limit_result = await self.rate_limiter.check_rate_limit(
-                user_id=user_id,
-                tenant_id=tenant_id,
-                endpoint=path
+                user_id=user_id, tenant_id=tenant_id, endpoint=path
             )
 
             # Armazenar headers de rate limit para adicionar na resposta
             request.state.rate_limit_headers = {
                 "X-RateLimit-Limit": str(rate_limit_result.limit),
                 "X-RateLimit-Remaining": str(rate_limit_result.remaining),
-                "X-RateLimit-Reset": str(rate_limit_result.reset_at)
+                "X-RateLimit-Reset": str(rate_limit_result.reset_at),
             }
 
             if not rate_limit_result.allowed:
                 raise AuthenticationError(
                     f"Rate limit excedido. Tente novamente em {rate_limit_result.retry_after}s",
-                    status.HTTP_429_TOO_MANY_REQUESTS
+                    status.HTTP_429_TOO_MANY_REQUESTS,
                 )
 
     def _add_context_headers(
         self,
         request: Request,
         user_context: Dict[str, Any],
-        mtls_context: Optional[Dict[str, Any]]
+        mtls_context: Optional[Dict[str, Any]],
     ):
         """Adicionar headers de contexto para downstream services"""
 
@@ -256,47 +264,53 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "X-User-Roles": ",".join(user_context.get("roles", [])),
             "X-Client-ID": user_context.get("client_id", ""),
             "X-Session-ID": user_context.get("session_id", ""),
-            "X-Auth-Method": "oauth2-jwt"
+            "X-Auth-Method": "oauth2-jwt",
         }
 
         # Headers mTLS se disponível
         if mtls_context and mtls_context.get("verified"):
-            request.state.context_headers.update({
-                "X-mTLS-Verified": "true",
-                "X-mTLS-Subject": mtls_context.get("subject", ""),
-                "X-mTLS-Fingerprint": mtls_context.get("fingerprint", ""),
-                "X-Auth-Method": "oauth2-jwt+mtls"
-            })
+            request.state.context_headers.update(
+                {
+                    "X-mTLS-Verified": "true",
+                    "X-mTLS-Subject": mtls_context.get("subject", ""),
+                    "X-mTLS-Fingerprint": mtls_context.get("fingerprint", ""),
+                    "X-Auth-Method": "oauth2-jwt+mtls",
+                }
+            )
 
     def _add_rate_limit_headers_to_response(
-        self,
-        request: Request,
-        response: Response
+        self, request: Request, response: Response
     ) -> Response:
         """Adicionar headers de rate limit à resposta de sucesso"""
-        if hasattr(request, 'state') and hasattr(request.state, 'rate_limit_headers'):
+        if hasattr(request, "state") and hasattr(request.state, "rate_limit_headers"):
             rate_limit_headers = request.state.rate_limit_headers
             if rate_limit_headers:
                 for header_name, header_value in rate_limit_headers.items():
                     response.headers[header_name] = header_value
         return response
 
-    def _create_auth_error_response(self, error: AuthenticationError, request: Optional[Request] = None) -> Response:
+    def _create_auth_error_response(
+        self, error: AuthenticationError, request: Optional[Request] = None
+    ) -> Response:
         """Criar resposta de erro de autenticação"""
         import re
 
         headers = {
             "WWW-Authenticate": f'Bearer realm="{self.settings.keycloak_realm}"',
-            "X-Auth-Error": error.message
+            "X-Auth-Error": error.message,
         }
 
         # Adicionar headers de rate limit se disponíveis
-        if request and hasattr(request, 'state') and hasattr(request.state, 'rate_limit_headers'):
+        if (
+            request
+            and hasattr(request, "state")
+            and hasattr(request.state, "rate_limit_headers")
+        ):
             headers.update(request.state.rate_limit_headers)
 
         # Se erro 429, adicionar Retry-After header
         if error.status_code == status.HTTP_429_TOO_MANY_REQUESTS:
-            match = re.search(r'(\d+)s', error.message)
+            match = re.search(r"(\d+)s", error.message)
             if match:
                 headers["Retry-After"] = match.group(1)
 
@@ -309,16 +323,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
             content=f'{{"error": "authentication_failed", "message": "{error.message}"}}',
             status_code=error.status_code,
             headers=headers,
-            media_type="application/json"
+            media_type="application/json",
         )
 
 
 async def get_current_user(request: Request) -> Dict[str, Any]:
     """Dependency para obter usuário atual autenticado"""
-    if not hasattr(request.state, 'authenticated') or not request.state.authenticated:
+    if not hasattr(request.state, "authenticated") or not request.state.authenticated:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuário não autenticado"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário não autenticado"
         )
 
     return request.state.user
@@ -328,10 +341,10 @@ async def get_current_admin_user(request: Request) -> Dict[str, Any]:
     """Dependency para obter usuário admin autenticado"""
     user = await get_current_user(request)
 
-    if not user.get('is_admin', False):
+    if not user.get("is_admin", False):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acesso negado: requer role admin"
+            detail="Acesso negado: requer role admin",
         )
 
     return user
@@ -339,15 +352,16 @@ async def get_current_admin_user(request: Request) -> Dict[str, Any]:
 
 async def require_scopes(required_scopes: List[str]):
     """Dependency factory para validar scopes específicos"""
+
     async def _check_scopes(request: Request) -> Dict[str, Any]:
         user = await get_current_user(request)
-        user_scopes = user.get('scopes', [])
+        user_scopes = user.get("scopes", [])
 
         missing_scopes = set(required_scopes) - set(user_scopes)
         if missing_scopes:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Scopes insuficientes: faltando {list(missing_scopes)}"
+                detail=f"Scopes insuficientes: faltando {list(missing_scopes)}",
             )
 
         return user
@@ -385,9 +399,7 @@ class OptionalAuthMiddleware(BaseHTTPMiddleware):
 
 
 def create_auth_middleware(
-    exclude_paths: Optional[List[str]] = None,
-    optional: bool = False,
-    rate_limiter=None
+    exclude_paths: Optional[List[str]] = None, optional: bool = False, rate_limiter=None
 ) -> BaseHTTPMiddleware:
     """Factory para criar middleware de autenticação"""
 
@@ -399,6 +411,7 @@ def create_auth_middleware(
         rl = rate_limiter
         if rl is None:
             from middleware.rate_limiter import get_rate_limiter
+
             rl = get_rate_limiter()
         return AuthMiddleware(app, exclude_paths, rate_limiter=rl)
 

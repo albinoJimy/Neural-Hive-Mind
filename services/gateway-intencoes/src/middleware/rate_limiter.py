@@ -16,6 +16,7 @@ logger = structlog.get_logger(__name__)
 @dataclass
 class RateLimitResult:
     """Resultado da verificacao de rate limit"""
+
     allowed: bool
     limit: int
     remaining: int
@@ -43,7 +44,7 @@ class RateLimiter:
         enabled: bool = True,
         default_limit: int = 1000,
         burst_size: int = 100,
-        fail_open: bool = True
+        fail_open: bool = True,
     ):
         self.redis = redis_client
         self.enabled = enabled
@@ -57,27 +58,27 @@ class RateLimiter:
 
         # Metricas Prometheus - incluem user_id para visibilidade por usuario
         self.rate_limit_exceeded_counter = Counter(
-            'gateway_rate_limit_exceeded_total',
-            'Total de requisicoes bloqueadas por rate limiting',
-            ['limit_type', 'tenant_id', 'user_id']
+            "gateway_rate_limit_exceeded_total",
+            "Total de requisicoes bloqueadas por rate limiting",
+            ["limit_type", "tenant_id", "user_id"],
         )
 
         self.rate_limit_check_duration = Histogram(
-            'gateway_rate_limit_check_duration_seconds',
-            'Duracao da verificacao de rate limit',
-            buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1]
+            "gateway_rate_limit_check_duration_seconds",
+            "Duracao da verificacao de rate limit",
+            buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1],
         )
 
         self.rate_limit_current_usage = Gauge(
-            'gateway_rate_limit_current_usage',
-            'Uso atual do rate limit por usuario',
-            ['tenant_id', 'user_id']
+            "gateway_rate_limit_current_usage",
+            "Uso atual do rate limit por usuario",
+            ["tenant_id", "user_id"],
         )
 
         self.rate_limit_requests_total = Counter(
-            'gateway_rate_limit_requests_total',
-            'Total de requisicoes verificadas pelo rate limiter',
-            ['tenant_id', 'user_id', 'allowed']
+            "gateway_rate_limit_requests_total",
+            "Total de requisicoes verificadas pelo rate limiter",
+            ["tenant_id", "user_id", "allowed"],
         )
 
         logger.info(
@@ -85,14 +86,14 @@ class RateLimiter:
             enabled=self.enabled,
             default_limit=self.default_limit,
             burst_size=self.burst_size,
-            fail_open=self.fail_open
+            fail_open=self.fail_open,
         )
 
     async def check_rate_limit(
         self,
         user_id: str,
         tenant_id: Optional[str] = None,
-        endpoint: Optional[str] = None
+        endpoint: Optional[str] = None,
     ) -> RateLimitResult:
         """
         Verificar se requisicao esta dentro do rate limit usando sliding window
@@ -113,15 +114,15 @@ class RateLimiter:
                 allowed=True,
                 limit=self.default_limit,
                 remaining=self.default_limit,
-                reset_at=int(time.time()) + self.WINDOW_SIZE_SECONDS
+                reset_at=int(time.time()) + self.WINDOW_SIZE_SECONDS,
             )
 
         start_time = time.time()
         now = time.time()
         now_ms = int(now * 1000)  # Timestamp em milissegundos para maior precisao
 
-        tenant_label = tenant_id or 'unknown'
-        user_label = user_id or 'unknown'
+        tenant_label = tenant_id or "unknown"
+        user_label = user_id or "unknown"
 
         try:
             # Determinar limite aplicavel (base + burst)
@@ -144,7 +145,7 @@ class RateLimiter:
                 key=key,
                 now_ms=now_ms,
                 window_start_ms=window_start_ms,
-                ttl=self.WINDOW_SIZE_SECONDS + 1
+                ttl=self.WINDOW_SIZE_SECONDS + 1,
             )
 
             # Calcular remaining e reset_at
@@ -161,22 +162,17 @@ class RateLimiter:
 
             # Atualizar gauge de uso atual com user_id
             self.rate_limit_current_usage.labels(
-                tenant_id=tenant_label,
-                user_id=user_label
+                tenant_id=tenant_label, user_id=user_label
             ).set(count)
 
             # Registrar requisicao total
             self.rate_limit_requests_total.labels(
-                tenant_id=tenant_label,
-                user_id=user_label,
-                allowed=str(allowed).lower()
+                tenant_id=tenant_label, user_id=user_label, allowed=str(allowed).lower()
             ).inc()
 
             if not allowed:
                 self.rate_limit_exceeded_counter.labels(
-                    limit_type='user',
-                    tenant_id=tenant_label,
-                    user_id=user_label
+                    limit_type="user", tenant_id=tenant_label, user_id=user_label
                 ).inc()
 
                 # Calcular retry_after baseado na janela deslizante
@@ -191,7 +187,7 @@ class RateLimiter:
                     base_limit=base_limit,
                     burst_size=self.burst_size,
                     effective_limit=effective_limit,
-                    retry_after=retry_after
+                    retry_after=retry_after,
                 )
 
                 return RateLimitResult(
@@ -199,7 +195,7 @@ class RateLimiter:
                     limit=base_limit,  # Reporta limite base (sem burst) para o usuario
                     remaining=0,
                     reset_at=reset_at,
-                    retry_after=retry_after
+                    retry_after=retry_after,
                 )
 
             logger.debug(
@@ -210,14 +206,16 @@ class RateLimiter:
                 base_limit=base_limit,
                 burst_size=self.burst_size,
                 effective_limit=effective_limit,
-                remaining=remaining
+                remaining=remaining,
             )
 
             return RateLimitResult(
                 allowed=True,
                 limit=base_limit,  # Reporta limite base (sem burst) para o usuario
-                remaining=max(0, base_limit - count),  # Remaining baseado no limite base
-                reset_at=reset_at
+                remaining=max(
+                    0, base_limit - count
+                ),  # Remaining baseado no limite base
+                reset_at=reset_at,
             )
 
         except Exception as e:
@@ -229,7 +227,7 @@ class RateLimiter:
                 "rate_limit_check_failed",
                 error=str(e),
                 user_id=user_id,
-                fail_open=self.fail_open
+                fail_open=self.fail_open,
             )
 
             if self.fail_open:
@@ -237,7 +235,7 @@ class RateLimiter:
                     allowed=True,
                     limit=self.default_limit,
                     remaining=self.default_limit,
-                    reset_at=int(time.time()) + self.WINDOW_SIZE_SECONDS
+                    reset_at=int(time.time()) + self.WINDOW_SIZE_SECONDS,
                 )
             else:
                 # Fail-closed: bloquear se Redis falhar
@@ -246,15 +244,11 @@ class RateLimiter:
                     limit=self.default_limit,
                     remaining=0,
                     reset_at=int(time.time()) + self.WINDOW_SIZE_SECONDS,
-                    retry_after=self.WINDOW_SIZE_SECONDS
+                    retry_after=self.WINDOW_SIZE_SECONDS,
                 )
 
     async def _sliding_window_check(
-        self,
-        key: str,
-        now_ms: int,
-        window_start_ms: int,
-        ttl: int
+        self, key: str, now_ms: int, window_start_ms: int, ttl: int
     ) -> int:
         """
         Executar verificacao de sliding window atomicamente no Redis
@@ -274,7 +268,7 @@ class RateLimiter:
                 {"method": "zremrangebyscore", "args": [key, 0, window_start_ms]},
                 {"method": "zadd", "args": [key, {str(now_ms): now_ms}]},
                 {"method": "zcard", "args": [key]},
-                {"method": "expire", "args": [key, ttl]}
+                {"method": "expire", "args": [key, ttl]},
             ]
 
             results = await self.redis.pipeline_operations(operations)
@@ -333,7 +327,7 @@ class RateLimiter:
             "tenant_limits": self.tenant_limits.copy(),
             "user_limits": self.user_limits.copy(),
             "enabled": self.enabled,
-            "fail_open": self.fail_open
+            "fail_open": self.fail_open,
         }
 
 

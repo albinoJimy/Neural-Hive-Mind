@@ -11,7 +11,16 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, status, Request
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    Depends,
+    UploadFile,
+    File,
+    Form,
+    status,
+    Request,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -25,21 +34,40 @@ from pipelines.nlu_pipeline import NLUPipeline
 from kafka.producer import KafkaIntentProducer
 from cache.redis_client import get_redis_client, close_redis_client
 from security.oauth2_validator import get_oauth2_validator, close_oauth2_validator
-from middleware.auth_middleware import create_auth_middleware, get_current_user, get_current_admin_user
+from middleware.auth_middleware import (
+    create_auth_middleware,
+    get_current_user,
+    get_current_admin_user,
+)
 from middleware.rate_limiter import RateLimiter, set_rate_limiter, close_rate_limiter
+
 # Tentar importar observabilidade - usar stubs se não disponível
 try:
     from neural_hive_observability import trace_intent, get_metrics, get_context_manager
-    from neural_hive_observability.tracing import get_current_trace_id, get_current_span_id
+    from neural_hive_observability.tracing import (
+        get_current_trace_id,
+        get_current_span_id,
+    )
+
     # HealthManager é alias para HealthChecker que sempre requer ObservabilityConfig
     try:
-        from neural_hive_observability.health import HealthManager, RedisHealthCheck, CustomHealthCheck, HealthStatus
+        from neural_hive_observability.health import (
+            HealthManager,
+            RedisHealthCheck,
+            CustomHealthCheck,
+            HealthStatus,
+        )
         from neural_hive_observability.config import ObservabilityConfig
+
         HEALTH_MANAGER_NEEDS_CONFIG = True
     except ImportError:
         # Fallback para versão antiga sem HealthManager exportado diretamente
-        from neural_hive_observability.health import HealthChecker as HealthManager, HealthStatus
+        from neural_hive_observability.health import (
+            HealthChecker as HealthManager,
+            HealthStatus,
+        )
         from neural_hive_observability.config import ObservabilityConfig
+
         HEALTH_MANAGER_NEEDS_CONFIG = True
         # Criar stubs simples para RedisHealthCheck e CustomHealthCheck
         from neural_hive_observability.health import HealthCheck, HealthCheckResult
@@ -59,12 +87,22 @@ try:
                             is_connected = await self.connection_check()
                         else:
                             is_connected = self.connection_check()
-                        status = HealthStatus.HEALTHY if is_connected else HealthStatus.UNHEALTHY
+                        status = (
+                            HealthStatus.HEALTHY
+                            if is_connected
+                            else HealthStatus.UNHEALTHY
+                        )
                     else:
                         status = HealthStatus.UNKNOWN
-                    return self._create_result(status, f"Redis {'conectado' if status == HealthStatus.HEALTHY else 'check não configurado'}", start_time=start_time)
+                    return self._create_result(
+                        status,
+                        f"Redis {'conectado' if status == HealthStatus.HEALTHY else 'check não configurado'}",
+                        start_time=start_time,
+                    )
                 except Exception as e:
-                    return self._create_result(HealthStatus.UNHEALTHY, f"Erro: {e}", start_time=start_time)
+                    return self._create_result(
+                        HealthStatus.UNHEALTHY, f"Erro: {e}", start_time=start_time
+                    )
 
         class CustomHealthCheck(HealthCheck):
             def __init__(self, name, check_func, description="", timeout_seconds=5.0):
@@ -79,22 +117,33 @@ try:
                         is_healthy = await self.check_func()
                     else:
                         is_healthy = self.check_func()
-                    status = HealthStatus.HEALTHY if is_healthy else HealthStatus.UNHEALTHY
-                    return self._create_result(status, self.description, start_time=start_time)
+                    status = (
+                        HealthStatus.HEALTHY if is_healthy else HealthStatus.UNHEALTHY
+                    )
+                    return self._create_result(
+                        status, self.description, start_time=start_time
+                    )
                 except Exception as e:
-                    return self._create_result(HealthStatus.UNHEALTHY, f"Erro: {e}", start_time=start_time)
+                    return self._create_result(
+                        HealthStatus.UNHEALTHY, f"Erro: {e}", start_time=start_time
+                    )
 
     from neural_hive_observability.health_checks.otel import OTELPipelineHealthCheck
     from observability.metrics import (
-        intent_counter, latency_histogram, confidence_histogram,
-        low_confidence_routed_counter, record_too_large_counter
+        intent_counter,
+        latency_histogram,
+        confidence_histogram,
+        low_confidence_routed_counter,
+        record_too_large_counter,
     )
+
     OBSERVABILITY_AVAILABLE = True
     OTEL_HEALTH_CHECK_AVAILABLE = True
 except ImportError as e:
     OBSERVABILITY_AVAILABLE = False
     OTEL_HEALTH_CHECK_AVAILABLE = False
     HEALTH_MANAGER_NEEDS_CONFIG = False
+
     # Stubs temporários para desenvolvimento local sem neural_hive_observability
     class HealthManager:
         def __init__(self):
@@ -104,7 +153,7 @@ except ImportError as e:
         def add_check(self, health_check):
             """Aceita objetos de health check"""
             self.checks.append(health_check)
-            name = getattr(health_check, 'name', 'unknown')
+            name = getattr(health_check, "name", "unknown")
             self._checks_dict[name] = health_check
 
         async def check_health(self):
@@ -133,7 +182,7 @@ except ImportError as e:
             for check in self.checks:
                 try:
                     # Tentar executar o check
-                    name = getattr(check, 'name', 'unknown')
+                    name = getattr(check, "name", "unknown")
                     result = {"status": "healthy"}
                     results[name] = result
                 except Exception as e:
@@ -141,14 +190,11 @@ except ImportError as e:
                     results[name] = {"status": "unhealthy", "error": str(e)}
                     overall_healthy = False
             self._overall_status = "healthy" if overall_healthy else "degraded"
-            return {
-                "status": self._overall_status,
-                "checks": results
-            }
+            return {"status": self._overall_status, "checks": results}
 
         def get_overall_status(self):
             """Retorna status geral do sistema"""
-            return getattr(self, '_overall_status', 'healthy')
+            return getattr(self, "_overall_status", "healthy")
 
     class RedisHealthCheck:
         def __init__(self, name, *args, **kwargs):
@@ -164,19 +210,33 @@ except ImportError as e:
         DEGRADED = "degraded"
 
     def trace_intent(*args, **kwargs):
-        def decorator(func): return func
+        def decorator(func):
+            return func
+
         return decorator
 
-    def get_metrics(): return {}
-    def get_context_manager(): return None
-    def get_current_trace_id(): return None
-    def get_current_span_id(): return None
+    def get_metrics():
+        return {}
+
+    def get_context_manager():
+        return None
+
+    def get_current_trace_id():
+        return None
+
+    def get_current_span_id():
+        return None
 
     # Stubs de métricas
     class MetricStub:
-        def labels(self, **kwargs): return self
-        def inc(self, *args): pass
-        def observe(self, *args): pass
+        def labels(self, **kwargs):
+            return self
+
+        def inc(self, *args):
+            pass
+
+        def observe(self, *args):
+            pass
 
     intent_counter = MetricStub()
     latency_histogram = MetricStub()
@@ -195,7 +255,7 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ],
     context_class=dict,
     logger_factory=structlog.stdlib.LoggerFactory(),
@@ -217,6 +277,7 @@ redis_client = None
 oauth2_validator = None
 health_manager: Optional[HealthManager] = None
 rate_limiter: Optional[RateLimiter] = None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -257,9 +318,10 @@ async def lifespan(app: FastAPI):
     finally:
         # Cleanup organizado
         logger.info("gateway_shutdown_started")
-        if 'bootstrapper' in locals() and 'app_context' in locals():
+        if "bootstrapper" in locals() and "app_context" in locals():
             await bootstrapper.shutdown(app_context)
         logger.info("gateway_shutdown_completed")
+
 
 # Criar aplicação FastAPI
 app = FastAPI(
@@ -268,7 +330,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs" if settings.environment == "dev" else None,
     redoc_url="/redoc" if settings.environment == "dev" else None,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Middleware de CORS - deve ser o PRIMEIRO middleware adicionado
@@ -286,10 +348,7 @@ app.add_middleware(
 # Middleware de hosts confiáveis - desabilitado em dev/staging para permitir localhost
 # Em produção, usar uma lista de hosts específicos
 if settings.environment == "production":
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=settings.allowed_hosts
-    )
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
 
 # Middleware de autenticação OAuth2
 auth_middleware = create_auth_middleware(
@@ -300,7 +359,9 @@ app.add_middleware(auth_middleware)
 # Instrumentação OpenTelemetry (deve ser feita após criação do app, antes de iniciar)
 if settings.otel_enabled and OBSERVABILITY_AVAILABLE:
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
     FastAPIInstrumentor.instrument_app(app)
+
 
 # Dependências
 async def get_user_context_from_request(request: Request) -> Dict[str, Any]:
@@ -314,13 +375,12 @@ async def get_user_context_from_request(request: Request) -> Dict[str, Any]:
             "tenantId": "gateway-intencoes",
             "sessionId": "test-session",
             "roles": ["user"],
-            "isAdmin": False
+            "isAdmin": False,
         }
 
-    if not hasattr(request.state, 'authenticated') or not request.state.authenticated:
+    if not hasattr(request.state, "authenticated") or not request.state.authenticated:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuário não autenticado"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário não autenticado"
         )
 
     user = request.state.user
@@ -331,10 +391,12 @@ async def get_user_context_from_request(request: Request) -> Dict[str, Any]:
         "tenantId": user.get("client_id"),  # Cliente OAuth2 como tenant
         "sessionId": user.get("session_id"),
         "roles": user.get("roles", []),
-        "isAdmin": user.get("is_admin", False)
+        "isAdmin": user.get("is_admin", False),
     }
 
+
 # Endpoints
+
 
 @app.get("/health")
 async def health_check():
@@ -346,8 +408,8 @@ async def health_check():
                 "status": "unhealthy",
                 "message": "Health manager not initialized",
                 "timestamp": datetime.utcnow().isoformat(),
-                "version": "1.0.0"
-            }
+                "version": "1.0.0",
+            },
         )
 
     try:
@@ -357,22 +419,38 @@ async def health_check():
 
         # Format results for response (dev local mode - simplified)
         component_statuses = {}
-        if isinstance(health_results, dict) and 'checks' in health_results:
+        if isinstance(health_results, dict) and "checks" in health_results:
             # Stub mode
-            component_statuses = health_results.get('checks', {})
+            component_statuses = health_results.get("checks", {})
         else:
             # Production mode com neural_hive_observability
             for name, result in health_results.items():
                 component_statuses[name] = {
-                    "status": result.status.value if hasattr(result, 'status') else result.get('status', 'unknown'),
-                    "message": result.message if hasattr(result, 'message') else result.get('message', ''),
-                    "duration_seconds": result.duration_seconds if hasattr(result, 'duration_seconds') else 0,
-                    "timestamp": result.timestamp if hasattr(result, 'timestamp') else datetime.utcnow().isoformat(),
-                    "details": result.details if hasattr(result, 'details') else result.get('details', {})
+                    "status": result.status.value
+                    if hasattr(result, "status")
+                    else result.get("status", "unknown"),
+                    "message": result.message
+                    if hasattr(result, "message")
+                    else result.get("message", ""),
+                    "duration_seconds": result.duration_seconds
+                    if hasattr(result, "duration_seconds")
+                    else 0,
+                    "timestamp": result.timestamp
+                    if hasattr(result, "timestamp")
+                    else datetime.utcnow().isoformat(),
+                    "details": result.details
+                    if hasattr(result, "details")
+                    else result.get("details", {}),
                 }
 
         # Overall status handling
-        status_value = overall_status if isinstance(overall_status, str) else (overall_status.value if hasattr(overall_status, 'value') else 'unknown')
+        status_value = (
+            overall_status
+            if isinstance(overall_status, str)
+            else (
+                overall_status.value if hasattr(overall_status, "value") else "unknown"
+            )
+        )
 
         response_data = {
             "status": status_value,
@@ -381,7 +459,7 @@ async def health_check():
             "service_name": "gateway-intencoes",
             "neural_hive_component": "gateway",
             "neural_hive_layer": "experiencia",
-            "components": component_statuses
+            "components": component_statuses,
         }
 
         # Return appropriate HTTP status code based on health
@@ -401,9 +479,10 @@ async def health_check():
                 "message": f"Health check error: {str(e)}",
                 "timestamp": datetime.utcnow().isoformat(),
                 "version": "1.0.0",
-                "service_name": "gateway-intencoes"
-            }
+                "service_name": "gateway-intencoes",
+            },
         )
+
 
 @app.get("/ready")
 async def readiness_check():
@@ -414,8 +493,8 @@ async def readiness_check():
             content={
                 "status": "not_ready",
                 "message": "Health manager not initialized",
-                "timestamp": datetime.utcnow().isoformat()
-            }
+                "timestamp": datetime.utcnow().isoformat(),
+            },
         )
 
     try:
@@ -427,7 +506,11 @@ async def readiness_check():
         for check_name in critical_checks:
             result = await health_manager.check_single(check_name)
             if result:
-                check_results[check_name] = result.status.value if hasattr(result.status, 'value') else str(result.status)
+                check_results[check_name] = (
+                    result.status.value
+                    if hasattr(result.status, "value")
+                    else str(result.status)
+                )
                 if result.status != HealthStatus.HEALTHY:
                     overall_ready = False
             else:
@@ -437,10 +520,18 @@ async def readiness_check():
         if settings.otel_enabled and OTEL_HEALTH_CHECK_AVAILABLE:
             otel_result = await health_manager.check_single("otel_pipeline")
             if otel_result:
-                check_results["otel_pipeline"] = otel_result.status.value if hasattr(otel_result.status, 'value') else str(otel_result.status)
+                check_results["otel_pipeline"] = (
+                    otel_result.status.value
+                    if hasattr(otel_result.status, "value")
+                    else str(otel_result.status)
+                )
                 if otel_result.status == HealthStatus.UNHEALTHY:
                     overall_ready = False
-                    logger.warning("otel_pipeline_unhealthy", status=otel_result.status, message=otel_result.message)
+                    logger.warning(
+                        "otel_pipeline_unhealthy",
+                        status=otel_result.status,
+                        message=otel_result.message,
+                    )
             else:
                 check_results["otel_pipeline"] = "not_configured"
 
@@ -449,12 +540,11 @@ async def readiness_check():
             "timestamp": datetime.utcnow().isoformat(),
             "service_name": "gateway-intencoes",
             "neural_hive_component": "gateway",
-            "checks": check_results
+            "checks": check_results,
         }
 
         return JSONResponse(
-            status_code=200 if overall_ready else 503,
-            content=response_data
+            status_code=200 if overall_ready else 503, content=response_data
         )
 
     except Exception as e:
@@ -464,9 +554,10 @@ async def readiness_check():
             content={
                 "status": "not_ready",
                 "message": f"Readiness check error: {str(e)}",
-                "timestamp": datetime.utcnow().isoformat()
-            }
+                "timestamp": datetime.utcnow().isoformat(),
+            },
         )
+
 
 @app.get("/cache/stats")
 async def cache_stats(user: Dict[str, Any] = Depends(get_current_admin_user)):
@@ -474,28 +565,31 @@ async def cache_stats(user: Dict[str, Any] = Depends(get_current_admin_user)):
     if not redis_client:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Redis cache não disponível"
+            detail="Redis cache não disponível",
         )
 
     return await redis_client.get_cache_stats()
+
 
 @app.get("/metrics")
 async def metrics_endpoint():
     """Endpoint de métricas Prometheus"""
     from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
 
 @app.get("/intentions/{intent_id}")
 async def get_intention(
     intent_id: str,
     request: Request,
-    user_context: Dict[str, Any] = Depends(get_user_context_from_request)
+    user_context: Dict[str, Any] = Depends(get_user_context_from_request),
 ):
     """Obter intenção do cache por ID"""
     if not redis_client:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Cache não disponível"
+            detail="Cache não disponível",
         )
 
     try:
@@ -504,8 +598,7 @@ async def get_intention(
 
         if not cached_intent:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Intenção não encontrada"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Intenção não encontrada"
             )
 
         # Verificar se usuário tem acesso a esta intenção
@@ -513,14 +606,14 @@ async def get_intention(
             if not user_context.get("isAdmin", False):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Acesso negado a esta intenção"
+                    detail="Acesso negado a esta intenção",
                 )
 
         return {
             "intent_id": intent_id,
             "data": cached_intent,
             "cached": True,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
     except HTTPException:
@@ -529,20 +622,21 @@ async def get_intention(
         logger.error(f"Erro ao obter intenção {intent_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro interno ao buscar intenção"
+            detail="Erro interno ao buscar intenção",
         )
+
 
 @app.post("/intentions", response_model=Dict[str, Any])
 @trace_intent(
     operation_name="captura.intencao.texto",
     extract_intent_id_from="intent_id",
     include_args=False,
-    include_result=True
+    include_result=True,
 )
 async def process_text_intention(
     request: IntentRequest,
     http_request: Request,
-    user_context: Dict[str, Any] = Depends(get_user_context_from_request)
+    user_context: Dict[str, Any] = Depends(get_user_context_from_request),
 ):
     """
     Processar intenção em formato texto
@@ -562,13 +656,15 @@ async def process_text_intention(
                 dedup_key = f"dedup:{request.correlation_id}"
 
                 # Verificar se já processamos esta intenção
-                existing = await redis_client.get(dedup_key, intent_type="deduplication")
+                existing = await redis_client.get(
+                    dedup_key, intent_type="deduplication"
+                )
                 if existing:
                     logger.info(
                         "Intenção duplicada detectada",
                         correlation_id=request.correlation_id,
                         original_intent_id=existing.get("intent_id"),
-                        new_intent_id=intent_id
+                        new_intent_id=intent_id,
                     )
 
                     # Extrair trace_id e span_id do contexto OpenTelemetry
@@ -582,7 +678,7 @@ async def process_text_intention(
                         "original_timestamp": existing.get("timestamp"),
                         "message": "Intenção já foi processada anteriormente",
                         "traceId": trace_id,
-                        "spanId": span_id
+                        "spanId": span_id,
                     }
 
                 # Registrar processamento para evitar futuras duplicatas (TTL curto para dedup)
@@ -590,7 +686,7 @@ async def process_text_intention(
                     dedup_key,
                     {"intent_id": intent_id, "timestamp": start_time.isoformat()},
                     ttl=300,  # 5 minutos para deduplicação
-                    intent_type="deduplication"
+                    intent_type="deduplication",
                 )
 
             except Exception as e:
@@ -604,7 +700,7 @@ async def process_text_intention(
                 intent_id=intent_id,
                 user_id=user_context.get("userId"),
                 domain=request.text[:50],  # Domain será ajustado após NLU
-                channel="api"
+                channel="api",
             ):
                 return await _process_text_intention_with_context(
                     request, user_context, intent_id, correlation_id, start_time
@@ -618,12 +714,16 @@ async def process_text_intention(
         error_str = str(e)
 
         # Check if it's a record too large error
-        if "RECORD_TOO_LARGE" in error_str or "message size" in error_str.lower() or "rejeitada por exceder limite" in error_str:
+        if (
+            "RECORD_TOO_LARGE" in error_str
+            or "message size" in error_str.lower()
+            or "rejeitada por exceder limite" in error_str
+        ):
             logger.error(
                 "Intenção rejeitada por tamanho excessivo",
                 intent_id=intent_id,
                 error=error_str,
-                exc_info=True
+                exc_info=True,
             )
 
             intent_counter.labels(
@@ -631,19 +731,19 @@ async def process_text_intention(
                 neural_hive_layer="experiencia",
                 domain="unknown",
                 channel="api",
-                status="record_too_large"
+                status="record_too_large",
             ).inc()
 
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail="Envelope de intenção excede limite de tamanho permitido (4MB). Considere reduzir o conteúdo da solicitação."
+                detail="Envelope de intenção excede limite de tamanho permitido (4MB). Considere reduzir o conteúdo da solicitação.",
             )
 
         logger.error(
             "Erro processando intenção de texto",
             intent_id=intent_id,
             error=error_str,
-            exc_info=True
+            exc_info=True,
         )
 
         intent_counter.labels(
@@ -651,12 +751,12 @@ async def process_text_intention(
             neural_hive_layer="experiencia",
             domain="unknown",
             channel="api",
-            status="error"
+            status="error",
         ).inc()
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro processando intenção: {error_str}"
+            detail=f"Erro processando intenção: {error_str}",
         )
 
 
@@ -665,7 +765,7 @@ async def _process_text_intention_with_context(
     user_context: Dict[str, Any],
     intent_id: str,
     correlation_id: str,
-    start_time: datetime
+    start_time: datetime,
 ) -> Dict[str, Any]:
     """Processar intenção de texto com contexto de correlação."""
     try:
@@ -675,14 +775,14 @@ async def _process_text_intention_with_context(
             intent_id=intent_id,
             correlation_id=correlation_id,
             user_id=user_context.get("userId"),
-            intent_text=request.text[:100] + "..." if len(request.text) > 100 else request.text
+            intent_text=request.text[:100] + "..."
+            if len(request.text) > 100
+            else request.text,
         )
 
         # Pipeline NLU para processar texto
         nlu_result = await nlu_pipeline.process(
-            text=request.text,
-            language=request.language,
-            context=user_context
+            text=request.text, language=request.language, context=user_context
         )
 
         # Construir envelope de intenção
@@ -692,7 +792,7 @@ async def _process_text_intention_with_context(
             actor={
                 "id": user_context.get("userId", "anonymous"),
                 "actor_type": "human",
-                "name": user_context.get("userName")
+                "name": user_context.get("userName"),
             },
             intent={
                 "text": request.text,
@@ -701,24 +801,28 @@ async def _process_text_intention_with_context(
                 "original_language": request.language,
                 "processed_text": nlu_result.processed_text,
                 "entities": [entity.dict() for entity in nlu_result.entities],
-                "keywords": nlu_result.keywords
+                "keywords": nlu_result.keywords,
             },
             confidence=nlu_result.confidence,
             confidence_status=nlu_result.confidence_status,
             context=user_context,
             constraints=request.constraints.dict() if request.constraints else None,
             qos=request.qos.dict() if request.qos else None,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
 
         # Confidence gating - route based on confidence level
-        logger.info(f"⚡ Processando intent: confidence={nlu_result.confidence:.2f}, status={nlu_result.confidence_status}, requires_validation={nlu_result.requires_manual_validation}, intent_id={intent_id}")
+        logger.info(
+            f"⚡ Processando intent: confidence={nlu_result.confidence:.2f}, status={nlu_result.confidence_status}, requires_validation={nlu_result.requires_manual_validation}, intent_id={intent_id}"
+        )
 
         # Determinar threshold efetivo (adaptativo ou fixo)
         effective_threshold_high = settings.nlu_routing_threshold_high
         effective_threshold_low = settings.nlu_routing_threshold_low
 
-        if settings.nlu_routing_use_adaptive_for_decisions and hasattr(nlu_pipeline, 'last_adaptive_threshold'):
+        if settings.nlu_routing_use_adaptive_for_decisions and hasattr(
+            nlu_pipeline, "last_adaptive_threshold"
+        ):
             effective_threshold_high = nlu_pipeline.last_adaptive_threshold
             logger.debug(f"Using adaptive threshold: {effective_threshold_high:.2f}")
 
@@ -738,6 +842,7 @@ async def _process_text_intention_with_context(
 
         # Determinar roteamento baseado em confiança
         import sys
+
         if nlu_result.confidence >= effective_threshold_high:
             # Alta ou média confiança - processar normalmente
             # Usar SEMPRE producer transacional (exactly-once) por padrão
@@ -747,13 +852,15 @@ async def _process_text_intention_with_context(
                 confidence_status=nlu_result.confidence_status,
                 requires_validation=nlu_result.requires_manual_validation,
                 adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled,
-                use_fast_producer=False  # Default: transacional para exactly-once
+                use_fast_producer=False,  # Default: transacional para exactly-once
             )
             status_message = "processed"
             processing_notes = []
 
             if nlu_result.confidence_status == "medium":
-                processing_notes.append("Processado com confiança média - pode requerer revisão posterior")
+                processing_notes.append(
+                    "Processado com confiança média - pode requerer revisão posterior"
+                )
 
         elif nlu_result.confidence >= effective_threshold_low:
             # Confiança baixa mas aceitável - processar com flag de baixa confiança
@@ -763,16 +870,18 @@ async def _process_text_intention_with_context(
                 confidence_status="low",
                 requires_validation=True,
                 adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled,
-                use_fast_producer=False  # Default: transacional para exactly-once
+                use_fast_producer=False,  # Default: transacional para exactly-once
             )
             status_message = "processed_low_confidence"
-            processing_notes = ["Processado com confiança baixa - recomenda-se validação"]
+            processing_notes = [
+                "Processado com confiança baixa - recomenda-se validação"
+            ]
 
             logger.warning(
                 "Intenção processada com baixa confiança",
                 intent_id=intent_id,
                 confidence=nlu_result.confidence,
-                domain=nlu_result.domain
+                domain=nlu_result.domain,
             )
         else:  # confidence < effective_threshold_low
             # Confiança muito baixa - rotear para validação
@@ -783,7 +892,7 @@ async def _process_text_intention_with_context(
                 confidence_status="low",
                 requires_validation=True,
                 adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled,
-                use_fast_producer=False  # Transacional para exactly-once em validation
+                use_fast_producer=False,  # Transacional para exactly-once em validation
             )
             status_message = "routed_to_validation"
             processing_notes = ["Confiança muito baixa - requer validação manual"]
@@ -794,7 +903,7 @@ async def _process_text_intention_with_context(
                 neural_hive_layer="experiencia",
                 domain=nlu_result.domain,
                 channel="api",
-                route_target="human"
+                route_target="human",
             ).inc()
 
             logger.info(
@@ -802,7 +911,7 @@ async def _process_text_intention_with_context(
                 intent_id=intent_id,
                 confidence=nlu_result.confidence,
                 domain=nlu_result.domain,
-                threshold=nlu_pipeline.confidence_threshold
+                threshold=nlu_pipeline.confidence_threshold,
             )
 
         # Cache intent envelope in Redis for retrieval
@@ -813,7 +922,7 @@ async def _process_text_intention_with_context(
                     cache_key,
                     intent_envelope.to_cache_dict(),
                     ttl=settings.redis_default_ttl,
-                    intent_type="intent"
+                    intent_type="intent",
                 )
                 logger.debug(f"Intent {intent_id} cached in Redis", cache_key=cache_key)
             except Exception as e:
@@ -837,19 +946,19 @@ async def _process_text_intention_with_context(
             neural_hive_layer="experiencia",
             domain=nlu_result.domain,
             channel="api",
-            status=metric_status
+            status=metric_status,
         ).inc()
         latency_histogram.labels(
             neural_hive_component="gateway",
             neural_hive_layer="experiencia",
             domain=nlu_result.domain,
-            channel="api"
+            channel="api",
         ).observe(processing_time)
         confidence_histogram.labels(
             neural_hive_component="gateway",
             neural_hive_layer="experiencia",
             domain=nlu_result.domain,
-            channel="api"
+            channel="api",
         ).observe(nlu_result.confidence)
 
         logger.info(
@@ -857,7 +966,7 @@ async def _process_text_intention_with_context(
             intent_id=intent_id,
             processing_time_ms=processing_time * 1000,
             confidence=nlu_result.confidence,
-            domain=nlu_result.domain
+            domain=nlu_result.domain,
         )
 
         response_data = {
@@ -869,18 +978,18 @@ async def _process_text_intention_with_context(
             "domain": nlu_result.domain,
             "classification": nlu_result.classification,
             "processing_time_ms": processing_time * 1000,
-            "requires_manual_validation": nlu_result.requires_manual_validation
+            "requires_manual_validation": nlu_result.requires_manual_validation,
         }
 
         # Add routing thresholds info
         response_data["routing_thresholds"] = {
             "high": effective_threshold_high,
             "low": effective_threshold_low,
-            "adaptive_used": settings.nlu_routing_use_adaptive_for_decisions
+            "adaptive_used": settings.nlu_routing_use_adaptive_for_decisions,
         }
 
         # Add processing notes if available
-        if 'processing_notes' in locals() and processing_notes:
+        if "processing_notes" in locals() and processing_notes:
             response_data["processing_notes"] = processing_notes
 
         # Add adaptive threshold info if enabled
@@ -905,15 +1014,20 @@ async def _process_text_intention_with_context(
     except Exception as e:
         error_str = str(e)
         import sys, traceback
+
         traceback.print_exc(file=sys.stderr)
 
         # Check if it's a record too large error
-        if "RECORD_TOO_LARGE" in error_str or "message size" in error_str.lower() or "rejeitada por exceder limite" in error_str:
+        if (
+            "RECORD_TOO_LARGE" in error_str
+            or "message size" in error_str.lower()
+            or "rejeitada por exceder limite" in error_str
+        ):
             logger.error(
                 "Intenção rejeitada por tamanho excessivo",
                 intent_id=intent_id,
                 error=error_str,
-                exc_info=True
+                exc_info=True,
             )
 
             intent_counter.labels(
@@ -921,19 +1035,19 @@ async def _process_text_intention_with_context(
                 neural_hive_layer="experiencia",
                 domain="unknown",
                 channel="api",
-                status="record_too_large"
+                status="record_too_large",
             ).inc()
 
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail="Envelope de intenção excede limite de tamanho permitido (4MB). Considere reduzir o conteúdo da solicitação."
+                detail="Envelope de intenção excede limite de tamanho permitido (4MB). Considere reduzir o conteúdo da solicitação.",
             )
 
         logger.error(
             "Erro processando intenção de texto",
             intent_id=intent_id,
             error=error_str,
-            exc_info=True
+            exc_info=True,
         )
 
         intent_counter.labels(
@@ -941,27 +1055,28 @@ async def _process_text_intention_with_context(
             neural_hive_layer="experiencia",
             domain="unknown",
             channel="api",
-            status="error"
+            status="error",
         ).inc()
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro processando intenção: {error_str}"
+            detail=f"Erro processando intenção: {error_str}",
         )
+
 
 @app.post("/intentions/voice", response_model=Dict[str, Any])
 @trace_intent(
     operation_name="captura.intencao.voz",
     extract_intent_id_from="intent_id",
     include_args=False,
-    include_result=True
+    include_result=True,
 )
 async def process_voice_intention(
     http_request: Request,
     audio_file: UploadFile = File(...),
     language: str = Form("pt-BR"),
     correlation_id: Optional[str] = Form(None),
-    user_context: Dict[str, Any] = Depends(get_user_context_from_request)
+    user_context: Dict[str, Any] = Depends(get_user_context_from_request),
 ):
     """
     Processar intenção de áudio (voz)
@@ -970,10 +1085,10 @@ async def process_voice_intention(
 
     try:
         # Validar tipo de arquivo de áudio
-        if not audio_file.content_type.startswith('audio/'):
+        if not audio_file.content_type.startswith("audio/"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Arquivo deve ser de áudio"
+                detail="Arquivo deve ser de áudio",
             )
 
         # Gerar IDs
@@ -986,7 +1101,7 @@ async def process_voice_intention(
             correlation_id=correlation_id,
             user_id=user_context.get("userId"),
             audio_content_type=audio_file.content_type,
-            audio_size_bytes=audio_file.size
+            audio_size_bytes=audio_file.size,
         )
 
         # Ler arquivo de áudio
@@ -994,21 +1109,18 @@ async def process_voice_intention(
 
         # Pipeline ASR para converter áudio em texto
         asr_result = await asr_pipeline.process(
-            audio_data=audio_content,
-            language=language
+            audio_data=audio_content, language=language
         )
 
         if not asr_result.text or len(asr_result.text.strip()) < 3:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Não foi possível extrair texto do áudio"
+                detail="Não foi possível extrair texto do áudio",
             )
 
         # Pipeline NLU para processar texto extraído
         nlu_result = await nlu_pipeline.process(
-            text=asr_result.text,
-            language=language,
-            context=user_context
+            text=asr_result.text, language=language, context=user_context
         )
 
         # Construir envelope de intenção
@@ -1018,7 +1130,7 @@ async def process_voice_intention(
             actor={
                 "id": user_context.get("userId", "anonymous"),
                 "actor_type": "human",
-                "name": user_context.get("userName")
+                "name": user_context.get("userName"),
             },
             intent={
                 "text": asr_result.text,
@@ -1027,30 +1139,38 @@ async def process_voice_intention(
                 "original_language": language,
                 "processed_text": nlu_result.processed_text,
                 "entities": [entity.dict() for entity in nlu_result.entities],
-                "keywords": nlu_result.keywords
+                "keywords": nlu_result.keywords,
             },
-            confidence=min(asr_result.confidence, nlu_result.confidence),  # Menor confiança
+            confidence=min(
+                asr_result.confidence, nlu_result.confidence
+            ),  # Menor confiança
             confidence_status=nlu_result.confidence_status,
             context={
                 **user_context,
                 "channel": "voice",
                 "asr_confidence": asr_result.confidence,
                 "nlu_confidence": nlu_result.confidence,
-                "audio_duration_s": asr_result.duration
+                "audio_duration_s": asr_result.duration,
             },
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
 
         # Confidence gating - route based on confidence level (same as text flow)
-        logger.info(f"⚡ Processando intent de voz: confidence={intent_envelope.confidence:.2f}, status={nlu_result.confidence_status}, requires_validation={nlu_result.requires_manual_validation}, intent_id={intent_id}")
+        logger.info(
+            f"⚡ Processando intent de voz: confidence={intent_envelope.confidence:.2f}, status={nlu_result.confidence_status}, requires_validation={nlu_result.requires_manual_validation}, intent_id={intent_id}"
+        )
 
         # Determinar threshold efetivo (adaptativo ou fixo) - mesma lógica do texto
         effective_threshold_high = settings.nlu_routing_threshold_high
         effective_threshold_low = settings.nlu_routing_threshold_low
 
-        if settings.nlu_routing_use_adaptive_for_decisions and hasattr(nlu_pipeline, 'last_adaptive_threshold'):
+        if settings.nlu_routing_use_adaptive_for_decisions and hasattr(
+            nlu_pipeline, "last_adaptive_threshold"
+        ):
             effective_threshold_high = nlu_pipeline.last_adaptive_threshold
-            logger.debug(f"Using adaptive threshold for voice: {effective_threshold_high:.2f}")
+            logger.debug(
+                f"Using adaptive threshold for voice: {effective_threshold_high:.2f}"
+            )
 
         # Garantir ordenação dos thresholds: high >= low + 0.01
         if effective_threshold_high < effective_threshold_low + 0.01:
@@ -1075,13 +1195,15 @@ async def process_voice_intention(
                 confidence_status=nlu_result.confidence_status,
                 requires_validation=nlu_result.requires_manual_validation,
                 adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled,
-                use_fast_producer=False  # Default: transacional para exactly-once
+                use_fast_producer=False,  # Default: transacional para exactly-once
             )
             status_message = "processed"
             processing_notes = []
 
             if nlu_result.confidence_status == "medium":
-                processing_notes.append("Processado com confiança média - pode requerer revisão posterior")
+                processing_notes.append(
+                    "Processado com confiança média - pode requerer revisão posterior"
+                )
 
         elif intent_envelope.confidence >= effective_threshold_low:
             # Confiança baixa mas aceitável - processar com flag de baixa confiança
@@ -1091,10 +1213,12 @@ async def process_voice_intention(
                 confidence_status="low",
                 requires_validation=True,
                 adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled,
-                use_fast_producer=False  # Default: transacional para exactly-once
+                use_fast_producer=False,  # Default: transacional para exactly-once
             )
             status_message = "processed_low_confidence"
-            processing_notes = ["Processado com confiança baixa - recomenda-se validação"]
+            processing_notes = [
+                "Processado com confiança baixa - recomenda-se validação"
+            ]
 
             logger.warning(
                 "Intenção de voz processada com baixa confiança",
@@ -1102,7 +1226,7 @@ async def process_voice_intention(
                 confidence=intent_envelope.confidence,
                 asr_confidence=asr_result.confidence,
                 nlu_confidence=nlu_result.confidence,
-                domain=nlu_result.domain
+                domain=nlu_result.domain,
             )
         else:  # confidence < effective_threshold_low
             # Confiança muito baixa - rotear para validação
@@ -1113,7 +1237,7 @@ async def process_voice_intention(
                 confidence_status="low",
                 requires_validation=True,
                 adaptive_threshold_used=settings.nlu_adaptive_threshold_enabled,
-                use_fast_producer=False  # Transacional para exactly-once em validation
+                use_fast_producer=False,  # Transacional para exactly-once em validation
             )
             status_message = "routed_to_validation"
             processing_notes = ["Confiança muito baixa - requer validação manual"]
@@ -1124,7 +1248,7 @@ async def process_voice_intention(
                 neural_hive_layer="experiencia",
                 domain=nlu_result.domain,
                 channel="voice",
-                route_target="human"
+                route_target="human",
             ).inc()
 
             logger.info(
@@ -1134,7 +1258,7 @@ async def process_voice_intention(
                 asr_confidence=asr_result.confidence,
                 nlu_confidence=nlu_result.confidence,
                 domain=nlu_result.domain,
-                threshold=nlu_pipeline.confidence_threshold
+                threshold=nlu_pipeline.confidence_threshold,
             )
 
         # Cache intent envelope in Redis for retrieval
@@ -1145,11 +1269,15 @@ async def process_voice_intention(
                     cache_key,
                     intent_envelope.to_cache_dict(),
                     ttl=settings.redis_default_ttl,
-                    intent_type="intent"
+                    intent_type="intent",
                 )
-                logger.debug(f"Voice intent {intent_id} cached in Redis", cache_key=cache_key)
+                logger.debug(
+                    f"Voice intent {intent_id} cached in Redis", cache_key=cache_key
+                )
             except Exception as e:
-                logger.warning(f"Falha ao cachear voice intent {intent_id} no Redis: {e}")
+                logger.warning(
+                    f"Falha ao cachear voice intent {intent_id} no Redis: {e}"
+                )
 
         # Métricas
         processing_time = (datetime.utcnow() - start_time).total_seconds()
@@ -1169,19 +1297,19 @@ async def process_voice_intention(
             neural_hive_layer="experiencia",
             domain=nlu_result.domain,
             channel="voice",
-            status=metric_status
+            status=metric_status,
         ).inc()
         latency_histogram.labels(
             neural_hive_component="gateway",
             neural_hive_layer="experiencia",
             domain=nlu_result.domain,
-            channel="voice"
+            channel="voice",
         ).observe(processing_time)
         confidence_histogram.labels(
             neural_hive_component="gateway",
             neural_hive_layer="experiencia",
             domain=nlu_result.domain,
-            channel="voice"
+            channel="voice",
         ).observe(intent_envelope.confidence)
 
         logger.info(
@@ -1192,7 +1320,7 @@ async def process_voice_intention(
             asr_confidence=asr_result.confidence,
             nlu_confidence=nlu_result.confidence,
             final_confidence=intent_envelope.confidence,
-            domain=nlu_result.domain
+            domain=nlu_result.domain,
         )
 
         response_data = {
@@ -1207,18 +1335,18 @@ async def process_voice_intention(
             "domain": nlu_result.domain,
             "classification": nlu_result.classification,
             "processing_time_ms": processing_time * 1000,
-            "requires_manual_validation": nlu_result.requires_manual_validation
+            "requires_manual_validation": nlu_result.requires_manual_validation,
         }
 
         # Add routing thresholds info
         response_data["routing_thresholds"] = {
             "high": effective_threshold_high,
             "low": effective_threshold_low,
-            "adaptive_used": settings.nlu_routing_use_adaptive_for_decisions
+            "adaptive_used": settings.nlu_routing_use_adaptive_for_decisions,
         }
 
         # Add processing notes if available
-        if 'processing_notes' in locals() and processing_notes:
+        if "processing_notes" in locals() and processing_notes:
             response_data["processing_notes"] = processing_notes
 
         # Add adaptive threshold info if enabled
@@ -1246,12 +1374,16 @@ async def process_voice_intention(
         error_str = str(e)
 
         # Check if it's a record too large error
-        if "RECORD_TOO_LARGE" in error_str or "message size" in error_str.lower() or "rejeitada por exceder limite" in error_str:
+        if (
+            "RECORD_TOO_LARGE" in error_str
+            or "message size" in error_str.lower()
+            or "rejeitada por exceder limite" in error_str
+        ):
             logger.error(
                 "Intenção de voz rejeitada por tamanho excessivo",
                 intent_id=intent_id,
                 error=error_str,
-                exc_info=True
+                exc_info=True,
             )
 
             intent_counter.labels(
@@ -1259,19 +1391,19 @@ async def process_voice_intention(
                 neural_hive_layer="experiencia",
                 domain="unknown",
                 channel="voice",
-                status="record_too_large"
+                status="record_too_large",
             ).inc()
 
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail="Envelope de intenção de voz excede limite de tamanho permitido (4MB). Considere usar áudio mais curto ou de menor qualidade."
+                detail="Envelope de intenção de voz excede limite de tamanho permitido (4MB). Considere usar áudio mais curto ou de menor qualidade.",
             )
 
         logger.error(
             "Erro processando intenção de voz",
             intent_id=intent_id,
             error=error_str,
-            exc_info=True
+            exc_info=True,
         )
 
         intent_counter.labels(
@@ -1279,13 +1411,14 @@ async def process_voice_intention(
             neural_hive_layer="experiencia",
             domain="unknown",
             channel="voice",
-            status="error"
+            status="error",
         ).inc()
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro processando intenção de voz: {error_str}"
+            detail=f"Erro processando intenção de voz: {error_str}",
         )
+
 
 @app.get("/status")
 async def service_status():
@@ -1299,7 +1432,7 @@ async def service_status():
             "asr_pipeline": {
                 "ready": asr_pipeline is not None and asr_pipeline.is_ready(),
                 "model": settings.asr_model_name,
-                "device": settings.asr_device
+                "device": settings.asr_device,
             },
             "nlu_pipeline": {
                 "ready": nlu_pipeline is not None and nlu_pipeline.is_ready(),
@@ -1309,24 +1442,26 @@ async def service_status():
                 "routing_thresholds": {
                     "high": settings.nlu_routing_threshold_high,
                     "low": settings.nlu_routing_threshold_low,
-                    "use_adaptive_for_decisions": settings.nlu_routing_use_adaptive_for_decisions
-                }
+                    "use_adaptive_for_decisions": settings.nlu_routing_use_adaptive_for_decisions,
+                },
             },
             "kafka_producer": {
                 "ready": kafka_producer is not None and kafka_producer.is_ready(),
-                "bootstrap_servers": settings.kafka_bootstrap_servers
-            }
+                "bootstrap_servers": settings.kafka_bootstrap_servers,
+            },
         },
         "settings": {
             "max_audio_size_mb": settings.max_audio_size_mb,
             "max_text_length": settings.max_text_length,
             "supported_audio_formats": ["wav", "mp3", "m4a", "ogg"],
-            "supported_languages": ["pt-BR", "en-US", "es-ES"]
-        }
+            "supported_languages": ["pt-BR", "en-US", "es-ES"],
+        },
     }
+
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
@@ -1352,5 +1487,5 @@ if __name__ == "__main__":
                 "level": "INFO",
                 "handlers": ["default"],
             },
-        }
+        },
     )

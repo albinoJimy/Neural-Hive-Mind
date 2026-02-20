@@ -21,8 +21,9 @@ try:
         nlu_cache_operations_total,
         gateway_nlu_processing_duration,
         gateway_slo_violations_total,
-        gateway_cache_errors_total
+        gateway_cache_errors_total,
     )
+
     CACHE_METRICS_AVAILABLE = True
 except ImportError:
     CACHE_METRICS_AVAILABLE = False
@@ -30,16 +31,20 @@ except ImportError:
 logger = logging.getLogger(__name__)
 try:
     from neural_hive_observability import get_tracer
+
     tracer = get_tracer()
 except ImportError:
     tracer = None
+
 
 class NLUPipeline:
     def __init__(self, language_model: str = None, confidence_threshold: float = None):
         self.settings = get_settings()
         self.language_model = language_model or self.settings.nlu_language_model
         self.model_cache_dir = Path(self.settings.nlu_model_cache_dir)
-        self.confidence_threshold = confidence_threshold or self.settings.nlu_confidence_threshold
+        self.confidence_threshold = (
+            confidence_threshold or self.settings.nlu_confidence_threshold
+        )
         self.nlp = None
         self.nlp_models = {}  # Cache de modelos por idioma
         self._ready = False
@@ -47,23 +52,27 @@ class NLUPipeline:
         self.classification_rules = {}
         self.language_detection_enabled = True
         self.supported_models = {
-            'pt': 'pt_core_news_sm',
-            'en': 'en_core_web_sm',
-            'es': 'es_core_news_sm'
+            "pt": "pt_core_news_sm",
+            "en": "en_core_web_sm",
+            "es": "es_core_news_sm",
         }
         self.last_adaptive_threshold = None  # Último threshold adaptativo calculado
 
         # Otimização: Pré-compilar regex patterns e converter keywords para sets
         self.compiled_patterns = {}  # {domain_name: [compiled_patterns]}
         self.keyword_sets = {}  # {domain_name: set(keywords)}
-        self.subcategory_keyword_sets = {}  # {domain_name: {subcat_name: set(keywords)}}
+        self.subcategory_keyword_sets = (
+            {}
+        )  # {domain_name: {subcat_name: set(keywords)}}
 
     async def initialize(self):
         """Carregar modelos spaCy e configurações"""
         try:
             # Otimização: Lazy loading do modelo principal - carregar apenas primeiro uso
             # Este é um padrão lazy para reduzir tempo de inicialização
-            logger.info(f"Configurando NLU Pipeline com lazy loading: {self.language_model}")
+            logger.info(
+                f"Configurando NLU Pipeline com lazy loading: {self.language_model}"
+            )
 
             # Configurar cliente Redis para cache
             if self.settings.nlu_cache_enabled:
@@ -75,17 +84,23 @@ class NLUPipeline:
             # Carregar modelo principal (não lazy para primeira requisição ser rápida)
             logger.info(f"Carregando modelo spaCy principal: {self.language_model}")
             self.nlp = self._load_model_from_cache(self.language_model)
-            self.nlp_models['default'] = self.nlp
+            self.nlp_models["default"] = self.nlp
 
             # Tentar carregar modelos para idiomas suportados (lazy loading sob demanda)
             for lang_code, model_name in self.supported_models.items():
                 try:
-                    if model_name != self.language_model:  # Evitar recarregar modelo principal
-                        logger.info(f"Carregando modelo {model_name} para idioma {lang_code}")
+                    if (
+                        model_name != self.language_model
+                    ):  # Evitar recarregar modelo principal
+                        logger.info(
+                            f"Carregando modelo {model_name} para idioma {lang_code}"
+                        )
                         model = self._load_model_from_cache(model_name)
                         self.nlp_models[lang_code] = model
                 except OSError:
-                    logger.warning(f"Modelo {model_name} não encontrado para idioma {lang_code}")
+                    logger.warning(
+                        f"Modelo {model_name} não encontrado para idioma {lang_code}"
+                    )
 
             # Otimização: Cache warming para queries frequentes (se habilitado)
             if self.settings.nlu_cache_enabled:
@@ -113,7 +128,7 @@ class NLUPipeline:
             "relatório de vendas",
             "deploy em produção",
             "erro no login",
-            "análise de performance"
+            "análise de performance",
         ]
 
         logger.info(f"Iniciando cache warming com {len(common_queries)} queries comuns")
@@ -143,7 +158,11 @@ class NLUPipeline:
                     entities = self._extract_entities(doc)
 
                     # Classificar intenção
-                    domain, classification, confidence = await self._classify_intent_advanced(
+                    (
+                        domain,
+                        classification,
+                        confidence,
+                    ) = await self._classify_intent_advanced(
                         query, entities, "pt", None
                     )
 
@@ -153,7 +172,9 @@ class NLUPipeline:
                     # Calcular threshold adaptativo
                     adaptive_threshold = self.confidence_threshold
                     if self.settings.nlu_adaptive_threshold_enabled:
-                        adaptive_threshold = self._calculate_adaptive_threshold(query, None, confidence, entities)
+                        adaptive_threshold = self._calculate_adaptive_threshold(
+                            query, None, confidence, entities
+                        )
 
                     # Determinar confidence_status
                     if confidence >= 0.75:
@@ -173,12 +194,14 @@ class NLUPipeline:
                         keywords=keywords,
                         requires_manual_validation=confidence < adaptive_threshold,
                         confidence_status=confidence_status,
-                        adaptive_threshold=adaptive_threshold
+                        adaptive_threshold=adaptive_threshold,
                     )
 
                     # Persistir no cache usando _cache_result (garante schema_version e campos obrigatórios)
                     await self._cache_result(cache_key, result)
-                    logger.debug(f"Cache warming realizado para query: {query[:30]}... -> {domain.value}")
+                    logger.debug(
+                        f"Cache warming realizado para query: {query[:30]}... -> {domain.value}"
+                    )
 
             except Exception as e:
                 logger.warning(f"Erro no cache warming para query '{query}': {e}")
@@ -186,6 +209,7 @@ class NLUPipeline:
 
         # Executar warmup tasks concurrentemente (mas limitar paralelismo)
         import asyncio
+
         warmup_tasks = [warmup_single_query(query) for query in common_queries]
         await asyncio.gather(*warmup_tasks, return_exceptions=True)
 
@@ -200,14 +224,18 @@ class NLUPipeline:
             # Tentar carregar de arquivo local e mesclar com padrões
             rules_path = Path(self.settings.nlu_rules_config_path)
             if rules_path.exists():
-                with open(rules_path, 'r', encoding='utf-8') as f:
+                with open(rules_path, "r", encoding="utf-8") as f:
                     custom_rules = yaml.safe_load(f)
                     if custom_rules:
                         # Mesclar regras customizadas com padrões
                         self._merge_classification_rules(custom_rules)
-                        logger.info(f"Regras de classificação customizadas carregadas de {rules_path}")
+                        logger.info(
+                            f"Regras de classificação customizadas carregadas de {rules_path}"
+                        )
             else:
-                logger.info(f"Arquivo de regras {rules_path} não encontrado, usando regras padrão")
+                logger.info(
+                    f"Arquivo de regras {rules_path} não encontrado, usando regras padrão"
+                )
 
             # Otimização: Pré-compilar patterns e criar keyword sets
             self._prepare_optimized_structures()
@@ -240,7 +268,9 @@ class NLUPipeline:
                 for subcat_name, subcat_keywords in subcategories.items()
             }
 
-        logger.debug(f"Estruturas otimizadas preparadas para {len(self.compiled_patterns)} domínios")
+        logger.debug(
+            f"Estruturas otimizadas preparadas para {len(self.compiled_patterns)} domínios"
+        )
 
     def _merge_classification_rules(self, custom_rules: Dict[str, Any]):
         """Mesclar regras customizadas com regras padrão"""
@@ -254,16 +284,22 @@ class NLUPipeline:
                     if "patterns" in domain_config:
                         default_domain["patterns"].extend(domain_config["patterns"])
                     if "subcategories" in domain_config:
-                        default_domain["subcategories"].update(domain_config["subcategories"])
+                        default_domain["subcategories"].update(
+                            domain_config["subcategories"]
+                        )
                 else:
                     # Adicionar novo domínio
                     self.classification_rules["domains"][domain_name] = domain_config
 
         if "quality_thresholds" in custom_rules:
-            self.classification_rules["quality_thresholds"].update(custom_rules["quality_thresholds"])
+            self.classification_rules["quality_thresholds"].update(
+                custom_rules["quality_thresholds"]
+            )
 
         if "confidence_boosters" in custom_rules:
-            self.classification_rules["confidence_boosters"].update(custom_rules["confidence_boosters"])
+            self.classification_rules["confidence_boosters"].update(
+                custom_rules["confidence_boosters"]
+            )
 
     def _get_default_classification_rules(self) -> Dict[str, Any]:
         """Retornar regras de classificação padrão"""
@@ -272,98 +308,269 @@ class NLUPipeline:
                 "BUSINESS": {
                     "keywords": [
                         # Portuguese
-                        "negócio", "venda", "vendas", "cliente", "clientes", "relatório", "dashboard",
-                        "analytics", "métrica", "kpi", "receita", "faturamento", "lucro", "marketing",
-                        "campanha", "conversão", "funil", "lead", "prospect",
+                        "negócio",
+                        "venda",
+                        "vendas",
+                        "cliente",
+                        "clientes",
+                        "relatório",
+                        "dashboard",
+                        "analytics",
+                        "métrica",
+                        "kpi",
+                        "receita",
+                        "faturamento",
+                        "lucro",
+                        "marketing",
+                        "campanha",
+                        "conversão",
+                        "funil",
+                        "lead",
+                        "prospect",
                         # English
-                        "business", "sales", "customer", "report", "revenue", "profit", "campaign",
-                        "conversion", "funnel"
+                        "business",
+                        "sales",
+                        "customer",
+                        "report",
+                        "revenue",
+                        "profit",
+                        "campaign",
+                        "conversion",
+                        "funnel",
                     ],
                     "patterns": [
                         r"\b(relatório|dashboard|report)\b",
                         r"\b(vendas?|sales|selling)\b",
                         r"\b(clientes?|customers?|client)\b",
                         r"\b(receita|revenue|income)\b",
-                        r"\b(marketing|campanha|campaign)\b"
+                        r"\b(marketing|campanha|campaign)\b",
                     ],
                     "subcategories": {
-                        "reporting": ["relatório", "dashboard", "report", "analytics", "métrica", "kpi"],
-                        "sales": ["venda", "vendas", "sales", "selling", "conversão", "conversion"],
-                        "customer": ["cliente", "clientes", "customer", "client", "prospect", "lead"],
-                        "marketing": ["marketing", "campanha", "campaign", "anúncio", "ad"]
-                    }
+                        "reporting": [
+                            "relatório",
+                            "dashboard",
+                            "report",
+                            "analytics",
+                            "métrica",
+                            "kpi",
+                        ],
+                        "sales": [
+                            "venda",
+                            "vendas",
+                            "sales",
+                            "selling",
+                            "conversão",
+                            "conversion",
+                        ],
+                        "customer": [
+                            "cliente",
+                            "clientes",
+                            "customer",
+                            "client",
+                            "prospect",
+                            "lead",
+                        ],
+                        "marketing": [
+                            "marketing",
+                            "campanha",
+                            "campaign",
+                            "anúncio",
+                            "ad",
+                        ],
+                    },
                 },
                 "TECHNICAL": {
                     "keywords": [
                         # Portuguese
-                        "api", "bug", "erro", "performance", "otimizar", "código", "função", "método",
-                        "classe", "algoritmo", "database", "query", "sql", "implementar", "desenvolver",
-                        "programar", "debug", "teste", "integração",
+                        "api",
+                        "bug",
+                        "erro",
+                        "performance",
+                        "otimizar",
+                        "código",
+                        "função",
+                        "método",
+                        "classe",
+                        "algoritmo",
+                        "database",
+                        "query",
+                        "sql",
+                        "implementar",
+                        "desenvolver",
+                        "programar",
+                        "debug",
+                        "teste",
+                        "integração",
                         # English
-                        "code", "function", "method", "class", "algorithm", "develop", "implement",
-                        "programming", "debugging", "testing", "system", "technical", "development"
+                        "code",
+                        "function",
+                        "method",
+                        "class",
+                        "algorithm",
+                        "develop",
+                        "implement",
+                        "programming",
+                        "debugging",
+                        "testing",
+                        "system",
+                        "technical",
+                        "development",
                     ],
                     "patterns": [
                         r"\b(api|rest|graphql|grpc)\b",
                         r"\b(bug|erro|error|issue|falha)\b",
                         r"\b(performance|otimizar|optimize|slow|lento)\b",
                         r"\b(código|code|function|método|class)\b",
-                        r"\b(database|sql|query|banco)\b"
+                        r"\b(database|sql|query|banco)\b",
                     ],
                     "subcategories": {
                         "bug": ["bug", "erro", "error", "issue", "falha", "problem"],
-                        "performance": ["performance", "otimizar", "optimize", "slow", "lento", "latency"],
-                        "development": ["código", "code", "desenvolver", "develop", "implementar", "implement"],
-                        "testing": ["teste", "test", "unit", "integration", "qa"]
-                    }
+                        "performance": [
+                            "performance",
+                            "otimizar",
+                            "optimize",
+                            "slow",
+                            "lento",
+                            "latency",
+                        ],
+                        "development": [
+                            "código",
+                            "code",
+                            "desenvolver",
+                            "develop",
+                            "implementar",
+                            "implement",
+                        ],
+                        "testing": ["teste", "test", "unit", "integration", "qa"],
+                    },
                 },
                 "INFRASTRUCTURE": {
                     "keywords": [
                         # Portuguese
-                        "deploy", "deployment", "servidor", "server", "kubernetes", "k8s", "docker",
-                        "container", "pod", "cluster", "node", "infra", "infraestrutura", "devops",
-                        "pipeline", "helm", "terraform", "ansible",
+                        "deploy",
+                        "deployment",
+                        "servidor",
+                        "server",
+                        "kubernetes",
+                        "k8s",
+                        "docker",
+                        "container",
+                        "pod",
+                        "cluster",
+                        "node",
+                        "infra",
+                        "infraestrutura",
+                        "devops",
+                        "pipeline",
+                        "helm",
+                        "terraform",
+                        "ansible",
                         # English
-                        "infrastructure", "orchestration", "provisioning", "scaling", "monitoring", "ci/cd"
+                        "infrastructure",
+                        "orchestration",
+                        "provisioning",
+                        "scaling",
+                        "monitoring",
+                        "ci/cd",
                     ],
                     "patterns": [
                         r"\b(deploy|deployment|release)\b",
                         r"\b(servidor|server|host|vm)\b",
                         r"\b(kubernetes|k8s|docker|container)\b",
                         r"\b(infra|infrastructure|devops)\b",
-                        r"\b(ci/cd|pipeline|automation)\b"
+                        r"\b(ci/cd|pipeline|automation)\b",
                     ],
                     "subcategories": {
                         "deployment": ["deploy", "deployment", "release", "rollout"],
-                        "containers": ["docker", "kubernetes", "k8s", "container", "pod"],
+                        "containers": [
+                            "docker",
+                            "kubernetes",
+                            "k8s",
+                            "container",
+                            "pod",
+                        ],
                         "servers": ["servidor", "server", "host", "vm", "node"],
-                        "automation": ["ci/cd", "pipeline", "terraform", "ansible", "automation"]
-                    }
+                        "automation": [
+                            "ci/cd",
+                            "pipeline",
+                            "terraform",
+                            "ansible",
+                            "automation",
+                        ],
+                    },
                 },
                 "SECURITY": {
                     "keywords": [
                         # Portuguese
-                        "segurança", "security", "autenticação", "authentication", "autorização",
-                        "authorization", "permissão", "permission", "acesso", "access", "token", "jwt",
-                        "oauth", "saml", "ssl", "tls", "criptografia", "encryption", "vulnerabilidade",
-                        "vulnerability", "firewall", "iam",
+                        "segurança",
+                        "security",
+                        "autenticação",
+                        "authentication",
+                        "autorização",
+                        "authorization",
+                        "permissão",
+                        "permission",
+                        "acesso",
+                        "access",
+                        "token",
+                        "jwt",
+                        "oauth",
+                        "saml",
+                        "ssl",
+                        "tls",
+                        "criptografia",
+                        "encryption",
+                        "vulnerabilidade",
+                        "vulnerability",
+                        "firewall",
+                        "iam",
                         # English
-                        "auth", "login", "credential", "certificate", "key"
+                        "auth",
+                        "login",
+                        "credential",
+                        "certificate",
+                        "key",
                     ],
                     "patterns": [
                         r"\b(segurança|security|secure)\b",
                         r"\b(autenticação|authentication|auth|login)\b",
                         r"\b(autorização|authorization|permission|acesso)\b",
                         r"\b(criptografia|encryption|crypto|ssl|tls)\b",
-                        r"\b(vulnerabilidade|vulnerability|exploit|cve)\b"
+                        r"\b(vulnerabilidade|vulnerability|exploit|cve)\b",
                     ],
                     "subcategories": {
-                        "authentication": ["autenticação", "authentication", "login", "auth", "credential"],
-                        "authorization": ["autorização", "authorization", "permission", "acesso", "access", "iam"],
-                        "encryption": ["criptografia", "encryption", "ssl", "tls", "certificate", "key"],
-                        "security": ["segurança", "security", "vulnerabilidade", "vulnerability", "firewall"]
-                    }
-                }
+                        "authentication": [
+                            "autenticação",
+                            "authentication",
+                            "login",
+                            "auth",
+                            "credential",
+                        ],
+                        "authorization": [
+                            "autorização",
+                            "authorization",
+                            "permission",
+                            "acesso",
+                            "access",
+                            "iam",
+                        ],
+                        "encryption": [
+                            "criptografia",
+                            "encryption",
+                            "ssl",
+                            "tls",
+                            "certificate",
+                            "key",
+                        ],
+                        "security": [
+                            "segurança",
+                            "security",
+                            "vulnerabilidade",
+                            "vulnerability",
+                            "firewall",
+                        ],
+                    },
+                },
             },
             "quality_thresholds": {
                 "min_text_length": 3,
@@ -372,15 +579,15 @@ class NLUPipeline:
                 "spam_patterns": [
                     r"^(.)\1{10,}$",  # Caracteres repetidos
                     r"^\d+$",  # Apenas números
-                    r"^[!@#$%^&*()]+$"  # Apenas símbolos
-                ]
+                    r"^[!@#$%^&*()]+$",  # Apenas símbolos
+                ],
             },
             "confidence_boosters": {
                 "text_length_boost": {"threshold": 50, "boost": 0.05},
                 "entity_presence_boost": {"threshold": 2, "boost": 0.05},
                 "multiple_subcategories_boost": {"threshold": 2, "boost": 0.05},
-                "context_role_match_boost": {"boost": 0.10}
-            }
+                "context_role_match_boost": {"boost": 0.10},
+            },
         }
 
     def _load_model_from_cache(self, model_name: str):
@@ -392,13 +599,16 @@ class NLUPipeline:
             logger.info(f"Carregando modelo do cache: {model_path}")
             # Adicionar o diretório de cache ao sys.path temporariamente
             import sys
+
             cache_str = str(self.model_cache_dir)
             if cache_str not in sys.path:
                 sys.path.insert(0, cache_str)
             try:
                 return spacy.load(str(model_path))
             except Exception as e:
-                logger.warning(f"Falha ao carregar do cache {model_path}, tentando instalação padrão: {e}")
+                logger.warning(
+                    f"Falha ao carregar do cache {model_path}, tentando instalação padrão: {e}"
+                )
 
         # Fallback para instalação padrão do spaCy
         logger.info(f"Carregando modelo da instalação padrão: {model_name}")
@@ -407,7 +617,9 @@ class NLUPipeline:
     def is_ready(self) -> bool:
         return self._ready and self.nlp is not None
 
-    async def process(self, text: str, language: str = "pt-AO", context: Dict[str, Any] = None) -> NLUResult:
+    async def process(
+        self, text: str, language: str = "pt-AO", context: Dict[str, Any] = None
+    ) -> NLUResult:
         """Processar texto para extrair intenção com cache e detecção de idioma
 
         Registra métricas de duração do processamento NLU e violações de SLO (>200ms).
@@ -417,16 +629,21 @@ class NLUPipeline:
 
         # Registrar início do processamento NLU para métricas
         import time
+
         nlu_start_time = time.time()
 
-        span_context = tracer.start_as_current_span("nlu.process") if tracer else nullcontext()
+        span_context = (
+            tracer.start_as_current_span("nlu.process") if tracer else nullcontext()
+        )
         with span_context as span:
             if span:
                 span.set_attribute("neural.hive.component", "gateway")
                 span.set_attribute("neural.hive.layer", "experiencia")
                 span.set_attribute("neural.hive.nlu.language", language)
                 span.set_attribute("neural.hive.nlu.text_length", len(text))
-                span.set_attribute("neural.hive.nlu.cache_enabled", self.settings.nlu_cache_enabled)
+                span.set_attribute(
+                    "neural.hive.nlu.cache_enabled", self.settings.nlu_cache_enabled
+                )
 
             # Validar qualidade do texto
             if not self._validate_text_quality(text):
@@ -442,8 +659,12 @@ class NLUPipeline:
                 if cached_result:
                     if span:
                         span.set_attribute("neural.hive.nlu.cache_hit", True)
-                        span.set_attribute("neural.hive.nlu.domain", cached_result.domain.value)
-                        span.set_attribute("neural.hive.nlu.confidence", cached_result.confidence)
+                        span.set_attribute(
+                            "neural.hive.nlu.domain", cached_result.domain.value
+                        )
+                        span.set_attribute(
+                            "neural.hive.nlu.confidence", cached_result.confidence
+                        )
                     logger.debug(f"Resultado NLU obtido do cache: {cache_key}")
                     return cached_result
                 if span:
@@ -452,7 +673,9 @@ class NLUPipeline:
             # Detectar idioma automaticamente se não especificado claramente
             detected_language = await self._detect_language(text, language)
             if span:
-                span.set_attribute("neural.hive.nlu.detected_language", detected_language)
+                span.set_attribute(
+                    "neural.hive.nlu.detected_language", detected_language
+                )
 
             # Selecionar modelo apropriado para o idioma
             nlp_model = self._get_model_for_language(detected_language)
@@ -467,41 +690,69 @@ class NLUPipeline:
             processed_text = self._mask_pii(text)
 
             # Extrair entidades
-            entities_context = tracer.start_as_current_span("nlu.extract_entities") if tracer else nullcontext()
+            entities_context = (
+                tracer.start_as_current_span("nlu.extract_entities")
+                if tracer
+                else nullcontext()
+            )
             with entities_context as entities_span:
                 entities = self._extract_entities(doc)
                 if entities_span:
-                    entities_span.set_attribute("neural.hive.nlu.entities_count", len(entities))
+                    entities_span.set_attribute(
+                        "neural.hive.nlu.entities_count", len(entities)
+                    )
                     if entities:
                         entities_span.set_attribute(
                             "neural.hive.nlu.entity_types",
-                            ", ".join(set(e.type for e in entities))
+                            ", ".join(set(e.type for e in entities)),
                         )
 
             # Classificar domínio e intenção usando regras configuráveis
-            classify_context = tracer.start_as_current_span("nlu.classify_intent") if tracer else nullcontext()
+            classify_context = (
+                tracer.start_as_current_span("nlu.classify_intent")
+                if tracer
+                else nullcontext()
+            )
             with classify_context as classify_span:
-                domain, classification, confidence = await self._classify_intent_advanced(
+                (
+                    domain,
+                    classification,
+                    confidence,
+                ) = await self._classify_intent_advanced(
                     text, entities, detected_language, context
                 )
                 if classify_span:
                     classify_span.set_attribute("neural.hive.nlu.domain", domain.value)
-                    classify_span.set_attribute("neural.hive.nlu.classification", classification)
-                    classify_span.set_attribute("neural.hive.nlu.confidence", confidence)
+                    classify_span.set_attribute(
+                        "neural.hive.nlu.classification", classification
+                    )
+                    classify_span.set_attribute(
+                        "neural.hive.nlu.confidence", confidence
+                    )
 
             # Extrair palavras-chave
-            keywords_context = tracer.start_as_current_span("nlu.extract_keywords") if tracer else nullcontext()
+            keywords_context = (
+                tracer.start_as_current_span("nlu.extract_keywords")
+                if tracer
+                else nullcontext()
+            )
             with keywords_context as keywords_span:
                 keywords = self._extract_keywords(doc)
                 if keywords_span:
-                    keywords_span.set_attribute("neural.hive.nlu.keywords_count", len(keywords))
+                    keywords_span.set_attribute(
+                        "neural.hive.nlu.keywords_count", len(keywords)
+                    )
 
             # Calcular threshold adaptativo se habilitado
             adaptive_threshold = self.confidence_threshold
             if self.settings.nlu_adaptive_threshold_enabled:
-                adaptive_threshold = self._calculate_adaptive_threshold(text, context, confidence, entities)
+                adaptive_threshold = self._calculate_adaptive_threshold(
+                    text, context, confidence, entities
+                )
                 if span:
-                    span.set_attribute("neural.hive.nlu.adaptive_threshold", adaptive_threshold)
+                    span.set_attribute(
+                        "neural.hive.nlu.adaptive_threshold", adaptive_threshold
+                    )
 
             # Store adaptive threshold for routing decisions
             self.last_adaptive_threshold = adaptive_threshold
@@ -515,8 +766,13 @@ class NLUPipeline:
                 confidence_status = "low"
 
             if span:
-                span.set_attribute("neural.hive.nlu.confidence_status", confidence_status)
-                span.set_attribute("neural.hive.nlu.requires_validation", confidence < adaptive_threshold)
+                span.set_attribute(
+                    "neural.hive.nlu.confidence_status", confidence_status
+                )
+                span.set_attribute(
+                    "neural.hive.nlu.requires_validation",
+                    confidence < adaptive_threshold,
+                )
 
             # Criar resultado
             result = NLUResult(
@@ -528,7 +784,7 @@ class NLUPipeline:
                 keywords=keywords,
                 requires_manual_validation=confidence < adaptive_threshold,
                 confidence_status=confidence_status,
-                adaptive_threshold=adaptive_threshold
+                adaptive_threshold=adaptive_threshold,
             )
 
             # Salvar no cache se habilitado
@@ -618,13 +874,14 @@ class NLUPipeline:
         try:
             # Usar timeout curto para evitar bloqueio (5ms)
             cached_data = await asyncio.wait_for(
-                self.redis_client.get(cache_key),
-                timeout=0.005  # 5ms timeout
+                self.redis_client.get(cache_key), timeout=0.005  # 5ms timeout
             )
             if cached_data:
                 # Emitir métrica de cache HIT
                 if CACHE_METRICS_AVAILABLE:
-                    nlu_cache_operations_total.labels(operation="get", status="hit").inc()
+                    nlu_cache_operations_total.labels(
+                        operation="get", status="hit"
+                    ).inc()
                 # Validar tipo antes de deserializar
                 if isinstance(cached_data, dict):
                     # Dados já são dict, usar diretamente
@@ -632,7 +889,9 @@ class NLUPipeline:
                     # Validar schema_version - rejeitar entries de versões antigas
                     schema_version = data.get("schema_version", "v1")
                     if schema_version != "v2":
-                        logger.info(f"Cache entry com schema_version={schema_version} detectado, invalidando para migração")
+                        logger.info(
+                            f"Cache entry com schema_version={schema_version} detectado, invalidando para migração"
+                        )
                         await self.redis_client.delete(cache_key)
                         return None
                 elif isinstance(cached_data, (str, bytes)):
@@ -645,7 +904,7 @@ class NLUPipeline:
                             f"Cache entry corrompido (JSON inválido): key={cache_key[:50]}..., error={je}"
                         )
                         if CACHE_METRICS_AVAILABLE:
-                            nlu_cache_corruption_total.labels(reason='json_error').inc()
+                            nlu_cache_corruption_total.labels(reason="json_error").inc()
                         # Invalidar cache entry corrompido
                         await self.redis_client.delete(cache_key)
                         return None
@@ -658,7 +917,7 @@ class NLUPipeline:
                     await self.redis_client.delete(cache_key)
                     # Registrar métrica de corrupção
                     if CACHE_METRICS_AVAILABLE:
-                        nlu_cache_corruption_total.labels(reason='invalid_type').inc()
+                        nlu_cache_corruption_total.labels(reason="invalid_type").inc()
                     return None
                 # Migração defensiva: adicionar confidence_status se não existir
                 if "confidence_status" not in data:
@@ -709,30 +968,46 @@ class NLUPipeline:
                 "domain": result.domain.value,
                 "classification": result.classification,
                 "confidence": result.confidence,
-                "entities": [{"type": e.type, "value": e.value, "confidence": e.confidence, "start": e.start, "end": e.end} for e in result.entities],
+                "entities": [
+                    {
+                        "type": e.type,
+                        "value": e.value,
+                        "confidence": e.confidence,
+                        "start": e.start,
+                        "end": e.end,
+                    }
+                    for e in result.entities
+                ],
                 "keywords": result.keywords,
                 "requires_manual_validation": result.requires_manual_validation,
                 "confidence_status": result.confidence_status,
-                "adaptive_threshold": result.adaptive_threshold
+                "adaptive_threshold": result.adaptive_threshold,
             }
 
             # Validar estrutura antes de salvar
-            required_fields = ["schema_version", "processed_text", "domain", "classification", "confidence", "confidence_status"]
+            required_fields = [
+                "schema_version",
+                "processed_text",
+                "domain",
+                "classification",
+                "confidence",
+                "confidence_status",
+            ]
             for field in required_fields:
                 if field not in data:
                     logger.error(f"Campo obrigatório faltando no cache NLU: {field}")
                     if CACHE_METRICS_AVAILABLE:
-                        nlu_cache_corruption_total.labels(reason='missing_field').inc()
+                        nlu_cache_corruption_total.labels(reason="missing_field").inc()
                     return
 
             await self.redis_client.set(
-                cache_key,
-                json.dumps(data),
-                ttl=self.settings.nlu_cache_ttl_seconds
+                cache_key, json.dumps(data), ttl=self.settings.nlu_cache_ttl_seconds
             )
             # Emitir métrica de cache SET success
             if CACHE_METRICS_AVAILABLE:
-                nlu_cache_operations_total.labels(operation="set", status="success").inc()
+                nlu_cache_operations_total.labels(
+                    operation="set", status="success"
+                ).inc()
         except Exception as e:
             logger.error(f"Erro salvando no cache NLU: {e}")
             # Emitir métrica de cache SET error
@@ -751,7 +1026,7 @@ class NLUPipeline:
             doc = self.nlp(text[:200])  # Usar apenas primeiros 200 caracteres
 
             # Estratégia simples: verificar proporção de palavras reconhecidas
-            if hasattr(doc, 'lang_'):
+            if hasattr(doc, "lang_"):
                 detected = doc.lang_
                 if detected in self.supported_models:
                     return detected
@@ -759,7 +1034,7 @@ class NLUPipeline:
             logger.warning(f"Erro na detecção de idioma: {e}")
 
         # Fallback para português
-        return 'pt'
+        return "pt"
 
     def _get_model_for_language(self, language: str):
         """Obter modelo spaCy apropriado para o idioma"""
@@ -772,7 +1047,7 @@ class NLUPipeline:
     def _normalize_text(self, text: str) -> str:
         """Normalizar texto para processamento"""
         # Remover espaços extras
-        text = re.sub(r'\s+', ' ', text.strip())
+        text = re.sub(r"\s+", " ", text.strip())
 
         # Converter para lowercase para análise
         # (manter original para preservar informações de contexto)
@@ -781,27 +1056,33 @@ class NLUPipeline:
     def _mask_pii(self, text: str) -> str:
         """Mascarar informações pessoais"""
         # Email
-        text = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[EMAIL]', text)
+        text = re.sub(
+            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", "[EMAIL]", text
+        )
         # CPF
-        text = re.sub(r'\b\d{3}\.\d{3}\.\d{3}-\d{2}\b', '[CPF]', text)
+        text = re.sub(r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b", "[CPF]", text)
         # Telefone
-        text = re.sub(r'\b\d{2}\s?\d{4,5}-?\d{4}\b', '[PHONE]', text)
+        text = re.sub(r"\b\d{2}\s?\d{4,5}-?\d{4}\b", "[PHONE]", text)
         return text
 
     def _extract_entities(self, doc) -> List[Entity]:
         """Extrair entidades nomeadas"""
         entities = []
         for ent in doc.ents:
-            entities.append(Entity(
-                type=ent.label_,
-                value=ent.text,
-                confidence=0.8,  # Valor padrão
-                start=ent.start_char,
-                end=ent.end_char
-            ))
+            entities.append(
+                Entity(
+                    type=ent.label_,
+                    value=ent.text,
+                    confidence=0.8,  # Valor padrão
+                    start=ent.start_char,
+                    end=ent.end_char,
+                )
+            )
         return entities
 
-    async def _classify_intent_advanced(self, text: str, entities: List[Entity], language: str, context: Dict[str, Any]) -> tuple:
+    async def _classify_intent_advanced(
+        self, text: str, entities: List[Entity], language: str, context: Dict[str, Any]
+    ) -> tuple:
         """Classificar domínio e tipo de intenção usando regras configuráveis"""
         text_lower = text.lower()
         text_words = set(text_lower.split())  # Otimização: Converter para set uma vez
@@ -823,7 +1104,9 @@ class NLUPipeline:
 
             # Otimização: Usar patterns pré-compilados
             compiled = self.compiled_patterns.get(domain_name, [])
-            pattern_matches = sum(1 for pattern in compiled if pattern.search(text_lower))
+            pattern_matches = sum(
+                1 for pattern in compiled if pattern.search(text_lower)
+            )
             score += pattern_matches * 3  # Peso ainda maior para patterns
 
             # Verificar subcategories usando keyword sets
@@ -839,10 +1122,10 @@ class NLUPipeline:
 
         # Ajustar scores baseado em entidades
         for entity in entities:
-            if entity.type in ['ORG', 'PRODUCT']:  # Entidades de negócio
-                domain_scores['BUSINESS'] = domain_scores.get('BUSINESS', 0) + 1
-            elif entity.type in ['MISC', 'EVENT']:  # Entidades técnicas
-                domain_scores['TECHNICAL'] = domain_scores.get('TECHNICAL', 0) + 1
+            if entity.type in ["ORG", "PRODUCT"]:  # Entidades de negócio
+                domain_scores["BUSINESS"] = domain_scores.get("BUSINESS", 0) + 1
+            elif entity.type in ["MISC", "EVENT"]:  # Entidades técnicas
+                domain_scores["TECHNICAL"] = domain_scores.get("TECHNICAL", 0) + 1
 
         # Selecionar melhor domínio
         if domain_scores and max(domain_scores.values()) > 0:
@@ -859,7 +1142,9 @@ class NLUPipeline:
             # Boost por tamanho do texto
             text_length_config = confidence_boosters.get("text_length_boost", {})
             if len(text) > text_length_config.get("threshold", 50):
-                confidence = min(0.95, confidence + text_length_config.get("boost", 0.05))
+                confidence = min(
+                    0.95, confidence + text_length_config.get("boost", 0.05)
+                )
 
             # Boost por presença de entidades
             entity_config = confidence_boosters.get("entity_presence_boost", {})
@@ -868,20 +1153,38 @@ class NLUPipeline:
 
             # Boost por múltiplas subcategorias
             subcats = subcategory_scores.get(best_domain_name, [])
-            multi_subcat_config = confidence_boosters.get("multiple_subcategories_boost", {})
+            multi_subcat_config = confidence_boosters.get(
+                "multiple_subcategories_boost", {}
+            )
             if len(subcats) >= multi_subcat_config.get("threshold", 2):
-                confidence = min(0.95, confidence + multi_subcat_config.get("boost", 0.05))
+                confidence = min(
+                    0.95, confidence + multi_subcat_config.get("boost", 0.05)
+                )
 
             # Boost por match de contexto (user role vs domain)
-            if context and context.get('user_role'):
-                user_role = context.get('user_role', '').lower()
-                role_match_config = confidence_boosters.get("context_role_match_boost", {})
+            if context and context.get("user_role"):
+                user_role = context.get("user_role", "").lower()
+                role_match_config = confidence_boosters.get(
+                    "context_role_match_boost", {}
+                )
                 # Verificar se o role corresponde ao domínio
-                if (best_domain_name == 'TECHNICAL' and 'developer' in user_role) or \
-                   (best_domain_name == 'BUSINESS' and any(r in user_role for r in ['manager', 'analyst', 'business'])) or \
-                   (best_domain_name == 'INFRASTRUCTURE' and any(r in user_role for r in ['devops', 'sre', 'admin'])) or \
-                   (best_domain_name == 'SECURITY' and 'security' in user_role):
-                    confidence = min(0.95, confidence + role_match_config.get("boost", 0.10))
+                if (
+                    (best_domain_name == "TECHNICAL" and "developer" in user_role)
+                    or (
+                        best_domain_name == "BUSINESS"
+                        and any(
+                            r in user_role for r in ["manager", "analyst", "business"]
+                        )
+                    )
+                    or (
+                        best_domain_name == "INFRASTRUCTURE"
+                        and any(r in user_role for r in ["devops", "sre", "admin"])
+                    )
+                    or (best_domain_name == "SECURITY" and "security" in user_role)
+                ):
+                    confidence = min(
+                        0.95, confidence + role_match_config.get("boost", 0.10)
+                    )
 
             # Converter nome do domínio para enum (agora UPPERCASE)
             try:
@@ -904,7 +1207,13 @@ class NLUPipeline:
 
         return best_domain, classification, confidence
 
-    def _calculate_adaptive_threshold(self, text: str, context: Dict[str, Any], confidence: float, entities: List[Entity]) -> float:
+    def _calculate_adaptive_threshold(
+        self,
+        text: str,
+        context: Dict[str, Any],
+        confidence: float,
+        entities: List[Entity],
+    ) -> float:
         """Calcular threshold adaptativo baseado em qualidade do texto e contexto"""
         # Começar com threshold base
         threshold = self.confidence_threshold
@@ -927,7 +1236,9 @@ class NLUPipeline:
 
         # Ajuste baseado em contexto rico (presença de informações de contexto)
         if context:
-            context_fields = sum(1 for v in context.values() if v is not None and v != "")
+            context_fields = sum(
+                1 for v in context.values() if v is not None and v != ""
+            )
             if context_fields >= 3:
                 adjustments.append(-0.05)
 
@@ -952,8 +1263,8 @@ class NLUPipeline:
                 "matched_keywords": [],
                 "matched_patterns": [],
                 "entity_influences": [],
-                "text_quality_factors": []
-            }
+                "text_quality_factors": [],
+            },
         }
 
         if domain_name in domains_config:
@@ -971,18 +1282,24 @@ class NLUPipeline:
 
         # Analisar influência das entidades
         for entity in result.entities:
-            explanation["reasoning"]["entity_influences"].append({
-                "type": entity.type,
-                "value": entity.value,
-                "confidence": entity.confidence
-            })
+            explanation["reasoning"]["entity_influences"].append(
+                {
+                    "type": entity.type,
+                    "value": entity.value,
+                    "confidence": entity.confidence,
+                }
+            )
 
         # Fatores de qualidade do texto
         if len(text) < 20:
-            explanation["reasoning"]["text_quality_factors"].append("Texto curto pode reduzir precisão")
+            explanation["reasoning"]["text_quality_factors"].append(
+                "Texto curto pode reduzir precisão"
+            )
 
         if result.confidence < 0.5:
-            explanation["reasoning"]["text_quality_factors"].append("Baixa confidence - classificação incerta")
+            explanation["reasoning"]["text_quality_factors"].append(
+                "Baixa confidence - classificação incerta"
+            )
 
         return explanation
 
@@ -994,10 +1311,12 @@ class NLUPipeline:
         """
         keywords = []
         for token in doc:
-            if (not token.is_stop and
-                not token.is_punct and
-                token.pos_ in ['NOUN', 'VERB', 'ADJ'] and
-                len(token.text) > 2):
+            if (
+                not token.is_stop
+                and not token.is_punct
+                and token.pos_ in ["NOUN", "VERB", "ADJ"]
+                and len(token.text) > 2
+            ):
                 keywords.append(token.lemma_.lower())
         return list(set(keywords))[:5]  # Otimização: Reduzido de 10 para 5 keywords
 

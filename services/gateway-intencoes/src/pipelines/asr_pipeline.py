@@ -17,9 +17,11 @@ from config.settings import get_settings
 logger = logging.getLogger(__name__)
 try:
     from neural_hive_observability import get_tracer
+
     tracer = get_tracer()
 except ImportError:
     tracer = None
+
 
 class ASRPipeline:
     def __init__(self, model_name: str = None, device: str = None):
@@ -33,8 +35,8 @@ class ASRPipeline:
         self.lazy_loading = self.settings.asr_lazy_loading
         self.model_cache_dir = Path(self.settings.asr_model_cache_dir)
         self.model_cache_dir.mkdir(parents=True, exist_ok=True)
-        self.supported_formats = {'.wav', '.mp3', '.m4a', '.ogg', '.flac'}
-        self.fallback_models = ['tiny', 'base', 'small']  # Fallback hierarchy
+        self.supported_formats = {".wav", ".mp3", ".m4a", ".ogg", ".flac"}
+        self.fallback_models = ["tiny", "base", "small"]  # Fallback hierarchy
         self.concurrent_jobs = 0
         self.max_concurrent_jobs = self.settings.asr_max_concurrent_jobs
 
@@ -43,12 +45,18 @@ class ASRPipeline:
         try:
             if self.lazy_loading:
                 # Apenas validar que diretório de cache existe e está acessível
-                logger.info(f"Lazy loading habilitado - modelo {self.model_name} será carregado sob demanda")
+                logger.info(
+                    f"Lazy loading habilitado - modelo {self.model_name} será carregado sob demanda"
+                )
                 if not self.model_cache_dir.exists():
-                    logger.warning(f"Diretório de cache {self.model_cache_dir} não existe, criando...")
+                    logger.warning(
+                        f"Diretório de cache {self.model_cache_dir} não existe, criando..."
+                    )
                     self.model_cache_dir.mkdir(parents=True, exist_ok=True)
                 self._ready = True
-                logger.info(f"Pipeline ASR inicializado com lazy loading para modelo {self.model_name}")
+                logger.info(
+                    f"Pipeline ASR inicializado com lazy loading para modelo {self.model_name}"
+                )
             else:
                 # Carregar modelo imediatamente
                 logger.info(f"Carregando modelo Whisper: {self.model_name}")
@@ -67,12 +75,16 @@ class ASRPipeline:
             model_cache_path = self.model_cache_dir / f"{model_name}.pt"
 
             if model_cache_path.exists():
-                logger.info(f"Modelo encontrado no cache do volume persistente: {model_cache_path}")
+                logger.info(
+                    f"Modelo encontrado no cache do volume persistente: {model_cache_path}"
+                )
             else:
-                logger.info(f"Modelo não encontrado no cache, será baixado para {self.model_cache_dir}")
+                logger.info(
+                    f"Modelo não encontrado no cache, será baixado para {self.model_cache_dir}"
+                )
 
             # Configurar diretório de cache do Whisper para usar volume persistente
-            os.environ['XDG_CACHE_HOME'] = str(self.model_cache_dir.parent)
+            os.environ["XDG_CACHE_HOME"] = str(self.model_cache_dir.parent)
 
             # whisper.load_model baixa e faz cache automaticamente
             return await asyncio.get_event_loop().run_in_executor(
@@ -125,7 +137,9 @@ class ASRPipeline:
             try:
                 logger.info(f"Carregando modelo sob demanda: {self.model_name}")
                 self.model = await self._load_model_with_cache(self.model_name)
-                logger.info(f"Modelo {self.model_name} carregado sob demanda com sucesso")
+                logger.info(
+                    f"Modelo {self.model_name} carregado sob demanda com sucesso"
+                )
             except Exception as e:
                 logger.error(f"Erro carregando modelo sob demanda: {e}")
                 await self._try_fallback_models()
@@ -145,7 +159,7 @@ class ASRPipeline:
             "duration": 0,
             "sample_rate": 0,
             "channels": 0,
-            "issues": []
+            "issues": [],
         }
 
         try:
@@ -156,33 +170,58 @@ class ASRPipeline:
 
             try:
                 # Tentar detectar formato usando ffprobe
-                result = subprocess.run([
-                    'ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams', temp_path
-                ], capture_output=True, text=True, timeout=10)
+                result = subprocess.run(
+                    [
+                        "ffprobe",
+                        "-v",
+                        "quiet",
+                        "-print_format",
+                        "json",
+                        "-show_format",
+                        "-show_streams",
+                        temp_path,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
 
                 if result.returncode == 0:
                     import json
+
                     metadata = json.loads(result.stdout)
 
-                    if 'streams' in metadata and len(metadata['streams']) > 0:
-                        audio_stream = metadata['streams'][0]
+                    if "streams" in metadata and len(metadata["streams"]) > 0:
+                        audio_stream = metadata["streams"][0]
 
-                        validation_result.update({
-                            "format": metadata['format'].get('format_name', 'unknown'),
-                            "duration": float(metadata['format'].get('duration', 0)),
-                            "sample_rate": int(audio_stream.get('sample_rate', 0)),
-                            "channels": int(audio_stream.get('channels', 0))
-                        })
+                        validation_result.update(
+                            {
+                                "format": metadata["format"].get(
+                                    "format_name", "unknown"
+                                ),
+                                "duration": float(
+                                    metadata["format"].get("duration", 0)
+                                ),
+                                "sample_rate": int(audio_stream.get("sample_rate", 0)),
+                                "channels": int(audio_stream.get("channels", 0)),
+                            }
+                        )
 
                         # Validações
                         if validation_result["duration"] < 0.1:
-                            validation_result["issues"].append("Áudio muito curto (< 0.1s)")
+                            validation_result["issues"].append(
+                                "Áudio muito curto (< 0.1s)"
+                            )
 
                         if validation_result["duration"] > 300:  # 5 minutos
-                            validation_result["issues"].append("Áudio muito longo (> 5min)")
+                            validation_result["issues"].append(
+                                "Áudio muito longo (> 5min)"
+                            )
 
                         if validation_result["sample_rate"] < 8000:
-                            validation_result["issues"].append("Taxa de amostragem muito baixa")
+                            validation_result["issues"].append(
+                                "Taxa de amostragem muito baixa"
+                            )
 
                         if len(audio_data) > 50 * 1024 * 1024:  # 50MB
                             validation_result["issues"].append("Arquivo muito grande")
@@ -192,7 +231,9 @@ class ASRPipeline:
 
                 else:
                     validation_result["valid"] = False
-                    validation_result["issues"].append("Formato de áudio não reconhecido")
+                    validation_result["issues"].append(
+                        "Formato de áudio não reconhecido"
+                    )
 
             finally:
                 os.unlink(temp_path)
@@ -206,7 +247,9 @@ class ASRPipeline:
 
         return validation_result
 
-    async def _convert_audio_format(self, audio_data: bytes, target_format: str = "wav") -> bytes:
+    async def _convert_audio_format(
+        self, audio_data: bytes, target_format: str = "wav"
+    ) -> bytes:
         """Converter áudio para formato suportado usando ffmpeg"""
         with tempfile.NamedTemporaryFile(suffix=".input", delete=False) as input_file:
             input_file.write(audio_data)
@@ -217,19 +260,37 @@ class ASRPipeline:
         try:
             # Converter usando ffmpeg
             result = await asyncio.get_event_loop().run_in_executor(
-                None, subprocess.run, [
-                    'ffmpeg', '-i', input_path, '-ar', '16000', '-ac', '1', '-f', target_format, output_path, '-y'
-                ], subprocess.DEVNULL, subprocess.DEVNULL
+                None,
+                subprocess.run,
+                [
+                    "ffmpeg",
+                    "-i",
+                    input_path,
+                    "-ar",
+                    "16000",
+                    "-ac",
+                    "1",
+                    "-f",
+                    target_format,
+                    output_path,
+                    "-y",
+                ],
+                subprocess.DEVNULL,
+                subprocess.DEVNULL,
             )
 
             if result.returncode != 0:
-                raise RuntimeError(f"Erro na conversão de áudio: código {result.returncode}")
+                raise RuntimeError(
+                    f"Erro na conversão de áudio: código {result.returncode}"
+                )
 
             # Ler áudio convertido
-            with open(output_path, 'rb') as f:
+            with open(output_path, "rb") as f:
                 converted_data = f.read()
 
-            logger.info(f"Áudio convertido para {target_format}: {len(audio_data)} -> {len(converted_data)} bytes")
+            logger.info(
+                f"Áudio convertido para {target_format}: {len(audio_data)} -> {len(converted_data)} bytes"
+            )
             return converted_data
 
         finally:
@@ -245,8 +306,25 @@ class ASRPipeline:
 
         # Lista de idiomas suportados pelo Whisper
         return [
-            'pt', 'en', 'es', 'fr', 'de', 'it', 'ja', 'ko', 'zh', 'ru',
-            'ar', 'hi', 'tr', 'pl', 'nl', 'sv', 'da', 'no', 'fi'
+            "pt",
+            "en",
+            "es",
+            "fr",
+            "de",
+            "it",
+            "ja",
+            "ko",
+            "zh",
+            "ru",
+            "ar",
+            "hi",
+            "tr",
+            "pl",
+            "nl",
+            "sv",
+            "da",
+            "no",
+            "fi",
         ]
 
     async def process(self, audio_data: bytes, language: str = "pt") -> ASRResult:
@@ -259,79 +337,141 @@ class ASRPipeline:
 
         # Verificar limite de jobs concorrentes
         if self.concurrent_jobs >= self.max_concurrent_jobs:
-            raise RuntimeError(f"Limite de jobs concorrentes atingido: {self.max_concurrent_jobs}")
+            raise RuntimeError(
+                f"Limite de jobs concorrentes atingido: {self.max_concurrent_jobs}"
+            )
 
         try:
             self.concurrent_jobs += 1
-            span_context = tracer.start_as_current_span("asr.process") if tracer else nullcontext()
+            span_context = (
+                tracer.start_as_current_span("asr.process") if tracer else nullcontext()
+            )
             with span_context as span:
                 if span:
                     span.set_attribute("neural.hive.component", "gateway")
                     span.set_attribute("neural.hive.layer", "experiencia")
                     span.set_attribute("neural.hive.asr.language", language)
-                    span.set_attribute("neural.hive.asr.audio_size_bytes", len(audio_data))
+                    span.set_attribute(
+                        "neural.hive.asr.audio_size_bytes", len(audio_data)
+                    )
 
-                validation_context = tracer.start_as_current_span("asr.validate_audio") if tracer else nullcontext()
+                validation_context = (
+                    tracer.start_as_current_span("asr.validate_audio")
+                    if tracer
+                    else nullcontext()
+                )
                 with validation_context as validate_span:
                     validation = self._validate_audio(audio_data)
                     if validate_span:
-                        validate_span.set_attribute("neural.hive.asr.format", validation["format"])
-                        validate_span.set_attribute("neural.hive.asr.duration_seconds", validation["duration"])
-                        validate_span.set_attribute("neural.hive.asr.valid", validation["valid"])
+                        validate_span.set_attribute(
+                            "neural.hive.asr.format", validation["format"]
+                        )
+                        validate_span.set_attribute(
+                            "neural.hive.asr.duration_seconds", validation["duration"]
+                        )
+                        validate_span.set_attribute(
+                            "neural.hive.asr.valid", validation["valid"]
+                        )
                         if validation.get("issues"):
-                            validate_span.set_attribute("neural.hive.asr.issues", ", ".join(validation["issues"]))
+                            validate_span.set_attribute(
+                                "neural.hive.asr.issues",
+                                ", ".join(validation["issues"]),
+                            )
                     if not validation["valid"]:
-                        raise ValueError(f"Áudio inválido: {', '.join(validation['issues'])}")
+                        raise ValueError(
+                            f"Áudio inválido: {', '.join(validation['issues'])}"
+                        )
 
-                logger.info(f"Áudio validado: {validation['format']}, {validation['duration']:.2f}s")
+                logger.info(
+                    f"Áudio validado: {validation['format']}, {validation['duration']:.2f}s"
+                )
 
                 # Verificar se precisa converter formato
                 processed_audio = audio_data
                 if validation["format"] not in ["wav", "wave"]:
                     logger.info(f"Convertendo áudio de {validation['format']} para WAV")
-                    convert_context = tracer.start_as_current_span("asr.convert_audio") if tracer else nullcontext()
+                    convert_context = (
+                        tracer.start_as_current_span("asr.convert_audio")
+                        if tracer
+                        else nullcontext()
+                    )
                     with convert_context as convert_span:
                         if convert_span:
-                            convert_span.set_attribute("neural.hive.asr.source_format", validation["format"])
-                            convert_span.set_attribute("neural.hive.asr.target_format", "wav")
-                        processed_audio = await self._convert_audio_format(audio_data, "wav")
+                            convert_span.set_attribute(
+                                "neural.hive.asr.source_format", validation["format"]
+                            )
+                            convert_span.set_attribute(
+                                "neural.hive.asr.target_format", "wav"
+                            )
+                        processed_audio = await self._convert_audio_format(
+                            audio_data, "wav"
+                        )
                         if convert_span:
-                            convert_span.set_attribute("neural.hive.asr.converted_size_bytes", len(processed_audio))
+                            convert_span.set_attribute(
+                                "neural.hive.asr.converted_size_bytes",
+                                len(processed_audio),
+                            )
 
                 # Calcular timeout baseado na duração do áudio
-                audio_duration = validation.get("duration", 60)  # Default 60s se não detectado
-                timeout = max(self.settings.asr_timeout_seconds, int(audio_duration * 3))  # 3x a duração
+                audio_duration = validation.get(
+                    "duration", 60
+                )  # Default 60s se não detectado
+                timeout = max(
+                    self.settings.asr_timeout_seconds, int(audio_duration * 3)
+                )  # 3x a duração
 
                 # Salvar áudio temporariamente
-                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+                with tempfile.NamedTemporaryFile(
+                    suffix=".wav", delete=False
+                ) as temp_file:
                     temp_file.write(processed_audio)
                     temp_path = temp_file.name
 
                 try:
                     # Executar Whisper em thread separada com timeout
-                    transcribe_context = tracer.start_as_current_span("asr.transcribe") if tracer else nullcontext()
+                    transcribe_context = (
+                        tracer.start_as_current_span("asr.transcribe")
+                        if tracer
+                        else nullcontext()
+                    )
                     with transcribe_context as transcribe_span:
                         if transcribe_span:
-                            transcribe_span.set_attribute("neural.hive.asr.model", self.model_name)
-                            transcribe_span.set_attribute("neural.hive.asr.device", self.device)
+                            transcribe_span.set_attribute(
+                                "neural.hive.asr.model", self.model_name
+                            )
+                            transcribe_span.set_attribute(
+                                "neural.hive.asr.device", self.device
+                            )
                         result = await asyncio.wait_for(
                             asyncio.get_event_loop().run_in_executor(
                                 None, self._transcribe, temp_path, language, validation
                             ),
-                            timeout=timeout
+                            timeout=timeout,
                         )
                         if transcribe_span:
-                            transcribe_span.set_attribute("neural.hive.asr.text_length", len(result.text))
-                            transcribe_span.set_attribute("neural.hive.asr.confidence", result.confidence)
-                            transcribe_span.set_attribute("neural.hive.asr.detected_language", result.language)
+                            transcribe_span.set_attribute(
+                                "neural.hive.asr.text_length", len(result.text)
+                            )
+                            transcribe_span.set_attribute(
+                                "neural.hive.asr.confidence", result.confidence
+                            )
+                            transcribe_span.set_attribute(
+                                "neural.hive.asr.detected_language", result.language
+                            )
                         if span:
-                            span.set_attribute("neural.hive.asr.result.confidence", result.confidence)
-                            span.set_attribute("neural.hive.asr.result.text_length", len(result.text))
+                            span.set_attribute(
+                                "neural.hive.asr.result.confidence", result.confidence
+                            )
+                            span.set_attribute(
+                                "neural.hive.asr.result.text_length", len(result.text)
+                            )
                         return result
 
                 except asyncio.TimeoutError:
                     logger.error(f"Timeout na transcrição após {timeout}s")
-                    raise RuntimeError(f"Timeout na transcrição do áudio (limite: {timeout}s)")
+                    raise RuntimeError(
+                        f"Timeout na transcrição do áudio (limite: {timeout}s)"
+                    )
 
                 finally:
                     if os.path.exists(temp_path):
@@ -340,7 +480,9 @@ class ASRPipeline:
         finally:
             self.concurrent_jobs -= 1
 
-    def _transcribe(self, audio_path: str, language: str, validation: Dict[str, Any]) -> ASRResult:
+    def _transcribe(
+        self, audio_path: str, language: str, validation: Dict[str, Any]
+    ) -> ASRResult:
         """Transcrever áudio usando Whisper com métricas melhoradas"""
         try:
             # Configurar parâmetros do Whisper baseados na validação
@@ -348,17 +490,19 @@ class ASRPipeline:
                 "language": language,
                 "task": "transcribe",
                 "fp16": self.device != "cpu",  # FP16 apenas em GPU
-                "verbose": False
+                "verbose": False,
             }
 
             # Ajustar parâmetros baseados na qualidade do áudio
             if validation.get("sample_rate", 0) < 16000:
                 # Áudio de baixa qualidade - parâmetros mais conservadores
-                whisper_params.update({
-                    "temperature": 0.0,  # Mais determinístico
-                    "compression_ratio_threshold": 2.2,
-                    "logprob_threshold": -0.8
-                })
+                whisper_params.update(
+                    {
+                        "temperature": 0.0,  # Mais determinístico
+                        "compression_ratio_threshold": 2.2,
+                        "logprob_threshold": -0.8,
+                    }
+                )
 
             result = self.model.transcribe(audio_path, **whisper_params)
 
@@ -390,7 +534,9 @@ class ASRPipeline:
                 confidence *= 0.5
 
             if quality_issues:
-                logger.warning(f"Problemas de qualidade na transcrição: {quality_issues}")
+                logger.warning(
+                    f"Problemas de qualidade na transcrição: {quality_issues}"
+                )
 
             logger.info(
                 f"Transcrição concluída: {len(text)} caracteres, "
@@ -401,7 +547,7 @@ class ASRPipeline:
                 text=text,
                 confidence=confidence,
                 language=detected_language,
-                duration=validation.get("duration", 0)
+                duration=validation.get("duration", 0),
             )
 
         except Exception as e:
@@ -417,7 +563,9 @@ class ASRPipeline:
         await self._ensure_model_loaded()
 
         if len(audio_batch) > self.max_concurrent_jobs:
-            raise ValueError(f"Batch muito grande: {len(audio_batch)} > {self.max_concurrent_jobs}")
+            raise ValueError(
+                f"Batch muito grande: {len(audio_batch)} > {self.max_concurrent_jobs}"
+            )
 
         tasks = []
         for audio_data, language in audio_batch:
@@ -434,12 +582,11 @@ class ASRPipeline:
                 if isinstance(result, Exception):
                     logger.error(f"Erro no batch item {i}: {result}")
                     # Criar resultado de erro
-                    final_results.append(ASRResult(
-                        text="",
-                        confidence=0.0,
-                        language="unknown",
-                        duration=0
-                    ))
+                    final_results.append(
+                        ASRResult(
+                            text="", confidence=0.0, language="unknown", duration=0
+                        )
+                    )
                 else:
                     final_results.append(result)
 

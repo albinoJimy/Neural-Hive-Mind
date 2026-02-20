@@ -23,30 +23,27 @@ tracer = trace.get_tracer(__name__)
 
 # Métricas Prometheus
 token_validations_total = Counter(
-    'oauth2_token_validations_total',
-    'Total de validações de token',
-    ['status', 'client_id']
+    "oauth2_token_validations_total",
+    "Total de validações de token",
+    ["status", "client_id"],
 )
 
 token_validation_duration = Histogram(
-    'oauth2_token_validation_duration_seconds',
-    'Duração das validações de token',
-    buckets=(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0)
+    "oauth2_token_validation_duration_seconds",
+    "Duração das validações de token",
+    buckets=(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0),
 )
 
-jwks_cache_hits = Gauge(
-    'oauth2_jwks_cache_hits_total',
-    'Total de hits no cache JWKS'
-)
+jwks_cache_hits = Gauge("oauth2_jwks_cache_hits_total", "Total de hits no cache JWKS")
 
 jwks_cache_misses = Gauge(
-    'oauth2_jwks_cache_misses_total',
-    'Total de misses no cache JWKS'
+    "oauth2_jwks_cache_misses_total", "Total de misses no cache JWKS"
 )
 
 
 class TokenValidationError(Exception):
     """Erro na validação de token"""
+
     pass
 
 
@@ -64,8 +61,11 @@ class JWKSCache:
         now = datetime.now()
 
         # Verificar se cache é válido
-        if (self.jwks and self.last_fetch and
-            (now - self.last_fetch).total_seconds() < self.cache_duration):
+        if (
+            self.jwks
+            and self.last_fetch
+            and (now - self.last_fetch).total_seconds() < self.cache_duration
+        ):
             jwks_cache_hits.inc()
             return self.jwks
 
@@ -76,14 +76,18 @@ class JWKSCache:
             self.http_client = httpx.AsyncClient(timeout=10.0)
 
         try:
-            with tracer.start_as_current_span("jwks_fetch", attributes={"uri": jwks_uri}):
+            with tracer.start_as_current_span(
+                "jwks_fetch", attributes={"uri": jwks_uri}
+            ):
                 response = await self.http_client.get(jwks_uri)
                 response.raise_for_status()
 
                 self.jwks = response.json()
                 self.last_fetch = now
 
-                logger.info(f"JWKS atualizado com {len(self.jwks.get('keys', []))} chaves")
+                logger.info(
+                    f"JWKS atualizado com {len(self.jwks.get('keys', []))} chaves"
+                )
                 return self.jwks
 
         except httpx.HTTPError as e:
@@ -128,16 +132,18 @@ class OAuth2Validator:
         self,
         token: str,
         required_scopes: Optional[List[str]] = None,
-        client_id: Optional[str] = None
+        client_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Validar token JWT completo"""
         start_time = datetime.now()
 
         try:
-            with tracer.start_as_current_span("token_validation", attributes={"client_id": client_id or "unknown"}):
+            with tracer.start_as_current_span(
+                "token_validation", attributes={"client_id": client_id or "unknown"}
+            ):
                 # 1. Decodificar header para obter kid
                 unverified_header = jwt.get_unverified_header(token)
-                kid = unverified_header.get('kid')
+                kid = unverified_header.get("kid")
 
                 if not kid:
                     raise TokenValidationError("Token JWT não contém 'kid' no header")
@@ -154,32 +160,39 @@ class OAuth2Validator:
                 payload = jwt.decode(
                     token,
                     key,
-                    algorithms=['RS256'],
+                    algorithms=["RS256"],
                     options={
                         "verify_aud": False,  # Validamos manualmente
-                        "verify_iss": False   # Validamos manualmente
-                    }
+                        "verify_iss": False,  # Validamos manualmente
+                    },
                 )
 
                 # Validar issuer manualmente (aceita qualquer URL com realm correto)
-                token_iss = payload.get('iss')
+                token_iss = payload.get("iss")
                 realm_path_modern = f"/realms/{self.settings.keycloak_realm}"
                 realm_path_legacy = f"/auth/realms/{self.settings.keycloak_realm}"
 
                 # Aceita qualquer base URL desde que termine com o path correto do realm
-                if not (token_iss.endswith(realm_path_modern) or token_iss.endswith(realm_path_legacy)):
-                    raise TokenValidationError(f"Issuer inválido: {token_iss} (realm esperado: {self.settings.keycloak_realm})")
+                if not (
+                    token_iss.endswith(realm_path_modern)
+                    or token_iss.endswith(realm_path_legacy)
+                ):
+                    raise TokenValidationError(
+                        f"Issuer inválido: {token_iss} (realm esperado: {self.settings.keycloak_realm})"
+                    )
 
                 # Validar audience manualmente (aceita string ou lista)
-                token_aud = payload.get('aud')
-                valid_audiences = [self.settings.keycloak_client_id, 'account']
+                token_aud = payload.get("aud")
+                valid_audiences = [self.settings.keycloak_client_id, "account"]
 
                 if isinstance(token_aud, str):
                     if token_aud not in valid_audiences:
                         raise TokenValidationError(f"Audience inválido: {token_aud}")
                 elif isinstance(token_aud, list):
                     if not any(aud in valid_audiences for aud in token_aud):
-                        raise TokenValidationError(f"Nenhum audience válido encontrado: {token_aud}")
+                        raise TokenValidationError(
+                            f"Nenhum audience válido encontrado: {token_aud}"
+                        )
                 else:
                     raise TokenValidationError("Token não contém audience válido")
 
@@ -188,14 +201,18 @@ class OAuth2Validator:
 
                 duration = (datetime.now() - start_time).total_seconds()
                 token_validation_duration.observe(duration)
-                token_validations_total.labels(status="success", client_id=client_id or "unknown").inc()
+                token_validations_total.labels(
+                    status="success", client_id=client_id or "unknown"
+                ).inc()
 
                 return payload
 
         except JWTError as e:
             duration = (datetime.now() - start_time).total_seconds()
             token_validation_duration.observe(duration)
-            token_validations_total.labels(status="jwt_error", client_id=client_id or "unknown").inc()
+            token_validations_total.labels(
+                status="jwt_error", client_id=client_id or "unknown"
+            ).inc()
 
             logger.warning(f"Token JWT inválido: {e}")
             raise TokenValidationError(f"Token JWT inválido: {e}")
@@ -203,15 +220,17 @@ class OAuth2Validator:
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds()
             token_validation_duration.observe(duration)
-            token_validations_total.labels(status="error", client_id=client_id or "unknown").inc()
+            token_validations_total.labels(
+                status="error", client_id=client_id or "unknown"
+            ).inc()
 
             logger.error(f"Erro na validação do token: {e}")
             raise TokenValidationError(f"Erro na validação: {e}")
 
     def _find_key(self, jwks: Dict, kid: str) -> Dict:
         """Encontrar chave JWKS pelo kid"""
-        for key in jwks.get('keys', []):
-            if key.get('kid') == kid:
+        for key in jwks.get("keys", []):
+            if key.get("kid") == kid:
                 return key
 
         raise TokenValidationError(f"Chave JWKS não encontrada para kid: {kid}")
@@ -220,48 +239,58 @@ class OAuth2Validator:
         self,
         payload: Dict[str, Any],
         required_scopes: Optional[List[str]] = None,
-        client_id: Optional[str] = None
+        client_id: Optional[str] = None,
     ):
         """Validar claims específicos do token"""
 
         # Validar expiração
-        exp = payload.get('exp')
+        exp = payload.get("exp")
         if not exp or datetime.fromtimestamp(exp) < datetime.now():
             raise TokenValidationError("Token expirado")
 
         # Validar issued at
-        iat = payload.get('iat')
+        iat = payload.get("iat")
         if not iat or datetime.fromtimestamp(iat) > datetime.now():
             raise TokenValidationError("Token não é válido ainda")
 
         # Validar client_id se especificado
         if client_id:
-            token_client_id = payload.get('azp') or payload.get('client_id')
+            token_client_id = payload.get("azp") or payload.get("client_id")
             if token_client_id != client_id:
-                raise TokenValidationError(f"Client ID inválido: esperado {client_id}, recebido {token_client_id}")
+                raise TokenValidationError(
+                    f"Client ID inválido: esperado {client_id}, recebido {token_client_id}"
+                )
 
         # Validar scopes se especificados (exceto service accounts)
         # Service accounts (client_credentials) têm acesso total
-        preferred_username = payload.get('preferred_username', '')
-        is_service_account = preferred_username.startswith('service-account-')
+        preferred_username = payload.get("preferred_username", "")
+        is_service_account = preferred_username.startswith("service-account-")
 
         if required_scopes and not is_service_account:
-            token_scopes = payload.get('scope', '').split()
+            token_scopes = payload.get("scope", "").split()
             missing_scopes = set(required_scopes) - set(token_scopes)
             if missing_scopes:
-                raise TokenValidationError(f"Scopes insuficientes: faltando {missing_scopes}")
+                raise TokenValidationError(
+                    f"Scopes insuficientes: faltando {missing_scopes}"
+                )
 
         # Validar roles do Neural Hive-Mind (exceto para service accounts)
         # Service accounts (client_credentials) não têm roles de usuário
-        is_service_account = payload.get('azp') and not payload.get('sub', '').startswith('user-')
-        preferred_username = payload.get('preferred_username', '')
+        is_service_account = payload.get("azp") and not payload.get(
+            "sub", ""
+        ).startswith("user-")
+        preferred_username = payload.get("preferred_username", "")
 
-        if not is_service_account and not preferred_username.startswith('service-account-'):
-            realm_access = payload.get('realm_access', {})
-            roles = realm_access.get('roles', [])
+        if not is_service_account and not preferred_username.startswith(
+            "service-account-"
+        ):
+            realm_access = payload.get("realm_access", {})
+            roles = realm_access.get("roles", [])
 
-            if 'neural-hive-user' not in roles and 'neural-hive-admin' not in roles:
-                raise TokenValidationError("Token não tem roles válidos do Neural Hive-Mind")
+            if "neural-hive-user" not in roles and "neural-hive-admin" not in roles:
+                raise TokenValidationError(
+                    "Token não tem roles válidos do Neural Hive-Mind"
+                )
 
     async def validate_offline(self, token: str) -> Dict[str, Any]:
         """Validação offline básica (sem verificar assinatura)"""
@@ -270,12 +299,12 @@ class OAuth2Validator:
             unverified_payload = jwt.get_unverified_claims(token)
 
             # Validar expiração
-            exp = unverified_payload.get('exp')
+            exp = unverified_payload.get("exp")
             if not exp or datetime.fromtimestamp(exp) < datetime.now():
                 raise TokenValidationError("Token expirado")
 
             # Validar issuer
-            iss = unverified_payload.get('iss')
+            iss = unverified_payload.get("iss")
             expected_issuer = f"{self.settings.keycloak_url}/auth/realms/{self.settings.keycloak_realm}"
             if iss != expected_issuer:
                 raise TokenValidationError(f"Issuer inválido: {iss}")
@@ -295,24 +324,21 @@ class OAuth2Validator:
         try:
             with tracer.start_as_current_span("token_introspect"):
                 # Preparar dados para introspecção
-                data = {
-                    'token': token,
-                    'client_id': self.settings.keycloak_client_id
-                }
+                data = {"token": token, "client_id": self.settings.keycloak_client_id}
 
                 if self.settings.keycloak_client_secret:
-                    data['client_secret'] = self.settings.keycloak_client_secret
+                    data["client_secret"] = self.settings.keycloak_client_secret
 
                 response = await self.http_client.post(
                     introspect_url,
                     data=data,
-                    headers={'Content-Type': 'application/x-www-form-urlencoded'}
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
                 )
 
                 response.raise_for_status()
                 result = response.json()
 
-                if not result.get('active', False):
+                if not result.get("active", False):
                     raise TokenValidationError("Token inativo segundo introspecção")
 
                 return result
@@ -331,8 +357,7 @@ class OAuth2Validator:
         try:
             with tracer.start_as_current_span("userinfo_fetch"):
                 response = await self.http_client.get(
-                    userinfo_url,
-                    headers={'Authorization': f'Bearer {token}'}
+                    userinfo_url, headers={"Authorization": f"Bearer {token}"}
                 )
 
                 response.raise_for_status()
@@ -345,15 +370,16 @@ class OAuth2Validator:
     def extract_user_context(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Extrair contexto do usuário do payload JWT"""
         return {
-            'user_id': payload.get('sub'),
-            'username': payload.get('preferred_username'),
-            'email': payload.get('email'),
-            'name': payload.get('name'),
-            'roles': payload.get('realm_access', {}).get('roles', []),
-            'scopes': payload.get('scope', '').split(),
-            'client_id': payload.get('azp') or payload.get('client_id'),
-            'session_id': payload.get('session_state'),
-            'is_admin': 'neural-hive-admin' in payload.get('realm_access', {}).get('roles', [])
+            "user_id": payload.get("sub"),
+            "username": payload.get("preferred_username"),
+            "email": payload.get("email"),
+            "name": payload.get("name"),
+            "roles": payload.get("realm_access", {}).get("roles", []),
+            "scopes": payload.get("scope", "").split(),
+            "client_id": payload.get("azp") or payload.get("client_id"),
+            "session_id": payload.get("session_state"),
+            "is_admin": "neural-hive-admin"
+            in payload.get("realm_access", {}).get("roles", []),
         }
 
 
