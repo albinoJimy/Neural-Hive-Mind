@@ -7,6 +7,7 @@ from typing import Any, Dict
 
 from temporalio import workflow
 from temporalio.common import RetryPolicy
+from temporalio.exceptions import ApplicationError
 
 # Import activities (serão definidos posteriormente)
 with workflow.unsafe.imports_passed_through():
@@ -113,7 +114,7 @@ class OrchestrationWorkflow:
                     workflow.logger.error(
                         f'Plano cognitivo inválido: errors={validation_result["errors"]}'
                     )
-                    raise workflow.ApplicationError(
+                    raise ApplicationError(
                         f'Plano cognitivo inválido: {validation_result["errors"]}',
                         non_retryable=True
                     )
