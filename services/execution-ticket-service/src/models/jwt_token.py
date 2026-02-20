@@ -7,7 +7,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 import jwt as pyjwt
 
-from . import ExecutionTicket
+from . import ExecutionTicket, _get_enum_value
 
 
 class JWTTokenPayload(BaseModel):
@@ -61,13 +61,17 @@ def generate_token(
     expiration_time = current_time + expiration_seconds
 
     # Definir scopes baseados no task_type e security_level
+    # Usar _get_enum_value para lidar com Enum ou string (use_enum_values=True)
+    task_type_str = _get_enum_value(ticket.task_type)
+    security_level_str = _get_enum_value(ticket.security_level)
+
     scopes = [
         'ticket:read',
         'ticket:update',
-        f'task:{ticket.task_type.value.lower()}'
+        f'task:{task_type_str.lower()}'
     ]
 
-    if ticket.security_level.value in ['CONFIDENTIAL', 'RESTRICTED']:
+    if security_level_str in ['CONFIDENTIAL', 'RESTRICTED']:
         scopes.append('security:elevated')
 
     # Criar payload
@@ -81,8 +85,8 @@ def generate_token(
         ticket_id=ticket.ticket_id,
         plan_id=ticket.plan_id,
         intent_id=ticket.intent_id,
-        task_type=ticket.task_type.value,
-        security_level=ticket.security_level.value,
+        task_type=task_type_str,
+        security_level=security_level_str,
         required_capabilities=ticket.required_capabilities,
         scopes=scopes
     )
