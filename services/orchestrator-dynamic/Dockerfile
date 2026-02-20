@@ -39,10 +39,10 @@ LABEL neural-hive.layer="orchestration"
 LABEL neural-hive.component="orchestrator-dynamic"
 
 # Instalar apenas dependências de runtime
-# libsnappy1: necessário para python-snappy descomprimir mensagens Kafka
+# libsnappy1v5: necessário para python-snappy descomprimir mensagens Kafka (Ubuntu 24.04)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
-    libsnappy1 \
+    libsnappy1v5 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
