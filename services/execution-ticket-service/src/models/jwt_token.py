@@ -7,7 +7,23 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 import jwt as pyjwt
 
-from . import ExecutionTicket, _get_enum_value
+from . import ExecutionTicket
+
+
+def _get_enum_value(val) -> str:
+    """
+    Extrai valor de enum de forma segura.
+
+    Com Pydantic ConfigDict(use_enum_values=True), os valores podem vir
+    já como strings em vez de objetos Enum. Esta função trata ambos os casos.
+
+    Args:
+        val: Valor que pode ser um Enum ou uma string
+
+    Returns:
+        String com o valor
+    """
+    return val.value if hasattr(val, 'value') else str(val)
 
 
 class JWTTokenPayload(BaseModel):
