@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from uuid import uuid4
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
@@ -37,6 +38,75 @@ async def get_ticket(ticket_id: str):
 
     if not ticket_orm:
         raise HTTPException(status_code=404, detail='Ticket not found')
+
+    return ticket_orm.to_pydantic()
+
+
+@router.post('/', response_model=ExecutionTicket, status_code=201)
+async def create_ticket(ticket_data: Dict[str, Any]):
+    """
+    Cria novo execution ticket via HTTP REST.
+
+    Este endpoint permite criacao sincrona de tickets como alternativa
+    ao consumo via Kafka (execution.tickets topic).
+
+    Args:
+        ticket_data: Dados do ticket conforme execution-ticket.avsc
+
+    Returns:
+        Ticket criado
+    """
+    logger = structlog.get_logger(__name__)
+
+    postgres_client = await get_postgres_client()
+
+    # Garantir ticket_id se nao fornecido
+    if 'ticket_id' not in ticket_data or not ticket_data['ticket_id']:
+        ticket_data['ticket_id'] = str(uuid4())
+
+    # Garantir timestamp de criacao se nao fornecido
+    if 'created_at' not in ticket_data:
+        ticket_data['created_at'] = int(datetime.utcnow().timestamp() * 1000)
+
+    # Garantir status default
+    if 'status' not in ticket_data:
+        ticket_data['status'] = 'PENDING'
+
+    # Garantir campos obrigatorios com defaults
+    required_defaults = {
+        'dependencies': ticket_data.get('dependencies', []),
+        'retry_count': ticket_data.get('retry_count', 0),
+        'compensation_ticket_id': ticket_data.get('compensation_ticket_id', None),
+        'metadata': ticket_data.get('metadata', {}),
+        'predictions': ticket_data.get('predictions', None),
+        'schema_version': ticket_data.get('schema_version', 1),
+    }
+    ticket_data.update(required_defaults)
+
+    # Criar modelo Pydantic a partir do dict (Pydantic v2)
+    try:
+        ticket_pydantic = ExecutionTicket(**ticket_data)
+    except Exception as e:
+        logger.error("failed_to_validate_ticket", error=str(e), ticket_data=ticket_data)
+        raise HTTPException(
+            status_code=422,
+            detail=f'Validation error: {str(e)}'
+        )
+
+    # Persistir no PostgreSQL
+    try:
+        ticket_orm = await postgres_client.create_ticket(ticket_pydantic)
+        logger.info(
+            "ticket_created_via_http",
+            ticket_id=ticket_pydantic.ticket_id,
+            plan_id=ticket_pydantic.plan_id
+        )
+    except Exception as e:
+        logger.error("failed_to_persist_ticket", error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=f'Failed to create ticket: {str(e)}'
+        )
 
     return ticket_orm.to_pydantic()
 
