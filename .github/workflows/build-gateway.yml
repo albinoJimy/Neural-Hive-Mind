@@ -60,12 +60,6 @@ jobs:
           black src/
           isort src/
 
-      - name: Format check
-        working-directory: services/gateway-intencoes
-        run: |
-          black --check src/
-          isort --check-only src/
-
       - name: Commit auto-formatted changes
         run: |
           git config --global user.name "github-actions[bot]"
