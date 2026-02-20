@@ -110,7 +110,7 @@ jobs:
   build-and-push:
     name: Build and Push
     needs: [lint-and-test, security-scan]
-    if: always() && !cancelled()
+    if: needs.lint-and-test.result == 'success' && needs.security-scan.result == 'success'
     runs-on: ${{ needs.select-runner.outputs.selected-runner }}
     permissions:
       contents: read
@@ -177,10 +177,12 @@ jobs:
 
   deploy-prod:
     name: Deploy to Production
-    if: github.ref == 'refs/heads/main'
-    needs: select-runner
-    runs-on: ${{ needs.select-runner.outputs.selected-runner }}
-    environment: production
+    if: github.ref == 'refs/heads/main' && needs.build-and-push.result == 'success'
+    needs: [lint-and-test, security-scan, build-and-push]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://gateway.neural-hive-mind.com
     steps:
       - uses: actions/checkout@v4
 
@@ -189,11 +191,23 @@ jobs:
         with:
           version: '3.12.0'
 
+      - name: Configure kubectl
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+
       - name: Deploy to Production
         run: |
           helm upgrade --install gateway-intencoes ./helm-charts/gateway-intencoes \
-            --namespace neural-hive-prod \
+            --namespace neural-hive \
             --create-namespace \
-            --values ./environments/prod/gateway-values.yaml \
+            --values ./helm-charts/gateway-intencoes/values-staging.yaml \
             --set image.tag=${{ github.sha }} \
-            --wait
+            --set image.repository=ghcr.io/albinojimy/neural-hive-mind/gateway-intencoes \
+            --wait \
+            --timeout 5m
+
+      - name: Verify Deployment
+        run: |
+          kubectl rollout status deployment/gateway-intencoes -n neural-hive --timeout=5m
+          kubectl get pods -n neural-hive -l app=gateway-intencoes
