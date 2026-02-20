@@ -49,7 +49,7 @@ class TaskType(str, Enum):
 
     # Tipos legados (lowercase) - para compatibilidade com mensagens antigas
     query = 'query'
-    # transform = 'transform'  # REMOVIDO: duplicata com TRANSFORM acima
+    transform = 'transform'  # lowercase version for backward compatibility
     validate_legacy = 'validate'  # lowercase version
     analyze = 'analyze'
     generate = 'generate'
