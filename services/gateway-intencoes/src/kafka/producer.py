@@ -340,6 +340,12 @@ class KafkaIntentProducer:
         if not self.is_ready():
             raise RuntimeError("Producer Kafka não inicializado")
 
+        # Calcular topic PRIMEIRO (usado na decisão do fast producer)
+        topic = (
+            topic_override
+            or f"intentions.{intent_envelope.intent.domain.value.lower()}"
+        )
+
         # Otimização: Escolher producer baseado em prioridade da intent
         # Default: SEMPRE transactional (exactly-once) para garantir reliability
         producer_to_use = self.producer
@@ -382,11 +388,6 @@ class KafkaIntentProducer:
             logger.warning(
                 f"Fast producer solicitado mas não disponível, usando producer padrão"
             )
-
-        topic = (
-            topic_override
-            or f"intentions.{intent_envelope.intent.domain.value.lower()}"
-        )
         partition_key = intent_envelope.get_partition_key()
         idempotency_key = intent_envelope.get_idempotency_key()
 
