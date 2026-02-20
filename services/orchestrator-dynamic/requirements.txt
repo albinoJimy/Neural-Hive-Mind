@@ -9,6 +9,7 @@ temporalio==1.5.0
 confluent-kafka==2.6.1
 fastavro==1.9.7
 authlib>=1.3.0  # Required by confluent-kafka==2.6.1 schema registry OAuth
+python-snappy>=0.6.0  # Required for snappy decompression of Kafka messages
 
 # Driver PostgreSQL para state store Temporal
 psycopg2-binary>=2.9.9
