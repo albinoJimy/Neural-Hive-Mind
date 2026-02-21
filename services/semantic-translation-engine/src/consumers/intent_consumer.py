@@ -49,8 +49,8 @@ class IntentConsumer:
             'bootstrap.servers': self.settings.kafka_bootstrap_servers,
             'group.id': self.settings.kafka_consumer_group_id,
             'auto.offset.reset': self.settings.kafka_auto_offset_reset,
-            'enable.auto.commit': False,  # Manual commit for transactions
-            'isolation.level': 'read_committed',  # Exactly-once semantics
+            'enable.auto.commit': True,  # Auto commit like orchestrator-dynamic
+            # isolation.level REMOVIDO - using default read_uncommitted to fix consumption issue
             'session.timeout.ms': self.settings.kafka_session_timeout_ms,
 
             # Fix for Kafka connection termination issue
@@ -296,13 +296,7 @@ class IntentConsumer:
                     # Run async processor directly in current event loop
                     await processor_callback(intent_envelope, trace_context)
 
-                    # Commit offset after successful processing
-                    # Run commit in executor to avoid blocking
-                    await loop.run_in_executor(
-                        executor,
-                        lambda: self.consumer.commit(asynchronous=False)
-                    )
-
+                    # Auto-commit is enabled - offset committed automatically by rdkafka
                     self.messages_processed += 1
                     logger.debug(
                         'Message processed',
