@@ -550,6 +550,15 @@ class PlanConsumer:
                         schema_registry_url=os.getenv('SCHEMA_REGISTRY_URL', 'não configurado')
                     )
 
+                    # Tentar JSON fallback para mensagens sem magic byte
+                    logger.warning('Mensagem sem magic byte Avro - tentando JSON fallback',
+                                   topic=msg.topic(), offset=msg.offset())
+                    fallback_value = self._deserialize_json_with_normalization(msg)
+                    if fallback_value:
+                        ConsensusMetrics.increment_deserialization('json', 'fallback_magic_byte')
+                        return fallback_value
+                    return None
+
                 elif 'schema' in error_msg and ('not found' in error_msg or 'unknown' in error_msg):
                     ConsensusMetrics.increment_deserialization('avro', 'schema_not_found')
                     ConsensusMetrics.increment_schema_registry_request('deserialize', 'schema_not_found')
@@ -581,6 +590,30 @@ class PlanConsumer:
                         solucao='Verificar conectividade com Schema Registry e aumentar timeout',
                         schema_registry_url=os.getenv('SCHEMA_REGISTRY_URL', 'não configurado')
                     )
+
+                elif 'symbol' in error_msg or 'enum' in error_msg or 'domain' in error_msg:
+                    # Erro de enum/compatibilidade - tentar JSON fallback com normalização
+                    logger.warning(
+                        'Erro de deserialização Avro (enum/schema) - tentando JSON fallback com normalização',
+                        topic=msg.topic(),
+                        partition=msg.partition(),
+                        offset=msg.offset(),
+                        error=str(e)
+                    )
+                    # Tentar JSON fallback
+                    fallback_value = self._deserialize_json_with_normalization(msg)
+                    if fallback_value:
+                        ConsensusMetrics.increment_deserialization('json', 'fallback_success')
+                        return fallback_value
+                    else:
+                        ConsensusMetrics.increment_deserialization('avro', 'enum_fallback_failed')
+                        logger.error(
+                            'JSON fallback também falhou para mensagem com erro de enum',
+                            topic=msg.topic(),
+                            partition=msg.partition(),
+                            offset=msg.offset()
+                        )
+                        return None
 
                 else:
                     # Erro genérico não-transiente
@@ -622,6 +655,69 @@ class PlanConsumer:
 
             logger.error(
                 'Erro deserializando mensagem JSON',
+                topic=msg.topic(),
+                partition=msg.partition(),
+                offset=msg.offset(),
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            return None
+
+    def _deserialize_json_with_normalization(self, msg):
+        '''
+        Deserializa mensagem usando JSON e normaliza campos para compatibilidade.
+
+        Este método é usado como fallback quando a deserialização Avro falha
+        devido a incompatibilidades de schema (ex: enum em minúsculas vs maiúsculas).
+
+        Normalizações aplicadas:
+        - original_domain: converte para uppercase se for string
+        '''
+        start_time = time.time()
+        try:
+            value = json.loads(msg.value().decode('utf-8'))
+
+            # Normalizar campos para compatibilidade backward
+            if isinstance(value, dict):
+                # Normalizar original_domain para uppercase
+                if 'original_domain' in value and isinstance(value['original_domain'], str):
+                    old_domain = value['original_domain']
+                    value['original_domain'] = old_domain.upper()
+                    logger.info(
+                        'original_domain normalizado de minúsculas para maiúsculas',
+                        old_domain=old_domain,
+                        new_domain=value['original_domain'],
+                        offset=msg.offset()
+                    )
+
+                # Normalizar risk_band para lowercase (caso esteja em maiúsculas)
+                if 'risk_band' in value and isinstance(value['risk_band'], str):
+                    old_band = value['risk_band']
+                    value['risk_band'] = old_band.lower()
+                    if old_band != value['risk_band']:
+                        logger.info(
+                            'risk_band normalizado de maiúsculas para minúsculas',
+                            old_band=old_band,
+                            new_band=value['risk_band'],
+                            offset=msg.offset()
+                        )
+
+            duration = time.time() - start_time
+            ConsensusMetrics.increment_deserialization('json', 'success_normalized')
+            ConsensusMetrics.observe_deserialization_duration(duration, 'json')
+
+            logger.debug('Mensagem deserializada via JSON com normalização',
+                        topic=msg.topic(),
+                        offset=msg.offset())
+
+            return value
+        except Exception as e:
+            duration = time.time() - start_time
+            ConsensusMetrics.increment_deserialization('json', 'error')
+            ConsensusMetrics.observe_deserialization_duration(duration, 'json')
+
+            logger.error(
+                'Erro deserializando mensagem JSON com normalização',
                 topic=msg.topic(),
                 partition=msg.partition(),
                 offset=msg.offset(),
