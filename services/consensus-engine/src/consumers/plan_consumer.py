@@ -535,47 +535,8 @@ class PlanConsumer:
                 # Erro final (não-transiente ou esgotou retries)
                 ConsensusMetrics.observe_deserialization_duration(duration, 'avro')
 
-                # Classificar e registrar métricas específicas
-                if 'magic byte' in error_msg or 'invalid magic' in error_msg:
-                    ConsensusMetrics.increment_deserialization('avro', 'invalid_magic_byte')
-                    ConsensusMetrics.increment_schema_registry_request('deserialize', 'invalid_format')
-                    logger.error(
-                        'Erro de deserialização: mensagem não está em formato Avro',
-                        topic=msg.topic(),
-                        partition=msg.partition(),
-                        offset=msg.offset(),
-                        error='Invalid magic byte',
-                        causa_provavel='Mensagem foi publicada sem Schema Registry serializer',
-                        solucao='Verificar se producer está usando AvroSerializer com Schema Registry',
-                        schema_registry_url=os.getenv('SCHEMA_REGISTRY_URL', 'não configurado')
-                    )
-
-                    # Tentar JSON fallback para mensagens sem magic byte
-                    logger.warning('Mensagem sem magic byte Avro - tentando JSON fallback',
-                                   topic=msg.topic(), offset=msg.offset())
-                    fallback_value = self._deserialize_json_with_normalization(msg)
-                    if fallback_value:
-                        ConsensusMetrics.increment_deserialization('json', 'fallback_magic_byte')
-                        return fallback_value
-                    return None
-
-                elif 'schema' in error_msg and ('not found' in error_msg or 'unknown' in error_msg):
-                    ConsensusMetrics.increment_deserialization('avro', 'schema_not_found')
-                    ConsensusMetrics.increment_schema_registry_request('deserialize', 'schema_not_found')
-                    ConsensusMetrics.observe_schema_registry_latency(duration, 'deserialize')
-                    logger.error(
-                        'Erro de deserialização: schema não registrado no Schema Registry',
-                        topic=msg.topic(),
-                        partition=msg.partition(),
-                        offset=msg.offset(),
-                        error=str(e),
-                        causa_provavel='Schema cognitive-plan.avsc não foi registrado no Apicurio Registry',
-                        solucao='Executar schema-registry-init-job para registrar schemas',
-                        schema_registry_url=os.getenv('SCHEMA_REGISTRY_URL', 'não configurado')
-                    )
-
-                elif is_transient:
-                    # Erro transiente mas esgotou retries
+                if is_transient:
+                    # Erro transiente mas esgotou retries - não tentar fallback
                     ConsensusMetrics.increment_deserialization('avro', 'registry_timeout')
                     ConsensusMetrics.increment_schema_registry_request('deserialize', 'failed')
                     ConsensusMetrics.observe_schema_registry_latency(duration, 'deserialize')
@@ -590,46 +551,38 @@ class PlanConsumer:
                         solucao='Verificar conectividade com Schema Registry e aumentar timeout',
                         schema_registry_url=os.getenv('SCHEMA_REGISTRY_URL', 'não configurado')
                     )
+                    return None
 
-                elif 'symbol' in error_msg or 'enum' in error_msg or 'domain' in error_msg:
-                    # Erro de enum/compatibilidade - tentar JSON fallback com normalização
-                    logger.warning(
-                        'Erro de deserialização Avro (enum/schema) - tentando JSON fallback com normalização',
+                # Para erros não-transientes, tentar JSON fallback como última tentativa
+                logger.warning(
+                    'Erro de deserialização Avro não-transiente - tentando JSON fallback',
+                    topic=msg.topic(),
+                    partition=msg.partition(),
+                    offset=msg.offset(),
+                    error=str(e),
+                    error_type=type(e).__name__
+                )
+
+                # Tentar JSON fallback com normalização
+                fallback_value = self._deserialize_json_with_normalization(msg)
+                if fallback_value:
+                    ConsensusMetrics.increment_deserialization('json', 'fallback_success')
+                    logger.info(
+                        'JSON fallback bem-sucedido para mensagem',
+                        topic=msg.topic(),
+                        offset=msg.offset()
+                    )
+                    return fallback_value
+                else:
+                    ConsensusMetrics.increment_deserialization('avro', 'fallback_failed')
+                    logger.error(
+                        'JSON fallback falhou - mensagem será pulada (offset não commitado)',
                         topic=msg.topic(),
                         partition=msg.partition(),
                         offset=msg.offset(),
                         error=str(e)
                     )
-                    # Tentar JSON fallback
-                    fallback_value = self._deserialize_json_with_normalization(msg)
-                    if fallback_value:
-                        ConsensusMetrics.increment_deserialization('json', 'fallback_success')
-                        return fallback_value
-                    else:
-                        ConsensusMetrics.increment_deserialization('avro', 'enum_fallback_failed')
-                        logger.error(
-                            'JSON fallback também falhou para mensagem com erro de enum',
-                            topic=msg.topic(),
-                            partition=msg.partition(),
-                            offset=msg.offset()
-                        )
-                        return None
-
-                else:
-                    # Erro genérico não-transiente
-                    ConsensusMetrics.increment_deserialization('avro', 'other_error')
-                    ConsensusMetrics.increment_schema_registry_request('deserialize', 'error')
-                    ConsensusMetrics.observe_schema_registry_latency(duration, 'deserialize')
-                    logger.error(
-                        'Erro deserializando mensagem',
-                        topic=msg.topic(),
-                        partition=msg.partition(),
-                        offset=msg.offset(),
-                        error=str(e),
-                        error_type=type(e).__name__
-                    )
-
-                return None
+                    return None
 
         return None
 
