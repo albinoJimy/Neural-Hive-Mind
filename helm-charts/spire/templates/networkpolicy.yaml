@@ -29,7 +29,16 @@ spec:
     ports:
     - protocol: TCP
       port: 8081
-  # Allow to PostgreSQL (adjust namespace/selector as needed)
+  # Allow to PostgreSQL (RDS is external, use CIDR)
+  {{- if .Values.server.config.rdsEgressCIDR }}
+  - to:
+    - ipBlock:
+        cidr: {{ .Values.server.config.rdsEgressCIDR }}
+    ports:
+    - protocol: TCP
+      port: 5432
+  {{- else }}
+  # Fallback: Allow to PostgreSQL via namespaceSelector (for in-cluster databases)
   - to:
     - namespaceSelector:
         matchLabels:
@@ -37,6 +46,7 @@ spec:
     ports:
     - protocol: TCP
       port: 5432
+  {{- end }}
   # Allow to kube-dns
   - to:
     - namespaceSelector:

@@ -1,0 +1,773 @@
+apiVersion: v1
+items:
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-01-14T21:33:23Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      clickhouse.altinity.com/app: chop
+      clickhouse.altinity.com/chi: neural-hive-clickhouse
+      clickhouse.altinity.com/cluster: cluster
+      clickhouse.altinity.com/namespace: clickhouse-operator
+      clickhouse.altinity.com/object-version: 9882fc7fa461e6ea63b68a2f75ccbe2ccb46e815
+      clickhouse.altinity.com/reclaimPolicy: Delete
+      clickhouse.altinity.com/replica: "0"
+      clickhouse.altinity.com/shard: "0"
+    name: data-volume-chi-neural-hive-clickhouse-cluster-0-0-0
+    namespace: clickhouse-operator
+    resourceVersion: "19891081"
+    uid: 43a39b34-96e5-4ecb-95ad-ab7766c4b2fb
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-43a39b34-96e5-4ecb-95ad-ab7766c4b2fb
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 10Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{},"name":"clickhouse-data","namespace":"clickhouse"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}},"storageClassName":"local-path"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: rancher.io/local-path
+      volume.kubernetes.io/selected-node: vmi2911680
+      volume.kubernetes.io/storage-provisioner: rancher.io/local-path
+    creationTimestamp: "2026-01-01T21:45:43Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    name: clickhouse-data
+    namespace: clickhouse
+    resourceVersion: "15623579"
+    uid: 736167fa-aabc-4e59-91a3-1b5548f02c00
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 5Gi
+    storageClassName: local-path
+    volumeMode: Filesystem
+    volumeName: pvc-736167fa-aabc-4e59-91a3-1b5548f02c00
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 5Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{},"name":"kaniko-build-context","namespace":"default"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"1Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-01-26T20:22:14Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    name: kaniko-build-context
+    namespace: default
+    resourceVersion: "23702632"
+    uid: e02fa76f-a974-4a84-a2c3-6218d244b21d
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-e02fa76f-a974-4a84-a2c3-6218d244b21d
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 1Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: rancher.io/local-path
+      volume.kubernetes.io/selected-node: vmi3002938
+      volume.kubernetes.io/storage-provisioner: rancher.io/local-path
+    creationTimestamp: "2026-01-17T10:46:37Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app.kubernetes.io/component: primary
+      app.kubernetes.io/instance: keycloak
+      app.kubernetes.io/name: postgresql
+    name: data-keycloak-postgresql-0
+    namespace: keycloak
+    resourceVersion: "20715097"
+    uid: 35898548-0e8d-4a72-a7be-8a0629187d4b
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Gi
+    storageClassName: local-path
+    volumeMode: Filesystem
+    volumeName: pvc-35898548-0e8d-4a72-a7be-8a0629187d4b
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 10Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: rancher.io/local-path
+      volume.kubernetes.io/selected-node: vmi2911680
+      volume.kubernetes.io/storage-provisioner: rancher.io/local-path
+    creationTimestamp: "2026-01-03T19:26:05Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app.kubernetes.io/component: primary
+      app.kubernetes.io/instance: mlflow-postgresql
+      app.kubernetes.io/name: postgresql
+    name: data-mlflow-postgresql-0
+    namespace: mlflow
+    resourceVersion: "16235851"
+    uid: 3a71fc27-5701-43f0-955b-41f588683809
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 20Gi
+    storageClassName: local-path
+    volumeMode: Filesystem
+    volumeName: pvc-3a71fc27-5701-43f0-955b-41f588683809
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 20Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{},"name":"mlflow-artifacts-pvc","namespace":"mlflow"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"10Gi"}},"storageClassName":"local-path"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: rancher.io/local-path
+      volume.kubernetes.io/selected-node: vmi2911681
+      volume.kubernetes.io/storage-provisioner: rancher.io/local-path
+    creationTimestamp: "2025-11-27T12:17:27Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    name: mlflow-artifacts-pvc
+    namespace: mlflow
+    resourceVersion: "5296804"
+    uid: f36ef9c2-633b-4422-938a-022e489a63e8
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Gi
+    storageClassName: local-path
+    volumeMode: Filesystem
+    volumeName: pvc-f36ef9c2-633b-4422-938a-022e489a63e8
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 10Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      meta.helm.sh/release-name: mongodb
+      meta.helm.sh/release-namespace: mongodb-cluster
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: rancher.io/local-path
+      volume.kubernetes.io/selected-node: vmi2911681
+      volume.kubernetes.io/storage-provisioner: rancher.io/local-path
+    creationTimestamp: "2025-11-21T08:26:32Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app.kubernetes.io/component: mongodb
+      app.kubernetes.io/instance: mongodb
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: mongodb
+      app.kubernetes.io/version: 8.2.2
+      helm.sh/chart: mongodb-18.1.10
+    name: mongodb
+    namespace: mongodb-cluster
+    resourceVersion: "3919391"
+    uid: 6bb0cb97-9991-46fc-83ed-05bde048f3f0
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Gi
+    storageClassName: local-path
+    volumeMode: Filesystem
+    volumeName: pvc-6bb0cb97-9991-46fc-83ed-05bde048f3f0
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 10Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: rancher.io/local-path
+      volume.kubernetes.io/selected-node: vmi2092350.contaboserver.net
+      volume.kubernetes.io/storage-provisioner: rancher.io/local-path
+    creationTimestamp: "2025-10-29T12:48:54Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: neo4j
+      helm.neo4j.com/instance: neo4j
+    name: data-neo4j-0
+    namespace: neo4j-cluster
+    resourceVersion: "12500"
+    uid: 47e644ad-1c5e-4e51-be4e-b0dd2b02cf2a
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Gi
+    storageClassName: local-path
+    volumeMode: Filesystem
+    volumeName: pvc-47e644ad-1c5e-4e51-be4e-b0dd2b02cf2a
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 10Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{},"name":"postgres-sla-data","namespace":"neural-hive-data"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}},"storageClassName":"local-path"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: rancher.io/local-path
+      volume.kubernetes.io/selected-node: vmi2911680
+      volume.kubernetes.io/storage-provisioner: rancher.io/local-path
+    creationTimestamp: "2026-01-01T13:02:28Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    name: postgres-sla-data
+    namespace: neural-hive-data
+    resourceVersion: "15493813"
+    uid: 99b96e18-c728-4ea6-8713-01aec6716a5c
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 5Gi
+    storageClassName: local-path
+    volumeMode: Filesystem
+    volumeName: pvc-99b96e18-c728-4ea6-8713-01aec6716a5c
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 5Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      meta.helm.sh/release-name: gateway-intencoes
+      meta.helm.sh/release-namespace: neural-hive-staging
+      neural-hive-mind.org/backup: "false"
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-01-30T14:24:46Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app.kubernetes.io/component: gateway-intencoes
+      app.kubernetes.io/instance: gateway-intencoes
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: gateway-intencoes
+      app.kubernetes.io/version: 1.0.0
+      helm.sh/chart: gateway-intencoes-0.1.0
+      neural-hive-mind.org/component: model-cache
+      neural-hive.io/component: gateway-intencoes
+      neural-hive.io/layer: application
+    name: gateway-intencoes-models-pvc
+    namespace: neural-hive-staging
+    resourceVersion: "24904555"
+    uid: 37025ee6-3d07-4dc3-ab6a-5e7e57d48326
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 2Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-37025ee6-3d07-4dc3-ab6a-5e7e57d48326
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      meta.helm.sh/release-name: gateway-intencoes
+      meta.helm.sh/release-namespace: neural-hive
+      neural-hive-mind.org/backup: "false"
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-02-07T23:27:00Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app.kubernetes.io/component: gateway-intencoes
+      app.kubernetes.io/instance: gateway-intencoes
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: gateway-intencoes
+      app.kubernetes.io/version: 1.0.0
+      helm.sh/chart: gateway-intencoes-0.1.0
+      neural-hive-mind.org/component: model-cache
+      neural-hive.io/component: gateway-intencoes
+      neural-hive.io/layer: application
+    name: gateway-intencoes-models-pvc
+    namespace: neural-hive
+    resourceVersion: "27673711"
+    uid: ea15a7ac-a8a0-4b92-8a6f-e94f35828b3b
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 2Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-ea15a7ac-a8a0-4b92-8a6f-e94f35828b3b
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 2Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{},"labels":{"app":"kaniko-build","component":"build-context"},"name":"kaniko-build-context","namespace":"neural-hive"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-01-20T20:58:27Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: kaniko-build
+      component: build-context
+    name: kaniko-build-context
+    namespace: neural-hive
+    resourceVersion: "23724341"
+    uid: 0be6b41c-87c0-4f6a-a79b-6c2449ca94ab
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 5Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-0be6b41c-87c0-4f6a-a79b-6c2449ca94ab
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 5Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"annotations":{},"labels":{"app":"kaniko-build","component":"cache"},"name":"kaniko-cache","namespace":"neural-hive"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"10Gi"}},"storageClassName":"longhorn"}}
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: driver.longhorn.io
+      volume.kubernetes.io/storage-provisioner: driver.longhorn.io
+    creationTimestamp: "2026-01-26T22:01:39Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: kaniko-build
+      component: cache
+    name: kaniko-cache
+    namespace: neural-hive
+    resourceVersion: "23724009"
+    uid: 827c0275-0bcc-4b7e-96ee-d292299728d3
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Gi
+    storageClassName: longhorn
+    volumeMode: Filesystem
+    volumeName: pvc-827c0275-0bcc-4b7e-96ee-d292299728d3
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 10Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: rancher.io/local-path
+      volume.kubernetes.io/selected-node: vmi2911681
+      volume.kubernetes.io/storage-provisioner: rancher.io/local-path
+    creationTimestamp: "2025-12-29T10:18:55Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      alertmanager: neural-hive-prometheus-kub-alertmanager
+      app.kubernetes.io/instance: neural-hive-prometheus-kub-alertmanager
+      app.kubernetes.io/managed-by: prometheus-operator
+      app.kubernetes.io/name: alertmanager
+    name: alertmanager-neural-hive-prometheus-kub-alertmanager-db-alertmanager-neural-hive-prometheus-kub-alertmanager-0
+    namespace: observability
+    resourceVersion: "14490012"
+    uid: 0b62af21-34d8-4e81-a720-cfdad141637a
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 5Gi
+    storageClassName: local-path
+    volumeMode: Filesystem
+    volumeName: pvc-0b62af21-34d8-4e81-a720-cfdad141637a
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 5Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      meta.helm.sh/release-name: neural-hive-prometheus
+      meta.helm.sh/release-namespace: observability
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: rancher.io/local-path
+      volume.kubernetes.io/selected-node: vmi2911681
+      volume.kubernetes.io/storage-provisioner: rancher.io/local-path
+    creationTimestamp: "2025-12-29T10:18:45Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app.kubernetes.io/instance: neural-hive-prometheus
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: grafana
+      app.kubernetes.io/version: 12.3.0
+      helm.sh/chart: grafana-10.4.0
+    name: neural-hive-prometheus-grafana
+    namespace: observability
+    resourceVersion: "14489998"
+    uid: 4951a19a-1108-404b-8758-11874d51d2b6
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 5Gi
+    storageClassName: local-path
+    volumeMode: Filesystem
+    volumeName: pvc-4951a19a-1108-404b-8758-11874d51d2b6
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 5Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: rancher.io/local-path
+      volume.kubernetes.io/selected-node: vmi2911680
+      volume.kubernetes.io/storage-provisioner: rancher.io/local-path
+    creationTimestamp: "2025-12-29T10:18:56Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app.kubernetes.io/instance: neural-hive-prometheus-kub-prometheus
+      app.kubernetes.io/managed-by: prometheus-operator
+      app.kubernetes.io/name: prometheus
+      operator.prometheus.io/name: neural-hive-prometheus-kub-prometheus
+      operator.prometheus.io/shard: "0"
+      prometheus: neural-hive-prometheus-kub-prometheus
+    name: prometheus-neural-hive-prometheus-kub-prometheus-db-prometheus-neural-hive-prometheus-kub-prometheus-0
+    namespace: observability
+    resourceVersion: "14490029"
+    uid: 5860f6bd-175d-422f-bfda-82f31d365d78
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 20Gi
+    storageClassName: local-path
+    volumeMode: Filesystem
+    volumeName: pvc-5860f6bd-175d-422f-bfda-82f31d365d78
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 20Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: rancher.io/local-path
+      volume.kubernetes.io/selected-node: vmi2911681
+      volume.kubernetes.io/storage-provisioner: rancher.io/local-path
+    creationTimestamp: "2025-12-29T10:22:09Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: loki
+      release: loki
+    name: storage-loki-0
+    namespace: observability
+    resourceVersion: "14490968"
+    uid: b8bbaf04-ff17-4aac-93ad-0475bb57fd5a
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Gi
+    storageClassName: local-path
+    volumeMode: Filesystem
+    volumeName: pvc-b8bbaf04-ff17-4aac-93ad-0475bb57fd5a
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 10Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      meta.helm.sh/release-name: portainer
+      meta.helm.sh/release-namespace: portainer
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: rancher.io/local-path
+      volume.kubernetes.io/selected-node: vmi3002938
+      volume.kubernetes.io/storage-provisioner: rancher.io/local-path
+    creationTimestamp: "2026-01-11T13:24:06Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app.kubernetes.io/instance: portainer
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: portainer
+      app.kubernetes.io/version: ce-latest-ee-2.33.6
+      helm.sh/chart: portainer-2.33.6
+      io.portainer.kubernetes.application.stack: portainer
+    name: portainer
+    namespace: portainer
+    resourceVersion: "18770156"
+    uid: 87ab916f-8c2f-4a91-b5a7-4a59fa760f49
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 5Gi
+    storageClassName: local-path
+    volumeMode: Filesystem
+    volumeName: pvc-87ab916f-8c2f-4a91-b5a7-4a59fa760f49
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 5Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      meta.helm.sh/release-name: registry
+      meta.helm.sh/release-namespace: registry
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: rancher.io/local-path
+      volume.kubernetes.io/selected-node: vmi2092350.contaboserver.net
+      volume.kubernetes.io/storage-provisioner: rancher.io/local-path
+    creationTimestamp: "2025-12-04T14:17:34Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app.kubernetes.io/component: storage
+      app.kubernetes.io/managed-by: Helm
+      app.kubernetes.io/name: docker-registry
+    name: docker-registry-data
+    namespace: registry
+    resourceVersion: "6899126"
+    uid: 38ff4cfe-9ade-40f3-8dfb-feaa0b8421c6
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 50Gi
+    storageClassName: local-path
+    volumeMode: Filesystem
+    volumeName: pvc-38ff4cfe-9ade-40f3-8dfb-feaa0b8421c6
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 50Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: rancher.io/local-path
+      volume.kubernetes.io/selected-node: vmi2911680
+      volume.kubernetes.io/storage-provisioner: rancher.io/local-path
+    creationTimestamp: "2025-11-27T08:12:57Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app.kubernetes.io/component: primary
+      app.kubernetes.io/instance: temporal-postgresql
+      app.kubernetes.io/name: postgresql
+    name: data-temporal-postgresql-0
+    namespace: temporal
+    resourceVersion: "5257512"
+    uid: bd36a26f-754c-47af-a5a3-75a3a2fbcaf3
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 8Gi
+    storageClassName: local-path
+    volumeMode: Filesystem
+    volumeName: pvc-bd36a26f-754c-47af-a5a3-75a3a2fbcaf3
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 8Gi
+    phase: Bound
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      meta.helm.sh/release-name: minio
+      meta.helm.sh/release-namespace: velero
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+      volume.beta.kubernetes.io/storage-provisioner: rancher.io/local-path
+      volume.kubernetes.io/selected-node: vmi2911680
+      volume.kubernetes.io/storage-provisioner: rancher.io/local-path
+    creationTimestamp: "2025-12-09T20:59:11Z"
+    finalizers:
+    - kubernetes.io/pvc-protection
+    labels:
+      app: minio
+      app.kubernetes.io/managed-by: Helm
+      chart: minio-5.4.0
+      heritage: Helm
+      release: minio
+    name: minio
+    namespace: velero
+    resourceVersion: "8052975"
+    uid: 7a8bd8c3-6548-4a52-89d0-72cb80a98c3d
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 50Gi
+    storageClassName: local-path
+    volumeMode: Filesystem
+    volumeName: pvc-7a8bd8c3-6548-4a52-89d0-72cb80a98c3d
+  status:
+    accessModes:
+    - ReadWriteOnce
+    capacity:
+      storage: 50Gi
+    phase: Bound
+kind: List
+metadata:
+  resourceVersion: ""

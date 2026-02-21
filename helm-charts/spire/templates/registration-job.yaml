@@ -37,6 +37,15 @@ spec:
         args:
         - |
           set -e
+          # Create node alias first (used as parentId for workload entries)
+          echo "Creating node alias: spiffe://{{ .Values.global.trustDomain }}/cluster/{{ .Values.server.nodeAttestor.k8sPsat.cluster }}"
+          /opt/spire/bin/spire-server entry create \
+            -spiffeID spiffe://{{ .Values.global.trustDomain }}/cluster/{{ .Values.server.nodeAttestor.k8sPsat.cluster }} \
+            -selector k8s_psat:cluster:{{ .Values.server.nodeAttestor.k8sPsat.cluster }} \
+            -node \
+            -serverAddress spire-server \
+            -serverPort 8081 || true
+
           {{- range .Values.workloadEntries.entries }}
           echo "Creating entry: {{ .spiffeId }}"
           /opt/spire/bin/spire-server entry create \

@@ -382,7 +382,7 @@ class SemanticTranslationOrchestrator:
             valid_until=valid_until,
             estimated_total_duration_ms=total_duration,
             complexity_score=complexity_score,
-            original_domain=intent.get('domain', 'unknown'),
+            original_domain=intent.get('domain', 'UNKNOWN').upper(),
             original_priority=constraints.get('priority', 'normal'),
             original_security_level=constraints.get('security_level', 'internal'),
             metadata={

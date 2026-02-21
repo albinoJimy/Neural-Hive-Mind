@@ -65,6 +65,9 @@ spec:
           mountPath: /run/spire/agent/data
         - name: spire-token
           mountPath: /var/run/secrets/tokens
+        - name: spire-bundle
+          mountPath: /run/spire/bootstrap
+          readOnly: true
         livenessProbe:
           httpGet:
             path: /live
@@ -103,6 +106,9 @@ spec:
               path: spire-agent
               expirationSeconds: 7200
               audience: spire-server
+      - name: spire-bundle
+        configMap:
+          name: spire-bundle
       {{- with .Values.agent.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}

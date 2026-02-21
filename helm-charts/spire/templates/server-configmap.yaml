@@ -37,11 +37,23 @@ data:
         }
       }
 
+      {{- if eq .Values.server.config.keyManager.type "disk" }}
       KeyManager "disk" {
         plugin_data {
           keys_path = "/run/spire/data/keys"
         }
       }
+      {{- else if eq .Values.server.config.keyManager.type "aws_kms" }}
+      KeyManager "aws_kms" {
+        plugin_data {
+          {{/* Add AWS KMS specific configuration here */}}
+        }
+      }
+      {{- else }}
+      KeyManager "memory" {
+        plugin_data {}
+      }
+      {{- end }}
 
       Notifier "k8sbundle" {
         plugin_data {
@@ -49,6 +61,16 @@ data:
           config_map = "spire-bundle"
         }
       }
+
+      {{- if .Values.server.config.upstreamAuthority.vault.enabled }}
+      UpstreamAuthority "vault" {
+        plugin_data {
+          vault_addr = "{{ .Values.server.config.upstreamAuthority.vault.vaultAddr }}"
+          pki_mount_point = "{{ .Values.server.config.upstreamAuthority.vault.pkiMountPoint }}"
+          ca_cert_path = "{{ .Values.server.config.upstreamAuthority.vault.caCertPath }}"
+        }
+      }
+      {{- end }}
     }
 
     health_checks {

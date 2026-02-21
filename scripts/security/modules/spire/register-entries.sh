@@ -2,7 +2,7 @@
 # Script para criar registration entries SPIRE
 set -euo pipefail
 
-SPIRE_NAMESPACE="spire"
+SPIRE_NAMESPACE="${SPIRE_NAMESPACE:-spire-system}"
 SPIRE_SERVER_POD="spire-server-0"
 TRUST_DOMAIN="neural-hive.local"
 
@@ -16,7 +16,7 @@ create_orchestrator_entry() {
     kubectl exec -n $SPIRE_NAMESPACE $SPIRE_SERVER_POD -- \
         /opt/spire/bin/spire-server entry create \
         -spiffeID spiffe://$TRUST_DOMAIN/ns/neural-hive-orchestration/sa/orchestrator-dynamic \
-        -parentID spiffe://$TRUST_DOMAIN/spire/agent/k8s_psat/neural-hive-orchestration \
+        -parentID spiffe://$TRUST_DOMAIN/cluster/neural-hive \
         -selector k8s:ns:neural-hive-orchestration \
         -selector k8s:sa:orchestrator-dynamic \
         -selector k8s:pod-label:app:orchestrator-dynamic \
@@ -31,7 +31,7 @@ create_worker_entry() {
     kubectl exec -n $SPIRE_NAMESPACE $SPIRE_SERVER_POD -- \
         /opt/spire/bin/spire-server entry create \
         -spiffeID spiffe://$TRUST_DOMAIN/ns/neural-hive-execution/sa/worker-agents \
-        -parentID spiffe://$TRUST_DOMAIN/spire/agent/k8s_psat/neural-hive-execution \
+        -parentID spiffe://$TRUST_DOMAIN/cluster/neural-hive \
         -selector k8s:ns:neural-hive-execution \
         -selector k8s:sa:worker-agents \
         -selector k8s:pod-label:app:worker-agents \
@@ -45,12 +45,12 @@ create_registry_entry() {
 
     kubectl exec -n $SPIRE_NAMESPACE $SPIRE_SERVER_POD -- \
         /opt/spire/bin/spire-server entry create \
-        -spiffeID spiffe://$TRUST_DOMAIN/ns/neural-hive-orchestration/sa/service-registry \
-        -parentID spiffe://$TRUST_DOMAIN/spire/agent/k8s_psat/neural-hive-orchestration \
-        -selector k8s:ns:neural-hive-orchestration \
+        -spiffeID spiffe://$TRUST_DOMAIN/ns/neural-hive-core/sa/service-registry \
+        -parentID spiffe://$TRUST_DOMAIN/cluster/neural-hive \
+        -selector k8s:ns:neural-hive-core \
         -selector k8s:sa:service-registry \
         -selector k8s:pod-label:app:service-registry \
-        -dns service-registry.neural-hive-orchestration.svc.cluster.local \
+        -dns service-registry.neural-hive-core.svc.cluster.local \
         -ttl 3600 || log_error "Entry já existe ou falhou"
 }
 

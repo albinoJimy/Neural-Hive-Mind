@@ -33,6 +33,10 @@ server:
     trustDomain: "neural-hive.local"
     dataDir: "/run/spire/server/data"
 
+    # KeyManager type: "memory" (default for HA), "disk" (single pod), or "aws_kms" (production with AWS)
+    keyManager:
+      type: "memory"
+
     # Upstream authority via Vault PKI
     upstreamAuthority:
       vault:
@@ -40,6 +44,9 @@ server:
         vaultAddr: "https://vault.vault.svc.cluster.local:8200"
         pkiMountPoint: "pki"
         caCertPath: "/vault/tls/ca.crt"
+
+    # RDS PostgreSQL egress CIDR for NetworkPolicy (AWS RDS is external)
+    rdsEgressCIDR: "10.0.0.0/8"  # Adjust to your VPC CIDR
 
   # Storage backend - PostgreSQL para produção
   # IMPORTANTE: Connection string deve ser provisionado via Terraform (spire-datastore module)
@@ -97,6 +104,7 @@ server:
   nodeAttestor:
     k8sPsat:
       enabled: true
+      cluster: "neural-hive"
       serviceAccountAllowList:
         - "spire:spire-agent"
 
@@ -168,6 +176,7 @@ agent:
     socketPath: "/run/spire/sockets/agent.sock"
     serverAddress: "spire-server"
     serverPort: 8081
+    trustBundlePath: "/run/spire/bootstrap/bundle.crt"
 
   # Node attestation
   nodeAttestor:
@@ -252,7 +261,7 @@ workloadEntries:
   enabled: true
   entries:
     - spiffeId: "spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic"
-      parentId: "spiffe://neural-hive.local/spire/agent/k8s_psat/neural-hive/node"
+      parentId: "spiffe://neural-hive.local/cluster/neural-hive"
       selectors:
         - "k8s:ns:neural-hive-orchestration"
         - "k8s:sa:orchestrator-dynamic"
@@ -262,7 +271,7 @@ workloadEntries:
       ttl: 3600
 
     - spiffeId: "spiffe://neural-hive.local/ns/neural-hive-execution/sa/worker-agents"
-      parentId: "spiffe://neural-hive.local/spire/agent/k8s_psat/neural-hive/node"
+      parentId: "spiffe://neural-hive.local/cluster/neural-hive"
       selectors:
         - "k8s:ns:neural-hive-execution"
         - "k8s:sa:worker-agents"
@@ -271,10 +280,10 @@ workloadEntries:
       downstream: false
       ttl: 3600
 
-    - spiffeId: "spiffe://neural-hive.local/ns/neural-hive-registry/sa/service-registry"
-      parentId: "spiffe://neural-hive.local/spire/agent/k8s_psat/neural-hive/node"
+    - spiffeId: "spiffe://neural-hive.local/ns/neural-hive-core/sa/service-registry"
+      parentId: "spiffe://neural-hive.local/cluster/neural-hive"
       selectors:
-        - "k8s:ns:neural-hive-registry"
+        - "k8s:ns:neural-hive-core"
         - "k8s:sa:service-registry"
       federatesWith: []
       admin: false

@@ -53,3 +53,4 @@ tests/logs/
 # Claude local settings (may contain sensitive data)
 .claude/settings.local.json
 .claude/settings.*.json
+secrets-inventory.yaml

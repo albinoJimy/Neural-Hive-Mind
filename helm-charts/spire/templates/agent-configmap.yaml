@@ -15,6 +15,7 @@ data:
       socket_path = "{{ .Values.agent.config.socketPath }}"
       trust_domain = "{{ .Values.global.trustDomain }}"
       insecure_bootstrap = false
+      trust_bundle_path = "{{ .Values.agent.config.trustBundlePath }}"
     }
 
     plugins {
