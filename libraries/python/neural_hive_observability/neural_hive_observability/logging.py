@@ -207,13 +207,22 @@ def init_logging(config: ObservabilityConfig) -> None:
     """
     Inicializa logging estruturado.
 
+    Configura tanto logging padrão quanto structlog para uso consistente
+    em todos os serviços do Neural Hive-Mind.
+
     Args:
         config: Configuração de observabilidade
     """
+    # Importar structlog aqui para evitar dependência circular
+    try:
+        import structlog
+    except ImportError:
+        structlog = None
+
     # Configurar nível de log
     log_level = getattr(logging, config.log_level, logging.INFO)
 
-    # Configurar root logger
+    # Configurar root logger padrão
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
 
@@ -241,6 +250,36 @@ def init_logging(config: ObservabilityConfig) -> None:
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("requests").setLevel(logging.WARNING)
     logging.getLogger("opentelemetry").setLevel(logging.WARNING)
+    logging.getLogger("pymongo").setLevel(logging.WARNING)
+    logging.getLogger("pymongo.serverSelection").setLevel(logging.WARNING)
+    logging.getLogger("pymongo.connection").setLevel(logging.WARNING)
+
+    # Configurar structlog se disponível (usado por STE, Consensus, Orchestrator)
+    if structlog is not None:
+        try:
+            # Configurar structlog com processadores que outputam logs corretamente
+            structlog.configure(
+                processors=[
+                    structlog.stdlib.filter_by_level,
+                    structlog.stdlib.add_logger_name,
+                    structlog.stdlib.add_log_level,
+                    structlog.stdlib.PositionalArgumentsFormatter(),
+                    structlog.processors.TimeStamper(fmt="iso"),
+                    structlog.processors.StackInfoRenderer(),
+                    structlog.processors.format_exc_info,
+                    structlog.processors.UnicodeDecoder(),
+                    # Usar JSONRenderer para formato JSON ou dev para formato legível
+                    structlog.processors.JSONRenderer() if config.log_format.lower() == "json"
+                    else structlog.dev.ConsoleRenderer(colors=False),
+                ],
+                context_class=dict,
+                logger_factory=structlog.stdlib.LoggerFactory(),
+                wrapper_class=structlog.stdlib.BoundLogger,
+                cache_logger_on_first_use=True,
+            )
+        except Exception as e:
+            # Se structlog configure falhar, log mas não quebre startup
+            root_logger.warning(f"Failed to configure structlog: {e}")
 
 
 def get_logger(name: Optional[str] = None) -> NeuralHiveLoggerAdapter:
