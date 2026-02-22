@@ -443,17 +443,27 @@ class IntelligentScheduler:
             return workers
 
         except CircuitBreakerError:
+            # Log detalhado do estado do circuit breaker
+            breaker_state = 'unknown'
+            if self.registry_breaker:
+                breaker_state = self.registry_breaker.state.name if hasattr(self.registry_breaker, 'state') else 'open'
+
             if cached:
                 self.logger.warning(
                     'service_registry_circuit_open_using_cache',
                     cache_key=cache_key,
-                    workers_cached=len(cached[0])
+                    workers_cached=len(cached[0]),
+                    circuit_breaker_state=breaker_state,
+                    circuit_name='service_registry_discovery'
                 )
                 return cached[0]
 
             self.logger.warning(
                 'service_registry_circuit_open_no_cache',
-                cache_key=cache_key
+                cache_key=cache_key,
+                circuit_breaker_state=breaker_state,
+                circuit_name='service_registry_discovery',
+                reason='circuit_breaker_open_no_cached_workers_available'
             )
             self.metrics.record_discovery_failure('circuit_open')
             return []
@@ -461,7 +471,9 @@ class IntelligentScheduler:
             self.logger.warning(
                 'discovery_timeout',
                 cache_key=cache_key,
-                timeout_seconds=5.0
+                timeout_seconds=5.0,
+                reason='service_registry_discovery_exceeded_5s_timeout',
+                circuit_breaker_state=self.registry_breaker.state.name if self.registry_breaker else 'not_configured'
             )
             self.metrics.record_discovery_failure('timeout')
             return []

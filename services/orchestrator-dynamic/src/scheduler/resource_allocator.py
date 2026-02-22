@@ -109,14 +109,31 @@ class ResourceAllocator:
                 workers_count=len(workers)
             )
 
+            # Log detalhado quando Service Registry retorna resposta vazia
+            if len(workers) == 0:
+                self.logger.warning(
+                    'service_registry_empty_response',
+                    ticket_id=ticket_id,
+                    namespace=namespace,
+                    required_capabilities=required_capabilities,
+                    security_level=security_level,
+                    filters_applied=filters,
+                    response_empty=True
+                )
+
             return workers
 
         except Exception as e:
             self.logger.error(
                 'discovery_error',
                 ticket_id=ticket_id,
+                namespace=namespace,
+                required_capabilities=required_capabilities,
+                security_level=security_level,
+                filters_used=filters,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
+                workers_discovered_count=0
             )
             self.metrics.record_discovery_failure(type(e).__name__)
             return []

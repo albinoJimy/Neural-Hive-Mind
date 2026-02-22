@@ -404,6 +404,12 @@ class OrchestratorMetrics:
             ['status', 'fallback', 'has_predictions']
         )
 
+        self.fallback_stub_activations_total = Counter(
+            'orchestration_fallback_stub_activations_total',
+            'Total de ativações do fallback_stub no allocate_resources',
+            ['reason']
+        )
+
         self.scheduler_allocation_duration_seconds = Histogram(
             'orchestration_scheduler_allocation_duration_seconds',
             'Duração de alocações do scheduler',
@@ -1117,6 +1123,15 @@ class OrchestratorMetrics:
     def record_scheduler_rejection(self, reason: str):
         """Registra rejeição de alocação pelo scheduler."""
         self.scheduler_rejections_total.labels(reason=reason).inc()
+
+    def record_fallback_stub_activation(self, reason: str):
+        """
+        Registra ativação do fallback_stub no allocate_resources.
+
+        Args:
+            reason: Motivo da ativação do fallback (scheduler_exception, scheduler_unavailable, etc)
+        """
+        self.fallback_stub_activations_total.labels(reason=reason).inc()
 
     # Preemption Helper Methods
 
