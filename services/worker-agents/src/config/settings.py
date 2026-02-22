@@ -13,9 +13,23 @@ class WorkerAgentSettings(BaseSettings):
     service_name: str = 'worker-agents'
     service_version: str = '1.0.0'
     agent_id: str = Field(default_factory=lambda: str(uuid4()))
-    namespace: str = 'neural-hive-execution'
+    namespace: str = Field(
+        default='neural-hive',
+        description='Namespace Kubernetes (usa POD_NAMESPACE se disponível)'
+    )
     cluster: str = 'local'
     environment: str = 'production'
+
+    @model_validator(mode='after')
+    def validate_namespace_from_env(self) -> 'WorkerAgentSettings':
+        """
+        Usa POD_NAMESPACE se disponível para o namespace de registro.
+        Isso garante que workers sejam descobertos corretamente pelo Orchestrator.
+        """
+        pod_namespace = os.environ.get('POD_NAMESPACE')
+        if pod_namespace and pod_namespace != 'default':
+            self.namespace = pod_namespace
+        return self
 
     # Capabilities
     supported_task_types: List[str] = Field(
