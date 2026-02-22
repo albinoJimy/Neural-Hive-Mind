@@ -1,0 +1,18 @@
+{
+  "intent_id": "327403ce-8292-46cb-a13a-d863de64cc5e",
+  "correlation_id": "c3f7e2ca-0d2f-4662-bb9b-58b415c7dad1",
+  "status": "processed",
+  "confidence": 0.95,
+  "confidence_status": "high",
+  "domain": "TECHNICAL",
+  "classification": "performance",
+  "processing_time_ms": 685.2629999999999,
+  "requires_manual_validation": false,
+  "routing_thresholds": {
+    "high": 0.5,
+    "low": 0.3,
+    "adaptive_used": false
+  },
+  "traceId": "53f92ad9258b95fc0e6e7a1d05e39c86",
+  "spanId": "a3043aa1e9e5a750"
+}

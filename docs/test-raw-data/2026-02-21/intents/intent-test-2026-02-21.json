@@ -1,0 +1,16 @@
+{
+  "text": "Implementar sistema de cache distribuído com Redis para reduzir latência de API em 20%",
+  "context": {
+    "session_id": "test-session-2026-02-21",
+    "user_id": "qa-tester-001",
+    "source": "manual-test",
+    "metadata": {
+      "test_run": "fluxo-completo-2026-02-21",
+      "environment": "staging"
+    }
+  },
+  "constraints": {
+    "priority": "high",
+    "security_level": "internal"
+  }
+}

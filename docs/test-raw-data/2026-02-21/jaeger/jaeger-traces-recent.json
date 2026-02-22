@@ -1,0 +1,949 @@
+{
+  "data": [
+    {
+      "traceID": "c5a4241debc52eaf97d0d55c631d8c4e",
+      "spans": [
+        {
+          "traceID": "c5a4241debc52eaf97d0d55c631d8c4e",
+          "spanID": "c307ece2a8d73fa1",
+          "operationName": "health_check.otel_pipeline",
+          "references": [],
+          "startTime": 1771669669637888,
+          "duration": 1000,
+          "tags": [
+            {
+              "key": "health_check.type",
+              "type": "string",
+              "value": "otel_pipeline"
+            },
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "neural_hive_observability.health_check"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "1.0.0"
+            },
+            {
+              "key": "otel.status_code",
+              "type": "string",
+              "value": "OK"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        }
+      ],
+      "processes": {
+        "p1": {
+          "serviceName": "gateway-intencoes",
+          "tags": [
+            {
+              "key": "deployment.environment",
+              "type": "string",
+              "value": "production"
+            },
+            {
+              "key": "health.check",
+              "type": "string",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "warnings": null
+    },
+    {
+      "traceID": "8280be8b3e49ef72080d5086b56f669f",
+      "spans": [
+        {
+          "traceID": "8280be8b3e49ef72080d5086b56f669f",
+          "spanID": "92178bd98b31229a",
+          "operationName": "health_check.otel_pipeline",
+          "references": [],
+          "startTime": 1771669669638587,
+          "duration": 1000,
+          "tags": [
+            {
+              "key": "health_check.type",
+              "type": "string",
+              "value": "otel_pipeline"
+            },
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "neural_hive_observability.health_check"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "1.0.0"
+            },
+            {
+              "key": "otel.status_code",
+              "type": "string",
+              "value": "OK"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        }
+      ],
+      "processes": {
+        "p1": {
+          "serviceName": "gateway-intencoes",
+          "tags": [
+            {
+              "key": "deployment.environment",
+              "type": "string",
+              "value": "production"
+            },
+            {
+              "key": "health.check",
+              "type": "string",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "warnings": null
+    },
+    {
+      "traceID": "d69cdecbe29c88b14a9742e9a71c9d1b",
+      "spans": [
+        {
+          "traceID": "d69cdecbe29c88b14a9742e9a71c9d1b",
+          "spanID": "1f1532108dc2c0f8",
+          "operationName": "GET /health http send",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "d69cdecbe29c88b14a9742e9a71c9d1b",
+              "spanID": "5529899415dc0816"
+            }
+          ],
+          "startTime": 1771669669652100,
+          "duration": 70,
+          "tags": [
+            {
+              "key": "asgi.event.type",
+              "type": "string",
+              "value": "http.response.start"
+            },
+            {
+              "key": "http.status_code",
+              "type": "int64",
+              "value": 200
+            },
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.60b1"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "d69cdecbe29c88b14a9742e9a71c9d1b",
+          "spanID": "b31d9b2de65a583c",
+          "operationName": "GET /health http send",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "d69cdecbe29c88b14a9742e9a71c9d1b",
+              "spanID": "5529899415dc0816"
+            }
+          ],
+          "startTime": 1771669669652744,
+          "duration": 17,
+          "tags": [
+            {
+              "key": "asgi.event.type",
+              "type": "string",
+              "value": "http.response.body"
+            },
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.60b1"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "d69cdecbe29c88b14a9742e9a71c9d1b",
+          "spanID": "83f51ee4c7eca335",
+          "operationName": "GET /health http send",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "d69cdecbe29c88b14a9742e9a71c9d1b",
+              "spanID": "5529899415dc0816"
+            }
+          ],
+          "startTime": 1771669669652829,
+          "duration": 13,
+          "tags": [
+            {
+              "key": "asgi.event.type",
+              "type": "string",
+              "value": "http.response.body"
+            },
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.60b1"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "d69cdecbe29c88b14a9742e9a71c9d1b",
+          "spanID": "5529899415dc0816",
+          "operationName": "GET /health",
+          "references": [],
+          "startTime": 1771669669612852,
+          "duration": 40013,
+          "tags": [
+            {
+              "key": "http.flavor",
+              "type": "string",
+              "value": "1.1"
+            },
+            {
+              "key": "http.host",
+              "type": "string",
+              "value": "10.244.3.69:8000"
+            },
+            {
+              "key": "http.method",
+              "type": "string",
+              "value": "GET"
+            },
+            {
+              "key": "http.route",
+              "type": "string",
+              "value": "/health"
+            },
+            {
+              "key": "http.scheme",
+              "type": "string",
+              "value": "http"
+            },
+            {
+              "key": "http.server_name",
+              "type": "string",
+              "value": "10.244.3.69:8000"
+            },
+            {
+              "key": "http.status_code",
+              "type": "int64",
+              "value": 200
+            },
+            {
+              "key": "http.target",
+              "type": "string",
+              "value": "/health"
+            },
+            {
+              "key": "http.url",
+              "type": "string",
+              "value": "http://10.244.3.69:8000/health"
+            },
+            {
+              "key": "http.user_agent",
+              "type": "string",
+              "value": "kube-probe/1.29"
+            },
+            {
+              "key": "net.host.port",
+              "type": "int64",
+              "value": 8000
+            },
+            {
+              "key": "net.peer.ip",
+              "type": "string",
+              "value": "10.244.3.1"
+            },
+            {
+              "key": "net.peer.port",
+              "type": "int64",
+              "value": 42620
+            },
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.60b1"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "server"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        }
+      ],
+      "processes": {
+        "p1": {
+          "serviceName": "gateway-intencoes",
+          "tags": [
+            {
+              "key": "deployment.environment",
+              "type": "string",
+              "value": "production"
+            },
+            {
+              "key": "neural.hive.component",
+              "type": "string",
+              "value": "gateway"
+            },
+            {
+              "key": "neural.hive.domain",
+              "type": "string",
+              "value": "captura-intencoes"
+            },
+            {
+              "key": "neural.hive.layer",
+              "type": "string",
+              "value": "experiencia"
+            },
+            {
+              "key": "service.instance.id",
+              "type": "string",
+              "value": "8876d10c-5e60-4e09-9d69-6bf7f00303df"
+            },
+            {
+              "key": "service.version",
+              "type": "string",
+              "value": "1.0.7"
+            },
+            {
+              "key": "telemetry.sdk.language",
+              "type": "string",
+              "value": "python"
+            },
+            {
+              "key": "telemetry.sdk.name",
+              "type": "string",
+              "value": "neural_hive_observability"
+            },
+            {
+              "key": "telemetry.sdk.version",
+              "type": "string",
+              "value": "1.0.0"
+            }
+          ]
+        }
+      },
+      "warnings": null
+    },
+    {
+      "traceID": "6257eb7add881e25a41ba843954a0ad4",
+      "spans": [
+        {
+          "traceID": "6257eb7add881e25a41ba843954a0ad4",
+          "spanID": "a370822fbdb8b93c",
+          "operationName": "GET /health http send",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "6257eb7add881e25a41ba843954a0ad4",
+              "spanID": "64104d630f7827b1"
+            }
+          ],
+          "startTime": 1771669669654194,
+          "duration": 18,
+          "tags": [
+            {
+              "key": "asgi.event.type",
+              "type": "string",
+              "value": "http.response.body"
+            },
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.60b1"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "6257eb7add881e25a41ba843954a0ad4",
+          "spanID": "40cfd46cbadde0b4",
+          "operationName": "GET /health http send",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "6257eb7add881e25a41ba843954a0ad4",
+              "spanID": "64104d630f7827b1"
+            }
+          ],
+          "startTime": 1771669669654293,
+          "duration": 14,
+          "tags": [
+            {
+              "key": "asgi.event.type",
+              "type": "string",
+              "value": "http.response.body"
+            },
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.60b1"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "6257eb7add881e25a41ba843954a0ad4",
+          "spanID": "64104d630f7827b1",
+          "operationName": "GET /health",
+          "references": [],
+          "startTime": 1771669669611193,
+          "duration": 43135,
+          "tags": [
+            {
+              "key": "http.flavor",
+              "type": "string",
+              "value": "1.1"
+            },
+            {
+              "key": "http.host",
+              "type": "string",
+              "value": "10.244.3.69:8000"
+            },
+            {
+              "key": "http.method",
+              "type": "string",
+              "value": "GET"
+            },
+            {
+              "key": "http.route",
+              "type": "string",
+              "value": "/health"
+            },
+            {
+              "key": "http.scheme",
+              "type": "string",
+              "value": "http"
+            },
+            {
+              "key": "http.server_name",
+              "type": "string",
+              "value": "10.244.3.69:8000"
+            },
+            {
+              "key": "http.status_code",
+              "type": "int64",
+              "value": 200
+            },
+            {
+              "key": "http.target",
+              "type": "string",
+              "value": "/health"
+            },
+            {
+              "key": "http.url",
+              "type": "string",
+              "value": "http://10.244.3.69:8000/health"
+            },
+            {
+              "key": "http.user_agent",
+              "type": "string",
+              "value": "kube-probe/1.29"
+            },
+            {
+              "key": "net.host.port",
+              "type": "int64",
+              "value": 8000
+            },
+            {
+              "key": "net.peer.ip",
+              "type": "string",
+              "value": "10.244.3.1"
+            },
+            {
+              "key": "net.peer.port",
+              "type": "int64",
+              "value": 42616
+            },
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.60b1"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "server"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "6257eb7add881e25a41ba843954a0ad4",
+          "spanID": "6a2668b813d4d521",
+          "operationName": "GET /health http send",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "6257eb7add881e25a41ba843954a0ad4",
+              "spanID": "64104d630f7827b1"
+            }
+          ],
+          "startTime": 1771669669652963,
+          "duration": 54,
+          "tags": [
+            {
+              "key": "asgi.event.type",
+              "type": "string",
+              "value": "http.response.start"
+            },
+            {
+              "key": "http.status_code",
+              "type": "int64",
+              "value": 200
+            },
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.60b1"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        }
+      ],
+      "processes": {
+        "p1": {
+          "serviceName": "gateway-intencoes",
+          "tags": [
+            {
+              "key": "deployment.environment",
+              "type": "string",
+              "value": "production"
+            },
+            {
+              "key": "neural.hive.component",
+              "type": "string",
+              "value": "gateway"
+            },
+            {
+              "key": "neural.hive.domain",
+              "type": "string",
+              "value": "captura-intencoes"
+            },
+            {
+              "key": "neural.hive.layer",
+              "type": "string",
+              "value": "experiencia"
+            },
+            {
+              "key": "service.instance.id",
+              "type": "string",
+              "value": "8876d10c-5e60-4e09-9d69-6bf7f00303df"
+            },
+            {
+              "key": "service.version",
+              "type": "string",
+              "value": "1.0.7"
+            },
+            {
+              "key": "telemetry.sdk.language",
+              "type": "string",
+              "value": "python"
+            },
+            {
+              "key": "telemetry.sdk.name",
+              "type": "string",
+              "value": "neural_hive_observability"
+            },
+            {
+              "key": "telemetry.sdk.version",
+              "type": "string",
+              "value": "1.0.0"
+            }
+          ]
+        }
+      },
+      "warnings": null
+    },
+    {
+      "traceID": "0ae6a8902abe758576879f93ab4adb2b",
+      "spans": [
+        {
+          "traceID": "0ae6a8902abe758576879f93ab4adb2b",
+          "spanID": "2146153e18f27948",
+          "operationName": "GET /health",
+          "references": [],
+          "startTime": 1771669659610534,
+          "duration": 34584,
+          "tags": [
+            {
+              "key": "http.flavor",
+              "type": "string",
+              "value": "1.1"
+            },
+            {
+              "key": "http.host",
+              "type": "string",
+              "value": "10.244.3.69:8000"
+            },
+            {
+              "key": "http.method",
+              "type": "string",
+              "value": "GET"
+            },
+            {
+              "key": "http.route",
+              "type": "string",
+              "value": "/health"
+            },
+            {
+              "key": "http.scheme",
+              "type": "string",
+              "value": "http"
+            },
+            {
+              "key": "http.server_name",
+              "type": "string",
+              "value": "10.244.3.69:8000"
+            },
+            {
+              "key": "http.status_code",
+              "type": "int64",
+              "value": 200
+            },
+            {
+              "key": "http.target",
+              "type": "string",
+              "value": "/health"
+            },
+            {
+              "key": "http.url",
+              "type": "string",
+              "value": "http://10.244.3.69:8000/health"
+            },
+            {
+              "key": "http.user_agent",
+              "type": "string",
+              "value": "kube-probe/1.29"
+            },
+            {
+              "key": "net.host.port",
+              "type": "int64",
+              "value": 8000
+            },
+            {
+              "key": "net.peer.ip",
+              "type": "string",
+              "value": "10.244.3.1"
+            },
+            {
+              "key": "net.peer.port",
+              "type": "int64",
+              "value": 44122
+            },
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.60b1"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "server"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "0ae6a8902abe758576879f93ab4adb2b",
+          "spanID": "7ea95d2cfa45b39a",
+          "operationName": "GET /health http send",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "0ae6a8902abe758576879f93ab4adb2b",
+              "spanID": "2146153e18f27948"
+            }
+          ],
+          "startTime": 1771669659644460,
+          "duration": 85,
+          "tags": [
+            {
+              "key": "asgi.event.type",
+              "type": "string",
+              "value": "http.response.start"
+            },
+            {
+              "key": "http.status_code",
+              "type": "int64",
+              "value": 200
+            },
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.60b1"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "0ae6a8902abe758576879f93ab4adb2b",
+          "spanID": "d78c2523eecc0b62",
+          "operationName": "GET /health http send",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "0ae6a8902abe758576879f93ab4adb2b",
+              "spanID": "2146153e18f27948"
+            }
+          ],
+          "startTime": 1771669659645030,
+          "duration": 13,
+          "tags": [
+            {
+              "key": "asgi.event.type",
+              "type": "string",
+              "value": "http.response.body"
+            },
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.60b1"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        },
+        {
+          "traceID": "0ae6a8902abe758576879f93ab4adb2b",
+          "spanID": "78ad3505a46f9db2",
+          "operationName": "GET /health http send",
+          "references": [
+            {
+              "refType": "CHILD_OF",
+              "traceID": "0ae6a8902abe758576879f93ab4adb2b",
+              "spanID": "2146153e18f27948"
+            }
+          ],
+          "startTime": 1771669659645093,
+          "duration": 9,
+          "tags": [
+            {
+              "key": "asgi.event.type",
+              "type": "string",
+              "value": "http.response.body"
+            },
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "opentelemetry.instrumentation.fastapi"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "0.60b1"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        }
+      ],
+      "processes": {
+        "p1": {
+          "serviceName": "gateway-intencoes",
+          "tags": [
+            {
+              "key": "deployment.environment",
+              "type": "string",
+              "value": "production"
+            },
+            {
+              "key": "neural.hive.component",
+              "type": "string",
+              "value": "gateway"
+            },
+            {
+              "key": "neural.hive.domain",
+              "type": "string",
+              "value": "captura-intencoes"
+            },
+            {
+              "key": "neural.hive.layer",
+              "type": "string",
+              "value": "experiencia"
+            },
+            {
+              "key": "service.instance.id",
+              "type": "string",
+              "value": "8876d10c-5e60-4e09-9d69-6bf7f00303df"
+            },
+            {
+              "key": "service.version",
+              "type": "string",
+              "value": "1.0.7"
+            },
+            {
+              "key": "telemetry.sdk.language",
+              "type": "string",
+              "value": "python"
+            },
+            {
+              "key": "telemetry.sdk.name",
+              "type": "string",
+              "value": "neural_hive_observability"
+            },
+            {
+              "key": "telemetry.sdk.version",
+              "type": "string",
+              "value": "1.0.0"
+            }
+          ]
+        }
+      },
+      "warnings": null
+    }
+  ],
+  "total": 0,
+  "limit": 0,
+  "offset": 0,
+  "errors": null
+}

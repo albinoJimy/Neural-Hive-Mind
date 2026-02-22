@@ -1,0 +1,1 @@
+{"text":"Teste completo via Gateway API","actor":{"id":"qa-tester-gateway","type":"human","channel":"api"},"intent":{"domain":"TECHNICAL","action":"test","target":"fluxo-gateway"},"confidence":0.95,"context":{"user_id":"qa-tester-gateway","session_id":"test-gateway-1771643880","source":"manual-test"},"constraints":{"priority":"normal","security_level":"internal"}}

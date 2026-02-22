@@ -1,0 +1,12 @@
+{
+  "text": "Testar novo envio de intenção para validar fluxo",
+  "context": {
+    "session_id": "test-session-002",
+    "user_id": "qa-tester-001",
+    "source": "manual-test"
+  },
+  "constraints": {
+    "priority": "normal",
+    "security_level": "internal"
+  }
+}

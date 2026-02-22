@@ -1,0 +1,17 @@
+{
+  "text": "Analisar viabilidade técnica de migração do sistema de autenticação para OAuth2 com suporte a MFA",
+  "context": {
+    "session_id": "test-session-001",
+    "user_id": "qa-tester-001",
+    "source": "manual-test",
+    "metadata": {
+      "test_run": "fluxo-a-b-c",
+      "environment": "staging"
+    }
+  },
+  "constraints": {
+    "priority": "high",
+    "security_level": "confidential",
+    "deadline": "2026-02-01T00:00:00Z"
+  }
+}

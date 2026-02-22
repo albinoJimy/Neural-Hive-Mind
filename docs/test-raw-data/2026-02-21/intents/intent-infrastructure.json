@@ -1,0 +1,17 @@
+{
+  "text": "Projetar estratégia de auto-scaling para microserviços com base em métricas de CPU e memória",
+  "context": {
+    "session_id": "test-session-003",
+    "user_id": "qa-tester-001",
+    "source": "manual-test",
+    "metadata": {
+      "test_run": "fluxo-a-b-c",
+      "environment": "staging"
+    }
+  },
+  "constraints": {
+    "priority": "high",
+    "security_level": "internal",
+    "deadline": "2026-02-15T00:00:00Z"
+  }
+}

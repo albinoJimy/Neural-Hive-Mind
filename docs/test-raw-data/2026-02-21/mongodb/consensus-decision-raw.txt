@@ -1,0 +1,172 @@
+{
+  decision_id: 'e4457805-4266-49a5-b4d5-f26e72867871',
+  plan_id: 'd7e564dc-8319-41d0-8411-f636b3cbca46',
+  intent_id: '327403ce-8292-46cb-a13a-d863de64cc5e',
+  correlation_id: 'c3f7e2ca-0d2f-4662-bb9b-58b415c7dad1',
+  trace_id: null,
+  span_id: null,
+  final_decision: 'review_required',
+  consensus_method: 'fallback',
+  aggregated_confidence: 0.20911999999999997,
+  aggregated_risk: 0.5446400000000001,
+  specialist_votes: [
+    {
+      specialist_type: 'business',
+      opinion_id: 'a0f808fd-9ed4-499e-8e5e-56d102b9e46a',
+      confidence_score: 0.5,
+      risk_score: 0.5,
+      recommendation: 'review_required',
+      weight: 0.2,
+      processing_time_ms: 898
+    },
+    {
+      specialist_type: 'technical',
+      opinion_id: 'd615135b-d839-4d72-a07b-821ce4cb4f86',
+      confidence_score: 0.096,
+      risk_score: 0.562,
+      recommendation: 'reject',
+      weight: 0.2,
+      processing_time_ms: 1610
+    },
+    {
+      specialist_type: 'behavior',
+      opinion_id: 'ce48382c-24bc-477d-9f0d-aa3e9ade5401',
+      confidence_score: 0.096,
+      risk_score: 0.562,
+      recommendation: 'reject',
+      weight: 0.2,
+      processing_time_ms: 1704
+    },
+    {
+      specialist_type: 'evolution',
+      opinion_id: '6c5fb16e-be71-44e4-903d-1d753c63ecd6',
+      confidence_score: 0.096,
+      risk_score: 0.562,
+      recommendation: 'reject',
+      weight: 0.2,
+      processing_time_ms: 1091
+    },
+    {
+      specialist_type: 'architecture',
+      opinion_id: '6476a70a-0174-42a5-be00-d457f1579fae',
+      confidence_score: 0.096,
+      risk_score: 0.562,
+      recommendation: 'reject',
+      weight: 0.2,
+      processing_time_ms: 1611
+    }
+  ],
+  consensus_metrics: {
+    divergence_score: 0.4091464683527931,
+    convergence_time_ms: 16,
+    unanimous: false,
+    fallback_used: true,
+    pheromone_strength: 0,
+    bayesian_confidence: 0.20911999999999997,
+    voting_confidence: 0.8
+  },
+  explainability_token: 'explain-d7e564dc-8319-41d0-8411-f636b3cbca46',
+  reasoning_summary: 'Decisão por consenso: review_required. Confiança agregada: 0.21, Risco agregado: 0.54. Guardrails acionados: 2. ',
+  compliance_checks: {
+    confidence_threshold: false,
+    divergence_threshold: false,
+    base_confidence_threshold_passed: false,
+    base_divergence_threshold_passed: false,
+    adaptive_confidence_threshold_passed: false,
+    adaptive_divergence_threshold_passed: false,
+    risk_acceptable: true,
+    adaptive_thresholds_used: true
+  },
+  guardrails_triggered: [
+    'Confiança agregada (0.21) abaixo do mínimo adaptativo (0.50) [base: 0.65, ajustado: 5 models degraded (business, technical, behavior, evolution, architecture) - using relaxed thresholds to prevent total blockage]',
+    'Divergência (0.41) acima do máximo adaptativo (0.35) [base: 0.25, ajustado: 5 models degraded (business, technical, behavior, evolution, architecture) - using relaxed thresholds to prevent total blockage]'
+  ],
+  requires_human_review: true,
+  cognitive_plan: {
+    plan_id: 'd7e564dc-8319-41d0-8411-f636b3cbca46',
+    version: '1.0.0',
+    intent_id: '327403ce-8292-46cb-a13a-d863de64cc5e',
+    correlation_id: 'c3f7e2ca-0d2f-4662-bb9b-58b415c7dad1',
+    trace_id: null,
+    span_id: null,
+    tasks: [
+      {
+        task_id: 'task_0',
+        task_type: 'query',
+        description: 'Search and aggregate verificar resources with role-based access control (TECHNICAL, normal priority)',
+        dependencies: [],
+        estimated_duration_ms: 500,
+        required_capabilities: [
+          'read'
+        ],
+        parameters: {
+          objective: 'query',
+          entities: "[{'original_type': None, 'canonical_type': None, 'value': 'Verificar', 'confidence': 0.8, 'properties': {}}, {'original_type': 'RESOURCE', 'canonical_type': 'RESOURCE', 'value': 'Verificar status do sistema de monitoramento e análise de métricas de performance', 'confidence': 0.7, 'properties': {}}]",
+          constraints: "{'priority': 'normal', 'deadline': None, 'max_retries': 3, 'timeout_ms': 30000, 'required_capabilities': [], 'security_level': 'internal'}"
+        },
+        metadata: {
+          description_quality_score: '0.5',
+          domain: 'TECHNICAL',
+          security_level: 'internal'
+        }
+      }
+    ],
+    execution_order: [
+      'task_0'
+    ],
+    risk_score: 0.325,
+    risk_band: 'low',
+    risk_factors: {
+      priority: 0.4,
+      security: 0.5,
+      complexity: 0.2,
+      destructive: 0,
+      weighted_score: 0.325
+    },
+    explainability_token: 'cccdd4e8-9173-4706-a53f-1da54eaf5063',
+    reasoning_summary: 'Plano gerado para domínio TECHNICAL com 1 tarefas. Objetivos identificados: query. Score de risco: 0.33 (prioridade: 0.40, segurança: 0.50, complexidade: 0.20). ',
+    status: 'validated',
+    created_at: '2026-02-21T10:18:08.353000Z',
+    valid_until: '2026-02-22T10:18:08.352000Z',
+    estimated_total_duration_ms: 500,
+    complexity_score: 0.1,
+    original_domain: 'TECHNICAL',
+    original_priority: 'normal',
+    original_security_level: 'internal',
+    metadata: {
+      original_confidence: '0.95',
+      num_similar_intents: '0',
+      generator_version: '1.0.0'
+    },
+    requires_approval: false,
+    approval_status: null,
+    approved_by: null,
+    approved_at: null,
+    is_destructive: false,
+    destructive_tasks: [],
+    risk_matrix: {
+      business: 0.3,
+      security: 0.37142857142857144,
+      operational: 0.3,
+      overall: 0.325
+    },
+    schema_version: 1
+  },
+  created_at: '2026-02-21T10:18:10.177417',
+  valid_until: null,
+  metadata: {
+    num_specialists: '5',
+    vote_distribution: "{'review_required': 0.2, 'reject': 0.8}",
+    domain: 'TECHNICAL',
+    base_min_confidence: '0.65',
+    base_max_divergence: '0.25',
+    adaptive_min_confidence: '0.5',
+    adaptive_max_divergence: '0.35',
+    adaptive_health_status: 'severely_degraded',
+    adaptive_degraded_count: '5',
+    adaptive_adjustment_reason: '5 models degraded (business, technical, behavior, evolution, architecture) - using relaxed thresholds to prevent total blockage'
+  },
+  hash: '281e9025d16ade57042544fbef50b7caa358cfd20659c864725ccb2e1b65fdb3',
+  schema_version: 1,
+  immutable: true
+}

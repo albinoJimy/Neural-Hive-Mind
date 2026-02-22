@@ -1,0 +1,12 @@
+{
+  "text": "Testar correção do problema de Avro schema com domain em maiúsculas",
+  "context": {
+    "session_id": "test-fix-2026-02-21",
+    "user_id": "qa-tester-001",
+    "source": "manual-test"
+  },
+  "constraints": {
+    "priority": "normal",
+    "security_level": "internal"
+  }
+}

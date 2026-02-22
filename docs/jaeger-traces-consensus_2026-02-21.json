@@ -1,0 +1,191 @@
+{
+  "data": [
+    {
+      "traceID": "146b451b25ca04bf8657c60e0e95519d",
+      "spans": [
+        {
+          "traceID": "146b451b25ca04bf8657c60e0e95519d",
+          "spanID": "c04dc05f6e0510aa",
+          "operationName": "health_check.otel_pipeline",
+          "references": [],
+          "startTime": 1771669688375032,
+          "duration": 1000,
+          "tags": [
+            {
+              "key": "health_check.type",
+              "type": "string",
+              "value": "otel_pipeline"
+            },
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "neural_hive_observability.health_check"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "1.0.0"
+            },
+            {
+              "key": "otel.status_code",
+              "type": "string",
+              "value": "OK"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        }
+      ],
+      "processes": {
+        "p1": {
+          "serviceName": "consensus-engine",
+          "tags": [
+            {
+              "key": "deployment.environment",
+              "type": "string",
+              "value": "production"
+            },
+            {
+              "key": "health.check",
+              "type": "string",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "warnings": null
+    },
+    {
+      "traceID": "3cb9f8d4db18cfe78f5276a367e93cab",
+      "spans": [
+        {
+          "traceID": "3cb9f8d4db18cfe78f5276a367e93cab",
+          "spanID": "90176502e06ea23a",
+          "operationName": "health_check.otel_pipeline",
+          "references": [],
+          "startTime": 1771669694526851,
+          "duration": 1000,
+          "tags": [
+            {
+              "key": "health_check.type",
+              "type": "string",
+              "value": "otel_pipeline"
+            },
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "neural_hive_observability.health_check"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "1.0.0"
+            },
+            {
+              "key": "otel.status_code",
+              "type": "string",
+              "value": "OK"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        }
+      ],
+      "processes": {
+        "p1": {
+          "serviceName": "consensus-engine",
+          "tags": [
+            {
+              "key": "deployment.environment",
+              "type": "string",
+              "value": "production"
+            },
+            {
+              "key": "health.check",
+              "type": "string",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "warnings": null
+    },
+    {
+      "traceID": "72c1558c94820e35581c56cb59478f75",
+      "spans": [
+        {
+          "traceID": "72c1558c94820e35581c56cb59478f75",
+          "spanID": "22895706d5baec71",
+          "operationName": "health_check.otel_pipeline",
+          "references": [],
+          "startTime": 1771669684727420,
+          "duration": 1000,
+          "tags": [
+            {
+              "key": "health_check.type",
+              "type": "string",
+              "value": "otel_pipeline"
+            },
+            {
+              "key": "otel.scope.name",
+              "type": "string",
+              "value": "neural_hive_observability.health_check"
+            },
+            {
+              "key": "otel.scope.version",
+              "type": "string",
+              "value": "1.0.0"
+            },
+            {
+              "key": "otel.status_code",
+              "type": "string",
+              "value": "OK"
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        }
+      ],
+      "processes": {
+        "p1": {
+          "serviceName": "consensus-engine",
+          "tags": [
+            {
+              "key": "deployment.environment",
+              "type": "string",
+              "value": "production"
+            },
+            {
+              "key": "health.check",
+              "type": "string",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "warnings": null
+    }
+  ],
+  "total": 0,
+  "limit": 0,
+  "offset": 0,
+  "errors": null
+}

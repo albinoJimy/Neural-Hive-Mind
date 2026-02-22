@@ -1,0 +1,1 @@
+{"text":"Teste fluxo completo Gateway STE Consensus","intent":{"domain":"TECHNICAL","action":"test","confidence":0.95},"context":{"user_id":"qa-tester-final","session_id":"test-final-1771643316"},"constraints":{"priority":"high","security_level":"internal"},"correlationId":"test-final-1771643316","timestamp":"2026-02-21T03:08:36Z"}

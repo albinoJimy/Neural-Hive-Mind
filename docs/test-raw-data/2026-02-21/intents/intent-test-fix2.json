@@ -1,0 +1,12 @@
+{
+  "text": "Implementar API REST em FastAPI com endpoints CRUD para usuários",
+  "context": {
+    "session_id": "test-fix-2026-02-21-02",
+    "user_id": "qa-tester-001",
+    "source": "manual-test"
+  },
+  "constraints": {
+    "priority": "normal",
+    "security_level": "internal"
+  }
+}

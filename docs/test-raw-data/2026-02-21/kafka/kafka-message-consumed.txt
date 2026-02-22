@@ -1,0 +1,2 @@
+CreateTime:1771634262272	Partition:5	Offset:0	null	{"test":"fresh-1771634256"}
+Processed a total of 1 messages

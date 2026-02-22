@@ -1,0 +1,19 @@
+{
+  "id": "test-intent-$(uuidgen)",
+  "text": "Implementar cache distribuído com Redis para reduzir latência",
+  "intent": {
+    "domain": "TECHNICAL",
+    "action": "implement",
+    "confidence": 0.95
+  },
+  "context": {
+    "user_id": "qa-tester",
+    "session_id": "test-2026-02-21-03"
+  },
+  "constraints": {
+    "priority": "normal",
+    "security_level": "internal"
+  },
+  "correlationId": "test-correlation-$(date +%s)",
+  "timestamp": "2026-02-21T02:40:00Z"
+}

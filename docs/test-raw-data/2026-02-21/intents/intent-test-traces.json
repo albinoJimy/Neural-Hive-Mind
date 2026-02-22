@@ -1,0 +1,13 @@
+{
+  "text": "Teste geração de traces - envio para verificar rastreamento completo ponta-a-ponta",
+  "context": {
+    "session_id": "test-traces-$(date +%s)",
+    "user_id": "qa-tester-traces",
+    "source": "manual-test",
+    "metadata": {
+      "test_run": "geracao-traces-test",
+      "environment": "staging",
+      "test_type": "trace_generation_verification"
+    }
+  }
+}

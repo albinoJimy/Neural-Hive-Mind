@@ -1,0 +1,1 @@
+{"id":"test-intent-1771641441","text":"Implementar cache distribuído com Redis","intent":{"domain":"TECHNICAL","action":"implement","confidence":0.95},"context":{"user_id":"qa-tester","session_id":"test-2026-02-21-03"},"constraints":{"priority":"normal","security_level":"internal"},"correlationId":"test-1771641441","timestamp":"2026-02-21T02:37:21Z"}
