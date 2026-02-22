@@ -555,9 +555,56 @@ async def startup():
                     error=str(dlq_error)
                 )
 
-        # Registrar no Service Registry
-        agent_id = await registry_client.register()
-        logger.info('worker_agent_registered', agent_id=agent_id)
+        # Registrar no Service Registry com retry e alertas
+        agent_id = None
+        registration_attempts = 0
+        max_registration_attempts = 3
+
+        while agent_id is None and registration_attempts < max_registration_attempts:
+            try:
+                registration_attempts += 1
+                logger.info(
+                    'attempting_service_registry_registration',
+                    attempt=registration_attempts,
+                    max_attempts=max_registration_attempts
+                )
+                agent_id = await registry_client.register()
+                logger.info(
+                    'worker_agent_registered',
+                    agent_id=agent_id,
+                    attempt=registration_attempts
+                )
+            except Exception as reg_error:
+                logger.warning(
+                    'service_registry_registration_failed',
+                    attempt=registration_attempts,
+                    error=str(reg_error),
+                    will_retry=registration_attempts < max_registration_attempts
+                )
+                if registration_attempts >= max_registration_attempts:
+                    # Em produção, falhar; em desenvolvimento, continuar com alerta
+                    if config.environment in ['production', 'staging', 'prod']:
+                        logger.error(
+                            'service_registry_registration_critical_failure',
+                            error=str(reg_error),
+                            note='Worker não pode operar sem registro em produção'
+                        )
+                        raise RuntimeError(
+                            f'Falha crítica: não foi possível registrar no Service Registry após {max_registration_attempts} tentativas. '
+                            f'Error: {reg_error}'
+                        )
+                    else:
+                        logger.warning(
+                            'service_registry_registration_failed_continuing_anyway',
+                            environment=config.environment,
+                            warning='Worker operando sem registro (apenas para desenvolvimento)'
+                        )
+                        # Usar agent_id local como fallback
+                        agent_id = config.agent_id
+                        break
+                else:
+                    # Esperar antes de tentar novamente (exponential backoff)
+                    await asyncio.sleep(2 ** registration_attempts)
 
         # Registrar também via integration library (para descoberta pelo Flow C)
         integration_registry = IntegrationServiceRegistry()
@@ -718,30 +765,90 @@ async def shutdown():
 
 async def heartbeat_loop(config, registry_client):
     '''Loop de heartbeat ao Service Registry'''
+    consecutive_failures = 0
+    max_consecutive_failures = 5
+
     while True:
         try:
             await asyncio.sleep(config.heartbeat_interval_seconds)
 
-            # Coletar telemetria
+            # Coletar telemetria com métricas de execução
             execution_engine = app_state.get('execution_engine')
+            metrics = app_state.get('metrics')
+
+            # Calcular success_rate baseado em métricas de execução
+            success_rate = 1.0  # Default: healthy
+            avg_duration_ms = 0
+            total_executions = 0
+            failed_executions = 0
+
+            if execution_engine:
+                active_tasks_count = len(execution_engine.active_tasks)
+                # Extrair métricas do execution engine se disponíveis
+                if hasattr(execution_engine, 'total_executions'):
+                    total_executions = execution_engine.total_executions
+                if hasattr(execution_engine, 'failed_executions'):
+                    failed_executions = execution_engine.failed_executions
+                if hasattr(execution_engine, 'avg_duration_ms'):
+                    avg_duration_ms = execution_engine.avg_duration_ms
+
+                # Calcular success_rate
+                if total_executions > 0:
+                    success_rate = max(0.0, min(1.0, (total_executions - failed_executions) / total_executions))
+            else:
+                active_tasks_count = 0
+
             telemetry = {
-                'active_tasks': len(execution_engine.active_tasks) if execution_engine else 0,
-                'timestamp': asyncio.get_event_loop().time()
+                'active_tasks': active_tasks_count,
+                'timestamp': asyncio.get_event_loop().time(),
+                'success_rate': success_rate,  # EXPLÍCITO: alinhado com threshold HEALTHY >= 0.5
+                'avg_duration_ms': avg_duration_ms,
+                'total_executions': total_executions,
+                'failed_executions': failed_executions
             }
 
             # Enviar heartbeat
             success = await registry_client.heartbeat(telemetry)
 
             if success:
-                logger.debug('heartbeat_sent', telemetry=telemetry)
+                consecutive_failures = 0  # Reset contador de falhas
+                logger.debug(
+                    'heartbeat_sent',
+                    telemetry=telemetry,
+                    expected_status='HEALTHY' if success_rate >= 0.5 else 'DEGRADED' if success_rate >= 0.3 else 'UNHEALTHY'
+                )
             else:
-                logger.warning('heartbeat_failed')
+                consecutive_failures += 1
+                logger.warning(
+                    'heartbeat_failed',
+                    consecutive_failures=consecutive_failures,
+                    max_failures=max_consecutive_failures
+                )
+
+                # Tentar re-registrar após muitas falhas consecutivas
+                if consecutive_failures >= max_consecutive_failures:
+                    logger.error(
+                        'heartbeat_max_failures_reached',
+                        consecutive_failures=consecutive_failures,
+                        action='attempting_re_registration'
+                    )
+                    try:
+                        await registry_client.register()
+                        consecutive_failures = 0
+                        logger.info('agent_re_registered_after_heartbeat_failures')
+                    except Exception as re_reg_error:
+                        logger.error('re_registration_after_heartbeat_failure_failed', error=str(re_reg_error))
 
         except asyncio.CancelledError:
             logger.info('heartbeat_loop_cancelled')
             break
         except Exception as e:
-            logger.error('heartbeat_loop_error', error=str(e))
+            consecutive_failures += 1
+            logger.error(
+                'heartbeat_loop_error',
+                error=str(e),
+                consecutive_failures=consecutive_failures
+            )
             await asyncio.sleep(5)  # Backoff em caso de erro
 
 
