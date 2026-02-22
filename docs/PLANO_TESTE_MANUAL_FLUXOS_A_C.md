@@ -3641,7 +3641,88 @@ Fixes aplicados durante o teste:
 
 ---
 
-## 12. Anexos
+## 12. Teste E2E Adicional - 2026-02-22
+
+### 12.1 Sumário Executivo
+
+**Data:** 2026-02-22
+**Duração:** ~30 minutos
+**Status:** ✅ **PIPELINE FUNCIONANDO**
+
+```
+Teste E2E executado em 2026-02-22 das 02:00 às 02:30.
+
+Pipeline Neural Hive-Mind validado com sucesso:
+- FLUXO A: Gateway processando intenções (confidence 0.95)
+- FLUXO B: STE gerando planos cognitivos
+- FLUXO C: Consensus → Orchestrator → Approval Request
+
+Deploy aplicado: fix structlog (commit c86130b)
+Todos os serviços com logs estruturados funcionando.
+```
+
+### 12.2 IDs Coletados Durante o Teste
+
+| Campo | Valor Obtido |
+|-------|--------------|
+| `intent_id` | `50c40e81-faf4-4181-a193-17b2cff2b680` |
+| `correlation_id` | `2b036536-a234-4f64-98fb-c79ffe95dcc8` |
+| `plan_id` | `c1d19950-3131-4453-8df7-339757817f07` |
+| `decision_id` | `ffd37064-bd2f-483f-b5dd-a469296cf841` |
+| Domain | INFRASTRUCTURE |
+| Confidence | 0.95 (alta) |
+| Final Decision | `review_required` |
+
+### 12.3 Problemas Encontrados e Resolvidos
+
+| ID | Problema | Solução | Status |
+|----|----------|---------|--------|
+| 1 | STE não consumia `intentions.validation` | Adicionado ao KAFKA_TOPICS da ConfigMap | ✅ RESOLVIDO |
+| 2 | Logs de aplicação não visíveis | Configurado structlog em logging.py | ✅ RESOLVIDO |
+| 3 | orchestrator-dynamic CrashLoopBackOff | Removido sidecar spire-agent | ✅ RESOLVIDO |
+
+### 12.4 Checklist Consolidado
+
+| # | Validação | Status (2026-02-22) |
+|---|-----------|----------------------|
+| A1 | Health Check Gateway | ✅ PASSOU |
+| A2 | Intenção processada (Status 200) | ✅ PASSOU |
+| A3 | Classificação NLU (confidence 0.95) | ✅ PASSOU |
+| A4 | Roteamento correto (INFRASTRUCTURE) | ✅ PASSOU |
+| B1 | STE consumindo de todos os tópicos | ✅ PASSOU |
+| B2 | STE gerando planos cognitivos | ✅ PASSOU |
+| B3 | Plans publicados no Kafka | ✅ PASSOU |
+| C1 | Consensus consumindo plans.ready | ✅ PASSOU |
+| C2 | Consensus publicando decisão | ✅ PASSOU |
+| C3 | Orchestrator consumindo decisão | ✅ PASSOU |
+| C4 | Approval request publicado | ✅ PASSOU |
+
+### 12.5 Logs Estruturados (structlog)
+
+**Exemplo de log formatado:**
+```json
+{
+  "timestamp": "2026-02-22T02:06:52.179431+00:00",
+  "level": "INFO",
+  "logger": "src.producers.decision_producer",
+  "message": "Decisão publicada",
+  "service": {
+    "name": "consensus-engine",
+    "version": "1.0.0",
+    "instance_id": "66d651fa-84b6-473a-9dc3-55cbaa50ca3a"
+  },
+  "neural_hive": {
+    "component": "consensus-engine",
+    "layer": "cognitiva",
+    "domain": "consensus"
+  },
+  "environment": "dev"
+}
+```
+
+---
+
+## 13. Anexos
 
 ### 12.1 Payloads de Teste Completos
 
