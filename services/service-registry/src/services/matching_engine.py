@@ -96,8 +96,13 @@ class MatchingEngine:
                 # 2. Filtrar por capabilities (set intersection)
                 candidates = self._filter_by_capabilities(all_agents, capabilities_required)
 
-                # 3. Filtrar apenas agentes HEALTHY
-                candidates = [a for a in candidates if a.status == AgentStatus.HEALTHY]
+                # 3. Filtrar agentes saudáveis (HEALTHY ou DEGRADED como fallback)
+                # DEGRADED é aceito como fallback para aumentar disponibilidade
+                # com score reduzido no ranking subsequente
+                candidates = [
+                    a for a in candidates
+                    if a.status in (AgentStatus.HEALTHY, AgentStatus.DEGRADED)
+                ]
 
                 if not candidates:
                     logger.warning(

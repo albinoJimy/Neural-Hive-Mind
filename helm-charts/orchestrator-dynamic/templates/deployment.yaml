@@ -12,6 +12,10 @@ Orchestrator Dynamic - Deployment usando templates comuns do Neural Hive Mind
 {{- $envFrom = append $envFrom (dict "configMapRef" (dict "name" (include "orchestrator-dynamic.configMapName" .))) }}
 {{- $envFrom = append $envFrom (dict "secretRef" (dict "name" (include "orchestrator-dynamic.secretName" .))) }}
 
+{{/* Construir env list com POD_NAMESPACE via Downward API */}}
+{{- $env := list }}
+{{- $env = append $env (dict "name" "POD_NAMESPACE" "valueFrom" (dict "fieldRef" (dict "fieldPath" "metadata.namespace"))) }}
+
 {{/* Construir volumes dinamicamente (incluindo SPIFFE se habilitado) */}}
 {{- $volumes := .Values.volumes | default list }}
 {{- if .Values.config.spiffe.enabled }}
@@ -74,7 +78,7 @@ Orchestrator Dynamic - Deployment usando templates comuns do Neural Hive Mind
 {{- $_ := set $modifiedValues "extraContainers" $extraContainers }}
 
 {{/* Configuração para o template comum */}}
-{{- $config := dict "checksumConfig" $checksumConfig "checksumSecret" $checksumSecret "envFrom" $envFrom }}
+{{- $config := dict "checksumConfig" $checksumConfig "checksumSecret" $checksumSecret "envFrom" $envFrom "env" $env }}
 
 {{/* Chamar template comum */}}
 {{- include "neural-hive.deployment" (dict "values" $modifiedValues "context" $ctx "config" $config) }}
