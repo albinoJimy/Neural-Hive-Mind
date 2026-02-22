@@ -157,6 +157,21 @@ def mock_config():
     config = MagicMock()
     config.opa_enabled = True
     config.opa_fail_open = True
+    config.environment = 'development'
+    config.scheduler_fallback_stub_enabled = True
+    config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS = False
+    return config
+
+
+@pytest.fixture
+def mock_config_production():
+    """Criar mock de configuração para produção (sem fallback stub)."""
+    config = MagicMock()
+    config.opa_enabled = True
+    config.opa_fail_open = False
+    config.environment = 'production'
+    config.scheduler_fallback_stub_enabled = False  # Produção não permite fallback
+    config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS = False
     return config
 
 
@@ -296,25 +311,90 @@ class TestAllocateResources:
         assert result['allocation_metadata']['agent_id'] == 'worker-agent-001'
 
     @pytest.mark.asyncio
-    async def test_allocate_fallback_stub_when_scheduler_unavailable(
-        self, mock_activity_info
+    async def test_allocate_fallback_stub_when_scheduler_unavailable_dev(
+        self, mock_activity_info, mock_config
     ):
-        """Sem scheduler, deve usar alocação stub com fallback."""
+        """Sem scheduler em desenvolvimento, deve usar alocação stub com fallback."""
         ticket = {
             'ticket_id': str(uuid.uuid4()),
             'risk_band': 'medium',
             'status': 'PENDING'
         }
+        # Config de development permite fallback stub
+        mock_config.scheduler_fallback_stub_enabled = True
+        mock_config.environment = 'development'
+
         set_activity_dependencies(
             kafka_producer=None,
             mongodb_client=None,
             intelligent_scheduler=None,  # Sem scheduler
             policy_validator=None,
-            config=None
+            config=mock_config
         )
 
         result = await allocate_resources(ticket)
 
+        assert 'allocation_metadata' in result
+        assert result['allocation_metadata']['allocation_method'] == 'fallback_stub'
+        assert result['allocation_metadata']['agent_id'] == 'worker-agent-pool'
+
+    @pytest.mark.asyncio
+    async def test_allocate_propagates_exception_when_scheduler_fails_in_production(
+        self, mock_activity_info, mock_config_production
+    ):
+        """Em produção, falha no scheduler deve propagar exceção."""
+        # Mock scheduler que lança exceção
+        failing_scheduler = AsyncMock()
+        failing_scheduler.schedule_ticket.side_effect = RuntimeError('Service Registry unavailable')
+
+        ticket = {
+            'ticket_id': str(uuid.uuid4()),
+            'risk_band': 'critical',
+            'status': 'PENDING'
+        }
+
+        set_activity_dependencies(
+            kafka_producer=None,
+            mongodb_client=None,
+            intelligent_scheduler=failing_scheduler,
+            policy_validator=None,
+            config=mock_config_production
+        )
+
+        # Em produção, deve propagar a exceção
+        with pytest.raises(RuntimeError, match='Intelligent Scheduler falhou'):
+            await allocate_resources(ticket)
+
+    @pytest.mark.asyncio
+    async def test_allocate_allows_fallback_stub_in_development_on_scheduler_failure(
+        self, mock_activity_info, mock_config
+    ):
+        """Em desenvolvimento, falha no scheduler deve usar fallback stub com warning."""
+        # Mock scheduler que lança exceção
+        failing_scheduler = AsyncMock()
+        failing_scheduler.schedule_ticket.side_effect = RuntimeError('Service Registry unavailable')
+
+        ticket = {
+            'ticket_id': str(uuid.uuid4()),
+            'risk_band': 'medium',
+            'status': 'PENDING'
+        }
+
+        # Config de development permite fallback stub
+        mock_config.scheduler_fallback_stub_enabled = True
+        mock_config.environment = 'development'
+
+        set_activity_dependencies(
+            kafka_producer=None,
+            mongodb_client=None,
+            intelligent_scheduler=failing_scheduler,
+            policy_validator=None,
+            config=mock_config
+        )
+
+        result = await allocate_resources(ticket)
+
+        # Em desenvolvimento, deve usar fallback stub
         assert 'allocation_metadata' in result
         assert result['allocation_metadata']['allocation_method'] == 'fallback_stub'
         assert result['allocation_metadata']['agent_id'] == 'worker-agent-pool'
@@ -386,6 +466,8 @@ class TestPublishTicketToKafka:
         """Config mock para testes de publish_ticket_to_kafka."""
         config = MagicMock()
         config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS = False
+        config.environment = 'production'
+        config.scheduler_fallback_stub_enabled = False
         return config
 
     @pytest.mark.asyncio
@@ -521,6 +603,69 @@ class TestPublishTicketToKafka:
         # Verificar que o ticket persistido no MongoDB tem status PENDING
         saved_ticket = mock_mongodb_client.save_execution_ticket.call_args[0][0]
         assert saved_ticket['status'] == 'PENDING'
+
+    @pytest.mark.asyncio
+    async def test_publish_rejects_fallback_stub_ticket(
+        self, mock_activity_info, mock_kafka_producer, mock_mongodb_client, mock_config_publish
+    ):
+        """Ticket com allocation_method=fallback_stub não deve ser publicado no Kafka."""
+        ticket = {
+            'ticket_id': str(uuid.uuid4()),
+            'plan_id': 'plan-001',
+            'status': 'PENDING',
+            'allocation_metadata': {
+                'agent_id': 'worker-agent-pool',
+                'allocation_method': 'fallback_stub'
+            }
+        }
+        mock_config_publish.scheduler_fallback_stub_enabled = False
+        mock_config_publish.environment = 'production'
+
+        set_activity_dependencies(
+            kafka_producer=mock_kafka_producer,
+            mongodb_client=mock_mongodb_client,
+            config=mock_config_publish
+        )
+
+        result = await publish_ticket_to_kafka(ticket)
+
+        assert result['published'] is False
+        assert result['rejected'] is True
+        assert result['rejection_reason'] == 'fallback_stub_not_allowed'
+        # Kafka producer não deve ser chamado para tickets fallback_stub
+        mock_kafka_producer.publish_ticket.assert_not_called()
+        # MongoDB deve persistir o ticket para auditoria
+        mock_mongodb_client.save_execution_ticket.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_publish_fallback_stub_ticket_persists_to_mongodb(
+        self, mock_activity_info, mock_kafka_producer, mock_mongodb_client, mock_config_publish
+    ):
+        """Ticket fallback_stub deve ser persistido no MongoDB com status rejected."""
+        ticket = {
+            'ticket_id': str(uuid.uuid4()),
+            'plan_id': 'plan-001',
+            'status': 'PENDING',
+            'allocation_metadata': {
+                'agent_id': 'worker-agent-pool',
+                'allocation_method': 'fallback_stub'
+            }
+        }
+        mock_config_publish.scheduler_fallback_stub_enabled = False
+        mock_config_publish.environment = 'production'
+
+        set_activity_dependencies(
+            kafka_producer=mock_kafka_producer,
+            mongodb_client=mock_mongodb_client,
+            config=mock_config_publish
+        )
+
+        result = await publish_ticket_to_kafka(ticket)
+
+        # Verificar que o ticket foi persistido com status rejected
+        saved_ticket = mock_mongodb_client.save_execution_ticket.call_args[0][0]
+        assert saved_ticket['status'] == 'rejected'
+        assert saved_ticket['rejection_metadata']['rejection_reason'] == 'fallback_stub_not_allowed'
 
 
 class TestSLATimeoutConfiguration:

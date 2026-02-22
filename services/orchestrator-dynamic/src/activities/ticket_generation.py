@@ -405,51 +405,131 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 return ticket
 
             except Exception as e:
+                # ============================================================================
+                # POLÍTICA DE FALLBACK STUB CONFIGURÁVEL
+                # ============================================================================
+                # Em produção (scheduler_fallback_stub_enabled=False): propagar exceção
+                # Em desenvolvimento (scheduler_fallback_stub_enabled=True): usar stub com WARNING
+                #
+                # Rationale: Falhas no scheduler indicam problemas sistêmicos (Service Registry
+                # indisponível, workers não registrados, etc.). Em produção, estas falhas devem
+                # propagar para retry do Temporal. Stub silencioso mascararia o problema real.
+                # ============================================================================
+
+                can_use_fallback = _config.scheduler_fallback_stub_enabled if _config else False
+
+                if not can_use_fallback:
+                    # PRODUÇÃO: Propagar exceção para retry do Temporal
+                    logger.error(
+                        'intelligent_scheduler_failed_propagating_exception',
+                        ticket_id=ticket_id,
+                        error=str(e),
+                        error_type=type(e).__name__,
+                        error_message=str(e),
+                        environment=_config.environment if _config else 'unknown',
+                        fallback_stub_enabled=False,
+                        exc_info=True
+                    )
+                    raise RuntimeError(
+                        f'Intelligent Scheduler falhou para ticket {ticket_id}: {str(e)}. '
+                        f'Fallback stub desabilitado (ambiente: {_config.environment if _config else "unknown"}). '
+                        f'Corrija o problema do Scheduler ou habilite SCHEDULER_FALLBACK_STUB_ENABLED '
+                        f'apenas em ambientes de desenvolvimento.'
+                    ) from e
+
+                # DESENVOLVIMENTO: Usar stub com WARNING claro
                 logger.warning(
-                    f'Falha no Intelligent Scheduler, usando fallback: {e}',
-                    ticket_id=ticket_id
+                    'scheduler_fallback_stub_activated',
+                    ticket_id=ticket_id,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    environment=_config.environment if _config else 'unknown',
+                    fallback_stub_enabled=True,
+                    message='FALLBACK STUB ATIVADO: Alocação stub é apenas para desenvolvimento. '
+                           'Em produção, esta exceção seria propagada para retry do Temporal.'
                 )
-                # Fallback para alocação stub
 
-        # Fallback: alocação stub (scheduler não disponível ou falhou)
-        logger.info(
-            f'Usando alocação stub para ticket {ticket_id}',
-            reason='scheduler_unavailable_or_failed'
+                # Registrar métrica de ativação do fallback_stub
+                try:
+                    from src.observability.metrics import get_metrics
+                    metrics = get_metrics()
+                    metrics.record_fallback_stub_activation(f'scheduler_exception:{type(e).__name__}')
+                except Exception:
+                    pass  # Não falhar se métricas não estiverem disponíveis
+
+                # Continuar para alocação stub abaixo
+                fallback_reason = 'scheduler_exception'
+
+        # Fallback: alocação stub (scheduler não disponível ou falhou, em desenvolvimento)
+        if not _intelligent_scheduler or (_config and _config.scheduler_fallback_stub_enabled):
+            if not _intelligent_scheduler:
+                fallback_reason = 'scheduler_unavailable'
+            else:
+                fallback_reason = fallback_reason if 'fallback_reason' in locals() else 'scheduler_failed'
+
+            logger.warning(
+                'scheduler_fallback_stub_used',
+                ticket_id=ticket_id,
+                reason=fallback_reason,
+                environment=_config.environment if _config else 'unknown',
+                allocation_method='fallback_stub',
+                message='ATENÇÃO: Usando alocação stub. Tickets com allocation_method=fallback_stub '
+                       'NÃO serão publicados no Kafka.'
+            )
+
+            # Registrar métrica de ativação do fallback_stub quando scheduler não disponível
+            if not _intelligent_scheduler:
+                try:
+                    from src.observability.metrics import get_metrics
+                    metrics = get_metrics()
+                    metrics.record_fallback_stub_activation(fallback_reason)
+                except Exception:
+                    pass  # Não falhar se métricas não estiverem disponíveis
+
+            # Calcular priority score simples
+            risk_band = ticket.get('risk_band', 'normal')
+            priority_weights = {'critical': 1.0, 'high': 0.7, 'normal': 0.5, 'low': 0.3}
+            priority_score = priority_weights.get(risk_band, 0.5)
+
+            # Adicionar metadata de alocação stub
+            allocation_metadata = {
+                'allocated_at': int(datetime.now().timestamp() * 1000),
+                'agent_id': 'worker-agent-pool',
+                'agent_type': 'worker-agent',
+                'priority_score': priority_score,
+                'agent_score': 0.5,
+                'composite_score': 0.5,
+                'allocation_method': 'fallback_stub',
+                'workers_evaluated': 0
+            }
+
+            ticket['allocation_metadata'] = allocation_metadata
+
+            # Adicionar predicted_duration_ms ao allocation_metadata para tracking de erro ML
+            # Usado para ML error tracking e feedback loop
+            if predicted_duration_ms is not None:
+                ticket['allocation_metadata']['predicted_duration_ms'] = predicted_duration_ms
+            ticket['allocation_metadata']['predicted_queue_ms'] = 2000.0
+            ticket['allocation_metadata']['predicted_load_pct'] = 0.5
+            ticket['allocation_metadata']['ml_enriched'] = False
+
+            logger.info(
+                f'Recursos alocados (stub/fallback) para ticket {ticket_id}',
+                priority_score=priority_score,
+                allocation_method='fallback_stub'
+            )
+
+            return ticket
+
+        # Se chegou aqui, scheduler falhou mas fallback não está habilitado (não deveria acontecer)
+        logger.error(
+            'scheduler_failed_without_fallback_configured',
+            ticket_id=ticket_id,
+            fallback_stub_enabled=_config.scheduler_fallback_stub_enabled if _config else False
         )
-
-        # Calcular priority score simples
-        risk_band = ticket.get('risk_band', 'normal')
-        priority_weights = {'critical': 1.0, 'high': 0.7, 'normal': 0.5, 'low': 0.3}
-        priority_score = priority_weights.get(risk_band, 0.5)
-
-        # Adicionar metadata de alocação stub
-        allocation_metadata = {
-            'allocated_at': int(datetime.now().timestamp() * 1000),
-            'agent_id': 'worker-agent-pool',
-            'agent_type': 'worker-agent',
-            'priority_score': priority_score,
-            'agent_score': 0.5,
-            'composite_score': 0.5,
-            'allocation_method': 'fallback_stub',
-            'workers_evaluated': 0
-        }
-
-        ticket['allocation_metadata'] = allocation_metadata
-
-        # Adicionar predicted_duration_ms ao allocation_metadata para tracking de erro ML
-        # Usado para ML error tracking e feedback loop
-        if predicted_duration_ms is not None:
-            ticket['allocation_metadata']['predicted_duration_ms'] = predicted_duration_ms
-        ticket['allocation_metadata']['predicted_queue_ms'] = 2000.0
-        ticket['allocation_metadata']['predicted_load_pct'] = 0.5
-        ticket['allocation_metadata']['ml_enriched'] = False
-
-        logger.info(
-            f'Recursos alocados (stub) para ticket {ticket_id}',
-            priority_score=priority_score
+        raise RuntimeError(
+            f'Intelligent Scheduler falhou para ticket {ticket_id} e fallback stub não está configurado.'
         )
-
-        return ticket
 
     except Exception as e:
         logger.error(
@@ -495,7 +575,55 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
 
     try:
         # === Gate: Verificar se ticket foi rejeitado pelo scheduler ===
-        if ticket.get('status') == 'rejected' or ticket.get('allocation_metadata') is None:
+        allocation_metadata = ticket.get('allocation_metadata')
+        allocation_method = allocation_metadata.get('allocation_method') if allocation_metadata else None
+
+        # Tickets com fallback_stub não devem ser publicados (apenas para desenvolvimento)
+        if allocation_method == 'fallback_stub':
+            logger.error(
+                'ticket_with_fallback_stub_not_published',
+                ticket_id=ticket_id,
+                allocation_method=allocation_method,
+                plan_id=ticket.get('plan_id'),
+                environment=_config.environment if _config else 'unknown',
+                fallback_stub_enabled=_config.scheduler_fallback_stub_enabled if _config else False,
+                message='Ticket com allocation_method=fallback_stub NÃO será publicado no Kafka. '
+                       'Este método indica falha no Intelligent Scheduler que deve ser corrigida. '
+                       'Em produção, fallback_stub deve estar desabilitado.'
+            )
+
+            # Persistir ticket com fallback_stub no MongoDB para auditoria
+            if _mongodb_client is not None:
+                try:
+                    ticket['status'] = 'rejected'
+                    ticket['rejection_metadata'] = {
+                        'rejection_reason': 'fallback_stub_not_allowed',
+                        'rejection_message': (
+                            'Ticket alocado com fallback_stub (scheduler falhou). '
+                            'Tickets com fallback_stub não são publicados em produção.'
+                        )
+                    }
+                    await _mongodb_client.save_execution_ticket(ticket)
+                    logger.info(
+                        f'Ticket com fallback_stub {ticket_id} persistido no MongoDB para auditoria',
+                        plan_id=ticket.get('plan_id')
+                    )
+                except Exception as db_error:
+                    logger.warning(
+                        f'Erro ao persistir ticket fallback_stub no MongoDB: {db_error}',
+                        ticket_id=ticket_id
+                    )
+
+            return {
+                'published': False,
+                'ticket_id': ticket_id,
+                'rejected': True,
+                'rejection_reason': 'fallback_stub_not_allowed',
+                'rejection_message': 'Ticket com allocation_method=fallback_stub não é publicado em produção',
+                'ticket': ticket
+            }
+
+        if ticket.get('status') == 'rejected' or allocation_metadata is None:
             rejection_metadata = ticket.get('rejection_metadata', {})
             rejection_reason = rejection_metadata.get('rejection_reason', 'unknown')
             rejection_message = rejection_metadata.get('rejection_message', 'Ticket rejeitado sem motivo especificado')

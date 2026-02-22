@@ -145,6 +145,42 @@ class OrchestratorSettings(BaseSettings):
         default={'risk': 0.4, 'qos': 0.3, 'sla': 0.3},
         description='Pesos de priorização (risk, qos, sla)'
     )
+    scheduler_fallback_stub_enabled: bool = Field(
+        default=False,
+        description=(
+            'Permitir fallback stub quando Intelligent Scheduler falha (apenas desenvolvimento). '
+            '⚠️ ATENÇÃO: Em produção, falhas no scheduler devem propagar exceção para retry. '
+            'Stub silencioso pode mascarar problemas sistêmicos e causar alocações inadequadas.'
+        )
+    )
+
+    @field_validator('scheduler_fallback_stub_enabled')
+    @classmethod
+    def validate_scheduler_fallback_stub_requires_dev_environment(cls, v: bool, info) -> bool:
+        """
+        Validar que scheduler_fallback_stub_enabled só pode ser True em ambientes de desenvolvimento.
+
+        Em produção, falhas no scheduler devem propagar exceção para garantir
+        que problemas sistêmicos sejam tratados adequadamente e não mascarados
+        por alocações stub inadequadas.
+        """
+        if v is not True:
+            return v
+
+        environment = info.data.get('environment', '')
+
+        # Ambientes permitidos para fallback stub
+        allowed_environments = ['development', 'dev', 'local', 'test']
+
+        if environment.lower() not in allowed_environments:
+            raise ValueError(
+                f'scheduler_fallback_stub_enabled=True não é permitido em ambiente "{environment}". '
+                f'Apenas ambientes {allowed_environments} permitem fallback stub. '
+                'Em produção, falhas no scheduler devem propagar exceção para retry. '
+                'Configure SCHEDULER_FALLBACK_STUB_ENABLED=false ou ENVIRONMENT=development.'
+            )
+
+        return v
 
     # Affinity/Anti-Affinity Configuration
     scheduler_enable_affinity: bool = Field(
