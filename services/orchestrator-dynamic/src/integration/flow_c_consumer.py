@@ -587,12 +587,37 @@ class FlowCApprovalResponseConsumer:
             intent_id = approval_response.get("intent_id")
             decision = approval_response.get("decision", "pending")
 
+            # FIX 1: Extrair e desserializar cognitive_plan_json
+            # O ApprovalResponse.to_kafka_dict() serializa cognitive_plan como string JSON
+            # no campo cognitive_plan_json (Avro não suporta objetos aninhados arbitrários)
+            cognitive_plan_json = approval_response.get("cognitive_plan_json")
+            if isinstance(cognitive_plan_json, str) and cognitive_plan_json.strip():
+                try:
+                    cognitive_plan = json.loads(cognitive_plan_json)
+                    approval_response["cognitive_plan"] = cognitive_plan
+                    tasks_count = len(cognitive_plan.get("tasks", []))
+                    self.logger.info(
+                        "cognitive_plan_extracted_from_json_field",
+                        plan_id=plan_id,
+                        tasks_count=tasks_count,
+                    )
+                except json.JSONDecodeError as e:
+                    self.logger.warning(
+                        "cognitive_plan_json_decode_failed",
+                        plan_id=plan_id,
+                        error=str(e),
+                        partial_content=cognitive_plan_json[:200] if cognitive_plan_json else "",
+                    )
+                    # Deixar cognitive_plan vazio - o fallback MongoDB do orchestrator cobre isso
+                    approval_response["cognitive_plan"] = {}
+
             self.logger.info(
                 "received_approval_response",
                 plan_id=plan_id,
                 intent_id=intent_id,
                 decision=decision,
                 approved_by=approval_response.get("approved_by"),
+                cognitive_plan_present=bool(approval_response.get("cognitive_plan")),
             )
 
             # Resume Flow C execution

@@ -14,6 +14,15 @@ logger = structlog.get_logger()
 tracer = trace.get_tracer(__name__)
 
 
+class WorkflowTicketsNotReadyError(Exception):
+    """Exception raised when workflow tickets are not yet ready."""
+
+    def __init__(self, workflow_id: str, message: str = "Workflow tickets are still being generated"):
+        self.workflow_id = workflow_id
+        self.message = message
+        super().__init__(f"Workflow {workflow_id}: {message}")
+
+
 class WorkflowStartRequest(BaseModel):
     """Request to start a workflow."""
     cognitive_plan: Dict[str, Any]
@@ -146,7 +155,7 @@ class OrchestratorClient:
 
         self.logger.info("workflow_signaled", workflow_id=workflow_id, signal=signal_name)
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+    @retry(stop=stop_after_attempt(1), wait=wait_exponential(multiplier=1, min=2, max=10))
     @tracer.start_as_current_span("orchestrator.query_workflow")
     async def query_workflow(
         self,
@@ -162,6 +171,9 @@ class OrchestratorClient:
 
         Returns:
             Query result dict contendo o resultado da query
+
+        Raises:
+            WorkflowTicketsNotReadyError: Quando o workflow ainda está processando (HTTP 202)
         """
         self.logger.info(
             "querying_workflow",
@@ -175,6 +187,16 @@ class OrchestratorClient:
             headers={"X-Workflow-ID": workflow_id},
         )
         response.raise_for_status()
+
+        # HTTP 202 indica que o workflow ainda está processando
+        if response.status_code == 202:
+            self.logger.debug(
+                "workflow_tickets_not_ready",
+                workflow_id=workflow_id,
+                query_name=query_name,
+                status_code=202,
+            )
+            raise WorkflowTicketsNotReadyError(workflow_id=workflow_id)
 
         data = response.json()
         # Extrair 'result' do WorkflowQueryResponse

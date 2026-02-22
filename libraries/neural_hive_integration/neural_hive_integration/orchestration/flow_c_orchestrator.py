@@ -10,8 +10,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from opentelemetry import trace
 from prometheus_client import Counter, Histogram, Gauge
+from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed, retry_if_exception_type, RetryError
 
-from neural_hive_integration.clients.orchestrator_client import OrchestratorClient
+from neural_hive_integration.clients.orchestrator_client import OrchestratorClient, WorkflowTicketsNotReadyError
 from neural_hive_integration.clients.service_registry_client import ServiceRegistryClient, AgentInfo
 from neural_hive_integration.clients.execution_ticket_client import ExecutionTicketClient
 from neural_hive_integration.clients.worker_agent_client import WorkerAgentClient
@@ -659,10 +660,7 @@ class FlowCOrchestrator:
                 workflow_id=workflow_id,
             )
 
-            # Aguardar geração de tickets pelo workflow
-            await asyncio.sleep(2)
-
-            # Obter tickets do workflow state via query Temporal
+            # Obter tickets do workflow state via query Temporal (com polling interno)
             tickets = await self._get_tickets_from_workflow(
                 workflow_id=workflow_id,
                 cognitive_plan=cognitive_plan,
@@ -684,7 +682,11 @@ class FlowCOrchestrator:
         context: FlowCContext,
     ) -> List[Dict[str, Any]]:
         """
-        Obtém tickets do workflow state via query Temporal.
+        Obtém tickets do workflow state via query Temporal com polling.
+
+        Realiza polling com tenacity.AsyncRetrying até 10 tentativas com intervalo de 2s.
+        Se todos os retries esgotarem ou ocorrer outro erro, aciona fallback para
+        extração do cognitive_plan.
 
         Args:
             workflow_id: ID do workflow Temporal
@@ -700,51 +702,75 @@ class FlowCOrchestrator:
         tickets = []
 
         try:
-            # Query workflow for tickets via Temporal query
-            query_result = await self.orchestrator_client.query_workflow(
-                workflow_id=workflow_id,
-                query_name="get_tickets",
-            )
+            # Polling com AsyncRetrying: até 10 tentativas, wait_fixed(2s)
+            # Retenta apenas em WorkflowTicketsNotReadyError (HTTP 202)
+            async for attempt in AsyncRetrying(
+                stop=stop_after_attempt(10),
+                wait=wait_fixed(2),
+                retry=retry_if_exception_type(WorkflowTicketsNotReadyError),
+                reraise=False,
+            ):
+                with attempt:
+                    self.logger.debug(
+                        "workflow_tickets_polling_attempt",
+                        workflow_id=workflow_id,
+                        attempt_number=attempt.retry_state.attempt_number,
+                    )
 
-            # Extrair tickets do resultado
-            if isinstance(query_result, dict):
-                tickets = query_result.get("tickets", [])
-            elif isinstance(query_result, list):
-                tickets = query_result
-            else:
-                tickets = []
+                    # Query workflow for tickets via Temporal query
+                    query_result = await self.orchestrator_client.query_workflow(
+                        workflow_id=workflow_id,
+                        query_name="get_tickets",
+                    )
 
+                    # Extrair tickets do resultado
+                    if isinstance(query_result, dict):
+                        tickets = query_result.get("tickets", [])
+                    elif isinstance(query_result, list):
+                        tickets = query_result
+                    else:
+                        tickets = []
+
+                    # Se tickets foram retornados, sair do loop
+                    if tickets:
+                        self.logger.info(
+                            "tickets_retrieved_from_workflow",
+                            workflow_id=workflow_id,
+                            tickets_count=len(tickets),
+                            polling_attempts=attempt.retry_state.attempt_number,
+                        )
+                        break  # Tickets prontos, sair do polling
+
+                    # Se lista vazia, levantar WorkflowTicketsNotReadyError para retry
+                    # Nota: este caso não deve mais ocorrer com o endpoint retornando 202
+                    self.logger.debug(
+                        "workflow_returned_empty_tickets_will_retry",
+                        workflow_id=workflow_id,
+                        attempt_number=attempt.retry_state.attempt_number,
+                    )
+                    raise WorkflowTicketsNotReadyError(workflow_id=workflow_id)
+
+        except RetryError:
+            # Todos os 10 retries esgotados
             duration = time.time() - start_time
             flow_c_workflow_query_duration.labels(query_name="get_tickets").observe(duration)
+            flow_c_workflow_query_failures.labels(
+                query_name="get_tickets",
+                reason="workflow_tickets_not_ready_after_retries",
+            ).inc()
 
-            if not tickets:
-                self.logger.warning(
-                    "no_tickets_from_workflow",
-                    workflow_id=workflow_id,
-                    plan_id=context.plan_id,
-                    reason="workflow returned empty tickets list",
-                )
-                # Fallback para extração do cognitive_plan
-                tickets = await self._extract_tickets_from_plan(cognitive_plan, context)
-            else:
-                # Validar schema dos tickets
-                for ticket in tickets:
-                    is_valid, errors = self._validate_ticket_schema(ticket)
-                    if not is_valid:
-                        self.logger.warning(
-                            "ticket_schema_validation_warning",
-                            ticket_id=ticket.get("ticket_id", "unknown"),
-                            errors=errors,
-                        )
-                        flow_c_ticket_validation_failures.inc()
-
-                self.logger.info(
-                    "tickets_retrieved_from_workflow",
-                    workflow_id=workflow_id,
-                    tickets_count=len(tickets),
-                )
+            self.logger.warning(
+                "workflow_tickets_not_ready_after_retries",
+                workflow_id=workflow_id,
+                plan_id=context.plan_id,
+                attempts=10,
+                duration_seconds=round(duration, 2),
+            )
+            # Fallback para extração do cognitive_plan
+            tickets = await self._extract_tickets_from_plan(cognitive_plan, context)
 
         except Exception as e:
+            # Outros erros (HTTP 500, timeout, etc.)
             duration = time.time() - start_time
             flow_c_workflow_query_duration.labels(query_name="get_tickets").observe(duration)
             flow_c_workflow_query_failures.labels(
@@ -757,9 +783,22 @@ class FlowCOrchestrator:
                 workflow_id=workflow_id,
                 plan_id=context.plan_id,
                 error=str(e),
+                error_type=type(e).__name__,
             )
             # Fallback para extração do cognitive_plan
             tickets = await self._extract_tickets_from_plan(cognitive_plan, context)
+
+        # Validar schema dos tickets (se obtidos com sucesso)
+        if tickets:
+            for ticket in tickets:
+                is_valid, errors = self._validate_ticket_schema(ticket)
+                if not is_valid:
+                    self.logger.warning(
+                        "ticket_schema_validation_warning",
+                        ticket_id=ticket.get("ticket_id", "unknown"),
+                        errors=errors,
+                    )
+                    flow_c_ticket_validation_failures.inc()
 
         return tickets
 
@@ -1450,11 +1489,31 @@ class FlowCOrchestrator:
         approved_by = approval_response.get("approved_by")
         cognitive_plan = approval_response.get("cognitive_plan", {})
 
-        # FIX: Se cognitive_plan está vazio, buscar do MongoDB
+        # FIX 2a: Extração defensiva de cognitive_plan_json antes do fallback MongoDB
+        # Se o consumer não extraíu cognitive_plan_json mas o campo está presente, tentar aqui
+        if not cognitive_plan or not cognitive_plan.get("tasks"):
+            cognitive_plan_json = approval_response.get("cognitive_plan_json")
+            if isinstance(cognitive_plan_json, str) and cognitive_plan_json.strip():
+                try:
+                    cognitive_plan = json.loads(cognitive_plan_json)
+                    self.logger.info(
+                        "cognitive_plan_extracted_from_json_field",
+                        plan_id=plan_id,
+                        tasks_count=len(cognitive_plan.get("tasks", [])),
+                    )
+                except json.JSONDecodeError as e:
+                    self.logger.warning(
+                        "cognitive_plan_json_decode_failed",
+                        plan_id=plan_id,
+                        error=str(e),
+                    )
+                    cognitive_plan = {}
+
+        # FIX 2b: Fallback MongoDB com AsyncIOMotorClient (ao invés de pymongo síncrono)
         # A estrutura é: plan_approvals.cognitive_plan.cognitive_plan
         if not cognitive_plan or not cognitive_plan.get("tasks"):
             try:
-                from pymongo import MongoClient
+                from motor.motor_asyncio import AsyncIOMotorClient
                 import os
 
                 mongo_uri = os.getenv(
@@ -1463,42 +1522,41 @@ class FlowCOrchestrator:
                 )
                 mongo_db_name = os.getenv('MONGODB_DATABASE', 'neural_hive')
 
-                client = MongoClient(mongo_uri)
-                db = client[mongo_db_name]
-
-                approval = db.plan_approvals.find_one({"plan_id": plan_id})
-                if approval:
-                    # Navegar estrutura aninhada
-                    outer_cp = approval.get("cognitive_plan", {})
-                    if isinstance(outer_cp, dict):
-                        inner_cp = outer_cp.get("cognitive_plan")
-                        if inner_cp and isinstance(inner_cp, dict):
-                            cognitive_plan = inner_cp
-                            self.logger.info(
-                                "cognitive_plan_retrieved_from_mongodb",
-                                plan_id=plan_id,
-                                tasks_count=len(cognitive_plan.get("tasks", [])),
-                                source="plan_approvals.cognitive_plan.cognitive_plan"
-                            )
+                motor_client = AsyncIOMotorClient(mongo_uri, serverSelectionTimeoutMS=5000)
+                try:
+                    approval = await motor_client[mongo_db_name].plan_approvals.find_one({"plan_id": plan_id})
+                    if approval:
+                        # Navegar estrutura aninhada
+                        outer_cp = approval.get("cognitive_plan", {})
+                        if isinstance(outer_cp, dict):
+                            inner_cp = outer_cp.get("cognitive_plan")
+                            if inner_cp and isinstance(inner_cp, dict):
+                                cognitive_plan = inner_cp
+                                self.logger.info(
+                                    "cognitive_plan_retrieved_from_mongodb",
+                                    plan_id=plan_id,
+                                    tasks_count=len(cognitive_plan.get("tasks", [])),
+                                    source="plan_approvals.cognitive_plan.cognitive_plan"
+                                )
+                            else:
+                                self.logger.warning(
+                                    "cognitive_plan_not_found_in_nested_structure",
+                                    plan_id=plan_id,
+                                    available_keys=list(outer_cp.keys()) if outer_cp else []
+                                )
                         else:
                             self.logger.warning(
-                                "cognitive_plan_not_found_in_nested_structure",
+                                "cognitive_plan_not_dict_in_approval",
                                 plan_id=plan_id,
-                                available_keys=list(outer_cp.keys()) if outer_cp else []
+                                type=str(type(outer_cp))
                             )
                     else:
                         self.logger.warning(
-                            "cognitive_plan_not_dict_in_approval",
-                            plan_id=plan_id,
-                            type=str(type(outer_cp))
+                            "approval_not_found_in_mongodb",
+                            plan_id=plan_id
                         )
-                else:
-                    self.logger.warning(
-                        "approval_not_found_in_mongodb",
-                        plan_id=plan_id
-                    )
-
-                client.close()
+                finally:
+                    motor_client.close()
             except Exception as e:
                 self.logger.error(
                     "failed_to_retrieve_cognitive_plan_from_mongodb",
@@ -1542,8 +1600,12 @@ class FlowCOrchestrator:
             "decision_id": f"approval-{plan_id[:8]}",  # Gerar ID fictício para rastreamento
             "final_decision": "approved",  # Agora pode prosseguir
             "cognitive_plan": cognitive_plan,
-            "aggregated_risk": approval_response.get("risk_score", 0.5),
-            "risk_band": cognitive_plan.get("risk_band", "medium"),
+            # FIX 2c: Priorizar risk_score do cognitive_plan (ApprovalResponse não inclui no payload)
+            "aggregated_risk": cognitive_plan.get("risk_score") or approval_response.get("risk_score", 0.5),
+            # FIX 2c: Adicionar fallback para risk_band do approval_response
+            "risk_band": cognitive_plan.get("risk_band") or approval_response.get("risk_band", "medium"),
+            # FIX 2c: Adicionar execution_order (usado por _execute_c2_generate_tickets)
+            "execution_order": cognitive_plan.get("execution_order", []),
             "correlation_id": cognitive_plan.get("correlation_id"),
             "priority": cognitive_plan.get("priority", 5),
             "approved_by": approved_by,

@@ -3134,18 +3134,43 @@ async def query_workflow(workflow_id: str, request: WorkflowQueryRequest):
                     result = await handle.query("get_tickets")
                     # Normalizar resultado para dict
                     if isinstance(result, list):
-                        query_result = {"tickets": result}
+                        tickets = result
                     else:
-                        query_result = {"tickets": result} if result else {"tickets": []}
+                        tickets = result if result else []
 
-                    # Cachear resultado (fail-open)
-                    await cache_tickets_by_workflow(workflow_id, query_result.get("tickets", []))
+                    # Verificar se tickets ainda estão sendo gerados (lista vazia)
+                    if not tickets:
+                        logger.info(
+                            'workflow_tickets_not_ready',
+                            workflow_id=workflow_id,
+                            query_name=request.query_name,
+                            message='Workflow is still generating tickets'
+                        )
+                        metrics.record_workflow_query(query_name='get_tickets', status='processing')
+                        span.set_attribute("query.processing", True)
+
+                        return JSONResponse(
+                            status_code=202,
+                            content=WorkflowQueryResponse(
+                                workflow_id=workflow_id,
+                                query_name=request.query_name,
+                                result={
+                                    "processing": True,
+                                    "tickets": [],
+                                    "message": "Workflow is still generating tickets"
+                                }
+                            ).model_dump()
+                        )
+
+                    # Tickets prontos - cachear e retornar HTTP 200
+                    query_result = {"tickets": tickets}
+                    await cache_tickets_by_workflow(workflow_id, tickets)
 
                     logger.info(
                         'workflow_query_success',
                         workflow_id=workflow_id,
                         query_name=request.query_name,
-                        tickets_count=len(query_result.get("tickets", []))
+                        tickets_count=len(tickets)
                     )
                     metrics.record_workflow_query(query_name='get_tickets', status='success')
                     span.set_attribute("query.success", True)
