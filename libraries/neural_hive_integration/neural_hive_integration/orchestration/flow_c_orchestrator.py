@@ -1450,6 +1450,63 @@ class FlowCOrchestrator:
         approved_by = approval_response.get("approved_by")
         cognitive_plan = approval_response.get("cognitive_plan", {})
 
+        # FIX: Se cognitive_plan está vazio, buscar do MongoDB
+        # A estrutura é: plan_approvals.cognitive_plan.cognitive_plan
+        if not cognitive_plan or not cognitive_plan.get("tasks"):
+            try:
+                from pymongo import MongoClient
+                import os
+
+                mongo_uri = os.getenv(
+                    'MONGODB_URI',
+                    'mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin'
+                )
+                mongo_db_name = os.getenv('MONGODB_DATABASE', 'neural_hive')
+
+                client = MongoClient(mongo_uri)
+                db = client[mongo_db_name]
+
+                approval = db.plan_approvals.find_one({"plan_id": plan_id})
+                if approval:
+                    # Navegar estrutura aninhada
+                    outer_cp = approval.get("cognitive_plan", {})
+                    if isinstance(outer_cp, dict):
+                        inner_cp = outer_cp.get("cognitive_plan")
+                        if inner_cp and isinstance(inner_cp, dict):
+                            cognitive_plan = inner_cp
+                            self.logger.info(
+                                "cognitive_plan_retrieved_from_mongodb",
+                                plan_id=plan_id,
+                                tasks_count=len(cognitive_plan.get("tasks", [])),
+                                source="plan_approvals.cognitive_plan.cognitive_plan"
+                            )
+                        else:
+                            self.logger.warning(
+                                "cognitive_plan_not_found_in_nested_structure",
+                                plan_id=plan_id,
+                                available_keys=list(outer_cp.keys()) if outer_cp else []
+                            )
+                    else:
+                        self.logger.warning(
+                            "cognitive_plan_not_dict_in_approval",
+                            plan_id=plan_id,
+                            type=str(type(outer_cp))
+                        )
+                else:
+                    self.logger.warning(
+                        "approval_not_found_in_mongodb",
+                        plan_id=plan_id
+                    )
+
+                client.close()
+            except Exception as e:
+                self.logger.error(
+                    "failed_to_retrieve_cognitive_plan_from_mongodb",
+                    plan_id=plan_id,
+                    error=str(e),
+                    exc_info=True
+                )
+
         self.logger.info(
             "resuming_flow_c_after_approval",
             plan_id=plan_id,
