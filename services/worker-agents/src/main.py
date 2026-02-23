@@ -496,7 +496,15 @@ async def startup():
             mongodb_client=mongodb_client,
             redis_client=redis_client
         ))
-        executor_registry.validate_configuration()
+        try:
+            executor_registry.validate_configuration()
+        except RuntimeError as e:
+            logger.error(
+                'executor_validation_failed',
+                error=str(e),
+                environment=config.environment
+            )
+            raise
         app_state['executor_registry'] = executor_registry
 
         # Criar execution engine

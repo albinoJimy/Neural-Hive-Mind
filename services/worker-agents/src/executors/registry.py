@@ -46,16 +46,27 @@ class TaskExecutorRegistry:
         return list(self.executors.keys())
 
     def validate_configuration(self):
-        '''Validar que todos os task_types configurados têm executores'''
+        '''Validar que todos os task_types configurados têm executores
+
+        Raises:
+            RuntimeError: Se houver executores faltando em ambiente de produção/staging
+        '''
         registered_types = set(self.executors.keys())
         configured_types = set(self.config.supported_task_types)
 
         missing_executors = configured_types - registered_types
 
         if missing_executors:
+            environment = self.config.environment.lower()
+            if environment in ('production', 'staging', 'prod'):
+                raise RuntimeError(
+                    f'Executores faltando em ambiente {self.config.environment}: '
+                    f'{list(missing_executors)}. Configure os executores antes de iniciar.'
+                )
             self.logger.warning(
                 'missing_executors',
-                task_types=list(missing_executors)
+                task_types=list(missing_executors),
+                environment=self.config.environment
             )
 
         self.logger.info(
