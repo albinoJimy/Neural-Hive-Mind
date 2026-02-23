@@ -575,15 +575,45 @@ class FlowCApprovalResponseConsumer:
 
         Resumes Flow C execution for approved plans.
         """
+        approval_response = None
         try:
             # Deserializar mensagem (bytes crus devido a compressão snappy)
             raw_value = message.value
-            if isinstance(raw_value, bytes):
-                approval_response = json.loads(raw_value.decode('utf-8'))
-            elif isinstance(raw_value, str):
-                approval_response = json.loads(raw_value)
-            else:
-                approval_response = raw_value
+
+            # Validar que temos um valor processável
+            if not raw_value:
+                self.logger.warning("approval_response_empty_value")
+                return
+
+            # Parse JSON baseado no tipo do valor
+            try:
+                if isinstance(raw_value, bytes):
+                    approval_response = json.loads(raw_value.decode('utf-8'))
+                elif isinstance(raw_value, str):
+                    approval_response = json.loads(raw_value)
+                else:
+                    self.logger.error(
+                        "approval_response_invalid_type",
+                        type=type(raw_value).__name__,
+                        value=str(raw_value)[:200]
+                    )
+                    return
+            except json.JSONDecodeError as e:
+                self.logger.error(
+                    "approval_response_json_decode_error",
+                    error=str(e),
+                    raw_value=str(raw_value)[:500]
+                )
+                return
+
+            # Validar que obtivemos um dicionário
+            if not isinstance(approval_response, dict):
+                self.logger.error(
+                    "approval_response_not_dict",
+                    type=type(approval_response).__name__,
+                    value=str(approval_response)[:200]
+                )
+                return
 
             plan_id = approval_response.get("plan_id")
             intent_id = approval_response.get("intent_id")
