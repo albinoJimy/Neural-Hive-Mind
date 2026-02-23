@@ -180,7 +180,22 @@ class IntentConsumer:
             schema_path = '/app/schemas/intent-envelope/intent-envelope.avsc'
 
             if os.path.exists(schema_path):
-                self.schema_registry_client = SchemaRegistryClient({'url': self.settings.schema_registry_url})
+                # Configure Schema Registry client with TLS settings
+                sr_conf = {'url': self.settings.schema_registry_url}
+
+                # Configure SSL verification based on settings
+                # When TLS is enabled but verify is False, set ssl.ca.location to empty
+                if (hasattr(self.settings, 'schema_registry_tls_enabled')
+                        and self.settings.schema_registry_tls_enabled
+                        and hasattr(self.settings, 'schema_registry_tls_verify')
+                        and not self.settings.schema_registry_tls_verify):
+                    sr_conf['ssl.ca.location'] = ''
+                    logger.debug(
+                        'Schema Registry TLS verification disabled',
+                        url=self.settings.schema_registry_url
+                    )
+
+                self.schema_registry_client = SchemaRegistryClient(sr_conf)
 
                 # Load Avro schema
                 with open(schema_path, 'r') as f:
