@@ -147,16 +147,20 @@ class KafkaTicketConsumer:
                         await self._commit_with_lock(message)
                         continue
 
-                    # Verificar se task_type é suportado
-                    task_type = ticket.get('task_type')
+                    # Normalizar task_type para uppercase (case-insensitive comparison)
+                    task_type = ticket.get('task_type', '').upper()
                     if task_type not in self.config.supported_task_types:
                         self.logger.warning(
                             'unsupported_task_type',
                             ticket_id=ticket.get('ticket_id'),
-                            task_type=task_type
+                            task_type=task_type,
+                            original_task_type=ticket.get('task_type')
                         )
                         await self._commit_with_lock(message)
                         continue
+
+                    # Atualizar ticket com task_type normalizado para processamento downstream
+                    ticket['task_type'] = task_type
 
                     # Verificar status
                     status = ticket.get('status')

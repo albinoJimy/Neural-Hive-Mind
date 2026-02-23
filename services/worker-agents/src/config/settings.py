@@ -35,6 +35,15 @@ class WorkerAgentSettings(BaseSettings):
             self.namespace_ = pod_namespace
         return self
 
+    @model_validator(mode='after')
+    def normalize_supported_task_types(self) -> 'WorkerAgentSettings':
+        """
+        Normaliza todos os task_types para uppercase para garantir
+        comparação case-insensitive com tickets recebidos via Kafka.
+        """
+        self.supported_task_types = [t.upper() for t in self.supported_task_types]
+        return self
+
     @property
     def namespace(self) -> str:
         """Property para acessar namespace_ como namespace."""
