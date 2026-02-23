@@ -13,12 +13,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy internal library
+# Copy internal libraries
 COPY libraries/python/neural_hive_domain /tmp/neural_hive_domain
+COPY libraries/python/neural_hive_observability /tmp/neural_hive_observability
 
 # Copy requirements and install dependencies
 COPY services/semantic-translation-engine/requirements.txt .
 RUN pip install --no-cache-dir --user /tmp/neural_hive_domain && \
+    pip install --no-cache-dir --user /tmp/neural_hive_observability && \
     pip install --no-cache-dir --user -r requirements.txt && \
     python -m uvicorn --version && \
     echo "uvicorn runtime verification passed" && \
@@ -46,9 +48,8 @@ WORKDIR /app
 COPY --from=builder --chown=app:app /root/.local /home/app/.local
 COPY --from=builder --chown=app:app /usr/local/lib/python3.11/site-packages /home/app/.local/lib/python3.11/site-packages
 
-# Copy shared libraries
+# Copy shared libraries (only neural_hive_risk_scoring, others installed via pip)
 COPY --chown=app:app libraries/python/neural_hive_risk_scoring /app/libraries/neural_hive_risk_scoring
-COPY --chown=app:app libraries/python/neural_hive_observability /app/libraries/neural_hive_observability
 
 # Copy application code
 COPY --chown=app:app services/semantic-translation-engine/src/ ./src/
