@@ -580,6 +580,8 @@ class FlowCApprovalResponseConsumer:
             raw_value = message.value
             if isinstance(raw_value, bytes):
                 approval_response = json.loads(raw_value.decode('utf-8'))
+            elif isinstance(raw_value, str):
+                approval_response = json.loads(raw_value)
             else:
                 approval_response = raw_value
 
