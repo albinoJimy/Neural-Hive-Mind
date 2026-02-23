@@ -95,6 +95,8 @@ class Settings(BaseSettings):
 
     # Schema Registry
     schema_registry_url: Optional[str] = Field(None, description='Schema Registry URL')
+    schema_registry_tls_enabled: bool = Field(default=False, description='Schema Registry TLS enabled')
+    schema_registry_tls_verify: bool = Field(default=True, description='Schema Registry TLS certificate verification')
 
     # Neo4j configuration
     neo4j_uri: str = Field(
