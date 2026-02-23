@@ -278,6 +278,16 @@ class IntentConsumer:
                 # Deserialize message
                 intent_envelope = self._deserialize_message(msg)
 
+                # DEBUG: Log received envelope structure
+                logger.info(
+                    'DEBUG: Received envelope keys',
+                    keys=list(intent_envelope.keys()) if intent_envelope else None,
+                    has_id='id' in intent_envelope if intent_envelope else False,
+                    has_intent_id='intent_id' in intent_envelope if intent_envelope else False,
+                    topic=msg.topic(),
+                    offset=msg.offset()
+                )
+
                 # Extract W3C trace context from Kafka headers (traceparent)
                 headers_dict = {k: v.decode('utf-8') if isinstance(v, bytes) else v
                                 for k, v in (msg.headers() or [])}
