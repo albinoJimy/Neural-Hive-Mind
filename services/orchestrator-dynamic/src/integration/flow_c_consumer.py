@@ -553,20 +553,32 @@ class FlowCApprovalResponseConsumer:
 
     async def consume(self):
         """Main consumption loop."""
+        self.logger.info("approval_response_consumer_loop_starting")
         while self.running:
             try:
                 # Fetch messages
                 data = await self.consumer.getmany(timeout_ms=1000, max_records=10)
 
+                if data:
+                    self.logger.debug("approval_response_messages_fetched", topics_partitions=list(data.keys()))
+
                 for tp, messages in data.items():
                     for message in messages:
+                        self.logger.info(
+                            "approval_response_message_received",
+                            topic=tp.topic,
+                            partition=tp.partition,
+                            offset=message.offset,
+                            key=message.key.decode('utf-8') if message.key else None,
+                            value_preview=str(message.value)[:200] if message.value else None
+                        )
                         await self._process_approval_response(message)
 
                         # Commit offset after successful processing
                         await self.consumer.commit()
 
             except Exception as e:
-                self.logger.error("approval_response_consumption_error", error=str(e))
+                self.logger.error("approval_response_consumption_error", error=str(e), exc_info=True)
                 await asyncio.sleep(5)
 
     async def _process_approval_response(self, message):
@@ -618,6 +630,15 @@ class FlowCApprovalResponseConsumer:
             plan_id = approval_response.get("plan_id")
             intent_id = approval_response.get("intent_id")
             decision = approval_response.get("decision", "pending")
+
+            self.logger.info(
+                "approval_response_parsed_successfully",
+                plan_id=plan_id,
+                intent_id=intent_id,
+                decision=decision,
+                has_cognitive_plan=bool(approval_response.get("cognitive_plan")),
+                has_cognitive_plan_json=bool(approval_response.get("cognitive_plan_json"))
+            )
 
             # FIX 1: Extrair e desserializar cognitive_plan_json
             # O ApprovalResponse.to_kafka_dict() serializa cognitive_plan como string JSON

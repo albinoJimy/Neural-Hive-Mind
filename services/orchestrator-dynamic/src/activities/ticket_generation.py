@@ -3,6 +3,7 @@
 Activities Temporal para geração de Execution Tickets (Etapa C2).
 """
 import uuid
+import json
 from datetime import datetime
 from typing import Dict, Any, List
 
@@ -275,7 +276,8 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 # Adicionar policy_decisions ao ticket metadata
                 if 'metadata' not in ticket:
                     ticket['metadata'] = {}
-                ticket['metadata']['policy_decisions'] = policy_result.policy_decisions
+                # FIX: Serializar policy_decisions como string JSON para compatibilidade com Avro (map<string, string>)
+                ticket['metadata']['policy_decisions'] = json.dumps(policy_result.policy_decisions)
                 ticket['metadata']['policy_validated_at'] = policy_result.evaluated_at.isoformat()
 
                 logger.info(
@@ -372,12 +374,18 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
                         if 'metadata' not in ticket:
                             ticket['metadata'] = {}
 
-                        existing_decisions = ticket['metadata'].get('policy_decisions', {})
+                        # FIX: Serializar policy_decisions como string JSON para compatibilidade com Avro (map<string, string>)
+                        existing_decisions_str = ticket['metadata'].get('policy_decisions', '{}')
+                        try:
+                            existing_decisions = json.loads(existing_decisions_str) if isinstance(existing_decisions_str, str) else existing_decisions_str
+                        except (json.JSONDecodeError, TypeError):
+                            existing_decisions = {}
+
                         if isinstance(existing_decisions, dict):
                             existing_decisions.update(policy_result.policy_decisions)
-                            ticket['metadata']['policy_decisions'] = existing_decisions
+                            ticket['metadata']['policy_decisions'] = json.dumps(existing_decisions)
                         else:
-                            ticket['metadata']['policy_decisions'] = policy_result.policy_decisions
+                            ticket['metadata']['policy_decisions'] = json.dumps(policy_result.policy_decisions)
                         ticket['metadata']['policy_validated_at'] = policy_result.evaluated_at.isoformat()
 
                         logger.info(

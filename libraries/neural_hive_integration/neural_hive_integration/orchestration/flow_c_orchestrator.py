@@ -6,6 +6,7 @@ Coordinates Intent → Decision → Orchestration → Tickets → Workers → Co
 
 import structlog
 import asyncio
+import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from opentelemetry import trace
@@ -830,25 +831,102 @@ class FlowCOrchestrator:
             # Fallback: criar ticket genérico
             tasks = [{"type": "code_generation", "description": "Generate code based on plan"}]
 
-        for task in tasks:
-            ticket_data = {
-                "plan_id": context.plan_id,
-                "task_type": task.get("type", "code_generation"),
-                "required_capabilities": task.get("required_capabilities", task.get("capabilities", ["python", "read", "write", "compute", "code"])),
-                "payload": {
-                    "template_id": task.get("template_id", "default_template"),
-                    "parameters": task.get("parameters", {}),
-                    "description": task.get("description", ""),
-                },
-                "sla_deadline": context.sla_deadline.isoformat(),
-                "priority": context.priority,
-            }
-            ticket = await self.ticket_client.create_ticket(ticket_data)
+        # Extrair informações do cognitive_plan para campos obrigatórios
+        intent_id = cognitive_plan.get("intent_id", "")
+        correlation_id = cognitive_plan.get("correlation_id", "")
+        risk_band = cognitive_plan.get("risk_band", "medium")
+        estimated_duration = cognitive_plan.get("estimated_total_duration_ms", 60000)
 
-            # Adicionar ticket_id ao payload para workers/Code Forge
-            ticket_dict = ticket.model_dump()
-            ticket_dict["payload"]["ticket_id"] = ticket.ticket_id
-            tickets.append(ticket_dict)
+        # Calcular deadline SLA
+        sla_deadline = int(context.sla_deadline.timestamp() * 1000)
+        current_timestamp = int(datetime.utcnow().timestamp() * 1000)
+
+        for task in tasks:
+            # Mapeamento de task_type do cognitive_plan para TaskType do ExecutionTicket
+            task_type = task.get("type", task.get("task_type", "code_generation"))
+            task_type_mapping = {
+                "query": "QUERY",
+                "transform": "TRANSFORM",
+                "validate": "VALIDATE",
+                "validate_legacy": "VALIDATE",
+                "code_generation": "EXECUTE",
+                "generate": "EXECUTE",
+                "analyze": "QUERY",
+                "review": "VALIDATE",
+            }
+            normalized_task_type = task_type_mapping.get(task_type, "EXECUTE")
+
+            # Mapeamento de priority
+            priority_mapping = {"high": "HIGH", "low": "LOW", "medium": "NORMAL"}
+            normalized_priority = priority_mapping.get(str(context.priority).lower(), "NORMAL")
+
+            ticket_data = {
+                # Campos obrigatórios do schema Avro execution-ticket.avsc
+                "ticket_id": str(uuid4()),
+                "plan_id": context.plan_id,
+                "intent_id": intent_id,
+                "decision_id": context.decision_id or f"approval-{context.plan_id[:8]}",
+                "correlation_id": correlation_id,
+                "trace_id": task.get("trace_id"),
+                "span_id": task.get("span_id"),
+                "task_id": task.get("task_id", task.get("id", f"task_{task.get('type', 'unknown')}")),
+                "task_type": normalized_task_type,
+                "description": task.get("description", ""),
+                "dependencies": task.get("dependencies", []),
+                "status": "PENDING",
+                "priority": normalized_priority,
+                "risk_band": risk_band,
+                "sla": {
+                    "deadline": sla_deadline,
+                    "timeout_ms": task.get("estimated_duration_ms", estimated_duration) or 3600000,
+                    "max_retries": 3,
+                },
+                "qos": {
+                    "delivery_mode": "AT_LEAST_ONCE",
+                    "consistency": "EVENTUAL",
+                    "durability": "PERSISTENT",
+                },
+                "parameters": task.get("parameters", {}),
+                "required_capabilities": task.get("required_capabilities", task.get("capabilities", ["python", "read", "write", "compute", "code"])),
+                "security_level": "INTERNAL",
+                "created_at": current_timestamp,
+                "started_at": None,
+                "completed_at": None,
+                "estimated_duration_ms": task.get("estimated_duration_ms", 60000),
+                "actual_duration_ms": None,
+                "retry_count": 0,
+                "error_message": None,
+                "compensation_ticket_id": None,
+                "metadata": {},  # Campo vazio para evitar erro de serialização (policy_decisions deve ser string JSON)
+                "predictions": None,
+                "schema_version": 1,
+            }
+
+            self.logger.debug(
+                "creating_ticket_from_plan",
+                ticket_id=ticket_data["ticket_id"],
+                task_id=ticket_data["task_id"],
+                task_type=ticket_data["task_type"],
+            )
+
+            try:
+                ticket = await self.ticket_client.create_ticket(ticket_data)
+
+                # Adicionar ticket_id ao payload para workers/Code Forge
+                ticket_dict = ticket.model_dump()
+                if "payload" not in ticket_dict:
+                    ticket_dict["payload"] = {}
+                ticket_dict["payload"]["ticket_id"] = ticket.ticket_id
+                tickets.append(ticket_dict)
+
+            except Exception as e:
+                self.logger.error(
+                    "failed_to_create_ticket_from_plan",
+                    task_id=task.get("task_id", task.get("id")),
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+                # Continuar com próximo ticket em vez de falhar completamente
 
         self.logger.info(
             "tickets_extracted_from_plan",
