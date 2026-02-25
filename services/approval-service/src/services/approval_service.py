@@ -316,13 +316,26 @@ class ApprovalService:
             raise ValueError('Falha ao atualizar decisao no MongoDB')
 
         # Publica no Kafka
+        # FIX: Extrair plano completo da estrutura aninhada se necessário
+        # O approval_request_consumer pode criar estrutura onde cognitive_plan
+        # está aninhado dentro de outro cognitive_plan
+        plan_data = approval.cognitive_plan
+        if 'cognitive_plan' in plan_data and isinstance(plan_data.get('cognitive_plan'), dict):
+            # Estrutura aninhada detectada - usar plano interno
+            plan_data = plan_data['cognitive_plan']
+            logger.info(
+                'cognitive_plan_aninhado_detectado',
+                plan_id=plan_id,
+                achatando='usando plano interno'
+            )
+
         response = ApprovalResponse(
             plan_id=plan_id,
             intent_id=approval.intent_id,
             decision='approved',
             approved_by=user_id,
             approved_at=decision.approved_at,
-            cognitive_plan=approval.cognitive_plan
+            cognitive_plan=plan_data
         )
         await self.response_producer.send_approval_response(response)
 

@@ -78,7 +78,22 @@ async def generate_execution_tickets(
     )
 
     try:
-        tasks = cognitive_plan.get('tasks', [])
+        # FIX: Lidar com estrutura aninhada do approval service
+        # Se cognitive_plan está aninhado (cognitive_plan.cognitive_plan),
+        # extrair o plano interno para acessar tasks corretamente
+        plan_data = cognitive_plan
+        if 'cognitive_plan' in plan_data and isinstance(plan_data.get('cognitive_plan'), dict):
+            # Estrutura aninhada detectada
+            logger.warning(
+                'cognitive_plan_aninhado_detectado_no_orchestrator',
+                plan_id=plan_data.get('plan_id', 'UNKNOWN'),
+                has_tasks_nivel1='tasks' in plan_data,
+                has_tasks_nivel2='tasks' in plan_data.get('cognitive_plan', {}),
+                action='achatando estrutura'
+            )
+            plan_data = plan_data['cognitive_plan']
+
+        tasks = plan_data.get('tasks', [])
         plan_id = cognitive_plan['plan_id']
         intent_id = cognitive_plan['intent_id']
         decision_id = consolidated_decision['decision_id']
