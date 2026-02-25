@@ -67,7 +67,15 @@ async def generate_execution_tickets(
     Returns:
         Lista de tickets ordenada topologicamente
     """
-    logger.info(f'Gerando execution tickets para plano {cognitive_plan["plan_id"]}')
+    logger.info(
+        'generate_execution_tickets_called',
+        plan_id=cognitive_plan.get('plan_id', 'MISSING'),
+        intent_id=cognitive_plan.get('intent_id', 'MISSING'),
+        has_tasks='tasks' in cognitive_plan,
+        tasks_count=len(cognitive_plan.get('tasks', [])),
+        cognitive_plan_keys=list(cognitive_plan.keys()) if isinstance(cognitive_plan, dict) else 'NOT_A_DICT',
+        consolidated_decision_keys=list(consolidated_decision.keys()) if isinstance(consolidated_decision, dict) else 'NOT_A_DICT'
+    )
 
     try:
         tasks = cognitive_plan.get('tasks', [])
@@ -75,6 +83,15 @@ async def generate_execution_tickets(
         intent_id = cognitive_plan['intent_id']
         decision_id = consolidated_decision['decision_id']
         risk_band = cognitive_plan.get('risk_band', 'medium')
+
+        logger.info(
+            'ticket_generation_vars_extracted',
+            plan_id=plan_id,
+            intent_id=intent_id,
+            decision_id=decision_id,
+            risk_band=risk_band,
+            tasks_count=len(tasks)
+        )
 
         # Mapeamento de task_id para ticket_id
         task_to_ticket_map = {}
