@@ -6,7 +6,7 @@ Coordinates Intent → Decision → Orchestration → Tickets → Workers → Co
 
 import structlog
 import asyncio
-import uuid
+from uuid import uuid4
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from opentelemetry import trace
