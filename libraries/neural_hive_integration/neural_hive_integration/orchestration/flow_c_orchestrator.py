@@ -1095,7 +1095,7 @@ class FlowCOrchestrator:
                 # Nota: O match_agents já filtra apenas agentes HEALTHY, então não precisamos do filtro status
                 workers = await self.service_registry.discover_agents_cached(
                     capabilities=list(all_capabilities),
-                    filters={"agent_type": "worker"},
+                    filters={"agent_type": "WORKER"},
                 )
 
                 workers_discovered_total.inc(len(workers))
@@ -1672,20 +1672,43 @@ class FlowCOrchestrator:
 
         # Reconstruir consolidated_decision a partir do approval_response
         # Precisamos dos campos mínimos para executar Flow C
+
+        # FIX 3: Enriquecer cognitive_plan com campos obrigatórios para Temporal workflow
+        # O workflow valida: plan_id, tasks, execution_order, risk_score, risk_band
+        enriched_cognitive_plan = {
+            # Campos obrigatórios para o workflow
+            "plan_id": plan_id,
+            "tasks": cognitive_plan.get("tasks", []),
+            "execution_order": cognitive_plan.get("execution_order", []),
+            "risk_score": cognitive_plan.get("risk_score", approval_response.get("risk_score", 0.5)),
+            "risk_band": cognitive_plan.get("risk_band", approval_response.get("risk_band", "medium")),
+            # Outros campos do cognitive_plan original
+            "schema_version": cognitive_plan.get("schema_version", 1),
+            "correlation_id": cognitive_plan.get("correlation_id"),
+            "priority": cognitive_plan.get("priority", 5),
+            "valid_until": cognitive_plan.get("valid_until"),
+            "metadata": cognitive_plan.get("metadata", {}),
+            # Preservar campos adicionais que possam existir
+            **{k: v for k, v in cognitive_plan.items() if k not in [
+                "plan_id", "tasks", "execution_order", "risk_score", "risk_band",
+                "schema_version", "correlation_id", "priority", "valid_until", "metadata"
+            ]}
+        }
+
         consolidated_decision = {
             "intent_id": intent_id,
             "plan_id": plan_id,
             "decision_id": f"approval-{plan_id[:8]}",  # Gerar ID fictício para rastreamento
             "final_decision": "approved",  # Agora pode prosseguir
-            "cognitive_plan": cognitive_plan,
+            "cognitive_plan": enriched_cognitive_plan,
             # FIX 2c: Priorizar risk_score do cognitive_plan (ApprovalResponse não inclui no payload)
-            "aggregated_risk": cognitive_plan.get("risk_score") or approval_response.get("risk_score", 0.5),
+            "aggregated_risk": enriched_cognitive_plan.get("risk_score"),
             # FIX 2c: Adicionar fallback para risk_band do approval_response
-            "risk_band": cognitive_plan.get("risk_band") or approval_response.get("risk_band", "medium"),
+            "risk_band": enriched_cognitive_plan.get("risk_band"),
             # FIX 2c: Adicionar execution_order (usado por _execute_c2_generate_tickets)
-            "execution_order": cognitive_plan.get("execution_order", []),
-            "correlation_id": cognitive_plan.get("correlation_id"),
-            "priority": cognitive_plan.get("priority", 5),
+            "execution_order": enriched_cognitive_plan.get("execution_order", []),
+            "correlation_id": enriched_cognitive_plan.get("correlation_id"),
+            "priority": enriched_cognitive_plan.get("priority", 5),
             "approved_by": approved_by,
             "approved_at": approval_response.get("approved_at"),
             "resuming_from_approval": True,  # Flag para indicar retomada

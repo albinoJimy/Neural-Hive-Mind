@@ -1,337 +1,165 @@
-# RELATÓRIO DE TESTE E2E - PIPELINE COMPLETO NEURAL HIVE-MIND
-
-## Metadados do Teste
-
-| Campo | Valor |
-|-------|-------|
-| **Data de Execução** | 2026-02-25 |
-| **Horário de Início** | 07:06:47 UTC |
-| **Horário de Término** | 07:08:48 UTC |
-| **Duração Total** | ~121 segundos |
-| **Testador** | qa-tester-20260225 |
-| **Ambiente** | Staging (Kubernetes Cluster) |
-| **Documento Base** | MODELO_TESTE_PIPELINE_COMPLETO.md |
+# RELATÓRIO DE TESTE E2E - PIPELINE COMPLETO
+## Data de Execução: 2026-02-25
+## Horário de Início: 11:39:26 UTC
+## Horário de Término: 11:47:00 UTC
+## Ambiente: Staging
+## Teste: Pipeline Completo Neural Hive-Mind
 
 ---
 
 ## RESUMO EXECUTIVO
 
-### VEREDITO FINAL
-
-✅ **APROVADO** - Pipeline funcionando conforme especificação
-
-O teste E2E validou com sucesso o fluxo completo do Neural Hive-Mind, desde a captura da intenção até a geração de tickets de execução. A única exceção foi a decisão do Consensus Engine que retornou `review_required` devido à baixa confiança dos modelos ML (degradados por uso de dados sintéticos), o que foi contornado através de aprovação manual conforme especificado.
+| Componente | Status | Observações |
+|------------|--------|------------|
+| Gateway de Intenções | ✅ COMPLETO | Health check OK, latência 67ms |
+| Kafka Producer | ✅ COMPLETO | Mensagem publicada no topic intentions.security |
+| Cache Redis | ✅ COMPLETO | Intenção armazenada com TTL de 535s |
+| Semantic Translation Engine | ✅ COMPLETO | Plano cognitivo gerado com 8 tarefas |
+| ML Specialists | ✅ COMPLETO | 5 opiniões geradas (business, technical, behavior, evolution, architecture) |
+| Consensus Engine | ⚠️ DEGRADADO | review_required (confiança 0.21, modelos ML degradados) |
+| Aprovação Manual | ✅ EXECUTADO | Plano aprovado via approval-service |
+| Orchestrator Flow C | ❌ BLOQUEADO | Circuit breaker OPA aberto após 5 falhas anteriores |
 
 ---
 
-## 1. FLUXO A - Gateway de Intenções → Kafka
+## FLUXO A - Gateway de Intenções → Kafka
 
-### 1.1 Health Check do Gateway
+### A.1 Health Check do Gateway
+- **Pod**: gateway-intencoes-665986494-shq9b
+- **Timestamp**: 2026-02-25T11:40:33.954981Z
+- **Status**: ✅ healthy
+- **Latências**:
+  - Redis: 2.6ms
+  - OTEL: 70.5ms
+  - NLU: <1ms
+  - Kafka: <1ms
+  - OAuth2: <1ms
 
-| Componente | Status | Latência |
-|------------|--------|----------|
-| Gateway | ✅ healthy | - |
-| Redis | ✅ healthy | 2.69ms |
-| ASR Pipeline | ✅ healthy | 0.02ms |
-| NLU Pipeline | ✅ healthy | 0.01ms |
-| Kafka Producer | ✅ healthy | <0.01ms |
-| OAuth2 Validator | ✅ healthy | <0.01ms |
-| OTEL Pipeline | ✅ healthy | 114.32ms |
+### A.2 Envio de Intenção
+- **Intent ID**: 0ac98b73-355d-4c10-89ee-077551096030
+- **Correlation ID**: b3793a29-1389-4b73-96f9-7cc78d248cb5
+- **Trace ID**: 917249db3f12fef02bd143d278581664
+- **Confidence**: 0.95 (high)
+- **Domain**: SECURITY
+- **Classification**: authentication
+- **Processing Time**: 67.4ms
 
-### 1.2 Envio de Intenção
-
-**INPUT (Payload):**
+**Payload Enviado**:
 ```json
 {
   "text": "Analisar viabilidade técnica de migração do sistema de autenticação para OAuth2 com suporte a MFA",
   "context": {
-    "session_id": "test-session-e2e-20260225",
-    "user_id": "qa-tester-20260225",
+    "session_id": "test-session-dc9b17ac",
+    "user_id": "qa-tester-e9e364e2",
     "source": "manual-test"
-  },
-  "constraints": {
-    "priority": "high",
-    "security_level": "confidential"
   }
 }
 ```
 
-**OUTPUT (Resposta):**
-
-| Campo | Valor |
-|-------|-------|
-| Intent ID | `7cbe4f92-539a-47b3-8d16-eb392d9ab6a7` |
-| Correlation ID | `dc784344-47b7-422c-a5ec-28df6376bde8` |
-| Trace ID | `f2aa1bfe269f6bbf6b4785ca2f3e6faa` |
-| Status | processed |
-| Confidence | 0.95 (high) |
-| Domain | SECURITY |
-| Classification | authentication |
-| Processing Time | 154.48ms |
-
-**STATUS:** ✅ PASS
-
-### 1.3 Mensagem no Kafka
-
-- Topic: `intentions.security`
-- Formato: Avro binary
-- Partition: 1
-| Status | ✅ PASS |
+### A.3 Cache Redis
+- **Chave**: intent:0ac98b73-355d-4c10-89ee-077551096030
+- **Contexto Enriquecido**: 6 entidades extraídas (OAuth2, MFA, viabilidade técnica, migração, autenticação, suporte)
+- **TTL**: 535 segundos
 
 ---
 
-## 2. FLUXO B - Semantic Translation Engine → Plano Cognitivo
+## FLUXO B - Semantic Translation Engine → Plano Cognitivo
 
-### 2.1 Consumo da Intenção
+### Plano Gerado
+- **Plan ID**: 3ba16cf2-9400-4874-999f-9d12fb5cf6ae
+- **Tasks Count**: 8 tarefas
+- **Risk Score**: 0.405 (medium)
+- **Status**: validated
+- **Estimated Duration**: 5600ms
 
-| Campo | Valor |
-|-------|-------|
-| Intent Consumido | ✅ Sim |
-| Timestamp Consumo | 2026-02-25T07:06:55.860Z |
-| Topic | intentions.security |
-
-**STATUS:** ✅ PASS
-
-### 2.2 Geração do Plano Cognitivo
-
-| Campo | Valor |
-|-------|-------|
-| Plan ID | `be916f90-f3bb-4806-9561-d9789e2047c0` |
-| Intent ID Referenciado | `7cbe4f92-539a-47b3-8d16-eb392d9ab6a7` |
-| Número de Tarefas | **8** |
-| Template | viability_analysis |
-| Risk Score | 0.405 |
-| Risk Band | medium |
-| Duração Processamento | 644ms |
-
-**Tarefas Geradas:**
-
-| Task ID | Type | Description |
-|---------|------|-------------|
-| task_0 | query | Inventariar sistema atual |
-| task_1 | query | Definir requisitos técnicos |
-| task_2 | query | Mapear dependências |
-| task_3 | validate | Avaliar impacto de segurança |
-| task_4 | query | Analisar complexidade de integração |
-| task_5 | query | Estimar esforço de migração |
-| task_6 | validate | Identificar riscos técnicos |
-| task_7 | transform | Gerar relatório de viabilidade |
-
-**STATUS:** ✅ PASS
-
-### 2.3 Persistência no MongoDB
-
-- Collection: `cognitive_ledger`
-- Plan ID: `be916f90-f3bb-4806-9561-d9789e2047c0`
-- Documento persistido: ✅ Sim
-- Hash: `0bca1d9746d2d6d2b44bd28b978ca1144e17ac2278177235fe53aa4045e4bf6c`
-
-**STATUS:** ✅ PASS
+**Tasks Geradas**:
+1. task_0: query - Inventariar sistema atual
+2. task_1: query - Definir requisitos técnicos
+3. task_2: query - Mapear dependências
+4. task_3: validate - Avaliar impacto de segurança
+5. task_4: query - Analisar complexidade de integração
+6. task_5: query - Estimar esforço de migração
+7. task_6: validate - Identificar riscos técnicos
+8. task_7: transform - Gerar relatório de viabilidade
 
 ---
 
-## 3. FLUXO C - Specialists → Consensus → Orchestrator
+## FLUXO C - Specialists → Consensus → Orchestrator
 
-### 3.1 Specialists
+### C.1 ML Specialists Opinions
+- **5 opiniões geradas**:
+  - business: confidence 0.5, recommendation review_required
+  - technical: confidence 0.096, recommendation reject
+  - behavior: confidence 0.096, recommendation reject
+  - evolution: confidence 0.096, recommendation reject
+  - architecture: confidence 0.096, recommendation reject
 
-| Specialist | Status | Observação |
-|------------|--------|------------|
-| Business | ✅ Opinião gerada | Confidence baixa (~50%) |
-| Technical | ✅ Opinião gerada | Confidence baixa (~50%) |
-| Behavior | ✅ Opinião gerada | Confidence baixa (~50%) |
-| Evolution | ✅ Opinião gerada | Confidence baixa (~50%) |
-| Architecture | ✅ Opinião gerada | Confidence baixa (~50%) |
+**Nota**: Modelos ML degradados usando dados sintéticos (~50% confiança)
 
-**STATUS:** ✅ PASS (com degradação conhecida)
+### C.2 Consensus Decision
+- **Decision ID**: b8f494cc-5fdf-4703-b6f8-beaa40008c4e
+- **Final Decision**: review_required
+- **Aggregated Confidence**: 0.209
+- **Aggregated Risk**: 0.576
+- **Requires Human Review**: true
+- **Guardrails Triggered**: 2
+  - Confiança agregada (0.21) abaixo do mínimo adaptativo (0.50)
+  - Divergência (0.42) acima do máximo adaptativo (0.35)
 
-### 3.2 Consensus Engine
+### C.3 Aprovação Manual
+- **Timestamp**: 2026-02-25T11:45:37.275017Z
+- **Approved by**: test-admin
+- **Decision**: approved
+- **Comments**: "Aprovado manualmente via teste E2E - modelos ML degradados com dados sintéticos"
 
-| Campo | Valor |
-|-------|-------|
-| Decision ID | `4211561b-df7a-4718-8168-959d24a9892c` |
-| Plan ID | `be916f90-f3bb-4806-9561-d9789e2047c0` |
-| Final Decision | **review_required** |
-| Consensus Method | fallback |
-| Convergence Time | 26ms |
-| Confidence Agregada | 0.21 (abaixo do mínimo 0.50) |
-| Divergência | 0.42 (acima do máximo 0.35) |
+---
 
-**Razão do Fallback:**
+## FLUXO D - Orchestrator (BLOQUEADO)
+
+### Problema Identificado
+O Orchestrator iniciou o Flow C após aprovação, mas falhou com:
+
 ```
-Confiança agregada (0.21) abaixo do mínimo adaptativo (0.50)
-[base: 0.65, ajustado: 5 models degraded]
-Divergência (0.42) acima do máximo adaptativo (0.35)
-[base: 0.25, ajustado: 5 models degraded]
+RuntimeError: Alocação rejeitada por políticas: 
+['system/evaluation_error: Erro na avaliação de políticas: Circuit breaker aberto após 5 falhas']
 ```
 
-**STATUS:** ⚠️ PASS COM RESSALVA (degradação esperada por dados sintéticos)
+### Root Cause
+O circuit breaker do OPA Client está aberto devido a falhas anteriores (não relacionadas a este teste). O circuit breaker tem um reset timeout de 60 segundos, mas as falhas anteriores persistiram.
 
-### 3.3 Orchestrator - Validação e Aprovação
-
-| Campo | Valor |
-|-------|-------|
-| Approval ID | `b945ba29-3906-4533-9224-52871d08a50c` |
-| Plan ID | `be916f90-f3bb-4806-9561-d9789e2047c0` |
-| Status Inicial | pending |
-| Ação Manual | ✅ APROVADO |
-| Approved By | qa-tester-20260225 |
-| Approved At | 2026-02-25T07:08:41.315Z |
-
-**STATUS:** ✅ PASS (aprovação manual executada conforme especificação)
+### Tentativa de Resolução
+- Pod do orchestrator reiniciado para reset do circuit breaker
+- Novo pod criado: orchestrator-dynamic-5fc7c9d548-bclbh (1/1 Running)
 
 ---
 
-## 4. FLUXO C - Criação de Tickets
+## CONCLUSÃO
 
-### 4.1 Tickets Gerados
-
-| Ticket ID | Task ID | Task Type | Status |
-|-----------|---------|-----------|--------|
-| `91c0094b-6c1b-4700-837d-7106c42fd231` | task_0 | query | PENDING |
-| `809fcf10-1c5a-409f-a574-e2f2fd5da5a7` | task_1 | query | PENDING |
-| `690fbe4f-08c6-4075-803a-62c7b845a879` | task_2 | query | PENDING |
-| `a32cd324-9bfc-46cb-80a7-0d185550d526` | task_3 | validate | PENDING |
-| `889d9272-9a55-421f-8fc7-de101edea945` | task_4 | query | PENDING |
-| `5c45da47-dd33-465a-8f75-8ff4e91d038a` | task_5 | query | PENDING |
-| `827a2eef-6a43-42a9-88bc-78af417a97c2` | task_6 | validate | PENDING |
-| `cf84a700-fabd-4d2f-a5ac-a899d477fe77` | task_7 | transform | PENDING |
-
-**Total:** 8 tickets ✅
-
-### 4.2 Persistência dos Tickets
-
-- Collection: `execution_tickets`
-- Tickets persistidos: ✅ 8/8
-- Publicados no Kafka: ✅ topic `execution.tickets`
-
-**STATUS:** ✅ PASS
-
----
-
-## 5. MATRIZ DE CORRELAÇÃO DE IDs
-
-| ID | Tipo | Capturado em | Propagou | Status |
-|----|------|-------------|-----------|--------|
-| Intent ID | `7cbe4f92-539a-47b3-8d16-eb392d9ab6a7` | Gateway | STE, MongoDB, Consensus | ✅ |
-| Correlation ID | `dc784344-47b7-422c-a5ec-28df6376bde8` | Gateway | STE, MongoDB | ✅ |
-| Trace ID | `f2aa1bfe269f6bbf6b4785ca2f3e6faa` | Gateway | Jaeger | ✅ |
-| Plan ID | `be916f90-f3bb-4806-9561-d9789e2047c0` | STE | Consensus, Orchestrator, MongoDB | ✅ |
-| Decision ID | `4211561b-df7a-4718-8168-959d24a9892c` | Consensus | Orchestrator, MongoDB | ✅ |
-| Approval ID | `b945ba29-3906-4533-9224-52871d08a50c` | Orchestrator | MongoDB | ✅ |
-| Ticket IDs | 8 tickets | Orchestrator | Kafka, MongoDB | ✅ |
-
-**Propagação:** 7/7 IDs propagados com sucesso ✅
-
----
-
-## 6. TIMELINE DE LATÊNCIAS
-
-| Etapa | Início | Fim | Duração | SLO | Status |
-|-------|--------|------|----------|-----|--------|
-| Gateway - Recepção | 07:06:47.000 | 07:06:47.154 | 154ms | <1000ms | ✅ |
-| Gateway - NLU | - | - | ~2ms | <200ms | ✅ |
-| STE - Processamento | 07:06:55.860 | 07:06:56.133 | 644ms | <2000ms | ✅ |
-| STE - MongoDB | - | - | ~10ms | <500ms | ✅ |
-| Consensus - Agregação | 07:06:58.779 | 07:06:58.819 | 40ms | <3000ms | ✅ |
-| Orchestrator - Validação | 07:06:58.869 | 07:06:58.933 | 64ms | <500ms | ✅ |
-| Aprovação Manual | 07:08:41.315 | 07:08:41.315 | <1s | N/A | ✅ |
-| Ticket Generation | 07:08:45.894 | 07:08:48.349 | ~2.5s | <5000ms | ✅ |
-
-**Tempo Total End-to-End:** ~121 segundos (incluindo aprovação manual)
-
----
-
-## 7. CRITÉRIOS DE ACEITAÇÃO
-
-### Critérios Funcionais
-
-| Critério | Status |
-|----------|--------|
-| Gateway processa intenções | ✅ PASS |
-| Gateway classifica corretamente | ✅ PASS |
-| Gateway publica no Kafka | ✅ PASS |
-| STE consome intenções | ✅ PASS |
-| STE gera plano cognitivo | ✅ PASS |
-| STE persiste plano no MongoDB | ✅ PASS |
-| STE publica plano no Kafka | ✅ PASS |
-| Specialists geram opiniões | ✅ PASS |
-| Consensus agrega decisões | ✅ PASS |
-| Orchestrator valida planos | ✅ PASS |
-| Orchestrator cria tickets | ✅ PASS |
-| Tickets persistidos no MongoDB | ✅ PASS |
-
-**Taxa de Sucesso Funcional:** 12/12 = **100%** ✅
-
----
-
-## 8. PROBLEMAS E ANOMALIAS
-
-### Não Críticos (Observabilidade)
-
-| ID | Problema | Severidade | Status |
-|----|----------|------------|--------|
-| O1 | Modelos ML com baixa confiança (~50%) | Média | Conhecido - dados sintéticos |
-| O2 | Consensus retorna review_required | Média | Contornado via aprovação manual |
-
-### Anomalias de Performance
-
-Nenhuma anomalia significativa detectada. Todos os SLOs foram atendidos.
-
----
-
-## 9. CONCLUSÃO
-
-### Status Geral do Pipeline
-
+### Status do Pipeline
 | Fluxo | Status | Taxa de Sucesso |
 |-------|--------|------------------|
 | Fluxo A (Gateway → Kafka) | ✅ Completo | 100% |
 | Fluxo B (STE → Plano) | ✅ Completo | 100% |
 | Fluxo C1 (Specialists) | ✅ Completo | 100% |
-| Fluxo C2 (Consensus) | ✅ Completo | 100% |
-| Fluxo C3 (Orchestrator + Aprovação) | ✅ Completo | 100% |
-| Fluxo C4 (Tickets) | ✅ Completo | 100% |
-| **Pipeline Completo** | **✅ APROVADO** | **100%** |
+| Fluxo C2 (Consensus) | ⚠️ Completado (degradado) | 100% |
+| Fluxo C3 (Aprovação) | ✅ Completo | 100% |
+| Fluxo C4-C6 (Orchestrator) | ❌ Bloqueado | 0% |
+
+### Bloqueador Crítico
+**Circuit Breaker OPA Aberto**: O OPA Client do Orchestrator tem o circuit breaker aberto devido a 5 falhas consecutivas anteriores. Isso impede a execução do Flow C (criação e alocação de tickets).
 
 ### Recomendações
+1. **Reset do Circuit Breaker**: Reiniciar os pods do orchestrator para limpar o estado do circuit breaker
+2. **Investigar Falhas OPA**: Investigar as 5 falhas que causaram a abertura do circuit breaker
+3. **Modelos ML**: Retreinar modelos ML com dados reais (não sintéticos) para melhorar confiança
+4. **Retry Automático**: Implementar mecanismo de auto-recuperação do circuit breaker
 
-1. **IMEDIATA:** Retreinar modelos ML com dados reais para aumentar confiança above 0.50
-2. **CURTO PRAZO:** Implementar dashboard de monitoramento de health dos modelos
-3. **MÉDIO PRAZO:** Adicionar métricas de quality dos dados de treino
-
-### Assinatura
-
-**Teste executado por:** Claude (AI Assistant)
-**Data:** 2026-02-25
-**Status:** ✅ **APROVADO**
+### Próximos Passos
+1. Reiniciar todos os pods do orchestrator-dynamic
+2. Executar novo teste E2E para validação completa
+3. Corrigir problemas identificados no OPA e/ou models ML
 
 ---
 
-## ANEXOS
-
-### IDs de Rastreamento
-
-```
-Intent ID:      7cbe4f92-539a-47b3-8d16-eb392d9ab6a7
-Correlation ID: dc784344-47b7-422c-a5ec-28df6376bde8
-Trace ID:       f2aa1bfe269f6bbf6b4785ca2f3e6faa
-Plan ID:        be916f90-f3bb-4806-9561-d9789e2047c0
-Decision ID:    4211561b-df7a-4718-8168-959d24a9892c
-Approval ID:    b945ba29-3906-4533-9224-52871d08a50c
-```
-
-### Collections MongoDB
-
-```javascript
-// Verificar plano
-db.cognitive_ledger.findOne({plan_id: "be916f90-f3bb-4806-9561-d9789e2047c0"})
-
-// Verificar decisão
-db.consensus_decisions.findOne({plan_id: "be916f90-f3bb-4806-9561-d9789e2047c0"})
-
-// Verificar aprovação
-db.plan_approvals.findOne({plan_id: "be916f90-f3bb-4806-9561-d9789e2047c0"})
-
-// Verificar tickets
-db.execution_tickets.find({plan_id: "be916f90-f3bb-4806-9561-d9789e2047c0"})
-```
+**Assinatura**: Claude Code (AI Assistant)
+**Data**: 2026-02-25
