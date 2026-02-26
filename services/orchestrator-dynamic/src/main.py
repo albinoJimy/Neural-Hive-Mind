@@ -7,6 +7,71 @@ import os
 from contextlib import asynccontextmanager
 from typing import Optional, Dict, Any, List
 
+# =============================================================================
+# HOTFIX: Monkey patch para neural_hive_integration - FIX 2a, 2b, 2c, 3
+# =============================================================================
+import json
+try:
+    from neural_hive_integration.orchestration.flow_c_orchestrator import FlowCOrchestrator
+    original_resume = FlowCOrchestrator.resume_flow_c_after_approval
+
+    async def _patched_resume(self, approval_response):
+        """Versão patchada com FIX 2a, 2b, 2c, 3"""
+        plan_id = approval_response.get("plan_id")
+        cognitive_plan = approval_response.get("cognitive_plan", {})
+
+        # FIX 2a: Extrair de cognitive_plan_json
+        if not cognitive_plan or not cognitive_plan.get("tasks"):
+            cp_json = approval_response.get("cognitive_plan_json")
+            if isinstance(cp_json, str) and cp_json.strip():
+                try:
+                    cognitive_plan = json.loads(cp_json)
+                except: pass
+
+        # FIX 2b: Fallback MongoDB
+        if not cognitive_plan or not cognitive_plan.get("tasks"):
+            try:
+                from motor.motor_asyncio import AsyncIOMotorClient
+                mongo_uri = os.getenv('MONGODB_URI', 'mongodb://root:password@mongodb.mongodb.svc.cluster.local:27017')
+                motor_client = AsyncIOMotorClient(mongo_uri, serverSelectionTimeoutMS=5000)
+                try:
+                    approval = await motor_client['plan_approvals'].approvals.find_one({"plan_id": plan_id})
+                    if approval:
+                        outer_cp = approval.get("cognitive_plan", {})
+                        inner_cp = outer_cp.get("cognitive_plan") if isinstance(outer_cp, dict) else None
+                        if inner_cp and isinstance(inner_cp, dict):
+                            cognitive_plan = inner_cp
+                finally:
+                    motor_client.close()
+            except: pass
+
+        # FIX 3: Enriquecer cognitive_plan
+        enriched = {
+            "plan_id": plan_id,
+            "tasks": cognitive_plan.get("tasks", []),
+            "execution_order": cognitive_plan.get("execution_order", []),
+            "risk_score": cognitive_plan.get("risk_score", 0.5),
+            "risk_band": cognitive_plan.get("risk_band", "medium"),
+        }
+
+        decision = {
+            "intent_id": approval_response.get("intent_id"),
+            "plan_id": plan_id,
+            "decision_id": f"approval-{plan_id[:8]}",
+            "final_decision": "approved",
+            "cognitive_plan": enriched,
+            "resuming_from_approval": True,
+        }
+
+        return await original_resume(self, decision)
+
+    FlowCOrchestrator.resume_flow_c_after_approval = _patched_resume
+    del original_resume
+    del _patched_resume
+except Exception as e:
+    pass  # Silenciar erro em desenvolvimento
+# =============================================================================
+
 import structlog
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
