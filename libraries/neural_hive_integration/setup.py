@@ -8,7 +8,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="neural_hive_integration",
-    version="1.1.4",  # Fix: added neural_hive_resilience dependency
+    version="1.1.5",  # Fix 2a, 2b, 2c, 3: cognitive_plan aninhado
     description="Neural Hive Mind Phase 2 Integration Library",
     author="Neural Hive Team",
     packages=find_packages(),
@@ -31,7 +31,7 @@ setup(
         "aiokafka>=0.8.0",
         "redis>=5.0.0",
         "avro-python3>=1.10.0",
-        "neural_hive_resilience>=0.1.0",  # Required for circuit breaker
+        # "neural_hive_resilience>=0.1.0",  # Temporarily disabled - not available
     ],
     extras_require={
         "dev": [
