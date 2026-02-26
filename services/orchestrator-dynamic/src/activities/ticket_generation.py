@@ -241,7 +241,8 @@ async def generate_execution_tickets(
             tickets[i]['dependencies'] = ticket_dependencies
 
         # Ordenar tickets topologicamente usando execution_order
-        execution_order = cognitive_plan.get('execution_order', [task['task_id'] for task in tasks])
+        # FIX: Usar plan_data (achatado) em vez de cognitive_plan (pode estar aninhado)
+        execution_order = plan_data.get('execution_order', [task['task_id'] for task in tasks])
         ordered_tickets = []
         for task_id in execution_order:
             if task_id in task_to_ticket_map:
