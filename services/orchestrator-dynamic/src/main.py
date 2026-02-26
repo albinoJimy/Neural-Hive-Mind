@@ -45,9 +45,10 @@ try:
                     motor_client.close()
             except: pass
 
-        # FIX 3: Enriquecer cognitive_plan
+        # FIX 3: Enriquecer cognitive_plan com campos obrigatórios
         enriched = {
             "plan_id": plan_id,
+            "intent_id": approval_response.get("intent_id"),  # Necessário para ticket_generation.py
             "tasks": cognitive_plan.get("tasks", []),
             "execution_order": cognitive_plan.get("execution_order", []),
             "risk_score": cognitive_plan.get("risk_score", 0.5),
