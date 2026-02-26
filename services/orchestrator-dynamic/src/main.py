@@ -54,16 +54,17 @@ try:
             "risk_band": cognitive_plan.get("risk_band", "medium"),
         }
 
-        decision = {
-            "intent_id": approval_response.get("intent_id"),
+        # Criar approval_response formatado com cognitive_plan enriquecido
+        # O método original_resume espera um approval_response dict, não uma decision string
+        patched_response = {
             "plan_id": plan_id,
-            "decision_id": f"approval-{plan_id[:8]}",
-            "final_decision": "approved",
-            "cognitive_plan": enriched,
-            "resuming_from_approval": True,
+            "intent_id": approval_response.get("intent_id"),
+            "decision": "approved",  # String, não dict!
+            "approved_by": approval_response.get("approved_by", "admin-monkey-patch"),
+            "cognitive_plan": enriched,  # Plano enriquecido
         }
 
-        return await original_resume(self, decision)
+        return await original_resume(self, patched_response)
 
     FlowCOrchestrator.resume_flow_c_after_approval = _patched_resume
     # NOTA: NÃO deletar original_resume pois _patched_resume precisa dele no closure
