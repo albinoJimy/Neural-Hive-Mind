@@ -66,8 +66,7 @@ try:
         return await original_resume(self, decision)
 
     FlowCOrchestrator.resume_flow_c_after_approval = _patched_resume
-    del original_resume
-    del _patched_resume
+    # NOTA: NÃO deletar original_resume pois _patched_resume precisa dele no closure
 except Exception as e:
     pass  # Silenciar erro em desenvolvimento
 # =============================================================================
