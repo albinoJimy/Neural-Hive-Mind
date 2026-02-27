@@ -60,7 +60,8 @@ class WorkerAgentSettings(BaseSettings):
             'python', 'terraform', 'kubernetes',  # Original capabilities
             'read', 'write', 'compute',            # STE DAG capabilities
             'analyze', 'transform', 'test', 'code', # Additional capabilities (code added for STE compatibility)
-            'security', 'scan', 'compliance'        # Security capabilities
+            'security', 'scan', 'compliance',        # Security capabilities
+            'deploy'                              # Deployment capability (required by STE provisioning tasks)
         ]
     )
     max_concurrent_tasks: int = 5
