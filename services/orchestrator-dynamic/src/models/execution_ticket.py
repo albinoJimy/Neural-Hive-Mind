@@ -170,6 +170,41 @@ class ExecutionTicket(BaseModel):
     # Nota: timestamps já são int (millis), não precisam de encoder
     model_config = ConfigDict(use_enum_values=True)
 
+    @field_validator('priority')
+    @classmethod
+    def validate_priority(cls, v):
+        """
+        Valida e normaliza o campo priority.
+
+        Suporta tanto formato legado (int 1-10) quanto novo (string enum).
+        Mapeamento de valores inteiros legados:
+            1-2: LOW
+            3-5: NORMAL
+            6-8: HIGH
+            9-10: CRITICAL
+        """
+        if isinstance(v, int):
+            # Formato legado - mapear para enum string
+            if v <= 2:
+                return Priority.LOW
+            elif v <= 5:
+                return Priority.NORMAL
+            elif v <= 8:
+                return Priority.HIGH
+            else:
+                return Priority.CRITICAL
+        # Se já é string ou Priority enum, validar
+        if isinstance(v, str):
+            try:
+                return Priority(v)
+            except ValueError:
+                # Tentar mapear string lowercase
+                v_upper = v.upper()
+                if v_upper in ['LOW', 'NORMAL', 'HIGH', 'CRITICAL']:
+                    return Priority(v_upper)
+                raise ValueError(f'Invalid priority value: {v}')
+        return v
+
     @field_validator('dependencies')
     @classmethod
     def validate_dependencies(cls, v, info):
