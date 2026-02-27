@@ -221,7 +221,16 @@ class RedisRegistryClient:
             raise
 
     def _matches_filters(self, agent: AgentInfo, filters: Dict[str, str]) -> bool:
-        """Verifica se agente atende aos filtros"""
+        """
+        Verifica se agente atende aos filtros.
+
+        Suporta filtros de:
+        - namespace: campo direto do AgentInfo
+        - cluster: campo direto do AgentInfo
+        - version: campo direto do AgentInfo
+        - status: campo direto do AgentStatus (com suporte a HEALTHY/DEGRADED)
+        - security_level: campo armazenado no metadata
+        """
         for key, value in filters.items():
             if key == "namespace" and agent.namespace != value:
                 return False
@@ -229,8 +238,20 @@ class RedisRegistryClient:
                 return False
             if key == "version" and agent.version != value:
                 return False
-            if key == "status" and agent.status.value != value:
-                return False
+            # Filtro de status: aceita HEALTHY ou DEGRADED como fallback
+            if key == "status":
+                # Se filtro é "HEALTHY", aceita tanto HEALTHY quanto DEGRADED
+                if value == "HEALTHY":
+                    if agent.status not in (AgentStatus.HEALTHY, AgentStatus.DEGRADED):
+                        return False
+                # Para outros valores de status, faz comparação exata
+                elif agent.status.value != value:
+                    return False
+            # Filtro de security_level: verifica no metadata do agente
+            if key == "security_level":
+                agent_security_level = agent.metadata.get("security_level", "INTERNAL")
+                if agent_security_level != value:
+                    return False
 
         return True
 
