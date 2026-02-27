@@ -417,7 +417,8 @@ class DecisionConsumer:
         )
         span = trace.get_current_span()
         decision_id = consolidated_decision.get('decision_id')
-        span.set_attribute("neural.hive.decision.id", decision_id)
+        if decision_id:  # Só seta se não for None
+            span.set_attribute("neural.hive.decision.id", decision_id)
         span.set_attribute("neural.hive.plan.id", consolidated_decision.get('plan_id'))
         span.set_attribute("neural.hive.intent.id", consolidated_decision.get('intent_id'))
         span.set_attribute("messaging.kafka.topic", message.topic)
@@ -437,28 +438,43 @@ class DecisionConsumer:
             return
 
         try:
-            # Validar campos obrigatórios
-            required_fields = ['decision_id', 'plan_id', 'final_decision']
-            for field in required_fields:
-                if field not in consolidated_decision:
-                    logger.error(f'Campo obrigatório ausente: {field}')
+            # Detectar se é um Cognitive Plan direto do STE (sem approval)
+            # ou uma Decisão Consolidada (com approval)
+            is_direct_plan = 'tasks' in consolidated_decision and 'decision_id' not in consolidated_decision
+
+            if is_direct_plan:
+                # Plan direto do STE - tratar como Cognitive Plan
+                logger.info(
+                    'Plan direto do STE detectado (sem decision_id)',
+                    plan_id=consolidated_decision.get('plan_id'),
+                    tasks_count=len(consolidated_decision.get('tasks', []))
+                )
+                plan_id = consolidated_decision['plan_id']
+                cognitive_plan = consolidated_decision
+                decision_id = None
+            else:
+                # Decisão consolidada - validar campos obrigatórios
+                required_fields = ['decision_id', 'plan_id', 'final_decision']
+                for field in required_fields:
+                    if field not in consolidated_decision:
+                        logger.error(f'Campo obrigatório ausente: {field}')
+                        return
+
+                # Verificar se decisão foi aprovada
+                final_decision = consolidated_decision.get('final_decision')
+                if final_decision == 'reject':
+                    logger.warning('Decisão foi rejeitada, não gerando tickets', decision_id=consolidated_decision['decision_id'])
+                    await self.consumer.commit()
                     return
 
-            # Verificar se decisão foi aprovada
-            final_decision = consolidated_decision.get('final_decision')
-            if final_decision == 'reject':
-                logger.warning('Decisão foi rejeitada, não gerando tickets', decision_id=consolidated_decision['decision_id'])
-                await self.consumer.commit()
-                return
+                if consolidated_decision.get('requires_human_review', False):
+                    logger.info('Decisão requer revisão humana, aguardando aprovação', decision_id=consolidated_decision['decision_id'])
+                    await self.consumer.commit()
+                    return
 
-            if consolidated_decision.get('requires_human_review', False):
-                logger.info('Decisão requer revisão humana, aguardando aprovação', decision_id=consolidated_decision['decision_id'])
-                await self.consumer.commit()
-                return
-
-            # Buscar Cognitive Plan associado no MongoDB
-            plan_id = consolidated_decision['plan_id']
-            cognitive_plan = await self.mongodb_client.get_cognitive_plan(plan_id)
+                # Buscar Cognitive Plan associado no MongoDB
+                plan_id = consolidated_decision['plan_id']
+                cognitive_plan = await self.mongodb_client.get_cognitive_plan(plan_id)
 
             if not cognitive_plan:
                 logger.error(
