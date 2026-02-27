@@ -5,7 +5,7 @@ Activities Temporal para geração de Execution Tickets (Etapa C2).
 import uuid
 import json
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from temporalio import activity
 import structlog
@@ -55,14 +55,14 @@ def set_activity_dependencies(kafka_producer, mongodb_client, registry_client=No
 @activity.defn
 async def generate_execution_tickets(
     cognitive_plan: Dict[str, Any],
-    consolidated_decision: Dict[str, Any]
+    consolidated_decision: Optional[Dict[str, Any]] = None
 ) -> List[Dict[str, Any]]:
     """
     Gera Execution Tickets a partir de um Cognitive Plan.
 
     Args:
         cognitive_plan: Plano cognitivo com tasks e execution_order
-        consolidated_decision: Decisão consolidada que aprovou o plano
+        consolidated_decision: Decisão consolidada que aprovou o plano (opcional para plans diretos do STE)
 
     Returns:
         Lista de tickets ordenada topologicamente
@@ -96,7 +96,8 @@ async def generate_execution_tickets(
         tasks = plan_data.get('tasks', [])
         plan_id = cognitive_plan['plan_id']
         intent_id = cognitive_plan['intent_id']
-        decision_id = consolidated_decision['decision_id']
+        # Para plans diretos do STE, consolidated_decision pode ser None
+        decision_id = consolidated_decision['decision_id'] if consolidated_decision else None
         risk_band = cognitive_plan.get('risk_band', 'medium')
 
         logger.info(
