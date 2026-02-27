@@ -361,7 +361,10 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
 
                 # Adicionar predicted_duration_ms ao allocation_metadata para tracking de erro ML
                 # Usado para ML error tracking e feedback loop
-                if predicted_duration_ms is not None and 'allocation_metadata' in ticket:
+                # Fix: Verificar se allocation_metadata existe e não é None
+                if predicted_duration_ms is not None:
+                    if 'allocation_metadata' not in ticket or ticket.get('allocation_metadata') is None:
+                        ticket['allocation_metadata'] = {}
                     ticket['allocation_metadata']['predicted_duration_ms'] = predicted_duration_ms
 
                 allocation_metadata = ticket.get('allocation_metadata') or {}
