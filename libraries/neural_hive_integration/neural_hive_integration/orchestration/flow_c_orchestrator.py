@@ -599,8 +599,9 @@ class FlowCOrchestrator:
         )
 
         with flow_c_steps_duration.labels(step="C1").time():
-            # Validate required fields
-            required_fields = ["intent_id", "plan_id", "decision_id", "cognitive_plan"]
+            # Validate required fields (decision_id é opcional para plans diretos do STE)
+            required_fields = ["intent_id", "plan_id", "cognitive_plan"]
+            optional_fields = ["decision_id"]  # Plans diretos do STE não têm decision_id
             for field in required_fields:
                 if field not in decision:
                     raise ValueError(f"Missing required field: {field}")
