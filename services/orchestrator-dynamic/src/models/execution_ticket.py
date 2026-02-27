@@ -170,7 +170,7 @@ class ExecutionTicket(BaseModel):
     # Nota: timestamps já são int (millis), não precisam de encoder
     model_config = ConfigDict(use_enum_values=True)
 
-    @field_validator('priority')
+    @field_validator('priority', mode='before')
     @classmethod
     def validate_priority(cls, v):
         """
@@ -205,7 +205,7 @@ class ExecutionTicket(BaseModel):
                 raise ValueError(f'Invalid priority value: {v}')
         return v
 
-    @field_validator('metadata')
+    @field_validator('metadata', mode='before')
     @classmethod
     def validate_metadata(cls, v):
         """
