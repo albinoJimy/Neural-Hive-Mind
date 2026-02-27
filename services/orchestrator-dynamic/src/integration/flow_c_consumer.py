@@ -114,7 +114,17 @@ def _deserialize_avro_message(raw_bytes: bytes, schema_registry_url: str = None)
     # The schema is embedded or we use a generic approach
     if AVRO_AVAILABLE:
         try:
-            client = SchemaRegistryClient({'url': schema_registry_url})
+            # Configurar conf para Schema Registry com suporte SSL
+            conf = {'url': schema_registry_url}
+            if schema_registry_url.startswith('https://'):
+                # Adicionar configuração SSL para HTTPS
+                # Desabilitar verificação de certificado para ambientes internos
+                conf['ssl.ca.location'] = '/etc/ssl/certs/ca-bundle.crt'
+                conf['ssl.check.hostname'] = 'false'
+                conf['ssl.endpoint.identification.algorithm'] = 'none'
+                logger.debug("using_ssl_for_schema_registry", url=schema_registry_url)
+
+            client = SchemaRegistryClient(conf)
             schema = client.get_schema(schema_id)
             logger.debug("schema_retrieved", schema_id=schema_id, schema_schema_str=schema.schema_str[:200])
             writer_schema = fastavro.parse_schema(json.loads(schema.schema_str))
@@ -193,7 +203,7 @@ class FlowCConsumer:
         self.running = False
         self.schema_registry_url = os.getenv(
             'SCHEMA_REGISTRY_URL',
-            'http://schema-registry.kafka.svc.cluster.local:8081/apis/ccompat/v6'
+            'http://schema-registry.kafka.svc.cluster.local:8080/apis/ccompat/v6'
         )
         self.logger = logger.bind(service="flow_c_consumer")
 

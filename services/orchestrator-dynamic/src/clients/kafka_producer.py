@@ -189,7 +189,16 @@ class KafkaProducerClient:
                 )
 
             try:
-                self.schema_registry_client = SchemaRegistryClient({'url': self.config.kafka_schema_registry_url})
+                # Configurar conf para Schema Registry com suporte SSL
+                conf = {'url': self.config.kafka_schema_registry_url}
+                if self.config.kafka_schema_registry_url.startswith('https://'):
+                    # Adicionar configuração SSL para HTTPS
+                    conf['ssl.ca.location'] = '/etc/ssl/certs/ca-bundle.crt'
+                    conf['ssl.check.hostname'] = 'false'
+                    conf['ssl.endpoint.identification.algorithm'] = 'none'
+                    logger.debug("using_ssl_for_schema_registry", url=self.config.kafka_schema_registry_url)
+
+                self.schema_registry_client = SchemaRegistryClient(conf)
 
                 # Serializer de Execution Tickets
                 ticket_schema_path = Path(self.config.schemas_base_path) / 'execution-ticket' / 'execution-ticket.avsc'
