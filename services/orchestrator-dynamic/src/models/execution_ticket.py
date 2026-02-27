@@ -205,6 +205,33 @@ class ExecutionTicket(BaseModel):
                 raise ValueError(f'Invalid priority value: {v}')
         return v
 
+    @field_validator('metadata')
+    @classmethod
+    def validate_metadata(cls, v):
+        """
+        Limpa metadados com valores não-string (legado).
+
+        Remove ou converte valores que não são strings para evitar erros de validação.
+        """
+        if not isinstance(v, dict):
+            return {}
+
+        # Filtra apenas valores string, converte outros para JSON string
+        cleaned = {}
+        for key, value in v.items():
+            if isinstance(value, str):
+                cleaned[key] = value
+            elif value is None:
+                cleaned[key] = ''
+            else:
+                # Converte dict/list para string JSON
+                import json
+                try:
+                    cleaned[key] = json.dumps(value, default=str)
+                except Exception:
+                    cleaned[key] = str(value)
+        return cleaned
+
     @field_validator('dependencies')
     @classmethod
     def validate_dependencies(cls, v, info):
