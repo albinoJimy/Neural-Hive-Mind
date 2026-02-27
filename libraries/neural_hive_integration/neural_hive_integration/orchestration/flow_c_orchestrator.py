@@ -599,9 +599,25 @@ class FlowCOrchestrator:
         )
 
         with flow_c_steps_duration.labels(step="C1").time():
-            # Validate required fields (decision_id é opcional para plans diretos do STE)
-            required_fields = ["intent_id", "plan_id", "cognitive_plan"]
-            optional_fields = ["decision_id"]  # Plans diretos do STE não têm decision_id
+            # Detectar se é um plan direto do STE ou uma decisão consolidada
+            # Plan direto do STE: tem 'tasks' diretamente no decision
+            # Decisão consolidada: tem 'cognitive_plan' aninhado
+            is_direct_plan = 'tasks' in decision
+
+            if is_direct_plan:
+                # Plan direto do STE - validar campos do cognitive plan
+                required_fields = ["intent_id", "plan_id", "tasks"]
+                optional_fields = ["decision_id"]  # Não existe em plans diretos
+                self.logger.info(
+                    "c1_validating_direct_ste_plan",
+                    plan_id=decision.get("plan_id"),
+                    tasks_count=len(decision.get("tasks", []))
+                )
+            else:
+                # Decisão consolidada - validar campos padrão
+                required_fields = ["intent_id", "plan_id", "cognitive_plan"]
+                optional_fields = ["decision_id"]
+
             for field in required_fields:
                 if field not in decision:
                     raise ValueError(f"Missing required field: {field}")
@@ -639,7 +655,16 @@ class FlowCOrchestrator:
     ) -> tuple[str, List[Dict[str, Any]]]:
         """C2: Start workflow and generate execution tickets."""
 
-        cognitive_plan = decision.get("cognitive_plan", {})
+        # Detectar se é um plan direto do STE ou uma decisão consolidada
+        is_direct_plan = 'tasks' in decision
+
+        if is_direct_plan:
+            # Plan direto do STE - decision IS the cognitive plan
+            cognitive_plan = decision
+        else:
+            # Decisão consolidada - extrair cognitive_plan aninhado
+            cognitive_plan = decision.get("cognitive_plan", {})
+
         tasks_count = len(cognitive_plan.get("tasks", []))
 
         self.logger.info(
