@@ -509,12 +509,25 @@ class DecisionConsumer:
             # Iniciar workflow Temporal
             workflow_id = f'{self.config.temporal_workflow_id_prefix}{plan_id}'
 
+            # Serializar cognitive_plan para JSON para converter datetimes
+            # Isso é necessário para plans diretos do STE que contêm datetime
+            import json
+            from datetime import datetime
+
+            def convert_datetime(obj):
+                if isinstance(obj, datetime):
+                    return obj.isoformat()
+                raise TypeError(f'Type {type(obj)} not serializable')
+
+            cognitive_plan_json = json.loads(json.dumps(cognitive_plan, default=convert_datetime))
+
             input_data = {
-                'consolidated_decision': consolidated_decision,
-                'cognitive_plan': cognitive_plan
+                'consolidated_decision': consolidated_decision if not is_direct_plan else None,
+                'cognitive_plan': cognitive_plan_json,
+                'is_direct_plan': is_direct_plan
             }
 
-            logger.info('Iniciando workflow Temporal', workflow_id=workflow_id, plan_id=plan_id)
+            logger.info('Iniciando workflow Temporal', workflow_id=workflow_id, plan_id=plan_id, is_direct_plan=is_direct_plan)
 
             await self.temporal_client.start_workflow(
                 OrchestrationWorkflow.run,
