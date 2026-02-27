@@ -320,7 +320,7 @@ class FlowCOrchestrator:
         context = FlowCContext(
             intent_id=consolidated_decision["intent_id"],
             plan_id=consolidated_decision["plan_id"],
-            decision_id=consolidated_decision["decision_id"],
+            decision_id=consolidated_decision.get("decision_id"),  # Optional para plans diretos do STE
             correlation_id=correlation_id,  # Pode ser None - validator tratará
             trace_id=format(trace.get_current_span().get_span_context().trace_id, '032x'),
             span_id=format(trace.get_current_span().get_span_context().span_id, '016x'),
