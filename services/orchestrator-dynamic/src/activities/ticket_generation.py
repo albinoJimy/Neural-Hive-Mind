@@ -195,9 +195,10 @@ async def generate_execution_tickets(
                 'plan_id': plan_id,
                 'intent_id': intent_id,
                 'decision_id': decision_id,
-                'correlation_id': consolidated_decision.get('correlation_id'),
-                'trace_id': consolidated_decision.get('trace_id'),
-                'span_id': consolidated_decision.get('span_id'),
+                # Para plans diretos do STE, pegar do cognitive_plan; para consolidated, pegar de consolidated_decision
+                'correlation_id': (consolidated_decision or cognitive_plan).get('correlation_id'),
+                'trace_id': (consolidated_decision or cognitive_plan).get('trace_id'),
+                'span_id': (consolidated_decision or cognitive_plan).get('span_id'),
                 'task_id': task_id,
                 'task_type': task.get('task_type', 'EXECUTE'),
                 'description': task.get('description', ''),
