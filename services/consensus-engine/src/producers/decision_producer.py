@@ -1,7 +1,8 @@
 import asyncio
 import json
 import os
-from typing import Optional
+import time
+from typing import Optional, Set
 from confluent_kafka import Producer, KafkaError
 from confluent_kafka.serialization import SerializationContext, MessageField
 from confluent_kafka.schema_registry import SchemaRegistryClient
@@ -21,6 +22,11 @@ class DecisionProducer:
         self.schema_registry_client: Optional[SchemaRegistryClient] = None
         self.avro_serializer: Optional[AvroSerializer] = None
         self.running = False
+
+        # Deduplicação: cache de plan_id já processados
+        self._processed_plan_ids: Set[str] = set()
+        self._processed_plan_timestamps: dict = {}
+        self._deduplication_ttl = 24 * 60 * 60  # 24 horas em segundos
 
     async def initialize(self):
         '''Inicializa producer Kafka com confluent-kafka'''
@@ -176,6 +182,26 @@ class DecisionProducer:
                     f"decision_id={decision.decision_id}, plan_id={decision.plan_id}"
                 )
 
+            # DEDUPLICAÇÃO: Verificar se plan_id já foi processado
+            plan_id = decision.plan_id
+            if plan_id:
+                if plan_id in self._processed_plan_ids:
+                    logger.warning(
+                        'decision_already_published - skipping duplicate',
+                        plan_id=plan_id,
+                        decision_id=decision.decision_id,
+                        existing_timestamp=self._processed_plan_timestamps.get(plan_id),
+                        final_decision=decision.final_decision.value if hasattr(decision.final_decision, 'value') else str(decision.final_decision)
+                    )
+                    return  # Não republicar decisão duplicada
+
+                # Marcar como processado
+                self._processed_plan_ids.add(plan_id)
+                self._processed_plan_timestamps[plan_id] = time.time()
+
+                # Limpar entradas antigas (> TTL)
+                self._cleanup_old_plans()
+
             # Serializar decisão
             value = self._serialize_value(decision)
             key = decision.plan_id.encode('utf-8')
@@ -214,3 +240,31 @@ class DecisionProducer:
                 error=str(e)
             )
             raise
+
+    def _cleanup_old_plans(self):
+        """Remove plan_ids antigos do cache de deduplicação.
+
+        Mantém apenas os plan_id das últimas 24 horas para evitar
+        crescimento ilimitado do cache em memória.
+        """
+        current_time = time.time()
+        cutoff = current_time - self._deduplication_ttl
+
+        # Encontrar plan_ids antigos
+        old_plan_ids = [
+            plan_id
+            for plan_id, timestamp in self._processed_plan_timestamps.items()
+            if timestamp < cutoff
+        ]
+
+        # Remover do cache
+        for plan_id in old_plan_ids:
+            self._processed_plan_ids.discard(plan_id)
+            del self._processed_plan_timestamps[plan_id]
+
+        if old_plan_ids:
+            logger.info(
+                'cleaned_old_plan_ids_from_deduplication_cache',
+                count=len(old_plan_ids),
+                ttl_hours=self._deduplication_ttl / 3600
+            )

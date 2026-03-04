@@ -597,6 +597,17 @@ class FlowCApprovalResponseConsumer:
 
         Resumes Flow C execution for approved plans.
         """
+        # LOG DETALHADO: Registro bruto da mensagem recebida
+        self.logger.info(
+            "approval_response_raw_received",
+            topic=message.topic,
+            partition=message.partition,
+            offset=message.offset,
+            key=message.key.decode('utf-8') if message.key else None,
+            value_length=len(message.value) if message.value else 0,
+            timestamp=message.timestamp,
+        )
+
         approval_response = None
         try:
             # Deserializar mensagem (bytes crus devido a compressão snappy)
