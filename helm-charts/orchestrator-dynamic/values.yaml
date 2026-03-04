@@ -497,7 +497,7 @@ config:
       jwt_issuer: "https://spire-server.spire-system.svc.cluster.local"
       jwt_audience: "orchestrator-dynamic.neural-hive-orchestration.svc.cluster.local"
       spiffe_trust_domain: "neural-hive.local"
-      spiffe_enabled: true
+      spiffe_enabled: false  # SPIRE server não está disponível no cluster (2026-03-04)
       # JWKS URL para verificação de assinatura JWT (carregado via http.send na política)
       jwks_url: "https://spire-server.spire-system.svc.cluster.local:8081/keys"
       # Fallback sem verificação de assinatura (APENAS para desenvolvimento)
