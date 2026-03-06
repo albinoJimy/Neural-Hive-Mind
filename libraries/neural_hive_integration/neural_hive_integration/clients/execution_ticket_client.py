@@ -144,10 +144,18 @@ class ExecutionTicketClient:
         Returns:
             Created ticket
         """
+        # FIX: Generate ticket_id inside create_ticket to avoid duplicate key on retry
+        # If ticket_id is not provided, generate a new one for each attempt
+        if "ticket_id" not in ticket_data or not ticket_data["ticket_id"]:
+            from uuid import uuid4
+            ticket_data = ticket_data.copy()
+            ticket_data["ticket_id"] = str(uuid4())
+
         self.logger.info(
             "creating_ticket",
             plan_id=ticket_data.get("plan_id"),
             task_type=ticket_data.get("task_type"),
+            ticket_id=ticket_data.get("ticket_id"),
         )
 
         response = await self.client.post(

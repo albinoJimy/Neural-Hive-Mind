@@ -182,11 +182,28 @@ class ServiceRegistryServicer:
                 filters = dict(request.filters) if request.filters else None
                 max_results = request.max_results or 5
 
+                # Extract agent_type from filters for match_agents
+                # FIX: agent_type filter was being ignored, causing 0 workers to be discovered
+                agent_type = None
+                if filters and "agent_type" in filters:
+                    from src.proto import service_registry_pb2
+                    agent_type_str = filters.pop("agent_type").lower()
+                    try:
+                        agent_type = AgentType[agent_type_str.upper()]
+                    except KeyError:
+                        logger.warning("invalid_agent_type_filter", agent_type=agent_type_str)
+                        # Fallback: try to match as-is
+                        for at in AgentType:
+                            if at.value.lower() == agent_type_str:
+                                agent_type = at
+                                break
+
                 # Matching
                 agents = await self.matching_engine.match_agents(
                     capabilities_required=capabilities_required,
                     filters=filters,
-                    max_results=max_results
+                    max_results=max_results,
+                    agent_type=agent_type
                 )
 
                 # Converter para proto
