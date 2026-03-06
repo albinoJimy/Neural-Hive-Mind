@@ -18,6 +18,32 @@ class ValidateExecutor(BaseTaskExecutor):
     def get_task_type(self) -> str:
         return 'VALIDATE'
 
+    def validate_ticket(self, ticket: Dict[str, Any]) -> None:
+        """
+        Valida ticket VALIDATE e parâmetros obrigatórios.
+
+        Args:
+            ticket: Ticket de execução
+
+        Raises:
+            ValidationError: Se parâmetros obrigatórios estiverem faltando
+        """
+        # Chamar validação base
+        super().validate_ticket(ticket)
+
+        # Validar parâmetros específicos de VALIDATE
+        ticket_id = ticket.get('ticket_id')
+        parameters = ticket.get('parameters', {})
+
+        # policy_path é obrigatório para validações OPA
+        validation_type = parameters.get('validation_type', 'opa')
+        if validation_type == 'opa':
+            self.validate_required_parameters(
+                ticket_id,
+                parameters,
+                required=['policy_path']
+            )
+
     def __init__(self, config, vault_client=None, code_forge_client=None, metrics=None, opa_client=None):
         super().__init__(config, vault_client=vault_client, code_forge_client=code_forge_client, metrics=metrics)
         self.opa_url: Optional[str] = getattr(config, 'opa_url', None)

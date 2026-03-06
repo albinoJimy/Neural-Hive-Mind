@@ -59,7 +59,10 @@ class TestQueryExecutorBasics:
             'ticket_id': 'test-123',
             'task_id': 'task-123',
             'task_type': 'QUERY',
-            'parameters': {'query_type': 'mongodb'}
+            'parameters': {
+                'query_type': 'mongodb',
+                'collection': 'test_collection'
+            }
         }
         # Não deve levantar exceção
         query_executor.validate_ticket(ticket)
@@ -149,7 +152,7 @@ class TestMongoDBQueries:
 
     @pytest.mark.asyncio
     async def test_mongodb_query_missing_collection(self, query_executor, mock_config):
-        """Testa query MongoDB sem parâmetro collection."""
+        """Testa query MongoDB sem parâmetro collection - deve falhar na validação."""
         query_executor.mongodb_client = MagicMock()
 
         ticket = {
@@ -161,10 +164,9 @@ class TestMongoDBQueries:
             }
         }
 
-        result = await query_executor.execute(ticket)
-
-        assert result['success'] is False
-        assert 'collection' in result['metadata']['error'].lower()
+        # Com a nova validação, deve falhar em validate_ticket()
+        with pytest.raises(ValidationError, match='Missing required parameters.*collection'):
+            await query_executor.execute(ticket)
 
 
 class TestNeo4jQueries:

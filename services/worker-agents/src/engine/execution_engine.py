@@ -268,38 +268,79 @@ class ExecutionEngine:
                     # Executar tarefa com retry
                     try:
                         result = await self._execute_task_with_retry(ticket)
-
-                        # Sucesso
                         duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
-                        await self.ticket_client.update_ticket_status(
-                            ticket_id,
-                            'COMPLETED',
-                            actual_duration_ms=duration_ms
-                        )
+                        # Verificar se a execução foi bem-sucedida
+                        if result.get('success'):
+                            # Sucesso - marcar como COMPLETED
+                            await self.ticket_client.update_ticket_status(
+                                ticket_id,
+                                'COMPLETED',
+                                actual_duration_ms=duration_ms
+                            )
 
-                        await self.result_producer.publish_result(
-                            ticket_id,
-                            'COMPLETED',
-                            result,
-                            actual_duration_ms=duration_ms
-                        )
+                            await self.result_producer.publish_result(
+                                ticket_id,
+                                'COMPLETED',
+                                result,
+                                actual_duration_ms=duration_ms
+                            )
 
-                        self.logger.info(
-                            'ticket_execution_completed',
-                            ticket_id=ticket_id,
-                            task_type=task_type,
-                            duration_ms=duration_ms
-                        )
+                            self.logger.info(
+                                'ticket_execution_completed',
+                                ticket_id=ticket_id,
+                                task_type=task_type,
+                                duration_ms=duration_ms
+                            )
 
-                        # Marcar ticket como processado com sucesso (two-phase scheme)
-                        await self._mark_ticket_processed(ticket_id)
+                            # Marcar ticket como processado com sucesso (two-phase scheme)
+                            await self._mark_ticket_processed(ticket_id)
 
-                        if self.metrics:
-                            if hasattr(self.metrics, 'tickets_completed_total'):
-                                self.metrics.tickets_completed_total.labels(task_type=task_type).inc()
-                            if hasattr(self.metrics, 'task_duration_seconds'):
-                                self.metrics.task_duration_seconds.labels(task_type=task_type).observe(duration_ms / 1000)
+                            if self.metrics:
+                                if hasattr(self.metrics, 'tickets_completed_total'):
+                                    self.metrics.tickets_completed_total.labels(task_type=task_type).inc()
+                                if hasattr(self.metrics, 'task_duration_seconds'):
+                                    self.metrics.task_duration_seconds.labels(task_type=task_type).observe(duration_ms / 1000)
+                        else:
+                            # Falha na execução mas sem exceção - marcar como FAILED
+                            error_msg = result.get('error', 'Task execution failed without exception')
+                            span.set_attribute("error", True)
+                            span.set_attribute("error.type", "execution_failed")
+
+                            # Limpar chave de processing para permitir retry (two-phase scheme)
+                            await self._clear_ticket_processing(ticket_id)
+
+                            await self.ticket_client.update_ticket_status(
+                                ticket_id,
+                                'FAILED',
+                                error_message=error_msg,
+                                actual_duration_ms=duration_ms
+                            )
+
+                            await self.result_producer.publish_result(
+                                ticket_id,
+                                'FAILED',
+                                result,
+                                error_message=error_msg,
+                                actual_duration_ms=duration_ms
+                            )
+
+                            self.logger.warning(
+                                'ticket_execution_failed',
+                                ticket_id=ticket_id,
+                                task_type=task_type,
+                                error=error_msg,
+                                duration_ms=duration_ms
+                            )
+
+                            if self.metrics:
+                                if hasattr(self.metrics, 'tickets_failed_total'):
+                                    self.metrics.tickets_failed_total.labels(
+                                        task_type=task_type,
+                                        error_type='execution_failed'
+                                    ).inc()
+                                if hasattr(self.metrics, 'task_duration_seconds'):
+                                    self.metrics.task_duration_seconds.labels(task_type=task_type).observe(duration_ms / 1000)
 
                     except TaskExecutionError as exec_error:
                         # Falha após todas as tentativas

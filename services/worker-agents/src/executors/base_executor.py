@@ -57,6 +57,30 @@ class BaseTaskExecutor(ABC):
                 f"Task type mismatch: expected {self.get_task_type()}, got {ticket.get('task_type')}"
             )
 
+    def validate_required_parameters(
+        self,
+        ticket_id: str,
+        parameters: Dict[str, Any],
+        required: list
+    ) -> None:
+        """
+        Valida que todos os parâmetros obrigatórios estão presentes.
+
+        Args:
+            ticket_id: ID do ticket para log
+            parameters: Dicionário de parâmetros do ticket
+            required: Lista de nomes de parâmetros obrigatórios
+
+        Raises:
+            ValidationError: Se algum parâmetro obrigatório estiver faltando
+        """
+        missing = [p for p in required if p not in parameters or not parameters[p]]
+        if missing:
+            raise ValidationError(
+                f"Ticket {ticket_id}: Missing required parameters: {missing}. "
+                f"Got: {list(parameters.keys())}"
+            )
+
     def log_execution(self, ticket_id: str, message: str, level: str = 'info', **kwargs):
         '''Logar com contexto de ticket'''
         log_func = getattr(self.logger, level)

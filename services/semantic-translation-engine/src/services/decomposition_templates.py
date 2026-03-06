@@ -511,6 +511,143 @@ class DecompositionTemplates:
         self._init_templates()
         return self.TEMPLATES.get(intent_type, self.TEMPLATES[IntentType.GENERIC])
 
+    def _build_task_parameters(
+        self,
+        task_template: TaskTemplate,
+        subject: str,
+        target: str,
+        entities: List[str],
+        intent_text: str
+    ) -> Dict[str, Any]:
+        """
+        Constrói parâmetros específicos para cada tipo de task.
+
+        Args:
+            task_template: Template da task
+            subject: Subject extraído do intent
+            target: Target extraído do intent
+            entities: Lista de entidades extraídas
+            intent_text: Texto original do intent
+
+        Returns:
+            Dicionário de parâmetros para a task
+        """
+        # Parâmetros base
+        base_params = {
+            "subject": subject,
+            "target": target,
+            "entities": entities
+        }
+
+        # Adicionar parâmetros específicos por tipo
+        if task_template.task_type == 'query':
+            # Inferir coleção MongoDB baseado no subject
+            collection = self._infer_collection(subject, entities)
+            base_params.update({
+                "collection": collection,
+                "filter": self._build_filter(subject, entities),
+                "limit": 100
+            })
+
+        elif task_template.task_type == 'transform':
+            # Para transform, input_data será preenchido durante execução
+            # ou pode ter origem em tasks QUERY anteriores
+            base_params.update({
+                "input_data": None,  # Será populado pelo executor
+                "operations": []
+            })
+
+        elif task_template.task_type == 'validate':
+            # Mapear para política OPA apropriada
+            policy_path = self._get_policy_path(subject, task_template.semantic_domain)
+            base_params.update({
+                "policy_path": policy_path,
+                "input_data": None  # Será populado pelo executor
+            })
+
+        return base_params
+
+    def _infer_collection(self, subject: str, entities: List[str]) -> str:
+        """
+        Infere nome da coleção MongoDB baseado no subject.
+
+        Args:
+            subject: Subject extraído do intent
+            entities: Lista de entidades extraídas
+
+        Returns:
+            Nome da coleção MongoDB
+        """
+        # Mapeamento de subjects para coleções
+        collection_map = {
+            'sap': 'sap_infrastructure',
+            'kubernetes': 'kubernetes_clusters',
+            'k8s': 'kubernetes_clusters',
+            'infraestrutura': 'infrastructure_inventory',
+            'infraestrutura': 'infrastructure_inventory',
+            'sistema': 'systems_catalog',
+            'system': 'systems_catalog',
+            'servico': 'services_catalog',
+            'service': 'services_catalog'
+        }
+
+        subject_lower = subject.lower()
+        for key, collection in collection_map.items():
+            if key in subject_lower:
+                return collection
+
+        # Fallback: usar primeira entidade ou nome derivado
+        if entities:
+            return entities[0].lower().replace(' ', '_')
+
+        # Último fallback: coleção genérica
+        return 'default'
+
+    def _build_filter(self, subject: str, entities: List[str]) -> Dict[str, Any]:
+        """
+        Constrói filtro MongoDB baseado no subject e entidades.
+
+        Args:
+            subject: Subject extraído do intent
+            entities: Lista de entidades extraídas
+
+        Returns:
+            Filtro MongoDB
+        """
+        # Filtro básico baseado no subject
+        filter_query = {"subject": subject.lower()}
+
+        # Adicionar entidades se disponíveis
+        if entities:
+            filter_query["entities"] = {"$in": [e.lower() for e in entities]}
+
+        return filter_query
+
+    def _get_policy_path(
+        self,
+        subject: str,
+        semantic_domain: str
+    ) -> str:
+        """
+        Retorna caminho da política OPA baseado no domínio semântico.
+
+        Args:
+            subject: Subject extraído do intent
+            semantic_domain: Domínio semântico da task
+
+        Returns:
+            Caminho da política OPA
+        """
+        policy_map = {
+            'security': '/neural_hive/security/validation',
+            'architecture': '/neural_hive/architecture/compliance',
+            'quality': '/neural_hive/quality/standards',
+            'performance': '/neural_hive/performance/limits',
+            'operational': '/neural_hive/operational/procedures'
+        }
+
+        return policy_map.get(semantic_domain, '/neural_hive/default/validation')
+
     def generate_tasks(
         self,
         classification: IntentClassification,
@@ -562,11 +699,9 @@ class DecompositionTemplates:
                 dependencies=dependencies,
                 estimated_duration_ms=task_template.estimated_duration_ms,
                 required_capabilities=task_template.required_capabilities,
-                parameters={
-                    "subject": subject,
-                    "target": target,
-                    "entities": entities
-                },
+                parameters=self._build_task_parameters(
+                    task_template, subject, target, entities, intent_text
+                ),
                 metadata={
                     "template_id": task_template.id,
                     "semantic_domain": task_template.semantic_domain,

@@ -28,6 +28,32 @@ class QueryExecutor(BaseTaskExecutor):
         # Retorna uppercase - registry normaliza para uppercase na busca
         return 'QUERY'
 
+    def validate_ticket(self, ticket: Dict[str, Any]) -> None:
+        """
+        Valida ticket QUERY e parâmetros obrigatórios.
+
+        Args:
+            ticket: Ticket de execução
+
+        Raises:
+            ValidationError: Se parâmetros obrigatórios estiverem faltando
+        """
+        # Chamar validação base
+        super().validate_ticket(ticket)
+
+        # Validar parâmetros específicos de QUERY
+        ticket_id = ticket.get('ticket_id')
+        parameters = ticket.get('parameters', {})
+        query_type = parameters.get('query_type', 'mongodb')
+
+        # Para queries MongoDB, collection é obrigatório
+        if query_type == 'mongodb':
+            self.validate_required_parameters(
+                ticket_id,
+                parameters,
+                required=['collection']
+            )
+
     def __init__(
         self,
         config,

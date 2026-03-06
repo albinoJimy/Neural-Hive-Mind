@@ -33,6 +33,32 @@ class TransformExecutor(BaseTaskExecutor):
         # Retorna uppercase - registry normaliza para uppercase na busca
         return 'TRANSFORM'
 
+    def validate_ticket(self, ticket: Dict[str, Any]) -> None:
+        """
+        Valida ticket TRANSFORM e parâmetros obrigatórios.
+
+        Args:
+            ticket: Ticket de execução
+
+        Raises:
+            ValidationError: Se parâmetros obrigatórios estiverem faltando
+        """
+        # Chamar validação base
+        super().validate_ticket(ticket)
+
+        # Validar parâmetros específicos de TRANSFORM
+        ticket_id = ticket.get('ticket_id')
+        parameters = ticket.get('parameters', {})
+
+        # input_data é obrigatório para transformações JSON
+        transform_type = parameters.get('transform_type', 'json')
+        if transform_type == 'json':
+            self.validate_required_parameters(
+                ticket_id,
+                parameters,
+                required=['input_data']
+            )
+
     def __init__(
         self,
         config,
