@@ -1,0 +1,5 @@
+TRACE_ID: 439659a0-0bec-4d9f-9038-c5599b8f0be6
+=== FLUXO A: Gateway de Intenções ===
+Gateway Response: {"detail":"Not Found"}
+=== FLUXO B: Semantic Translation Engine ===
+Error from server (NotFound): pods "mongodb-0" not found
