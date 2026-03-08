@@ -422,11 +422,15 @@ class MongoDBClient:
         except DuplicateKeyError:
             # Ticket já existe, atualizar
             try:
+                # Remover _id do documento para update (campo imutável)
+                update_document = document.copy()
+                update_document.pop('_id', None)
+
                 await self._execute_with_breaker(
                     self.execution_ticket_breaker,
                     self.execution_tickets.replace_one,
                     {'ticket_id': ticket_id},
-                    document
+                    update_document
                 )
 
                 duration = (datetime.now() - start_time).total_seconds()
