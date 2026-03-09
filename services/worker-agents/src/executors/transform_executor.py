@@ -513,6 +513,15 @@ class TransformExecutor(BaseTaskExecutor):
         if not self.mongodb_client:
             return self._error_result('MongoDB client not available', 'mongodb')
 
+        if not self.mongodb_client.db:
+            self.log_execution(
+                ticket_id,
+                'mongodb_transform_failed',
+                level='error',
+                error='MongoDB client not initialized (db attribute is None)'
+            )
+            return self._error_result('MongoDB client not initialized', 'mongodb')
+
         try:
             collection_name = parameters.get('collection')
             if not collection_name:

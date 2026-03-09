@@ -45,5 +45,8 @@ aioboto3>=11.3.0
 # Integration library
 # Instalada via Dockerfile COPY + pip install
 
+# Database - MongoDB (motor for async operations)
+motor>=3.3.0
+
 # HTTP Client (required by neural_hive_observability health checks)
 aiohttp>=3.9.0
