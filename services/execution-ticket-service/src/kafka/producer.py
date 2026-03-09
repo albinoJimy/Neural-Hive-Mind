@@ -46,7 +46,7 @@ class KafkaTicketProducer:
             'value_serializer': lambda v: json.dumps(v).encode('utf-8'),
             'key_serializer': lambda k: k.encode('utf-8') if k else None,
             'acks': 'all',  # Wait for all replicas
-            'compression_type': 'snappy',  # Compress messages
+            'compression_type': 'gzip',  # Compress messages (built-in, no extra deps)
             'linger_ms': 10,  # Batch up to 10ms for efficiency
             'max_request_size': 1048576,  # 1MB max request size
         }
