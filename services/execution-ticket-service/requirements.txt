@@ -24,6 +24,7 @@ redis>=5.0.0
 
 # Messaging - Kafka
 confluent-kafka==2.6.1
+aiokafka==0.12.0  # Async Kafka producer for publishing tickets
 fastavro==1.9.7
 
 # Security & Tokens
