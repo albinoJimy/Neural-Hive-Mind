@@ -531,8 +531,10 @@ class TransformExecutor(BaseTaskExecutor):
             if not pipeline:
                 raise ValueError("Missing 'pipeline' parameter for MongoDB transform")
 
-            # Obter coleção e executar aggregation pipeline
-            collection = self.mongodb_client.db[collection_name]
+            # Obter coleção - acessar via client para evitar issues com Motor 3.x
+            db_name = self.mongodb_client.config.mongodb_database
+            db = self.mongodb_client.client[db_name]
+            collection = db[collection_name]
             cursor = collection.aggregate(pipeline)
             results = await cursor.to_list(length=1000)
 

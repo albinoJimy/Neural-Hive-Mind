@@ -198,8 +198,10 @@ class QueryExecutor(BaseTaskExecutor):
             sort = parameters.get('sort')
             skip = parameters.get('skip', 0)
 
-            # Obter coleção
-            collection = self.mongodb_client.db[collection_name]
+            # Obter coleção - acessar via client para evitar issues com Motor 3.x
+            db_name = self.mongodb_client.config.mongodb_database
+            db = self.mongodb_client.client[db_name]
+            collection = db[collection_name]
 
             # Construir cursor
             cursor = collection.find(filter_query, projection)
