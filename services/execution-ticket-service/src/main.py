@@ -120,6 +120,7 @@ async def lifespan(app: FastAPI):
     # Initialize state for non-critical components
     app.state.ticket_consumer = None
     app.state.webhook_manager = None
+    app.state.kafka_producer = None
     app.state.background_init_tasks = []
 
     # Helper functions to start non-critical components in background
@@ -143,6 +144,25 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning('kafka_consumer_failed_non_critical', error=str(e))
 
+    async def start_kafka_producer_background():
+        """Start Kafka producer in background (non-blocking)."""
+        if not settings.kafka_bootstrap_servers:
+            logger.info('kafka_producer_disabled_no_bootstrap_servers')
+            return
+        try:
+            from .kafka.producer import get_kafka_producer
+            app.state.kafka_producer = await get_kafka_producer()
+            logger.info(
+                'kafka_producer_started',
+                topic=settings.kafka_tickets_topic
+            )
+        except Exception as e:
+            logger.warning(
+                'kafka_producer_failed_non_critical',
+                error=str(e),
+                note='Tickets will be persisted in PostgreSQL but not published to Kafka. Workers will not consume these tickets.'
+            )
+
     async def start_webhook_manager_background():
         """Start webhook manager in background (non-blocking)."""
         if not settings.enable_webhooks:
@@ -158,6 +178,7 @@ async def lifespan(app: FastAPI):
     # This allows startup to complete without waiting for Kafka or webhooks
     app.state.background_init_tasks = [
         asyncio.create_task(start_kafka_consumer_background()),
+        asyncio.create_task(start_kafka_producer_background()),
         asyncio.create_task(start_webhook_manager_background()),
     ]
 
@@ -190,6 +211,15 @@ async def lifespan(app: FastAPI):
                 await app.state.consumer_task
             except asyncio.CancelledError:
                 pass
+
+    # Parar Kafka Producer
+    if app.state.kafka_producer:
+        try:
+            from .kafka.producer import close_kafka_producer
+            await close_kafka_producer()
+            logger.info('kafka_producer_stopped')
+        except Exception as e:
+            logger.warning('kafka_producer_shutdown_failed', error=str(e))
 
     # Parar Webhook Manager
     if app.state.webhook_manager:

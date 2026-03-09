@@ -1,4 +1,5 @@
 """API endpoints para operações de tickets."""
+import asyncio
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from uuid import uuid4
@@ -106,6 +107,38 @@ async def create_ticket(ticket_data: Dict[str, Any]):
         raise HTTPException(
             status_code=500,
             detail=f'Failed to create ticket: {str(e)}'
+        )
+
+    # Publicar no Kafka para Worker Agents consumirem
+    # NOTA: Publicação é assíncrona e não-bloqueante
+    # Se falhar, logamos erro mas não falhamos a criação do ticket
+    try:
+        from ..kafka.producer import get_kafka_producer
+        kafka_producer = await get_kafka_producer()
+
+        # Converter ticket para dict para serialização JSON
+        ticket_dict = ticket_orm.to_pydantic().model_dump(mode='json')
+
+        # Publicar de forma assíncrona (fire and forget)
+        asyncio.create_task(
+            kafka_producer.publish_ticket(
+                ticket=ticket_dict,
+                key=ticket_dict['ticket_id']
+            )
+        )
+        logger.info(
+            "ticket_publish_scheduled",
+            ticket_id=ticket_dict['ticket_id'],
+            topic=kafka_producer._topic
+        )
+    except Exception as e:
+        # Kafka producer não está disponível - logar warning mas continuar
+        # O ticket já está persistido no PostgreSQL
+        logger.warning(
+            "kafka_publisher_unavailable_ticket_not_published",
+            ticket_id=ticket_pydantic.ticket_id,
+            error=str(e),
+            note="Ticket persisted in PostgreSQL but not published to Kafka. Workers will not consume this ticket."
         )
 
     return ticket_orm.to_pydantic()
