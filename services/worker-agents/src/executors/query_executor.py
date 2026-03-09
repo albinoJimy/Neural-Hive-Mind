@@ -178,14 +178,9 @@ class QueryExecutor(BaseTaskExecutor):
         if not self.mongodb_client:
             return self._error_result('MongoDB client not available', 'mongodb')
 
-        if not self.mongodb_client.db:
-            self.log_execution(
-                ticket_id,
-                'mongodb_query_failed',
-                level='error',
-                error='MongoDB client not initialized (db attribute is None)'
-            )
-            return self._error_result('MongoDB client not initialized', 'mongodb')
+        # Nota: Validacao de .db removida para evitar erro de Motor 3.x
+        # Motor 3.x proibe verificacao de truthiness em objetos Database
+        # Acessamos diretamente via client[db_name] para evitar o problema
 
         try:
             collection_name = parameters.get('collection')
