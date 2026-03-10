@@ -107,7 +107,7 @@ config:
     logLevel: INFO
 
   codeForge:
-    url: http://code-forge.neural-hive-execution.svc.cluster.local:8000
+    url: http://code-forge.neural-hive.svc.cluster.local:8080
     enabled: true
     timeoutSeconds: 14400  # 4 hours
 

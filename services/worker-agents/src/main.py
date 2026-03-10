@@ -622,7 +622,7 @@ async def startup():
             agent_id=agent_id,  # Usar agent_id retornado pelo Service Registry
             agent_type="worker",
             capabilities=config.capabilities if hasattr(config, 'capabilities') else ["python", "terraform", "kubernetes"],
-            endpoint=f"http://{config.agent_id}.neural-hive-execution:8000",
+            endpoint=f"http://{config.agent_id}.neural-hive:8080",
             metadata={"version": "1.0.0"}
         ))
 

@@ -48,7 +48,7 @@ class CodeForgeClient:
 
     def __init__(
         self,
-        base_url: str = "http://code-forge.neural-hive-execution:8000",
+        base_url: str = "http://code-forge.neural-hive:8080",
         timeout: int = 14400,  # 4 hours for long pipelines
     ):
         self.base_url = base_url

@@ -135,7 +135,7 @@ class WorkerAgentSettings(BaseSettings):
     ticket_api_timeout_seconds: int = 10
 
     # Code Forge
-    code_forge_url: str = 'http://code-forge.neural-hive-execution:8000'
+    code_forge_url: str = 'http://code-forge.neural-hive:8080'
     code_forge_timeout_seconds: int = 14400  # 4 hours
     code_forge_enabled: bool = True
 

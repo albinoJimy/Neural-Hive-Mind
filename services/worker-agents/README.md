@@ -267,7 +267,7 @@ HEARTBEAT_INTERVAL_SECONDS=30
 EXECUTION_TICKET_SERVICE_URL=http://execution-ticket-service:8080
 
 # Code Forge
-CODE_FORGE_URL=http://code-forge.neural-hive-execution:8000
+CODE_FORGE_URL=http://code-forge.neural-hive:8080
 CODE_FORGE_ENABLED=true
 CODE_FORGE_TIMEOUT_SECONDS=14400
 
