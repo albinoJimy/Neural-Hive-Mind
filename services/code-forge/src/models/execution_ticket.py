@@ -87,9 +87,9 @@ class ExecutionTicket(BaseModel):
     """Modelo Pydantic para Execution Ticket"""
 
     ticket_id: str = Field(..., description='Identificador único do ticket')
-    plan_id: str = Field(..., description='ID do plano cognitivo')
-    intent_id: str = Field(..., description='ID da intenção')
-    decision_id: str = Field(..., description='ID da decisão')
+    plan_id: Optional[str] = Field(None, description='ID do plano cognitivo')
+    intent_id: Optional[str] = Field(None, description='ID da intenção')
+    decision_id: Optional[str] = Field(None, description='ID da decisão')
 
     correlation_id: Optional[str] = Field(None, description='ID de correlação')
     trace_id: Optional[str] = Field(None, description='ID de trace OpenTelemetry')

@@ -37,6 +37,12 @@ class PipelineContext(BaseModel):
         """Adiciona um artefato gerado"""
         self.generated_artifacts.append(artifact)
 
+    def get_latest_artifact(self) -> Optional[CodeForgeArtifact]:
+        """Retorna o artefato mais recente ou None"""
+        if self.generated_artifacts:
+            return self.generated_artifacts[-1]
+        return None
+
     def add_validation(self, validation: ValidationResult):
         """Adiciona um resultado de validação"""
         self.validation_results.append(validation)
