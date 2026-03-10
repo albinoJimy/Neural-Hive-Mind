@@ -90,7 +90,7 @@ istio:
 
 config:
   SERVICE_NAME: code-forge
-  NAMESPACE: neural-hive-execution
+  NAMESPACE: neural-hive
   CLUSTER: production
 
   # Kafka
