@@ -194,7 +194,7 @@ async def main():
     template_selector = TemplateSelector(git_client, redis_client, mcp_client, metrics)
     code_composer = CodeComposer(mongodb_client, llm_client, analyst_client, mcp_client)
     validator = Validator(sonarqube_client, snyk_client, trivy_client, mcp_client, metrics)
-    test_runner = TestRunner(settings.MIN_TEST_COVERAGE)
+    test_runner = TestRunner(settings.MIN_TEST_COVERAGE, mongodb_client=mongodb_client)
     packager = Packager(sigstore_client, s3_artifact_client, artifact_registry_client)
     approval_gate = ApprovalGate(
         git_client,
@@ -283,6 +283,23 @@ async def main():
                 metrics.heartbeat_total.labels(status='failure').inc()
 
     asyncio.create_task(heartbeat_loop())
+
+    # 8.5. Wire API dependencies antes de criar app
+    logger.info('wiring_api_dependencies')
+    from .api.generation_api import set_generation_api_clients
+    from .api.pipeline_api import set_pipeline_engine, set_redis_client as set_pipeline_redis_client
+
+    # Configurar clientes para generation_api (Redis, MongoDB, LLM)
+    set_generation_api_clients(
+        redis_client=redis_client,
+        mongodb_client=mongodb_client,
+        llm_client=llm_client
+    )
+    # Configurar Redis client para pipeline_api
+    set_pipeline_redis_client(redis_client)
+
+    # Configurar PipelineEngine para pipeline_api
+    set_pipeline_engine(pipeline_engine)
 
     # 9. Iniciar HTTP server (FastAPI)
     logger.info('starting_http_server', port=settings.HTTP_PORT)
