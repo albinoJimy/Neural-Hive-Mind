@@ -2,7 +2,8 @@ import asyncio
 import structlog
 import uuid
 import time
-from typing import List, Dict, Optional
+from pathlib import Path
+from typing import List, Dict, Optional, Any
 from ..models.pipeline_context import PipelineContext
 from ..models.template import Template, TemplateType, TemplateLanguage, TemplateMetadata, TemplateRegistry
 from ..clients.git_client import GitClient
@@ -159,25 +160,27 @@ class TemplateSelector:
             context.selected_template = cached_template
             return cached_template
 
-        # Cache miss: carregar templates do Git
-        await self.git_client.clone_templates_repo()
+        # Cache miss: carregar templates do Git e indexá-los
+        await self._load_and_index_templates(criteria)
 
-        # Mock: criar template genérico
-        template = Template(
-            template_id='microservice-python-v1',
-            metadata=TemplateMetadata(
-                name='Python Microservice',
-                version='1.0.0',
-                description='Template base para microserviço Python',
-                author='Neural Hive Team',
-                tags=['microservice', 'python', 'fastapi'],
-                language=TemplateLanguage.PYTHON,
-                type=TemplateType.MICROSERVICE
-            ),
-            parameters=[],
-            content_path='/app/templates/microservice-python',
-            examples={}
-        )
+        # Buscar melhor template no registro
+        search_results = self.template_registry.search(criteria)
+
+        if search_results:
+            template, score = search_results[0]
+            logger.info(
+                'template_selected_from_registry',
+                template_id=template.template_id,
+                match_score=score
+            )
+        else:
+            # Fallback: criar template genérico baseado nos critérios
+            template = self._create_fallback_template(criteria)
+            logger.warning(
+                'no_template_found_using_fallback',
+                criteria=criteria,
+                fallback_template_id=template.template_id
+            )
 
         # Cachear template
         await self.redis_client.cache_template(template.template_id, template)
@@ -237,7 +240,7 @@ class TemplateSelector:
         tool_names = [t.get('tool_name', '').lower() for t in selected_tools]
 
         # Verificar se há ferramentas LLM
-        llm_tools = ['github copilot', 'openai codex', 'tabnine', 'copilot']
+        llm_tools = ['github copilot', 'openai', 'openai codex', 'tabnine', 'copilot']
         has_llm = any(llm in name for name in tool_names for llm in llm_tools)
 
         # Verificar se há ferramentas de template
@@ -255,3 +258,182 @@ class TemplateSelector:
             return "TEMPLATE"
         else:
             return "HEURISTIC"
+
+    async def _load_and_index_templates(self, criteria: Dict[str, Any]):
+        """
+        Carrega templates do repositório Git e indexa no TemplateRegistry.
+
+        Args:
+            criteria: Critérios de busca para filtrar templates relevantes
+        """
+        try:
+            # Clone ou pull do repositório de templates
+            await self.git_client.clone_templates_repo()
+
+            # Escanear diretório de templates e criar entradas no registro
+            templates_path = self.git_client.local_path / "templates"
+
+            if not templates_path.exists():
+                logger.warning('templates_directory_not_found', path=str(templates_path))
+                return
+
+            # Mapeamento de padrões de template para tipos
+            type_patterns = {
+                'microservice': TemplateType.MICROSERVICE,
+                'function': TemplateType.FUNCTION,
+                'terraform': TemplateType.IAC_TERRAFORM,
+                'helm': TemplateType.IAC_HELM,
+                'test': TemplateType.TEST_SUITE,
+                'opa': TemplateType.POLICY_OPA
+            }
+
+            # Mapeamento de extensões para linguagens
+            lang_extensions = {
+                'py': TemplateLanguage.PYTHON,
+                'js': TemplateLanguage.JAVASCRIPT,
+                'ts': TemplateLanguage.TYPESCRIPT,
+                'go': TemplateLanguage.GO,
+                'java': TemplateLanguage.JAVA,
+                'rs': TemplateLanguage.RUST
+            }
+
+            templates_count = 0
+            for template_dir in templates_path.iterdir():
+                if not template_dir.is_dir():
+                    continue
+
+                # Ler metadados do template (se existirem)
+                metadata_file = template_dir / "template.yaml"
+                if metadata_file.exists():
+                    template = self._load_template_from_yaml(template_dir, metadata_file)
+                else:
+                    template = self._create_template_from_directory(template_dir, type_patterns, lang_extensions)
+
+                if template:
+                    self.template_registry.add_template(template)
+                    templates_count += 1
+
+            logger.info(
+                'templates_indexed',
+                count=templates_count,
+                registry_size=len(self.template_registry.templates)
+            )
+
+        except Exception as e:
+            logger.error('template_indexing_failed', error=str(e))
+
+    def _load_template_from_yaml(self, template_dir, metadata_file) -> Optional[Template]:
+        """Carrega template a partir de arquivo YAML de metadados."""
+        try:
+            import yaml
+            with open(metadata_file) as f:
+                metadata = yaml.safe_load(f)
+
+            return Template(
+                template_id=metadata.get('id', template_dir.name),
+                metadata=TemplateMetadata(
+                    name=metadata.get('name', template_dir.name),
+                    version=metadata.get('version', '1.0.0'),
+                    description=metadata.get('description', ''),
+                    author=metadata.get('author', 'Neural Hive Team'),
+                    tags=metadata.get('tags', []),
+                    language=TemplateLanguage(metadata.get('language', 'PYTHON')),
+                    type=TemplateType(metadata.get('type', 'MICROSERVICE'))
+                ),
+                parameters=[],
+                content_path=str(template_dir),
+                examples=metadata.get('examples', {})
+            )
+        except Exception as e:
+            logger.warning('yaml_template_load_failed', dir=str(template_dir), error=str(e))
+            return None
+
+    def _create_template_from_directory(
+        self, template_dir, type_patterns, lang_extensions
+    ) -> Optional[Template]:
+        """Cria entrada de template a partir da estrutura do diretório."""
+        dir_name = template_dir.name.lower()
+        template_id = f"auto-{dir_name}"
+
+        # Inferir tipo
+        template_type = TemplateType.MICROSERVICE
+        for pattern, ptype in type_patterns.items():
+            if pattern in dir_name:
+                template_type = ptype
+                break
+
+        # Inferir linguagem
+        template_lang = TemplateLanguage.PYTHON
+        for ext, lang in lang_extensions.items():
+            if any(f.suffix == f'.{ext}' for f in template_dir.iterdir() if f.is_file()):
+                template_lang = lang
+                break
+
+        return Template(
+            template_id=template_id,
+            metadata=TemplateMetadata(
+                name=dir_name.replace('-', ' ').title(),
+                version='1.0.0',
+                description=f'Template auto-detectado: {dir_name}',
+                author='Neural Hive Team',
+                tags=[template_type.value.lower(), template_lang.value.lower()],
+                language=template_lang,
+                type=template_type
+            ),
+            parameters=[],
+            content_path=str(template_dir),
+            examples={}
+        )
+
+    def _create_fallback_template(self, criteria: Dict[str, Any]) -> Template:
+        """
+        Cria template genérico baseado nos critérios quando nenhum template é encontrado.
+
+        Args:
+            criteria: Critérios de seleção
+
+        Returns:
+            Template de fallback
+        """
+        artifact_type = criteria.get('type', 'MICROSERVICE')
+        language = criteria.get('language', 'PYTHON')
+
+        # Mapear tipos para templates de fallback
+        type_to_template_id = {
+            'MICROSERVICE': f'microservice-{language.lower()}-v1',
+            'FUNCTION': f'function-{language.lower()}-v1',
+            'IAC_TERRAFORM': 'terraform-module-v1',
+            'IAC_HELM': 'helm-chart-v1',
+            'TEST_SUITE': f'test-suite-{language.lower()}-v1',
+            'POLICY_OPA': 'opa-policy-v1'
+        }
+
+        template_id = type_to_template_id.get(artifact_type, 'generic-template-v1')
+
+        # Normalizar linguagem para enum
+        try:
+            template_lang = TemplateLanguage[language.upper()]
+        except KeyError:
+            template_lang = TemplateLanguage.PYTHON
+
+        # Normalizar tipo para enum
+        try:
+            template_type = TemplateType[artifact_type]
+        except KeyError:
+            template_type = TemplateType.MICROSERVICE
+
+        return Template(
+            template_id=template_id,
+            metadata=TemplateMetadata(
+                name=f'{language} {artifact_type.replace("_", " ")}',
+                version='1.0.0',
+                description=f'Template base para {artifact_type} em {language}',
+                author='Neural Hive Team',
+                tags=[artifact_type.lower(), language.lower()],
+                language=template_lang,
+                type=template_type
+            ),
+            parameters=[],
+            content_path=f'/app/templates/{template_id}',
+            examples={}
+        )

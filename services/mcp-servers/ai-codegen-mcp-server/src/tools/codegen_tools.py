@@ -200,7 +200,8 @@ def register_codegen_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def explain_code(
         code: str,
-        language: str
+        language: str,
+        provider: str = "auto"
     ) -> dict[str, Any]:
         """
         Gera explicação detalhada para um trecho de código.
@@ -208,34 +209,52 @@ def register_codegen_tools(mcp: FastMCP) -> None:
         Args:
             code: Código a ser explicado
             language: Linguagem de programação
+            provider: Provider a usar (auto, openai, copilot)
 
         Returns:
             Explicação em linguagem natural
         """
         start_time = time.time()
 
-        # Explicação usa apenas OpenAI (melhor para texto explicativo)
-        client = get_openai_client()
+        # Selecionar provider com fallback
+        provider_name, client = select_provider(provider)
+
+        # Preferir OpenAI para explicações, mas usar Copilot como fallback
+        if provider == "auto":
+            openai = get_openai_client()
+            if openai.is_available():
+                provider_name, client = "openai", openai
 
         if not client.is_available():
             return {
                 "success": False,
-                "error": "OpenAI not configured",
-                "message": "Explicação de código requer OpenAI configurado"
+                "error": "No provider available",
+                "message": "Nenhum provider de IA configurado para explicação"
             }
 
         logger.info(
             "explaining_code",
+            provider=provider_name,
             language=language,
             code_length=len(code)
         )
 
-        result = await client.explain_code(code, language)
+        # Chamar método apropriado baseado no provider
+        if provider_name == "openai":
+            result = await client.explain_code(code, language)
+        else:  # copilot
+            # Copilot não tem método explain_code, usar generate_code
+            prompt = f"Explain this {language} code:\n\n{code}\n\nProvide a clear explanation."
+            result = await client.generate_completion(prompt, language, max_tokens=1000)
+            if result.get("success"):
+                result = {"explanation": result.get("code", ""), "model": result.get("model")}
+
         duration = time.time() - start_time
 
         if "error" in result:
             return {
                 "success": False,
+                "provider": provider_name,
                 "error": result.get("error"),
                 "message": result.get("message"),
                 "duration_seconds": duration
@@ -243,7 +262,7 @@ def register_codegen_tools(mcp: FastMCP) -> None:
 
         return {
             "success": True,
-            "provider": "openai",
+            "provider": provider_name,
             "language": language,
             "explanation": result.get("explanation", ""),
             "model": result.get("model"),

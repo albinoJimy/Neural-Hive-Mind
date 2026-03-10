@@ -24,6 +24,8 @@ class CopilotClient:
         self.base_url = self.settings.github_api_url.rstrip("/")
         self._session: Optional[aiohttp.ClientSession] = None
         self._copilot_token: Optional[str] = None
+        self._token_expires_at: Optional[float] = None
+        self._token_ttl: int = 3600  # 1 hora padrão
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Retorna ou cria sessão HTTP."""
@@ -51,9 +53,15 @@ class CopilotClient:
         return bool(self.settings.github_token)
 
     async def _get_copilot_token(self) -> Optional[str]:
-        """Obtém token de acesso do Copilot."""
-        if self._copilot_token:
-            return self._copilot_token
+        """Obtém token de acesso do Copilot com cache e expiração."""
+        import time
+
+        # Verificar se token ainda é válido
+        if self._copilot_token and self._token_expires_at:
+            if time.time() < self._token_expires_at:
+                return self._copilot_token
+            else:
+                logger.info("copilot_token_expired_refreshing")
 
         session = await self._get_session()
 
@@ -64,6 +72,15 @@ class CopilotClient:
                 if response.status == 200:
                     data = await response.json()
                     self._copilot_token = data.get("token")
+
+                    # Definir expiração (token OAuth padrão expira em ~1 hora)
+                    # Usar 50 minutos como margem de segurança
+                    self._token_expires_at = time.time() + self._token_ttl - 600
+
+                    logger.info(
+                        "copilot_token_obtained",
+                        expires_at=self._token_expires_at
+                    )
                     return self._copilot_token
                 else:
                     logger.warning(
