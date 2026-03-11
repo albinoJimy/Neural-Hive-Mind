@@ -147,7 +147,8 @@ class TemplateSelector:
         criteria = {
             'type': params.get('artifact_type', 'MICROSERVICE'),
             'language': params.get('language', 'PYTHON'),
-            'tags': params.get('tags', [])
+            'tags': params.get('tags', []),
+            'template_version': params.get('template_version')  # Suporte a templates versionados
         }
 
         # Consultar cache Redis
@@ -263,12 +264,47 @@ class TemplateSelector:
         """
         Carrega templates do repositório Git e indexa no TemplateRegistry.
 
+        Suporta versionamento de templates via Git tags. Se template_version
+        for especificado nos parâmetros, faz checkout da tag correspondente.
+
         Args:
             criteria: Critérios de busca para filtrar templates relevantes
         """
         try:
+            # Verificar se foi solicitada uma versão específica de template
+            template_version = criteria.get('template_version')
+            current_tag = None
+
+            if template_version:
+                logger.info('template_version_requested', version=template_version)
+
+                # Listar tags disponíveis
+                tags = await self.git_client.list_tags()
+                tag_names = [t['name'] for t in tags]
+
+                # Encontrar a tag solicitada
+                if template_version in tag_names:
+                    success = await self.git_client.checkout_tag(template_version)
+                    if success:
+                        logger.info('template_version_checked_out', version=template_version)
+                        current_tag = template_version
+                    else:
+                        logger.warning('template_version_checkout_failed', version=template_version)
+                else:
+                    logger.warning(
+                        'template_version_not_found',
+                        requested=template_version,
+                        available=tag_names[:5]
+                    )
+
             # Clone ou pull do repositório de templates
             await self.git_client.clone_templates_repo()
+
+            # Se não fez checkout de tag, verificar se já estava em uma tag
+            if not current_tag:
+                current_tag = await self.git_client.get_current_tag()
+                if current_tag:
+                    logger.info('using_current_template_version', version=current_tag)
 
             # Escanear diretório de templates e criar entradas no registro
             templates_path = self.git_client.local_path / "templates"

@@ -461,6 +461,95 @@ class GitClient:
         logger.info('github_pr_created', branch=branch, url=pr_url)
         return pr_url
 
+    async def list_tags(self) -> List[Dict[str, str]]:
+        """
+        Lista todas as tags disponíveis no repositório de templates.
+
+        Returns:
+            Lista de tags [{'name': 'v1.0.0', 'commit': 'sha123'}, ...]
+        """
+        if not self.repo:
+            raise RuntimeError('Repositório não foi clonado. Chame clone_templates_repo() primeiro.')
+
+        try:
+            # Fetch tags do remote
+            origin = self.repo.remotes.origin
+            origin.fetch('tags --prune-tags')
+
+            # Listar tags localmente
+            tags = []
+            for tag in self.repo.tags:
+                tag_commit = tag.commit.hexsha
+                tags.append({
+                    'name': tag.name,
+                    'commit': tag_commit
+                })
+
+            # Ordenar por nome (versão) descendente
+            tags.sort(key=lambda x: x['name'], reverse=True)
+
+            logger.info('tags_listed', count=len(tags), tags=[t['name'] for t in tags[:5]])
+            return tags
+
+        except Exception as e:
+            logger.error('list_tags_failed', error=str(e))
+            raise
+
+    async def checkout_tag(self, tag_name: str) -> bool:
+        """
+        Faz checkout de uma tag específica do repositório de templates.
+
+        Args:
+            tag_name: Nome da tag (ex: 'v1.0.0', 'v2.1.3')
+
+        Returns:
+            True se checkout foi bem-sucedido, False caso contrário
+        """
+        if not self.repo:
+            raise RuntimeError('Repositório não foi clonado. Chame clone_templates_repo() primeiro.')
+
+        try:
+            # Verificar se tag existe
+            tags = {tag.name: tag for tag in self.repo.tags}
+            if tag_name not in tags:
+                logger.warning('tag_not_found', tag=tag_name, available=list(tags.keys()))
+                return False
+
+            # Fazer checkout da tag
+            git_cmd = self.repo.git
+            git_cmd.checkout(tag_name)
+
+            logger.info('tag_checked_out', tag=tag_name, commit=tags[tag_name].commit.hexsha[:8])
+            return True
+
+        except Exception as e:
+            logger.error('checkout_tag_failed', tag=tag_name, error=str(e))
+            return False
+
+    async def get_current_tag(self) -> Optional[str]:
+        """
+        Retorna a tag atualmente checked out (se houver).
+
+        Returns:
+            Nome da tag atual ou None se não estiver em uma tag
+        """
+        if not self.repo:
+            raise RuntimeError('Repositório não foi clonado. Chame clone_templates_repo() primeiro.')
+
+        try:
+            # Verificar se HEAD está em uma tag
+            head_commit = self.repo.head.commit.hexsha
+
+            for tag in self.repo.tags:
+                if tag.commit.hexsha == head_commit:
+                    return tag.name
+
+            return None
+
+        except Exception as e:
+            logger.error('get_current_tag_failed', error=str(e))
+            return None
+
     async def close(self):
         """Fecha clientes HTTP"""
         if self._gitlab_client:

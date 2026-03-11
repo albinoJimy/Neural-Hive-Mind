@@ -41,14 +41,14 @@
   - [x] 5.5 Escrever testes para executor Node.js
   - [x] 5.6 Verificar todos os testes passan
 
-- [ ] 6. **Templates versionados** - Usar Git tags para versionamento
-  - [ ] 6.1 Adicionar método list_tags() em GitClient
-  - [ ] 6.2 Adicionar método checkout_tag() em GitClient
-  - [ ] 6.3 Modificar _load_and_index_templates() para suportar tags
-  - [ ] 6.4 Adicionar parâmetro template_version nos Execution Tickets
-  - [ ] 6.5 Escrever testes para versionamento de templates
-  - [ ] 6.6 Documentar como usar templates versionados
-  - [ ] 6.7 Verificar todos os testes passam
+- [x] 6. **Templates versionados** - Usar Git tags para versionamento
+  - [x] 6.1 Adicionar método list_tags() em GitClient
+  - [x] 6.2 Adicionar método checkout_tag() em GitClient
+  - [x] 6.3 Modificar _load_and_index_templates() para suportar tags
+  - [x] 6.4 Adicionar parâmetro template_version nos Execution Tickets
+  - [x] 6.5 Escrever testes para versionamento de templates
+  - [x] 6.6 Documentar como usar templates versionados
+  - [x] 6.7 Verificar todos os testes passan
 
 - [ ] 7. **Testes E2E e Integração**
   - [ ] 7.1 Escrever teste E2E do pipeline completo com Approval Gate
