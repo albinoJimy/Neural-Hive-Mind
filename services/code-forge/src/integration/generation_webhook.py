@@ -13,11 +13,11 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from prometheus_client import Counter
 
-from neural_hive_integration import ExecutionTicketClient
-
 from ..clients.mongodb_client import MongoDBClient
 from ..clients.postgres_client import PostgresClient
+from ..clients.execution_ticket_client import ExecutionTicketClient as LocalExecutionTicketClient
 from ..models.artifact import PipelineResult, PipelineStatus
+from ..models.execution_ticket import TicketStatus
 
 logger = structlog.get_logger()
 
@@ -76,7 +76,8 @@ class WebhookHandler:
         self,
         webhook_secret: Optional[str] = None,
         mongodb_client: Optional[MongoDBClient] = None,
-        postgres_client: Optional[PostgresClient] = None
+        postgres_client: Optional[PostgresClient] = None,
+        ticket_client: Optional[LocalExecutionTicketClient] = None
     ):
         """
         Inicializa o handler de webhooks.
@@ -85,8 +86,9 @@ class WebhookHandler:
             webhook_secret: Secret para validação HMAC de webhooks
             mongodb_client: Cliente MongoDB para salvar logs detalhados
             postgres_client: Cliente PostgreSQL para salvar metadados de pipeline
+            ticket_client: Cliente ExecutionTicket local para atualizar tickets
         """
-        self.ticket_client = ExecutionTicketClient()
+        self.ticket_client = ticket_client
         self.mongodb_client = mongodb_client
         self.postgres_client = postgres_client
         self.logger = logger.bind(component="webhook_handler")
@@ -101,7 +103,13 @@ class WebhookHandler:
 
     async def close(self):
         """Fechar handler."""
-        await self.ticket_client.close()
+        if self.ticket_client:
+            # Local client usa stop(), não close()
+            if hasattr(self.ticket_client, 'stop'):
+                await self.ticket_client.stop()
+            elif hasattr(self.ticket_client, 'close'):
+                # Fallback para compatibilidade
+                await self.ticket_client.close()
 
     def _validate_signature(self, payload_bytes: bytes, signature: str) -> bool:
         """
@@ -186,7 +194,7 @@ class WebhookHandler:
         pipelines_completed.labels(status=payload.status).inc()
 
         # Atualizar ticket se fornecido
-        if payload.ticket_id:
+        if payload.ticket_id and self.ticket_client:
             try:
                 ticket_status = "completed" if payload.status == "completed" else "failed"
                 result = {
@@ -201,10 +209,10 @@ class WebhookHandler:
                 if payload.signature:
                     result["signature"] = payload.signature
 
-                await self.ticket_client.update_ticket_status(
+                await self.ticket_client.update_status(
                     ticket_id=payload.ticket_id,
-                    status=ticket_status,
-                    result=result,
+                    status=TicketStatus[ticket_status.upper()],
+                    metadata=result
                 )
 
                 self.logger.info(
