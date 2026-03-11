@@ -50,9 +50,9 @@
   - [x] 6.6 Documentar como usar templates versionados
   - [x] 6.7 Verificar todos os testes passan
 
-- [ ] 7. **Testes E2E e Integração**
-  - [ ] 7.1 Escrever teste E2E do pipeline completo com Approval Gate
-  - [ ] 7.2 Escrever teste E2E com validação de licenças
-  - [ ] 7.3 Escrever teste E2E para múltiplas linguagens
-  - [ ] 7.4 Executar suite completa de testes
-  - [ ] 7.5 Gerar relatório de cobertura
+- [x] 7. **Testes E2E e Integração**
+  - [x] 7.1 Escrever teste E2E do pipeline completo com Approval Gate
+  - [x] 7.2 Escrever teste E2E com validação de licenças
+  - [x] 7.3 Escrever teste E2E para múltiplas linguagens
+  - [x] 7.4 Executar suite completa de testes
+  - [x] 7.5 Gerar relatório de cobertura

@@ -97,6 +97,7 @@ class CodeForgeArtifact(BaseModel):
     content_uri: str = Field(..., description='URI do conteúdo (S3, OCI, Git)')
     content_hash: str = Field(..., description='SHA-256 do conteúdo')
     sbom_uri: Optional[str] = Field(None, description='URI do SBOM')
+    registry_reference: Optional[str] = Field(None, description='Referência no Artifact Registry')
     signature: Optional[str] = Field(None, description='Assinatura Sigstore')
 
     validation_results: List[ValidationResult] = Field(default_factory=list, description='Resultados de validações')

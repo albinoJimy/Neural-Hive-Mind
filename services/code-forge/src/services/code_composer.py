@@ -93,6 +93,11 @@ class CodeComposer:
         artifact_id = str(uuid.uuid4())
         await self.mongodb_client.save_artifact_content(artifact_id, code_content)
 
+        # Preparar metadata com valores string (CodeForgeArtifact.metadata é Dict[str, str])
+        mcp_selection_id = getattr(context, 'mcp_selection_id', None) or ''
+        selected_tools = getattr(context, 'selected_tools', [])
+        mcp_tools_used = ','.join(t.get('tool_name', '') for t in selected_tools if t.get('tool_name'))
+
         # Criar artefato
         artifact = CodeForgeArtifact(
             artifact_id=artifact_id,
@@ -112,10 +117,8 @@ class CodeComposer:
             content_hash=content_hash,
             created_at=datetime.now(),
             metadata={
-                'mcp_selection_id': getattr(context, 'mcp_selection_id', None),
-                'mcp_tools_used': [
-                    t.get('tool_name') for t in getattr(context, 'selected_tools', [])
-                ]
+                'mcp_selection_id': mcp_selection_id,
+                'mcp_tools_used': mcp_tools_used
             }
         )
 
