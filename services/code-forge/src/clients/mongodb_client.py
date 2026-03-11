@@ -222,6 +222,95 @@ class MongoDBClient:
             logger.error('delete_artifact_failed', artifact_id=artifact_id, error=str(e))
             return False
 
+    async def get_artifact_sbom(self, artifact_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Recupera SBOM de um artefato.
+
+        Args:
+            artifact_id: ID do artefato
+
+        Returns:
+            Dados do SBOM ou None se não encontrado
+        """
+        if not self.db:
+            raise RuntimeError('MongoDB client not started')
+
+        start_time = time.perf_counter()
+        try:
+            doc = await self.db.artifacts.find_one({'artifact_id': artifact_id})
+
+            if self.metrics:
+                duration = time.perf_counter() - start_time
+                self.metrics.mongodb_operations_total.labels(operation='get_sbom', status='success').inc()
+                self.metrics.mongodb_operation_duration_seconds.labels(operation='get_sbom').observe(duration)
+
+            if doc:
+                # Tentar encontrar SBOM no documento
+                # Pode estar em 'metadata.sbom', 'sbom', ou embutido no conteúdo
+                sbom = None
+
+                if 'metadata' in doc and isinstance(doc['metadata'], dict):
+                    sbom = doc['metadata'].get('sbom')
+
+                if not sbom:
+                    sbom = doc.get('sbom')
+
+                if sbom:
+                    logger.debug('artifact_sbom_found', artifact_id=artifact_id)
+                    return sbom if isinstance(sbom, dict) else {'data': sbom}
+
+                # Se não encontrou SBOM separado, tentar extrair do conteúdo
+                content = doc.get('content')
+                if content and isinstance(content, str):
+                    # Verificar se o conteúdo é um SBOM JSON válido
+                    try:
+                        import json
+                        potential_sbom = json.loads(content)
+                        if self._is_sbom_document(potential_sbom):
+                            logger.debug('sbom_extracted_from_content', artifact_id=artifact_id)
+                            return potential_sbom
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+
+                logger.debug('artifact_sbom_not_found', artifact_id=artifact_id)
+                return None
+
+            logger.debug('artifact_not_found_for_sbom', artifact_id=artifact_id)
+            return None
+
+        except Exception as e:
+            if self.metrics:
+                self.metrics.mongodb_operations_total.labels(operation='get_sbom', status='failure').inc()
+            logger.error('get_artifact_sbom_failed', artifact_id=artifact_id, error=str(e))
+            return None
+
+    def _is_sbom_document(self, data: Dict[str, Any]) -> bool:
+        """
+        Verifica se um documento é um SBOM válido.
+
+        Args:
+            data: Documento a verificar
+
+        Returns:
+            True se parecer ser um SBOM
+        """
+        if not isinstance(data, dict):
+            return False
+
+        # SPDX tem spdxVersion
+        if 'spdxVersion' in data:
+            return True
+
+        # CycloneDX tem bomFormat ou component
+        if 'bomFormat' in data or 'components' in data:
+            return True
+
+        # Formato genérico com licenças
+        if 'licenses' in data or 'packages' in data:
+            return True
+
+        return False
+
     async def save_pipeline_logs(self, pipeline_id: str, logs: List[Dict[str, Any]]):
         """
         Salva logs detalhados de pipeline.

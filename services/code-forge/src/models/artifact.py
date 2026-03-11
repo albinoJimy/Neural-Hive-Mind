@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 from pydantic import BaseModel, Field
 
 
@@ -33,6 +33,7 @@ class ValidationType(str, Enum):
     LINT = 'LINT'
     SECURITY_SCAN = 'SECURITY_SCAN'
     COMPLIANCE_CHECK = 'COMPLIANCE_CHECK'
+    LICENSE_CHECK = 'LICENSE_CHECK'
 
 
 class ValidationStatus(str, Enum):
@@ -59,6 +60,7 @@ class ValidationResult(BaseModel):
     report_uri: Optional[str] = Field(None, description='URI do relatório completo')
     executed_at: datetime = Field(..., description='Timestamp de execução')
     duration_ms: int = Field(..., description='Duração em milissegundos', ge=0)
+    metadata: Dict[str, Any] = Field(default_factory=dict, description='Metadados adicionais da validação')
 
     def has_critical_issues(self) -> bool:
         """Verifica se há issues críticos"""
