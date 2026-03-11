@@ -31,7 +31,7 @@ class TestTemplateSelectorMCPIntegration:
         sample_pipeline_context
     ):
         """Deve selecionar template via MCP com sucesso."""
-        from services.code_forge.src.services.template_selector import TemplateSelector
+        from src.services.template_selector import TemplateSelector
 
         selector = TemplateSelector(
             git_client=mock_git_client,
@@ -57,7 +57,7 @@ class TestTemplateSelectorMCPIntegration:
         sample_pipeline_context
     ):
         """Deve usar fallback quando MCP timeout."""
-        from services.code_forge.src.services.template_selector import TemplateSelector
+        from src.services.template_selector import TemplateSelector
 
         # Simular timeout
         mock_mcp_client.request_tool_selection.side_effect = asyncio.TimeoutError()
@@ -84,7 +84,7 @@ class TestTemplateSelectorMCPIntegration:
         sample_pipeline_context
     ):
         """Deve usar fallback quando MCP retorna erro."""
-        from services.code_forge.src.services.template_selector import TemplateSelector
+        from src.services.template_selector import TemplateSelector
 
         mock_mcp_client.request_tool_selection.side_effect = Exception('MCP error')
 
@@ -108,7 +108,7 @@ class TestTemplateSelectorMCPIntegration:
         sample_pipeline_context
     ):
         """Deve funcionar sem cliente MCP."""
-        from services.code_forge.src.services.template_selector import TemplateSelector
+        from src.services.template_selector import TemplateSelector
 
         selector = TemplateSelector(
             git_client=mock_git_client,
@@ -135,7 +135,7 @@ class TestTemplateSelectorCache:
         cached_template
     ):
         """Deve retornar template cacheado."""
-        from services.code_forge.src.services.template_selector import TemplateSelector
+        from src.services.template_selector import TemplateSelector
 
         mock_redis_client.get_cached_template.return_value = cached_template
 
@@ -159,7 +159,7 @@ class TestTemplateSelectorCache:
         sample_pipeline_context
     ):
         """Deve carregar template do Git quando cache miss."""
-        from services.code_forge.src.services.template_selector import TemplateSelector
+        from src.services.template_selector import TemplateSelector
 
         mock_redis_client.get_cached_template.return_value = None
 
@@ -188,7 +188,7 @@ class TestTemplateSelectorComplexityScore:
         sample_pipeline_context
     ):
         """Deve calcular score baixo para poucos tasks e risk_band LOW."""
-        from services.code_forge.src.services.template_selector import TemplateSelector
+        from src.services.template_selector import TemplateSelector
 
         sample_pipeline_context.ticket.parameters['tasks'] = ['task-1']
         sample_pipeline_context.metadata['risk_band'] = 'LOW'
@@ -212,7 +212,7 @@ class TestTemplateSelectorComplexityScore:
         sample_pipeline_context
     ):
         """Deve calcular score alto para muitos tasks e risk_band HIGH."""
-        from services.code_forge.src.services.template_selector import TemplateSelector
+        from src.services.template_selector import TemplateSelector
 
         sample_pipeline_context.ticket.parameters['tasks'] = [f'task-{i}' for i in range(15)]
         sample_pipeline_context.metadata['risk_band'] = 'HIGH'
@@ -236,7 +236,7 @@ class TestTemplateSelectorComplexityScore:
         sample_pipeline_context
     ):
         """Deve calcular score maximo para risk_band CRITICAL."""
-        from services.code_forge.src.services.template_selector import TemplateSelector
+        from src.services.template_selector import TemplateSelector
 
         sample_pipeline_context.ticket.parameters['tasks'] = [f'task-{i}' for i in range(25)]
         sample_pipeline_context.metadata['risk_band'] = 'CRITICAL'
@@ -264,7 +264,7 @@ class TestTemplateSelectorGenerationMethod:
         mock_redis_client
     ):
         """Deve mapear ferramentas LLM para method LLM."""
-        from services.code_forge.src.services.template_selector import TemplateSelector
+        from src.services.template_selector import TemplateSelector
 
         selector = TemplateSelector(
             git_client=mock_git_client,
@@ -288,7 +288,7 @@ class TestTemplateSelectorGenerationMethod:
         mock_redis_client
     ):
         """Deve mapear ferramentas de template para method TEMPLATE."""
-        from services.code_forge.src.services.template_selector import TemplateSelector
+        from src.services.template_selector import TemplateSelector
 
         selector = TemplateSelector(
             git_client=mock_git_client,
@@ -312,7 +312,7 @@ class TestTemplateSelectorGenerationMethod:
         mock_redis_client
     ):
         """Deve mapear ferramentas LLM + Template para method HYBRID."""
-        from services.code_forge.src.services.template_selector import TemplateSelector
+        from src.services.template_selector import TemplateSelector
 
         selector = TemplateSelector(
             git_client=mock_git_client,
@@ -337,7 +337,7 @@ class TestTemplateSelectorGenerationMethod:
         mock_redis_client
     ):
         """Deve mapear ferramentas desconhecidas para method HEURISTIC."""
-        from services.code_forge.src.services.template_selector import TemplateSelector
+        from src.services.template_selector import TemplateSelector
 
         selector = TemplateSelector(
             git_client=mock_git_client,
@@ -361,7 +361,7 @@ class TestTemplateSelectorGenerationMethod:
         mock_redis_client
     ):
         """Deve retornar TEMPLATE para lista vazia."""
-        from services.code_forge.src.services.template_selector import TemplateSelector
+        from src.services.template_selector import TemplateSelector
 
         selector = TemplateSelector(
             git_client=mock_git_client,
@@ -388,7 +388,7 @@ class TestTemplateSelectorMetrics:
         sample_pipeline_context
     ):
         """Deve registrar metricas em caso de sucesso."""
-        from services.code_forge.src.services.template_selector import TemplateSelector
+        from src.services.template_selector import TemplateSelector
 
         selector = TemplateSelector(
             git_client=mock_git_client,
@@ -413,7 +413,7 @@ class TestTemplateSelectorMetrics:
         sample_mcp_response
     ):
         """Deve contar ferramentas selecionadas."""
-        from services.code_forge.src.services.template_selector import TemplateSelector
+        from src.services.template_selector import TemplateSelector
 
         mock_mcp_client.request_tool_selection.return_value = sample_mcp_response
 
@@ -443,7 +443,7 @@ class TestTemplateSelectorContextUpdate:
         sample_mcp_response
     ):
         """Deve atualizar contexto com selecao MCP."""
-        from services.code_forge.src.services.template_selector import TemplateSelector
+        from src.services.template_selector import TemplateSelector
 
         mock_mcp_client.request_tool_selection.return_value = sample_mcp_response
 
@@ -468,7 +468,7 @@ class TestTemplateSelectorContextUpdate:
         sample_pipeline_context
     ):
         """Deve atualizar contexto com template selecionado."""
-        from services.code_forge.src.services.template_selector import TemplateSelector
+        from src.services.template_selector import TemplateSelector
 
         selector = TemplateSelector(
             git_client=mock_git_client,

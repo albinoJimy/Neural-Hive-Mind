@@ -22,7 +22,7 @@ class TestMCPToolCatalogClientInitialization:
 
     def test_client_default_config(self):
         """Deve usar configuracao padrao."""
-        from services.code_forge.src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
+        from src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
 
         client = MCPToolCatalogClient()
 
@@ -31,7 +31,7 @@ class TestMCPToolCatalogClientInitialization:
 
     def test_client_custom_config(self):
         """Deve aceitar configuracao customizada."""
-        from services.code_forge.src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
+        from src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
 
         client = MCPToolCatalogClient(host='custom-host', port=9090)
 
@@ -40,7 +40,7 @@ class TestMCPToolCatalogClientInitialization:
     @pytest.mark.asyncio
     async def test_client_start_creates_http_client(self):
         """Deve criar HTTP client ao iniciar."""
-        from services.code_forge.src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
+        from src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
 
         client = MCPToolCatalogClient()
         await client.start()
@@ -51,7 +51,7 @@ class TestMCPToolCatalogClientInitialization:
     @pytest.mark.asyncio
     async def test_client_stop_closes_http_client(self):
         """Deve fechar HTTP client ao parar."""
-        from services.code_forge.src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
+        from src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
 
         client = MCPToolCatalogClient()
         await client.start()
@@ -66,7 +66,7 @@ class TestMCPToolCatalogClientToolSelection:
     @pytest.mark.asyncio
     async def test_request_tool_selection_success(self):
         """Deve retornar selecao de ferramentas com sucesso."""
-        from services.code_forge.src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
+        from src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
 
         client = MCPToolCatalogClient()
         client.client = AsyncMock()
@@ -97,7 +97,7 @@ class TestMCPToolCatalogClientToolSelection:
     @pytest.mark.asyncio
     async def test_request_tool_selection_http_error(self):
         """Deve retornar None em caso de erro HTTP."""
-        from services.code_forge.src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
+        from src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
 
         client = MCPToolCatalogClient()
         client.client = AsyncMock()
@@ -112,7 +112,7 @@ class TestMCPToolCatalogClientToolSelection:
     @pytest.mark.asyncio
     async def test_request_tool_selection_timeout(self):
         """Deve retornar None em caso de timeout."""
-        from services.code_forge.src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
+        from src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
 
         client = MCPToolCatalogClient()
         client.client = AsyncMock()
@@ -131,7 +131,7 @@ class TestMCPToolCatalogClientGetTool:
     @pytest.mark.asyncio
     async def test_get_tool_success(self):
         """Deve retornar ferramenta com sucesso."""
-        from services.code_forge.src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
+        from src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
 
         client = MCPToolCatalogClient()
         client.client = AsyncMock()
@@ -154,7 +154,7 @@ class TestMCPToolCatalogClientGetTool:
     @pytest.mark.asyncio
     async def test_get_tool_not_found(self):
         """Deve retornar None quando ferramenta nao encontrada."""
-        from services.code_forge.src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
+        from src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
 
         client = MCPToolCatalogClient()
         client.client = AsyncMock()
@@ -175,7 +175,7 @@ class TestMCPToolCatalogClientListTools:
     @pytest.mark.asyncio
     async def test_list_tools_success(self):
         """Deve retornar lista de ferramentas."""
-        from services.code_forge.src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
+        from src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
 
         client = MCPToolCatalogClient()
         client.client = AsyncMock()
@@ -198,7 +198,7 @@ class TestMCPToolCatalogClientListTools:
     @pytest.mark.asyncio
     async def test_list_tools_with_category_filter(self):
         """Deve filtrar ferramentas por categoria."""
-        from services.code_forge.src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
+        from src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
 
         client = MCPToolCatalogClient()
         client.client = AsyncMock()
@@ -223,7 +223,7 @@ class TestMCPToolCatalogClientListTools:
     @pytest.mark.asyncio
     async def test_list_tools_empty_on_error(self):
         """Deve retornar lista vazia em caso de erro."""
-        from services.code_forge.src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
+        from src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
 
         client = MCPToolCatalogClient()
         client.client = AsyncMock()
@@ -240,7 +240,7 @@ class TestMCPToolCatalogClientFeedback:
     @pytest.mark.asyncio
     async def test_send_tool_feedback_success(self):
         """Deve enviar feedback com sucesso."""
-        from services.code_forge.src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
+        from src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
 
         client = MCPToolCatalogClient()
         client.client = AsyncMock()
@@ -265,7 +265,7 @@ class TestMCPToolCatalogClientFeedback:
     @pytest.mark.asyncio
     async def test_send_tool_feedback_failure(self):
         """Deve retornar False em caso de erro."""
-        from services.code_forge.src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
+        from src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
 
         client = MCPToolCatalogClient()
         client.client = AsyncMock()
@@ -283,7 +283,7 @@ class TestMCPToolCatalogClientFeedback:
     @pytest.mark.asyncio
     async def test_send_tool_feedback_non_blocking(self):
         """Deve nao bloquear execucao em caso de timeout."""
-        from services.code_forge.src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
+        from src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
 
         client = MCPToolCatalogClient()
         client.client = AsyncMock()

@@ -25,7 +25,7 @@ class TestLLMClientInitialization:
 
     def test_client_default_config(self):
         """Deve usar configuracao padrao (LOCAL)."""
-        from services.code_forge.src.clients.llm_client import LLMClient, LLMProvider
+        from src.clients.llm_client import LLMClient, LLMProvider
 
         client = LLMClient()
 
@@ -35,7 +35,7 @@ class TestLLMClientInitialization:
 
     def test_client_openai_config(self):
         """Deve configurar para OpenAI."""
-        from services.code_forge.src.clients.llm_client import LLMClient, LLMProvider
+        from src.clients.llm_client import LLMClient, LLMProvider
 
         client = LLMClient(
             provider=LLMProvider.OPENAI,
@@ -49,7 +49,7 @@ class TestLLMClientInitialization:
 
     def test_client_anthropic_config(self):
         """Deve configurar para Anthropic."""
-        from services.code_forge.src.clients.llm_client import LLMClient, LLMProvider
+        from src.clients.llm_client import LLMClient, LLMProvider
 
         client = LLMClient(
             provider=LLMProvider.ANTHROPIC,
@@ -62,7 +62,7 @@ class TestLLMClientInitialization:
 
     def test_client_custom_endpoint(self):
         """Deve aceitar endpoint customizado."""
-        from services.code_forge.src.clients.llm_client import LLMClient, LLMProvider
+        from src.clients.llm_client import LLMClient, LLMProvider
 
         client = LLMClient(
             provider=LLMProvider.LOCAL,
@@ -78,7 +78,7 @@ class TestLLMClientOllama:
     @pytest.mark.asyncio
     async def test_generate_via_ollama_success(self):
         """Deve gerar codigo via Ollama com sucesso."""
-        from services.code_forge.src.clients.llm_client import LLMClient, LLMProvider
+        from src.clients.llm_client import LLMClient, LLMProvider
 
         client = LLMClient(provider=LLMProvider.LOCAL, model_name='codellama')
         client.client = AsyncMock()
@@ -104,7 +104,7 @@ class TestLLMClientOllama:
     @pytest.mark.asyncio
     async def test_generate_via_ollama_error(self):
         """Deve retornar None quando Ollama falha."""
-        from services.code_forge.src.clients.llm_client import LLMClient, LLMProvider
+        from src.clients.llm_client import LLMClient, LLMProvider
 
         client = LLMClient(provider=LLMProvider.LOCAL)
         client.client = AsyncMock()
@@ -120,7 +120,7 @@ class TestLLMClientOllama:
     @pytest.mark.asyncio
     async def test_ollama_streaming_not_supported_warning(self):
         """Deve logar warning quando streaming solicitado para Ollama."""
-        from services.code_forge.src.clients.llm_client import LLMClient, LLMProvider
+        from src.clients.llm_client import LLMClient, LLMProvider
 
         client = LLMClient(provider=LLMProvider.LOCAL)
         client.client = AsyncMock()
@@ -147,7 +147,7 @@ class TestLLMClientOpenAI:
     @pytest.mark.asyncio
     async def test_generate_via_openai_success(self):
         """Deve gerar codigo via OpenAI com sucesso."""
-        from services.code_forge.src.clients.llm_client import LLMClient, LLMProvider
+        from src.clients.llm_client import LLMClient, LLMProvider
 
         client = LLMClient(
             provider=LLMProvider.OPENAI,
@@ -179,7 +179,7 @@ class TestLLMClientOpenAI:
     @pytest.mark.asyncio
     async def test_openai_missing_api_key(self):
         """Deve retornar None quando api_key nao fornecida."""
-        from services.code_forge.src.clients.llm_client import LLMClient, LLMProvider
+        from src.clients.llm_client import LLMClient, LLMProvider
 
         client = LLMClient(provider=LLMProvider.OPENAI, api_key=None)
 
@@ -198,7 +198,7 @@ class TestLLMClientAnthropic:
     @pytest.mark.asyncio
     async def test_generate_via_anthropic_success(self):
         """Deve gerar codigo via Anthropic com sucesso."""
-        from services.code_forge.src.clients.llm_client import LLMClient, LLMProvider
+        from src.clients.llm_client import LLMClient, LLMProvider
 
         client = LLMClient(
             provider=LLMProvider.ANTHROPIC,
@@ -228,7 +228,7 @@ class TestLLMClientAnthropic:
     @pytest.mark.asyncio
     async def test_anthropic_missing_api_key(self):
         """Deve retornar None quando api_key nao fornecida."""
-        from services.code_forge.src.clients.llm_client import LLMClient, LLMProvider
+        from src.clients.llm_client import LLMClient, LLMProvider
 
         client = LLMClient(provider=LLMProvider.ANTHROPIC, api_key=None)
 
@@ -246,7 +246,7 @@ class TestLLMClientCodeExtraction:
 
     def test_extract_code_plain(self):
         """Deve extrair codigo simples."""
-        from services.code_forge.src.clients.llm_client import LLMClient
+        from src.clients.llm_client import LLMClient
 
         client = LLMClient()
 
@@ -257,7 +257,7 @@ class TestLLMClientCodeExtraction:
 
     def test_extract_code_with_markdown(self):
         """Deve remover markdown code blocks."""
-        from services.code_forge.src.clients.llm_client import LLMClient
+        from src.clients.llm_client import LLMClient
 
         client = LLMClient()
 
@@ -269,7 +269,7 @@ class TestLLMClientCodeExtraction:
 
     def test_extract_code_empty(self):
         """Deve retornar vazio para resposta vazia."""
-        from services.code_forge.src.clients.llm_client import LLMClient
+        from src.clients.llm_client import LLMClient
 
         client = LLMClient()
 
@@ -285,7 +285,7 @@ class TestLLMClientConfidenceCalculation:
     @pytest.mark.asyncio
     async def test_confidence_base_score(self):
         """Deve retornar score base para codigo minimo."""
-        from services.code_forge.src.clients.llm_client import LLMClient
+        from src.clients.llm_client import LLMClient
 
         client = LLMClient()
 
@@ -300,7 +300,7 @@ class TestLLMClientConfidenceCalculation:
     @pytest.mark.asyncio
     async def test_confidence_high_for_complete_code(self):
         """Deve retornar score alto para codigo completo."""
-        from services.code_forge.src.clients.llm_client import LLMClient
+        from src.clients.llm_client import LLMClient
 
         client = LLMClient()
 
@@ -325,7 +325,7 @@ def hello(name: str) -> str:
     @pytest.mark.asyncio
     async def test_confidence_zero_for_empty(self):
         """Deve retornar zero para codigo vazio."""
-        from services.code_forge.src.clients.llm_client import LLMClient
+        from src.clients.llm_client import LLMClient
 
         client = LLMClient()
 
@@ -342,7 +342,7 @@ class TestLLMClientSystemPrompt:
 
     def test_build_system_prompt_python(self):
         """Deve construir prompt para Python."""
-        from services.code_forge.src.clients.llm_client import LLMClient
+        from src.clients.llm_client import LLMClient
 
         client = LLMClient()
 
@@ -359,7 +359,7 @@ class TestLLMClientSystemPrompt:
 
     def test_build_system_prompt_defaults(self):
         """Deve usar defaults quando nao especificado."""
-        from services.code_forge.src.clients.llm_client import LLMClient
+        from src.clients.llm_client import LLMClient
 
         client = LLMClient()
 
@@ -375,7 +375,7 @@ class TestLLMClientValidation:
     @pytest.mark.asyncio
     async def test_validate_code_valid(self):
         """Deve validar codigo valido."""
-        from services.code_forge.src.clients.llm_client import LLMClient
+        from src.clients.llm_client import LLMClient
 
         client = LLMClient()
 
@@ -389,7 +389,7 @@ class TestLLMClientValidation:
     @pytest.mark.asyncio
     async def test_validate_code_too_short(self):
         """Deve rejeitar codigo muito curto."""
-        from services.code_forge.src.clients.llm_client import LLMClient
+        from src.clients.llm_client import LLMClient
 
         client = LLMClient()
 
@@ -403,7 +403,7 @@ class TestLLMClientValidation:
     @pytest.mark.asyncio
     async def test_validate_code_empty(self):
         """Deve rejeitar codigo vazio."""
-        from services.code_forge.src.clients.llm_client import LLMClient
+        from src.clients.llm_client import LLMClient
 
         client = LLMClient()
 
@@ -421,7 +421,7 @@ class TestLLMClientLifecycle:
     @pytest.mark.asyncio
     async def test_start_creates_http_client(self):
         """Deve criar HTTP client ao iniciar."""
-        from services.code_forge.src.clients.llm_client import LLMClient
+        from src.clients.llm_client import LLMClient
 
         client = LLMClient()
         await client.start()
@@ -432,7 +432,7 @@ class TestLLMClientLifecycle:
     @pytest.mark.asyncio
     async def test_stop_closes_all_clients(self):
         """Deve fechar todos os clients ao parar."""
-        from services.code_forge.src.clients.llm_client import LLMClient
+        from src.clients.llm_client import LLMClient
 
         client = LLMClient()
         await client.start()

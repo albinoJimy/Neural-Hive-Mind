@@ -32,7 +32,7 @@ class TestCodeComposerLLMGeneration:
         sample_pipeline_context_with_mcp
     ):
         """Deve gerar codigo via LLM com sucesso."""
-        from services.code_forge.src.services.code_composer import CodeComposer
+        from src.services.code_composer import CodeComposer
 
         sample_pipeline_context_with_mcp.generation_method = 'LLM'
 
@@ -59,7 +59,7 @@ class TestCodeComposerLLMGeneration:
         sample_pipeline_context_with_mcp
     ):
         """Deve usar RAG context na geracao LLM."""
-        from services.code_forge.src.services.code_composer import CodeComposer
+        from src.services.code_composer import CodeComposer
 
         sample_pipeline_context_with_mcp.generation_method = 'LLM'
 
@@ -84,7 +84,7 @@ class TestCodeComposerLLMGeneration:
         sample_pipeline_context_with_mcp
     ):
         """Deve usar fallback heuristica quando LLM falha."""
-        from services.code_forge.src.services.code_composer import CodeComposer
+        from src.services.code_composer import CodeComposer
 
         sample_pipeline_context_with_mcp.generation_method = 'LLM'
         mock_llm_client.generate_code.return_value = None  # LLM falhou
@@ -115,7 +115,7 @@ class TestCodeComposerHybridGeneration:
         sample_pipeline_context_with_mcp
     ):
         """Deve gerar codigo via HYBRID com sucesso."""
-        from services.code_forge.src.services.code_composer import CodeComposer
+        from src.services.code_composer import CodeComposer
 
         sample_pipeline_context_with_mcp.generation_method = 'HYBRID'
 
@@ -139,7 +139,7 @@ class TestCodeComposerHybridGeneration:
         sample_pipeline_context_with_mcp
     ):
         """Deve usar template base quando LLM enhancement falha."""
-        from services.code_forge.src.services.code_composer import CodeComposer
+        from src.services.code_composer import CodeComposer
 
         sample_pipeline_context_with_mcp.generation_method = 'HYBRID'
         mock_llm_client.generate_code.return_value = None  # Enhancement falhou
@@ -166,7 +166,7 @@ class TestCodeComposerHybridGeneration:
         sample_pipeline_context_with_mcp
     ):
         """Deve calcular confidence hibrido corretamente."""
-        from services.code_forge.src.services.code_composer import CodeComposer
+        from src.services.code_composer import CodeComposer
 
         sample_pipeline_context_with_mcp.generation_method = 'HYBRID'
         mock_llm_client.generate_code.return_value = {
@@ -198,7 +198,7 @@ class TestCodeComposerHeuristicGeneration:
         sample_pipeline_context
     ):
         """Deve gerar microservico via heuristica."""
-        from services.code_forge.src.services.code_composer import CodeComposer
+        from src.services.code_composer import CodeComposer
 
         sample_pipeline_context.generation_method = 'HEURISTIC'
         sample_pipeline_context.ticket.parameters['artifact_type'] = 'MICROSERVICE'
@@ -223,15 +223,17 @@ class TestCodeComposerHeuristicGeneration:
         sample_ticket_library
     ):
         """Deve gerar biblioteca via heuristica."""
-        from services.code_forge.src.services.code_composer import CodeComposer
-        from services.code_forge.src.models.pipeline_context import PipelineContext
-        from services.code_forge.src.models.template import (
+        from src.services.code_composer import CodeComposer
+        from src.models.pipeline_context import PipelineContext
+        from src.models.template import (
             Template, TemplateMetadata, TemplateType, TemplateLanguage
         )
 
         context = PipelineContext(
             pipeline_id=str(uuid.uuid4()),
-            ticket=sample_ticket_library
+            ticket=sample_ticket_library,
+            trace_id=str(uuid.uuid4()),
+            span_id=str(uuid.uuid4())
         )
         context.generation_method = 'HEURISTIC'
         context.selected_template = Template(
@@ -243,7 +245,7 @@ class TestCodeComposerHeuristicGeneration:
                 author='Neural Hive Team',
                 tags=['library', 'python'],
                 language=TemplateLanguage.PYTHON,
-                type=TemplateType.LIBRARY
+                type=TemplateType.MICROSERVICE
             ),
             parameters=[],
             content_path='/app/templates/lib-python',
@@ -268,15 +270,17 @@ class TestCodeComposerHeuristicGeneration:
         sample_ticket_script
     ):
         """Deve gerar script via heuristica."""
-        from services.code_forge.src.services.code_composer import CodeComposer
-        from services.code_forge.src.models.pipeline_context import PipelineContext
-        from services.code_forge.src.models.template import (
+        from src.services.code_composer import CodeComposer
+        from src.models.pipeline_context import PipelineContext
+        from src.models.template import (
             Template, TemplateMetadata, TemplateType, TemplateLanguage
         )
 
         context = PipelineContext(
             pipeline_id=str(uuid.uuid4()),
-            ticket=sample_ticket_script
+            ticket=sample_ticket_script,
+            trace_id=str(uuid.uuid4()),
+            span_id=str(uuid.uuid4())
         )
         context.generation_method = 'HEURISTIC'
         context.selected_template = Template(
@@ -288,7 +292,7 @@ class TestCodeComposerHeuristicGeneration:
                 author='Neural Hive Team',
                 tags=['script', 'python'],
                 language=TemplateLanguage.PYTHON,
-                type=TemplateType.SCRIPT
+                type=TemplateType.FUNCTION
             ),
             parameters=[],
             content_path='/app/templates/script-python',
@@ -317,7 +321,7 @@ class TestCodeComposerTemplateGeneration:
         sample_pipeline_context
     ):
         """Deve gerar codigo via template com sucesso."""
-        from services.code_forge.src.services.code_composer import CodeComposer
+        from src.services.code_composer import CodeComposer
 
         sample_pipeline_context.generation_method = 'TEMPLATE'
 
@@ -341,7 +345,7 @@ class TestCodeComposerTemplateGeneration:
         sample_pipeline_context
     ):
         """Deve usar template como default quando generation_method nao definido."""
-        from services.code_forge.src.services.code_composer import CodeComposer
+        from src.services.code_composer import CodeComposer
 
         # Sem generation_method definido
         sample_pipeline_context.generation_method = None
@@ -371,7 +375,7 @@ class TestCodeComposerRAGContext:
         sample_ticket
     ):
         """Deve construir RAG context com sucesso."""
-        from services.code_forge.src.services.code_composer import CodeComposer
+        from src.services.code_composer import CodeComposer
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
@@ -394,7 +398,7 @@ class TestCodeComposerRAGContext:
         sample_ticket
     ):
         """Deve retornar contexto vazio sem analyst client."""
-        from services.code_forge.src.services.code_composer import CodeComposer
+        from src.services.code_composer import CodeComposer
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
@@ -416,7 +420,7 @@ class TestCodeComposerRAGContext:
         sample_ticket
     ):
         """Deve continuar quando embedding falha."""
-        from services.code_forge.src.services.code_composer import CodeComposer
+        from src.services.code_composer import CodeComposer
 
         mock_analyst_client.get_embedding.return_value = None
 
@@ -440,7 +444,7 @@ class TestCodeComposerRAGContext:
         sample_ticket
     ):
         """Deve tratar excecoes e retornar contexto vazio."""
-        from services.code_forge.src.services.code_composer import CodeComposer
+        from src.services.code_composer import CodeComposer
 
         mock_analyst_client.get_embedding.side_effect = Exception('Connection error')
 
@@ -467,7 +471,7 @@ class TestCodeComposerLLMPrompt:
         sample_ticket
     ):
         """Deve construir prompt com RAG context."""
-        from services.code_forge.src.services.code_composer import CodeComposer
+        from src.services.code_composer import CodeComposer
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
@@ -497,7 +501,7 @@ class TestCodeComposerLLMPrompt:
         sample_ticket
     ):
         """Deve construir prompt sem RAG context."""
-        from services.code_forge.src.services.code_composer import CodeComposer
+        from src.services.code_composer import CodeComposer
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
@@ -527,8 +531,8 @@ class TestCodeComposerArtifactCreation:
         sample_pipeline_context_with_mcp
     ):
         """Deve criar artefato com metadata correta."""
-        from services.code_forge.src.services.code_composer import CodeComposer
-        from services.code_forge.src.models.artifact import ArtifactType
+        from src.services.code_composer import CodeComposer
+        from src.models.artifact import ArtifactType
 
         sample_pipeline_context_with_mcp.generation_method = 'TEMPLATE'
 
@@ -556,7 +560,7 @@ class TestCodeComposerArtifactCreation:
         sample_pipeline_context_with_mcp
     ):
         """Deve incluir metadata MCP no artefato."""
-        from services.code_forge.src.services.code_composer import CodeComposer
+        from src.services.code_composer import CodeComposer
 
         sample_pipeline_context_with_mcp.generation_method = 'TEMPLATE'
 
@@ -581,7 +585,7 @@ class TestCodeComposerArtifactCreation:
         sample_pipeline_context
     ):
         """Deve salvar artefato no MongoDB."""
-        from services.code_forge.src.services.code_composer import CodeComposer
+        from src.services.code_composer import CodeComposer
 
         sample_pipeline_context.generation_method = 'TEMPLATE'
 
@@ -607,8 +611,8 @@ class TestCodeComposerGenerationMethodValidation:
         sample_pipeline_context
     ):
         """Deve usar TEMPLATE para generation_method invalido."""
-        from services.code_forge.src.services.code_composer import CodeComposer
-        from services.code_forge.src.models.artifact import GenerationMethod
+        from src.services.code_composer import CodeComposer
+        from src.models.artifact import GenerationMethod
 
         sample_pipeline_context.generation_method = 'INVALID_METHOD'
 
@@ -631,7 +635,7 @@ class TestCodeComposerGenerationMethodValidation:
         sample_pipeline_context
     ):
         """Deve usar TEMPLATE quando LLM solicitado mas sem client."""
-        from services.code_forge.src.services.code_composer import CodeComposer
+        from src.services.code_composer import CodeComposer
 
         sample_pipeline_context.generation_method = 'LLM'
 
