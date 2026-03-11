@@ -234,17 +234,50 @@ class ServiceRegistryClient:
             logger.error('service_deregister_failed', error=str(e))
             return False
 
-    async def update_capabilities(self, capabilities: List[str]) -> bool:
-        """Atualiza capabilities do servico via re-registro"""
+    async def update_capabilities(self, capabilities: List[str], metadata: Optional[Dict[str, Any]] = None) -> bool:
+        """
+        Atualiza capabilities do serviço via deregister + register.
+
+        Args:
+            capabilities: Nova lista de capabilities
+            metadata: Metadados opcionais para o registro
+
+        Returns:
+            True se atualizado com sucesso, False caso contrário
+        """
         if not self._registered:
             logger.warning('update_capabilities_skipped_not_registered')
             return False
 
         try:
             # Para atualizar capabilities, deregister e register novamente
-            # O proto atual nao tem um metodo UpdateCapabilities
-            logger.info('capabilities_updated', capabilities=capabilities)
-            return True
+            # O proto atual não tem um método UpdateCapabilities
+            logger.info('updating_capabilities', capabilities=capabilities)
+
+            # Salvar agent_id atual
+            old_agent_id = self.agent_id
+
+            # Deregister
+            await self.deregister()
+
+            # Registrar novamente com novas capabilities
+            new_agent_id = await self.register(
+                service_name=metadata.get('service_name', 'code-forge') if metadata else 'code-forge',
+                capabilities=capabilities,
+                metadata=metadata or {}
+            )
+
+            if new_agent_id:
+                logger.info(
+                    'capabilities_updated_successfully',
+                    old_agent_id=old_agent_id,
+                    new_agent_id=new_agent_id,
+                    capabilities=capabilities
+                )
+                return True
+            else:
+                logger.error('reregister_failed_after_update_capabilities')
+                return False
 
         except Exception as e:
             logger.error('update_capabilities_failed', error=str(e))

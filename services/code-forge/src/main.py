@@ -195,9 +195,10 @@ async def main():
     code_composer = CodeComposer(mongodb_client, llm_client, analyst_client, mcp_client)
     validator = Validator(sonarqube_client, snyk_client, trivy_client, mcp_client, metrics)
     test_runner = TestRunner(settings.MIN_TEST_COVERAGE, mongodb_client=mongodb_client)
-    packager = Packager(sigstore_client, s3_artifact_client, artifact_registry_client)
+    packager = Packager(sigstore_client, s3_artifact_client, artifact_registry_client, postgres_client)
     approval_gate = ApprovalGate(
         git_client,
+        mongodb_client,
         settings.AUTO_APPROVAL_THRESHOLD,
         settings.MIN_QUALITY_SCORE
     )
@@ -216,15 +217,17 @@ async def main():
         settings.MAX_CONCURRENT_PIPELINES,
         settings.PIPELINE_TIMEOUT_SECONDS,
         settings.AUTO_APPROVAL_THRESHOLD,
-        settings.MIN_QUALITY_SCORE
+        settings.MIN_QUALITY_SCORE,
+        metrics
     )
 
     # 5.5. Inicializar webhook handler
     logger.info('initializing_webhook_handler')
     webhook_handler_instance = WebhookHandler(
-        webhook_secret=settings.WEBHOOK_SECRET if hasattr(settings, 'WEBHOOK_SECRET') else None,
+        webhook_secret=settings.WEBHOOK_SECRET or None,
         mongodb_client=mongodb_client,
-        postgres_client=postgres_client
+        postgres_client=postgres_client,
+        ticket_client=ticket_client
     )
     await webhook_handler_instance.initialize()
     # Set global instance
@@ -289,11 +292,13 @@ async def main():
     from .api.generation_api import set_generation_api_clients
     from .api.pipeline_api import set_pipeline_engine, set_redis_client as set_pipeline_redis_client
 
-    # Configurar clientes para generation_api (Redis, MongoDB, LLM)
+    # Configurar clientes para generation_api (Redis, MongoDB, LLM, Analyst, MCP)
     set_generation_api_clients(
         redis_client=redis_client,
         mongodb_client=mongodb_client,
-        llm_client=llm_client
+        llm_client=llm_client,
+        analyst_client=analyst_client,
+        mcp_client=mcp_client
     )
     # Configurar Redis client para pipeline_api
     set_pipeline_redis_client(redis_client)

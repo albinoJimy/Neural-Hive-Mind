@@ -49,21 +49,29 @@ def set_redis_client(client: RedisClient):
 # Cliente MongoDB e LLM (injetados via dependency)
 _mongodb_client = None
 _llm_client = None
+_analyst_client = None
+_mcp_client = None
 
 
 def set_generation_api_clients(
     redis_client: Optional[RedisClient] = None,
     mongodb_client: Optional['MongoDBClient'] = None,
-    llm_client: Optional['LLMClient'] = None
+    llm_client: Optional['LLMClient'] = None,
+    analyst_client: Optional['AnalystAgentsClient'] = None,
+    mcp_client: Optional['MCPToolCatalogClient'] = None
 ):
     """Configura os clientes globais da API de geração."""
-    global _redis_client, _mongodb_client, _llm_client
+    global _redis_client, _mongodb_client, _llm_client, _analyst_client, _mcp_client
     if redis_client:
         _redis_client = redis_client
     if mongodb_client:
         _mongodb_client = mongodb_client
     if llm_client:
         _llm_client = llm_client
+    if analyst_client:
+        _analyst_client = analyst_client
+    if mcp_client:
+        _mcp_client = mcp_client
 
 
 def get_mongodb_client():
@@ -126,12 +134,7 @@ GENERATION_TTL = 86400  # 24 horas
 async def _save_generation_state(redis_client: RedisClient, request_id: str, state: Dict[str, Any]):
     """Salva estado da requisição no Redis."""
     key = f"{GENERATION_KEY_PREFIX}{request_id}"
-    await redis_client.set_value(
-        key,
-        hashlib.sha256(str(state).encode()).hexdigest(),  # Valor dummy para uso com hset
-        ttl=GENERATION_TTL
-    )
-    # Usar hset para estado completo
+    # Usar hset diretamente para estado completo (removido set_value redundante)
     string_state = {k: _serialize_for_redis(v) for k, v in state.items()}
     await redis_client.client.hset(key, mapping=string_state)
     await redis_client.client.expire(key, GENERATION_TTL)
@@ -422,10 +425,12 @@ async def create_generation_request(
         # Disparar processamento em background
         if redis_client:
             # Usar clientes injetados do startup (centralizados no main.py)
-            global _mongodb_client, _llm_client
+            global _mongodb_client, _llm_client, _analyst_client, _mcp_client
             code_composer = CodeComposer(
                 mongodb_client=_mongodb_client,
-                llm_client=_llm_client
+                llm_client=_llm_client,
+                analyst_client=_analyst_client,
+                mcp_client=_mcp_client
             )
 
             asyncio.create_task(

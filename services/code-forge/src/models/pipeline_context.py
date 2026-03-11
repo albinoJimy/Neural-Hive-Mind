@@ -146,10 +146,10 @@ class PipelineContext(BaseModel):
             created_at=self.started_at,
             completed_at=self.completed_at,
             metadata={
-                **self.metadata,
-                'mcp_selection_id': self.mcp_selection_id,
-                'generation_method': self.generation_method,
-                'mcp_tools_count': len(self.selected_tools)
+                **{k: str(v) for k, v in self.metadata.items()},
+                'mcp_selection_id': self.mcp_selection_id or '',
+                'generation_method': self.generation_method or '',
+                'mcp_tools_count': str(len(self.selected_tools))
             },
             schema_version=1
         )

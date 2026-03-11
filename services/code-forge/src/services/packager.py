@@ -7,6 +7,7 @@ from ..clients.sigstore_client import SigstoreClient
 if TYPE_CHECKING:
     from ..clients.s3_artifact_client import S3ArtifactClient
     from ..clients.artifact_registry_client import ArtifactRegistryClient
+    from ..clients.postgres_client import PostgresClient
 
 logger = structlog.get_logger()
 
@@ -18,11 +19,13 @@ class Packager:
         self,
         sigstore_client: SigstoreClient,
         s3_artifact_client: Optional['S3ArtifactClient'] = None,
-        artifact_registry_client: Optional['ArtifactRegistryClient'] = None
+        artifact_registry_client: Optional['ArtifactRegistryClient'] = None,
+        postgres_client: Optional['PostgresClient'] = None
     ):
         self.sigstore_client = sigstore_client
         self.s3_artifact_client = s3_artifact_client
         self.artifact_registry_client = artifact_registry_client
+        self.postgres_client = postgres_client
 
     async def package(self, context: PipelineContext):
         """
@@ -83,6 +86,21 @@ class Packager:
             # Assinar artefato
             signature = await self.sigstore_client.sign_artifact(artifact.content_uri)
             artifact.signature = signature
+
+            # Persistir metadados do artefato no PostgreSQL
+            if self.postgres_client:
+                try:
+                    await self.postgres_client.save_artifact_metadata(artifact)
+                    logger.debug(
+                        'artifact_metadata_saved',
+                        artifact_id=artifact.artifact_id
+                    )
+                except Exception as e:
+                    logger.warning(
+                        'artifact_metadata_save_failed',
+                        artifact_id=artifact.artifact_id,
+                        error=str(e)
+                    )
 
             logger.info(
                 'artifact_packaged',

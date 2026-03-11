@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     # Execution Ticket Service
     EXECUTION_TICKET_SERVICE_URL: str = Field(..., description='URL do Execution Ticket Service')
 
+    # Webhook Configuration
+    WEBHOOK_SECRET: str = Field(default='', description='Secret para validação HMAC de webhooks')
+
     # Templates Configuration
     TEMPLATES_GIT_REPO: str = Field(..., description='Repositório Git de templates')
     TEMPLATES_GIT_BRANCH: str = Field(default='main', description='Branch do repositório de templates')

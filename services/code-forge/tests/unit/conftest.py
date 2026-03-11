@@ -131,6 +131,8 @@ def mock_git_client():
     client = AsyncMock()
     client.clone_templates_repo = AsyncMock(return_value='/tmp/templates')
     client.create_merge_request = AsyncMock(return_value='https://github.com/org/repo/pull/123')
+    client.create_branch = AsyncMock(return_value='code-forge-abc123')
+    client.commit_artifacts = AsyncMock(return_value='commit-sha-123456')
     client.push_branch = AsyncMock(return_value=True)
     return client
 
@@ -222,7 +224,7 @@ def mock_analyst_client():
 @pytest.fixture
 def mock_sonarqube_client():
     """Mock para SonarQubeClient."""
-    from services.code_forge.src.models.artifact import (
+    from src.models.artifact import (
         ValidationResult,
         ValidationType,
         ValidationStatus
@@ -249,7 +251,7 @@ def mock_sonarqube_client():
 @pytest.fixture
 def mock_snyk_client():
     """Mock para SnykClient."""
-    from services.code_forge.src.models.artifact import (
+    from src.models.artifact import (
         ValidationResult,
         ValidationType,
         ValidationStatus
@@ -257,7 +259,7 @@ def mock_snyk_client():
 
     client = AsyncMock()
     client.scan_dependencies = AsyncMock(return_value=ValidationResult(
-        validation_type=ValidationType.SCA,
+        validation_type=ValidationType.SECURITY_SCAN,
         tool_name='Snyk',
         tool_version='1.1200.0',
         status=ValidationStatus.PASSED,
@@ -276,7 +278,7 @@ def mock_snyk_client():
 @pytest.fixture
 def mock_trivy_client():
     """Mock para TrivyClient."""
-    from services.code_forge.src.models.artifact import (
+    from src.models.artifact import (
         ValidationResult,
         ValidationType,
         ValidationStatus
@@ -284,7 +286,7 @@ def mock_trivy_client():
 
     client = AsyncMock()
     client.scan_filesystem = AsyncMock(return_value=ValidationResult(
-        validation_type=ValidationType.CONTAINER_SCAN,
+        validation_type=ValidationType.SECURITY_SCAN,
         tool_name='Trivy',
         tool_version='0.50.0',
         status=ValidationStatus.PASSED,
@@ -329,6 +331,188 @@ def mock_artifact_registry_client():
     return client
 
 
+@pytest.fixture
+def mock_postgres_client():
+    """Mock para PostgresClient."""
+    client = AsyncMock()
+    client.start = AsyncMock(return_value=True)
+    client.stop = AsyncMock(return_value=True)
+    client.save_pipeline = AsyncMock(return_value=True)
+    client.save_artifact_metadata = AsyncMock(return_value=True)
+    client.get_pipeline = AsyncMock(return_value=None)
+    client.health_check = AsyncMock(return_value=True)
+    return client
+
+
+@pytest.fixture
+def mock_ticket_client():
+    """Mock para ExecutionTicketClient."""
+    client = AsyncMock()
+    client.start = AsyncMock(return_value=True)
+    client.stop = AsyncMock(return_value=True)
+    client.update_status = AsyncMock(return_value=True)
+    client.get_ticket = AsyncMock(return_value=None)
+    client.create_compensation_ticket = AsyncMock(return_value='comp-123')
+    return client
+
+
+@pytest.fixture
+def mock_kafka_producer():
+    """Mock para KafkaResultProducer."""
+    client = AsyncMock()
+    client.start = AsyncMock(return_value=True)
+    client.stop = AsyncMock(return_value=True)
+    client.publish_result = AsyncMock(return_value=True)
+    return client
+
+
+# ============================================
+# Pipeline Engine Fixtures
+# ============================================
+
+
+@pytest.fixture
+def mock_pipeline_engine(
+    mock_git_client,
+    mock_mongodb_client,
+    mock_postgres_client,
+    mock_ticket_client,
+    mock_kafka_producer,
+    mock_sonarqube_client,
+    mock_snyk_client,
+    mock_trivy_client,
+    mock_sigstore_client,
+    mock_s3_client,
+    mock_artifact_registry_client,
+    mock_redis_client
+):
+    """Mock para PipelineEngine sem métricas."""
+    from src.services.pipeline_engine import PipelineEngine
+    from src.services.template_selector import TemplateSelector
+    from src.services.code_composer import CodeComposer
+    from src.services.validator import Validator
+    from src.services.test_runner import TestRunner
+    from src.services.packager import Packager
+    from src.services.approval_gate import ApprovalGate
+
+    # Criar instâncias dos subpipelines (como MagicMock para teste)
+    template_selector = MagicMock()
+    code_composer = MagicMock()
+    validator = MagicMock()
+    test_runner = MagicMock()
+    packager = MagicMock()
+    approval_gate = MagicMock()
+
+    engine = PipelineEngine(
+        template_selector=template_selector,
+        code_composer=code_composer,
+        validator=validator,
+        test_runner=test_runner,
+        packager=packager,
+        approval_gate=approval_gate,
+        kafka_producer=mock_kafka_producer,
+        ticket_client=mock_ticket_client,
+        postgres_client=mock_postgres_client,
+        mongodb_client=mock_mongodb_client,
+        max_concurrent=3,
+        pipeline_timeout=60,
+        auto_approval_threshold=0.0,  # Permite aprovação automática em testes
+        min_quality_score=0.0,  # Permite score zero em testes
+        metrics=None
+    )
+    return engine
+
+
+@pytest.fixture
+def mock_pipeline_engine_with_metrics(
+    mock_git_client,
+    mock_mongodb_client,
+    mock_postgres_client,
+    mock_ticket_client,
+    mock_kafka_producer,
+    mock_sonarqube_client,
+    mock_snyk_client,
+    mock_trivy_client,
+    mock_sigstore_client,
+    mock_s3_client,
+    mock_artifact_registry_client,
+    mock_redis_client,
+    mock_metrics
+):
+    """Mock para PipelineEngine com métricas."""
+    from src.services.pipeline_engine import PipelineEngine
+
+    # Criar instâncias dos subpipelines (como MagicMock para teste)
+    template_selector = MagicMock()
+    code_composer = MagicMock()
+    validator = MagicMock()
+    test_runner = MagicMock()
+    packager = MagicMock()
+    approval_gate = MagicMock()
+
+    engine = PipelineEngine(
+        template_selector=template_selector,
+        code_composer=code_composer,
+        validator=validator,
+        test_runner=test_runner,
+        packager=packager,
+        approval_gate=approval_gate,
+        kafka_producer=mock_kafka_producer,
+        ticket_client=mock_ticket_client,
+        postgres_client=mock_postgres_client,
+        mongodb_client=mock_mongodb_client,
+        max_concurrent=3,
+        pipeline_timeout=60,
+        auto_approval_threshold=0.0,  # Permite aprovação automática em testes
+        min_quality_score=0.0,  # Permite score zero em testes
+        metrics=mock_metrics
+    )
+    return engine
+
+
+@pytest.fixture
+def sample_execution_ticket():
+    """Ticket de execução BUILD sample."""
+    from src.models.execution_ticket import (
+        ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
+        SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+    )
+
+    ticket_id = str(uuid.uuid4())
+    return ExecutionTicket(
+        ticket_id=ticket_id,
+        plan_id=f'plan-{ticket_id[:8]}',
+        intent_id=f'intent-{ticket_id[:8]}',
+        decision_id=f'decision-{ticket_id[:8]}',
+        correlation_id=str(uuid.uuid4()),
+        trace_id=str(uuid.uuid4()),
+        span_id=str(uuid.uuid4()),
+        task_type=TaskType.BUILD,
+        status=TicketStatus.PENDING,
+        priority=Priority.NORMAL,
+        risk_band=RiskBand.MEDIUM,
+        parameters={
+            'artifact_type': 'MICROSERVICE',
+            'language': 'python',
+            'service_name': 'test-service',
+            'description': 'Test service'
+        },
+        sla=SLA(
+            deadline=datetime.now(),
+            timeout_ms=300000,
+            max_retries=3
+        ),
+        qos=QoS(
+            delivery_mode=DeliveryMode.AT_LEAST_ONCE,
+            consistency=Consistency.EVENTUAL,
+            durability=Durability.PERSISTENT
+        ),
+        security_level=SecurityLevel.INTERNAL,
+        dependencies=[],
+        created_at=datetime.now()
+    )
+
+
 # ============================================
 # Data Fixtures - Tickets
 # ============================================
@@ -337,13 +521,24 @@ def mock_artifact_registry_client():
 @pytest.fixture
 def sample_ticket():
     """Ticket de execucao sample."""
+    from src.models.execution_ticket import (
+        ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
+        SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+    )
+
     ticket_id = str(uuid.uuid4())
-    return MagicMock(
+    return ExecutionTicket(
         ticket_id=ticket_id,
         plan_id=f'plan-{ticket_id[:8]}',
         intent_id=f'intent-{ticket_id[:8]}',
         decision_id=f'decision-{ticket_id[:8]}',
         correlation_id=str(uuid.uuid4()),
+        trace_id=str(uuid.uuid4()),
+        span_id=str(uuid.uuid4()),
+        task_type=TaskType.BUILD,
+        status=TicketStatus.PENDING,
+        priority=Priority.NORMAL,
+        risk_band=RiskBand.MEDIUM,
         parameters={
             'artifact_type': 'MICROSERVICE',
             'language': 'python',
@@ -355,19 +550,42 @@ def sample_ticket():
             'tasks': ['task-1', 'task-2', 'task-3'],
             'project_key': 'test-project'
         },
-        dependencies=[]
+        sla=SLA(
+            deadline=datetime.now(),
+            timeout_ms=300000,
+            max_retries=3
+        ),
+        qos=QoS(
+            delivery_mode=DeliveryMode.AT_LEAST_ONCE,
+            consistency=Consistency.EVENTUAL,
+            durability=Durability.PERSISTENT
+        ),
+        security_level=SecurityLevel.INTERNAL,
+        dependencies=[],
+        created_at=datetime.now()
     )
 
 
 @pytest.fixture
 def sample_ticket_llm():
     """Ticket configurado para geracao LLM."""
+    from src.models.execution_ticket import (
+        ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
+        SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+    )
+
     ticket_id = str(uuid.uuid4())
-    return MagicMock(
+    return ExecutionTicket(
         ticket_id=ticket_id,
         plan_id=f'plan-{ticket_id[:8]}',
         intent_id=f'intent-{ticket_id[:8]}',
         correlation_id=str(uuid.uuid4()),
+        trace_id=str(uuid.uuid4()),
+        span_id=str(uuid.uuid4()),
+        task_type=TaskType.BUILD,
+        status=TicketStatus.PENDING,
+        priority=Priority.NORMAL,
+        risk_band=RiskBand.MEDIUM,
         parameters={
             'artifact_type': 'MICROSERVICE',
             'language': 'python',
@@ -377,37 +595,101 @@ def sample_ticket_llm():
             'framework': 'fastapi',
             'max_lines': 500
         },
-        dependencies=[]
+        sla=SLA(
+            deadline=datetime.now(),
+            timeout_ms=300000,
+            max_retries=3
+        ),
+        qos=QoS(
+            delivery_mode=DeliveryMode.AT_LEAST_ONCE,
+            consistency=Consistency.EVENTUAL,
+            durability=Durability.PERSISTENT
+        ),
+        security_level=SecurityLevel.INTERNAL,
+        dependencies=[],
+        created_at=datetime.now()
     )
 
 
 @pytest.fixture
 def sample_ticket_library():
     """Ticket para geracao de biblioteca."""
+    from src.models.execution_ticket import (
+        ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
+        SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+    )
+
     ticket_id = str(uuid.uuid4())
-    return MagicMock(
+    return ExecutionTicket(
         ticket_id=ticket_id,
+        plan_id=f'plan-{ticket_id[:8]}',
+        intent_id=f'intent-{ticket_id[:8]}',
+        correlation_id=str(uuid.uuid4()),
+        trace_id=str(uuid.uuid4()),
+        span_id=str(uuid.uuid4()),
+        task_type=TaskType.BUILD,
+        status=TicketStatus.PENDING,
+        priority=Priority.NORMAL,
+        risk_band=RiskBand.LOW,
         parameters={
             'artifact_type': 'LIBRARY',
             'language': 'python',
             'service_name': 'my-lib'
         },
-        dependencies=[]
+        sla=SLA(
+            deadline=datetime.now(),
+            timeout_ms=300000,
+            max_retries=3
+        ),
+        qos=QoS(
+            delivery_mode=DeliveryMode.AT_LEAST_ONCE,
+            consistency=Consistency.EVENTUAL,
+            durability=Durability.PERSISTENT
+        ),
+        security_level=SecurityLevel.INTERNAL,
+        dependencies=[],
+        created_at=datetime.now()
     )
 
 
 @pytest.fixture
 def sample_ticket_script():
     """Ticket para geracao de script."""
+    from src.models.execution_ticket import (
+        ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
+        SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+    )
+
     ticket_id = str(uuid.uuid4())
-    return MagicMock(
+    return ExecutionTicket(
         ticket_id=ticket_id,
+        plan_id=f'plan-{ticket_id[:8]}',
+        intent_id=f'intent-{ticket_id[:8]}',
+        correlation_id=str(uuid.uuid4()),
+        trace_id=str(uuid.uuid4()),
+        span_id=str(uuid.uuid4()),
+        task_type=TaskType.BUILD,
+        status=TicketStatus.PENDING,
+        priority=Priority.NORMAL,
+        risk_band=RiskBand.LOW,
         parameters={
             'artifact_type': 'SCRIPT',
             'language': 'python',
             'service_name': 'my-script'
         },
-        dependencies=[]
+        sla=SLA(
+            deadline=datetime.now(),
+            timeout_ms=300000,
+            max_retries=3
+        ),
+        qos=QoS(
+            delivery_mode=DeliveryMode.AT_LEAST_ONCE,
+            consistency=Consistency.EVENTUAL,
+            durability=Durability.PERSISTENT
+        ),
+        security_level=SecurityLevel.INTERNAL,
+        dependencies=[],
+        created_at=datetime.now()
     )
 
 
@@ -419,18 +701,18 @@ def sample_ticket_script():
 @pytest.fixture
 def sample_pipeline_context(sample_ticket):
     """PipelineContext sample."""
-    from services.code_forge.src.models.pipeline_context import PipelineContext
-    from services.code_forge.src.models.template import (
+    from src.models.pipeline_context import PipelineContext
+    from src.models.template import (
         Template, TemplateMetadata, TemplateType, TemplateLanguage
     )
 
     context = PipelineContext(
         pipeline_id=str(uuid.uuid4()),
-        ticket=sample_ticket
+        ticket=sample_ticket,
+        trace_id=str(uuid.uuid4()),
+        span_id=str(uuid.uuid4()),
+        metadata={'risk_band': 'MEDIUM'}
     )
-    context.trace_id = str(uuid.uuid4())
-    context.span_id = str(uuid.uuid4())
-    context.metadata = {'risk_band': 'MEDIUM'}
 
     # Template sample
     template = Template(
@@ -478,7 +760,7 @@ def sample_pipeline_context_with_mcp(sample_pipeline_context):
 @pytest.fixture
 def sample_pipeline_context_with_artifacts(sample_pipeline_context):
     """PipelineContext com artefatos gerados."""
-    from services.code_forge.src.models.artifact import (
+    from src.models.artifact import (
         CodeForgeArtifact, ArtifactType, GenerationMethod
     )
 
@@ -508,7 +790,7 @@ def sample_pipeline_context_with_artifacts(sample_pipeline_context):
 @pytest.fixture
 def sample_pipeline_context_with_validations(sample_pipeline_context_with_artifacts):
     """PipelineContext com validacoes."""
-    from services.code_forge.src.models.artifact import (
+    from src.models.artifact import (
         ValidationResult, ValidationType, ValidationStatus
     )
 
@@ -539,7 +821,7 @@ def sample_pipeline_context_with_validations(sample_pipeline_context_with_artifa
 @pytest.fixture
 def sample_template():
     """Template sample."""
-    from services.code_forge.src.models.template import (
+    from src.models.template import (
         Template, TemplateMetadata, TemplateType, TemplateLanguage
     )
 
@@ -645,7 +927,7 @@ def sample_mcp_response_hybrid_tools():
 @pytest.fixture
 def sample_validation_result():
     """ValidationResult sample."""
-    from services.code_forge.src.models.artifact import (
+    from src.models.artifact import (
         ValidationResult, ValidationType, ValidationStatus
     )
 
@@ -668,7 +950,7 @@ def sample_validation_result():
 @pytest.fixture
 def sample_validation_result_failed():
     """ValidationResult com falha."""
-    from services.code_forge.src.models.artifact import (
+    from src.models.artifact import (
         ValidationResult, ValidationType, ValidationStatus
     )
 

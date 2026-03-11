@@ -1,7 +1,7 @@
 import asyncio
 import uuid
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional, TYPE_CHECKING
 import structlog
 
 from ..models.execution_ticket import ExecutionTicket, TicketStatus
@@ -11,6 +11,9 @@ from ..clients.kafka_result_producer import KafkaResultProducer
 from ..clients.execution_ticket_client import ExecutionTicketClient
 from ..clients.postgres_client import PostgresClient
 from ..clients.mongodb_client import MongoDBClient
+
+if TYPE_CHECKING:
+    from ..observability.metrics import CodeForgeMetrics
 
 logger = structlog.get_logger()
 
@@ -35,7 +38,8 @@ class PipelineEngine:
         max_concurrent: int = 3,
         pipeline_timeout: int = 3600,
         auto_approval_threshold: float = 0.9,
-        min_quality_score: float = 0.5
+        min_quality_score: float = 0.5,
+        metrics: Optional['CodeForgeMetrics'] = None
     ):
         self.template_selector = template_selector
         self.code_composer = code_composer
@@ -53,6 +57,7 @@ class PipelineEngine:
         self.pipeline_timeout = pipeline_timeout
         self.auto_approval_threshold = auto_approval_threshold
         self.min_quality_score = min_quality_score
+        self.metrics = metrics
 
         self._semaphore = asyncio.Semaphore(max_concurrent)
         self._active_pipelines: Dict[str, PipelineContext] = {}
@@ -221,18 +226,34 @@ class PipelineEngine:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             context.mark_stage_completed(stage_name, duration_ms)
 
+            # Emitir métrica de duração do stage
+            if self.metrics:
+                self.metrics.stage_duration_seconds.labels(stage=stage_name).observe(duration_ms / 1000.0)
+
             logger.info('stage_completed', stage=stage_name, duration_ms=duration_ms)
 
         except asyncio.TimeoutError:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             error_msg = f'Stage {stage_name} timeout após {self.pipeline_timeout}s'
             context.mark_stage_failed(stage_name, error_msg, duration_ms)
+
+            # Emitir métricas de falha
+            if self.metrics:
+                self.metrics.stage_duration_seconds.labels(stage=stage_name).observe(duration_ms / 1000.0)
+                self.metrics.stage_failures_total.labels(stage=stage_name, error_type='TimeoutError').inc()
+
             logger.error('stage_timeout', stage=stage_name)
             raise
 
         except Exception as e:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             context.mark_stage_failed(stage_name, str(e), duration_ms)
+
+            # Emitir métricas de falha
+            if self.metrics:
+                self.metrics.stage_duration_seconds.labels(stage=stage_name).observe(duration_ms / 1000.0)
+                self.metrics.stage_failures_total.labels(stage=stage_name, error_type=type(e).__name__).inc()
+
             logger.error('stage_failed', stage=stage_name, error=str(e))
             raise
 
