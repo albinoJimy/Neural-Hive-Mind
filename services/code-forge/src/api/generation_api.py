@@ -4,6 +4,8 @@ API para geração de código (CodeForge Generation API).
 Esta API expõe endpoints para geração de código assíncrona,
 integrando-se com CodeComposer existente para geração real.
 
+NOTA: A geração heurística foi REMOVIDA. CodeComposer e Redis são obrigatórios.
+
 Endpoints:
     POST /api/v1/generate - Cria requisição de geração assíncrona
     GET /api/v1/generate/{id} - Status da requisição
@@ -396,7 +398,14 @@ async def create_generation_request(
         request_id = str(uuid.uuid4())
         now = datetime.utcnow().isoformat()
 
-        # Inicializar estado no Redis (ou memória se Redis não disponível)
+        # Redis é obrigatório (sem fallback em memória)
+        if not redis_client:
+            raise HTTPException(
+                status_code=503,
+                detail="Redis client not available - cannot create generation request"
+            )
+
+        # Inicializar estado no Redis
         state = {
             "request_id": request_id,
             "status": "queued",
@@ -413,41 +422,42 @@ async def create_generation_request(
             "code_preview": ""
         }
 
-        if redis_client:
-            await _save_generation_state(redis_client, request_id, state)
-        else:
-            # Fallback em memória se Redis não configurado
-            import sys
-            if not hasattr(sys.modules[__name__], '_in_memory_state'):
-                sys.modules[__name__]._in_memory_state = {}
-            sys.modules[__name__]._in_memory_state[request_id] = state
+        await _save_generation_state(redis_client, request_id, state)
 
         # Disparar processamento em background
-        if redis_client:
-            # Usar clientes injetados do startup (centralizados no main.py)
-            global _mongodb_client, _llm_client, _analyst_client, _mcp_client
-            code_composer = CodeComposer(
-                mongodb_client=_mongodb_client,
-                llm_client=_llm_client,
-                analyst_client=_analyst_client,
-                mcp_client=_mcp_client
+        # HEURÍSTICA REMOVIDA: CodeComposer + Redis são obrigatórios
+        if not redis_client:
+            raise HTTPException(
+                status_code=503,
+                detail="Redis client not available - cannot process generation request"
             )
 
-            asyncio.create_task(
-                _process_generation_task(
-                    request_id=request_id,
-                    ticket_id=ticket_id,
-                    template_id=template_id,
-                    parameters=parameters,
-                    redis_client=redis_client,
-                    code_composer=code_composer
-                )
+        # Usar clientes injetados do startup (centralizados no main.py)
+        global _mongodb_client, _llm_client, _analyst_client, _mcp_client
+
+        if not _mongodb_client:
+            raise HTTPException(
+                status_code=503,
+                detail="MongoDB client not available - cannot process generation request"
             )
-        else:
-            # Fallback com heurística simples
-            asyncio.create_task(
-                _process_generation_task_legacy(request_id, ticket_id, template_id, parameters)
+
+        code_composer = CodeComposer(
+            mongodb_client=_mongodb_client,
+            llm_client=_llm_client,
+            analyst_client=_analyst_client,
+            mcp_client=_mcp_client
+        )
+
+        asyncio.create_task(
+            _process_generation_task(
+                request_id=request_id,
+                ticket_id=ticket_id,
+                template_id=template_id,
+                parameters=parameters,
+                redis_client=redis_client,
+                code_composer=code_composer
             )
+        )
 
         generation_requests_total.labels(status="created").inc()
 
@@ -465,61 +475,10 @@ async def create_generation_request(
         )
 
 
-async def _process_generation_task_legacy(request_id: str, ticket_id: str, template_id: str, parameters: Dict[str, Any]):
-    """Fallback de processamento sem Redis/CodeComposer (para compatibilidade)."""
-    import sys
-    in_memory_state = getattr(sys.modules[__name__], '_in_memory_state', {})
-
-    try:
-        # Atualizar status
-        if request_id in in_memory_state:
-            in_memory_state[request_id]["status"] = "processing"
-            in_memory_state[request_id]["updated_at"] = datetime.utcnow().isoformat()
-
-        # Simular processamento
-        await asyncio.sleep(1)
-
-        # Gerar código heurístico
-        from ._heuristic import generate_code_heuristic
-        code_content = generate_code_heuristic(
-            service_name=parameters.get("service_name", "generated-service"),
-            language=parameters.get("language", "python").lower(),
-            description=parameters.get("description", ""),
-            requirements=parameters.get("requirements", [])
-        )
-
-        # Calcular hash
-        content_hash = hashlib.sha256(code_content.encode()).hexdigest()
-
-        artifact = {
-            "type": "code",
-            "language": parameters.get("language", "python"),
-            "content_hash": content_hash,
-            "size_bytes": len(code_content.encode()),
-            "generated_at": datetime.utcnow().isoformat(),
-            "template_id": template_id
-        }
-
-        if request_id in in_memory_state:
-            in_memory_state[request_id]["status"] = "completed"
-            in_memory_state[request_id]["updated_at"] = datetime.utcnow().isoformat()
-            in_memory_state[request_id]["artifacts"] = [artifact]
-            in_memory_state[request_id]["code_preview"] = code_content[:500]
-
-        generation_requests_total.labels(status="completed").inc()
-
-    except Exception as e:
-        if request_id in in_memory_state:
-            in_memory_state[request_id]["status"] = "failed"
-            in_memory_state[request_id]["error"] = str(e)
-            in_memory_state[request_id]["updated_at"] = datetime.utcnow().isoformat()
-        generation_requests_total.labels(status="failed").inc()
-
-
 @router.get("/{request_id}", response_model=GenerationStatusResponse)
 async def get_generation_status(
     request_id: str,
-    redis_client: Optional[RedisClient] = Depends(get_redis_client)
+    redis_client: RedisClient = Depends(get_redis_client)
 ) -> GenerationStatusResponse:
     """
     Obtém status de uma requisição de geração.
@@ -532,13 +491,15 @@ async def get_generation_status(
 
     Raises:
         HTTPException 404: Se request_id não encontrado
+        HTTPException 503: Se Redis não disponível
     """
-    if redis_client:
-        request_data = await _get_generation_state(redis_client, request_id)
-    else:
-        import sys
-        in_memory_state = getattr(sys.modules[__name__], '_in_memory_state', {})
-        request_data = in_memory_state.get(request_id)
+    if not redis_client:
+        raise HTTPException(
+            status_code=503,
+            detail="Redis client not available"
+        )
+
+    request_data = await _get_generation_state(redis_client, request_id)
 
     if not request_data:
         raise HTTPException(
@@ -563,63 +524,45 @@ async def get_generation_status(
 
 @router.get("", response_model=ListGenerationResponse)
 async def list_generation_requests(
-    redis_client: Optional[RedisClient] = Depends(get_redis_client)
+    redis_client: RedisClient = Depends(get_redis_client)
 ) -> ListGenerationResponse:
     """
     Lista todas as requisições de geração (para debug).
 
     Returns:
         ListGenerationResponse com lista de requisições e contagem por status
+
+    Raises:
+        HTTPException 503: Se Redis não disponível
     """
-    if redis_client:
-        # Buscar IDs da lista
-        request_ids = await redis_client.client.smembers(GENERATION_LIST_KEY)
-        requests_list = []
-        status_counts = {}
-
-        for req_id in request_ids:
-            data = await _get_generation_state(redis_client, req_id)
-            if data:
-                requests_list.append({
-                    "request_id": data["request_id"],
-                    "status": data["status"],
-                    "ticket_id": data["ticket_id"],
-                    "template_id": data["template_id"],
-                    "created_at": data["created_at"],
-                    "updated_at": data["updated_at"]
-                })
-
-                s = data["status"]
-                status_counts[s] = status_counts.get(s, 0) + 1
-
-        return ListGenerationResponse(
-            total=len(requests_list),
-            requests=requests_list,
-            status_counts=status_counts
+    if not redis_client:
+        raise HTTPException(
+            status_code=503,
+            detail="Redis client not available"
         )
-    else:
-        import sys
-        in_memory_state = getattr(sys.modules[__name__], '_in_memory_state', {})
 
-        requests_list = [
-            {
-                "request_id": req["request_id"],
-                "status": req["status"],
-                "ticket_id": req["ticket_id"],
-                "template_id": req["template_id"],
-                "created_at": req["created_at"],
-                "updated_at": req["updated_at"]
-            }
-            for req in in_memory_state.values()
-        ]
+    # Buscar IDs da lista
+    request_ids = await redis_client.client.smembers(GENERATION_LIST_KEY)
+    requests_list = []
+    status_counts = {}
 
-        status_counts = {}
-        for req in in_memory_state.values():
-            s = req["status"]
+    for req_id in request_ids:
+        data = await _get_generation_state(redis_client, req_id)
+        if data:
+            requests_list.append({
+                "request_id": data["request_id"],
+                "status": data["status"],
+                "ticket_id": data["ticket_id"],
+                "template_id": data["template_id"],
+                "created_at": data["created_at"],
+                "updated_at": data["updated_at"]
+            })
+
+            s = data["status"]
             status_counts[s] = status_counts.get(s, 0) + 1
 
-        return ListGenerationResponse(
-            total=len(in_memory_state),
-            requests=requests_list,
-            status_counts=status_counts
-        )
+    return ListGenerationResponse(
+        total=len(requests_list),
+        requests=requests_list,
+        status_counts=status_counts
+    )
