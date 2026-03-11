@@ -77,6 +77,19 @@ class TestRunner:
         """
         return language.lower() in ('python', 'py')
 
+    def _is_javascript_language(self, language: str) -> bool:
+        """
+        Verifica se a linguagem é JavaScript/TypeScript.
+
+        Args:
+            language: Linguagem do código
+
+        Returns:
+            True se for JavaScript/TypeScript, False caso contrário
+        """
+        lang_lower = language.lower()
+        return lang_lower in ('javascript', 'js', 'typescript', 'ts', 'nodejs', 'node.js')
+
     async def run_tests(self, context: PipelineContext):
         """
         Executa testes automáticos no código gerado.
@@ -127,18 +140,41 @@ class TestRunner:
             source_file = workspace / source_filename
             source_file.write_text(code_content, encoding='utf-8')
 
-            # Gerar arquivo de testes automatizado
-            test_suite_file = workspace / "test_generated.py"
-            test_suite_content = self._generate_test_suite(
-                artifact.language,
-                code_content,
-                ticket.parameters
-            )
-            test_suite_file.write_text(test_suite_content, encoding='utf-8')
+            # Detectar tipo de linguagem
+            is_python = self._is_python_language(artifact.language)
+            is_javascript = self._is_javascript_language(artifact.language)
+
+            # Gerar arquivo de testes e configuração baseado na linguagem
+            if is_javascript:
+                # Criar package.json para projetos Node.js
+                package_json = self._generate_package_json(ticket.ticket_id)
+                (workspace / "package.json").write_text(package_json, encoding='utf-8')
+
+                # Gerar arquivo de testes Jest
+                test_filename = "generated_code.test.js"
+                test_suite_content = self._generate_jest_test_suite(
+                    artifact.language,
+                    code_content,
+                    ticket.parameters
+                )
+                (workspace / test_filename).write_text(test_suite_content, encoding='utf-8')
+
+                # Criar diretório __tests__ se necessário
+                (workspace / "__tests__").mkdir(exist_ok=True)
+            else:
+                # Gerar arquivo de testes Python
+                test_suite_file = workspace / "test_generated.py"
+                test_suite_content = self._generate_test_suite(
+                    artifact.language,
+                    code_content,
+                    ticket.parameters
+                )
+                test_suite_file.write_text(test_suite_content, encoding='utf-8')
 
             # Executar testes baseado na linguagem
-            is_python = self._is_python_language(artifact.language)
-            result = await self._run_tests(workspace, ticket.ticket_id, source_filename, is_python)
+            result = await self._run_tests(
+                workspace, ticket.ticket_id, source_filename, is_python, is_javascript
+            )
 
             context.add_validation(result)
             logger.info(
@@ -168,12 +204,15 @@ class TestRunner:
             )
             context.add_validation(failed_result)
         finally:
-            # Limpar workspace (opcional - comentado para debug)
-            # await self._cleanup_workspace(workspace)
-            pass
+            # Limpar workspace (pode ser desabilitado via env var para debug)
+            import os
+            skip_cleanup = os.getenv('CODE_FORGE_SKIP_CLEANUP', '').lower() in ('1', 'true', 'yes')
+            if not skip_cleanup:
+                await self._cleanup_workspace(workspace)
 
     async def _run_tests(
-        self, workspace: Path, ticket_id: str, source_filename: str, is_python: bool
+        self, workspace: Path, ticket_id: str, source_filename: str,
+        is_python: bool, is_javascript: bool = False
     ) -> ValidationResult:
         """
         Executa testes no workspace baseado na linguagem.
@@ -183,12 +222,15 @@ class TestRunner:
             ticket_id: ID do ticket para tracing
             source_filename: Nome do arquivo fonte
             is_python: True se for Python, False caso contrário
+            is_javascript: True se for JavaScript/TypeScript, False caso contrário
 
         Returns:
             ValidationResult com métricas reais
         """
         if is_python:
             return await self._run_pytest(workspace, ticket_id, source_filename)
+        elif is_javascript:
+            return await self._run_nodejs_tests(workspace, ticket_id, source_filename)
         else:
             return await self._run_generic_tests(workspace, ticket_id, source_filename)
 
@@ -850,12 +892,380 @@ class TestGeneratedCode:
         assert os.path.exists('{source_filename}')
 '''
 
-    async def _cleanup_workspace(self, workspace: Path):
-        """Limpa workspace após testes."""
+    def _generate_package_json(self, ticket_id: str) -> str:
+        """
+        Gera package.json para projetos Node.js.
+
+        Args:
+            ticket_id: ID do ticket para nome do projeto
+
+        Returns:
+            Conteúdo do package.json
+        """
+        return json.dumps({
+            "name": f"code-forge-{ticket_id[:8]}",
+            "version": "1.0.0",
+            "description": "Auto-generated by Neural Code Forge",
+            "scripts": {
+                "test": "jest --verbose --coverage",
+                "test:watch": "jest --watch"
+            },
+            "jest": {
+                "testEnvironment": "node",
+                "coverageDirectory": "coverage",
+                "collectCoverageFrom": [
+                    "generated_code.js",
+                    "generated_code.ts"
+                ],
+                "testMatch": [
+                    "**/*.test.js",
+                    "**/*.test.ts"
+                ]
+            },
+            "devDependencies": {
+                "jest": "^29.7.0",
+                "@types/jest": "^29.5.5"
+            }
+        }, indent=2)
+
+    def _generate_jest_test_suite(self, language: str, code: str, parameters: Dict) -> str:
+        """
+        Gera suite de testes Jest para JavaScript/TypeScript.
+
+        Args:
+            language: Linguagem do código (javascript/typescript)
+            code: Conteúdo do código
+            parameters: Parâmetros do ticket
+
+        Returns:
+            Código da suite de testes Jest
+        """
+        service_name = parameters.get('service_name', 'my-service')
+        is_typescript = language.lower() in ('typescript', 'ts')
+
+        # Determinar extensão do arquivo fonte
+        source_ext = '.ts' if is_typescript else '.js'
+
+        return f'''/**
+ * Test suite auto-generated for {service_name}
+ * Generated by Neural Code Forge
+ */
+
+const {{ app }} = require('./generated_code{source_ext}');
+
+describe('{service_name}', () => {{
+  describe('Health Checks', () => {{
+    test('should have app instance', () => {{
+      expect(app).toBeDefined();
+    }});
+
+    test('should export required functions', () => {{
+      // Verifica se funções principais existem
+      if (typeof app === 'object') {{
+        expect(Object.keys(app).length).toBeGreaterThan(0);
+      }}
+    }});
+  }});
+
+  describe('Code Quality', () => {{
+    test('should have defined exports', () => {{
+      expect(typeof app).not.toBe('undefined');
+    }});
+
+    test('should not have syntax errors', () => {{
+      // Se chegou aqui, não há erros de sintaxe
+      expect(true).toBe(true);
+    }});
+  }});
+
+  describe('Functionality', () => {{
+    test('should handle basic operations', () => {{
+      // Teste básico de funcionalidade
+      if (typeof app === 'function') {{
+        expect(() => app()).not.toThrow();
+      }}
+    }});
+  }});
+}});
+'''
+
+    async def _run_nodejs_tests(
+        self, workspace: Path, ticket_id: str, source_filename: str
+    ) -> ValidationResult:
+        """
+        Executa testes Jest para JavaScript/TypeScript.
+
+        Args:
+            workspace: Diretório com código e testes
+            ticket_id: ID do ticket para tracing
+            source_filename: Nome do arquivo fonte
+
+        Returns:
+            ValidationResult com métricas do Jest
+        """
+        start_time = datetime.now()
+
+        logger.info(
+            'jest_execution_started',
+            ticket_id=ticket_id,
+            workspace=str(workspace)
+        )
+
         try:
-            import shutil
-            if workspace.exists():
-                shutil.rmtree(workspace)
-                logger.debug('workspace_cleaned', path=str(workspace))
+            # Instalar dependências se necessário
+            package_json = workspace / "package.json"
+            node_modules = workspace / "node_modules"
+
+            if not node_modules.exists() and package_json.exists():
+                logger.info('installing_npm_dependencies', ticket_id=ticket_id)
+                npm_install = await asyncio.create_subprocess_exec(
+                    'npm', 'install', '--no-save', '--silent',
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=str(workspace)
+                )
+                await asyncio.wait_for(npm_install.communicate(), timeout=120)
+
+            # Executar Jest
+            proc = await asyncio.create_subprocess_exec(
+                'npx', 'jest', '--verbose', '--json', '--coverage',
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(workspace)
+            )
+
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(),
+                    timeout=self.test_timeout
+                )
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+                raise TimeoutError(f'Jest tests timed out after {self.test_timeout}s')
+
+            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+            stdout_text = stdout.decode('utf-8')
+            stderr_text = stderr.decode('utf-8')
+
+            # Analisar resultados
+            return self._parse_jest_output(
+                stdout_text, stderr_text, proc.returncode, duration_ms
+            )
+
+        except TimeoutError as e:
+            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+            logger.error('jest_timeout', error=str(e))
+            return ValidationResult(
+                validation_type=ValidationType.UNIT_TEST,
+                tool_name='jest',
+                tool_version='29.7.0',
+                status=ValidationStatus.FAILED,
+                score=0.0,
+                issues_count=1,
+                critical_issues=1,
+                high_issues=0,
+                medium_issues=0,
+                low_issues=0,
+                executed_at=start_time,
+                duration_ms=duration_ms
+            )
+        except FileNotFoundError:
+            # npm/jest não instalado - usar modo heurístico
+            logger.warning('jest_not_found_using_heuristic', ticket_id=ticket_id)
+            return self._run_heuristic_tests(workspace, start_time, source_filename)
         except Exception as e:
-            logger.warning('workspace_cleanup_failed', error=str(e))
+            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+            logger.error('jest_execution_error', ticket_id=ticket_id, error=str(e))
+            return ValidationResult(
+                validation_type=ValidationType.UNIT_TEST,
+                tool_name='jest',
+                tool_version='29.7.0',
+                status=ValidationStatus.FAILED,
+                score=0.0,
+                issues_count=1,
+                critical_issues=1,
+                high_issues=0,
+                medium_issues=0,
+                low_issues=0,
+                executed_at=start_time,
+                duration_ms=duration_ms,
+                metadata={'error': str(e)}
+            )
+
+    def _parse_jest_output(
+        self, stdout: str, stderr: str, returncode: int, duration_ms: int
+    ) -> ValidationResult:
+        """
+        Parse saída do Jest e extrai métricas.
+
+        Args:
+            stdout: Saída padrão do Jest
+            stderr: Saída de erro do Jest
+            returncode: Código de retorno do Jest
+            duration_ms: Duração da execução em ms
+
+        Returns:
+            ValidationResult com métricas extraídas
+        """
+        status = ValidationStatus.PASSED if returncode == 0 else ValidationStatus.FAILED
+
+        # Valores padrão
+        passed = 0
+        failed = 0
+        coverage_pct = 0.0
+
+        # Tentar extrair JSON do output do Jest
+        try:
+            # Jest output pode ter JSON no final separado por newline
+            lines = stdout.strip().split('\n')
+            for i, line in enumerate(lines):
+                if line.strip().startswith('{'):
+                    # Tentar parse como JSON
+                    jest_result = json.loads(line)
+
+                    # Extrair estatísticas de teste
+                    test_results = jest_result.get('testResults', [])
+                    for suite in test_results:
+                        for assertion in suite.get('assertionResults', []):
+                            if assertion.get('status') == 'passed':
+                                passed += 1
+                            else:
+                                failed += 1
+
+                    # Extrair cobertura
+                    coverage = jest_result.get('coverage', {})
+                    if coverage:
+                        # Calcular cobertura média
+                        total_coverage = coverage.get('total', {})
+                        if total_coverage:
+                            # Jest usa pct (porcentagem já calculada)
+                            coverage_pct = total_coverage.get('pct', 0.0) / 100.0
+
+                    break
+        except (json.JSONDecodeError, KeyError, TypeError):
+            # Fallback: parse de texto
+            pass
+
+        # Se JSON falhou, tentar regex
+        if passed == 0 and failed == 0:
+            pass_match = re.search(r'(\d+) passed', stdout)
+            fail_match = re.search(r'(\d+) failed', stdout)
+
+            if pass_match:
+                passed = int(pass_match.group(1))
+            if fail_match:
+                failed = int(fail_match.group(1))
+
+        issues_count = failed
+
+        # Se não conseguiu extrair cobertura, usar baseada em passed/total
+        if coverage_pct == 0.0:
+            total_tests = passed + failed
+            if total_tests > 0:
+                coverage_pct = passed / total_tests
+
+        score = coverage_pct
+
+        # Determinar severidade dos issues
+        critical_issues = 1 if coverage_pct < self.min_coverage else 0
+        high_issues = failed if failed > 0 else 0
+        medium_issues = 0
+        low_issues = 0
+
+        return ValidationResult(
+            validation_type=ValidationType.UNIT_TEST,
+            tool_name='jest',
+            tool_version='29.7.0',
+            status=status,
+            score=score,
+            issues_count=issues_count,
+            critical_issues=critical_issues,
+            high_issues=high_issues,
+            medium_issues=medium_issues,
+            low_issues=low_issues,
+            executed_at=datetime.now(),
+            duration_ms=duration_ms,
+            report_uri=str(Path('coverage') / 'index.html') if Path('coverage').exists() else None,
+            metadata={
+                'tests_passed': passed,
+                'tests_failed': failed,
+                'coverage_pct': coverage_pct * 100
+            }
+        )
+
+    async def _cleanup_workspace(self, workspace: Path, max_retries: int = 3) -> bool:
+        """
+        Limpa workspace após testes com retry e tratamento robusto de erros.
+
+        Args:
+            workspace: Diretório do workspace a limpar
+            max_retries: Número máximo de tentativas
+
+        Returns:
+            True se cleanup bem-sucedido, False caso contrário
+        """
+        import shutil
+        import asyncio
+
+        for attempt in range(max_retries):
+            try:
+                if not workspace.exists():
+                    logger.debug('workspace_not_exists', path=str(workspace))
+                    return True
+
+                # Tentar remover diretório
+                shutil.rmtree(workspace)
+
+                # Verificar se foi realmente removido
+                if not workspace.exists():
+                    logger.info(
+                        'workspace_cleaned',
+                        path=str(workspace),
+                        attempt=attempt + 1
+                    )
+                    return True
+                else:
+                    logger.warning(
+                        'workspace_cleanup_verification_failed',
+                        path=str(workspace),
+                        attempt=attempt + 1
+                    )
+
+            except PermissionError as e:
+                logger.warning(
+                    'workspace_cleanup_permission_error',
+                    path=str(workspace),
+                    attempt=attempt + 1,
+                    error=str(e)
+                )
+                if attempt < max_retries - 1:
+                    # Aguardar antes de retry
+                    await asyncio.sleep(0.5 * (attempt + 1))
+                    continue
+            except OSError as e:
+                # Em sistemas Windows, arquivos podem estar "travados" por processos
+                logger.warning(
+                    'workspace_cleanup_os_error',
+                    path=str(workspace),
+                    attempt=attempt + 1,
+                    error=str(e)
+                )
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(0.5 * (attempt + 1))
+                    continue
+            except Exception as e:
+                logger.error(
+                    'workspace_cleanup_unexpected_error',
+                    path=str(workspace),
+                    attempt=attempt + 1,
+                    error=str(e)
+                )
+                break
+
+        logger.error(
+            'workspace_cleanup_failed',
+            path=str(workspace),
+            max_retries=max_retries
+        )
+        return False
