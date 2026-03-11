@@ -27,10 +27,27 @@ class TestPipelineEngineExecution:
     ):
         """Deve executar pipeline completo com sucesso."""
         from src.services.pipeline_engine import PipelineEngine
+        from src.models.artifact import PipelineStage, StageStatus
+        from datetime import datetime
+
+        # Lista de stages do pipeline
+        stage_names = [
+            'template_selection', 'code_composition', 'validation',
+            'testing', 'packaging', 'approval_gate'
+        ]
 
         # Criar mocks dos estágios com assinatura correta
         async def mock_stage(context, stage_name, stage_func):
-            pass  # Stage vazio que não falha
+            # Adicionar stage ao contexto para simular execução
+            stage = PipelineStage(
+                stage_name=stage_name,
+                status=StageStatus.COMPLETED,
+                started_at=datetime.now(),
+                completed_at=datetime.now(),
+                duration_ms=10,
+                error_message=None
+            )
+            context.add_stage(stage)
 
         with patch.object(mock_pipeline_engine, '_execute_stage', new=mock_stage):
             result = await mock_pipeline_engine.execute_pipeline(sample_execution_ticket)
