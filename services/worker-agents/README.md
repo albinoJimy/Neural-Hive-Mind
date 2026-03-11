@@ -185,12 +185,12 @@ config:
 **Ações**:
 1. Verificar latência de processamento:
    ```bash
-   kubectl logs -n neural-hive-execution <pod-name> | grep task_duration
+   kubectl logs -n neural-hive <pod-name> | grep task_duration
    ```
 
 2. Verificar tickets in-flight:
    ```bash
-   kubectl exec -n neural-hive-execution <pod-name> -- curl localhost:9090/metrics | grep tickets_in_flight
+   kubectl exec -n neural-hive <pod-name> -- curl localhost:9090/metrics | grep tickets_in_flight
    ```
 
 3. Considerar aumentar `maxConcurrentTickets` se carga sustentada:
@@ -210,17 +210,17 @@ config:
 **Ações Imediatas**:
 1. Verificar logs de erro:
    ```bash
-   kubectl logs -n neural-hive-execution <pod-name> --tail=100 | grep -E "error|failed"
+   kubectl logs -n neural-hive <pod-name> --tail=100 | grep -E "error|failed"
    ```
 
 2. Verificar tickets travados:
    ```bash
-   kubectl exec -n neural-hive-execution <pod-name> -- curl localhost:9090/metrics | grep active_tasks
+   kubectl exec -n neural-hive <pod-name> -- curl localhost:9090/metrics | grep active_tasks
    ```
 
 3. Considerar restart se tickets travados:
    ```bash
-   kubectl delete pod -n neural-hive-execution <pod-name>
+   kubectl delete pod -n neural-hive <pod-name>
    ```
 
 #### Tuning
@@ -245,7 +245,7 @@ config:
 ```bash
 # Identificação
 SERVICE_NAME=worker-agents
-NAMESPACE=neural-hive-execution
+NAMESPACE=neural-hive
 CLUSTER=production
 
 # Capabilities
@@ -351,7 +351,7 @@ LOG_LEVEL=INFO
 ```bash
 helm upgrade --install worker-agents \
   ./helm-charts/worker-agents \
-  --namespace neural-hive-execution \
+  --namespace neural-hive \
   --create-namespace
 ```
 
@@ -621,7 +621,7 @@ Para habilitar execucao via Kubernetes Jobs:
 
 ```bash
 K8S_JOBS_ENABLED=true
-K8S_JOBS_NAMESPACE=neural-hive-execution
+K8S_JOBS_NAMESPACE=neural-hive
 K8S_JOBS_TIMEOUT_SECONDS=600
 K8S_JOBS_SERVICE_ACCOUNT=worker-agent-executor
 ```
@@ -706,7 +706,7 @@ Para execucao local via subprocess:
 ```bash
 LOCAL_RUNTIME_ENABLED=true
 LOCAL_RUNTIME_TIMEOUT_SECONDS=300
-LOCAL_RUNTIME_WORKING_DIR=/tmp/neural-hive-execution
+LOCAL_RUNTIME_WORKING_DIR=/tmp/neural-hive
 LOCAL_RUNTIME_ALLOWED_COMMANDS=python,python3,node,bash,sh
 LOCAL_RUNTIME_ENABLE_SANDBOX=true
 ```
@@ -873,13 +873,13 @@ sum(worker_agent_active_tasks)
 ### Consumer não conecta ao Kafka
 
 ```bash
-kubectl logs -n neural-hive-execution -l app.kubernetes.io/name=worker-agents | grep kafka
+kubectl logs -n neural-hive -l app.kubernetes.io/name=worker-agents | grep kafka
 ```
 
 ### Registro no Service Registry falha
 
 ```bash
-kubectl logs -n neural-hive-execution -l app.kubernetes.io/name=worker-agents | grep registration
+kubectl logs -n neural-hive -l app.kubernetes.io/name=worker-agents | grep registration
 ```
 
 ### Tickets não são processados
@@ -894,7 +894,7 @@ kubectl exec -n kafka kafka-0 -- kafka-consumer-groups \
 ### Dependências não são resolvidas
 
 ```bash
-kubectl logs -n neural-hive-execution -l app.kubernetes.io/name=worker-agents | grep dependency
+kubectl logs -n neural-hive -l app.kubernetes.io/name=worker-agents | grep dependency
 ```
 
 ## Roadmap

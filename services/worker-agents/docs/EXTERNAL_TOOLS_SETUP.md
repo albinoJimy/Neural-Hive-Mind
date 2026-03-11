@@ -62,7 +62,7 @@ sequenceDiagram
 
 ## 2. Code Forge Setup
 
-- Pré-requisitos: Code Forge deployado no namespace `neural-hive-execution`.
+- Pré-requisitos: Code Forge deployado no namespace `neural-hive`.
 - Configuração Helm: `config.codeForge.url`, `config.codeForge.enabled`.
 - Validação: `curl http://code-forge:8000/health`.
 - Troubleshooting: logs de fallback e métricas `worker_agent_build_code_forge_error`.
