@@ -6,6 +6,7 @@ Suporta:
 - Build com argumentos customizados
 - Multi-arch builds
 - Push para registries com autenticação
+- Coleta de métricas de performance
 """
 
 import asyncio
@@ -103,6 +104,7 @@ class ContainerBuilder:
     - Multi-arch builds
     - Push para registries
     - BuildKit cache distribuído
+    - Coleta de métricas de performance
     """
 
     def __init__(
@@ -111,6 +113,7 @@ class ContainerBuilder:
         timeout_seconds: int = 3600,
         enable_cache: bool = False,
         cache_repo: Optional[str] = None,
+        enable_metrics: bool = False,
     ):
         """
         Inicializa o ContainerBuilder.
@@ -120,11 +123,16 @@ class ContainerBuilder:
             timeout_seconds: Timeout para builds em segundos
             enable_cache: Habilita cache distribuído
             cache_repo: Repositório de cache (ex: ghcr.io/user/cache)
+            enable_metrics: Habilita coleta de métricas de performance
         """
         self.builder_type = builder_type
         self.timeout_seconds = timeout_seconds
         self.enable_cache = enable_cache
         self.cache_repo = cache_repo
+        self.enable_metrics = enable_metrics
+
+        # Lazy import do coletor de métricas
+        self._metrics_collector = None
 
     def _normalize_platforms(self, platforms: Optional[List[str]]) -> Optional[List[str]]:
         """
@@ -299,6 +307,77 @@ class ContainerBuilder:
 
         return volumes
 
+    def _get_metrics_collector(self):
+        """
+        Obtém o coletor de métricas (lazy loading).
+
+        Returns:
+            Instância de BuildMetricsCollector ou None se desabilitado
+        """
+        if not self.enable_metrics:
+            return None
+
+        if self._metrics_collector is None:
+            from src.services.build_metrics import BuildMetricsCollector
+            self._metrics_collector = BuildMetricsCollector()
+
+        return self._metrics_collector
+
+    def _extract_metadata_from_dockerfile(self, dockerfile_path: str) -> Dict[str, Optional[str]]:
+        """
+        Extrai metadados do Dockerfile para coleta de métricas.
+
+        Args:
+            dockerfile_path: Caminho do Dockerfile
+
+        Returns:
+            Dicionário com language, framework, artifact_type
+        """
+        metadata = {
+            "language": None,
+            "framework": None,
+            "artifact_type": "microservice",  # Default
+        }
+
+        try:
+            with open(dockerfile_path, "r") as f:
+                content = f.read().lower()
+
+            # Detectar linguagem base
+            if "from python" in content or "from python" in content:
+                metadata["language"] = "python"
+            elif "from node" in content:
+                metadata["language"] = "nodejs"
+            elif "from golang" in content or "from golang" in content:
+                metadata["language"] = "go"
+            elif "from openjdk" in content or "from eclipse" in content:
+                metadata["language"] = "java"
+            elif "from nginx" in content and ("unit" in content or "perl" in content):
+                metadata["language"] = "perl"
+            elif "from nginx" in content:
+                metadata["language"] = "nginx"  # Static
+
+            # Detectar framework
+            if "fastapi" in content:
+                metadata["framework"] = "fastapi"
+            elif "flask" in content:
+                metadata["framework"] = "flask"
+            elif "express" in content:
+                metadata["framework"] = "express"
+            elif "nestjs" in content:
+                metadata["framework"] = "nestjs"
+            elif "gin" in content:
+                metadata["framework"] = "gin"
+            elif "echo" in content:
+                metadata["framework"] = "echo"
+            elif "spring" in content:
+                metadata["framework"] = "spring"
+
+        except Exception:
+            pass
+
+        return metadata
+
     async def build_container(
         self,
         dockerfile_path: str,
@@ -343,18 +422,82 @@ class ContainerBuilder:
                 count=len(normalized_platforms)
             )
 
+        # Extrair metadados do Dockerfile para métricas
+        metadata = self._extract_metadata_from_dockerfile(dockerfile_path)
+
+        # Executar build e medir tempo
+        import time
+        start_time = time.time()
+
         if self.builder_type == BuilderType.DOCKER:
-            return await self._build_with_docker(
+            result = await self._build_with_docker(
                 dockerfile_path, build_context, image_tag,
                 build_args, target_stage, normalized_platforms,
                 use_cache, use_cache_repo, no_push,
             )
         else:
-            return await self._build_with_kaniko(
+            result = await self._build_with_kaniko(
                 dockerfile_path, build_context, image_tag,
                 build_args, target_stage, normalized_platforms,
                 use_cache, use_cache_repo, no_push,
             )
+
+        # Coletar métricas se habilitado
+        if self.enable_metrics:
+            collector = self._get_metrics_collector()
+            if collector:
+                try:
+                    # Determinar plataforma principal
+                    primary_platform = normalized_platforms[0] if normalized_platforms else "linux/amd64"
+
+                    # Detectar se teve cache hit (heurística baseada em logs)
+                    cache_hit = result.cache_hit or (
+                        result.build_logs and
+                        any("cached" in log.lower() or "cache hit" in log.lower()
+                            for log in result.build_logs)
+                    )
+
+                    # Detectar tipo de erro se houver
+                    error_type = None
+                    if not result.success and result.error_message:
+                        error_msg = result.error_message.lower()
+                        if "timeout" in error_msg:
+                            error_type = "timeout"
+                        elif "docker" in error_msg and "daemon" in error_msg:
+                            error_type = "docker_daemon_error"
+                        elif "memory" in error_msg or "oom" in error_msg:
+                            error_type = "out_of_memory"
+                        elif "kubernetes" in error_msg or "pod" in error_msg:
+                            error_type = "kubernetes_error"
+                        elif "kaniko" in error_msg:
+                            error_type = "kaniko_error"
+                        else:
+                            error_type = "build_error"
+
+                    collector.record_build(
+                        language=metadata["language"] or "unknown",
+                        framework=metadata.get("framework"),
+                        artifact_type=metadata["artifact_type"] or "unknown",
+                        platform=primary_platform,
+                        builder_type=self.builder_type.value,
+                        success=result.success,
+                        duration_seconds=result.duration_seconds,
+                        size_bytes=result.size_bytes,
+                        cache_hit=cache_hit,
+                        platforms=normalized_platforms,
+                        error_type=error_type if not result.success else None,
+                    )
+
+                    logger.debug(
+                        "build_metric_recorded",
+                        language=metadata["language"],
+                        duration=result.duration_seconds,
+                        success=result.success,
+                    )
+                except Exception as e:
+                    logger.warning("metric_collection_failed", error=str(e))
+
+        return result
 
     async def _build_with_docker(
         self,
