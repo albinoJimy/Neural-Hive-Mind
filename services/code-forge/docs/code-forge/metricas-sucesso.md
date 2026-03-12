@@ -115,7 +115,7 @@ CÓDIGO:
 ├── container_builder.py       ✅ 426 linhas
 └── pipeline_engine.py         ✅ +219 linhas
 
-TESTES (139 testes):
+TESTES (146 testes):
 ├── test_dockerfile_generator.py    ✅ 19 testes
 ├── test_container_builder.py       ✅ 15 testes
 ├── test_kaniko_builder.py          ✅ 15 testes (FASE 3.1)
@@ -123,7 +123,8 @@ TESTES (139 testes):
 ├── test_trivy_client.py            ✅ 38 testes
 ├── test_packager_trivy.py          ✅ 13 testes
 ├── test_sbom_generator.py          ✅ 16 testes
-└── test_pipeline_fault_tolerance_e2e.py ✅ 7 testes
+├── test_pipeline_fault_tolerance_e2e.py ✅ 7 testes
+└── test_kaniko_k8s_e2e.py          ✅ 7 testes (E2E Real)
 
 DOCUMENTAÇÃO (9 artefatos):
 ├── quickstart.md              ✅ 136 linhas
