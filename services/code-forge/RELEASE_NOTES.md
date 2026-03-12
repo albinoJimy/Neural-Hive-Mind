@@ -1,5 +1,159 @@
 # Release Notes - CodeForge Builds Reais
 
+## Versão 1.4.0 - 2026-03-12
+
+### Visão Geral
+
+Esta versão implementa **Suporte QEMU Multi-arch** para builds Kaniko no cluster Kubernetes, permitindo builds para arquiteturas diferentes da nativa (amd64) usando emulação via QEMU.
+
+### Novas Funcionalidades
+
+#### 1. QEMU Multi-arch Support (Item Opcional)
+
+**Executor de builds multi-arch usando Kaniko com QEMU:**
+
+- **Detecção automática de QEMU**: Binários necessários determinados pela plataforma
+- **Init container qemu-setup**: Instala QEMU via Alpine APK antes do build
+- **Volume compartilhado**: Binários QEMU copiados para `/usr/local/bin` do Kaniko
+- **Build nativo otimizado**: `--platform` omitido para arquitetura nativa (evita erros)
+
+**Arquivo**: `src/services/container_builder.py` (modificado)
+**Testes**: `tests/e2e/test_kaniko_multiarch.py` (novo, 11 testes)
+
+#### 2. Plataformas Suportadas com QEMU
+
+| Plataforma | Binário QEMU | Uso |
+|------------|--------------|-----|
+| linux/arm64 | qemu-aarch64 | AWS Graviton, Apple M, ARM64 servers |
+| linux/arm/v7 | qemu-arm | Raspberry Pi, ARM 32-bit |
+| linux/ppc64le | qemu-ppc64le | PowerPC Little Endian |
+| linux/s390x | qemu-s390x | IBM Z |
+| linux/riscv64 | qemu-riscv64 | RISC-V |
+
+**Nota**: linux/amd64 não requer QEMU (arquitetura nativa na maioria dos clusters)
+
+#### 3. Estrutura de Pod Aprimorada
+
+```yaml
+spec:
+  initContainers:
+    - name: qemu-setup  # NOVO - Instala QEMU quando necessário
+      image: alpine:latest
+      command: ["/bin/sh", "-c"]
+      args: ["apk add --no-cache qemu-aarch64 qemu-arm && cp /usr/bin/qemu-* /usr/local/bin/"]
+    - name: setup  # Copia Dockerfile para workspace
+      image: busybox:latest
+  containers:
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:latest
+  volumes:
+    - name: workspace  # emptyDir
+    - name: qemu  # NOVO - emptyDir para binários QEMU
+```
+
+### Testes
+
+#### Novos Testes E2E (11 testes, todos passando)
+
+| Teste | Descrição |
+|-------|-----------|
+| `test_qemu_binaries_detection` | Detecção de binários QEMU necessários |
+| `test_kaniko_single_arch_native` | Build nativo AMD64 |
+| `test_kaniko_multiarch_arm64` | Build ARM64 com QEMU |
+| `test_kaniko_multiarch_arm_v7` | Build ARM v7 com QEMU |
+| `test_kaniko_multiarch_dual_platform` | Build dual platform (amd64+arm64) |
+| `test_kaniko_platform_aliases` | Uso de aliases (amd64, arm64) |
+| `test_python_multiarch_arm64` | Build Python para ARM64 |
+| `test_fastapi_multiarch_build` | Build FastAPI multi-arch |
+| `test_qemu_init_container_present` | Valida estrutura do init container |
+| `test_qemu_volumes_present` | Valida volumes QEMU |
+| `test_qemu_volume_mounts_present` | Valida volumeMounts QEMU |
+
+**Resultado**: `11 passed in 87s`
+
+### Uso
+
+#### Build Multi-arch Simples
+
+```python
+result = await builder.build_container(
+    dockerfile_path="Dockerfile",
+    build_context=".",
+    image_tag="myapp:latest",
+    platforms=["linux/amd64", "linux/arm64"],
+    no_push=True,  # Para testes locais
+)
+```
+
+#### Build para Arquitetura Específica
+
+```python
+# Usando alias
+result = await builder.build_container(
+    dockerfile_path="Dockerfile",
+    build_context=".",
+    image_tag="myapp:latest",
+    platforms=["arm64"],  # Alias para linux/arm64
+)
+```
+
+### Mudanças Técnicas
+
+#### Novas Constantes e Funções
+
+```python
+# Mapeamento de plataformas para binários QEMU
+PLATFORM_QEMU_MAP: Dict[str, str] = {
+    Platform.LINUX_ARM64: "qemu-aarch64",
+    Platform.LINUX_ARM_V7: "qemu-arm",
+    Platform.LINUX_PPC64LE: "qemu-ppc64le",
+    Platform.LINUX_S390X: "qemu-s390x",
+    Platform.LINUX_RISCV64: "qemu-riscv64",
+}
+
+def _get_qemu_binaries(platforms: Optional[List[str]]) -> List[str]:
+    """Retorna lista de binários QEMU necessários."""
+
+def _build_init_containers(needs_qemu: bool, qemu_binaries: List[str]) -> List[dict]:
+    """Constrói initContainers incluindo qemu-setup quando necessário."""
+
+def _build_container_volume_mounts(needs_qemu: bool) -> List[dict]:
+    """Constrói volumeMounts incluindo volume QEMU quando necessário."""
+
+def _build_pod_volumes(configmap_name: str, needs_qemu: bool) -> List[dict]:
+    """Constrói volumes incluindo volume QEMU quando necessário."""
+```
+
+### Limitações Conhecidas
+
+1. **Performance**: Builds com QEMU são significativamente mais lentos (2-5x)
+2. **Alpine APK**: Requer conectividade com repositórios Alpine para instalar QEMU
+3. **Arm64 nativo**: Em nós ARM64 nativos, considere usar node selectors em vez de QEMU
+
+### Próximos Passos
+
+- [x] Build Real Kaniko (v1.3.0)
+- [x] QEMU Multi-arch (v1.4.0)
+- [ ] Performance Metrics (requer produção)
+
+### Changelog
+
+#### Adicionado
+
+- `src/services/container_builder.py::PLATFORM_QEMU_MAP` - Mapeamento plataformas→QEMU
+- `src/services/container_builder.py::_get_qemu_binaries()` - Detector de binários
+- `src/services/container_builder.py::_build_init_containers()` - Builder de initContainers
+- `src/services/container_builder.py::_build_container_volume_mounts()` - Builder de mounts
+- `src/services/container_builder.py::_build_pod_volumes()` - Builder de volumes
+- `tests/e2e/test_kaniko_multiarch.py` - 11 testes E2E multi-arch
+
+#### Modificado
+
+- `src/services/container_builder.py::_build_with_kaniko()` - Integração QEMU
+- `src/services/container_builder.py::_normalize_platforms()` - Retornos adicionados
+
+---
+
 ## Versão 1.3.0 - 2026-03-12
 
 ### Visão Geral
