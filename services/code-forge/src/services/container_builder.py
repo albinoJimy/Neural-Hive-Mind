@@ -45,6 +45,38 @@ PLATFORM_ALIASES: Dict[str, str] = {
     "aarch64": Platform.LINUX_ARM64,
 }
 
+# Mapeamento de plataformas para binários QEMU necessários
+# Usado para builds multi-arch no Kubernetes
+PLATFORM_QEMU_MAP: Dict[str, str] = {
+    Platform.LINUX_ARM64: "qemu-aarch64",
+    Platform.LINUX_ARM_V7: "qemu-arm",
+    Platform.LINUX_PPC64LE: "qemu-ppc64le",
+    Platform.LINUX_S390X: "qemu-s390x",
+    Platform.LINUX_RISCV64: "qemu-riscv64",
+    # amd64 não precisa de QEMU (arquitetura nativa na maioria dos clusters)
+}
+
+
+def _get_qemu_binaries(platforms: Optional[List[str]]) -> List[str]:
+    """
+    Retorna lista de binários QEMU necessários para as plataformas.
+
+    Args:
+        platforms: Lista de plataformas normalizadas (ex: ["linux/amd64", "linux/arm64"])
+
+    Returns:
+        Lista de nomes de binários QEMU (ex: ["qemu-aarch64"])
+    """
+    if not platforms:
+        return []
+
+    qemu_bins = set()
+    for platform in platforms:
+        if platform in PLATFORM_QEMU_MAP:
+            qemu_bins.add(PLATFORM_QEMU_MAP[platform])
+
+    return sorted(qemu_bins)
+
 
 @dataclass
 class BuildResult:
@@ -133,6 +165,139 @@ class ContainerBuilder:
                 )
 
         return normalized
+
+    def _build_init_containers(
+        self,
+        needs_qemu: bool = False,
+        qemu_binaries: Optional[List[str]] = None
+    ) -> List[dict]:
+        """
+        Constrói a lista de initContainers para o pod Kaniko.
+
+        Args:
+            needs_qemu: Se QEMU é necessário para multi-arch
+            qemu_binaries: Lista de binários QEMU necessários
+
+        Returns:
+            Lista de initContainers
+        """
+        init_containers = []
+        qemu_binaries = qemu_binaries or []
+
+        # Init container para QEMU (se necessário para multi-arch)
+        if needs_qemu and qemu_binaries:
+            qemu_packages = " ".join(qemu_binaries)
+            init_containers.append({
+                "name": "qemu-setup",
+                "image": "alpine:latest",
+                "command": ["/bin/sh", "-c"],
+                "args": [
+                    f"apk add --no-cache {qemu_packages} && "
+                    "cp /usr/bin/qemu-* /usr/local/bin/ 2>/dev/null || true && "
+                    "ls -la /usr/local/bin/qemu-* || echo 'QEMU binaries copied'"
+                ],
+                "volumeMounts": [
+                    {
+                        "name": "qemu",
+                        "mountPath": "/usr/local/bin",
+                    }
+                ]
+            })
+
+        # Init container para setup do contexto
+        init_containers.append({
+            "name": "setup",
+            "image": "busybox:latest",
+            "command": ["/bin/sh", "-c"],
+            "args": [
+                # Copiar Dockerfile do ConfigMap para o workspace
+                "cp /dockerfile/Dockerfile /workspace/Dockerfile && "
+                # Copiar todo o contexto de build se existir
+                "if [ -d /context ]; then cp -r /context/. /workspace/ 2>/dev/null || true; fi && "
+                "ls -la /workspace/"
+            ],
+            "volumeMounts": [
+                {
+                    "name": "workspace",
+                    "mountPath": "/workspace",
+                },
+                {
+                    "name": "dockerfile",
+                    "mountPath": "/dockerfile",
+                },
+                {
+                    "name": "context",
+                    "mountPath": "/context",
+                }
+            ]
+        })
+
+        return init_containers
+
+    def _build_container_volume_mounts(self, needs_qemu: bool = False) -> List[dict]:
+        """
+        Constrói a lista de volumeMounts para o container Kaniko.
+
+        Args:
+            needs_qemu: Se QEMU é necessário para multi-arch
+
+        Returns:
+            Lista de volumeMounts
+        """
+        mounts = [
+            {
+                "name": "workspace",
+                "mountPath": "/workspace",
+            }
+        ]
+
+        if needs_qemu:
+            mounts.append({
+                "name": "qemu",
+                "mountPath": "/usr/local/bin",
+            })
+
+        return mounts
+
+    def _build_pod_volumes(
+        self,
+        configmap_name: str,
+        needs_qemu: bool = False
+    ) -> List[dict]:
+        """
+        Constrói a lista de volumes para o pod.
+
+        Args:
+            configmap_name: Nome do ConfigMap com o Dockerfile
+            needs_qemu: Se QEMU é necessário para multi-arch
+
+        Returns:
+            Lista de volumes
+        """
+        volumes = [
+            {
+                "name": "workspace",
+                "emptyDir": {},
+            },
+            {
+                "name": "dockerfile",
+                "configMap": {
+                    "name": configmap_name
+                }
+            },
+            {
+                "name": "context",
+                "emptyDir": {},
+            }
+        ]
+
+        if needs_qemu:
+            volumes.append({
+                "name": "qemu",
+                "emptyDir": {},
+            })
+
+        return volumes
 
     async def build_container(
         self,
@@ -466,6 +631,9 @@ class ContainerBuilder:
             context=build_context,
         )
 
+        # Normalizar plataformas no contexto do método
+        normalized_platforms = self._normalize_platforms(platforms) if platforms else None
+
         try:
             # Carregar config do Kubernetes
             try:
@@ -516,8 +684,14 @@ class ContainerBuilder:
             if target_stage:
                 kaniko_args.append(f"--target={target_stage}")
 
-            if platforms:
-                kaniko_args.append(f"--platform={','.join(platforms)}")
+            # Determinar se QEMU é necessário para multi-arch (antes de criar args)
+            qemu_binaries = _get_qemu_binaries(normalized_platforms) if normalized_platforms else []
+            needs_qemu = len(qemu_binaries) > 0
+
+            # Adicionar --platform apenas se necessário (multi-arch ou QEMU)
+            # Para build nativo único, o Kaniko detecta automaticamente
+            if normalized_platforms and (len(normalized_platforms) > 1 or needs_qemu):
+                kaniko_args.append(f"--platform={','.join(normalized_platforms)}")
 
             # Criar nome único para o pod
             import uuid
@@ -570,57 +744,20 @@ class ContainerBuilder:
                 },
                 "spec": {
                     "restartPolicy": "Never",
-                    "initContainers": [{
-                        "name": "setup",
-                        "image": "busybox:latest",
-                        "command": ["/bin/sh", "-c"],
-                        "args": [
-                            # Copiar Dockerfile do ConfigMap para o workspace
-                            "cp /dockerfile/Dockerfile /workspace/Dockerfile && "
-                            # Copiar todo o contexto de build se existir
-                            "if [ -d /context ]; then cp -r /context/. /workspace/ 2>/dev/null || true; fi && "
-                            "ls -la /workspace/"
-                        ],
-                        "volumeMounts": [
-                            {
-                                "name": "workspace",
-                                "mountPath": "/workspace",
-                            },
-                            {
-                                "name": "dockerfile",
-                                "mountPath": "/dockerfile",
-                            },
-                            {
-                                "name": "context",
-                                "mountPath": "/context",
-                            }
-                        ]
-                    }],
+                    "initContainers": self._build_init_containers(
+                        needs_qemu=needs_qemu,
+                        qemu_binaries=qemu_binaries
+                    ),
                     "containers": [{
                         "name": "kaniko",
                         "image": "gcr.io/kaniko-project/executor:latest",
                         "args": kaniko_args,
-                        "volumeMounts": [{
-                            "name": "workspace",
-                            "mountPath": "/workspace",
-                        }],
+                        "volumeMounts": self._build_container_volume_mounts(needs_qemu=needs_qemu),
                     }],
-                    "volumes": [
-                        {
-                            "name": "workspace",
-                            "emptyDir": {},
-                        },
-                        {
-                            "name": "dockerfile",
-                            "configMap": {
-                                "name": configmap_name
-                            }
-                        },
-                        {
-                            "name": "context",
-                            "emptyDir": {},
-                        }
-                    ],
+                    "volumes": self._build_pod_volumes(
+                        configmap_name=configmap_name,
+                        needs_qemu=needs_qemu
+                    ),
                     "tolerations": [{
                         "key": "key",
                         "operator": "Exists",
