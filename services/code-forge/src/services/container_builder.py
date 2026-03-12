@@ -220,9 +220,23 @@ class ContainerBuilder:
             "args": [
                 # Copiar Dockerfile do ConfigMap para o workspace
                 "cp /dockerfile/Dockerfile /workspace/Dockerfile && "
-                # Copiar todo o contexto de build se existir
-                "if [ -d /context ]; then cp -r /context/. /workspace/ 2>/dev/null || true; fi && "
-                "ls -la /workspace/"
+                # Extrair tarball do contexto se existir
+                "if [ -f /dockerfile/context.tar.gz64 ]; then "
+                "  echo 'Extracting context tarball...' && "
+                "  base64 -d /dockerfile/context.tar.gz64 | gunzip > /tmp/context.tar && "
+                "  tar xf /tmp/context.tar -C /workspace/ && "
+                "  rm /tmp/context.tar && "
+                "  echo 'Context extracted:' && ls -la /workspace/; "
+                "elif [ -f /dockerfile/context.tar.bz64 ]; then "
+                "  echo 'Extracting context tarball (old format)...' && "
+                "  base64 -d /dockerfile/context.tar.bz64 | bunzip2 > /tmp/context.tar && "
+                "  tar xf /tmp/context.tar -C /workspace/ && "
+                "  rm /tmp/context.tar && "
+                "  echo 'Context extracted:' && ls -la /workspace/; "
+                "else "
+                "  echo 'No context tarball found, copying Dockerfile only'; "
+                "  ls -la /workspace/; "
+                "fi"
             ],
             "volumeMounts": [
                 {
@@ -730,6 +744,51 @@ class ContainerBuilder:
 
         return 0
 
+    def _create_context_tarball(self, build_context: str, exclude_patterns: Optional[List[str]] = None) -> bytes:
+        """
+        Cria um tarball do contexto de build.
+
+        Args:
+            build_context: Diretório do contexto de build
+            exclude_patterns: Lista de padrões para excluir
+
+        Returns:
+            Tarball como bytes
+        """
+        import tarfile
+        import io
+        from pathlib import Path
+
+        exclude_patterns = exclude_patterns or [
+            ".git", ".gitignore", "__pycache__", "*.pyc",
+            ".pytest_cache", ".coverage", "node_modules", ".venv", "venv"
+        ]
+
+        tar_buffer = io.BytesIO()
+        context_path = Path(build_context)
+
+        with tarfile.open(fileobj=tar_buffer, mode="w") as tar:
+            for file_path in context_path.rglob("*"):
+                # Skip directories and excluded patterns
+                if file_path.is_dir():
+                    continue
+
+                relative_path = file_path.relative_to(context_path)
+
+                # Check exclude patterns
+                excluded = any(
+                    relative_path.match(pattern) or pattern in str(relative_path)
+                    for pattern in exclude_patterns
+                )
+                if excluded:
+                    continue
+
+                # Add file to tarball
+                tar.add(file_path, arcname=str(relative_path))
+
+        tar_buffer.seek(0)
+        return tar_buffer.read()
+
     async def _build_with_kaniko(
         self,
         dockerfile_path: str,
@@ -763,7 +822,6 @@ class ContainerBuilder:
         """
         from kubernetes import client, config
         import tempfile
-        import tarfile
         import base64
         import yaml
 
@@ -839,17 +897,40 @@ class ContainerBuilder:
             # Criar nome único para o pod
             import uuid
             pod_name = f"kaniko-{uuid.uuid4().hex[:8]}"
-
-            # Criar ConfigMap com o Dockerfile e arquivos do contexto
-            # Para simplificar, vamos incluir apenas o Dockerfile no ConfigMap
-            # e usar um volume emptyDir que o container init irá popular
             configmap_name = f"kaniko-context-{uuid.uuid4().hex[:8]}"
 
             # Ler o Dockerfile
             with open(dockerfile_path, "r") as f:
                 dockerfile_content = f.read()
 
-            # Criar ConfigMap com o Dockerfile
+            # Criar tarball do contexto de build
+            logger.info("creating_context_tarball", context=build_context)
+            context_tarball = self._create_context_tarball(build_context)
+
+            # Comprimir tarball com gzip antes de base64
+            import gzip
+            tarball_gzipped = gzip.compress(context_tarball)
+            context_tarball_b64 = base64.b64encode(tarball_gzipped).decode("utf-8")
+
+            # Verificar tamanho do tarball (ConfigMap tem limite de ~1MB)
+            tarball_size_mb = len(context_tarball) / (1024 * 1024)
+            compressed_size_mb = len(tarball_gzipped) / (1024 * 1024)
+            logger.info("context_tarball_size", size_mb=tarball_size_mb, compressed_mb=compressed_size_mb)
+
+            if compressed_size_mb > 0.9:  # Deixar margem para overhead
+                return BuildResult(
+                    success=False,
+                    error_message=(
+                        f"Contexto de build muito grande ({tarball_size_mb:.2f}MB, comprimido {compressed_size_mb:.2f}MB). "
+                        "O Kaniko via ConfigMap suporta até ~1MB. "
+                        "Considere usar um PersistentVolumeClaim ou simplificar o contexto."
+                    ),
+                    duration_seconds=0,
+                    build_logs=[f"Context too large: {compressed_size_mb:.2f}MB compressed"]
+                )
+
+            # Criar ConfigMap com Dockerfile e tarball do contexto
+            # Usar 'data' com conteúdo base64 manual para evitar auto-decode
             configmap = {
                 "apiVersion": "v1",
                 "kind": "ConfigMap",
@@ -859,6 +940,7 @@ class ContainerBuilder:
                 },
                 "data": {
                     "Dockerfile": dockerfile_content,
+                    "context.tar.gz64": context_tarball_b64,  # Base64 manual
                 }
             }
 
@@ -867,8 +949,14 @@ class ContainerBuilder:
                     namespace=namespace,
                     body=configmap
                 )
+                logger.info("configmap_created", name=configmap_name, size_kb=len(context_tarball) / 1024)
             except Exception as e:
                 logger.warning("configmap_create_failed", error=str(e))
+                return BuildResult(
+                    success=False,
+                    error_message=f"Falha ao criar ConfigMap: {str(e)}",
+                    duration_seconds=0,
+                )
 
             # Log dos argumentos do Kaniko para depuração
             logger.info("kaniko_args", args=kaniko_args)
@@ -932,17 +1020,21 @@ class ContainerBuilder:
                     duration = int((asyncio.get_event_loop().time() - start_time) * 1000)
 
                     # Obter logs para extrair digest
-                    logs = k8s.read_namespaced_pod_log(
-                        name=pod_name,
-                        namespace=namespace
-                    )
+                    try:
+                        logs = k8s.read_namespaced_pod_log(
+                            name=pod_name,
+                            namespace=namespace
+                        )
+                    except Exception as e:
+                        logger.warning("kaniko_logs_read_failed", error=str(e))
+                        logs = ""
 
                     # Parse digest dos logs
-                    digest = self._parse_kaniko_digest(logs)
+                    digest = self._parse_kaniko_digest(logs) if logs else None
 
                     # Se não encontrou digest nos logs e no_push=True,
                     # tentar ler do arquivo digest-file
-                    if not digest and no_push:
+                    if not digest and no_push and logs:
                         try:
                             # Executar comando no pod para ler o digest file
                             from kubernetes.stream import stream
@@ -1003,6 +1095,18 @@ class ContainerBuilder:
                         duration_seconds=duration / 1000.0,
                         build_logs=logs.split("\n") if logs else [],
                     )
+
+                elif phase == "Failed":
+                    # Obter logs de erro
+                    try:
+                        logs = k8s.read_namespaced_pod_log(
+                            name=pod_name,
+                            namespace=namespace
+                        )
+                        error_msg = logs[-500:] if len(logs) > 500 else logs
+                    except Exception:
+                        logs = ""
+                        error_msg = "Kaniko pod failed"
 
                 elif phase == "Failed":
                     # Obter logs de erro
