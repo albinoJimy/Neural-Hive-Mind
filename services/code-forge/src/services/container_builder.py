@@ -12,7 +12,7 @@ import asyncio
 import subprocess
 import json
 from dataclasses import dataclass, field
-from typing import Optional, List
+from typing import Optional, List, Dict
 from enum import Enum
 import structlog
 
@@ -26,6 +26,26 @@ class BuilderType(str, Enum):
     KANIKO = "kaniko"
 
 
+class Platform(str, Enum):
+    """Plataformas suportadas para multi-arch builds."""
+    LINUX_AMD64 = "linux/amd64"
+    LINUX_ARM64 = "linux/arm64"
+    LINUX_ARM_V7 = "linux/arm/v7"
+    LINUX_PPC64LE = "linux/ppc64le"
+    LINUX_S390X = "linux/s390x"
+    LINUX_RISCV64 = "linux/riscv64"
+
+
+# Alias comuns
+PLATFORM_ALIASES: Dict[str, str] = {
+    "amd64": Platform.LINUX_AMD64,
+    "arm64": Platform.LINUX_ARM64,
+    "arm": Platform.LINUX_ARM_V7,
+    "x86_64": Platform.LINUX_AMD64,
+    "aarch64": Platform.LINUX_ARM64,
+}
+
+
 @dataclass
 class BuildResult:
     """Resultado de uma operacao de build."""
@@ -36,6 +56,8 @@ class BuildResult:
     duration_seconds: float = 0.0
     error_message: Optional[str] = None
     build_logs: List[str] = field(default_factory=list)
+    platforms: Optional[List[str]] = None  # Plataformas buildadas (multi-arch)
+    cache_hit: bool = False  # Se o build usou cache
 
 
 class ContainerBuilder:
@@ -72,6 +94,46 @@ class ContainerBuilder:
         self.enable_cache = enable_cache
         self.cache_repo = cache_repo
 
+    def _normalize_platforms(self, platforms: Optional[List[str]]) -> Optional[List[str]]:
+        """
+        Normaliza e valida lista de plataformas.
+
+        Args:
+            platforms: Lista de plataformas (ex: ["amd64", "arm64", "linux/arm64"])
+
+        Returns:
+            Lista normalizada ou None se vazio
+
+        Raises:
+            ValueError: Se plataforma não é suportada
+        """
+        if not platforms:
+            return None
+
+        normalized = []
+        for platform in platforms:
+            # Verificar alias
+            if platform in PLATFORM_ALIASES:
+                normalized.append(PLATFORM_ALIASES[platform])
+            # Verificar se já está no formato correto
+            elif platform.startswith("linux/"):
+                # Validar plataforma conhecida
+                try:
+                    Platform(platform)  # Valida contra o enum
+                    normalized.append(platform)
+                except ValueError:
+                    raise ValueError(
+                        f"Plataforma não suportada: {platform}. "
+                        f"Suportadas: {[p.value for p in Platform]}"
+                    )
+            else:
+                raise ValueError(
+                    f"Plataforma inválida: {platform}. "
+                    f"Use: {[p.value for p in Platform]} ou alias: {list(PLATFORM_ALIASES.keys())}"
+                )
+
+        return normalized
+
     async def build_container(
         self,
         dockerfile_path: str,
@@ -92,27 +154,38 @@ class ContainerBuilder:
             image_tag: Tag para a imagem resultante
             build_args: Argumentos de build (--build-arg)
             target_stage: Stage alvo em multi-stage build
-            platforms: Lista de plataformas para multi-arch (ex: ["linux/amd64", "linux/arm64"])
+            platforms: Lista de plataformas para multi-arch (ex: ["amd64", "arm64"])
             enable_cache: Sobrescreve cache do builder (opcional)
             cache_repo: Sobrescreve cache_repo do builder (opcional)
 
         Returns:
             BuildResult com digest e metadados
         """
+        # Normalizar plataformas
+        normalized_platforms = self._normalize_platforms(platforms)
+
         # Usar parâmetros fornecidos ou defaults do builder
         use_cache = enable_cache if enable_cache is not None else self.enable_cache
         use_cache_repo = cache_repo if cache_repo is not None else self.cache_repo
 
+        # Log de multi-arch
+        if normalized_platforms:
+            logger.info(
+                "multi_arch_build",
+                platforms=normalized_platforms,
+                count=len(normalized_platforms)
+            )
+
         if self.builder_type == BuilderType.DOCKER:
             return await self._build_with_docker(
                 dockerfile_path, build_context, image_tag,
-                build_args, target_stage, platforms,
+                build_args, target_stage, normalized_platforms,
                 use_cache, use_cache_repo,
             )
         else:
             return await self._build_with_kaniko(
                 dockerfile_path, build_context, image_tag,
-                build_args, target_stage, platforms,
+                build_args, target_stage, normalized_platforms,
                 use_cache, use_cache_repo,
             )
 
