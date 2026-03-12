@@ -30,10 +30,10 @@ class TestPipelineEngineExecution:
         from src.models.artifact import PipelineStage, StageStatus
         from datetime import datetime
 
-        # Lista de stages do pipeline
+        # Lista de stages do pipeline (atualizado com 8 stages)
         stage_names = [
-            'template_selection', 'code_composition', 'validation',
-            'testing', 'packaging', 'approval_gate'
+            'template_selection', 'code_composition', 'dockerfile_generation',
+            'container_build', 'validation', 'testing', 'packaging', 'approval_gate'
         ]
 
         # Criar mocks dos estágios com assinatura correta
@@ -53,7 +53,7 @@ class TestPipelineEngineExecution:
             result = await mock_pipeline_engine.execute_pipeline(sample_execution_ticket)
 
         assert result.status == 'COMPLETED'
-        assert len(result.pipeline_stages) == 6
+        assert len(result.pipeline_stages) == 8
 
     @pytest.mark.asyncio
     async def test_execute_pipeline_stage_failure(
