@@ -1,5 +1,159 @@
 # Release Notes - CodeForge Builds Reais
 
+## Versão 1.5.0 - 2026-03-12
+
+### Visão Geral
+
+Esta versão implementa **Performance Metrics** - um sistema completo de coleta, análise e exportação de métricas de performance de builds.
+
+### Novas Funcionalidades
+
+#### 1. BuildMetricsCollector
+
+**Coletor de métricas com persistência e análise estatística:**
+
+- **Coleta automática**: Registra duração, tamanho, cache hits e sucesso de builds
+- **Persistência em JSONL**: Armazenamento durável de métricas
+- **Análise estatística**: Média, mediana, percentis (p95, p99), desvio padrão
+- **Agrupamento flexível**: Por linguagem, framework, builder_type, plataforma
+- **Comparação de performance**: Identifica builders/linguagens mais rápidos
+- **Relatório completo**: Visão consolidada de todas as métricas
+- **Identificação de problemas**: Builds mais lentos e resumo de erros
+
+**Arquivo**: `src/services/build_metrics.py` (novo, 492 linhas)
+**Testes**: `tests/unit/test_build_metrics.py` (novo, 23 testes)
+
+#### 2. Tipos de Métricas
+
+| MetricType | Descrição | Unidade |
+|------------|-----------|---------|
+| DURATION | Tempo de build | segundos |
+| SIZE | Tamanho da imagem | bytes |
+| CACHE_HIT | Taxa de cache | boolean (0/1) |
+| SUCCESS_RATE | Taxa de sucesso | boolean (0/1) |
+| RESOURCE_USAGE | Uso de recursos | placeholder |
+
+#### 3. BuildMetric Dataclass
+
+```python
+@dataclass
+class BuildMetric:
+    timestamp: str
+    language: str
+    framework: Optional[str]
+    artifact_type: str
+    platform: str
+    builder_type: str
+    success: bool
+    duration_seconds: float
+    size_bytes: Optional[int]
+    cache_hit: bool
+    multi_arch: bool
+    platforms_count: int
+    has_error: bool
+    error_type: Optional[str]
+```
+
+#### 4. Integração com ContainerBuilder
+
+- **Lazy loading**: Coletor carregado apenas quando `enable_metrics=True`
+- **Extração de metadados**: Detecção automática de linguagem/framework do Dockerfile
+- **Coleta automática**: Métricas registradas após cada build
+- **Suporte multi-arch**: Plataformas registradas corretamente
+
+### API de Uso
+
+#### Habilitar Métricas
+
+```python
+from src.services.container_builder import ContainerBuilder
+
+builder = ContainerBuilder(
+    enable_metrics=True,  # Habilita coleta de métricas
+    storage_path="metrics/build_metrics.jsonl"
+)
+
+result = await builder.build_container(
+    dockerfile_path="Dockerfile",
+    build_context=".",
+    image_tag="myapp:latest",
+)
+# Métricas coletadas automaticamente
+```
+
+#### Consultar Estatísticas
+
+```python
+from src.services.build_metrics import get_metrics_collector
+
+collector = get_metrics_collector()
+
+# Estatísticas por linguagem
+stats = collector.get_stats(
+    metric_type=MetricType.DURATION,
+    group_by="language"
+)
+print(f"Python: média {stats['python'].mean:.2f}s")
+
+# Comparar performance
+comparison = collector.compare_performance(
+    metric_type=MetricType.DURATION,
+    dimension="builder_type"
+)
+
+# Relatório completo
+report = collector.get_performance_report()
+```
+
+#### Exportar Métricas
+
+```python
+# Exportar para JSON
+collector.export_metrics("metrics.json", format="json")
+
+# Exportar para CSV
+collector.export_metrics("metrics.csv", format="csv")
+
+# Builds mais lentos
+slowest = collector.get_slowest_builds(n=10)
+
+# Resumo de erros
+errors = collector.get_error_summary()
+```
+
+### Testes
+
+#### Novos Testes Unitários (23 testes, todos passando)
+
+| Classe | Testes | Descrição |
+|--------|--------|-----------|
+| `TestBuildMetric` | 2 | Criação e conversão para dict |
+| `TestBuildMetricsCollector` | 6 | Inicialização, carregamento, registro |
+| `TestMetricsAggregation` | 4 | Estatísticas agrupadas |
+| `TestPerformanceComparison` | 2 | Comparação entre grupos |
+| `TestPerformanceReport` | 2 | Relatório de performance |
+| `TestSlowestBuilds` | 1 | Identificação de builds lentos |
+| `TestErrorSummary` | 1 | Resumo de erros |
+| `TestMetricsExport` | 2 | Exportação JSON/CSV |
+| `TestGlobalCollector` | 1 | Singleton pattern |
+| `TestSuccessChecker` | 2 | Verificador de sucesso |
+
+**Resultado**: `23 passed in 5.75s`
+
+### Métricas de Qualidade
+
+- **Cobertura de código**: ~32% para build_metrics.py
+- **Testes unitários**: 23 testes
+- **Linhas de código**: 492 linhas (build_metrics.py)
+
+### Próximos Passos
+
+- [ ] Integração com Dashboard de métricas em tempo real
+- [ ] Alertas automáticos para builds degradados
+- [ ] Correlação de métricas com variáveis de ambiente
+
+---
+
 ## Versão 1.4.0 - 2026-03-12
 
 ### Visão Geral
