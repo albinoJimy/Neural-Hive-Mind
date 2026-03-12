@@ -1,5 +1,129 @@
 # Release Notes - CodeForge Builds Reais
 
+## Versão 1.3.0 - 2026-03-12
+
+### Visão Geral
+
+Esta versão implementa **Builds Reais com Kaniko** com suporte completo para builds no cluster Kubernetes sem registry. Inclui modo `no-push` para builds locais e 9 testes E2E abrangentes.
+
+### Novas Funcionalidades
+
+#### 1. Kaniko Real Builds (Item Opcional)
+
+**Executor de builds Kaniko no cluster Kubernetes real:**
+
+- **Modo no-push**: Builds sem necessidade de registry configurado
+- **emptyDir + init container**: Passagem de contexto de build otimizada
+- **Digest file**: Captura SHA256 mesmo em modo no-push
+- **Auto-cleanup**: Pods e ConfigMaps removidos após build
+- **Timeout configurável**: Até 15 minutos para builds complexos
+
+**Arquivo**: `src/services/container_builder.py` (modificado)
+**Testes**: `tests/e2e/test_kaniko_real_build.py` (novo, 9 testes)
+
+#### 2. Parâmetro no_push
+
+```python
+result = await builder.build_container(
+    dockerfile_path="Dockerfile",
+    build_context=".",
+    image_tag="myapp:latest",
+    no_push=True  # Build local sem push ao registry
+)
+```
+
+**Comportamento**:
+- `no_push=False` (padrão): Build com push para registry
+- `no_push=True`: Build local only, usa `--no-push`, `--tar-path`, `--digest-file`
+
+#### 3. Captura de Digest Aprimorada
+
+**Modo push**: Digest extraído dos logs do Kaniko
+```
+Built image with digest sha256:abc123...
+```
+
+**Modo no-push**: Digest lido de arquivo via Kubernetes exec
+```python
+# Exec no pod: cat /workspace/digest.txt
+# Resultado: sha256:abc123...
+```
+
+### Testes
+
+#### Novos Testes E2E (9 testes, 8 passando)
+
+- `test_registry_accessible` - Verifica conectividade com registry
+- `test_kaniko_simple_alpine_build` - Build Alpine simples
+- `test_kaniko_python_microservice_build` - Build microserviço Python com FastAPI
+- `test_kaniko_with_build_args` - Build com argumentos customizados
+- `test_kaniko_multi_stage_build` - Build multi-stage completo
+- `test_kaniko_with_target_stage` - Build com stage alvo específico
+- `test_kaniko_cache_enabled` - Build com cache habilitado
+- `test_build_duration_tracking` - Rastreamento de duração
+- `test_build_logs_capture` - Captura de logs do build
+
+**Resultado**: `8 passed, 1 skipped, 12 warnings in 165.19s`
+
+### Cluster Kubernetes
+
+**Conexão validada:**
+- URL: `https://37.60.241.150:6443`
+- Namespace: `docker-build` existente
+- Pods Kaniko criados e monitorados com sucesso
+- Auto-cleanup funcionando
+
+### Mudanças Técnicas
+
+#### Pod Manifest
+
+```yaml
+spec:
+  initContainers:
+    - name: setup
+      image: busybox:latest
+      command: ["/bin/sh", "-c"]
+      args:
+        - "cp /dockerfile/Dockerfile /workspace/Dockerfile && ..."
+  containers:
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:latest
+      args:
+        - "--dockerfile=Dockerfile"
+        - "--context=dir:///workspace"
+        - "--no-push"
+        - "--tar-path=/workspace/image.tar"
+        - "--digest-file=/workspace/digest.txt"
+  volumes:
+    - name: workspace
+      emptyDir: {}
+```
+
+### Known Issues
+
+1. **Registry**: Teste `test_registry_accessible` skipado quando registry não disponível
+2. **Dockerfile escaping**: Aspas simples devem ser usadas em comandos RUN echo
+
+### Próximos Passos (Itens Opcionais)
+
+- [ ] QEMU Multi-arch (requer configuração do cluster)
+- [ ] Performance Metrics (requer ambiente de produção)
+
+### Changelog
+
+#### Adicionado
+
+- `src/services/container_builder.py::build_container(no_push=True)` - Modo no-push
+- `src/services/container_builder.py::_build_with_kaniko()` - emptyDir + init container
+- `src/services/container_builder.py::_read_digest_from_file()` - Captura via exec
+- `tests/e2e/test_kaniko_real_build.py` - 9 testes E2E para builds reais
+
+#### Modificado
+
+- `src/services/container_builder.py` - Kaniko args com --no-push, --tar-path, --digest-file
+
+---
+
 ## Versão 1.2.0 - 2026-03-12
 
 ### Visão Geral
