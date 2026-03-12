@@ -315,12 +315,278 @@ class ContainerBuilder:
         image_tag: str,
         build_args: Optional[dict] = None,
         target_stage: Optional[str] = None,
+        platforms: Optional[List[str]] = None,
     ) -> BuildResult:
-        """Executa build usando Kaniko (FASE 3 - retornar erro por agora)."""
-        return BuildResult(
-            success=False,
-            error_message="Kaniko ainda não implementado. Use BuilderType.DOCKER.",
+        """
+        Executa build usando Kaniko no Kubernetes.
+
+        Kaniko executa builds sem Docker daemon, ideal para Kubernetes.
+
+        Args:
+            dockerfile_path: Caminho para o Dockerfile
+            build_context: Diretorio de contexto do build
+            image_tag: Tag para a imagem resultante
+            build_args: Argumentos de build (--build-arg)
+            target_stage: Stage alvo em multi-stage build
+            platforms: Lista de plataformas para multi-arch
+
+        Returns:
+            BuildResult com digest e metadados
+        """
+        from kubernetes import client, config
+        import tempfile
+        import tarfile
+        import base64
+        import yaml
+
+        logger.info(
+            "kaniko_build_started",
+            image_tag=image_tag,
+            dockerfile=dockerfile_path,
+            context=build_context,
         )
+
+        try:
+            # Carregar config do Kubernetes
+            try:
+                config.load_kube_config()
+            except Exception:
+                config.load_incluster_config()
+
+            k8s = client.CoreV1Api()
+            namespace = "docker-build"
+
+            # Criar contexto empacotado (tar.gz)
+            context_tar = tempfile.NamedTemporaryFile(
+                suffix=".tar.gz",
+                delete=False
+            )
+
+            with tarfile.open(context_tar.name, "w:gz") as tar:
+                tar.add(build_context, arcname=".")
+
+            # Ler Dockerfile
+            with open(dockerfile_path, "r") as f:
+                dockerfile_content = f.read()
+
+            # Converter build_args para formato Kaniko
+            kaniko_args = [
+                "--dockerfile=Dockerfile",
+                f"--context=tar://build-context.tar.gz",
+                f"--destination={image_tag}",
+                "--snapshotMode=redo",
+                "--use-new-run",
+            ]
+
+            if build_args:
+                for key, value in build_args.items():
+                    kaniko_args.append(f"--build-arg={key}={value}")
+
+            if target_stage:
+                kaniko_args.append(f"--target={target_stage}")
+
+            # Criar nome único para o pod
+            import uuid
+            pod_name = f"kaniko-{uuid.uuid4().hex[:8]}"
+
+            # Ler o tar.gz e codificar em base64 para configmap
+            with open(context_tar.name, "rb") as f:
+                context_data = base64.b64encode(f.read()).decode()
+
+            # Criar ConfigMap com o contexto
+            configmap_name = f"kaniko-context-{uuid.uuid4().hex[:8]}"
+            configmap = {
+                "apiVersion": "v1",
+                "kind": "ConfigMap",
+                "metadata": {
+                    "name": configmap_name,
+                    "namespace": namespace,
+                },
+                "data": {
+                    "build-context.tar.gz": context_data,
+                }
+            }
+
+            try:
+                k8s.create_namespaced_config_map(
+                    namespace=namespace,
+                    body=configmap
+                )
+            except Exception as e:
+                logger.warning("configmap_create_failed", error=str(e))
+
+            # Manifesto do Pod Kaniko
+            pod_manifest = {
+                "apiVersion": "v1",
+                "kind": "Pod",
+                "metadata": {
+                    "name": pod_name,
+                    "namespace": namespace,
+                    "labels": {
+                        "app": "kaniko",
+                        "build": image_tag.replace(":", "-").replace("/", "-")
+                    }
+                },
+                "spec": {
+                    "restartPolicy": "Never",
+                    "containers": [{
+                        "name": "kaniko",
+                        "image": "gcr.io/kaniko-project/executor:latest",
+                        "args": kaniko_args,
+                        "volumeMounts": [{
+                            "name": "kaniko-context",
+                            "mountPath": "/workspace",
+                        }],
+                    }],
+                    "volumes": [{
+                        "name": "kaniko-context",
+                        "configMap": {
+                            "name": configmap_name
+                        }
+                    }],
+                    "tolerations": [{
+                        "key": "key",
+                        "operator": "Exists",
+                        "effect": "NoSchedule"
+                    }]
+                }
+            }
+
+            # Criar e executar o pod
+            pod = k8s.create_namespaced_pod(
+                namespace=namespace,
+                body=pod_manifest
+            )
+
+            logger.info("kaniko_pod_created", pod_name=pod_name)
+
+            # Aguardar conclusão do build
+            start_time = asyncio.get_event_loop().time()
+
+            while True:
+                pod_status = k8s.read_namespaced_pod(
+                    name=pod_name,
+                    namespace=namespace
+                )
+
+                phase = pod_status.status.phase
+
+                if phase == "Succeeded":
+                    duration = int((asyncio.get_event_loop().time() - start_time) * 1000)
+
+                    # Obter logs para extrair digest
+                    logs = k8s.read_namespaced_pod_log(
+                        name=pod_name,
+                        namespace=namespace
+                    )
+
+                    # Parse digest dos logs
+                    digest = self._parse_kaniko_digest(logs)
+
+                    logger.info(
+                        "kaniko_build_success",
+                        pod_name=pod_name,
+                        digest=digest,
+                        duration_ms=duration,
+                    )
+
+                    # Cleanup
+                    k8s.delete_namespaced_pod(
+                        name=pod_name,
+                        namespace=namespace
+                    )
+                    try:
+                        k8s.delete_namespaced_config_map(
+                            name=configmap_name,
+                            namespace=namespace
+                        )
+                    except Exception:
+                        pass
+
+                    return BuildResult(
+                        success=True,
+                        image_digest=digest,
+                        image_tag=image_tag,
+                        duration_seconds=duration / 1000.0,
+                    )
+
+                elif phase == "Failed":
+                    # Obter logs de erro
+                    try:
+                        logs = k8s.read_namespaced_pod_log(
+                            name=pod_name,
+                            namespace=namespace
+                        )
+                        error_msg = logs[-500:] if len(logs) > 500 else logs
+                    except Exception:
+                        error_msg = "Kaniko pod failed"
+
+                    logger.error(
+                        "kaniko_build_failed",
+                        pod_name=pod_name,
+                        error=error_msg,
+                    )
+
+                    # Cleanup
+                    try:
+                        k8s.delete_namespaced_pod(
+                            name=pod_name,
+                            namespace=namespace
+                        )
+                        k8s.delete_namespaced_config_map(
+                            name=configmap_name,
+                            namespace=namespace
+                        )
+                    except Exception:
+                        pass
+
+                    return BuildResult(
+                        success=False,
+                        error_message=f"Kaniko build failed: {error_msg}",
+                    )
+
+                # Timeout check
+                elapsed = asyncio.get_event_loop().time() - start_time
+                if elapsed > self.timeout_seconds:
+                    logger.error("kaniko_build_timeout", pod_name=pod_name)
+                    k8s.delete_namespaced_pod(
+                        name=pod_name,
+                        namespace=namespace
+                    )
+                    return BuildResult(
+                        success=False,
+                        error_message=f"Kaniko build timeout após {elapsed}s",
+                    )
+
+                await asyncio.sleep(5)
+
+        except ImportError as e:
+            logger.error("kubernetes_not_installed", error=str(e))
+            return BuildResult(
+                success=False,
+                error_message="Kubernetes Python client não instalado. Instale: pip install kubernetes",
+            )
+        except Exception as e:
+            logger.error("kaniko_build_exception", error=str(e))
+            return BuildResult(
+                success=False,
+                error_message=f"Kaniko exception: {str(e)}",
+            )
+
+    def _parse_kaniko_digest(self, logs: str) -> Optional[str]:
+        """
+        Extrai o digest SHA256 dos logs do Kaniko.
+
+        Formato esperado nos logs:
+        Built image with digest sha256:abc123...
+        """
+        for line in logs.splitlines():
+            if "digest sha256:" in line.lower():
+                parts = line.split("sha256:")
+                if len(parts) > 1:
+                    digest_hash = parts[1].split()[0][:64]
+                    return f"sha256:{digest_hash}"
+        return None
 
     async def push_to_registry(
         self,
