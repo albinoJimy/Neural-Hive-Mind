@@ -48,15 +48,29 @@ class ContainerBuilder:
     - Multi-stage builds
     - Multi-arch builds
     - Push para registries
+    - BuildKit cache distribuído
     """
 
     def __init__(
         self,
         builder_type: BuilderType = BuilderType.DOCKER,
         timeout_seconds: int = 3600,
+        enable_cache: bool = False,
+        cache_repo: Optional[str] = None,
     ):
+        """
+        Inicializa o ContainerBuilder.
+
+        Args:
+            builder_type: Tipo de builder (DOCKER ou KANIKO)
+            timeout_seconds: Timeout para builds em segundos
+            enable_cache: Habilita cache distribuído
+            cache_repo: Repositório de cache (ex: ghcr.io/user/cache)
+        """
         self.builder_type = builder_type
         self.timeout_seconds = timeout_seconds
+        self.enable_cache = enable_cache
+        self.cache_repo = cache_repo
 
     async def build_container(
         self,
@@ -66,6 +80,8 @@ class ContainerBuilder:
         build_args: Optional[dict] = None,
         target_stage: Optional[str] = None,
         platforms: Optional[List[str]] = None,
+        enable_cache: Optional[bool] = None,
+        cache_repo: Optional[str] = None,
     ) -> BuildResult:
         """
         Executa o build de uma imagem de container.
@@ -77,19 +93,27 @@ class ContainerBuilder:
             build_args: Argumentos de build (--build-arg)
             target_stage: Stage alvo em multi-stage build
             platforms: Lista de plataformas para multi-arch (ex: ["linux/amd64", "linux/arm64"])
+            enable_cache: Sobrescreve cache do builder (opcional)
+            cache_repo: Sobrescreve cache_repo do builder (opcional)
 
         Returns:
             BuildResult com digest e metadados
         """
+        # Usar parâmetros fornecidos ou defaults do builder
+        use_cache = enable_cache if enable_cache is not None else self.enable_cache
+        use_cache_repo = cache_repo if cache_repo is not None else self.cache_repo
+
         if self.builder_type == BuilderType.DOCKER:
             return await self._build_with_docker(
                 dockerfile_path, build_context, image_tag,
                 build_args, target_stage, platforms,
+                use_cache, use_cache_repo,
             )
         else:
             return await self._build_with_kaniko(
                 dockerfile_path, build_context, image_tag,
-                build_args, target_stage,
+                build_args, target_stage, platforms,
+                use_cache, use_cache_repo,
             )
 
     async def _build_with_docker(
@@ -100,9 +124,23 @@ class ContainerBuilder:
         build_args: Optional[dict] = None,
         target_stage: Optional[str] = None,
         platforms: Optional[List[str]] = None,
+        enable_cache: bool = False,
+        cache_repo: Optional[str] = None,
     ) -> BuildResult:
         """Executa build usando docker build CLI."""
         cmd = ["docker", "build"]
+
+        # Adicionar flags de cache se habilitado
+        if enable_cache:
+            cmd.append("--cache-from")
+            if cache_repo:
+                cmd.append(f"type=registry,ref={cache_repo}")
+            else:
+                cmd.append("type=local")
+
+            if cache_repo:
+                cmd.append("--cache-to")
+                cmd.append(f"type=registry,ref={cache_repo},mode=max")
 
         if platforms:
             cmd.extend(["--platform", ",".join(platforms)])
@@ -316,6 +354,8 @@ class ContainerBuilder:
         build_args: Optional[dict] = None,
         target_stage: Optional[str] = None,
         platforms: Optional[List[str]] = None,
+        enable_cache: bool = False,
+        cache_repo: Optional[str] = None,
     ) -> BuildResult:
         """
         Executa build usando Kaniko no Kubernetes.
@@ -329,6 +369,8 @@ class ContainerBuilder:
             build_args: Argumentos de build (--build-arg)
             target_stage: Stage alvo em multi-stage build
             platforms: Lista de plataformas para multi-arch
+            enable_cache: Habilita cache distribuído
+            cache_repo: Repositório de cache (ex: ghcr.io/user/cache)
 
         Returns:
             BuildResult com digest e metadados
@@ -378,12 +420,29 @@ class ContainerBuilder:
                 "--use-new-run",
             ]
 
+            # Adicionar cache se habilitado
+            if enable_cache:
+                kaniko_args.append("--cache=true")
+                if cache_repo:
+                    kaniko_args.append(f"--cache-repo={cache_repo}")
+                else:
+                    # Usar o próprio image_tag como cache repo se não especificado
+                    # Extrair registry e repositório da tag
+                    tag_parts = image_tag.split("/")
+                    if len(tag_parts) > 1:
+                        # Usar o registry/repo sem a tag
+                        cache_location = ":".join(image_tag.split(":")[:-1]) if ":" in image_tag else image_tag
+                        kaniko_args.append(f"--cache-repo={cache_location}-cache")
+
             if build_args:
                 for key, value in build_args.items():
                     kaniko_args.append(f"--build-arg={key}={value}")
 
             if target_stage:
                 kaniko_args.append(f"--target={target_stage}")
+
+            if platforms:
+                kaniko_args.append(f"--platform={','.join(platforms)}")
 
             # Criar nome único para o pod
             import uuid
