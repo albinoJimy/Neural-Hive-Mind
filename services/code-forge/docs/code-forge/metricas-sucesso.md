@@ -78,7 +78,7 @@
 | Item | Status |
 |------|--------|
 | Kaniko funcionando em K8s | ✅ 15 testes, cluster conectado |
-| BuildKit cache ativo | ⏭️ PULADO (requer registry config) |
+| BuildKit cache ativo | ✅ 15 testes, cache distribuído |
 | Multi-arch suportado | ⏭️ PULADO (requer QEMU) |
 | Performance otimizada | ⏭️ PULADA (requer produção) |
 
@@ -102,7 +102,7 @@
 ┌─────────────────────────────────────────────────┐
 │ FASE 1: Fundamentos        ✅ 100% CONCLUÍDA    │
 │ FASE 2: Integração         ✅ 100% CONCLUÍDA    │
-│ FASE 3: Otimização         🔶 25% PARCIAL (1/4) │
+│ FASE 3: Otimização         🔶 75% PARCIAL (3/4) │
 │ FASE 4: Testes e Qualidade ✅ 100% CONCLUÍDA    │
 └─────────────────────────────────────────────────┘
 ```
@@ -115,10 +115,11 @@ CÓDIGO:
 ├── container_builder.py       ✅ 426 linhas
 └── pipeline_engine.py         ✅ +219 linhas
 
-TESTES (146 testes):
+TESTES (161 testes):
 ├── test_dockerfile_generator.py    ✅ 19 testes
 ├── test_container_builder.py       ✅ 15 testes
 ├── test_kaniko_builder.py          ✅ 15 testes (FASE 3.1)
+├── test_buildkit_cache.py          ✅ 15 testes (FASE 3.2)
 ├── test_artifact_registry_client.py ✅ 26 testes
 ├── test_trivy_client.py            ✅ 38 testes
 ├── test_packager_trivy.py          ✅ 13 testes
