@@ -1,5 +1,165 @@
 # Release Notes - CodeForge Builds Reais
 
+## Versão 1.2.0 - 2026-03-12
+
+### Visão Geral
+
+Esta versão completa a implementação de **Builds de Container** com suporte total a **Kaniko, BuildKit Cache e Multi-arch**. Todas as 4 fases do plano foram implementadas.
+
+### Novas Funcionalidades
+
+#### 1. Multi-arch Support (FASE 3.3)
+
+Suporte a builds para múltiplas arquiteturas:
+
+- **6 Plataformas**: amd64, arm64, arm/v7, ppc64le, s390x, riscv64
+- **Aliases**: amd64, arm64, arm, x86_64, aarch64
+- **Validação**: Normalização automática de plataformas
+- **BuildResult**: Campos `platforms` e `cache_hit`
+
+**Arquivo**: `src/services/container_builder.py`
+
+**Plataformas suportadas**:
+```python
+from src.services.container_builder import Platform
+
+# Nomes completos
+Platform.LINUX_AMD64    # linux/amd64
+Platform.LINUX_ARM64    # linux/arm64
+Platform.LINUX_ARM_V7   # linux/arm/v7
+Platform.LINUX_PPC64LE  # linux/ppc64le
+Platform.LINUX_S390X    # linux/s390x
+Platform.LINUX_RISCV64  # linux/riscv64
+
+# Aliases
+["amd64", "arm64"]  # Normalizado automaticamente
+```
+
+#### 2. BuildKit Cache (FASE 3.2)
+
+Cache distribuído para builds mais rápidos:
+
+- **Docker**: `--cache-from` e `--cache-to` type=registry
+- **Kaniko**: `--cache=true` e `--cache-repo`
+- **Sobrescrita**: `enable_cache` e `cache_repo` por build
+
+**Parâmetros**:
+```python
+builder = ContainerBuilder(
+    enable_cache=True,
+    cache_repo="ghcr.io/myorg/cache"
+)
+```
+
+#### 3. Kaniko Integration (FASE 3.1)
+
+Builds sem Docker daemon no Kubernetes:
+
+- Criação automática de Pod Kaniko
+- ConfigMap para contexto de build
+- Extração de digest SHA256
+- Auto-cleanup de recursos
+
+**Cluster**: https://37.60.241.150:6443
+**Namespace**: docker-build
+
+### Melhorias
+
+#### BuildResult Enhanced
+
+```python
+@dataclass
+class BuildResult:
+    success: bool
+    image_digest: Optional[str] = None
+    image_tag: Optional[str] = None
+    size_bytes: Optional[int] = None
+    duration_seconds: float = 0.0
+    error_message: Optional[str] = None
+    build_logs: List[str] = field(default_factory=list)
+    platforms: Optional[List[str]] = None  # NOVO
+    cache_hit: bool = False  # NOVO
+```
+
+### Testes
+
+#### Novos Testes (60 testes)
+
+- `test_kaniko_builder.py`: 15 testes (FASE 3.1)
+- `test_buildkit_cache.py`: 15 testes (FASE 3.2)
+- `test_multiarch_support.py`: 28 testes (FASE 3.3)
+- `test_kaniko_k8s_e2e.py`: 7 testes E2E (Kubernetes real)
+
+**Total CodeForge**: 189 testes passando
+- 175 testes unitários
+- 14 testes E2E
+
+### Documentação
+
+#### Artefatos Atualizados
+
+- `metricas-sucesso.md` - Status 100% completo
+- `RELEASE_NOTES.md` - Todas as versões documentadas
+
+### Compatibilidade
+
+#### Plataformas Suportadas
+
+| Arquitetura | Alias | Uso |
+|-------------|-------|-----|
+| linux/amd64 | amd64, x86_64 | Servidores x86_64 |
+| linux/arm64 | arm64, aarch64 | ARM64 (AWS Graviton, Apple M) |
+| linux/arm/v7 | arm | ARM 32-bit (Raspberry Pi) |
+| linux/ppc64le | - | PowerPC Little Endian |
+| linux/s390x | - | IBM Z |
+| linux/riscv64 | - | RISC-V |
+
+### Configuração
+
+#### Multi-arch Build
+
+```python
+result = await builder.build_container(
+    dockerfile_path="Dockerfile",
+    build_context=".",
+    image_tag="myapp:latest",
+    platforms=["amd64", "arm64"]  # Multi-plataforma
+)
+```
+
+#### Cache Distribuído
+
+```python
+result = await builder.build_container(
+    dockerfile_path="Dockerfile",
+    build_context=".",
+    image_tag="myapp:latest",
+    enable_cache=True,
+    cache_repo="ghcr.io/myorg/cache"
+)
+```
+
+### Changelog
+
+#### Adicionado
+
+- `src/services/container_builder.py::Platform` - Enum de plataformas
+- `src/services/container_builder.py::PLATFORM_ALIASES` - Aliases de plataformas
+- `src/services/container_builder.py::_normalize_platforms()` - Normalização
+- `tests/unit/test_kaniko_builder.py` - 15 testes Kaniko
+- `tests/unit/test_buildkit_cache.py` - 15 testes Cache
+- `tests/unit/test_multiarch_support.py` - 28 testes Multi-arch
+- `tests/e2e/test_kaniko_k8s_e2e.py` - 7 testes E2E K8s
+
+#### Modificado
+
+- `src/services/container_builder.py::BuildResult` - Adicionados platforms e cache_hit
+- `src/services/container_builder.py::ContainerBuilder.__init__()` - enable_cache, cache_repo
+- `src/services/container_builder.py::build_container()` - Normalização de plataformas
+- `docs/code-forge/metricas-sucesso.md` - Status 100% completo
+
+---
+
 ## Versão 1.1.0 - 2026-03-12
 
 ### Visão Geral
