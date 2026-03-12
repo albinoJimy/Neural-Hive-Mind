@@ -278,7 +278,7 @@ class TestBuildResultWithCache:
     """Testes para BuildResult com informações de cache."""
 
     def test_build_result_without_cache_info(self):
-        """Testa BuildResult sem informações de cache."""
+        """Testa BuildResult sem informações explícitas de cache."""
         result = BuildResult(
             success=True,
             image_digest="sha256:abc123",
@@ -286,7 +286,10 @@ class TestBuildResultWithCache:
             duration_seconds=120.5
         )
         assert result.success is True
-        assert not hasattr(result, 'cache_hit') or result.cache_hit is None
+        # cache_hit tem valor padrão False
+        assert result.cache_hit is False
+        # platforms tem valor padrão None
+        assert result.platforms is None
 
     def test_build_result_with_cache_hit(self):
         """Testa BuildResult com hit de cache."""
