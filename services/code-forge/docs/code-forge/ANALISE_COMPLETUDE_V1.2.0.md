@@ -301,13 +301,15 @@ PLATFORM_ALIASES = {
 
 ## 4. Análise de Gaps e Itens Pendentes
 
-### 4.1 Itens Opcionais Não Implementados
+### 4.1 Itens Opcionais Implementados
 
-| Item | Status | Justificativa |
-|------|--------|---------------|
-| FASE 3.4: Performance Metrics | ⏭️ PULADO | Requer produção |
+| Item | Status | Versão |
+|------|--------|--------|
+| FASE 3.4: Performance Metrics | ✅ CONCLUÍDO | v1.5.0 - 23/23 testes passando |
 | QEMU para multi-arch em K8s | ✅ CONCLUÍDO | v1.4.0 - 11/11 testes passando |
 | Teste de build real Kaniko | ✅ CONCLUÍDO | v1.3.0 - 8/9 testes passando |
+
+**Todos os 3 itens opcionais foram implementados!**
 
 ### 4.2 Limitações Conhecidas
 
@@ -339,6 +341,7 @@ PLATFORM_ALIASES = {
 | QEMU Multi-arch (v1.4.0) | - | 11 | ✅ |
 | BuildKit Cache | 15 | - | ✅ |
 | Multi-arch | 28 | - | ✅ |
+| Performance Metrics (v1.5.0) | 23 | - | ✅ |
 | Artifact Registry | 26 | - | ✅ |
 | Trivy Scan | 38 | - | ✅ |
 | SBOM Generator | 16 | - | ✅ |
@@ -399,9 +402,9 @@ Integration: Opcional D3
 
 ```
 ╔══════════════════════════════════════════════════════════╗
-║   CODEFORGE BUILDS REAIS v1.4.0                         ║
-║   Status: ✅ 100% CONCLUÍDO + 2 Itens Opcionais         ║
-║   Fases + Kaniko Real + QEMU Multi-arch implementados    ║
+║   CODEFORGE BUILDS REAIS v1.5.0                         ║
+║   Status: ✅ 100% CONCLUÍDO + 3 Itens Opcionais         ║
+║   Fases + Kaniko Real + QEMU + Metrics implementados     ║
 ╚══════════════════════════════════════════════════════════╝
 ```
 
@@ -409,22 +412,23 @@ Integration: Opcional D3
 
 | Categoria | Quantidade | Status |
 |-----------|------------|--------|
-| Arquivos fonte | 46 | ✅ |
-| Arquivos de teste | 58 (+2 Kaniko + QEMU) | ✅ |
-| Testes unitários | 552 | ✅ |
+| Arquivos fonte | 47 (+1 build_metrics) | ✅ |
+| Arquivos de teste | 59 (+1 test_build_metrics) | ✅ |
+| Testes unitários | 575 (+23 Performance Metrics) | ✅ |
 | Testes E2E | 41 (+20 Kaniko + QEMU) | ✅ |
 | Linguagens suportadas | 6 | ✅ |
 | Plataformas suportadas | 6 | ✅ |
 | Builders disponíveis | 2 | ✅ |
 | QEMU binários suportados | 5 | ✅ |
+| Métricas coletadas | 5 tipos | ✅ |
 | Documentos | 11+ | ✅ |
 
 ### 7.3 Próximos Passos Recomendados
 
-1. **IMEDIATO:** Nenhum - implementação completa + 2 itens opcionais ✅
+1. **IMEDIATO:** Nenhum - implementação completa + 3 itens opcionais ✅
 2. **CURTO PRAZO:** Configurar registry para builds Kaniko com push
 3. **MÉDIO PRAZO:** Otimizar performance de builds QEMU
-4. **LONGO PRAZO:** Métricas de performance em produção
+4. **LONGO PRAZO:** Dashboard de métricas em tempo real
 
 **v1.3.0 (2026-03-12):** Item opcional "Kaniko Real Builds" CONCLUÍDO
 - 9 testes E2E implementados (8 passando)
@@ -438,17 +442,28 @@ Integration: Opcional D3
 - 5 plataformas suportadas (arm64, arm/v7, ppc64le, s390x, riscv64)
 - Estrutura de pod com volumes compartilhados
 
+**v1.5.0 (2026-03-12):** Item opcional "Performance Metrics" CONCLUÍDO
+- 23 testes unitários implementados (todos passando)
+- BuildMetricsCollector com análise estatística
+- 5 tipos de métricas (DURATION, SIZE, CACHE_HIT, SUCCESS_RATE, RESOURCE_USAGE)
+- Agrupamento por linguagem, framework, builder_type, plataforma
+- Exportação JSON/CSV e relatório completo
+
 ---
 
 ## 8. Assinatura
 
 **Análise realizada:** 2026-03-12
-**Versão analisada:** v1.2.0 → v1.4.0
+**Versão analisada:** v1.2.0 → v1.5.0
 **Responsável:** CodeForge Team
-**Status:** ✅ **APROVADO PARA PRODUÇÃO + 2 ITENS OPCIONAIS CONCLUÍDOS**
+**Status:** ✅ **APROVADO PARA PRODUÇÃO + 3 ITENS OPCIONAIS CONCLUÍDOS**
 
 ---
 
 > Este relatório confirma que o CodeForge Builds Reais atende 100% dos requisitos especificados nas 4 fases do plano original, com qualidade de código adequada, cobertura de testes abrangente e documentação completa.
 >
 > **v1.3.0:** Item opcional "Kaniko Real Builds" implementado e validado com 9 testes E2E.
+> **v1.4.0:** Item opcional "QEMU Multi-arch" implementado e validado com 11 testes E2E.
+> **v1.5.0:** Item opcional "Performance Metrics" implementado e validado com 23 testes unitários.
+>
+> **TODOS OS 3 ITENS OPCIONAIS FORAM CONCLUÍDOS!** 🎉
