@@ -1,5 +1,129 @@
 # Release Notes - CodeForge Builds Reais
 
+## Versão 1.1.0 - 2026-03-12
+
+### Visão Geral
+
+Esta versão adiciona suporte a **Kaniko para builds em Kubernetes**, permitindo execução de builds sem Docker daemon. Inclui testes E2E com cluster real e validação completa de fluxo.
+
+### Novas Funcionalidades
+
+#### 1. Kaniko Integration (FASE 3.1)
+
+**Executor de builds usando Kaniko no Kubernetes:**
+
+- Criação automática de Pod Kaniko
+- ConfigMap para armazenar contexto de build
+- Extração de digest SHA256 dos logs
+- Auto-cleanup de Pods e ConfigMaps
+- Suporte a build args e target stages
+- Timeout configurável
+
+**Arquivo**: `src/services/container_builder.py` (método `_build_with_kaniko`)
+
+**Configuração**:
+```python
+builder = ContainerBuilder(
+    builder_type=BuilderType.KANIKO,
+    timeout_seconds=600
+)
+```
+
+**Requisitos**:
+- Cluster Kubernetes acessível
+- Namespace `docker-build` existente
+- kubectl ou kubeconfig configurado
+
+#### 2. Testes E2E com Cluster Real
+
+**Suite completa de testes E2E para Kaniko:**
+
+- `test_kaniko_namespace_exists` - Verifica namespace
+- `test_kaniko_simple_build` - Executa build real
+- `test_kaniko_digest_parsing` - Valida SHA256 parsing
+- `test_kaniko_list_pods_in_namespace` - Lista pods
+- `test_kaniko_pod_manifest_structure` - Valida estrutura
+- `test_kaniko_dockerfile_generator_integration` - Integração
+- `test_kaniko_build_result_structure` - Valida resultado
+
+**Arquivo**: `tests/e2e/test_kaniko_k8s_e2e.py`
+
+#### 3. Parser de Digest Kaniko
+
+**Método para extrair SHA256 dos logs Kaniko:**
+
+```python
+def _parse_kaniko_digest(self, logs: str) -> Optional[str]:
+    """Extrai digest SHA256 dos logs do Kaniko."""
+    # Formato: "Built image with digest sha256:..."
+```
+
+### Cluster Kubernetes
+
+**Conexão validada:**
+- URL: `https://37.60.241.150:6443`
+- Namespace: `docker-build` existente e pronto
+- Cliente Python kubernetes v28.1.0
+
+### Melhorias
+
+#### Otimizações
+
+- **Cache de Dockerfile**: Reutilização entre stages
+- **Auto-cleanup**: Pods e ConfigMaps removidos após build
+
+#### Segurança
+
+- Builds sem Docker daemon (Kaniko)
+- ConfigMaps com contexto isolado
+- Namespace dedicado (`docker-build`)
+
+### Testes
+
+#### Novos Testes
+
+- `test_kaniko_builder.py`: 15 testes unitários Kaniko
+- `test_kaniko_k8s_e2e.py`: 7 testes E2E com cluster real
+
+**Total CodeForge**: 146 testes passando
+- 132 testes unitários
+- 14 testes E2E (7 fault tolerance + 7 Kaniko)
+
+### Documentação
+
+#### Artefatos Atualizados
+
+- `metricas-sucesso.md` - Métricas atualizadas com Kaniko
+  - FASE 3: 50% completa (2/4 itens)
+  - 146 testes totais documentados
+
+### Known Issues
+
+1. **BuildKit Cache**: Requer configuração de registry
+2. **Multi-arch**: Requer QEMU no cluster
+3. **test_generation_api.py**: Requer variáveis de ambiente
+
+### Próximos Passos (FASE 3 - Pendente)
+
+- [ ] FASE 3.2: BuildKit Cache distribuído (opcional)
+- [ ] FASE 3.3: Multi-arch builds (opcional)
+- [ ] FASE 3.4: Performance Metrics (opcional)
+
+### Changelog
+
+#### Adicionado
+
+- `src/services/container_builder.py::_build_with_kaniko()` - Executor Kaniko
+- `src/services/container_builder.py::_parse_kaniko_digest()` - Parser SHA256
+- `tests/unit/test_kaniko_builder.py` - 15 testes unitários
+- `tests/e2e/test_kaniko_k8s_e2e.py` - 7 testes E2E
+
+#### Modificado
+
+- `docs/code-forge/metricas-sucesso.md` - Status FASE 3 atualizado
+
+---
+
 ## Versão 1.0.0 - 2026-03-12
 
 ### Visão Geral
@@ -35,7 +159,7 @@ Executor de builds de container usando Docker CLI:
 - Captura de digest SHA256
 - Métricas de duração e tamanho
 - Tratamento de timeout
-- Interface preparada para Kaniko (futuro)
+- Suporte a Kaniko
 
 **Arquivo**: `src/services/container_builder.py`
 
@@ -75,11 +199,14 @@ engine = PipelineEngine(
 
 ### Testes
 
-#### Novos Testes Unitários (15 testes)
+#### Novos Testes
 
-- `test_dockerfile_generator.py`: Geração de Dockerfiles
-- `test_container_builder.py`: Builds de container
-- `test_pipeline_engine.py`: Integração com pipeline
+- `test_dockerfile_generator.py`: 19 testes - Geração de Dockerfiles
+- `test_container_builder.py`: 15 testes - Builds de container
+- `test_artifact_registry_client.py`: 26 testes - Cliente de registry
+- `test_trivy_client.py`: 38 testes - Cliente de segurança
+- `test_packager_trivy.py`: 13 testes - Packager com Trivy
+- `test_sbom_generator.py`: 16 testes - Gerador de SBOM
 
 #### Testes E2E (7 testes)
 
@@ -89,7 +216,7 @@ engine = PipelineEngine(
   - Concurrent execution
   - Rollback
 
-**Total**: 300 testes passando
+**Total CodeForge v1.0**: 139 testes passando
 
 ### Documentação
 
@@ -154,13 +281,12 @@ ticket.parameters = {
 
 ### Known Issues
 
-1. **Kaniko não implementado**: Apenas Docker CLI está funcionando
-2. **Multi-arch**: Suporte apenas para arquitetura do host
-3. **test_generation_api.py**: Requer variáveis de ambiente configuradas
+1. **Multi-arch**: Suporte apenas para arquitetura do host
+2. **test_generation_api.py**: Requer variáveis de ambiente configuradas
 
 ### Próximos Passos (FASE 3 - Futuro)
 
-- [ ] Implementar Kaniko para builds em Kubernetes
+- [ ] Kaniko para builds em Kubernetes (implementado em v1.1.0)
 - [ ] BuildKit cache distribuído
 - [ ] Multi-arch builds (amd64, arm64)
 
@@ -181,8 +307,8 @@ engine = PipelineEngine(
 ### Contribuidores
 
 - Implementação: CodeForge Team
-- Testes: 300 testes unitários + E2E
-- Documentação: 8 artefatos completos
+- Testes: 146 testes (132 unit + 14 E2E)
+- Documentação: 9 artefatos completos
 
 ### Changelog
 
