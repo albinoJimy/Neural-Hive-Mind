@@ -144,6 +144,7 @@ class ContainerBuilder:
         platforms: Optional[List[str]] = None,
         enable_cache: Optional[bool] = None,
         cache_repo: Optional[str] = None,
+        no_push: bool = False,
     ) -> BuildResult:
         """
         Executa o build de uma imagem de container.
@@ -157,6 +158,7 @@ class ContainerBuilder:
             platforms: Lista de plataformas para multi-arch (ex: ["amd64", "arm64"])
             enable_cache: Sobrescreve cache do builder (opcional)
             cache_repo: Sobrescreve cache_repo do builder (opcional)
+            no_push: Se True, não faz push da imagem (apenas build local)
 
         Returns:
             BuildResult com digest e metadados
@@ -180,13 +182,13 @@ class ContainerBuilder:
             return await self._build_with_docker(
                 dockerfile_path, build_context, image_tag,
                 build_args, target_stage, normalized_platforms,
-                use_cache, use_cache_repo,
+                use_cache, use_cache_repo, no_push,
             )
         else:
             return await self._build_with_kaniko(
                 dockerfile_path, build_context, image_tag,
                 build_args, target_stage, normalized_platforms,
-                use_cache, use_cache_repo,
+                use_cache, use_cache_repo, no_push,
             )
 
     async def _build_with_docker(
@@ -199,6 +201,7 @@ class ContainerBuilder:
         platforms: Optional[List[str]] = None,
         enable_cache: bool = False,
         cache_repo: Optional[str] = None,
+        no_push: bool = False,
     ) -> BuildResult:
         """Executa build usando docker build CLI."""
         cmd = ["docker", "build"]
@@ -429,6 +432,7 @@ class ContainerBuilder:
         platforms: Optional[List[str]] = None,
         enable_cache: bool = False,
         cache_repo: Optional[str] = None,
+        no_push: bool = False,
     ) -> BuildResult:
         """
         Executa build usando Kaniko no Kubernetes.
@@ -444,6 +448,7 @@ class ContainerBuilder:
             platforms: Lista de plataformas para multi-arch
             enable_cache: Habilita cache distribuído
             cache_repo: Repositório de cache (ex: ghcr.io/user/cache)
+            no_push: Se True, não faz push (build local apenas)
 
         Returns:
             BuildResult com digest e metadados
@@ -471,15 +476,6 @@ class ContainerBuilder:
             k8s = client.CoreV1Api()
             namespace = "docker-build"
 
-            # Criar contexto empacotado (tar.gz)
-            context_tar = tempfile.NamedTemporaryFile(
-                suffix=".tar.gz",
-                delete=False
-            )
-
-            with tarfile.open(context_tar.name, "w:gz") as tar:
-                tar.add(build_context, arcname=".")
-
             # Ler Dockerfile
             with open(dockerfile_path, "r") as f:
                 dockerfile_content = f.read()
@@ -487,11 +483,17 @@ class ContainerBuilder:
             # Converter build_args para formato Kaniko
             kaniko_args = [
                 "--dockerfile=Dockerfile",
-                f"--context=tar://build-context.tar.gz",
-                f"--destination={image_tag}",
-                "--snapshotMode=redo",
-                "--use-new-run",
+                f"--context=dir:///workspace",
             ]
+
+            # Adicionar destino ou no-push com tar-path
+            if no_push:
+                kaniko_args.append("--no-push")
+                kaniko_args.append("--tar-path=/workspace/image.tar")
+                # Adicionar digest-file para capturar o digest mesmo sem push
+                kaniko_args.append("--digest-file=/workspace/digest.txt")
+            else:
+                kaniko_args.append(f"--destination={image_tag}")
 
             # Adicionar cache se habilitado
             if enable_cache:
@@ -521,12 +523,16 @@ class ContainerBuilder:
             import uuid
             pod_name = f"kaniko-{uuid.uuid4().hex[:8]}"
 
-            # Ler o tar.gz e codificar em base64 para configmap
-            with open(context_tar.name, "rb") as f:
-                context_data = base64.b64encode(f.read()).decode()
-
-            # Criar ConfigMap com o contexto
+            # Criar ConfigMap com o Dockerfile e arquivos do contexto
+            # Para simplificar, vamos incluir apenas o Dockerfile no ConfigMap
+            # e usar um volume emptyDir que o container init irá popular
             configmap_name = f"kaniko-context-{uuid.uuid4().hex[:8]}"
+
+            # Ler o Dockerfile
+            with open(dockerfile_path, "r") as f:
+                dockerfile_content = f.read()
+
+            # Criar ConfigMap com o Dockerfile
             configmap = {
                 "apiVersion": "v1",
                 "kind": "ConfigMap",
@@ -535,7 +541,7 @@ class ContainerBuilder:
                     "namespace": namespace,
                 },
                 "data": {
-                    "build-context.tar.gz": context_data,
+                    "Dockerfile": dockerfile_content,
                 }
             }
 
@@ -547,7 +553,10 @@ class ContainerBuilder:
             except Exception as e:
                 logger.warning("configmap_create_failed", error=str(e))
 
-            # Manifesto do Pod Kaniko
+            # Log dos argumentos do Kaniko para depuração
+            logger.info("kaniko_args", args=kaniko_args)
+
+            # Manifesto do Pod Kaniko com emptyDir e container init
             pod_manifest = {
                 "apiVersion": "v1",
                 "kind": "Pod",
@@ -561,21 +570,57 @@ class ContainerBuilder:
                 },
                 "spec": {
                     "restartPolicy": "Never",
+                    "initContainers": [{
+                        "name": "setup",
+                        "image": "busybox:latest",
+                        "command": ["/bin/sh", "-c"],
+                        "args": [
+                            # Copiar Dockerfile do ConfigMap para o workspace
+                            "cp /dockerfile/Dockerfile /workspace/Dockerfile && "
+                            # Copiar todo o contexto de build se existir
+                            "if [ -d /context ]; then cp -r /context/. /workspace/ 2>/dev/null || true; fi && "
+                            "ls -la /workspace/"
+                        ],
+                        "volumeMounts": [
+                            {
+                                "name": "workspace",
+                                "mountPath": "/workspace",
+                            },
+                            {
+                                "name": "dockerfile",
+                                "mountPath": "/dockerfile",
+                            },
+                            {
+                                "name": "context",
+                                "mountPath": "/context",
+                            }
+                        ]
+                    }],
                     "containers": [{
                         "name": "kaniko",
                         "image": "gcr.io/kaniko-project/executor:latest",
                         "args": kaniko_args,
                         "volumeMounts": [{
-                            "name": "kaniko-context",
+                            "name": "workspace",
                             "mountPath": "/workspace",
                         }],
                     }],
-                    "volumes": [{
-                        "name": "kaniko-context",
-                        "configMap": {
-                            "name": configmap_name
+                    "volumes": [
+                        {
+                            "name": "workspace",
+                            "emptyDir": {},
+                        },
+                        {
+                            "name": "dockerfile",
+                            "configMap": {
+                                "name": configmap_name
+                            }
+                        },
+                        {
+                            "name": "context",
+                            "emptyDir": {},
                         }
-                    }],
+                    ],
                     "tolerations": [{
                         "key": "key",
                         "operator": "Exists",
@@ -615,6 +660,42 @@ class ContainerBuilder:
                     # Parse digest dos logs
                     digest = self._parse_kaniko_digest(logs)
 
+                    # Se não encontrou digest nos logs e no_push=True,
+                    # tentar ler do arquivo digest-file
+                    if not digest and no_push:
+                        try:
+                            # Executar comando no pod para ler o digest file
+                            from kubernetes.stream import stream
+
+                            exec_command = [
+                                '/bin/sh',
+                                '-c',
+                                'cat /workspace/digest.txt'
+                            ]
+
+                            # Executa comando e captura saída
+                            result = stream(
+                                k8s.connect_get_namespaced_pod_exec,
+                                pod_name,
+                                namespace,
+                                command=exec_command,
+                                stderr=False,
+                                stdin=False,
+                                stdout=True,
+                                tty=False
+                            )
+
+                            digest_content = ""
+                            for line in result:
+                                if line:
+                                    digest_content += line.decode('utf-8').strip()
+
+                            if digest_content:
+                                digest = digest_content
+                                logger.info("kaniko_digest_from_file", digest=digest)
+                        except Exception as e:
+                            logger.warning("kaniko_digest_file_read_failed", error=str(e))
+
                     logger.info(
                         "kaniko_build_success",
                         pod_name=pod_name,
@@ -640,6 +721,7 @@ class ContainerBuilder:
                         image_digest=digest,
                         image_tag=image_tag,
                         duration_seconds=duration / 1000.0,
+                        build_logs=logs.split("\n") if logs else [],
                     )
 
                 elif phase == "Failed":
@@ -659,22 +741,24 @@ class ContainerBuilder:
                         error=error_msg,
                     )
 
-                    # Cleanup
-                    try:
-                        k8s.delete_namespaced_pod(
-                            name=pod_name,
-                            namespace=namespace
-                        )
-                        k8s.delete_namespaced_config_map(
-                            name=configmap_name,
-                            namespace=namespace
-                        )
-                    except Exception:
-                        pass
+                    # NÃO deletar o pod em caso de erro para depuração
+                    # TODO: Reativar cleanup após debug
+                    # try:
+                    #     k8s.delete_namespaced_pod(
+                    #         name=pod_name,
+                    #         namespace=namespace
+                    #     )
+                    #     k8s.delete_namespaced_config_map(
+                    #         name=configmap_name,
+                    #         namespace=namespace
+                    #     )
+                    # except Exception:
+                    #     pass
 
                     return BuildResult(
                         success=False,
                         error_message=f"Kaniko build failed: {error_msg}",
+                        build_logs=logs.split("\n") if logs else [],
                     )
 
                 # Timeout check
