@@ -9,7 +9,7 @@ enableServiceLinks: false
 image:
   repository: ghcr.io/albinojimy/neural-hive-mind/mcp-tool-catalog
   pullPolicy: Always
-  tag: "1.2.8"
+  tag: "1.2.9"
 
 imagePullSecrets:
   - name: ghcr-secret

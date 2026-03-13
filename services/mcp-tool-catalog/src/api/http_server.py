@@ -2,9 +2,15 @@
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+# OpenTelemetry instrumentation - optional due to dependency issues
+try:
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    OTEL_AVAILABLE = True
+except ImportError:
+    OTEL_AVAILABLE = False
 
 from src.config import get_settings
 
@@ -29,8 +35,12 @@ def create_app(lifespan: Optional[asynccontextmanager] = None) -> FastAPI:
         allow_headers=["*"],
     )
 
-    # OpenTelemetry instrumentation
-    FastAPIInstrumentor.instrument_app(app)
+    # OpenTelemetry instrumentation - optional
+    if OTEL_AVAILABLE:
+        try:
+            FastAPIInstrumentor.instrument_app(app)
+        except Exception:
+            pass  # Continue without telemetry if instrumentation fails
 
     # Health endpoints
     @app.get("/health")
@@ -45,12 +55,14 @@ def create_app(lifespan: Optional[asynccontextmanager] = None) -> FastAPI:
         }
 
     @app.get("/ready")
-    async def ready():
+    async def ready(request: Request):
         """Readiness check - verifica se o serviço está pronto para receber tráfego."""
         import structlog
-        from src.main import service
 
         logger = structlog.get_logger()
+
+        # Get service from app.state (set during lifespan startup)
+        service = getattr(request.app.state, "service", None)
 
         checks = {
             "mongodb": False,

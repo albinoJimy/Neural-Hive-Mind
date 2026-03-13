@@ -41,7 +41,7 @@ class MCPToolCatalogService:
         self.tool_registry = None
         self.genetic_selector = None
 
-    async def startup(self):
+    async def startup(self, app: FastAPI = None):
         """Initialize all service components with graceful degradation."""
         logger.info("starting_mcp_tool_catalog", version=self.settings.SERVICE_VERSION)
 
@@ -218,6 +218,11 @@ class MCPToolCatalogService:
 
         logger.info("mcp_tool_catalog_started")
 
+        # Store service components in app.state for readiness checks
+        if app:
+            app.state.service = self
+            self.app = app
+
     async def shutdown(self):
         """Graceful shutdown of all components."""
         logger.info("shutting_down_mcp_tool_catalog")
@@ -310,7 +315,7 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for FastAPI."""
     global service
     service = MCPToolCatalogService()
-    await service.startup()
+    await service.startup(app)
 
     # Inject dependencies into API routers
     from src.api import tools, selections
