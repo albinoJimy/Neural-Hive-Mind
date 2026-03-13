@@ -28,7 +28,8 @@ from ..clients.redis_client import RedisClient
 from ..services.code_composer import CodeComposer
 from ..models.pipeline_context import PipelineContext
 from ..models.execution_ticket import ExecutionTicket
-from ..models.artifact import ArtifactType, GenerationMethod
+from ..models.artifact import GenerationMethod
+from ..types.artifact_types import ArtifactCategory
 
 logger = structlog.get_logger()
 tracer = trace.get_tracer(__name__)
@@ -260,7 +261,8 @@ async def _process_generation_task(
             )
 
             # Criar template mock (será selecionado pelo TemplateSelector em produção)
-            from ..models.template import Template, TemplateMetadata, TemplateLanguage, TemplateType
+            from ..models.template import Template, TemplateMetadata, TemplateType
+            from ..types.artifact_types import CodeLanguage
             template = Template(
                 template_id=template_id,
                 metadata=TemplateMetadata(
@@ -269,7 +271,7 @@ async def _process_generation_task(
                     description='Selected template',
                     author='Neural Hive Team',
                     tags=[],
-                    language=TemplateLanguage.PYTHON,
+                    language=CodeLanguage.PYTHON,
                     type=TemplateType.MICROSERVICE
                 ),
                 parameters=[],

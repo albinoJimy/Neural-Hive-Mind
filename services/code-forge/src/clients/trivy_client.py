@@ -1,8 +1,10 @@
 import json
 import subprocess
 import time
-from datetime import datetime
+import shutil
+from datetime import datetime, timedelta
 from typing import Optional, TYPE_CHECKING
+from functools import lru_cache
 
 import structlog
 
@@ -24,12 +26,65 @@ class TrivyClient:
         enabled: bool = True,
         severity: str = 'CRITICAL,HIGH',
         timeout: int = 600,
+        fail_on_threshold: int = 0,
+        cache_ttl_seconds: int = 3600,
         metrics: Optional['CodeForgeMetrics'] = None
     ):
+        """
+        Inicializa cliente Trivy.
+
+        Args:
+            enabled: Se False, operações retornam SKIPPED
+            severity: Severidades a escanear (CRITICAL,HIGH,MEDIUM,LOW)
+            timeout: Timeout em segundos para scans
+            fail_on_threshold: Número de vulnerabilidades acima do qual falhar (0=falha só com CRITICAL)
+            cache_ttl_seconds: Tempo de vida do cache em segundos
+            metrics: Instância de CodeForgeMetrics para instrumentação
+        """
         self.enabled = enabled
         self.severity = severity
         self.timeout = timeout
+        self.fail_on_threshold = fail_on_threshold
+        self.cache_ttl_seconds = cache_ttl_seconds
         self.metrics = metrics
+
+        # Verificar instalação do Trivy
+        self.trivy_path = shutil.which('trivy')
+        self._trivy_available = self.trivy_path is not None
+
+        # Cache simples: {target: (result, timestamp)}
+        self._cache: dict = {}
+
+        if not self._trivy_available:
+            logger.warning(
+                'trivy_not_found',
+                note='Scans usarão fallback com mock'
+            )
+
+    def _get_cache_key(self, scan_type: str, target: str) -> str:
+        """Gera chave de cache para o scan."""
+        return f"{scan_type}:{target}"
+
+    def _get_from_cache(self, cache_key: str) -> Optional[ValidationResult]:
+        """Retorna resultado do cache se ainda válido."""
+        if cache_key in self._cache:
+            result, timestamp = self._cache[cache_key]
+            age = datetime.now() - timestamp
+            if age < timedelta(seconds=self.cache_ttl_seconds):
+                logger.debug('trivy_cache_hit', cache_key=cache_key, age_seconds=age.total_seconds())
+                return result
+            else:
+                # Cache expirado
+                del self._cache[cache_key]
+        return None
+
+    def _save_to_cache(self, cache_key: str, result: ValidationResult):
+        """Salva resultado no cache."""
+        self._cache[cache_key] = (result, datetime.now())
+
+    def _clear_cache(self):
+        """Limpa todo o cache."""
+        self._cache.clear()
 
     def _run_trivy_cli(self, scan_type: str, target: str) -> dict:
         """
@@ -42,8 +97,12 @@ class TrivyClient:
         Returns:
             Dict com resultado do scan
         """
+        if not self._trivy_available:
+            return {'error': 'Trivy CLI not installed', 'returncode': -1}
+
         cmd = [
-            'trivy', scan_type,
+            self.trivy_path or 'trivy',
+            scan_type,
             '--format', 'json',
             '--severity', self.severity,
             target
@@ -177,8 +236,18 @@ class TrivyClient:
         )
 
     def _determine_status_and_score(self, counts: dict) -> tuple:
-        """Determina status e score baseado nas contagens"""
-        if counts['critical'] > 0:
+        """
+        Determina status e score baseado nas contagens.
+
+        Considera threshold configurável para falha.
+        """
+        total_issues = sum(counts.values())
+
+        # Se threshold configurado e excedido, falha
+        if self.fail_on_threshold > 0 and total_issues >= self.fail_on_threshold:
+            return ValidationStatus.FAILED, 0.4
+        # Vulnerabilidades críticas sempre falham
+        elif counts['critical'] > 0:
             return ValidationStatus.FAILED, 0.3
         elif counts['high'] > 0:
             return ValidationStatus.WARNING, 0.6
@@ -203,6 +272,12 @@ class TrivyClient:
         """
         if not self.enabled:
             return self._create_skipped_result()
+
+        # Verificar cache primeiro
+        cache_key = self._get_cache_key(scan_type, target)
+        cached_result = self._get_from_cache(cache_key)
+        if cached_result:
+            return cached_result
 
         start_time = time.monotonic()
         logger.info(f'trivy_{scan_type}_scan_started', target=context_info)
@@ -247,7 +322,12 @@ class TrivyClient:
                 duration_ms=duration_ms
             )
 
-            return self._create_result(status, score, counts, duration_ms)
+            result = self._create_result(status, score, counts, duration_ms)
+
+            # Salvar no cache
+            self._save_to_cache(cache_key, result)
+
+            return result
 
         except subprocess.TimeoutExpired:
             duration_ms = int((time.monotonic() - start_time) * 1000)
@@ -310,3 +390,32 @@ class TrivyClient:
             ValidationResult com vulnerabilidades
         """
         return await self._execute_scan('fs', path, path)
+
+    def is_available(self) -> bool:
+        """Verifica se Trivy CLI está disponível."""
+        return self._trivy_available
+
+    async def health_check(self) -> bool:
+        """
+        Verifica saúde do cliente Trivy.
+
+        Returns:
+            True se Trivy está disponível ou cliente desabilitado
+        """
+        if not self.enabled:
+            return True
+
+        return self._trivy_available
+
+    def get_cache_stats(self) -> dict:
+        """Retorna estatísticas do cache."""
+        return {
+            'cache_size': len(self._cache),
+            'cache_ttl_seconds': self.cache_ttl_seconds,
+            'cached_keys': list(self._cache.keys())
+        }
+
+    async def clear_cache(self):
+        """Limpa o cache de resultados."""
+        self._clear_cache()
+        logger.info('trivy_cache_cleared')

@@ -2,12 +2,14 @@ import structlog
 from typing import Optional, TYPE_CHECKING
 
 from ..models.pipeline_context import PipelineContext
+from ..models.artifact import ValidationType
 from ..clients.sigstore_client import SigstoreClient
 
 if TYPE_CHECKING:
     from ..clients.s3_artifact_client import S3ArtifactClient
     from ..clients.artifact_registry_client import ArtifactRegistryClient
     from ..clients.postgres_client import PostgresClient
+    from ..clients.trivy_client import TrivyClient
 
 logger = structlog.get_logger()
 
@@ -20,12 +22,14 @@ class Packager:
         sigstore_client: SigstoreClient,
         s3_artifact_client: Optional['S3ArtifactClient'] = None,
         artifact_registry_client: Optional['ArtifactRegistryClient'] = None,
-        postgres_client: Optional['PostgresClient'] = None
+        postgres_client: Optional['PostgresClient'] = None,
+        trivy_client: Optional['TrivyClient'] = None,
     ):
         self.sigstore_client = sigstore_client
         self.s3_artifact_client = s3_artifact_client
         self.artifact_registry_client = artifact_registry_client
         self.postgres_client = postgres_client
+        self.trivy_client = trivy_client
 
     async def package(self, context: PipelineContext):
         """
@@ -86,6 +90,18 @@ class Packager:
             # Assinar artefato
             signature = await self.sigstore_client.sign_artifact(artifact.content_uri)
             artifact.signature = signature
+
+            # Executar scan de vulnerabilidades com Trivy
+            if self.trivy_client:
+                scan_result = await self._scan_artifact(artifact)
+                if scan_result:
+                    artifact.validation_results.append(scan_result)
+                    logger.info(
+                        'artifact_scanned',
+                        artifact_id=artifact.artifact_id,
+                        scan_status=scan_result.status,
+                        vulnerabilities=scan_result.issues_count
+                    )
 
             # Persistir metadados do artefato no PostgreSQL
             if self.postgres_client:
@@ -172,3 +188,70 @@ class Packager:
                 )
 
         return False
+
+    async def _scan_artifact(self, artifact) -> Optional['ValidationResult']:
+        """
+        Executa scan de vulnerabilidades no artefato.
+
+        Args:
+            artifact: Artefato a escanear
+
+        Returns:
+            ValidationResult com resultado do scan ou None se não configurado
+        """
+        from ..models.artifact import ValidationStatus
+
+        if not self.trivy_client:
+            return None
+
+        try:
+            # Determinar tipo de scan baseado no artifact_type
+            artifact_type_lower = getattr(artifact, 'artifact_type', '').lower()
+
+            if 'container' in artifact_type_lower or 'docker' in artifact_type_lower:
+                # Para container images, scan como imagem (se disponível localmente)
+                # Ou scan do filesystem se tiver o caminho local
+                if artifact.content_uri.startswith(('file://', '/tmp', '/home')):
+                    # Scan de filesystem
+                    result = await self.trivy_client.scan_filesystem(
+                        artifact.content_uri.replace('file://', '')
+                    )
+                else:
+                    # Para imagens em registry, tentar scan de imagem
+                    # Como pode não estar disponível localmente, retornar SKIPPED
+                    logger.debug(
+                        'container_image_scan_skipped',
+                        artifact_id=artifact.artifact_id,
+                        reason='image_not_local'
+                    )
+                    from ..models.artifact import ValidationResult
+                    from datetime import datetime
+                    return ValidationResult(
+                        validation_type=ValidationType.SECURITY_SCAN,
+                        tool_name='Trivy',
+                        tool_version='0.45.0',
+                        status=ValidationStatus.SKIPPED,
+                        score=None,
+                        issues_count=0,
+                        critical_issues=0,
+                        high_issues=0,
+                        medium_issues=0,
+                        low_issues=0,
+                        executed_at=datetime.now(),
+                        duration_ms=0
+                    )
+            else:
+                # Para outros tipos, scan de filesystem
+                result = await self.trivy_client.scan_filesystem(
+                    artifact.content_uri.replace('file://', '')
+                )
+
+            return result
+
+        except Exception as e:
+            logger.warning(
+                'artifact_scan_failed',
+                artifact_id=artifact.artifact_id,
+                error=str(e)
+            )
+            return None
