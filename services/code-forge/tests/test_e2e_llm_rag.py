@@ -9,7 +9,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from src.clients.llm_client import LLMProvider
 from src.services.code_composer import CodeComposer
-from src.models.artifact import ArtifactType, GenerationMethod
+from src.models.artifact import ArtifactCategory, GenerationMethod
+from src.types.artifact_types import ArtifactCategory, CodeLanguage
 
 
 @pytest.fixture
@@ -149,7 +150,7 @@ async def list_users():
     clients['mongodb_client'].save_artifact_content.assert_called_once()
 
     # Verificar artefato gerado
-    assert artifact.artifact_type == ArtifactType.CODE
+    assert artifact.artifact_type == ArtifactCategory.CODE
     assert artifact.generation_method == GenerationMethod.LLM
     assert artifact.confidence_score >= 0.8
 

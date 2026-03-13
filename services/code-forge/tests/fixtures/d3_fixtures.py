@@ -185,9 +185,10 @@ def d3_pipeline_context(d3_build_ticket):
 def d3_pipeline_context_with_artifacts(d3_pipeline_context):
     """PipelineContext com artefatos D3 gerados."""
     from src.models.artifact import (
-        CodeForgeArtifact, ArtifactType, GenerationMethod,
+        CodeForgeArtifact, GenerationMethod,
         ValidationResult, ValidationType, ValidationStatus
     )
+    from src.types.artifact_types import ArtifactCategory
 
     # Artefato CONTAINER
     container_artifact = CodeForgeArtifact(
@@ -198,7 +199,7 @@ def d3_pipeline_context_with_artifacts(d3_pipeline_context):
         correlation_id=d3_pipeline_context.ticket.correlation_id,
         trace_id=d3_pipeline_context.trace_id,
         span_id=d3_pipeline_context.span_id,
-        artifact_type=ArtifactType.CONTAINER,
+        artifact_type=ArtifactCategory.CONTAINER,
         language='python',
         template_id='microservice-python-v1',
         confidence_score=0.95,
@@ -240,7 +241,7 @@ def d3_pipeline_context_with_artifacts(d3_pipeline_context):
         correlation_id=d3_pipeline_context.ticket.correlation_id,
         trace_id=d3_pipeline_context.trace_id,
         span_id=d3_pipeline_context.span_id,
-        artifact_type=ArtifactType.IAC,
+        artifact_type=ArtifactCategory.IAC,
         language='yaml',
         template_id='kubernetes-deployment-v1',
         confidence_score=0.90,
@@ -327,8 +328,9 @@ def mock_d3_template_selector():
 
     async def _select(context):
         from src.models.template import (
-            Template, TemplateMetadata, TemplateType, TemplateLanguage
+            Template, TemplateMetadata, TemplateType
         )
+        from src.types.artifact_types import CodeLanguage
         context.selected_template = Template(
             template_id='microservice-python-v1',
             metadata=TemplateMetadata(
@@ -337,7 +339,7 @@ def mock_d3_template_selector():
                 description='Template base para microservico Python',
                 author='Neural Hive Team',
                 tags=['microservice', 'python', 'fastapi'],
-                language=TemplateLanguage.PYTHON,
+                language=CodeLanguage.PYTHON,
                 type=TemplateType.MICROSERVICE
             ),
             parameters=[],
@@ -415,8 +417,9 @@ def mock_d3_packager():
 
     async def _package(context):
         from src.models.artifact import (
-            CodeForgeArtifact, ArtifactType, GenerationMethod
+            CodeForgeArtifact, GenerationMethod
         )
+        from src.types.artifact_types import ArtifactCategory
 
         # Criar artefato CONTAINER
         container = CodeForgeArtifact(
@@ -427,7 +430,7 @@ def mock_d3_packager():
             correlation_id=context.ticket.correlation_id,
             trace_id=context.trace_id,
             span_id=context.span_id,
-            artifact_type=ArtifactType.CONTAINER,
+            artifact_type=ArtifactCategory.CONTAINER,
             language='python',
             confidence_score=0.95,
             generation_method=GenerationMethod.TEMPLATE,
@@ -568,7 +571,7 @@ def d3_expected_pipeline_result():
     """Resultado esperado de um pipeline D3 bem-sucedido."""
     from src.models.artifact import (
         PipelineResult, PipelineStatus, PipelineStage, StageStatus,
-        CodeForgeArtifact, ArtifactType, GenerationMethod
+        CodeForgeArtifact, ArtifactCategory, GenerationMethod
     )
 
     pipeline_id = str(uuid.uuid4())
@@ -593,7 +596,7 @@ def d3_expected_pipeline_result():
                 correlation_id=str(uuid.uuid4()),
                 trace_id=str(uuid.uuid4()),
                 span_id=str(uuid.uuid4()),
-                artifact_type=ArtifactType.CONTAINER,
+                artifact_type=ArtifactCategory.CONTAINER,
                 language='python',
                 confidence_score=0.95,
                 generation_method=GenerationMethod.TEMPLATE,

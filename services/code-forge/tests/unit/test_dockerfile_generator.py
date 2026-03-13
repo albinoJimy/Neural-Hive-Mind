@@ -4,11 +4,8 @@ Testes unitarios para DockerfileGenerator.
 
 import pytest
 
-from src.services.dockerfile_generator import (
-    DockerfileGenerator,
-    SupportedLanguage,
-    ArtifactType,
-)
+from src.services.dockerfile_generator import DockerfileGenerator
+from src.types.artifact_types import CodeLanguage, ArtifactSubtype
 
 
 class TestDockerfileGenerator:
@@ -18,9 +15,9 @@ class TestDockerfileGenerator:
         """Testa geração de Dockerfile Python/FastAPI."""
         generator = DockerfileGenerator()
         dockerfile = generator.generate_dockerfile(
-            language=SupportedLanguage.PYTHON,
+            language=CodeLanguage.PYTHON,
             framework="fastapi",
-            artifact_type=ArtifactType.MICROSERVICE,
+            artifact_type=ArtifactSubtype.MICROSERVICE,
         )
 
         # Verifica componentes essenciais
@@ -35,9 +32,9 @@ class TestDockerfileGenerator:
         """Testa geração de Dockerfile Python/Flask."""
         generator = DockerfileGenerator()
         dockerfile = generator.generate_dockerfile(
-            language=SupportedLanguage.PYTHON,
+            language=CodeLanguage.PYTHON,
             framework="flask",
-            artifact_type=ArtifactType.MICROSERVICE,
+            artifact_type=ArtifactSubtype.MICROSERVICE,
         )
 
         assert "FROM python:3.11-slim" in dockerfile
@@ -49,8 +46,8 @@ class TestDockerfileGenerator:
         """Testa geração de Dockerfile Python para Lambda."""
         generator = DockerfileGenerator()
         dockerfile = generator.generate_dockerfile(
-            language=SupportedLanguage.PYTHON,
-            artifact_type=ArtifactType.LAMBDA_FUNCTION,
+            language=CodeLanguage.PYTHON,
+            artifact_type=ArtifactSubtype.LAMBDA_FUNCTION,
         )
 
         assert "FROM python:3.11-slim" in dockerfile
@@ -62,9 +59,9 @@ class TestDockerfileGenerator:
         """Testa geração de Dockerfile Node.js/Express."""
         generator = DockerfileGenerator()
         dockerfile = generator.generate_dockerfile(
-            language=SupportedLanguage.NODEJS,
+            language=CodeLanguage.NODEJS,
             framework="express",
-            artifact_type=ArtifactType.MICROSERVICE,
+            artifact_type=ArtifactSubtype.MICROSERVICE,
         )
 
         assert "FROM node:20-alpine" in dockerfile
@@ -78,7 +75,7 @@ class TestDockerfileGenerator:
         """Testa geração de Dockerfile Node.js/NestJS."""
         generator = DockerfileGenerator()
         dockerfile = generator.generate_dockerfile(
-            language=SupportedLanguage.NODEJS,
+            language=CodeLanguage.NODEJS,
             framework="nest",
         )
 
@@ -89,8 +86,8 @@ class TestDockerfileGenerator:
         """Testa geração de Dockerfile Node.js para Lambda."""
         generator = DockerfileGenerator()
         dockerfile = generator.generate_dockerfile(
-            language=SupportedLanguage.NODEJS,
-            artifact_type=ArtifactType.LAMBDA_FUNCTION,
+            language=CodeLanguage.NODEJS,
+            artifact_type=ArtifactSubtype.LAMBDA_FUNCTION,
         )
 
         assert "FROM node:20-alpine" in dockerfile
@@ -101,8 +98,8 @@ class TestDockerfileGenerator:
         """Testa geração de Dockerfile Go."""
         generator = DockerfileGenerator()
         dockerfile = generator.generate_dockerfile(
-            language=SupportedLanguage.GOLANG,
-            artifact_type=ArtifactType.MICROSERVICE,
+            language=CodeLanguage.GOLANG,
+            artifact_type=ArtifactSubtype.MICROSERVICE,
         )
 
         assert "FROM golang:1.21-alpine" in dockerfile
@@ -117,7 +114,7 @@ class TestDockerfileGenerator:
         """Testa geração de Dockerfile Go com Gin framework."""
         generator = DockerfileGenerator()
         dockerfile = generator.generate_dockerfile(
-            language=SupportedLanguage.GOLANG,
+            language=CodeLanguage.GOLANG,
             framework="gin",
         )
 
@@ -128,9 +125,9 @@ class TestDockerfileGenerator:
         """Testa geração de Dockerfile Java/Spring Boot."""
         generator = DockerfileGenerator()
         dockerfile = generator.generate_dockerfile(
-            language=SupportedLanguage.JAVA,
+            language=CodeLanguage.JAVA,
             framework="spring-boot",
-            artifact_type=ArtifactType.MICROSERVICE,
+            artifact_type=ArtifactSubtype.MICROSERVICE,
         )
 
         assert "FROM eclipse-temurin:21-slim" in dockerfile
@@ -145,7 +142,7 @@ class TestDockerfileGenerator:
         """Testa geração de Dockerfile Java com Maven padrão."""
         generator = DockerfileGenerator()
         dockerfile = generator.generate_dockerfile(
-            language=SupportedLanguage.JAVA,
+            language=CodeLanguage.JAVA,
         )
 
         assert "FROM eclipse-temurin:21-slim" in dockerfile
@@ -157,9 +154,9 @@ class TestDockerfileGenerator:
         """Testa geração de Dockerfile TypeScript/NestJS."""
         generator = DockerfileGenerator()
         dockerfile = generator.generate_dockerfile(
-            language=SupportedLanguage.TYPESCRIPT,
+            language=CodeLanguage.TYPESCRIPT,
             framework="nestjs",
-            artifact_type=ArtifactType.MICROSERVICE,
+            artifact_type=ArtifactSubtype.MICROSERVICE,
         )
 
         assert "FROM node:20-alpine" in dockerfile
@@ -173,7 +170,7 @@ class TestDockerfileGenerator:
         """Testa geração de Dockerfile TypeScript/Express."""
         generator = DockerfileGenerator()
         dockerfile = generator.generate_dockerfile(
-            language=SupportedLanguage.TYPESCRIPT,
+            language=CodeLanguage.TYPESCRIPT,
             framework="express",
         )
 
@@ -185,9 +182,9 @@ class TestDockerfileGenerator:
         """Testa geração de Dockerfile C#/ASP.NET."""
         generator = DockerfileGenerator()
         dockerfile = generator.generate_dockerfile(
-            language=SupportedLanguage.CSHARP,
+            language=CodeLanguage.CSHARP,
             framework="aspnet",
-            artifact_type=ArtifactType.MICROSERVICE,
+            artifact_type=ArtifactSubtype.MICROSERVICE,
         )
 
         assert "mcr.microsoft.com/dotnet/sdk:8.0" in dockerfile
@@ -201,8 +198,8 @@ class TestDockerfileGenerator:
         """Testa geração de Dockerfile C# para Lambda."""
         generator = DockerfileGenerator()
         dockerfile = generator.generate_dockerfile(
-            language=SupportedLanguage.CSHARP,
-            artifact_type=ArtifactType.LAMBDA_FUNCTION,
+            language=CodeLanguage.CSHARP,
+            artifact_type=ArtifactSubtype.LAMBDA_FUNCTION,
         )
 
         assert "mcr.microsoft.com/dotnet/sdk:8.0" in dockerfile
@@ -214,7 +211,7 @@ class TestDockerfileGenerator:
         generator = DockerfileGenerator()
         custom = "FROM alpine:latest\nCMD ['sh']"
         dockerfile = generator.generate_dockerfile(
-            language=SupportedLanguage.PYTHON,
+            language=CodeLanguage.PYTHON,
             custom_template=custom,
         )
 
@@ -231,19 +228,19 @@ class TestDockerfileGenerator:
         """Testa que todos os templates têm usuário não-root."""
         generator = DockerfileGenerator()
         languages = [
-            (SupportedLanguage.PYTHON, "fastapi"),
-            (SupportedLanguage.NODEJS, "express"),
-            (SupportedLanguage.GOLANG, None),
-            (SupportedLanguage.JAVA, "spring-boot"),
-            (SupportedLanguage.TYPESCRIPT, "nestjs"),
-            (SupportedLanguage.CSHARP, "aspnet"),
+            (CodeLanguage.PYTHON, "fastapi"),
+            (CodeLanguage.NODEJS, "express"),
+            (CodeLanguage.GOLANG, None),
+            (CodeLanguage.JAVA, "spring-boot"),
+            (CodeLanguage.TYPESCRIPT, "nestjs"),
+            (CodeLanguage.CSHARP, "aspnet"),
         ]
 
         for language, framework in languages:
             dockerfile = generator.generate_dockerfile(
                 language=language,
                 framework=framework,
-                artifact_type=ArtifactType.MICROSERVICE,
+                artifact_type=ArtifactSubtype.MICROSERVICE,
             )
             # Verifica presença de usuário não-root
             assert "USER" in dockerfile or "adduser" in dockerfile or "useradd" in dockerfile
@@ -252,19 +249,19 @@ class TestDockerfileGenerator:
         """Testa que todos os templates têm HEALTHCHECK (exceto Lambda)."""
         generator = DockerfileGenerator()
         languages = [
-            (SupportedLanguage.PYTHON, "fastapi"),
-            (SupportedLanguage.NODEJS, "express"),
-            (SupportedLanguage.GOLANG, None),
-            (SupportedLanguage.JAVA, "spring-boot"),
-            (SupportedLanguage.TYPESCRIPT, "nestjs"),
-            (SupportedLanguage.CSHARP, "aspnet"),
+            (CodeLanguage.PYTHON, "fastapi"),
+            (CodeLanguage.NODEJS, "express"),
+            (CodeLanguage.GOLANG, None),
+            (CodeLanguage.JAVA, "spring-boot"),
+            (CodeLanguage.TYPESCRIPT, "nestjs"),
+            (CodeLanguage.CSHARP, "aspnet"),
         ]
 
         for language, framework in languages:
             dockerfile = generator.generate_dockerfile(
                 language=language,
                 framework=framework,
-                artifact_type=ArtifactType.MICROSERVICE,
+                artifact_type=ArtifactSubtype.MICROSERVICE,
             )
             assert "HEALTHCHECK" in dockerfile
 
@@ -273,25 +270,25 @@ class TestDockerfileGenerator:
         generator = DockerfileGenerator()
 
         # Python
-        python_df = generator.generate_dockerfile(SupportedLanguage.PYTHON)
+        python_df = generator.generate_dockerfile(CodeLanguage.PYTHON)
         assert "as builder" in python_df.lower()
 
         # Node.js
-        node_df = generator.generate_dockerfile(SupportedLanguage.NODEJS)
+        node_df = generator.generate_dockerfile(CodeLanguage.NODEJS)
         assert "as builder" in node_df.lower()
 
         # Java
-        java_df = generator.generate_dockerfile(SupportedLanguage.JAVA)
+        java_df = generator.generate_dockerfile(CodeLanguage.JAVA)
         assert "as builder" in java_df.lower()
 
         # Go também tem builder stage
-        go_df = generator.generate_dockerfile(SupportedLanguage.GOLANG)
+        go_df = generator.generate_dockerfile(CodeLanguage.GOLANG)
         assert "as builder" in go_df.lower()
 
         # TypeScript
-        ts_df = generator.generate_dockerfile(SupportedLanguage.TYPESCRIPT)
+        ts_df = generator.generate_dockerfile(CodeLanguage.TYPESCRIPT)
         assert "as builder" in ts_df.lower()
 
         # C#
-        csharp_df = generator.generate_dockerfile(SupportedLanguage.CSHARP)
+        csharp_df = generator.generate_dockerfile(CodeLanguage.CSHARP)
         assert "as builder" in csharp_df.lower()

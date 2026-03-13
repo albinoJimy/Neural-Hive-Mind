@@ -172,8 +172,8 @@ class TestKanikoIntegration:
         """Testa integração entre DockerfileGenerator e Kaniko."""
         from src.services.dockerfile_generator import (
             DockerfileGenerator,
-            SupportedLanguage,
-            ArtifactType
+            CodeLanguage,
+            ArtifactCategory
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -182,8 +182,8 @@ class TestKanikoIntegration:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
 
             dockerfile_content = generator.generate_dockerfile(
-                language=SupportedLanguage.PYTHON,
-                artifact_type=ArtifactType.LAMBDA_FUNCTION,
+                language=CodeLanguage.PYTHON,
+                artifact_type=ArtifactCategory.LAMBDA_FUNCTION,
             )
 
             with open(dockerfile_path, "w") as f:

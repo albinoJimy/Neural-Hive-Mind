@@ -13,7 +13,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.models.artifact import (
-    ArtifactType, CodeForgeArtifact, PipelineResult, PipelineStatus,
+from src.types.artifact_types import ArtifactCategory, CodeLanguage
+    ArtifactCategory, CodeForgeArtifact, PipelineResult, PipelineStatus,
     PipelineStage, StageStatus, ValidationResult, ValidationType, ValidationStatus
 )
 from src.models.execution_ticket import TaskType, TicketStatus
@@ -126,7 +127,7 @@ def verify_artifacts_generated(pipeline_result: PipelineResult) -> bool:
     artifact_types = [a.artifact_type for a in pipeline_result.artifacts]
 
     # Verificar se ao menos CONTAINER foi gerado
-    assert ArtifactType.CONTAINER in artifact_types, \
+    assert ArtifactCategory.CONTAINER in artifact_types, \
         f"Artefato CONTAINER não encontrado. Tipos: {artifact_types}"
 
     return True
@@ -136,7 +137,7 @@ def verify_container_artifact(artifact: CodeForgeArtifact) -> bool:
     """
     Verifica se o artefato CONTAINER está correto.
     """
-    assert artifact.artifact_type == ArtifactType.CONTAINER, \
+    assert artifact.artifact_type == ArtifactCategory.CONTAINER, \
         f"Tipo esperado: CONTAINER, recebido: {artifact.artifact_type}"
 
     assert artifact.content_uri is not None, "content_uri está vazio"
@@ -518,7 +519,7 @@ def verify_d3_conformance(
 
     # Verificar cada artefato
     for artifact in pipeline_result.artifacts:
-        if artifact.artifact_type == ArtifactType.CONTAINER:
+        if artifact.artifact_type == ArtifactCategory.CONTAINER:
             try:
                 results['container_valid'] = verify_container_artifact(artifact)
             except AssertionError:

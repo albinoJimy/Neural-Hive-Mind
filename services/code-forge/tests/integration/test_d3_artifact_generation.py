@@ -17,7 +17,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.models.artifact import (
-    ArtifactType, CodeForgeArtifact, GenerationMethod, ValidationResult,
+from src.types.artifact_types import ArtifactCategory, CodeLanguage
+    ArtifactCategory, CodeForgeArtifact, GenerationMethod, ValidationResult,
     ValidationType, ValidationStatus
 )
 from src.models.pipeline_context import PipelineContext
@@ -61,7 +62,7 @@ class TestD3ContainerGeneration:
         container = d3_pipeline_context.generated_artifacts[0]
 
         # Verificar tipo
-        assert container.artifact_type == ArtifactType.CONTAINER
+        assert container.artifact_type == ArtifactCategory.CONTAINER
 
         # Verificar content_uri
         assert container.content_uri is not None
@@ -134,7 +135,7 @@ class TestD3ContainerGeneration:
                 correlation_id=context.ticket.correlation_id,
                 trace_id=context.trace_id,
                 span_id=context.span_id,
-                artifact_type=ArtifactType.CONTAINER,
+                artifact_type=ArtifactCategory.CONTAINER,
                 language='python',
                 confidence_score=0.95,
                 generation_method=GenerationMethod.TEMPLATE,
@@ -246,7 +247,7 @@ class TestD3SBOMGeneration:
                 correlation_id=context.ticket.correlation_id,
                 trace_id=context.trace_id,
                 span_id=context.span_id,
-                artifact_type=ArtifactType.CONTAINER,
+                artifact_type=ArtifactCategory.CONTAINER,
                 language='python',
                 confidence_score=0.95,
                 generation_method=GenerationMethod.TEMPLATE,
@@ -378,7 +379,7 @@ class TestD3ArtifactSigning:
             correlation_id=d3_pipeline_context.ticket.correlation_id,
             trace_id=d3_pipeline_context.trace_id,
             span_id=d3_pipeline_context.span_id,
-            artifact_type=ArtifactType.CONTAINER,
+            artifact_type=ArtifactCategory.CONTAINER,
             language='python',
             confidence_score=0.95,
             generation_method=GenerationMethod.TEMPLATE,
@@ -418,7 +419,7 @@ class TestD3ArtifactSigning:
             correlation_id=d3_pipeline_context.ticket.correlation_id,
             trace_id=d3_pipeline_context.trace_id,
             span_id=d3_pipeline_context.span_id,
-            artifact_type=ArtifactType.CONTAINER,
+            artifact_type=ArtifactCategory.CONTAINER,
             language='python',
             confidence_score=0.95,
             generation_method=GenerationMethod.TEMPLATE,
@@ -468,7 +469,7 @@ class TestD3KubernetesManifests:
             correlation_id=d3_pipeline_context.ticket.correlation_id,
             trace_id=d3_pipeline_context.trace_id,
             span_id=d3_pipeline_context.span_id,
-            artifact_type=ArtifactType.IAC,
+            artifact_type=ArtifactCategory.IAC,
             language='yaml',
             template_id='kubernetes-deployment-v1',
             confidence_score=0.90,
@@ -485,7 +486,7 @@ class TestD3KubernetesManifests:
         )
         d3_pipeline_context.add_artifact(manifest)
 
-        assert manifest.artifact_type == ArtifactType.IAC
+        assert manifest.artifact_type == ArtifactCategory.IAC
         assert manifest.language == 'yaml'
         assert '.yaml' in manifest.content_uri or '.yml' in manifest.content_uri
         assert 'kind' in manifest.metadata
@@ -512,7 +513,7 @@ class TestD3KubernetesManifests:
             correlation_id=d3_pipeline_context.ticket.correlation_id,
             trace_id=d3_pipeline_context.trace_id,
             span_id=d3_pipeline_context.span_id,
-            artifact_type=ArtifactType.CHART,
+            artifact_type=ArtifactCategory.CHART,
             language='yaml',
             template_id='helm-chart-v1',
             confidence_score=0.90,
@@ -529,7 +530,7 @@ class TestD3KubernetesManifests:
         )
         d3_pipeline_context.add_artifact(chart)
 
-        assert chart.artifact_type == ArtifactType.CHART
+        assert chart.artifact_type == ArtifactCategory.CHART
         assert 'chart_name' in chart.metadata
         assert 'chart_version' in chart.metadata
 
@@ -637,7 +638,7 @@ class TestD3ArtifactValidation:
             correlation_id=d3_pipeline_context.ticket.correlation_id,
             trace_id=d3_pipeline_context.trace_id,
             span_id=d3_pipeline_context.span_id,
-            artifact_type=ArtifactType.CONTAINER,
+            artifact_type=ArtifactCategory.CONTAINER,
             language='python',
             confidence_score=0.95,
             generation_method=GenerationMethod.TEMPLATE,
@@ -690,7 +691,7 @@ class TestD3MultipleArtifacts:
             correlation_id=d3_pipeline_context.ticket.correlation_id,
             trace_id=d3_pipeline_context.trace_id,
             span_id=d3_pipeline_context.span_id,
-            artifact_type=ArtifactType.IAC,
+            artifact_type=ArtifactCategory.IAC,
             language='yaml',
             confidence_score=0.90,
             generation_method=GenerationMethod.TEMPLATE,
@@ -733,9 +734,9 @@ class TestD3MultipleArtifacts:
         artifacts = []
 
         for i, artifact_type in enumerate([
-            ArtifactType.CODE,
-            ArtifactType.CONTAINER,
-            ArtifactType.IAC
+            ArtifactCategory.CODE,
+            ArtifactCategory.CONTAINER,
+            ArtifactCategory.IAC
         ]):
             artifact = CodeForgeArtifact(
                 artifact_id=str(uuid.uuid4()),

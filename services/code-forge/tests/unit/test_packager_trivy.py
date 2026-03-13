@@ -11,12 +11,12 @@ from datetime import datetime
 from src.services.packager import Packager
 from src.models.artifact import (
     CodeForgeArtifact,
-    ArtifactType,
     GenerationMethod,
     ValidationResult,
     ValidationStatus,
     ValidationType
 )
+from src.types.artifact_types import ArtifactCategory
 from src.models.execution_ticket import (
     ExecutionTicket,
     TaskType,
@@ -80,7 +80,7 @@ def sample_artifact():
     return CodeForgeArtifact(
         artifact_id='artifact-123',
         ticket_id='ticket-456',
-        artifact_type=ArtifactType.CODE,
+        artifact_type=ArtifactCategory.CODE,
         language='python',
         confidence_score=0.95,
         generation_method=GenerationMethod.LLM,
@@ -271,7 +271,7 @@ class TestPackagerTrivyIntegration:
         container_artifact = CodeForgeArtifact(
             artifact_id='container-123',
             ticket_id='ticket-456',
-            artifact_type=ArtifactType.CONTAINER,
+            artifact_type=ArtifactCategory.CONTAINER,
             language='golang',
             confidence_score=0.9,
             generation_method=GenerationMethod.LLM,

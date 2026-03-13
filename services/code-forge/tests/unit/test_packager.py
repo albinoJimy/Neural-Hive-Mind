@@ -51,8 +51,9 @@ class TestPackagerSBOMGeneration:
         """Deve processar multiplos artefatos."""
         from src.services.packager import Packager
         from src.models.artifact import (
-            CodeForgeArtifact, ArtifactType, GenerationMethod
+            CodeForgeArtifact, GenerationMethod
         )
+        from src.types.artifact_types import ArtifactCategory
 
         # Adicionar segundo artefato
         artifact2 = CodeForgeArtifact(
@@ -61,7 +62,7 @@ class TestPackagerSBOMGeneration:
             correlation_id=str(uuid.uuid4()),
             trace_id=str(uuid.uuid4()),
             span_id=str(uuid.uuid4()),
-            artifact_type=ArtifactType.DOCUMENTATION,
+            artifact_type=ArtifactCategory.DOCUMENTATION,
             language='markdown',
             template_id='docs-v1',
             confidence_score=0.9,
@@ -349,8 +350,9 @@ class TestPackagerPostgresPersistence:
         """Deve persistir metadados para multiplos artefatos."""
         from src.services.packager import Packager
         from src.models.artifact import (
-            CodeForgeArtifact, ArtifactType, GenerationMethod
+            CodeForgeArtifact, GenerationMethod
         )
+        from src.types.artifact_types import ArtifactCategory
         import uuid
 
         # Adicionar segundo artefato
@@ -360,7 +362,7 @@ class TestPackagerPostgresPersistence:
             correlation_id=str(uuid.uuid4()),
             trace_id=str(uuid.uuid4()),
             span_id=str(uuid.uuid4()),
-            artifact_type=ArtifactType.DOCUMENTATION,
+            artifact_type=ArtifactCategory.DOCUMENTATION,
             language='markdown',
             template_id='docs-v1',
             confidence_score=0.9,

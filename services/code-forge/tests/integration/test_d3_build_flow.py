@@ -16,7 +16,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.models.artifact import (
-    ArtifactType, CodeForgeArtifact, PipelineResult, PipelineStatus,
+from src.types.artifact_types import ArtifactCategory, CodeLanguage
+    ArtifactCategory, CodeForgeArtifact, PipelineResult, PipelineStatus,
     ValidationResult, ValidationType, ValidationStatus
 )
 from src.models.execution_ticket import TaskType, TicketStatus
@@ -134,7 +135,7 @@ class TestD3BuildFlowEndToEnd:
         # Encontrar artefato CONTAINER
         container_artifacts = [
             a for a in result.artifacts
-            if a.artifact_type == ArtifactType.CONTAINER
+            if a.artifact_type == ArtifactCategory.CONTAINER
         ]
         assert len(container_artifacts) > 0, "Artefato CONTAINER não encontrado"
 
@@ -371,7 +372,7 @@ class TestD3PipelineStages:
             "Nenhum artefato gerado"
 
         container = d3_pipeline_context.generated_artifacts[0]
-        assert container.artifact_type == ArtifactType.CONTAINER, \
+        assert container.artifact_type == ArtifactCategory.CONTAINER, \
             f"Tipo: {container.artifact_type}"
 
         assert container.sbom_uri is not None, "SBOM não gerado"

@@ -226,8 +226,9 @@ class TestCodeComposerHeuristicGeneration:
         from src.services.code_composer import CodeComposer
         from src.models.pipeline_context import PipelineContext
         from src.models.template import (
-            Template, TemplateMetadata, TemplateType, TemplateLanguage
+            Template, TemplateMetadata, TemplateType
         )
+        from src.types.artifact_types import CodeLanguage
 
         context = PipelineContext(
             pipeline_id=str(uuid.uuid4()),
@@ -244,7 +245,7 @@ class TestCodeComposerHeuristicGeneration:
                 description='Template para biblioteca Python',
                 author='Neural Hive Team',
                 tags=['library', 'python'],
-                language=TemplateLanguage.PYTHON,
+                language=CodeLanguage.PYTHON,
                 type=TemplateType.MICROSERVICE
             ),
             parameters=[],
@@ -273,8 +274,9 @@ class TestCodeComposerHeuristicGeneration:
         from src.services.code_composer import CodeComposer
         from src.models.pipeline_context import PipelineContext
         from src.models.template import (
-            Template, TemplateMetadata, TemplateType, TemplateLanguage
+            Template, TemplateMetadata, TemplateType
         )
+        from src.types.artifact_types import CodeLanguage
 
         context = PipelineContext(
             pipeline_id=str(uuid.uuid4()),
@@ -291,7 +293,7 @@ class TestCodeComposerHeuristicGeneration:
                 description='Template para script Python',
                 author='Neural Hive Team',
                 tags=['script', 'python'],
-                language=TemplateLanguage.PYTHON,
+                language=CodeLanguage.PYTHON,
                 type=TemplateType.FUNCTION
             ),
             parameters=[],
@@ -532,7 +534,7 @@ class TestCodeComposerArtifactCreation:
     ):
         """Deve criar artefato com metadata correta."""
         from src.services.code_composer import CodeComposer
-        from src.models.artifact import ArtifactType
+        from src.types.artifact_types import ArtifactCategory
 
         sample_pipeline_context_with_mcp.generation_method = 'TEMPLATE'
 
@@ -548,7 +550,7 @@ class TestCodeComposerArtifactCreation:
         artifact = sample_pipeline_context_with_mcp.generated_artifacts[0]
 
         assert artifact.ticket_id == sample_pipeline_context_with_mcp.ticket.ticket_id
-        assert artifact.artifact_type == ArtifactType.CODE
+        assert artifact.artifact_type == ArtifactCategory.CODE
         assert artifact.language == 'python'
         assert artifact.template_id == 'microservice-python-v1'
         assert artifact.content_hash is not None

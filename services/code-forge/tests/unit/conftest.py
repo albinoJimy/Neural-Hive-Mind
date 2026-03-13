@@ -702,9 +702,8 @@ def sample_ticket_script():
 def sample_pipeline_context(sample_ticket):
     """PipelineContext sample."""
     from src.models.pipeline_context import PipelineContext
-    from src.models.template import (
-        Template, TemplateMetadata, TemplateType, TemplateLanguage
-    )
+    from src.models.template import Template, TemplateMetadata, TemplateType
+    from src.types.artifact_types import CodeLanguage
 
     context = PipelineContext(
         pipeline_id=str(uuid.uuid4()),
@@ -723,7 +722,7 @@ def sample_pipeline_context(sample_ticket):
             description='Template base para microservico Python',
             author='Neural Hive Team',
             tags=['microservice', 'python', 'fastapi'],
-            language=TemplateLanguage.PYTHON,
+            language=CodeLanguage.PYTHON,
             type=TemplateType.MICROSERVICE
         ),
         parameters=[],
@@ -761,8 +760,9 @@ def sample_pipeline_context_with_mcp(sample_pipeline_context):
 def sample_pipeline_context_with_artifacts(sample_pipeline_context):
     """PipelineContext com artefatos gerados."""
     from src.models.artifact import (
-        CodeForgeArtifact, ArtifactType, GenerationMethod
+        CodeForgeArtifact, GenerationMethod
     )
+    from src.types.artifact_types import ArtifactCategory
 
     artifact = CodeForgeArtifact(
         artifact_id=str(uuid.uuid4()),
@@ -772,7 +772,7 @@ def sample_pipeline_context_with_artifacts(sample_pipeline_context):
         correlation_id=sample_pipeline_context.ticket.correlation_id,
         trace_id=sample_pipeline_context.trace_id,
         span_id=sample_pipeline_context.span_id,
-        artifact_type=ArtifactType.CODE,
+        artifact_type=ArtifactCategory.CODE,
         language='python',
         template_id='microservice-python-v1',
         confidence_score=0.85,
@@ -821,9 +821,8 @@ def sample_pipeline_context_with_validations(sample_pipeline_context_with_artifa
 @pytest.fixture
 def sample_template():
     """Template sample."""
-    from src.models.template import (
-        Template, TemplateMetadata, TemplateType, TemplateLanguage
-    )
+    from src.models.template import Template, TemplateMetadata, TemplateType
+    from src.types.artifact_types import CodeLanguage
 
     return Template(
         template_id='microservice-python-v1',
@@ -833,7 +832,7 @@ def sample_template():
             description='Template base para microservico Python',
             author='Neural Hive Team',
             tags=['microservice', 'python', 'fastapi'],
-            language=TemplateLanguage.PYTHON,
+            language=CodeLanguage.PYTHON,
             type=TemplateType.MICROSERVICE
         ),
         parameters=[],

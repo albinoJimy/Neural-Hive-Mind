@@ -17,8 +17,9 @@ from typing import Any, Dict
 
 import pytest
 
-from src.models.artifact import PipelineResult, PipelineStatus, ArtifactType
+from src.models.artifact import PipelineResult, PipelineStatus, ArtifactCategory
 from src.models.execution_ticket import TaskType, TicketStatus
+from src.types.artifact_types import ArtifactCategory, CodeLanguage
 
 
 pytest_plugins = [
@@ -172,7 +173,7 @@ class TestD3KafkaResultProduction:
         assert len(published_result.artifacts) > 0
 
         container = published_result.artifacts[0]
-        assert container.artifact_type == ArtifactType.CONTAINER
+        assert container.artifact_type == ArtifactCategory.CONTAINER
         assert container.content_uri is not None
         assert container.content_hash is not None
         assert container.sbom_uri is not None

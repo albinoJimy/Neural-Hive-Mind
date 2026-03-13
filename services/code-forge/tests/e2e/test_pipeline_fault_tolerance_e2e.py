@@ -19,12 +19,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from unittest import mock
 
 from src.models.execution_ticket import (
+from src.types.artifact_types import ArtifactCategory, CodeLanguage
     ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
     SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
 )
 from src.models.pipeline_context import PipelineContext
 from src.models.artifact import (
-    CodeForgeArtifact, ArtifactType, GenerationMethod,
+    CodeForgeArtifact, ArtifactCategory, GenerationMethod,
     ValidationResult, ValidationType, ValidationStatus, PipelineStatus
 )
 from src.services.pipeline_engine import PipelineEngine

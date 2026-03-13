@@ -19,7 +19,8 @@ from typing import Any, Dict
 import pytest
 
 from src.models.artifact import (
-    ArtifactType, CodeForgeArtifact, PipelineResult, PipelineStatus,
+from src.types.artifact_types import ArtifactCategory, CodeLanguage
+    ArtifactCategory, CodeForgeArtifact, PipelineResult, PipelineStatus,
     ValidationResult, ValidationType, ValidationStatus
 )
 
@@ -397,7 +398,7 @@ class TestD3MongoDBQueries:
         )
 
         artifacts = await mock_mongodb_client.query_artifacts_by_type(
-            ArtifactType.CONTAINER
+            ArtifactCategory.CONTAINER
         )
 
         assert mock_mongodb_client.query_artifacts_by_type.called

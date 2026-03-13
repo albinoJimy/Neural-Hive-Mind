@@ -494,7 +494,8 @@ class TestApprovalGateAutoApprovedCommit:
     ):
         """Deve commitar codigo mesmo quando auto-approved."""
         from src.services.approval_gate import ApprovalGate
-        from src.models.artifact import CodeForgeArtifact, ArtifactType, GenerationMethod
+        from src.models.artifact import CodeForgeArtifact, GenerationMethod
+        from src.types.artifact_types import ArtifactCategory
 
         gate = ApprovalGate(
             git_client=mock_git_client,
@@ -506,7 +507,7 @@ class TestApprovalGateAutoApprovedCommit:
         artifact = CodeForgeArtifact(
             artifact_id='test-artifact',
             ticket_id='ticket-123',
-            artifact_type=ArtifactType.CODE,
+            artifact_type=ArtifactCategory.CODE,
             language='python',
             confidence_score=0.9,
             generation_method=GenerationMethod.TEMPLATE,
