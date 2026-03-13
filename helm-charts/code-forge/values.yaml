@@ -137,6 +137,21 @@ config:
   LOG_LEVEL: INFO
   LOG_FORMAT: json
 
+  # HTTP/gRPC Ports
+  HTTP_PORT: 8080
+  GRPC_PORT: 50051
+  METRICS_PORT: 9090
+
+  # MCP Tool Catalog Integration
+  MCP_TOOL_CATALOG_HOST: mcp-tool-catalog
+  MCP_TOOL_CATALOG_PORT: 8080
+
+  # LLM Configuration (mapped from llm section)
+  LLM_ENABLED: "false"  # String for ConfigMap
+  LLM_PROVIDER: openai
+  LLM_MODEL: gpt-4
+  LLM_BASE_URL: ""
+
 secrets:
   # Use existingSecret para referenciar secrets criados pelo create-phase2-secrets.sh
   # Os Helm charts usam secretKeyRef para ler valores diretamente dos secrets K8s
@@ -157,6 +172,7 @@ secrets:
   anthropicApiKey: ""
 
 # LLM Configuration
+# Quando enabled=true, usa LLM_API_KEY ou LLM_ANTHROPIC_API_KEY baseado no provider
 llm:
   enabled: false
   provider: "openai"  # openai, anthropic, local

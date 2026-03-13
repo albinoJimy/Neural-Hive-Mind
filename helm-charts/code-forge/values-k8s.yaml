@@ -74,6 +74,28 @@ config:
   environment: "production"
   logLevel: "INFO"
   debug: false
+  # Override URLs para ambiente Kubernetes
+  KAFKA_BOOTSTRAP_SERVERS: neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
+  POSTGRES_HOST: postgresql.postgresql.svc.cluster.local
+  MONGODB_HOST: mongodb.mongodb-cluster.svc.cluster.local
+  REDIS_HOST: neural-hive-cache.redis-cluster.svc.cluster.local
+  SERVICE_REGISTRY_HOST: service-registry
+  EXECUTION_TICKET_SERVICE_URL: http://execution-ticket-service:8080
+  OTEL_EXPORTER_ENDPOINT: http://opentelemetry-collector.observability.svc.cluster.local:4317
+  # MCP Tool Catalog
+  MCP_TOOL_CATALOG_HOST: mcp-tool-catalog
+  MCP_TOOL_CATALOG_PORT: 8080
+  # Ports
+  HTTP_PORT: 8080
+  GRPC_PORT: 50051
+  METRICS_PORT: 9090
+
+# LLM Configuration para Kubernetes
+llm:
+  enabled: false
+  provider: openai
+  model: gpt-4
+  baseUrl: ""
 
 serviceMonitor:
   enabled: false

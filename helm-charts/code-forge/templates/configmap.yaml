@@ -53,6 +53,25 @@ data:
   LOG_LEVEL: {{ .Values.config.LOG_LEVEL | quote }}
   LOG_FORMAT: {{ .Values.config.LOG_FORMAT | quote }}
 
+  # HTTP/gRPC/Metrics Ports
+  HTTP_PORT: {{ .Values.config.HTTP_PORT | default 8080 | quote }}
+  GRPC_PORT: {{ .Values.config.GRPC_PORT | default 50051 | quote }}
+  METRICS_PORT: {{ .Values.config.METRICS_PORT | default 9090 | quote }}
+
+  # MCP Tool Catalog Integration
+  MCP_TOOL_CATALOG_HOST: {{ .Values.config.MCP_TOOL_CATALOG_HOST | default "mcp-tool-catalog" | quote }}
+  MCP_TOOL_CATALOG_PORT: {{ .Values.config.MCP_TOOL_CATALOG_PORT | default 8080 | quote }}
+
+  # LLM Configuration
+  {{- if .Values.llm }}
+  LLM_ENABLED: {{ .Values.llm.enabled | default false | quote }}
+  LLM_PROVIDER: {{ .Values.llm.provider | default "openai" | quote }}
+  LLM_MODEL: {{ .Values.llm.model | default "gpt-4" | quote }}
+  {{- if .Values.llm.baseUrl }}
+  LLM_BASE_URL: {{ .Values.llm.baseUrl | quote }}
+  {{- end }}
+  {{- end }}
+
   # S3 Configuration
   {{- if .Values.s3.enabled }}
   ARTIFACTS_S3_BUCKET: {{ .Values.s3.bucket | quote }}
