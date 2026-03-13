@@ -14,11 +14,8 @@ import tempfile
 import subprocess
 from pathlib import Path
 
-from src.services.dockerfile_generator import (
-    DockerfileGenerator,
-    CodeLanguage,
-    ArtifactCategory,
-)
+from src.services.dockerfile_generator import DockerfileGenerator
+from src.types.artifact_types import CodeLanguage, ArtifactCategory
 from src.services.container_builder import ContainerBuilder, BuilderType
 
 

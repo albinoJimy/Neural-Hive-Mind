@@ -17,9 +17,9 @@ from typing import Any, Dict
 
 import pytest
 
-from src.models.artifact import PipelineResult, PipelineStatus, ArtifactCategory
-from src.models.execution_ticket import TaskType, TicketStatus
 from src.types.artifact_types import ArtifactCategory, CodeLanguage
+from src.models.artifact import PipelineResult, PipelineStatus
+from src.models.execution_ticket import TaskType, TicketStatus
 
 
 pytest_plugins = [

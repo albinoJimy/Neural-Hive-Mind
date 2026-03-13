@@ -16,9 +16,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.models.artifact import (
 from src.types.artifact_types import ArtifactCategory, CodeLanguage
-    ArtifactCategory, CodeForgeArtifact, GenerationMethod, ValidationResult,
+from src.models.artifact import (
+    CodeForgeArtifact, GenerationMethod, ValidationResult,
     ValidationType, ValidationStatus
 )
 from src.models.pipeline_context import PipelineContext

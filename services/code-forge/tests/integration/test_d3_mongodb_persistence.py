@@ -18,9 +18,9 @@ from typing import Any, Dict
 
 import pytest
 
-from src.models.artifact import (
 from src.types.artifact_types import ArtifactCategory, CodeLanguage
-    ArtifactCategory, CodeForgeArtifact, PipelineResult, PipelineStatus,
+from src.models.artifact import (
+    CodeForgeArtifact, PipelineResult, PipelineStatus,
     ValidationResult, ValidationType, ValidationStatus
 )
 

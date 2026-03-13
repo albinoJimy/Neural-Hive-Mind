@@ -21,14 +21,14 @@ import uuid
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.models.execution_ticket import (
 from src.types.artifact_types import ArtifactCategory, CodeLanguage
+from src.models.execution_ticket import (
     ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
     SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
 )
 from src.models.pipeline_context import PipelineContext
 from src.models.artifact import (
-    CodeForgeArtifact, ArtifactCategory, GenerationMethod,
+    CodeForgeArtifact, GenerationMethod,
     ValidationResult, ValidationType, ValidationStatus, PipelineStatus
 )
 from src.services.pipeline_engine import PipelineEngine
