@@ -3,17 +3,8 @@ from enum import Enum
 from typing import Optional, Dict, List, Any
 from pydantic import BaseModel, Field
 
-
-class ArtifactType(str, Enum):
-    """Tipos de artefatos gerados"""
-    CODE = 'CODE'
-    IAC = 'IAC'
-    TEST = 'TEST'
-    POLICY = 'POLICY'
-    DOCUMENTATION = 'DOCUMENTATION'
-    CONTAINER = 'CONTAINER'
-    CHART = 'CHART'
-    FUNCTION = 'FUNCTION'
+# Importar tipos centralizados
+from ..types.artifact_types import ArtifactCategory
 
 
 class GenerationMethod(str, Enum):
@@ -87,7 +78,7 @@ class CodeForgeArtifact(BaseModel):
     trace_id: Optional[str] = Field(None, description='Trace ID OpenTelemetry')
     span_id: Optional[str] = Field(None, description='Span ID OpenTelemetry')
 
-    artifact_type: ArtifactType = Field(..., description='Tipo de artefato')
+    artifact_type: ArtifactCategory = Field(..., description='Tipo de artefato')
     language: Optional[str] = Field(None, description='Linguagem/framework')
     template_id: Optional[str] = Field(None, description='Template usado')
 

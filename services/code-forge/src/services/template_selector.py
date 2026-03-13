@@ -5,7 +5,8 @@ import time
 from pathlib import Path
 from typing import List, Dict, Optional, Any
 from ..models.pipeline_context import PipelineContext
-from ..models.template import Template, TemplateType, TemplateLanguage, TemplateMetadata, TemplateRegistry
+from ..models.template import Template, TemplateType, TemplateMetadata, TemplateRegistry
+from ..types.artifact_types import CodeLanguage
 from ..clients.git_client import GitClient
 from ..clients.redis_client import RedisClient
 from ..clients.mcp_tool_catalog_client import MCPToolCatalogClient
@@ -325,12 +326,12 @@ class TemplateSelector:
 
             # Mapeamento de extensões para linguagens
             lang_extensions = {
-                'py': TemplateLanguage.PYTHON,
-                'js': TemplateLanguage.JAVASCRIPT,
-                'ts': TemplateLanguage.TYPESCRIPT,
-                'go': TemplateLanguage.GO,
-                'java': TemplateLanguage.JAVA,
-                'rs': TemplateLanguage.RUST
+                'py': CodeLanguage.PYTHON,
+                'js': CodeLanguage.JAVASCRIPT,
+                'ts': CodeLanguage.TYPESCRIPT,
+                'go': CodeLanguage.GO,
+                'java': CodeLanguage.JAVA,
+                'rs': CodeLanguage.RUST
             }
 
             templates_count = 0
@@ -373,7 +374,7 @@ class TemplateSelector:
                     description=metadata.get('description', ''),
                     author=metadata.get('author', 'Neural Hive Team'),
                     tags=metadata.get('tags', []),
-                    language=TemplateLanguage(metadata.get('language', 'PYTHON')),
+                    language=CodeLanguage(metadata.get('language', 'PYTHON')),
                     type=TemplateType(metadata.get('type', 'MICROSERVICE'))
                 ),
                 parameters=[],
@@ -399,7 +400,7 @@ class TemplateSelector:
                 break
 
         # Inferir linguagem
-        template_lang = TemplateLanguage.PYTHON
+        template_lang = CodeLanguage.PYTHON
         for ext, lang in lang_extensions.items():
             if any(f.suffix == f'.{ext}' for f in template_dir.iterdir() if f.is_file()):
                 template_lang = lang
@@ -448,9 +449,9 @@ class TemplateSelector:
 
         # Normalizar linguagem para enum
         try:
-            template_lang = TemplateLanguage[language.upper()]
+            template_lang = CodeLanguage[language.upper()]
         except KeyError:
-            template_lang = TemplateLanguage.PYTHON
+            template_lang = CodeLanguage.PYTHON
 
         # Normalizar tipo para enum
         try:

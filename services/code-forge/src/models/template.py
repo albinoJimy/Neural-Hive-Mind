@@ -2,6 +2,9 @@ from enum import Enum
 from typing import Optional, Dict, List, Any
 from pydantic import BaseModel, Field
 
+# Importar tipos centralizados
+from ..types.artifact_types import CodeLanguage
+
 
 class TemplateType(str, Enum):
     """Tipos de templates"""
@@ -13,18 +16,6 @@ class TemplateType(str, Enum):
     POLICY_OPA = 'POLICY_OPA'
 
 
-class TemplateLanguage(str, Enum):
-    """Linguagens suportadas"""
-    PYTHON = 'PYTHON'
-    JAVASCRIPT = 'JAVASCRIPT'
-    TYPESCRIPT = 'TYPESCRIPT'
-    GO = 'GO'
-    JAVA = 'JAVA'
-    RUST = 'RUST'
-    HCL = 'HCL'
-    YAML = 'YAML'
-
-
 class TemplateMetadata(BaseModel):
     """Metadados de um template"""
 
@@ -33,7 +24,7 @@ class TemplateMetadata(BaseModel):
     description: str = Field(..., description='Descrição do template')
     author: str = Field(..., description='Autor do template')
     tags: List[str] = Field(default_factory=list, description='Tags para classificação')
-    language: TemplateLanguage = Field(..., description='Linguagem principal')
+    language: CodeLanguage = Field(..., description='Linguagem principal')
     type: TemplateType = Field(..., description='Tipo de template')
 
     class Config:

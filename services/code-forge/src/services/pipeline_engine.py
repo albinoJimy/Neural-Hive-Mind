@@ -12,7 +12,8 @@ from ..clients.kafka_result_producer import KafkaResultProducer
 from ..clients.execution_ticket_client import ExecutionTicketClient
 from ..clients.postgres_client import PostgresClient
 from ..clients.mongodb_client import MongoDBClient
-from .dockerfile_generator import DockerfileGenerator, SupportedLanguage, ArtifactType
+from ..types.artifact_types import CodeLanguage, ArtifactSubtype
+from .dockerfile_generator import DockerfileGenerator
 from .container_builder import ContainerBuilder, BuilderType
 
 if TYPE_CHECKING:
@@ -430,45 +431,45 @@ class PipelineEngine:
             context.error = e
             raise
 
-    def _detect_language(self, context: PipelineContext) -> SupportedLanguage:
+    def _detect_language(self, context: PipelineContext) -> CodeLanguage:
         """Detecta a linguagem a partir dos parâmetros do ticket."""
         language_str = context.ticket.parameters.get("language", "python").lower()
 
         language_map = {
-            "python": SupportedLanguage.PYTHON,
-            "py": SupportedLanguage.PYTHON,
-            "nodejs": SupportedLanguage.NODEJS,
-            "node": SupportedLanguage.NODEJS,
-            "javascript": SupportedLanguage.NODEJS,
-            "js": SupportedLanguage.NODEJS,
-            "typescript": SupportedLanguage.TYPESCRIPT,
-            "ts": SupportedLanguage.TYPESCRIPT,
-            "go": SupportedLanguage.GOLANG,
-            "golang": SupportedLanguage.GOLANG,
-            "java": SupportedLanguage.JAVA,
-            "c#": SupportedLanguage.CSHARP,
-            "csharp": SupportedLanguage.CSHARP,
+            "python": CodeLanguage.PYTHON,
+            "py": CodeLanguage.PYTHON,
+            "nodejs": CodeLanguage.NODEJS,
+            "node": CodeLanguage.NODEJS,
+            "javascript": CodeLanguage.JAVASCRIPT,
+            "js": CodeLanguage.JAVASCRIPT,
+            "typescript": CodeLanguage.TYPESCRIPT,
+            "ts": CodeLanguage.TYPESCRIPT,
+            "go": CodeLanguage.GO,
+            "golang": CodeLanguage.GOLANG,
+            "java": CodeLanguage.JAVA,
+            "c#": CodeLanguage.CSHARP,
+            "csharp": CodeLanguage.CSHARP,
         }
 
-        return language_map.get(language_str, SupportedLanguage.PYTHON)
+        return language_map.get(language_str, CodeLanguage.PYTHON)
 
-    def _map_artifact_type(self, context: PipelineContext) -> ArtifactType:
-        """Mapeia o tipo de artefato do ticket para ArtifactType."""
+    def _map_artifact_type(self, context: PipelineContext) -> ArtifactSubtype:
+        """Mapeia o tipo de artefato do ticket para ArtifactSubtype."""
         artifact_type_str = context.ticket.parameters.get(
             "artifact_type",
             "microservice"
         ).lower()
 
         type_map = {
-            "microservice": ArtifactType.MICROSERVICE,
-            "lambda_function": ArtifactType.LAMBDA_FUNCTION,
-            "lambda": ArtifactType.LAMBDA_FUNCTION,
-            "cli_tool": ArtifactType.CLI_TOOL,
-            "cli": ArtifactType.CLI_TOOL,
-            "library": ArtifactType.LIBRARY,
+            "microservice": ArtifactSubtype.MICROSERVICE,
+            "lambda_function": ArtifactSubtype.LAMBDA_FUNCTION,
+            "lambda": ArtifactSubtype.LAMBDA_FUNCTION,
+            "cli_tool": ArtifactSubtype.CLI_TOOL,
+            "cli": ArtifactSubtype.CLI_TOOL,
+            "library": ArtifactSubtype.LIBRARY,
         }
 
-        return type_map.get(artifact_type_str, ArtifactType.MICROSERVICE)
+        return type_map.get(artifact_type_str, ArtifactSubtype.MICROSERVICE)
 
     def get_active_pipelines_count(self) -> int:
         """Retorna número de pipelines ativos"""

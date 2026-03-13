@@ -5,7 +5,8 @@ from typing import Optional
 import structlog
 
 from ..models.pipeline_context import PipelineContext
-from ..models.artifact import CodeForgeArtifact, ArtifactType, GenerationMethod
+from ..models.artifact import CodeForgeArtifact, GenerationMethod
+from ..types.artifact_types import ArtifactCategory
 from ..clients.mongodb_client import MongoDBClient
 from ..clients.llm_client import LLMClient
 from ..clients.mcp_tool_catalog_client import MCPToolCatalogClient
@@ -108,7 +109,7 @@ class CodeComposer:
             correlation_id=getattr(ticket, 'correlation_id', str(uuid.uuid4())),
             trace_id=context.trace_id,
             span_id=context.span_id,
-            artifact_type=ArtifactType.CODE,
+            artifact_type=ArtifactCategory.CODE,
             language=ticket.parameters.get('language', 'python'),
             template_id=template.template_id,
             confidence_score=confidence_score,

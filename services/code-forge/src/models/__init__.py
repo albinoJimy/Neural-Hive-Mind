@@ -4,14 +4,20 @@ from .artifact import (
     ValidationResult,
     PipelineResult,
     PipelineStage,
-    ArtifactType,
     GenerationMethod,
     ValidationType,
     ValidationStatus,
     PipelineStatus
 )
-from .template import Template, TemplateMetadata, TemplateParameter, TemplateType, TemplateLanguage
+from .template import Template, TemplateMetadata, TemplateParameter, TemplateType
 from .pipeline_context import PipelineContext
+
+# Importar tipos centralizados
+from ..types.artifact_types import (
+    ArtifactCategory,
+    ArtifactSubtype,
+    CodeLanguage,
+)
 
 __all__ = [
     'ExecutionTicket',
@@ -22,7 +28,6 @@ __all__ = [
     'ValidationResult',
     'PipelineResult',
     'PipelineStage',
-    'ArtifactType',
     'GenerationMethod',
     'ValidationType',
     'ValidationStatus',
@@ -31,6 +36,9 @@ __all__ = [
     'TemplateMetadata',
     'TemplateParameter',
     'TemplateType',
-    'TemplateLanguage',
-    'PipelineContext'
+    'PipelineContext',
+    # Tipos centralizados
+    'ArtifactCategory',
+    'ArtifactSubtype',
+    'CodeLanguage',
 ]

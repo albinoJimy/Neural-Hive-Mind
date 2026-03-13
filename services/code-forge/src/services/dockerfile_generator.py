@@ -6,29 +6,13 @@ foco em segurança (usuário não-root), tamanho mínimo e health checks.
 """
 
 from typing import Optional
-from enum import Enum
 import structlog
+
+# Importar tipos centralizados
+from ..types.artifact_types import CodeLanguage, ArtifactSubtype
 
 
 logger = structlog.get_logger()
-
-
-class SupportedLanguage(str, Enum):
-    """Linguagens de programacao suportadas."""
-    PYTHON = "python"
-    NODEJS = "nodejs"
-    GOLANG = "golang"
-    JAVA = "java"
-    TYPESCRIPT = "typescript"
-    CSHARP = "csharp"
-
-
-class ArtifactType(str, Enum):
-    """Tipos de artefatos suportados."""
-    MICROSERVICE = "microservice"
-    LAMBDA_FUNCTION = "lambda_function"
-    CLI_TOOL = "cli_tool"
-    LIBRARY = "library"
 
 
 class DockerfileGenerator:
@@ -52,19 +36,19 @@ class DockerfileGenerator:
 
     def __init__(self):
         self._templates = {
-            SupportedLanguage.PYTHON: self._get_python_template,
-            SupportedLanguage.NODEJS: self._get_nodejs_template,
-            SupportedLanguage.GOLANG: self._get_golang_template,
-            SupportedLanguage.JAVA: self._get_java_template,
-            SupportedLanguage.TYPESCRIPT: self._get_typescript_template,
-            SupportedLanguage.CSHARP: self._get_csharp_template,
+            CodeLanguage.PYTHON: self._get_python_template,
+            CodeLanguage.NODEJS: self._get_nodejs_template,
+            CodeLanguage.GOLANG: self._get_golang_template,
+            CodeLanguage.JAVA: self._get_java_template,
+            CodeLanguage.TYPESCRIPT: self._get_typescript_template,
+            CodeLanguage.CSHARP: self._get_csharp_template,
         }
 
     def generate_dockerfile(
         self,
-        language: SupportedLanguage,
+        language: CodeLanguage,
         framework: Optional[str] = None,
-        artifact_type: ArtifactType = ArtifactType.MICROSERVICE,
+        artifact_type: ArtifactSubtype = ArtifactSubtype.MICROSERVICE,
         custom_template: Optional[str] = None,
     ) -> str:
         """
@@ -107,7 +91,7 @@ class DockerfileGenerator:
     def _get_python_template(
         self,
         framework: Optional[str],
-        artifact_type: ArtifactType,
+        artifact_type: ArtifactSubtype,
     ) -> str:
         """
         Retorna template Python multi-stage.
@@ -121,7 +105,7 @@ class DockerfileGenerator:
         elif framework == "flask":
             cmd = 'CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "app:app"]'
             port = 5000
-        elif artifact_type == ArtifactType.LAMBDA_FUNCTION:
+        elif artifact_type == ArtifactSubtype.LAMBDA_FUNCTION:
             cmd = 'CMD ["python", "-m", "awslambdaric"]'
             port = 8080
         else:
@@ -129,7 +113,7 @@ class DockerfileGenerator:
             cmd = 'CMD ["python", "main.py"]'
             port = 8000
 
-        if artifact_type == ArtifactType.LAMBDA_FUNCTION:
+        if artifact_type == ArtifactSubtype.LAMBDA_FUNCTION:
             # Lambda não usa expor porta tradicional
             expose = ""
             healthcheck = ""
@@ -188,7 +172,7 @@ ENV PATH=/root/.local/bin:$PATH
     def _get_nodejs_template(
         self,
         framework: Optional[str],
-        artifact_type: ArtifactType,
+        artifact_type: ArtifactSubtype,
     ) -> str:
         """
         Retorna template Node.js multi-stage.
@@ -198,12 +182,12 @@ ENV PATH=/root/.local/bin:$PATH
         # Detectar porta e command baseado no framework
         if framework == "express" or framework == "nest":
             port = 3000
-        elif artifact_type == ArtifactType.LAMBDA_FUNCTION:
+        elif artifact_type == ArtifactSubtype.LAMBDA_FUNCTION:
             port = 8080
         else:
             port = 3000
 
-        if artifact_type == ArtifactType.LAMBDA_FUNCTION:
+        if artifact_type == ArtifactSubtype.LAMBDA_FUNCTION:
             expose = ""
             healthcheck = ""
             cmd = 'CMD ["node", "index.js"]'  # Lambda adapter
@@ -256,7 +240,7 @@ USER nodejs
     def _get_golang_template(
         self,
         framework: Optional[str],
-        artifact_type: ArtifactType,
+        artifact_type: ArtifactSubtype,
     ) -> str:
         """
         Retorna template Go (single stage com build estático).
@@ -269,7 +253,7 @@ USER nodejs
         else:
             port = 8080
 
-        if artifact_type == ArtifactType.LAMBDA_FUNCTION:
+        if artifact_type == ArtifactSubtype.LAMBDA_FUNCTION:
             expose = ""
             healthcheck = ""
         else:
@@ -319,7 +303,7 @@ CMD ["./main"]
     def _get_java_template(
         self,
         framework: Optional[str],
-        artifact_type: ArtifactType,
+        artifact_type: ArtifactSubtype,
     ) -> str:
         """
         Retorna template Java/Spring Boot multi-stage.
@@ -383,7 +367,7 @@ CMD ["java", "-jar", "app.jar"]
     def _get_typescript_template(
         self,
         framework: Optional[str],
-        artifact_type: ArtifactType,
+        artifact_type: ArtifactSubtype,
     ) -> str:
         """
         Retorna template TypeScript multi-stage.
@@ -400,7 +384,7 @@ CMD ["java", "-jar", "app.jar"]
             port = 3000
             build_cmd = "RUN npm run build"
             start_cmd = 'CMD ["node", "dist/index.js"]'
-        elif artifact_type == ArtifactType.LAMBDA_FUNCTION:
+        elif artifact_type == ArtifactSubtype.LAMBDA_FUNCTION:
             port = 8080
             build_cmd = "RUN npm run build"
             start_cmd = 'CMD ["node", "dist/index.js"]'
@@ -409,7 +393,7 @@ CMD ["java", "-jar", "app.jar"]
             build_cmd = "RUN npm run build"
             start_cmd = 'CMD ["node", "dist/main.js"]'
 
-        if artifact_type == ArtifactType.LAMBDA_FUNCTION:
+        if artifact_type == ArtifactSubtype.LAMBDA_FUNCTION:
             expose = ""
             healthcheck = ""
         else:
@@ -468,7 +452,7 @@ ENTRYPOINT ["/sbin/tini", "--"]
     def _get_csharp_template(
         self,
         framework: Optional[str],
-        artifact_type: ArtifactType,
+        artifact_type: ArtifactSubtype,
     ) -> str:
         """
         Retorna template C#/.NET multi-stage.
@@ -478,12 +462,12 @@ ENTRYPOINT ["/sbin/tini", "--"]
         # Detectar porta e configuração baseado no framework
         if framework == "aspnet" or framework == "webapi":
             port = 8080
-        elif artifact_type == ArtifactType.LAMBDA_FUNCTION:
+        elif artifact_type == ArtifactSubtype.LAMBDA_FUNCTION:
             port = 8080
         else:
             port = 8080
 
-        if artifact_type == ArtifactType.LAMBDA_FUNCTION:
+        if artifact_type == ArtifactSubtype.LAMBDA_FUNCTION:
             expose = ""
             healthcheck = ""
         else:

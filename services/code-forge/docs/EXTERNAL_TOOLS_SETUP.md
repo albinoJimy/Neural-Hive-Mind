@@ -9,6 +9,7 @@ Code Forge integrates with the following external tools:
 | Tool | Purpose | Auth Required | CLI/API |
 |------|---------|---------------|---------|
 | Snyk | Dependency vulnerability scanning | Yes (token) | CLI |
+| Syft | SBOM generation | No | CLI |
 | Trivy | Container/IaC vulnerability scanning | No | CLI |
 | SonarQube | Static code analysis (SAST) | Yes (token) | CLI + API |
 | GitLab | Git operations, Merge Requests | Yes (token) | API |
@@ -69,6 +70,61 @@ print(f"High: {result.high_issues}")
 - Go (go.mod)
 - Java (pom.xml, build.gradle)
 - Ruby (Gemfile)
+- C# (.csproj)
+- Rust (Cargo.toml) - scanning only
+
+## Syft Setup
+
+### Installation (Local Development)
+
+```bash
+# Direct download (Linux)
+curl -sfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin v0.105.0
+
+# Homebrew (macOS)
+brew install syft
+
+# Verify installation
+syft version
+```
+
+### Configuration
+
+```bash
+# .env
+SYFT_ENABLED=true
+SYFT_TIMEOUT=300  # seconds
+```
+
+### Usage
+
+```python
+from src.clients.sigstore_client import SigstoreClient
+
+client = SigstoreClient(
+    fulcio_url='https://fulcio.sigstore.dev',
+    rekor_url='https://rekor.sigstore.dev',
+    enabled=True
+)
+
+# Generate SBOM
+sbom_uri = await client.generate_sbom(
+    artifact_path='/path/to/project',
+    artifact_id='artifact-123',
+    ticket_id='ticket-456',
+    output_format='cyclonedx-json'
+)
+
+print(f"SBOM generated: {sbom_uri}")
+```
+
+### Supported Output Formats
+
+- `cyclonedx-json` - CycloneDX JSON format (default)
+- `spdx-json` - SPDX JSON format
+- `spdx-tag-value` - SPDX tag-value format
+- `table` - Human-readable table format
+- `json` - Generic JSON format
 
 ## Trivy Setup
 
@@ -303,6 +359,18 @@ pr_url = await client.create_merge_request(
 - Ensure project has dependency file (requirements.txt, package.json, etc.)
 - Use `--file` flag to specify custom location
 
+### Syft
+
+**Error: No packages were detected**
+- Syft may not recognize the project type
+- Ensure source code is in a supported format
+- Try specifying the output format explicitly
+
+**Error: failed to scan**
+- Check file permissions
+- Verify the artifact path exists
+- Check disk space for temporary files
+
 ### Trivy
 
 **Error: Failed to download vulnerability database**
@@ -343,6 +411,10 @@ The following Prometheus metrics are available:
 # Snyk
 code_forge_snyk_scan_duration_seconds
 
+# Syft
+code_forge_sigstore_sbom_generations_total{status="success|failure|mock"}
+code_forge_sigstore_operation_duration_seconds{operation="sbom"}
+
 # Trivy
 code_forge_trivy_scan_duration_seconds{scan_type="image|fs|config"}
 
@@ -353,7 +425,7 @@ code_forge_sonarqube_analysis_duration_seconds
 code_forge_git_operations_total{operation="create_branch|commit|push|create_mr", provider="gitlab|github", status="success|failure"}
 
 # Errors
-code_forge_external_tool_errors_total{tool="snyk|trivy|sonarqube|git", error_type="timeout|api_error|cli_error"}
+code_forge_external_tool_errors_total{tool="snyk|syft|trivy|sonarqube|git", error_type="timeout|api_error|cli_error"}
 ```
 
 ## Docker Support
@@ -363,6 +435,9 @@ All CLIs are pre-installed in the Code Forge Docker image:
 ```dockerfile
 # Snyk CLI
 /usr/local/bin/snyk
+
+# Syft CLI
+/usr/local/bin/syft
 
 # Trivy
 /usr/local/bin/trivy
@@ -376,3 +451,55 @@ To build the image:
 ```bash
 docker build -t code-forge:latest -f services/code-forge/Dockerfile .
 ```
+
+## Cobertura por Linguagem
+
+| Linguagem | Snyk | Syft | Trivy | SonarQube | Observações |
+|-----------|------|------|-------|-----------|-------------|
+| **Python** | ✅ | ✅ | ✅ | ✅ | Suporte completo |
+| **JavaScript/Node.js** | ✅ | ✅ | ✅ | ✅ | Suporte completo |
+| **TypeScript** | ✅ | ✅ | ✅ | ✅ | Suporte completo |
+| **Go** | ✅ | ✅ | ✅ | ✅ | Suporte completo |
+| **Java** | ✅ | ✅ | ✅ | ✅ | Suporte completo |
+| **C#** | ✅ | ✅ | ✅ | ✅ | Suporte completo |
+| **Rust** | ⚠️ | ⚠️ | ✅ | ✅ | Snyk/Syft: scanning only |
+| **Bash** | ❌ | ⚠️ | ✅ | ⚠️ | Suporte parcial |
+| **Rego (OPA)** | ❌ | ❌ | ⚠️ | ❌ | Apenas Trivy config scan |
+| **HCL (Terraform)** | ❌ | ❌ | ✅ | ⚠️ | Trivy IaC scan |
+
+### Gaps Conhecidos e Workarounds
+
+#### Rust
+- **Gap:** Snyk e Syft têm suporte limitado para dependências Rust
+- **Workaround:** Use `cargo-audit` para vulnerabilidades e Trivy para scanning de containers
+- **Ferramenta nativa:** `cargo audit`
+
+#### Bash
+- **Gap:** Snyk não suporta scripts Bash
+- **Workaround:** Use ShellCheck para linting e Trivy para scanning de containers
+- **Ferramenta nativa:** `shellcheck script.sh`
+
+#### Rego (OPA)
+- **Gap:** Ferramentas externas têm suporte mínimo para políticas OPA
+- **Workaround:** Use `opa test` para validação e `opa fmt` para formatação
+- **Ferramenta nativa:** `opa test`, `opa fmt`
+
+#### HCL (Terraform)
+- **Gap:** Snyk e Syft não escaneiam código Terraform
+- **Workaround:** Use Trivy com modo `config` ou `terraform fmt` + `terraform validate`
+- **Ferramenta nativa:** `trivy config .`, `terraform validate`
+
+### Matriz de Ferramentas Nativas Alternativas
+
+| Linguagem | Vulnerability | Linting | Formatação | Testes |
+|-----------|---------------|---------|------------|--------|
+| **Python** | pip-audit, safety | pylint, flake8 | black, autopep8 | pytest |
+| **JavaScript** | npm audit | eslint | prettier | jest |
+| **TypeScript** | npm audit | eslint | prettier | jest |
+| **Go** | go vet | golint | gofmt | go test |
+| **Java** | OWASP Dependency-Check | pmd | google-java-format | junit |
+| **C#** | NuGet Audit | StyleCop | dotnet-format | xUnit |
+| **Rust** | cargo-audit | clippy | rustfmt | cargo test |
+| **Bash** | - | shellcheck | shfmt | bashate |
+| **Rego** | - | opa check | opa fmt | opa test |
+| **HCL** | tfsec | tflint | terraform fmt | terraform validate |
