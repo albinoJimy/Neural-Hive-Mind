@@ -116,6 +116,7 @@ Trace ID: {context.trace_id}'''
                 return None
         except Exception as e:
             logger.error('artifact_retrieval_failed', artifact_id=artifact.artifact_id, error=str(e))
+            context.metadata['commit_error'] = f'Artifact retrieval failed: {str(e)}'
             return None
 
         # Determinar nome do arquivo baseado na linguagem
