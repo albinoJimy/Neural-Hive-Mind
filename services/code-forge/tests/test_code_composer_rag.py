@@ -76,7 +76,7 @@ async def test_build_rag_context_success(mock_mongodb_client, mock_analyst_clien
     assert len(rag_context['architectural_patterns']) == 3
 
     mock_analyst_client.find_similar_templates.assert_called_once()
-    mock_analyst_client.get_architectural_patterns.assert_called_once_with('TECHNICAL')
+    mock_analyst_client.get_architectural_patterns.assert_called_once_with(domain='TECHNICAL')
 
 
 @pytest.mark.asyncio

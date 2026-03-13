@@ -360,7 +360,8 @@ async def health():
     # Mock test runner - TestResult não existe mais, usando mock direto
     test_runner = TestRunner(min_coverage=0.7)
 
-    # Mock packager
+    # Mock packager - mockar todos os métodos que serão chamados
+    sigstore_client.generate_sbom = AsyncMock(return_value='s3://mock-bucket/mock.sbom')
     sigstore_client.sign_artifact = AsyncMock(return_value='mock-signature')
     # Criar subpipelines
     template_selector = TemplateSelector(git_client, redis_client, clients['mcp_client'])
@@ -392,7 +393,7 @@ async def health():
     # Mock approval gate methods
     approval_gate.check_approval = AsyncMock()
 
-    # Criar PipelineEngine
+    # Criar PipelineEngine com enable_container_build=False para evitar Docker builds
     pipeline_engine = PipelineEngine(
         template_selector,
         code_composer,
@@ -407,7 +408,8 @@ async def health():
         max_concurrent=3,
         pipeline_timeout=3600,
         auto_approval_threshold=0.9,
-        min_quality_score=0.5
+        min_quality_score=0.5,
+        enable_container_build=False  # Desabilita builds de container em testes
     )
 
     # Preparar ticket com generation_method = LLM

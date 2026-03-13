@@ -102,11 +102,15 @@ class PipelineEngine:
             span_id = ticket.span_id or str(uuid.uuid4())
 
             # Criar contexto do pipeline
+            # Extrair generation_method dos parâmetros do ticket se presente
+            generation_method = ticket.parameters.get('generation_method') if ticket.parameters else None
+
             context = PipelineContext(
                 pipeline_id=pipeline_id,
                 ticket=ticket,
                 trace_id=trace_id,
-                span_id=span_id
+                span_id=span_id,
+                generation_method=generation_method
             )
 
             self._active_pipelines[pipeline_id] = context
