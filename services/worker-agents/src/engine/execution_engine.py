@@ -1,5 +1,6 @@
 import structlog
 import asyncio
+import uuid
 from typing import Dict, Any, Optional
 from datetime import datetime
 
@@ -38,12 +39,13 @@ class ExecutionEngine:
 
     async def _is_duplicate_ticket(self, ticket_id: str) -> bool:
         """
-        Verificar se ticket já foi processado usando Redis (two-phase scheme).
+        F2: Verificar se ticket já foi processado usando Redis com fallback MongoDB.
 
         Implementa deduplicação em duas fases:
         1. Verifica se já existe chave 'processed' (processamento concluído anteriormente)
         2. Verifica se já existe chave 'processing' (processamento em andamento)
         3. Se nenhuma existe, marca como 'processing' com TTL curto
+        4. F2: Fallback para MongoDB se Redis indisponível
 
         Args:
             ticket_id: ID do execution ticket
@@ -51,110 +53,222 @@ class ExecutionEngine:
         Returns:
             True se duplicata (já processado ou em processamento), False caso contrário
         """
-        if not self.redis_client:
-            self.logger.warning('redis_client_not_available_skipping_deduplication')
+        # Tenta Redis primeiro (mais rápido)
+        if self.redis_client:
+            try:
+                processed_key = f"ticket:processed:{ticket_id}"
+                processing_key = f"ticket:processing:{ticket_id}"
+
+                # Fase 1: Verificar se já foi processado com sucesso
+                if await self.redis_client.exists(processed_key):
+                    self.logger.info(
+                        'duplicate_ticket_detected',
+                        ticket_id=ticket_id,
+                        source='redis',
+                        message='Ticket já foi processado com sucesso, ignorando'
+                    )
+                    if self.metrics and hasattr(self.metrics, 'duplicates_detected_total'):
+                        self.metrics.duplicates_detected_total.labels(component='execution_engine', source='redis').inc()
+                    return True
+
+                # Fase 2: Tentar marcar como em processamento (SETNX)
+                is_new = await self.redis_client.set(
+                    processing_key,
+                    "1",
+                    ex=self.PROCESSING_TTL_SECONDS,
+                    nx=True
+                )
+
+                if not is_new:
+                    self.logger.info(
+                        'ticket_already_processing',
+                        ticket_id=ticket_id,
+                        source='redis',
+                        message='Ticket já está em processamento por outro worker, ignorando'
+                    )
+                    if self.metrics and hasattr(self.metrics, 'duplicates_detected_total'):
+                        self.metrics.duplicates_detected_total.labels(component='execution_engine', source='redis').inc()
+                    return True
+
+                self.logger.debug('ticket_marked_as_processing', ticket_id=ticket_id, source='redis')
+                return False
+
+            except Exception as e:
+                self.logger.warning(
+                    'redis_deduplication_failed',
+                    ticket_id=ticket_id,
+                    error=str(e),
+                    message='Tentando fallback MongoDB'
+                )
+
+        # F2: Fallback para MongoDB
+        return await self._check_mongodb_dup(ticket_id)
+
+    async def _check_mongodb_dup(self, ticket_id: str) -> bool:
+        """
+        F2: Verificar duplicata no MongoDB como fallback.
+
+        Usa índice unique em ticket_id na coleção execution_tickets.
+
+        Args:
+            ticket_id: ID do execution ticket
+
+        Returns:
+            True se duplicata, False caso contrário
+        """
+        if not self.ticket_client:
+            self.logger.warning(
+                'F2_mongodb_client_unavailable',
+                ticket_id=ticket_id,
+                message='MongoDB client não disponível - fail-open, permitindo processamento'
+            )
             return False
 
         try:
-            processed_key = f"ticket:processed:{ticket_id}"
-            processing_key = f"ticket:processing:{ticket_id}"
+            # Verificar se ticket já existe no MongoDB
+            existing_ticket = await self.ticket_client.get_ticket(ticket_id)
 
-            # Fase 1: Verificar se já foi processado com sucesso
-            if await self.redis_client.exists(processed_key):
-                self.logger.info(
-                    'duplicate_ticket_detected',
+            if existing_ticket:
+                # Ticket já existe - verificar status
+                status = existing_ticket.get('status', 'UNKNOWN')
+
+                # Se status é COMPLETED ou FAILED, é duplicata
+                if status in ('COMPLETED', 'FAILED', 'CANCELLED'):
+                    self.logger.info(
+                        'F2_duplicate_ticket_detected_mongodb',
+                        ticket_id=ticket_id,
+                        source='mongodb',
+                        existing_status=status,
+                        message='Ticket já processado no MongoDB, ignorando'
+                    )
+                    if self.metrics and hasattr(self.metrics, 'duplicates_detected_total'):
+                        self.metrics.duplicates_detected_total.labels(component='execution_engine', source='mongodb').inc()
+                    return True
+
+                # Se status é PENDING ou RUNNING, pode ser reprocessamento (permitir)
+                self.logger.warning(
+                    'F2_ticket_reprocessamento_mongodb',
                     ticket_id=ticket_id,
-                    message='Ticket já foi processado com sucesso, ignorando'
+                    source='mongodb',
+                    existing_status=status,
+                    message='Ticket com status não-final no MongoDB - permitindo reprocessamento'
                 )
-                if self.metrics and hasattr(self.metrics, 'duplicates_detected_total'):
-                    self.metrics.duplicates_detected_total.labels(component='execution_engine').inc()
-                return True
+                return False
 
-            # Fase 2: Tentar marcar como em processamento (SETNX)
-            is_new = await self.redis_client.set(
-                processing_key,
-                "1",
-                ex=self.PROCESSING_TTL_SECONDS,
-                nx=True
-            )
+            # Ticket não existe no MongoDB - marcar como processamento no MongoDB também
+            # Usamos um campo 'processing_started_at' para tracking
+            await self.ticket_client.update_ticket_status(ticket_id, 'PENDING', metadata={
+                'processing_started_at': datetime.utcnow().isoformat(),
+                'dedup_method': 'mongodb_fallback'
+            })
 
-            if not is_new:
-                self.logger.info(
-                    'ticket_already_processing',
-                    ticket_id=ticket_id,
-                    message='Ticket já está em processamento por outro worker, ignorando'
-                )
-                if self.metrics and hasattr(self.metrics, 'duplicates_detected_total'):
-                    self.metrics.duplicates_detected_total.labels(component='execution_engine').inc()
-                return True
-
-            self.logger.debug('ticket_marked_as_processing', ticket_id=ticket_id)
+            self.logger.debug('F2_ticket_marked_processing_mongodb', ticket_id=ticket_id)
             return False
 
         except Exception as e:
             self.logger.error(
-                'deduplication_check_failed',
+                'F2_mongodb_deduplication_failed',
                 ticket_id=ticket_id,
                 error=str(e),
-                message='Continuando processamento sem deduplicação'
+                error_type=type(e).__name__,
+                message='Fail-open - permitindo processamento sem deduplicação'
             )
-            # Fail-open: continuar processamento em caso de erro no Redis
+            # Fail-open: permitir processamento se ambos Redis e MongoDB falharem
             return False
 
     async def _mark_ticket_processed(self, ticket_id: str) -> None:
         """
         Marca ticket como processado com sucesso e remove chave de processing.
+        F2: Tenta Redis primeiro, depois MongoDB como fallback.
 
         Args:
             ticket_id: ID do execution ticket
         """
-        if not self.redis_client or not ticket_id:
+        if not ticket_id:
             return
 
-        try:
-            processed_key = f"ticket:processed:{ticket_id}"
-            processing_key = f"ticket:processing:{ticket_id}"
+        # Tenta Redis primeiro
+        if self.redis_client:
+            try:
+                processed_key = f"ticket:processed:{ticket_id}"
+                processing_key = f"ticket:processing:{ticket_id}"
 
-            # Marcar como processado com TTL longo
-            await self.redis_client.set(
-                processed_key,
-                "1",
-                ex=self.DEDUPLICATION_TTL_SECONDS
-            )
+                # Marcar como processado com TTL longo
+                await self.redis_client.set(
+                    processed_key,
+                    "1",
+                    ex=self.DEDUPLICATION_TTL_SECONDS
+                )
 
-            # Remover chave de processing
-            await self.redis_client.delete(processing_key)
+                # Remover chave de processing
+                await self.redis_client.delete(processing_key)
 
-            self.logger.debug('ticket_marked_as_processed', ticket_id=ticket_id)
+                self.logger.debug('ticket_marked_as_processed_redis', ticket_id=ticket_id)
+                return  # Sucesso no Redis, não precisa tentar MongoDB
 
-        except Exception as e:
-            self.logger.error(
-                'mark_ticket_processed_failed',
-                ticket_id=ticket_id,
-                error=str(e)
-            )
+            except Exception as e:
+                self.logger.warning(
+                    'redis_mark_processed_failed',
+                    ticket_id=ticket_id,
+                    error=str(e),
+                    message='Tentando fallback MongoDB'
+                )
+
+        # F2: Fallback para MongoDB
+        if self.ticket_client:
+            try:
+                await self.ticket_client.update_ticket_status(ticket_id, 'COMPLETED', metadata={
+                    'processed_at': datetime.utcnow().isoformat(),
+                    'dedup_method': 'mongodb_fallback'
+                })
+                self.logger.debug('F2_ticket_marked_processed_mongodb', ticket_id=ticket_id)
+            except Exception as e:
+                self.logger.error(
+                    'F2_mongodb_mark_processed_failed',
+                    ticket_id=ticket_id,
+                    error=str(e)
+                )
 
     async def _clear_ticket_processing(self, ticket_id: str) -> None:
         """
         Limpa chave de processing para permitir reprocessamento após falha.
+        F2: Tenta Redis primeiro, depois MongoDB como fallback.
 
         Args:
             ticket_id: ID do execution ticket
         """
-        if not self.redis_client or not ticket_id:
+        if not ticket_id:
             return
 
-        try:
-            processing_key = f"ticket:processing:{ticket_id}"
-            await self.redis_client.delete(processing_key)
-            self.logger.debug('ticket_processing_cleared', ticket_id=ticket_id)
+        # Tenta Redis primeiro
+        if self.redis_client:
+            try:
+                processing_key = f"ticket:processing:{ticket_id}"
+                await self.redis_client.delete(processing_key)
+                self.logger.debug('ticket_processing_cleared_redis', ticket_id=ticket_id)
+                return  # Sucesso no Redis
+            except Exception as e:
+                self.logger.warning(
+                    'redis_clear_processing_failed',
+                    ticket_id=ticket_id,
+                    error=str(e),
+                    message='Tentando fallback MongoDB'
+                )
 
-        except Exception as e:
-            self.logger.error(
-                'clear_ticket_processing_failed',
-                ticket_id=ticket_id,
-                error=str(e)
-            )
+        # F2: Fallback para MongoDB (marca como FAILED para permitir reprocessamento)
+        if self.ticket_client:
+            try:
+                await self.ticket_client.update_ticket_status(ticket_id, 'PENDING', metadata={
+                    'processing_cleared_at': datetime.utcnow().isoformat(),
+                    'dedup_method': 'mongodb_fallback'
+                })
+                self.logger.debug('F2_ticket_processing_cleared_mongodb', ticket_id=ticket_id)
+            except Exception as e:
+                self.logger.error(
+                    'F2_mongodb_clear_processing_failed',
+                    ticket_id=ticket_id,
+                    error=str(e)
+                )
 
     async def process_ticket(self, ticket: Dict[str, Any]):
         '''Processar ticket de execução'''
@@ -171,6 +285,18 @@ class ExecutionEngine:
                 task_type = ticket.get('task_type', 'unknown')
                 self.metrics.tickets_failed_total.labels(task_type=task_type, error_type='invalid_ticket_id').inc()
             return
+
+        # F1: Validar e garantir correlation_id no ticket
+        correlation_id = ticket.get('correlation_id') or ticket.get('correlationId')
+        if not correlation_id:
+            correlation_id = str(uuid.uuid4())
+            ticket['correlation_id'] = correlation_id
+            self.logger.warning(
+                'F1: correlation_id ausente no ticket - UUID gerado no Worker Agent',
+                ticket_id=ticket_id,
+                generated_correlation_id=correlation_id,
+                action_required='Verificar propagação de correlation_id upstream (Orchestrator Dynamic)'
+            )
 
         # Verificar duplicata via Redis (idempotência)
         if await self._is_duplicate_ticket(ticket_id):

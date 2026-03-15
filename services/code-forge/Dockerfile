@@ -46,6 +46,9 @@ RUN curl -o /usr/local/bin/snyk https://static.snyk.io/cli/latest/snyk-linux \
 # Install Trivy
 RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.45.0
 
+# Install Syft (SBOM generator)
+RUN curl -sfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin v0.105.0
+
 # Install SonarQube Scanner
 RUN curl -o /tmp/sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip \
     && unzip /tmp/sonar-scanner.zip -d /opt \

@@ -10,18 +10,27 @@ from confluent_kafka.schema_registry.avro import AvroSerializer
 import structlog
 from src.models.consolidated_decision import ConsolidatedDecision
 
+# F5: OpenTelemetry W3C traceparent support
+try:
+    from neural_hive_observability.context import ContextManager
+    OBSERVABILITY_AVAILABLE = True
+except ImportError:
+    OBSERVABILITY_AVAILABLE = False
+    ContextManager = None
+
 logger = structlog.get_logger()
 
 
 class DecisionProducer:
     '''Producer Kafka para tópico plans.consensus usando confluent-kafka'''
 
-    def __init__(self, config):
+    def __init__(self, config, context_manager: Optional[ContextManager] = None):
         self.config = config
         self.producer: Optional[Producer] = None
         self.schema_registry_client: Optional[SchemaRegistryClient] = None
         self.avro_serializer: Optional[AvroSerializer] = None
         self.running = False
+        self.context_manager = context_manager
 
         # Deduplicação: cache de plan_id já processados
         self._processed_plan_ids: Set[str] = set()
@@ -206,6 +215,26 @@ class DecisionProducer:
             value = self._serialize_value(decision)
             key = decision.plan_id.encode('utf-8')
 
+            # F5: Preparar headers com W3C traceparent propagation
+            headers = {
+                'decision-id': decision.decision_id,
+                'plan-id': decision.plan_id,
+                'intent-id': decision.intent_id,
+                'correlation-id': decision.correlation_id,
+                'final-decision': decision.final_decision.value if hasattr(decision.final_decision, 'value') else str(decision.final_decision),
+            }
+
+            # Injetar contexto OpenTelemetry W3C traceparent via ContextManager
+            if self.context_manager and OBSERVABILITY_AVAILABLE:
+                headers_dict = self.context_manager.inject_http_headers(headers)
+                # Converter de volta para formato lista de tuplas do confluent-kafka
+                kafka_headers = [(k, v.encode('utf-8') if isinstance(v, str) else v)
+                               for k, v in headers_dict.items()]
+            else:
+                # Fallback: headers básicos sem ContextManager
+                kafka_headers = [(k, v.encode('utf-8') if isinstance(v, str) else v)
+                               for k, v in headers.items()]
+
             # Publicar no tópico (não-bloqueante)
             await asyncio.get_event_loop().run_in_executor(
                 None,
@@ -213,6 +242,7 @@ class DecisionProducer:
                     topic=self.config.kafka_consensus_topic,
                     key=key,
                     value=value,
+                    headers=kafka_headers,
                     callback=self._delivery_callback
                 )
             )

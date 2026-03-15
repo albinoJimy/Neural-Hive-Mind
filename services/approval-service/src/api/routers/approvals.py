@@ -17,6 +17,8 @@ from src.models.approval import (
     ApproveRequestBody,
     RejectRequestBody,
     RepublishRequestBody,
+    RevertRequestBody,
+    RevertResponse,
     ApprovalResponse,
     RiskBand
 )
@@ -399,4 +401,88 @@ async def republish_approved_plan(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erro ao republicar plano: {str(e)}"
+        )
+
+
+@router.post("/{plan_id}/revert", response_model=RevertResponse)
+async def revert_approval(
+    plan_id: str,
+    body: RevertRequestBody,
+    user: dict = Depends(get_current_admin_user),
+    service: ApprovalService = Depends(get_approval_service)
+):
+    """
+    F4: Reverte uma aprovacao (para compensacao Saga)
+
+    Requer autenticacao JWT e role neural-hive-admin.
+
+    Utilizado pelo padrao Saga para reverter aprovacoes quando
+    execucoes subsequentes falham e precisam de compensacao.
+
+    Args:
+        plan_id: ID do plano cognitivo
+        body: Motivo da reversao (obrigatorio) e comentarios opcionais
+        user: Usuario admin autenticado
+        service: Servico de aprovacao
+
+    Returns:
+        RevertResponse com detalhes da reversao
+
+    Raises:
+        404: Se plan_id nao encontrado
+        400: Se plano nao esta aprovado
+
+    Example:
+        ```json
+        POST /api/v1/approvals/plan-123/revert
+        {
+            "reason": "Compensacao Saga: falha no deploy",
+            "comments": "Revertendo aprovacao devido a falha na execucao"
+        }
+        ```
+    """
+    logger.info(
+        'Revertendo aprovacao',
+        plan_id=plan_id,
+        user_id=user['user_id'],
+        reason=body.reason,
+        ticket_id=body.ticket_id
+    )
+
+    try:
+        response = await service.revert_approval(
+            plan_id=plan_id,
+            user_id=user['user_id'],
+            reason=body.reason,
+            comments=body.comments,
+            ticket_id=body.ticket_id
+        )
+        return response
+
+    except ValueError as e:
+        error_msg = str(e)
+        if 'nao encontrado' in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=error_msg
+            )
+        elif 'nao esta aprovado' in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_msg
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_msg
+            )
+    except Exception as e:
+        logger.error(
+            'Erro ao reverter aprovacao',
+            error=str(e),
+            plan_id=plan_id
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao reverter aprovacao: {str(e)}"
         )

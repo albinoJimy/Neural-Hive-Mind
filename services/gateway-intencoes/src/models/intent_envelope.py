@@ -180,7 +180,10 @@ class IntentEnvelope(BaseModel):
         default_factory=lambda: str(uuid.uuid4()), description="ID único da intenção"
     )
     version: str = Field(default="1.0.0", description="Versão do schema")
-    correlation_id: Optional[str] = Field(None, description="ID de correlação")
+    correlation_id: Optional[str] = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        description="ID de correlação - gerado automaticamente se não fornecido"
+    )
     trace_id: Optional[str] = Field(None, description="ID de trace OpenTelemetry")
     span_id: Optional[str] = Field(None, description="ID de span OpenTelemetry")
 

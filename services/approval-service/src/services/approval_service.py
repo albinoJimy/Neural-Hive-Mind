@@ -16,7 +16,8 @@ from src.models.approval import (
     ApprovalDecision,
     ApprovalResponse,
     ApprovalStats,
-    ApprovalStatus
+    ApprovalStatus,
+    RevertResponse
 )
 from src.clients.mongodb_client import MongoDBClient
 from src.clients.cognitive_ledger_client import CognitiveLedgerClient
@@ -555,6 +556,100 @@ class ApprovalService:
         )
 
         return response
+
+    async def revert_approval(
+        self,
+        plan_id: str,
+        user_id: str,
+        reason: str,
+        comments: Optional[str] = None,
+        ticket_id: Optional[str] = None
+    ) -> RevertResponse:
+        """
+        F4: Reverte uma aprovacao (para compensacao Saga)
+
+        Altera o status de APPROVED para PENDING, permitindo que o plano
+        seja reavaliado. Usado pelo padrao Saga quando execucoes
+        subsequentes falham e precisam de compensacao.
+
+        Args:
+            plan_id: ID do plano cognitivo
+            user_id: ID do usuario que esta fazendo a reversao
+            reason: Motivo da reversao (obrigatorio)
+            comments: Comentarios opcionais
+            ticket_id: ID do ticket de compensacao
+
+        Returns:
+            RevertResponse com detalhes da reversao
+
+        Raises:
+            ValueError: Se plano nao encontrado ou nao esta aprovado
+        """
+        from src.models.approval import RevertResponse
+
+        start_time = datetime.utcnow()
+
+        logger.info(
+            'Revertendo aprovacao',
+            plan_id=plan_id,
+            user_id=user_id,
+            reason=reason,
+            ticket_id=ticket_id
+        )
+
+        # Buscar aprovacao atual
+        approval = await self.mongodb_client.get_approval_by_plan_id(plan_id)
+        if not approval:
+            error_msg = f'Plano {plan_id} nao encontrado'
+            logger.warning('revert_approval_not_found', plan_id=plan_id)
+            raise ValueError(error_msg)
+
+        # Verificar se esta aprovado
+        if approval.status != ApprovalStatus.APPROVED:
+            error_msg = f'Plano {plan_id} nao esta aprovado (status: {approval.status})'
+            logger.warning(
+                'revert_approval_not_approved',
+                plan_id=plan_id,
+                current_status=approval.status
+            )
+            raise ValueError(error_msg)
+
+        # Atualizar para PENDING
+        previous_status = approval.status.value
+        await self.mongodb_client.update_approval_decision(
+            plan_id=plan_id,
+            status=ApprovalStatus.PENDING,
+            approved_by=None,
+            approved_at=None,
+            rejection_reason=f'REVERTED: {reason}',
+            comments=comments
+        )
+
+        duration = (datetime.utcnow() - start_time).total_seconds()
+
+        # Emitir metrica de reversao (se existir)
+        if hasattr(self.metrics, 'increment_revert_total'):
+            self.metrics.increment_revert_total('success')
+
+        logger.info(
+            'Aprovacao revertida com sucesso',
+            plan_id=plan_id,
+            previous_status=previous_status,
+            new_status='PENDING',
+            reverted_by=user_id,
+            reason=reason,
+            ticket_id=ticket_id,
+            duration_seconds=duration
+        )
+
+        return RevertResponse(
+            approval_id=approval.approval_id,
+            plan_id=plan_id,
+            previous_status=previous_status,
+            new_status='PENDING',
+            reverted_at=datetime.utcnow(),
+            reverted_by=user_id
+        )
 
     async def get_pending_approvals(
         self,

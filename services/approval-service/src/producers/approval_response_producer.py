@@ -15,6 +15,8 @@ from confluent_kafka.schema_registry.avro import AvroSerializer
 
 from src.config.settings import Settings
 from src.models.approval import ApprovalResponse
+from neural_hive_observability.context import ContextManager
+from neural_hive_observability.tracing import get_current_trace_id, get_current_span_id
 
 logger = structlog.get_logger()
 
@@ -41,12 +43,13 @@ APPROVAL_RESPONSE_SCHEMA = """
 class ApprovalResponseProducer:
     """Kafka producer para responses de aprovacao"""
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, context_manager: Optional[ContextManager] = None):
         self.settings = settings
         self.producer: Optional[Producer] = None
         self.schema_registry_client: Optional[SchemaRegistryClient] = None
         self.avro_serializer: Optional[AvroSerializer] = None
         self._transactional_id = self._generate_transactional_id()
+        self.context_manager = context_manager
 
     def _generate_transactional_id(self) -> str:
         """Gera ID transacional estavel por pod"""
@@ -151,21 +154,31 @@ class ApprovalResponseProducer:
                 ).encode('utf-8')
                 content_type = 'application/json'
 
-            # Prepara headers
-            headers = [
-                ('plan-id', response.plan_id.encode('utf-8')),
-                ('intent-id', response.intent_id.encode('utf-8')),
-                ('decision', response.decision.encode('utf-8')),
-                ('approved-by', response.approved_by.encode('utf-8')),
-                ('content-type', content_type.encode('utf-8')),
-            ]
+            # Prepara headers com W3C traceparent propagation
+            headers = {
+                'plan-id': response.plan_id,
+                'intent-id': response.intent_id,
+                'decision': response.decision,
+                'approved-by': response.approved_by,
+                'content-type': content_type,
+            }
 
+            # Adicionar correlation_id se fornecido ou do contexto atual
+            if not correlation_id and self.context_manager:
+                correlation_id = self.context_manager.get_plan_id()
             if correlation_id:
-                headers.append(('correlation-id', correlation_id.encode('utf-8')))
-            if trace_id:
-                headers.append(('trace-id', trace_id.encode('utf-8')))
-            if span_id:
-                headers.append(('span-id', span_id.encode('utf-8')))
+                headers['correlation-id'] = correlation_id
+
+            # F5: Injetar contexto OpenTelemetry W3C traceparent via ContextManager
+            if self.context_manager:
+                headers_dict = self.context_manager.inject_http_headers(headers)
+                # Converter de volta para formato lista de tuplas do confluent-kafka
+                headers = [(k, v.encode('utf-8') if isinstance(v, str) else v)
+                          for k, v in headers_dict.items()]
+            else:
+                # Fallback: injeção manual sem ContextManager (compatibilidade)
+                headers = [(k, v.encode('utf-8') if isinstance(v, str) else v)
+                          for k, v in headers.items()]
 
             # Partition key pelo plan_id
             key = response.plan_id.encode('utf-8')

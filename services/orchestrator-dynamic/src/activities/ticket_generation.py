@@ -77,6 +77,20 @@ async def generate_execution_tickets(
         consolidated_decision_keys=list(consolidated_decision.keys()) if isinstance(consolidated_decision, dict) else 'NOT_A_DICT'
     )
 
+    # F1: Validar e garantir correlation_id no cognitive_plan
+    correlation_id = (
+        cognitive_plan.get('correlation_id') or
+        cognitive_plan.get('correlationId')
+    )
+    if not correlation_id:
+        correlation_id = str(uuid.uuid4())
+        logger.warning(
+            'F1: correlation_id ausente no cognitive_plan - UUID gerado no Orchestrator',
+            plan_id=cognitive_plan.get('plan_id', 'MISSING'),
+            generated_correlation_id=correlation_id,
+            action_required='Verificar propagação de correlation_id upstream (Gateway, STE, Consensus)'
+        )
+
     try:
         # FIX: Lidar com estrutura aninhada do approval service
         # Se cognitive_plan está aninhado (cognitive_plan.cognitive_plan),
@@ -195,8 +209,8 @@ async def generate_execution_tickets(
                 'plan_id': plan_id,
                 'intent_id': intent_id,
                 'decision_id': decision_id,
-                # Para plans diretos do STE, pegar do cognitive_plan; para consolidated, pegar de consolidated_decision
-                'correlation_id': (consolidated_decision or cognitive_plan).get('correlation_id'),
+                # F1: Usar correlation_id validado/gerado no início da função
+                'correlation_id': correlation_id,
                 'trace_id': (consolidated_decision or cognitive_plan).get('trace_id'),
                 'span_id': (consolidated_decision or cognitive_plan).get('span_id'),
                 'task_id': task_id,
@@ -264,6 +278,53 @@ async def generate_execution_tickets(
     except Exception as e:
         logger.error(f'Erro ao gerar execution tickets: {e}', exc_info=True)
         raise
+
+
+async def _get_available_workers() -> List[Dict[str, Any]]:
+    """
+    F2: Busca workers disponíveis do Service Registry.
+
+    Returns:
+        Lista de workers (agent_type=WORKER) registrados e saudáveis.
+        Retorna lista vazia se Service Registry não estiver disponível.
+    """
+    if not _registry_client:
+        logger.warning(
+            'F2_registry_client_unavailable',
+            message='Service Registry client não injetado - fallback round-robin não disponível'
+        )
+        return []
+
+    try:
+        # Buscar agentes do tipo WORKER com status HEALTHY
+        workers = await _registry_client.discover_agents(
+            capabilities=[],  # Sem filtro de capabilities específicas
+            filters={
+                'status': 'HEALTHY',
+                'namespace': _config.namespace if _config else 'default'
+            },
+            max_results=50  # Buscar até 50 workers
+        )
+
+        # Filtrar apenas WORKERs
+        workers = [w for w in workers if w.get('agent_type') == 'WORKER']
+
+        logger.info(
+            'F2_workers_discovered',
+            count=len(workers),
+            workers=[w.get('agent_id') for w in workers[:5]]  # Log primeiros 5
+        )
+
+        return workers
+
+    except Exception as e:
+        logger.warning(
+            'F2_worker_discovery_failed',
+            error=str(e),
+            error_type=type(e).__name__,
+            message='Falha ao buscar workers do Service Registry - retornando lista vazia'
+        )
+        return []
 
 
 @activity.defn
@@ -506,7 +567,12 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 # Continuar para alocação stub abaixo
                 fallback_reason = 'scheduler_exception'
 
-        # Fallback: alocação stub (scheduler não disponível ou falhou, em desenvolvimento)
+        # ============================================================================
+        # F2: Fallback Round-Robin Real (substitui stub antigo)
+        # ============================================================================
+        # Quando Intelligent Scheduler não está disponível, busca workers do
+        # Service Registry e faz alocação round-robin simples em vez de stub.
+        # ============================================================================
         if not _intelligent_scheduler or (_config and _config.scheduler_fallback_stub_enabled):
             if not _intelligent_scheduler:
                 fallback_reason = 'scheduler_unavailable'
@@ -514,45 +580,62 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 fallback_reason = fallback_reason if 'fallback_reason' in locals() else 'scheduler_failed'
 
             logger.warning(
-                'scheduler_fallback_stub_used',
+                'F2_scheduler_fallback_round_robin',
                 ticket_id=ticket_id,
                 reason=fallback_reason,
                 environment=_config.environment if _config else 'unknown',
-                allocation_method='fallback_stub',
-                message='ATENÇÃO: Usando alocação stub. Tickets com allocation_method=fallback_stub '
-                       'NÃO serão publicados no Kafka.'
+                message='Usando fallback round-robin real (substituindo stub antigo)'
             )
 
-            # Registrar métrica de ativação do fallback_stub quando scheduler não disponível
-            if not _intelligent_scheduler:
-                try:
-                    from src.observability.metrics import get_metrics
-                    metrics = get_metrics()
-                    metrics.record_fallback_stub_activation(fallback_reason)
-                except Exception:
-                    pass  # Não falhar se métricas não estiverem disponíveis
+            # Registrar métrica de ativação do fallback
+            try:
+                from src.observability.metrics import get_metrics
+                metrics = get_metrics()
+                metrics.record_fallback_stub_activation(fallback_reason)
+            except Exception:
+                pass  # Não falhar se métricas não estiverem disponíveis
 
-            # Calcular priority score simples
+            # F2: Buscar workers disponíveis do Service Registry
+            workers = await _get_available_workers()
+
+            if not workers:
+                logger.error(
+                    'F2_no_workers_available',
+                    ticket_id=ticket_id,
+                    message='Nenhum worker disponível no Service Registry'
+                )
+                raise RuntimeError(
+                    f'Nenhum worker disponível para alocar ticket {ticket_id}. '
+                    f'Verifique se os Worker Agents estão registrados no Service Registry.'
+                )
+
+            # Seleção round-robin baseada em hash do ticket_id
+            import hashlib
+            worker_index = int(hashlib.sha256(ticket_id.encode()).hexdigest(), 16) % len(workers)
+            selected_worker = workers[worker_index]
+
+            # Calcular priority score baseado em risk_band
             risk_band = ticket.get('risk_band', 'normal')
             priority_weights = {'critical': 1.0, 'high': 0.7, 'normal': 0.5, 'low': 0.3}
             priority_score = priority_weights.get(risk_band, 0.5)
 
-            # Adicionar metadata de alocação stub
+            # Metadata de alocação real (com worker_id válido)
             allocation_metadata = {
                 'allocated_at': int(datetime.now().timestamp() * 1000),
-                'agent_id': 'worker-agent-pool',
-                'agent_type': 'worker-agent',
+                'agent_id': selected_worker['agent_id'],
+                'agent_type': selected_worker.get('agent_type', 'WORKER'),
                 'priority_score': priority_score,
-                'agent_score': 0.5,
+                'agent_score': 0.5,  # Score fixo para fallback
                 'composite_score': 0.5,
-                'allocation_method': 'fallback_stub',
-                'workers_evaluated': 0
+                'allocation_method': 'round_robin_fallback',
+                'workers_evaluated': len(workers),
+                'worker_index': worker_index,
+                'worker_status': selected_worker.get('status', 'UNKNOWN')
             }
 
             ticket['allocation_metadata'] = allocation_metadata
 
-            # Adicionar predicted_duration_ms ao allocation_metadata para tracking de erro ML
-            # Usado para ML error tracking e feedback loop
+            # Adicionar predições ML placeholders
             if predicted_duration_ms is not None:
                 ticket['allocation_metadata']['predicted_duration_ms'] = predicted_duration_ms
             ticket['allocation_metadata']['predicted_queue_ms'] = 2000.0
@@ -560,9 +643,13 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
             ticket['allocation_metadata']['ml_enriched'] = False
 
             logger.info(
-                f'Recursos alocados (stub/fallback) para ticket {ticket_id}',
-                priority_score=priority_score,
-                allocation_method='fallback_stub'
+                'F2_recursos_alocados_round_robin',
+                ticket_id=ticket_id,
+                agent_id=selected_worker['agent_id'],
+                worker_index=worker_index,
+                workers_count=len(workers),
+                allocation_method='round_robin_fallback',
+                priority_score=priority_score
             )
 
             return ticket
@@ -574,7 +661,7 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
             fallback_stub_enabled=_config.scheduler_fallback_stub_enabled if _config else False
         )
         raise RuntimeError(
-            f'Intelligent Scheduler falhou para ticket {ticket_id} e fallback stub não está configurado.'
+            f'Intelligent Scheduler falhou para ticket {ticket_id} e fallback não está configurado.'
         )
 
     except Exception as e:

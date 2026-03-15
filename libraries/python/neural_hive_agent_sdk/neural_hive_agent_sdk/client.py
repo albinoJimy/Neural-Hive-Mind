@@ -7,15 +7,50 @@ from enum import Enum
 
 from .config import AgentConfig
 
+# F3: Importar stubs gRPC gerados (ou usar fallback se não disponível)
+try:
+    from proto.agent_service_pb2 import (
+        AgentType as ProtoAgentType,
+        AgentTelemetry as ProtoAgentTelemetry,
+        RegisterRequest,
+        RegisterResponse,
+        HeartbeatRequest,
+        HeartbeatResponse,
+        DeregisterRequest,
+        DeregisterResponse,
+        GetStatusRequest,
+        GetStatusResponse
+    )
+    from proto.agent_service_pb2_grpc import AgentServiceStub
+    PROTO_AVAILABLE = True
+except ImportError:
+    # Fallback para desenvolvimento se proto não foi gerado
+    PROTO_AVAILABLE = False
+    ProtoAgentType = None
+    AgentServiceStub = None
 
 logger = structlog.get_logger()
 
 
+# Mapeamento entre AgentType Enum e Proto
 class AgentType(str, Enum):
     """Tipos de agentes"""
     WORKER = "WORKER"
     SCOUT = "SCOUT"
     GUARD = "GUARD"
+    ANALYST = "ANALYST"
+
+    def to_proto(self):
+        """Converte para AgentType do proto"""
+        if not PROTO_AVAILABLE:
+            return None
+        mapping = {
+            "WORKER": ProtoAgentType.WORKER,
+            "SCOUT": ProtoAgentType.SCOUT,
+            "GUARD": ProtoAgentType.GUARD,
+            "ANALYST": ProtoAgentType.ANALYST,
+        }
+        return mapping.get(self.value, ProtoAgentType.AGENT_TYPE_UNSPECIFIED)
 
 
 class AgentTelemetry:
@@ -35,15 +70,25 @@ class AgentTelemetry:
         self.last_execution_at = int(datetime.now(timezone.utc).timestamp())
 
     def to_proto(self):
-        """Converte para formato protobuf"""
-        # TODO: Usar proto gerado
-        return {
-            'success_rate': self.success_rate,
-            'avg_duration_ms': self.avg_duration_ms,
-            'total_executions': self.total_executions,
-            'failed_executions': self.failed_executions,
-            'last_execution_at': self.last_execution_at
-        }
+        """F3: Converte para formato protobuf (proto gerado)"""
+        if not PROTO_AVAILABLE:
+            # Fallback dict para desenvolvimento
+            return {
+                'success_rate': self.success_rate,
+                'avg_duration_ms': self.avg_duration_ms,
+                'total_executions': self.total_executions,
+                'failed_executions': self.failed_executions,
+                'last_execution_at': self.last_execution_at
+            }
+
+        # Criar mensagem protobuf real
+        return ProtoAgentTelemetry(
+            success_rate=self.success_rate,
+            avg_duration_ms=self.avg_duration_ms,
+            total_executions=self.total_executions,
+            failed_executions=self.failed_executions,
+            last_execution_at=self.last_execution_at
+        )
 
 
 class AgentClient:
@@ -113,7 +158,7 @@ class AgentClient:
         Registra o agente no Service Registry.
 
         Args:
-            agent_type: Tipo do agente (WORKER, SCOUT, GUARD)
+            agent_type: Tipo do agente (WORKER, SCOUT, GUARD, ANALYST)
             capabilities: Lista de capabilities do agente
             metadata: Metadados adicionais
 
@@ -124,8 +169,12 @@ class AgentClient:
             # Criar canal gRPC
             self.channel = await self._create_channel()
 
-            # TODO: Criar stub real quando proto estiver gerado
-            # self.stub = service_registry_pb2_grpc.ServiceRegistryStub(self.channel)
+            # F3: Criar stub real se proto disponível
+            if PROTO_AVAILABLE and AgentServiceStub:
+                self.stub = AgentServiceStub(self.channel)
+            else:
+                self.stub = None
+                logger.warning("proto_stub_not_available_using_mock")
 
             # Preparar metadata
             if metadata is None:
@@ -137,27 +186,45 @@ class AgentClient:
                 'version': self.config.AGENT_VERSION
             })
 
-            # Criar request
-            # TODO: Usar proto real
-            # request = service_registry_pb2.RegisterRequest(
-            #     agent_type=agent_type.value,
-            #     capabilities=capabilities,
-            #     metadata=metadata,
-            #     namespace=self.config.AGENT_NAMESPACE,
-            #     cluster=self.config.AGENT_CLUSTER,
-            #     version=self.config.AGENT_VERSION
-            # )
+            # F3: Usar proto real se disponível
+            if PROTO_AVAILABLE and self.stub:
+                request = RegisterRequest(
+                    agent_type=agent_type.to_proto(),
+                    capabilities=capabilities,
+                    metadata=metadata,
+                    namespace=self.config.AGENT_NAMESPACE,
+                    cluster=self.config.AGENT_CLUSTER,
+                    version=self.config.AGENT_VERSION,
+                    telemetry=self.telemetry.to_proto()
+                )
 
-            # Chamar RPC Register
-            # response = await self.stub.Register(
-            #     request,
-            #     timeout=self.config.GRPC_TIMEOUT_SECONDS
-            # )
+                # Chamar RPC Register
+                response = await self.stub.Register(
+                    request,
+                    timeout=self.config.GRPC_TIMEOUT_SECONDS
+                )
 
-            # Mock response para desenvolvimento
-            import uuid
-            self.agent_id = str(uuid.uuid4())
-            self.registration_token = f"token-{self.agent_id}"
+                self.agent_id = response.agent_id
+                self.registration_token = response.registration_token
+
+                logger.info(
+                    "agent_registered_grpc",
+                    agent_id=self.agent_id,
+                    agent_type=agent_type.value,
+                    capabilities=capabilities
+                )
+            else:
+                # Fallback mock para desenvolvimento
+                import uuid
+                self.agent_id = str(uuid.uuid4())
+                self.registration_token = f"token-{self.agent_id}"
+
+                logger.info(
+                    "agent_registered_mock",
+                    agent_id=self.agent_id,
+                    agent_type=agent_type.value,
+                    capabilities=capabilities
+                )
 
             # Iniciar heartbeat automático
             await self.start_heartbeat()

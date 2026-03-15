@@ -5,6 +5,7 @@ Main orchestrator that coordinates all steps of plan generation.
 """
 
 import time
+import uuid
 import structlog
 from datetime import datetime, timedelta
 from typing import Dict, List
@@ -339,13 +340,27 @@ class SemanticTranslationOrchestrator:
 
         # Extrair correlation_id prioritariamente do trace_context (headers Kafka)
         # com fallback para intent_envelope em ambos formatos (camelCase e snake_case)
+        # F1: Gerar UUID se nenhum correlation_id estiver disponível
         correlation_id = (
             trace_context.get('correlation_id') or
             intent_envelope.get('correlationId') or
             intent_envelope.get('correlation_id')
         )
+
+        # Gerar UUID de fallback se correlation_id não estiver presente
+        correlation_id_was_generated = False
+        if not correlation_id:
+            correlation_id = str(uuid.uuid4())
+            correlation_id_was_generated = True
+            # Registrar métrica de correlation_id gerado
+            from src.observability.metrics import correlation_id_missing_total
+            correlation_id_missing_total.labels(format='generated_at_ste').inc()
+
         # Determinar origem do correlation_id para logs
-        if trace_context.get('correlation_id'):
+        if correlation_id_was_generated:
+            correlation_id_origem = 'generated_at_ste'
+            formato_envelope = None
+        elif trace_context.get('correlation_id'):
             correlation_id_origem = 'trace_context'
             formato_envelope = None
         elif intent_envelope.get('correlationId'):

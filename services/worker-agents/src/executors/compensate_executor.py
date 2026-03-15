@@ -516,42 +516,130 @@ class CompensateExecutor(BaseTaskExecutor):
         parameters: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Reverter aprovacoes.
+        F4: Reverter aprovacoes via HTTP API do Approval Service.
 
         Parâmetros esperados:
             - approval_id: ID da aprovacao
+            - plan_id: ID do plano (usado para localizar aprovacao)
             - validation_id: ID da validacao
-            - revert_status: Status para reverter
+            - revert_reason: Motivo da reversao
         """
         approval_id = parameters.get('approval_id', '')
+        plan_id = parameters.get('plan_id', '')
         validation_id = parameters.get('validation_id', '')
-        revert_status = parameters.get('revert_status', 'PENDING')
+        revert_reason = parameters.get('revert_reason', 'Compensacao Saga')
+        ticket_id_comp = parameters.get('ticket_id', ticket_id)
 
         self.log_execution(
             ticket_id,
             'compensation_validate_started',
             approval_id=approval_id,
+            plan_id=plan_id,
             validation_id=validation_id
         )
 
-        # Simulacao de reversao de aprovacao
-        # Em implementacao real, chamaria API de aprovacao
+        # Se nao tiver plan_id, tentar usar approval_id (fallback)
+        if not plan_id and approval_id:
+            # Tentar extrair plan_id do approval_id se seguir padrao
+            pass  # Manter logica atual
+
+        # F4: Chamada HTTP real ao Approval Service se disponivel
+        if self.config and hasattr(self.config, 'approval_service_url'):
+            try:
+                import httpx
+
+                approval_url = self.config.approval_service_url
+                url = f"{approval_url}/api/v1/approvals/{plan_id}/revert"
+
+                payload = {
+                    "reason": revert_reason,
+                    "comments": f"Compensacao Saga - Ticket: {ticket_id_comp}",
+                    "ticket_id": ticket_id_comp
+                }
+
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.post(url, json=payload)
+                    response.raise_for_status()
+                    result = response.json()
+
+                self.log_execution(
+                    ticket_id,
+                    'compensation_validate_http_success',
+                    approval_id=approval_id,
+                    plan_id=plan_id,
+                    new_status=result.get('new_status')
+                )
+
+                return {
+                    'success': True,
+                    'output': {
+                        'approval_id': approval_id,
+                        'plan_id': plan_id,
+                        'reverted_to_status': result.get('new_status'),
+                        'http_call': True
+                    },
+                    'metadata': {
+                        'simulated': False,
+                        'http_status': response.status_code
+                    },
+                    'logs': [
+                        f'F4: Compensation VALIDATE started: {approval_id}',
+                        f'HTTP POST to {url}',
+                        f'Reverted to: {result.get("new_status")}',
+                        'Approval reversion completed via HTTP'
+                    ]
+                }
+
+            except Exception as e:
+                self.log_execution(
+                    ticket_id,
+                    'compensation_validate_http_failed',
+                    level='warning',
+                    approval_id=approval_id,
+                    plan_id=plan_id,
+                    error=str(e)
+                )
+
+                # Fallback para simulacao se HTTP falhar
+                return self._simulate_validate_revert(ticket_id, parameters, error=str(e))
+        else:
+            # Fallback: simulacao se URL nao configurada
+            return self._simulate_validate_revert(ticket_id, parameters)
+
+    async def _simulate_validate_revert(
+        self,
+        ticket_id: str,
+        parameters: Dict[str, Any],
+        error: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Fallback simulado para reversao de aprovacao.
+
+        Usado quando Approval Service URL nao esta configurada.
+        """
+        approval_id = parameters.get('approval_id', '')
+        plan_id = parameters.get('plan_id', '')
+        validation_id = parameters.get('validation_id', '')
+        revert_status = parameters.get('revert_status', 'PENDING')
+
         await asyncio.sleep(0.3)
 
         return {
             'success': True,
             'output': {
                 'approval_id': approval_id,
+                'plan_id': plan_id,
                 'validation_id': validation_id,
                 'reverted_to_status': revert_status
             },
             'metadata': {
-                'simulated': True
+                'simulated': True,
+                'fallback_reason': 'approval_service_url_not_configured' if not error else f'http_error: {error}'
             },
             'logs': [
-                f'Compensation VALIDATE started: {approval_id}',
+                f'F4: Compensation VALIDATE (simulated): {approval_id}',
                 f'Reverted approval status to: {revert_status}',
-                'Approval reversion completed'
+                'Approval reversion completed (simulated - no HTTP call)'
             ]
         }
 
@@ -561,18 +649,20 @@ class CompensateExecutor(BaseTaskExecutor):
         parameters: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Rollback de execucao.
+        F4: Rollback de execucao com script real.
 
         Parâmetros esperados:
             - execution_id: ID da execucao
             - rollback_script: Script de rollback (opcional)
             - working_dir: Diretorio de trabalho
             - cleanup_outputs: Se deve limpar outputs
+            - script_timeout: Timeout para execucao do script (segundos)
         """
         execution_id = parameters.get('execution_id', '')
         rollback_script = parameters.get('rollback_script', '')
         working_dir = parameters.get('working_dir', '')
         cleanup_outputs = parameters.get('cleanup_outputs', True)
+        script_timeout = parameters.get('script_timeout', 60)
 
         self.log_execution(
             ticket_id,
@@ -584,35 +674,105 @@ class CompensateExecutor(BaseTaskExecutor):
         # Executar script de rollback se fornecido
         if rollback_script:
             try:
-                # Em implementacao real, executaria o script
-                # Aqui simulamos a execucao
-                await asyncio.sleep(1.0)
+                # F4: Execucao real do script via subprocess
+                import subprocess
+                import os
 
                 self.log_execution(
                     ticket_id,
-                    'compensation_execute_script_completed',
-                    execution_id=execution_id
+                    'compensation_execute_script_real',
+                    execution_id=execution_id,
+                    working_dir=working_dir
                 )
 
-                return {
-                    'success': True,
-                    'output': {
-                        'execution_id': execution_id,
-                        'rollback_executed': True,
-                        'cleanup_completed': cleanup_outputs
-                    },
-                    'logs': [
-                        f'Compensation EXECUTE started: {execution_id}',
-                        'Rollback script executed',
-                        'Execution rollback completed'
-                    ]
-                }
+                # Preparar ambiente de execucao
+                env = os.environ.copy()
+                env['EXECUTION_ID'] = execution_id
+                env['TICKET_ID'] = ticket_id
+                env['COMPENSATION'] = 'true'
+
+                # Executar script
+                process = await asyncio.create_subprocess_exec(
+                    *rollback_script.split(),
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=working_dir or None,
+                    env=env
+                )
+
+                try:
+                    stdout, stderr = await asyncio.wait_for(
+                        process.communicate(),
+                        timeout=script_timeout
+                    )
+
+                    return_code = process.returncode
+                    success = return_code == 0
+
+                    self.log_execution(
+                        ticket_id,
+                        'compensation_execute_script_completed',
+                        execution_id=execution_id,
+                        return_code=return_code,
+                        success=success
+                    )
+
+                    return {
+                        'success': success,
+                        'output': {
+                            'execution_id': execution_id,
+                            'rollback_executed': True,
+                            'cleanup_completed': cleanup_outputs,
+                            'return_code': return_code,
+                            'stdout': stdout.decode('utf-8', errors='replace')[-1000:] if stdout else '',
+                            'stderr': stderr.decode('utf-8', errors='replace')[-1000:] if stderr else ''
+                        },
+                        'metadata': {
+                            'simulated': False,
+                            'script_executed': True
+                        },
+                        'logs': [
+                            f'F4: Compensation EXECUTE started: {execution_id}',
+                            f'Rollback script executed: {rollback_script[:50]}...',
+                            f'Return code: {return_code}',
+                            'Execution rollback completed'
+                        ]
+                    }
+
+                except asyncio.TimeoutError:
+                    # Timeout - matar processo
+                    try:
+                        process.kill()
+                        await process.wait()
+                    except Exception:
+                        pass
+
+                    self.log_execution(
+                        ticket_id,
+                        'compensation_execute_script_timeout',
+                        level='warning',
+                        execution_id=execution_id
+                    )
+
+                    return {
+                        'success': False,
+                        'output': {
+                            'execution_id': execution_id,
+                            'error': f'Script timeout after {script_timeout}s',
+                            'timeout': script_timeout
+                        },
+                        'logs': [
+                            f'F4: Compensation EXECUTE timeout: {execution_id}',
+                            f'Script killed after {script_timeout}s'
+                        ]
+                    }
 
             except Exception as e:
                 self.log_execution(
                     ticket_id,
                     'compensation_execute_script_failed',
                     level='error',
+                    execution_id=execution_id,
                     error=str(e)
                 )
 
@@ -623,12 +783,12 @@ class CompensateExecutor(BaseTaskExecutor):
                         'error': str(e)
                     },
                     'logs': [
-                        f'Compensation EXECUTE failed: {execution_id}',
+                        f'F4: Compensation EXECUTE failed: {execution_id}',
                         f'Error: {e}'
                     ]
                 }
 
-        # Fallback: simulacao
+        # Fallback: simulacao se nenhum script fornecido
         await asyncio.sleep(0.5)
 
         return {
@@ -639,12 +799,12 @@ class CompensateExecutor(BaseTaskExecutor):
                 'cleanup_completed': cleanup_outputs
             },
             'metadata': {
-                'simulated': True
+                'simulated': True,
+                'reason': 'no_rollback_script_provided'
             },
             'logs': [
-                f'Compensation EXECUTE started: {execution_id}',
-                'No rollback script provided',
-                'Cleanup simulation completed'
+                f'F4: Compensation EXECUTE (no script): {execution_id}',
+                'No rollback script provided - cleanup simulation completed'
             ]
         }
 

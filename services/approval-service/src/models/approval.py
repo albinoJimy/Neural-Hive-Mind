@@ -145,6 +145,23 @@ class RepublishRequestBody(BaseModel):
     )
 
 
+class RevertRequestBody(BaseModel):
+    """F4: Body do request de reversao de aprovacao (Compensacao Saga)"""
+    reason: str = Field(..., min_length=1, description='Motivo da reversao (obrigatorio)')
+    comments: Optional[str] = Field(None, description='Comentarios opcionais')
+    ticket_id: Optional[str] = Field(None, description='ID do ticket de compensacao que originou a reversao')
+
+
+class RevertResponse(BaseModel):
+    """F4: Response da reversao de aprovacao"""
+    approval_id: str = Field(..., description='ID da aprovacao revertida')
+    plan_id: str = Field(..., description='ID do plano')
+    previous_status: str = Field(..., description='Status antes da reversao')
+    new_status: str = Field(..., description='Status apos a reversao')
+    reverted_at: datetime = Field(default_factory=datetime.utcnow)
+    reverted_by: str = Field(..., description='ID do usuario que fez a reversao')
+
+
 class PendingApprovalsQuery(BaseModel):
     """Query params para listar aprovacoes pendentes"""
     limit: int = Field(default=50, ge=1, le=100, description='Limite de resultados')

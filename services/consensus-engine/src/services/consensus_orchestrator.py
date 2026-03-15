@@ -147,7 +147,7 @@ class ConsensusOrchestrator:
 
         # 9. Construir decisão consolidada
         # Extrair correlation_id com fallback UUID para garantir rastreabilidade
-        # VULNERABILIDADE CORRIGIDA: Escalar para ERROR e adicionar contexto de debug
+        # F1: VULN-001 corrigida - Mudar de ERROR para WARNING e adicionar contexto de debug
         correlation_id = cognitive_plan.get('correlation_id')
         if not correlation_id or (isinstance(correlation_id, str) and not correlation_id.strip()):
             correlation_id = str(uuid.uuid4())
@@ -156,14 +156,15 @@ class ConsensusOrchestrator:
             ObservabilityMetrics.increment_correlation_id_missing()
             ObservabilityMetrics.increment_correlation_id_generated()
 
-            # ERROR: Isso quebra rastreamento distribuído - deve ser investigado
-            logger.error(
-                'VULN-001: correlation_id ausente no cognitive_plan - rastreamento distribuído comprometido',
+            # WARNING: correlation_id gerado neste ponto - upstream deve ser verificada
+            # Não é mais ERROR pois temos geração de fallback em todos os serviços upstream
+            logger.warning(
+                'F1-corrigido: correlation_id ausente no cognitive_plan - UUID gerado para manter rastreabilidade',
                 plan_id=cognitive_plan['plan_id'],
                 intent_id=cognitive_plan['intent_id'],
                 generated_correlation_id=correlation_id,
                 upstream_source='semantic-translation-engine',
-                action_required='Verificar propagação de correlation_id no STE',
+                action_required='Verificar propagação de correlation_id no STE (Gateway e STE agora geram UUID)',
                 trace_id=cognitive_plan.get('trace_id'),
                 span_id=cognitive_plan.get('span_id')
             )

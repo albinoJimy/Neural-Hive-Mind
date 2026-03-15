@@ -30,8 +30,8 @@ NC='\033[0m' # No Color
 
 # Serviços
 NAMESPACE="neural-hive"
-CODE_FORGE_SVC="http://code-forge.$NAMESPACE.svc.cluster.local:8000"
-TICKET_SVC="http://execution-ticket-service.$NAMESPACE.svc.cluster.local:8003"
+CODE_FORGE_SVC="http://code-forge.$NAMESPACE.svc.cluster.local:8080"
+TICKET_SVC="http://execution-ticket-service.$NAMESPACE.svc.cluster.local:8000"
 KAFKA_BROKER="neural-hive-kafka-broker.$NAMESPACE.svc.cluster.local:9092"
 MONGODB_SVC="mongodb://mongodb-cluster-service.mongodb-cluster.svc.cluster.local:27017"
 
@@ -110,7 +110,7 @@ check_services() {
 
     # CodeForge health
     log_info "CodeForge..."
-    if kubectl exec -n "$NAMESPACE" deployment/code-forge -- curl -s http://localhost:8000/health 2>/dev/null | grep -q "healthy\|ok"; then
+    if kubectl exec -n "$NAMESPACE" deployment/code-forge -- curl -s http://localhost:8080/health 2>/dev/null | grep -q "healthy\|ok"; then
         log_success "  CodeForge: healthy"
     else
         log_warning "  CodeForge: health check falhou ou não respondendo"
@@ -118,7 +118,7 @@ check_services() {
 
     # Execution Ticket Service health
     log_info "Execution Ticket Service..."
-    if kubectl exec -n "$NAMESPACE" deployment/execution-ticket-service -- curl -s http://localhost:8003/health 2>/dev/null | grep -q "healthy\|ok"; then
+    if kubectl exec -n "$NAMESPACE" deployment/execution-ticket-service -- curl -s http://localhost:8000/health 2>/dev/null | grep -q "healthy\|ok"; then
         log_success "  Execution Ticket Service: healthy"
     else
         log_warning "  Execution Ticket Service: health check falhou"
@@ -135,60 +135,68 @@ create_build_ticket() {
     TICKET_ID="d3-test-$(uuidgen | cut -d'-' -f1)"
     PLAN_ID="plan-d3-test-$(uuidgen | cut -d'-' -f1)"
     INTENT_ID="intent-d3-test-$(uuidgen | cut -d'-' -f1)"
-    TRACE_ID="$(uuidgen)"
-    SPAN_ID="$(uuidgen)"
-
-    cat > /tmp/d3_ticket.json <<EOF
-{
-    "ticket_id": "$TICKET_ID",
-    "plan_id": "$PLAN_ID",
-    "intent_id": "$INTENT_ID",
-    "decision_id": "decision-d3-test-$(uuidgen | cut -d'-' -f1)",
-    "correlation_id": "$(uuidgen)",
-    "trace_id": "$TRACE_ID",
-    "span_id": "$SPAN_ID",
-    "task_type": "BUILD",
-    "status": "PENDING",
-    "priority": "NORMAL",
-    "risk_band": "MEDIUM",
-    "parameters": {
-        "artifact_type": "MICROSERVICE",
-        "language": "python",
-        "service_name": "test-service-d3",
-        "description": "Teste E2E D3",
-        "framework": "fastapi",
-        "patterns": ["repository", "service_layer"],
-        "generate_tests": true,
-        "generate_sbom": true,
-        "sign_artifact": true
-    },
-    "sla": {
-        "deadline": "$(date -u -d '4 hours' +%Y-%m-%dT%H:%M:%SZ)",
-        "timeout_ms": 14400000,
-        "max_retries": 3
-    },
-    "qos": {
-        "delivery_mode": "AT_LEAST_ONCE",
-        "consistency": "EVENTUAL",
-        "durability": "PERSISTENT"
-    },
-    "security_level": "INTERNAL",
-    "dependencies": [],
-    "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-}
-EOF
+    TASK_ID="task-d3-test-$(uuidgen | cut -d'-' -f1)"
+    DECISION_ID="decision-d3-test-$(uuidgen | cut -d'-' -f1)"
+    # Use 16-char IDs for VARCHAR(32) compatibility
+    TRACE_ID="$(uuidgen | cut -d'-' -f1-2 | tr -d '-')"
+    SPAN_ID="$(uuidgen | cut -d'-' -f1-2 | tr -d '-')"
+    CORRELATION_ID="$(uuidgen | cut -d'-' -f1-2 | tr -d '-')"
+    DEADLINE=$(date -d '4 hours' +%s)
+    CREATED_AT=$(date +%s)000  # milliseconds
 
     log_info "Ticket ID: $TICKET_ID"
     log_info "Trace ID: $TRACE_ID"
     log_info "Plan ID: $PLAN_ID"
 
-    # Enviar ticket via API
+    # Enviar ticket via API (JSON inline dentro do pod)
     log_info "Enviando ticket para Execution Ticket Service..."
 
-    RESPONSE=$(kubectl exec -n "$NAMESPACE" deployment/execution-ticket-service -- \
-        curl -s -X POST "http://localhost:8003/api/v1/tickets/" \
-        -H "Content-Type: application/json" \
-        -d @/tmp/d3_ticket.json 2>/dev/null)
+    RESPONSE=$(kubectl exec -n "$NAMESPACE" deployment/execution-ticket-service -- bash -c "
+    cat > /tmp/d3_ticket.json <<'JOSEND'
+{
+    \"ticket_id\": \"$TICKET_ID\",
+    \"plan_id\": \"$PLAN_ID\",
+    \"intent_id\": \"$INTENT_ID\",
+    \"decision_id\": \"$DECISION_ID\",
+    \"task_id\": \"$TASK_ID\",
+    \"correlation_id\": \"$CORRELATION_ID\",
+    \"trace_id\": \"$TRACE_ID\",
+    \"span_id\": \"$SPAN_ID\",
+    \"description\": \"Teste E2E D3 - Build + Geracao de Artefatos\",
+    \"task_type\": \"BUILD\",
+    \"status\": \"PENDING\",
+    \"priority\": \"NORMAL\",
+    \"risk_band\": \"medium\",
+    \"parameters\": {
+        \"artifact_type\": \"MICROSERVICE\",
+        \"language\": \"python\",
+        \"service_name\": \"test-service-d3\",
+        \"description\": \"Teste E2E D3\",
+        \"framework\": \"fastapi\",
+        \"patterns\": [\"repository\", \"service_layer\"],
+        \"generate_tests\": true,
+        \"generate_sbom\": true,
+        \"sign_artifact\": true
+    },
+    \"sla\": {
+        \"deadline\": $DEADLINE,
+        \"timeout_ms\": 14400000,
+        \"max_retries\": 3
+    },
+    \"qos\": {
+        \"delivery_mode\": \"AT_LEAST_ONCE\",
+        \"consistency\": \"EVENTUAL\",
+        \"durability\": \"PERSISTENT\"
+    },
+    \"security_level\": \"INTERNAL\",
+    \"dependencies\": [],
+    \"created_at\": $CREATED_AT
+}
+JOSEND
+    curl -s -X POST 'http://localhost:8000/api/v1/tickets/' \
+        -H 'Content-Type: application/json' \
+        -d @/tmp/d3_ticket.json
+    " 2>/dev/null)
 
     if echo "$RESPONSE" | grep -q "ticket_id\|created"; then
         log_success "Ticket criado com sucesso"
@@ -226,7 +234,7 @@ monitor_ticket_processing() {
     while [ $elapsed -lt $max_wait ]; do
         # Buscar status do ticket
         TICKET_STATUS=$(kubectl exec -n "$NAMESPACE" deployment/execution-ticket-service -- \
-            curl -s "http://localhost:8003/api/v1/tickets/$TICKET_ID" \
+            curl -s "http://localhost:8000/api/v1/tickets/$TICKET_ID" \
             2>/dev/null | jq -r '.status // "UNKNOWN"')
 
         case "$TICKET_STATUS" in
@@ -238,7 +246,7 @@ monitor_ticket_processing() {
                 log_error "Ticket falhou!"
                 # Buscar erro
                 ERROR_MSG=$(kubectl exec -n "$NAMESPACE" deployment/execution-ticket-service -- \
-                    curl -s "http://localhost:8003/api/v1/tickets/$TICKET_ID" \
+                    curl -s "http://localhost:8000/api/v1/tickets/$TICKET_ID" \
                     2>/dev/null | jq -r '.metadata.error // "Unknown error"')
                 log_error "Erro: $ERROR_MSG"
                 return 1
@@ -468,8 +476,8 @@ $(kubectl logs -n "$NAMESPACE" deployment/worker-agents --tail=50 2>/dev/null | 
 
 ### Serviços Envolvidos
 
-- CodeForge: \`code-forge.$NAMESPACE.svc.cluster.local:8000\`
-- Execution Ticket Service: \`execution-ticket-service.$NAMESPACE.svc.cluster.local:8003\`
+- CodeForge: \`code-forge.$NAMESPACE.svc.cluster.local:8080\`
+- Execution Ticket Service: \`execution-ticket-service.$NAMESPACE.svc.cluster.local:8000\`
 - Worker Agents: \`worker-agents\` deployment
 
 ## Conclusão

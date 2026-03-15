@@ -14,6 +14,8 @@ from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer
 
 from src.config.settings import Settings
+from neural_hive_observability.context import ContextManager
+from neural_hive_observability.tracing import get_current_trace_id, get_current_span_id
 
 logger = structlog.get_logger()
 
@@ -21,12 +23,13 @@ logger = structlog.get_logger()
 class KafkaPlanProducer:
     """Kafka producer for Cognitive Plans"""
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, context_manager: Optional[ContextManager] = None):
         self.settings = settings
         self.producer: Optional[Producer] = None
         self.schema_registry_client: Optional[SchemaRegistryClient] = None
         self.avro_serializer: Optional[AvroSerializer] = None
         self._transactional_id = self._generate_transactional_id()
+        self.context_manager = context_manager
 
     def _generate_transactional_id(self) -> str:
         """Gera ID transacional estável por pod"""
@@ -163,29 +166,32 @@ class KafkaPlanProducer:
                 ).encode('utf-8')
                 content_type = 'application/json'
 
-            # Prepare headers
-            headers = [
-                ('plan-id', cognitive_plan.plan_id.encode('utf-8')),
-                ('intent-id', cognitive_plan.intent_id.encode('utf-8')),
-                ('risk-band', (cognitive_plan.risk_band.value if hasattr(cognitive_plan.risk_band, 'value') else cognitive_plan.risk_band).encode('utf-8')),
-                ('schema-version', b'1'),
-                ('content-type', content_type.encode('utf-8')),
-            ]
+            # Prepare headers with W3C traceparent propagation
+            headers = {
+                'plan-id': cognitive_plan.plan_id,
+                'intent-id': cognitive_plan.intent_id,
+                'risk-band': cognitive_plan.risk_band.value if hasattr(cognitive_plan.risk_band, 'value') else cognitive_plan.risk_band,
+                'schema-version': '1',
+                'content-type': content_type,
+            }
 
-            if cognitive_plan.correlation_id:
-                headers.append(
-                    ('correlation-id', cognitive_plan.correlation_id.encode('utf-8'))
-                )
+            # Adicionar correlation_id do plano ou do contexto atual
+            correlation_id = cognitive_plan.correlation_id
+            if not correlation_id and self.context_manager:
+                correlation_id = self.context_manager.get_intent_id()
+            if correlation_id:
+                headers['correlation-id'] = correlation_id
 
-            if cognitive_plan.trace_id:
-                headers.append(
-                    ('trace-id', cognitive_plan.trace_id.encode('utf-8'))
-                )
-
-            if cognitive_plan.span_id:
-                headers.append(
-                    ('span-id', cognitive_plan.span_id.encode('utf-8'))
-                )
+            # F5: Injetar contexto OpenTelemetry W3C traceparent via ContextManager
+            if self.context_manager:
+                headers_dict = self.context_manager.inject_http_headers(headers)
+                # Converter de volta para formato lista de tuplas do confluent-kafka
+                headers = [(k, v.encode('utf-8') if isinstance(v, str) else v)
+                          for k, v in headers_dict.items()]
+            else:
+                # Fallback: injeção manual sem ContextManager
+                headers = [(k, v.encode('utf-8') if isinstance(v, str) else v)
+                          for k, v in headers.items()]
 
             # Partition key by domain
             key = cognitive_plan.get_partition_key().encode('utf-8')
