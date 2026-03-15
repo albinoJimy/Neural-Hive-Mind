@@ -12,7 +12,7 @@ from ..clients.kafka_result_producer import KafkaResultProducer
 from ..clients.execution_ticket_client import ExecutionTicketClient
 from ..clients.postgres_client import PostgresClient
 from ..clients.mongodb_client import MongoDBClient
-from ..types.artifact_types import CodeLanguage, ArtifactSubtype
+from ..types.artifact_types import CodeLanguage, ArtifactSubtype, ArtifactCategory
 from .dockerfile_generator import DockerfileGenerator
 from .container_builder import ContainerBuilder, BuilderType
 
@@ -382,6 +382,10 @@ class PipelineEngine:
             with open(dockerfile_path, "w") as f:
                 f.write(dockerfile_content)
 
+            # Preparar arquivos de código no workspace para o build
+            language = self._detect_language(context)
+            await self._prepare_build_workspace(context, workdir, language)
+
             # Definir tag da imagem
             artifact_name = context.ticket.parameters.get(
                 "service_name",
@@ -444,11 +448,11 @@ class PipelineEngine:
             "py": CodeLanguage.PYTHON,
             "nodejs": CodeLanguage.NODEJS,
             "node": CodeLanguage.NODEJS,
-            "javascript": CodeLanguage.JAVASCRIPT,
-            "js": CodeLanguage.JAVASCRIPT,
+            "javascript": CodeLanguage.NODEJS,  # Mapear javascript para NODEJS
+            "js": CodeLanguage.NODEJS,
             "typescript": CodeLanguage.TYPESCRIPT,
             "ts": CodeLanguage.TYPESCRIPT,
-            "go": CodeLanguage.GO,
+            "go": CodeLanguage.GOLANG,  # Mapear go para GOLANG
             "golang": CodeLanguage.GOLANG,
             "java": CodeLanguage.JAVA,
             "c#": CodeLanguage.CSHARP,
@@ -474,6 +478,491 @@ class PipelineEngine:
         }
 
         return type_map.get(artifact_type_str, ArtifactSubtype.MICROSERVICE)
+
+    async def _prepare_build_workspace(
+        self,
+        context: PipelineContext,
+        workdir: str,
+        language: CodeLanguage,
+    ) -> None:
+        """
+        Prepara o workspace de build com arquivos necessários.
+
+        Cria requirements.txt, main.py, package.json, go.mod, etc.
+        baseado na linguagem e nos artefatos gerados.
+        """
+        # Obter código gerado dos artefatos (se disponível)
+        generated_code = self._extract_generated_code(context)
+
+        if language == CodeLanguage.PYTHON:
+            # Criar requirements.txt
+            requirements = self._get_python_requirements(context)
+            requirements_path = os.path.join(workdir, "requirements.txt")
+            with open(requirements_path, "w") as f:
+                f.write(requirements)
+
+            # Criar main.py com código gerado ou padrão
+            main_py_path = os.path.join(workdir, "main.py")
+            with open(main_py_path, "w") as f:
+                f.write(generated_code or self._get_default_python_code(context))
+
+            logger.debug(
+                "python_workspace_prepared",
+                pipeline_id=context.pipeline_id,
+                files=["requirements.txt", "main.py"],
+            )
+
+        elif language == CodeLanguage.NODEJS:
+            # Criar package.json
+            package_json = self._get_nodejs_package_json(context)
+            package_path = os.path.join(workdir, "package.json")
+            with open(package_path, "w") as f:
+                f.write(package_json)
+
+            # Criar index.js
+            index_js_path = os.path.join(workdir, "index.js")
+            with open(index_js_path, "w") as f:
+                f.write(generated_code or self._get_default_nodejs_code(context))
+
+            logger.debug(
+                "nodejs_workspace_prepared",
+                pipeline_id=context.pipeline_id,
+                files=["package.json", "index.js"],
+            )
+
+        elif language == CodeLanguage.TYPESCRIPT:
+            # Criar package.json
+            package_json = self._get_typescript_package_json(context)
+            package_path = os.path.join(workdir, "package.json")
+            with open(package_path, "w") as f:
+                f.write(package_json)
+
+            # Criar tsconfig.json
+            tsconfig = self._get_tsconfig_json()
+            tsconfig_path = os.path.join(workdir, "tsconfig.json")
+            with open(tsconfig_path, "w") as f:
+                f.write(tsconfig)
+
+            # Criar index.ts
+            index_ts_path = os.path.join(workdir, "index.ts")
+            with open(index_ts_path, "w") as f:
+                f.write(generated_code or self._get_default_typescript_code(context))
+
+            logger.debug(
+                "typescript_workspace_prepared",
+                pipeline_id=context.pipeline_id,
+                files=["package.json", "tsconfig.json", "index.ts"],
+            )
+
+        elif language == CodeLanguage.GOLANG:
+            # Criar go.mod
+            go_mod = self._get_go_mod(context)
+            go_mod_path = os.path.join(workdir, "go.mod")
+            with open(go_mod_path, "w") as f:
+                f.write(go_mod)
+
+            # Criar main.go
+            main_go_path = os.path.join(workdir, "main.go")
+            with open(main_go_path, "w") as f:
+                f.write(generated_code or self._get_default_go_code(context))
+
+            logger.debug(
+                "go_workspace_prepared",
+                pipeline_id=context.pipeline_id,
+                files=["go.mod", "main.go"],
+            )
+
+        elif language == CodeLanguage.JAVA:
+            # Criar pom.xml (Maven)
+            pom_xml = self._get_maven_pom(context)
+            pom_path = os.path.join(workdir, "pom.xml")
+            with open(pom_path, "w") as f:
+                f.write(pom_xml)
+
+            # Criar src/main/java/Main.java
+            java_dir = os.path.join(workdir, "src", "main", "java")
+            os.makedirs(java_dir, exist_ok=True)
+            main_java_path = os.path.join(java_dir, "Main.java")
+            with open(main_java_path, "w") as f:
+                f.write(generated_code or self._get_default_java_code(context))
+
+            logger.debug(
+                "java_workspace_prepared",
+                pipeline_id=context.pipeline_id,
+                files=["pom.xml", "src/main/java/Main.java"],
+            )
+
+    def _extract_generated_code(self, context: PipelineContext) -> str:
+        """Extrai código gerado dos artefatos no contexto."""
+        # Buscar artefato de código gerado
+        for artifact in context.generated_artifacts:
+            if artifact.artifact_type == ArtifactCategory.CODE:
+                # Se tivermos o código em cache (gerado por CodeComposer)
+                if hasattr(artifact, "content") and artifact.content:
+                    return artifact.content
+
+                # TODO: Buscar do MongoDB se necessário
+                # Por enquanto retornar vazio para usar código padrão
+                break
+        return ""
+
+    def _get_python_requirements(self, context: PipelineContext) -> str:
+        """Retorna requirements.txt baseado no framework."""
+        framework = context.ticket.parameters.get("framework", "fastapi")
+
+        base_requirements = [
+            "fastapi>=0.104.0",
+            "uvicorn[standard]>=0.24.0",
+            "pydantic>=2.5.0",
+            "structlog>=23.2.0",
+            "python-multipart>=0.0.6",
+        ]
+
+        if framework == "fastapi":
+            return "\n".join(base_requirements)
+        elif framework == "flask":
+            return "\n".join([
+                "Flask>=3.0.0",
+                "gunicorn>=21.2.0",
+                "structlog>=23.2.0",
+            ])
+        else:
+            return "\n".join(base_requirements)
+
+    def _get_default_python_code(self, context: PipelineContext) -> str:
+        """Retorna código Python padrão se nenhum foi gerado."""
+        service_name = context.ticket.parameters.get("service_name", "my-service")
+        framework = context.ticket.parameters.get("framework", "fastapi")
+
+        if framework == "fastapi":
+            return f'''from fastapi import FastAPI
+from pydantic import BaseModel
+import structlog
+
+logger = structlog.get_logger(__name__)
+app = FastAPI(title="{service_name}")
+
+
+class HealthResponse(BaseModel):
+    status: str
+    service: str
+
+
+@app.get("/health")
+async def health():
+    return HealthResponse(status="healthy", service="{service_name}")
+
+
+@app.get("/")
+async def root():
+    return {{"message": "Welcome to {service_name}"}}
+'''
+        else:
+            return f'''#!/usr/bin/env python3
+"""
+{service_name} - Generated by Neural Code Forge
+"""
+
+import structlog
+
+logger = structlog.get_logger(__name__)
+
+
+def main():
+    logger.info("Starting {service_name}...")
+    # Add your logic here
+
+
+if __name__ == "__main__":
+    main()
+'''
+
+    def _get_nodejs_package_json(self, context: PipelineContext) -> str:
+        """Retorna package.json para Node.js."""
+        service_name = context.ticket.parameters.get("service_name", "my-service")
+        return f'''{{
+  "name": "{service_name}",
+  "version": "1.0.0",
+  "description": "Generated by Neural Code Forge",
+  "main": "index.js",
+  "scripts": {{
+    "start": "node index.js",
+    "test": "echo \\"Error: no test specified\\" && exit 1"
+  }},
+  "dependencies": {{
+    "express": "^4.18.2",
+    "helmet": "^7.1.0"
+  }}
+}}
+'''
+
+    def _get_default_nodejs_code(self, context: PipelineContext) -> str:
+        """Retorna código Node.js padrão."""
+        service_name = context.ticket.parameters.get("service_name", "my-service")
+        return f'''const express = require('express');
+const helmet = require('helmet');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(helmet());
+app.use(express.json());
+
+app.get('/health', (req, res) => {{
+  res.json({{ status: 'healthy', service: '{service_name}' }});
+}});
+
+app.get('/', (req, res) => {{
+  res.json({{ message: 'Welcome to {service_name}' }});
+}});
+
+if (require.main === module) {{
+  app.listen(PORT, () => {{
+    console.log(`{service_name} listening on port ${{PORT}}`);
+  }});
+}}
+
+module.exports = app;
+'''
+
+    def _get_typescript_package_json(self, context: PipelineContext) -> str:
+        """Retorna package.json para TypeScript."""
+        service_name = context.ticket.parameters.get("service_name", "my-service")
+        return f'''{{
+  "name": "{service_name}",
+  "version": "1.0.0",
+  "description": "Generated by Neural Code Forge",
+  "main": "dist/index.js",
+  "scripts": {{
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts"
+  }},
+  "dependencies": {{
+    "express": "^4.18.2",
+    "helmet": "^7.1.0"
+  }},
+  "devDependencies": {{
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3",
+    "ts-node": "^10.9.2"
+  }}
+}}
+'''
+
+    def _get_tsconfig_json(self) -> str:
+        """Retorna tsconfig.json padrão."""
+        return '''{{
+  "compilerOptions": {{
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022"],
+    "outDir": "./dist",
+    "rootDir": "./",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node"
+  }},
+  "include": ["*.ts"],
+  "exclude": ["node_modules"]
+}}
+'''
+
+    def _get_default_typescript_code(self, context: PipelineContext) -> str:
+        """Retorna código TypeScript padrão."""
+        service_name = context.ticket.parameters.get("service_name", "my-service")
+        return f'''import express, {{ Request, Response, Application }} from 'express';
+import helmet from 'helmet';
+
+const PORT = process.env.PORT || 3000;
+
+interface HealthResponse {{
+  status: string;
+  service: string;
+}}
+
+const app: Application = express();
+
+app.use(helmet());
+app.use(express.json());
+
+app.get('/health', (req: Request, res: Response) => {{
+  const response: HealthResponse = {{
+    status: 'healthy',
+    service: '{service_name}"
+  }};
+  res.json(response);
+}});
+
+app.get('/', (req: Request, res: Response) => {{
+  res.json({{ message: 'Welcome to {service_name}' }});
+}});
+
+if (require.main === module) {{
+  app.listen(PORT, () => {{
+    console.log(`{service_name} listening on port ${{PORT}}`);
+  }});
+}}
+
+export default app;
+'''
+
+    def _get_go_mod(self, context: PipelineContext) -> str:
+        """Retorna go.mod."""
+        service_name = context.ticket.parameters.get("service_name", "my-service")
+        module_name = service_name.replace("-", "_")
+        return f'''module {module_name}
+
+go 1.21
+
+require (
+    github.com/gorilla/mux v1.8.1
+)
+'''
+
+    def _get_default_go_code(self, context: PipelineContext) -> str:
+        """Retorna código Go padrão."""
+        service_name = context.ticket.parameters.get("service_name", "my-service")
+        return f'''// Package main - {service_name}
+// Generated by Neural Code Forge
+
+package main
+
+import (
+    "encoding/json"
+    "log"
+    "net/http"
+    "os"
+)
+
+type HealthResponse struct {{
+    Status  string `json:"status"`
+    Service string `json:"service"`
+}}
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {{
+    w.Header().Set("Content-Type", "application/json")
+    resp := HealthResponse{{
+        Status:  "healthy",
+        Service: "{service_name}",
+    }}
+    json.NewEncoder(w).Encode(resp)
+}}
+
+func rootHandler(w http.ResponseWriter, r *http.Request) {{
+    w.Header().Set("Content-Type", "application/json")
+    resp := map[string]string{{
+        "message": "Welcome to {service_name}",
+    }}
+    json.NewEncoder(w).Encode(resp)
+}}
+
+func main() {{
+    port := os.Getenv("PORT")
+    if port == "" {{
+        port = "8080"
+    }}
+
+    http.HandleFunc("/health", healthHandler)
+    http.HandleFunc("/", rootHandler)
+
+    log.Printf("{service_name} listening on port %s", port)
+    if err := http.ListenAndServe(":"+port, nil); err != nil {{
+        log.Fatalf("Failed to start server: %v", err)
+    }}
+}}
+'''
+
+    def _get_maven_pom(self, context: PipelineContext) -> str:
+        """Retorna pom.xml para Maven."""
+        service_name = context.ticket.parameters.get("service_name", "my-service")
+        artifact_id = service_name.replace("-", "")
+        return f'''<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.neuralhive</groupId>
+    <artifactId>{artifact_id}</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>{service_name}</name>
+    <description>Generated by Neural Code Forge</description>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.0</version>
+        <relativePath/>
+    </parent>
+
+    <properties>
+        <java.version>17</java.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+'''
+
+    def _get_default_java_code(self, context: PipelineContext) -> str:
+        """Retorna código Java padrão."""
+        service_name = context.ticket.parameters.get("service_name", "my-service")
+        class_name = "".join(word.title() for word in service_name.replace("-", " ").split())
+        return f'''package com.neuralhive;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@SpringBootApplication
+@RestController
+public class {class_name}Application {{
+
+    public static void main(String[] args) {{
+        SpringApplication.run({class_name}Application.class, args);
+    }}
+
+    @GetMapping("/health")
+    public ResponseEntity<Map<String, Object>> health() {{
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "healthy");
+        response.put("service", "{service_name}");
+        return ResponseEntity.ok(response);
+    }}
+
+    @GetMapping("/")
+    public ResponseEntity<Map<String, String>> root() {{
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Welcome to {service_name}");
+        return ResponseEntity.ok(response);
+    }}
+}}
+'''
 
     def get_active_pipelines_count(self) -> int:
         """Retorna número de pipelines ativos"""
