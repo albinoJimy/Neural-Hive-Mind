@@ -82,6 +82,10 @@ ml_pipelines/training/logs
 **/*.pth
 **/*.onnx
 
+# Exception: include trained models for production deployment
+!ml_models/*.pkl
+!ml_pipelines/inference/*.py
+
 # Reports
 reports
 
