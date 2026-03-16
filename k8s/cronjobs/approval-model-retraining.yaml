@@ -28,35 +28,173 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: retraining
-              image: ghcr.io/albinojimy/neural-hive-mind/python-ml-base:latest
-              imagePullPolicy: Always
+              image: python:3.11-slim
               command:
-                - python3
-                - -m
-                - ml_pipelines.training.retrain_v7_approval
-              args:
-                - --min-samples=10
+                - sh
+                - -ec
+                - |
+                  # Install dependencies
+                  pip install --quiet pymongo pandas scikit-learn numpy
+
+                  # Run retraining script
+                  python3 << 'PYEOF'
+                  import os
+                  import sys
+                  import pickle
+                  import pandas as pd
+                  import numpy as np
+                  from datetime import datetime
+                  from pymongo import MongoClient
+                  from sklearn.model_selection import train_test_split
+                  from sklearn.ensemble import RandomForestClassifier
+                  from sklearn.metrics import f1_score, precision_score, recall_score
+                  import warnings
+                  warnings.filterwarnings('ignore')
+
+                  MONGO_URI = os.getenv('MONGO_URI')
+                  DATABASE = os.getenv('MONGODB_DATABASE', 'neural_hive')
+                  MIN_SAMPLES = int(os.getenv('MIN_SAMPLES', '10'))
+
+                  print("=" * 60)
+                  print("APPROVAL MODEL RETRAINING")
+                  print("=" * 60)
+                  print(f"Data: {datetime.now().isoformat()}")
+                  print()
+
+                  # Carregar feedbacks
+                  client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=30000)
+                  db = client[DATABASE]
+
+                  cursor = db['specialist_feedback'].find({
+                      'nlp_features': {'$exists': True, '$ne': {}},
+                      'final_decision': {'$exists': True, '$ne': None, '$ne': ''}
+                  })
+
+                  feedbacks = list(cursor)
+                  print(f"Feedbacks encontrados: {len(feedbacks)}")
+
+                  if len(feedbacks) < MIN_SAMPLES:
+                      print(f"Amostras insuficientes: {len(feedbacks)} < {MIN_SAMPLES}")
+                      print("Proximo retraining na proxima execucao.")
+                      sys.exit(0)
+
+                  # Preparar dados
+                  data = []
+                  for fb in feedbacks:
+                      nlp = fb.get('nlp_features', {})
+                      row = {
+                          'final_decision': fb.get('final_decision'),
+                          'specialist_confidence': float(fb.get('confidence_score', 0.5)),
+                          'domain_security': float(nlp.get('domain_security', 0.0)),
+                          'domain_performance': float(nlp.get('domain_performance', 0.0)),
+                          'domain_database': float(nlp.get('domain_database', 0.0)),
+                          'domain_devops': float(nlp.get('domain_devops', 0.0)),
+                          'domain_testing': float(nlp.get('domain_testing', 0.0)),
+                          'action_create': float(nlp.get('action_create', 0.0)),
+                          'action_update': float(nlp.get('action_update', 0.0)),
+                          'action_delete': float(nlp.get('action_delete', 0.0)),
+                          'action_read': float(nlp.get('action_read', 0.0)),
+                          'action_deploy': float(nlp.get('action_deploy', 0.0)),
+                          'has_backup': float(nlp.get('has_backup', 0.0)),
+                          'has_verification': float(nlp.get('has_verification', 0.0)),
+                          'has_all': float(nlp.get('has_all', 0.0)),
+                          'text_length_chars': int(nlp.get('text_length_chars', 0)),
+                          'text_length_words': int(nlp.get('text_length_words', 0)),
+                          'risk_high': float(nlp.get('risk_high', 0.0)),
+                          'risk_medium': float(nlp.get('risk_medium', 0.0)),
+                          'risk_low': float(nlp.get('risk_low', 0.0)),
+                          'simple_risk_score': float(nlp.get('simple_risk_score', 0.0)),
+                      }
+
+                      # Primary domain
+                      primary_domain = nlp.get('primary_domain', '')
+                      for d in ['security', 'performance', 'database', 'devops', 'testing']:
+                          row[f'primary_domain_{d}'] = 1.0 if primary_domain == d else 0.0
+
+                      # Primary action
+                      primary_action = nlp.get('primary_action', '')
+                      for a in ['create', 'update', 'delete', 'read', 'deploy']:
+                          row[f'primary_action_{a}'] = 1.0 if primary_action == a else 0.0
+
+                      data.append(row)
+
+                  df = pd.DataFrame(data)
+                  print(f"Dataframe shape: {df.shape}")
+                  print(f"Distribuicao: {df['final_decision'].value_counts().to_dict()}")
+
+                  # Treinar modelo
+                  feature_cols = [c for c in df.columns if c != 'final_decision']
+                  X = df[feature_cols].fillna(0)
+                  y = df['final_decision']
+
+                  X_train, X_test, y_train, y_test = train_test_split(
+                      X, y, test_size=0.25, random_state=42, stratify=y
+                  )
+
+                  model = RandomForestClassifier(
+                      n_estimators=100, max_depth=10, random_state=42,
+                      class_weight='balanced', min_samples_leaf=2
+                  )
+
+                  model.fit(X_train, y_train)
+                  y_pred = model.predict(X_test)
+
+                  f1 = f1_score(y_test, y_pred, average='weighted')
+                  precision = precision_score(y_test, y_pred, average='weighted', zero_division=0)
+                  recall = recall_score(y_test, y_pred, average='weighted', zero_division=0)
+
+                  print()
+                  print("METRICAS:")
+                  print(f"  F1-Score: {f1:.4f}")
+                  print(f"  Precision: {precision:.4f}")
+                  print(f"  Recall: {recall:.4f}")
+
+                  # Determinar versao
+                  last_model = db['model_metadata'].find_one(
+                      {'type': 'approval_model'},
+                      sort=[('trained_at', -1)]
+                  )
+
+                  version = "v7"
+                  if last_model and last_model.get('version'):
+                      try:
+                          v_num = int(last_model['version'][1:])
+                          version = f"v{v_num + 1}"
+                      except:
+                          pass
+
+                  # Salvar metadata no MongoDB
+                  db['model_metadata'].update_one(
+                      {'type': 'approval_model', 'version': version},
+                      {'$set': {
+                          'type': 'approval_model',
+                          'version': version,
+                          'trained_at': datetime.now().isoformat(),
+                          'metrics': {'f1_score': f1, 'precision': precision, 'recall': recall},
+                          'training_samples': len(df)
+                      }},
+                      upsert=True
+                  )
+
+                  print()
+                  print("RETRAINING CONCLUIDO")
+                  print(f"Versao: {version}")
+                  print(f"Metadata salvo no MongoDB")
+                  PYEOF
               env:
                 - name: MONGO_URI
                   valueFrom:
                     secretKeyRef:
-                      name: mongodb-secret
-                      key: uri
+                      name: orchestrator-mongodb-override
+                      key: MONGODB_URI
                 - name: MONGODB_DATABASE
                   value: "neural_hive"
-                - name: MODEL_OUTPUT_DIR
-                  value: "/tmp/models"
+                - name: MIN_SAMPLES
+                  value: "10"
               resources:
                 requests:
                   memory: "512Mi"
                   cpu: "200m"
                 limits:
                   memory: "1Gi"
-                  cpu: "1000m"
-              volumeMounts:
-                - name: models
-                  mountPath: /tmp/models
-          volumes:
-            - name: models
-              emptyDir:
-                sizeLimit: 500Mi
+                  cpu: "500m"
