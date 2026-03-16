@@ -139,43 +139,44 @@ def main():
     print("=" * 60)
     print()
 
-    # Importar e executar script de retraining
+    # Executar retraining usando subprocess para limpar o ambiente
     try:
-        # Adicionar diretorio de treinamento ao path
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-        from ml_pipelines.training.retrain_v6_with_nlp import main as retrain_main
+        import subprocess
 
-        print("Iniciando retraining...")
-        # O script de retraining ira logar as metricas
-        # e salvar o novo modelo
+        script_path = os.path.join(os.path.dirname(__file__), 'retrain_v7_approval.py')
+
+        cmd = [sys.executable, script_path, '--min-samples', str(args.min_samples)]
+        if args.dry_run:
+            cmd.append('--dry-run')
+
+        print("Executando:", ' '.join(cmd))
         print()
 
-        # Nota: Em producao, voce pode querer:
-        # 1. Executar em um container separado
-        # 2. Registrar o run no MLflow
-        # 3. Comparar metricas com o modelo atual
-        # 4. Fazer deploy apenas se metrics melhorarem
+        result = subprocess.run(cmd, check=True, capture_output=False)
 
-        print("RETRAINING CONCLUIDO")
-        print()
-        print("Proximos passos:")
-        print("1. Verificar as metricas do novo modelo")
-        print("2. Comparar com o modelo em producao")
-        print("3. Se metrics melhorarem, atualizar a versao do modelo")
-        print()
-        print("Para fazer deploy manual:")
-        print("  kubectl cp ml_models/nhm_approval_model_vX.pkl <pod>:/app/ml_models/")
-
-        if args.auto_deploy:
+        if result.returncode == 0:
             print()
-            print("AUTO-DEPLOY habilitado - deploy seria executado aqui.")
+            print("=" * 60)
+            print("RETRAINING CONCLUIDO COM SUCESSO")
+            print("=" * 60)
+            print()
+            print("Proximos passos:")
+            print("1. Verificar as metricas do novo modelo")
+            print("2. Comparar com o modelo em producao")
+            print("3. Se metrics melhorarem, fazer deploy:")
+            print("   - Atualizar Dockerfile")
+            print("   - Commit e push para acionar CI/CD")
+            return 0
+        else:
+            return result.returncode
 
-    except ImportError as e:
-        print(f"ERRO: Nao foi possivel importar modulo de retraining: {e}")
-        print("Certifique-se de executar este script no ambiente correto.")
+    except FileNotFoundError:
+        print(f"ERRO: Script de retraining nao encontrado: {script_path}")
         return 1
     except Exception as e:
         print(f"ERRO: Falha no retraining: {e}")
+        import traceback
+        traceback.print_exc()
         return 1
 
     return 0

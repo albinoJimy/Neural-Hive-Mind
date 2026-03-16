@@ -1,0 +1,62 @@
+# CronJob para Retraining do Approval Model
+# Executa semanalmente para verificar novas amostras e retreinar o modelo
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: approval-model-retraining
+  namespace: neural-hive
+  labels:
+    app: neural-hive
+    component: approval-model-retraining
+    layer: ml-ops
+spec:
+  # Executar toda segunda-feira às 2h UTC
+  schedule: "0 2 * * 1"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: neural-hive
+            component: approval-model-retraining
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: retraining
+              image: ghcr.io/albinojimy/neural-hive-mind/python-ml-base:latest
+              imagePullPolicy: Always
+              command:
+                - python3
+                - -m
+                - ml_pipelines.training.retrain_v7_approval
+              args:
+                - --min-samples=10
+              env:
+                - name: MONGO_URI
+                  valueFrom:
+                    secretKeyRef:
+                      name: mongodb-secret
+                      key: uri
+                - name: MONGODB_DATABASE
+                  value: "neural_hive"
+                - name: MODEL_OUTPUT_DIR
+                  value: "/tmp/models"
+              resources:
+                requests:
+                  memory: "512Mi"
+                  cpu: "200m"
+                limits:
+                  memory: "1Gi"
+                  cpu: "1000m"
+              volumeMounts:
+                - name: models
+                  mountPath: /tmp/models
+          volumes:
+            - name: models
+              emptyDir:
+                sizeLimit: 500Mi
