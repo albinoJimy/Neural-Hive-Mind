@@ -47,6 +47,10 @@ COPY --from=builder --chown=app:app /root/.local /home/app/.local
 # Copy application code
 COPY --chown=app:app services/approval-service/src/ ./src/
 
+# Copy ML inference module and model
+COPY --chown=app:app ml_pipelines/inference/ ./ml_pipelines/inference/
+COPY --chown=app:app ml_models/nhm_approval_model_v6.pkl ./ml_models/
+
 # Copy Avro schemas
 RUN mkdir -p /app/schemas/cognitive-plan
 COPY --chown=app:app schemas/cognitive-plan/cognitive-plan.avsc /app/schemas/cognitive-plan/cognitive-plan.avsc

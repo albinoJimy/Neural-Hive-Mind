@@ -18,6 +18,7 @@ from src.producers.approval_response_producer import ApprovalResponseProducer
 from src.clients.mongodb_client import MongoDBClient
 from src.clients.cognitive_ledger_client import CognitiveLedgerClient
 from src.services.approval_service import ApprovalService
+from src.services.ml_predictor_service import get_ml_predictor_service
 from src.observability.metrics import NeuralHiveMetrics, register_metrics
 from src.api.routers import approvals, health
 from src.adapters.feedback_config_adapter import create_feedback_collector_config
@@ -180,6 +181,31 @@ async def lifespan(app: FastAPI):
                 "FeedbackCollector nao disponivel - neural_hive_specialists nao instalado"
             )
 
+        # Inicializa ML Predictor Service
+        ml_predictor = None
+        if settings.enable_ml_prediction:
+            logger.info("Inicializando ML Predictor Service...")
+            try:
+                ml_predictor = get_ml_predictor_service(settings)
+                if ml_predictor.is_enabled():
+                    model_info = ml_predictor.get_model_info()
+                    logger.info(
+                        "ML Predictor Service inicializado",
+                        model_version=model_info.get('version') if model_info else 'unknown',
+                        auto_approve_threshold=settings.ml_auto_approve_threshold,
+                        auto_reject_threshold=settings.ml_auto_reject_threshold
+                    )
+                else:
+                    logger.info("ML Predictor desabilitado (modelo nao encontrado)")
+            except Exception as e:
+                logger.error(
+                    "Falha ao inicializar ML Predictor",
+                    error=str(e)
+                )
+                if settings.feedback_on_approval_failure_mode == 'raise_error':
+                    raise
+                logger.warning("Continuando sem ML prediction")
+
         # Inicializa metricas
         metrics = NeuralHiveMetrics(mongodb_client=mongodb_client)
         state['metrics'] = metrics
@@ -207,7 +233,8 @@ async def lifespan(app: FastAPI):
             response_producer=response_producer,
             metrics=metrics,
             feedback_collector=feedback_collector,
-            ledger_client=ledger_client
+            ledger_client=ledger_client,
+            ml_predictor=ml_predictor
         )
         state['approval_service'] = approval_service
 

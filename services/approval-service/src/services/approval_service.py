@@ -43,7 +43,8 @@ class ApprovalService:
         response_producer: ApprovalResponseProducer,
         metrics: NeuralHiveMetrics,
         feedback_collector: Optional[Any] = None,
-        ledger_client: Optional[CognitiveLedgerClient] = None
+        ledger_client: Optional[CognitiveLedgerClient] = None,
+        ml_predictor: Optional[Any] = None
     ):
         self.settings = settings
         self.mongodb_client = mongodb_client
@@ -51,6 +52,7 @@ class ApprovalService:
         self.metrics = metrics
         self.feedback_collector = feedback_collector
         self.ledger_client = ledger_client
+        self.ml_predictor = ml_predictor
 
     async def process_approval_request(self, approval_request: ApprovalRequest) -> ApprovalRequest:
         """
@@ -104,6 +106,132 @@ class ApprovalService:
                 plan_id=approval_request.plan_id
             )
             raise
+
+    async def get_ml_prediction(
+        self,
+        plan_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Obtém predição ML para um plano de aprovação.
+
+        Args:
+            plan_id: ID do plano
+
+        Returns:
+            Dicionário com prediction ou None se ML não disponível
+        """
+        if not self.ml_predictor or not self.ml_predictor.is_enabled():
+            return None
+
+        try:
+            # Buscar approval request para obter texto e risco
+            approval = await self.mongodb_client.get_approval_by_plan_id(plan_id)
+            if not approval:
+                logger.warning('ml_prediction_approval_not_found', plan_id=plan_id)
+                return None
+
+            intent_text = approval.original_intent_text
+            if not intent_text:
+                logger.debug('ml_prediction_no_intent_text', plan_id=plan_id)
+                return None
+
+            # Buscar opiniões para obter confiança média dos especialistas
+            specialist_confidence = 0.5
+            if self.ledger_client:
+                try:
+                    opinions = await self.ledger_client.get_opinions_by_plan_id(plan_id)
+                    if opinions:
+                        confidences = [
+                            op.get('confidence_score', 0.5)
+                            for op in opinions
+                            if op.get('confidence_score') is not None
+                        ]
+                        if confidences:
+                            specialist_confidence = sum(confidences) / len(confidences)
+                except Exception as e:
+                    logger.debug('ml_prediction_cannot_fetch_opinions', error=str(e))
+
+            # Obter predição
+            prediction = await self.ml_predictor.predict_from_text(
+                intent_text,
+                specialist_confidence
+            )
+
+            if prediction:
+                logger.info(
+                    'ml_prediction_generated',
+                    plan_id=plan_id,
+                    decision=prediction['decision'],
+                    confidence=prediction['confidence'],
+                    model_version=prediction.get('model_version')
+                )
+
+            return prediction
+
+        except Exception as e:
+            logger.error(
+                'ml_prediction_failed',
+                plan_id=plan_id,
+                error=str(e)
+            )
+            return None
+
+    async def get_auto_decision(
+        self,
+        plan_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Tenta obter uma decisão automática baseada em predição ML.
+
+        A decisão automática só é aplicada se:
+        - ML predictor está habilitado
+        - Risco do plano está dentro do limite configurado
+        - Confiança da predição está acima do threshold
+
+        Args:
+            plan_id: ID do plano
+
+        Returns:
+            Dicionário com auto_decision ou None se não houver decisão automática
+        """
+        if not self.ml_predictor or not self.ml_predictor.is_enabled():
+            return None
+
+        try:
+            # Buscar approval request
+            approval = await self.mongodb_client.get_approval_by_plan_id(plan_id)
+            if not approval:
+                return None
+
+            intent_text = approval.original_intent_text
+            if not intent_text:
+                return None
+
+            # Obter decisão automática do ML predictor
+            auto_decision = await self.ml_predictor.get_auto_decision(
+                intent_text=intent_text,
+                risk_band=approval.risk_band,
+                specialist_confidence=0.5  # Pode ser obtido das opiniões
+            )
+
+            if auto_decision:
+                logger.info(
+                    'auto_decision_generated',
+                    plan_id=plan_id,
+                    auto_decision=auto_decision['auto_decision'],
+                    confidence=auto_decision['confidence'],
+                    reason=auto_decision['reason']
+                )
+
+            return auto_decision
+
+        except Exception as e:
+            logger.error(
+                'auto_decision_failed',
+                plan_id=plan_id,
+                error=str(e)
+            )
+            return None
 
     async def _submit_feedback_for_plan(
         self,

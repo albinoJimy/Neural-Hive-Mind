@@ -116,6 +116,28 @@ class Settings(BaseSettings):
         description='Limite de requests por minuto por usuario'
     )
 
+    # ML Predictor Configuration
+    enable_ml_prediction: bool = Field(
+        default=False,
+        description='Habilitar predicao ML automatica para aprovacoes'
+    )
+    ml_model_path: str = Field(
+        default='/app/ml_models/nhm_approval_model_v6.pkl',
+        description='Caminho para o modelo ML de aprovacao'
+    )
+    ml_auto_approve_threshold: float = Field(
+        default=0.7,
+        description='Confianca minima para auto-aprovacao (0.0-1.0)'
+    )
+    ml_auto_reject_threshold: float = Field(
+        default=0.7,
+        description='Confianca minima para auto-rejeicao (0.0-1.0)'
+    )
+    ml_max_risk_for_auto: str = Field(
+        default='low',
+        description='Risco maximo para decisao automatica (low, medium, high, critical)'
+    )
+
     @field_validator('kafka_security_protocol')
     @classmethod
     def validate_security_in_production(cls, v, info):

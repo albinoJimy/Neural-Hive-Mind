@@ -22,12 +22,33 @@ from src.models.approval import (
     ApprovalResponse,
     RiskBand
 )
+from pydantic import BaseModel
 from src.security.auth import get_current_admin_user
 from src.services.approval_service import ApprovalService
 
 logger = structlog.get_logger()
 
 router = APIRouter(prefix="/api/v1/approvals", tags=["approvals"])
+
+
+class MLPredictionResponse(BaseModel):
+    """Resposta da predição ML"""
+    plan_id: str
+    decision: Optional[str] = None  # 'approve', 'reject', 'review_required'
+    confidence: float = 0.0
+    probabilities: dict = {}
+    model_version: Optional[str] = None
+    ml_enabled: bool = False
+
+
+class AutoDecisionResponse(BaseModel):
+    """Resposta da decisão automática ML"""
+    plan_id: str
+    auto_decision: Optional[str] = None  # 'approve' ou 'reject'
+    confidence: float = 0.0
+    reason: Optional[str] = None
+    ml_enabled: bool = False
+    can_auto_decide: bool = False
 
 # Referencia global para o servico
 _approval_service: Optional[ApprovalService] = None
@@ -128,6 +149,113 @@ async def get_approval_stats(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erro ao obter estatisticas: {str(e)}"
+        )
+
+
+@router.get("/{plan_id}/ml-prediction", response_model=MLPredictionResponse)
+async def get_ml_prediction(
+    plan_id: str,
+    user: dict = Depends(get_current_admin_user),
+    service: ApprovalService = Depends(get_approval_service)
+):
+    """
+    Obtém predição ML para um plano de aprovação
+
+    Requer autenticacao JWT e role neural-hive-admin.
+
+    Retorna a predição do modelo ML treinado com features NLP.
+    Útil para entender a decisão automática antes de aplicá-la.
+
+    Args:
+        plan_id: ID do plano cognitivo
+        user: Usuario admin autenticado
+        service: Servico de aprovacao
+
+    Returns:
+        MLPredictionResponse com decisao, confianca e probabilidades
+
+    Raises:
+        404: Se plan_id nao encontrado
+    """
+    logger.info(
+        'Consultando predicao ML',
+        plan_id=plan_id,
+        user_id=user['user_id']
+    )
+
+    try:
+        prediction = await service.get_ml_prediction(plan_id)
+        ml_enabled = service.ml_predictor.is_enabled() if service.ml_predictor else False
+
+        return MLPredictionResponse(
+            plan_id=plan_id,
+            decision=prediction.get('decision') if prediction else None,
+            confidence=prediction.get('confidence', 0.0) if prediction else 0.0,
+            probabilities=prediction.get('probabilities', {}) if prediction else {},
+            model_version=prediction.get('model_version') if prediction else None,
+            ml_enabled=ml_enabled
+        )
+
+    except Exception as e:
+        logger.error('Erro ao obter predicao ML', error=str(e), plan_id=plan_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao obter predicao ML: {str(e)}"
+        )
+
+
+@router.get("/{plan_id}/auto-decision", response_model=AutoDecisionResponse)
+async def get_auto_decision(
+    plan_id: str,
+    user: dict = Depends(get_current_admin_user),
+    service: ApprovalService = Depends(get_approval_service)
+):
+    """
+    Verifica se há decisão automática disponível para um plano
+
+    Requer autenticacao JWT e role neural-hive-admin.
+
+    A decisão automática é aplicada quando:
+    - ML predictor está habilitado
+    - Risco do plano está dentro do limite configurado
+    - Confiança da predição está acima do threshold
+
+    Args:
+        plan_id: ID do plano cognitivo
+        user: Usuario admin autenticado
+        service: Servico de aprovacao
+
+    Returns:
+        AutoDecisionResponse com decisao automatica (se houver)
+
+    Raises:
+        404: Se plan_id nao encontrado
+    """
+    logger.info(
+        'Consultando decisao automatica',
+        plan_id=plan_id,
+        user_id=user['user_id']
+    )
+
+    try:
+        auto_decision = await service.get_auto_decision(plan_id)
+        ml_enabled = service.ml_predictor.is_enabled() if service.ml_predictor else False
+        can_auto_decide = service.ml_predictor.can_auto_decide('low') if service.ml_predictor else False
+
+        return AutoDecisionResponse(
+            plan_id=plan_id,
+            auto_decision=auto_decision.get('auto_decision') if auto_decision else None,
+            confidence=auto_decision.get('confidence', 0.0) if auto_decision else 0.0,
+            reason=auto_decision.get('reason') if auto_decision else None,
+            ml_enabled=ml_enabled,
+            can_auto_decide=can_auto_decide
+        )
+
+    except Exception as e:
+        logger.error('Erro ao obter decisao automatica', error=str(e), plan_id=plan_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao obter decisao automatica: {str(e)}"
         )
 
 
