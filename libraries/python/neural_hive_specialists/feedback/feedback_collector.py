@@ -362,6 +362,14 @@ class FeedbackCollector:
 
             return feedback_data
 
+        except Exception as e:
+            logger.warning(
+                "Failed to enrich feedback from opinion",
+                opinion_id=opinion_id,
+                error=str(e)
+            )
+            return feedback_data
+
     def enrich_with_nlp_features(
         self,
         feedback_data: Dict[str, Any],
@@ -409,14 +417,6 @@ class FeedbackCollector:
             )
 
         return feedback_data
-
-        except Exception as e:
-            logger.warning(
-                "Failed to enrich feedback from opinion",
-                opinion_id=opinion_id,
-                error=str(e)
-            )
-            return feedback_data
 
     def submit_feedback(self, feedback_data: Dict[str, Any]) -> str:
         """
