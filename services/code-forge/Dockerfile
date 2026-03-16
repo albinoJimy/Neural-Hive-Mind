@@ -43,8 +43,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl -o /usr/local/bin/snyk https://static.snyk.io/cli/latest/snyk-linux \
     && chmod +x /usr/local/bin/snyk
 
-# Install Trivy
-RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.45.0
+# Install Trivy (with fallback on error)
+RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.45.0 || \
+    echo "Trivy installation failed, continuing without it"
 
 # Install Syft (SBOM generator)
 RUN curl -sfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin v0.105.0
