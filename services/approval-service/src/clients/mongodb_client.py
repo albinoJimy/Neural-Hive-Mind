@@ -84,6 +84,7 @@ class MongoDBClient:
             'approval_id': approval.approval_id,
             'plan_id': approval.plan_id,
             'intent_id': approval.intent_id,
+            'original_intent_text': approval.original_intent_text,
             'risk_score': approval.risk_score,
             'risk_band': approval.risk_band.value if hasattr(approval.risk_band, 'value') else approval.risk_band,
             'is_destructive': approval.is_destructive,

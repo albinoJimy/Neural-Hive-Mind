@@ -383,6 +383,7 @@ class SemanticTranslationOrchestrator:
 
         return CognitivePlan(
             intent_id=intent_envelope.get('id'),
+            original_intent_text=intent.get('text'),  # Campo para ML feedback analysis
             correlation_id=correlation_id,
             trace_id=trace_context.get('trace_id') or intent_envelope.get('trace_id'),
             span_id=trace_context.get('span_id') or intent_envelope.get('span_id'),

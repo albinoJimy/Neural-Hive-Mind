@@ -142,7 +142,20 @@ class ApprovalService:
             return
 
         try:
-            # 1. Buscar opinioes do ledger cognitivo
+            # 1. Buscar texto original da intenção do plan_approvals
+            intent_raw_text = None
+            try:
+                approval = await self.mongodb_client.get_approval_by_plan_id(plan_id)
+                if approval:
+                    intent_raw_text = approval.original_intent_text
+            except Exception as e:
+                logger.debug(
+                    'Nao foi possivel buscar original_intent_text do plan_approvals',
+                    plan_id=plan_id,
+                    error=str(e)
+                )
+
+            # 2. Buscar opinioes do ledger cognitivo
             opinions = await self.ledger_client.get_opinions_by_plan_id(plan_id)
 
             if not opinions:
@@ -152,7 +165,7 @@ class ApprovalService:
                 )
                 return
 
-            # 2. Submeter feedback para cada specialist que avaliou o plano
+            # 3. Submeter feedback para cada specialist que avaliou o plano
             feedback_ids = []
             for opinion in opinions:
                 try:
@@ -164,6 +177,7 @@ class ApprovalService:
                         'human_recommendation': human_decision,
                         'feedback_notes': comments or '',
                         'submitted_by': user_id,
+                        'intent_raw_text': intent_raw_text,
                         'metadata': {
                             'source': 'approval_service',
                             'specialist_recommendation': opinion.get('recommendation'),
@@ -179,7 +193,8 @@ class ApprovalService:
                         feedback_id=feedback_id,
                         opinion_id=opinion['opinion_id'],
                         specialist_type=opinion['specialist_type'],
-                        plan_id=plan_id
+                        plan_id=plan_id,
+                        has_intent_text=intent_raw_text is not None
                     )
 
                 except Exception as e:
@@ -199,7 +214,8 @@ class ApprovalService:
                 'Feedback ML processado para plano',
                 plan_id=plan_id,
                 total_opinions=len(opinions),
-                successful_feedbacks=len(feedback_ids)
+                successful_feedbacks=len(feedback_ids),
+                has_intent_text=intent_raw_text is not None
             )
 
         except Exception as e:

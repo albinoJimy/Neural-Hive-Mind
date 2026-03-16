@@ -39,6 +39,8 @@ class FeedbackDocument(BaseModel):
 
     Representa feedback de um revisor humano sobre uma opinião de especialista,
     usado para enriquecer dataset de treinamento.
+
+    v2.0.0: Enriquecido com contexto adicional para melhor treinamento ML
     """
 
     feedback_id: str = Field(
@@ -46,7 +48,7 @@ class FeedbackDocument(BaseModel):
         description="ID único do feedback",
     )
     schema_version: str = Field(
-        default="1.0.0", description="Versão do schema de feedback"
+        default="2.0.0", description="Versão do schema de feedback"
     )
     opinion_id: str = Field(
         ..., description="ID da opinião avaliada (FK para cognitive_ledger)"
@@ -75,11 +77,48 @@ class FeedbackDocument(BaseModel):
         default_factory=dict, description="Metadados adicionais"
     )
 
+    # NOVOS CAMPOS v2.0.0 - Enriquecimento para ML
+    intent_raw_text: Optional[str] = Field(
+        None, description="Texto bruto da intenção original (para features NLP)"
+    )
+    opinion_recommendation: Optional[str] = Field(
+        None, description="Recomendação original do especialista"
+    )
+    opinion_confidence: Optional[float] = Field(
+        None, ge=0.0, le=1.0, description="Confiança original do especialista"
+    )
+    opinion_risk: Optional[float] = Field(
+        None, ge=0.0, le=1.0, description="Risco original do especialista"
+    )
+    cognitive_plan_snapshot: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Snapshot completo do cognitive_plan no momento do feedback"
+    )
+    reasoning_factors: Optional[List[Dict[str, Any]]] = Field(
+        default_factory=list,
+        description="Fatores de raciocínio do especialista (nome, peso, score)"
+    )
+    intent_id: Optional[str] = Field(
+        None, description="ID da intenção original (para correlação)"
+    )
+    trace_id: Optional[str] = Field(
+        None, description="Trace ID para rastreamento distribuído"
+    )
+    balanced_dataset: bool = Field(
+        default=False, description="Indica se este feedback faz parte de dataset balanceado"
+    )
+    manual_review: bool = Field(
+        default=False, description="Indica se este foi um review manual ativo"
+    )
+    auto_generated: bool = Field(
+        default=False, description="Indica se este foi auto-gerado pelo sistema"
+    )
+
     @field_validator("human_recommendation")
     @classmethod
     def validate_recommendation(cls, v):
         """Valida que recomendação é válida."""
-        valid_recommendations = ["approve", "reject", "review_required"]
+        valid_recommendations = ["approve", "reject", "review_required", "conditional"]
         if v not in valid_recommendations:
             raise ValueError(
                 f"human_recommendation deve ser um de {valid_recommendations}, recebido: {v}"
@@ -250,6 +289,135 @@ class FeedbackCollector:
                 f"Erro ao buscar metadados da opinião {opinion_id}: {str(e)}"
             )
 
+    def enrich_feedback_from_opinion(self, opinion_id: str, feedback_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Enriquece feedback com dados adicionais da opinião.
+
+        Coleta automaticamente:
+        - Recomendação original do especialista
+        - Confiança e risco originais
+        - Fatores de raciocínio
+        - cognitive_plan snapshot
+        - intent_id e trace_id
+
+        Args:
+            opinion_id: ID da opinião
+            feedback_data: Dados do feedback (será modificado in-place)
+
+        Returns:
+            feedback_data enriquecido
+        """
+        try:
+            # Buscar opinião completa
+            opinion = self._opinions_collection.find_one(
+                {"opinion_id": opinion_id},
+                {
+                    "_id": 0,
+                    "plan_id": 1,
+                    "specialist_type": 1,
+                    "intent_id": 1,
+                    "trace_id": 1,
+                    "opinion": 1,
+                    "cognitive_plan": 1,
+                }
+            )
+
+            if not opinion:
+                logger.warning(
+                    "Opinion not found for enrichment",
+                    opinion_id=opinion_id
+                )
+                return feedback_data
+
+            # Extrair dados da opinião
+            opinion_data = opinion.get("opinion", {})
+
+            # Adicionar campos se não existirem
+            if "opinion_recommendation" not in feedback_data or feedback_data.get("opinion_recommendation") is None:
+                feedback_data["opinion_recommendation"] = opinion_data.get("recommendation")
+
+            if "opinion_confidence" not in feedback_data or feedback_data.get("opinion_confidence") is None:
+                feedback_data["opinion_confidence"] = opinion_data.get("confidence_score")
+
+            if "opinion_risk" not in feedback_data or feedback_data.get("opinion_risk") is None:
+                feedback_data["opinion_risk"] = opinion_data.get("risk_score")
+
+            if "reasoning_factors" not in feedback_data or not feedback_data.get("reasoning_factors"):
+                feedback_data["reasoning_factors"] = opinion_data.get("reasoning_factors", [])
+
+            if "cognitive_plan_snapshot" not in feedback_data or not feedback_data.get("cognitive_plan_snapshot"):
+                feedback_data["cognitive_plan_snapshot"] = opinion.get("cognitive_plan", {})
+
+            if "intent_id" not in feedback_data or feedback_data.get("intent_id") is None:
+                feedback_data["intent_id"] = opinion.get("intent_id")
+
+            if "trace_id" not in feedback_data or feedback_data.get("trace_id") is None:
+                feedback_data["trace_id"] = opinion.get("trace_id")
+
+            logger.debug(
+                "Feedback enriched from opinion",
+                opinion_id=opinion_id,
+                enriched_fields=list(opinion_data.keys())
+            )
+
+            return feedback_data
+
+    def enrich_with_nlp_features(
+        self,
+        feedback_data: Dict[str, Any],
+        intent_text: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Enriquece feedback com features NLP extraídas do texto da intenção.
+
+        Args:
+            feedback_data: Dados do feedback (será modificado in-place)
+            intent_text: Texto bruto da intenção (opcional)
+
+        Returns:
+            feedback_data enriquecido com features NLP
+        """
+        if not intent_text:
+            # Tentar usar feedback_notes como fallback
+            intent_text = feedback_data.get("feedback_notes", "")
+
+        if not intent_text or len(intent_text) < 10:
+            # Texto muito curto, não extrair features
+            return feedback_data
+
+        try:
+            # Importar NLPFeatureExtractor
+            from ..feature_extraction.nlp_feature_extractor import get_nlp_extractor
+
+            extractor = get_nlp_extractor()
+            nlp_features = extractor.extract_features(intent_text)
+
+            # Adicionar features como campo separado
+            feedback_data["nlp_features"] = nlp_features
+
+            logger.debug(
+                "NLP features extracted",
+                feature_count=len(nlp_features),
+                primary_domain=nlp_features.get("primary_domain"),
+                text_length=nlp_features.get("text_length_chars")
+            )
+
+        except Exception as e:
+            logger.warning(
+                "Failed to extract NLP features",
+                error=str(e)
+            )
+
+        return feedback_data
+
+        except Exception as e:
+            logger.warning(
+                "Failed to enrich feedback from opinion",
+                opinion_id=opinion_id,
+                error=str(e)
+            )
+            return feedback_data
+
     def submit_feedback(self, feedback_data: Dict[str, Any]) -> str:
         """
         Valida, persiste e retorna ID de feedback.
@@ -272,6 +440,14 @@ class FeedbackCollector:
 
         if not self.validate_opinion_exists(opinion_id):
             raise ValueError(f"Opinião {opinion_id} não encontrada no ledger")
+
+        # Enriquecer feedback com dados da opinião (v2.0.0)
+        feedback_data = self.enrich_feedback_from_opinion(opinion_id, feedback_data)
+
+        # Enriquecer com features NLP se intent_text fornecido
+        intent_text = feedback_data.get("intent_raw_text")
+        if intent_text:
+            feedback_data = self.enrich_with_nlp_features(feedback_data, intent_text)
 
         # Validar com Pydantic
         try:

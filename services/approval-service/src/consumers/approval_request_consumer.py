@@ -209,6 +209,7 @@ class ApprovalRequestConsumer:
             approval_request = ApprovalRequest(
                 plan_id=plan_data.get('plan_id'),
                 intent_id=plan_data.get('intent_id'),
+                original_intent_text=plan_data.get('original_intent_text'),
                 risk_score=plan_data.get('risk_score', 0.0),
                 risk_band=risk_band,
                 is_destructive=plan_data.get('is_destructive', False),

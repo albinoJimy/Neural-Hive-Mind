@@ -84,6 +84,10 @@ class CognitivePlan(BaseModel):
     )
     version: str = Field(default='1.0.0', description='Plan version')
     intent_id: str = Field(..., description='Originating intent ID')
+    original_intent_text: Optional[str] = Field(
+        None,
+        description='Original intent text for ML feedback analysis'
+    )
     correlation_id: Optional[str] = Field(None, description='Correlation ID')
     trace_id: Optional[str] = Field(None, description='OpenTelemetry trace ID')
     span_id: Optional[str] = Field(None, description='OpenTelemetry span ID')
@@ -210,6 +214,7 @@ class CognitivePlan(BaseModel):
             'plan_id': self.plan_id,
             'version': self.version,
             'intent_id': self.intent_id,
+            'original_intent_text': self.original_intent_text,
             'correlation_id': self.correlation_id,
             'trace_id': self.trace_id,
             'span_id': self.span_id,

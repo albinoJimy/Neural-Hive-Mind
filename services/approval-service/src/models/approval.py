@@ -32,6 +32,10 @@ class ApprovalRequest(BaseModel):
     approval_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     plan_id: str = Field(..., description='ID do plano cognitivo')
     intent_id: str = Field(..., description='ID da intent original')
+    original_intent_text: Optional[str] = Field(
+        None,
+        description='Texto original da intenção para análise ML'
+    )
     risk_score: float = Field(..., ge=0.0, le=1.0, description='Score de risco (0-1)')
     risk_band: RiskBand = Field(..., description='Banda de risco')
     is_destructive: bool = Field(default=False, description='Se contem operacoes destrutivas')
