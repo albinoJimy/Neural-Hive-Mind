@@ -122,7 +122,7 @@ class Settings(BaseSettings):
         description='Habilitar predicao ML automatica para aprovacoes'
     )
     ml_model_path: str = Field(
-        default='/app/ml_models/nhm_approval_model_v6.pkl',
+        default='/app/ml_models/nhm_approval_model.pkl',
         description='Caminho para o modelo ML de aprovacao'
     )
     ml_auto_approve_threshold: float = Field(

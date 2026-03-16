@@ -49,7 +49,7 @@ COPY --chown=app:app services/approval-service/src/ ./src/
 
 # Copy ML inference module and model
 COPY --chown=app:app ml_pipelines/inference/ ./ml_pipelines/inference/
-COPY --chown=app:app ml_models/nhm_approval_model_v6.pkl ./ml_models/
+COPY --chown=app:app ml_models/nhm_approval_model_v7.pkl ./ml_models/nhm_approval_model.pkl
 
 # Copy Avro schemas
 RUN mkdir -p /app/schemas/cognitive-plan

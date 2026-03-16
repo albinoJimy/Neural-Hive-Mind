@@ -22,15 +22,16 @@ import re
 
 class ApprovalPredictor:
     """
-    Predictor para aprovação de planos usando modelo ML v6 com NLP features.
+    Predictor para aprovação de planos usando modelo ML com NLP features.
 
-    O modelo foi treinado com 50 amostras balanceadas e alcançou:
-    - F1-Score: 1.0000
-    - Precision: 1.0000
-    - Recall: 1.0000
+    Versões disponíveis:
+    - v6: 50 amostras, F1-Score 1.0000 (possível overfit)
+    - v7: 75 amostras, F1-Score 0.9120 (melhor generalização)
+
+    O predictor carrega automaticamente o modelo mais recente disponível.
     """
 
-    MODEL_PATH = Path(__file__).parent.parent.parent / "ml_models" / "nhm_approval_model_v6.pkl"
+    MODEL_PATH = Path(__file__).parent.parent.parent / "ml_models" / "nhm_approval_model.pkl"
 
     def __init__(self, model_path: Optional[Path] = None):
         """
