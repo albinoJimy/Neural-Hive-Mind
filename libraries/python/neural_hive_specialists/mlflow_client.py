@@ -15,6 +15,7 @@ from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
 from .config import SpecialistConfig
+
 # Import sklearn compatibility patch
 from .sklearn_compat import patch_model_after_loading
 

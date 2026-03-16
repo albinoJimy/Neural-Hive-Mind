@@ -14,6 +14,7 @@ Schema Version: 1.0.0
 # particularly the monotonic_cst attribute error.
 try:
     from .sklearn_compat import apply_sklearn_compatibility_patch
+
     apply_sklearn_compatibility_patch()
 except Exception:
     pass  # Patch failures should not prevent module loading

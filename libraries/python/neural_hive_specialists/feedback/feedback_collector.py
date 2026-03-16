@@ -92,11 +92,11 @@ class FeedbackDocument(BaseModel):
     )
     cognitive_plan_snapshot: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
-        description="Snapshot completo do cognitive_plan no momento do feedback"
+        description="Snapshot completo do cognitive_plan no momento do feedback",
     )
     reasoning_factors: Optional[List[Dict[str, Any]]] = Field(
         default_factory=list,
-        description="Fatores de raciocínio do especialista (nome, peso, score)"
+        description="Fatores de raciocínio do especialista (nome, peso, score)",
     )
     intent_id: Optional[str] = Field(
         None, description="ID da intenção original (para correlação)"
@@ -105,7 +105,8 @@ class FeedbackDocument(BaseModel):
         None, description="Trace ID para rastreamento distribuído"
     )
     balanced_dataset: bool = Field(
-        default=False, description="Indica se este feedback faz parte de dataset balanceado"
+        default=False,
+        description="Indica se este feedback faz parte de dataset balanceado",
     )
     manual_review: bool = Field(
         default=False, description="Indica se este foi um review manual ativo"
@@ -289,7 +290,9 @@ class FeedbackCollector:
                 f"Erro ao buscar metadados da opinião {opinion_id}: {str(e)}"
             )
 
-    def enrich_feedback_from_opinion(self, opinion_id: str, feedback_data: Dict[str, Any]) -> Dict[str, Any]:
+    def enrich_feedback_from_opinion(
+        self, opinion_id: str, feedback_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Enriquece feedback com dados adicionais da opinião.
 
@@ -319,13 +322,12 @@ class FeedbackCollector:
                     "trace_id": 1,
                     "opinion": 1,
                     "cognitive_plan": 1,
-                }
+                },
             )
 
             if not opinion:
                 logger.warning(
-                    "Opinion not found for enrichment",
-                    opinion_id=opinion_id
+                    "Opinion not found for enrichment", opinion_id=opinion_id
                 )
                 return feedback_data
 
@@ -333,22 +335,46 @@ class FeedbackCollector:
             opinion_data = opinion.get("opinion", {})
 
             # Adicionar campos se não existirem
-            if "opinion_recommendation" not in feedback_data or feedback_data.get("opinion_recommendation") is None:
-                feedback_data["opinion_recommendation"] = opinion_data.get("recommendation")
+            if (
+                "opinion_recommendation" not in feedback_data
+                or feedback_data.get("opinion_recommendation") is None
+            ):
+                feedback_data["opinion_recommendation"] = opinion_data.get(
+                    "recommendation"
+                )
 
-            if "opinion_confidence" not in feedback_data or feedback_data.get("opinion_confidence") is None:
-                feedback_data["opinion_confidence"] = opinion_data.get("confidence_score")
+            if (
+                "opinion_confidence" not in feedback_data
+                or feedback_data.get("opinion_confidence") is None
+            ):
+                feedback_data["opinion_confidence"] = opinion_data.get(
+                    "confidence_score"
+                )
 
-            if "opinion_risk" not in feedback_data or feedback_data.get("opinion_risk") is None:
+            if (
+                "opinion_risk" not in feedback_data
+                or feedback_data.get("opinion_risk") is None
+            ):
                 feedback_data["opinion_risk"] = opinion_data.get("risk_score")
 
-            if "reasoning_factors" not in feedback_data or not feedback_data.get("reasoning_factors"):
-                feedback_data["reasoning_factors"] = opinion_data.get("reasoning_factors", [])
+            if "reasoning_factors" not in feedback_data or not feedback_data.get(
+                "reasoning_factors"
+            ):
+                feedback_data["reasoning_factors"] = opinion_data.get(
+                    "reasoning_factors", []
+                )
 
-            if "cognitive_plan_snapshot" not in feedback_data or not feedback_data.get("cognitive_plan_snapshot"):
-                feedback_data["cognitive_plan_snapshot"] = opinion.get("cognitive_plan", {})
+            if "cognitive_plan_snapshot" not in feedback_data or not feedback_data.get(
+                "cognitive_plan_snapshot"
+            ):
+                feedback_data["cognitive_plan_snapshot"] = opinion.get(
+                    "cognitive_plan", {}
+                )
 
-            if "intent_id" not in feedback_data or feedback_data.get("intent_id") is None:
+            if (
+                "intent_id" not in feedback_data
+                or feedback_data.get("intent_id") is None
+            ):
                 feedback_data["intent_id"] = opinion.get("intent_id")
 
             if "trace_id" not in feedback_data or feedback_data.get("trace_id") is None:
@@ -357,7 +383,7 @@ class FeedbackCollector:
             logger.debug(
                 "Feedback enriched from opinion",
                 opinion_id=opinion_id,
-                enriched_fields=list(opinion_data.keys())
+                enriched_fields=list(opinion_data.keys()),
             )
 
             return feedback_data
@@ -366,14 +392,12 @@ class FeedbackCollector:
             logger.warning(
                 "Failed to enrich feedback from opinion",
                 opinion_id=opinion_id,
-                error=str(e)
+                error=str(e),
             )
             return feedback_data
 
     def enrich_with_nlp_features(
-        self,
-        feedback_data: Dict[str, Any],
-        intent_text: Optional[str] = None
+        self, feedback_data: Dict[str, Any], intent_text: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Enriquece feedback com features NLP extraídas do texto da intenção.
@@ -407,14 +431,11 @@ class FeedbackCollector:
                 "NLP features extracted",
                 feature_count=len(nlp_features),
                 primary_domain=nlp_features.get("primary_domain"),
-                text_length=nlp_features.get("text_length_chars")
+                text_length=nlp_features.get("text_length_chars"),
             )
 
         except Exception as e:
-            logger.warning(
-                "Failed to extract NLP features",
-                error=str(e)
-            )
+            logger.warning("Failed to extract NLP features", error=str(e))
 
         return feedback_data
 
