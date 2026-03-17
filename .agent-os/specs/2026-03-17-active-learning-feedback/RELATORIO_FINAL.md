@@ -205,12 +205,46 @@ data:
   ACTIVE_LEARNING_MIN_INFORMATION_VALUE: "0.5"
 ```
 
+## Integração v8 - Retraining com Dataset Balanceado
+
+### Script de Retraining v8
+**Arquivo:** `ml_pipelines/training/retrain_v8_balanced.py`
+
+```python
+# Carrega apenas feedbacks coletados via Active Learning
+query = {
+    'nlp_features': {'$exists': True, '$ne': {}},
+    'final_decision': {'$exists': True, '$ne': None, '$ne': ''},
+    'balanced_dataset': True  # ← Filtro Active Learning
+}
+```
+
+**Features:**
+- Filtro `balanced_dataset=True` para dataset de qualidade
+- Suporte a RandomForest e GradientBoosting
+- Estatísticas de balanceamento por classe
+- Feature `information_value` incluída no treinamento
+- Metadata de versão no MongoDB
+
+**Uso:**
+```bash
+# Dry run para verificar dados disponíveis
+python ml_pipelines/training/retrain_v8_balanced.py --dry-run
+
+# Treinar com dados balanceados
+python ml_pipelines/training/retrain_v8_balanced.py --model-type random_forest
+
+# Treinar com todos os dados (para comparação)
+python ml_pipelines/training/retrain_v8_balanced.py --all-data
+```
+
 ## Próximos Passos
 
 1. **Coleta de dados reais** - Habilitar em staging para coletar feedbacks balanceados
-2. **Retreino com dados balanceados** - Usar `balanced_dataset=true` para treinar modelo v8
-3. **Monitoramento** - Configurar dashboard Grafana
-4. **Ajuste de thresholds** - Tunar `MIN_INFORMATION_VALUE` baseado em métricas
+2. **Acumular amostras balanceadas** - Aguardar ~50-100 feedbacks com `balanced_dataset=True`
+3. **Executar retraining v8** - Treinar modelo com dataset balanceado
+4. **Monitoramento** - Configurar dashboard Grafana
+5. **Comparação v7 vs v8** - A/B test para validar melhoria
 
 ## Documentação
 

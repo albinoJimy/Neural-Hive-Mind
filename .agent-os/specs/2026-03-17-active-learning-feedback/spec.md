@@ -2,7 +2,7 @@
 
 > Spec: Active Learning Feedback Collector
 > Created: 2026-03-17
-> Status: ✅ COMPLETED
+> Status: ✅ COMPLETED + v8 Integration
 > Testes: 76/76 passando
 
 ## Overview
@@ -56,3 +56,4 @@ Como Engenheiro de ML, quero uma fila ordenada de casos que precisam de revisão
 3. API REST `/api/v1/active-learning/queue` para obter próximos casos prioritários
 4. API REST `/api/v1/active-learning/metrics` para consultar métricas de balanceamento
 5. Integração com ApprovalService para marcar feedbacks coletados via active learning
+6. **Script de retraining v8** - `ml_pipelines/training/retrain_v8_balanced.py` com filtro `balanced_dataset=True`

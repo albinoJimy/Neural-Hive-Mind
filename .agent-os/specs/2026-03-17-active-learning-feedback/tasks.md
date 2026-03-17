@@ -54,3 +54,10 @@
   - [x] 8.2 Deploy para staging (main.py + .env.example)
   - [x] 8.3 Validar métricas em produção (docs/ACTIVE_LEARNING_DEPLOY.md)
   - [x] 8.4 Criar dashboard de balanceamento (docs/ACTIVE_LEARNING_DASHBOARD.json)
+
+- [x] 9. ML Pipeline v8 Integration
+  - [x] 9.1 Criar script retrain_v8_balanced.py
+  - [x] 9.2 Implementar filtro balanced_dataset=True
+  - [x] 9.3 Adicionar feature information_value
+  - [x] 9.4 Suportar RandomForest e GradientBoosting
+  - [x] 9.5 Atualizar documentação (RELATORIO_FINAL.md)
