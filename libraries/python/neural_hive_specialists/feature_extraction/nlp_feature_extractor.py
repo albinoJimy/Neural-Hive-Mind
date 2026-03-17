@@ -137,7 +137,7 @@ class NLPFeatureExtractor:
             **self._extract_action_features(text_normalized),
 
             # Features de sentimento (se habilitado)
-            **self._extract_sentiment_features(text_normalized) if self.enable_sentiment else {},
+            **(self._extract_sentiment_features(text_normalized) if self.enable_sentiment else {}),
         }
 
         return features
