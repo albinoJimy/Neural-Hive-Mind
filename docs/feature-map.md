@@ -2,7 +2,7 @@
 
 **Projecto:** Neural-Hive-Mind
 **Última Actualização:** 2026-03-17
-**Completude Global:** ~79%
+**Completude Global:** ~80%
 
 ---
 
@@ -102,12 +102,13 @@
 - [ ] Priorização dinâmica
 - [ ] Saga avançada
 
-### Approval Service (95%)
+### Approval Service (98%)
 - [x] API de aprovação
 - [x] Consumer Kafka
 - [x] Integração MongoDB
 - [x] ML model v7
 - [x] Feedback loop
+- [x] Active Learning Feedback Collector - 76 testes ✅
 - [ ] Dashboard de aprovações
 
 ### Worker Agents (75%)
@@ -143,10 +144,11 @@
 - [x] Events
 - [x] Value Objects
 
-### neural_hive_specialists (90%)
+### neural_hive_specialists (95%)
 - [x] BaseSpecialist
 - [x] Especialistas concretos
 - [x] Behaviours
+- [x] Active Learning (balance_analyzer, learning_strategy, feedback_queue)
 - [ ] Evolution hooks
 
 ### neural_hive_agent_sdk (85%)
@@ -161,20 +163,22 @@
 - [x] Tracing (OpenTelemetry)
 - [x] Error tracking
 
-### neural_hive_ml (75%)
+### neural_hive_ml (80%)
 - [x] Feature engineering
-- [x] Modelos de aprovação
+- [x] Modelos de aprovação (v7, v8)
 - [x] NLP features
+- [x] Active Learning integration
 - [ ] Online learning
-- [ ] Model versioning
+- [ ] Model versioning (MLflow)
 
 ---
 
 ## Gaps Identificados
 
 ### Críticos (Must)
-1. **Explainability API** — Explicação de decisões dos especialistas (65%)
-2. **Memory Layer** — Persistência de memória de longo prazo (75%)
+1. **Memory Layer** — Persistência de memória de longo prazo (75%)
+2. **MCP Servers** — Integração completa com MCP (60%)
+3. **Scout Agents** — Exploração autónoma (50%)
 
 ### Importantes (Should)
 1. **MCP Servers** — Integração completa com MCP (60%)
@@ -187,14 +191,16 @@
 3. **Online learning** contínuo
 
 ### Concluídos Recentemente
+- ✅ **Active Learning Feedback Collector** (2026-03-17) - 76 testes, ML v8 integration
+- ✅ **GAPS-04 Explainability API** (2026-03-17) - 66 testes, SHAP + reasoning extraction
 - ✅ **GAPS-03 Consenso Hierárquico** (2026-03-17) - 5 níveis de senioridade, 132 testes
 
 ---
 
 ## Próximos Épicos Sugeridos
 
-1. **GAPS-04: Explainability API** — Interface para explicar decisões dos especialistas
-2. **GAPS-05: Scout Agents** — Exploração e descoberta autónoma
+1. **GAPS-05: Scout Agents** — Exploração e descoberta autónoma (50%)
+2. **GAPS-06: MCP Servers Integration** — Integração completa com MCP protocol (60%)
 3. **ML: Online Learning** — Retreinamento contínuo dos modelos de aprovação
 
 ---
