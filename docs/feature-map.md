@@ -92,7 +92,7 @@
 - [x] Deduplicação de opiniões
 - [x] Logging detalhado
 - [x] Integração Kafka
-- [x] Consenso hierárquico (GAPS-03) - 5 níveis de senioridade, 68 testes
+- [x] Consenso hierárquico (GAPS-03) - 5 níveis de senioridade, 132 testes ✅
 
 ### Orchestrator Dynamic (80%)
 - [x] Conversão Plans → Tickets
@@ -173,27 +173,29 @@
 ## Gaps Identificados
 
 ### Críticos (Must)
-1. **Explainability API** — Explicação de decisões dos especialistas
-2. **Memory Layer** — Persistência de memória de longo prazo
-3. **Consensus hierárquico** — Especialistas seniors vs juniors
+1. **Explainability API** — Explicação de decisões dos especialistas (65%)
+2. **Memory Layer** — Persistência de memória de longo prazo (75%)
 
 ### Importantes (Should)
-1. **MCP Servers** — Integração completa com MCP
-2. **Scout Agents** — Exploração autónoma
-3. **Optimizer Agents** — Otimização de workflows
+1. **MCP Servers** — Integração completa com MCP (60%)
+2. **Scout Agents** — Exploração autónoma (50%)
+3. **Optimizer Agents** — Otimização de workflows (45%)
 
 ### Nice to Have (Could)
 1. **Multi-idioma** no STE
 2. **Election protocol** no Queen Agent
 3. **Online learning** contínuo
 
+### Concluídos Recentemente
+- ✅ **GAPS-03 Consenso Hierárquico** (2026-03-17) - 5 níveis de senioridade, 132 testes
+
 ---
 
-## Próximo Ticket
+## Próximos Épicos Sugeridos
 
-**Epic:** Enriquecimento de Feedback com Semantic Features
-**Status:** Em Progresso
-**Próximo:** Implementar captura de `intent_raw_text` no pipeline completo
+1. **GAPS-04: Explainability API** — Interface para explicar decisões dos especialistas
+2. **GAPS-05: Scout Agents** — Exploração e descoberta autónoma
+3. **ML: Online Learning** — Retreinamento contínuo dos modelos de aprovação
 
 ---
 
