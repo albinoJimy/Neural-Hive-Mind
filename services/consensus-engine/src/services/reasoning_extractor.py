@@ -8,7 +8,7 @@ GAPS-04 Task 3
 """
 
 import re
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 from collections import defaultdict
 import structlog
 
@@ -25,33 +25,92 @@ class ReasoningExtractor:
 
     # Palavras-chave por categoria
     CATEGORY_KEYWORDS = {
-        'technical': [
-            'arquitetura', 'microserviço', 'api', 'rest', 'kafka', 'mongodb',
-            'banco de dados', 'código', 'escalável', 'performance', 'latência',
-            'throughput', 'deploy', 'pipeline', 'ci/cd', 'docker', 'kubernetes',
-            'backend', 'frontend', 'framework', 'biblioteca', 'algoritmo'
+        "technical": [
+            "arquitetura",
+            "microserviço",
+            "api",
+            "rest",
+            "kafka",
+            "mongodb",
+            "banco de dados",
+            "código",
+            "escalável",
+            "performance",
+            "latência",
+            "throughput",
+            "deploy",
+            "pipeline",
+            "ci/cd",
+            "docker",
+            "kubernetes",
+            "backend",
+            "frontend",
+            "framework",
+            "biblioteca",
+            "algoritmo",
         ],
-        'business': [
-            'roi', 'custo', 'receita', 'lucro', 'investimento', 'retorno',
-            'negócio', 'cliente', 'mercado', 'competitivo', 'estratégia',
-            'kpi', 'métrica', 'objetivo', 'meta', 'deadline', 'prazo'
+        "business": [
+            "roi",
+            "custo",
+            "receita",
+            "lucro",
+            "investimento",
+            "retorno",
+            "negócio",
+            "cliente",
+            "mercado",
+            "competitivo",
+            "estratégia",
+            "kpi",
+            "métrica",
+            "objetivo",
+            "meta",
+            "deadline",
+            "prazo",
         ],
-        'security': [
-            'vulnerabilidade', 'sql injection', 'xss', 'autenticação', 'oauth',
-            'criptografia', 'ssl', 'tls', 'segurança', 'ataque', 'ameaça',
-            'firewall', 'permission', 'role', 'access', 'injeção', 'payload'
+        "security": [
+            "vulnerabilidade",
+            "sql injection",
+            "xss",
+            "autenticação",
+            "oauth",
+            "criptografia",
+            "ssl",
+            "tls",
+            "segurança",
+            "ataque",
+            "ameaça",
+            "firewall",
+            "permission",
+            "role",
+            "access",
+            "injeção",
+            "payload",
         ],
-        'compliance': [
-            'lgpd', 'gdpr', 'compliance', 'auditoria', 'regulação', 'lei',
-            'conformidade', 'privacidade', 'dpi', 'anonimização', 'consentimento',
-            'gpdr', 'sox', 'iso', 'norma', 'regulamentação'
-        ]
+        "compliance": [
+            "lgpd",
+            "gdpr",
+            "compliance",
+            "auditoria",
+            "regulação",
+            "lei",
+            "conformidade",
+            "privacidade",
+            "dpi",
+            "anonimização",
+            "consentimento",
+            "gpdr",
+            "sox",
+            "iso",
+            "norma",
+            "regulamentação",
+        ],
     }
 
     # Padrões regex para detecção de factores
     FACTOR_PATTERNS = [
-        r'[A-Z][^.!?]*[.!?]',  # Frases completas começando com maiúscula
-        r'[a-záàâãéèêíïóôõöúç]+(?:\s+[a-záàâãéèêíïóôõöúç]+){3,}',  # Sequências de palavras
+        r"[A-Z][^.!?]*[.!?]",  # Frases completas começando com maiúscula
+        r"[a-záàâãéèêíïóôõöúç]+(?:\s+[a-záàâãéèêíïóôõöúç]+){3,}",  # Sequências de palavras
     ]
 
     def __init__(self, max_factors: int = 10):
@@ -74,7 +133,7 @@ class ReasoningExtractor:
             Dicionário com lista de factores extraídos
         """
         if not reasoning or not reasoning.strip():
-            return {'factors': [], 'source_length': 0}
+            return {"factors": [], "source_length": 0}
 
         # Dividir texto em sentenças/frases
         sentences = self._split_into_sentences(reasoning)
@@ -90,23 +149,23 @@ class ReasoningExtractor:
                 continue
 
             factor = {
-                'text': sentence.strip(),
-                'position': i,
-                'confidence': self._calculate_confidence(sentence)
+                "text": sentence.strip(),
+                "position": i,
+                "confidence": self._calculate_confidence(sentence),
             }
 
             factors.append(factor)
 
         return {
-            'factors': factors,
-            'source_length': len(reasoning),
-            'num_sentences': len(sentences)
+            "factors": factors,
+            "source_length": len(reasoning),
+            "num_sentences": len(sentences),
         }
 
     def _split_into_sentences(self, text: str) -> List[str]:
         """Divide texto em sentenças."""
         # Dividir por pontuação básica
-        sentences = re.split(r'[.!?]+', text)
+        sentences = re.split(r"[.!?]+", text)
 
         # Limpar sentenças vazias
         sentences = [s.strip() for s in sentences if s.strip()]
@@ -166,22 +225,16 @@ class ReasoningExtractor:
             best_category = max(category_scores.items(), key=lambda x: x[1])
             confidence = min(1.0, best_category[1] * 0.3)
             return {
-                'category': best_category[0],
-                'confidence': confidence,
-                'all_scores': dict(category_scores)
+                "category": best_category[0],
+                "confidence": confidence,
+                "all_scores": dict(category_scores),
             }
 
         # Nenhuma categoria detectada
-        return {
-            'category': 'general',
-            'confidence': 0.0,
-            'all_scores': {}
-        }
+        return {"category": "general", "confidence": 0.0, "all_scores": {}}
 
     def generate_structured_output(
-        self,
-        factors_result: Dict[str, Any],
-        original_reasoning: str
+        self, factors_result: Dict[str, Any], original_reasoning: str
     ) -> Dict[str, Any]:
         """
         Gera output estruturado com categorias e citações.
@@ -193,32 +246,32 @@ class ReasoningExtractor:
         Returns:
             Dicionário estruturado com factores categorizados
         """
-        factors = factors_result.get('factors', [])
+        factors = factors_result.get("factors", [])
 
         structured_factors = []
         for factor in factors:
             # Categorizar o factor
-            categorization = self.categorize_factor(factor['text'])
+            categorization = self.categorize_factor(factor["text"])
 
             # Encontrar citação (posição no texto original)
-            citation = self._find_citation(factor['text'], original_reasoning)
+            citation = self._find_citation(factor["text"], original_reasoning)
 
             structured_factor = {
-                'text': factor['text'],
-                'category': categorization['category'],
-                'category_confidence': categorization['confidence'],
-                'extraction_confidence': factor['confidence'],
-                'citation': citation,
-                'position': factor['position']
+                "text": factor["text"],
+                "category": categorization["category"],
+                "category_confidence": categorization["confidence"],
+                "extraction_confidence": factor["confidence"],
+                "citation": citation,
+                "position": factor["position"],
             }
 
             structured_factors.append(structured_factor)
 
         return {
-            'factors': structured_factors,
-            'total_factors': len(structured_factors),
-            'categories': self._summarize_categories(structured_factors),
-            'source_length': factors_result.get('source_length', 0)
+            "factors": structured_factors,
+            "total_factors": len(structured_factors),
+            "categories": self._summarize_categories(structured_factors),
+            "source_length": factors_result.get("source_length", 0),
         }
 
     def _find_citation(self, factor_text: str, original_text: str) -> Dict[str, int]:
@@ -227,24 +280,16 @@ class ReasoningExtractor:
 
         if start >= 0:
             end = start + len(factor_text)
-            return {
-                'start': start,
-                'end': end,
-                'found': True
-            }
+            return {"start": start, "end": end, "found": True}
 
-        return {
-            'start': -1,
-            'end': -1,
-            'found': False
-        }
+        return {"start": -1, "end": -1, "found": False}
 
     def _summarize_categories(self, structured_factors: List[Dict]) -> Dict[str, int]:
         """Resume contagem de factores por categoria."""
         category_count = defaultdict(int)
 
         for factor in structured_factors:
-            category_count[factor['category']] += 1
+            category_count[factor["category"]] += 1
 
         return dict(category_count)
 
@@ -268,9 +313,7 @@ class ReasoningExtractor:
         return results
 
     def extract_and_categorize(
-        self,
-        reasoning: str,
-        include_general: bool = False
+        self, reasoning: str, include_general: bool = False
     ) -> Dict[str, Any]:
         """
         Método conveniente que extrai e categoriza em uma chamada.
@@ -287,10 +330,9 @@ class ReasoningExtractor:
 
         # Opcionalmente filtrar factores "general"
         if not include_general:
-            structured['factors'] = [
-                f for f in structured['factors']
-                if f['category'] != 'general'
+            structured["factors"] = [
+                f for f in structured["factors"] if f["category"] != "general"
             ]
-            structured['total_factors'] = len(structured['factors'])
+            structured["total_factors"] = len(structured["factors"])
 
         return structured
