@@ -96,10 +96,12 @@ def cognitive_plan():
 class TestExplainabilityGeneratorIntegration:
     """Testes de integração end-to-end."""
 
+    @patch("neural_hive_specialists.explainability.explainability_ledger_v2.MongoClient")
     @patch("neural_hive_specialists.explainability_generator.MongoClient")
     def test_full_explainability_flow_with_shap(
         self,
-        mock_mongo_client,
+        mock_mongo_client_gen,
+        mock_mongo_client_ledger,
         mock_config,
         mock_feature_extractor,
         simple_model,
@@ -120,11 +122,15 @@ class TestExplainabilityGeneratorIntegration:
             ExplainabilityGenerator,
         )
 
-        # Mock MongoDB
+        # Mock MongoDB para ambos os clientes
         mock_collection = MagicMock()
         mock_db = MagicMock()
         mock_db.__getitem__.return_value = mock_collection
-        mock_mongo_client.return_value.__getitem__.return_value = mock_db
+        # Configurar ambos os mocks
+        import neural_hive_specialists.explainability.explainability_ledger_v2 as ledger_module
+        import neural_hive_specialists.explainability_generator as gen_module
+        gen_module.MongoClient.return_value.__getitem__.return_value = mock_db
+        ledger_module.MongoClient.return_value.__getitem__.return_value = mock_db
 
         # Criar generator
         generator = ExplainabilityGenerator(
@@ -174,10 +180,12 @@ class TestExplainabilityGeneratorIntegration:
         call_count = mock_collection.insert_one.call_count
         assert call_count == 1  # Apenas ledger v2
 
+    @patch("neural_hive_specialists.explainability.explainability_ledger_v2.MongoClient")
     @patch("neural_hive_specialists.explainability_generator.MongoClient")
     def test_explainability_with_reasoning_links(
         self,
-        mock_mongo_client,
+        mock_mongo_client_gen,
+        mock_mongo_client_ledger,
         mock_config,
         mock_feature_extractor,
         simple_model,
@@ -195,11 +203,15 @@ class TestExplainabilityGeneratorIntegration:
             ExplainabilityGenerator,
         )
 
-        # Mock MongoDB
+        # Mock MongoDB para ambos os clientes
         mock_collection = MagicMock()
         mock_db = MagicMock()
         mock_db.__getitem__.return_value = mock_collection
-        mock_mongo_client.return_value.__getitem__.return_value = mock_db
+        # Configurar ambos os mocks
+        import neural_hive_specialists.explainability.explainability_ledger_v2 as ledger_module
+        import neural_hive_specialists.explainability_generator as gen_module
+        gen_module.MongoClient.return_value.__getitem__.return_value = mock_db
+        ledger_module.MongoClient.return_value.__getitem__.return_value = mock_db
 
         # Criar generator
         generator = ExplainabilityGenerator(
@@ -230,10 +242,12 @@ class TestExplainabilityGeneratorIntegration:
             # mas registramos para validação manual
             print(f"Has reasoning links in narrative: {has_links}")
 
+    @patch("neural_hive_specialists.explainability.explainability_ledger_v2.MongoClient")
     @patch("neural_hive_specialists.explainability_generator.MongoClient")
     def test_explainability_fallback_to_heuristic(
         self,
-        mock_mongo_client,
+        mock_mongo_client_gen,
+        mock_mongo_client_ledger,
         mock_config,
         mock_feature_extractor,
         evaluation_result,
@@ -251,11 +265,15 @@ class TestExplainabilityGeneratorIntegration:
             ExplainabilityGenerator,
         )
 
-        # Mock MongoDB
+        # Mock MongoDB para ambos os clientes
         mock_collection = MagicMock()
         mock_db = MagicMock()
         mock_db.__getitem__.return_value = mock_collection
-        mock_mongo_client.return_value.__getitem__.return_value = mock_db
+        # Configurar ambos os mocks
+        import neural_hive_specialists.explainability.explainability_ledger_v2 as ledger_module
+        import neural_hive_specialists.explainability_generator as gen_module
+        gen_module.MongoClient.return_value.__getitem__.return_value = mock_db
+        ledger_module.MongoClient.return_value.__getitem__.return_value = mock_db
 
         # Criar generator
         generator = ExplainabilityGenerator(
@@ -279,10 +297,12 @@ class TestExplainabilityGeneratorIntegration:
         assert len(metadata["feature_importances"]) > 0
         assert metadata["feature_importances"][0]["feature_name"] == "num_tasks"
 
+    @patch("neural_hive_specialists.explainability.explainability_ledger_v2.MongoClient")
     @patch("neural_hive_specialists.explainability_generator.MongoClient")
     def test_ledger_v2_persistence_format(
         self,
-        mock_mongo_client,
+        mock_mongo_client_gen,
+        mock_mongo_client_ledger,
         mock_config,
         mock_feature_extractor,
         simple_model,
@@ -300,11 +320,15 @@ class TestExplainabilityGeneratorIntegration:
             ExplainabilityGenerator,
         )
 
-        # Mock MongoDB
+        # Mock MongoDB para ambos os clientes
         mock_collection = MagicMock()
         mock_db = MagicMock()
         mock_db.__getitem__.return_value = mock_collection
-        mock_mongo_client.return_value.__getitem__.return_value = mock_db
+        # Configurar ambos os mocks
+        import neural_hive_specialists.explainability.explainability_ledger_v2 as ledger_module
+        import neural_hive_specialists.explainability_generator as gen_module
+        gen_module.MongoClient.return_value.__getitem__.return_value = mock_db
+        ledger_module.MongoClient.return_value.__getitem__.return_value = mock_db
 
         # Criar generator
         generator = ExplainabilityGenerator(
