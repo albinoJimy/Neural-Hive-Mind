@@ -1,0 +1,160 @@
+{
+  "dashboard": {
+    "title": "Active Learning - Dataset Balance",
+    "tags": ["ml", "active-learning", "approval-service"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Dataset Balance por Classe",
+        "type": "piechart",
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "sum by (human_recommendation) (specialist_feedback_total{balanced_dataset=\"true\"})"
+          }
+        ],
+        "options": {
+          "legend": {"displayMode": "table", "placement": "right"},
+          "tooltip": {"mode": "single"}
+        }
+      },
+      {
+        "id": 2,
+        "title": "Feedbacks Balanceados vs Automáticos",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 16, "x": 8, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(specialist_feedback_total{balanced_dataset=\"true\"}[5m]))",
+            "legendFormat": "Balanceados"
+          },
+          {
+            "expr": "sum(rate(specialist_feedback_total{balanced_dataset=\"false\"}[5m]))",
+            "legendFormat": "Automáticos"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Feedbacks/segundo"}
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Gap de Balanceamento",
+        "type": "gauge",
+        "gridPos": {"h": 5, "w": 6, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "dataset_balance_gap{human_recommendation=\"reject\"}"
+          }
+        ],
+        "options": {
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": 10},
+              {"color": "yellow", "value": 20},
+              {"color": "red", "value": 30}
+            ]
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Fila de Active Learning",
+        "type": "stat",
+        "gridPos": {"h": 5, "w": 6, "x": 6, "y": 8},
+        "targets": [
+          {
+            "expr": "active_learning_queue_size"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value"
+        }
+      },
+      {
+        "id": 5,
+        "title": "Taxa de Coleta Balanceada",
+        "type": "stat",
+        "gridPos": {"h": 5, "w": 6, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(specialist_feedback_total{balanced_dataset=\"true\"}[1h])) / sum(rate(specialist_feedback_total[1h])) * 100"
+          }
+        ],
+        "options": {
+          "unit": "percent",
+          "decimals": 1
+        }
+      },
+      {
+        "id": 6,
+        "title": "Casos Enfileirados por Prioridade",
+        "type": "heatmap",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 13},
+        "targets": [
+          {
+            "expr": "active_learning_cases_enqueued_total"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Distribuição de Confiança",
+        "type": "histogram",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 13},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.5, sum(rate(specialist_feedback_total[5m])) by (confidence_bucket)"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Semantic Features Coverage",
+        "type": "gauge",
+        "gridPos": {"h": 5, "w": 8, "x": 0, "y": 21},
+        "targets": [
+          {
+            "expr": "semantic_features_percentage"
+          }
+        ],
+        "options": {
+          "max": 50,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": 10},
+              {"color": "yellow", "value": 20},
+              {"color": "green", "value": 30}
+            ]
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "Recomendações de Prioridade",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 16, "x": 8, "y": 21},
+        "targets": [
+          {
+            "expr": "priority_recommendations"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"__name__": true, "_ts": true}
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

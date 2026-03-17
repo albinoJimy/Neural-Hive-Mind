@@ -20,7 +20,7 @@ from src.clients.cognitive_ledger_client import CognitiveLedgerClient
 from src.services.approval_service import ApprovalService
 from src.services.ml_predictor_service import get_ml_predictor_service
 from src.observability.metrics import NeuralHiveMetrics, register_metrics
-from src.api.routers import approvals, health
+from src.api.routers import approvals, health, active_learning
 from src.adapters.feedback_config_adapter import create_feedback_collector_config
 
 # Import opcional - pode nao estar disponivel em todos os ambientes
@@ -206,6 +206,54 @@ async def lifespan(app: FastAPI):
                     raise
                 logger.warning("Continuando sem ML prediction")
 
+        # Inicializa Active Learning components
+        balance_analyzer = None
+        learning_strategy = None
+        priority_queue = None
+
+        if settings.enable_active_learning and HAS_FEEDBACK_COLLECTOR:
+            logger.info("Inicializando Active Learning components...")
+            try:
+                from neural_hive_specialists.feedback.active_learning.balance_analyzer import DatasetBalanceAnalyzer
+                from neural_hive_specialists.feedback.active_learning.learning_strategy import ActiveLearningStrategy
+                from neural_hive_specialists.feedback.active_learning.feedback_queue import PriorityFeedbackQueue
+
+                # Inicializar BalanceAnalyzer
+                balance_analyzer = DatasetBalanceAnalyzer(
+                    mongodb_uri=settings.mongodb_uri,
+                    database=settings.mongodb_database,
+                    collection=settings.feedback_mongodb_collection
+                )
+
+                # Inicializar ActiveLearningStrategy
+                learning_strategy = ActiveLearningStrategy(
+                    confidence_weight=0.5,
+                    representation_weight=0.3,
+                    novelty_weight=0.2
+                )
+
+                # Inicializar PriorityFeedbackQueue
+                priority_queue = PriorityFeedbackQueue(
+                    mongodb_uri=settings.mongodb_uri,
+                    database=settings.mongodb_database,
+                    collection=settings.active_learning_queue_collection
+                )
+                await priority_queue.initialize()
+
+                logger.info(
+                    "Active Learning components inicializados",
+                    min_information_value=settings.active_learning_min_information_value,
+                    enqueue_rate=settings.active_learning_enqueue_rate
+                )
+            except Exception as e:
+                logger.error(
+                    "Falha ao inicializar Active Learning",
+                    error=str(e)
+                )
+                if settings.feedback_on_approval_failure_mode == 'raise_error':
+                    raise
+                logger.warning("Continuando sem Active Learning")
+
         # Inicializa metricas
         metrics = NeuralHiveMetrics(mongodb_client=mongodb_client)
         state['metrics'] = metrics
@@ -234,13 +282,21 @@ async def lifespan(app: FastAPI):
             metrics=metrics,
             feedback_collector=feedback_collector,
             ledger_client=ledger_client,
-            ml_predictor=ml_predictor
+            ml_predictor=ml_predictor,
+            balance_analyzer=balance_analyzer,
+            learning_strategy=learning_strategy,
+            priority_queue=priority_queue
         )
         state['approval_service'] = approval_service
 
-        # Configura referencias nos routers
+        # Configura referencias nos routers e state
         approvals.set_approval_service(approval_service)
         health.set_app_state(state)
+
+        # Configurar Active Learning no app.state para router
+        app.state.balance_analyzer = balance_analyzer
+        app.state.feedback_queue = priority_queue
+        app.state.feedback_collector = feedback_collector
 
         # Inicia consumer em background
         async def consume_with_error_handling():
@@ -312,6 +368,7 @@ register_metrics()
 # Inclui routers
 app.include_router(health.router)
 app.include_router(approvals.router)
+app.include_router(active_learning.router)
 
 
 if __name__ == "__main__":

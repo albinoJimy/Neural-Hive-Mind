@@ -30,6 +30,18 @@ try:
 except ImportError:
     FeedbackCollector = None
 
+# Active Learning components (opcional)
+try:
+    from neural_hive_specialists.feedback.active_learning.balance_analyzer import DatasetBalanceAnalyzer
+    from neural_hive_specialists.feedback.active_learning.learning_strategy import ActiveLearningStrategy
+    from neural_hive_specialists.feedback.active_learning.feedback_queue import PriorityFeedbackQueue
+    HAS_ACTIVE_LEARNING = True
+except ImportError:
+    DatasetBalanceAnalyzer = None
+    ActiveLearningStrategy = None
+    PriorityFeedbackQueue = None
+    HAS_ACTIVE_LEARNING = False
+
 logger = structlog.get_logger()
 
 
@@ -44,7 +56,10 @@ class ApprovalService:
         metrics: NeuralHiveMetrics,
         feedback_collector: Optional[Any] = None,
         ledger_client: Optional[CognitiveLedgerClient] = None,
-        ml_predictor: Optional[Any] = None
+        ml_predictor: Optional[Any] = None,
+        balance_analyzer: Optional[Any] = None,
+        learning_strategy: Optional[Any] = None,
+        priority_queue: Optional[Any] = None
     ):
         self.settings = settings
         self.mongodb_client = mongodb_client
@@ -53,6 +68,19 @@ class ApprovalService:
         self.feedback_collector = feedback_collector
         self.ledger_client = ledger_client
         self.ml_predictor = ml_predictor
+
+        # Active Learning components (opcional)
+        self.balance_analyzer = balance_analyzer
+        self.learning_strategy = learning_strategy
+        self.priority_queue = priority_queue
+
+        self.active_learning_enabled = all([
+            settings.enable_active_learning if hasattr(settings, 'enable_active_learning') else False,
+            HAS_ACTIVE_LEARNING,
+            balance_analyzer is not None,
+            learning_strategy is not None,
+            priority_queue is not None
+        ])
 
     async def process_approval_request(self, approval_request: ApprovalRequest) -> ApprovalRequest:
         """
@@ -83,6 +111,9 @@ class ApprovalService:
             )
             self.metrics.update_pending_gauge()
 
+            # Active Learning: enfileirar caso se aplica
+            await self._maybe_enqueue_for_active_learning(approval_request)
+
             logger.info(
                 'Approval request processado',
                 plan_id=approval_request.plan_id,
@@ -106,6 +137,108 @@ class ApprovalService:
                 plan_id=approval_request.plan_id
             )
             raise
+
+    async def _maybe_enqueue_for_active_learning(
+        self,
+        approval_request: ApprovalRequest
+    ) -> None:
+        """
+        Avalia se o approval request deve ser enfileirado para active learning.
+
+        Usa ActiveLearningStrategy para calcular valor informacional e
+        PriorityFeedbackQueue para enfileirar casos de alto valor.
+
+        Args:
+            approval_request: ApprovalRequest a avaliar
+        """
+        # Skip se active learning não habilitado
+        if not self.active_learning_enabled:
+            return
+
+        try:
+            # Obter decisão ML se disponível (para contexto)
+            ml_decision = None
+            if self.ml_predictor and self.ml_predictor.is_enabled():
+                ml_result = await self.ml_predictor.get_auto_decision(
+                    intent_text=approval_request.original_intent_text or '',
+                    risk_band=approval_request.risk_band
+                )
+                if ml_result:
+                    ml_decision = ml_result.get('auto_decision')
+                    ml_confidence = ml_result.get('confidence', 0.5)
+                else:
+                    ml_confidence = 0.5
+            else:
+                ml_confidence = 0.5
+
+            # Calcular valor informacional
+            information_value = await self.learning_strategy.calculate_information_value(
+                plan_id=approval_request.plan_id,
+                intent_text=approval_request.original_intent_text,
+                predicted_decision=ml_decision,
+                confidence=ml_confidence,
+                domain=None  # TODO: extrair do intent_text se disponível
+            )
+
+            # Enfileirar se valor informacional acima do threshold
+            min_value = self.settings.active_learning_min_information_value
+            if information_value >= min_value:
+                intent_preview = (
+                    approval_request.original_intent_text[:100]
+                    if approval_request.original_intent_text
+                    else 'N/A'
+                )
+
+                priority_reason = self._get_priority_reason(information_value, ml_confidence)
+
+                await self.priority_queue.enqueue_plan_for_review(
+                    plan_id=approval_request.plan_id,
+                    intent_text=approval_request.original_intent_text,
+                    intent_preview=intent_preview,
+                    information_value=information_value,
+                    priority_reason=priority_reason,
+                    domain=None,
+                    confidence=ml_confidence,
+                    predicted_decision=ml_decision
+                )
+
+                logger.info(
+                    'active_learning_case_enqueued',
+                    plan_id=approval_request.plan_id,
+                    information_value=information_value,
+                    priority_reason=priority_reason
+                )
+            else:
+                logger.debug(
+                    'active_learning_case_below_threshold',
+                    plan_id=approval_request.plan_id,
+                    information_value=information_value,
+                    threshold=min_value
+                )
+
+        except Exception as e:
+            # Erros de active learning não devem bloquear o fluxo principal
+            logger.error(
+                'active_learning_enqueue_failed',
+                plan_id=approval_request.plan_id,
+                error=str(e)
+            )
+
+    def _get_priority_reason(self, information_value: float, confidence: float) -> str:
+        """Gera razão da prioridade baseado em valor informacional e confiança."""
+        reasons = []
+
+        if information_value >= 0.8:
+            reasons.append('valor informacional muito alto')
+        elif information_value >= 0.6:
+            reasons.append('valor informacional alto')
+
+        if confidence < 0.4:
+            reasons.append('baixa confiança')
+        elif confidence < 0.6:
+            reasons.append('confiança moderada')
+
+        return ' + '.join(reasons) if reasons else 'active learning'
 
     async def get_ml_prediction(
         self,
@@ -239,7 +372,8 @@ class ApprovalService:
         human_decision: str,
         human_rating: float,
         user_id: str,
-        comments: Optional[str] = None
+        comments: Optional[str] = None,
+        from_active_learning: bool = False
     ) -> None:
         """
         Submete feedback ML para todas as opinioes de specialists do plano.
@@ -253,6 +387,7 @@ class ApprovalService:
             human_rating: Rating numerico (0.0-1.0)
             user_id: ID do usuario que decidiu
             comments: Comentarios opcionais
+            from_active_learning: Se True, marca como balanced_dataset=True
         """
         # Skip se feedback collection desabilitado
         if not self.settings.enable_feedback_collection:
@@ -306,6 +441,8 @@ class ApprovalService:
                         'feedback_notes': comments or '',
                         'submitted_by': user_id,
                         'intent_raw_text': intent_raw_text,
+                        'balanced_dataset': from_active_learning,
+                        'collection_method': 'active_learning' if from_active_learning else 'automatic',
                         'metadata': {
                             'source': 'approval_service',
                             'specialist_recommendation': opinion.get('recommendation'),

@@ -84,6 +84,24 @@ class Settings(BaseSettings):
         description='Comportamento em falha de feedback: log_and_continue ou raise_error'
     )
 
+    # Active Learning Configuration
+    enable_active_learning: bool = Field(
+        default=False,
+        description='Habilitar active learning para coleta de feedbacks balanceados'
+    )
+    active_learning_queue_collection: str = Field(
+        default='active_learning_queue',
+        description='Collection MongoDB para fila de active learning'
+    )
+    active_learning_min_information_value: float = Field(
+        default=0.5,
+        description='Valor informacional minimo para enfileirar (0-1)'
+    )
+    active_learning_enqueue_rate: float = Field(
+        default=0.2,
+        description='Taxa de casos para enfileirar (0-1, 20% dos casos)'
+    )
+
     # Keycloak configuration
     keycloak_url: str = Field(
         default='http://keycloak.keycloak.svc.cluster.local:8080',
