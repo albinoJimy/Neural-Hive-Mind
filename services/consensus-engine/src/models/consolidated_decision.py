@@ -35,6 +35,18 @@ class SpecialistVote(BaseModel):
     weight: float = Field(..., ge=0.0, le=1.0, description='Peso aplicado no consenso')
     processing_time_ms: int = Field(..., description='Tempo de processamento em ms')
 
+    # Campos hierárquicos (GAPS-03-04)
+    seniority_level: Optional[str] = Field(
+        default=None,
+        description='Nível de senioridade do especialista (trainee, junior, mid_level, senior, expert)'
+    )
+    seniority_multiplier: Optional[float] = Field(
+        default=None,
+        ge=0.5,
+        le=2.0,
+        description='Multiplicador de peso baseado na senioridade (0.5 a 2.0)'
+    )
+
 
 class ConsensusMetrics(BaseModel):
     '''Métricas do processo de consenso'''
@@ -47,6 +59,20 @@ class ConsensusMetrics(BaseModel):
     pheromone_strength: float = Field(..., ge=0.0, le=1.0, description='Força do feromônio aplicado')
     bayesian_confidence: float = Field(..., ge=0.0, le=1.0, description='Confiança Bayesiana agregada')
     voting_confidence: float = Field(..., ge=0.0, le=1.0, description='Confiança do voting ensemble')
+
+    # Campos hierárquicos (GAPS-03-04)
+    weighted_by_seniority: bool = Field(
+        default=False,
+        description='Indica se o consenso foi ponderado por senioridade'
+    )
+    seniority_distribution: Dict[str, int] = Field(
+        default_factory=dict,
+        description='Distribuição de votos por nível de senioridade (ex: {senior: 2, expert: 1})'
+    )
+    consensus_method_hierarchical: bool = Field(
+        default=False,
+        description='Indica se o método de consenso hierárquico foi utilizado'
+    )
 
 
 class ConsolidatedDecision(BaseModel):
@@ -191,7 +217,9 @@ class ConsolidatedDecision(BaseModel):
                     'risk_score': v.risk_score,
                     'recommendation': v.recommendation,
                     'weight': v.weight,
-                    'processing_time_ms': v.processing_time_ms
+                    'processing_time_ms': v.processing_time_ms,
+                    'seniority_level': v.seniority_level,
+                    'seniority_multiplier': v.seniority_multiplier,
                 }
                 for v in self.specialist_votes
             ],
@@ -202,7 +230,10 @@ class ConsolidatedDecision(BaseModel):
                 'fallback_used': self.consensus_metrics.fallback_used,
                 'pheromone_strength': self.consensus_metrics.pheromone_strength,
                 'bayesian_confidence': self.consensus_metrics.bayesian_confidence,
-                'voting_confidence': self.consensus_metrics.voting_confidence
+                'voting_confidence': self.consensus_metrics.voting_confidence,
+                'weighted_by_seniority': self.consensus_metrics.weighted_by_seniority,
+                'seniority_distribution': self.consensus_metrics.seniority_distribution,
+                'consensus_method_hierarchical': self.consensus_metrics.consensus_method_hierarchical
             },
             'explainability_token': self.explainability_token,
             'reasoning_summary': self.reasoning_summary,

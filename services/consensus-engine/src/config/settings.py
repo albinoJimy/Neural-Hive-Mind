@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Dict
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -248,6 +248,38 @@ class Settings(BaseSettings):
     enable_fallback: bool = Field(default=True, description='Habilitar fallback determinístico')
     enable_parallel_invocation: bool = Field(default=True, description='Habilitar invocação paralela')
 
+    # Hierarchical Consensus Configuration (GAPS-03)
+    # Consenso hierárquico permite que especialistas mais seniors tenham mais peso
+    # nas decisões de consenso, baseado em senioridade e domínio de especialização.
+    enable_hierarchical_consensus: bool = Field(
+        default=True,
+        description='Habilitar consenso hierárquico baseado em senioridade de especialistas'
+    )
+    specialist_seniority: Dict[str, str] = Field(
+        default={
+            'business': 'senior',
+            'technical': 'senior',
+            'behavior': 'mid_level',
+            'evolution': 'mid_level',
+            'architecture': 'expert',
+        },
+        description='Mapeamento de specialist type para nível de senioridade padrão. '
+                    'Níveis válidos: trainee, junior, mid_level, senior, expert.'
+    )
+    default_seniority_level: str = Field(
+        default='mid_level',
+        description='Nível de senioridade padrão para especialistas não configurados'
+    )
+    domain_specialist_weights: Dict[str, float] = Field(
+        default={
+            'business_BUSINESS': 0.25,
+            'technical_TECHNICAL': 0.25,
+            'architecture_ARCHITECTURE': 0.30,
+        },
+        description='Peso adicional quando o specialist está no seu domínio de especialização. '
+                    'Formato: {specialist_type}_{DOMAIN}. Valores entre 0.0 e 1.0.'
+    )
+
     # Configuração de Resiliência do Consumer
     # Estes parâmetros controlam o comportamento do consumer sob condições de erro,
     # incluindo backoff exponencial, circuit breaker e Dead Letter Queue.
@@ -362,6 +394,42 @@ class Settings(BaseSettings):
                 "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
             )
 
+        return self
+
+    @field_validator('default_seniority_level')
+    @classmethod
+    def validate_seniority_level(cls, v: str) -> str:
+        """Valida que nível de senioridade é válido."""
+        valid_levels = {'trainee', 'junior', 'mid_level', 'senior', 'expert'}
+        if v not in valid_levels:
+            raise ValueError(
+                f'Nível de senioridade inválido: {v}. '
+                f'Níveis válidos: {", ".join(sorted(valid_levels))}'
+            )
+        return v
+
+    @model_validator(mode='after')
+    def validate_specialist_seniority(self) -> 'Settings':
+        """Valida que todos os níveis de senioridade de especialistas são válidos."""
+        valid_levels = {'trainee', 'junior', 'mid_level', 'senior', 'expert'}
+
+        for specialist, level in self.specialist_seniority.items():
+            if level not in valid_levels:
+                raise ValueError(
+                    f'Nível de senioridade inválido para {specialist}: {level}. '
+                    f'Níveis válidos: {", ".join(sorted(valid_levels))}'
+                )
+        return self
+
+    @model_validator(mode='after')
+    def validate_domain_specialist_weights(self) -> 'Settings':
+        """Valida que pesos de domínio estão no range válido."""
+        for key, weight in self.domain_specialist_weights.items():
+            if not (0.0 <= weight <= 1.0):
+                raise ValueError(
+                    f'Peso de domínio inválido para {key}: {weight}. '
+                    f'Valores devem estar entre 0.0 e 1.0.'
+                )
         return self
 
 
