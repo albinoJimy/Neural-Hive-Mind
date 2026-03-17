@@ -3,33 +3,57 @@ Explainability API - Neural Hive-Mind
 
 API RESTful para consulta de explicações de decisões, planos e opiniões.
 Integrado com ledger de explicabilidade no MongoDB.
+
+GAPS-04 Enhanced Version:
+- Explicações com campos hierárquicos
+- SHAP values para feature attribution
+- Quality scoring (completude, clareza, especificidade)
+- Multi-formato (JSON, texto, HTML)
+- Kafka integration para decisões de consenso
 """
 
 import os
+import asyncio
 import structlog
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 from starlette.responses import Response
+from pydantic import BaseModel
 
 # Inicializar observabilidade
 from neural_hive_observability import init_observability
 
+# Serviços internos
+from src.services.api_extensions import ExplainabilityAPIExtensions, setup_extensions
+from src.services.shap_calculator import ShapCalculator
+from src.services.quality_scorer import ExplanationQualityScorer
+from src.services.reasoning_extractor import ReasoningExtractor
+from src.consumers.consensus_decision_consumer import ConsensusDecisionConsumer
+from src.producers.explanation_producer import ExplanationProducer
+
 logger = structlog.get_logger(__name__)
 
-# Inicializar FastAPI
-app = FastAPI(
-    title="Explainability API",
-    description="API de consulta de explicações do Neural Hive-Mind",
-    version="1.0.0"
-)
+# Configurações
+KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
+MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://mongodb:27017')
+CONSUMER_GROUP_ID = os.getenv('CONSUMER_GROUP_ID', 'explainability-api-group')
+ENABLE_KAFKA_CONSUMER = os.getenv('ENABLE_KAFKA_CONSUMER', 'true').lower() == 'true'
 
-# MongoDB client (global)
+# Globais
 mongo_client: Optional[AsyncIOMotorClient] = None
 db = None
+shap_calculator: Optional[ShapCalculator] = None
+quality_scorer: Optional[ExplanationQualityScorer] = None
+reasoning_extractor: Optional[ReasoningExtractor] = None
+api_extensions: Optional[ExplainabilityAPIExtensions] = None
+explanation_producer: Optional[ExplanationProducer] = None
+consensus_consumer: Optional[ConsensusDecisionConsumer] = None
 
 # Métricas Prometheus
 explainability_queries = Counter(
@@ -42,58 +66,150 @@ explainability_query_duration = Histogram(
     'Duração de consultas de explicabilidade',
     ['query_type']
 )
+explanations_generated = Counter(
+    'neural_hive_explanations_generated_total',
+    'Total de explicações geradas',
+    ['format']
+)
 
 
-@app.on_event('startup')
-async def startup_event():
-    """Inicialização do serviço."""
-    global mongo_client, db
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Gerencia ciclo de vida da aplicação.
+    """
+    global mongo_client, db, shap_calculator, quality_scorer, reasoning_extractor
+    global api_extensions, explanation_producer, consensus_consumer
+
+    # ========== STARTUP ==========
+    logger.info("starting_explainability_api", version="2.0.0", gaps04="enabled")
 
     # Inicializar observabilidade
     init_observability(service_name='explainability-api')
 
-    logger.info("starting_explainability_api", version="1.0.0")
-
     # Conectar ao MongoDB
-    mongo_uri = os.getenv('MONGODB_URI', 'mongodb://mongodb:27017')
-    mongo_client = AsyncIOMotorClient(mongo_uri)
+    mongo_client = AsyncIOMotorClient(MONGODB_URI)
     db = mongo_client['neural_hive']
+    logger.info("mongodb_connected", uri=MONGODB_URI)
 
-    logger.info("mongodb_connected", uri=mongo_uri)
+    # Inicializar serviços de ML
+    shap_calculator = ShapCalculator(n_samples=100)
+    quality_scorer = ExplanationQualityScorer(mongodb_client=mongo_client)
+    reasoning_extractor = ReasoningExtractor()
 
+    logger.info("ml_services_initialized")
 
-@app.on_event('shutdown')
-async def shutdown_event():
-    """Encerramento do serviço."""
-    global mongo_client
+    # Inicializar API Extensions
+    api_extensions = ExplainabilityAPIExtensions(
+        mongodb_client=mongo_client,
+        shap_calculator=shap_calculator,
+        quality_scorer=quality_scorer,
+        reasoning_extractor=reasoning_extractor
+    )
 
+    # Inicializar Kafka Producer
+    try:
+        explanation_producer = ExplanationProducer(
+            bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+            topic='consensus.explanations'
+        )
+        await explanation_producer.connect()
+        logger.info("explanation_producer_connected")
+    except Exception as e:
+        logger.warning("explanation_producer_connection_failed", error=str(e))
+
+    # Inicializar Kafka Consumer (se habilitado)
+    if ENABLE_KAFKA_CONSUMER:
+        try:
+            consensus_consumer = ConsensusDecisionConsumer(
+                bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+                group_id=CONSUMER_GROUP_ID,
+                explainability_service=api_extensions,
+                explanation_producer=explanation_producer,
+                input_topic='consensus.decision.created',
+                output_topic='consensus.explanations'
+            )
+            await consensus_consumer.connect()
+            await consensus_consumer.start_consuming()
+            logger.info("consensus_consumer_started")
+        except Exception as e:
+            logger.warning("consensus_consumer_start_failed", error=str(e))
+
+    logger.info("explainability_api_ready")
+
+    yield
+
+    # ========== SHUTDOWN ==========
     logger.info("shutting_down_explainability_api")
 
+    # Parar consumer
+    if consensus_consumer:
+        try:
+            await consensus_consumer.stop()
+            logger.info("consensus_consumer_stopped")
+        except Exception as e:
+            logger.error("consensus_consumer_stop_error", error=str(e))
+
+    # Desconectar producer
+    if explanation_producer:
+        try:
+            await explanation_producer.disconnect()
+            logger.info("explanation_producer_disconnected")
+        except Exception as e:
+            logger.error("explanation_producer_disconnect_error", error=str(e))
+
+    # Fechar MongoDB
     if mongo_client:
         mongo_client.close()
         logger.info("mongodb_connection_closed")
 
 
+# Inicializar FastAPI com lifespan
+app = FastAPI(
+    title="Explainability API",
+    description="API de explicações do Neural Hive-Mind (GAPS-04 Enhanced)",
+    version="2.0.0",
+    lifespan=lifespan
+)
+
+
+# ========== HEALTH ENDPOINTS ==========
+
 @app.get('/health')
 async def health_check():
-    """Health check."""
-    return {'status': 'healthy', 'service': 'explainability-api', 'timestamp': datetime.utcnow().isoformat()}
+    """Health check básico."""
+    return {
+        'status': 'healthy',
+        'service': 'explainability-api',
+        'version': '2.0.0',
+        'timestamp': datetime.utcnow().isoformat()
+    }
 
 
 @app.get('/ready')
 async def readiness_check():
-    """Readiness check - verifica conectividade com MongoDB."""
-    global mongo_client
+    """Readiness check - verifica conectividade."""
+    global mongo_client, explanation_producer
 
-    if not mongo_client:
-        raise HTTPException(status_code=503, detail="MongoDB client not initialized")
+    checks = {'mongodb': False, 'kafka_producer': False}
 
-    try:
-        await mongo_client.admin.command('ping')
-        return {'status': 'ready', 'mongodb': 'connected'}
-    except Exception as e:
-        logger.error("readiness_check_failed", error=str(e))
-        raise HTTPException(status_code=503, detail=f"MongoDB not ready: {str(e)}")
+    if mongo_client:
+        try:
+            await mongo_client.admin.command('ping')
+            checks['mongodb'] = True
+        except Exception:
+            pass
+
+    if explanation_producer and explanation_producer.producer:
+        checks['kafka_producer'] = True
+
+    all_ready = all(checks.values())
+    status_code = 200 if all_ready else 503
+
+    return JSONResponse(
+        status_code=status_code,
+        content={'status': 'ready' if all_ready else 'not_ready', 'checks': checks}
+    )
 
 
 @app.get('/metrics')
@@ -102,9 +218,11 @@ async def metrics():
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
+# ========== LEGACY ENDPOINTS (Compatibilidade) ==========
+
 @app.get('/api/v1/explainability/{token}')
 async def get_explainability_by_token(token: str):
-    """Consulta explicação por token."""
+    """Consulta explicação por token (legado)."""
     global db
 
     with explainability_query_duration.labels(query_type='by_token').time():
@@ -115,12 +233,8 @@ async def get_explainability_by_token(token: str):
                 explainability_queries.labels(query_type='by_token', status='not_found').inc()
                 raise HTTPException(status_code=404, detail=f"Explanation not found for token: {token}")
 
-            # Remover _id do MongoDB (não serializável)
             explanation.pop('_id', None)
-
             explainability_queries.labels(query_type='by_token', status='success').inc()
-
-            logger.info("explainability_query_success", token=token, method=explanation.get('method'))
 
             return explanation
 
@@ -132,63 +246,122 @@ async def get_explainability_by_token(token: str):
             raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 
-@app.get('/api/v1/explainability/by-plan/{plan_id}')
-async def get_explainability_by_plan(plan_id: str):
-    """Consulta explicações de um plano."""
-    global db
+# ========== GAPS-04 EXTENDED ENDPOINTS ==========
 
-    with explainability_query_duration.labels(query_type='by_plan').time():
+class GenerateExplanationRequest(BaseModel):
+    """Request para geração de explicação."""
+    decision_id: str
+    format: str = 'json'
+    include_shap: bool = False
+    include_reasoning_extraction: bool = False
+    include_quality_score: bool = True
+    specialist_votes: Optional[list] = None
+    reasoning_text: Optional[str] = None
+    final_decision: Optional[str] = None
+
+    class Config:
+        extra = 'allow'
+
+
+@app.get('/api/v2/explainability/{decision_id}')
+async def get_explanation_extended(decision_id: str):
+    """
+    Busca explicação extendida por decision_id (GAPS-04).
+
+    Inclui campos hierárquicos, SHAP values e quality scores.
+    """
+    global api_extensions
+
+    with explainability_query_duration.labels(query_type='extended').time():
         try:
-            explanations = await db.explainability_ledger.find({'plan_id': plan_id}).to_list(length=100)
+            explanation = await api_extensions.get_explainability_by_decision_id(decision_id)
 
-            if not explanations:
-                explainability_queries.labels(query_type='by_plan', status='not_found').inc()
-                return {'plan_id': plan_id, 'explanations': []}
+            if not explanation:
+                explainability_queries.labels(query_type='extended', status='not_found').inc()
+                raise HTTPException(status_code=404, detail=f"Explanation not found for decision_id: {decision_id}")
 
-            # Remover _id do MongoDB
-            for exp in explanations:
-                exp.pop('_id', None)
+            explainability_queries.labels(query_type='extended', status='success').inc()
+            logger.info("explanation_retrieved", decision_id=decision_id)
 
-            explainability_queries.labels(query_type='by_plan', status='success').inc()
+            return explanation
 
-            logger.info("explainability_query_success", plan_id=plan_id, count=len(explanations))
-
-            return {'plan_id': plan_id, 'explanations': explanations, 'count': len(explanations)}
-
+        except HTTPException:
+            raise
         except Exception as e:
-            explainability_queries.labels(query_type='by_plan', status='error').inc()
-            logger.error("explainability_query_error", plan_id=plan_id, error=str(e))
+            explainability_queries.labels(query_type='extended', status='error').inc()
+            logger.error("explanation_retrieval_error", decision_id=decision_id, error=str(e))
             raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 
-@app.get('/api/v1/explainability/by-decision/{decision_id}')
-async def get_explainability_by_decision(decision_id: str):
-    """Consulta explicações de uma decisão."""
-    global db
+@app.post('/api/v2/explainability/generate')
+async def generate_explanation_endpoint(request: GenerateExplanationRequest):
+    """
+    Gera nova explicação sob demanda (GAPS-04).
 
-    with explainability_query_duration.labels(query_type='by_decision').time():
+    Suporta múltiplos formatos (json, text, html) e features avançadas.
+    """
+    global api_extensions
+
+    with explainability_query_duration.labels(query_type='generate').time():
         try:
-            explanations = await db.explainability_ledger.find({'decision_id': decision_id}).to_list(length=100)
+            explanation = await api_extensions.generate_explanation(request.dict())
 
-            if not explanations:
-                explainability_queries.labels(query_type='by_decision', status='not_found').inc()
-                return {'decision_id': decision_id, 'explanations': []}
+            explanations_generated.labels(format=request.format).inc()
+            explainability_queries.labels(query_type='generate', status='success').inc()
 
-            # Remover _id do MongoDB
-            for exp in explanations:
-                exp.pop('_id', None)
+            logger.info(
+                "explanation_generated",
+                decision_id=request.decision_id,
+                format=request.format,
+                token=explanation.get('explainability_token')
+            )
 
-            explainability_queries.labels(query_type='by_decision', status='success').inc()
-
-            logger.info("explainability_query_success", decision_id=decision_id, count=len(explanations))
-
-            return {'decision_id': decision_id, 'explanations': explanations, 'count': len(explanations)}
+            return explanation
 
         except Exception as e:
-            explainability_queries.labels(query_type='by_decision', status='error').inc()
-            logger.error("explainability_query_error", decision_id=decision_id, error=str(e))
+            explainability_queries.labels(query_type='generate', status='error').inc()
+            logger.error("explanation_generation_error", decision_id=request.decision_id, error=str(e))
             raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
+
+@app.get('/api/v2/explainability/{decision_id}/format/{output_format}')
+async def get_explanation_formatted(decision_id: str, output_format: str):
+    """
+    Busca explicação em formato específico (GAPS-04).
+
+    Formatos suportados: json, text, html
+    """
+    global api_extensions
+
+    valid_formats = ['json', 'text', 'html']
+    if output_format not in valid_formats:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid format. Supported: {', '.join(valid_formats)}"
+        )
+
+    with explainability_query_duration.labels(query_type=f'format_{output_format}').time():
+        try:
+            explanation = await api_extensions.get_explainability_by_decision_id(decision_id)
+
+            if not explanation:
+                raise HTTPException(status_code=404, detail=f"Explanation not found for decision_id: {decision_id}")
+
+            formatted = api_extensions.format_explanation(explanation, output_format)
+
+            explainability_queries.labels(query_type='format', status='success').inc()
+
+            return formatted
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            explainability_queries.labels(query_type='format', status='error').inc()
+            logger.error("explanation_format_error", decision_id=decision_id, format=output_format, error=str(e))
+            raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
+
+# ========== STATS ENDPOINT ==========
 
 @app.get('/api/v1/explainability/stats')
 async def get_explainability_stats(
@@ -202,7 +375,6 @@ async def get_explainability_stats(
         try:
             pipeline = []
 
-            # Filtro de data (opcional)
             if start_date or end_date:
                 date_filter = {}
                 if start_date:
@@ -211,7 +383,6 @@ async def get_explainability_stats(
                     date_filter['$lte'] = datetime.fromisoformat(end_date)
                 pipeline.append({'$match': {'generated_at': date_filter}})
 
-            # Agregação por método
             pipeline.append({
                 '$group': {
                     '_id': '$method',
@@ -220,13 +391,9 @@ async def get_explainability_stats(
             })
 
             method_stats = await db.explainability_ledger.aggregate(pipeline).to_list(length=100)
-
-            # Total de explicações
             total = await db.explainability_ledger.count_documents({})
 
             explainability_queries.labels(query_type='stats', status='success').inc()
-
-            logger.info("explainability_stats_query_success", total=total)
 
             return {
                 'total_explanations': total,
@@ -239,6 +406,8 @@ async def get_explainability_stats(
             logger.error("explainability_stats_query_error", error=str(e))
             raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
+
+# ========== EXCEPTION HANDLER ==========
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
