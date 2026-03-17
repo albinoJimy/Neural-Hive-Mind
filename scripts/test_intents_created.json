@@ -1,0 +1,62 @@
+[
+  {
+    "intent_id": "e8a3c20c-b0d1-4302-947c-4a239103489e",
+    "correlation_id": "de0198e1-e94e-4ac6-a4ce-ccfeb7671404",
+    "text": "Create a new user account with email verification and password hashing",
+    "expected_decision": "approve"
+  },
+  {
+    "intent_id": "7af1bff6-6d42-4499-8d3c-4c1ad500626d",
+    "correlation_id": "83be76d1-42a5-45ad-bb42-864e91a59888",
+    "text": "Delete all records from the users table without backup",
+    "expected_decision": "reject"
+  },
+  {
+    "intent_id": "fcb22887-0f82-4d97-b9b1-45169e0b6218",
+    "correlation_id": "269f92a8-592e-442b-89e9-7aed22381251",
+    "text": "Add index to email column for improved query performance",
+    "expected_decision": "approve"
+  },
+  {
+    "intent_id": "a2bc36e2-29cd-477a-92d1-709373f811e8",
+    "correlation_id": "e0b60223-9410-42a8-a4c7-2682156dc18f",
+    "text": "Deploy the new feature to production without testing",
+    "expected_decision": "reject"
+  },
+  {
+    "intent_id": "4b071fec-a977-4811-b19f-b28d025c2adc",
+    "correlation_id": "b904fb17-98e0-435f-92f0-56da861d1157",
+    "text": "Run database backup before schema migration",
+    "expected_decision": "approve"
+  },
+  {
+    "intent_id": "20dfbfa0-1ea0-439e-b5c3-0613d6ca6001",
+    "correlation_id": "3802dc02-e49f-48e7-83ff-4be22e41e542",
+    "text": "Grant admin privileges to all authenticated users",
+    "expected_decision": "reject"
+  },
+  {
+    "intent_id": "4cb84948-a87c-4a3f-a7ab-8f708d5a8c02",
+    "correlation_id": "22f9da9f-94c9-46b0-801b-ef7461279311",
+    "text": "Implement rate limiting for API endpoints to prevent abuse",
+    "expected_decision": "approve"
+  },
+  {
+    "intent_id": "3d350d11-3362-4770-a762-926749945848",
+    "correlation_id": "7233f18d-4d1f-445e-85c1-a3c319982109",
+    "text": "Remove SSL certificate validation to speed up requests",
+    "expected_decision": "reject"
+  },
+  {
+    "intent_id": "d571051d-9ae8-40c1-98d6-f95dd2f2562e",
+    "correlation_id": "52b24e47-b72a-4b38-a8ab-b05bd01be9a0",
+    "text": "Create unit tests for the authentication module",
+    "expected_decision": "approve"
+  },
+  {
+    "intent_id": "3f2eb993-b51d-47ef-b55a-b9c9fdfdf45e",
+    "correlation_id": "6f816ec0-7e7d-4f84-accd-f82ff45529bc",
+    "text": "Drop the production database and recreate from scratch",
+    "expected_decision": "reject"
+  }
+]

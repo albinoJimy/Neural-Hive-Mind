@@ -1,0 +1,66 @@
+{
+  "generic": {
+    "security_score": 0.2,
+    "performance_score": 0.2,
+    "code_quality_score": 0.0,
+    "architecture_score": 0.0,
+    "overall_score": 0.11,
+    "confidence_score": 0.067,
+    "mitigations": [
+      {
+        "mitigation_id": "841dc6e5-72e0-489c-bd5c-6181ea139c8b",
+        "description": "Adicionar sanitização de inputs e proteção contra injection",
+        "priority": "high",
+        "category": "security"
+      }
+    ],
+    "total_keywords_found": 2,
+    "words_per_task": 2.0
+  },
+  "enriched": {
+    "security_score": 1.0,
+    "performance_score": 0.8,
+    "code_quality_score": 1.0,
+    "architecture_score": 0.8,
+    "overall_score": 0.91,
+    "confidence_score": 0.95,
+    "mitigations": [
+      {
+        "mitigation_id": "288c00fd-8d88-4c2e-8c5d-5f64479cae0e",
+        "description": "Implementar validação de tokens e rotação de credenciais",
+        "priority": "high",
+        "category": "security"
+      },
+      {
+        "mitigation_id": "962becb6-69e8-4fe3-811b-d2d33128450b",
+        "description": "Adicionar sanitização de inputs e proteção contra injection",
+        "priority": "high",
+        "category": "security"
+      },
+      {
+        "mitigation_id": "e76b0cf0-84c2-4585-bb06-69ab7fb064f9",
+        "description": "Configurar política de cache e índices de banco de dados",
+        "priority": "medium",
+        "category": "performance"
+      },
+      {
+        "mitigation_id": "6c8b9dbc-5116-484d-b54b-80cc6aa441e4",
+        "description": "Implementar testes unitários e de integração com cobertura mínima",
+        "priority": "medium",
+        "category": "quality"
+      }
+    ],
+    "total_keywords_found": 24,
+    "words_per_task": 28.5
+  },
+  "improvements": {
+    "security_score": 0.8,
+    "performance_score": 0.6000000000000001,
+    "code_quality_score": 1.0,
+    "architecture_score": 0.8,
+    "overall_score": 0.8,
+    "confidence_score": 0.883,
+    "mitigations_count": 3,
+    "keywords_found": 22
+  }
+}
