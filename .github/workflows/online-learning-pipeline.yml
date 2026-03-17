@@ -116,37 +116,8 @@ jobs:
         run: |
           python -m ml_pipelines.online_learning.cli status --json
 
-      - name: Notificar Slack em caso de falha
-        if: failure()
-        uses: slackapi/slack-github-action@v1.24.0
-        with:
-          payload: |
-            {
-              "channel": "#ml-alerts",
-              "text": "Online Learning Pipeline falhou",
-              "attachments": [
-                {
-                  "color": "danger",
-                  "fields": [
-                    {
-                      "title": "Acao",
-                      "value": "${{ github.event.inputs.action || 'scheduled update' }}",
-                      "short": true
-                    },
-                    {
-                      "title": "Specialist",
-                      "value": "${{ github.event.inputs.specialist_type || 'all' }}",
-                      "short": true
-                    },
-                    {
-                      "title": "Run",
-                      "value": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Ver logs>",
-                      "short": false
-                    }
-                  ]
-                }
-              ]
-            }
+      # REMOVIDO: Notificação Slack removida pois requer SLACK_BOT_TOKEN ou SLACK_WEBHOOK_URL
+      # Configurar secrets no GitHub para reactivar se necessário
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

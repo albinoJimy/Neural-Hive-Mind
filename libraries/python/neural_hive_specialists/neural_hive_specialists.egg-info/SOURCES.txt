@@ -1,3 +1,4 @@
+README.md
 __init__.py
 ab_testing_specialist.py
 auth_interceptor.py
@@ -20,19 +21,24 @@ setup.py
 ./ab_testing_specialist.py
 ./auth_interceptor.py
 ./base_specialist.py
+./batch_evaluator.py
 ./cached_specialist.py
 ./config.py
 ./ensemble_specialist.py
 ./explainability_generator.py
+./feature_cache.py
 ./feature_store.py
+./gpu_inference.py
 ./grpc_server.py
 ./ledger_client.py
 ./metrics.py
 ./mlflow_client.py
 ./multi_tenant_specialist.py
+./online_learning_client.py
 ./opinion_cache.py
 ./probabilistic_wrapper.py
 ./schemas.py
+./sklearn_compat.py
 ./compliance/__init__.py
 ./compliance/audit_logger.py
 ./compliance/compliance_layer.py
@@ -55,6 +61,7 @@ setup.py
 ./feature_extraction/embeddings_generator.py
 ./feature_extraction/feature_extractor.py
 ./feature_extraction/graph_analyzer.py
+./feature_extraction/nlp_feature_extractor.py
 ./feature_extraction/ontology_mapper.py
 ./feedback/__init__.py
 ./feedback/feedback_api.py
@@ -157,6 +164,7 @@ tests/test_auth_integration.py
 tests/test_auth_interceptor.py
 tests/test_base_specialist.py
 tests/test_batch_evaluation.py
+tests/test_batch_evaluator.py
 tests/test_benchmark_lime.py
 tests/test_benchmark_shap.py
 tests/test_business_metrics_collector.py
@@ -171,9 +179,11 @@ tests/test_evidently_monitor.py
 tests/test_explainability_generator.py
 tests/test_explainability_integration.py
 tests/test_explainability_ledger_v2.py
+tests/test_feature_cache.py
 tests/test_feedback_api.py
 tests/test_feedback_collector.py
 tests/test_field_encryptor.py
+tests/test_gpu_inference.py
 tests/test_grpc_server.py
 tests/test_grpc_server_timestamp.py
 tests/test_health_checks.py

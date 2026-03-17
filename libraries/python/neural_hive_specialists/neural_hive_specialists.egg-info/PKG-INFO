@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: neural-hive-specialists
-Version: 1.0.9
+Version: 1.0.10
 Summary: Biblioteca compartilhada para especialistas neurais do Neural Hive-Mind
 Author: Neural Hive-Mind Team
 Requires-Python: >=3.11
@@ -14,6 +14,7 @@ Requires-Dist: opentelemetry-api>=1.21.0
 Requires-Dist: prometheus-client>=0.19.0
 Requires-Dist: tenacity>=8.2.3
 Requires-Dist: circuitbreaker>=1.4.0
+Requires-Dist: neural-hive-domain>=1.0.0
 Provides-Extra: explainability
 Requires-Dist: shap>=0.44.0; extra == "explainability"
 Requires-Dist: lime>=0.2.0.1; extra == "explainability"
