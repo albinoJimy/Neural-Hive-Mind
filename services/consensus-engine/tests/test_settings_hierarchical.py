@@ -86,11 +86,11 @@ class TestHierarchicalConsensusSettings:
         from src.config.settings import Settings
         from pydantic import ValidationError
 
-        # Deve levantar ValidationError ao criar Settings com nível inválido
+        # Deve levantar ValidationError para nível inválido
         with pytest.raises(ValidationError) as exc_info:
-            settings = Settings()
+            Settings()
 
-        # Verificar mensagem de erro contém informações úteis
+        # Verificar que a mensagem de erro menciona o nível inválido
         assert 'invalid_level' in str(exc_info.value)
         assert 'business' in str(exc_info.value)
 
@@ -169,11 +169,6 @@ class TestHierarchicalConsensusIntegration:
         class UnifiedDomain(str, Enum):
             BUSINESS = 'BUSINESS'
             TECHNICAL = 'TECHNICAL'
-            SECURITY = 'SECURITY'
-            INFRASTRUCTURE = 'INFRASTRUCTURE'
-            BEHAVIOR = 'BEHAVIOR'
-            OPERATIONAL = 'OPERATIONAL'
-            COMPLIANCE = 'COMPLIANCE'
             ARCHITECTURE = 'ARCHITECTURE'
 
         import sys

@@ -14,6 +14,12 @@ from enum import Enum
 class UnifiedDomain(str, Enum):
     BUSINESS = 'BUSINESS'
     TECHNICAL = 'TECHNICAL'
+    SECURITY = 'SECURITY'
+    INFRASTRUCTURE = 'INFRASTRUCTURE'
+    BEHAVIOR = 'BEHAVIOR'
+    OPERATIONAL = 'OPERATIONAL'
+    COMPLIANCE = 'COMPLIANCE'
+    ARCHITECTURE = 'ARCHITECTURE'
 
 class DomainMapper:
     @staticmethod

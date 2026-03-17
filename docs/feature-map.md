@@ -2,7 +2,7 @@
 
 **Projecto:** Neural-Hive-Mind
 **Última Actualização:** 2026-03-17
-**Completude Global:** ~78%
+**Completude Global:** ~79%
 
 ---
 
@@ -87,12 +87,12 @@
 - [x] Campo `original_intent_text` implementado
 - [ ] Multi-idioma
 
-### Consensus Engine (90%)
+### Consensus Engine (100%)
 - [x] Consenso ponderado
 - [x] Deduplicação de opiniões
 - [x] Logging detalhado
 - [x] Integração Kafka
-- [ ] Consenso hierárquico
+- [x] Consenso hierárquico (GAPS-03) - 5 níveis de senioridade, 68 testes
 
 ### Orchestrator Dynamic (80%)
 - [x] Conversão Plans → Tickets

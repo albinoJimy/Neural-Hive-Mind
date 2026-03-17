@@ -5,49 +5,12 @@ TDD: Testes escritos antes da implementação.
 """
 
 import pytest
-import sys
-from pathlib import Path
-from unittest.mock import Mock, MagicMock
-from enum import Enum
+from unittest.mock import Mock
+from src.services.hierarchical_weights import HierarchicalWeightCalculator
+from src.models.seniority import SeniorityLevel
 
-# Set up UnifiedDomain mock BEFORE any imports
-class UnifiedDomain(str, Enum):
-    BUSINESS = 'BUSINESS'
-    TECHNICAL = 'TECHNICAL'
-    SECURITY = 'SECURITY'
-    INFRASTRUCTURE = 'INFRASTRUCTURE'
-    BEHAVIOR = 'BEHAVIOR'
-    OPERATIONAL = 'OPERATIONAL'
-    COMPLIANCE = 'COMPLIANCE'
-    ARCHITECTURE = 'ARCHITECTURE'
-
-mock_domain = MagicMock()
-mock_domain.UnifiedDomain = UnifiedDomain
-sys.modules['neural_hive_domain'] = mock_domain
-
-# Add src directly to path to avoid __init__.py imports
-sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
-
-# Importar módulos diretamente, não através do pacote
-import importlib.util
-
-# Load hierarchical_weights directly
-spec = importlib.util.spec_from_file_location(
-    "hierarchical_weights",
-    Path(__file__).parent.parent / 'src' / 'services' / 'hierarchical_weights.py'
-)
-hierarchical_weights_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(hierarchical_weights_module)
-HierarchicalWeightCalculator = hierarchical_weights_module.HierarchicalWeightCalculator
-
-# Load seniority directly
-spec2 = importlib.util.spec_from_file_location(
-    "seniority",
-    Path(__file__).parent.parent / 'src' / 'models' / 'seniority.py'
-)
-seniority_module = importlib.util.module_from_spec(spec2)
-spec2.loader.exec_module(seniority_module)
-SeniorityLevel = seniority_module.SeniorityLevel
+# UnifiedDomain é mockado no conftest
+from neural_hive_domain import UnifiedDomain
 
 
 class TestHierarchicalWeightCalculator:
@@ -91,8 +54,8 @@ class TestHierarchicalWeightCalculator:
             pheromone_weight=1.0,
             seniority=SeniorityLevel.EXPERT
         )
-        # weight = 1.0 (pheromone) × 2.0 (expert) × 0.30 (domain) = 0.6 → min(1.0, 0.6/2.0) = 0.3
-        assert weight > 0.25  # ~0.3 expected
+        # weight = 1.0 (pheromone) × 2.0 (expert) × 0.30 (domain) = 0.6 → 0.6/2 = 0.3 normalizado
+        assert weight > 0.25  # Deve ser ~0.3
 
     def test_calculate_weight_for_trainee(self, calculator):
         """Trainee deve ter peso reduzido."""
