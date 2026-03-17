@@ -16,6 +16,7 @@ from src.observability.metrics import ConsensusMetrics as ObservabilityMetrics
 from src.services.bayesian_aggregator import BayesianAggregator
 from src.services.voting_ensemble import VotingEnsemble
 from src.services.compliance_fallback import ComplianceFallback
+from src.services.hierarchical_weights import HierarchicalWeightCalculator
 
 logger = structlog.get_logger()
 
@@ -29,6 +30,9 @@ class ConsensusOrchestrator:
         self.bayesian = BayesianAggregator(config)
         self.voting = VotingEnsemble(config)
         self.compliance = ComplianceFallback(config)
+
+        # Inicializar calculadora de pesos hierárquicos (GAPS-03-05)
+        self.hierarchical = HierarchicalWeightCalculator(config)
 
     async def process_consensus(
         self,
@@ -142,7 +146,11 @@ class ConsensusOrchestrator:
             fallback_used=(consensus_method == ConsensusMethod.FALLBACK),
             pheromone_strength=pheromone_strength,
             bayesian_confidence=aggregated_confidence,
-            voting_confidence=vote_distribution.get(final_recommendation, 0.0)
+            voting_confidence=vote_distribution.get(final_recommendation, 0.0),
+            # Campos hierárquicos (GAPS-03-05)
+            weighted_by_seniority=self.config.enable_hierarchical_consensus,
+            seniority_distribution=self._calculate_seniority_distribution(specialist_opinions),
+            consensus_method_hierarchical=self.config.enable_hierarchical_consensus
         )
 
         # 9. Construir decisão consolidada
@@ -245,7 +253,7 @@ class ConsensusOrchestrator:
         cognitive_plan: Dict[str, Any],
         specialist_opinions: List[Dict[str, Any]]
     ) -> Dict[str, float]:
-        '''Calcula pesos dinâmicos baseados em feromônios'''
+        '''Calcula pesos dinâmicos baseados em feromônios e senioridade (GAPS-03-05)'''
         weights = {}
         # FIX BUG-002: Usar 'original_domain' (campo correto do schema Avro) em vez de 'domain'
         domain_str = cognitive_plan.get('original_domain', 'BUSINESS')
@@ -264,19 +272,51 @@ class ConsensusOrchestrator:
         for opinion in specialist_opinions:
             specialist_type = opinion['specialist_type']
 
+            # 1. Obter peso base de feromônio
             if self.config.enable_pheromones and self.pheromone_client:
-                weight = await self.pheromone_client.calculate_dynamic_weight(
+                pheromone_weight = await self.pheromone_client.calculate_dynamic_weight(
                     specialist_type,
                     domain,
                     base_weight=0.2
                 )
             else:
-                # Peso estático se feromônios desabilitados
-                weight = 0.2
+                pheromone_weight = 0.2
+
+            # 2. Aplicar peso hierárquico se habilitado (GAPS-03-05)
+            if self.config.enable_hierarchical_consensus:
+                # Obter senioridade da opinião ou da configuração
+                seniority = None
+                if 'seniority_level' in opinion:
+                    from src.models.seniority import parse_seniority_level
+                    try:
+                        seniority = parse_seniority_level(opinion['seniority_level'])
+                    except ValueError:
+                        logger.warning(
+                            'invalid_seniority_level_in_opinion',
+                            specialist_type=specialist_type,
+                            seniority_level=opinion['seniority_level'],
+                            using_config_default=True
+                        )
+
+                # Calcular peso hierárquico
+                weight = self.hierarchical.calculate_hierarchical_weight(
+                    specialist_type=specialist_type,
+                    domain=domain,
+                    pheromone_weight=pheromone_weight,
+                    seniority=seniority
+                )
+            else:
+                # Sem hierarquia, usa apenas peso de feromônio
+                weight = pheromone_weight
 
             weights[specialist_type] = weight
 
-        logger.debug('Pesos dinâmicos calculados', weights=weights, domain=domain.value)
+        logger.debug(
+            'Pesos dinâmicos calculados',
+            weights=weights,
+            domain=domain.value,
+            hierarchical_enabled=self.config.enable_hierarchical_consensus
+        )
         return weights
 
     async def _get_average_pheromone_strength(
@@ -339,11 +379,45 @@ class ConsensusOrchestrator:
         specialist_opinions: List[Dict[str, Any]],
         weights: Dict[str, float]
     ) -> List[SpecialistVote]:
-        '''Constrói lista de votos estruturados'''
+        '''Constrói lista de votos estruturados (GAPS-03-05: com campos de senioridade)'''
         votes = []
         for opinion in specialist_opinions:
             specialist_type = opinion['specialist_type']
             op = opinion['opinion']
+
+            # Obter senioridade (GAPS-03-05)
+            seniority_level = None
+            seniority_multiplier = None
+
+            if self.config.enable_hierarchical_consensus:
+                # Primeiro tentar da opinião
+                if 'seniority_level' in opinion:
+                    from src.models.seniority import parse_seniority_level, SENIORITY_MULTIPLIERS
+                    try:
+                        seniority = parse_seniority_level(opinion['seniority_level'])
+                        seniority_level = seniority.value
+                        seniority_multiplier = SENIORITY_MULTIPLIERS.get(seniority)
+                    except ValueError:
+                        # Fallback para configuração
+                        config_seniority = self.config.specialist_seniority.get(specialist_type)
+                        if config_seniority:
+                            try:
+                                seniority = parse_seniority_level(config_seniority)
+                                seniority_level = seniority.value
+                                seniority_multiplier = SENIORITY_MULTIPLIERS.get(seniority)
+                            except ValueError:
+                                pass
+                else:
+                    # Usar configuração padrão
+                    from src.models.seniority import parse_seniority_level, SENIORITY_MULTIPLIERS
+                    config_seniority = self.config.specialist_seniority.get(specialist_type)
+                    if config_seniority:
+                        try:
+                            seniority = parse_seniority_level(config_seniority)
+                            seniority_level = seniority.value
+                            seniority_multiplier = SENIORITY_MULTIPLIERS.get(seniorior)
+                        except ValueError:
+                            pass
 
             vote = SpecialistVote(
                 specialist_type=specialist_type,
@@ -352,7 +426,9 @@ class ConsensusOrchestrator:
                 risk_score=op['risk_score'],
                 recommendation=op['recommendation'],
                 weight=weights.get(specialist_type, 0.2),
-                processing_time_ms=opinion.get('processing_time_ms', 0)
+                processing_time_ms=opinion.get('processing_time_ms', 0),
+                seniority_level=seniority_level,
+                seniority_multiplier=seniority_multiplier
             )
             votes.append(vote)
 
@@ -378,6 +454,41 @@ class ConsensusOrchestrator:
             summary += f"Guardrails acionados: {len(violations)}. "
 
         return summary
+
+    def _calculate_seniority_distribution(self, specialist_opinions: List[Dict[str, Any]]) -> Dict[str, int]:
+        '''Calcula distribuição de votos por nível de senioridade (GAPS-03-05)
+
+        Args:
+            specialist_opinions: Lista de opiniões dos especialistas
+
+        Returns:
+            Dicionário contando votos por nível de senioridade
+        '''
+        distribution = {
+            'trainee': 0,
+            'junior': 0,
+            'mid_level': 0,
+            'senior': 0,
+            'expert': 0
+        }
+
+        for opinion in specialist_opinions:
+            # Tentar obter senioridade da opinião ou da configuração
+            seniority_str = opinion.get('seniority_level')
+            if not seniority_str:
+                seniority_str = self.config.specialist_seniority.get(
+                    opinion['specialist_type'],
+                    'mid_level'
+                )
+
+            # Normalizar para lowercase
+            seniority_str = seniority_str.lower() if seniority_str else 'mid_level'
+
+            if seniority_str in distribution:
+                distribution[seniority_str] += 1
+
+        # Remover entradas com zero
+        return {k: v for k, v in distribution.items() if v > 0}
 
     async def _publish_pheromones(
         self,

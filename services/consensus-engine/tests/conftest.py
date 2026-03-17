@@ -10,8 +10,17 @@ from unittest.mock import Mock, MagicMock, AsyncMock
 from datetime import datetime, timezone
 import uuid
 
-from google.protobuf.timestamp_pb2 import Timestamp
-from neural_hive_specialists.proto_gen import specialist_pb2, specialist_pb2_grpc
+# Imports opcionais - permitem rodar testes sem todas as dependências
+try:
+    from google.protobuf.timestamp_pb2 import Timestamp
+    from neural_hive_specialists.proto_gen import specialist_pb2, specialist_pb2_grpc
+    PROTOBUF_AVAILABLE = True
+except ImportError:
+    PROTOBUF_AVAILABLE = False
+    # Criar mocks para substituir quando não disponível
+    Timestamp = Mock
+    specialist_pb2 = MagicMock()
+    specialist_pb2_grpc = MagicMock()
 
 
 # ===========================
