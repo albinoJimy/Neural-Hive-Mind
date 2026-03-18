@@ -6,7 +6,7 @@
   - [x] 1.1 Escrever testes para OptimizationConsumer
   - [x] 1.2 Criar estrutura do serviço `services/optimizer-agents/`
   - [x] 1.3 Implementar Kafka consumer para `ticket.completed`
-  - [ ] 1.4 Implementar integração HTTPMCPClient com optimizer-mcp-server
+  - [x] 1.4 Implementar integração HTTPMCPClient com optimizer-mcp-server
   - [x] 1.5 Criar MongoDB repository para `optimization_recommendations`
   - [x] 1.6 Implementar migration `m001_optimization_recommendations.py`
   - [x] 1.7 Verificar todos os testes passam
@@ -67,7 +67,7 @@
 
 **CONCLUÍDO:** Tasks 1-6, Task 7 (parcial)
 
-**Total de testes:** 56 passando (15 integração + 4 orchestrator + 14 auto-applier + 11 migration + 12 E2E)
+**Total de testes:** 69 passando (13 MCP client + 15 integração + 4 orchestrator + 14 auto-applier + 11 migration + 12 E2E)
 
 **Componentes implementados:**
 - Multi-database analyzers (MongoDB, PostgreSQL, Neo4j, Redis, ClickHouse, Code)
@@ -77,8 +77,8 @@
 - Auto-apply mechanism com validação de segurança
 - Orchestrator hook para publicação de eventos
 - Helm chart para Kubernetes deploy
+- **HTTPMCPClient para integração com optimizer-mcp-server**
 
 **Pendentes (opcional):**
-- MCP Server integration (Task 1.4)
 - Deploy em cluster (Task 7.4)
 - Validação E2E em cluster (Task 7.5)

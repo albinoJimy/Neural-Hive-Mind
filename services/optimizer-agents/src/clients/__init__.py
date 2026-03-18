@@ -10,6 +10,17 @@ from src.clients.orchestrator_grpc_client import OrchestratorGrpcClient
 from src.clients.queen_agent_grpc_client import QueenAgentGrpcClient
 from src.clients.redis_client import RedisClient
 from src.clients.service_registry_client import ServiceRegistryClient
+from src.clients.optimizer_mcp_client import (
+    OptimizerMCPClient,
+    SyncOptimizerMCPClient,
+    OptimizerMCPClientError,
+    FileAnalysisResult,
+    DirectoryAnalysisResult,
+    RecommendationsResult,
+    OptimizationIssue,
+    OptimizationRecommendation,
+    FileMetrics,
+)
 
 __all__ = [
     "AnalystAgentsGrpcClient",
@@ -22,4 +33,13 @@ __all__ = [
     "QueenAgentGrpcClient",
     "RedisClient",
     "ServiceRegistryClient",
+    "OptimizerMCPClient",
+    "SyncOptimizerMCPClient",
+    "OptimizerMCPClientError",
+    "FileAnalysisResult",
+    "DirectoryAnalysisResult",
+    "RecommendationsResult",
+    "OptimizationIssue",
+    "OptimizationRecommendation",
+    "FileMetrics",
 ]
