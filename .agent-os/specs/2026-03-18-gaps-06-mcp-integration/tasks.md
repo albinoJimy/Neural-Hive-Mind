@@ -47,13 +47,13 @@
   - [x] 5.6 Implementar TTL em mcp_tool_executions
   - [x] 5.7 Verificar todos os testes passam
 
-- [ ] 6. REST API - Endpoints MCP Queen Agent
-  - [ ] 6.1 Write tests para MCP Router
-  - [ ] 6.2 Implementar POST /api/v1/mcp/execute
-  - [ ] 6.3 Implementar GET /api/v1/mcp/tools
-  - [ ] 6.4 Implementar POST /api/v1/mcp/tools/{server}/execute
-  - [ ] 6.5 Implementar error handlers
-  - [ ] 6.6 Verificar todos os testes passam
+- [x] 6. REST API - Endpoints MCP Queen Agent ✅
+  - [x] 6.1 Write tests para MCP Router
+  - [x] 6.2 Implementar POST /api/v1/mcp/execute
+  - [x] 6.3 Implementar GET /api/v1/mcp/tools
+  - [x] 6.4 Implementar POST /api/v1/mcp/tools/{server}/execute
+  - [x] 6.5 Implementar error handlers
+  - [x] 6.6 Verificar todos os testes passam
 
 - [x] 7. Testes de Integração E2E ✅
   - [x] 7.1 Escrever teste E2E: Scout MCP → Queen Agent → Result
