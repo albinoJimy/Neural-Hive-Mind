@@ -14,6 +14,7 @@ from ..models.insight_extended import (
     AnalysisType,
     InsightSource,
     TimeSeriesCacheEntry,
+    InsightMetrics,
 )
 
 logger = structlog.get_logger()
@@ -50,6 +51,13 @@ class InsightRepository:
         doc["status"] = InsightStatus.PENDING
         doc["created_at"] = datetime.utcnow()
         doc["expires_at"] = datetime.utcnow() + timedelta(days=self.ttl_days)
+
+        # Initialize default metrics (required field)
+        doc["metrics"] = InsightMetrics(
+            processing_time_ms=0,
+            confidence_score=0.0,
+            data_points=0,
+        ).dict()
 
         await self._db[self.collection].insert_one(doc)
 

@@ -262,6 +262,10 @@ class MCPIntegration:
         """
         health = {"scout": False, "optimizer": False}
 
+        # Check if client is initialized
+        if not self._client:
+            return health
+
         # Check scout
         try:
             response = await self._client.get(f"{self.scout_url}/health")

@@ -22,10 +22,12 @@ from ..models.insight_extended import (
     AnalysisType,
     InsightSource,
     InsightStatus,
+    InsightMetadata,
 )
 from ..repositories.insight_repository import InsightRepository
 from ..services.timeseries_analyzer import TimeSeriesAnalyzer
 from ..services.mcp_integration import MCPIntegration
+from ..utils.export_utils import export_insight
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -161,8 +163,8 @@ async def create_query(query: AnalyticsQueryRequest, request: Request):
 @router.get("/analytics/insights/{insight_id}/export")
 async def export_insight(
     insight_id: str,
-    format: str = Query("json", regex="^(json|csv|pdf)$", description="Formato de exportação"),
     request: Request,
+    format: str = Query("json", regex="^(json|csv|pdf)$", description="Formato de exportação"),
 ):
     """Exportar insight em formato específico (JSON/CSV/PDF)."""
     try:
@@ -173,24 +175,22 @@ async def export_insight(
         if not insight:
             raise HTTPException(status_code=404, detail="Insight not found")
 
-        if format == "json":
-            return insight.dict()
+        # Use export utility
+        media_type, content = export_insight(insight, format)
+        filename = f"insight_{insight_id[:8]}_{format}"
 
-        elif format == "csv":
-            # Simplified CSV export
-            csv_content = f"ID,Timestamp,Type,Title,Status\n"
-            csv_content += f"{insight.insight_id},{insight.created_at.isoformat()},{insight.analysis_type},{insight.title},{insight.status}\n"
-            return Response(content=csv_content, media_type="text/csv")
-
-        elif format == "pdf":
-            # Simplified PDF export (in real implementation, use reportlab)
-            pdf_content = f"Insight: {insight.title}\n\n{insight.description}\n\n"
-            pdf_content += f"Type: {insight.analysis_type}\n"
-            pdf_content += f"Created: {insight.created_at.isoformat()}\n"
-            return Response(content=pdf_content, media_type="application/pdf")
+        return Response(
+            content=content,
+            media_type=media_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
 
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error("export_insight_failed", insight_id=insight_id, error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
@@ -234,10 +234,10 @@ async def get_analytics_metrics(request: Request):
 @router.get("/analytics/timeseries/{metric_name}", response_model=TimeSeriesResponse)
 async def get_timeseries(
     metric_name: str,
+    request: Request,
     start: datetime = Query(..., description="Data inicial"),
     end: datetime = Query(..., description="Data final"),
     resolution: str = Query("5m", regex="^(1m|5m|1h|1d)$", description="Resolução"),
-    request: Request,
 ):
     """Obter série temporal de métrica específica."""
     try:
@@ -273,11 +273,11 @@ async def get_timeseries(
 @router.get("/analytics/timeseries/{metric_name}/anomalies", response_model=AnomalyDetectionResponse)
 async def detect_timeseries_anomalies(
     metric_name: str,
+    request: Request,
     start: datetime = Query(..., description="Data inicial"),
     end: datetime = Query(..., description="Data final"),
     method: str = Query("zscore", regex="^(zscore|iqr|moving_avg)$", description="Método de detecção"),
     threshold: float = Query(2.5, ge=1.0, le=5.0, description="Limiar de anomalia"),
-    request: Request,
 ):
     """Detectar anomalias em série temporal."""
     try:
@@ -321,8 +321,8 @@ async def detect_timeseries_anomalies(
 
 @router.get("/analytics/dashboard", response_model=DashboardData)
 async def get_dashboard_data(
-    time_range: str = Query("24h", regex="^(1h|6h|24h|7d)$", description="Range de tempo"),
     request: Request,
+    time_range: str = Query("24h", regex="^(1h|6h|24h|7d)$", description="Range de tempo"),
 ):
     """Dados agregados para dashboard Grafana."""
     try:

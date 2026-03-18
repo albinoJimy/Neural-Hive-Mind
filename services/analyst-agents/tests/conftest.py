@@ -7,9 +7,14 @@ from datetime import datetime, timedelta
 from motor.motor_asyncio import AsyncIOMotorClient
 import sys
 import os
+from unittest.mock import MagicMock
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+# Mock problematic modules before importing
+sys.modules['src.services.embedding_service'] = MagicMock()
+sys.modules['src.services.code_analyzer'] = MagicMock()
 
 from src.models.insight_extended import (
     InsightCreate,
@@ -21,7 +26,8 @@ from src.models.insight_extended import (
     InsightMetrics,
 )
 from src.repositories.insight_repository import InsightRepository
-# Importar direto para evitar conflito de dependências
+
+# Importar serviços diretamente
 import src.services.timeseries_analyzer as ts_module
 TimeSeriesAnalyzer = ts_module.TimeSeriesAnalyzer
 import src.services.mcp_integration as mcp_module
