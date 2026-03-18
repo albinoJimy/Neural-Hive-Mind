@@ -91,12 +91,14 @@ spec:
           value: {{ .Values.env.MAX_WEIGHT_ADJUSTMENT | quote }}
         - name: ENABLE_AUTO_APPROVAL
           value: {{ .Values.env.ENABLE_AUTO_APPROVAL | quote }}
-        {{- range $key, $value := .Values.env }}
-        {{- if not (hasKey $env "ENVIRONMENT" | hasKey $value "KAFKA" | hasKey $value "MONGODB" | hasKey $value "REDIS" | hasKey $value "MLFLOW" | hasKey $value "MIN_" | hasKey $value "MAX_" | hasKey $value "ENABLE_") }}
-        - name: {{ $key }}
-          value: {{ $value | quote }}
-        {{- end }}
-        {{- end }}
+        - name: REQUIRE_QUEEN_APPROVAL
+          value: {{ .Values.env.REQUIRE_QUEEN_APPROVAL | quote }}
+        - name: EXPERIMENT_TIMEOUT_SECONDS
+          value: {{ .Values.env.EXPERIMENT_TIMEOUT_SECONDS | quote }}
+        - name: OTEL_ENDPOINT
+          value: {{ .Values.env.OTEL_ENDPOINT | quote }}
+        - name: PROMETHEUS_PORT
+          value: {{ .Values.env.PROMETHEUS_PORT | quote }}
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
         {{- with .Values.probes.liveness }}
