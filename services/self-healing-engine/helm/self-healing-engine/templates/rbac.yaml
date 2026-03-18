@@ -1,0 +1,106 @@
+{{- if .Values.rbac.create }}
+{{- if .Values.rbac.serviceAccount.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "self-healing-engine.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "self-healing-engine.labels" . | nindent 4 }}
+{{- end }}
+---
+{{- if .Values.rbac.role.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "self-healing-engine.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "self-healing-engine.labels" . | nindent 4 }}
+rules:
+  # Permite ler pods e pods metrics para detecção de problemas
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+
+  # Permite ler e deletar pods para recuperação
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete", "create"]
+
+  # Permite ler ConfigMaps e Secrets
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list"]
+
+  # Permite ler eventos para debugging
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch", "create"]
+
+  # Permite ler deployments para health checks
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+
+  # Permite ler/metricas de pods
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "self-healing-engine.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "self-healing-engine.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "self-healing-engine.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ include "self-healing-engine.fullname" . }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+---
+{{- if .Values.rbac.clusterRole.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "self-healing-engine.fullname" . }}
+  labels:
+    {{- include "self-healing-engine.labels" . | nindent 4 }}
+rules:
+  # Permite ler nodes para node-level health checks
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+
+  # Permite ler namespaces para cross-namespace operations
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]
+
+  # Permite ler custom resources
+  - apiGroups: ["custom.metrics.k8s.io"]
+    resources: ["*"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "self-healing-engine.fullname" . }}
+  labels:
+    {{- include "self-healing-engine.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "self-healing-engine.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ include "self-healing-engine.fullname" . }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+{{- end }}

@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: self-healing-engine
+  namespace: neural-hive-orchestration
+  labels:
+    app: self-healing-engine
+    component: governance
+    layer: strategic
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: self-healing-engine
+  template:
+    metadata:
+      labels:
+        app: self-healing-engine
+        component: governance
+        layer: strategic
+        version: v1.0.0
+    spec:
+      serviceAccountName: self-healing-engine
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        readOnlyRootFilesystem: false
+      containers:
+      - name: self-healing-engine
+        image: 37.60.241.150:30500/self-healing-engine:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        - name: metrics
+          containerPort: 8081
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: PYTHONPATH
+          value: "/app"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://otel-collector.observability.svc.cluster.local:4317"
+
+        # Kafka
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka.kafka.svc.cluster.local:9092"
+
+        # Service Registry
+        - name: SERVICE_REGISTRY_HOST
+          value: "service-registry.neural-hive-governance.svc.cluster.local"
+        - name: SERVICE_REGISTRY_PORT
+          value: "8007"
+
+        # Orchestrator
+        - name: ORCHESTRATOR_GRPC_HOST
+          value: "orchestrator-dynamic.neural-hive-orchestration.svc.cluster.local"
+        - name: ORCHESTRATOR_GRPC_PORT
+          value: "50052"
+        - name: ORCHESTRATOR_GRPC_USE_TLS
+          value: "true"
+
+        # Execution Ticket Service
+        - name: EXECUTION_TICKET_SERVICE_URL
+          value: "http://execution-ticket-service.neural-hive-orchestration:8000"
+        - name: EXECUTION_TICKET_SERVICE_TIMEOUT
+          value: "30"
+
+        # OPA
+        - name: OPA_HOST
+          value: "opa.neural-hive-governance.svc.cluster.local"
+        - name: OPA_PORT
+          value: "8181"
+
+        # ConfigMap env vars
+        envFrom:
+        - configMapRef:
+            name: self-healing-config
+        # Secret env vars
+        - secretRef:
+            name: self-healing-secret
+            optional: true
+
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+
+        volumeMounts:
+        - name: playbooks
+          mountPath: /app/playbooks
+          readOnly: true
+
+      volumes:
+      - name: playbooks
+        configMap:
+          name: self-healing-playbooks
+          optional: true

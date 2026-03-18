@@ -1,0 +1,143 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: self-healing-config
+  namespace: neural-hive-orchestration
+  labels:
+    app: self-healing-engine
+    component: governance
+data:
+  # MongoDB URL (sem credenciais sensíveis)
+  mongodb-url: "mongodb://mongodb:27017/neural_hive"
+
+  # Configurações de Log
+  log-level: "INFO"
+  python-path: "/app"
+
+  # Configurações de Circuit Breaker - Execution Ticket Service
+  execution-ticket-circuit-breaker-threshold: "5"
+  execution-ticket-circuit-breaker-reset-seconds: "60"
+
+  # Configurações de OPA
+  opa-enabled: "true"
+  opa-fail-open: "true"
+
+  # Configurações de Chaos Engineering
+  chaos-enabled: "false"
+  chaos-max-concurrent-experiments: "2"
+  chaos-blast-radius-limit: "5"
+
+  # Configurações de Playbooks
+  playbooks-dir: "/app/playbooks"
+  playbook-timeout-seconds: "300"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: self-healing-playbooks
+  namespace: neural-hive-orchestration
+  labels:
+    app: self-healing-engine
+    component: governance
+data:
+  # Playbook: Recuperação de Ticket Timeout
+  ticket_timeout_recovery.yaml: |
+    id: ticket-timeout-recovery
+    name: Recuperação de Ticket Timeout
+    description: Realloca tickets que excederam o tempo limite de execução
+    severity: medium
+    triggers:
+      - event_type: ticket.timeout
+        threshold_minutes: 30
+    steps:
+      - action: reallocate_ticket
+        service: execution-ticket-service
+        params:
+          reason: "timeout_recovery"
+      - action: notify_team
+        params:
+          channel: "#incidents"
+          message: "Ticket {{ticket_id}} realocado devido a timeout"
+
+  # Playbook: Recuperação de Deadlock
+  deadlock_recovery.yaml: |
+    id: deadlock-recovery
+    name: Recuperação de Deadlock
+    description: Detecta e resolve deadlocks em workflows
+    severity: high
+    triggers:
+      - event_type: workflow.deadlock
+        threshold_minutes: 30
+    steps:
+      - action: pause_workflow
+        service: orchestrator
+        params:
+          duration_seconds: 300
+      - action: analyze_stuck_tickets
+        service: orchestrator
+      - action: notify_team
+        params:
+          channel: "#critical"
+          message: "Deadlock detectado no workflow {{workflow_id}}"
+
+  # Playbook: Recuperação de Conexão de Banco de Dados
+  database_connection_recovery.yaml: |
+    id: database-connection-recovery
+    name: Recuperação de Conexão MongoDB
+    description: Recupera conexões com MongoDB que falharam
+    severity: high
+    triggers:
+      - event_type: database.connection_failed
+        threshold_count: 3
+    steps:
+      - action: restart_pods
+        selector:
+          app: self-healing-engine
+      - action: verify_connection
+        service: mongodb
+      - action: notify_team
+        params:
+          channel: "#ops"
+          message: "Recuperação de conexão MongoDB executada"
+
+  # Playbook: Detecção de Memory Leak
+  memory_leak_detection.yaml: |
+    id: memory-leak-detection
+    name: Detecção de Memory Leak
+    description: Detecta pods com uso excessivo de memória
+    severity: medium
+    triggers:
+      - event_type: pod.memory_high
+        threshold_percent: 90
+        duration_minutes: 5
+    steps:
+      - action: get_pod_metrics
+        service: kubernetes-api
+      - action: terminate_pod
+        params:
+          grace_period_seconds: 30
+      - action: notify_team
+        params:
+          channel: "#ops"
+          message: "Pod {{pod_name}} terminado devido a memory leak"
+
+  # Playbook: Kafka Lag Recovery
+  kafka_lag_recovery.yaml: |
+    id: kafka-lag-recovery
+    name: Recuperação de Kafka Consumer Lag
+    description: Detecta e recupera lag excessivo no consumer Kafka
+    severity: high
+    triggers:
+      - event_type: kafka.consumer_lag
+        threshold_messages: 10000
+    steps:
+      - action: scale_up_pods
+        selector:
+          app: self-healing-engine
+        replicas: 5
+      - action: verify_consumer_health
+        service: kafka
+      - action: notify_team
+        params:
+          channel: "#ops"
+          message: "Scaling executado devido a Kafka lag"

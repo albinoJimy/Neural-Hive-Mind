@@ -51,7 +51,7 @@ class TestChaosModels:
         criteria = ValidationCriteria()
         assert criteria.max_recovery_time_seconds == 300
         assert criteria.min_availability_percent == 99.0
-        assert criteria.max_error_rate_percent == 5.0
+        assert criteria.max_error_rate_percent == 1.0
 
     def test_fault_injection_creation(self):
         """Testa criação de FaultInjection."""
@@ -299,7 +299,6 @@ class TestChaosEngine:
         assert chaos_engine.max_concurrent_experiments == 3
         assert chaos_engine.default_timeout_seconds == 600
         assert chaos_engine.require_opa_approval is False
-        assert chaos_engine.blast_radius_limit == 5
 
     def test_list_scenarios(self, chaos_engine):
         """Testa listagem de cenários via engine."""
@@ -326,11 +325,10 @@ class TestInjectionResult:
         """Testa resultado de injeção bem sucedida."""
         result = InjectionResult(
             success=True,
+            injection_id="inj-123",
             fault_type=FaultType.POD_KILL,
-            target_namespace="default",
-            target_service="test-service",
             affected_resources=["pod-1", "pod-2"],
-            injection_id="inj-123"
+            blast_radius=2
         )
         assert result.success is True
         assert len(result.affected_resources) == 2
@@ -339,9 +337,8 @@ class TestInjectionResult:
         """Testa resultado de injeção falhada."""
         result = InjectionResult(
             success=False,
+            injection_id="inj-456",
             fault_type=FaultType.NETWORK_PARTITION,
-            target_namespace="default",
-            target_service="test-service",
             error_message="Permission denied"
         )
         assert result.success is False

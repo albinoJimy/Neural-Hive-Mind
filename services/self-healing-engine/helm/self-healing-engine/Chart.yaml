@@ -1,0 +1,26 @@
+apiVersion: v2
+name: self-healing-engine
+description: Self-Healing Engine para Neural Hive Mind - Detecção e recuperação automática de incidentes
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - self-healing
+  - remediation
+  - incident-response
+  - circuit-breaker
+  - chaos-engineering
+maintainers:
+  - name: Neural Hive Mind Team
+    email: dev@neural-hive-mind.com
+sources:
+  - https://github.com/albinoJimy/Neural-Hive-Mind
+icon: https://raw.githubusercontent.com/albinoJimy/Neural-Hive-Mind/main/docs/assets/logo.png
+annotations:
+  artifacthub.io/category: monitoring-logging
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/links: |
+    - name: Documentation
+      url: https://github.com/albinoJimy/Neural-Hive-Mind/tree/main/services/self-healing-engine
+    - name: Support
+      url: https://github.com/albinoJimy/Neural-Hive-Mind/issues

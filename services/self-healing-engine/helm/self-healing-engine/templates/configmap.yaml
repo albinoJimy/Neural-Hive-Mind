@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "self-healing-engine.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "self-healing-engine.labels" . | nindent 4 }}
+data:
+  # MongoDB URL
+  mongodb-url: {{ .Values.configMap.mongodbUrl | quote }}
+
+  # Logging
+  log-level: {{ .Values.configMap.logLevel | quote }}
+  python-path: {{ .Values.configMap.pythonPath | quote }}
+
+  # Circuit Breaker - Execution Ticket Service
+  execution-ticket-circuit-breaker-threshold: {{ .Values.configMap.executionTicketCircuitBreakerThreshold | quote }}
+  execution-ticket-circuit-breaker-reset-seconds: {{ .Values.configMap.executionTicketCircuitBreakerResetSeconds | quote }}
+
+  # OPA
+  opa-enabled: {{ .Values.configMap.opaEnabled | quote }}
+  opa-fail-open: {{ .Values.configMap.opaFailOpen | quote }}
+
+  # Chaos Engineering
+  chaos-enabled: {{ .Values.configMap.chaosEnabled | quote }}
+  chaos-max-concurrent-experiments: {{ .Values.configMap.chaosMaxConcurrentExperiments | quote }}
+  chaos-blast-radius-limit: {{ .Values.configMap.chaosBlastRadiusLimit | quote }}
+
+  # Playbooks
+  playbooks-dir: {{ .Values.configMap.playbooksDir | quote }}
+  playbook-timeout-seconds: {{ .Values.configMap.playbookTimeoutSeconds | quote }}
+---
+{{- if .Values.playbooks.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "self-healing-engine.fullname" . }}-playbooks
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "self-healing-engine.labels" . | nindent 4 }}
+data:
+  {{- range $key, $value := .Values.playbooks.inline }}
+  {{ $key }}: |
+    {{- $value | nindent 4 }}
+  {{- end }}
+{{- end }}

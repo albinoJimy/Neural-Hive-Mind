@@ -10,6 +10,8 @@ from kubernetes import client, config
 from prometheus_client import Counter, Histogram
 from neural_hive_observability import get_tracer
 
+from src.services.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError
+
 logger = structlog.get_logger()
 
 # OPA validation metrics
@@ -34,6 +36,9 @@ class PlaybookExecutor:
         opa_client=None,
         opa_enabled: bool = True,
         opa_fail_open: bool = True,
+        circuit_breaker_enabled: bool = True,
+        circuit_breaker_failure_threshold: int = 5,
+        circuit_breaker_timeout_seconds: int = 60,
     ):
         self.playbooks_dir = Path(playbooks_dir)
         self.k8s_in_cluster = k8s_in_cluster
@@ -44,8 +49,30 @@ class PlaybookExecutor:
         self.opa_client = opa_client
         self.opa_enabled = opa_enabled
         self.opa_fail_open = opa_fail_open
+        self.circuit_breaker_enabled = circuit_breaker_enabled
         self.core_v1: Optional[client.CoreV1Api] = None
         self.apps_v1: Optional[client.AppsV1Api] = None
+
+        # Circuit Breakers para serviços externos
+        self._circuit_breakers: Dict[str, CircuitBreaker] = {}
+        if circuit_breaker_enabled:
+            self._circuit_breakers = {
+                'execution_ticket_service': CircuitBreaker(
+                    service_name='execution_ticket_service',
+                    failure_threshold=circuit_breaker_failure_threshold,
+                    timeout_seconds=circuit_breaker_timeout_seconds
+                ),
+                'orchestrator': CircuitBreaker(
+                    service_name='orchestrator',
+                    failure_threshold=circuit_breaker_failure_threshold,
+                    timeout_seconds=circuit_breaker_timeout_seconds
+                ),
+                'opa': CircuitBreaker(
+                    service_name='opa',
+                    failure_threshold=circuit_breaker_failure_threshold,
+                    timeout_seconds=circuit_breaker_timeout_seconds
+                ),
+            }
 
         # Métricas de execução de playbook
         self.playbook_execution_total = Counter(
@@ -441,9 +468,11 @@ class PlaybookExecutor:
             }
 
         try:
-            if len(affected_tickets) == 1:
-                # Single ticket reallocation
-                result = await self.execution_ticket_client.reallocate_ticket(
+            # Use Circuit Breaker para Execution Ticket Service
+            ets_breaker = self._circuit_breakers.get('execution_ticket_service')
+
+            async def _reallocate_single():
+                return await self.execution_ticket_client.reallocate_ticket(
                     ticket_id=affected_tickets[0],
                     reason=reason,
                     metadata={
@@ -452,6 +481,24 @@ class PlaybookExecutor:
                         'incident_id': context.get('incident_id'),
                     }
                 )
+
+            async def _reallocate_batch():
+                return await self.execution_ticket_client.reallocate_multiple_tickets(
+                    ticket_ids=affected_tickets,
+                    reason=reason,
+                    metadata={
+                        'workflow_id': workflow_id,
+                        'previous_worker': previous_worker,
+                        'incident_id': context.get('incident_id'),
+                    }
+                )
+
+            if len(affected_tickets) == 1:
+                # Single ticket reallocation
+                if ets_breaker:
+                    result = await ets_breaker.call_async(_reallocate_single)
+                else:
+                    result = await _reallocate_single()
                 logger.info(
                     'playbook_executor.ticket_reallocated',
                     ticket_id=affected_tickets[0],
@@ -467,15 +514,10 @@ class PlaybookExecutor:
                 }
             else:
                 # Batch reallocation
-                result = await self.execution_ticket_client.reallocate_multiple_tickets(
-                    ticket_ids=affected_tickets,
-                    reason=reason,
-                    metadata={
-                        'workflow_id': workflow_id,
-                        'previous_worker': previous_worker,
-                        'incident_id': context.get('incident_id'),
-                    }
-                )
+                if ets_breaker:
+                    result = await ets_breaker.call_async(_reallocate_batch)
+                else:
+                    result = await _reallocate_batch()
                 logger.info(
                     'playbook_executor.tickets_reallocated_batch',
                     batch_id=result.get('batch_id'),
@@ -494,6 +536,19 @@ class PlaybookExecutor:
                     "failed_count": result.get('failed')
                 }
 
+        except CircuitBreakerOpenError as e:
+            logger.error(
+                'playbook_executor.circuit_breaker_open',
+                service='execution_ticket_service',
+                tickets=affected_tickets
+            )
+            return {
+                "success": False,
+                "action": "reallocate_ticket",
+                "tickets": affected_tickets,
+                "error": "Circuit breaker is OPEN - service temporarily unavailable",
+                "circuit_breaker_open": True
+            }
         except Exception as e:
             logger.error(
                 'playbook_executor.reallocate_ticket_failed',
@@ -636,20 +691,34 @@ class PlaybookExecutor:
             }
 
         try:
+            orchestrator_breaker = self._circuit_breakers.get('orchestrator')
+
+            async def _get_status():
+                return await self.orchestrator_client.get_workflow_status(
+                    workflow_id=workflow_id,
+                    include_tickets=False
+                )
+
+            async def _resume():
+                return await self.orchestrator_client.resume_workflow(
+                    workflow_id=workflow_id,
+                    reason=reason
+                )
+
             # First, get workflow status to check if it's paused
-            status = await self.orchestrator_client.get_workflow_status(
-                workflow_id=workflow_id,
-                include_tickets=False
-            )
+            if orchestrator_breaker:
+                status = await orchestrator_breaker.call_async(_get_status)
+            else:
+                status = await _get_status()
 
             workflow_state = status.get('state', 'UNKNOWN')
 
             if workflow_state == 'PAUSED':
                 # Resume the paused workflow
-                result = await self.orchestrator_client.resume_workflow(
-                    workflow_id=workflow_id,
-                    reason=reason
-                )
+                if orchestrator_breaker:
+                    result = await orchestrator_breaker.call_async(_resume)
+                else:
+                    result = await _resume()
 
                 logger.info(
                     'playbook_executor.workflow_resumed',
@@ -696,6 +765,20 @@ class PlaybookExecutor:
                     "note": "Workflow not paused, no action taken"
                 }
 
+        except CircuitBreakerOpenError:
+            logger.error(
+                'playbook_executor.circuit_breaker_open',
+                service='orchestrator',
+                workflow_id=workflow_id,
+                action='restart_workflow'
+            )
+            return {
+                "success": False,
+                "action": "restart_workflow",
+                "workflow_id": workflow_id,
+                "error": "Circuit breaker is OPEN - orchestrator temporarily unavailable",
+                "circuit_breaker_open": True
+            }
         except Exception as e:
             logger.error(
                 'playbook_executor.restart_workflow_failed',
@@ -736,11 +819,19 @@ class PlaybookExecutor:
             }
 
         try:
-            result = await self.orchestrator_client.pause_workflow(
-                workflow_id=workflow_id,
-                reason=reason,
-                duration_seconds=duration_seconds
-            )
+            orchestrator_breaker = self._circuit_breakers.get('orchestrator')
+
+            async def _pause_workflow_call():
+                return await self.orchestrator_client.pause_workflow(
+                    workflow_id=workflow_id,
+                    reason=reason,
+                    duration_seconds=duration_seconds
+                )
+
+            if orchestrator_breaker:
+                result = await orchestrator_breaker.call_async(_pause_workflow_call)
+            else:
+                result = await _pause_workflow_call()
 
             logger.info(
                 'playbook_executor.workflow_paused',
@@ -757,6 +848,20 @@ class PlaybookExecutor:
                 "scheduled_resume_at": result.get('scheduled_resume_at')
             }
 
+        except CircuitBreakerOpenError as e:
+            logger.error(
+                'playbook_executor.circuit_breaker_open',
+                service='orchestrator',
+                workflow_id=workflow_id,
+                action='pause_workflow'
+            )
+            return {
+                "success": False,
+                "action": "pause_workflow",
+                "workflow_id": workflow_id,
+                "error": "Circuit breaker is OPEN - orchestrator temporarily unavailable",
+                "circuit_breaker_open": True
+            }
         except Exception as e:
             logger.error(
                 'playbook_executor.pause_workflow_failed',

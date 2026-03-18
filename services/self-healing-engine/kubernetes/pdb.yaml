@@ -1,0 +1,14 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: self-healing-engine-pdb
+  namespace: neural-hive-orchestration
+  labels:
+    app: self-healing-engine
+    component: governance
+    layer: strategic
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: self-healing-engine

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "self-healing-engine.fullname" . }}-test-connection
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ include "self-healing-engine.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+  - name: wget
+    image: busybox:1.35
+    command:
+    - sh
+    - -c
+    - wget -q --timeout=5 --tries=1 http://{{ include "self-healing-engine.fullname" . }}:{{ .Values.service.ports.http }}/health/ready
+  restartPolicy: Never

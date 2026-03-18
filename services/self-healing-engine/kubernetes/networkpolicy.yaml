@@ -1,0 +1,106 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: self-healing-engine-netpol
+  namespace: neural-hive-orchestration
+  labels:
+    app: self-healing-engine
+    component: governance
+    layer: strategic
+spec:
+  podSelector:
+    matchLabels:
+      app: self-healing-engine
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Permite tráfego HTTP de outros serviços
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: neural-hive-*
+    ports:
+    - protocol: TCP
+      port: 8080
+  # Permite tráfego de métricas para Prometheus
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: observability
+    ports:
+    - protocol: TCP
+      port: 8081
+  egress:
+  # Permite acesso a MongoDB
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: neural-hive-*
+    ports:
+    - protocol: TCP
+      port: 27017
+  # Permite acesso a Kafka
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kafka
+    ports:
+    - protocol: TCP
+      port: 9092
+  # Permite acesso a Redis
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: neural-hive-*
+    ports:
+    - protocol: TCP
+      port: 6379
+  # Permite acesso a OPA
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: neural-hive-governance
+    ports:
+    - protocol: TCP
+      port: 8181
+  # Permite acesso a Service Registry
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: neural-hive-governance
+    ports:
+    - protocol: TCP
+      port: 8007
+  # Permite acesso a Orchestrator (gRPC)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: neural-hive-orchestration
+    ports:
+    - protocol: TCP
+      port: 50052
+  # Permite acesso a Execution Ticket Service
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: neural-hive-orchestration
+    ports:
+    - protocol: TCP
+      port: 8000
+  # Permite DNS
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # Permite acesso ao OTEL Collector
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: observability
+    ports:
+    - protocol: TCP
+      port: 4317

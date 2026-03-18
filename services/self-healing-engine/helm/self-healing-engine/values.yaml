@@ -1,0 +1,290 @@
+# Self-Healing Engine Helm Chart Values
+
+global:
+  environment: production
+  imageRegistry: 37.60.241.150:30500
+  imagePullSecrets: []
+  # Common labels applied to all resources
+  labels:
+    component: governance
+    layer: strategic
+
+# Image configuration
+image:
+  repository: self-healing-engine
+  tag: latest
+  pullPolicy: Always
+
+# Deployment configuration
+deployment:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+# Container configuration
+container:
+  ports:
+    http: 8080
+    metrics: 8081
+
+  probes:
+    liveness:
+      path: /health/live
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readiness:
+      path: /health/ready
+      initialDelaySeconds: 10
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 2
+
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+    readOnlyRootFilesystem: false
+
+# Service configuration
+service:
+  type: ClusterIP
+  ports:
+    http: 8080
+    metrics: 8081
+
+# HorizontalPodAutoscaler
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+        - type: Pods
+          value: 2
+          periodSeconds: 30
+      selectPolicy: Max
+
+# PodDisruptionBudget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# RBAC configuration
+rbac:
+  create: true
+  serviceAccount:
+    create: true
+    name: self-healing-engine
+  role:
+    create: true
+    name: self-healing-engine
+  clusterRole:
+    create: true
+    name: self-healing-engine
+
+# NetworkPolicy
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+    - Egress
+
+# ConfigMap configuration
+configMap:
+  # MongoDB
+  mongodbUrl: mongodb://mongodb:27017/neural_hive
+
+  # Logging
+  logLevel: INFO
+  pythonPath: /app
+
+  # Circuit Breaker - Execution Ticket Service
+  executionTicketCircuitBreakerThreshold: "5"
+  executionTicketCircuitBreakerResetSeconds: "60"
+
+  # OPA
+  opaEnabled: "true"
+  opaFailOpen: "true"
+
+  # Chaos Engineering
+  chaosEnabled: "false"
+  chaosMaxConcurrentExperiments: "2"
+  chaosBlastRadiusLimit: "5"
+
+  # Playbooks
+  playbooksDir: /app/playbooks
+  playbookTimeoutSeconds: "300"
+
+# Secret configuration (sensitive data)
+# Use --set-file or external secret manager
+secret:
+  create: true
+  mongodbUsername: YWRtaW4=  # base64 encoded
+  mongodbPassword: YWRtaW4=  # base64 encoded
+  serviceRegistryToken: cGxhY2Vob2xkZXI=
+  orchestratorTlsCert: cGxhY2Vob2xkZXI=
+  orchestratorTlsKey: cGxhY2Vob2xkZXI=
+  apiKey: cGxhY2Vob2xkZXI=
+
+# External service URLs
+services:
+  kafka:
+    bootstrapServers: kafka.kafka.svc.cluster.local:9092
+  serviceRegistry:
+    host: service-registry.neural-hive-governance.svc.cluster.local
+    port: "8007"
+  orchestrator:
+    host: orchestrator-dynamic.neural-hive-orchestration.svc.cluster.local
+    port: "50052"
+    useTls: "true"
+  executionTicket:
+    url: http://execution-ticket-service.neural-hive-orchestration:8000
+    timeout: "30"
+  opa:
+    host: opa.neural-hive-governance.svc.cluster.local
+    port: "8181"
+  otel:
+    endpoint: http://otel-collector.observability.svc.cluster.local:4317
+
+# Playbooks configuration
+playbooks:
+  enabled: true
+  # Define playbooks inline or reference external ConfigMaps
+  inline:
+    ticket_timeout_recovery.yaml: |
+      id: ticket-timeout-recovery
+      name: Recuperação de Ticket Timeout
+      description: Realloca tickets que excederam o tempo limite de execução
+      severity: medium
+      triggers:
+        - event_type: ticket.timeout
+          threshold_minutes: 30
+      steps:
+        - action: reallocate_ticket
+          service: execution-ticket-service
+          params:
+            reason: "timeout_recovery"
+        - action: notify_team
+          params:
+            channel: "#incidents"
+            message: "Ticket {{ticket_id}} realocado devido a timeout"
+    deadlock_recovery.yaml: |
+      id: deadlock-recovery
+      name: Recuperação de Deadlock
+      description: Detecta e resolve deadlocks em workflows
+      severity: high
+      triggers:
+        - event_type: workflow.deadlock
+          threshold_minutes: 30
+      steps:
+        - action: pause_workflow
+          service: orchestrator
+          params:
+            duration_seconds: 300
+        - action: analyze_stuck_tickets
+          service: orchestrator
+        - action: notify_team
+          params:
+            channel: "#critical"
+            message: "Deadlock detectado no workflow {{workflow_id}}"
+    database_connection_recovery.yaml: |
+      id: database-connection-recovery
+      name: Recuperação de Conexão MongoDB
+      description: Recupera conexões com MongoDB que falharam
+      severity: high
+      triggers:
+        - event_type: database.connection_failed
+          threshold_count: 3
+      steps:
+        - action: restart_pods
+          selector:
+            app: self-healing-engine
+        - action: verify_connection
+          service: mongodb
+        - action: notify_team
+          params:
+            channel: "#ops"
+            message: "Recuperação de conexão MongoDB executada"
+    memory_leak_detection.yaml: |
+      id: memory-leak-detection
+      name: Detecção de Memory Leak
+      description: Detecta pods com uso excessivo de memória
+      severity: medium
+      triggers:
+        - event_type: pod.memory_high
+          threshold_percent: 90
+          duration_minutes: 5
+      steps:
+        - action: get_pod_metrics
+          service: kubernetes-api
+        - action: terminate_pod
+          params:
+            grace_period_seconds: 30
+        - action: notify_team
+          params:
+            channel: "#ops"
+            message: "Pod {{pod_name}} terminado devido a memory leak"
+    kafka_lag_recovery.yaml: |
+      id: kafka-lag-recovery
+      name: Recuperação de Kafka Consumer Lag
+      description: Detecta e recupera lag excessivo no consumer Kafka
+      severity: high
+      triggers:
+        - event_type: kafka.consumer_lag
+          threshold_messages: 10000
+      steps:
+        - action: scale_up_pods
+          selector:
+            app: self-healing-engine
+          replicas: 5
+        - action: verify_consumer_health
+          service: kafka
+        - action: notify_team
+          params:
+            channel: "#ops"
+            message: "Scaling executado devido a Kafka lag"
+
+# Pod labels and annotations
+podLabels: {}
+podAnnotations: {}
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity rules
+affinity: {}
+
+# Priority class name
+priorityClassName: ""
+
+# Topology spread constraints
+topologySpreadConstraints: []

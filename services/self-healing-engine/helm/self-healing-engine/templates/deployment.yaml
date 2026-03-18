@@ -1,0 +1,146 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "self-healing-engine.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "self-healing-engine.labels" . | nindent 4 }}
+    app: {{ include "self-healing-engine.name" . }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.deployment.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "self-healing-engine.selectorLabels" . | nindent 6 }}
+      app: {{ include "self-healing-engine.name" . }}
+  {{- with .Values.deployment.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "self-healing-engine.selectorLabels" . | nindent 8 }}
+        app: {{ include "self-healing-engine.name" . }}
+        version: {{ .Chart.AppVersion | default "1.0.0" }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "self-healing-engine.serviceAccountName" . }}
+      {{- with .Values.container.securityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: {{ include "self-healing-engine.name" . }}
+        image: "{{ .Values.global.imageRegistry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.container.ports.http }}
+          protocol: TCP
+        - name: metrics
+          containerPort: {{ .Values.container.ports.metrics }}
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: {{ .Values.global.environment | quote }}
+        - name: PYTHONPATH
+          value: {{ .Values.configMap.pythonPath | quote }}
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: {{ .Values.services.otel.endpoint | quote }}
+
+        # Kafka
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: {{ .Values.services.kafka.bootstrapServers | quote }}
+
+        # Service Registry
+        - name: SERVICE_REGISTRY_HOST
+          value: {{ .Values.services.serviceRegistry.host | quote }}
+        - name: SERVICE_REGISTRY_PORT
+          value: {{ .Values.services.serviceRegistry.port | quote }}
+
+        # Orchestrator
+        - name: ORCHESTRATOR_GRPC_HOST
+          value: {{ .Values.services.orchestrator.host | quote }}
+        - name: ORCHESTRATOR_GRPC_PORT
+          value: {{ .Values.services.orchestrator.port | quote }}
+        - name: ORCHESTRATOR_GRPC_USE_TLS
+          value: {{ .Values.services.orchestrator.useTls | quote }}
+
+        # Execution Ticket Service
+        - name: EXECUTION_TICKET_SERVICE_URL
+          value: {{ .Values.services.executionTicket.url | quote }}
+        - name: EXECUTION_TICKET_SERVICE_TIMEOUT
+          value: {{ .Values.services.executionTicket.timeout | quote }}
+
+        # OPA
+        - name: OPA_HOST
+          value: {{ .Values.services.opa.host | quote }}
+        - name: OPA_PORT
+          value: {{ .Values.services.opa.port | quote }}
+
+        # ConfigMap env vars
+        envFrom:
+        - configMapRef:
+            name: {{ include "self-healing-engine.fullname" . }}-config
+        # Secret env vars
+        - secretRef:
+            name: {{ include "self-healing-engine.fullname" . }}-secret
+            optional: true
+
+        {{- with .Values.container.probes.liveness }}
+        livenessProbe:
+          httpGet:
+            path: {{ .path }}
+            port: http
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+          failureThreshold: {{ .failureThreshold }}
+        {{- end }}
+        {{- with .Values.container.probes.readiness }}
+        readinessProbe:
+          httpGet:
+            path: {{ .path }}
+            port: http
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          timeoutSeconds: {{ .timeoutSeconds }}
+          failureThreshold: {{ .failureThreshold }}
+        {{- end }}
+        {{- with .Values.container.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        volumeMounts:
+        - name: playbooks
+          mountPath: {{ .Values.configMap.playbooksDir }}
+          readOnly: true
+      volumes:
+      - name: playbooks
+        configMap:
+          name: {{ include "self-healing-engine.fullname" . }}-playbooks
+          optional: true
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
