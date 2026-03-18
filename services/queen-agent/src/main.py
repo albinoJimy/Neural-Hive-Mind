@@ -7,21 +7,37 @@ from grpc import aio
 from neural_hive_observability import (
     init_observability,
     create_instrumented_async_grpc_server,
-    ObservabilityConfig
+    ObservabilityConfig,
 )
 
 from .config import get_settings
 from .clients import (
-    MongoDBClient, RedisClient, Neo4jClient, PrometheusClient,
-    OrchestratorClient, ServiceRegistryClient, PheromoneClient, OPAClient
+    MongoDBClient,
+    RedisClient,
+    Neo4jClient,
+    PrometheusClient,
+    OrchestratorClient,
+    ServiceRegistryClient,
+    PheromoneClient,
+    OPAClient,
 )
 from .services import (
-    StrategicDecisionEngine, ConflictArbitrator, ReplanningCoordinator,
-    ExceptionApprovalService, TelemetryAggregator
+    StrategicDecisionEngine,
+    ConflictArbitrator,
+    ReplanningCoordinator,
+    ExceptionApprovalService,
+    TelemetryAggregator,
+    MCPToolOrchestrator,
 )
 from .consumers import ConsensusConsumer, TelemetryConsumer, IncidentConsumer
 from .producers import StrategicDecisionProducer
-from .api import health_router, decisions_router, exceptions_router, status_router
+from .api import (
+    health_router,
+    decisions_router,
+    exceptions_router,
+    status_router,
+    mcp_router,
+)
 from .grpc_server import QueenAgentServicer
 from .proto import queen_agent_pb2_grpc
 
@@ -31,7 +47,7 @@ structlog.configure(
     processors=[
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.add_log_level,
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ]
 )
 
@@ -70,6 +86,9 @@ class AppState:
         self.grpc_server: aio.Server | None = None
         self.grpc_servicer: QueenAgentServicer | None = None
 
+        # MCP
+        self.mcp_orchestrator: MCPToolOrchestrator | None = None
+
         # Background tasks
         self.consumer_tasks: list[asyncio.Task] = []
 
@@ -102,7 +121,7 @@ async def lifespan(app: FastAPI):
                 "observability_init_failed",
                 error=str(e),
                 otel_endpoint=settings.OTEL_EXPORTER_ENDPOINT,
-                prometheus_port=settings.METRICS_PORT
+                prometheus_port=settings.METRICS_PORT,
             )
 
         # 2. Inicializar clientes
@@ -131,26 +150,27 @@ async def lifespan(app: FastAPI):
         if settings.OPA_ENABLED:
             logger.info("initializing_opa_client")
             app_state.opa_client = OPAClient(
-                base_url=settings.OPA_URL,
-                timeout=settings.OPA_TIMEOUT_SECONDS
+                base_url=settings.OPA_URL, timeout=settings.OPA_TIMEOUT_SECONDS
             )
             try:
                 await app_state.opa_client.connect()
                 logger.info("opa_client_connected")
             except Exception as e:
                 if not settings.OPA_FAIL_OPEN:
-                    logger.error("opa_client_connection_failed_fail_closed", error=str(e))
+                    logger.error(
+                        "opa_client_connection_failed_fail_closed", error=str(e)
+                    )
                     raise
                 else:
-                    logger.warning("opa_client_connection_failed_fail_open", error=str(e))
+                    logger.warning(
+                        "opa_client_connection_failed_fail_open", error=str(e)
+                    )
 
         # 3. Inicializar serviços
         logger.info("initializing_services")
 
         app_state.replanning_coordinator = ReplanningCoordinator(
-            app_state.orchestrator_client,
-            app_state.redis_client,
-            settings
+            app_state.orchestrator_client, app_state.redis_client, settings
         )
 
         app_state.decision_engine = StrategicDecisionEngine(
@@ -162,24 +182,43 @@ async def lifespan(app: FastAPI):
             app_state.replanning_coordinator,
             app_state.opa_client,
             app_state.orchestrator_client,
-            settings
+            settings,
         )
 
         app_state.conflict_arbitrator = ConflictArbitrator(
-            app_state.neo4j_client,
-            settings
+            app_state.neo4j_client, settings
         )
 
         app_state.exception_service = ExceptionApprovalService(
-            app_state.mongodb_client,
-            settings
+            app_state.mongodb_client, settings
         )
 
         app_state.telemetry_aggregator = TelemetryAggregator(
-            app_state.prometheus_client,
-            app_state.redis_client,
-            settings
+            app_state.prometheus_client, app_state.redis_client, settings
         )
+
+        # 3.5. Inicializar MCP Tool Orchestrator (se habilitado)
+        if settings.MCP_ENABLED:
+            logger.info("initializing_mcp_tool_orchestrator")
+
+            from mcp_client_sdk import MCPClient
+
+            scout_client = MCPClient(
+                server_url=settings.MCP_SCOUT_URL, timeout=settings.MCP_TIMEOUT
+            )
+            optimizer_client = MCPClient(
+                server_url=settings.MCP_OPTIMIZER_URL, timeout=settings.MCP_TIMEOUT
+            )
+
+            app_state.mcp_orchestrator = MCPToolOrchestrator(
+                scout_client=scout_client, optimizer_client=optimizer_client
+            )
+
+            logger.info(
+                "mcp_tool_orchestrator_initialized",
+                scout_url=settings.MCP_SCOUT_URL,
+                optimizer_url=settings.MCP_OPTIMIZER_URL,
+            )
 
         # 4. Inicializar Kafka producer
         logger.info("initializing_kafka_producer")
@@ -191,16 +230,12 @@ async def lifespan(app: FastAPI):
         logger.info("initializing_kafka_consumers")
 
         app_state.consensus_consumer = ConsensusConsumer(
-            settings,
-            app_state.decision_engine,
-            app_state.strategic_producer
+            settings, app_state.decision_engine, app_state.strategic_producer
         )
         await app_state.consensus_consumer.initialize()
 
         app_state.telemetry_consumer = TelemetryConsumer(
-            settings,
-            app_state.decision_engine,
-            app_state.strategic_producer
+            settings, app_state.decision_engine, app_state.strategic_producer
         )
         await app_state.telemetry_consumer.initialize()
 
@@ -208,7 +243,7 @@ async def lifespan(app: FastAPI):
             settings,
             app_state.decision_engine,
             app_state.redis_client,
-            app_state.strategic_producer
+            app_state.strategic_producer,
         )
         await app_state.incident_consumer.initialize()
 
@@ -220,7 +255,7 @@ async def lifespan(app: FastAPI):
             app_state.neo4j_client,
             app_state.exception_service,
             app_state.telemetry_aggregator,
-            app_state.decision_engine
+            app_state.decision_engine,
         )
 
         obs_config = ObservabilityConfig(
@@ -229,18 +264,15 @@ async def lifespan(app: FastAPI):
             neural_hive_component="queen-agent",
             neural_hive_layer="coordination",
             environment=settings.ENVIRONMENT,
-            otel_endpoint=settings.OTEL_EXPORTER_ENDPOINT
+            otel_endpoint=settings.OTEL_EXPORTER_ENDPOINT,
         )
-        app_state.grpc_server = create_instrumented_async_grpc_server(
-            config=obs_config
-        )
+        app_state.grpc_server = create_instrumented_async_grpc_server(config=obs_config)
         queen_agent_pb2_grpc.add_QueenAgentServicer_to_server(
-            app_state.grpc_servicer,
-            app_state.grpc_server
+            app_state.grpc_servicer, app_state.grpc_server
         )
 
         # Configurar porta gRPC com suporte a mTLS
-        grpc_port = settings.GRPC_PORT if hasattr(settings, 'GRPC_PORT') else 50051
+        grpc_port = settings.GRPC_PORT if hasattr(settings, "GRPC_PORT") else 50051
 
         if settings.SPIFFE_ENABLED and settings.SPIFFE_ENABLE_X509:
             try:
@@ -250,39 +282,38 @@ async def lifespan(app: FastAPI):
                     workload_api_socket=settings.SPIFFE_SOCKET_PATH,
                     trust_domain=settings.SPIFFE_TRUST_DOMAIN,
                     enable_x509=True,
-                    environment=settings.ENVIRONMENT
+                    environment=settings.ENVIRONMENT,
                 )
                 spiffe_manager = SPIFFEManager(spiffe_config)
                 await spiffe_manager.initialize()
 
                 server_credentials = await spiffe_manager.get_grpc_server_credentials()
                 app_state.grpc_server.add_secure_port(
-                    f'[::]:{grpc_port}',
-                    server_credentials
+                    f"[::]:{grpc_port}", server_credentials
                 )
                 logger.info("grpc_server_mtls_enabled", port=grpc_port)
             except ImportError:
                 logger.warning(
-                    "neural_hive_security_not_available",
-                    fallback="insecure_port"
+                    "neural_hive_security_not_available", fallback="insecure_port"
                 )
-                app_state.grpc_server.add_insecure_port(f'[::]:{grpc_port}')
+                app_state.grpc_server.add_insecure_port(f"[::]:{grpc_port}")
             except Exception as e:
                 logger.error("grpc_mtls_setup_failed", error=str(e))
-                if settings.ENVIRONMENT in ['production', 'staging', 'prod']:
+                if settings.ENVIRONMENT in ["production", "staging", "prod"]:
                     raise
-                app_state.grpc_server.add_insecure_port(f'[::]:{grpc_port}')
+                app_state.grpc_server.add_insecure_port(f"[::]:{grpc_port}")
         else:
-            app_state.grpc_server.add_insecure_port(f'[::]:{grpc_port}')
-            if settings.ENVIRONMENT in ['production', 'staging', 'prod']:
+            app_state.grpc_server.add_insecure_port(f"[::]:{grpc_port}")
+            if settings.ENVIRONMENT in ["production", "staging", "prod"]:
                 logger.warning(
-                    "grpc_server_insecure_mode_in_production",
-                    port=grpc_port
+                    "grpc_server_insecure_mode_in_production", port=grpc_port
                 )
 
         # Iniciar servidor gRPC
         await app_state.grpc_server.start()
-        logger.info("grpc_server_started", port=grpc_port, mtls=settings.SPIFFE_ENABLE_X509)
+        logger.info(
+            "grpc_server_started", port=grpc_port, mtls=settings.SPIFFE_ENABLE_X509
+        )
 
         # 7. Iniciar consumers em background
         logger.info("starting_kafka_consumers_background_tasks")
@@ -359,7 +390,7 @@ app = FastAPI(
     title="Queen Agent",
     description="Coordenador Estratégico do Neural Hive-Mind",
     version=settings.SERVICE_VERSION,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Injetar app_state para que os routers possam acessá-lo
@@ -371,7 +402,7 @@ app.add_middleware(
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
 # Montar routers
@@ -379,6 +410,7 @@ app.include_router(health_router)
 app.include_router(decisions_router)
 app.include_router(exceptions_router)
 app.include_router(status_router)
+app.include_router(mcp_router)
 
 if __name__ == "__main__":
     import uvicorn
@@ -387,5 +419,5 @@ if __name__ == "__main__":
         app,  # Usar objeto app diretamente em vez de string
         host=settings.FASTAPI_HOST,
         port=settings.FASTAPI_PORT,
-        log_level=settings.LOG_LEVEL.lower()
+        log_level=settings.LOG_LEVEL.lower(),
     )
