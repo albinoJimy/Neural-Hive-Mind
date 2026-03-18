@@ -1,0 +1,137 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "optimizer-agents.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "optimizer-agents.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "optimizer-agents.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.service.ports.metrics }}"
+        prometheus.io/path: /metrics
+      labels:
+        {{- include "optimizer-agents.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "optimizer-agents.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: optimizer-agents
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: false
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: grpc
+          containerPort: {{ .Values.service.ports.grpc }}
+          protocol: TCP
+        - name: http
+          containerPort: {{ .Values.service.ports.http }}
+          protocol: TCP
+        - name: metrics
+          containerPort: {{ .Values.service.ports.metrics }}
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: {{ .Values.env.ENVIRONMENT | quote }}
+        - name: DEBUG
+          value: {{ .Values.env.DEBUG | quote }}
+        - name: LOG_LEVEL
+          value: {{ .Values.env.LOG_LEVEL | quote }}
+        - name: SERVICE_NAME
+          value: {{ .Values.env.SERVICE_NAME | quote }}
+        - name: SERVICE_VERSION
+          value: {{ .Values.env.SERVICE_VERSION | quote }}
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: {{ .Values.env.KAFKA_BOOTSTRAP_SERVERS | quote }}
+        - name: KAFKA_CONSUMER_GROUP_ID
+          value: {{ .Values.env.KAFKA_CONSUMER_GROUP_ID | quote }}
+        - name: KAFKA_INSIGHTS_TOPIC
+          value: {{ .Values.env.KAFKA_INSIGHTS_TOPIC | quote }}
+        - name: KAFKA_TELEMETRY_TOPIC
+          value: {{ .Values.env.KAFKA_TELEMETRY_TOPIC | quote }}
+        - name: KAFKA_OPTIMIZATION_TOPIC
+          value: {{ .Values.env.KAFKA_OPTIMIZATION_TOPIC | quote }}
+        - name: CONSENSUS_ENGINE_ENDPOINT
+          value: {{ .Values.env.CONSENSUS_ENGINE_ENDPOINT | quote }}
+        - name: ORCHESTRATOR_ENDPOINT
+          value: {{ .Values.env.ORCHESTRATOR_ENDPOINT | quote }}
+        - name: ANALYST_AGENTS_ENDPOINT
+          value: {{ .Values.env.ANALYST_AGENTS_ENDPOINT | quote }}
+        - name: QUEEN_AGENT_ENDPOINT
+          value: {{ .Values.env.QUEEN_AGENT_ENDPOINT | quote }}
+        - name: SERVICE_REGISTRY_ENDPOINT
+          value: {{ .Values.env.SERVICE_REGISTRY_ENDPOINT | quote }}
+        - name: MONGODB_DATABASE
+          value: {{ .Values.env.MONGODB_DATABASE | quote }}
+        - name: MONGODB_OPTIMIZATION_COLLECTION
+          value: {{ .Values.env.MONGODB_OPTIMIZATION_COLLECTION | quote }}
+        - name: MONGODB_EXPERIMENTS_COLLECTION
+          value: {{ .Values.env.MONGODB_EXPERIMENTS_COLLECTION | quote }}
+        - name: REDIS_CLUSTER_NODES
+          value: {{ .Values.env.REDIS_CLUSTER_NODES | quote }}
+        - name: MLFLOW_TRACKING_URI
+          value: {{ .Values.env.MLFLOW_TRACKING_URI | quote }}
+        - name: MIN_IMPROVEMENT_THRESHOLD
+          value: {{ .Values.env.MIN_IMPROVEMENT_THRESHOLD | quote }}
+        - name: MAX_WEIGHT_ADJUSTMENT
+          value: {{ .Values.env.MAX_WEIGHT_ADJUSTMENT | quote }}
+        - name: ENABLE_AUTO_APPROVAL
+          value: {{ .Values.env.ENABLE_AUTO_APPROVAL | quote }}
+        {{- range $key, $value := .Values.env }}
+        {{- if not (hasKey $env "ENVIRONMENT" | hasKey $value "KAFKA" | hasKey $value "MONGODB" | hasKey $value "REDIS" | hasKey $value "MLFLOW" | hasKey $value "MIN_" | hasKey $value "MAX_" | hasKey $value "ENABLE_") }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        {{- with .Values.probes.liveness }}
+        {{- if .enabled }}
+        livenessProbe:
+          httpGet:
+            path: {{ .path }}
+            port: http
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          timeoutSeconds: 5
+          failureThreshold: 3
+        {{- end }}
+        {{- end }}
+        {{- with .Values.probes.readiness }}
+        {{- if .enabled }}
+        readinessProbe:
+          httpGet:
+            path: {{ .path }}
+            port: http
+          initialDelaySeconds: {{ .initialDelaySeconds }}
+          periodSeconds: {{ .periodSeconds }}
+          timeoutSeconds: 3
+          failureThreshold: 3
+        {{- end }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

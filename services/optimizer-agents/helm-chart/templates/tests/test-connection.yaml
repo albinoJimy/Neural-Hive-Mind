@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "optimizer-agents.fullname" . }}-test-connection"
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": test-success
+  labels:
+    {{- include "optimizer-agents.labels" . | nindent 4 }}
+spec:
+  containers:
+  - name: wget
+    image: busybox
+    command: ["wget"]
+    args:
+    - "-O-"
+    - "http://{{ include "optimizer-agents.fullname" . }}:{{ .Values.service.ports.http }}/health"
+  restartPolicy: Never
