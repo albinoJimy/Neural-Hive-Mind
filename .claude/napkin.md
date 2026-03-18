@@ -81,6 +81,22 @@
 
 ---
 
+## MCP Integration
+
+1. **[2026-03-18] MCP Servers: HTTP REST (não FastMCP)**
+   FastMCP usa stdio/SSE incompatível com Kubernetes probes.
+   Do instead: Usar `http.server.HTTPServer` com endpoints `/health`, `/tools`, `/execute`.
+
+2. **[2026-03-18] HTTPMCPClient para comunicação MCP**
+   Clientes queen-agent usam REST em vez de stdio.
+   Do instead: `HTTPMCPClient(server_url, timeout)` com métodos `connect()`, `list_tools()`, `execute_tool()`.
+
+3. **[2026-03-18] Helm ConfigMaps para injetar código MCP**
+   Código montado em `/app/src` via ConfigMap (sem PVC).
+   Do instead: Criar ConfigMap com código, montar `readOnly: true` no pod.
+
+---
+
 ## Shell & Tools
 
 1. **[2026-03-17] dev-planner skill para planeamento**

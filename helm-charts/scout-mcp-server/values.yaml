@@ -1,0 +1,107 @@
+# Valores padrão para Scout MCP Server
+replicaCount: 1
+
+image:
+  repository: python
+  pullPolicy: IfNotPresent
+  tag: "3.12-slim"
+
+# Command e args
+command: ["python"]
+args: ["/app/src/scout_http_server.py"]
+
+# Escaneamento de código
+scout:
+  basePath: /repo
+  maxDepth: 5
+  excludeDirs:
+    - node_modules
+    - .git
+    - __pycache__
+    - venv
+    - .venv
+    - dist
+    - build
+
+# Serviço MCP
+service:
+  type: ClusterIP
+  port: 8080
+  annotations: {}
+
+# Ingress (opcional)
+ingress:
+  enabled: false
+  className: nginx
+  hosts:
+    - host: scout-mcp.neural-hive.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Resources
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Liveness e readiness probes
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 30
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+# ConfigMap volume mount (para código)
+volumeMounts:
+  - name: scout-code
+    mountPath: /app/src
+    readOnly: true
+
+volumes:
+  - name: scout-code
+    configMap:
+      name: scout-mcp-code
+
+# Environment variables
+env: []
+
+# Pod security context
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  runAsNonRoot: false
+  runAsUser: 0
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+# Service account
+serviceAccount:
+  create: true
+  annotations: {}
+
+# Pod labels
+podLabels:
+  app: scout-mcp-server
+  component: code-discovery
+  part-of: neural-hive-mind
+
+# Service annotations
+serviceAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/metrics"

@@ -1,0 +1,14 @@
+apiVersion: v2
+name: optimizer-mcp-server
+description: Optimizer MCP Server - Análise de performance e otimização de código
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - mcp
+  - code-analysis
+  - performance
+  - optimization
+maintainers:
+  - name: Neural Hive Mind
+    email: dev@neuralhive.local

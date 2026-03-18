@@ -86,3 +86,12 @@ libraries/python/neural_hive_agent_sdk/proto/
 # Tests locais
 tests/test-approval-flow.sh
 
+# MLflow runs
+mlruns/
+**/mlruns/
+
+# MCP servers cache
+mcp-servers/**/.pytest_cache/
+mcp-servers/**/__pycache__/
+mcp-servers/**/.coverage
+

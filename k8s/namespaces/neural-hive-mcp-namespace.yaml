@@ -7,3 +7,19 @@ metadata:
     neural-hive-mind.org/component: mcp-servers
     app.kubernetes.io/part-of: neural-hive-mind
     istio-injection: enabled
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: repo-code-pvc
+  namespace: neural-hive-mcp
+  labels:
+    app: neural-hive-mcp
+spec:
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: # Use default storage class

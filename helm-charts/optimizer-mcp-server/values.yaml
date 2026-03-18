@@ -1,0 +1,103 @@
+# Valores padrão para Optimizer MCP Server
+replicaCount: 1
+
+image:
+  repository: python
+  pullPolicy: IfNotPresent
+  tag: "3.12-slim"
+
+# Command e args
+command: ["python"]
+args: ["/app/src/optimizer_http_server.py"]
+
+# Análise de performance
+optimizer:
+  basePath: /app
+  maxFileSize: 1048576  # 1MB
+  excludePatterns:
+    - "*_test.py"
+    - "test_*.py"
+    - "*/migrations/*"
+
+# Serviço MCP
+service:
+  type: ClusterIP
+  port: 8080
+  annotations: {}
+
+# Ingress (opcional)
+ingress:
+  enabled: false
+  className: nginx
+  hosts:
+    - host: optimizer-mcp.neural-hive.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Resources
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 200m
+    memory: 256Mi
+
+# Liveness e readiness probes
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 30
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+# ConfigMap volume mount (para código)
+volumeMounts:
+  - name: optimizer-code
+    mountPath: /app/src
+    readOnly: true
+
+volumes:
+  - name: optimizer-code
+    configMap:
+      name: optimizer-mcp-code
+
+# Environment variables
+env: []
+
+# Pod security context
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  runAsNonRoot: false
+  runAsUser: 0
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+# Service account
+serviceAccount:
+  create: true
+  annotations: {}
+
+# Pod labels
+podLabels:
+  app: optimizer-mcp-server
+  component: performance-optimization
+  part-of: neural-hive-mind
+
+# Service annotations
+serviceAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/metrics"
