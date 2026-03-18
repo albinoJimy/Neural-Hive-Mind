@@ -1,0 +1,225 @@
+{
+  "dashboard": {
+    "title": "Analyst Agents Dashboard",
+    "tags": ["neural-hive-mind", "analytics", "insights"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Insights by Type",
+        "type": "piechart",
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "sum by (analysis_type) (analyst_insights_total)",
+            "legendFormat": "{{analysis_type}}"
+          }
+        ],
+        "options": {
+          "legend": {"showLegend": true, "placement": "right"},
+          "pieType": "pie",
+          "tooltip": {"mode": "single"}}
+      },
+      {
+        "id": 2,
+        "title": "Anomalies Detected Over Time",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 6, "y": 0},
+        "targets": [
+          {
+            "expr": "analyst_anomalies_detected_total",
+            "legendFormat": "Anomalies"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Count", "show": true}
+        ],
+        "xaxis": {"show": true, "mode": "time", "name": "Time"}
+      },
+      {
+        "id": 3,
+        "title": "Processing Time (p95)",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, analyst_processing_time_seconds)",
+            "legendFormat": "{{value}}s"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "orientation": "auto"
+        },
+        "fieldConfig": {"defaults": {"unit": "s"}}
+      },
+      {
+        "id": 4,
+        "title": "Top Analysis Types",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 8},
+        "targets": [
+          {
+            "expr": "topk(5, sum by (analysis_type) (analyst_insights_total))",
+            "format": "table"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true, "__name__": true, "job": true},
+              "indexByName": {"Value": false},
+              "renameByName": {"analysis_type": "Type", "Value": "Count"}
+            }
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Source Distribution",
+        "type": "bargauge",
+        "gridPos": {"h": 4, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "sum by (source) (analyst_insights_total{source=~\".+\"})",
+            "legendFormat": "{{source}}"
+          }
+        ],
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient",
+          "maxVizHeight": 300
+        }
+      },
+      {
+        "id": 6,
+        "title": "Confidence Distribution",
+        "type": "heatmap",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+        "targets": [
+          {
+            "expr": "sum by (confidence_level) (analyst_insights_total{confidence_level=~\".+\"})",
+            "legendFormat": "{{confidence_level}}"
+          }
+        ],
+        "options": {
+          "calculate": false,
+          "cellGap": 2,
+          "cellRadius": 0,
+          "cellValues": {},
+          "color": {
+            "exponent": 0.5,
+            "fill": "dark-orange",
+            "mode": "spectrum",
+            "reverse": false,
+            "scale": "exponential",
+            "scheme": "Oranges",
+            "steps": 128
+          },
+          "exemplars": {"color": "rgba(255,0,255,0.7)"},
+          "filterValues": {"le": 1e-9},
+          "legend": {"showLegend": true},
+          "rowsFrame": {},
+          "tooltip": {
+            "show": true,
+            "yHistogram": false
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Processing Time Histogram",
+        "type": "histogram",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+        "targets": [
+          {
+            "expr": "analyst_processing_time_seconds_bucket",
+            "legendFormat": "{{le}}"
+          }
+        ],
+        "options": {
+          "legend": {"showLegend": true}
+        }
+      },
+      {
+        "id": 8,
+        "title": "Recent Insights Timeline",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
+        "targets": [
+          {
+            "expr": "rate(analyst_insights_total[5m])",
+            "legendFormat": "{{analysis_type}}"
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Error Rate",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 20},
+        "targets": [
+          {
+            "expr": "rate(analyst_errors_total[5m])",
+            "legendFormat": "{{value}} errors/s"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value"
+        }
+      },
+      {
+        "id": 10,
+        "title": "Cache Hit Rate",
+        "type": "gauge",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 20},
+        "targets": [
+          {
+            "expr": "analyst_cache_hits / (analyst_cache_hits + analyst_cache_misses)",
+            "legendFormat": "{{value}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 70, "color": "yellow"},
+                {"value": 90, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "Active Queries",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 12, "x": 0, "y": 28},
+        "targets": [
+          {
+            "expr": "analyst_active_queries",
+            "legendFormat": "{{value}}"
+          }
+        ],
+        "options": {
+          "graphMode": "none",
+          "colorMode": "value",
+          "orientation": "auto"
+        }
+      }
+    ],
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "refresh": "30s"
+  }
+}

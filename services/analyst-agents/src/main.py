@@ -10,12 +10,13 @@ from neural_hive_observability.config import ObservabilityConfig
 
 from .config import get_settings
 from .clients import MongoDBClient, RedisClient, Neo4jClient, ClickHouseClient, ElasticsearchClient, PrometheusClient, QueenAgentGRPCClient, ServiceRegistryClient
-from .services import AnalyticsEngine, QueryEngine, InsightGenerator, CausalAnalyzer, EmbeddingService
+from .services import AnalyticsEngine, QueryEngine, InsightGenerator, CausalAnalyzer, EmbeddingService, TimeSeriesAnalyzer, MCPIntegration
 from .consumers import TelemetryConsumer, ConsensusConsumer, ExecutionConsumer, PheromoneConsumer
 from .producers import InsightProducer
-from .api import health, insights, analytics, status, semantics
+from .api import health, insights, analytics, status, semantics, analytics_v2
 from .observability.metrics import setup_metrics
 from .grpc_service import AnalystGRPCServer
+from .repositories import InsightRepository
 
 logger = structlog.get_logger()
 settings = get_settings()
@@ -41,6 +42,9 @@ class AppState:
         self.insight_generator = None
         self.causal_analyzer = None
         self.embedding_service = None
+        self.ts_analyzer = None
+        self.mcp_integration = None
+        self.insight_repository = None
 
         # Kafka
         self.telemetry_consumer = None
@@ -202,6 +206,27 @@ async def lifespan(app: FastAPI):
         )
         await app_state.embedding_service.initialize()
 
+        # Novos componentes para Analytics V2
+        app_state.ts_analyzer = TimeSeriesAnalyzer(
+            anomaly_threshold=getattr(settings, 'ANOMALY_THRESHOLD', 2.5),
+            min_data_points=getattr(settings, 'MIN_DATA_POINTS', 10),
+        )
+
+        app_state.mcp_integration = MCPIntegration(
+            scout_url=getattr(settings, 'SCOUT_MCP_URL', 'http://scout-mcp-server:8000'),
+            optimizer_url=getattr(settings, 'OPTIMIZER_MCP_URL', 'http://optimizer-mcp-server:8001'),
+            timeout=getattr(settings, 'MCP_TIMEOUT', 30.0),
+        )
+        await app_state.mcp_integration.initialize()
+
+        app_state.insight_repository = InsightRepository(
+            client=app_state.mongodb_client.client,
+            database=settings.MONGODB_DATABASE,
+            ttl_days=getattr(settings, 'INSIGHTS_TTL_DAYS', 90),
+            cache_ttl_hours=getattr(settings, 'TS_CACHE_TTL_HOURS', 24),
+        )
+        await app_state.insight_repository.initialize()
+
         logger.info('services_initialized')
 
     except Exception as e:
@@ -347,6 +372,10 @@ async def lifespan(app: FastAPI):
     if app_state.embedding_service:
         await app_state.embedding_service.close()
 
+    # Fechar novos serviços V2
+    if app_state.mcp_integration:
+        await app_state.mcp_integration.close()
+
     # Deregistrar e fechar Service Registry client
     if app_state.service_registry_client:
         await app_state.service_registry_client.close()
@@ -391,6 +420,7 @@ app.add_middleware(
 app.include_router(health.router, tags=['health'])
 app.include_router(insights.router, prefix='/api/v1', tags=['insights'])
 app.include_router(analytics.router, prefix='/api/v1', tags=['analytics'])
+app.include_router(analytics_v2.router, prefix='/api/v1', tags=['analytics-v2'])
 app.include_router(status.router, prefix='/api/v1', tags=['status'])
 app.include_router(semantics.router, prefix='/api/v1', tags=['semantics'])
 

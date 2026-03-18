@@ -1,5 +1,25 @@
 from .insight import AnalystInsight, InsightType, Priority, Recommendation, RelatedEntity, TimeWindow
 from .query_request import InsightQueryRequest, InsightQueryResponse, QueryType
+from .insight_extended import (
+    InsightCreate,
+    InsightResponse,
+    InsightListResponse,
+    AnalyticsQueryRequest,
+    AnalyticsQueryResponse,
+    TimeSeriesQuery,
+    TimeSeriesResponse,
+    AnomalyDetectionQuery,
+    AnomalyDetectionResponse,
+    DashboardData,
+    AnalysisType,
+    InsightSource,
+    InsightStatus,
+    InsightMetadata,
+    InsightMetrics,
+    TimeSeriesData,
+    AnomalyPoint,
+    TimeSeriesCacheEntry,
+)
 
 __all__ = [
     'AnalystInsight',
@@ -11,4 +31,22 @@ __all__ = [
     'InsightQueryRequest',
     'InsightQueryResponse',
     'QueryType',
+    'InsightCreate',
+    'InsightResponse',
+    'InsightListResponse',
+    'AnalyticsQueryRequest',
+    'AnalyticsQueryResponse',
+    'TimeSeriesQuery',
+    'TimeSeriesResponse',
+    'AnomalyDetectionQuery',
+    'AnomalyDetectionResponse',
+    'DashboardData',
+    'AnalysisType',
+    'InsightSource',
+    'InsightStatus',
+    'InsightMetadata',
+    'InsightMetrics',
+    'TimeSeriesData',
+    'AnomalyPoint',
+    'TimeSeriesCacheEntry',
 ]

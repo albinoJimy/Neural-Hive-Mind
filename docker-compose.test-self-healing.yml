@@ -1,0 +1,89 @@
+# Docker Compose para testes de integração do Self-Healing Engine
+
+version: '3.8'
+
+services:
+  # MongoDB para dados de especialista e aprovação
+  mongodb:
+    image: mongo:7.0
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+
+  # Redis para cache e rate limiting
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Kafka para eventos de remediação e incidentes
+  kafka:
+    image: bitnami/kafka:3.7
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,PLAINTEXT_HOSTED://:9093
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+
+  zookeeper:
+    image: bitnami/zookeeper:3.7
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # OPA para validação de políticas
+  opa:
+    image: openpolicyagent/opa:latest-envoy
+    ports:
+      - "8181:8181"
+    command:
+      - run
+      - --server
+      - --log-level=debug
+    volumes:
+      - ./services/self-healing-engine/policies:/policies
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "--tries=1", "http://localhost:8181/v1/policies"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Service Registry (mock)
+  service-registry:
+    image: python:3.12-slim
+    working_dir: /app
+    command: python -m src.main
+    volumes:
+      - ./services/service-registry:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=DEBUG
+    ports:
+      - "8007:8007"
+
+volumes:
+  mongodb_data:
