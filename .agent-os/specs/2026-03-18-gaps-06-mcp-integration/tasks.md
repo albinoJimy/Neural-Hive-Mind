@@ -11,14 +11,14 @@
   - [x] 1.6 Configurar stdio transport
   - [x] 1.7 Verificar todos os testes passam
 
-- [ ] 2. Optimizer MCP Server - Servidor MCP para otimização
-  - [ ] 2.1 Write tests para Optimizer MCP Server
-  - [ ] 2.2 Implementar ferramenta `suggest_refactors`
-  - [ ] 2.3 Implementar ferramenta `analyze_performance`
-  - [ ] 2.4 Implementar ferramenta `optimize_queries`
-  - [ ] 2.5 Implementar handler JSON-RPC 2.0
-  - [ ] 2.6 Configurar stdio transport
-  - [ ] 2.7 Verificar todos os testes passam
+- [x] 2. Optimizer MCP Server - Servidor MCP para otimização ✅
+  - [x] 2.1 Write tests para Optimizer MCP Server
+  - [x] 2.2 Implementar ferramenta `suggest_refactors`
+  - [x] 2.3 Implementar ferramenta `analyze_performance`
+  - [x] 2.4 Implementar ferramenta `optimize_queries`
+  - [x] 2.5 Implementar handler JSON-RPC 2.0
+  - [x] 2.6 Configurar stdio transport
+  - [x] 2.7 Verificar todos os testes passam
 
 - [ ] 3. MCP Client SDK - Biblioteca para agentes especializados
   - [ ] 3.1 Write tests para MCPClient
@@ -65,13 +65,15 @@
 
 - [ ] 8. Docker e Deploy
   - [x] 8.1 Criar Dockerfile para Scout MCP Server ✅
-  - [ ] 8.2 Criar Dockerfile para Optimizer MCP Server
+  - [x] 8.2 Criar Dockerfile para Optimizer MCP Server ✅
   - [ ] 8.3 Atualizar docker-compose para MCP servers
   - [ ] 8.4 Configurar health checks
   - [ ] 8.5 Verificar deploy local
 
-## Progresso GAPS-06: 12.5% (1/8 tasks)
+## Progresso GAPS-06: 25% (2/8 tasks)
 
 **Concluído:**
 - Task 1: Scout MCP Server (20 testes) ✅
+- Task 2: Optimizer MCP Server (19 testes) ✅
 - Task 8.1: Dockerfile Scout MCP Server ✅
+- Task 8.2: Dockerfile Optimizer MCP Server ✅
