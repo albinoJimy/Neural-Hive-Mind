@@ -1,0 +1,18 @@
+# Optimizer MCP Server Dependencies
+
+# Web Framework
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+
+# MCP
+fastmcp==0.1.0
+
+# Configuration
+pydantic-settings==2.6.0
+pydantic==2.10.0
+
+# Logging
+structlog==24.4.0
+
+# Code Analysis (optional, for static analysis)
+ast==0.0.1  # Built-in, listed for reference
