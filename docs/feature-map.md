@@ -1,8 +1,8 @@
 # Feature Map — Neural-Hive-Mind
 
 **Projecto:** Neural-Hive-Mind
-**Última Actualização:** 2026-03-17
-**Completude Global:** ~80%
+**Última Actualização:** 2026-03-18
+**Completude Global:** ~82%
 
 ---
 
@@ -178,12 +178,12 @@
 ### Críticos (Must)
 1. **Memory Layer** — Persistência de memória de longo prazo (75%)
 2. **MCP Servers** — Integração completa com MCP (60%)
-3. **Scout Agents** — Exploração autónoma (50%)
+3. **Scout Agents** — Exploração autónoma ✅ COMPLETO (2026-03-18)
 
 ### Importantes (Should)
 1. **MCP Servers** — Integração completa com MCP (60%)
-2. **Scout Agents** — Exploração autónoma (50%)
-3. **Optimizer Agents** — Otimização de workflows (45%)
+2. **Optimizer Agents** — Otimização de workflows (45%)
+3. **Memory Layer API** — Completar endpoints de persistência (75%)
 
 ### Nice to Have (Could)
 1. **Multi-idioma** no STE
@@ -191,6 +191,7 @@
 3. **Online learning** contínuo
 
 ### Concluídos Recentemente
+- ✅ **GAPS-05 Scout Agents** (2026-03-18) - 117 testes, exploração e descoberta autónoma
 - ✅ **Active Learning Feedback Collector** (2026-03-17) - 76 testes, ML v8 integration
 - ✅ **GAPS-04 Explainability API** (2026-03-17) - 66 testes, SHAP + reasoning extraction
 - ✅ **GAPS-03 Consenso Hierárquico** (2026-03-17) - 5 níveis de senioridade, 132 testes
@@ -199,9 +200,9 @@
 
 ## Próximos Épicos Sugeridos
 
-1. **GAPS-05: Scout Agents** — Exploração e descoberta autónoma (50%)
-2. **GAPS-06: MCP Servers Integration** — Integração completa com MCP protocol (60%)
-3. **ML: Online Learning** — Retreinamento contínuo dos modelos de aprovação
+1. **GAPS-06: MCP Servers Integration** — Integração completa com MCP protocol (60%)
+2. **ML: Online Learning** — Retreinamento contínuo dos modelos de aprovação
+3. **GAPS-07: Optimizer Agents** — Otimização automática de workflows (45%)
 
 ---
 
