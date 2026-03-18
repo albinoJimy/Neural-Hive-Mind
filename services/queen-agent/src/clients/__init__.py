@@ -8,12 +8,12 @@ from .pheromone_client import PheromoneClient
 from .opa_client import OPAClient
 
 __all__ = [
-    'MongoDBClient',
-    'RedisClient',
-    'Neo4jClient',
-    'PrometheusClient',
-    'OrchestratorClient',
-    'ServiceRegistryClient',
-    'PheromoneClient',
-    'OPAClient'
+    "MongoDBClient",
+    "RedisClient",
+    "Neo4jClient",
+    "PrometheusClient",
+    "OrchestratorClient",
+    "ServiceRegistryClient",
+    "PheromoneClient",
+    "OPAClient",
 ]

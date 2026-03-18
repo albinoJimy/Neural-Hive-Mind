@@ -20,7 +20,7 @@ CACHE_TTL_SECONDS = 60
 class PheromoneClient:
     """Cliente para feromônios digitais no Redis"""
 
-    def __init__(self, redis_client: 'RedisClient', settings: 'Settings'):
+    def __init__(self, redis_client: "RedisClient", settings: "Settings"):
         self.redis_client = redis_client
         self.settings = settings
         # Cache local para trilhas de sucesso
@@ -32,32 +32,30 @@ class PheromoneClient:
         pheromone_type: str,
         domain: str,
         strength: float,
-        metadata: Dict[str, Any]
+        metadata: Dict[str, Any],
     ) -> None:
         """Publicar feromônio usando chave padronizada via DomainMapper"""
         try:
             # Normalizar domain para UnifiedDomain
-            normalized_domain = DomainMapper.normalize(domain, 'intent_envelope')
+            normalized_domain = DomainMapper.normalize(domain, "intent_envelope")
             key = DomainMapper.to_pheromone_key(
                 domain=normalized_domain,
-                layer='strategic',
-                pheromone_type=pheromone_type
+                layer="strategic",
+                pheromone_type=pheromone_type,
             )
 
             pheromone_data = {
                 "strength": strength,
                 "last_updated": int(datetime.now().timestamp() * 1000),
-                "metadata": metadata
+                "metadata": metadata,
             }
 
             await self.redis_client.cache_strategic_context(
-                key,
-                pheromone_data,
-                ttl_seconds=86400  # 24 horas
+                key, pheromone_data, ttl_seconds=86400  # 24 horas
             )
 
             # Invalidar cache de trilhas de sucesso quando publicar SUCCESS
-            if pheromone_type == 'SUCCESS':
+            if pheromone_type == "SUCCESS":
                 self.invalidate_success_trails_cache()
 
             logger.debug(
@@ -65,7 +63,7 @@ class PheromoneClient:
                 type=pheromone_type,
                 domain=normalized_domain.value,
                 strength=strength,
-                key=key
+                key=key,
             )
 
         except Exception as e:
@@ -75,16 +73,16 @@ class PheromoneClient:
         """Obter força de feromônio usando chave padronizada via DomainMapper"""
         try:
             # Normalizar domain para UnifiedDomain
-            normalized_domain = DomainMapper.normalize(domain, 'intent_envelope')
+            normalized_domain = DomainMapper.normalize(domain, "intent_envelope")
             key = DomainMapper.to_pheromone_key(
                 domain=normalized_domain,
-                layer='strategic',
-                pheromone_type=pheromone_type
+                layer="strategic",
+                pheromone_type=pheromone_type,
             )
             data = await self.redis_client.get_cached_context(key)
 
-            if data and 'strength' in data:
-                return data['strength']
+            if data and "strength" in data:
+                return data["strength"]
 
             return 0.0
 
@@ -96,7 +94,7 @@ class PheromoneClient:
         """Obter todos os sinais de feromônio de um domínio"""
         signals = {}
 
-        for pheromone_type in ['SUCCESS', 'FAILURE', 'WARNING']:
+        for pheromone_type in ["SUCCESS", "FAILURE", "WARNING"]:
             strength = await self.get_pheromone_strength(domain, pheromone_type)
             signals[pheromone_type] = strength
 
@@ -132,7 +130,7 @@ class PheromoneClient:
                 logger.debug(
                     "success_trails_cache_hit",
                     cache_age_seconds=cache_age,
-                    cached_count=len(self._success_trails_cache)
+                    cached_count=len(self._success_trails_cache),
                 )
                 return self._success_trails_cache[:limit]
 
@@ -153,7 +151,7 @@ class PheromoneClient:
                 # Tratar chaves malformadas
                 try:
                     # Formato esperado: pheromone:strategic:{domain}:SUCCESS
-                    key_parts = key.split(':')
+                    key_parts = key.split(":")
                     if len(key_parts) != 4:
                         logger.warning("malformed_pheromone_key", key=key)
                         continue
@@ -164,9 +162,7 @@ class PheromoneClient:
 
                 except Exception as parse_error:
                     logger.warning(
-                        "pheromone_key_parse_failed",
-                        key=key,
-                        error=str(parse_error)
+                        "pheromone_key_parse_failed", key=key, error=str(parse_error)
                     )
                     continue
 
@@ -176,16 +172,16 @@ class PheromoneClient:
                     continue
 
                 trail = {
-                    'domain': domain,
-                    'strength': pheromone_data.get('strength', 0.0),
-                    'last_updated': pheromone_data.get('last_updated', 0),
-                    'metadata': pheromone_data.get('metadata', {}),
-                    'key': key
+                    "domain": domain,
+                    "strength": pheromone_data.get("strength", 0.0),
+                    "last_updated": pheromone_data.get("last_updated", 0),
+                    "metadata": pheromone_data.get("metadata", {}),
+                    "key": key,
                 }
                 trails.append(trail)
 
             # Ordenar por strength em ordem decrescente
-            trails.sort(key=lambda t: t['strength'], reverse=True)
+            trails.sort(key=lambda t: t["strength"], reverse=True)
 
             # Atualizar cache com lista completa ordenada
             self._success_trails_cache = trails
@@ -193,7 +189,9 @@ class PheromoneClient:
 
             # Métricas
             scan_duration = time.time() - start_time
-            QueenAgentMetrics.pheromone_trails_scan_duration_seconds.observe(scan_duration)
+            QueenAgentMetrics.pheromone_trails_scan_duration_seconds.observe(
+                scan_duration
+            )
             QueenAgentMetrics.pheromone_trails_keys_scanned_total.inc(keys_scanned)
 
             logger.debug(
@@ -202,7 +200,7 @@ class PheromoneClient:
                 returned=min(limit, len(trails)),
                 limit=limit,
                 keys_scanned=keys_scanned,
-                scan_duration_ms=scan_duration * 1000
+                scan_duration_ms=scan_duration * 1000,
             )
 
             # Retornar fatiado pelo limite solicitado

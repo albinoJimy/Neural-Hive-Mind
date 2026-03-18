@@ -22,8 +22,7 @@ class PrometheusClient:
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(
-                    f"{self.base_url}/api/v1/query",
-                    params={"query": query}
+                    f"{self.base_url}/api/v1/query", params={"query": query}
                 )
                 response.raise_for_status()
                 return response.json()
@@ -50,7 +49,9 @@ class PrometheusClient:
             query = f'sum(rate(http_requests_total{{service="{service}",status=~"5.."}}[5m])) by (service)'
             result = await self.query(query)
 
-            if result.get("status") == "success" and result.get("data", {}).get("result"):
+            if result.get("status") == "success" and result.get("data", {}).get(
+                "result"
+            ):
                 error_rates[service] = float(result["data"]["result"][0]["value"][1])
             else:
                 error_rates[service] = 0.0
@@ -62,19 +63,25 @@ class PrometheusClient:
         saturation = {}
 
         # CPU
-        cpu_query = 'avg(node_cpu_seconds_total)'
+        cpu_query = "avg(node_cpu_seconds_total)"
         cpu_result = await self.query(cpu_query)
-        if cpu_result.get("status") == "success" and cpu_result.get("data", {}).get("result"):
-            saturation['cpu'] = float(cpu_result["data"]["result"][0]["value"][1])
+        if cpu_result.get("status") == "success" and cpu_result.get("data", {}).get(
+            "result"
+        ):
+            saturation["cpu"] = float(cpu_result["data"]["result"][0]["value"][1])
         else:
-            saturation['cpu'] = 0.0
+            saturation["cpu"] = 0.0
 
         # Memory
-        mem_query = 'avg(node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)'
+        mem_query = "avg(node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)"
         mem_result = await self.query(mem_query)
-        if mem_result.get("status") == "success" and mem_result.get("data", {}).get("result"):
-            saturation['memory'] = 1.0 - float(mem_result["data"]["result"][0]["value"][1])
+        if mem_result.get("status") == "success" and mem_result.get("data", {}).get(
+            "result"
+        ):
+            saturation["memory"] = 1.0 - float(
+                mem_result["data"]["result"][0]["value"][1]
+            )
         else:
-            saturation['memory'] = 0.0
+            saturation["memory"] = 0.0
 
         return saturation

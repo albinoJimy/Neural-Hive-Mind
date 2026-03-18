@@ -1,0 +1,191 @@
+# CronJob Kubernetes para retreinamento automático de modelos ML
+# Agenda: Diariamente às 2h da manhã (horário do cluster)
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ml-retraining-daily
+  namespace: neural-hive-mind
+  labels:
+    app: ml-retraining
+    component: online-learning
+    tier: batch
+spec:
+  # Executar diariamente às 2h da manhã
+  schedule: "0 2 * * *"
+
+  # Política de concorrência - não executar se job anterior ainda rodando
+  concurrencyPolicy: Forbid
+
+  # Histórico de jobs - manter últimos 3 jobs bem-sucedidos e 1 falho
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+
+  # Deadline para iniciar o job (2 horas)
+  startingDeadlineSeconds: 7200
+
+  # Suspend jobs manualmente se necessário
+  # suspend: true
+
+  jobTemplate:
+    metadata:
+      labels:
+        app: ml-retraining
+    spec:
+      # TTL para limpar jobs completos após 24 horas
+      ttlSecondsAfterFinished: 86400
+
+      # Retries em caso de falha
+      backoffLimit: 2
+
+      template:
+        metadata:
+          labels:
+            app: ml-retraining
+        spec:
+          restartPolicy: OnFailure
+
+          # Usar service account apropriado
+          serviceAccountName: ml-retraining-sa
+
+          # Container principal
+          containers:
+          - name: retraining-runner
+            image: ghcr.io/albinojimy/neural-hive-ml-retraining:latest
+            imagePullPolicy: IfNotPresent
+
+            command:
+            - /bin/bash
+            - -c
+            - |
+              echo "Starting ML model retraining job at $(date)"
+              cd /app
+              python -m ml_pipelines.training.retrain_v4_basic_features \
+                --min-samples ${MIN_SAMPLES:-100} \
+                --target-f1 ${TARGET_F1:-0.70} \
+                --force ${FORCE_RETRAIN:-false}
+              echo "Retraining job completed at $(date)"
+
+            env:
+            - name: MONGODB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-credentials
+                  key: url
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka.neural-hive-mind.svc.cluster.local:9092"
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow.neural-hive-mind.svc.cluster.local:5000"
+            - name: MIN_SAMPLES
+              value: "100"
+            - name: TARGET_F1
+              value: "0.70"
+            - name: FORCE_RETRAIN
+              value: "false"
+            - name: LOG_LEVEL
+              value: "INFO"
+
+            # Resources limitados para não sobrecarregar cluster
+            resources:
+              requests:
+                cpu: "500m"
+                memory: "1Gi"
+              limits:
+                cpu: "2000m"
+                memory: "4Gi"
+
+            # Health checks
+            startupProbe:
+              exec:
+                command:
+                - /bin/bash
+                - -c
+                - "pgrep -f 'python.*retrain' || exit 1"
+              initialDelaySeconds: 10
+              periodSeconds: 10
+              failureThreshold: 3
+
+            # Volume para dados temporários do modelo
+            volumeMounts:
+            - name: tmp-models
+              mountPath: /tmp/models
+            - name: logs
+              mountPath: /var/log/retraining
+
+          # Volumes
+          volumes:
+          - name: tmp-models
+            emptyDir:
+              sizeLimit: 2Gi
+          - name: logs
+            emptyDir:
+              sizeLimit: 1Gi
+
+          # Node selector para rodar em nós com GPU opcionalmente
+          nodeSelector:
+            nodepool: batch-jobs
+
+          # Tolerations para rodar em nós dedicados
+          tolerations:
+          - key: "dedicated"
+            operator: "Equal"
+            value: "ml-workload"
+            effect: "NoSchedule"
+
+          # Priority class para jobs de baixa prioridade
+          priorityClassName: low-priority
+
+          # Tempo limite para o pod
+          activeDeadlineSeconds: 3600  # 1 hora
+
+---
+# ServiceAccount para o job
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ml-retraining-sa
+  namespace: neural-hive-mind
+  labels:
+    app: ml-retraining
+    component: online-learning
+
+---
+# Role para acessar secrets e configmaps
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ml-retraining-role
+  namespace: neural-hive-mind
+rules:
+- apiGroups: [""]
+  resources: ["secrets", "configmaps"]
+  verbs: ["get", "list"]
+
+---
+# RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ml-retraining-rolebinding
+  namespace: neural-hive-mind
+  labels:
+    app: ml-retraining
+    component: online-learning
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ml-retraining-role
+subjects:
+- kind: ServiceAccount
+  name: ml-retraining-sa
+  namespace: neural-hive-mind
+
+---
+# PriorityClass para jobs de baixa prioridade
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: low-priority
+value: 1000
+globalDefault: false
+description: "Priority class para batch jobs ML que podem ser preemptados"

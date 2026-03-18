@@ -15,6 +15,16 @@ from src.models import (
 @pytest.fixture
 def mock_clients():
     """Mock de todos os clientes necessários"""
+    # OPA client com métodos específicos
+    opa_client = MagicMock()
+    opa_client.is_connected = MagicMock(return_value=True)
+    opa_client.evaluate_policy = AsyncMock(return_value={
+        "allow": True,
+        "violations": [],
+        "warnings": [],
+        "guardrails_validated": ["risk_threshold_acceptable", "no_bias_risk"]
+    })
+
     return {
         'mongodb': AsyncMock(),
         'redis': AsyncMock(),
@@ -22,7 +32,7 @@ def mock_clients():
         'prometheus': AsyncMock(),
         'pheromone': AsyncMock(),
         'replanning_coordinator': AsyncMock(),
-        'opa': AsyncMock(),
+        'opa': opa_client,
         'orchestrator': AsyncMock()
     }
 
@@ -90,8 +100,8 @@ def sample_decision():
 @pytest.mark.asyncio
 async def test_execute_decision_action_trigger_replanning(decision_engine, mock_clients, sample_decision):
     """Testa execução de ação trigger_replanning"""
-    # Configurar mock para retornar sucesso
-    mock_clients['replanning_coordinator'].trigger_replanning.return_value = True
+    # Configurar mock para retornar sucesso (orchestrator_client é usado)
+    mock_clients['orchestrator'].trigger_replanning = AsyncMock(return_value="replanning-123")
 
     # Executar ação
     result = await decision_engine.execute_decision_action(sample_decision)
@@ -99,14 +109,14 @@ async def test_execute_decision_action_trigger_replanning(decision_engine, mock_
     # Verificar resultado
     assert result is True
 
-    # Verificar que trigger_replanning foi chamado para cada entidade
-    assert mock_clients['replanning_coordinator'].trigger_replanning.call_count == 2
+    # Verificar que trigger_replanning foi chamado para cada entidade via orchestrator
+    assert mock_clients['orchestrator'].trigger_replanning.call_count == 2
 
     # Verificar parâmetros da primeira chamada
-    first_call = mock_clients['replanning_coordinator'].trigger_replanning.call_args_list[0]
+    first_call = mock_clients['orchestrator'].trigger_replanning.call_args_list[0]
     assert first_call.kwargs['plan_id'] == 'plan-1'
-    assert first_call.kwargs['reason'] == 'sla_violation'
-    assert first_call.kwargs['decision_id'] == sample_decision.decision_id
+    assert 'sla_violation' in first_call.kwargs['reason']
+    assert first_call.kwargs['context']['decision_id'] == sample_decision.decision_id
 
 
 @pytest.mark.asyncio
@@ -134,12 +144,12 @@ async def test_execute_decision_action_adjust_qos(decision_engine, mock_clients)
         expires_at=int(datetime.now().timestamp() * 1000) + 86400000
     )
 
-    mock_clients['replanning_coordinator'].adjust_qos.return_value = True
+    mock_clients['orchestrator'].adjust_priorities = AsyncMock(return_value=True)  # Mock para método assíncrono
 
     result = await decision_engine.execute_decision_action(decision)
 
     assert result is True
-    assert mock_clients['replanning_coordinator'].adjust_qos.call_count == 1
+    assert mock_clients['orchestrator'].adjust_priorities.call_count == 1
 
 
 @pytest.mark.asyncio
@@ -167,12 +177,12 @@ async def test_execute_decision_action_pause_execution(decision_engine, mock_cli
         expires_at=int(datetime.now().timestamp() * 1000) + 86400000
     )
 
-    mock_clients['replanning_coordinator'].pause_execution.return_value = True
+    mock_clients['orchestrator'].pause_workflow = AsyncMock(return_value=True)
 
     result = await decision_engine.execute_decision_action(decision)
 
     assert result is True
-    assert mock_clients['replanning_coordinator'].pause_execution.call_count == 2
+    assert mock_clients['orchestrator'].pause_workflow.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -207,7 +217,7 @@ async def test_execute_decision_action_unknown_action(decision_engine, mock_clie
 
 @pytest.mark.asyncio
 async def test_execute_decision_action_delegated_actions(decision_engine, mock_clients):
-    """Testa ações que são delegadas downstream (adjust_priorities, resolve_conflict)"""
+    """Testa ações que usam o orchestrator_client (adjust_priorities)"""
     decision = StrategicDecision(
         decision_type=DecisionType.PRIORITIZATION,
         triggered_by=TriggeredBy(
@@ -230,10 +240,14 @@ async def test_execute_decision_action_delegated_actions(decision_engine, mock_c
         expires_at=int(datetime.now().timestamp() * 1000) + 86400000
     )
 
+    # Mock do orchestrator para adjust_priorities
+    mock_clients['orchestrator'].adjust_priorities = AsyncMock(return_value=True)
+
     result = await decision_engine.execute_decision_action(decision)
 
-    # Ações delegadas retornam True sem chamar coordinator
+    # Ação deve chamar orchestrator e retornar True
     assert result is True
+    assert mock_clients['orchestrator'].adjust_priorities.call_count == 1
 
 
 @pytest.mark.asyncio
@@ -261,8 +275,8 @@ async def test_execute_decision_action_handles_exceptions(decision_engine, mock_
         expires_at=int(datetime.now().timestamp() * 1000) + 86400000
     )
 
-    # Simular exceção no coordinator
-    mock_clients['replanning_coordinator'].trigger_replanning.side_effect = Exception("Test error")
+    # Simular exceção no orchestrator
+    mock_clients['orchestrator'].trigger_replanning = AsyncMock(side_effect=Exception("Test error"))
 
     result = await decision_engine.execute_decision_action(decision)
 
@@ -440,6 +454,9 @@ async def test_validate_guardrails_opa_with_warnings(mock_clients, mock_settings
 @pytest.mark.asyncio
 async def test_validate_guardrails_no_opa_client(mock_clients, mock_settings):
     """Testa validação quando não há cliente OPA"""
+    # Configurar fail-open para usar validação básica como fallback
+    mock_settings.OPA_FAIL_OPEN = True
+
     engine = StrategicDecisionEngine(
         mongodb_client=mock_clients['mongodb'],
         redis_client=mock_clients['redis'],
@@ -448,6 +465,7 @@ async def test_validate_guardrails_no_opa_client(mock_clients, mock_settings):
         pheromone_client=mock_clients['pheromone'],
         replanning_coordinator=mock_clients['replanning_coordinator'],
         opa_client=None,  # Sem cliente OPA
+        orchestrator_client=mock_clients['orchestrator'],
         settings=mock_settings
     )
 
@@ -477,6 +495,7 @@ async def test_basic_guardrail_validation_high_risk(mock_clients, mock_settings)
         pheromone_client=mock_clients['pheromone'],
         replanning_coordinator=mock_clients['replanning_coordinator'],
         opa_client=None,
+        orchestrator_client=mock_clients['orchestrator'],
         settings=mock_settings
     )
 
@@ -500,6 +519,7 @@ async def test_basic_guardrail_validation_exception_approval(mock_clients, mock_
         pheromone_client=mock_clients['pheromone'],
         replanning_coordinator=mock_clients['replanning_coordinator'],
         opa_client=None,
+        orchestrator_client=mock_clients['orchestrator'],
         settings=mock_settings
     )
 

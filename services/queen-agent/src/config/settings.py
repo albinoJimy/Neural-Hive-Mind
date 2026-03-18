@@ -100,8 +100,8 @@ class Settings(BaseSettings):
 
     # MCP (Model Context Protocol) Integration
     MCP_ENABLED: bool = True
-    MCP_SCOUT_URL: str = "http://scout-mcp-server:3010"
-    MCP_OPTIMIZER_URL: str = "http://optimizer-mcp-server:3011"
+    MCP_SCOUT_URL: str = "http://scout-mcp-server.neural-hive-mcp.svc.cluster.local:8080"
+    MCP_OPTIMIZER_URL: str = "http://optimizer-mcp-server.neural-hive-mcp.svc.cluster.local:8080"
     MCP_TIMEOUT: int = 30
 
     @model_validator(mode="after")

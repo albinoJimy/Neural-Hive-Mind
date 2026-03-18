@@ -13,14 +13,18 @@ async def get_system_status(request: Request) -> Dict[str, Any]:
 
     try:
         health = await telemetry_aggregator.aggregate_system_health()
-        return health if health else {
-            "system_score": 0.0,
-            "sla_compliance": 0.0,
-            "error_rate": 0.0,
-            "resource_saturation": 0.0,
-            "active_incidents": 0,
-            "timestamp": 0
-        }
+        return (
+            health
+            if health
+            else {
+                "system_score": 0.0,
+                "sla_compliance": 0.0,
+                "error_rate": 0.0,
+                "resource_saturation": 0.0,
+                "active_incidents": 0,
+                "timestamp": 0,
+            }
+        )
 
     except Exception as e:
         logger.error("get_system_status_failed", error=str(e))
@@ -31,7 +35,7 @@ async def get_system_status(request: Request) -> Dict[str, Any]:
             "resource_saturation": 0.0,
             "active_incidents": 0,
             "timestamp": 0,
-            "error": str(e)
+            "error": str(e),
         }
 
 
@@ -64,7 +68,7 @@ async def get_replanning_status(request: Request) -> Dict[str, Any]:
             "total_replannings": 0,
             "active_replannings": 0,
             "cooldown_plans": [],
-            "error": str(e)
+            "error": str(e),
         }
 
 
@@ -81,10 +85,7 @@ async def get_pheromone_status(request: Request) -> List[Dict[str, Any]]:
         pheromone_data = []
         for domain in domains[:10]:  # Limitar a 10
             signals = await pheromone_client.get_domain_signals(domain)
-            pheromone_data.append({
-                "domain": domain,
-                "signals": signals
-            })
+            pheromone_data.append({"domain": domain, "signals": signals})
 
         return pheromone_data
 

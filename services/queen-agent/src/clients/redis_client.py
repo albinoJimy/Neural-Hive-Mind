@@ -20,15 +20,17 @@ class RedisClient:
         """Conectar ao Redis Cluster"""
         try:
             # Parsear nodes do cluster
-            nodes = self.settings.REDIS_CLUSTER_NODES.split(',')
+            nodes = self.settings.REDIS_CLUSTER_NODES.split(",")
 
             # Criar cliente Redis
             self.client = Redis(
-                host=nodes[0].split(':')[0],
-                port=int(nodes[0].split(':')[1]) if ':' in nodes[0] else 6379,
-                password=self.settings.REDIS_PASSWORD if self.settings.REDIS_PASSWORD else None,
+                host=nodes[0].split(":")[0],
+                port=int(nodes[0].split(":")[1]) if ":" in nodes[0] else 6379,
+                password=self.settings.REDIS_PASSWORD
+                if self.settings.REDIS_PASSWORD
+                else None,
                 ssl=self.settings.REDIS_SSL_ENABLED,
-                decode_responses=True
+                decode_responses=True,
             )
 
             # Testar conexão
@@ -45,14 +47,12 @@ class RedisClient:
             await self.client.close()
             logger.info("redis_closed")
 
-    async def cache_strategic_context(self, key: str, data: Dict[str, Any], ttl_seconds: int) -> None:
+    async def cache_strategic_context(
+        self, key: str, data: Dict[str, Any], ttl_seconds: int
+    ) -> None:
         """Cachear contexto estratégico"""
         try:
-            await self.client.setex(
-                key,
-                ttl_seconds,
-                json.dumps(data)
-            )
+            await self.client.setex(key, ttl_seconds, json.dumps(data))
 
             logger.debug("context_cached", key=key, ttl=ttl_seconds)
 
@@ -79,7 +79,9 @@ class RedisClient:
             return result is not None
 
         except Exception as e:
-            logger.error("decision_lock_failed", decision_type=decision_type, error=str(e))
+            logger.error(
+                "decision_lock_failed", decision_type=decision_type, error=str(e)
+            )
             return False
 
     async def release_decision_lock(self, decision_type: str) -> None:
@@ -89,7 +91,11 @@ class RedisClient:
             await self.client.delete(lock_key)
 
         except Exception as e:
-            logger.error("decision_lock_release_failed", decision_type=decision_type, error=str(e))
+            logger.error(
+                "decision_lock_release_failed",
+                decision_type=decision_type,
+                error=str(e),
+            )
 
     async def increment_decision_counter(self, decision_type: str) -> int:
         """Incrementar contador de decisões por tipo"""
@@ -99,7 +105,11 @@ class RedisClient:
             return count
 
         except Exception as e:
-            logger.error("decision_counter_increment_failed", decision_type=decision_type, error=str(e))
+            logger.error(
+                "decision_counter_increment_failed",
+                decision_type=decision_type,
+                error=str(e),
+            )
             return 0
 
     async def get_decision_stats(self) -> Dict[str, int]:
@@ -109,7 +119,7 @@ class RedisClient:
             keys = await self.client.keys("decision:counter:*")
 
             for key in keys:
-                decision_type = key.split(':')[-1]
+                decision_type = key.split(":")[-1]
                 count = await self.client.get(key)
                 stats[decision_type] = int(count) if count else 0
 

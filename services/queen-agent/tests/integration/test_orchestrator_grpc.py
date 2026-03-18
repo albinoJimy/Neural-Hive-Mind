@@ -10,6 +10,7 @@ Valida comunicação entre Queen Agent e Orchestrator Dynamic via gRPC:
 - GetWorkflowStatus: obter status de workflow
 """
 import pytest
+import pytest_asyncio
 import asyncio
 import socket
 from datetime import datetime
@@ -142,6 +143,10 @@ def mock_settings():
     settings.ORCHESTRATOR_GRPC_PORT = 50053
     settings.ORCHESTRATOR_GRPC_TIMEOUT = 10
     settings.SPIFFE_ENABLED = False
+    settings.SPIFFE_ENABLE_X509 = False
+    settings.SPIFFE_SOCKET_PATH = 'unix:///run/spire/sockets/agent.sock'
+    settings.SPIFFE_TRUST_DOMAIN = 'neural-hive.local'
+    settings.ENVIRONMENT = 'development'
     settings.CIRCUIT_BREAKER_ENABLED = False
     settings.CIRCUIT_BREAKER_FAIL_MAX = 5
     settings.CIRCUIT_BREAKER_TIMEOUT = 60
@@ -149,7 +154,7 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def grpc_server_and_client(mock_settings):
     """
     Fixture que inicia um servidor gRPC mock e retorna um cliente configurado
@@ -179,7 +184,7 @@ async def grpc_server_and_client(mock_settings):
     await server.stop(grace=0)
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def grpc_failing_server_and_client(mock_settings):
     """
     Fixture que inicia um servidor gRPC que simula falhas
@@ -338,7 +343,7 @@ async def test_rebalance_resources_multiple_workflows(grpc_server_and_client):
     )
 
     assert result['success'] is True
-    assert len(result['results']) == 3
+    assert len(result['workflows']) == 3
     call = servicer.rebalance_resources_calls[0]
     assert call.force is True
 

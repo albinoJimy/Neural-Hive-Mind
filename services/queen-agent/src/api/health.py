@@ -10,11 +10,7 @@ router = APIRouter()
 @router.get("/health", status_code=status.HTTP_200_OK)
 async def health() -> Dict[str, Any]:
     """Liveness probe - verifica se o serviço está ativo"""
-    return {
-        "status": "healthy",
-        "service": "queen-agent",
-        "version": "1.0.0"
-    }
+    return {"status": "healthy", "service": "queen-agent", "version": "1.0.0"}
 
 
 @router.get("/ready")
@@ -29,7 +25,7 @@ async def ready(request: Request) -> JSONResponse:
     # MongoDB - dependência crítica
     try:
         if app_state.mongodb_client and app_state.mongodb_client.client:
-            await app_state.mongodb_client.client.admin.command('ping')
+            await app_state.mongodb_client.client.admin.command("ping")
             checks["mongodb"] = True
         else:
             checks["mongodb"] = False
@@ -62,9 +58,9 @@ async def ready(request: Request) -> JSONResponse:
     # Kafka consumers - verifica se foram inicializados
     try:
         checks["kafka"] = (
-            app_state.consensus_consumer is not None and
-            app_state.telemetry_consumer is not None and
-            app_state.incident_consumer is not None
+            app_state.consensus_consumer is not None
+            and app_state.telemetry_consumer is not None
+            and app_state.incident_consumer is not None
         )
     except Exception as e:
         logger.error("health_check_kafka_failed", error=str(e))
@@ -73,8 +69,10 @@ async def ready(request: Request) -> JSONResponse:
     # Prometheus - dependência opcional
     try:
         if app_state.prometheus_client:
-            result = await app_state.prometheus_client.query('up')
-            checks["prometheus"] = result.get('status') == 'success' if result else False
+            result = await app_state.prometheus_client.query("up")
+            checks["prometheus"] = (
+                result.get("status") == "success" if result else False
+            )
         else:
             checks["prometheus"] = False
     except Exception as e:
@@ -96,8 +94,5 @@ async def ready(request: Request) -> JSONResponse:
 
     return JSONResponse(
         status_code=status_code,
-        content={
-            "ready": all_critical_healthy,
-            "checks": checks
-        }
+        content={"ready": all_critical_healthy, "checks": checks},
     )

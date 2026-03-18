@@ -12,21 +12,14 @@ class OPAClient:
     Integra com servidor OPA para decisões de enforcement.
     """
 
-    def __init__(
-        self,
-        base_url: str = "http://opa:8181",
-        timeout: float = 5.0
-    ):
-        self.base_url = base_url.rstrip('/')
+    def __init__(self, base_url: str = "http://opa:8181", timeout: float = 5.0):
+        self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self._client: Optional[httpx.AsyncClient] = None
 
     async def connect(self):
         """Inicializa cliente HTTP assíncrono"""
-        self._client = httpx.AsyncClient(
-            base_url=self.base_url,
-            timeout=self.timeout
-        )
+        self._client = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout)
 
         # Verifica conectividade
         try:
@@ -35,14 +28,11 @@ class OPAClient:
                 logger.info("opa_client.connected", base_url=self.base_url)
             else:
                 logger.warning(
-                    "opa_client.health_check_failed",
-                    status_code=response.status_code
+                    "opa_client.health_check_failed", status_code=response.status_code
                 )
         except Exception as e:
             logger.error(
-                "opa_client.connect_failed",
-                base_url=self.base_url,
-                error=str(e)
+                "opa_client.connect_failed", base_url=self.base_url, error=str(e)
             )
             raise
 
@@ -53,9 +43,7 @@ class OPAClient:
             logger.info("opa_client.closed")
 
     async def evaluate_policy(
-        self,
-        policy_path: str,
-        input_data: Dict[str, Any]
+        self, policy_path: str, input_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Avalia política OPA com dados de entrada.
@@ -76,10 +64,7 @@ class OPAClient:
 
             payload = {"input": input_data}
 
-            logger.debug(
-                "opa_client.evaluating_policy",
-                policy_path=policy_path
-            )
+            logger.debug("opa_client.evaluating_policy", policy_path=policy_path)
 
             response = await self._client.post(url, json=payload)
             response.raise_for_status()
@@ -89,7 +74,7 @@ class OPAClient:
             logger.debug(
                 "opa_client.policy_evaluated",
                 policy_path=policy_path,
-                allowed=result.get("result", {}).get("allow")
+                allowed=result.get("result", {}).get("allow"),
             )
 
             return result.get("result", {})
@@ -99,25 +84,19 @@ class OPAClient:
                 "opa_client.evaluation_failed",
                 policy_path=policy_path,
                 status_code=e.response.status_code,
-                error=str(e)
+                error=str(e),
             )
             # Em caso de erro, retorna negado por segurança
             return {
                 "allow": False,
                 "reason": f"OPA evaluation failed: {str(e)}",
-                "error": True
+                "error": True,
             }
         except Exception as e:
             logger.error(
-                "opa_client.evaluation_error",
-                policy_path=policy_path,
-                error=str(e)
+                "opa_client.evaluation_error", policy_path=policy_path, error=str(e)
             )
-            return {
-                "allow": False,
-                "reason": f"OPA error: {str(e)}",
-                "error": True
-            }
+            return {"allow": False, "reason": f"OPA error: {str(e)}", "error": True}
 
     def is_connected(self) -> bool:
         """Verifica se cliente está conectado"""

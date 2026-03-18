@@ -33,6 +33,10 @@ with workflow.unsafe.imports_passed_through():
         update_ticket_compensation_status
     )
     from src.activities.sla_monitoring import check_workflow_sla_proactive
+    from src.activities.optimization_event import (
+        publish_ticket_completed_event,
+        publish_workflow_optimization_events,
+    )
     from src.config.settings import get_settings
     from neural_hive_observability import get_tracer, trace_plan
     from neural_hive_observability.context import get_baggage, set_baggage
@@ -292,6 +296,21 @@ class OrchestrationWorkflow:
 
                 self._workflow_result = workflow_result
 
+                # Publicar eventos de otimização para tickets completados
+                try:
+                    optimization_result = await workflow.execute_activity(
+                        publish_workflow_optimization_events,
+                        args=[published_tickets, workflow_id],
+                        start_to_close_timeout=timedelta(seconds=30),
+                        retry_policy=RetryPolicy(maximum_attempts=1)
+                    )
+                    workflow.logger.info(
+                        f'Optimization events published: {optimization_result.get("successful_count")} successful, '
+                        f'{optimization_result.get("failed_count")} failed'
+                    )
+                except Exception as e:
+                    workflow.logger.warning(f'Falha ao publicar eventos de otimização em massa: {e}')
+
                 # Se resultado inconsistente, acionar compensacao (Saga Pattern) e autocura
                 if not workflow_result.get('consistent', True):
                     workflow.logger.warning('Resultado inconsistente detectado, acionando compensacao')
@@ -418,11 +437,26 @@ class OrchestrationWorkflow:
         """
         Signal para notificar conclusão de um ticket.
 
+        Publica evento ticket.completed no Kafka para análise de otimização
+        pelo optimizer-agents.
+
         Args:
             ticket_id: ID do ticket concluído
             result: Resultado da execução do ticket
         """
         workflow.logger.info(f'Ticket {ticket_id} concluído: result={result}')
+
+        # Publicar evento para otimização (não-bloqueante)
+        try:
+            await workflow.execute_activity(
+                publish_ticket_completed_event,
+                args=[result, self._workflow_id],
+                start_to_close_timeout=timedelta(seconds=5),
+                retry_policy=RetryPolicy(maximum_attempts=1)
+            )
+        except Exception as e:
+            # Não falhar o workflow se a publicação falhar
+            workflow.logger.warning(f'Falha ao publicar evento de otimização: {e}')
 
     @workflow.signal
     async def cancel_workflow(self):
