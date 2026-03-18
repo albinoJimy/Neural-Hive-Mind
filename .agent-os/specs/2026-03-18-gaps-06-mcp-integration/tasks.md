@@ -38,14 +38,14 @@
   - [x] 4.6 Integrar com Queen Agent main.py
   - [x] 4.7 Verificar todos os testes passam
 
-- [ ] 5. MongoDB Persistence - Logs e métricas MCP
-  - [ ] 5.1 Write tests para MCPExecutionRepository
-  - [ ] 5.2 Criar migrations para coleções MCP
-  - [ ] 5.3 Implementar MCPExecutionRepository
-  - [ ] 5.4 Implementar log de execuções
-  - [ ] 5.5 Implementar agregação de métricas
-  - [ ] 5.6 Implementar TTL em mcp_tool_executions
-  - [ ] 5.7 Verificar todos os testes passam
+- [x] 5. MongoDB Persistence - Logs e métricas MCP ✅
+  - [x] 5.1 Write tests para MCPExecutionRepository
+  - [x] 5.2 Criar migrations para coleções MCP
+  - [x] 5.3 Implementar MCPExecutionRepository
+  - [x] 5.4 Implementar log de execuções
+  - [x] 5.5 Implementar agregação de métricas
+  - [x] 5.6 Implementar TTL em mcp_tool_executions
+  - [x] 5.7 Verificar todos os testes passam
 
 - [ ] 6. REST API - Endpoints MCP Queen Agent
   - [ ] 6.1 Write tests para MCP Router
@@ -70,13 +70,14 @@
   - [ ] 8.4 Configurar health checks
   - [ ] 8.5 Verificar deploy local
 
-## Progresso GAPS-06: 50% (4/8 tasks)
+## Progresso GAPS-06: 62.5% (5/8 tasks)
 
 **Concluído:**
 - Task 1: Scout MCP Server (20 testes) ✅
 - Task 2: Optimizer MCP Server (19 testes) ✅
 - Task 3: MCP Client SDK (13 testes) ✅
 - Task 4: Queen Agent MCP Orchestration (7 testes) ✅
+- Task 5: MongoDB Persistence (9 testes) ✅
 - Task 6: REST API (4 endpoints) ✅ (parte da Task 4)
 - Task 8.1: Dockerfile Scout MCP Server ✅
 - Task 8.2: Dockerfile Optimizer MCP Server ✅
