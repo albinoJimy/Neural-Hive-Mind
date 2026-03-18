@@ -255,3 +255,132 @@ class TestMCPExecutionRepositoryIntegration:
         repository.collection.aggregate.return_value = mock_cursor
         metrics = await repository.get_metrics_by_server("scout")
         assert metrics["total_executions"] == 1
+
+
+# =============================================================================
+# TESTS: MCPCleanupTask
+# =============================================================================
+
+
+class TestMCPCleanupTask:
+    """Testes para MCPCleanupTask."""
+
+    @pytest.mark.asyncio
+    async def test_cleanup_task_initialization(self, mock_mongo):
+        """Testa inicialização do cleanup task."""
+        from src.repositories.mcp_execution_repository import MCPCleanupTask, MCPExecutionRepository
+
+        repo = MCPExecutionRepository(mock_mongo)
+        task = MCPCleanupTask(repo, cleanup_interval_hours=12, retention_days=14)
+
+        assert task.repository == repo
+        assert task.cleanup_interval.total_seconds() == 12 * 3600
+        assert task.retention_days == 14
+        assert not task._running
+
+    @pytest.mark.asyncio
+    async def test_cleanup_task_default_values(self, mock_mongo):
+        """Testa valores padrão do cleanup task."""
+        from src.repositories.mcp_execution_repository import MCPCleanupTask, MCPExecutionRepository
+
+        repo = MCPExecutionRepository(mock_mongo)
+        task = MCPCleanupTask(repo)
+
+        assert task.cleanup_interval.total_seconds() == 24 * 3600
+        assert task.retention_days == 30
+
+    @pytest.mark.asyncio
+    async def test_cleanup_task_start_stop(self, mock_mongo):
+        """Testa iniciar e parar cleanup task."""
+        from src.repositories.mcp_execution_repository import MCPCleanupTask, MCPExecutionRepository
+
+        repo = MCPExecutionRepository(mock_mongo)
+        task = MCPCleanupTask(repo, cleanup_interval_hours=1)
+
+        # Start
+        await task.start()
+        assert task._running is True
+        assert task._task is not None
+
+        # Stop
+        await task.stop()
+        assert task._running is False
+
+    @pytest.mark.asyncio
+    async def test_cleanup_task_run_once(self, mock_mongo):
+        """Testa execução única de limpeza."""
+        from src.repositories.mcp_execution_repository import MCPCleanupTask, MCPExecutionRepository
+
+        repo = MCPExecutionRepository(mock_mongo)
+        # Mock delete_many como async
+        repo.collection.delete_many = AsyncMock(
+            return_value=MagicMock(deleted_count=5)
+        )
+        task = MCPCleanupTask(repo, retention_days=7)
+
+        # Executar uma vez
+        deleted = await task.run_once()
+
+        # Verificar que delete_old_executions foi chamado
+        assert deleted == 5
+
+    @pytest.mark.asyncio
+    async def test_cleanup_task_idempotent_start(self, mock_mongo):
+        """Testa que start múltiplas vezes não cria tasks duplicadas."""
+        from src.repositories.mcp_execution_repository import MCPCleanupTask, MCPExecutionRepository
+
+        repo = MCPExecutionRepository(mock_mongo)
+        task = MCPCleanupTask(repo, cleanup_interval_hours=1)
+
+        await task.start()
+        first_task = task._task
+
+        await task.start()  # Segunda chamada deve ser ignorada
+        assert task._task == first_task
+
+        await task.stop()
+
+
+class TestMCPRepositoryCleanupIntegration:
+    """Testes de integração para cleanup no repositório."""
+
+    @pytest.mark.asyncio
+    async def test_repository_start_cleanup_task(self, mock_mongo):
+        """Testa iniciar cleanup task através do repositório."""
+        from src.repositories.mcp_execution_repository import MCPExecutionRepository
+
+        repo = MCPExecutionRepository(mock_mongo)
+
+        await repo.start_cleanup_task(cleanup_interval_hours=1, retention_days=7)
+
+        assert repo._cleanup_task is not None
+        assert repo._cleanup_task._running is True
+
+        await repo.stop_cleanup_task()
+
+    @pytest.mark.asyncio
+    async def test_repository_stop_cleanup_task(self, mock_mongo):
+        """Testa parar cleanup task através do repositório."""
+        from src.repositories.mcp_execution_repository import MCPExecutionRepository
+
+        repo = MCPExecutionRepository(mock_mongo)
+
+        await repo.start_cleanup_task(cleanup_interval_hours=1)
+        await repo.stop_cleanup_task()
+
+        assert repo._cleanup_task._running is False
+
+    @pytest.mark.asyncio
+    async def test_repository_cleanup_task_reuse(self, mock_mongo):
+        """Testa que task é reutilizado em chamadas múltiplas."""
+        from src.repositories.mcp_execution_repository import MCPExecutionRepository
+
+        repo = MCPExecutionRepository(mock_mongo)
+
+        await repo.start_cleanup_task(cleanup_interval_hours=1)
+        first_task = repo._cleanup_task
+
+        await repo.start_cleanup_task(cleanup_interval_hours=1)
+        assert repo._cleanup_task == first_task
+
+        await repo.stop_cleanup_task()
