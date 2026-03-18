@@ -21,6 +21,7 @@ from .clients import (
     PheromoneClient,
     OPAClient,
 )
+from .clients.mcp_client import MCPClient, HTTPMCPClient
 from .services import (
     StrategicDecisionEngine,
     ConflictArbitrator,
@@ -87,6 +88,8 @@ class AppState:
         self.grpc_servicer: QueenAgentServicer | None = None
 
         # MCP
+        self.mcp_scout_client: MCPClient | None = None
+        self.mcp_optimizer_client: MCPClient | None = None
         self.mcp_orchestrator: MCPToolOrchestrator | None = None
 
         # Background tasks
@@ -201,17 +204,22 @@ async def lifespan(app: FastAPI):
         if settings.MCP_ENABLED:
             logger.info("initializing_mcp_tool_orchestrator")
 
-            from mcp_client_sdk import MCPClient
-
-            scout_client = MCPClient(
+            # Criar clientes MCP - ambos usam HTTPMCPClient (REST API)
+            app_state.mcp_scout_client = HTTPMCPClient(
                 server_url=settings.MCP_SCOUT_URL, timeout=settings.MCP_TIMEOUT
             )
-            optimizer_client = MCPClient(
+            app_state.mcp_optimizer_client = HTTPMCPClient(
                 server_url=settings.MCP_OPTIMIZER_URL, timeout=settings.MCP_TIMEOUT
             )
 
+            # Conectar aos servidores MCP
+            await app_state.mcp_scout_client.connect()
+            await app_state.mcp_optimizer_client.connect()
+
+            # Criar orquestrador com clientes conectados
             app_state.mcp_orchestrator = MCPToolOrchestrator(
-                scout_client=scout_client, optimizer_client=optimizer_client
+                scout_client=app_state.mcp_scout_client,
+                optimizer_client=app_state.mcp_optimizer_client,
             )
 
             logger.info(
@@ -378,6 +386,12 @@ async def lifespan(app: FastAPI):
             await app_state.service_registry_client.close()
         if app_state.opa_client:
             await app_state.opa_client.close()
+
+        # 6. Fechar clientes MCP
+        if app_state.mcp_scout_client:
+            await app_state.mcp_scout_client.disconnect()
+        if app_state.mcp_optimizer_client:
+            await app_state.mcp_optimizer_client.disconnect()
 
         logger.info("queen_agent_shutdown_complete")
 

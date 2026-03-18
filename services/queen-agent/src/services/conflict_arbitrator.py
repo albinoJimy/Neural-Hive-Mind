@@ -16,10 +16,10 @@ class ConflictArbitrator:
 
     # Pesos de domínio (configuráveis)
     DOMAIN_WEIGHTS = {
-        'security': 0.4,
-        'compliance': 0.3,
-        'business': 0.2,
-        'performance': 0.1
+        "security": 0.4,
+        "compliance": 0.3,
+        "business": 0.2,
+        "performance": 0.1,
     }
 
     def __init__(self, neo4j_client: Neo4jClient, settings: Settings):
@@ -37,7 +37,9 @@ class ConflictArbitrator:
             # Comparar pares de decisões
             for i in range(len(decisions)):
                 for j in range(i + 1, len(decisions)):
-                    conflict = await self._check_conflict_between(decisions[i], decisions[j])
+                    conflict = await self._check_conflict_between(
+                        decisions[i], decisions[j]
+                    )
                     if conflict:
                         conflicts.append(conflict)
 
@@ -48,12 +50,14 @@ class ConflictArbitrator:
             logger.error("detect_conflicts_failed", error=str(e))
             return []
 
-    async def _check_conflict_between(self, decision1: Dict[str, Any], decision2: Dict[str, Any]) -> Conflict | None:
+    async def _check_conflict_between(
+        self, decision1: Dict[str, Any], decision2: Dict[str, Any]
+    ) -> Conflict | None:
         """Verificar se há conflito entre duas decisões"""
         try:
             # Determinar domínios
-            domain1 = decision1.get('specialist_type', 'unknown')
-            domain2 = decision2.get('specialist_type', 'unknown')
+            domain1 = decision1.get("specialist_type", "unknown")
+            domain2 = decision2.get("specialist_type", "unknown")
 
             # Mapear para UnifiedDomain
             unified_domains = self._map_to_unified_domains(domain1, domain2)
@@ -66,7 +70,7 @@ class ConflictArbitrator:
             conflict = Conflict(
                 left_domain=left_domain,
                 right_domain=right_domain,
-                entities=[decision1, decision2]
+                entities=[decision1, decision2],
             )
 
             # Calcular severidade
@@ -82,19 +86,21 @@ class ConflictArbitrator:
             logger.error("check_conflict_failed", error=str(e))
             return None
 
-    def _map_to_unified_domains(self, domain1: str, domain2: str) -> Optional[Tuple[UnifiedDomain, UnifiedDomain]]:
+    def _map_to_unified_domains(
+        self, domain1: str, domain2: str
+    ) -> Optional[Tuple[UnifiedDomain, UnifiedDomain]]:
         """Mapear par de domínios para UnifiedDomain"""
         # Mapping from specialist types to UnifiedDomain
         domain_mapping = {
-            'security': UnifiedDomain.SECURITY,
-            'performance': UnifiedDomain.OPERATIONAL,
-            'business': UnifiedDomain.BUSINESS,
-            'technical': UnifiedDomain.TECHNICAL,
-            'engineering': UnifiedDomain.TECHNICAL,
-            'infrastructure': UnifiedDomain.INFRASTRUCTURE,
-            'compliance': UnifiedDomain.COMPLIANCE,
-            'behavior': UnifiedDomain.BEHAVIOR,
-            'operational': UnifiedDomain.OPERATIONAL,
+            "security": UnifiedDomain.SECURITY,
+            "performance": UnifiedDomain.OPERATIONAL,
+            "business": UnifiedDomain.BUSINESS,
+            "technical": UnifiedDomain.TECHNICAL,
+            "engineering": UnifiedDomain.TECHNICAL,
+            "infrastructure": UnifiedDomain.INFRASTRUCTURE,
+            "compliance": UnifiedDomain.COMPLIANCE,
+            "behavior": UnifiedDomain.BEHAVIOR,
+            "operational": UnifiedDomain.OPERATIONAL,
         }
 
         d1_lower = domain1.lower()
@@ -121,34 +127,42 @@ class ConflictArbitrator:
             strategy = conflict.suggest_resolution()
 
             # Aplicar estratégia
-            if strategy == 'PRIORITIZE_SECURITY':
-                chosen_entity = self._choose_entity_by_domain(conflict.entities, 'security')
-                rationale = 'Segurança priorizada devido à severidade do conflito'
+            if strategy == "PRIORITIZE_SECURITY":
+                chosen_entity = self._choose_entity_by_domain(
+                    conflict.entities, "security"
+                )
+                rationale = "Segurança priorizada devido à severidade do conflito"
                 confidence = 0.9
 
-            elif strategy == 'PRIORITIZE_BUSINESS':
-                chosen_entity = self._choose_entity_by_domain(conflict.entities, 'business')
-                rationale = 'Objetivos de negócio priorizados devido à baixa severidade'
+            elif strategy == "PRIORITIZE_BUSINESS":
+                chosen_entity = self._choose_entity_by_domain(
+                    conflict.entities, "business"
+                )
+                rationale = "Objetivos de negócio priorizados devido à baixa severidade"
                 confidence = 0.8
 
-            elif strategy == 'PRIORITIZE_COMPLIANCE':
-                chosen_entity = self._choose_entity_by_domain(conflict.entities, 'compliance')
-                rationale = 'Compliance priorizado por requisitos regulatórios'
+            elif strategy == "PRIORITIZE_COMPLIANCE":
+                chosen_entity = self._choose_entity_by_domain(
+                    conflict.entities, "compliance"
+                )
+                rationale = "Compliance priorizado por requisitos regulatórios"
                 confidence = 0.9
 
-            elif strategy == 'PRIORITIZE_RELIABILITY':
-                chosen_entity = self._choose_entity_by_domain(conflict.entities, 'infrastructure')
-                rationale = 'Confiabilidade priorizada para estabilidade do sistema'
+            elif strategy == "PRIORITIZE_RELIABILITY":
+                chosen_entity = self._choose_entity_by_domain(
+                    conflict.entities, "infrastructure"
+                )
+                rationale = "Confiabilidade priorizada para estabilidade do sistema"
                 confidence = 0.85
 
-            elif strategy == 'COMPROMISE':
+            elif strategy == "COMPROMISE":
                 chosen_entity = None
-                rationale = 'Solução de compromisso necessária - implementar com controles adicionais'
+                rationale = "Solução de compromisso necessária - implementar com controles adicionais"
                 confidence = 0.7
 
             else:  # ESCALATE_HUMAN
                 chosen_entity = None
-                rationale = 'Conflito complexo requer aprovação humana'
+                rationale = "Conflito complexo requer aprovação humana"
                 confidence = 0.5
 
             resolution = ConflictResolution(
@@ -156,14 +170,14 @@ class ConflictArbitrator:
                 resolution_strategy=strategy,
                 chosen_entity=chosen_entity,
                 rationale=rationale,
-                confidence=confidence
+                confidence=confidence,
             )
 
             logger.info(
                 "conflict_resolved",
                 conflict_id=conflict.conflict_id,
                 strategy=strategy,
-                confidence=confidence
+                confidence=confidence,
             )
 
             return resolution
@@ -172,15 +186,17 @@ class ConflictArbitrator:
             logger.error("resolve_conflict_failed", error=str(e))
             return ConflictResolution(
                 conflict_id=conflict.conflict_id,
-                resolution_strategy='ESCALATE_HUMAN',
-                rationale=f'Erro ao resolver conflito: {str(e)}',
-                confidence=0.0
+                resolution_strategy="ESCALATE_HUMAN",
+                rationale=f"Erro ao resolver conflito: {str(e)}",
+                confidence=0.0,
             )
 
-    def _choose_entity_by_domain(self, entities: List[Dict[str, Any]], preferred_domain: str) -> str | None:
+    def _choose_entity_by_domain(
+        self, entities: List[Dict[str, Any]], preferred_domain: str
+    ) -> str | None:
         """Escolher entidade baseado em domínio preferido"""
         for entity in entities:
-            if entity.get('specialist_type', '').lower() == preferred_domain.lower():
-                return entity.get('plan_id') or entity.get('decision_id')
+            if entity.get("specialist_type", "").lower() == preferred_domain.lower():
+                return entity.get("plan_id") or entity.get("decision_id")
 
         return None

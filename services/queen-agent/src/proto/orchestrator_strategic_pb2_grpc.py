@@ -19,35 +19,35 @@ class OrchestratorStrategicStub(object):
             channel: A grpc.Channel.
         """
         self.AdjustPriorities = channel.unary_unary(
-                '/orchestrator.OrchestratorStrategic/AdjustPriorities',
-                request_serializer=orchestrator__strategic__pb2.AdjustPrioritiesRequest.SerializeToString,
-                response_deserializer=orchestrator__strategic__pb2.AdjustPrioritiesResponse.FromString,
-                )
+            "/orchestrator.OrchestratorStrategic/AdjustPriorities",
+            request_serializer=orchestrator__strategic__pb2.AdjustPrioritiesRequest.SerializeToString,
+            response_deserializer=orchestrator__strategic__pb2.AdjustPrioritiesResponse.FromString,
+        )
         self.RebalanceResources = channel.unary_unary(
-                '/orchestrator.OrchestratorStrategic/RebalanceResources',
-                request_serializer=orchestrator__strategic__pb2.RebalanceResourcesRequest.SerializeToString,
-                response_deserializer=orchestrator__strategic__pb2.RebalanceResourcesResponse.FromString,
-                )
+            "/orchestrator.OrchestratorStrategic/RebalanceResources",
+            request_serializer=orchestrator__strategic__pb2.RebalanceResourcesRequest.SerializeToString,
+            response_deserializer=orchestrator__strategic__pb2.RebalanceResourcesResponse.FromString,
+        )
         self.PauseWorkflow = channel.unary_unary(
-                '/orchestrator.OrchestratorStrategic/PauseWorkflow',
-                request_serializer=orchestrator__strategic__pb2.PauseWorkflowRequest.SerializeToString,
-                response_deserializer=orchestrator__strategic__pb2.PauseWorkflowResponse.FromString,
-                )
+            "/orchestrator.OrchestratorStrategic/PauseWorkflow",
+            request_serializer=orchestrator__strategic__pb2.PauseWorkflowRequest.SerializeToString,
+            response_deserializer=orchestrator__strategic__pb2.PauseWorkflowResponse.FromString,
+        )
         self.ResumeWorkflow = channel.unary_unary(
-                '/orchestrator.OrchestratorStrategic/ResumeWorkflow',
-                request_serializer=orchestrator__strategic__pb2.ResumeWorkflowRequest.SerializeToString,
-                response_deserializer=orchestrator__strategic__pb2.ResumeWorkflowResponse.FromString,
-                )
+            "/orchestrator.OrchestratorStrategic/ResumeWorkflow",
+            request_serializer=orchestrator__strategic__pb2.ResumeWorkflowRequest.SerializeToString,
+            response_deserializer=orchestrator__strategic__pb2.ResumeWorkflowResponse.FromString,
+        )
         self.TriggerReplanning = channel.unary_unary(
-                '/orchestrator.OrchestratorStrategic/TriggerReplanning',
-                request_serializer=orchestrator__strategic__pb2.TriggerReplanningRequest.SerializeToString,
-                response_deserializer=orchestrator__strategic__pb2.TriggerReplanningResponse.FromString,
-                )
+            "/orchestrator.OrchestratorStrategic/TriggerReplanning",
+            request_serializer=orchestrator__strategic__pb2.TriggerReplanningRequest.SerializeToString,
+            response_deserializer=orchestrator__strategic__pb2.TriggerReplanningResponse.FromString,
+        )
         self.GetWorkflowStatus = channel.unary_unary(
-                '/orchestrator.OrchestratorStrategic/GetWorkflowStatus',
-                request_serializer=orchestrator__strategic__pb2.GetWorkflowStatusRequest.SerializeToString,
-                response_deserializer=orchestrator__strategic__pb2.GetWorkflowStatusResponse.FromString,
-                )
+            "/orchestrator.OrchestratorStrategic/GetWorkflowStatus",
+            request_serializer=orchestrator__strategic__pb2.GetWorkflowStatusRequest.SerializeToString,
+            response_deserializer=orchestrator__strategic__pb2.GetWorkflowStatusResponse.FromString,
+        )
 
 
 class OrchestratorStrategicServicer(object):
@@ -58,87 +58,82 @@ class OrchestratorStrategicServicer(object):
     """
 
     def AdjustPriorities(self, request, context):
-        """Ajustar prioridade de um workflow
-        """
+        """Ajustar prioridade de um workflow"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def RebalanceResources(self, request, context):
-        """Rebalancear alocação de recursos entre workflows
-        """
+        """Rebalancear alocação de recursos entre workflows"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def PauseWorkflow(self, request, context):
-        """Pausar workflow em execução
-        """
+        """Pausar workflow em execução"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def ResumeWorkflow(self, request, context):
-        """Retomar workflow pausado
-        """
+        """Retomar workflow pausado"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def TriggerReplanning(self, request, context):
-        """Acionar replanejamento de um plano
-        """
+        """Acionar replanejamento de um plano"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def GetWorkflowStatus(self, request, context):
-        """Obter status detalhado de um workflow
-        """
+        """Obter status detalhado de um workflow"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
 
 def add_OrchestratorStrategicServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'AdjustPriorities': grpc.unary_unary_rpc_method_handler(
-                    servicer.AdjustPriorities,
-                    request_deserializer=orchestrator__strategic__pb2.AdjustPrioritiesRequest.FromString,
-                    response_serializer=orchestrator__strategic__pb2.AdjustPrioritiesResponse.SerializeToString,
-            ),
-            'RebalanceResources': grpc.unary_unary_rpc_method_handler(
-                    servicer.RebalanceResources,
-                    request_deserializer=orchestrator__strategic__pb2.RebalanceResourcesRequest.FromString,
-                    response_serializer=orchestrator__strategic__pb2.RebalanceResourcesResponse.SerializeToString,
-            ),
-            'PauseWorkflow': grpc.unary_unary_rpc_method_handler(
-                    servicer.PauseWorkflow,
-                    request_deserializer=orchestrator__strategic__pb2.PauseWorkflowRequest.FromString,
-                    response_serializer=orchestrator__strategic__pb2.PauseWorkflowResponse.SerializeToString,
-            ),
-            'ResumeWorkflow': grpc.unary_unary_rpc_method_handler(
-                    servicer.ResumeWorkflow,
-                    request_deserializer=orchestrator__strategic__pb2.ResumeWorkflowRequest.FromString,
-                    response_serializer=orchestrator__strategic__pb2.ResumeWorkflowResponse.SerializeToString,
-            ),
-            'TriggerReplanning': grpc.unary_unary_rpc_method_handler(
-                    servicer.TriggerReplanning,
-                    request_deserializer=orchestrator__strategic__pb2.TriggerReplanningRequest.FromString,
-                    response_serializer=orchestrator__strategic__pb2.TriggerReplanningResponse.SerializeToString,
-            ),
-            'GetWorkflowStatus': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetWorkflowStatus,
-                    request_deserializer=orchestrator__strategic__pb2.GetWorkflowStatusRequest.FromString,
-                    response_serializer=orchestrator__strategic__pb2.GetWorkflowStatusResponse.SerializeToString,
-            ),
+        "AdjustPriorities": grpc.unary_unary_rpc_method_handler(
+            servicer.AdjustPriorities,
+            request_deserializer=orchestrator__strategic__pb2.AdjustPrioritiesRequest.FromString,
+            response_serializer=orchestrator__strategic__pb2.AdjustPrioritiesResponse.SerializeToString,
+        ),
+        "RebalanceResources": grpc.unary_unary_rpc_method_handler(
+            servicer.RebalanceResources,
+            request_deserializer=orchestrator__strategic__pb2.RebalanceResourcesRequest.FromString,
+            response_serializer=orchestrator__strategic__pb2.RebalanceResourcesResponse.SerializeToString,
+        ),
+        "PauseWorkflow": grpc.unary_unary_rpc_method_handler(
+            servicer.PauseWorkflow,
+            request_deserializer=orchestrator__strategic__pb2.PauseWorkflowRequest.FromString,
+            response_serializer=orchestrator__strategic__pb2.PauseWorkflowResponse.SerializeToString,
+        ),
+        "ResumeWorkflow": grpc.unary_unary_rpc_method_handler(
+            servicer.ResumeWorkflow,
+            request_deserializer=orchestrator__strategic__pb2.ResumeWorkflowRequest.FromString,
+            response_serializer=orchestrator__strategic__pb2.ResumeWorkflowResponse.SerializeToString,
+        ),
+        "TriggerReplanning": grpc.unary_unary_rpc_method_handler(
+            servicer.TriggerReplanning,
+            request_deserializer=orchestrator__strategic__pb2.TriggerReplanningRequest.FromString,
+            response_serializer=orchestrator__strategic__pb2.TriggerReplanningResponse.SerializeToString,
+        ),
+        "GetWorkflowStatus": grpc.unary_unary_rpc_method_handler(
+            servicer.GetWorkflowStatus,
+            request_deserializer=orchestrator__strategic__pb2.GetWorkflowStatusRequest.FromString,
+            response_serializer=orchestrator__strategic__pb2.GetWorkflowStatusResponse.SerializeToString,
+        ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'orchestrator.OrchestratorStrategic', rpc_method_handlers)
+        "orchestrator.OrchestratorStrategic", rpc_method_handlers
+    )
     server.add_generic_rpc_handlers((generic_handler,))
 
 
- # This class is part of an EXPERIMENTAL API.
+# This class is part of an EXPERIMENTAL API.
 class OrchestratorStrategic(object):
     """Serviço gRPC para ajustes estratégicos do Orchestrator Dynamic.
     Este serviço permite que a Queen Agent envie comandos estratégicos
@@ -147,103 +142,175 @@ class OrchestratorStrategic(object):
     """
 
     @staticmethod
-    def AdjustPriorities(request,
+    def AdjustPriorities(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/orchestrator.OrchestratorStrategic/AdjustPriorities',
+            "/orchestrator.OrchestratorStrategic/AdjustPriorities",
             orchestrator__strategic__pb2.AdjustPrioritiesRequest.SerializeToString,
             orchestrator__strategic__pb2.AdjustPrioritiesResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
 
     @staticmethod
-    def RebalanceResources(request,
+    def RebalanceResources(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/orchestrator.OrchestratorStrategic/RebalanceResources',
+            "/orchestrator.OrchestratorStrategic/RebalanceResources",
             orchestrator__strategic__pb2.RebalanceResourcesRequest.SerializeToString,
             orchestrator__strategic__pb2.RebalanceResourcesResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
 
     @staticmethod
-    def PauseWorkflow(request,
+    def PauseWorkflow(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/orchestrator.OrchestratorStrategic/PauseWorkflow',
+            "/orchestrator.OrchestratorStrategic/PauseWorkflow",
             orchestrator__strategic__pb2.PauseWorkflowRequest.SerializeToString,
             orchestrator__strategic__pb2.PauseWorkflowResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
 
     @staticmethod
-    def ResumeWorkflow(request,
+    def ResumeWorkflow(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/orchestrator.OrchestratorStrategic/ResumeWorkflow',
+            "/orchestrator.OrchestratorStrategic/ResumeWorkflow",
             orchestrator__strategic__pb2.ResumeWorkflowRequest.SerializeToString,
             orchestrator__strategic__pb2.ResumeWorkflowResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
 
     @staticmethod
-    def TriggerReplanning(request,
+    def TriggerReplanning(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/orchestrator.OrchestratorStrategic/TriggerReplanning',
+            "/orchestrator.OrchestratorStrategic/TriggerReplanning",
             orchestrator__strategic__pb2.TriggerReplanningRequest.SerializeToString,
             orchestrator__strategic__pb2.TriggerReplanningResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
 
     @staticmethod
-    def GetWorkflowStatus(request,
+    def GetWorkflowStatus(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/orchestrator.OrchestratorStrategic/GetWorkflowStatus',
+            "/orchestrator.OrchestratorStrategic/GetWorkflowStatus",
             orchestrator__strategic__pb2.GetWorkflowStatusRequest.SerializeToString,
             orchestrator__strategic__pb2.GetWorkflowStatusResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )

@@ -15,10 +15,13 @@ from tenacity import (
     retry,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type
+    retry_if_exception_type,
 )
 
-from neural_hive_resilience.circuit_breaker import MonitoredCircuitBreaker, CircuitBreakerError
+from neural_hive_resilience.circuit_breaker import (
+    MonitoredCircuitBreaker,
+    CircuitBreakerError,
+)
 from neural_hive_observability import instrument_grpc_channel
 
 from ..config import Settings
@@ -32,6 +35,7 @@ try:
         create_secure_grpc_channel,
         get_grpc_metadata_with_jwt,
     )
+
     SECURITY_LIB_AVAILABLE = True
 except ImportError:
     SECURITY_LIB_AVAILABLE = False
@@ -56,9 +60,11 @@ class OrchestratorClient:
             settings: Configurações do serviço
         """
         self.settings = settings
-        self.grpc_host = getattr(settings, 'ORCHESTRATOR_GRPC_HOST', 'orchestrator-dynamic')
-        self.grpc_port = getattr(settings, 'ORCHESTRATOR_GRPC_PORT', 50053)
-        self.grpc_timeout = getattr(settings, 'ORCHESTRATOR_GRPC_TIMEOUT', 10)
+        self.grpc_host = getattr(
+            settings, "ORCHESTRATOR_GRPC_HOST", "orchestrator-dynamic"
+        )
+        self.grpc_port = getattr(settings, "ORCHESTRATOR_GRPC_PORT", 50053)
+        self.grpc_timeout = getattr(settings, "ORCHESTRATOR_GRPC_TIMEOUT", 10)
 
         self.channel: Optional[grpc.aio.Channel] = None
         self.stub = None
@@ -68,8 +74,10 @@ class OrchestratorClient:
         self.spiffe_manager: Optional[SPIFFEManager] = None
         self.circuit_breaker: Optional[MonitoredCircuitBreaker] = None
 
-        self.circuit_breaker_enabled = getattr(settings, 'CIRCUIT_BREAKER_ENABLED', True)
-        self.logger = logger.bind(component='orchestrator_client')
+        self.circuit_breaker_enabled = getattr(
+            settings, "CIRCUIT_BREAKER_ENABLED", True
+        )
+        self.logger = logger.bind(component="orchestrator_client")
 
     async def initialize(self) -> None:
         """
@@ -81,10 +89,10 @@ class OrchestratorClient:
         target = f"{self.grpc_host}:{self.grpc_port}"
 
         # Verificar se mTLS via SPIFFE está habilitado
-        spiffe_enabled = getattr(self.settings, 'SPIFFE_ENABLED', False)
+        spiffe_enabled = getattr(self.settings, "SPIFFE_ENABLED", False)
         spiffe_x509_enabled = (
             spiffe_enabled
-            and getattr(self.settings, 'SPIFFE_ENABLE_X509', False)
+            and getattr(self.settings, "SPIFFE_ENABLE_X509", False)
             and SECURITY_LIB_AVAILABLE
         )
 
@@ -93,15 +101,15 @@ class OrchestratorClient:
                 # Criar configuração SPIFFE
                 spiffe_config = SPIFFEConfig(
                     workload_api_socket=getattr(
-                        self.settings, 'SPIFFE_SOCKET_PATH',
-                        'unix:///run/spire/sockets/agent.sock'
+                        self.settings,
+                        "SPIFFE_SOCKET_PATH",
+                        "unix:///run/spire/sockets/agent.sock",
                     ),
                     trust_domain=getattr(
-                        self.settings, 'SPIFFE_TRUST_DOMAIN',
-                        'neural-hive.local'
+                        self.settings, "SPIFFE_TRUST_DOMAIN", "neural-hive.local"
                     ),
                     enable_x509=True,
-                    environment=self.settings.ENVIRONMENT
+                    environment=self.settings.ENVIRONMENT,
                 )
 
                 # Criar SPIFFE manager
@@ -109,46 +117,46 @@ class OrchestratorClient:
                 await self.spiffe_manager.initialize()
 
                 # Criar canal seguro com mTLS
-                is_dev_env = self.settings.ENVIRONMENT.lower() in ('dev', 'development')
+                is_dev_env = self.settings.ENVIRONMENT.lower() in ("dev", "development")
                 self.channel = await create_secure_grpc_channel(
                     target=target,
                     spiffe_config=spiffe_config,
                     spiffe_manager=self.spiffe_manager,
-                    fallback_insecure=is_dev_env
+                    fallback_insecure=is_dev_env,
                 )
 
                 self.logger.info(
-                    'mtls_channel_configured',
+                    "mtls_channel_configured",
                     target=target,
-                    environment=self.settings.ENVIRONMENT
+                    environment=self.settings.ENVIRONMENT,
                 )
 
             except Exception as e:
                 self.logger.warning(
-                    'mtls_channel_failed_fallback_insecure',
-                    error=str(e),
-                    target=target
+                    "mtls_channel_failed_fallback_insecure", error=str(e), target=target
                 )
                 self._create_insecure_channel(target)
         else:
             # Fallback para canal inseguro (apenas desenvolvimento)
-            if self.settings.ENVIRONMENT.lower() in ('production', 'staging', 'prod'):
+            if self.settings.ENVIRONMENT.lower() in ("production", "staging", "prod"):
                 self.logger.warning(
-                    'insecure_channel_in_production',
+                    "insecure_channel_in_production",
                     target=target,
-                    warning='mTLS é recomendado em produção'
+                    warning="mTLS é recomendado em produção",
                 )
             self._create_insecure_channel(target)
 
         # Instrumentar canal com OpenTelemetry
         self.channel = instrument_grpc_channel(
             self.channel,
-            service_name='queen-agent',
-            target_service='orchestrator-dynamic'
+            service_name="queen-agent",
+            target_service="orchestrator-dynamic",
         )
 
         # Criar stub gRPC
-        self.stub = orchestrator_strategic_pb2_grpc.OrchestratorStrategicStub(self.channel)
+        self.stub = orchestrator_strategic_pb2_grpc.OrchestratorStrategicStub(
+            self.channel
+        )
 
         # Atualizar aliases para compatibilidade
         self._channel = self.channel
@@ -158,18 +166,20 @@ class OrchestratorClient:
         if self.circuit_breaker_enabled:
             self.circuit_breaker = MonitoredCircuitBreaker(
                 service_name=self.settings.SERVICE_NAME,
-                circuit_name='orchestrator_grpc',
-                fail_max=getattr(self.settings, 'CIRCUIT_BREAKER_FAIL_MAX', 5),
-                timeout_duration=getattr(self.settings, 'CIRCUIT_BREAKER_TIMEOUT', 60),
-                recovery_timeout=getattr(self.settings, 'CIRCUIT_BREAKER_RECOVERY_TIMEOUT', 30),
-                expected_exception=Exception
+                circuit_name="orchestrator_grpc",
+                fail_max=getattr(self.settings, "CIRCUIT_BREAKER_FAIL_MAX", 5),
+                timeout_duration=getattr(self.settings, "CIRCUIT_BREAKER_TIMEOUT", 60),
+                recovery_timeout=getattr(
+                    self.settings, "CIRCUIT_BREAKER_RECOVERY_TIMEOUT", 30
+                ),
+                expected_exception=Exception,
             )
 
         self.logger.info(
-            'orchestrator_client_initialized',
+            "orchestrator_client_initialized",
             host=self.grpc_host,
             port=self.grpc_port,
-            mtls_enabled=self.spiffe_manager is not None
+            mtls_enabled=self.spiffe_manager is not None,
         )
 
     async def connect(self) -> None:
@@ -185,12 +195,12 @@ class OrchestratorClient:
         self.channel = grpc.aio.insecure_channel(
             target,
             options=[
-                ('grpc.max_send_message_length', 100 * 1024 * 1024),
-                ('grpc.max_receive_message_length', 100 * 1024 * 1024),
-                ('grpc.keepalive_time_ms', 30000),
-            ]
+                ("grpc.max_send_message_length", 100 * 1024 * 1024),
+                ("grpc.max_receive_message_length", 100 * 1024 * 1024),
+                ("grpc.keepalive_time_ms", 30000),
+            ],
         )
-        self.logger.info('insecure_channel_created', target=target)
+        self.logger.info("insecure_channel_created", target=target)
 
     async def close(self) -> None:
         """Fechar canal gRPC e SPIFFE manager."""
@@ -203,7 +213,7 @@ class OrchestratorClient:
         self._channel = None
         self.stub = None
         self._stub = None
-        self.logger.info('orchestrator_client_closed')
+        self.logger.info("orchestrator_client_closed")
 
     async def _get_grpc_metadata(self) -> List[Tuple[str, str]]:
         """Obter metadata gRPC com JWT-SVID para autenticação."""
@@ -215,11 +225,11 @@ class OrchestratorClient:
             return await get_grpc_metadata_with_jwt(
                 spiffe_manager=self.spiffe_manager,
                 audience=audience,
-                environment=self.settings.ENVIRONMENT
+                environment=self.settings.ENVIRONMENT,
             )
         except Exception as e:
-            self.logger.warning('jwt_svid_fetch_failed', error=str(e))
-            if self.settings.ENVIRONMENT.lower() in ('production', 'staging', 'prod'):
+            self.logger.warning("jwt_svid_fetch_failed", error=str(e))
+            if self.settings.ENVIRONMENT.lower() in ("production", "staging", "prod"):
                 raise
             return []
 
@@ -227,24 +237,15 @@ class OrchestratorClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
         retry=retry_if_exception_type(grpc.RpcError),
-        reraise=True
+        reraise=True,
     )
     async def _call_with_retry(
-        self,
-        method,
-        request,
-        metadata: List[Tuple[str, str]],
-        timeout: int
+        self, method, request, metadata: List[Tuple[str, str]], timeout: int
     ):
         """Executar chamada gRPC com retry automático."""
         return await method(request, metadata=metadata, timeout=timeout)
 
-    async def _call_with_breaker(
-        self,
-        method,
-        request,
-        timeout: Optional[int] = None
-    ):
+    async def _call_with_breaker(self, method, request, timeout: Optional[int] = None):
         """Executar chamada gRPC com circuit breaker e retry."""
         metadata = await self._get_grpc_metadata()
         timeout = timeout or self.grpc_timeout
@@ -257,8 +258,7 @@ class OrchestratorClient:
                 return await self.circuit_breaker.call_async(_call)
             except CircuitBreakerError:
                 self.logger.warning(
-                    'orchestrator_circuit_open',
-                    operation=method.__name__
+                    "orchestrator_circuit_open", operation=method.__name__
                 )
                 raise
         return await _call()
@@ -270,7 +270,7 @@ class OrchestratorClient:
         new_priority: int,
         reason: str,
         adjustment_id: Optional[str] = None,
-        metadata: Optional[Dict[str, str]] = None
+        metadata: Optional[Dict[str, str]] = None,
     ) -> bool:
         """
         Ajustar prioridade de um workflow.
@@ -294,7 +294,7 @@ class OrchestratorClient:
             plan_id=plan_id,
             new_priority=new_priority,
             reason=reason,
-            adjustment_id=adjustment_id
+            adjustment_id=adjustment_id,
         )
 
         # Adicionar metadata se fornecido
@@ -304,25 +304,24 @@ class OrchestratorClient:
 
         try:
             response = await self._call_with_breaker(
-                self.stub.AdjustPriorities,
-                request
+                self.stub.AdjustPriorities, request
             )
 
             self.logger.info(
-                'priority_adjusted',
+                "priority_adjusted",
                 workflow_id=workflow_id,
                 new_priority=new_priority,
-                success=response.success
+                success=response.success,
             )
 
             return response.success
 
         except grpc.RpcError as e:
             self.logger.error(
-                'adjust_priorities_failed',
+                "adjust_priorities_failed",
                 workflow_id=workflow_id,
                 error=str(e),
-                code=e.code()
+                code=e.code(),
             )
             return False
 
@@ -332,7 +331,7 @@ class OrchestratorClient:
         target_allocation: Dict[str, Dict[str, int]],
         reason: str,
         rebalance_id: Optional[str] = None,
-        force: bool = False
+        force: bool = False,
     ) -> Dict[str, Any]:
         """
         Rebalancear recursos entre workflows.
@@ -354,10 +353,10 @@ class OrchestratorClient:
         proto_allocations = {}
         for wf_id, alloc in target_allocation.items():
             proto_allocations[wf_id] = orchestrator_strategic_pb2.ResourceAllocation(
-                cpu_millicores=alloc.get('cpu_millicores', 1000),
-                memory_mb=alloc.get('memory_mb', 2048),
-                max_parallel_tickets=alloc.get('max_parallel_tickets', 10),
-                scheduling_priority=alloc.get('scheduling_priority', 5)
+                cpu_millicores=alloc.get("cpu_millicores", 1000),
+                memory_mb=alloc.get("memory_mb", 2048),
+                max_parallel_tickets=alloc.get("max_parallel_tickets", 10),
+                scheduling_priority=alloc.get("scheduling_priority", 5),
             )
 
         request = orchestrator_strategic_pb2.RebalanceResourcesRequest(
@@ -365,50 +364,45 @@ class OrchestratorClient:
             target_allocation=proto_allocations,
             reason=reason,
             rebalance_id=rebalance_id,
-            force=force
+            force=force,
         )
 
         try:
             response = await self._call_with_breaker(
-                self.stub.RebalanceResources,
-                request
+                self.stub.RebalanceResources, request
             )
 
             results = {
-                'success': response.success,
-                'message': response.message,
-                'applied_at': response.applied_at,
-                'workflows': {}
+                "success": response.success,
+                "message": response.message,
+                "applied_at": response.applied_at,
+                "workflows": {},
             }
 
             for result in response.results:
-                results['workflows'][result.workflow_id] = {
-                    'success': result.success,
-                    'message': result.message
+                results["workflows"][result.workflow_id] = {
+                    "success": result.success,
+                    "message": result.message,
                 }
 
             self.logger.info(
-                'resources_rebalanced',
+                "resources_rebalanced",
                 workflow_count=len(workflow_ids),
-                success=response.success
+                success=response.success,
             )
 
             return results
 
         except grpc.RpcError as e:
-            self.logger.error(
-                'rebalance_resources_failed',
-                error=str(e),
-                code=e.code()
-            )
-            return {'success': False, 'error': str(e)}
+            self.logger.error("rebalance_resources_failed", error=str(e), code=e.code())
+            return {"success": False, "error": str(e)}
 
     async def pause_workflow(
         self,
         workflow_id: str,
         reason: str,
         duration_seconds: Optional[int] = None,
-        adjustment_id: Optional[str] = None
+        adjustment_id: Optional[str] = None,
     ) -> bool:
         """
         Pausar workflow em execução.
@@ -426,41 +420,31 @@ class OrchestratorClient:
             adjustment_id = f"pause-{uuid.uuid4().hex[:12]}"
 
         request = orchestrator_strategic_pb2.PauseWorkflowRequest(
-            workflow_id=workflow_id,
-            reason=reason,
-            adjustment_id=adjustment_id
+            workflow_id=workflow_id, reason=reason, adjustment_id=adjustment_id
         )
         if duration_seconds:
             request.pause_duration_seconds = duration_seconds
 
         try:
-            response = await self._call_with_breaker(
-                self.stub.PauseWorkflow,
-                request
-            )
+            response = await self._call_with_breaker(self.stub.PauseWorkflow, request)
 
             self.logger.info(
-                'workflow_paused',
-                workflow_id=workflow_id,
-                success=response.success
+                "workflow_paused", workflow_id=workflow_id, success=response.success
             )
 
             return response.success
 
         except grpc.RpcError as e:
             self.logger.error(
-                'pause_workflow_failed',
+                "pause_workflow_failed",
                 workflow_id=workflow_id,
                 error=str(e),
-                code=e.code()
+                code=e.code(),
             )
             return False
 
     async def resume_workflow(
-        self,
-        workflow_id: str,
-        reason: str = '',
-        adjustment_id: Optional[str] = None
+        self, workflow_id: str, reason: str = "", adjustment_id: Optional[str] = None
     ) -> bool:
         """
         Retomar workflow pausado.
@@ -477,32 +461,27 @@ class OrchestratorClient:
             adjustment_id = f"resume-{uuid.uuid4().hex[:12]}"
 
         request = orchestrator_strategic_pb2.ResumeWorkflowRequest(
-            workflow_id=workflow_id,
-            reason=reason,
-            adjustment_id=adjustment_id
+            workflow_id=workflow_id, reason=reason, adjustment_id=adjustment_id
         )
 
         try:
-            response = await self._call_with_breaker(
-                self.stub.ResumeWorkflow,
-                request
-            )
+            response = await self._call_with_breaker(self.stub.ResumeWorkflow, request)
 
             self.logger.info(
-                'workflow_resumed',
+                "workflow_resumed",
                 workflow_id=workflow_id,
                 success=response.success,
-                pause_duration_seconds=response.pause_duration_seconds
+                pause_duration_seconds=response.pause_duration_seconds,
             )
 
             return response.success
 
         except grpc.RpcError as e:
             self.logger.error(
-                'resume_workflow_failed',
+                "resume_workflow_failed",
                 workflow_id=workflow_id,
                 error=str(e),
-                code=e.code()
+                code=e.code(),
             )
             return False
 
@@ -510,11 +489,11 @@ class OrchestratorClient:
         self,
         plan_id: str,
         reason: str,
-        trigger_type: str = 'STRATEGIC',
+        trigger_type: str = "STRATEGIC",
         context: Optional[Dict[str, str]] = None,
         preserve_progress: bool = True,
         priority: int = 5,
-        adjustment_id: Optional[str] = None
+        adjustment_id: Optional[str] = None,
     ) -> Optional[str]:
         """
         Acionar replanejamento de um plano.
@@ -536,15 +515,14 @@ class OrchestratorClient:
 
         # Mapear trigger_type string para enum
         trigger_map = {
-            'DRIFT': orchestrator_strategic_pb2.TRIGGER_TYPE_DRIFT,
-            'FAILURE': orchestrator_strategic_pb2.TRIGGER_TYPE_FAILURE,
-            'STRATEGIC': orchestrator_strategic_pb2.TRIGGER_TYPE_STRATEGIC,
-            'SLA_VIOLATION': orchestrator_strategic_pb2.TRIGGER_TYPE_SLA_VIOLATION,
-            'RESOURCE_CONSTRAINT': orchestrator_strategic_pb2.TRIGGER_TYPE_RESOURCE_CONSTRAINT,
+            "DRIFT": orchestrator_strategic_pb2.TRIGGER_TYPE_DRIFT,
+            "FAILURE": orchestrator_strategic_pb2.TRIGGER_TYPE_FAILURE,
+            "STRATEGIC": orchestrator_strategic_pb2.TRIGGER_TYPE_STRATEGIC,
+            "SLA_VIOLATION": orchestrator_strategic_pb2.TRIGGER_TYPE_SLA_VIOLATION,
+            "RESOURCE_CONSTRAINT": orchestrator_strategic_pb2.TRIGGER_TYPE_RESOURCE_CONSTRAINT,
         }
         trigger_enum = trigger_map.get(
-            trigger_type.upper(),
-            orchestrator_strategic_pb2.TRIGGER_TYPE_STRATEGIC
+            trigger_type.upper(), orchestrator_strategic_pb2.TRIGGER_TYPE_STRATEGIC
         )
 
         request = orchestrator_strategic_pb2.TriggerReplanningRequest(
@@ -554,36 +532,35 @@ class OrchestratorClient:
             adjustment_id=adjustment_id,
             context=context or {},
             preserve_progress=preserve_progress,
-            priority=priority
+            priority=priority,
         )
 
         try:
             response = await self._call_with_breaker(
-                self.stub.TriggerReplanning,
-                request
+                self.stub.TriggerReplanning, request
             )
 
             if response.success:
                 self.logger.info(
-                    'replanning_triggered',
+                    "replanning_triggered",
                     plan_id=plan_id,
-                    replanning_id=response.replanning_id
+                    replanning_id=response.replanning_id,
                 )
                 return response.replanning_id
             else:
                 self.logger.warning(
-                    'replanning_trigger_failed',
+                    "replanning_trigger_failed",
                     plan_id=plan_id,
-                    message=response.message
+                    message=response.message,
                 )
                 return None
 
         except grpc.RpcError as e:
             self.logger.error(
-                'trigger_replanning_failed',
+                "trigger_replanning_failed",
                 plan_id=plan_id,
                 error=str(e),
-                code=e.code()
+                code=e.code(),
             )
             return None
 
@@ -591,7 +568,7 @@ class OrchestratorClient:
         self,
         workflow_id: str,
         include_tickets: bool = False,
-        include_history: bool = False
+        include_history: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """
         Obter status detalhado de um workflow.
@@ -607,66 +584,65 @@ class OrchestratorClient:
         request = orchestrator_strategic_pb2.GetWorkflowStatusRequest(
             workflow_id=workflow_id,
             include_tickets=include_tickets,
-            include_history=include_history
+            include_history=include_history,
         )
 
         try:
             response = await self._call_with_breaker(
-                self.stub.GetWorkflowStatus,
-                request
+                self.stub.GetWorkflowStatus, request
             )
 
             # Mapear estado enum para string
             state_map = {
-                orchestrator_strategic_pb2.WORKFLOW_STATE_PENDING: 'PENDING',
-                orchestrator_strategic_pb2.WORKFLOW_STATE_RUNNING: 'RUNNING',
-                orchestrator_strategic_pb2.WORKFLOW_STATE_PAUSED: 'PAUSED',
-                orchestrator_strategic_pb2.WORKFLOW_STATE_COMPLETED: 'COMPLETED',
-                orchestrator_strategic_pb2.WORKFLOW_STATE_FAILED: 'FAILED',
-                orchestrator_strategic_pb2.WORKFLOW_STATE_CANCELLED: 'CANCELLED',
-                orchestrator_strategic_pb2.WORKFLOW_STATE_REPLANNING: 'REPLANNING',
+                orchestrator_strategic_pb2.WORKFLOW_STATE_PENDING: "PENDING",
+                orchestrator_strategic_pb2.WORKFLOW_STATE_RUNNING: "RUNNING",
+                orchestrator_strategic_pb2.WORKFLOW_STATE_PAUSED: "PAUSED",
+                orchestrator_strategic_pb2.WORKFLOW_STATE_COMPLETED: "COMPLETED",
+                orchestrator_strategic_pb2.WORKFLOW_STATE_FAILED: "FAILED",
+                orchestrator_strategic_pb2.WORKFLOW_STATE_CANCELLED: "CANCELLED",
+                orchestrator_strategic_pb2.WORKFLOW_STATE_REPLANNING: "REPLANNING",
             }
 
             status = {
-                'workflow_id': response.workflow_id,
-                'plan_id': response.plan_id,
-                'state': state_map.get(response.state, 'UNKNOWN'),
-                'current_priority': response.current_priority,
-                'progress_percent': response.progress_percent,
-                'started_at': response.started_at,
-                'updated_at': response.updated_at,
-                'metadata': dict(response.metadata)
+                "workflow_id": response.workflow_id,
+                "plan_id": response.plan_id,
+                "state": state_map.get(response.state, "UNKNOWN"),
+                "current_priority": response.current_priority,
+                "progress_percent": response.progress_percent,
+                "started_at": response.started_at,
+                "updated_at": response.updated_at,
+                "metadata": dict(response.metadata),
             }
 
             if response.allocated_resources:
-                status['allocated_resources'] = {
-                    'cpu_millicores': response.allocated_resources.cpu_millicores,
-                    'memory_mb': response.allocated_resources.memory_mb,
-                    'max_parallel_tickets': response.allocated_resources.max_parallel_tickets,
-                    'scheduling_priority': response.allocated_resources.scheduling_priority
+                status["allocated_resources"] = {
+                    "cpu_millicores": response.allocated_resources.cpu_millicores,
+                    "memory_mb": response.allocated_resources.memory_mb,
+                    "max_parallel_tickets": response.allocated_resources.max_parallel_tickets,
+                    "scheduling_priority": response.allocated_resources.scheduling_priority,
                 }
 
             if response.tickets:
-                status['tickets'] = {
-                    'total': response.tickets.total,
-                    'completed': response.tickets.completed,
-                    'pending': response.tickets.pending,
-                    'running': response.tickets.running,
-                    'failed': response.tickets.failed
+                status["tickets"] = {
+                    "total": response.tickets.total,
+                    "completed": response.tickets.completed,
+                    "pending": response.tickets.pending,
+                    "running": response.tickets.running,
+                    "failed": response.tickets.failed,
                 }
 
             if response.sla_deadline:
-                status['sla_deadline'] = response.sla_deadline
+                status["sla_deadline"] = response.sla_deadline
             if response.sla_remaining_seconds:
-                status['sla_remaining_seconds'] = response.sla_remaining_seconds
+                status["sla_remaining_seconds"] = response.sla_remaining_seconds
 
             if response.history:
-                status['history'] = [
+                status["history"] = [
                     {
-                        'event_type': event.event_type,
-                        'timestamp': event.timestamp,
-                        'description': event.description,
-                        'metadata': dict(event.metadata)
+                        "event_type": event.event_type,
+                        "timestamp": event.timestamp,
+                        "description": event.description,
+                        "metadata": dict(event.metadata),
                     }
                     for event in response.history
                 ]
@@ -675,10 +651,10 @@ class OrchestratorClient:
 
         except grpc.RpcError as e:
             self.logger.error(
-                'get_workflow_status_failed',
+                "get_workflow_status_failed",
                 workflow_id=workflow_id,
                 error=str(e),
-                code=e.code()
+                code=e.code(),
             )
             return None
 
@@ -692,32 +668,30 @@ class OrchestratorClient:
 
         DEPRECATED: Use adjust_priorities() para ajustes de prioridade.
         """
-        self.logger.warning('adjust_qos_deprecated', message='Use adjust_priorities()')
+        self.logger.warning("adjust_qos_deprecated", message="Use adjust_priorities()")
         return await self.adjust_priorities(
             workflow_id=adjustment.target_workflow_id,
-            plan_id=adjustment.target_plan_id or '',
-            new_priority=adjustment.parameters.get('priority', 5),
+            plan_id=adjustment.target_plan_id or "",
+            new_priority=adjustment.parameters.get("priority", 5),
             reason=adjustment.reason,
-            adjustment_id=adjustment.adjustment_id
+            adjustment_id=adjustment.adjustment_id,
         )
 
-    async def start_workflow(self, workflow_id: str, payload: Optional[dict] = None) -> bool:
+    async def start_workflow(
+        self, workflow_id: str, payload: Optional[dict] = None
+    ) -> bool:
         """
         Iniciar workflow no Orchestrator.
 
         DEPRECATED: Use a API HTTP do Orchestrator para iniciar workflows.
         """
         self.logger.warning(
-            'start_workflow_deprecated',
-            message='Use API HTTP do Orchestrator'
+            "start_workflow_deprecated", message="Use API HTTP do Orchestrator"
         )
         return True
 
     async def signal_workflow(
-        self,
-        workflow_id: str,
-        signal_name: str,
-        input_payload: Optional[dict] = None
+        self, workflow_id: str, signal_name: str, input_payload: Optional[dict] = None
     ) -> bool:
         """
         Enviar sinal para workflow.
@@ -725,21 +699,23 @@ class OrchestratorClient:
         DEPRECATED: Use pause_workflow/resume_workflow ou adjust_priorities.
         """
         self.logger.warning(
-            'signal_workflow_deprecated',
-            message='Use métodos específicos: pause_workflow, resume_workflow, adjust_priorities'
+            "signal_workflow_deprecated",
+            message="Use métodos específicos: pause_workflow, resume_workflow, adjust_priorities",
         )
 
-        if signal_name.lower() == 'pause':
+        if signal_name.lower() == "pause":
             return await self.pause_workflow(
                 workflow_id=workflow_id,
-                reason=input_payload.get('reason', 'Signal via deprecated API') if input_payload else 'Signal via deprecated API'
+                reason=input_payload.get("reason", "Signal via deprecated API")
+                if input_payload
+                else "Signal via deprecated API",
             )
-        elif signal_name.lower() == 'resume':
+        elif signal_name.lower() == "resume":
             return await self.resume_workflow(workflow_id=workflow_id)
         else:
             self.logger.info(
-                'orchestrator_workflow_signal',
+                "orchestrator_workflow_signal",
                 workflow_id=workflow_id,
-                signal=signal_name
+                signal=signal_name,
             )
             return True

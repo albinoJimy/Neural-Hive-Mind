@@ -5,10 +5,7 @@ from typing import Optional
 import json
 
 from neural_hive_observability import instrument_kafka_consumer
-from neural_hive_observability.context import (
-    extract_context_from_headers,
-    set_baggage
-)
+from neural_hive_observability.context import extract_context_from_headers, set_baggage
 
 from ..config import Settings
 from ..services import StrategicDecisionEngine
@@ -26,7 +23,7 @@ class IncidentConsumer:
         settings: Settings,
         decision_engine: StrategicDecisionEngine,
         redis_client: RedisClient,
-        strategic_producer: 'StrategicDecisionProducer'
+        strategic_producer: "StrategicDecisionProducer",
     ):
         self.settings = settings
         self.decision_engine = decision_engine
@@ -44,14 +41,14 @@ class IncidentConsumer:
                 group_id=self.settings.KAFKA_CONSUMER_GROUP,
                 auto_offset_reset=self.settings.KAFKA_AUTO_OFFSET_RESET,
                 enable_auto_commit=False,
-                value_deserializer=lambda v: json.loads(v.decode('utf-8'))
+                value_deserializer=lambda v: json.loads(v.decode("utf-8")),
             )
 
             self.consumer = instrument_kafka_consumer(self.consumer)
             await self.consumer.start()
             logger.info(
                 "incident_consumer_initialized",
-                topic=self.settings.KAFKA_TOPICS_INCIDENTS
+                topic=self.settings.KAFKA_TOPICS_INCIDENTS,
             )
 
         except Exception as e:
@@ -77,7 +74,7 @@ class IncidentConsumer:
                     logger.error(
                         "incident_message_processing_failed",
                         error=str(e),
-                        offset=message.offset
+                        offset=message.offset,
                     )
 
         except Exception as e:
@@ -107,14 +104,10 @@ class IncidentConsumer:
                 set_baggage("intent_id", intent_id)
             if plan_id:
                 set_baggage("plan_id", plan_id)
-            incident_id = incident.get('incident_id')
-            severity = incident.get('severity')
+            incident_id = incident.get("incident_id")
+            severity = incident.get("severity")
 
-            logger.info(
-                "incident_received",
-                incident_id=incident_id,
-                severity=severity
-            )
+            logger.info("incident_received", incident_id=incident_id, severity=severity)
 
             # Verificar deduplicação
             if await self._is_already_processed(incident_id):
@@ -122,7 +115,9 @@ class IncidentConsumer:
                 return
 
             # Processar via Decision Engine
-            strategic_decision = await self.decision_engine.process_critical_incident(incident)
+            strategic_decision = await self.decision_engine.process_critical_incident(
+                incident
+            )
 
             if strategic_decision:
                 # Marcar como processado
@@ -131,25 +126,29 @@ class IncidentConsumer:
                 logger.info(
                     "strategic_decision_created_from_incident",
                     incident_id=incident_id,
-                    strategic_decision_id=strategic_decision.decision_id
+                    strategic_decision_id=strategic_decision.decision_id,
                 )
 
                 # Publicar decisão estratégica no Kafka
-                published = await self.strategic_producer.publish_decision(strategic_decision)
+                published = await self.strategic_producer.publish_decision(
+                    strategic_decision
+                )
                 if not published:
                     logger.error(
                         "failed_to_publish_strategic_decision",
-                        strategic_decision_id=strategic_decision.decision_id
+                        strategic_decision_id=strategic_decision.decision_id,
                     )
                     raise Exception("Failed to publish strategic decision to Kafka")
 
                 # Executar ação da decisão estratégica
-                action_executed = await self.decision_engine.execute_decision_action(strategic_decision)
+                action_executed = await self.decision_engine.execute_decision_action(
+                    strategic_decision
+                )
                 if not action_executed:
                     logger.error(
                         "failed_to_execute_decision_action",
                         strategic_decision_id=strategic_decision.decision_id,
-                        action=strategic_decision.decision.action
+                        action=strategic_decision.decision.action,
                     )
                     raise Exception("Failed to execute decision action")
 
@@ -174,8 +173,8 @@ class IncidentConsumer:
             key = f"incident:processed:{incident_id}"
             await self.redis_client.cache_strategic_context(
                 key,
-                {'processed_at': int(asyncio.get_event_loop().time() * 1000)},
-                ttl_seconds=3600  # 1 hora
+                {"processed_at": int(asyncio.get_event_loop().time() * 1000)},
+                ttl_seconds=3600,  # 1 hora
             )
 
         except Exception as e:

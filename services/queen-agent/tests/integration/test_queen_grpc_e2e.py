@@ -9,6 +9,7 @@ Valida fluxo completo dos métodos gRPC com servidor real:
 - MakeStrategicDecision: cria nova decisão estratégica
 """
 import pytest
+import pytest_asyncio
 import asyncio
 import uuid
 import socket
@@ -90,7 +91,7 @@ def servicer(mock_mongodb_client, mock_neo4j_client, mock_exception_service, moc
     )
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def grpc_server_and_stub(mock_mongodb_client, mock_neo4j_client, mock_exception_service, mock_telemetry_aggregator, mock_decision_engine):
     """
     Fixture que inicia um servidor gRPC real em porta efêmera

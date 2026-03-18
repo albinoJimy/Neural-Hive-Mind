@@ -18,13 +18,15 @@ class ReplanningCoordinator:
         self,
         orchestrator_client: OrchestratorClient,
         redis_client: RedisClient,
-        settings: Settings
+        settings: Settings,
     ):
         self.orchestrator_client = orchestrator_client
         self.redis_client = redis_client
         self.settings = settings
 
-    async def trigger_replanning(self, plan_id: str, reason: str, decision_id: str) -> bool:
+    async def trigger_replanning(
+        self, plan_id: str, reason: str, decision_id: str
+    ) -> bool:
         """Acionar replanejamento de um plano cognitivo"""
         try:
             # Verificar cooldown
@@ -33,7 +35,7 @@ class ReplanningCoordinator:
                 logger.warning(
                     "replanning_rejected_cooldown",
                     plan_id=plan_id,
-                    cooldown_seconds=self.settings.REPLANNING_COOLDOWN_SECONDS
+                    cooldown_seconds=self.settings.REPLANNING_COOLDOWN_SECONDS,
                 )
                 return False
 
@@ -48,16 +50,14 @@ class ReplanningCoordinator:
                     "replanning_triggered",
                     plan_id=plan_id,
                     reason=reason,
-                    decision_id=decision_id
+                    decision_id=decision_id,
                 )
 
             return success
 
         except CircuitBreakerError:
             logger.warning(
-                "trigger_replanning_circuit_open",
-                plan_id=plan_id,
-                reason=reason
+                "trigger_replanning_circuit_open", plan_id=plan_id, reason=reason
             )
             return False
         except Exception as e:
@@ -75,21 +75,19 @@ class ReplanningCoordinator:
                     "qos_adjustment_applied",
                     adjustment_id=adjustment.adjustment_id,
                     type=adjustment.adjustment_type.value,
-                    workflow_id=adjustment.target_workflow_id
+                    workflow_id=adjustment.target_workflow_id,
                 )
             else:
                 adjustment.mark_failed("Orchestrator rejected adjustment")
                 logger.error(
-                    "qos_adjustment_failed",
-                    adjustment_id=adjustment.adjustment_id
+                    "qos_adjustment_failed", adjustment_id=adjustment.adjustment_id
                 )
 
             return success
 
         except CircuitBreakerError:
             logger.warning(
-                "qos_adjustment_circuit_open",
-                adjustment_id=adjustment.adjustment_id
+                "qos_adjustment_circuit_open", adjustment_id=adjustment.adjustment_id
             )
             adjustment.mark_failed("circuit_open")
             return False
@@ -103,18 +101,23 @@ class ReplanningCoordinator:
         try:
             success = await self.orchestrator_client.pause_workflow(workflow_id, reason)
 
-            logger.info("execution_paused", workflow_id=workflow_id, reason=reason, success=success)
+            logger.info(
+                "execution_paused",
+                workflow_id=workflow_id,
+                reason=reason,
+                success=success,
+            )
             return success
 
         except CircuitBreakerError:
             logger.warning(
-                "pause_execution_circuit_open",
-                workflow_id=workflow_id,
-                reason=reason
+                "pause_execution_circuit_open", workflow_id=workflow_id, reason=reason
             )
             return False
         except Exception as e:
-            logger.error("pause_execution_failed", workflow_id=workflow_id, error=str(e))
+            logger.error(
+                "pause_execution_failed", workflow_id=workflow_id, error=str(e)
+            )
             return False
 
     async def resume_execution(self, workflow_id: str) -> bool:
@@ -126,13 +129,12 @@ class ReplanningCoordinator:
             return success
 
         except CircuitBreakerError:
-            logger.warning(
-                "resume_execution_circuit_open",
-                workflow_id=workflow_id
-            )
+            logger.warning("resume_execution_circuit_open", workflow_id=workflow_id)
             return False
         except Exception as e:
-            logger.error("resume_execution_failed", workflow_id=workflow_id, error=str(e))
+            logger.error(
+                "resume_execution_failed", workflow_id=workflow_id, error=str(e)
+            )
             return False
 
     async def check_replanning_cooldown(self, plan_id: str) -> bool:
@@ -153,17 +155,19 @@ class ReplanningCoordinator:
             cooldown_key = f"replanning:cooldown:{plan_id}"
 
             event_data = {
-                'decision_id': decision_id,
-                'timestamp': int(datetime.now().timestamp() * 1000)
+                "decision_id": decision_id,
+                "timestamp": int(datetime.now().timestamp() * 1000),
             }
 
             await self.redis_client.cache_strategic_context(
                 cooldown_key,
                 event_data,
-                ttl_seconds=self.settings.REPLANNING_COOLDOWN_SECONDS
+                ttl_seconds=self.settings.REPLANNING_COOLDOWN_SECONDS,
             )
 
-            logger.debug("replanning_event_recorded", plan_id=plan_id, decision_id=decision_id)
+            logger.debug(
+                "replanning_event_recorded", plan_id=plan_id, decision_id=decision_id
+            )
 
         except Exception as e:
             logger.error("record_replanning_event_failed", error=str(e))
@@ -179,11 +183,11 @@ class ReplanningCoordinator:
             cursor = 0
             while True:
                 cursor, keys = await self.redis_client.client.scan(
-                    cursor=cursor,
-                    match=cooldown_pattern,
-                    count=100
+                    cursor=cursor, match=cooldown_pattern, count=100
                 )
-                cooldown_keys.extend([k.decode('utf-8') if isinstance(k, bytes) else k for k in keys])
+                cooldown_keys.extend(
+                    [k.decode("utf-8") if isinstance(k, bytes) else k for k in keys]
+                )
 
                 if cursor == 0:
                     break
@@ -191,19 +195,19 @@ class ReplanningCoordinator:
             # Extrair plan_ids das chaves de cooldown
             cooldown_plans = []
             for key in cooldown_keys:
-                plan_id = key.replace('replanning:cooldown:', '')
+                plan_id = key.replace("replanning:cooldown:", "")
                 cooldown_plans.append(plan_id)
 
             return {
-                'total_replannings': len(cooldown_plans),
-                'active_replannings': len(cooldown_plans),
-                'cooldown_plans': cooldown_plans
+                "total_replannings": len(cooldown_plans),
+                "active_replannings": len(cooldown_plans),
+                "cooldown_plans": cooldown_plans,
             }
 
         except Exception as e:
             logger.error("get_replanning_stats_failed", error=str(e))
             return {
-                'total_replannings': 0,
-                'active_replannings': 0,
-                'cooldown_plans': []
+                "total_replannings": 0,
+                "active_replannings": 0,
+                "cooldown_plans": [],
             }

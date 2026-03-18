@@ -9,22 +9,26 @@ Para executar:
     pytest services/queen-agent/tests/integration/test_opa_integration.py -v
 """
 import pytest
+import pytest_asyncio
 import httpx
 
 from src.clients.opa_client import OPAClient
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def opa_client():
     """Cria cliente OPA conectado ao servidor de teste"""
     client = OPAClient(base_url="http://localhost:8181", timeout=5.0)
     try:
         await client.connect()
         yield client
-    except Exception:
-        pytest.skip("Servidor OPA não disponível em localhost:8181")
+    except Exception as e:
+        pytest.skip(f"Servidor OPA não disponível em localhost:8181: {e}")
     finally:
-        await client.close()
+        try:
+            await client.close()
+        except Exception:
+            pass  # Ignorar erros no close
 
 
 @pytest.mark.integration

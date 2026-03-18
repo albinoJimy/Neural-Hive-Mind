@@ -8,11 +8,191 @@ Testa os seguintes métodos:
 - GetActiveConflicts: conflitos ativos no Neo4j
 """
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import grpc
 
 from src.grpc_server.queen_servicer import QueenAgentServicer
 from src.proto import queen_agent_pb2
+
+
+# =============================================================================
+# MOCK DE MÉTRICAS - nível módulo
+# =============================================================================
+
+
+def _create_mock_metrics():
+    """Cria mock completo de QueenAgentMetrics."""
+    def create_counter_mock():
+        counter = MagicMock()
+        counter.inc = MagicMock()
+        counter.labels = MagicMock(return_value=counter)
+        return counter
+
+    def create_histogram_mock():
+        histogram = MagicMock()
+        histogram.observe = MagicMock()
+        histogram.labels = MagicMock(return_value=histogram)
+        return histogram
+
+    def create_gauge_mock():
+        gauge = MagicMock()
+        gauge.set = MagicMock()
+        gauge.inc = MagicMock()
+        gauge.labels = MagicMock(return_value=gauge)
+        return gauge
+
+    metrics = MagicMock()
+    # Counter metrics
+    metrics.strategic_decisions_total = create_counter_mock()
+    metrics.strategic_decision_duration_seconds = create_histogram_mock()
+    metrics.strategic_decision_confidence = create_histogram_mock()
+    metrics.strategic_decision_risk = create_histogram_mock()
+    metrics.conflicts_detected_total = create_counter_mock()
+    metrics.conflicts_resolved_total = create_counter_mock()
+    metrics.replannings_triggered_total = create_counter_mock()
+    metrics.replannings_rejected_cooldown_total = create_counter_mock()
+    metrics.active_replannings = create_gauge_mock()
+    metrics.exception_requests_total = create_counter_mock()
+    metrics.exception_approvals_total = create_counter_mock()
+    metrics.exception_rejections_total = create_counter_mock()
+
+    # System metrics
+    metrics.system_status_queries_total = create_counter_mock()
+    metrics.grpc_requests_total = create_counter_mock()
+    metrics.grpc_request_duration_seconds = create_histogram_mock()
+    metrics.active_conflicts = create_gauge_mock()
+    metrics.active_decisions = create_gauge_mock()
+    metrics.system_health_score = create_gauge_mock()
+    metrics.sla_compliance_ratio = create_gauge_mock()
+    metrics.active_incidents = create_gauge_mock()
+    metrics.insights_received_total = create_counter_mock()
+
+    return metrics
+
+
+# Patch módulo metrics para todos os testes deste arquivo
+_patch_metrics = patch(
+    'src.observability.metrics.QueenAgentMetrics',
+    return_value=_create_mock_metrics()
+)
+_patch_metrics.start()
+_mock_metrics_instance = _create_mock_metrics()
+_patch_servicer_metrics = patch(
+    'src.grpc_server.queen_servicer.metrics',
+    return_value=_mock_metrics_instance
+)
+_patch_servicer_metrics.start()
+
+
+def _create_mock_metrics():
+    """Cria mock completo de QueenAgentMetrics."""
+    def create_counter_mock():
+        counter = MagicMock()
+        counter.inc = MagicMock()
+        counter.labels = MagicMock(return_value=counter)
+        return counter
+
+    def create_histogram_mock():
+        histogram = MagicMock()
+        histogram.observe = MagicMock()
+        histogram.labels = MagicMock(return_value=histogram)
+        return histogram
+
+    def create_gauge_mock():
+        gauge = MagicMock()
+        gauge.set = MagicMock()
+        gauge.inc = MagicMock()
+        gauge.labels = MagicMock(return_value=gauge)
+        return gauge
+
+    metrics = MagicMock()
+    # Counter metrics
+    metrics.strategic_decisions_total = create_counter_mock()
+    metrics.strategic_decision_duration_seconds = create_histogram_mock()
+    metrics.strategic_decision_confidence = create_histogram_mock()
+    metrics.strategic_decision_risk = create_histogram_mock()
+    metrics.conflicts_detected_total = create_counter_mock()
+    metrics.conflicts_resolved_total = create_counter_mock()
+    metrics.replannings_triggered_total = create_counter_mock()
+    metrics.replannings_rejected_cooldown_total = create_counter_mock()
+    metrics.active_replannings = create_gauge_mock()
+    metrics.exception_requests_total = create_counter_mock()
+    metrics.exception_approvals_total = create_counter_mock()
+    metrics.exception_rejections_total = create_counter_mock()
+
+    # System metrics
+    metrics.system_status_queries_total = create_counter_mock()
+    metrics.grpc_requests_total = create_counter_mock()
+    metrics.grpc_request_duration_seconds = create_histogram_mock()
+    metrics.active_conflicts = create_gauge_mock()
+    metrics.active_decisions = create_gauge_mock()
+    metrics.system_health_score = create_gauge_mock()
+    metrics.sla_compliance_ratio = create_gauge_mock()
+    metrics.active_incidents = create_gauge_mock()
+    metrics.insights_received_total = create_counter_mock()
+
+    return metrics
+
+
+@pytest.fixture(autouse=True)
+def mock_metrics():
+    """Mock das métricas Prometheus - autouse para patch persistente"""
+    mock = _create_mock_metrics()
+    # Patch module-level metrics antes de qualquer import
+    with patch('src.observability.metrics.QueenAgentMetrics', return_value=mock):
+        with patch('src.grpc_server.queen_servicer.metrics', mock):
+            yield mock
+
+
+@pytest.fixture
+def mock_metrics():
+    """Mock das métricas Prometheus"""
+    def create_counter_mock():
+        counter = MagicMock()
+        counter.inc = MagicMock()
+        counter.labels = MagicMock(return_value=counter)
+        return counter
+
+    def create_histogram_mock():
+        histogram = MagicMock()
+        histogram.observe = MagicMock()
+        histogram.labels = MagicMock(return_value=histogram)
+        return histogram
+
+    def create_gauge_mock():
+        gauge = MagicMock()
+        gauge.set = MagicMock()
+        gauge.inc = MagicMock()
+        gauge.labels = MagicMock(return_value=gauge)
+        return gauge
+
+    metrics = MagicMock()
+    # Counter metrics
+    metrics.strategic_decisions_total = create_counter_mock()
+    metrics.strategic_decision_duration_seconds = create_histogram_mock()
+    metrics.strategic_decision_confidence = create_histogram_mock()
+    metrics.strategic_decision_risk = create_histogram_mock()
+    metrics.conflicts_detected_total = create_counter_mock()
+    metrics.conflicts_resolved_total = create_counter_mock()
+    metrics.replannings_triggered_total = create_counter_mock()
+    metrics.replannings_rejected_cooldown_total = create_counter_mock()
+    metrics.active_replannings = create_gauge_mock()
+    metrics.exception_requests_total = create_counter_mock()
+    metrics.exception_approvals_total = create_counter_mock()
+    metrics.exception_rejections_total = create_counter_mock()
+
+    # System metrics
+    metrics.system_status_queries_total = create_counter_mock()
+    metrics.grpc_requests_total = create_counter_mock()
+    metrics.grpc_request_duration_seconds = create_histogram_mock()
+    metrics.active_conflicts = create_gauge_mock()
+    metrics.active_decisions = create_gauge_mock()
+    metrics.system_health_score = create_gauge_mock()
+    metrics.sla_compliance_ratio = create_gauge_mock()
+    metrics.active_incidents = create_gauge_mock()
+    metrics.insights_received_total = create_counter_mock()
+
+    return metrics
 
 
 @pytest.fixture
@@ -22,6 +202,10 @@ def mock_clients():
     mongodb.db = MagicMock()
     mongodb.db.analyst_insights = MagicMock()
     mongodb.db.analyst_insights.insert_one = AsyncMock()
+    # Métodos para decisões estratégicas
+    mongodb.list_strategic_decisions = AsyncMock(return_value=[])
+    mongodb.count_strategic_decisions = AsyncMock(return_value=0)
+    mongodb.get_strategic_decision = AsyncMock(return_value=None)
 
     return {
         'mongodb': mongodb,
@@ -167,6 +351,7 @@ async def test_list_strategic_decisions_success(servicer, mock_clients, mock_con
         }
     ]
     mock_clients['mongodb'].list_strategic_decisions.return_value = mock_decisions
+    mock_clients['mongodb'].count_strategic_decisions.return_value = 2
 
     request = queen_agent_pb2.ListStrategicDecisionsRequest(limit=10, offset=0)
     response = await servicer.ListStrategicDecisions(request, mock_context)
@@ -195,6 +380,7 @@ async def test_list_strategic_decisions_with_filters(servicer, mock_clients, moc
         }
     ]
     mock_clients['mongodb'].list_strategic_decisions.return_value = mock_decisions
+    mock_clients['mongodb'].count_strategic_decisions.return_value = 1
 
     request = queen_agent_pb2.ListStrategicDecisionsRequest(
         decision_type='REPLANNING',
@@ -223,6 +409,7 @@ async def test_list_strategic_decisions_pagination(servicer, mock_clients, mock_
          'risk_assessment': {}, 'reasoning_summary': '', 'created_at': 0, 'decision': {}}
     ]
     mock_clients['mongodb'].list_strategic_decisions.return_value = mock_decisions
+    mock_clients['mongodb'].count_strategic_decisions.return_value = 100
 
     request = queen_agent_pb2.ListStrategicDecisionsRequest(limit=20, offset=40)
     await servicer.ListStrategicDecisions(request, mock_context)
@@ -236,6 +423,7 @@ async def test_list_strategic_decisions_pagination(servicer, mock_clients, mock_
 async def test_list_strategic_decisions_default_limit(servicer, mock_clients, mock_context):
     """Testa limite padrão de 50 quando não especificado"""
     mock_clients['mongodb'].list_strategic_decisions.return_value = []
+    mock_clients['mongodb'].count_strategic_decisions.return_value = 0
 
     request = queen_agent_pb2.ListStrategicDecisionsRequest()
     await servicer.ListStrategicDecisions(request, mock_context)
@@ -249,6 +437,7 @@ async def test_list_strategic_decisions_default_limit(servicer, mock_clients, mo
 async def test_list_strategic_decisions_empty(servicer, mock_clients, mock_context):
     """Testa listagem vazia"""
     mock_clients['mongodb'].list_strategic_decisions.return_value = []
+    mock_clients['mongodb'].count_strategic_decisions.return_value = 0
 
     request = queen_agent_pb2.ListStrategicDecisionsRequest(limit=10)
     response = await servicer.ListStrategicDecisions(request, mock_context)

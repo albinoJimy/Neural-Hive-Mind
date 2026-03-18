@@ -17,12 +17,15 @@ class RejectRequest(BaseModel):
 
 
 @router.post("", status_code=201)
-async def create_exception(exception_data: Dict[str, Any], request: Request) -> Dict[str, str]:
+async def create_exception(
+    exception_data: Dict[str, Any], request: Request
+) -> Dict[str, str]:
     """Criar solicitação de exceção"""
     exception_service = request.app.state.app_state.exception_service
 
     try:
         from ..models import ExceptionApproval
+
         exception = ExceptionApproval(**exception_data)
         exception_id = await exception_service.request_exception(exception)
 
@@ -40,10 +43,12 @@ async def get_exception(exception_id: str, request: Request) -> Dict[str, Any]:
 
     exception = await mongodb_client.get_exception_approval(exception_id)
     if not exception:
-        raise HTTPException(status_code=404, detail=f"Exception {exception_id} not found")
+        raise HTTPException(
+            status_code=404, detail=f"Exception {exception_id} not found"
+        )
 
     # Remover _id do MongoDB
-    exception.pop('_id', None)
+    exception.pop("_id", None)
     return exception
 
 
@@ -63,18 +68,14 @@ async def list_pending_exceptions(request: Request) -> List[Dict[str, Any]]:
 
 @router.post("/{exception_id}/approve")
 async def approve_exception(
-    exception_id: str,
-    approve_request: ApproveRequest,
-    request: Request
+    exception_id: str, approve_request: ApproveRequest, request: Request
 ) -> Dict[str, Any]:
     """Aprovar exceção"""
     exception_service = request.app.state.app_state.exception_service
 
     try:
         exception = await exception_service.approve_exception(
-            exception_id,
-            approve_request.decision_id,
-            approve_request.conditions
+            exception_id, approve_request.decision_id, approve_request.conditions
         )
 
         return exception.to_dict()
@@ -88,17 +89,14 @@ async def approve_exception(
 
 @router.post("/{exception_id}/reject")
 async def reject_exception(
-    exception_id: str,
-    reject_request: RejectRequest,
-    request: Request
+    exception_id: str, reject_request: RejectRequest, request: Request
 ) -> Dict[str, Any]:
     """Rejeitar exceção"""
     exception_service = request.app.state.app_state.exception_service
 
     try:
         exception = await exception_service.reject_exception(
-            exception_id,
-            reject_request.reason
+            exception_id, reject_request.reason
         )
 
         return exception.to_dict()

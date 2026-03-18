@@ -6,8 +6,7 @@ from . import queen_agent_pb2 as queen__agent__pb2
 
 
 class QueenAgentStub(object):
-    """Serviço Queen Agent - Coordenador Estratégico
-    """
+    """Serviço Queen Agent - Coordenador Estratégico"""
 
     def __init__(self, channel):
         """Constructor.
@@ -16,327 +15,425 @@ class QueenAgentStub(object):
             channel: A grpc.Channel.
         """
         self.GetStrategicDecision = channel.unary_unary(
-                '/queen_agent.QueenAgent/GetStrategicDecision',
-                request_serializer=queen__agent__pb2.GetStrategicDecisionRequest.SerializeToString,
-                response_deserializer=queen__agent__pb2.StrategicDecisionResponse.FromString,
-                )
+            "/queen_agent.QueenAgent/GetStrategicDecision",
+            request_serializer=queen__agent__pb2.GetStrategicDecisionRequest.SerializeToString,
+            response_deserializer=queen__agent__pb2.StrategicDecisionResponse.FromString,
+        )
         self.ListStrategicDecisions = channel.unary_unary(
-                '/queen_agent.QueenAgent/ListStrategicDecisions',
-                request_serializer=queen__agent__pb2.ListStrategicDecisionsRequest.SerializeToString,
-                response_deserializer=queen__agent__pb2.ListStrategicDecisionsResponse.FromString,
-                )
+            "/queen_agent.QueenAgent/ListStrategicDecisions",
+            request_serializer=queen__agent__pb2.ListStrategicDecisionsRequest.SerializeToString,
+            response_deserializer=queen__agent__pb2.ListStrategicDecisionsResponse.FromString,
+        )
         self.MakeStrategicDecision = channel.unary_unary(
-                '/queen_agent.QueenAgent/MakeStrategicDecision',
-                request_serializer=queen__agent__pb2.MakeStrategicDecisionRequest.SerializeToString,
-                response_deserializer=queen__agent__pb2.MakeStrategicDecisionResponse.FromString,
-                )
+            "/queen_agent.QueenAgent/MakeStrategicDecision",
+            request_serializer=queen__agent__pb2.MakeStrategicDecisionRequest.SerializeToString,
+            response_deserializer=queen__agent__pb2.MakeStrategicDecisionResponse.FromString,
+        )
         self.GetSystemStatus = channel.unary_unary(
-                '/queen_agent.QueenAgent/GetSystemStatus',
-                request_serializer=queen__agent__pb2.GetSystemStatusRequest.SerializeToString,
-                response_deserializer=queen__agent__pb2.SystemStatusResponse.FromString,
-                )
+            "/queen_agent.QueenAgent/GetSystemStatus",
+            request_serializer=queen__agent__pb2.GetSystemStatusRequest.SerializeToString,
+            response_deserializer=queen__agent__pb2.SystemStatusResponse.FromString,
+        )
         self.RequestExceptionApproval = channel.unary_unary(
-                '/queen_agent.QueenAgent/RequestExceptionApproval',
-                request_serializer=queen__agent__pb2.RequestExceptionRequest.SerializeToString,
-                response_deserializer=queen__agent__pb2.RequestExceptionResponse.FromString,
-                )
+            "/queen_agent.QueenAgent/RequestExceptionApproval",
+            request_serializer=queen__agent__pb2.RequestExceptionRequest.SerializeToString,
+            response_deserializer=queen__agent__pb2.RequestExceptionResponse.FromString,
+        )
         self.ApproveException = channel.unary_unary(
-                '/queen_agent.QueenAgent/ApproveException',
-                request_serializer=queen__agent__pb2.ApproveExceptionRequest.SerializeToString,
-                response_deserializer=queen__agent__pb2.ApproveExceptionResponse.FromString,
-                )
+            "/queen_agent.QueenAgent/ApproveException",
+            request_serializer=queen__agent__pb2.ApproveExceptionRequest.SerializeToString,
+            response_deserializer=queen__agent__pb2.ApproveExceptionResponse.FromString,
+        )
         self.RejectException = channel.unary_unary(
-                '/queen_agent.QueenAgent/RejectException',
-                request_serializer=queen__agent__pb2.RejectExceptionRequest.SerializeToString,
-                response_deserializer=queen__agent__pb2.RejectExceptionResponse.FromString,
-                )
+            "/queen_agent.QueenAgent/RejectException",
+            request_serializer=queen__agent__pb2.RejectExceptionRequest.SerializeToString,
+            response_deserializer=queen__agent__pb2.RejectExceptionResponse.FromString,
+        )
         self.GetActiveConflicts = channel.unary_unary(
-                '/queen_agent.QueenAgent/GetActiveConflicts',
-                request_serializer=queen__agent__pb2.GetActiveConflictsRequest.SerializeToString,
-                response_deserializer=queen__agent__pb2.GetActiveConflictsResponse.FromString,
-                )
+            "/queen_agent.QueenAgent/GetActiveConflicts",
+            request_serializer=queen__agent__pb2.GetActiveConflictsRequest.SerializeToString,
+            response_deserializer=queen__agent__pb2.GetActiveConflictsResponse.FromString,
+        )
         self.SubmitInsight = channel.unary_unary(
-                '/queen_agent.QueenAgent/SubmitInsight',
-                request_serializer=queen__agent__pb2.SubmitInsightRequest.SerializeToString,
-                response_deserializer=queen__agent__pb2.SubmitInsightResponse.FromString,
-                )
+            "/queen_agent.QueenAgent/SubmitInsight",
+            request_serializer=queen__agent__pb2.SubmitInsightRequest.SerializeToString,
+            response_deserializer=queen__agent__pb2.SubmitInsightResponse.FromString,
+        )
 
 
 class QueenAgentServicer(object):
-    """Serviço Queen Agent - Coordenador Estratégico
-    """
+    """Serviço Queen Agent - Coordenador Estratégico"""
 
     def GetStrategicDecision(self, request, context):
-        """Buscar decisão estratégica por ID
-        """
+        """Buscar decisão estratégica por ID"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def ListStrategicDecisions(self, request, context):
-        """Listar decisões estratégicas recentes
-        """
+        """Listar decisões estratégicas recentes"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def MakeStrategicDecision(self, request, context):
-        """Criar nova decisão estratégica
-        """
+        """Criar nova decisão estratégica"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def GetSystemStatus(self, request, context):
-        """Obter status geral do sistema
-        """
+        """Obter status geral do sistema"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def RequestExceptionApproval(self, request, context):
-        """Solicitar aprovação de exceção
-        """
+        """Solicitar aprovação de exceção"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def ApproveException(self, request, context):
-        """Aprovar exceção
-        """
+        """Aprovar exceção"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def RejectException(self, request, context):
-        """Rejeitar exceção
-        """
+        """Rejeitar exceção"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def GetActiveConflicts(self, request, context):
-        """Obter conflitos ativos
-        """
+        """Obter conflitos ativos"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def SubmitInsight(self, request, context):
-        """Submeter insight de Analyst Agent
-        """
+        """Submeter insight de Analyst Agent"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
 
 def add_QueenAgentServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'GetStrategicDecision': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetStrategicDecision,
-                    request_deserializer=queen__agent__pb2.GetStrategicDecisionRequest.FromString,
-                    response_serializer=queen__agent__pb2.StrategicDecisionResponse.SerializeToString,
-            ),
-            'ListStrategicDecisions': grpc.unary_unary_rpc_method_handler(
-                    servicer.ListStrategicDecisions,
-                    request_deserializer=queen__agent__pb2.ListStrategicDecisionsRequest.FromString,
-                    response_serializer=queen__agent__pb2.ListStrategicDecisionsResponse.SerializeToString,
-            ),
-            'MakeStrategicDecision': grpc.unary_unary_rpc_method_handler(
-                    servicer.MakeStrategicDecision,
-                    request_deserializer=queen__agent__pb2.MakeStrategicDecisionRequest.FromString,
-                    response_serializer=queen__agent__pb2.MakeStrategicDecisionResponse.SerializeToString,
-            ),
-            'GetSystemStatus': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetSystemStatus,
-                    request_deserializer=queen__agent__pb2.GetSystemStatusRequest.FromString,
-                    response_serializer=queen__agent__pb2.SystemStatusResponse.SerializeToString,
-            ),
-            'RequestExceptionApproval': grpc.unary_unary_rpc_method_handler(
-                    servicer.RequestExceptionApproval,
-                    request_deserializer=queen__agent__pb2.RequestExceptionRequest.FromString,
-                    response_serializer=queen__agent__pb2.RequestExceptionResponse.SerializeToString,
-            ),
-            'ApproveException': grpc.unary_unary_rpc_method_handler(
-                    servicer.ApproveException,
-                    request_deserializer=queen__agent__pb2.ApproveExceptionRequest.FromString,
-                    response_serializer=queen__agent__pb2.ApproveExceptionResponse.SerializeToString,
-            ),
-            'RejectException': grpc.unary_unary_rpc_method_handler(
-                    servicer.RejectException,
-                    request_deserializer=queen__agent__pb2.RejectExceptionRequest.FromString,
-                    response_serializer=queen__agent__pb2.RejectExceptionResponse.SerializeToString,
-            ),
-            'GetActiveConflicts': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetActiveConflicts,
-                    request_deserializer=queen__agent__pb2.GetActiveConflictsRequest.FromString,
-                    response_serializer=queen__agent__pb2.GetActiveConflictsResponse.SerializeToString,
-            ),
-            'SubmitInsight': grpc.unary_unary_rpc_method_handler(
-                    servicer.SubmitInsight,
-                    request_deserializer=queen__agent__pb2.SubmitInsightRequest.FromString,
-                    response_serializer=queen__agent__pb2.SubmitInsightResponse.SerializeToString,
-            ),
+        "GetStrategicDecision": grpc.unary_unary_rpc_method_handler(
+            servicer.GetStrategicDecision,
+            request_deserializer=queen__agent__pb2.GetStrategicDecisionRequest.FromString,
+            response_serializer=queen__agent__pb2.StrategicDecisionResponse.SerializeToString,
+        ),
+        "ListStrategicDecisions": grpc.unary_unary_rpc_method_handler(
+            servicer.ListStrategicDecisions,
+            request_deserializer=queen__agent__pb2.ListStrategicDecisionsRequest.FromString,
+            response_serializer=queen__agent__pb2.ListStrategicDecisionsResponse.SerializeToString,
+        ),
+        "MakeStrategicDecision": grpc.unary_unary_rpc_method_handler(
+            servicer.MakeStrategicDecision,
+            request_deserializer=queen__agent__pb2.MakeStrategicDecisionRequest.FromString,
+            response_serializer=queen__agent__pb2.MakeStrategicDecisionResponse.SerializeToString,
+        ),
+        "GetSystemStatus": grpc.unary_unary_rpc_method_handler(
+            servicer.GetSystemStatus,
+            request_deserializer=queen__agent__pb2.GetSystemStatusRequest.FromString,
+            response_serializer=queen__agent__pb2.SystemStatusResponse.SerializeToString,
+        ),
+        "RequestExceptionApproval": grpc.unary_unary_rpc_method_handler(
+            servicer.RequestExceptionApproval,
+            request_deserializer=queen__agent__pb2.RequestExceptionRequest.FromString,
+            response_serializer=queen__agent__pb2.RequestExceptionResponse.SerializeToString,
+        ),
+        "ApproveException": grpc.unary_unary_rpc_method_handler(
+            servicer.ApproveException,
+            request_deserializer=queen__agent__pb2.ApproveExceptionRequest.FromString,
+            response_serializer=queen__agent__pb2.ApproveExceptionResponse.SerializeToString,
+        ),
+        "RejectException": grpc.unary_unary_rpc_method_handler(
+            servicer.RejectException,
+            request_deserializer=queen__agent__pb2.RejectExceptionRequest.FromString,
+            response_serializer=queen__agent__pb2.RejectExceptionResponse.SerializeToString,
+        ),
+        "GetActiveConflicts": grpc.unary_unary_rpc_method_handler(
+            servicer.GetActiveConflicts,
+            request_deserializer=queen__agent__pb2.GetActiveConflictsRequest.FromString,
+            response_serializer=queen__agent__pb2.GetActiveConflictsResponse.SerializeToString,
+        ),
+        "SubmitInsight": grpc.unary_unary_rpc_method_handler(
+            servicer.SubmitInsight,
+            request_deserializer=queen__agent__pb2.SubmitInsightRequest.FromString,
+            response_serializer=queen__agent__pb2.SubmitInsightResponse.SerializeToString,
+        ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'queen_agent.QueenAgent', rpc_method_handlers)
+        "queen_agent.QueenAgent", rpc_method_handlers
+    )
     server.add_generic_rpc_handlers((generic_handler,))
 
 
- # This class is part of an EXPERIMENTAL API.
+# This class is part of an EXPERIMENTAL API.
 class QueenAgent(object):
-    """Serviço Queen Agent - Coordenador Estratégico
-    """
+    """Serviço Queen Agent - Coordenador Estratégico"""
 
     @staticmethod
-    def GetStrategicDecision(request,
+    def GetStrategicDecision(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/queen_agent.QueenAgent/GetStrategicDecision',
+            "/queen_agent.QueenAgent/GetStrategicDecision",
             queen__agent__pb2.GetStrategicDecisionRequest.SerializeToString,
             queen__agent__pb2.StrategicDecisionResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
 
     @staticmethod
-    def ListStrategicDecisions(request,
+    def ListStrategicDecisions(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/queen_agent.QueenAgent/ListStrategicDecisions',
+            "/queen_agent.QueenAgent/ListStrategicDecisions",
             queen__agent__pb2.ListStrategicDecisionsRequest.SerializeToString,
             queen__agent__pb2.ListStrategicDecisionsResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
 
     @staticmethod
-    def MakeStrategicDecision(request,
+    def MakeStrategicDecision(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/queen_agent.QueenAgent/MakeStrategicDecision',
+            "/queen_agent.QueenAgent/MakeStrategicDecision",
             queen__agent__pb2.MakeStrategicDecisionRequest.SerializeToString,
             queen__agent__pb2.MakeStrategicDecisionResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
 
     @staticmethod
-    def GetSystemStatus(request,
+    def GetSystemStatus(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/queen_agent.QueenAgent/GetSystemStatus',
+            "/queen_agent.QueenAgent/GetSystemStatus",
             queen__agent__pb2.GetSystemStatusRequest.SerializeToString,
             queen__agent__pb2.SystemStatusResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
 
     @staticmethod
-    def RequestExceptionApproval(request,
+    def RequestExceptionApproval(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/queen_agent.QueenAgent/RequestExceptionApproval',
+            "/queen_agent.QueenAgent/RequestExceptionApproval",
             queen__agent__pb2.RequestExceptionRequest.SerializeToString,
             queen__agent__pb2.RequestExceptionResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
 
     @staticmethod
-    def ApproveException(request,
+    def ApproveException(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/queen_agent.QueenAgent/ApproveException',
+            "/queen_agent.QueenAgent/ApproveException",
             queen__agent__pb2.ApproveExceptionRequest.SerializeToString,
             queen__agent__pb2.ApproveExceptionResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
 
     @staticmethod
-    def RejectException(request,
+    def RejectException(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/queen_agent.QueenAgent/RejectException',
+            "/queen_agent.QueenAgent/RejectException",
             queen__agent__pb2.RejectExceptionRequest.SerializeToString,
             queen__agent__pb2.RejectExceptionResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
 
     @staticmethod
-    def GetActiveConflicts(request,
+    def GetActiveConflicts(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/queen_agent.QueenAgent/GetActiveConflicts',
+            "/queen_agent.QueenAgent/GetActiveConflicts",
             queen__agent__pb2.GetActiveConflictsRequest.SerializeToString,
             queen__agent__pb2.GetActiveConflictsResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
 
     @staticmethod
-    def SubmitInsight(request,
+    def SubmitInsight(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/queen_agent.QueenAgent/SubmitInsight',
+            "/queen_agent.QueenAgent/SubmitInsight",
             queen__agent__pb2.SubmitInsightRequest.SerializeToString,
             queen__agent__pb2.SubmitInsightResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )

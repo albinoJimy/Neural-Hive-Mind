@@ -24,20 +24,22 @@ class StrategicDecisionProducer:
         try:
             self.producer = AIOKafkaProducer(
                 bootstrap_servers=self.settings.KAFKA_BOOTSTRAP_SERVERS,
-                value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-                acks='all',  # Garantir que todos os replicas confirmem
-                enable_idempotence=True  # Evitar duplicatas
+                value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+                acks="all",  # Garantir que todos os replicas confirmem
+                enable_idempotence=True,  # Evitar duplicatas
             )
 
             self.producer = instrument_kafka_producer(self.producer)
             await self.producer.start()
             logger.info(
                 "strategic_decision_producer_initialized",
-                topic=self.settings.KAFKA_TOPICS_STRATEGIC
+                topic=self.settings.KAFKA_TOPICS_STRATEGIC,
             )
 
         except Exception as e:
-            logger.error("strategic_decision_producer_initialization_failed", error=str(e))
+            logger.error(
+                "strategic_decision_producer_initialization_failed", error=str(e)
+            )
             raise
 
     async def close(self) -> None:
@@ -59,24 +61,24 @@ class StrategicDecisionProducer:
 
             # Headers para rastreabilidade
             headers = [
-                ('correlation_id', decision.correlation_id.encode('utf-8')),
-                ('trace_id', decision.trace_id.encode('utf-8')),
-                ('decision_type', decision.decision_type.value.encode('utf-8'))
+                ("correlation_id", decision.correlation_id.encode("utf-8")),
+                ("trace_id", decision.trace_id.encode("utf-8")),
+                ("decision_type", decision.decision_type.value.encode("utf-8")),
             ]
 
             # Enviar com key=decision_id para particionamento consistente
             await self.producer.send_and_wait(
                 self.settings.KAFKA_TOPICS_STRATEGIC,
-                key=decision.decision_id.encode('utf-8'),
+                key=decision.decision_id.encode("utf-8"),
                 value=decision_dict,
-                headers=headers
+                headers=headers,
             )
 
             logger.info(
                 "strategic_decision_published",
                 decision_id=decision.decision_id,
                 decision_type=decision.decision_type.value,
-                topic=self.settings.KAFKA_TOPICS_STRATEGIC
+                topic=self.settings.KAFKA_TOPICS_STRATEGIC,
             )
 
             return True
@@ -85,6 +87,6 @@ class StrategicDecisionProducer:
             logger.error(
                 "strategic_decision_publish_failed",
                 decision_id=decision.decision_id,
-                error=str(e)
+                error=str(e),
             )
             return False
