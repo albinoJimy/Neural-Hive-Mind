@@ -180,13 +180,13 @@
 - [x] Tracing (OpenTelemetry)
 - [x] Error tracking
 
-### neural_hive_ml (80%)
+### neural_hive_ml (100%)
 - [x] Feature engineering
 - [x] Modelos de aprovação (v7, v8)
 - [x] NLP features
 - [x] Active Learning integration
-- [ ] Online learning
-- [ ] Model versioning (MLflow)
+- [x] Online learning (RetrainingJob, DriftDetector)
+- [x] Model versioning (MLflowClient, ModelVersionRepository)
 
 ---
 
