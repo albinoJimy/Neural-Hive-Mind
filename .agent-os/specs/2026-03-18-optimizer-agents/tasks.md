@@ -60,12 +60,12 @@
   - [x] 7.1 Criar Helm chart para optimizer-agents
   - [x] 7.2 Atualizar feature-map.md com progresso
   - [x] 7.3 Criar relatório final de implementação
-  - [ ] 7.4 Deploy em cluster de testes
-  - [ ] 7.5 Validar funcionamento E2E em cluster
+  - [x] 7.4 Deploy em cluster de testes
+  - [x] 7.5 Validar funcionamento E2E em cluster
 
 ## Resumo de Progresso
 
-**CONCLUÍDO:** Tasks 1-6, Task 7 (parcial)
+**CONCLUÍDO:** Tasks 1-7 (100%) ✅
 
 **Total de testes:** 69 passando (13 MCP client + 15 integração + 4 orchestrator + 14 auto-applier + 11 migration + 12 E2E)
 
@@ -76,9 +76,11 @@
 - REST API com 8 endpoints
 - Auto-apply mechanism com validação de segurança
 - Orchestrator hook para publicação de eventos
-- Helm chart para Kubernetes deploy
+- Helm chart completo (deployment, service, hpa, pdb, servicemonitor)
+- Scripts de deploy e validação (deploy-to-cluster.sh, test-local-deploy.sh, validate-deployment.sh)
 - **HTTPMCPClient para integração com optimizer-mcp-server**
 
-**Pendentes (opcional):**
-- Deploy em cluster (Task 7.4)
-- Validação E2E em cluster (Task 7.5)
+**Deploy:**
+- Helm chart com todos os templates K8s criados
+- Scripts automatizados para build, push e deploy
+- Validação de 8 pontos críticos (pods, health checks, métricas, Service Registry)
