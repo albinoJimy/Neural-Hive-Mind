@@ -1,0 +1,125 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ml-retrainer
+  namespace: neural-hive-orchestration
+  labels:
+    app: ml-retrainer
+    component: ml-pipeline
+    layer: strategic
+spec:
+  schedule: "0 2 * * *"  # 2 AM UTC todos os dias
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid  # Não permitir jobs sobrepostos
+  startingDeadlineSeconds: 3600  # 1 hora
+  suspend: false  # Set to true para desativar
+
+  jobTemplate:
+    metadata:
+      labels:
+        app: ml-retrainer
+    spec:
+      backoffLimit: 3
+      ttlSecondsAfterFinished: 86400  # Remove jobs após 24h
+      activeDeadlineSeconds: 3600  # Timeout máximo: 1 hora
+
+      template:
+        metadata:
+          labels:
+            app: ml-retrainer
+        spec:
+          serviceAccountName: ml-retrainer
+          restartPolicy: OnFailure
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
+
+          containers:
+          - name: ml-retrainer
+            image: 37.60.241.150:30500/approval-service:latest
+            imagePullPolicy: Always
+            command:
+            - python
+            - -m
+            - ml_pipelines.training.retrain_v8_balanced
+            - --output-dir
+            - /tmp/models
+            - --register-mlflow
+            - --min-samples
+            - "100"
+
+            env:
+            - name: ENVIRONMENT
+              value: "production"
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: PYTHONPATH
+              value: "/app"
+
+            # MongoDB
+            - name: MONGODB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: approval-service-config
+                  key: mongodb-url
+
+            # MLflow
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow.mlflow.svc.cluster.local:5000"
+            - name: MLFLOW_EXPERIMENT_NAME
+              value: "approval-models"
+
+            # Kafka (para publicar eventos)
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka.kafka.svc.cluster.local:9092"
+
+            resources:
+              requests:
+                cpu: 500m
+                memory: 1Gi
+              limits:
+                cpu: 2000m
+                memory: 4Gi
+
+            volumeMounts:
+            - name: models-tmp
+              mountPath: /tmp/models
+
+          volumes:
+          - name: models-tmp
+            emptyDir:
+              sizeLimit: 5Gi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ml-retrainer
+  namespace: neural-hive-orchestration
+  labels:
+    app: ml-retrainer
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ml-retrainer
+  namespace: neural-hive-orchestration
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ml-retrainer
+  namespace: neural-hive-orchestration
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ml-retrainer
+subjects:
+- kind: ServiceAccount
+  name: ml-retrainer
