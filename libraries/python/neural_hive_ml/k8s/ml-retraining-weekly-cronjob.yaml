@@ -1,0 +1,94 @@
+# CronJob Kubernetes para retreinamento semanal de modelos ML
+# Agenda: Domingo às 3h da manhã (horário do cluster)
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ml-retraining-weekly
+  namespace: neural-hive-mind
+  labels:
+    app: ml-retraining
+    schedule: weekly
+    component: online-learning
+spec:
+  # Executar domingo às 3h da manhã
+  schedule: "0 3 * * 0"
+
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 1
+  startingDeadlineSeconds: 10800  # 3 horas
+
+  jobTemplate:
+    metadata:
+      labels:
+        app: ml-retraining
+        schedule: weekly
+    spec:
+      ttlSecondsAfterFinished: 604800  # 7 dias
+      backoffLimit: 3
+      template:
+        metadata:
+          labels:
+            app: ml-retraining
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: ml-retraining-sa
+
+          containers:
+          - name: retraining-runner
+            image: ghcr.io/albinojimy/neural-hive-ml-retraining:latest
+            command:
+            - /bin/bash
+            - -c
+            - |
+              echo "Starting WEEKLY ML model retraining at $(date)"
+              cd /app
+              # Retreino completo com features enriquecidas
+              python -m ml_pipelines.training.retrain_with_enriched_features \
+                --min-samples 200 \
+                --target-f1 0.75 \
+                --force true
+              echo "Weekly retraining completed at $(date)"
+
+            env:
+            - name: MONGODB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-credentials
+                  key: url
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka.neural-hive-mind.svc.cluster.local:9092"
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow.neural-hive-mind.svc.cluster.local:5000"
+            - name: LOG_LEVEL
+              value: "INFO"
+
+            resources:
+              requests:
+                cpu: "1000m"
+                memory: "2Gi"
+              limits:
+                cpu: "4000m"
+                memory: "8Gi"
+
+            volumeMounts:
+            - name: tmp-models
+              mountPath: /tmp/models
+
+          volumes:
+          - name: tmp-models
+            emptyDir:
+              sizeLimit: 5Gi
+
+          nodeSelector:
+            nodepool: batch-jobs
+
+          tolerations:
+          - key: "dedicated"
+            operator: "Equal"
+            value: "ml-workload"
+            effect: "NoSchedule"
+
+          priorityClassName: low-priority
+          activeDeadlineSeconds: 7200  # 2 horas

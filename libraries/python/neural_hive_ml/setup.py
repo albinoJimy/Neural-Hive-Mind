@@ -8,7 +8,7 @@ setup(
     description="Biblioteca centralizada de modelos preditivos para Neural Hive-Mind",
     author="Neural Hive Mind Team",
     packages=find_packages(),
-    python_requires=">=3.11",
+    python_requires=">=3.10",
     install_requires=[
         "xgboost>=2.0.0",
         "lightgbm>=4.0.0",
@@ -24,6 +24,8 @@ setup(
         "motor>=3.3.0",
         "pmdarima>=2.0.0",
         "prometheus-client>=0.19.0",
+        "pydantic>=2.0.0",
+        "pydantic-settings>=2.0.0",
     ],
     extras_require={
         "dev": [
