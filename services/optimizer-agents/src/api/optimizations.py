@@ -1,361 +1,215 @@
+"""Optimizations API endpoints."""
+import logging
 from typing import List, Optional
+from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel, Field
 
-from src.clients.mongodb_client import MongoDBClient
-from src.clients.redis_client import RedisClient
-from src.config.settings import get_settings
-from src.models.optimization_event import OptimizationEvent, OptimizationType
-from src.services.optimization_engine import OptimizationEngine
-from src.services.weight_recalibrator import WeightRecalibrator
-from src.services.slo_adjuster import SLOAdjuster
+from src.repositories.optimization_repository import OptimizationRepository, get_repository
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/optimizations", tags=["optimizations"])
 
-settings = get_settings()
+
+# Dependency para injetar repository
+async def get_optimization_repository() -> OptimizationRepository:
+    """Retorna instância do repository."""
+    # TODO: Obter cliente MongoDB do contexto da aplicação
+    from src.config.settings import get_settings
+    from motor.motor_asyncio import AsyncIOMotorClient
+
+    settings = get_settings()
+    client = AsyncIOMotorClient(settings.mongodb_url)
+    return await get_repository(client, settings.mongodb_database_name)
 
 
-# Request/Response models
-class TriggerOptimizationRequest(BaseModel):
-    """Request para trigger manual de otimização."""
-
-    target_component: str
-    optimization_type: OptimizationType
-    justification: str
-    proposed_adjustments: List[dict]
-
-
-class TriggerOptimizationResponse(BaseModel):
-    """Response de trigger de otimização."""
-
-    optimization_id: str
-    status: str
-    message: str
-
-
-class OptimizationListResponse(BaseModel):
-    """Response de listagem de otimizações."""
-
-    optimizations: List[dict]
+# Models Request/Response
+class RecommendationListResponse(BaseModel):
+    """Resposta da lista de recomendações."""
     total: int
-    page: int
-    page_size: int
+    offset: int
+    limit: int
+    items: List[dict]
 
 
-class OptimizationStatisticsResponse(BaseModel):
-    """Response de estatísticas de otimizações."""
-
-    total_optimizations: int
-    success_rate: float
-    average_improvement: float
-    by_type: dict
-    by_component: dict
-
-
-# Dependency injection functions (será configurado via app.dependency_overrides no main.py)
-def get_mongodb_client() -> MongoDBClient:
-    """
-    Retorna a instância de MongoDBClient do estado da aplicação.
-
-    Em produção, este fallback acessa o singleton global diretamente.
-    Pode ser sobrescrito via FastAPI dependency_overrides no main.py.
-    """
-    from src import main
-    if main.mongodb_client is None:
-        raise HTTPException(
-            status_code=503,
-            detail="MongoDBClient not initialized. Service is starting up."
-        )
-    return main.mongodb_client
+class RecommendationResponse(BaseModel):
+    """Resposta detalhada de recomendação."""
+    id: str
+    ticket_id: str
+    workflow_id: str
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    performance_analysis: dict
+    recommendations: List[dict]
 
 
-def get_redis_client() -> RedisClient:
-    """
-    Retorna a instância de RedisClient do estado da aplicação.
-
-    Em produção, este fallback acessa o singleton global diretamente.
-    Pode ser sobrescrito via FastAPI dependency_overrides no main.py.
-    """
-    from src import main
-    if main.redis_client is None:
-        raise HTTPException(
-            status_code=503,
-            detail="RedisClient not initialized. Service is starting up."
-        )
-    return main.redis_client
+class ApproveRequest(BaseModel):
+    """Request para aprovar recomendação."""
+    recommendation_ids: List[str] = Field(..., min_items=1)
+    approved_by: str
 
 
-def get_optimization_engine() -> OptimizationEngine:
-    """
-    Retorna a instância de OptimizationEngine do estado da aplicação.
-
-    Em produção, este fallback acessa o singleton global diretamente.
-    Pode ser sobrescrito via FastAPI dependency_overrides no main.py.
-    """
-    from src import main
-    if main.optimization_engine is None:
-        raise HTTPException(
-            status_code=503,
-            detail="OptimizationEngine not initialized. Service is starting up."
-        )
-    return main.optimization_engine
+class ApplyRequest(BaseModel):
+    """Request para aplicar otimização."""
+    recommendation_ids: List[str] = Field(..., min_items=1)
+    validate: bool = True
 
 
-def get_weight_recalibrator() -> WeightRecalibrator:
-    """
-    Retorna a instância de WeightRecalibrator do estado da aplicação.
-
-    Em produção, este fallback acessa o singleton global diretamente.
-    Pode ser sobrescrito via FastAPI dependency_overrides no main.py.
-    """
-    from src import main
-    if main.weight_recalibrator is None:
-        raise HTTPException(
-            status_code=503,
-            detail="WeightRecalibrator not initialized. Service is starting up."
-        )
-    return main.weight_recalibrator
+class MetricsResponse(BaseModel):
+    """Resposta de métricas."""
+    period: dict
+    summary: dict
+    performance: dict
+    top_issues: List[dict]
 
 
-def get_slo_adjuster() -> SLOAdjuster:
-    """
-    Retorna a instância de SLOAdjuster do estado da aplicação.
-
-    Em produção, este fallback acessa o singleton global diretamente.
-    Pode ser sobrescrito via FastAPI dependency_overrides no main.py.
-    """
-    from src import main
-    if main.slo_adjuster is None:
-        raise HTTPException(
-            status_code=503,
-            detail="SLOAdjuster not initialized. Service is starting up."
-        )
-    return main.slo_adjuster
+class DashboardResponse(BaseModel):
+    """Resposta do dashboard."""
+    total_recommendations: int
+    pending_approval: int
+    applied: int
+    avg_improvement_pct: float
+    top_issue_types: List[dict]
+    recent_recommendations: List[dict]
 
 
-@router.post("/trigger", response_model=TriggerOptimizationResponse)
-async def trigger_optimization(
-    request: TriggerOptimizationRequest,
-    weight_recalibrator: WeightRecalibrator = Depends(get_weight_recalibrator),
-    slo_adjuster: SLOAdjuster = Depends(get_slo_adjuster),
+@router.get("/recommendations", response_model=RecommendationListResponse)
+async def list_recommendations(
+    status: Optional[str] = Query(None),
+    workflow_id: Optional[str] = Query(None),
+    target_type: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    repo: OptimizationRepository = Depends(get_optimization_repository),
 ):
-    """
-    Trigger manual de otimização.
+    """Lista recomendações de otimização."""
+    result = await repo.list_by_filters(
+        status=status,
+        workflow_id=workflow_id,
+        target_type=target_type,
+        limit=limit,
+        offset=offset,
+    )
 
-    Permite trigger manual de uma otimização específica com justificativa.
-    """
-    try:
-        # Criar hipótese sintética
-        from src.models.optimization_hypothesis import OptimizationHypothesis
-        from src.models.optimization_event import Adjustment
-
-        # Converter proposed_adjustments para objetos Adjustment
-        adjustments = [
-            Adjustment(
-                parameter_name=adj.get('parameter_name', adj.get('key', '')),
-                parameter=adj.get('parameter', ''),
-                old_value=str(adj.get('old_value', '')),
-                new_value=str(adj.get('new_value', adj.get('value', ''))),
-                justification=adj.get('justification', request.justification),
-            )
-            for adj in request.proposed_adjustments
-        ]
-
-        hypothesis = OptimizationHypothesis(
-            hypothesis_id=f"manual-{request.target_component}-{request.optimization_type.value}",
-            optimization_type=request.optimization_type,
-            target_component=request.target_component,
-            hypothesis_text=request.justification,
-            proposed_adjustments=adjustments,
-            baseline_metrics={},
-            target_metrics={},  # Will be populated during optimization
-            expected_improvement=0.1,  # Placeholder
-            confidence_score=0.8,
-            risk_score=0.3,
-            priority=3,  # Medium priority for manual triggers
-        )
-
-        # Aplicar otimização baseado no tipo
-        optimization_event = None
-
-        if request.optimization_type == OptimizationType.WEIGHT_RECALIBRATION:
-            optimization_event = await weight_recalibrator.apply_weight_recalibration(hypothesis)
-
-        elif request.optimization_type == OptimizationType.SLO_ADJUSTMENT:
-            optimization_event = await slo_adjuster.apply_slo_adjustment(hypothesis)
-
-        else:
-            raise HTTPException(
-                status_code=400, detail=f"Unsupported optimization type: {request.optimization_type.value}"
-            )
-
-        if not optimization_event:
-            raise HTTPException(status_code=500, detail="Failed to apply optimization")
-
-        return TriggerOptimizationResponse(
-            optimization_id=optimization_event.optimization_id,
-            status="applied",
-            message=f"Optimization applied successfully to {request.target_component}",
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to trigger optimization: {str(e)}")
+    return RecommendationListResponse(**result)
 
 
-@router.get("", response_model=OptimizationListResponse)
-async def list_optimizations(
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
-    optimization_type: Optional[OptimizationType] = None,
-    target_component: Optional[str] = None,
-    status: Optional[str] = None,
-    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
+@router.get("/recommendations/{recommendation_id}", response_model=RecommendationResponse)
+async def get_recommendation(
+    recommendation_id: str,
+    repo: OptimizationRepository = Depends(get_optimization_repository),
 ):
-    """
-    Listar otimizações com filtros.
-
-    Retorna lista paginada de otimizações aplicadas.
-    """
-    try:
-        # Construir filtros
-        filters = {}
-        if optimization_type:
-            filters["optimization_type"] = optimization_type.value
-        if target_component:
-            filters["target_component"] = target_component
-        if status:
-            filters["approval_status"] = status
-
-        # Buscar otimizações
-        optimizations = await mongodb_client.list_optimizations(
-            filters=filters, skip=(page - 1) * page_size, limit=page_size
-        )
-
-        # Contar total (simplificado - idealmente seria uma query separada)
-        total = len(optimizations)
-
-        return OptimizationListResponse(
-            optimizations=optimizations, total=total, page=page, page_size=page_size
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list optimizations: {str(e)}")
+    """Obtém detalhes de uma recomendação específica."""
+    rec = await repo.get_by_id(recommendation_id)
+    if not rec:
+        raise HTTPException(status_code=404, detail="Recommendation not found")
+    return RecommendationResponse(**rec)
 
 
-@router.get("/{optimization_id}")
-async def get_optimization(
-    optimization_id: str,
-    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
+@router.post("/recommendations/{recommendation_id}/approve")
+async def approve_recommendation(
+    recommendation_id: str,
+    body: ApproveRequest,
+    repo: OptimizationRepository = Depends(get_optimization_repository),
 ):
-    """
-    Obter detalhes de uma otimização.
+    """Aprova uma recomendação para aplicação."""
+    success = await repo.update_status(
+        recommendation_id,
+        "approved",
+        approved_by=body.approved_by,
+    )
 
-    Retorna informações completas sobre uma otimização específica.
-    """
-    try:
-        optimization = await mongodb_client.get_optimization(optimization_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Recommendation not found")
 
-        if not optimization:
-            raise HTTPException(status_code=404, detail=f"Optimization {optimization_id} not found")
-
-        return optimization
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get optimization: {str(e)}")
+    return {
+        "id": recommendation_id,
+        "status": "approved",
+        "approved_recommendations": body.recommendation_ids,
+        "approved_at": datetime.utcnow().isoformat(),
+    }
 
 
-@router.post("/{optimization_id}/rollback")
-async def rollback_optimization(
-    optimization_id: str,
-    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
-    weight_recalibrator: WeightRecalibrator = Depends(get_weight_recalibrator),
-    slo_adjuster: SLOAdjuster = Depends(get_slo_adjuster),
+@router.post("/recommendations/{recommendation_id}/apply")
+async def apply_recommendation(
+    recommendation_id: str,
+    body: ApplyRequest,
+    repo: OptimizationRepository = Depends(get_optimization_repository),
 ):
-    """
-    Reverter uma otimização.
+    """Aplica uma otimização aprovada."""
+    # Primeiro verificar se está aprovada
+    rec = await repo.get_by_id(recommendation_id)
+    if not rec:
+        raise HTTPException(status_code=404, detail="Recommendation not found")
 
-    Reverte uma otimização aplicada para o estado anterior.
-    """
-    try:
-        # Obter otimização
-        optimization = await mongodb_client.get_optimization(optimization_id)
+    if rec.get("status") != "approved":
+        raise HTTPException(status_code=400, detail="Recommendation must be approved first")
 
-        if not optimization:
-            raise HTTPException(status_code=404, detail=f"Optimization {optimization_id} not found")
+    # Aplicar
+    success = await repo.update_status(recommendation_id, "applied")
 
-        optimization_type = OptimizationType(optimization.get("optimization_type"))
+    if not success:
+        raise HTTPException(status_code=404, detail="Recommendation not found")
 
-        # Executar rollback baseado no tipo
-        success = False
-
-        if optimization_type == OptimizationType.WEIGHT_RECALIBRATION:
-            success = await weight_recalibrator.rollback_weight_recalibration(optimization_id)
-
-        elif optimization_type == OptimizationType.SLO_ADJUSTMENT:
-            success = await slo_adjuster.rollback_slo_adjustment(optimization_id)
-
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to rollback optimization")
-
-        return {"optimization_id": optimization_id, "status": "rolled_back", "message": "Optimization rolled back successfully"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to rollback optimization: {str(e)}")
+    return {
+        "id": recommendation_id,
+        "status": "applied",
+        "applied_recommendations": body.recommendation_ids,
+        "applied_at": datetime.utcnow().isoformat(),
+        "files_modified": [],
+    }
 
 
-@router.get("/statistics/summary", response_model=OptimizationStatisticsResponse)
-async def get_statistics(
-    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
+@router.get("/metrics")
+async def get_metrics(
+    from_date: Optional[datetime] = Query(None),
+    to_date: Optional[datetime] = Query(None),
+    repo: OptimizationRepository = Depends(get_optimization_repository),
 ):
-    """
-    Obter estatísticas de otimizações.
+    """Obtém métricas agregadas de otimizações."""
+    metrics = await repo.get_metrics(from_date=from_date, to_date=to_date)
 
-    Retorna métricas agregadas sobre otimizações aplicadas.
-    """
-    try:
-        # Buscar todas otimizações (simplificado - idealmente seria agregação MongoDB)
-        all_optimizations = await mongodb_client.list_optimizations(filters={}, skip=0, limit=1000)
+    return {
+        "period": {
+            "from": from_date.isoformat() if from_date else None,
+            "to": to_date.isoformat() if to_date else None,
+        },
+        "summary": {
+            "total_recommendations": metrics["total"],
+            "pending": metrics["by_status"].get("pending", 0),
+            "approved": metrics["by_status"].get("approved", 0),
+            "applied": metrics["by_status"].get("applied", 0),
+            "rejected": metrics["by_status"].get("rejected", 0),
+        },
+        "performance": {
+            "avg_improvement_pct": metrics["avg_improvement_pct"],
+            "total_time_saved_ms": 0,  # TODO: Calcular
+            "best_improvement_pct": 0,  # TODO: Calcular
+        },
+        "top_issues": [],  # TODO: Implementar
+    }
 
-        total = len(all_optimizations)
 
-        # Calcular success rate
-        success_count = sum(1 for opt in all_optimizations if opt.get("approval_status") == "APPROVED")
-        success_rate = success_count / total if total > 0 else 0.0
+@router.get("/dashboard")
+async def get_dashboard(
+    repo: OptimizationRepository = Depends(get_optimization_repository),
+):
+    """Dashboard agregado para UI."""
+    data = await repo.get_dashboard_data()
+    return DashboardResponse(**data)
 
-        # Calcular improvement médio
-        improvements = [opt.get("improvement_percentage", 0) for opt in all_optimizations]
-        average_improvement = sum(improvements) / len(improvements) if improvements else 0.0
 
-        # Agrupar por tipo
-        by_type = {}
-        for opt in all_optimizations:
-            opt_type = opt.get("optimization_type", "unknown")
-            by_type[opt_type] = by_type.get(opt_type, 0) + 1
+@router.get("/timeline/{workflow_id}")
+async def get_workflow_timeline(
+    workflow_id: str,
+    repo: OptimizationRepository = Depends(get_optimization_repository),
+):
+    """Timeline de otimizações para um workflow específico."""
+    optimizations = await repo.get_timeline(workflow_id)
 
-        # Agrupar por componente
-        by_component = {}
-        for opt in all_optimizations:
-            component = opt.get("target_component", "unknown")
-            by_component[component] = by_component.get(component, 0) + 1
-
-        return OptimizationStatisticsResponse(
-            total_optimizations=total,
-            success_rate=success_rate,
-            average_improvement=average_improvement,
-            by_type=by_type,
-            by_component=by_component,
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get statistics: {str(e)}")
+    return {
+        "workflow_id": workflow_id,
+        "optimizations": optimizations,
+    }

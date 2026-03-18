@@ -1,0 +1,16 @@
+apiVersion: v2
+name: optimizer-agents
+description: Optimizer Agents - Análise e otimização de workflows no Neural-Hive-Mind
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - optimization
+  - neural-hive-mind
+  - workflow
+home: https://github.com/albinoJimy/Neural-Hive-Mind
+sources:
+  - https://github.com/albinoJimy/Neural-Hive-Mind
+maintainers:
+  - name: Neural Hive Mind Team
+    email: admin@neural-hive-mind.com

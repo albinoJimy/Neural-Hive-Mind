@@ -1,0 +1,103 @@
+# Valores padrão para optimizer-agents
+replicaCount: 1
+
+image:
+  repository: ghcr.io/albinojimy/neural-hive-mind/optimizer-agents
+  pullPolicy: IfNotPresent
+  tag: "0.1.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: optimizer-agents.neural-hive-mind.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Configurações do aplicativo
+config:
+  logLevel: "INFO"
+  environment: "production"
+
+  # Kafka
+  kafka:
+    bootstrapServers: "kafka.neural-hive-mind.svc:9092"
+    consumerGroup: "optimizer-agents"
+    topic: "ticket.completed"
+
+  # MongoDB
+  mongodb:
+    url: "mongodb://mongodb:27017"
+    databaseName: "neural_hive"
+    collection: "optimization_recommendations"
+
+  # Otimização
+  optimization:
+    maxConcurrentAnalysis: 10
+    analysisTimeout: 30
+    enableAutoApply: false
+
+# Variáveis de ambiente extras
+env: []
+
+# Secrets
+secrets: []
+  # - name: mongodb-uri
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: mongodb
+  #       key: uri
+
+# Node selectors
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}

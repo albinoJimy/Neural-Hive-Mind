@@ -1,0 +1,22 @@
+Optimizer Agents instalado com sucesso!
+
+1. O serviço está disponível em:
+   http://{{ .Release.Name }}-optimizer-agents.{{ .Release.Namespace }}.svc.cluster.local:8000
+
+2. Para verificar os logs:
+   kubectl logs -n {{ .Release.Namespace }} deployment/{{ .Release.Name }}-optimizer-agents
+
+3. Para entrar em um pod:
+   kubectl exec -it -n {{ .Release.Namespace }} deployment/{{ .Release.Name }}-optimizer-agents -- /bin/sh
+
+4. Endpoints disponíveis:
+   - GET /health - Health check
+   - GET /api/v1/optimizations/recommendations - Listar recomendações
+   - GET /api/v1/optimizations/dashboard - Dashboard de métricas
+   - GET /api/v1/optimizations/timeline/{workflow_id} - Timeline de otimizações
+
+5. O consumidor Kafka estará ouvindo o tópico:
+   - {{ .Values.config.kafka.topic }}
+
+6. Para escalar o deployment:
+   kubectl scale -n {{ .Release.Namespace }} deployment/{{ .Release.Name }}-optimizer-agents --replicas=3
