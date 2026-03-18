@@ -2,14 +2,14 @@
 
 ## Tasks
 
-- [ ] 1. Scout MCP Server - Servidor MCP para descoberta de código
-  - [ ] 1.1 Write tests para Scout MCP Server
-  - [ ] 1.2 Implementar ferramenta `list_files`
-  - [ ] 1.3 Implementar ferramenta `search_code`
-  - [ ] 1.4 Implementar ferramenta `analyze_structure`
-  - [ ] 1.5 Implementar handler JSON-RPC 2.0
-  - [ ] 1.6 Configurar stdio transport
-  - [ ] 1.7 Verificar todos os testes passam
+- [x] 1. Scout MCP Server - Servidor MCP para descoberta de código ✅
+  - [x] 1.1 Write tests para Scout MCP Server
+  - [x] 1.2 Implementar ferramenta `list_files`
+  - [x] 1.3 Implementar ferramenta `search_code`
+  - [x] 1.4 Implementar ferramenta `analyze_structure`
+  - [x] 1.5 Implementar handler JSON-RPC 2.0
+  - [x] 1.6 Configurar stdio transport
+  - [x] 1.7 Verificar todos os testes passam
 
 - [ ] 2. Optimizer MCP Server - Servidor MCP para otimização
   - [ ] 2.1 Write tests para Optimizer MCP Server
@@ -64,8 +64,14 @@
   - [ ] 7.6 Verificar todos os testes passam
 
 - [ ] 8. Docker e Deploy
-  - [ ] 8.1 Criar Dockerfile para Scout MCP Server
+  - [x] 8.1 Criar Dockerfile para Scout MCP Server ✅
   - [ ] 8.2 Criar Dockerfile para Optimizer MCP Server
   - [ ] 8.3 Atualizar docker-compose para MCP servers
   - [ ] 8.4 Configurar health checks
   - [ ] 8.5 Verificar deploy local
+
+## Progresso GAPS-06: 12.5% (1/8 tasks)
+
+**Concluído:**
+- Task 1: Scout MCP Server (20 testes) ✅
+- Task 8.1: Dockerfile Scout MCP Server ✅
