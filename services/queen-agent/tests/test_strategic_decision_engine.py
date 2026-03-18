@@ -22,7 +22,8 @@ def mock_clients():
         'prometheus': AsyncMock(),
         'pheromone': AsyncMock(),
         'replanning_coordinator': AsyncMock(),
-        'opa': AsyncMock()
+        'opa': AsyncMock(),
+        'orchestrator': AsyncMock()
     }
 
 
@@ -46,6 +47,7 @@ def decision_engine(mock_clients, mock_settings):
         pheromone_client=mock_clients['pheromone'],
         replanning_coordinator=mock_clients['replanning_coordinator'],
         opa_client=mock_clients['opa'],
+        orchestrator_client=mock_clients['orchestrator'],
         settings=mock_settings
     )
 
@@ -292,6 +294,7 @@ async def test_validate_guardrails_opa_allows(mock_clients, mock_settings):
         pheromone_client=mock_clients['pheromone'],
         replanning_coordinator=mock_clients['replanning_coordinator'],
         opa_client=mock_clients['opa'],
+        orchestrator_client=mock_clients['orchestrator'],
         settings=mock_settings
     )
 
@@ -337,6 +340,7 @@ async def test_validate_guardrails_opa_denies(mock_clients, mock_settings):
         pheromone_client=mock_clients['pheromone'],
         replanning_coordinator=mock_clients['replanning_coordinator'],
         opa_client=mock_clients['opa'],
+        orchestrator_client=mock_clients['orchestrator'],
         settings=mock_settings
     )
 
@@ -369,6 +373,7 @@ async def test_validate_guardrails_opa_unavailable_fail_open(mock_clients, mock_
         pheromone_client=mock_clients['pheromone'],
         replanning_coordinator=mock_clients['replanning_coordinator'],
         opa_client=mock_clients['opa'],
+        orchestrator_client=mock_clients['orchestrator'],
         settings=mock_settings
     )
 
@@ -413,6 +418,7 @@ async def test_validate_guardrails_opa_with_warnings(mock_clients, mock_settings
         pheromone_client=mock_clients['pheromone'],
         replanning_coordinator=mock_clients['replanning_coordinator'],
         opa_client=mock_clients['opa'],
+        orchestrator_client=mock_clients['orchestrator'],
         settings=mock_settings
     )
 
