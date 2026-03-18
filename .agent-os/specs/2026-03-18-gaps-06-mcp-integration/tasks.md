@@ -63,14 +63,14 @@
   - [x] 7.5 Escrever teste E2E: SDK Client → MCP Server
   - [x] 7.6 Verificar todos os testes passam
 
-- [ ] 8. Docker e Deploy
+- [x] 8. Docker e Deploy ✅
   - [x] 8.1 Criar Dockerfile para Scout MCP Server ✅
   - [x] 8.2 Criar Dockerfile para Optimizer MCP Server ✅
-  - [ ] 8.3 Atualizar docker-compose para MCP servers
-  - [ ] 8.4 Configurar health checks
-  - [ ] 8.5 Verificar deploy local
+  - [x] 8.3 Atualizar docker-compose para MCP servers
+  - [x] 8.4 Configurar health checks
+  - [x] 8.5 Verificar deploy local
 
-## Progresso GAPS-06: 75% (6/8 tasks)
+## Progresso GAPS-06: 100% (8/8 tasks) ✅
 
 **Concluído:**
 - Task 1: Scout MCP Server (20 testes) ✅
@@ -80,5 +80,9 @@
 - Task 5: MongoDB Persistence (9 testes) ✅
 - Task 6: REST API (4 endpoints) ✅ (parte da Task 4)
 - Task 7: Testes de Integração E2E (16 testes) ✅
-- Task 8.1: Dockerfile Scout MCP Server ✅
-- Task 8.2: Dockerfile Optimizer MCP Server ✅
+- Task 8: Docker e Deploy ✅
+  - 8.1: Dockerfile Scout MCP Server ✅
+  - 8.2: Dockerfile Optimizer MCP Server ✅
+  - 8.3: docker-compose com MCP servers ✅
+  - 8.4: Health checks configurados ✅
+  - 8.5: Deploy local verificado ✅
