@@ -5,6 +5,93 @@ import numpy as np
 from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime
 
+
+# ============================================================================
+# Mock MongoDB classes para evitar tentativas de conexão real
+# ============================================================================
+
+class MockMongoCollection:
+    """Mock de coleção MongoDB."""
+    def __init__(self):
+        self.data = []
+
+    def find(self, *args, **kwargs):
+        return []
+
+    def find_one(self, *args, **kwargs):
+        return None
+
+    def insert_one(self, *args, **kwargs):
+        return Mock(inserted_id='test_id')
+
+    def update_one(self, *args, **kwargs):
+        return Mock(modified_count=1)
+
+    def delete_one(self, *args, **kwargs):
+        return Mock(deleted_count=1)
+
+    def create_index(self, *args, **kwargs):
+        pass
+
+    def create_indexes(self, *args, **kwargs):
+        pass
+
+    def aggregate(self, *args, **kwargs):
+        return []
+
+    def count_documents(self, *args, **kwargs):
+        return 0
+
+    def sort(self, *args, **kwargs):
+        return self
+
+    def limit(self, *args, **kwargs):
+        return self
+
+    def __iter__(self):
+        return iter([])
+
+    def __getitem__(self, name):
+        return self
+
+
+class MockMongoDB:
+    """Mock de database MongoDB."""
+    def __init__(self):
+        self._collection = MockMongoCollection()
+
+    def __getitem__(self, name):
+        return self._collection
+
+    def __getattr__(self, name):
+        if name.startswith('_'):
+            raise AttributeError(name)
+        return self._collection
+
+
+class MockMongoClient:
+    """Mock de cliente MongoDB."""
+    def __init__(self, *args, **kwargs):
+        self._db = MockMongoDB()
+
+    def __getitem__(self, name):
+        return self._db
+
+    def __getattr__(self, name):
+        if name == '_MongoClient__all_options' or name.startswith('_'):
+            raise AttributeError(name)
+        return self._db
+
+    def close(self):
+        """Mock close method."""
+        pass
+
+
+# Patch pymongo antes de importar os módulos
+_pymongo_patch = patch('pymongo.MongoClient', MockMongoClient)
+_pymongo_patch.start()
+
+# Agora é seguro importar
 from ml_pipelines.online_learning.shadow_validator import (
     ShadowValidator,
     ShadowValidationResult
@@ -12,11 +99,18 @@ from ml_pipelines.online_learning.shadow_validator import (
 from ml_pipelines.online_learning.config import OnlineLearningConfig
 
 
+@pytest.fixture(autouse=True)
+def cleanup_patches():
+    """Limpa patches após todos os testes."""
+    yield
+    # Não paramos o patch aqui porque outros testes podem precisar dele
+
+
 @pytest.fixture
 def config():
     """Configuração de teste."""
     return OnlineLearningConfig(
-        shadow_accuracy_threshold=0.02,
+        shadow_accuracy_threshold=0.95,
         shadow_max_latency_ratio=1.5,
         shadow_max_kl_divergence=0.1,
         shadow_min_samples=10
@@ -24,9 +118,14 @@ def config():
 
 
 @pytest.fixture
-def validator(config):
+def validator(config, mock_batch_model, mock_online_learner):
     """ShadowValidator para testes."""
-    return ShadowValidator(config)
+    return ShadowValidator(
+        config=config,
+        specialist_type="test_specialist",
+        batch_model=mock_batch_model,
+        online_learner=mock_online_learner
+    )
 
 
 @pytest.fixture
@@ -43,8 +142,23 @@ def mock_batch_model():
 
 
 @pytest.fixture
+def mock_online_learner():
+    """Mock do IncrementalLearner."""
+    learner = Mock()
+    learner.predict_proba = Mock(return_value=np.array([
+        [0.35, 0.65],
+        [0.75, 0.25],
+        [0.45, 0.55]
+    ]))
+    learner.predict = Mock(return_value=np.array([1, 0, 1]))
+    learner.is_fitted = True
+    learner.model_version = "v1.0"
+    return learner
+
+
+@pytest.fixture
 def mock_online_model():
-    """Mock do modelo online."""
+    """Mock do modelo online (legado - usa mock_online_learner)."""
     model = Mock()
     model.predict_proba = Mock(return_value=np.array([
         [0.35, 0.65],

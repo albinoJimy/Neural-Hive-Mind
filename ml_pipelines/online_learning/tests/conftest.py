@@ -2,11 +2,116 @@
 
 import pytest
 import numpy as np
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock, MagicMock, patch
 import sys
 import prometheus_client
 
+# ============================================================================
+# Mock MongoDB - deve ser definido antes de qualquer importação dos módulos
+# ============================================================================
+# Importante: Este patch deve ser feito ANTES de importar qualquer módulo
+# que utiliza MongoClient. O pymongo precisa ser substituído em sys.modules.
+# ============================================================================
+
+class MockMongoCollection:
+    """Mock de coleção MongoDB."""
+    def __init__(self):
+        self.data = []
+
+    def find(self, *args, **kwargs):
+        return []
+
+    def find_one(self, *args, **kwargs):
+        return None
+
+    def insert_one(self, *args, **kwargs):
+        return Mock(inserted_id='test_id')
+
+    def update_one(self, *args, **kwargs):
+        return Mock(modified_count=1)
+
+    def delete_one(self, *args, **kwargs):
+        return Mock(deleted_count=1)
+
+    def create_index(self, *args, **kwargs):
+        pass
+
+    def create_indexes(self, *args, **kwargs):
+        pass
+
+    def aggregate(self, *args, **kwargs):
+        return []
+
+    def count_documents(self, *args, **kwargs):
+        return 0
+
+    def __getitem__(self, name):
+        return self
+
+
+class MockMongoDB:
+    """Mock de database MongoDB."""
+    def __init__(self):
+        self._collection = MockMongoCollection()
+
+    def __getitem__(self, name):
+        return self._collection
+
+    def __getattr__(self, name):
+        if name.startswith('_'):
+            raise AttributeError(name)
+        return self._collection
+
+
+class MockMongoClient:
+    """Mock de cliente MongoDB."""
+    def __init__(self, *args, **kwargs):
+        self._db = MockMongoDB()
+
+    def __getitem__(self, name):
+        return self._db
+
+    def __getattr__(self, name):
+        if name == '_MongoClient__all_options' or name.startswith('_'):
+            raise AttributeError(name)
+        return self._db
+
+    def close(self):
+        """Mock close method."""
+        pass
+
+
+# Patch MongoDB imports at module level (before any test module imports)
+_mongo_mock_instance = MockMongoClient()
+_pymongo_patch = patch('pymongo.MongoClient', return_value=_mongo_mock_instance)
+_motor_patch = patch('motor.motor_asyncio.AsyncIOMotorClient', return_value=_mongo_mock_instance)
+
+# Start patches immediately
+_pymongo_patch.start()
+_motor_patch.start()
+
+# Now it's safe to import config
 from ml_pipelines.online_learning.config import OnlineLearningConfig
+
+
+def pytest_configure(config):
+    """Configuração do pytest - chamada antes dos testes."""
+    # Adiciona patches adicionais para módulos específicos
+    pass
+
+
+def pytest_unconfigure(config):
+    """Limpeza do pytest - chamada após os testes."""
+    _pymongo_patch.stop()
+    _motor_patch.stop()
+
+
+@pytest.fixture(autouse=True)
+def mock_mongodb_connection():
+    """Mock MongoClient já está ativo no nível do módulo."""
+    # O mock já está ativo via module-level patches
+    # Este fixture existe apenas para clareza e compatibilidade
+    yield
 
 
 @pytest.fixture(autouse=True)
