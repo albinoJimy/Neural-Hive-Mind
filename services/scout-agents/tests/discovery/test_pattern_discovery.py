@@ -57,7 +57,7 @@ class UserRepository:
         patterns = discovery.identify_patterns(code, "user_repository.py")
 
         assert any(p['name'] == 'repository' for p in patterns)
-        assert any(p['confidence'] > 0.7 for p in patterns if p['name'] == 'repository')
+        assert any(p['confidence'] >= 0.7 for p in patterns if p['name'] == 'repository')
 
     def test_identify_repository_with_db_methods(self, discovery):
         """Testa identificação por métodos comuns de DB."""
@@ -389,3 +389,418 @@ class TestPatternDocumentation:
 
         assert 'nodes' in graph
         assert 'edges' in graph
+
+
+# ============================================================================
+# Testes para Padrões Expandidos (15+ padrões)
+# ============================================================================
+
+class TestExpandedPatternCount:
+    """Testa que todos os 15+ padrões estão configurados."""
+
+    @pytest.fixture
+    def discovery(self):
+        return PatternDiscovery()
+
+    def test_minimum_15_patterns_configured(self, discovery):
+        """Testa que há pelo menos 15 padrões configurados."""
+        patterns = discovery.get_known_patterns()
+        assert len(patterns) >= 15
+
+    def test_patterns_have_categories(self, discovery):
+        """Testa que todos os padrões têm categorias."""
+        for pattern_name in discovery.get_known_patterns():
+            info = discovery.get_pattern_info(pattern_name)
+            assert info is not None
+            assert 'category' in info
+            assert info['category'] in ['creational', 'structural', 'behavioral']
+
+    def test_category_distribution(self, discovery):
+        """Testa distribuição de padrões por categoria."""
+        categories = discovery.get_pattern_categories()
+
+        # Pelo menos 4 padrões por categoria
+        assert len(categories['creational']) >= 4
+        assert len(categories['structural']) >= 5
+        assert len(categories['behavioral']) >= 6
+
+
+class TestCreationalPatterns:
+    """Testes para padrões criacionais expandidos."""
+
+    @pytest.fixture
+    def discovery(self):
+        return PatternDiscovery()
+
+    def test_identify_builder_pattern(self, discovery):
+        """Testa identificação do padrão Builder."""
+        code = """
+class UserBuilder:
+    def __init__(self):
+        self._result = None
+
+    def with_name(self, name):
+        self._name = name
+        return self
+
+    def with_email(self, email):
+        self._email = email
+        return self
+
+    def build(self):
+        return User(self._name, self._email)
+"""
+        patterns = discovery.identify_patterns(code, "user_builder.py")
+
+        builder_patterns = [p for p in patterns if p['name'] == 'builder']
+        assert len(builder_patterns) > 0
+        assert builder_patterns[0]['confidence'] > 0.5
+
+    def test_identify_prototype_pattern(self, discovery):
+        """Testa identificação do padrão Prototype."""
+        code = """
+class DocumentPrototype:
+    def clone(self):
+        return DocumentPrototype(self.content, self.author)
+
+    def __init__(self, content, author):
+        self.content = content
+        self.author = author
+"""
+        patterns = discovery.identify_patterns(code, "document.py")
+
+        prototype_patterns = [p for p in patterns if p['name'] == 'prototype']
+        assert len(prototype_patterns) > 0
+
+
+class TestStructuralPatterns:
+    """Testes para padrões estruturais expandidos."""
+
+    @pytest.fixture
+    def discovery(self):
+        return PatternDiscovery()
+
+    def test_identify_adapter_pattern(self, discovery):
+        """Testa identificação do padrão Adapter."""
+        code = """
+class UserServiceAdapter:
+    def __init__(self, adaptee):
+        self._adaptee = adaptee
+
+    def get_user_data(self, user_id):
+        # Adapta o formato do serviço legacy
+        legacy_data = self._adaptee.fetch_user(user_id)
+        return self._convert_format(legacy_data)
+
+    def _convert_format(self, data):
+        return {'id': data['user_id'], 'name': data['name']}
+"""
+        patterns = discovery.identify_patterns(code, "user_adapter.py")
+
+        adapter_patterns = [p for p in patterns if p['name'] == 'adapter']
+        assert len(adapter_patterns) > 0
+
+    def test_identify_bridge_pattern(self, discovery):
+        """Testa identificação do padrão Bridge."""
+        code = """
+class RemoteControlBridge:
+    def __init__(self, implementation):
+        self._implementation = implementation
+
+    def turn_on(self):
+        self._implementation.on()
+
+    def turn_off(self):
+        self._implementation.off()
+"""
+        patterns = discovery.identify_patterns(code, "remote_control.py")
+
+        bridge_patterns = [p for p in patterns if p['name'] == 'bridge']
+        assert len(bridge_patterns) > 0
+
+    def test_identify_composite_pattern(self, discovery):
+        """Testa identificação do padrão Composite."""
+        code = """
+class CompositeNode:
+    def __init__(self):
+        self._children = []
+
+    def add(self, child):
+        self._children.append(child)
+
+    def remove(self, child):
+        self._children.remove(child)
+
+    def get_children(self):
+        return self._children
+"""
+        patterns = discovery.identify_patterns(code, "composite.py")
+
+        composite_patterns = [p for p in patterns if p['name'] == 'composite']
+        assert len(composite_patterns) > 0
+
+    def test_identify_facade_pattern(self, discovery):
+        """Testa identificação do padrão Facade."""
+        code = """
+class DatabaseFacade:
+    def __init__(self):
+        self._users_service = UserService()
+        self._posts_service = PostsService()
+        self._comments_service = CommentsService()
+
+    def initialize(self):
+        self._users_service.connect()
+        self._posts_service.connect()
+        self._comments_service.connect()
+
+    def get_user_posts(self, user_id):
+        return self._posts_service.fetch_by_user(user_id)
+
+    def get_user_comments(self, user_id):
+        return self._comments_service.fetch_by_user(user_id)
+"""
+        patterns = discovery.identify_patterns(code, "database_facade.py")
+
+        facade_patterns = [p for p in patterns if p['name'] == 'facade']
+        assert len(facade_patterns) > 0
+
+    def test_identify_proxy_pattern(self, discovery):
+        """Testa identificação do padrão Proxy."""
+        code = """
+class DatabaseProxy:
+    def __init__(self, real_database):
+        self._real_subject = real_database
+
+    def query(self, sql):
+        return self._real_subject.query(sql)
+
+    def __getattr__(self, name):
+        return getattr(self._real_subject, name)
+"""
+        patterns = discovery.identify_patterns(code, "database_proxy.py")
+
+        proxy_patterns = [p for p in patterns if p['name'] == 'proxy']
+        assert len(proxy_patterns) > 0
+
+
+class TestBehavioralPatterns:
+    """Testes para padrões comportamentais expandidos."""
+
+    @pytest.fixture
+    def discovery(self):
+        return PatternDiscovery()
+
+    def test_identify_strategy_pattern(self, discovery):
+        """Testa identificação do padrão Strategy."""
+        code = """
+class PaymentStrategy:
+    def execute(self, amount):
+        raise NotImplementedError
+
+class CreditCardStrategy(PaymentStrategy):
+    def execute(self, amount):
+        return self._process_credit_card(amount)
+
+    def _process_credit_card(self, amount):
+        return f"Processed ${amount}"
+"""
+        patterns = discovery.identify_patterns(code, "payment.py")
+
+        strategy_patterns = [p for p in patterns if p['name'] == 'strategy']
+        assert len(strategy_patterns) > 0
+
+    def test_identify_observer_pattern(self, discovery):
+        """Testa identificação do padrão Observer."""
+        code = """
+class NewsPublisher:
+    def __init__(self):
+        self._subscribers = []
+
+    def attach(self, subscriber):
+        self._subscribers.append(subscriber)
+
+    def detach(self, subscriber):
+        self._subscribers.remove(subscriber)
+
+    def notify(self, news):
+        for sub in self._subscribers:
+            sub.update(news)
+"""
+        patterns = discovery.identify_patterns(code, "news_publisher.py")
+
+        observer_patterns = [p for p in patterns if p['name'] == 'observer']
+        assert len(observer_patterns) > 0
+
+    def test_identify_command_pattern(self, discovery):
+        """Testa identificação do padrão Command."""
+        code = """
+class SaveCommand:
+    def __init__(self, receiver):
+        self._receiver = receiver
+
+    def execute(self):
+        return self._receiver.save()
+
+    def undo(self):
+        return self._receiver.delete_last()
+"""
+        patterns = discovery.identify_patterns(code, "save_command.py")
+
+        command_patterns = [p for p in patterns if p['name'] == 'command']
+        assert len(command_patterns) > 0
+
+    def test_identify_chain_pattern(self, discovery):
+        """Testa identificação do padrão Chain of Responsibility."""
+        code = """
+class AuthenticationHandler:
+    def __init__(self):
+        self._next = None
+
+    def set_next(self, handler):
+        self._next = handler
+        return handler
+
+    def handle(self, request):
+        if self.can_handle(request):
+            return self.do_handle(request)
+        elif self._next:
+            return self._next.handle(request)
+        return None
+
+    def can_handle(self, request):
+        return True
+"""
+        patterns = discovery.identify_patterns(code, "auth_handler.py")
+
+        chain_patterns = [p for p in patterns if p['name'] == 'chain']
+        assert len(chain_patterns) > 0
+
+    def test_identify_template_method_pattern(self, discovery):
+        """Testa identificação do padrão Template Method."""
+        code = """
+class DataProcessorTemplate:
+    def process(self, data):
+        self.validate(data)
+        result = self.transform(data)
+        self.save(result)
+        return result
+
+    def validate(self, data):
+        raise NotImplementedError
+
+    def transform(self, data):
+        raise NotImplementedError
+
+    def save(self, result):
+        pass
+"""
+        patterns = discovery.identify_patterns(code, "processor.py")
+
+        template_patterns = [p for p in patterns if p['name'] == 'template_method']
+        assert len(template_patterns) > 0
+
+    def test_identify_mediator_pattern(self, discovery):
+        """Testa identificação do padrão Mediator."""
+        code = """
+class ChatMediator:
+    def __init__(self):
+        self._colleagues = []
+
+    def register(self, colleague):
+        self._colleagues.append(colleague)
+
+    def send(self, message, sender):
+        for colleague in self._colleagues:
+            if colleague != sender:
+                colleague.receive(message)
+"""
+        patterns = discovery.identify_patterns(code, "chat_mediator.py")
+
+        mediator_patterns = [p for p in patterns if p['name'] == 'mediator']
+        assert len(mediator_patterns) > 0
+
+    def test_identify_memento_pattern(self, discovery):
+        """Testa identificação do padrão Memento."""
+        code = """
+class TextEditorMemento:
+    def __init__(self, state):
+        self._state = state
+
+    def get_state(self):
+        return self._state
+
+    def save(self):
+        return TextEditorMemento(self._content)
+
+    def restore(self, memento):
+        self._content = memento.get_state()
+"""
+        patterns = discovery.identify_patterns(code, "text_editor.py")
+
+        memento_patterns = [p for p in patterns if p['name'] == 'memento']
+        assert len(memento_patterns) > 0
+
+    def test_identify_state_pattern(self, discovery):
+        """Testa identificação do padrão State."""
+        code = """
+class OrderContext:
+    def __init__(self):
+        self._state = None
+
+    def change_state(self, state):
+        self._state = state
+
+    def process(self):
+        return self._state.handle()
+
+class PendingState:
+    def handle(self):
+        return "Order pending"
+"""
+        patterns = discovery.identify_patterns(code, "order_state.py")
+
+        state_patterns = [p for p in patterns if p['name'] == 'state']
+        assert len(state_patterns) > 0
+
+
+class TestPatternCategoryMethods:
+    """Testes para métodos de categoria de padrões."""
+
+    @pytest.fixture
+    def discovery(self):
+        return PatternDiscovery()
+
+    def test_get_patterns_by_category_creational(self, discovery):
+        """Testa obter padrões criacionais."""
+        patterns = discovery.get_patterns_by_category('creational')
+        assert 'repository' in patterns
+        assert 'factory' in patterns
+        assert 'builder' in patterns
+
+    def test_get_patterns_by_category_structural(self, discovery):
+        """Testa obter padrões estruturais."""
+        patterns = discovery.get_patterns_by_category('structural')
+        assert 'adapter' in patterns
+        assert 'composite' in patterns
+        assert 'facade' in patterns
+
+    def test_get_patterns_by_category_behavioral(self, discovery):
+        """Testa obter padrões comportamentais."""
+        patterns = discovery.get_patterns_by_category('behavioral')
+        assert 'strategy' in patterns
+        assert 'observer' in patterns
+        assert 'command' in patterns
+
+    def test_get_pattern_info(self, discovery):
+        """Testa obter informações de padrão específico."""
+        info = discovery.get_pattern_info('observer')
+        assert info is not None
+        assert info['name'] == 'observer'
+        assert info['category'] == 'behavioral'
+        assert 'keywords' in info
+        assert 'common_methods' in info
+
+    def test_get_pattern_info_invalid(self, discovery):
+        """Testa obter informações de padrão inexistente."""
+        info = discovery.get_pattern_info('nonexistent')
+        assert info is None

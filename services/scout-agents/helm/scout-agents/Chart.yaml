@@ -1,0 +1,16 @@
+apiVersion: v2
+name: scout-agents
+description: Neural Hive-Mind Scout Agents - Code exploration and discovery service
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - neural-hive-mind
+  - scout-agents
+  - code-exploration
+  - discovery
+maintainers:
+  - name: Neural Hive-Mind Team
+home: https://github.com/albinoJimy/Neural-Hive-Mind
+sources:
+  - https://github.com/albinoJimy/Neural-Hive-Mind

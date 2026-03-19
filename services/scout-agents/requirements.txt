@@ -35,5 +35,10 @@ scipy==1.14.1
 python-json-logger>=2.0.7
 tenacity==9.0.0
 
+# Code parsing for multi-language support
+PyYAML>=6.0
+esprima>=0.4.0  # JavaScript/TypeScript AST parsing
+tree-sitter>=0.21.0  # Multi-language AST parsing (Java, C#, Go, C/C++, Rust)
+
 # Internal libraries - installed from /libraries in Docker build
 /libraries/python/neural_hive_domain

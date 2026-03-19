@@ -1,0 +1,18 @@
+{{- if .Values.observability.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "scout-agents.fullname" . }}
+  labels:
+    {{- include "scout-agents.labels" . | nindent 4 }}
+    app.kubernetes.io/component: metrics
+spec:
+  selector:
+    matchLabels:
+      {{- include "scout-agents.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: metrics
+      path: {{ .Values.observability.prometheus.path }}
+      interval: 30s
+      scrapeTimeout: 10s
+{{- end }}

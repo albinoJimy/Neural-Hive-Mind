@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "scout-agents.fullname" . }}
+  labels:
+    {{- include "scout-agents.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "scout-agents.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "scout-agents.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "scout-agents.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+            {{- if .Values.observability.enabled }}
+            - name: metrics
+              containerPort: {{ .Values.observability.prometheus.port }}
+              protocol: TCP
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: ENVIRONMENT
+              value: {{ .Values.config.environment | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.config.logLevel | quote }}
+            - name: SCOUT_MAX_SIGNALS_PER_MINUTE
+              value: {{ .Values.config.detection.maxSignalsPerMinute | quote }}
+            - name: SCOUT_CURIOSITY_THRESHOLD
+              value: {{ .Values.config.detection.curiosityThreshold | quote }}
+            - name: SCOUT_CONFIDENCE_THRESHOLD
+              value: {{ .Values.config.detection.confidenceThreshold | quote }}
+            - name: SCOUT_MAX_CONCURRENT_SCOUTS
+              value: {{ .Values.config.exploration.maxConcurrentScouts | quote }}
+            - name: SCOUT_DEFAULT_TIMEOUT_MINUTES
+              value: {{ .Values.config.exploration.defaultTimeoutMinutes | quote }}
+            - name: SCOUT_ENABLE_BURST_DETECTION
+              value: {{ .Values.config.exploration.enableBurstDetection | quote }}
+            {{- if .Values.config.redis.enabled }}
+            - name: REDIS_URL
+              value: {{ .Values.config.redis.url | quote }}
+            - name: REDIS_KEY_PREFIX
+              value: {{ .Values.config.redis.keyPrefix | quote }}
+            - name: REDIS_TTL
+              value: {{ .Values.config.redis.ttl | quote }}
+            {{- end }}
+            {{- if .Values.config.kafka.enabled }}
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: {{ .Values.config.kafka.bootstrapServers | quote }}
+            - name: SCOUT_SIGNALS_TOPIC
+              value: {{ .Values.config.kafka.signalsTopic | quote }}
+            - name: SCOUT_DISCOVERIES_TOPIC
+              value: {{ .Values.config.kafka.discoveriesTopic | quote }}
+            {{- end }}
+            {{- if .Values.observability.tracing.enabled }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.observability.tracing.endpoint | quote }}
+            - name: OTEL_TRACES_SAMPLER
+              value: "traceidratio"
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: {{ .Values.observability.tracing.sampleRate | quote }}
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "scout-agents.fullname" . }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

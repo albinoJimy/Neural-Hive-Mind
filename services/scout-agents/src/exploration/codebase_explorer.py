@@ -2,7 +2,7 @@
 CodebaseExplorer - Análise estática de código para Scout Agents.
 
 Responsável por:
-- Parsing de arquivos Python usando AST
+- Parsing multi-linguagem (Python, TypeScript, JavaScript, YAML, JSON)
 - Extração de dependências (imports)
 - Construção de grafo de dependências
 - Cálculo de complexidade ciclomática
@@ -18,6 +18,17 @@ import structlog
 
 logger = structlog.get_logger()
 
+# Import parsers
+try:
+    from .parsers.typescript_parser import TypeScriptParser
+    from .parsers.javascript_parser import JavaScriptParser
+    from .parsers.yaml_parser import YAMLParser
+    from .parsers.json_parser import JSONParser
+    PARSERS_AVAILABLE = True
+except ImportError:
+    PARSERS_AVAILABLE = False
+    logger.warning("parsers_not_available", message="Multi-language parsers not imported")
+
 
 class CodebaseExplorer:
     """Explorador de codebase para análise estática."""
@@ -32,10 +43,10 @@ class CodebaseExplorer:
 
         Args:
             root_path: Caminho raiz do codebase
-            file_extensions: Extensões para analisar (default: .py, .ts, .yaml)
+            file_extensions: Extensões para analisar (default: .py, .ts, .js, .yaml, .json)
         """
         self.root_path = Path(root_path)
-        self.file_extensions = file_extensions or ['.py', '.ts', '.yaml']
+        self.file_extensions = file_extensions or ['.py', '.ts', '.js', '.yaml', '.yml', '.json']
 
         # Cache de arquivos analisados
         self._parsed_files: Dict[str, Dict] = {}
@@ -48,6 +59,18 @@ class CodebaseExplorer:
             'total_classes': 0,
             'total_imports': 0
         }
+
+        # Inicializar parsers para diferentes linguagens
+        if PARSERS_AVAILABLE:
+            self.ts_parser = TypeScriptParser()
+            self.js_parser = JavaScriptParser()
+            self.yaml_parser = YAMLParser()
+            self.json_parser = JSONParser()
+        else:
+            self.ts_parser = None
+            self.js_parser = None
+            self.yaml_parser = None
+            self.json_parser = None
 
     def parse_python_ast(
         self,
@@ -87,6 +110,179 @@ class CodebaseExplorer:
                 filename=filename,
                 error=str(e)
             )
+            return None
+
+    # ========================================================================
+    # Multi-Language Parsing Methods
+    # ========================================================================
+
+    def parse_typescript(
+        self,
+        code: str,
+        filename: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Faz parsing de código TypeScript.
+
+        Args:
+            code: Código fonte TypeScript
+            filename: Nome do arquivo
+
+        Returns:
+            Dict com classes, funções, interfaces, etc.
+        """
+        if not self.ts_parser:
+            logger.warning("typescript_parser_not_available")
+            return None
+
+        try:
+            result = self.ts_parser.parse(code, filename)
+            if result and not result.get('has_errors'):
+                self._parsed_files[filename] = {
+                    'parsed_at': datetime.utcnow(),
+                    'has_errors': False
+                }
+                self.metrics['total_functions'] += len(result.get('functions', []))
+                self.metrics['total_classes'] += len(result.get('classes', []))
+                self.metrics['total_imports'] += len(result.get('imports', []))
+                return result
+            elif result and result.get('has_errors'):
+                self._parse_errors.add(filename)
+                return result
+            return None
+        except Exception as e:
+            logger.error(
+                "typescript_parse_error",
+                filename=filename,
+                error=str(e)
+            )
+            self._parse_errors.add(filename)
+            return None
+
+    def parse_javascript(
+        self,
+        code: str,
+        filename: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Faz parsing de código JavaScript.
+
+        Args:
+            code: Código fonte JavaScript
+            filename: Nome do arquivo
+
+        Returns:
+            Dict com classes, funções, imports, etc.
+        """
+        if not self.js_parser:
+            logger.warning("javascript_parser_not_available")
+            return None
+
+        try:
+            result = self.js_parser.parse(code, filename)
+            if result and not result.get('has_errors'):
+                self._parsed_files[filename] = {
+                    'parsed_at': datetime.utcnow(),
+                    'has_errors': False
+                }
+                self.metrics['total_functions'] += len(result.get('functions', []))
+                self.metrics['total_classes'] += len(result.get('classes', []))
+                self.metrics['total_imports'] += (
+                    len(result.get('imports', [])) +
+                    len(result.get('commonjs_imports', []))
+                )
+                return result
+            elif result and result.get('has_errors'):
+                self._parse_errors.add(filename)
+                return result
+            return None
+        except Exception as e:
+            logger.error(
+                "javascript_parse_error",
+                filename=filename,
+                error=str(e)
+            )
+            self._parse_errors.add(filename)
+            return None
+
+    def parse_yaml(
+        self,
+        code: str,
+        filename: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Faz parsing de arquivo YAML.
+
+        Args:
+            code: Conteúdo YAML
+            filename: Nome do arquivo
+
+        Returns:
+            Dict com chaves, estrutura, metadados
+        """
+        if not self.yaml_parser:
+            logger.warning("yaml_parser_not_available")
+            return None
+
+        try:
+            result = self.yaml_parser.parse(code, filename)
+            if result and not result.get('has_errors'):
+                self._parsed_files[filename] = {
+                    'parsed_at': datetime.utcnow(),
+                    'has_errors': False
+                }
+                return result
+            elif result and result.get('has_errors'):
+                self._parse_errors.add(filename)
+                return result
+            return None
+        except Exception as e:
+            logger.error(
+                "yaml_parse_error",
+                filename=filename,
+                error=str(e)
+            )
+            self._parse_errors.add(filename)
+            return None
+
+    def parse_json(
+        self,
+        code: str,
+        filename: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Faz parsing de arquivo JSON.
+
+        Args:
+            code: Conteúdo JSON
+            filename: Nome do arquivo
+
+        Returns:
+            Dict com chaves, estrutura, metadados
+        """
+        if not self.json_parser:
+            logger.warning("json_parser_not_available")
+            return None
+
+        try:
+            result = self.json_parser.parse(code, filename)
+            if result and not result.get('has_errors'):
+                self._parsed_files[filename] = {
+                    'parsed_at': datetime.utcnow(),
+                    'has_errors': False
+                }
+                return result
+            elif result and result.get('has_errors'):
+                self._parse_errors.add(filename)
+                return result
+            return None
+        except Exception as e:
+            logger.error(
+                "json_parse_error",
+                filename=filename,
+                error=str(e)
+            )
+            self._parse_errors.add(filename)
             return None
 
     def extract_functions(
@@ -462,16 +658,62 @@ class CodebaseExplorer:
                                 'functions': functions,
                                 'classes': classes,
                                 'imports': imports,
-                                'complexity': self.calculate_complexity(tree)
+                                'complexity': self.calculate_complexity(tree),
+                                'language': 'python'
+                            }
+                            results['summary']['parsed_success'] += 1
+                        else:
+                            results['summary']['parsed_errors'] += 1
+
+                    elif ext in ('.ts', '.tsx'):
+                        ts_result = self.parse_typescript(code, str(filepath))
+                        if ts_result:
+                            results['parsed_data'][str(filepath)] = {
+                                **ts_result,
+                                'language': 'typescript'
+                            }
+                            results['summary']['parsed_success'] += 1
+                        else:
+                            results['summary']['parsed_errors'] += 1
+
+                    elif ext in ('.js', '.jsx', '.mjs'):
+                        js_result = self.parse_javascript(code, str(filepath))
+                        if js_result:
+                            results['parsed_data'][str(filepath)] = {
+                                **js_result,
+                                'language': 'javascript'
+                            }
+                            results['summary']['parsed_success'] += 1
+                        else:
+                            results['summary']['parsed_errors'] += 1
+
+                    elif ext in ('.yaml', '.yml'):
+                        yaml_result = self.parse_yaml(code, str(filepath))
+                        if yaml_result:
+                            results['parsed_data'][str(filepath)] = {
+                                **yaml_result,
+                                'language': 'yaml'
+                            }
+                            results['summary']['parsed_success'] += 1
+                        else:
+                            results['summary']['parsed_errors'] += 1
+
+                    elif ext == '.json':
+                        json_result = self.parse_json(code, str(filepath))
+                        if json_result:
+                            results['parsed_data'][str(filepath)] = {
+                                **json_result,
+                                'language': 'json'
                             }
                             results['summary']['parsed_success'] += 1
                         else:
                             results['summary']['parsed_errors'] += 1
                     else:
-                        # Para não-Python, apenas registrar
+                        # Para outras extensões, apenas registrar
                         results['parsed_data'][str(filepath)] = {
                             'type': ext,
-                            'size': len(code)
+                            'size': len(code),
+                            'language': 'unknown'
                         }
                         results['summary']['parsed_success'] += 1
 

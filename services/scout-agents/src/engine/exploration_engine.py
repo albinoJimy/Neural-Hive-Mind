@@ -2,7 +2,8 @@
 import asyncio
 from collections import deque
 from datetime import datetime, timedelta
-from typing import Optional, Deque
+from pathlib import Path
+from typing import Optional, Deque, Dict, List, Any
 import structlog
 from neural_hive_observability import get_tracer, instrument_kafka_producer
 
@@ -14,6 +15,10 @@ from ..clients.kafka_signal_producer import KafkaSignalProducer
 from ..clients.memory_layer_client import MemoryLayerClient
 from ..clients.pheromone_client import PheromoneClient
 from ..config import get_settings
+
+# Import new signal detection modules
+from ..signals.curiosity_calculator import CuriosityCalculator
+from ..signals.signal_detector import SignalDetector as FileSignalDetector
 
 logger = structlog.get_logger()
 
@@ -31,6 +36,13 @@ class ExplorationEngine:
         self.memory_client = MemoryLayerClient()
         self.pheromone_client = PheromoneClient()
 
+        # Codebase exploration components
+        self.curiosity_calculator = CuriosityCalculator(
+            decay_factor=self.settings.detection.curiosity_decay_factor if hasattr(self.settings.detection, 'curiosity_decay_factor') else 0.8,
+            decay_hours=24
+        )
+        self.file_signal_detector = FileSignalDetector(window_minutes=60)
+
         # Internal queue for backpressure
         self.signal_queue: Deque[ScoutSignal] = deque(maxlen=1000)
 
@@ -47,7 +59,9 @@ class ExplorationEngine:
             'detected': 0,
             'published': 0,
             'discarded': 0,
-            'rate_limited': 0
+            'rate_limited': 0,
+            'files_scanned': 0,
+            'high_activity_detected': 0
         }
 
     async def start(self):
@@ -299,3 +313,162 @@ class ExplorationEngine:
                 signal_id=signal_id,
                 error=str(e)
             )
+
+    # ========================================================================
+    # Codebase Exploration Methods
+    # ========================================================================
+
+    async def scan_codebase(
+        self,
+        directory: str,
+        extensions: Optional[set] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Escaneia diretório em busca de sinais de mudança.
+
+        Args:
+            directory: Diretório para escanear
+            extensions: Extensões para considerar
+
+        Returns:
+            Lista de sinais detectados
+        """
+        try:
+            signals = self.file_signal_detector.scan_directory(directory, extensions)
+            self.stats['files_scanned'] += len(signals)
+
+            # Detectar alta atividade
+            hotspots = self.file_signal_detector.get_hotspots(limit=10)
+            if hotspots:
+                self.stats['high_activity_detected'] += len(hotspots)
+
+            logger.info(
+                "codebase_scanned",
+                directory=directory,
+                signals_detected=len(signals),
+                hotspots=len(hotspots)
+            )
+
+            return [s.to_dict() for s in signals]
+
+        except Exception as e:
+            logger.error("codebase_scan_failed", directory=directory, error=str(e))
+            return []
+
+    async def get_curiosity_scores(
+        self,
+        directory: str,
+        limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        Retorna arquivos mais interessantes baseado em curiosidade.
+
+        Args:
+            directory: Diretório para analisar
+            limit: Máximo de arquivos
+
+        Returns:
+            Lista de (filepath, score)
+        """
+        try:
+            top_files = self.curiosity_calculator.get_top_interesting_files(directory, limit)
+
+            result = [
+                {'filepath': fp, 'curiosity_score': score}
+                for fp, score in top_files
+            ]
+
+            logger.info(
+                "curiosity_scores_calculated",
+                directory=directory,
+                files_analyzed=len(result)
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error("curiosity_calculation_failed", directory=directory, error=str(e))
+            return []
+
+    async def get_exploration_summary(self, directory: str) -> Dict[str, Any]:
+        """
+        Retorna resumo completo de exploração de um diretório.
+
+        Args:
+            directory: Diretório para analisar
+
+        Returns:
+            Dict com curiosidade, sinais, hotspots
+        """
+        try:
+            # Calcular curiosidade do diretório
+            dir_curiosity = self.curiosity_calculator.calculate_directory_curiosity(directory)
+
+            # Obter sinais recentes
+            signal_summary = self.file_signal_detector.get_signal_summary()
+
+            # Obter hotspots
+            hotspots = self.file_signal_detector.get_hotspots(limit=10)
+
+            # Detectar burst activity
+            burst_files = self.file_signal_detector.detect_burst_activity()
+
+            result = {
+                'directory': directory,
+                'directory_curiosity': dir_curiosity,
+                'signal_summary': signal_summary,
+                'hotspots': hotspots,
+                'burst_files': burst_files,
+                'timestamp': datetime.now().isoformat()
+            }
+
+            logger.info(
+                "exploration_summary_generated",
+                directory=directory,
+                curiosity=dir_curiosity,
+                signals_count=signal_summary['total_signals']
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error("exploration_summary_failed", directory=directory, error=str(e))
+            return {}
+
+    async def rank_directories_by_interest(
+        self,
+        root: str
+    ) -> Dict[str, float]:
+        """
+        Rankeia subdiretórios por nível de interesse.
+
+        Args:
+            root: Diretório raiz
+
+        Returns:
+            Dict {dirname: curiosity_score}
+        """
+        try:
+            rankings = self.curiosity_calculator.rank_directories(root)
+
+            logger.info(
+                "directories_ranked",
+                root=root,
+                directories_count=len(rankings)
+            )
+
+            return rankings
+
+        except Exception as e:
+            logger.error("directory_ranking_failed", root=root, error=str(e))
+            return {}
+
+    async def mark_file_visited(self, filepath: str):
+        """
+        Marca arquivo como visitado (reduz curiosidade futura).
+
+        Args:
+            filepath: Caminho do arquivo
+        """
+        self.curiosity_calculator.mark_visited(filepath)
+        logger.debug("file_marked_visited", filepath=filepath)

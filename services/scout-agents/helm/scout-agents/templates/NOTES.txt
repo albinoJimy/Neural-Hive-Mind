@@ -1,0 +1,29 @@
+O Scout Agents foi instalado com sucesso!
+
+Para verificar o status do deployment:
+
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "scout-agents.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8000:8000
+
+Acesse os endpoints:
+
+  - Health: http://localhost:8000/health/live
+  - Metrics: http://localhost:8000/metrics
+  - Status: http://localhost:8000/api/v1/status
+
+Para ver os logs:
+
+  kubectl logs --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "scout-agents.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -f
+
+Para escalar manualmente:
+
+  kubectl scale deployment {{ include "scout-agents.fullname" . }} --replicas=3 --namespace {{ .Release.Namespace }}
+
+{{- if .Values.ingress.enabled }}
+
+Para acessar via Ingress:
+
+  {{- range .Values.ingress.hosts }}
+  http://{{ .host }}
+  {{- end }}
+{{- end }}

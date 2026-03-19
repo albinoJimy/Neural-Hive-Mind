@@ -1,0 +1,113 @@
+# Valores padrão para scout-agents
+replicaCount: 2
+
+image:
+  repository: ghcr.io/albinojimy/neural-hive-mind/scout-agents
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: ClusterIP
+  port: 8000
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: scout-agents.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Configurações do Scout Agents
+config:
+  environment: production
+  logLevel: INFO
+
+  # Detection settings
+  detection:
+    maxSignalsPerMinute: 100
+    curiosityThreshold: 70.0
+    confidenceThreshold: 0.6
+
+  # Exploration settings
+  exploration:
+    maxConcurrentScouts: 10
+    defaultTimeoutMinutes: 30
+    enableBurstDetection: true
+    burstActivityThreshold: 3.0
+
+  # Redis (para coordenação)
+  redis:
+    enabled: true
+    url: "redis://redis:6379"
+    keyPrefix: "scout_agents:"
+    ttl: 3600
+
+  # Kafka (para eventos)
+  kafka:
+    enabled: true
+    bootstrapServers: "kafka:9092"
+    signalsTopic: "scout.signals"
+    discoveriesTopic: "scout.discoveries"
+
+# Configurações de Observabilidade
+observability:
+  enabled: true
+  prometheus:
+    port: 9090
+    path: /metrics
+  tracing:
+    enabled: true
+    endpoint: "http://jaeger:4318"
+    sampleRate: 0.1
+  logging:
+    format: json
+    level: INFO
