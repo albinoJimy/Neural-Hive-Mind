@@ -25,32 +25,49 @@ from .config import OnlineLearningConfig
 
 logger = structlog.get_logger(__name__)
 
-# Métricas Prometheus
-online_updates_total = Counter(
-    'neural_hive_online_updates_total',
-    'Total de atualizações online',
-    ['specialist_type', 'status']
-)
-online_update_duration = Histogram(
-    'neural_hive_online_update_duration_seconds',
-    'Duração de atualizações online',
-    ['specialist_type']
-)
-online_model_loss = Gauge(
-    'neural_hive_online_model_loss',
-    'Loss atual do modelo online',
-    ['specialist_type']
-)
-online_model_updates_count = Gauge(
-    'neural_hive_online_model_updates_count',
-    'Número total de updates do modelo',
-    ['specialist_type']
-)
-online_checkpoint_size_bytes = Gauge(
-    'neural_hive_online_checkpoint_size_bytes',
-    'Tamanho do último checkpoint em bytes',
-    ['specialist_type']
-)
+# Métricas Prometheus - lazy initialization para evitar conflitos em testes
+_online_metrics_initialized = False
+online_updates_total = None
+online_update_duration = None
+online_model_loss = None
+online_model_updates_count = None
+online_checkpoint_size_bytes = None
+
+
+def _init_prometheus_metrics():
+    """Inicializa métricas Prometheus de forma lazy."""
+    global _online_metrics_initialized, online_updates_total, online_update_duration
+    global online_model_loss, online_model_updates_count, online_checkpoint_size_bytes
+
+    if _online_metrics_initialized:
+        return
+
+    online_updates_total = Counter(
+        'neural_hive_online_updates_total',
+        'Total de atualizações online',
+        ['specialist_type', 'status']
+    )
+    online_update_duration = Histogram(
+        'neural_hive_online_update_duration_seconds',
+        'Duração de atualizações online',
+        ['specialist_type']
+    )
+    online_model_loss = Gauge(
+        'neural_hive_online_model_loss',
+        'Loss atual do modelo online',
+        ['specialist_type']
+    )
+    online_model_updates_count = Gauge(
+        'neural_hive_online_model_updates_count',
+        'Número total de updates do modelo',
+        ['specialist_type']
+    )
+    online_checkpoint_size_bytes = Gauge(
+        'neural_hive_online_checkpoint_size_bytes',
+        'Tamanho do último checkpoint em bytes',
+        ['specialist_type']
+    )
+    _online_metrics_initialized = True
 
 
 class IncrementalLearnerError(Exception):
@@ -130,10 +147,14 @@ class IncrementalLearner:
             classes: Classes possíveis para classificação
             feature_names: Nomes das features
         """
+        # Inicializa métricas Prometheus (lazy)
+        _init_prometheus_metrics()
+
         self.config = config
         self.specialist_type = specialist_type
         self.classes = classes or ['approve', 'reject', 'review_required']
         self.feature_names = feature_names
+        self.algorithm = config.incremental_algorithm
 
         # Estado do modelo
         self._model: Optional[Union[SGDClassifier, PassiveAggressiveClassifier, Perceptron]] = None
@@ -247,7 +268,8 @@ class IncrementalLearner:
         self,
         X: np.ndarray,
         y: np.ndarray,
-        sample_weight: Optional[np.ndarray] = None
+        sample_weight: Optional[np.ndarray] = None,
+        classes: Optional[List[Any]] = None
     ) -> Dict[str, Any]:
         """
         Executa atualização incremental do modelo.
@@ -256,6 +278,7 @@ class IncrementalLearner:
             X: Features (shape: [n_samples, n_features])
             y: Labels (shape: [n_samples])
             sample_weight: Pesos das amostras (opcional)
+            classes: Classes possíveis (ignorado, usa self.classes)
 
         Returns:
             Dict com métricas de atualização:

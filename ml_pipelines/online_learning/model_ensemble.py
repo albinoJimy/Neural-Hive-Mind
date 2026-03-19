@@ -18,32 +18,49 @@ from .incremental_learner import IncrementalLearner
 
 logger = structlog.get_logger(__name__)
 
-# Métricas Prometheus
-ensemble_predictions_total = Counter(
-    'neural_hive_ensemble_predictions_total',
-    'Total de predições do ensemble',
-    ['specialist_type', 'strategy']
-)
-ensemble_prediction_duration = Histogram(
-    'neural_hive_ensemble_prediction_duration_seconds',
-    'Duração de predições do ensemble',
-    ['specialist_type']
-)
-ensemble_batch_contribution = Gauge(
-    'neural_hive_ensemble_batch_contribution',
-    'Contribuição do modelo batch',
-    ['specialist_type']
-)
-ensemble_online_contribution = Gauge(
-    'neural_hive_ensemble_online_contribution',
-    'Contribuição do modelo online',
-    ['specialist_type']
-)
-ensemble_fallback_total = Counter(
-    'neural_hive_ensemble_fallback_total',
-    'Total de fallbacks para batch model',
-    ['specialist_type', 'reason']
-)
+# Métricas Prometheus - lazy initialization
+_ensemble_metrics_initialized = False
+ensemble_predictions_total = None
+ensemble_prediction_duration = None
+ensemble_batch_contribution = None
+ensemble_online_contribution = None
+ensemble_fallback_total = None
+
+
+def _init_ensemble_prometheus_metrics():
+    """Inicializa métricas Prometheus de forma lazy."""
+    global _ensemble_metrics_initialized, ensemble_predictions_total, ensemble_prediction_duration
+    global ensemble_batch_contribution, ensemble_online_contribution, ensemble_fallback_total
+
+    if _ensemble_metrics_initialized:
+        return
+
+    ensemble_predictions_total = Counter(
+        'neural_hive_ensemble_predictions_total',
+        'Total de predições do ensemble',
+        ['specialist_type', 'strategy']
+    )
+    ensemble_prediction_duration = Histogram(
+        'neural_hive_ensemble_prediction_duration_seconds',
+        'Duração de predições do ensemble',
+        ['specialist_type']
+    )
+    ensemble_batch_contribution = Gauge(
+        'neural_hive_ensemble_batch_contribution',
+        'Contribuição do modelo batch',
+        ['specialist_type']
+    )
+    ensemble_online_contribution = Gauge(
+        'neural_hive_ensemble_online_contribution',
+        'Contribuição do modelo online',
+        ['specialist_type']
+    )
+    ensemble_fallback_total = Counter(
+        'neural_hive_ensemble_fallback_total',
+        'Total de fallbacks para batch model',
+        ['specialist_type', 'reason']
+    )
+    _ensemble_metrics_initialized = True
 
 
 class ModelEnsemble:
@@ -81,6 +98,9 @@ class ModelEnsemble:
             online_learner: Learner incremental (opcional)
             meta_model: Meta-modelo para stacking (opcional)
         """
+        # Inicializa métricas Prometheus (lazy)
+        _init_ensemble_prometheus_metrics()
+
         self.config = config
         self.specialist_type = specialist_type
         self.batch_model = batch_model

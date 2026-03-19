@@ -24,27 +24,43 @@ from .online_monitor import OnlinePerformanceMonitor
 
 logger = structlog.get_logger(__name__)
 
-# Métricas Prometheus
-deployment_cycles_total = Counter(
-    'neural_hive_deployment_cycles_total',
-    'Total de ciclos de deployment',
-    ['specialist_type', 'result']
-)
-deployment_duration = Histogram(
-    'neural_hive_deployment_duration_seconds',
-    'Duração de ciclos de deployment',
-    ['specialist_type', 'stage']
-)
-current_rollout_percentage = Gauge(
-    'neural_hive_current_rollout_percentage',
-    'Percentual atual de rollout',
-    ['specialist_type']
-)
-deployment_cooldown_active = Gauge(
-    'neural_hive_deployment_cooldown_active',
-    'Indicador de cooldown ativo (1=ativo)',
-    ['specialist_type']
-)
+# Métricas Prometheus - lazy initialization
+_deployment_metrics_initialized = False
+deployment_cycles_total = None
+deployment_duration = None
+current_rollout_percentage = None
+deployment_cooldown_active = None
+
+
+def _init_deployment_prometheus_metrics():
+    """Inicializa métricas Prometheus de forma lazy."""
+    global _deployment_metrics_initialized, deployment_cycles_total, deployment_duration
+    global current_rollout_percentage, deployment_cooldown_active
+
+    if _deployment_metrics_initialized:
+        return
+
+    deployment_cycles_total = Counter(
+        'neural_hive_deployment_cycles_total',
+        'Total de ciclos de deployment',
+        ['specialist_type', 'result']
+    )
+    deployment_duration = Histogram(
+        'neural_hive_deployment_duration_seconds',
+        'Duração de ciclos de deployment',
+        ['specialist_type', 'stage']
+    )
+    current_rollout_percentage = Gauge(
+        'neural_hive_current_rollout_percentage',
+        'Percentual atual de rollout',
+        ['specialist_type']
+    )
+    deployment_cooldown_active = Gauge(
+        'neural_hive_deployment_cooldown_active',
+        'Indicador de cooldown ativo (1=ativo)',
+        ['specialist_type']
+    )
+    _deployment_metrics_initialized = True
 
 
 class DeploymentError(Exception):
@@ -102,6 +118,9 @@ class OnlineDeploymentOrchestrator:
             feedback_collector: Coletor de feedback (opcional)
             feature_extractor: Função para extrair features de feedback
         """
+        # Inicializa métricas Prometheus (lazy)
+        _init_deployment_prometheus_metrics()
+
         self.config = config
         self.specialist_type = specialist_type
         self.batch_model = batch_model

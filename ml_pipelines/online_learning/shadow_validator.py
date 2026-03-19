@@ -22,32 +22,49 @@ from .incremental_learner import IncrementalLearner
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-# Métricas Prometheus
-shadow_validations_total = Counter(
-    'neural_hive_shadow_validations_total',
-    'Total de validações shadow',
-    ['specialist_type', 'result']
-)
-shadow_validation_duration = Histogram(
-    'neural_hive_shadow_validation_duration_seconds',
-    'Duração de validações shadow',
-    ['specialist_type']
-)
-shadow_accuracy_ratio = Gauge(
-    'neural_hive_shadow_accuracy_ratio',
-    'Razão de accuracy online/batch',
-    ['specialist_type']
-)
-shadow_latency_ratio = Gauge(
-    'neural_hive_shadow_latency_ratio',
-    'Razão de latência online/batch',
-    ['specialist_type']
-)
-shadow_kl_divergence = Gauge(
-    'neural_hive_shadow_kl_divergence',
-    'KL divergence entre distribuições',
-    ['specialist_type']
-)
+# Métricas Prometheus - lazy initialization
+_shadow_metrics_initialized = False
+shadow_validations_total = None
+shadow_validation_duration = None
+shadow_accuracy_ratio = None
+shadow_latency_ratio = None
+shadow_kl_divergence = None
+
+
+def _init_shadow_prometheus_metrics():
+    """Inicializa métricas Prometheus de forma lazy."""
+    global _shadow_metrics_initialized, shadow_validations_total, shadow_validation_duration
+    global shadow_accuracy_ratio, shadow_latency_ratio, shadow_kl_divergence
+
+    if _shadow_metrics_initialized:
+        return
+
+    shadow_validations_total = Counter(
+        'neural_hive_shadow_validations_total',
+        'Total de validações shadow',
+        ['specialist_type', 'result']
+    )
+    shadow_validation_duration = Histogram(
+        'neural_hive_shadow_validation_duration_seconds',
+        'Duração de validações shadow',
+        ['specialist_type']
+    )
+    shadow_accuracy_ratio = Gauge(
+        'neural_hive_shadow_accuracy_ratio',
+        'Razão de accuracy online/batch',
+        ['specialist_type']
+    )
+    shadow_latency_ratio = Gauge(
+        'neural_hive_shadow_latency_ratio',
+        'Razão de latência online/batch',
+        ['specialist_type']
+    )
+    shadow_kl_divergence = Gauge(
+        'neural_hive_shadow_kl_divergence',
+        'KL divergence entre distribuições',
+        ['specialist_type']
+    )
+    _shadow_metrics_initialized = True
 
 
 class ShadowValidationResult:
@@ -111,6 +128,9 @@ class ShadowValidator:
             batch_model: Modelo batch (baseline)
             online_learner: Learner incremental (challenger)
         """
+        # Inicializa métricas Prometheus (lazy)
+        _init_shadow_prometheus_metrics()
+
         self.config = config
         self.specialist_type = specialist_type
         self.batch_model = batch_model

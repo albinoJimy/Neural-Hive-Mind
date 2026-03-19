@@ -21,27 +21,43 @@ from .config import OnlineLearningConfig
 
 logger = structlog.get_logger(__name__)
 
-# Métricas Prometheus
-rollback_total = Counter(
-    'neural_hive_rollback_total',
-    'Total de rollbacks executados',
-    ['specialist_type', 'reason']
-)
-rollback_duration = Histogram(
-    'neural_hive_rollback_duration_seconds',
-    'Duração de rollbacks',
-    ['specialist_type']
-)
-model_versions_count = Gauge(
-    'neural_hive_model_versions_count',
-    'Número de versões de modelo armazenadas',
-    ['specialist_type']
-)
-degradation_detected_total = Counter(
-    'neural_hive_degradation_detected_total',
-    'Total de degradações detectadas',
-    ['specialist_type', 'metric']
-)
+# Métricas Prometheus - lazy initialization
+_rollback_metrics_initialized = False
+rollback_total = None
+rollback_duration = None
+model_versions_count = None
+degradation_detected_total = None
+
+
+def _init_rollback_prometheus_metrics():
+    """Inicializa métricas Prometheus de forma lazy."""
+    global _rollback_metrics_initialized, rollback_total, rollback_duration
+    global model_versions_count, degradation_detected_total
+
+    if _rollback_metrics_initialized:
+        return
+
+    rollback_total = Counter(
+        'neural_hive_rollback_total',
+        'Total de rollbacks executados',
+        ['specialist_type', 'reason']
+    )
+    rollback_duration = Histogram(
+        'neural_hive_rollback_duration_seconds',
+        'Duração de rollbacks',
+        ['specialist_type']
+    )
+    model_versions_count = Gauge(
+        'neural_hive_model_versions_count',
+        'Número de versões de modelo armazenadas',
+        ['specialist_type']
+    )
+    degradation_detected_total = Counter(
+        'neural_hive_degradation_detected_total',
+        'Total de degradações detectadas',
+        ['specialist_type', 'metric']
+    )
+    _rollback_metrics_initialized = True
 
 
 class RollbackError(Exception):
@@ -118,6 +134,9 @@ class RollbackManager:
             config: Configuração de online learning
             specialist_type: Tipo do especialista
         """
+        # Inicializa métricas Prometheus (lazy)
+        _init_rollback_prometheus_metrics()
+
         self.config = config
         self.specialist_type = specialist_type
 

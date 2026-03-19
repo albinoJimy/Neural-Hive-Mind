@@ -330,6 +330,7 @@ class OnlineLearningConfig(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
+        extra = "allow"  # Permitir campos extras para compatibilidade
 
 
 def load_config() -> OnlineLearningConfig:

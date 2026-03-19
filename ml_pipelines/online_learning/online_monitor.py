@@ -20,37 +20,55 @@ from .incremental_learner import IncrementalLearner
 
 logger = structlog.get_logger(__name__)
 
-# Métricas Prometheus
-online_convergence_stall = Gauge(
-    'neural_hive_online_convergence_stall',
-    'Indicador de convergence stall (1=stall detectado)',
-    ['specialist_type']
-)
-online_memory_usage_mb = Gauge(
-    'neural_hive_online_memory_usage_mb',
-    'Uso de memória do processo em MB',
-    ['specialist_type']
-)
-online_model_size_mb = Gauge(
-    'neural_hive_online_model_size_mb',
-    'Tamanho do modelo online em MB',
-    ['specialist_type']
-)
-online_prediction_variance = Gauge(
-    'neural_hive_online_prediction_variance',
-    'Variância de predições entre updates',
-    ['specialist_type']
-)
-online_update_frequency = Gauge(
-    'neural_hive_online_update_frequency_per_hour',
-    'Frequência de updates por hora',
-    ['specialist_type']
-)
-online_alert_triggered = Counter(
-    'neural_hive_online_alert_triggered_total',
-    'Total de alertas disparados',
-    ['specialist_type', 'alert_type']
-)
+# Métricas Prometheus - lazy initialization
+_monitor_metrics_initialized = False
+online_convergence_stall = None
+online_memory_usage_mb = None
+online_model_size_mb = None
+online_prediction_variance = None
+online_update_frequency = None
+online_alert_triggered = None
+
+
+def _init_monitor_prometheus_metrics():
+    """Inicializa métricas Prometheus de forma lazy."""
+    global _monitor_metrics_initialized, online_convergence_stall, online_memory_usage_mb
+    global online_model_size_mb, online_prediction_variance, online_update_frequency, online_alert_triggered
+
+    if _monitor_metrics_initialized:
+        return
+
+    online_convergence_stall = Gauge(
+        'neural_hive_online_convergence_stall',
+        'Indicador de convergence stall (1=stall detectado)',
+        ['specialist_type']
+    )
+    online_memory_usage_mb = Gauge(
+        'neural_hive_online_memory_usage_mb',
+        'Uso de memória do processo em MB',
+        ['specialist_type']
+    )
+    online_model_size_mb = Gauge(
+        'neural_hive_online_model_size_mb',
+        'Tamanho do modelo online em MB',
+        ['specialist_type']
+    )
+    online_prediction_variance = Gauge(
+        'neural_hive_online_prediction_variance',
+        'Variância de predições entre updates',
+        ['specialist_type']
+    )
+    online_update_frequency = Gauge(
+        'neural_hive_online_update_frequency_per_hour',
+        'Frequência de updates por hora',
+        ['specialist_type']
+    )
+    online_alert_triggered = Counter(
+        'neural_hive_online_alert_triggered_total',
+        'Total de alertas disparados',
+        ['specialist_type', 'alert_type']
+    )
+    _monitor_metrics_initialized = True
 
 
 class Alert:
@@ -125,6 +143,9 @@ class OnlinePerformanceMonitor:
             specialist_type: Tipo do especialista
             learner: IncrementalLearner a monitorar (opcional)
         """
+        # Inicializa métricas Prometheus (lazy)
+        _init_monitor_prometheus_metrics()
+
         self.config = config
         self.specialist_type = specialist_type
         self.learner = learner

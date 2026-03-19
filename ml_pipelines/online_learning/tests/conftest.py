@@ -3,8 +3,22 @@
 import pytest
 import numpy as np
 from unittest.mock import Mock, MagicMock
+import sys
+import prometheus_client
 
 from ml_pipelines.online_learning.config import OnlineLearningConfig
+
+
+@pytest.fixture(autouse=True)
+def reset_prometheus_registry():
+    """Limpa o CollectorRegistry antes de cada teste."""
+    # Criar um novo registry para testes
+    from prometheus_client import CollectorRegistry
+    old_registry = prometheus_client.REGISTRY
+    prometheus_client.REGISTRY = CollectorRegistry()
+    yield
+    # Restaurar o registry original
+    prometheus_client.REGISTRY = old_registry
 
 
 @pytest.fixture(scope="session")
