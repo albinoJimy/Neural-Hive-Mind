@@ -1,7 +1,7 @@
 # Feature Map — Neural-Hive-Mind
 
 **Projecto:** Neural-Hive-Mind
-**Última Actualização:** 2026-03-18
+**Última Actualização:** 2026-03-19
 **Completude Global:** ~90%
 
 ---
@@ -194,7 +194,10 @@
 
 ### Críticos (Must)
 1. **Memory Layer** — Persistência de memória de longo prazo (75%)
-2. **ML Online Learning** — Retreinamento contínuo de modelos (40%)
+2. **ML Online Learning** — Retreinamento contínuo de modelos (50%)
+   - IncrementalLearner ✅ (16/16 testes)
+   - ModelEnsemble ✅ (16/16 testes)
+   - ShadowValidator, RollbackManager, Monitor ⏳ (requer MongoDB mock)
 
 ### Importantes (Should)
 1. **MCP Servers** — Integração completa com MCP (60%)
@@ -206,6 +209,8 @@
 3. **Online learning** contínuo
 
 ### Concluídos Recentemente
+- ✅ **Online Learning Core** (2026-03-19) - IncrementalLearner + ModelEnsemble, 32/32 testes
+- ✅ **Memory Layer API Tests Fix** (2026-03-19) - Sync E2E, 62/62 testes passando
 - ✅ **Scout Agents Expansion** (2026-03-19) - Multi-lingua AST (Java, C#, Go, C/C++, Rust), 20 padrões, Signals, Coordination, 412 testes
 - ✅ **GAPS-07 Optimizer Agents** (2026-03-18) - Multi-database analyzers, 56 testes, Helm chart
 - ✅ **GAPS-06 MCP Servers Integration** (2026-03-18) - HTTP servers, 16 testes, K8s deploy
@@ -218,9 +223,10 @@
 
 ## Próximos Épicos Sugeridos
 
-1. **ML: Online Learning** — Retreinamento contínuo dos modelos de aprovação (40%)
-2. **Memory Layer API** — Completar endpoints de persistência de memória (75%)
-3. **MCP Servers Full Integration** — Integração completa com MCP (60%)
+1. **ML: Online Learning** — Retreinamento contínuo dos modelos de aprovação (50%)
+2. **Scout Agents: TS/JS + YAML/JSON** — Completar parsers para TypeScript/JavaScript e YAML/JSON (85%)
+3. **Memory Layer API** — Completar endpoints de persistência de memória (75%)
+4. **MCP Servers Full Integration** — Integração completa com MCP (60%)
 
 ---
 
