@@ -91,6 +91,10 @@ class MockMongoClient:
 _pymongo_patch = patch('pymongo.MongoClient', MockMongoClient)
 _pymongo_patch.start()
 
+# Patch também no módulo online_monitor
+_monitor_patch = patch('ml_pipelines.online_learning.online_monitor.MongoClient', MockMongoClient)
+_monitor_patch.start()
+
 # Agora é seguro importar
 from ml_pipelines.online_learning.online_monitor import (
     OnlinePerformanceMonitor,
