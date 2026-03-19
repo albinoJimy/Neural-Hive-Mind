@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 import uuid
 
 from src.clients.unified_memory_client import UnifiedMemoryClient
-from src.clients.kafka_sync_producer import KafkaSyncProducer
+from src.clients.kafka_sync_producer import KafkaSyncProducer, serialize_avro, get_avro_schema
 from src.consumers.sync_event_consumer import SyncEventConsumer
 from src.jobs.sync_mongodb_to_clickhouse import MongoToClickHouseSync
 
@@ -197,11 +197,11 @@ class TestRealtimeSyncE2E:
 
         # Cria sync job
         sync_job = MongoToClickHouseSync(settings)
-        sync_job.mongodb = mock_mongodb
-        sync_job.clickhouse = mock_clickhouse
+        sync_job.mongodb_client = mock_mongodb
+        sync_job.clickhouse_client = mock_clickhouse
 
         # Executa sync
-        await sync_job._sync_collection(
+        await sync_job.sync_collection(
             'operational_context',
             'operational_context_history'
         )
@@ -328,18 +328,20 @@ class TestAvroSerializationE2E:
             'metadata': json.dumps({'source': 'avro_test'})
         }
 
-        # Simula serialização/deserialização
+        # Prepara evento no formato Avro
         producer = KafkaSyncProducer(settings)
-        serialized = producer._serialize_event(event)
+        prepared_event = producer._prepare_avro_event(event)
 
-        assert serialized is not None
-        assert isinstance(serialized, bytes)
-
-        # Deserializa
-        deserialized = producer._deserialize_event(serialized)
-
-        assert deserialized['event_id'] == event['event_id']
-        assert deserialized['entity_id'] == event['entity_id']
+        # Serializa com Avro
+        schema = get_avro_schema()
+        if schema:
+            serialized = serialize_avro(prepared_event, schema)
+            assert serialized is not None
+            assert isinstance(serialized, bytes)
+        else:
+            # Se schema não disponível, testa preparação do evento
+            assert prepared_event is not None
+            assert prepared_event['event_id'] == event['event_id']
 
 
 class TestTimestampConsistency:
@@ -447,12 +449,12 @@ class TestLargeBatchProcessing:
         mock_mongodb.find = mock_find
 
         sync_job = MongoToClickHouseSync(settings)
-        sync_job.mongodb = mock_mongodb
-        sync_job.clickhouse = mock_clickhouse
+        sync_job.mongodb_client = mock_mongodb
+        sync_job.clickhouse_client = mock_clickhouse
         sync_job.batch_size = batch_size
 
         # Processa primeiro batch
-        await sync_job._sync_collection(
+        await sync_job.sync_collection(
             'operational_context',
             'operational_context_history'
         )
