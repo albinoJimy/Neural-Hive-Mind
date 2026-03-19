@@ -29,7 +29,7 @@
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
 │  Analyst           ████████████████████████████████████████ 100%       │
-│  Scout             ███████████████████████░░░░░░░░░░░░░  50%        │
+│  Scout             ████████████████████████████████████████████ 100%       │
 │  Guard             ██████████████████████████████████░░░  85%        │
 │  Optimizer         ████████████████████████████████████████ 100%       │
 │  Self-Healing      ██████████████████████████░░░░░░░░░░  55%        │
@@ -206,6 +206,7 @@
 3. **Online learning** contínuo
 
 ### Concluídos Recentemente
+- ✅ **Scout Agents Expansion** (2026-03-19) - Multi-lingua AST (Java, C#, Go, C/C++, Rust), 20 padrões, Signals, Coordination, 412 testes
 - ✅ **GAPS-07 Optimizer Agents** (2026-03-18) - Multi-database analyzers, 56 testes, Helm chart
 - ✅ **GAPS-06 MCP Servers Integration** (2026-03-18) - HTTP servers, 16 testes, K8s deploy
 - ✅ **GAPS-05 Scout Agents** (2026-03-18) - 117 testes, exploração e descoberta autónoma
