@@ -178,6 +178,16 @@ class IncrementalLearner:
             model_version=self._model_version
         )
 
+    @property
+    def updates_count(self) -> int:
+        """Número total de updates realizados."""
+        return self._update_count
+
+    @property
+    def scaler(self):
+        """Scaler para normalização de features."""
+        return self._scaler
+
     def _initialize_model(self):
         """Inicializa modelo incremental baseado na configuração."""
         algorithm = self.config.incremental_algorithm
@@ -321,11 +331,12 @@ class IncrementalLearner:
             # Normalizar features
             X_scaled = self._scaler.transform(X)
 
-            # Executar partial_fit
+            # Executar partial_fit - usa classes do parâmetro se fornecidas
+            fit_classes = classes if classes is not None else self.classes
             self._model.partial_fit(
                 X_scaled,
                 y,
-                classes=self.classes,
+                classes=fit_classes,
                 sample_weight=sample_weight
             )
 
@@ -369,11 +380,14 @@ class IncrementalLearner:
             ).set(self._update_count)
 
             result = {
+                'success': True,
                 'update_count': self._update_count,
                 'samples_in_batch': len(y),
+                'samples_processed': len(y),  # Alias para compatibilidade
                 'total_samples_seen': self._total_samples_seen,
                 'loss_before': loss_before,
                 'loss_after': loss_after,
+                'loss': loss_after,  # Alias para compatibilidade
                 'loss_reduction': loss_reduction,
                 'gradient_norm': gradient_norm,
                 'duration_ms': duration_ms,
@@ -488,8 +502,12 @@ class IncrementalLearner:
         return {
             'is_converging': loss_trend < 0,
             'loss_trend': float(loss_trend),
+            'convergence_rate': float(loss_trend),  # Alias para compatibilidade
             'average_loss_reduction': float(avg_reduction),
             'current_loss': float(recent_losses[-1]),
+            'average_loss': float(recent_losses[-1]),  # Alias para compatibilidade
+            'loss_history': list(recent_losses),  # Histórico completo
+            'updates_count': self._update_count,  # Quantidade de updates
             'updates_since_improvement': updates_since_improvement,
             'gradient_norm': self._gradient_norm_history[-1] if self._gradient_norm_history else float('inf')
         }
@@ -514,6 +532,13 @@ class IncrementalLearner:
             timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
             path = os.path.join(
                 self.config.checkpoint_storage_path,
+                f"{self.specialist_type}_{self._model_version}_{timestamp}.pkl"
+            )
+        elif os.path.isdir(path):
+            # Se path é um diretório, criar nome de arquivo
+            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            path = os.path.join(
+                path,
                 f"{self.specialist_type}_{self._model_version}_{timestamp}.pkl"
             )
 
