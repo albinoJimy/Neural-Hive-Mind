@@ -39,6 +39,7 @@ def specialist_config():
     return SpecialistConfig(
         specialist_type="test",
         service_name="test-specialist",
+        environment="test",  # Ambiente de teste
         mlflow_tracking_uri="http://localhost:5000",
         mlflow_experiment_name="test",
         mlflow_model_name="test-model",
@@ -49,6 +50,8 @@ def specialist_config():
         batch_max_concurrency=5,
         opinion_cache_enabled=False,  # Desabilitar cache para testes
         enable_drift_monitoring=False,
+        enable_ledger=False,  # Desabilitar ledger para testes
+        jwt_secret_key="test-secret-key-with-at-least-32-chars",  # Para validação JWT
     )
 
 

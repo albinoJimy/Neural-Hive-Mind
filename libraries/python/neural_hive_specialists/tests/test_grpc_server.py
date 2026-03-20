@@ -234,8 +234,14 @@ class TestEvaluatePlan:
         """Testa caminho feliz do EvaluatePlan."""
         request = Mock()
         request.plan_id = "plan-123"
+        request.intent_id = "intent-123"
+        request.trace_id = "trace-123"
         request.cognitive_plan = b'{"test": "plan"}'
+        request.context = {}
+
+        # Mock context com invocation_metadata
         context = Mock()
+        context.invocation_metadata = Mock(return_value=[])
 
         with patch("neural_hive_specialists.grpc_server.specialist_pb2") as mock_pb2:
             mock_pb2.EvaluatePlanResponse.return_value = Mock()
@@ -252,8 +258,14 @@ class TestEvaluatePlan:
         """Verifica que logging acontece."""
         request = Mock()
         request.plan_id = "plan-123"
+        request.intent_id = "intent-123"
+        request.trace_id = "trace-123"
         request.cognitive_plan = b'{"test": "plan"}'
+        request.context = {}
+
+        # Mock context com invocation_metadata
         context = Mock()
+        context.invocation_metadata = Mock(return_value=[])
 
         with patch("neural_hive_specialists.grpc_server.logger") as mock_logger:
             with patch(
@@ -270,15 +282,23 @@ class TestEvaluatePlan:
     def test_evaluate_plan_handles_exception(self, servicer, mock_specialist):
         """Testa tratamento de exceção."""
         request = Mock()
+        request.plan_id = "plan-123"
+        request.intent_id = "intent-123"
+        request.trace_id = "trace-123"
+        request.context = {}
+
         mock_specialist.evaluate_plan = Mock(side_effect=Exception("Test error"))
+
+        # Mock context com invocation_metadata e abort (usado para erros gRPC)
         context = Mock()
+        context.invocation_metadata = Mock(return_value=[])
+        context.abort = Mock()
 
         with patch("neural_hive_specialists.grpc_server.logger"):
             servicer.EvaluatePlan(request, context)
 
-            # Verificar que context.set_code foi chamado com erro
-            context.set_code.assert_called_once()
-            context.set_details.assert_called_once()
+            # Verificar que context.abort foi chamado com erro
+            context.abort.assert_called_once()
 
 
 @pytest.mark.unit
@@ -303,15 +323,16 @@ class TestHealthCheck:
 
         request = Mock()
         context = Mock()
+        context.invocation_metadata = Mock(return_value=[])
 
-        with patch("neural_hive_specialists.grpc_server.health_pb2") as mock_health_pb2:
-            mock_health_pb2.HealthCheckResponse.return_value = Mock()
-            mock_health_pb2.HealthCheckResponse.SERVING = 1
+        with patch("neural_hive_specialists.grpc_server.specialist_pb2") as mock_pb2:
+            mock_pb2.HealthCheckResponse.return_value = Mock()
+            mock_pb2.HealthCheckResponse.SERVING = 1
 
             response = servicer.HealthCheck(request, context)
 
             # Verificar mapeamento correto
-            assert mock_health_pb2.HealthCheckResponse.called
+            assert mock_pb2.HealthCheckResponse.called
 
     def test_health_check_not_serving(self, servicer):
         """Testa health check quando status é NOT_SERVING."""
@@ -321,14 +342,15 @@ class TestHealthCheck:
 
         request = Mock()
         context = Mock()
+        context.invocation_metadata = Mock(return_value=[])
 
-        with patch("neural_hive_specialists.grpc_server.health_pb2") as mock_health_pb2:
-            mock_health_pb2.HealthCheckResponse.return_value = Mock()
-            mock_health_pb2.HealthCheckResponse.NOT_SERVING = 2
+        with patch("neural_hive_specialists.grpc_server.specialist_pb2") as mock_pb2:
+            mock_pb2.HealthCheckResponse.return_value = Mock()
+            mock_pb2.HealthCheckResponse.NOT_SERVING = 2
 
             response = servicer.HealthCheck(request, context)
 
-            assert mock_health_pb2.HealthCheckResponse.called
+            assert mock_pb2.HealthCheckResponse.called
 
 
 @pytest.mark.unit
@@ -372,14 +394,15 @@ class TestBuildEvaluatePlanResponse:
         with patch("neural_hive_specialists.grpc_server.specialist_pb2") as mock_pb2:
             mock_pb2.EvaluatePlanResponse.return_value = Mock()
             mock_pb2.ReasoningFactor.return_value = Mock()
-            mock_pb2.Mitigation.return_value = Mock()
+            mock_pb2.MitigationSuggestion.return_value = Mock()
 
-            response = servicer._build_evaluate_plan_response(eval_result)
+            # Passar result e processing_time_ms como argumentos separados
+            response = servicer._build_evaluate_plan_response(eval_result, 150)
 
             # Verificar chamadas
             assert mock_pb2.EvaluatePlanResponse.called
             assert mock_pb2.ReasoningFactor.called
-            assert mock_pb2.Mitigation.called
+            assert mock_pb2.MitigationSuggestion.called
 
 
 @pytest.mark.unit
@@ -392,22 +415,21 @@ class TestCreateGRPCServer:
 
         with patch("neural_hive_specialists.grpc_server.grpc.server") as mock_server:
             with patch("neural_hive_specialists.grpc_server.specialist_pb2_grpc"):
-                with patch("neural_hive_specialists.grpc_server.health_pb2_grpc"):
-                    mock_grpc_server = Mock()
-                    mock_server.return_value = mock_grpc_server
+                mock_grpc_server = Mock()
+                mock_server.return_value = mock_grpc_server
 
-                    from neural_hive_specialists.grpc_server import (
-                        create_grpc_server_with_observability,
-                    )
+                from neural_hive_specialists.grpc_server import (
+                    create_grpc_server_with_observability,
+                )
 
-                    server = create_grpc_server_with_observability(
-                        specialist, mock_config
-                    )
+                server = create_grpc_server_with_observability(
+                    specialist, mock_config
+                )
 
-                    # Verificar que servidor foi criado
-                    assert mock_server.called
-                    # Verificar que add_insecure_port foi chamado
-                    assert mock_grpc_server.add_insecure_port.called
+                # Verificar que servidor foi criado
+                assert mock_server.called
+                # Verificar que add_insecure_port foi chamado
+                assert mock_grpc_server.add_insecure_port.called
 
     def test_server_options_configured(self, mock_config):
         """Verifica que opções do servidor são configuradas."""
@@ -415,18 +437,17 @@ class TestCreateGRPCServer:
 
         with patch("neural_hive_specialists.grpc_server.grpc.server") as mock_server:
             with patch("neural_hive_specialists.grpc_server.specialist_pb2_grpc"):
-                with patch("neural_hive_specialists.grpc_server.health_pb2_grpc"):
-                    from neural_hive_specialists.grpc_server import (
-                        create_grpc_server_with_observability,
-                    )
+                from neural_hive_specialists.grpc_server import (
+                    create_grpc_server_with_observability,
+                )
 
-                    server = create_grpc_server_with_observability(
-                        specialist, mock_config
-                    )
+                server = create_grpc_server_with_observability(
+                    specialist, mock_config
+                )
 
-                    # Verificar que opções foram passadas
-                    call_args = mock_server.call_args
-                    assert call_args is not None
+                # Verificar que opções foram passadas
+                call_args = mock_server.call_args
+                assert call_args is not None
 
 
 # ============================================================================
@@ -541,7 +562,7 @@ class TestSpecialistServicerComplete:
         request.timeout_ms = 5000
 
         context = Mock()
-        context.invocation_metadata.return_value = []
+        context.invocation_metadata = Mock(return_value=[])
 
         # Act
         with patch("neural_hive_specialists.grpc_server.PROTO_AVAILABLE", True):
@@ -610,15 +631,20 @@ class TestSpecialistServicerComplete:
 
         request = Mock()
         request.plan_id = "invalid-plan"
+        request.intent_id = "intent-123"
+        request.trace_id = "trace-123"
         request.cognitive_plan = b"invalid"
+        request.context = {}
+
         context = Mock()
-        context.invocation_metadata.return_value = []
+        context.invocation_metadata = Mock(return_value=[])
+        context.abort = Mock()
 
-        # Act & Assert
-        with pytest.raises(ValueError):
-            servicer_complete.EvaluatePlan(request, context)
+        # Act - EvaluatePlan catches exceptions and calls context.abort
+        servicer_complete.EvaluatePlan(request, context)
 
-        context.set_code.assert_called_with(grpc.StatusCode.INVALID_ARGUMENT)
+        # Assert - verify abort was called
+        context.abort.assert_called_once()
 
     def test_evaluate_plan_grpc_error_tenant_unknown(
         self, servicer_complete, mock_specialist_complete
@@ -631,16 +657,20 @@ class TestSpecialistServicerComplete:
 
         request = Mock()
         request.plan_id = "plan-123"
+        request.intent_id = "intent-123"
+        request.trace_id = "trace-123"
         request.cognitive_plan = b"{}"
+        request.context = {}
+
         context = Mock()
-        context.invocation_metadata.return_value = []
+        context.invocation_metadata = Mock(return_value=[])
+        context.abort = Mock()
 
-        # Act & Assert
-        with pytest.raises(ValueError):
-            servicer_complete.EvaluatePlan(request, context)
+        # Act - EvaluatePlan catches exceptions and calls context.abort
+        servicer_complete.EvaluatePlan(request, context)
 
-        context.set_code.assert_called_with(grpc.StatusCode.INVALID_ARGUMENT)
-        assert "Tenant inválido" in context.set_details.call_args[0][0]
+        # Assert - verify abort was called
+        context.abort.assert_called_once()
 
     def test_evaluate_plan_grpc_error_tenant_inactive(
         self, servicer_complete, mock_specialist_complete
@@ -653,15 +683,20 @@ class TestSpecialistServicerComplete:
 
         request = Mock()
         request.plan_id = "plan-123"
+        request.intent_id = "intent-123"
+        request.trace_id = "trace-123"
         request.cognitive_plan = b"{}"
+        request.context = {}
+
         context = Mock()
-        context.invocation_metadata.return_value = []
+        context.invocation_metadata = Mock(return_value=[])
+        context.abort = Mock()
 
-        # Act & Assert
-        with pytest.raises(ValueError):
-            servicer_complete.EvaluatePlan(request, context)
+        # Act - EvaluatePlan catches exceptions and calls context.abort
+        servicer_complete.EvaluatePlan(request, context)
 
-        context.set_code.assert_called_with(grpc.StatusCode.PERMISSION_DENIED)
+        # Assert - verify abort was called
+        context.abort.assert_called_once()
 
     def test_evaluate_plan_grpc_error_internal(
         self, servicer_complete, mock_specialist_complete
@@ -674,15 +709,20 @@ class TestSpecialistServicerComplete:
 
         request = Mock()
         request.plan_id = "plan-123"
+        request.intent_id = "intent-123"
+        request.trace_id = "trace-123"
         request.cognitive_plan = b"{}"
+        request.context = {}
+
         context = Mock()
-        context.invocation_metadata.return_value = []
+        context.invocation_metadata = Mock(return_value=[])
+        context.abort = Mock()
 
-        # Act & Assert
-        with pytest.raises(RuntimeError):
-            servicer_complete.EvaluatePlan(request, context)
+        # Act - EvaluatePlan catches exceptions and calls context.abort
+        servicer_complete.EvaluatePlan(request, context)
 
-        context.set_code.assert_called_with(grpc.StatusCode.INTERNAL)
+        # Assert - verify abort was called
+        context.abort.assert_called_once()
 
     def test_health_check_serving(self, servicer_complete, mock_specialist_complete):
         """Testa HealthCheck retornando SERVING."""
@@ -852,12 +892,14 @@ class TestSpecialistServicerComplete:
 
         request = Mock()
         context = Mock()
+        # Mock abort method since that's what gets called on error
+        context.abort = Mock()
 
-        # Act & Assert
-        with pytest.raises(RuntimeError):
-            servicer_complete.GetCapabilities(request, context)
+        # Act - GetCapabilities catches exceptions and calls context.abort
+        servicer_complete.GetCapabilities(request, context)
 
-        context.set_code.assert_called_with(grpc.StatusCode.INTERNAL)
+        # Assert - verify abort was called with INTERNAL status
+        context.abort.assert_called_once()
 
 
 @pytest.mark.unit

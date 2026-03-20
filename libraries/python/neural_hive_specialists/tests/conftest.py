@@ -3,9 +3,84 @@ Fixtures compartilhadas para todos os testes da biblioteca neural_hive_specialis
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock, MagicMock, patch
 from typing import Dict, Any
 import uuid
+import sys
+
+# ============================================================================
+# Mock MongoDB ANTES de qualquer importação
+# ============================================================================
+
+class MockMongoCollection:
+    """Mock de coleção MongoDB."""
+    def __init__(self):
+        self.data = {}
+
+    def find(self, *args, **kwargs):
+        return []
+
+    def find_one(self, *args, **kwargs):
+        return None
+
+    def insert_one(self, *args, **kwargs):
+        return Mock(inserted_id='test_id')
+
+    def update_one(self, *args, **kwargs):
+        return Mock(modified_count=1)
+
+    def delete_one(self, *args, **kwargs):
+        return Mock(deleted_count=1)
+
+    def create_index(self, *args, **kwargs):
+        return Mock()
+
+    def create_indexes(self, *args, **kwargs):
+        pass
+
+    def aggregate(self, *args, **kwargs):
+        return []
+
+    def count_documents(self, *args, **kwargs):
+        return 0
+
+    def __getitem__(self, name):
+        return self
+
+class MockMongoDatabase:
+    """Mock de database MongoDB."""
+    def __init__(self):
+        self._collections = {}
+
+    def __getitem__(self, name):
+        if name not in self._collections:
+            self._collections[name] = MockMongoCollection()
+        return self._collections[name]
+
+class MockMongoClient:
+    """Mock de cliente MongoDB."""
+    def __init__(self, *args, **kwargs):
+        self._db = MockMongoDatabase()
+
+    def __getitem__(self, name):
+        return self._db
+
+    def __getattr__(self, name):
+        return self._db
+
+    def close(self):
+        pass
+
+# Patch MongoClient antes de imports
+_mongo_patch = patch('pymongo.MongoClient', return_value=MockMongoClient())
+_motor_patch = patch('motor.motor_asyncio.AsyncIOMotorClient', return_value=MockMongoClient())
+_mongo_patch.start()
+_motor_patch.start()
+
+# Desabilitar ledger na config de teste
+import os
+os.environ['ENABLE_LEDGER'] = 'false'
+os.environ['LEDGER_REQUIRED'] = 'false'
 
 from neural_hive_specialists.config import SpecialistConfig
 from neural_hive_specialists.schemas import CognitivePlanSchema, TaskSchema
@@ -51,6 +126,10 @@ def mock_config():
         enable_digital_signature=False,
         enable_schema_validation=False,
         ledger_schema_version="2.0.0",
+        # Desabilitar componentes externos para testes
+        enable_ledger=False,
+        ledger_required=False,
+        enable_query_api=False,
     )
 
 
@@ -372,29 +451,15 @@ def grpc_stub(grpc_channel):
 @pytest.fixture(scope="session")
 def mongodb_container():
     """Container MongoDB com escopo de sessão."""
-    pytest.importorskip("testcontainers")
-    from testcontainers.mongodb import MongoDbContainer
-
-    container = MongoDbContainer("mongo:7.0")
-    container.start()
-
-    yield container
-
-    container.stop()
+    # SKIP: Não usar Docker - usar cluster do projeto
+    pytest.skip("testcontainers não utilizado - usar cluster do projeto")
 
 
 @pytest.fixture(scope="session")
 def redis_container():
     """Container Redis com escopo de sessão."""
-    pytest.importorskip("testcontainers")
-    from testcontainers.redis import RedisContainer
-
-    container = RedisContainer("redis:7-alpine")
-    container.start()
-
-    yield container
-
-    container.stop()
+    # SKIP: Não usar Docker - usar cluster do projeto
+    pytest.skip("testcontainers não utilizado - usar cluster do projeto")
 
 
 @pytest.fixture
@@ -419,8 +484,26 @@ def redis_uri(redis_container):
 @pytest.fixture(autouse=True)
 def cleanup_metrics():
     """Limpa registros Prometheus entre testes."""
+    from prometheus_client import REGISTRY
+
+    # Limpar TODAS as métricas do registry antes do teste
+    # para evitar duplicação entre testes que criam especialistas
+    collectors_to_remove = list(REGISTRY._collector_to_names.keys())
+    for collector in collectors_to_remove:
+        try:
+            REGISTRY.unregister(collector)
+        except Exception:
+            pass
+
     yield
-    # Limpeza será implementada se necessário
+
+    # Limpar TODAS as métricas após o teste também
+    collectors_to_remove = list(REGISTRY._collector_to_names.keys())
+    for collector in collectors_to_remove:
+        try:
+            REGISTRY.unregister(collector)
+        except Exception:
+            pass
 
 
 @pytest.fixture(autouse=True)

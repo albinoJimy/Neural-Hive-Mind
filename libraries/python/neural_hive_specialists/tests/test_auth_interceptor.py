@@ -17,8 +17,9 @@ from neural_hive_specialists.metrics import SpecialistMetrics
 def config():
     """Fixture de configuração para testes."""
     return SpecialistConfig(
-        specialist_type="test-specialist",
+        specialist_type="test_specialist",  # Underscores para Prometheus metric names
         service_name="test-service",
+        environment="test",  # Ambiente de teste
         mlflow_tracking_uri="http://mlflow:5000",
         mlflow_experiment_name="test",
         mlflow_model_name="test-model",
@@ -36,6 +37,7 @@ def config():
             "/grpc.health.v1.Health/Check",
             "/grpc.health.v1.Health/Watch",
         ],
+        enable_ledger=False,  # Desabilitar ledger para testes
     )
 
 
@@ -54,7 +56,7 @@ def metrics(config):
         except Exception:
             pass
 
-    return SpecialistMetrics(config, "test-specialist")
+    return SpecialistMetrics(config, "test_specialist")
 
 
 @pytest.fixture

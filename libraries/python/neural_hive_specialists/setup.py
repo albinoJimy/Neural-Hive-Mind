@@ -52,5 +52,5 @@ setup(
             "grpcio-testing>=1.60.0",
         ],
     },
-    python_requires=">=3.11",
+    python_requires=">=3.10",
 )

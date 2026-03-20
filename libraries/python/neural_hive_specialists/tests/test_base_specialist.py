@@ -9,6 +9,13 @@ import json
 from unittest.mock import Mock, MagicMock, patch
 from pydantic import ValidationError
 
+# Patch components que tentam conectar a serviços externos
+# Isso deve ser feito ANTES de importar BaseSpecialist
+patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None).start()
+patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None).start()
+patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None).start()
+patch("neural_hive_specialists.feature_extraction.embeddings_generator.EmbeddingsGenerator", return_value=None).start()
+
 from neural_hive_specialists.base_specialist import BaseSpecialist
 from neural_hive_specialists.schemas import (
     PlanValidationError,
@@ -22,7 +29,7 @@ from neural_hive_specialists.schemas import (
 # ============================================================================
 
 
-class TestSpecialist(BaseSpecialist):
+class HelperTestSpecialist(BaseSpecialist):
     """Implementação concreta de BaseSpecialist para testes."""
 
     def _get_specialist_type(self) -> str:
@@ -70,8 +77,11 @@ class TestBaseSpecialistInitialization:
         mocker.patch("neural_hive_specialists.base_specialist.LedgerClient")
         mocker.patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator")
         mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
+        mocker.patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None)
+        mocker.patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None)
+        mocker.patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None)
 
-        specialist = TestSpecialist(mock_config)
+        specialist = HelperTestSpecialist(mock_config)
 
         assert specialist.specialist_type == "test"
         assert specialist.version == mock_config.specialist_version
@@ -87,7 +97,7 @@ class TestBaseSpecialistInitialization:
         mocker.patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator")
         mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
 
-        specialist = TestSpecialist(mock_config)
+        specialist = HelperTestSpecialist(mock_config)
 
         assert specialist.mlflow_client is None
 
@@ -99,9 +109,9 @@ class TestBaseSpecialistInitialization:
         mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
 
         with patch.object(
-            TestSpecialist, "_load_model", return_value=Mock()
+            HelperTestSpecialist, "_load_model", return_value=Mock()
         ) as mock_load:
-            specialist = TestSpecialist(mock_config)
+            specialist = HelperTestSpecialist(mock_config)
             mock_load.assert_called_once()
 
 
@@ -120,7 +130,10 @@ class TestDeserializePlan:
         mocker.patch("neural_hive_specialists.base_specialist.LedgerClient")
         mocker.patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator")
         mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
-        return TestSpecialist(mock_config)
+        mocker.patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None)
+        mocker.patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None)
+        mocker.patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None)
+        return HelperTestSpecialist(mock_config)
 
     def test_deserialize_valid_plan(self, specialist, sample_cognitive_plan):
         """Deserializa plano válido com sucesso."""
@@ -397,7 +410,10 @@ class TestValidateEvaluationResult:
         mocker.patch("neural_hive_specialists.base_specialist.LedgerClient")
         mocker.patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator")
         mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
-        return TestSpecialist(mock_config)
+        mocker.patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None)
+        mocker.patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None)
+        mocker.patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None)
+        return HelperTestSpecialist(mock_config)
 
     def test_validate_valid_result(self, specialist, sample_evaluation_result):
         """Valida resultado correto."""
@@ -530,7 +546,10 @@ class TestGetCapabilities:
         mocker.patch("neural_hive_specialists.base_specialist.LedgerClient")
         mocker.patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator")
         mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
-        return TestSpecialist(mock_config)
+        mocker.patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None)
+        mocker.patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None)
+        mocker.patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None)
+        return HelperTestSpecialist(mock_config)
 
     def test_get_capabilities_returns_metadata(self, specialist):
         """Retorna metadados completos."""

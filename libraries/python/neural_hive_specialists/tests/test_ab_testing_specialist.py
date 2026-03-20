@@ -12,19 +12,46 @@ from neural_hive_specialists.ab_testing_specialist import ABTestingSpecialist
 from neural_hive_specialists.config import SpecialistConfig
 
 
+# Classe concreta para testes (implementa métodos abstratos)
+class ConcreteABTestingSpecialist(ABTestingSpecialist):
+    """Implementação concreta de ABTestingSpecialist para testes."""
+
+    def _get_specialist_type(self) -> str:
+        return "technical"
+
+    def _evaluate_plan_internal(self, cognitive_plan, context):
+        return {
+            "recommendation": "approve",
+            "confidence_score": 0.8,
+            "risk_score": 0.2,
+            "reasoning_summary": "AB test",
+            "reasoning_factors": [],
+            "suggested_mitigations": [],
+        }
+
+
 @pytest.fixture
 def ab_test_config():
     """Configuração para A/B testing specialist."""
     return SpecialistConfig(
         specialist_type="technical",
+        specialist_version="1.0.0",
         service_name="test-ab-specialist",
+        environment="test",
         mlflow_tracking_uri="http://localhost:5000",
         mlflow_experiment_name="test-ab",
         mlflow_model_name="technical-model",
+        mlflow_model_stage="Production",
         mongodb_uri="mongodb://localhost:27017",
+        mongodb_database="test_db",
+        mongodb_opinions_collection="test_opinions",
         redis_cluster_nodes="localhost:6379",
         neo4j_uri="bolt://localhost:7687",
         neo4j_password="test",
+        grpc_port=50051,
+        http_port=8000,
+        supported_domains=["test"],
+        supported_plan_versions=["1.0.0"],
         enable_ab_testing=True,
         ab_test_model_a_name="model-baseline",
         ab_test_model_a_stage="Production",
@@ -33,6 +60,13 @@ def ab_test_config():
         ab_test_traffic_split=0.5,
         ab_test_hash_seed="test-seed-123",
         ab_test_minimum_sample_size=30,
+        enable_ledger=False,
+        enable_query_api=False,
+        enable_digital_signature=False,
+        enable_schema_validation=False,
+        enable_jwt_auth=False,
+        jwt_secret_key="test-secret-key-with-at-least-32-chars",
+        jwt_algorithm="HS256",
     )
 
 
@@ -40,7 +74,7 @@ def ab_test_config():
 def mock_mlflow_client():
     """Mock do MLflowClient."""
     with patch(
-        "neural_hive_specialists.ab_testing_specialist.MLflowClient"
+        "neural_hive_specialists.mlflow_client.MLflowClient"
     ) as mock_client:
         client_instance = MagicMock()
 
@@ -67,10 +101,20 @@ def mock_mlflow_client():
 @pytest.fixture
 def ab_testing_specialist(ab_test_config, mock_mlflow_client):
     """Instância de ABTestingSpecialist configurada."""
-    with patch("neural_hive_specialists.base_specialist.LedgerWriter"), patch(
-        "neural_hive_specialists.base_specialist.RedisCache"
-    ), patch("neural_hive_specialists.base_specialist.FeatureStore"):
-        specialist = ABTestingSpecialist(config=ab_test_config)
+    # Mockar métodos abstratos
+    with patch("neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._get_specialist_type", return_value="technical"), \
+         patch("neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._evaluate_plan_internal", return_value={
+             "recommendation": "approve",
+             "confidence_score": 0.8,
+             "risk_score": 0.2,
+             "reasoning_summary": "AB test",
+             "reasoning_factors": [],
+             "suggested_mitigations": [],
+         }), \
+         patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None), \
+         patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None), \
+         patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None):
+        specialist = ConcreteABTestingSpecialist(config=ab_test_config)
         specialist.mlflow_client = mock_mlflow_client
 
         # Mock dos modelos carregados
@@ -140,10 +184,19 @@ class TestABTestingSpecialistLoading:
 
         mock_mlflow_client.load_model = Mock(side_effect=failing_load_model)
 
-        with patch("neural_hive_specialists.base_specialist.LedgerWriter"), patch(
-            "neural_hive_specialists.base_specialist.RedisCache"
-        ), patch("neural_hive_specialists.base_specialist.FeatureStore"):
-            specialist = ABTestingSpecialist(config=ab_test_config)
+        with patch("neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._get_specialist_type", return_value="technical"), \
+             patch("neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._evaluate_plan_internal", return_value={
+                 "recommendation": "approve",
+                 "confidence_score": 0.8,
+                 "risk_score": 0.2,
+                 "reasoning_summary": "AB test",
+                 "reasoning_factors": [],
+                 "suggested_mitigations": [],
+             }), \
+             patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None), \
+             patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None), \
+             patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None):
+            specialist = ConcreteABTestingSpecialist(config=ab_test_config)
             specialist.mlflow_client = mock_mlflow_client
 
             # Simular carregamento

@@ -10,10 +10,10 @@ Valida:
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from libraries.python.neural_hive_specialists.opinion_cache import OpinionCache
-from libraries.python.neural_hive_specialists.ledger_client import LedgerClient
-from libraries.python.neural_hive_specialists.metrics import SpecialistMetrics
-from libraries.python.neural_hive_specialists.config import SpecialistConfig
+from neural_hive_specialists.opinion_cache import OpinionCache
+from neural_hive_specialists.ledger_client import LedgerClient
+from neural_hive_specialists.metrics import SpecialistMetrics
+from neural_hive_specialists.config import SpecialistConfig
 
 
 @pytest.fixture

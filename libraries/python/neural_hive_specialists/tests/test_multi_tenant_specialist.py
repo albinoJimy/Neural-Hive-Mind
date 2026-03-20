@@ -11,10 +11,10 @@ Valida:
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from libraries.python.neural_hive_specialists.multi_tenant_specialist import (
+from neural_hive_specialists.multi_tenant_specialist import (
     MultiTenantSpecialist,
 )
-from libraries.python.neural_hive_specialists.config import SpecialistConfig
+from neural_hive_specialists.config import SpecialistConfig
 
 
 @pytest.fixture

@@ -13,7 +13,7 @@ setup(
         'pydantic>=2.5.2',
         'structlog>=23.2.0',
     ],
-    python_requires='>=3.11',
+    python_requires='>=3.10',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
