@@ -42,6 +42,7 @@ class MCPIntegration:
         """Fechar cliente HTTP."""
         if self._client:
             await self._client.aclose()
+            self._client = None
 
     @retry(
         stop=stop_after_attempt(3),

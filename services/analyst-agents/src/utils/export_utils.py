@@ -13,37 +13,67 @@ from ..models.insight_extended import InsightResponse
 def export_to_json(insight: InsightResponse) -> str:
     """Export insight to JSON string."""
     import json
-    return json.dumps(insight.dict(), indent=2, default=str)
+    # Support both Pydantic v1 and v2
+    if hasattr(insight, 'model_dump'):
+        data = insight.model_dump()
+    else:
+        data = insight.dict()
+    return json.dumps(data, indent=2, default=str)
 
 
 def export_to_csv(insight: InsightResponse) -> str:
     """Export insight to CSV format."""
     output = io.StringIO()
 
+    # Handle Pydantic v2 model_dump for accessing values
+    if hasattr(insight, 'model_dump'):
+        data = insight.model_dump()
+    else:
+        data = insight.dict()
+
     # Main metadata
     writer = csv.writer(output)
     writer.writerow(["Field", "Value"])
-    writer.writerow(["Insight ID", insight.insight_id])
-    writer.writerow(["Type", insight.analysis_type])
-    writer.writerow(["Title", insight.title])
-    writer.writerow(["Description", insight.description])
-    writer.writerow(["Status", insight.status])
-    writer.writerow(["Created At", insight.created_at.isoformat()])
-    writer.writerow(["Source", insight.metadata.source])
-    writer.writerow(["Created By", insight.metadata.created_by])
-    writer.writerow(["Tags", ", ".join(insight.tags)])
+    writer.writerow(["Insight ID", data.get("insight_id", "")])
+    writer.writerow(["Type", data.get("analysis_type", "")])
+    writer.writerow(["Title", data.get("title", "")])
+    writer.writerow(["Description", data.get("description", "")])
+    writer.writerow(["Status", data.get("status", "")])
+
+    created_at = data.get("created_at")
+    if created_at:
+        writer.writerow(["Created At", created_at.isoformat() if hasattr(created_at, 'isoformat') else str(created_at)])
+
+    metadata = data.get("metadata", {})
+    if isinstance(metadata, dict):
+        writer.writerow(["Source", metadata.get("source", "")])
+        writer.writerow(["Created By", metadata.get("created_by", "")])
+    else:
+        writer.writerow(["Source", ""])
+        writer.writerow(["Created By", ""])
+
+    tags = data.get("tags", [])
+    writer.writerow(["Tags", ", ".join(str(t) for t in tags)])
     writer.writerow([])
 
     # Metrics
-    writer.writerow(["Metric", "Value"])
-    writer.writerow(["Processing Time (ms)", insight.metrics.processing_time_ms])
-    writer.writerow(["Confidence Score", insight.metrics.confidence_score])
-    writer.writerow(["Data Points", insight.metrics.data_points])
+    metrics = data.get("metrics", {})
+    if isinstance(metrics, dict):
+        writer.writerow(["Metric", "Value"])
+        writer.writerow(["Processing Time (ms)", metrics.get("processing_time_ms", "")])
+        writer.writerow(["Confidence Score", metrics.get("confidence_score", "")])
+        writer.writerow(["Data Points", metrics.get("data_points", "")])
+    else:
+        writer.writerow(["Metric", "Value"])
+        writer.writerow(["Processing Time (ms)", ""])
+        writer.writerow(["Confidence Score", ""])
+        writer.writerow(["Data Points", ""])
     writer.writerow([])
 
     # Data (simplified)
+    insight_data = data.get("data", {})
     writer.writerow(["Data Key", "Data Value"])
-    for key, value in insight.data.items():
+    for key, value in insight_data.items():
         if isinstance(value, (str, int, float, bool)):
             writer.writerow([key, str(value)])
         elif isinstance(value, list):
@@ -61,36 +91,55 @@ def export_to_pdf_text(insight: InsightResponse) -> bytes:
     Export insight to text-based PDF format.
     Returns bytes that can be served as application/pdf.
     """
+    # Handle Pydantic v2 model_dump
+    if hasattr(insight, 'model_dump'):
+        data = insight.model_dump()
+    else:
+        data = insight.dict()
+
+    title = data.get("title", "")
+    insight_id = data.get("insight_id", "")
+    analysis_type = data.get("analysis_type", "")
+    status = data.get("status", "")
+    description = data.get("description", "")
+    metrics = data.get("metrics", {})
+    metadata = data.get("metadata", {})
+    tags = data.get("tags", [])
+    insight_data = data.get("data", {})
+
+    created_at = data.get("created_at")
+    created_str = created_at.isoformat() if hasattr(created_at, 'isoformat') else str(created_at) if created_at else ""
+
     lines = [
         "=" * 70,
-        f"INSIGHT REPORT: {insight.title}",
+        f"INSIGHT REPORT: {title}",
         "=" * 70,
         "",
-        f"ID: {insight.insight_id}",
-        f"Type: {insight.analysis_type}",
-        f"Status: {insight.status}",
-        f"Created: {insight.created_at.isoformat()}",
-        f"Source: {insight.metadata.source}",
+        f"ID: {insight_id}",
+        f"Type: {analysis_type}",
+        f"Status: {status}",
+        f"Created: {created_str}",
+        f"Source: {metadata.get('source', '') if isinstance(metadata, dict) else ''}",
         "",
         "-" * 70,
         "DESCRIPTION",
         "-" * 70,
-        insight.description,
+        description,
         "",
         "-" * 70,
         "METRICS",
         "-" * 70,
-        f"Processing Time: {insight.metrics.processing_time_ms} ms",
-        f"Confidence Score: {insight.metrics.confidence_score:.2%}",
-        f"Data Points: {insight.metrics.data_points}",
+        f"Processing Time: {metrics.get('processing_time_ms', 0) if isinstance(metrics, dict) else 0} ms",
+        f"Confidence Score: {metrics.get('confidence_score', 0) if isinstance(metrics, dict) else 0:.2%}",
+        f"Data Points: {metrics.get('data_points', 0) if isinstance(metrics, dict) else 0}",
         "",
         "-" * 70,
         "TAGS",
         "-" * 70,
     ]
 
-    if insight.tags:
-        lines.extend(insight.tags)
+    if tags:
+        lines.extend(str(t) for t in tags)
     else:
         lines.append("(none)")
 
@@ -101,7 +150,7 @@ def export_to_pdf_text(insight: InsightResponse) -> bytes:
         "-" * 70,
     ])
 
-    for key, value in insight.data.items():
+    for key, value in insight_data.items():
         if isinstance(value, (str, int, float, bool)):
             lines.append(f"{key}: {value}")
         elif isinstance(value, list):

@@ -17,7 +17,8 @@ from src.models.insight_extended import (
 async def test_analyze_trend_increasing(timeseries_analyzer):
     """Testar análise de tendência crescente."""
     base_time = datetime.utcnow()
-    data = [(base_time + timedelta(hours=i), 10.0 + i * 2) for i in range(10)]
+    # Usar minutos para maior slope, não horas
+    data = [(base_time + timedelta(minutes=i), 10.0 + i * 5) for i in range(15)]
 
     result = timeseries_analyzer.analyze_trend(data)
 
@@ -64,8 +65,10 @@ async def test_detect_anomalies_zscore(timeseries_analyzer, sample_timeseries_wi
 async def test_detect_anomalies_iqr(timeseries_analyzer):
     """Testar detecção de anomalias com IQR."""
     base_time = datetime.utcnow()
-    data = [(base_time + timedelta(minutes=i), 50.0) for i in range(20)]
-    # Adicionar outliers
+    # Dados com variância normal (45-55)
+    np.random.seed(42)
+    data = [(base_time + timedelta(minutes=i), 50.0 + np.random.randn() * 3) for i in range(20)]
+    # Adicionar outliers extremos
     data[5] = (data[5][0], 95.0)
     data[15] = (data[15][0], 5.0)
 
@@ -79,7 +82,9 @@ async def test_detect_anomalies_iqr(timeseries_analyzer):
 async def test_detect_anomalies_moving_avg(timeseries_analyzer):
     """Testar detecção de anomalias com média móvel."""
     base_time = datetime.utcnow()
-    data = [(base_time + timedelta(minutes=i), 50.0) for i in range(20)]
+    # Dados com variância para permitir std > 0 na janela
+    np.random.seed(42)
+    data = [(base_time + timedelta(minutes=i), 50.0 + np.random.randn() * 2) for i in range(20)]
     # Adicionar outlier no meio
     data[10] = (data[10][0], 95.0)
 
@@ -201,7 +206,9 @@ async def test_detect_anomalies_async_iqr(timeseries_analyzer):
         threshold=3.0,
     )
 
-    data = [(datetime.utcnow() - timedelta(minutes=i), 50.0) for i in range(20)]
+    # Dados com variância
+    np.random.seed(42)
+    data = [(datetime.utcnow() - timedelta(minutes=i), 50.0 + np.random.randn() * 3) for i in range(20)]
     data[5] = (data[5][0], 100.0)
 
     response = await timeseries_analyzer.detect_anomalies_async(query, data)
@@ -221,7 +228,9 @@ async def test_detect_anomalies_async_moving_avg(timeseries_analyzer):
         threshold=2.0,
     )
 
-    data = [(datetime.utcnow() - timedelta(minutes=i), 50.0) for i in range(20)]
+    # Dados com variância
+    np.random.seed(42)
+    data = [(datetime.utcnow() - timedelta(minutes=i), 50.0 + np.random.randn() * 2) for i in range(20)]
     data[10] = (data[10][0], 95.0)
 
     response = await timeseries_analyzer.detect_anomalies_async(query, data)

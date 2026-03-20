@@ -1,10 +1,11 @@
 """
 Testes E2E para Analytics API V2.
+Usa mocks para evitar dependências externas.
 """
 import pytest
 import asyncio
 from datetime import datetime, timedelta
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 
 from src.main import app
 from src.models.insight_extended import (
@@ -14,35 +15,131 @@ from src.models.insight_extended import (
     InsightStatus,
     InsightMetadata,
 )
-from src.repositories.insight_repository import InsightRepository
-from src.services.timeseries_analyzer import TimeSeriesAnalyzer
-from src.services.mcp_integration import MCPIntegration
 
 
-@pytest.mark.e2e
-@pytest.mark.asyncio
-async def test_e2e_insight_lifecycle(mongodb_client, test_database):
-    """Teste E2E: Criar insight → Consultar → Exportar → Deletar."""
-    # Setup
-    from motor.motor_asyncio import AsyncIOMotorClient
+@pytest.fixture
+async def mock_app_state():
+    """Mock app state com repository mockado."""
+    from unittest.mock import AsyncMock, MagicMock
+    from src.repositories.insight_repository import InsightRepository
+    from src.services.timeseries_analyzer import TimeSeriesAnalyzer
+    from src.services.mcp_integration import MCPIntegration
+    import uuid
+    from datetime import datetime, timedelta
+    from src.models.insight_extended import InsightResponse, InsightStatus, InsightMetrics
 
-    repo = InsightRepository(
-        client=mongodb_client,
-        database=test_database.name,
-    )
-    await repo.initialize()
+    # In-memory storage para testes
+    storage = {"insights": {}, "cache": {}}
+
+    class MockInsightRepository(InsightRepository):
+        def __init__(self):
+            self.storage = storage
+            self.collection = "insights"
+            self.cache_collection = "time_series_cache"
+            self._db = MagicMock()
+
+        async def create(self, insight: InsightCreate):
+            doc = insight.model_dump()
+            doc["insight_id"] = str(uuid.uuid4())
+            doc["status"] = InsightStatus.PENDING.value
+            doc["created_at"] = datetime.utcnow()
+            doc["expires_at"] = datetime.utcnow() + timedelta(days=90)
+            doc["metrics"] = InsightMetrics(processing_time_ms=0, confidence_score=0.0, data_points=0).model_dump()
+            self.storage["insights"][doc["insight_id"]] = doc
+            return InsightResponse(**doc)
+
+        async def get_by_id(self, insight_id: str):
+            doc = self.storage["insights"].get(insight_id)
+            if doc:
+                return InsightResponse(**doc)
+            return None
+
+        async def list(self, **kwargs):
+            limit = kwargs.get('limit', 50)
+            offset = kwargs.get('offset', 0)
+            items = list(self.storage["insights"].values())
+
+            if kwargs.get('analysis_type'):
+                items = [i for i in items if i.get('analysis_type') == kwargs['analysis_type'].value]
+            if kwargs.get('source'):
+                items = [i for i in items if i.get('metadata', {}).get('source') == kwargs['source'].value]
+            if kwargs.get('tags'):
+                tags = kwargs['tags']
+                items = [i for i in items if any(t in i.get('tags', []) for t in tags)]
+            if kwargs.get('status'):
+                items = [i for i in items if i.get('status') == kwargs['status'].value]
+
+            total = len(items)
+            items = sorted(items, key=lambda x: x.get('created_at', datetime.min), reverse=True)
+            items = items[offset:offset + limit]
+
+            return [InsightResponse(**i) for i in items], total
+
+        async def update_status(self, insight_id: str, status: InsightStatus, data=None):
+            if insight_id in self.storage["insights"]:
+                doc = self.storage["insights"][insight_id]
+                doc["status"] = status.value
+                if data:
+                    doc["data"] = data
+                return InsightResponse(**doc)
+            return None
+
+        async def update_metrics(self, insight_id: str, metrics: dict):
+            if insight_id in self.storage["insights"]:
+                doc = self.storage["insights"][insight_id]
+                doc["metrics"] = metrics
+                return InsightResponse(**doc)
+            return None
+
+        async def get_analytics_summary(self, time_range_hours=24):
+            items = list(self.storage["insights"].values())
+            insights_by_type = {}
+            for item in items:
+                at = item.get('analysis_type', 'unknown')
+                insights_by_type[at] = insights_by_type.get(at, 0) + 1
+
+            recent_items = sorted(items, key=lambda x: x.get('created_at', datetime.min), reverse=True)[:5]
+            recent_responses = [InsightResponse(**i) for i in recent_items]
+
+            return {
+                "insights_by_type": insights_by_type,
+                "anomalies_detected": 0,
+                "avg_processing_time_ms": sum(i.get("metrics", {}).get("processing_time_ms", 0) for i in items) / len(items) if items else 0,
+                "confidence_distribution": {"high": 0, "medium": 0, "low": 0},
+                "top_sources": [],
+                "recent_insights": recent_responses,
+            }
+
+        async def initialize(self):
+            pass
+
+    repo = MockInsightRepository()
 
     class MockAppState:
         def __init__(self):
             self.insight_repository = repo
             self.ts_analyzer = TimeSeriesAnalyzer()
-            self.mcp_integration = MCPIntegration(timeout=5.0)
-            # Não inicializar MCP para testes E2E locais
+
+            # Mock MCP integration
+            mock_mcp = MagicMock()
+            mock_mcp.health_check = AsyncMock(return_value={"scout": True, "optimizer": True})
+            mock_mcp.initialize = AsyncMock()
+            mock_mcp.close = AsyncMock()
+            self.mcp_integration = mock_mcp
 
     app.state.app_state = MockAppState()
+    return repo
 
-    # Criar insight via API
-    async with AsyncClient(app=app, base_url="http://test") as client:
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_e2e_insight_lifecycle(mock_app_state):
+    """Teste E2E: Criar insight → Consultar → Exportar → Deletar."""
+    repo = mock_app_state
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Criar insight via API
         response = await client.post("/api/v1/analytics/insights/query", json={
             "analysis_type": "timeseries",
             "target": {
@@ -79,23 +176,10 @@ async def test_e2e_insight_lifecycle(mongodb_client, test_database):
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_e2e_timeseries_analysis(mongodb_client, test_database):
+async def test_e2e_timeseries_analysis(mock_app_state):
     """Teste E2E: Buscar série temporal → Detectar anomalias."""
-    repo = InsightRepository(
-        client=mongodb_client,
-        database=test_database.name,
-    )
-    await repo.initialize()
-
-    class MockAppState:
-        def __init__(self):
-            self.insight_repository = repo
-            self.ts_analyzer = TimeSeriesAnalyzer()
-            self.mcp_integration = MCPIntegration(timeout=5.0)
-
-    app.state.app_state = MockAppState()
-
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
         start = (datetime.utcnow() - timedelta(hours=1)).isoformat()
         end = datetime.utcnow().isoformat()
 
@@ -120,13 +204,9 @@ async def test_e2e_timeseries_analysis(mongodb_client, test_database):
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_e2e_dashboard_aggregation(mongodb_client, test_database):
+async def test_e2e_dashboard_aggregation(mock_app_state):
     """Teste E2E: Criar insights → Ver dashboard agregado."""
-    repo = InsightRepository(
-        client=mongodb_client,
-        database=test_database.name,
-    )
-    await repo.initialize()
+    repo = mock_app_state
 
     # Criar alguns insights de diferentes tipos
     for i in range(3):
@@ -145,15 +225,8 @@ async def test_e2e_dashboard_aggregation(mongodb_client, test_database):
             "data_points": 100,
         })
 
-    class MockAppState:
-        def __init__(self):
-            self.insight_repository = repo
-            self.ts_analyzer = TimeSeriesAnalyzer()
-            self.mcp_integration = MCPIntegration(timeout=5.0)
-
-    app.state.app_state = MockAppState()
-
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/api/v1/analytics/dashboard?time_range=24h")
 
         assert response.status_code == 200
@@ -166,31 +239,10 @@ async def test_e2e_dashboard_aggregation(mongodb_client, test_database):
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_e2e_mcp_health_check(mongodb_client, test_database):
+async def test_e2e_mcp_health_check(mock_app_state):
     """Teste E2E: Verificar saúde dos servidores MCP."""
-    repo = InsightRepository(
-        client=mongodb_client,
-        database=test_database.name,
-    )
-    await repo.initialize()
-
-    class MockAppState:
-        def __init__(self):
-            self.insight_repository = repo
-            self.ts_analyzer = TimeSeriesAnalyzer()
-            mcp = MCPIntegration(timeout=5.0)
-            # Inicializar para ter o cliente HTTP
-            import asyncio
-            async def init_and_close():
-                await mcp.initialize()
-                await mcp.close()
-            asyncio.run(init_and_close())
-            # Recriar sem inicializar para o teste
-            self.mcp_integration = MCPIntegration(timeout=5.0)
-
-    app.state.app_state = MockAppState()
-
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/api/v1/analytics/mcp-health")
 
         assert response.status_code == 200
@@ -201,13 +253,9 @@ async def test_e2e_mcp_health_check(mongodb_client, test_database):
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_e2e_metrics_endpoint(mongodb_client, test_database):
+async def test_e2e_metrics_endpoint(mock_app_state):
     """Teste E2E: Verificar endpoint de métricas Prometheus."""
-    repo = InsightRepository(
-        client=mongodb_client,
-        database=test_database.name,
-    )
-    await repo.initialize()
+    repo = mock_app_state
 
     # Criar insight com métricas
     insight = await repo.create(InsightCreate(
@@ -225,15 +273,8 @@ async def test_e2e_metrics_endpoint(mongodb_client, test_database):
         "data_points": 50,
     })
 
-    class MockAppState:
-        def __init__(self):
-            self.insight_repository = repo
-            self.ts_analyzer = TimeSeriesAnalyzer()
-            self.mcp_integration = MCPIntegration(timeout=5.0)
-
-    app.state.app_state = MockAppState()
-
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/api/v1/analytics/metrics")
 
         assert response.status_code == 200
@@ -244,13 +285,9 @@ async def test_e2e_metrics_endpoint(mongodb_client, test_database):
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_e2e_pagination_and_filters(mongodb_client, test_database):
+async def test_e2e_pagination_and_filters(mock_app_state):
     """Teste E2E: Paginação e filtros de insights."""
-    repo = InsightRepository(
-        client=mongodb_client,
-        database=test_database.name,
-    )
-    await repo.initialize()
+    repo = mock_app_state
 
     # Criar insights de diferentes tipos
     for i in range(5):
@@ -263,15 +300,8 @@ async def test_e2e_pagination_and_filters(mongodb_client, test_database):
             tags=["test"] if i % 2 == 0 else ["production"],
         ))
 
-    class MockAppState:
-        def __init__(self):
-            self.insight_repository = repo
-            self.ts_analyzer = TimeSeriesAnalyzer()
-            self.mcp_integration = MCPIntegration(timeout=5.0)
-
-    app.state.app_state = MockAppState()
-
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Testar paginação
         response1 = await client.get("/api/v1/analytics/insights?limit=2&offset=0")
         response2 = await client.get("/api/v1/analytics/insights?limit=2&offset=2")

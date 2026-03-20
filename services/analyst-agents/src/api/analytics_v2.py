@@ -27,7 +27,7 @@ from ..models.insight_extended import (
 from ..repositories.insight_repository import InsightRepository
 from ..services.timeseries_analyzer import TimeSeriesAnalyzer
 from ..services.mcp_integration import MCPIntegration
-from ..utils.export_utils import export_insight
+from ..utils.export_utils import export_insight as export_insight_util
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -164,7 +164,7 @@ async def create_query(query: AnalyticsQueryRequest, request: Request):
 async def export_insight(
     insight_id: str,
     request: Request,
-    format: str = Query("json", regex="^(json|csv|pdf)$", description="Formato de exportação"),
+    format: str = Query("json", pattern="^(json|csv|pdf)$", description="Formato de exportação"),
 ):
     """Exportar insight em formato específico (JSON/CSV/PDF)."""
     try:
@@ -176,7 +176,7 @@ async def export_insight(
             raise HTTPException(status_code=404, detail="Insight not found")
 
         # Use export utility
-        media_type, content = export_insight(insight, format)
+        media_type, content = export_insight_util(insight, format)
         filename = f"insight_{insight_id[:8]}_{format}"
 
         return Response(
@@ -237,7 +237,7 @@ async def get_timeseries(
     request: Request,
     start: datetime = Query(..., description="Data inicial"),
     end: datetime = Query(..., description="Data final"),
-    resolution: str = Query("5m", regex="^(1m|5m|1h|1d)$", description="Resolução"),
+    resolution: str = Query("5m", pattern="^(1m|5m|1h|1d)$", description="Resolução"),
 ):
     """Obter série temporal de métrica específica."""
     try:
@@ -276,7 +276,7 @@ async def detect_timeseries_anomalies(
     request: Request,
     start: datetime = Query(..., description="Data inicial"),
     end: datetime = Query(..., description="Data final"),
-    method: str = Query("zscore", regex="^(zscore|iqr|moving_avg)$", description="Método de detecção"),
+    method: str = Query("zscore", pattern="^(zscore|iqr|moving_avg)$", description="Método de detecção"),
     threshold: float = Query(2.5, ge=1.0, le=5.0, description="Limiar de anomalia"),
 ):
     """Detectar anomalias em série temporal."""
@@ -322,7 +322,7 @@ async def detect_timeseries_anomalies(
 @router.get("/analytics/dashboard", response_model=DashboardData)
 async def get_dashboard_data(
     request: Request,
-    time_range: str = Query("24h", regex="^(1h|6h|24h|7d)$", description="Range de tempo"),
+    time_range: str = Query("24h", pattern="^(1h|6h|24h|7d)$", description="Range de tempo"),
 ):
     """Dados agregados para dashboard Grafana."""
     try:
