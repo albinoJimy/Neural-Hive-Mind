@@ -2,22 +2,22 @@
 
 ## Tasks
 
-- [ ] 1. **Implementar AST Parsing para TypeScript/JavaScript**
-  - [ ] 1.1 Escrever testes para TypeScript parser
-  - [ ] 1.2 Implementar TypeScriptASTParser class
-  - [ ] 1.3 Adicionar extração de interfaces e types
-  - [ ] 1.4 Escrever testes para JavaScript parser
-  - [ ] 1.5 Implementar JavaScriptASTParser class
-  - [ ] 1.6 Integrar parsers no CodebaseExplorer
-  - [ ] 1.7 Verificar todos os testes passam
+- [x] 1. **Implementar AST Parsing para TypeScript/JavaScript** ✅ (37 testes passando)
+  - [x] 1.1 Escrever testes para TypeScript parser
+  - [x] 1.2 Implementar TypeScriptASTParser class
+  - [x] 1.3 Adicionar extração de interfaces e types
+  - [x] 1.4 Escrever testes para JavaScript parser
+  - [x] 1.5 Implementar JavaScriptASTParser class
+  - [x] 1.6 Integrar parsers no CodebaseExplorer
+  - [x] 1.7 Verificar todos os testes passam
 
-- [ ] 2. **Implementar AST Parsing para YAML/JSON**
-  - [ ] 2.1 Escrever testes para YAML parser
-  - [ ] 2.2 Implementar YAMLStructureParser class
-  - [ ] 2.3 Escrever testes para JSON parser
-  - [ ] 2.4 Implementar JSONStructureParser class
-  - [ ] 2.5 Integrar parsers no CodebaseExplorer
-  - [ ] 2.6 Verificar todos os testes passam
+- [x] 2. **Implementar AST Parsing para YAML/JSON** ✅ (35 testes passando)
+  - [x] 2.1 Escrever testes para YAML parser
+  - [x] 2.2 Implementar YAMLStructureParser class
+  - [x] 2.3 Escrever testes para JSON parser
+  - [x] 2.4 Implementar JSONStructureParser class
+  - [x] 2.5 Integrar parsers no CodebaseExplorer
+  - [x] 2.6 Verificar todos os testes passam
 
 - [x] 3. **Implementar AST Parsing para Java** ✅
   - [x] 3.1 Escrever testes para Java parser
@@ -75,13 +75,13 @@
   - [x] 8.11 Implementar restantes: Proxy, Command, Chain, Template, Facade, Builder, Prototype, Mediator, Memento, State, Flyweight, AbstractFactory, Iterator, Visitor
   - [x] 8.12 Verificar todos os testes de patterns passam (40/40 testes passando)
 
-- [ ] 9. **Implementar Signal Detection & Curiosity Scoring**
-  - [ ] 9.1 Escrever testes para CuriosityCalculator
-  - [ ] 9.2 Implementar classe CuriosityCalculator
-  - [ ] 9.3 Escrever testes para SignalDetector
-  - [ ] 9.4 Implementar classe SignalDetector
-  - [ ] 9.5 Integrar no ExplorationEngine
-  - [ ] 9.6 Verificar todos os testes passam
+- [x] 9. **Implementar Signal Detection & Curiosity Scoring** ✅ (28 testes passando)
+  - [x] 9.1 Escrever testes para CuriosityCalculator
+  - [x] 9.2 Implementar classe CuriosityCalculator
+  - [x] 9.3 Escrever testes para SignalDetector
+  - [x] 9.4 Implementar classe SignalDetector
+  - [x] 9.5 Integrar no ExplorationEngine
+  - [x] 9.6 Verificar todos os testes passam
 
 - [x] 10. **Implementar Multi-Scout Coordination** ✅ (29/29 testes)
   - [x] 10.1 Escrever testes para ScoutCoordinator
