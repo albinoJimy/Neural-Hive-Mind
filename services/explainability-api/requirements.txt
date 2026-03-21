@@ -4,6 +4,7 @@ uvicorn[standard]==0.34.0
 
 # Data layer
 motor==3.7.1
+numpy>=1.24.0
 
 # Observability completa
 prometheus-client==0.21.1
