@@ -189,16 +189,23 @@ class V3ExplanationService:
         Returns:
             Lista de votos ou None se não encontrado
         """
-        # Buscar no ledger de explicabilidade
-        explanation = await self.db.explainability_ledger.find_one(
+        # Buscar no consensus_decisions (não explainability_ledger)
+        decision = await self.db.consensus_decisions.find_one(
             {"decision_id": decision_id}
         )
 
-        if not explanation:
+        if not decision:
             return None
 
-        # Extrair specialist_opinions
-        return explanation.get("specialist_opinions", [])
+        # Extrair specialist_votes (consensus_decisions usa specialist_votes)
+        votes = decision.get("specialist_votes", [])
+
+        # Adicionar decision_id para cada voto se não existir
+        for vote in votes:
+            if "decision_id" not in vote:
+                vote["decision_id"] = decision_id
+
+        return votes
 
     async def get_full_explanation(
         self,
