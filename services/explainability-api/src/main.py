@@ -106,7 +106,7 @@ async def lifespan(app: FastAPI):
             logger.warning("v3_router_init_failed", error=str(e))
 
     # Inicializar serviços de ML
-    shap_calculator = ShapCalculator(n_samples=100)
+    shap_calculator = ShapCalculator(n_background_samples=100)
     quality_scorer = ExplanationQualityScorer(mongodb_client=mongo_client)
     reasoning_extractor = ReasoningExtractor()
 
