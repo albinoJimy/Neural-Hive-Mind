@@ -11,7 +11,7 @@ from typing import Dict, Any, List, Optional
 import structlog
 
 # Importar modelos de senioridade locais (sincronizados com consensus-engine)
-from models.seniority import SENIORITY_MULTIPLIERS, SeniorityLevel
+from src.models.seniority import SENIORITY_MULTIPLIERS, SeniorityLevel
 
 logger = structlog.get_logger(__name__)
 
