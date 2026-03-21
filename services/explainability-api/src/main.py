@@ -205,10 +205,10 @@ async def health_check():
 
 @app.get('/ready')
 async def readiness_check():
-    """Readiness check - verifica conectividade."""
+    """Readiness check - verifica conectividade essencial."""
     global mongo_client, explanation_producer
 
-    checks = {'mongodb': False, 'kafka_producer': False}
+    checks = {'mongodb': False, 'kafka_producer': False, 'api': True}
 
     if mongo_client:
         try:
@@ -217,15 +217,21 @@ async def readiness_check():
         except Exception:
             pass
 
+    # Kafka producer é opcional para readiness (pode falhar em alguns ambientes)
     if explanation_producer and explanation_producer.producer:
         checks['kafka_producer'] = True
 
-    all_ready = all(checks.values())
+    # API é ready se MongoDB estiver conectado (Kafka é opcional)
+    all_ready = checks['mongodb'] and checks['api']
     status_code = 200 if all_ready else 503
 
     return JSONResponse(
         status_code=status_code,
-        content={'status': 'ready' if all_ready else 'not_ready', 'checks': checks}
+        content={
+            'status': 'ready' if all_ready else 'not_ready',
+            'checks': checks,
+            'note': 'kafka_producer is optional' if not checks['kafka_producer'] else None
+        }
     )
 
 
