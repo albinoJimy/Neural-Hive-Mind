@@ -71,11 +71,18 @@ class MockMongoClient:
     def close(self):
         pass
 
-# Patch MongoClient antes de imports
+# Patch MongoClient, RedisCluster e AuditLogger antes de imports
+# Patches em diferentes módulos que usam MongoClient
 _mongo_patch = patch('pymongo.MongoClient', return_value=MockMongoClient())
 _motor_patch = patch('motor.motor_asyncio.AsyncIOMotorClient', return_value=MockMongoClient())
+_redis_patch = patch('redis.cluster.RedisCluster', return_value=MockMongoClient())
 _mongo_patch.start()
 _motor_patch.start()
+_redis_patch.start()
+
+# Patches específicos para módulos que importam MongoClient
+_compliance_mongo_patch = patch('neural_hive_specialists.compliance.audit_logger.MongoClient', return_value=MockMongoClient())
+_compliance_mongo_patch.start()
 
 # Desabilitar ledger na config de teste
 import os

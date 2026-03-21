@@ -51,6 +51,7 @@ def specialist_config():
         opinion_cache_enabled=False,  # Desabilitar cache para testes
         enable_drift_monitoring=False,
         enable_ledger=False,  # Desabilitar ledger para testes
+        enable_batch_inference=False,  # Usar path padrão para testes de falha
         jwt_secret_key="test-secret-key-with-at-least-32-chars",  # Para validação JWT
     )
 
@@ -147,15 +148,24 @@ class TestBatchEvaluationPartialFailure:
         """Testa batch onde alguns planos falham."""
         requests = [create_mock_request(f"plan-{i}", f"intent-{i}") for i in range(10)]
 
-        # Fazer planos 3, 5, 7 falharem
-        original_evaluate = specialist.evaluate_plan
-
-        def failing_evaluate(request):
+        # Fazer planos 3, 5, 7 falharem - usar side_effect com lista de valores/erros
+        def mock_evaluate_func(request):
             if request.plan_id in ["plan-3", "plan-5", "plan-7"]:
                 raise ValueError(f"Simulated failure for {request.plan_id}")
-            return original_evaluate(request)
+            # Retornar resultado válido para outros planos
+            return {
+                "opinion_id": f"opinion-{request.plan_id}",
+                "specialist_type": "test",
+                "opinion": {
+                    "recommendation": "approve",
+                    "confidence_score": 0.85,
+                    "risk_score": 0.15,
+                    "reasoning_summary": "Test",
+                    "reasoning_factors": [],
+                },
+            }
 
-        specialist.evaluate_plan = failing_evaluate
+        specialist.evaluate_plan = Mock(side_effect=mock_evaluate_func)
 
         result = await specialist.evaluate_plans_batch(requests)
 

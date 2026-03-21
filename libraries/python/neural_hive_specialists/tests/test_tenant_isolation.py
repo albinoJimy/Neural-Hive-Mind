@@ -22,8 +22,20 @@ def config():
     return SpecialistConfig(
         specialist_type="technical",
         specialist_version="1.0.0",
+        service_name="test-specialist",
         enable_multi_tenancy=True,
         max_tenants=50,
+        tenant_configs_path="/tmp/test_tenant_configs.json",  # Caminho dummy para testes
+        environment="test",
+        mlflow_tracking_uri="http://localhost:5000",
+        mlflow_experiment_name="test",
+        mlflow_model_name="test-model",
+        mongodb_uri="mongodb://localhost:27017",
+        mongodb_database="test_db",
+        redis_cluster_nodes="localhost:6379",
+        neo4j_uri="bolt://localhost:7687",
+        neo4j_password="test",
+        jwt_secret_key="test-secret-key-with-at-least-32-chars",
     )
 
 
