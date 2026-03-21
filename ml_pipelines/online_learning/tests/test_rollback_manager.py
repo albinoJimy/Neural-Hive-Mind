@@ -4,6 +4,7 @@ import pytest
 import numpy as np
 from unittest.mock import Mock, MagicMock, patch, AsyncMock
 from datetime import datetime, timedelta
+import os
 
 
 # ============================================================================
@@ -18,13 +19,29 @@ class MockCursor:
     """Mock de cursor MongoDB que rasteia dados."""
     def __init__(self, data=None):
         self._data = list(data) if data is not None else []
+        self._sort_field = None
+        self._sort_direction = None
 
     def sort(self, *args, **kwargs):
+        # args[0] is field name, args[1] is direction (1=asc, -1=desc)
+        if len(args) >= 2:
+            self._sort_field = args[0]
+            self._sort_direction = args[1]
+            # Sort data:MongoDB stores dates as ISO strings or datetime
+            reverse = self._sort_direction == -1
+            try:
+                self._data.sort(
+                    key=lambda x: x.get(self._sort_field, ''),
+                    reverse=reverse
+                )
+            except Exception:
+                pass  # Keep original order if sort fails
         return self
 
     def limit(self, *args, **kwargs):
         limit = args[0] if args else 10
-        return self._data[:limit]
+        self._data = self._data[:limit]
+        return self
 
     def __iter__(self):
         return iter(self._data)
@@ -59,6 +76,9 @@ class MockMongoCollection:
         return Mock(inserted_id='test_id')
 
     def update_one(self, *args, **kwargs):
+        return Mock(modified_count=1)
+
+    def update_many(self, *args, **kwargs):
         return Mock(modified_count=1)
 
     def delete_one(self, *args, **kwargs):
@@ -157,9 +177,8 @@ def config():
     return OnlineLearningConfig(
         rollback_enabled=True,
         rollback_f1_drop_threshold=0.05,
-        rollback_accuracy_drop_threshold=0.03,
-        rollback_latency_increase_threshold=1.5,
-        max_versions_to_keep=5
+        rollback_latency_increase_threshold=0.5,
+        max_model_versions=5
     )
 
 
@@ -177,15 +196,15 @@ class TestRollbackManagerInitialization:
         manager = RollbackManager(config, specialist_type="test_specialist")
 
         assert manager.config.rollback_f1_drop_threshold == 0.05
-        assert manager.config.rollback_accuracy_drop_threshold == 0.03
-        assert manager.config.rollback_latency_increase_threshold == 1.5
+        assert manager.config.rollback_latency_increase_threshold == 0.5
+        assert manager.config.max_model_versions == 5
 
     def test_init_rollback_disabled(self):
         """Testar com rollback desabilitado."""
         config = OnlineLearningConfig(rollback_enabled=False)
         manager = RollbackManager(config, specialist_type="test_specialist")
 
-        assert manager.rollback_enabled is False
+        assert manager.config.rollback_enabled is False
 
 
 class TestRegisterVersion:
@@ -221,13 +240,14 @@ class TestRegisterVersion:
             manager.register_version(
                 version_id=f'v1.0.{i}',
                 checkpoint_path=f'/data/checkpoints/feasibility_v1.0.{i}.pkl',
-                metrics={'f1_score': 0.85, 'accuracy': 0.88, 'avg_latency_ms': 15.0},
+                metrics={'f1': 0.85, 'precision': 0.88, 'latency_ms': 15.0},
                 mark_stable=i == 6
             )
 
         versions = manager.list_versions()
-        # Deve manter apenas max_versions_to_keep
-        assert len(versions) <= 5
+        # Deve manter stable version + max_model_versions outras versões
+        # Como v1.0.6 é stable, ela é mantida + até 5 outras = 6 total
+        assert len(versions) <= 6
 
 
 class TestDetectDegradation:
@@ -239,14 +259,14 @@ class TestDetectDegradation:
         manager.register_version(
             version_id='v1.0.0',
             checkpoint_path='/data/checkpoints/baseline.pkl',
-            metrics={'f1_score': 0.85, 'accuracy': 0.88, 'avg_latency_ms': 15.0},
+            metrics={'f1': 0.85, 'accuracy': 0.88, 'latency_ms': 15.0},
             mark_stable=True
         )
 
         current_metrics = {
-            'f1_score': 0.79,  # Queda de 0.06, acima do threshold 0.05
+            'f1': 0.79,  # Queda de 0.06, acima do threshold 0.05
             'accuracy': 0.88,
-            'avg_latency_ms': 15.0
+            'latency_ms': 15.0
         }
 
         is_degraded, reasons = manager.detect_degradation(current_metrics)
@@ -255,25 +275,25 @@ class TestDetectDegradation:
         assert any('f1' in r.lower() for r in reasons)
 
     def test_detect_degradation_accuracy_drop(self, manager):
-        """Testar detecção de queda de accuracy."""
+        """Testar detecção de queda de precision."""
         # Primeiro registrar baseline
         manager.register_version(
             version_id='v1.0.0',
             checkpoint_path='/data/checkpoints/baseline.pkl',
-            metrics={'f1_score': 0.85, 'accuracy': 0.88, 'avg_latency_ms': 15.0},
+            metrics={'f1': 0.85, 'precision': 0.88, 'latency_ms': 15.0},
             mark_stable=True
         )
 
         current_metrics = {
-            'f1_score': 0.85,
-            'accuracy': 0.84,  # Queda de 0.04, acima do threshold 0.03
-            'avg_latency_ms': 15.0
+            'f1': 0.85,
+            'precision': 0.82,  # Queda de 0.06, acima do threshold 0.05
+            'latency_ms': 15.0
         }
 
         is_degraded, reasons = manager.detect_degradation(current_metrics)
 
         assert is_degraded is True
-        assert any('accuracy' in r.lower() for r in reasons)
+        assert any('precision' in r.lower() for r in reasons)
 
     def test_detect_degradation_latency_increase(self, manager):
         """Testar detecção de aumento de latência."""
@@ -281,14 +301,14 @@ class TestDetectDegradation:
         manager.register_version(
             version_id='v1.0.0',
             checkpoint_path='/data/checkpoints/baseline.pkl',
-            metrics={'f1_score': 0.85, 'accuracy': 0.88, 'avg_latency_ms': 15.0},
+            metrics={'f1': 0.85, 'precision': 0.88, 'latency_ms': 15.0},
             mark_stable=True
         )
 
         current_metrics = {
-            'f1_score': 0.85,
-            'accuracy': 0.88,
-            'avg_latency_ms': 25.0  # Aumento > 1.5x
+            'f1': 0.85,
+            'precision': 0.88,
+            'latency_ms': 30.0  # Aumento de 100% (30-15)/15 = 1.0 > 0.5
         }
 
         is_degraded, reasons = manager.detect_degradation(current_metrics)
@@ -302,14 +322,14 @@ class TestDetectDegradation:
         manager.register_version(
             version_id='v1.0.0',
             checkpoint_path='/data/checkpoints/baseline.pkl',
-            metrics={'f1_score': 0.85, 'accuracy': 0.88, 'avg_latency_ms': 15.0},
+            metrics={'f1': 0.85, 'accuracy': 0.88, 'latency_ms': 15.0},
             mark_stable=True
         )
 
         current_metrics = {
-            'f1_score': 0.84,  # Queda pequena, dentro do threshold
+            'f1': 0.84,  # Queda pequena, dentro do threshold
             'accuracy': 0.87,
-            'avg_latency_ms': 16.0
+            'latency_ms': 16.0
         }
 
         is_degraded, reasons = manager.detect_degradation(current_metrics)
@@ -320,19 +340,22 @@ class TestDetectDegradation:
 class TestExecuteRollback:
     """Testes de execução de rollback."""
 
-    def test_execute_rollback_success(self, manager):
+    @patch('os.path.exists')
+    def test_execute_rollback_success(self, mock_exists, manager):
         """Testar rollback bem-sucedido."""
+        mock_exists.return_value = True
+
         # Registrar versões
         manager.register_version(
             version_id='v1.0.0',
             checkpoint_path='/data/checkpoints/feasibility_v1.0.0.pkl',
-            metrics={'f1_score': 0.85, 'accuracy': 0.88, 'avg_latency_ms': 15.0},
+            metrics={'f1': 0.85, 'precision': 0.88, 'latency_ms': 15.0},
             mark_stable=True
         )
         manager.register_version(
             version_id='v1.1.0',
             checkpoint_path='/data/checkpoints/feasibility_v1.1.0.pkl',
-            metrics={'f1_score': 0.80, 'accuracy': 0.82, 'avg_latency_ms': 20.0},  # Degradou
+            metrics={'f1': 0.80, 'precision': 0.82, 'latency_ms': 20.0},  # Degradou
             mark_stable=False
         )
 
@@ -340,16 +363,19 @@ class TestExecuteRollback:
             reason='Performance degradation'
         )
 
-        assert result['success'] is True
+        assert result['status'] == 'completed'
         assert result['to_version'] == 'v1.0.0'
 
-    def test_execute_rollback_to_specific_version(self, manager):
+    @patch('os.path.exists')
+    def test_execute_rollback_to_specific_version(self, mock_exists, manager):
         """Testar rollback para versão específica."""
+        mock_exists.return_value = True
+
         for i in range(3):
             manager.register_version(
                 version_id=f'v1.0.{i}',
                 checkpoint_path=f'/data/checkpoints/feasibility_v1.0.{i}.pkl',
-                metrics={'f1_score': 0.85, 'accuracy': 0.88, 'avg_latency_ms': 15.0},
+                metrics={'f1': 0.85, 'precision': 0.88, 'latency_ms': 15.0},
                 mark_stable=i == 2
             )
 
@@ -358,7 +384,7 @@ class TestExecuteRollback:
             target_version='v1.0.0'
         )
 
-        assert result['success'] is True
+        assert result['status'] == 'completed'
         assert result['to_version'] == 'v1.0.0'
 
     def test_execute_rollback_no_previous_version(self, manager):
@@ -367,16 +393,14 @@ class TestExecuteRollback:
         manager.register_version(
             version_id='v1.0.0',
             checkpoint_path='/data/checkpoints/feasibility_v1.0.0.pkl',
-            metrics={'f1_score': 0.85, 'accuracy': 0.88, 'avg_latency_ms': 15.0},
+            metrics={'f1': 0.85, 'precision': 0.88, 'latency_ms': 15.0},
             mark_stable=False
         )
 
-        result = manager.execute_rollback(
-            reason='Test rollback'
-        )
-
-        assert result['success'] is False
-        assert 'error' in result
+        with pytest.raises(Exception):  # RollbackError
+            manager.execute_rollback(
+                reason='Test rollback'
+            )
 
 
 class TestListVersions:
@@ -393,7 +417,7 @@ class TestListVersions:
             manager.register_version(
                 version_id=f'v1.0.{i}',
                 checkpoint_path=f'/data/checkpoints/v1.0.{i}.pkl',
-                metrics={'f1_score': 0.85, 'accuracy': 0.88, 'avg_latency_ms': 15.0},
+                metrics={'f1': 0.85, 'precision': 0.88, 'latency_ms': 15.0},
                 mark_stable=i == 2
             )
 
@@ -409,7 +433,7 @@ class TestListVersions:
             manager.register_version(
                 version_id=f'v1.0.{i}',
                 checkpoint_path=f'/data/checkpoints/v1.0.{i}.pkl',
-                metrics={'f1_score': 0.85, 'accuracy': 0.88, 'avg_latency_ms': 15.0},
+                metrics={'f1': 0.85, 'precision': 0.88, 'latency_ms': 15.0},
                 mark_stable=i == 0
             )
 
@@ -426,7 +450,7 @@ class TestGetStableVersion:
         manager.register_version(
             version_id='v1.0.0',
             checkpoint_path='/data/checkpoints/feasibility_v1.0.0.pkl',
-            metrics={'f1_score': 0.85, 'accuracy': 0.88, 'avg_latency_ms': 15.0},
+            metrics={'f1': 0.85, 'precision': 0.88, 'latency_ms': 15.0},
             mark_stable=True
         )
 

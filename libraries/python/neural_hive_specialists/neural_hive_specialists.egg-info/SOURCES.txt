@@ -3,20 +3,25 @@ __init__.py
 ab_testing_specialist.py
 auth_interceptor.py
 base_specialist.py
+batch_evaluator.py
 cached_specialist.py
 config.py
 ensemble_specialist.py
 explainability_generator.py
+feature_cache.py
 feature_store.py
+gpu_inference.py
 grpc_server.py
 ledger_client.py
 metrics.py
 mlflow_client.py
 multi_tenant_specialist.py
+online_learning_client.py
 opinion_cache.py
 probabilistic_wrapper.py
 schemas.py
 setup.py
+sklearn_compat.py
 ./__init__.py
 ./ab_testing_specialist.py
 ./auth_interceptor.py
@@ -119,6 +124,7 @@ feature_extraction/__init__.py
 feature_extraction/embeddings_generator.py
 feature_extraction/feature_extractor.py
 feature_extraction/graph_analyzer.py
+feature_extraction/nlp_feature_extractor.py
 feature_extraction/ontology_mapper.py
 feedback/__init__.py
 feedback/feedback_api.py
@@ -158,6 +164,7 @@ semantic_pipeline/ontology_evaluator.py
 semantic_pipeline/semantic_analyzer.py
 semantic_pipeline/semantic_pipeline.py
 tests/test_ab_testing_specialist.py
+tests/test_active_learning_strategy.py
 tests/test_anomaly_detector.py
 tests/test_anomaly_detector_additional.py
 tests/test_auth_integration.py
@@ -171,6 +178,7 @@ tests/test_business_metrics_collector.py
 tests/test_business_metrics_collector_additional.py
 tests/test_compliance_layer.py
 tests/test_contract_grpc.py
+tests/test_dataset_balance_analyzer.py
 tests/test_disaster_recovery_manager.py
 tests/test_drift_alerts.py
 tests/test_drift_detector.py
@@ -182,6 +190,7 @@ tests/test_explainability_ledger_v2.py
 tests/test_feature_cache.py
 tests/test_feedback_api.py
 tests/test_feedback_collector.py
+tests/test_feedback_queue.py
 tests/test_field_encryptor.py
 tests/test_gpu_inference.py
 tests/test_grpc_server.py

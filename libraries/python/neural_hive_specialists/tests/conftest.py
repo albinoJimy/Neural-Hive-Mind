@@ -57,10 +57,15 @@ class MockMongoDatabase:
             self._collections[name] = MockMongoCollection()
         return self._collections[name]
 
+    def command(self, *args, **kwargs):
+        """Mock para command (ping etc)."""
+        return {"ok": 1}
+
 class MockMongoClient:
     """Mock de cliente MongoDB."""
     def __init__(self, *args, **kwargs):
         self._db = MockMongoDatabase()
+        self.admin = MockMongoDatabase()  # Para ping e outros comandos admin
 
     def __getitem__(self, name):
         return self._db
@@ -83,6 +88,10 @@ _redis_patch.start()
 # Patches específicos para módulos que importam MongoClient
 _compliance_mongo_patch = patch('neural_hive_specialists.compliance.audit_logger.MongoClient', return_value=MockMongoClient())
 _compliance_mongo_patch.start()
+_ledger_mongo_patch = patch('neural_hive_specialists.ledger_client.MongoClient', return_value=MockMongoClient())
+_ledger_mongo_patch.start()
+_query_api_mongo_patch = patch('neural_hive_specialists.ledger.query_api.MongoClient', return_value=MockMongoClient())
+_query_api_mongo_patch.start()
 
 # Desabilitar ledger na config de teste
 import os

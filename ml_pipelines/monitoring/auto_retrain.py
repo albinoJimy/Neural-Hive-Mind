@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../libraries/pyth
 
 from neural_hive_specialists.feedback.retraining_trigger import RetrainingTrigger
 from neural_hive_specialists.feedback.feedback_collector import FeedbackCollector
-from model_performance_monitor import ModelPerformanceMonitor
+from ml_pipelines.monitoring.model_performance_monitor import ModelPerformanceMonitor
 
 logger = structlog.get_logger(__name__)
 

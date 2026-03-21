@@ -65,11 +65,12 @@ def mock_opinions():
 @pytest.fixture
 def mock_feedbacks():
     """Feedbacks mockados do MongoDB."""
-    recommendations = ['approve', 'reject', 'review_required', 'approve_with_conditions']
+    # Apenas recomendações válidas (approve, reject, review_required)
+    recommendations = ['approve', 'reject', 'review_required']
     return [
         {
             'opinion_id': f'opinion_{i}',
-            'human_recommendation': recommendations[i % 4],
+            'human_recommendation': recommendations[i % 3],
             'human_rating': 0.8 + (i % 3) * 0.05
         }
         for i in range(1200)
@@ -113,6 +114,7 @@ class TestRealDataCollectorMocked:
         collector.feature_extractor = mock_extractor
         collector.expected_feature_names = mock_feature_names
         collector.circuit_breaker = None
+        collector.data_quality_validator = None  # Adicionar atributo faltante
 
         # Guardar referências
         collector._mock_opinions = mock_opinions_coll
@@ -134,7 +136,7 @@ class TestRealDataCollectorMocked:
         # Configurar mocks
         collector._mock_opinions.find.return_value.sort.return_value = mock_opinions
 
-        def mock_find_one(query):
+        def mock_find_one(query, **kwargs):
             opinion_id = query.get('opinion_id')
             if opinion_id:
                 idx = int(opinion_id.split('_')[1])
@@ -182,7 +184,7 @@ class TestRealDataCollectorMocked:
         ]
         collector._mock_opinions.find.return_value.sort.return_value = few_opinions
 
-        def mock_find_one(query):
+        def mock_find_one(query, **kwargs):
             opinion_id = query.get('opinion_id')
             if opinion_id:
                 idx = int(opinion_id.split('_')[1])
@@ -398,13 +400,21 @@ class TestMongoDBConnection:
     @pytest.mark.asyncio
     async def test_mongodb_connection_failure(self, mock_feature_names):
         """Testa tratamento de falha de conexão MongoDB."""
+        # Importar o módulo antes de aplicar o patch
+        from real_data_collector import RealDataCollector
+        import pymongo
+
         mock_client_instance = MagicMock()
         mock_client_instance.admin.command.side_effect = Exception("Connection refused")
 
-        with patch('pymongo.MongoClient', return_value=mock_client_instance), \
+        # Usar patch para substituir o MongoClient no módulo específico
+        with patch.object(pymongo, 'MongoClient', return_value=mock_client_instance), \
              patch('real_data_collector.get_feature_names', return_value=mock_feature_names):
 
-            from real_data_collector import RealDataCollector
+            # Recarregar o módulo para usar o novo patch
+            import importlib
+            import real_data_collector
+            importlib.reload(real_data_collector)
 
             with pytest.raises(Exception) as exc_info:
                 RealDataCollector(

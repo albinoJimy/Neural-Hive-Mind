@@ -4,7 +4,16 @@ import pytest
 import numpy as np
 from unittest.mock import Mock, MagicMock, patch
 import sys
+import os
 import prometheus_client
+
+# Adiciona o diretório ml_pipelines ao sys.path para permitir imports
+_sys_path_inserted = False
+if _sys_path_inserted is False:
+    _ml_pipelines_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+    if _ml_pipelines_root not in sys.path:
+        sys.path.insert(0, _ml_pipelines_root)
+    _sys_path_inserted = True
 
 # ============================================================================
 # Mock MongoDB - deve ser definido antes de qualquer importação dos módulos

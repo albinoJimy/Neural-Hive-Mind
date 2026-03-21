@@ -3,7 +3,7 @@ Name: neural-hive-specialists
 Version: 1.0.10
 Summary: Biblioteca compartilhada para especialistas neurais do Neural Hive-Mind
 Author: Neural Hive-Mind Team
-Requires-Python: >=3.11
+Requires-Python: >=3.10
 Requires-Dist: pydantic>=2.5.2
 Requires-Dist: grpcio>=1.60.0
 Requires-Dist: mlflow>=2.9.0

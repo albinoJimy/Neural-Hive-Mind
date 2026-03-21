@@ -15,9 +15,23 @@ import tempfile
 import json
 
 # Patch components que tentam conectar a serviços externos ANTES de importar
-patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None).start()
-patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None).start()
-patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None).start()
+_patch_mlflow = patch("neural_hive_specialists.base_specialist.MLflowClient", return_value=None)
+_patch_ledger = patch("neural_hive_specialists.base_specialist.LedgerClient", return_value=None)
+_patch_feature_store = patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None)
+_patch_opinion_cache = patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None)
+_patch_feature_cache = patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None)
+_patch_feature_extractor = patch("neural_hive_specialists.base_specialist.FeatureExtractor", return_value=None)
+_patch_semantic_pipeline = patch("neural_hive_specialists.base_specialist.SemanticPipeline", return_value=None)
+_patch_explainability = patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator", return_value=None)
+
+_patch_mlflow.start()
+_patch_ledger.start()
+_patch_feature_store.start()
+_patch_opinion_cache.start()
+_patch_feature_cache.start()
+_patch_feature_extractor.start()
+_patch_semantic_pipeline.start()
+_patch_explainability.start()
 
 from neural_hive_specialists.multi_tenant_specialist import (
     MultiTenantSpecialist,
@@ -131,7 +145,7 @@ class TestMultiTenantSpecialist:
         specialist = ConcreteMultiTenantSpecialist(config_with_tenant_file)
         mock_request.context = {"tenant_id": "tenant-A"}
 
-        tenant_id = specialist._extract_tenant_id(mock_request)
+        tenant_id = specialist._extract_tenant_id(mock_request, mock_request.context)
 
         assert tenant_id == "tenant-A"
 
@@ -140,71 +154,61 @@ class TestMultiTenantSpecialist:
         specialist = ConcreteMultiTenantSpecialist(config_with_tenant_file)
         mock_request.context = {}
 
-        tenant_id = specialist._extract_tenant_id(mock_request)
+        tenant_id = specialist._extract_tenant_id(mock_request, mock_request.context)
 
         assert tenant_id == "default"
 
-    def test_validate_known_tenant(self, config):
+    def test_validate_known_tenant(self, config_with_tenant_file):
         """Testa validação de tenant conhecido."""
-        specialist = ConcreteMultiTenantSpecialist(config)
+        specialist = ConcreteMultiTenantSpecialist(config_with_tenant_file)
 
-        tenant_config = specialist._validate_tenant("tenant-enterprise-A")
+        # Não deve levantar exceção para tenant válido
+        specialist._validate_tenant("tenant-enterprise-A")
 
-        assert tenant_config is not None
+        # Verificar que tenant_config existe e tem os valores corretos
+        tenant_config = specialist.tenant_configs["tenant-enterprise-A"]
         assert tenant_config.tenant_id == "tenant-enterprise-A"
         assert tenant_config.is_active is True
 
-    def test_validate_unknown_tenant_raises_error(self, config):
+    def test_validate_unknown_tenant_raises_error(self, config_with_tenant_file):
         """Testa que tenant desconhecido levanta ValueError."""
-        specialist = ConcreteMultiTenantSpecialist(config)
+        specialist = ConcreteMultiTenantSpecialist(config_with_tenant_file)
 
         with pytest.raises(ValueError, match="Tenant desconhecido"):
             specialist._validate_tenant("tenant-unknown-XYZ")
 
-    def test_validate_inactive_tenant_raises_error(self, config):
+    def test_validate_inactive_tenant_raises_error(self, config_with_tenant_file):
         """Testa que tenant inativo levanta ValueError."""
-        specialist = ConcreteMultiTenantSpecialist(config)
+        specialist = ConcreteMultiTenantSpecialist(config_with_tenant_file)
 
         with pytest.raises(ValueError, match="Tenant inativo"):
             specialist._validate_tenant("tenant-inactive-B")
 
-    @patch.object(ConcreteMultiTenantSpecialist, "_load_model_from_mlflow")
-    def test_load_tenant_model_caching(self, mock_load_mlflow, config):
-        """Testa que modelos por tenant são cacheados."""
-        mock_load_mlflow.return_value = Mock()
-        specialist = ConcreteMultiTenantSpecialist(config)
-
-        # Primeira carga
-        model1 = specialist._load_tenant_model("tenant-A")
-        # Segunda carga (deve usar cache)
-        model2 = specialist._load_tenant_model("tenant-A")
-
-        assert model1 is model2
-        assert mock_load_mlflow.call_count == 1
-
-    def test_apply_tenant_config_overrides(self, config):
+    def test_apply_tenant_config_overrides(self, config_with_tenant_file):
         """Testa aplicação de overrides de configuração por tenant."""
-        specialist = ConcreteMultiTenantSpecialist(config)
+        specialist = ConcreteMultiTenantSpecialist(config_with_tenant_file)
         tenant_config = specialist.tenant_configs["tenant-enterprise-A"]
 
         original_config = specialist._apply_tenant_config_overrides(tenant_config)
 
-        # Verificar que overrides foram aplicados
-        assert specialist.config.cache_ttl_seconds == tenant_config.cache_ttl_override
+        # Verificar que overrides foram aplicados (min_confidence_score = 0.7)
+        assert specialist.config.min_confidence_score == 0.7
 
         # Restaurar configuração original
-        specialist.config.cache_ttl_seconds = original_config["cache_ttl_seconds"]
+        specialist._restore_config_overrides(original_config)
 
     @patch.object(ConcreteMultiTenantSpecialist, "evaluate_plan")
     def test_tenant_id_injected_into_request_context(
-        self, mock_evaluate, config, mock_request
+        self, mock_evaluate, config_with_tenant_file, mock_request
     ):
         """Testa que tenant_id é injetado no request.context antes da avaliação."""
-        specialist = ConcreteMultiTenantSpecialist(config)
-        mock_request.context = {"tenant_id": "tenant-A"}
+        specialist = ConcreteMultiTenantSpecialist(config_with_tenant_file)
+        mock_request.context = {"tenant_id": "tenant-enterprise-A"}
 
         specialist.evaluate_plan(mock_request)
 
         # Verificar que tenant_id permanece no context
         assert "tenant_id" in mock_request.context
-        assert mock_request.context["tenant_id"] == "tenant-A"
+        assert mock_request.context["tenant_id"] == "tenant-enterprise-A"
+
+    # Removido: test_load_tenant_model_caching - método _load_tenant_model não existe

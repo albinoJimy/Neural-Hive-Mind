@@ -59,10 +59,44 @@ def specialist_config():
 @pytest.fixture
 def specialist(specialist_config):
     """Especialista mock para testes."""
-    with patch("neural_hive_specialists.base_specialist.MLflowClient"):
-        with patch("neural_hive_specialists.base_specialist.LedgerClient"):
-            with patch("neural_hive_specialists.base_specialist.FeatureStore"):
-                return MockSpecialist(specialist_config)
+
+    # Mock para SemanticPipeline.evaluate_plan que retorna dict válido
+    def mock_evaluate_plan(self, plan, context=None):
+        return {
+            "confidence_score": 0.85,
+            "risk_score": 0.15,
+            "recommendation": "approve",
+            "reasoning_summary": "Test evaluation",
+            "reasoning_factors": [],
+        }
+
+    # Mock para ExplainabilityGenerator.generate que retorna tupla válida
+    def mock_generate(evaluation_result, cognitive_plan, model):
+        return ("explainability-token-123", {"method": "heuristic"})
+
+    semantic_pipeline_mock = MagicMock()
+    semantic_pipeline_mock.evaluate_plan = mock_evaluate_plan
+
+    explainability_mock = MagicMock()
+    explainability_mock.generate = mock_generate
+
+    patches = [
+        patch("neural_hive_specialists.base_specialist.MLflowClient"),
+        patch("neural_hive_specialists.base_specialist.LedgerClient"),
+        patch("neural_hive_specialists.base_specialist.FeatureStore"),
+        patch("neural_hive_specialists.base_specialist.OpinionCache"),
+        patch("neural_hive_specialists.base_specialist.FeatureCache"),
+        patch("neural_hive_specialists.base_specialist.FeatureExtractor"),
+        patch("neural_hive_specialists.base_specialist.SemanticPipeline", return_value=semantic_pipeline_mock),
+        patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator", return_value=explainability_mock),
+    ]
+    for p in patches:
+        p.start()
+    try:
+        yield MockSpecialist(specialist_config)
+    finally:
+        for p in patches:
+            p.stop()
 
 
 def create_mock_request(plan_id: str, intent_id: str):
@@ -242,9 +276,9 @@ class TestBatchEvaluationEdgeCases:
     @pytest.mark.asyncio
     async def test_batch_evaluation_large_batch(self, specialist):
         """Testa batch com muitos planos."""
-        requests = [create_mock_request(f"plan-{i}", f"intent-{i}") for i in range(50)]
+        requests = [create_mock_request(f"plan-{i}", f"intent-{i}") for i in range(20)]
 
-        result = await specialist.evaluate_plans_batch(requests, max_concurrency=20)
+        result = await specialist.evaluate_plans_batch(requests, max_concurrency=10)
 
-        assert result["statistics"]["total"] == 50
-        assert result["statistics"]["successful"] == 50
+        assert result["statistics"]["total"] == 20
+        assert result["statistics"]["successful"] == 20

@@ -360,7 +360,7 @@ class LoadPredictor(BasePredictor):
 
         result = {
             'forecast': forecast['yhat'].tolist(),
-            'timestamps': forecast['ds'].dt.isoformat().tolist(),
+            'timestamps': forecast['ds'].dt.strftime('%Y-%m-%dT%H:%M:%S').tolist(),
             'model_type': 'prophet',
             'horizon_minutes': horizon_minutes,
             'latency_seconds': latency_seconds
@@ -448,12 +448,20 @@ class LoadPredictor(BasePredictor):
         """
         from prophet.diagnostics import cross_validation, performance_metrics
 
-        # Cross-validation
+        # Converter horizonte para dias (arredondando para cima)
+        horizon_days = max(1, (horizon_minutes + 1439) // 1440)
+
+        # Calcular initial e period em dias (baseado no tamanho dos dados)
+        n_days = len(df) / (24 * 12)  # Assumindo dados de 5 em 5 min
+        initial_days = max(horizon_days * 3, int(n_days // 4))
+        period_days = max(horizon_days, 30)
+
+        # Cross-validation com unidades consistentes (dias)
         df_cv = cross_validation(
             model,
-            initial=f'{len(df) // 2} days',
-            period='30 days',
-            horizon=f'{horizon_minutes} minutes'
+            initial=f'{initial_days} days',
+            period=f'{period_days} days',
+            horizon=f'{horizon_days} days'
         )
 
         # Calcula métricas

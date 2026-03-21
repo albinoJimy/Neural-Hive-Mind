@@ -11,10 +11,46 @@ from pydantic import ValidationError
 
 # Patch components que tentam conectar a serviços externos
 # Isso deve ser feito ANTES de importar BaseSpecialist
-patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None).start()
-patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None).start()
-patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None).start()
-patch("neural_hive_specialists.feature_extraction.embeddings_generator.EmbeddingsGenerator", return_value=None).start()
+
+# Mock para SemanticPipeline.evaluate_plan que retorna dict válido
+def mock_semantic_evaluate(self, plan, context=None):
+    return {
+        "confidence_score": 0.85,
+        "risk_score": 0.15,
+        "recommendation": "approve",
+        "reasoning_summary": "Test evaluation",
+        "reasoning_factors": [],
+    }
+
+# Mock para ExplainabilityGenerator.generate que retorna tupla válida
+def mock_explainability_generate(self, evaluation_result, cognitive_plan, model):
+    return ("explainability-token-123", {"method": "heuristic"})
+
+_semantic_pipeline_mock = MagicMock()
+_semantic_pipeline_mock.evaluate_plan = mock_semantic_evaluate
+
+_explainability_mock = MagicMock()
+_explainability_mock.generate = mock_explainability_generate
+
+_patch_mlflow = patch("neural_hive_specialists.base_specialist.MLflowClient", return_value=None)
+_patch_ledger = patch("neural_hive_specialists.base_specialist.LedgerClient", return_value=None)
+_patch_feature_store = patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None)
+_patch_opinion_cache = patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None)
+_patch_feature_cache = patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None)
+_patch_feature_extractor = patch("neural_hive_specialists.base_specialist.FeatureExtractor", return_value=None)
+_patch_semantic_pipeline = patch("neural_hive_specialists.base_specialist.SemanticPipeline", return_value=_semantic_pipeline_mock)
+_patch_explainability = patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator", return_value=_explainability_mock)
+_patch_embeddings = patch("neural_hive_specialists.feature_extraction.embeddings_generator.EmbeddingsGenerator", return_value=None)
+
+_patch_mlflow.start()
+_patch_ledger.start()
+_patch_feature_store.start()
+_patch_opinion_cache.start()
+_patch_feature_cache.start()
+_patch_feature_extractor.start()
+_patch_semantic_pipeline.start()
+_patch_explainability.start()
+_patch_embeddings.start()
 
 from neural_hive_specialists.base_specialist import BaseSpecialist
 from neural_hive_specialists.schemas import (
