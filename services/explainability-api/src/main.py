@@ -44,6 +44,7 @@ KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
 MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://mongodb:27017')
 CONSUMER_GROUP_ID = os.getenv('CONSUMER_GROUP_ID', 'explainability-api-group')
 ENABLE_KAFKA_CONSUMER = os.getenv('ENABLE_KAFKA_CONSUMER', 'true').lower() == 'true'
+ENABLE_V3_API = os.getenv('ENABLE_V3_API', 'false').lower() == 'true'
 
 # Globais
 mongo_client: Optional[AsyncIOMotorClient] = None
@@ -82,7 +83,8 @@ async def lifespan(app: FastAPI):
     global api_extensions, explanation_producer, consensus_consumer
 
     # ========== STARTUP ==========
-    logger.info("starting_explainability_api", version="2.0.0", gaps04="enabled")
+    api_version = "3.0.0" if ENABLE_V3_API else "2.0.0"
+    logger.info("starting_explainability_api", version=api_version, gaps04="enabled", v3_enabled=ENABLE_V3_API)
 
     # Inicializar observabilidade
     init_observability(service_name='explainability-api')
@@ -91,6 +93,17 @@ async def lifespan(app: FastAPI):
     mongo_client = AsyncIOMotorClient(MONGODB_URI)
     db = mongo_client['neural_hive']
     logger.info("mongodb_connected", uri=MONGODB_URI)
+
+    # Inicializar V3 Router se habilitado
+    global v3_router
+    if ENABLE_V3_API:
+        try:
+            from src.api.routes.v3 import create_v3_router
+            v3_router = create_v3_router(mongo_client)
+            app.include_router(v3_router)
+            logger.info("v3_router_initialized")
+        except Exception as e:
+            logger.warning("v3_router_init_failed", error=str(e))
 
     # Inicializar serviços de ML
     shap_calculator = ShapCalculator(n_samples=100)
@@ -165,13 +178,17 @@ async def lifespan(app: FastAPI):
 
 
 # Inicializar FastAPI com lifespan
+api_version = "3.0.0" if ENABLE_V3_API else "2.0.0"
+api_description = "API de explicações do Neural Hive-Mind (GAPS-04 Enhanced)"
+if ENABLE_V3_API:
+    api_description += " com endpoints hierárquicos v3"
+
 app = FastAPI(
     title="Explainability API",
-    description="API de explicações do Neural Hive-Mind (GAPS-04 Enhanced)",
-    version="2.0.0",
+    description=api_description,
+    version=api_version,
     lifespan=lifespan
 )
-
 
 # ========== HEALTH ENDPOINTS ==========
 
