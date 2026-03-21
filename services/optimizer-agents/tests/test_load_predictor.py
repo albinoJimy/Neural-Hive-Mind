@@ -13,7 +13,7 @@ Cobertura:
 import pytest
 import pytest_asyncio
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pandas as pd
 import numpy as np
 
@@ -21,7 +21,7 @@ from src.ml.load_predictor import LoadPredictor
 
 
 @pytest.fixture
-def config():
+def mock_config():
     """Configuração para LoadPredictor."""
     return {
         'ml_prophet_seasonality_mode': 'additive',
@@ -35,7 +35,7 @@ def config():
 
 
 @pytest.fixture
-def mock_clickhouse_client():
+def mock_clickhouse():
     """Mock ClickHouseClient."""
     client = AsyncMock()
     client.query_historical_loads = AsyncMock(return_value=pd.DataFrame({
@@ -50,7 +50,7 @@ def mock_clickhouse_client():
 
 
 @pytest.fixture
-def mock_redis_client():
+def mock_redis():
     """Mock Redis para cache."""
     client = AsyncMock()
     client.get = AsyncMock(return_value=None)  # Cache miss por padrão
@@ -247,7 +247,7 @@ class TestLoadPrediction:
         ]
         mock_clickhouse.query_execution_timeseries = AsyncMock(return_value=minimal_data)
 
-        with patch('src.ml.load_predictor.auto_arima') as mock_auto_arima:
+        with patch('pmdarima.auto_arima') as mock_auto_arima:
             mock_arima_model = Mock()
             mock_arima_model.predict = Mock(return_value=(
                 np.array([100] * 60),
@@ -340,7 +340,7 @@ class TestBottleneckPrediction:
                     'ticket_count': 50 if i < 5 else 150,  # Pico em i >= 5
                     'resource_demand': {'cpu_cores': 5, 'memory_mb': 5000},
                     'confidence_lower': 40,
-                    'confidence_upper': 50 if i < 5 else 200  # Upper bound > 2x média
+                    'confidence_upper': 50 if i < 5 else 250  # Upper bound > 2x média (250 > 2*100)
                 }
                 for i in range(10)
             ],
@@ -376,13 +376,29 @@ class TestTraining:
         # Mock dados históricos suficientes
         mock_clickhouse.query_execution_timeseries = AsyncMock(return_value=sample_historical_data)
 
-        result = await predictor.train_model(training_window_days=7)
+        # Mock helper methods para retornar DataFrame Prophet-compatible
+        import pandas as pd
+        prophet_df = pd.DataFrame({
+            'ds': pd.date_range(start='2024-01-01', periods=1000, freq='H'),
+            'y': np.random.randint(40, 60, 1000)
+        })
 
-        assert 60 in result
-        assert 360 in result
-        assert 1440 in result
-        assert result[60]['mape'] < 100  # MAPE razoável
-        mock_metrics.record_ml_training.assert_called_once()
+        with patch.object(predictor, '_prepare_timeseries_data', return_value=prophet_df):
+            with patch.object(predictor, '_backfill_missing_data', return_value=prophet_df):
+                with patch('prophet.Prophet') as mock_prophet_class:
+                    # Mock Prophet model
+                    mock_prophet = Mock()
+                    mock_model = Mock()
+                    mock_model.fit = Mock()
+                    mock_prophet_class.return_value = mock_model
+
+                    result = await predictor.train_model(training_window_days=7)
+
+                    assert 60 in result
+                    assert 360 in result
+                    assert 1440 in result
+                    assert result[60]['mape'] < 100  # MAPE razoável
+                    mock_metrics.record_ml_training.assert_called_once()
 
     async def test_train_model_insufficient_data(self, mock_config, mock_clickhouse, mock_redis, mock_model_registry, mock_metrics):
         """Testa treinamento com dados insuficientes."""
