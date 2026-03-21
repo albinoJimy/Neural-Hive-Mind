@@ -99,7 +99,8 @@ async def lifespan(app: FastAPI):
     if ENABLE_V3_API:
         try:
             from src.api.routes.v3 import create_v3_router
-            v3_router = create_v3_router(mongo_client)
+            # Pass database (not client) to v3 router
+            v3_router = create_v3_router(db)
             app.include_router(v3_router)
             logger.info("v3_router_initialized")
         except Exception as e:
