@@ -55,6 +55,37 @@ sys.modules['clickhouse_driver'] = MagicMock()
 sys.modules['neo4j'] = MagicMock()
 sys.modules['prometheus_client'] = MagicMock()
 
+# Create proper RpcError exception class for grpc
+class GrpcRpcError(Exception):
+    """Mock grpc.RpcError for testing"""
+    def __init__(self, code):
+        super().__init__(f"gRPC error: {code}")
+        self._code = code
+
+    def code(self):
+        return self._code
+
+# Create StatusCode enum for grpc
+from enum import IntEnum
+class StatusCode(IntEnum):
+    OK = 0
+    CANCELLED = 1
+    UNKNOWN = 2
+    INVALID_ARGUMENT = 3
+    DEADLINE_EXCEEDED = 4
+    NOT_FOUND = 5
+    ALREADY_EXISTS = 6
+    PERMISSION_DENIED = 7
+    UNAUTHENTICATED = 16
+    RESOURCE_EXHAUSTED = 8
+    FAILED_PRECONDITION = 9
+    ABORTED = 10
+    OUT_OF_RANGE = 11
+    UNIMPLEMENTED = 12
+    INTERNAL = 13
+    UNAVAILABLE = 14
+    DATA_LOSS = 15
+
 # Mock grpc with __version__ attribute (>= 1.68.1 for protobuf compatibility)
 mock_grpc = MagicMock()
 mock_grpc.__version__ = "1.68.1"
@@ -65,6 +96,8 @@ mock_grpc.secure_channel = MagicMock()
 mock_grpc.insecure_channel = MagicMock()
 mock_grpc.ChannelCredentials = MagicMock()
 mock_grpc.LocalChannelCredentials = MagicMock()
+mock_grpc.RpcError = GrpcRpcError
+mock_grpc.StatusCode = StatusCode
 
 # Mock grpc._utilities for version check
 mock_grpc_utilities = MagicMock()
@@ -82,6 +115,8 @@ mock_grpc_aio.secure_channel = MagicMock()
 mock_grpc_aio.insecure_channel = MagicMock()
 mock_grpc_aio.ChannelCredentials = MagicMock()
 mock_grpc_aio.LocalChannelCredentials = MagicMock()
+mock_grpc_aio.RpcError = GrpcRpcError
+mock_grpc_aio.StatusCode = StatusCode
 sys.modules['grpc.aio'] = mock_grpc_aio
 
 sys.modules['src.services.embedding_service'] = MagicMock()
@@ -94,12 +129,17 @@ sys.modules['src.clients.prometheus_client'] = MagicMock()
 # Mock neural_hive_observability package
 mock_observability = MagicMock()
 mock_observability.init_observability = MagicMock()
+# instrument_grpc_channel deve retornar o channel que recebe
+mock_observability.instrument_grpc_channel = lambda channel, **kwargs: channel
 sys.modules['neural_hive_observability'] = mock_observability
 sys.modules['neural_hive_observability.health'] = MagicMock()
 sys.modules['neural_hive_observability.health_checks'] = MagicMock()
 sys.modules['neural_hive_observability.health_checks.clickhouse'] = MagicMock()
 sys.modules['neural_hive_observability.config'] = MagicMock()
-sys.modules['neural_hive_observability.grpc_instrumentation'] = MagicMock()
+# Mock inject_grpc_context to return empty list
+mock_grpc_instrumentation = MagicMock()
+mock_grpc_instrumentation.inject_grpc_context = lambda: []
+sys.modules['neural_hive_observability.grpc_instrumentation'] = mock_grpc_instrumentation
 sys.modules['neural_hive_observability.context'] = MagicMock()
 sys.modules['neural_hive_observability.health_checks.clickhouse'] = MagicMock()
 

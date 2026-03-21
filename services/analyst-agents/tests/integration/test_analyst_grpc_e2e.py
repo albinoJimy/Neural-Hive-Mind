@@ -37,7 +37,7 @@ TEST_GRPC_HOST = "127.0.0.1"
 TEST_GRPC_PORT = 50099
 
 
-class TestQueryEngine:
+class MockQueryEngine:
     """Query engine simplificado para testes."""
 
     def __init__(self):
@@ -47,7 +47,7 @@ class TestQueryEngine:
         return self._data.get(metric_name, [1.0, 2.0, 3.0, 4.0, 5.0])
 
 
-class TestAnalyticsEngine:
+class MockAnalyticsEngine:
     """Analytics engine simplificado para testes."""
 
     def __init__(self):
@@ -142,8 +142,8 @@ async def neo4j_client():
 @pytest.fixture(scope="module")
 async def grpc_server(mongodb_client, redis_client, neo4j_client):
     """Inicializar servidor gRPC para testes."""
-    query_engine = TestQueryEngine()
-    analytics_engine = TestAnalyticsEngine()
+    query_engine = MockQueryEngine()
+    analytics_engine = MockAnalyticsEngine()
     insight_generator = InsightGenerator(min_confidence=0.5)
 
     server = AnalystGRPCServer(
