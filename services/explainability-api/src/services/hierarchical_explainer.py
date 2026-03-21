@@ -9,16 +9,8 @@ Explainability API v3 - Task 3
 from typing import Dict, Any, List, Optional
 import structlog
 
-# Importar modelos de senioridade do consensus-engine
-import sys
-from pathlib import Path
-
-# Add consensus-engine to path para importar SENIORITY_MULTIPLIERS
-consensus_path = Path(__file__).parent.parent.parent.parent / "consensus-engine" / "src"
-if str(consensus_path) not in sys.path:
-    sys.path.insert(0, str(consensus_path))
-
-from models.seniority import SENIORITY_MULTIPLIERS, SeniorityLevel
+# Importar modelos de senioridade locais (sincronizados com consensus-engine)
+from models.seniority import SENIORITY_MULTIPLIERS, SeniorityLevel, get_multiplier
 
 logger = structlog.get_logger(__name__)
 
