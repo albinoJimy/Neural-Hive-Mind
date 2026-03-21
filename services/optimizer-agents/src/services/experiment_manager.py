@@ -877,7 +877,7 @@ class ExperimentManager:
             strategy_map = {
                 RandomizationStrategy.RANDOM: RandomizationStrategyType.RANDOM,
                 RandomizationStrategy.STRATIFIED: RandomizationStrategyType.STRATIFIED,
-                RandomizationStrategy.BLOCK: RandomizationStrategyType.BLOCK,
+                RandomizationStrategy.BLOCKED: RandomizationStrategyType.BLOCKED,
             }
             strategy = strategy_map.get(
                 experiment_request.randomization_strategy,
