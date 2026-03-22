@@ -355,7 +355,7 @@ class V3ExplanationService:
             return None
 
         # Usar get_seniority_changes com a lista de specialist_ids
-        seniority_changes = await self.temporal_tracker.get_seniority_changes(specialistist_ids)
+        seniority_changes = await self.temporal_tracker.get_seniority_changes(specialist_ids)
 
         if not seniority_changes or "history" not in seniority_changes:
             # Retornar análise vazia se não houver histórico
