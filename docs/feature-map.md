@@ -216,7 +216,7 @@
 - ✅ **GAPS-06 MCP Servers Integration** (2026-03-18) - HTTP servers, 16 testes, K8s deploy
 - ✅ **GAPS-05 Scout Agents** (2026-03-18) - 117 testes, exploração e descoberta autónoma
 - ✅ **Active Learning Feedback Collector** (2026-03-17) - 76 testes, ML v8 integration
-- ✅ **GAPS-04 Explainability API** (2026-03-17) - 66 testes, SHAP + reasoning extraction
+- ✅ **GAPS-04 Explainability API v3** (2026-03-22) - Hierarchical explanation, 217 testes, CounterfactualAnalyzer, TemporalTracker, deploy K8s
 - ✅ **GAPS-03 Consenso Hierárquico** (2026-03-17) - 5 níveis de senioridade, 132 testes
 
 ---
