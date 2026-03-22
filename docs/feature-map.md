@@ -230,10 +230,12 @@
 
 ## Próximos Épicos Sugeridos
 
-1. **ML: Online Learning** — Retreinamento contínuo dos modelos de aprovação (50%)
+1. **neural_hive_specialists: Evolution Hooks** — Completar evolution hooks (90% → 100%)
 2. **Scout Agents: TS/JS + YAML/JSON** — Completar parsers para TypeScript/JavaScript e YAML/JSON (85%)
 3. **Memory Layer API** — Completar endpoints de persistência de memória (75%)
 4. **MCP Servers Full Integration** — Integração completa com MCP (60%)
+5. **Self-Healing Engine** — Auto-recuperação avançada (55% → 100%)
+6. **Code Forge** — Geração de código/IaC (65% → 100%)
 
 ---
 
