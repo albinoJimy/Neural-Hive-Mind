@@ -166,7 +166,7 @@
 - [x] Especialistas concretos
 - [x] Behaviours
 - [x] Active Learning (balance_analyzer, learning_strategy, feedback_queue)
-- [ ] Evolution hooks
+- [ ] Evolution hooks (requer especificação detalhada)
 
 ### neural_hive_agent_sdk (85%)
 - [x] Client templates
@@ -215,10 +215,11 @@
 3. **Online learning** contínuo
 
 ### Concluídos Recentemente
+- ✅ **Scout Agents: Multi-Language** (2026-03-22) - TS/JS/YAML/JSON parsers, 21 testes, 412 testes totais
 - ✅ **ML Online Learning** (2026-03-22) - ShadowValidator, RollbackManager, OnlineMonitor, DeploymentOrchestrator, 80/80 testes
 - ✅ **GAPS-04 Explainability API v3** (2026-03-22) - Hierarchical explanation, 217 testes, CounterfactualAnalyzer, TemporalTracker, deploy K8s
 - ✅ **Online Learning Core** (2026-03-19) - IncrementalLearner + ModelEnsemble, 32/32 testes
-- ✅ **Memory Layer API Tests Fix** (2026-03-19) - Sync E2E, 62/62 testes passando
+- ✅ **Memory Layer API Tests** (2026-03-19) - Sync E2E, 62/62 testes passando
 - ✅ **Scout Agents Expansion** (2026-03-19) - Multi-lingua AST (Java, C#, Go, C/C++, Rust), 20 padrões, Signals, Coordination, 412 testes
 - ✅ **GAPS-07 Optimizer Agents** (2026-03-18) - Multi-database analyzers, 56 testes, Helm chart
 - ✅ **GAPS-06 MCP Servers Integration** (2026-03-18) - HTTP servers, 16 testes, K8s deploy
@@ -230,12 +231,12 @@
 
 ## Próximos Épicos Sugeridos
 
-1. **neural_hive_specialists: Evolution Hooks** — Completar evolution hooks (90% → 100%)
-2. **Scout Agents: TS/JS + YAML/JSON** — Completar parsers para TypeScript/JavaScript e YAML/JSON (85%)
-3. **Memory Layer API** — Completar endpoints de persistência de memória (75%)
-4. **MCP Servers Full Integration** — Integração completa com MCP (60%)
-5. **Self-Healing Engine** — Auto-recuperação avançada (55% → 100%)
-6. **Code Forge** — Geração de código/IaC (65% → 100%)
+1. **neural_hive_specialists: Evolution Hooks** — Completar evolution hooks (requer especificação)
+2. **MCP Servers Full Integration** — Integração completa com MCP (60% → 100%)
+3. **Self-Healing Engine** — Auto-recuperação avançada (55% → 100%)
+4. **Code Forge** — Geração de código/IaC (65% → 100%)
+5. **SLA Management** — Sistema de SLA avançado (75% → 100%)
+6. **Worker Agents** — Execução paralela avançada (75% → 100%)
 
 ---
 
