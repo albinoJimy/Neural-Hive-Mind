@@ -90,6 +90,8 @@ class HierarchicalExplainer:
         - recommendation -> vote
         - confidence_score -> confidence
 
+        Preserva campos já normalizados se presentes.
+
         Args:
             votes: Lista de votos brutos
 
@@ -110,26 +112,46 @@ class HierarchicalExplainer:
         for vote in votes:
             normalized_vote = {}
 
-            # Mapear identificador
-            specialist_type = vote.get("specialist_type", "unknown")
-            normalized_vote["specialist_id"] = vote.get("opinion_id", specialist_type)
-            normalized_vote["specialist_type"] = specialist_type
+            # Se o voto já tem specialist_id e seniority_level (pré-normalizado),
+            # preservar esses valores
+            if "specialist_id" in vote and "seniority_level" in vote:
+                normalized_vote["specialist_id"] = vote["specialist_id"]
+                normalized_vote["seniority_level"] = vote["seniority_level"]
+                # Preservar specialist_type se existir
+                if "specialist_type" in vote:
+                    normalized_vote["specialist_type"] = vote["specialist_type"]
+                else:
+                    normalized_vote["specialist_type"] = "unknown"
+            else:
+                # Mapear identificador
+                specialist_type = vote.get("specialist_type", "unknown")
+                normalized_vote["specialist_id"] = vote.get("opinion_id", specialist_type)
+                normalized_vote["specialist_type"] = specialist_type
 
-            # Mapear seniority
-            seniority_level = TYPE_TO_SENIORITY.get(specialist_type, "mid_level")
-            normalized_vote["seniority_level"] = seniority_level
+                # Mapear seniority
+                seniority_level = TYPE_TO_SENIORITY.get(specialist_type, "mid_level")
+                normalized_vote["seniority_level"] = seniority_level
 
-            # Mapear voto
-            recommendation = vote.get("recommendation", "neutral")
-            normalized_vote["vote"] = recommendation
+            # Mapear voto (verificar ambos os formatos)
+            if "vote" in vote:
+                normalized_vote["vote"] = vote["vote"]
+            else:
+                recommendation = vote.get("recommendation", "neutral")
+                normalized_vote["vote"] = recommendation
 
             # Mapear confiança
-            normalized_vote["confidence"] = vote.get("confidence_score", 0.5)
+            if "confidence" in vote:
+                normalized_vote["confidence"] = vote["confidence"]
+            else:
+                normalized_vote["confidence"] = vote.get("confidence_score", 0.5)
 
-            # Mapear peso (se existir)
-            if "weight" in vote:
+            # Mapear peso
+            if "seniority_multiplier" in vote:
+                normalized_vote["seniority_multiplier"] = vote["seniority_multiplier"]
+            elif "weight" in vote:
                 normalized_vote["seniority_multiplier"] = vote["weight"]
             else:
+                seniority_level = normalized_vote["seniority_level"]
                 normalized_vote["seniority_multiplier"] = SENIORITY_MULTIPLIERS.get(
                     seniority_level, 1.0
                 )

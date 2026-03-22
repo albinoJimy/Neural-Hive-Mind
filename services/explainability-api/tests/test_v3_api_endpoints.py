@@ -109,24 +109,29 @@ def sample_votes() -> List[Dict[str, Any]]:
 
 @pytest.fixture
 def sample_explanation_document() -> Dict[str, Any]:
-    """Documento de explicação do MongoDB."""
+    """Documento de decisão do MongoDB (consensus_decisions format)."""
     return {
         "_id": "507f1f77bcf86cd799439011",
-        "explainability_token": "token-123",
         "decision_id": "decision-456",
-        "consensus_process": {
-            "method": "hierarchical_bayesian",
-            "num_specialists": 3,
-        },
-        "specialist_opinions": [
+        "consensus_method": "hierarchical_bayesian",
+        "num_specialists": 3,
+        "specialist_votes": [
             {
-                "specialist_id": "business_expert",
-                "seniority_level": "expert",
-                "seniority_multiplier": 2.0,
-                "vote": "approve",
-                "confidence": 0.9,
+                "opinion_id": "business_expert",
+                "specialist_type": "business",
+                "recommendation": "approve",
+                "confidence_score": 0.9,
                 "risk": 0.1,
-            }
+                "weight": 2.0,
+            },
+            {
+                "opinion_id": "technical_senior",
+                "specialist_type": "technical",
+                "recommendation": "approve",
+                "confidence_score": 0.8,
+                "risk": 0.2,
+                "weight": 1.5,
+            },
         ],
     }
 
@@ -143,11 +148,9 @@ def mock_mongo_client(sample_explanation_document):
         return sample_explanation_document
 
     collection.find_one = mock_find_one
-    # V3ExplanationService armazena client como self.db
-    # e acessa self.db.explainability_ledger
-    client.explainability_ledger = collection
-    client.neural_hive = db
-    db.explainability_ledger = collection
+    # V3ExplanationService usa self.db.consensus_decisions
+    db.consensus_decisions = collection
+    client.consensus_decisions = collection
 
     return client
 
@@ -163,9 +166,8 @@ def mock_mongo_client_not_found():
         return None
 
     collection.find_one = mock_find_one_none
-    db.explainability_ledger = collection
-    client.neural_hive = db
-    client.explainability_ledger = collection
+    db.consensus_decisions = collection
+    client.consensus_decisions = collection
 
     return client
 
@@ -199,8 +201,11 @@ class TestV3ExplanationServiceGetDecisionVotes:
         votes = await service._get_decision_votes("decision-456")
 
         assert votes is not None
-        assert len(votes) == 1
-        assert votes[0]["specialist_id"] == "business_expert"
+        assert len(votes) == 2
+        # _get_decision_votes retorna votos raw (sem normalização)
+        # com decision_id adicionado
+        assert votes[0]["opinion_id"] == "business_expert"
+        assert votes[0]["decision_id"] == "decision-456"
 
     @pytest.mark.asyncio
     async def test_get_decision_votes_not_found(self, mock_mongo_client_not_found):
@@ -387,7 +392,7 @@ class TestV3ExplanationServiceGetTemporalAnalysis:
         """Testa análise temporal quando não há dados."""
         service = V3ExplanationService(mock_mongo_client)
 
-        # Mock retornando vazio
+        # Mock retornando vazio (sem "history" key)
         async def mock_get_seniority_empty(*args, **kwargs):
             return {}
 
@@ -395,7 +400,11 @@ class TestV3ExplanationServiceGetTemporalAnalysis:
 
         result = await service.get_temporal_analysis("decision-456")
 
-        assert result is None
+        # Quando não há histórico, retorna análise vazia (não None)
+        assert result is not None
+        assert "temporal_analysis" in result
+        assert result["temporal_analysis"]["current_seniority"] == "unknown"
+        assert result["temporal_analysis"]["history"] == []
 
 
 class TestV3ExplanationServiceGetBatchExplanations:
@@ -430,20 +439,19 @@ class TestV3ExplanationServiceGetBatchExplanations:
                 return {
                     "_id": "507f1f77bcf86cd799439011",
                     "decision_id": "decision-456",
-                    "specialist_opinions": [
+                    "specialist_votes": [
                         {
-                            "specialist_id": "business_expert",
-                            "seniority_level": "expert",
-                            "seniority_multiplier": 2.0,
-                            "vote": "approve",
-                            "confidence": 0.9,
-                            "risk": 0.1,
+                            "opinion_id": "business_expert",
+                            "specialist_type": "business",
+                            "recommendation": "approve",
+                            "confidence_score": 0.9,
+                            "weight": 2.0,
                         }
                     ],
                 }
             return None  # Segunda chamada retorna None
 
-        mock_mongo_client.neural_hive.explainability_ledger.find_one = mock_find_one
+        mock_mongo_client.consensus_decisions.find_one = mock_find_one
 
         result = await service.get_batch_explanations(
             ["decision-456", "nonexistent"]
