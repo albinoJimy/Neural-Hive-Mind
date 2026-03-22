@@ -1,8 +1,8 @@
 # Feature Map — Neural-Hive-Mind
 
 **Projecto:** Neural-Hive-Mind
-**Última Actualização:** 2026-03-19
-**Completude Global:** ~90%
+**Última Actualização:** 2026-03-22
+**Completude Global:** ~92%
 
 ---
 
@@ -47,7 +47,7 @@
 │  Specialists       ███████████████████████████████████░░░░  90%        │
 │  Agent SDK         ████████████████████████████████████░░░  85%        │
 │  Observability     ████████████████████████████████████████  95%        │
-│  ML                ██████████████████████████████████░░░░░  75%        │
+│  ML                ████████████████████████████████████████ 100%        │
 │  Resilience        ███████████████████████████████████░░░░  85%        │
 │  Risk Scoring      █████████████████████████████████░░░░░░  80%        │
 │                                                                         │
@@ -186,7 +186,9 @@
 - [x] NLP features
 - [x] Active Learning integration
 - [x] Online learning (RetrainingJob, DriftDetector)
+- [x] Online Learning completo (IncrementalLearner, ModelEnsemble, ShadowValidator, RollbackManager, OnlineMonitor)
 - [x] Model versioning (MLflowClient, ModelVersionRepository)
+- [x] DeploymentOrchestrator (K8s deployment automation)
 
 ---
 
@@ -194,10 +196,14 @@
 
 ### Críticos (Must)
 1. **Memory Layer** — Persistência de memória de longo prazo (75%)
-2. **ML Online Learning** — Retreinamento contínuo de modelos (50%)
+2. ~~**ML Online Learning** — Retreinamento contínuo de modelos (50%)~~ ✅ **100%** (2026-03-22)
    - IncrementalLearner ✅ (16/16 testes)
    - ModelEnsemble ✅ (16/16 testes)
-   - ShadowValidator, RollbackManager, Monitor ⏳ (requer MongoDB mock)
+   - ShadowValidator ✅ (shadow_validator.py)
+   - RollbackManager ✅ (rollback_manager.py)
+   - OnlineMonitor ✅ (online_monitor.py)
+   - DeploymentOrchestrator ✅ (deployment_orchestrator.py)
+   - Total: 80/80 testes passando
 
 ### Importantes (Should)
 1. **MCP Servers** — Integração completa com MCP (60%)
@@ -209,6 +215,8 @@
 3. **Online learning** contínuo
 
 ### Concluídos Recentemente
+- ✅ **ML Online Learning** (2026-03-22) - ShadowValidator, RollbackManager, OnlineMonitor, DeploymentOrchestrator, 80/80 testes
+- ✅ **GAPS-04 Explainability API v3** (2026-03-22) - Hierarchical explanation, 217 testes, CounterfactualAnalyzer, TemporalTracker, deploy K8s
 - ✅ **Online Learning Core** (2026-03-19) - IncrementalLearner + ModelEnsemble, 32/32 testes
 - ✅ **Memory Layer API Tests Fix** (2026-03-19) - Sync E2E, 62/62 testes passando
 - ✅ **Scout Agents Expansion** (2026-03-19) - Multi-lingua AST (Java, C#, Go, C/C++, Rust), 20 padrões, Signals, Coordination, 412 testes
@@ -216,7 +224,6 @@
 - ✅ **GAPS-06 MCP Servers Integration** (2026-03-18) - HTTP servers, 16 testes, K8s deploy
 - ✅ **GAPS-05 Scout Agents** (2026-03-18) - 117 testes, exploração e descoberta autónoma
 - ✅ **Active Learning Feedback Collector** (2026-03-17) - 76 testes, ML v8 integration
-- ✅ **GAPS-04 Explainability API v3** (2026-03-22) - Hierarchical explanation, 217 testes, CounterfactualAnalyzer, TemporalTracker, deploy K8s
 - ✅ **GAPS-03 Consenso Hierárquico** (2026-03-17) - 5 níveis de senioridade, 132 testes
 
 ---
