@@ -436,7 +436,7 @@ class TestAuthInterceptorMetrics:
 
         # Verificar estado inicial
         initial_success = metrics.auth_attempts_total.labels(
-            "test-specialist", "success"
+            "test_specialist", "success"
         )._value.get()
 
         # Executar interceptor
@@ -444,7 +444,7 @@ class TestAuthInterceptorMetrics:
 
         # Verificar que métrica foi incrementada
         final_success = metrics.auth_attempts_total.labels(
-            "test-specialist", "success"
+            "test_specialist", "success"
         )._value.get()
         assert final_success > initial_success
 
@@ -459,7 +459,7 @@ class TestAuthInterceptorMetrics:
 
         # Verificar estado inicial
         initial_failure = metrics.auth_attempts_total.labels(
-            "test-specialist", "failure"
+            "test_specialist", "failure"
         )._value.get()
 
         # Executar interceptor
@@ -467,7 +467,7 @@ class TestAuthInterceptorMetrics:
 
         # Verificar que métrica foi incrementada
         final_failure = metrics.auth_attempts_total.labels(
-            "test-specialist", "failure"
+            "test_specialist", "failure"
         )._value.get()
         assert final_failure > initial_failure
 
@@ -480,7 +480,7 @@ class TestAuthInterceptorMetrics:
 
         # Verificar estado inicial
         initial_bypassed = metrics.auth_requests_total.labels(
-            "test-specialist", "/grpc.health.v1.Health/Check", "bypassed"
+            "test_specialist", "/grpc.health.v1.Health/Check", "bypassed"
         )._value.get()
 
         # Executar interceptor
@@ -488,7 +488,7 @@ class TestAuthInterceptorMetrics:
 
         # Verificar que métrica foi incrementada
         final_bypassed = metrics.auth_requests_total.labels(
-            "test-specialist", "/grpc.health.v1.Health/Check", "bypassed"
+            "test_specialist", "/grpc.health.v1.Health/Check", "bypassed"
         )._value.get()
         assert final_bypassed > initial_bypassed
 
@@ -503,7 +503,7 @@ class TestAuthInterceptorMetrics:
 
         # Verificar estado inicial
         initial_failed = metrics.auth_requests_total.labels(
-            "test-specialist",
+            "test_specialist",
             "/neural_hive.specialist.SpecialistService/EvaluatePlan",
             "failed",
         )._value.get()
@@ -513,7 +513,7 @@ class TestAuthInterceptorMetrics:
 
         # Verificar que métrica foi incrementada
         final_failed = metrics.auth_requests_total.labels(
-            "test-specialist",
+            "test_specialist",
             "/neural_hive.specialist.SpecialistService/EvaluatePlan",
             "failed",
         )._value.get()
@@ -549,7 +549,7 @@ class TestAuthInterceptorMetrics:
             for sample in initial_samples[0].samples:
                 if (
                     sample.name.endswith("_count")
-                    and sample.labels.get("specialist_type") == "test-specialist"
+                    and sample.labels.get("specialist_type") == "test_specialist"
                 ):
                     initial_count = sample.value
                     break
@@ -564,7 +564,7 @@ class TestAuthInterceptorMetrics:
             for sample in final_samples[0].samples:
                 if (
                     sample.name.endswith("_count")
-                    and sample.labels.get("specialist_type") == "test-specialist"
+                    and sample.labels.get("specialist_type") == "test_specialist"
                 ):
                     final_count = sample.value
                     break
