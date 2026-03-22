@@ -338,11 +338,36 @@ class V3ExplanationService:
         Returns:
             Dicionário com análise temporal ou None
         """
-        # Usar get_seniority_changes para obter histórico
-        seniority_changes = await self.temporal_tracker.get_seniority_changes(decision_id)
+        # Buscar votos primeiro para obter specialist_ids
+        votes = await self._get_decision_votes(decision_id)
+
+        if not votes:
+            return None
+
+        # Extrair specialist_ids dos votos
+        specialist_ids = [vote.get("specialist_id") for vote in votes if vote.get("specialist_id")]
+
+        if not specialist_ids:
+            # Fallback para specialist_type se não tiver specialist_id
+            specialist_ids = [vote.get("specialist_type") for vote in votes if vote.get("specialist_type")]
+
+        if not specialist_ids:
+            return None
+
+        # Usar get_seniority_changes com a lista de specialist_ids
+        seniority_changes = await self.temporal_tracker.get_seniority_changes(specialistist_ids)
 
         if not seniority_changes or "history" not in seniority_changes:
-            return None
+            # Retornar análise vazia se não houver histórico
+            return {
+                "decision_id": decision_id,
+                "temporal_analysis": {
+                    "current_seniority": "unknown",
+                    "history": [],
+                    "trend": "stable",
+                    "volatility": 0.0,
+                }
+            }
 
         # Construir análise temporal com o formato esperado
         temporal = {
