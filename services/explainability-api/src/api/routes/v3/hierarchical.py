@@ -35,11 +35,7 @@ class HierarchicalBreakdownResponse(BaseModel):
     decision_id: str = Field(..., description="ID da decisão")
     hierarchical_breakdown: Dict[str, Any] = Field(
         ...,
-        description={
-            "by_level": "Estatísticas por nível de senioridade",
-            "dominant_level": "Nível hierárquico dominante",
-            "consensus_strength": "Força do consenso (0.0 a 1.0)",
-        },
+        description="Breakdown hierárquico contendo: by_level (estatísticas por nível), dominant_level (nível dominante), consensus_strength (força do consenso 0.0-1.0)",
     )
     explanation_quality: Optional[Dict[str, float]] = Field(
         None, description="Métricas de qualidade da explicação"
@@ -52,10 +48,7 @@ class IndividualContributionsResponse(BaseModel):
     decision_id: str = Field(..., description="ID da decisão")
     individual_contributions: List[Dict[str, Any]] = Field(
         ...,
-        description=[
-            "Lista de contribuições individuais ordenadas por rank",
-            "Cada item contém: specialist_id, seniority_level, rank, contribution_score",
-        ],
+        description="Lista de contribuições individuais ordenadas por rank. Cada item contém: specialist_id, seniority_level, rank, contribution_score",
     )
     total_specialists: int = Field(..., description="Número total de especialistas")
 
@@ -66,10 +59,7 @@ class CounterfactualsResponse(BaseModel):
     decision_id: str = Field(..., description="ID da decisão")
     counterfactuals: List[Dict[str, Any]] = Field(
         ...,
-        description=[
-            "Lista de cenários contrafactuais",
-            "Cada item contém: scenario, flipped_decision, confidence_change",
-        ],
+        description="Lista de cenários contrafactuais. Cada item contém: scenario, flipped_decision, confidence_change",
     )
     sensitivity_score: float = Field(
         ...,
@@ -83,12 +73,7 @@ class TemporalAnalysisResponse(BaseModel):
     decision_id: str = Field(..., description="ID da decisão")
     temporal_analysis: Dict[str, Any] = Field(
         ...,
-        description={
-            "current_seniority": "Nível de senioridade atual",
-            "history": "Lista de mudanças de senioridade",
-            "trend": "Tendência (stable, upward, downward)",
-            "volatility": "Volatilidade da senioridade (0.0 a 1.0)",
-        },
+        description="Análise temporal contendo: current_seniority (nível atual), history (lista de mudanças), trend (tendência: stable/upward/downward), volatility (volatilidade 0.0-1.0)",
     )
 
 
