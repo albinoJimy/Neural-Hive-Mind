@@ -8,14 +8,87 @@ Tests cover:
 """
 
 import os
+import sys
 import tempfile
 import hashlib
 from datetime import datetime, timezone
 from unittest.mock import Mock, MagicMock, patch, call
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
+# Create mock modules for boto3 and google.cloud before importing storage_client
+# This allows tests to run even when these optional dependencies aren't installed
+
+# Mock boto3 and botocore
+mock_boto3 = ModuleType("boto3")
+mock_botocore = ModuleType("botocore")
+mock_botocore_config = ModuleType("botocore.config")
+
+class MockConfig:
+    """Mock botocore.config.Config."""
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+
+mock_boto3_client = Mock()
+
+def mock_boto3_client_factory(service, **kwargs):
+    """Mock boto3.client function."""
+    return mock_boto3_client
+
+mock_boto3.client = mock_boto3_client_factory
+mock_botocore_config.Config = MockConfig
+mock_botocore.config = mock_botocore_config
+
+sys.modules["boto3"] = mock_boto3
+sys.modules["botocore"] = mock_botocore
+sys.modules["botocore.config"] = mock_botocore_config
+
+# Mock google.cloud.storage and google.oauth2.service_account
+mock_google = ModuleType("google")
+mock_google_cloud = ModuleType("google.cloud")
+mock_storage = ModuleType("google.cloud.storage")
+mock_google_oauth2 = ModuleType("google.oauth2")
+mock_service_account = ModuleType("google.oauth2.service_account")
+
+class MockGCSCredentials:
+    """Mock google.oauth2.service_account.Credentials."""
+    @staticmethod
+    def from_service_account_file(filename):
+        return Mock()
+
+class MockGCSClient:
+    """Mock google.cloud.storage.Client."""
+    def __init__(self, project=None, credentials=None):
+        self.project = project
+        self.credentials = credentials
+        self._buckets = {}
+
+    def bucket(self, name):
+        if name not in self._buckets:
+            self._buckets[name] = Mock()
+        return self._buckets[name]
+
+    def list_blobs(self, bucket_name, prefix=None):
+        return []
+
+mock_storage.Client = MockGCSClient
+mock_service_account.Credentials = MockGCSCredentials
+
+# Set up the module hierarchy properly
+mock_google.cloud = mock_google_cloud
+mock_google_cloud.storage = mock_storage
+mock_google.oauth2 = mock_google_oauth2
+mock_google_oauth2.service_account = mock_service_account
+
+sys.modules["google"] = mock_google
+sys.modules["google.cloud"] = mock_google_cloud
+sys.modules["google.cloud.storage"] = mock_storage
+sys.modules["google.oauth2"] = mock_google_oauth2
+sys.modules["google.oauth2.service_account"] = mock_service_account
+
+# Now import the storage_client module
 from neural_hive_specialists.disaster_recovery.storage_client import (
     StorageClient,
     S3StorageClient,
@@ -35,23 +108,22 @@ class TestS3StorageClient:
     @pytest.fixture
     def mock_boto3_client(self):
         """Mock boto3 S3 client."""
-        with patch(
-            "neural_hive_specialists.disaster_recovery.storage_client.boto3"
-        ) as mock_boto3:
-            mock_client = Mock()
-            mock_boto3.client.return_value = mock_client
+        mock_client = Mock()
+        # Patch boto3.client to return our mock
+        with patch("boto3.client", return_value=mock_client):
             yield mock_client
 
     @pytest.fixture
     def s3_client(self, mock_boto3_client):
         """S3StorageClient instance with mocked boto3."""
-        return S3StorageClient(
-            bucket="test-bucket",
-            region="us-east-1",
-            prefix="backups",
-            aws_access_key="test-key",
-            aws_secret_key="test-secret",
-        )
+        with patch("boto3.client", return_value=mock_boto3_client):
+            return S3StorageClient(
+                bucket="test-bucket",
+                region="us-east-1",
+                prefix="backups",
+                aws_access_key="test-key",
+                aws_secret_key="test-secret",
+            )
 
     def test_s3_upload_with_encryption(self, s3_client, mock_boto3_client):
         """Test S3 upload includes ServerSideEncryption AES256."""
@@ -230,30 +302,27 @@ class TestGCSStorageClient:
     @pytest.fixture
     def mock_gcs_client(self):
         """Mock Google Cloud Storage client."""
-        with patch(
-            "neural_hive_specialists.disaster_recovery.storage_client.storage"
-        ) as mock_storage:
-            mock_client = Mock()
-            mock_bucket = Mock()
-            mock_client.bucket.return_value = mock_bucket
-            mock_storage.Client.return_value = mock_client
-            yield mock_client, mock_bucket
+        mock_client = Mock()
+        mock_bucket = Mock()
+        mock_client.bucket.return_value = mock_bucket
+        return mock_client, mock_bucket
 
     @pytest.fixture
     def gcs_client(self, mock_gcs_client):
         """GCSStorageClient instance with mocked GCS."""
-        return GCSStorageClient(
-            bucket="test-bucket", project="test-project", prefix="backups"
-        )
+        mock_client, mock_bucket = mock_gcs_client
+        with patch("google.cloud.storage.Client", return_value=mock_client):
+            return GCSStorageClient(
+                bucket="test-bucket", project="test-project", prefix="backups"
+            )
 
     def test_gcs_requires_project(self):
         """Test that GCS client requires project parameter."""
-        with patch("neural_hive_specialists.disaster_recovery.storage_client.storage"):
-            # Project is required in __init__
-            client = GCSStorageClient(
-                bucket="test-bucket", project="test-project", prefix="backups"
-            )
-            assert client.project == "test-project"
+        # Project is required in __init__
+        client = GCSStorageClient(
+            bucket="test-bucket", project="test-project", prefix="backups"
+        )
+        assert client.project == "test-project"
 
     def test_gcs_upload_with_metadata(self, gcs_client, mock_gcs_client):
         """Test GCS upload includes metadata (uploaded_at, source)."""
@@ -625,13 +694,10 @@ class TestStorageClientErrorHandling:
 
     def test_s3_handles_upload_exception(self):
         """Test S3 client handles upload exceptions gracefully."""
-        with patch(
-            "neural_hive_specialists.disaster_recovery.storage_client.boto3"
-        ) as mock_boto3:
-            mock_client = Mock()
-            mock_client.upload_file.side_effect = Exception("Network error")
-            mock_boto3.client.return_value = mock_client
+        mock_client = Mock()
+        mock_client.upload_file.side_effect = Exception("Network error")
 
+        with patch("boto3.client", return_value=mock_client):
             client = S3StorageClient(bucket="test-bucket", region="us-east-1")
 
             with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
@@ -647,17 +713,14 @@ class TestStorageClientErrorHandling:
 
     def test_gcs_handles_download_exception(self):
         """Test GCS client handles download exceptions gracefully."""
-        with patch(
-            "neural_hive_specialists.disaster_recovery.storage_client.storage"
-        ) as mock_storage:
-            mock_client = Mock()
-            mock_bucket = Mock()
-            mock_blob = Mock()
-            mock_blob.download_to_filename.side_effect = Exception("GCS error")
-            mock_bucket.blob.return_value = mock_blob
-            mock_client.bucket.return_value = mock_bucket
-            mock_storage.Client.return_value = mock_client
+        mock_client = Mock()
+        mock_bucket = Mock()
+        mock_blob = Mock()
+        mock_blob.download_to_filename.side_effect = Exception("GCS error")
+        mock_bucket.blob.return_value = mock_blob
+        mock_client.bucket.return_value = mock_bucket
 
+        with patch("google.cloud.storage.Client", return_value=mock_client):
             client = GCSStorageClient(bucket="test-bucket", project="test-project")
 
             with tempfile.TemporaryDirectory() as temp_dir:
