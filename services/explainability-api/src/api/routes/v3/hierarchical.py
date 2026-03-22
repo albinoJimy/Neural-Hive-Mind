@@ -247,14 +247,20 @@ class V3ExplanationService:
 
         # Análise temporal (opcional)
         if include_temporal:
-            seniority_changes = await self.temporal_tracker.get_seniority_changes(decision_id)
-            if seniority_changes and "history" in seniority_changes:
-                result["temporal_analysis"] = {
-                    "current_seniority": seniority_changes.get("current_seniority", "unknown"),
-                    "history": seniority_changes.get("history", []),
-                    "trend": seniority_changes.get("trend", "stable"),
-                    "volatility": seniority_changes.get("volatility", 0.0),
-                }
+            # Extrair specialist_ids dos votos
+            specialist_ids = [vote.get("specialist_id") for vote in votes if vote.get("specialist_id")]
+            if not specialist_ids:
+                # Fallback para specialist_type
+                specialist_ids = [vote.get("specialist_type") for vote in votes if vote.get("specialist_type")]
+            if specialist_ids:
+                seniority_changes = await self.temporal_tracker.get_seniority_changes(specialist_ids)
+                if seniority_changes and "history" in seniority_changes:
+                    result["temporal_analysis"] = {
+                        "current_seniority": seniority_changes.get("current_seniority", "unknown"),
+                        "history": seniority_changes.get("history", []),
+                        "trend": seniority_changes.get("trend", "stable"),
+                        "volatility": seniority_changes.get("volatility", 0.0),
+                    }
 
         return result
 
