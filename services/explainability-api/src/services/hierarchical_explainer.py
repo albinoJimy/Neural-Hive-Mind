@@ -82,9 +82,13 @@ class HierarchicalExplainer:
 
     def _normalize_votes(self, votes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-        Normaliza votos, adicionando campos de senioridade se faltar.
+        Normaliza votos, adaptando formato specialist_votes para v3.
 
-        Para decisões legadas (pré-GAPS-03), usa mid_level como default.
+        Mapeia:
+        - specialist_type -> seniority_level (via mapeamento)
+        - specialist_type/opinion_id -> specialist_id
+        - recommendation -> vote
+        - confidence_score -> confidence
 
         Args:
             votes: Lista de votos brutos
@@ -92,29 +96,47 @@ class HierarchicalExplainer:
         Returns:
             Lista de votos normalizados
         """
+        # Mapeamento specialist_type -> seniority_level
+        TYPE_TO_SENIORITY = {
+            "business": "senior",
+            "technical": "senior",
+            "architecture": "expert",
+            "behavior": "mid_level",
+            "evolution": "mid_level",
+        }
+
         normalized = []
 
         for vote in votes:
-            normalized_vote = vote.copy()
+            normalized_vote = {}
 
-            # Adicionar seniority_level se faltar
-            if (
-                "seniority_level" not in normalized_vote
-                or normalized_vote["seniority_level"] is None
-            ):
-                normalized_vote["seniority_level"] = self.DEFAULT_SENIORITY_LEVEL
-                self.logger.warning(
-                    "legacy_decision_no_seniority",
-                    specialist_id=vote.get("specialist_id"),
-                    default_level=self.DEFAULT_SENIORITY_LEVEL,
-                )
+            # Mapear identificador
+            specialist_type = vote.get("specialist_type", "unknown")
+            normalized_vote["specialist_id"] = vote.get("opinion_id", specialist_type)
+            normalized_vote["specialist_type"] = specialist_type
 
-            # Adicionar multiplier se faltar
-            if "seniority_multiplier" not in normalized_vote:
-                level = normalized_vote["seniority_level"]
+            # Mapear seniority
+            seniority_level = TYPE_TO_SENIORITY.get(specialist_type, "mid_level")
+            normalized_vote["seniority_level"] = seniority_level
+
+            # Mapear voto
+            recommendation = vote.get("recommendation", "neutral")
+            normalized_vote["vote"] = recommendation
+
+            # Mapear confiança
+            normalized_vote["confidence"] = vote.get("confidence_score", 0.5)
+
+            # Mapear peso (se existir)
+            if "weight" in vote:
+                normalized_vote["seniority_multiplier"] = vote["weight"]
+            else:
                 normalized_vote["seniority_multiplier"] = SENIORITY_MULTIPLIERS.get(
-                    level, 1.0
+                    seniority_level, 1.0
                 )
+
+            # Adicionar decision_id se existir
+            if "decision_id" in vote:
+                normalized_vote["decision_id"] = vote["decision_id"]
 
             normalized.append(normalized_vote)
 
