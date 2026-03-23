@@ -36,6 +36,7 @@ def specialist_config():
     return SpecialistConfig(
         specialist_type="test",
         service_name="test-specialist",
+        environment="test",
         mlflow_tracking_uri="http://localhost:5000",
         mlflow_experiment_name="test",
         mlflow_model_name="test-model",
@@ -47,16 +48,23 @@ def specialist_config():
         warmup_on_startup=True,
         opinion_cache_enabled=False,
         enable_drift_monitoring=False,
+        # Desabilitar autenticação JWT em testes unitários
+        enable_jwt_auth=False,
     )
 
 
 @pytest.fixture
 def specialist(specialist_config):
     """Especialista mock para testes."""
+    # Patch para evitar carregar modelos de embeddings durante testes
     with patch("neural_hive_specialists.base_specialist.MLflowClient"):
         with patch("neural_hive_specialists.base_specialist.LedgerClient"):
             with patch("neural_hive_specialists.base_specialist.FeatureStore"):
-                return MockSpecialist(specialist_config)
+                # Patch SentenceTransformer import in embeddings_generator
+                with patch.dict("sys.modules", {"sentence_transformers": MagicMock()}):
+                    with patch("neural_hive_specialists.feature_extraction.embeddings_generator.EmbeddingsGenerator._load_model", return_value=None):
+                        with patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer", return_value=None):
+                            return MockSpecialist(specialist_config)
 
 
 class TestWarmupSuccess:
