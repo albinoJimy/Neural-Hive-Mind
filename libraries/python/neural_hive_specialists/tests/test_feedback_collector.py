@@ -10,21 +10,6 @@ from neural_hive_specialists.config import SpecialistConfig
 
 
 @pytest.fixture
-def mock_config():
-    """Configuração mock para testes."""
-    return SpecialistConfig(
-        specialist_type="technical",
-        mongodb_uri="mongodb://localhost:27017",
-        mongodb_database="neural_hive_test",
-        mongodb_opinions_collection="cognitive_ledger",
-        feedback_mongodb_collection="specialist_feedback",
-        enable_feedback_collection=True,
-        feedback_rating_min=0.0,
-        feedback_rating_max=1.0,
-    )
-
-
-@pytest.fixture
 def mock_audit_logger():
     """AuditLogger mock."""
     return Mock()
@@ -40,6 +25,36 @@ def feedback_collector(mock_config, mock_audit_logger):
         # Mock circuit breaker para executar chamadas diretamente
         collector.breaker.call = Mock(side_effect=lambda fn: fn())
         return collector
+
+
+@pytest.fixture
+def sample_opinion_document():
+    """Documento de opinião completo para enriquecimento de feedback."""
+    return {
+        "opinion_id": "opinion-test123",
+        "plan_id": "plan-test456",
+        "specialist_type": "technical",
+        "intent_id": "intent-test123",
+        "trace_id": "trace-test123",
+        "opinion": {
+            "recommendation": "approve",
+            "confidence_score": 0.85,
+            "risk_score": 0.15,
+            "reasoning_factors": [
+                {
+                    "factor": "Technical feasibility",
+                    "weight": 0.3,
+                    "score": 0.9,
+                    "contribution": "positive",
+                }
+            ],
+        },
+        "cognitive_plan": {
+            "plan_id": "plan-test456",
+            "version": "1.0.0",
+            "tasks": [],
+        },
+    }
 
 
 @pytest.fixture
@@ -86,7 +101,7 @@ class TestFeedbackDocument:
             submitted_by="test",
         )
 
-        assert doc.schema_version == "1.0.0"
+        assert doc.schema_version == "2.0.0"
         assert doc.feedback_source == "human_expert"
         assert doc.feedback_notes == ""
         assert isinstance(doc.submitted_at, datetime)
@@ -114,10 +129,16 @@ class TestFeedbackCollector:
 
         assert result is False
 
-    def test_submit_feedback_success(self, feedback_collector, sample_feedback_data):
+    def test_submit_feedback_success(
+        self, feedback_collector, sample_feedback_data, sample_opinion_document
+    ):
         """Teste de submissão bem-sucedida."""
         feedback_collector.validate_opinion_exists = Mock(return_value=True)
         feedback_collector._collection.insert_one = Mock()
+        # Mock para enriquecimento de feedback
+        feedback_collector._opinions_collection.find_one.return_value = (
+            sample_opinion_document
+        )
 
         feedback_id = feedback_collector.submit_feedback(sample_feedback_data)
 
@@ -139,21 +160,30 @@ class TestFeedbackCollector:
             feedback_collector.submit_feedback({})
 
     def test_submit_feedback_invalid_rating(
-        self, feedback_collector, sample_feedback_data, mock_config
+        self, feedback_collector, sample_feedback_data, sample_opinion_document
     ):
         """Teste de submissão com rating inválido."""
         feedback_collector.validate_opinion_exists = Mock(return_value=True)
+        # Mock para enriquecimento de feedback
+        feedback_collector._opinions_collection.find_one.return_value = (
+            sample_opinion_document
+        )
         sample_feedback_data["human_rating"] = 1.5  # Fora do range
 
-        with pytest.raises(ValueError, match="Rating deve estar entre"):
+        # Pydantic valida antes da validação customizada - erro é sobre o valor máximo
+        with pytest.raises(ValueError, match="Validação de feedback falhou"):
             feedback_collector.submit_feedback(sample_feedback_data)
 
     def test_submit_feedback_audits_submission(
-        self, feedback_collector, sample_feedback_data, mock_audit_logger
+        self, feedback_collector, sample_feedback_data, sample_opinion_document, mock_audit_logger
     ):
         """Teste de auditoria de submissão."""
         feedback_collector.validate_opinion_exists = Mock(return_value=True)
         feedback_collector._collection.insert_one = Mock()
+        # Mock para enriquecimento de feedback
+        feedback_collector._opinions_collection.find_one.return_value = (
+            sample_opinion_document
+        )
         feedback_collector.audit_logger = mock_audit_logger
 
         feedback_collector.submit_feedback(sample_feedback_data)
@@ -220,11 +250,15 @@ class TestFeedbackCollector:
         assert "reject" in stats["distribution"]
 
     def test_circuit_breaker_usage_on_insert(
-        self, feedback_collector, sample_feedback_data
+        self, feedback_collector, sample_feedback_data, sample_opinion_document
     ):
         """Teste que circuit breaker é usado em inserts."""
         feedback_collector.validate_opinion_exists = Mock(return_value=True)
         feedback_collector._collection.insert_one = Mock()
+        # Mock para enriquecimento de feedback
+        feedback_collector._opinions_collection.find_one.return_value = (
+            sample_opinion_document
+        )
 
         feedback_collector.submit_feedback(sample_feedback_data)
 
