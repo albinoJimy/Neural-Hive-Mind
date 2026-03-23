@@ -69,7 +69,8 @@ class TestBuildEvaluatePlanResponseTimestamp:
         # Verificar conversão para datetime
         dt = timestamp.ToDatetime()
         assert isinstance(dt, datetime), "Conversão ToDatetime deve retornar datetime"
-        assert dt.tzinfo is not None, "Datetime deve ter timezone"
+        # Nota: Timestamp.ToDatetime() do protobuf não preserva timezone (limitação conhecida)
+        # O timestamp armazena corretamente seconds desde epoch UTC
 
     def test_timestamp_validation_catches_invalid_seconds(self, servicer, monkeypatch):
         """
@@ -159,9 +160,11 @@ class TestBuildEvaluatePlanResponseTimestamp:
         assert 0 <= timestamp.nanos < 1_000_000_000, "Nanos deve estar no range válido"
 
         # Verificar conversão reversa
+        # Nota: ToDatetime() não preserva timezone, então removemos antes de comparar
+        test_dt_naive = test_dt.replace(tzinfo=None)
         converted_dt = timestamp.ToDatetime()
         # Precisão de microsegundos pode ter pequenas diferenças
-        time_diff = abs((converted_dt - test_dt).total_seconds())
+        time_diff = abs((converted_dt - test_dt_naive).total_seconds())
         assert time_diff < 0.001, "Conversão deve preservar precisão dentro de 1ms"
 
     def test_evaluate_plan_includes_valid_timestamp(self, servicer, mock_specialist):

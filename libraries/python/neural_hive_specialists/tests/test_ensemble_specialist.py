@@ -12,12 +12,32 @@ from neural_hive_specialists.ensemble_specialist import EnsembleSpecialist
 from neural_hive_specialists.config import SpecialistConfig
 
 
+# Classe concreta para testes (implementa métodos abstratos)
+class ConcreteEnsembleSpecialist(EnsembleSpecialist):
+    """Implementação concreta de EnsembleSpecialist para testes."""
+
+    def _get_specialist_type(self) -> str:
+        return "technical"
+
+    def _load_model(self):
+        return None  # Mock para testes
+
+    def _evaluate_plan_internal(self, cognitive_plan, context):
+        return {
+            "opinion_id": "test-opinion",
+            "recommendation": "approve",
+            "confidence_score": 0.8,
+            "risk_score": 0.2,
+        }
+
+
 @pytest.fixture
 def ensemble_config():
     """Configuração para ensemble specialist."""
     return SpecialistConfig(
         specialist_type="technical",
         service_name="test-ensemble-specialist",
+        environment="test",  # Ambiente de teste
         mlflow_tracking_uri="http://localhost:5000",
         mlflow_experiment_name="test-ensemble",
         mlflow_model_name="technical-ensemble",
@@ -25,6 +45,7 @@ def ensemble_config():
         redis_cluster_nodes="localhost:6379",
         neo4j_uri="bolt://localhost:7687",
         neo4j_password="test",
+        enable_jwt_auth=False,  # Desabilitar JWT em testes
         enable_ensemble=True,
         ensemble_models=["model-rf", "model-gb", "model-lr"],
         ensemble_stages=["Production"],
@@ -39,7 +60,7 @@ def ensemble_config():
 def mock_mlflow_client():
     """Mock do MLflowClient."""
     with patch(
-        "neural_hive_specialists.ensemble_specialist.MLflowClient"
+        "neural_hive_specialists.base_specialist.MLflowClient"
     ) as mock_client:
         client_instance = MagicMock()
 
@@ -63,10 +84,10 @@ def mock_mlflow_client():
 @pytest.fixture
 def ensemble_specialist(ensemble_config, mock_mlflow_client):
     """Instância de EnsembleSpecialist configurada."""
-    with patch("neural_hive_specialists.base_specialist.LedgerWriter"), patch(
-        "neural_hive_specialists.base_specialist.RedisCache"
+    with patch("neural_hive_specialists.base_specialist.LedgerClient"), patch(
+        "neural_hive_specialists.base_specialist.OpinionCache"
     ), patch("neural_hive_specialists.base_specialist.FeatureStore"):
-        specialist = EnsembleSpecialist(config=ensemble_config)
+        specialist = ConcreteEnsembleSpecialist(config=ensemble_config)
         specialist.mlflow_client = mock_mlflow_client
 
         # Mock dos modelos carregados
@@ -113,10 +134,10 @@ class TestEnsembleSpecialistLoading:
         assert len(ensemble_config.ensemble_stages) == 1
         assert len(ensemble_config.ensemble_models) == 3
 
-        with patch("neural_hive_specialists.base_specialist.LedgerWriter"), patch(
-            "neural_hive_specialists.base_specialist.RedisCache"
+        with patch("neural_hive_specialists.base_specialist.LedgerClient"), patch(
+            "neural_hive_specialists.base_specialist.OpinionCache"
         ), patch("neural_hive_specialists.base_specialist.FeatureStore"):
-            specialist = EnsembleSpecialist(config=ensemble_config)
+            specialist = ConcreteEnsembleSpecialist(config=ensemble_config)
             specialist.mlflow_client = mock_mlflow_client
 
             # Simular carregamento

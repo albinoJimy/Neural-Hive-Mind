@@ -18,6 +18,10 @@ class SpecialistMetrics:
         self.specialist_type = specialist_type
         self.config = config
 
+        # Sanitizar specialist_type para uso em nomes de métricas Prometheus
+        # Prometheus não permite hífens em nomes de métricas, apenas [a-zA-Z0-9_:]
+        self._sanitized_type = specialist_type.replace("-", "_")
+
         # Contadores de avaliações
         self._total_evaluations = 0
         self._success_evaluations = 0
@@ -172,32 +176,32 @@ class SpecialistMetrics:
 
         # Métricas de modelo ML
         self.model_inference_duration = Histogram(
-            f"{self.specialist_type}_model_inference_duration_seconds",
+            f"{self._sanitized_type}_model_inference_duration_seconds",
             "Tempo de inferência do modelo ML",
             ["specialist_type", "model_version"],
         )
 
         self.model_inference_total = Counter(
-            f"{self.specialist_type}_model_inference_total",
+            f"{self._sanitized_type}_model_inference_total",
             "Total de inferências de modelo",
             ["specialist_type", "status"],  # status: success, timeout, error
         )
 
         self.model_fallback_total = Counter(
-            f"{self.specialist_type}_model_fallback_total",
+            f"{self._sanitized_type}_model_fallback_total",
             "Total de fallbacks para heurísticas",
             ["specialist_type", "reason"],  # reason: timeout, error, unavailable
         )
 
         # Métricas de feature extraction
         self.feature_extraction_duration = Histogram(
-            f"{self.specialist_type}_feature_extraction_duration_seconds",
+            f"{self._sanitized_type}_feature_extraction_duration_seconds",
             "Tempo de extração de features",
             ["specialist_type"],
         )
 
         self.feature_vector_size = Gauge(
-            f"{self.specialist_type}_feature_vector_size",
+            f"{self._sanitized_type}_feature_vector_size",
             "Tamanho do vetor de features",
             ["specialist_type"],
         )

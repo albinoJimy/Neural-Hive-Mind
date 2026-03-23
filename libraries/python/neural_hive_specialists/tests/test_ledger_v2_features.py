@@ -294,8 +294,11 @@ class TestLedgerClientV2Integration:
         assert "content_hash" in call_args
         assert "signature_algorithm" in call_args
         assert call_args["specialist_version"] == "1.0.0"
-        assert call_args["trace_id"] == "test-trace-id"
-        assert call_args["span_id"] == "test-span-id"
+        # trace_id e span_id são criptografados pelo FieldEncryptor
+        assert "trace_id" in call_args
+        assert call_args["trace_id"].startswith("enc:")
+        assert "span_id" in call_args
+        assert call_args["span_id"].startswith("enc:")
         assert call_args["processing_time_ms"] == 150
         assert opinion_id is not None
 

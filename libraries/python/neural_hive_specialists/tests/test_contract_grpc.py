@@ -13,36 +13,12 @@ from neural_hive_specialists.proto_gen import specialist_pb2
 @pytest.mark.contract
 def test_evaluate_plan_request_response_contract(grpc_stub, sample_cognitive_plan):
     """Valida contrato de EvaluatePlan: estrutura request/response."""
-    # Construir CognitivePlan protobuf
-    tasks = [
-        specialist_pb2.Task(
-            task_id=task["task_id"],
-            task_type=task["task_type"],
-            name=task["name"],
-            description=task["description"],
-            dependencies=task["dependencies"],
-            estimated_duration_ms=task["estimated_duration_ms"],
-            required_capabilities=task["required_capabilities"],
-            parameters=task["parameters"],
-            metadata=task.get("metadata", {}),
-        )
-        for task in sample_cognitive_plan["tasks"]
-    ]
+    import json
 
-    plan = specialist_pb2.CognitivePlan(
-        plan_id=sample_cognitive_plan["plan_id"],
-        version=sample_cognitive_plan["version"],
-        intent_id=sample_cognitive_plan["intent_id"],
-        tasks=tasks,
-        execution_order=sample_cognitive_plan["execution_order"],
-        original_domain=sample_cognitive_plan["original_domain"],
-        original_priority=sample_cognitive_plan["original_priority"],
-        original_security_level=sample_cognitive_plan["original_security_level"],
-        risk_score=sample_cognitive_plan["risk_score"],
-        risk_band=sample_cognitive_plan["risk_band"],
-        complexity_score=sample_cognitive_plan["complexity_score"],
-        metadata=sample_cognitive_plan.get("metadata", {}),
-    )
+    # cognitive_plan é um campo bytes contendo JSON serializado
+    # Não usar mensagens protobuf Task/CognitivePlan (não existem mais)
+    cognitive_plan_json = json.dumps(sample_cognitive_plan)
+    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
 
     request = specialist_pb2.EvaluatePlanRequest(
         plan_id=sample_cognitive_plan["plan_id"],
@@ -52,7 +28,7 @@ def test_evaluate_plan_request_response_contract(grpc_stub, sample_cognitive_pla
         correlation_id=sample_cognitive_plan.get(
             "correlation_id", f"corr-{uuid.uuid4()}"
         ),
-        plan=plan,
+        cognitive_plan=cognitive_plan_bytes,
     )
 
     # Executar chamada gRPC
@@ -62,7 +38,7 @@ def test_evaluate_plan_request_response_contract(grpc_stub, sample_cognitive_pla
     assert response.opinion_id
     assert response.specialist_type == "test"
     assert response.specialist_version
-    assert response.processing_time_ms > 0
+    assert response.processing_time_ms >= 0  # 0 é válido para mocks rápidos
 
     # Validar opinion
     assert response.opinion.confidence_score >= 0.0
@@ -84,32 +60,15 @@ def test_evaluate_plan_request_response_contract(grpc_stub, sample_cognitive_pla
 @pytest.mark.contract
 def test_evaluate_plan_metadata_propagation(grpc_stub, sample_cognitive_plan):
     """Valida propagação de metadados (trace_id, span_id, correlation_id)."""
+    import json
+
     trace_id = f"trace-{uuid.uuid4()}"
     span_id = f"span-{uuid.uuid4()}"
     correlation_id = f"corr-{uuid.uuid4()}"
 
-    tasks = [
-        specialist_pb2.Task(
-            task_id=task["task_id"],
-            task_type=task["task_type"],
-            name=task["name"],
-            description=task["description"],
-            dependencies=task["dependencies"],
-            estimated_duration_ms=task["estimated_duration_ms"],
-            required_capabilities=task["required_capabilities"],
-            parameters=task["parameters"],
-        )
-        for task in sample_cognitive_plan["tasks"]
-    ]
-
-    plan = specialist_pb2.CognitivePlan(
-        plan_id=sample_cognitive_plan["plan_id"],
-        version=sample_cognitive_plan["version"],
-        intent_id=sample_cognitive_plan["intent_id"],
-        tasks=tasks,
-        execution_order=sample_cognitive_plan["execution_order"],
-        original_domain=sample_cognitive_plan["original_domain"],
-    )
+    # cognitive_plan é bytes JSON, não mensagem protobuf
+    cognitive_plan_json = json.dumps(sample_cognitive_plan)
+    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
 
     request = specialist_pb2.EvaluatePlanRequest(
         plan_id=sample_cognitive_plan["plan_id"],
@@ -117,7 +76,7 @@ def test_evaluate_plan_metadata_propagation(grpc_stub, sample_cognitive_plan):
         trace_id=trace_id,
         span_id=span_id,
         correlation_id=correlation_id,
-        plan=plan,
+        cognitive_plan=cognitive_plan_bytes,
     )
 
     # Adicionar metadados gRPC
@@ -174,16 +133,20 @@ def test_get_capabilities_contract(grpc_stub):
 def test_evaluate_plan_invalid_plan_id_error_mapping(grpc_stub):
     """Valida mapeamento de erro para plan_id inválido."""
     # Criar request com plan_id vazio (inválido)
-    plan = specialist_pb2.CognitivePlan(
-        plan_id="",  # Inválido
-        version="1.0.0",
-        intent_id="intent-123",
-        tasks=[],
-        execution_order=[],
-    )
+    # cognitive_plan é bytes JSON, não mensagem protobuf
+    import json
+    plan_data = {
+        "plan_id": "",  # Inválido
+        "version": "1.0.0",
+        "intent_id": "intent-123",
+        "tasks": [],
+        "execution_order": [],
+    }
+    cognitive_plan_bytes = json.dumps(plan_data).encode('utf-8')
 
     request = specialist_pb2.EvaluatePlanRequest(
-        plan_id="", intent_id="intent-123", trace_id="trace-123", plan=plan
+        plan_id="", intent_id="intent-123", trace_id="trace-123",
+        cognitive_plan=cognitive_plan_bytes
     )
 
     # Executar chamada gRPC - deve falhar ou retornar erro
@@ -203,34 +166,17 @@ def test_evaluate_plan_invalid_plan_id_error_mapping(grpc_stub):
 @pytest.mark.contract
 def test_evaluate_plan_reasoning_factors_structure(grpc_stub, sample_cognitive_plan):
     """Valida estrutura de reasoning_factors em response."""
-    # Configurar mock para retornar reasoning_factors
-    tasks = [
-        specialist_pb2.Task(
-            task_id=task["task_id"],
-            task_type=task["task_type"],
-            name=task["name"],
-            description=task["description"],
-            dependencies=task["dependencies"],
-            estimated_duration_ms=task["estimated_duration_ms"],
-            required_capabilities=task["required_capabilities"],
-        )
-        for task in sample_cognitive_plan["tasks"]
-    ]
+    import json
 
-    plan = specialist_pb2.CognitivePlan(
-        plan_id=sample_cognitive_plan["plan_id"],
-        version=sample_cognitive_plan["version"],
-        intent_id=sample_cognitive_plan["intent_id"],
-        tasks=tasks,
-        execution_order=sample_cognitive_plan["execution_order"],
-        original_domain=sample_cognitive_plan["original_domain"],
-    )
+    # cognitive_plan é bytes JSON, não mensagem protobuf
+    cognitive_plan_json = json.dumps(sample_cognitive_plan)
+    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
 
     request = specialist_pb2.EvaluatePlanRequest(
         plan_id=sample_cognitive_plan["plan_id"],
         intent_id=sample_cognitive_plan["intent_id"],
         trace_id=f"trace-{uuid.uuid4()}",
-        plan=plan,
+        cognitive_plan=cognitive_plan_bytes,
     )
 
     response = grpc_stub.EvaluatePlan(request)
@@ -249,33 +195,17 @@ def test_evaluate_plan_reasoning_factors_structure(grpc_stub, sample_cognitive_p
 @pytest.mark.contract
 def test_evaluate_plan_mitigations_structure(grpc_stub, sample_cognitive_plan):
     """Valida estrutura de mitigations em response."""
-    tasks = [
-        specialist_pb2.Task(
-            task_id=task["task_id"],
-            task_type=task["task_type"],
-            name=task["name"],
-            description=task["description"],
-            dependencies=task["dependencies"],
-            estimated_duration_ms=task["estimated_duration_ms"],
-            required_capabilities=task["required_capabilities"],
-        )
-        for task in sample_cognitive_plan["tasks"]
-    ]
+    import json
 
-    plan = specialist_pb2.CognitivePlan(
-        plan_id=sample_cognitive_plan["plan_id"],
-        version=sample_cognitive_plan["version"],
-        intent_id=sample_cognitive_plan["intent_id"],
-        tasks=tasks,
-        execution_order=sample_cognitive_plan["execution_order"],
-        original_domain=sample_cognitive_plan["original_domain"],
-    )
+    # cognitive_plan é bytes JSON, não mensagem protobuf
+    cognitive_plan_json = json.dumps(sample_cognitive_plan)
+    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
 
     request = specialist_pb2.EvaluatePlanRequest(
         plan_id=sample_cognitive_plan["plan_id"],
         intent_id=sample_cognitive_plan["intent_id"],
         trace_id=f"trace-{uuid.uuid4()}",
-        plan=plan,
+        cognitive_plan=cognitive_plan_bytes,
     )
 
     response = grpc_stub.EvaluatePlan(request)

@@ -146,6 +146,8 @@ def mock_config():
         enable_ledger=False,
         ledger_required=False,
         enable_query_api=False,
+        # Desabilitar autenticação JWT em testes unitários
+        enable_jwt_auth=False,
     )
 
 
@@ -341,7 +343,7 @@ def sample_opinion() -> Dict[str, Any]:
         "plan_id": f"plan-{uuid.uuid4()}",
         "intent_id": f"intent-{uuid.uuid4()}",
         "correlation_id": f"corr-{uuid.uuid4()}",
-        "recommendation": "proceed",
+        "recommendation": "approve",
         "confidence_score": 0.85,
         "risk_score": 0.2,
         "estimated_effort_hours": 8.5,

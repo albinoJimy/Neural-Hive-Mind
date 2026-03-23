@@ -28,7 +28,8 @@ class TestOpinionCacheInitialization:
             assert cache.is_connected() is True
             assert cache.cache_ttl_seconds == 3600
             assert cache.specialist_type == "technical"
-            mock_redis.return_value.ping.assert_called_once()
+            # ping é chamado na inicialização e no is_connected()
+            assert mock_redis.return_value.ping.call_count == 2
 
     def test_init_failure_continues_without_cache(self):
         """Testa que falha na inicialização não quebra o sistema."""
@@ -105,8 +106,9 @@ class TestCacheKeyGeneration:
 
         key = cache.generate_cache_key(plan_bytes, "technical", "1.0.0")
 
-        assert key.startswith("test:technical:1.0.0:")
-        assert len(key.split(":")) == 4  # prefix:type:version:hash
+        # Formato: prefix:tenant:type:version:hash
+        assert key.startswith("test:default:technical:1.0.0:")
+        assert len(key.split(":")) == 5  # prefix:tenant:type:version:hash
 
 
 class TestCacheOperations:
@@ -252,7 +254,8 @@ class TestConnectionManagement:
     def test_is_connected_false_after_ping_failure(self):
         """Testa que is_connected retorna False após falha de ping."""
         with patch("neural_hive_specialists.opinion_cache.RedisCluster") as mock_redis:
-            mock_redis.return_value.ping.side_effect = [True, RedisError("Ping failed")]
+            # side_effect: init(True), is_connected #1(True), is_connected #2(exceção)
+            mock_redis.return_value.ping.side_effect = [True, True, RedisError("Ping failed")]
 
             cache = OpinionCache(
                 redis_cluster_nodes="localhost:6379", specialist_type="technical"

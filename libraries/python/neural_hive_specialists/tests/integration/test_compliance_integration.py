@@ -26,16 +26,28 @@ from neural_hive_specialists.config import SpecialistConfig
 @pytest.fixture
 def integration_config():
     """Cria configuração para testes de integração."""
-    config = SpecialistConfig()
-    config.enable_compliance_layer = True
-    config.enable_pii_detection = False  # Desabilitar Presidio para testes rápidos
-    config.enable_field_encryption = True
-    config.enable_audit_logging = True
-    config.encryption_key_path = "/tmp/test_encryption_key.key"
-    config.fields_to_encrypt = ["correlation_id", "trace_id", "span_id"]
-    config.audit_log_collection = "test_audit_logs"
-    config.audit_log_retention_days = 90
-    config.enable_correlation_hash = True
+    config = SpecialistConfig(
+        specialist_type="business",
+        service_name="test-compliance-specialist",
+        environment="test",  # Ambiente de teste
+        mlflow_tracking_uri="http://localhost:5000",
+        mlflow_experiment_name="test-experiment",
+        mlflow_model_name="test-model",
+        mongodb_uri="mongodb://localhost:27017",
+        redis_cluster_nodes="localhost:6379",
+        neo4j_uri="bolt://localhost:7687",
+        neo4j_password="test",
+        enable_jwt_auth=False,  # Desabilitar JWT em testes
+        enable_compliance_layer=True,
+        enable_pii_detection=False,  # Desabilitar Presidio para testes rápidos
+        enable_field_encryption=True,
+        enable_audit_logging=True,
+        encryption_key_path="/tmp/test_encryption_key.key",
+        fields_to_encrypt=["correlation_id", "trace_id", "span_id"],
+        audit_log_collection="test_audit_logs",
+        audit_log_retention_days=90,
+        enable_correlation_hash=True,
+    )
     return config
 
 

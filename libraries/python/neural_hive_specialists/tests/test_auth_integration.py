@@ -226,13 +226,23 @@ class TestAuthenticatedRequests:
             metadata = [("authorization", f"Bearer {valid_token}")]
 
             # Chamar EvaluatePlan
+            # cognitive_plan é bytes JSON serializado
+            import json
+            cognitive_plan_json = json.dumps({
+                "plan_id": "test-plan-123",
+                "intent_id": "test-intent-456",
+                "version": "1.0.0",
+                "tasks": [],
+                "execution_order": [],
+                "original_domain": "test",
+                "original_priority": "normal",
+                "risk_score": 0.3,
+            })
             request = specialist_pb2.EvaluatePlanRequest(
                 plan_id="test-plan-123",
                 intent_id="test-intent-456",
                 trace_id="test-trace-789",
-                plan=specialist_pb2.ExecutionPlan(
-                    plan_id="test-plan-123", description="Test plan"
-                ),
+                cognitive_plan=cognitive_plan_json.encode('utf-8'),
             )
             response = stub.EvaluatePlan(request, metadata=metadata, timeout=2)
 
@@ -256,9 +266,7 @@ class TestAuthenticatedRequests:
                 plan_id="test-plan-123",
                 intent_id="test-intent-456",
                 trace_id="test-trace-789",
-                plan=specialist_pb2.ExecutionPlan(
-                    plan_id="test-plan-123", description="Test plan"
-                ),
+                cognitive_plan=b'{"plan_id": "test-plan-123", "version": "1.0.0"}',
             )
 
             # Deve lançar exceção UNAUTHENTICATED
@@ -283,9 +291,7 @@ class TestAuthenticatedRequests:
                 plan_id="test-plan-123",
                 intent_id="test-intent-456",
                 trace_id="test-trace-789",
-                plan=specialist_pb2.ExecutionPlan(
-                    plan_id="test-plan-123", description="Test plan"
-                ),
+                cognitive_plan=b'{"plan_id": "test-plan-123", "version": "1.0.0"}',
             )
 
             # Deve lançar exceção UNAUTHENTICATED
@@ -310,9 +316,7 @@ class TestAuthenticatedRequests:
                 plan_id="test-plan-123",
                 intent_id="test-intent-456",
                 trace_id="test-trace-789",
-                plan=specialist_pb2.ExecutionPlan(
-                    plan_id="test-plan-123", description="Test plan"
-                ),
+                cognitive_plan=b'{"plan_id": "test-plan-123", "version": "1.0.0"}',
             )
 
             # Deve lançar exceção UNAUTHENTICATED
@@ -433,7 +437,7 @@ class TestMetricsIntegration:
                 plan_id="test",
                 intent_id="test",
                 trace_id="test",
-                plan=specialist_pb2.ExecutionPlan(plan_id="test", description="test"),
+                cognitive_plan=b'{"plan_id": "test", "version": "1.0.0"}',
             )
 
             with pytest.raises(grpc.RpcError):

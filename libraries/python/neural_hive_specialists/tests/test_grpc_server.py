@@ -1078,6 +1078,7 @@ class TestHealthServicer:
     def test_check_serving(self):
         """Testa Check quando status é SERVING."""
         from neural_hive_specialists.grpc_server import HealthServicer
+        from grpc_health.v1 import health_pb2
 
         specialist = Mock()
         specialist.health_check.return_value = {"status": "SERVING", "details": {}}
@@ -1088,11 +1089,13 @@ class TestHealthServicer:
 
         response = servicer.Check(request, context)
 
-        assert response["status"] == 1  # SERVING
+        # Protobuf usa atributo, não subscrito
+        assert response.status == health_pb2.HealthCheckResponse.SERVING
 
     def test_check_not_serving(self):
         """Testa Check quando status é NOT_SERVING."""
         from neural_hive_specialists.grpc_server import HealthServicer
+        from grpc_health.v1 import health_pb2
 
         specialist = Mock()
         specialist.health_check.return_value = {"status": "NOT_SERVING", "details": {}}
@@ -1103,11 +1106,13 @@ class TestHealthServicer:
 
         response = servicer.Check(request, context)
 
-        assert response["status"] == 2  # NOT_SERVING
+        # Protobuf usa atributo, não subscrito
+        assert response.status == health_pb2.HealthCheckResponse.NOT_SERVING
 
     def test_check_handles_exception(self):
         """Testa Check quando ocorre exceção."""
         from neural_hive_specialists.grpc_server import HealthServicer
+        from grpc_health.v1 import health_pb2
 
         specialist = Mock()
         specialist.health_check.side_effect = RuntimeError("Error")
@@ -1118,11 +1123,13 @@ class TestHealthServicer:
 
         response = servicer.Check(request, context)
 
-        assert response["status"] == 2  # NOT_SERVING
+        # Protobuf usa atributo, não subscrito
+        assert response.status == health_pb2.HealthCheckResponse.NOT_SERVING
 
     def test_watch_streaming(self):
         """Testa Watch (streaming)."""
         from neural_hive_specialists.grpc_server import HealthServicer
+        from grpc_health.v1 import health_pb2
 
         specialist = Mock()
         specialist.health_check.return_value = {"status": "SERVING", "details": {}}
@@ -1134,4 +1141,5 @@ class TestHealthServicer:
         responses = list(servicer.Watch(request, context))
 
         assert len(responses) == 1
-        assert responses[0]["status"] == 1  # SERVING
+        # Protobuf usa atributo, não subscrito
+        assert responses[0].status == health_pb2.HealthCheckResponse.SERVING

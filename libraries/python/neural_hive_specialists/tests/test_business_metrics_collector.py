@@ -97,9 +97,18 @@ def collector(mock_config, mock_metrics_registry):
     ):
         collector = BusinessMetricsCollector(mock_config, mock_metrics_registry)
 
-        # Mock das collections
-        collector._ledger_client = Mock()
-        collector._consensus_client = Mock()
+        # Mock das collections - precisam ser subscriptáveis (client[db][collection])
+        # Usar MagicMock que suporta __getitem__ automaticamente
+        mock_ledger_collection = MagicMock()
+        mock_consensus_collection = MagicMock()
+
+        # Configurar cliente mock para retornar a collection correta
+        # ledger_client[database][collection] -> mock_ledger_collection
+        collector._ledger_client = MagicMock()
+        collector._ledger_client.__getitem__.return_value.__getitem__.return_value = mock_ledger_collection
+
+        collector._consensus_client = MagicMock()
+        collector._consensus_client.__getitem__.return_value.__getitem__.return_value = mock_consensus_collection
 
         return collector
 
@@ -453,17 +462,20 @@ class TestCollectBusinessMetrics:
 
     def test_no_data(self, collector):
         """Testa quando não há dados para processar."""
-        with patch.object(collector, "ledger_collection") as mock_ledger, patch.object(
-            collector, "consensus_collection"
-        ) as mock_consensus:
-            mock_ledger.find.return_value = []
-            mock_consensus.find.return_value = []
+        # Mock das collections diretamente (já criadas pelo fixture)
+        # A propriedade ledger_collection retorna mock_ledger_db[self.ledger_database]
+        # que por sua vez retorna mock_ledger_collection
+        mock_ledger_collection = collector._ledger_client.__getitem__.return_value
+        mock_consensus_collection = collector._consensus_client.__getitem__.return_value
 
-            result = collector.collect_business_metrics()
+        mock_ledger_collection.find.return_value = []
+        mock_consensus_collection.find.return_value = []
 
-            assert result["status"] == "no_data"
-            assert result["opinions"] == 0
-            assert result["decisions"] == 0
+        result = collector.collect_business_metrics()
+
+        assert result["status"] == "no_data"
+        assert result["opinions"] == 0
+        assert result["decisions"] == 0
 
     @patch("requests.post")
     def test_successful_collection(self, mock_post, collector, mock_metrics_registry):
@@ -520,35 +532,36 @@ class TestCollectBusinessMetrics:
             },
         ]
 
-        with patch.object(collector, "ledger_collection") as mock_ledger, patch.object(
-            collector, "consensus_collection"
-        ) as mock_consensus:
-            mock_ledger.find.return_value = opinions
-            mock_consensus.find.return_value = decisions
+        # Mock das collections diretamente (já criadas pelo fixture)
+        mock_ledger_collection = collector._ledger_client.__getitem__.return_value.__getitem__.return_value
+        mock_consensus_collection = collector._consensus_client.__getitem__.return_value.__getitem__.return_value
 
-            # Mock execution outcomes
-            mock_response = Mock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "tickets": [{"plan_id": "plan1", "status": "COMPLETED"}]
-            }
-            mock_post.return_value = mock_response
+        mock_ledger_collection.find.return_value = opinions
+        mock_consensus_collection.find.return_value = decisions
 
-            result = collector.collect_business_metrics()
+        # Mock execution outcomes
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "tickets": [{"plan_id": "plan1", "status": "COMPLETED"}]
+        }
+        mock_post.return_value = mock_response
 
-            # Verificar resultado
-            assert result["status"] == "success"
-            assert result["opinions_processed"] == 3
-            assert result["decisions_processed"] == 2
-            assert result["correlations_created"] == 3
-            assert result["specialists_updated"] == 2  # technical e business
+        result = collector.collect_business_metrics()
 
-            # Verificar que métricas Prometheus foram atualizadas
-            technical_metrics = mock_metrics_registry["technical"]
-            summary = technical_metrics.get_summary()
+        # Verificar resultado
+        assert result["status"] == "success"
+        assert result["opinions_processed"] == 3
+        assert result["decisions_processed"] == 2
+        assert result["correlations_created"] == 3
+        assert result["specialists_updated"] == 2  # technical e business
 
-            # Technical teve 1 TP e 1 TN
-            assert "business_metrics" in summary
+        # Verificar que métricas Prometheus foram atualizadas
+        technical_metrics = mock_metrics_registry["technical"]
+        summary = technical_metrics.get_summary()
+
+        # Technical teve 1 TP e 1 TN
+        assert "business_metrics" in summary
 
     def test_cache_usage(self, collector):
         """Testa uso de cache."""
@@ -567,20 +580,25 @@ class TestCollectBusinessMetrics:
             }
         ]
 
-        with patch.object(collector, "ledger_collection") as mock_ledger, patch.object(
-            collector, "consensus_collection"
-        ) as mock_consensus:
-            mock_ledger.find.return_value = opinions
-            mock_consensus.find.return_value = decisions
+        # Mock das collections diretamente (já criadas pelo fixture)
+        mock_ledger_collection = collector._ledger_client.__getitem__.return_value.__getitem__.return_value
+        mock_consensus_collection = collector._consensus_client.__getitem__.return_value.__getitem__.return_value
 
-            # Primeira chamada
-            result1 = collector.collect_business_metrics()
-            assert result1["status"] == "success"
+        mock_ledger_collection.find.return_value = opinions
+        mock_consensus_collection.find.return_value = decisions
 
-            # Segunda chamada (deve usar cache)
-            result2 = collector.collect_business_metrics()
-            assert result2["status"] == "success"
+        # Primeira chamada
+        result1 = collector.collect_business_metrics()
+        assert result1["status"] == "success"
 
-            # MongoDB deve ter sido chamado apenas uma vez
-            assert mock_ledger.find.call_count == 1
-            assert mock_consensus.find.call_count == 1
+        # Guardar contagem após primeira chamada
+        ledger_find_count_after_first = mock_ledger_collection.find.call_count
+        consensus_find_count_after_first = mock_consensus_collection.find.call_count
+
+        # Segunda chamada (deve usar cache)
+        result2 = collector.collect_business_metrics()
+        assert result2["status"] == "success"
+
+        # MongoDB não deve ter sido chamado novamente (cache funcionou)
+        assert mock_ledger_collection.find.call_count == ledger_find_count_after_first
+        assert mock_consensus_collection.find.call_count == consensus_find_count_after_first

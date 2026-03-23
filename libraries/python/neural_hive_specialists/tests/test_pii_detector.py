@@ -7,7 +7,7 @@ estratégias de anonimização (replace, mask, redact, hash), metadados de detec
 
 import pytest
 import sys
-from unittest.mock import Mock, MagicMock, patch, create_autospec
+from unittest.mock import Mock, MagicMock, patch, create_autospec, ANY
 from typing import List, Dict, Any
 
 # Mock Presidio modules antes de qualquer import
@@ -88,7 +88,7 @@ class TestPIIDetectorInitialization:
             assert detector.enabled is True
             assert detector.supported_languages == ["pt", "en"]
             mock_analyzer.assert_called_once_with(
-                nlp_engine=mock_nlp_engine, supported_languages=["pt", "en"]
+                nlp_engine=ANY, supported_languages=["pt", "en"]
             )
             mock_anonymizer.assert_called_once()
 

@@ -14,13 +14,21 @@ def mock_config():
     """Configuração mock para testes."""
     return SpecialistConfig(
         specialist_type="technical",
+        service_name="test-retraining-specialist",
+        environment="test",  # Ambiente de teste
         mongodb_uri="mongodb://localhost:27017",
         mongodb_database="neural_hive_test",
+        enable_jwt_auth=False,  # Desabilitar JWT em testes
         enable_retraining_trigger=True,
         retraining_feedback_threshold=100,
         retraining_feedback_window_days=7,
         retraining_mlflow_project_uri="./ml_pipelines/training",
         mlflow_tracking_uri="http://localhost:5000",
+        mlflow_experiment_name="test-experiment",
+        mlflow_model_name="test-model",
+        redis_cluster_nodes="localhost:6379",
+        neo4j_uri="bolt://localhost:7687",
+        neo4j_password="test",
     )
 
 
