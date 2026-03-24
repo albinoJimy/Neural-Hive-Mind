@@ -33,8 +33,8 @@ from .models import (
 
 # Core components
 from .fingerprint_extractor import FingerprintExtractor
-# from .pattern_matcher import PatternMatcher
-# from .weight_adapter import WeightAdapter
+from .pattern_matcher import PatternMatcher
+from .weight_adapter import WeightAdapter
 from .pattern_registry import PatternRegistry
 # from .feedback_consumer import EvolutionFeedbackConsumer
 
@@ -53,8 +53,8 @@ __all__ = [
     "DEFAULT_WEIGHTS",
     # Core components (uncomment as implemented)
     "FingerprintExtractor",
-    # "PatternMatcher",
-    # "WeightAdapter",
+    "PatternMatcher",
+    "WeightAdapter",
     "PatternRegistry",
     # "EvolutionFeedbackConsumer",
 ]
