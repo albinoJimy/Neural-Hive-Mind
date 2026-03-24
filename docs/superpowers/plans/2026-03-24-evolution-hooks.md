@@ -55,6 +55,7 @@ services/specialist-evolution/
 - Create: `libraries/python/neural_hive_specialists/evolution_hooks/pattern_registry.py`
 - Create: `libraries/python/neural_hive_specialists/evolution_hooks/migrations/__init__.py`
 - Create: `libraries/python/neural_hive_specialists/evolution_hooks/migrations/m001_create_pattern_registry.py`
+- Create: `libraries/python/neural_hive_specialists/tests/evolution_hooks/conftest.py`
 
 - [ ] **Step 1: Create module init**
 
@@ -368,7 +369,7 @@ class PatternRegistry:
                 similar.append(PatternRecord(**doc))
 
         # Ordenar por similaridade
-        similar.sort(key=lambda x: x.fingerprint.task_types, reverse=True)
+        similar.sort(key=lambda x: x._similarity_score, reverse=True)
         return similar[:limit]
 
     def _calculate_jaccard(self, set1: set, set2: set) -> float:
@@ -701,6 +702,104 @@ git commit -m "feat(evolution-hooks): add models and pattern registry
 - Add unit tests for models and registry
 
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
+```
+
+- [ ] **Step 9: Create test fixtures (conftest.py)**
+
+```python
+# libraries/python/neural_hive_specialists/tests/evolution_hooks/conftest.py
+"""Pytest fixtures for evolution hooks tests."""
+
+import pytest
+import os
+from motor.motor_async import AsyncIOMotorClient
+
+
+@pytest.fixture
+async def mongo_client():
+    """
+    MongoDB client para testes.
+
+    Usa variável de ambiente MONGODB_TEST_URL ou localhost.
+    """
+    mongo_url = os.getenv("MONGODB_TEST_URL", "mongodb://localhost:27017")
+    client = AsyncIOMotorClient(mongo_url)
+
+    # Criar database de teste
+    db = client.get_database("test_neural_hive_specialists")
+
+    yield client
+
+    # Cleanup: fechar conexão
+    client.close()
+
+
+@pytest.fixture
+async def clean_registry(mongo_client):
+    """
+    Registry limpo para cada teste.
+
+    Uso: adicione este fixture aos testes que precisam de DB limpo.
+    """
+    client = mongo_client
+    db = client.get_database("test_neural_hive_specialists")
+
+    # Limpar coleção antes do teste
+    await db.evolution_pattern_registry.delete_many({})
+
+    yield
+
+    # Limpar após o teste
+    await db.evolution_pattern_registry.delete_many({})
+
+
+@pytest.fixture
+def mock_kafka_consumer():
+    """Mock Kafka consumer para testes de integração."""
+    class MockKafkaConsumer:
+        def __init__(self, topic, group_id):
+            self.topic = topic
+            self.group_id = group_id
+            self.messages = []
+
+        async def getone(self):
+            """Simula consumo com timeout."""
+            import asyncio
+            await asyncio.sleep(0.01)
+            if self.messages:
+                return self.messages.pop(0)
+            return None
+
+        def add_message(self, message):
+            """Adiciona mensagem para consumo."""
+            self.messages.append(message)
+
+    return MockKafkaConsumer
+
+
+@pytest.fixture
+def mock_aiokafka_consumer():
+    """Mock específico para aiokafka.AIOKafkaConsumer."""
+    class MockAIOKafkaConsumer:
+        async def start(self):
+            pass
+
+        async def stop(self):
+            pass
+
+        async def getone(self):
+            import asyncio
+            await asyncio.sleep(0.01)
+            return None
+
+    return MockAIOKafkaConsumer()
+```
+
+- [ ] **Step 10: Verify fixtures work**
+
+```bash
+# Testar que fixtures carregam corretamente
+pytest libraries/python/neural_hive_specialists/tests/evolution_hooks/conftest.py --collect-only
 ```
 
 ---
@@ -1447,10 +1546,14 @@ class WeightAdapter:
             fingerprint: Fingerprint do plano atual
 
         Returns:
-            Dict com pesos adaptados (ou defaults se insuficiente histórico)
+            Dict com pesos adaptados (ou defaults se insuficiente histórico ou erro)
         """
-        # Buscar padrões similares
-        similar = await self.matcher.find_similar(fingerprint)
+        try:
+            # Buscar padrões similares
+            similar = await self.matcher.find_similar(fingerprint)
+        except Exception as e:
+            self.logger.warning("Failed to find similar patterns, using defaults", error=str(e))
+            return DEFAULT_WEIGHTS.copy()
 
         if len(similar) < self.min_similar_patterns:
             self.logger.debug(
@@ -1745,10 +1848,27 @@ from neural_hive_specialists.evolution_hooks import (
 
         if self.config.evolution_hooks_enabled and self.fingerprint_extractor:
             fingerprint = self.fingerprint_extractor.extract(cognitive_plan)
-            adaptive_weights = await self.weight_adapter.adapt_weights(fingerprint)
+            # NOTA: adapt_weights é async, mas _evaluate_plan_internal é sync
+            # Usar asyncio.create_task com callback ou executar em background
+            # Por now, usar fallback síncrono para não bloquear avaliação
+            try:
+                import asyncio
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # Se já temos um loop rodando (ex: em servidor async),
+                    # criar task em background e usar pesos default por enquanto
+                    asyncio.create_task(self._update_adaptive_weights_cache(fingerprint))
+                else:
+                    # Se não há loop, podemos rodar síncrono
+                    adaptive_weights = loop.run_until_complete(
+                        self.weight_adapter.adapt_weights(fingerprint)
+                    )
+            except Exception as e:
+                self.logger.warning("Failed to get adaptive weights, using defaults", error=str(e))
+
             self.logger.debug(
                 "Adaptive weights calculated",
-                weights=adaptive_weights,
+                has_adaptive_weights=adaptive_weights is not None,
                 fingerprint=fingerprint.complexity_signature
             )
 
@@ -2012,11 +2132,27 @@ class EvolutionFeedbackConsumer:
         self.logger.info("Stopped feedback consumer")
 
     async def _poll_with_timeout(self, consumer, timeout: float):
-        """Poll com timeout."""
-        # Implementação depende da biblioteca Kafka (aiokafka, kafka-python, etc.)
-        # Placeholder para integração real
-        await asyncio.sleep(0.1)
-        return None
+        """
+        Poll com timeout usando aiokafka.
+
+        Args:
+            consumer: Instância de aiokafka.AIOKafkaConsumer
+            timeout: Timeout em segundos
+
+        Returns:
+            Mensagem ou None em caso de timeout
+        """
+        try:
+            msg = await asyncio.wait_for(
+                consumer.getone(),
+                timeout=timeout
+            )
+            return msg
+        except asyncio.TimeoutError:
+            return None
+        except Exception as e:
+            self.logger.error("Error polling kafka", error=str(e))
+            return None
 
     async def _process_message_async(self, raw_message):
         """Processa mensagem de forma assíncrona."""
@@ -2505,7 +2641,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 
 ## Summary Checklist
 
-- [ ] Task 1: Foundation - Models and Database Schema (75 testes)
+- [ ] Task 1: Foundation - Models and Database Schema (~25 testes)
 - [ ] Task 2: Fingerprint Extractor (15 testes)
 - [ ] Task 3: Pattern Matcher (20 testes)
 - [ ] Task 4: Weight Adapter (25 testes)
@@ -2514,7 +2650,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 - [ ] Task 7: E2E Tests and Final Verification (5 testes)
 - [ ] Task 8: Documentation and Deploy Preparation
 
-**Total: ~160 testes**
+**Total: ~110 testes**
 
 ---
 
