@@ -61,16 +61,7 @@ def upgrade(mongo_client):
     else:
         print("Index idx_times_matched already exists")
 
-    # Índice 4: plan_id (para busca rápida)
-    if "idx_plan_id" not in index_names:
-        collection.create_index([
-            ("plan_id", 1)
-        ], name="idx_plan_id", unique=True)
-        print("Created index: idx_plan_id (unique)")
-    else:
-        print("Index idx_plan_id already exists")
-
-    # Índice 5: TTL - remove registros antigos após 90 dias
+    # Índice 4: TTL - remove registros antigos após 90 dias
     if "idx_ttl" not in index_names:
         collection.create_index([
             ("created_at", 1)
