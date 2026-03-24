@@ -7,7 +7,7 @@ meta-learning baseado em histórico.
 """
 
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import structlog
 
 try:
@@ -79,10 +79,10 @@ class PatternRegistry:
             "metrics": {
                 "times_matched": 0,
                 "success_rate": 0.5,
-                "last_updated": datetime.utcnow()
+                "last_updated": datetime.now(timezone.utc)
             },
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
         }
 
         result = await self.collection.insert_one(doc)
@@ -110,16 +110,17 @@ class PatternRegistry:
         Returns:
             True se atualizado, False se não encontrado
         """
+        feedback_dict = feedback.model_dump()
+        # Adicionar pesos corrigidos ao dict de feedback antes de criar o update
+        if corrected_weights:
+            feedback_dict["corrected_weights"] = corrected_weights
+
         update_doc = {
             "$set": {
-                "feedback": feedback.model_dump(),
-                "updated_at": datetime.utcnow()
+                "feedback": feedback_dict,
+                "updated_at": datetime.now(timezone.utc)
             }
         }
-
-        # Adicionar pesos corrigidos se fornecidos
-        if corrected_weights:
-            update_doc["$set"]["feedback.corrected_weights"] = corrected_weights
 
         result = await self.collection.update_one(
             {"plan_id": plan_id},
@@ -246,7 +247,7 @@ class PatternRegistry:
             "$inc": {"metrics.times_matched": 1},
             "$set": {
                 "metrics.success_rate": new_rate,
-                "metrics.last_updated": datetime.utcnow()
+                "metrics.last_updated": datetime.now(timezone.utc)
             }
         }
 
@@ -381,10 +382,10 @@ class SyncPatternRegistry:
             "metrics": {
                 "times_matched": 0,
                 "success_rate": 0.5,
-                "last_updated": datetime.utcnow()
+                "last_updated": datetime.now(timezone.utc)
             },
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
         }
 
         result = self.collection.insert_one(doc)
@@ -407,15 +408,17 @@ class SyncPatternRegistry:
         Returns:
             True se atualizado, False se não encontrado
         """
+        feedback_dict = feedback.model_dump()
+        # Adicionar pesos corrigidos ao dict de feedback antes de criar o update
+        if corrected_weights:
+            feedback_dict["corrected_weights"] = corrected_weights
+
         update_doc = {
             "$set": {
-                "feedback": feedback.model_dump(),
-                "updated_at": datetime.utcnow()
+                "feedback": feedback_dict,
+                "updated_at": datetime.now(timezone.utc)
             }
         }
-
-        if corrected_weights:
-            update_doc["$set"]["feedback.corrected_weights"] = corrected_weights
 
         result = self.collection.update_one(
             {"plan_id": plan_id},
@@ -496,7 +499,7 @@ class SyncPatternRegistry:
             "$inc": {"metrics.times_matched": 1},
             "$set": {
                 "metrics.success_rate": new_rate,
-                "metrics.last_updated": datetime.utcnow()
+                "metrics.last_updated": datetime.now(timezone.utc)
             }
         }
 

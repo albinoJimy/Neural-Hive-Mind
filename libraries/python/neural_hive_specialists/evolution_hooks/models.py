@@ -6,7 +6,7 @@ do Evolution Specialist, incluindo fingerprints de planos, registros de
 padrões, avaliações e feedback.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from enum import Enum
@@ -100,7 +100,7 @@ class PatternMetrics(BaseModel):
     """
     times_matched: int = Field(default=0, ge=0, description="Vezes usado como similar")
     success_rate: float = Field(default=0.5, ge=0, le=1, description="Taxa de sucesso")
-    last_updated: datetime = Field(default_factory=datetime.utcnow, description="Última atualização")
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Última atualização")
 
 
 class FeedbackOutcome(str, Enum):
@@ -127,7 +127,7 @@ class FeedbackData(BaseModel):
     source: FeedbackSource = Field(..., description="Origem do feedback")
     reasoning: Optional[str] = Field(None, description="Justificativa do feedback")
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Timestamp do feedback"
     )
     corrected_weights: Optional[Dict[str, float]] = Field(
@@ -153,18 +153,15 @@ class PatternRecord(BaseModel):
         description="Métricas de aprendizado"
     )
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Timestamp de criação"
     )
     updated_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Timestamp da última atualização"
     )
 
-    model_config = ConfigDict(
-        populate_by_name=True,
-        json_encoders={datetime: lambda v: v.isoformat()}
-    )
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class FeedbackMessage(BaseModel):

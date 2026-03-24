@@ -6,7 +6,7 @@ do sistema Evolution Hooks.
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import Mock
 
 
@@ -54,6 +54,23 @@ async def mongo_client():
             return self
 
         async def to_list(self, length=None):
+            # Se foi chamado após aggregate(), retornar resultados agregados
+            if hasattr(self, '_aggregate_pipeline'):
+                pipeline = self._aggregate_pipeline
+                # Suportar agregação $group básica para domain_distribution
+                for stage in pipeline:
+                    if "$group" in stage:
+                        group_spec = stage["$group"]
+                        if "_id" in group_spec and group_spec["_id"] == "$fingerprint.domain":
+                            # Agrupar por domain
+                            domain_counts = {}
+                            for pid, pdoc in self.data.items():
+                                domain = pdoc.get("fingerprint", {}).get("domain", "unknown")
+                                domain_counts[domain] = domain_counts.get(domain, 0) + 1
+                            return [{"_id": d, "count": c} for d, c in domain_counts.items()]
+                # Fallback para agregações não suportadas
+                return []
+            # find() normal
             results = []
             for pid, pdoc in self.data.items():
                 results.append({**pdoc, "_id": pid})
@@ -63,10 +80,13 @@ async def mongo_client():
             result = Mock()
             result.modified_count = 0
 
-            if "$set" in update_doc and "plan_id" in query:
+            if "plan_id" in query:
                 for pid, pdoc in self.data.items():
                     if pdoc.get("plan_id") == query["plan_id"]:
-                        pdoc.update(update_doc["$set"])
+                        # Aplicar $set
+                        if "$set" in update_doc:
+                            pdoc.update(update_doc["$set"])
+                        # Aplicar $inc (separado do $set)
                         if "$inc" in update_doc:
                             for key, val in update_doc["$inc"].items():
                                 parts = key.split(".")
@@ -81,16 +101,22 @@ async def mongo_client():
             return result
 
         async def count_documents(self, query=None):
+            if query is None:
+                return len(self.data)
+            # Filtragem básica por domínio se presente na query
+            if "fingerprint.domain" in query:
+                count = 0
+                for pid, pdoc in self.data.items():
+                    if pdoc.get("fingerprint", {}).get("domain") == query["fingerprint.domain"]:
+                        count += 1
+                return count
+            # Para outras queries, retorna total (simplificado)
             return len(self.data)
-
-        def to_list(self, length=None):
-            results = []
-            for pid, pdoc in self.data.items():
-                results.append({**pdoc, "_id": pid})
-            return results[:getattr(self, '_limit', len(results))]
 
         def aggregate(self, pipeline):
             # Simular agregação simples para domain_distribution
+            # Retorna self para suportar chaining
+            self._aggregate_pipeline = pipeline
             return self
 
     class AsyncMockMongoDatabase:
@@ -207,7 +233,7 @@ def sample_feedback():
         outcome=FeedbackOutcome.APPROVE,
         source=FeedbackSource.HUMAN,
         reasoning="Approved after review",
-        timestamp=datetime.utcnow()
+        timestamp=datetime.now(timezone.utc)
     )
 
 
