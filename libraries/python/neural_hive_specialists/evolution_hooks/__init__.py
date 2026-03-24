@@ -32,7 +32,7 @@ from .models import (
 )
 
 # Core components
-# from .fingerprint_extractor import FingerprintExtractor
+from .fingerprint_extractor import FingerprintExtractor
 # from .pattern_matcher import PatternMatcher
 # from .weight_adapter import WeightAdapter
 from .pattern_registry import PatternRegistry
@@ -52,7 +52,7 @@ __all__ = [
     "DurationRange",
     "DEFAULT_WEIGHTS",
     # Core components (uncomment as implemented)
-    # "FingerprintExtractor",
+    "FingerprintExtractor",
     # "PatternMatcher",
     # "WeightAdapter",
     "PatternRegistry",
