@@ -1848,21 +1848,21 @@ from neural_hive_specialists.evolution_hooks import (
 
         if self.config.evolution_hooks_enabled and self.fingerprint_extractor:
             fingerprint = self.fingerprint_extractor.extract(cognitive_plan)
-            # NOTA: adapt_weights é async, mas _evaluate_plan_internal é sync
-            # Usar asyncio.create_task com callback ou executar em background
-            # Por now, usar fallback síncrono para não bloquear avaliação
+            # Tentar obter pesos adaptativos de forma não-bloqueante
             try:
                 import asyncio
                 loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # Se já temos um loop rodando (ex: em servidor async),
-                    # criar task em background e usar pesos default por enquanto
-                    asyncio.create_task(self._update_adaptive_weights_cache(fingerprint))
-                else:
-                    # Se não há loop, podemos rodar síncrono
-                    adaptive_weights = loop.run_until_complete(
-                        self.weight_adapter.adapt_weights(fingerprint)
-                    )
+                if loop and not loop.is_closed():
+                    # Tentar rodar async code de forma síncrona
+                    # Se não funcionar, usa pesos default
+                    try:
+                        adaptive_weights = loop.run_until_complete(
+                            self.weight_adapter.adapt_weights(fingerprint)
+                        )
+                    except RuntimeError:
+                        # Loop já está rodando - não podemos rodar async code
+                        self.logger.debug("Event loop running, using default weights")
+                        adaptive_weights = None
             except Exception as e:
                 self.logger.warning("Failed to get adaptive weights, using defaults", error=str(e))
 
@@ -1913,7 +1913,7 @@ from neural_hive_specialists.evolution_hooks import (
                 'num_tasks': len(tasks),
                 # Evolution hooks metadata
                 'adaptive_weights': adaptive_weights or weights_to_use,
-                'fingerprint': fingerprint.to_dict() if fingerprint else None,
+                'fingerprint': fingerprint.model_dump() if fingerprint else None,
                 'learning_enabled': self.config.evolution_hooks_enabled
             }
         }
@@ -2641,16 +2641,16 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 
 ## Summary Checklist
 
-- [ ] Task 1: Foundation - Models and Database Schema (~25 testes)
-- [ ] Task 2: Fingerprint Extractor (15 testes)
-- [ ] Task 3: Pattern Matcher (20 testes)
-- [ ] Task 4: Weight Adapter (25 testes)
-- [ ] Task 5: Evolution Specialist Integration (10 testes)
-- [ ] Task 6: Feedback Consumer (10 testes)
-- [ ] Task 7: E2E Tests and Final Verification (5 testes)
+- [ ] Task 1: Foundation - Models and Database Schema (~10 testes)
+- [ ] Task 2: Fingerprint Extractor (~5 testes)
+- [ ] Task 3: Pattern Matcher (~3 testes)
+- [ ] Task 4: Weight Adapter (~5 testes)
+- [ ] Task 5: Evolution Specialist Integration (~3 testes)
+- [ ] Task 6: Feedback Consumer (~3 testes)
+- [ ] Task 7: E2E Tests and Final Verification (~3 testes)
 - [ ] Task 8: Documentation and Deploy Preparation
 
-**Total: ~110 testes**
+**Total: ~32 testes**
 
 ---
 
